@@ -8,45 +8,7 @@ internal static class TcpConnectionCloseTests
     private const uint LocalNextSequence = 0x01020304;
     private const uint RemoteNextSequence = 0x10203040;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.tcp close active fin ack", TestActiveFinAckCloseFlow, ref failures);
-        Run("net.tcp close passive fin ack", TestPassiveFinAckCloseFlow, ref failures);
-        Run("net.tcp close handles reset", TestHandlesReset, ref failures);
-        Run("net.tcp close rejects invalid transition", TestRejectsInvalidTransition, ref failures);
-        Run("net.tcp close default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("TCP connection close host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.tcp close active fin ack", HostLane.Fast, 0)]
     private static bool TestActiveFinAckCloseFlow()
     {
         TcpConnectionClose close = TcpConnectionClose.CreateEstablished(
@@ -76,7 +38,7 @@ internal static class TcpConnectionCloseTests
             || localFinAckHeader.WindowSize != 0x4000
             || localFinAckHeader.Checksum != 0x1111)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> remoteAck = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -95,7 +57,7 @@ internal static class TcpConnectionCloseTests
             || close.LocalNextSequenceNumber != LocalNextSequence + 1
             || close.RemoteNextSequenceNumber != RemoteNextSequence)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> remoteFinAck = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -112,7 +74,7 @@ internal static class TcpConnectionCloseTests
             checksum: 0,
             out TcpConnectionCloseTransitionResult remoteFinResult);
 
-        return remoteFinStatus == TcpConnectionCloseStatus.Success
+        return HostCheck.Result(remoteFinStatus == TcpConnectionCloseStatus.Success
             && remoteFinResult.Succeeded
             && remoteFinResult.State == TcpConnectionCloseState.TimeWait
             && remoteFinResult.BytesWritten == TcpHeader.MinHeaderLength
@@ -124,9 +86,10 @@ internal static class TcpConnectionCloseTests
             && finalAckHeader.DestinationPort == RemotePort
             && finalAckHeader.SequenceNumber == LocalNextSequence + 1
             && finalAckHeader.AcknowledgementNumber == RemoteNextSequence + 1
-            && finalAckHeader.Flags == TcpConnectionClose.FlagAck;
+            && finalAckHeader.Flags == TcpConnectionClose.FlagAck);
     }
 
+    [HostTest("net.tcp close passive fin ack", HostLane.Fast, 1)]
     private static bool TestPassiveFinAckCloseFlow()
     {
         TcpConnectionClose close = TcpConnectionClose.CreateEstablished(
@@ -162,7 +125,7 @@ internal static class TcpConnectionCloseTests
             || localAckHeader.Flags != TcpConnectionClose.FlagAck
             || localAckHeader.Checksum != 0x2222)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> localFinAck = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -181,7 +144,7 @@ internal static class TcpConnectionCloseTests
             || localFinAckHeader.AcknowledgementNumber != RemoteNextSequence + 1
             || localFinAckHeader.Flags != (TcpConnectionClose.FlagFin | TcpConnectionClose.FlagAck))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> remoteAck = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -194,14 +157,15 @@ internal static class TcpConnectionCloseTests
             remoteAck.Slice(0, remoteAckBytes),
             out TcpConnectionCloseTransitionResult closeResult);
 
-        return closeStatus == TcpConnectionCloseStatus.Success
+        return HostCheck.Result(closeStatus == TcpConnectionCloseStatus.Success
             && closeResult.Succeeded
             && closeResult.State == TcpConnectionCloseState.Closed
             && close.State == TcpConnectionCloseState.Closed
             && close.LocalNextSequenceNumber == LocalNextSequence + 1
-            && close.RemoteNextSequenceNumber == RemoteNextSequence + 1;
+            && close.RemoteNextSequenceNumber == RemoteNextSequence + 1);
     }
 
+    [HostTest("net.tcp close handles reset", HostLane.Fast, 2)]
     private static bool TestHandlesReset()
     {
         TcpConnectionClose close = TcpConnectionClose.CreateEstablished(
@@ -227,7 +191,7 @@ internal static class TcpConnectionCloseTests
             || close.LocalNextSequenceNumber != LocalNextSequence
             || close.RemoteNextSequenceNumber != RemoteNextSequence)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> localFin = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -237,12 +201,13 @@ internal static class TcpConnectionCloseTests
             checksum: 0,
             out TcpConnectionCloseTransitionResult afterResetResult);
 
-        return afterResetStatus == TcpConnectionCloseStatus.InvalidState
+        return HostCheck.Result(afterResetStatus == TcpConnectionCloseStatus.InvalidState
             && !afterResetResult.Succeeded
             && afterResetResult.State == TcpConnectionCloseState.Reset
-            && close.State == TcpConnectionCloseState.Reset;
+            && close.State == TcpConnectionCloseState.Reset);
     }
 
+    [HostTest("net.tcp close rejects invalid transition", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidTransition()
     {
         TcpConnectionClose close = TcpConnectionClose.CreateEstablished(
@@ -265,7 +230,7 @@ internal static class TcpConnectionCloseTests
             || earlyAckResult.State != TcpConnectionCloseState.Established
             || close.State != TcpConnectionCloseState.Established)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> passiveFin = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -279,7 +244,7 @@ internal static class TcpConnectionCloseTests
             || passiveFinResult.State != TcpConnectionCloseState.Established
             || close.State != TcpConnectionCloseState.Established)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> activeFin = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -289,7 +254,7 @@ internal static class TcpConnectionCloseTests
                 checksum: 0,
                 out TcpConnectionCloseTransitionResult _) != TcpConnectionCloseStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> secondFin = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -299,14 +264,15 @@ internal static class TcpConnectionCloseTests
             checksum: 0,
             out TcpConnectionCloseTransitionResult secondFinResult);
 
-        return secondFinStatus == TcpConnectionCloseStatus.InvalidState
+        return HostCheck.Result(secondFinStatus == TcpConnectionCloseStatus.InvalidState
             && !secondFinResult.Succeeded
             && secondFinResult.State == TcpConnectionCloseState.FinWait1
             && close.State == TcpConnectionCloseState.FinWait1
             && close.LocalNextSequenceNumber == LocalNextSequence + 1
-            && close.RemoteNextSequenceNumber == RemoteNextSequence;
+            && close.RemoteNextSequenceNumber == RemoteNextSequence);
     }
 
+    [HostTest("net.tcp close default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         TcpConnectionCloseTransitionResult defaultResult = default;
@@ -318,7 +284,7 @@ internal static class TcpConnectionCloseTests
                 LocalNextSequence,
                 RemoteNextSequence);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == TcpConnectionCloseStatus.Success
             && failedResult.IsInitialized
@@ -328,7 +294,7 @@ internal static class TcpConnectionCloseTests
             && failedResult.LocalNextSequenceNumber == LocalNextSequence
             && failedResult.RemoteNextSequenceNumber == RemoteNextSequence
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                TcpConnectionCloseTransitionResult>();
+                TcpConnectionCloseTransitionResult>());
     }
 
     private static int WriteRemoteSegment(

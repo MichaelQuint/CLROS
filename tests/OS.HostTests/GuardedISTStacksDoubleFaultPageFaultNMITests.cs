@@ -15,7 +15,7 @@ internal static class GuardedISTStacksDoubleFaultPageFaultNMITests
         "nmiIst=3 writable=true executable=false allocationFree=true " +
         "guestAllocation=false guestTss=false guestIdt=false";
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START m02.008");
@@ -43,26 +43,8 @@ internal static class GuardedISTStacksDoubleFaultPageFaultNMITests
 
     private static void Run(string name, Func<bool> test, ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + name + " " +
-                exception.GetType().Name + ": " + exception.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestExactLayout()

@@ -102,7 +102,7 @@ processes, Kestrel, hosted .NET, networking, storage, or supervisor behavior.
 QEMU smoke wrapper default:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun
 ```
 
 Expected evidence includes:
@@ -115,7 +115,7 @@ TEST_PASS workload.profile.tooling default single
 Explicit multi-profile dry run:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -WorkloadProfile MultiMinimalApi
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun -WorkloadProfile MultiMinimalApi
 ```
 
 Expected evidence includes:

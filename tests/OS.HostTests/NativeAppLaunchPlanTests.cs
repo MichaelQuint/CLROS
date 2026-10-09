@@ -5,56 +5,14 @@ using OS.Manifest;
 
 internal static class NativeAppLaunchPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("appmodel launch plan accepts manifest", TestAcceptsManifest, ref failures);
-        Run("appmodel launch plan accepts packaged native app", TestAcceptsPackagedNativeApp, ref failures);
-        Run("appmodel launch plan carries environment fields", TestCarriesEnvironmentFields, ref failures);
-        Run("appmodel launch plan records listen endpoint", TestRecordsListenEndpoint, ref failures);
-        Run("appmodel launch plan requires network for listen endpoint", TestRequiresNetworkForListenEndpoint, ref failures);
-        Run("appmodel launch plan rejects missing capabilities", TestRejectsMissingCapabilities, ref failures);
-        Run("appmodel launch plan rejects malformed requirements", TestRejectsMalformedRequirements, ref failures);
-        Run("appmodel launch plan uses shared memory dot segment helper", TestUsesSharedMemoryDotSegmentHelper, ref failures);
-        Run("appmodel launch plan uses shared ascii listen-host helper", TestUsesSharedAsciiListenHostHelper, ref failures);
-        Run("appmodel launch plan default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app launch plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel launch plan accepts manifest", HostLane.Fast, 0)]
     private static bool TestAcceptsManifest()
     {
         byte[] source = ValidManifest("apps/hello.bin", "--port=8080", "dhcp", "serial");
         if (!TryParse(source, out NativeManifest manifest))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppLaunchPlanResult result = NativeAppLaunchPlan.Create(
@@ -63,7 +21,7 @@ internal static class NativeAppLaunchPlanTests
             BootInfo.CreateHost(BootCapabilities.TextOutput),
             NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppLaunchStatus.Success
             && result.Plan.ManifestVersion == NativeManifest.Version0
@@ -82,15 +40,16 @@ internal static class NativeAppLaunchPlanTests
             && result.RequiredRuntimeCapabilities == (NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network)
             && FieldEquals(source, result.Plan.AppName, "hello.app")
             && FieldEquals(source, result.Plan.AppPath, "apps/hello.bin")
-            && ArgumentEquals(source, result.Plan, "--port=8080");
+            && ArgumentEquals(source, result.Plan, "--port=8080"));
     }
 
+    [HostTest("appmodel launch plan accepts packaged native app", HostLane.Fast, 1)]
     private static bool TestAcceptsPackagedNativeApp()
     {
         byte[] source = ValidManifest("apps/hello.bin", string.Empty, "none", "serial");
         if (!TryParse(source, out NativeManifest manifest))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppLaunchPlanResult result = NativeAppLaunchPlan.Create(
@@ -99,7 +58,7 @@ internal static class NativeAppLaunchPlanTests
             BootInfo.CreateHost(BootCapabilities.TextOutput),
             NativeAppLaunchRuntimeCapabilities.PackageStorage);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppLaunchStatus.Success
             && result.Plan.AppKind == NativeManifestAppKind.Package
@@ -108,9 +67,10 @@ internal static class NativeAppLaunchPlanTests
             && result.Plan.RequiresPackageStorage
             && !result.Plan.RequiresNetwork
             && result.Plan.RequiredRuntimeCapabilities == NativeAppLaunchRuntimeCapabilities.PackageStorage
-            && FieldEquals(source, result.Plan.AppPath, "apps/hello.bin");
+            && FieldEquals(source, result.Plan.AppPath, "apps/hello.bin"));
     }
 
+    [HostTest("appmodel launch plan carries environment fields", HostLane.Fast, 2)]
     private static bool TestCarriesEnvironmentFields()
     {
         byte[] source = Encoding.ASCII.GetBytes(
@@ -127,7 +87,7 @@ internal static class NativeAppLaunchPlanTests
             "env.PORT=8080\n");
         if (!TryParse(source, out NativeManifest manifest))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppLaunchPlanResult result = NativeAppLaunchPlan.Create(
@@ -136,18 +96,19 @@ internal static class NativeAppLaunchPlanTests
             BootInfo.CreateHost(BootCapabilities.TextOutput),
             NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Plan.EnvironmentCount == 2
             && EnvironmentEntryEquals(source, result.Plan.GetEnvironmentEntry(0), "ASPNETCORE_ENVIRONMENT", "Production")
-            && EnvironmentEntryEquals(source, result.Plan.GetEnvironmentEntry(1), "PORT", "8080");
+            && EnvironmentEntryEquals(source, result.Plan.GetEnvironmentEntry(1), "PORT", "8080"));
     }
 
+    [HostTest("appmodel launch plan records listen endpoint", HostLane.Fast, 3)]
     private static bool TestRecordsListenEndpoint()
     {
         byte[] source = ValidManifestWithListen("apps/minimal-api/app.bin", string.Empty, "dhcp", "serial", "0.0.0.0:8080");
         if (!TryParse(source, out NativeManifest manifest))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppLaunchPlanResult result = NativeAppLaunchPlan.Create(
@@ -156,21 +117,22 @@ internal static class NativeAppLaunchPlanTests
             BootInfo.CreateHost(BootCapabilities.TextOutput),
             NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Plan.HasListenEndpoint
             && result.Plan.ListenEndpoint.IsPresent
             && result.Plan.ListenPort == 8080
             && result.Plan.RequiresNetwork
             && result.Plan.RequiredRuntimeCapabilities == (NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network)
-            && ListenHostEquals(source, result.Plan, "0.0.0.0");
+            && ListenHostEquals(source, result.Plan, "0.0.0.0"));
     }
 
+    [HostTest("appmodel launch plan requires network for listen endpoint", HostLane.Fast, 4)]
     private static bool TestRequiresNetworkForListenEndpoint()
     {
         byte[] source = ValidManifestWithListen("apps/minimal-api/app.bin", string.Empty, "dhcp", "serial", "0.0.0.0:8080");
         if (!TryParse(source, out NativeManifest manifest))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppLaunchPlanResult missingRuntimeNetwork = NativeAppLaunchPlan.Create(
@@ -197,23 +159,23 @@ internal static class NativeAppLaunchPlanTests
             BootInfo.CreateHost(BootCapabilities.TextOutput),
             NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return !missingRuntimeNetwork.Succeeded
+        return HostCheck.Result(!missingRuntimeNetwork.Succeeded
             && missingRuntimeNetwork.IsInitialized
             && missingRuntimeNetwork.Status == NativeAppLaunchStatus.MissingRuntimeCapabilities
             && missingRuntimeNetwork.RequiredRuntimeCapabilities == (NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network)
             && missingRuntimeNetwork.MissingRuntimeCapabilities == NativeAppLaunchRuntimeCapabilities.Network
             && !disabledNetwork.Succeeded
             && disabledNetwork.IsInitialized
-            && disabledNetwork.Status == NativeAppLaunchStatus.ListenRequiresNetwork;
+            && disabledNetwork.Status == NativeAppLaunchStatus.ListenRequiresNetwork);
     }
 
-
+    [HostTest("appmodel launch plan rejects missing capabilities", HostLane.Fast, 5)]
     private static bool TestRejectsMissingCapabilities()
     {
         byte[] source = ValidManifest("apps/hello.bin", string.Empty, "dhcp", "serial");
         if (!TryParse(source, out NativeManifest manifest))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppLaunchPlanResult missingBoot = NativeAppLaunchPlan.Create(
@@ -231,7 +193,7 @@ internal static class NativeAppLaunchPlanTests
         byte[] storageOnlySource = ValidManifest("apps/hello.bin", string.Empty, "none", "none");
         if (!TryParse(storageOnlySource, out NativeManifest storageOnlyManifest))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppLaunchPlanResult missingStorage = NativeAppLaunchPlan.Create(
@@ -240,7 +202,7 @@ internal static class NativeAppLaunchPlanTests
             BootInfo.CreateHost(BootCapabilities.None),
             NativeAppLaunchRuntimeCapabilities.None);
 
-        return !missingBoot.Succeeded
+        return HostCheck.Result(!missingBoot.Succeeded
             && missingBoot.Status == NativeAppLaunchStatus.MissingBootCapabilities
             && missingBoot.RequiredBootCapabilities == BootCapabilities.TextOutput
             && missingBoot.MissingBootCapabilities == BootCapabilities.TextOutput
@@ -251,15 +213,16 @@ internal static class NativeAppLaunchPlanTests
             && !missingStorage.Succeeded
             && missingStorage.Status == NativeAppLaunchStatus.MissingRuntimeCapabilities
             && missingStorage.RequiredRuntimeCapabilities == NativeAppLaunchRuntimeCapabilities.PackageStorage
-            && missingStorage.MissingRuntimeCapabilities == NativeAppLaunchRuntimeCapabilities.PackageStorage;
+            && missingStorage.MissingRuntimeCapabilities == NativeAppLaunchRuntimeCapabilities.PackageStorage);
     }
 
+    [HostTest("appmodel launch plan rejects malformed requirements", HostLane.Fast, 6)]
     private static bool TestRejectsMalformedRequirements()
     {
         byte[] source = ValidManifest("apps/hello.bin", string.Empty, "dhcp", "serial");
         if (!TryParse(source, out NativeManifest manifest))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeManifest missingPathManifest = new NativeManifest(
@@ -281,7 +244,7 @@ internal static class NativeAppLaunchPlanTests
         byte[] staticSource = ValidManifest("apps/hello.bin", string.Empty, "static", "none");
         if (!TryParse(staticSource, out NativeManifest staticManifest))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppLaunchPlanResult unsupportedStaticNetwork = NativeAppLaunchPlan.Create(
@@ -293,7 +256,7 @@ internal static class NativeAppLaunchPlanTests
         byte[] unsafePathSource = ValidManifest("../hello.bin", string.Empty, "none", "none");
         if (!TryParse(unsafePathSource, out NativeManifest unsafePathManifest))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppLaunchPlanResult unsafePath = NativeAppLaunchPlan.Create(
@@ -308,7 +271,7 @@ internal static class NativeAppLaunchPlanTests
             BootInfo.CreateHost(BootCapabilities.None),
             NativeAppLaunchRuntimeCapabilities.PackageStorage);
 
-        return !missingPath.Succeeded
+        return HostCheck.Result(!missingPath.Succeeded
             && missingPath.Status == NativeAppLaunchStatus.MissingAppPath
             && !unsupportedStaticNetwork.Succeeded
             && unsupportedStaticNetwork.Status == NativeAppLaunchStatus.UnsupportedNetworkMode
@@ -324,16 +287,17 @@ internal static class NativeAppLaunchPlanTests
             && LaunchStatusForPathIs("apps/./hello.bin", NativeAppLaunchStatus.AppPathNotPackageRelative)
             && LaunchStatusForPathIs("apps/../hello.bin", NativeAppLaunchStatus.AppPathNotPackageRelative)
             && !oversizedArguments.Succeeded
-            && oversizedArguments.Status == NativeAppLaunchStatus.ArgumentsTooLong;
+            && oversizedArguments.Status == NativeAppLaunchStatus.ArgumentsTooLong);
     }
 
+    [HostTest("appmodel launch plan uses shared memory dot segment helper", HostLane.Fast, 7)]
     private static bool TestUsesSharedMemoryDotSegmentHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Manifest", "NativeAppLaunchPlan.cs"));
 
-        return source.Contains(
+        return HostCheck.Result(source.Contains(
                 "OS.Std.MemoryExtensions.SequenceEqual(segment, \".\"u8)",
                 StringComparison.Ordinal)
             && source.Contains(
@@ -344,16 +308,17 @@ internal static class NativeAppLaunchPlanTests
                 StringComparison.Ordinal)
             && !source.Contains(
                 "segment[1] == (byte)'.'",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("appmodel launch plan uses shared ascii listen-host helper", HostLane.Fast, 8)]
     private static bool TestUsesSharedAsciiListenHostHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Manifest", "NativeAppLaunchPlan.cs"));
 
-        return source.Contains(
+        return HostCheck.Result(source.Contains(
                 "OS.Std.Ascii.IsLetterOrDigit(value)",
                 StringComparison.Ordinal)
             && !source.Contains(
@@ -364,14 +329,15 @@ internal static class NativeAppLaunchPlanTests
                 StringComparison.Ordinal)
             && !source.Contains(
                 "IsAsciiDigit",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("appmodel launch plan default result is not success", HostLane.Fast, 9)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAppLaunchPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppLaunchStatus.Success
             && result.RequiredBootCapabilities == BootCapabilities.None
@@ -379,7 +345,7 @@ internal static class NativeAppLaunchPlanTests
             && result.UnknownBootCapabilities == BootCapabilities.None
             && result.RequiredRuntimeCapabilities == NativeAppLaunchRuntimeCapabilities.None
             && result.MissingRuntimeCapabilities == NativeAppLaunchRuntimeCapabilities.None
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppLaunchPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppLaunchPlanResult>());
     }
 
     private static bool TryParse(byte[] source, out NativeManifest manifest)

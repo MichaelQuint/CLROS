@@ -9,48 +9,7 @@ internal static class PciBarSizingPlanTests
     private const byte IsrOffset = 0x80;
     private const byte DeviceOffset = 0xA0;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.pci.bar.size decodes 32bit mmio aperture", TestDecodes32BitMmioAperture, ref failures);
-        Run("drivers.pci.bar.size decodes 64bit mmio aperture", TestDecodes64BitMmioAperture, ref failures);
-        Run("drivers.pci.bar.size records absent and consumed bars", TestRecordsAbsentIoAndConsumedBars, ref failures);
-        Run("drivers.pci.bar.size rejects malformed readback", TestRejectsMalformedReadback, ref failures);
-        Run("drivers.pci.bar.size rejects base alignment mismatch", TestRejectsBaseAlignmentMismatch, ref failures);
-        Run("drivers.pci.bar.size default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("drivers.pci.bar.size feeds virtio aperture validation", TestFeedsVirtioApertureValidation, ref failures);
-        Run("drivers.pci.bar.size preserves no-live-config-write boundary", TestPreservesNoLiveConfigWriteBoundary, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PCI BAR sizing host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.pci.bar.size decodes 32bit mmio aperture", HostLane.Fast, 0)]
     private static bool TestDecodes32BitMmioAperture()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -61,7 +20,7 @@ internal static class PciBarSizingPlanTests
         PciBarSizingPlanResult result = Plan(headerBytes, readbacks);
         Span<ulong> sizes = stackalloc ulong[PciBarDecoder.BarCount];
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingPlanStatus.Success
             && result.FailingBarIndex == PciBarDecoder.NoBarIndex
@@ -78,9 +37,10 @@ internal static class PciBarSizingPlanTests
             && !result.Bars.Bar0.ConsumesNextSlot
             && result.TryCopySizesTo(sizes)
             && sizes[0] == 0x1000
-            && sizes[1] == 0;
+            && sizes[1] == 0);
     }
 
+    [HostTest("drivers.pci.bar.size decodes 64bit mmio aperture", HostLane.Fast, 1)]
     private static bool TestDecodes64BitMmioAperture()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -93,7 +53,7 @@ internal static class PciBarSizingPlanTests
         PciBarSizingPlanResult result = Plan(headerBytes, readbacks);
         Span<ulong> sizes = stackalloc ulong[PciBarDecoder.BarCount];
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Bars.Bar2.Index == 2
             && result.Bars.Bar2.IsInitialized
@@ -110,9 +70,10 @@ internal static class PciBarSizingPlanTests
             && result.Bars.Bar3.Status == PciBarSizeDescriptorStatus.ConsumedByPrevious64BitBar
             && result.TryCopySizesTo(sizes)
             && sizes[2] == 0x2000
-            && sizes[3] == 0;
+            && sizes[3] == 0);
     }
 
+    [HostTest("drivers.pci.bar.size records absent and consumed bars", HostLane.Fast, 2)]
     private static bool TestRecordsAbsentIoAndConsumedBars()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -126,7 +87,7 @@ internal static class PciBarSizingPlanTests
 
         PciBarSizingPlanResult result = Plan(headerBytes, readbacks);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Bars.Bar0.Kind == PciBarKind.Absent
             && result.Bars.Bar0.IsInitialized
@@ -144,9 +105,10 @@ internal static class PciBarSizingPlanTests
             && result.Bars.Bar3.IsInitialized
             && result.Bars.Bar3.Status == PciBarSizeDescriptorStatus.ConsumedByPrevious64BitBar
             && result.Bars.Bar3.PairBarIndex == 2
-            && result.Bars.Bar3.SizeBytes == 0;
+            && result.Bars.Bar3.SizeBytes == 0);
     }
 
+    [HostTest("drivers.pci.bar.size rejects malformed readback", HostLane.Fast, 3)]
     private static bool TestRejectsMalformedReadback()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -156,7 +118,7 @@ internal static class PciBarSizingPlanTests
 
         PciBarSizingPlanResult result = Plan(headerBytes, readbacks);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingPlanStatus.MalformedReadback
             && result.FailingBarIndex == 0
@@ -165,9 +127,10 @@ internal static class PciBarSizingPlanTests
             && result.Bars.Bar0.IsInitialized
             && result.Bars.Bar0.Status == PciBarSizeDescriptorStatus.MalformedReadback
             && result.Bars.Bar0.RawReadback == 0xFFFFF004
-            && result.Bars.Bar0.SizeBytes == 0;
+            && result.Bars.Bar0.SizeBytes == 0);
     }
 
+    [HostTest("drivers.pci.bar.size rejects base alignment mismatch", HostLane.Fast, 4)]
     private static bool TestRejectsBaseAlignmentMismatch()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -177,23 +140,24 @@ internal static class PciBarSizingPlanTests
 
         PciBarSizingPlanResult result = Plan(headerBytes, readbacks);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingPlanStatus.BaseAlignmentMismatch
             && result.FailingBarIndex == 0
             && result.FailingDescriptorStatus == PciBarSizeDescriptorStatus.BaseAlignmentMismatch
             && result.Bars.Bar0.IsInitialized
             && result.Bars.Bar0.BaseAddressBits == 0xFE000800
-            && result.Bars.Bar0.SizeBytes == 0x1000;
+            && result.Bars.Bar0.SizeBytes == 0x1000);
     }
 
+    [HostTest("drivers.pci.bar.size default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         PciBarSizingPlanResult result = default;
         PciBarSizeDescriptor descriptor = default;
         Span<ulong> sizes = stackalloc ulong[PciBarDecoder.BarCount];
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == PciBarSizingPlanStatus.Success
             && result.FailingBarIndex == 0
@@ -207,9 +171,10 @@ internal static class PciBarSizingPlanTests
             && descriptor.Status == PciBarSizeDescriptorStatus.Success
             && descriptor.Index == 0
             && descriptor.Kind == PciBarKind.Absent
-            && descriptor.SizeBytes == 0;
+            && descriptor.SizeBytes == 0);
     }
 
+    [HostTest("drivers.pci.bar.size feeds virtio aperture validation", HostLane.Fast, 6)]
     private static bool TestFeedsVirtioApertureValidation()
     {
         ushort deviceId = (ushort)(VirtioPciDeviceDiscovery.ModernDeviceIdStart +
@@ -229,7 +194,7 @@ internal static class PciBarSizingPlanTests
             config,
             sizes);
 
-        return sizing.Succeeded
+        return HostCheck.Result(sizing.Succeeded
             && sizing.IsInitialized
             && copied
             && sizes[0] == 0x1000
@@ -241,9 +206,10 @@ internal static class PciBarSizingPlanTests
             && binding.Binding.Apertures.CommonConfiguration.BarSize == 0x1000
             && binding.Binding.Apertures.NotifyConfiguration.BarSize == 0x1000
             && binding.Binding.Apertures.IsrStatus.BarSize == 0x1000
-            && binding.Binding.Apertures.DeviceConfiguration.BarSize == 0x1000;
+            && binding.Binding.Apertures.DeviceConfiguration.BarSize == 0x1000);
     }
 
+    [HostTest("drivers.pci.bar.size preserves no-live-config-write boundary", HostLane.Fast, 7)]
     private static bool TestPreservesNoLiveConfigWriteBoundary()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -253,7 +219,7 @@ internal static class PciBarSizingPlanTests
 
         PciBarSizingPlanResult result = Plan(headerBytes, readbacks);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && PciBarSizingPlanner.RequiresCallerOwnedOriginalBarSnapshot
             && PciBarSizingPlanner.RequiresCallerOwnedSizingReadbacks
@@ -268,7 +234,7 @@ internal static class PciBarSizingPlanTests
             && !PciBarSizingPlanner.HandlesInterrupts
             && !PciBarSizingPlanner.PerformsPacketIo
             && !PciBarSizingPlanner.PerformsBlockIo
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciBarSizingPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciBarSizingPlanResult>());
     }
 
     private static PciBarSizingPlanResult Plan(

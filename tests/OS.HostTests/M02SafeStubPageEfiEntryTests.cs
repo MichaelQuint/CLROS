@@ -1,3 +1,4 @@
+using OS.Tooling;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -10,7 +11,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
 {
     private const string TestName = "m02.017";
     private const string ExpectedSha256 =
-        "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
+        EfiContracts.PortIoStubPageSha256;
     private const ulong ModeledPageAddress = 0x0040_0000;
     private const ulong PublicationEpoch = 7;
     private const PageProtection ReadWrite =
@@ -18,143 +19,13 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
     private const PageProtection ReadExecute =
         PageProtection.Read | PageProtection.Execute;
 
-    private static readonly string[] M02SuccessMarkers =
-    [
-        "TEST_START m02.017",
-        "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56",
-        "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=982E5B7E3EE58E56",
-        "M02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B",
-        "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56 temporaryOwnedRootRx=true portIoExecuted=false",
-        "TEST_PASS m02.017"
-    ];
+    private static readonly string[] M02SuccessMarkers = QemuContracts.M02IssueSuccessMarkers.ToArray();
 
-    private static readonly string[] M01SuccessMarkers =
-    [
-        "TEST_START m01.stage1",
-        "M01_LOADED_IMAGE_CAPTURED",
-        "M01_STACK_SWITCH_STUB_READY",
-        "M01_STACK_ARENA_ALLOCATED",
-        "M01_STACK_GUARD_RESERVED",
-        "M01_STAGE1_MAP_RECAPTURED",
-        "M01_STAGE1_RESERVATIONS_VALIDATED",
-        "M01_OWNED_STACK_READY",
-        "M01_OWNED_STACK_SWITCHED",
-        "M01_RSP_CONTAINED",
-        "TEST_PASS m01.stage1",
-        "TEST_START m01.stage2",
-        "M01_ALLOCATOR_ARENA_ALLOCATED",
-        "M01_STAGE2_MAP_RECAPTURED",
-        "M01_RESERVATIONS_APPLIED",
-        "M01_LIVE_ALLOCATED_4K",
-        "M01_LIVE_PAGE_WITHIN_ARENA",
-        "M01_LIVE_FREED_4K",
-        "M01_DOUBLE_FREE_REJECTED",
-        "TEST_PASS m01.stage2",
-        "TEST_START m01.stage3",
-        "M01_CR3_STUB_PAGE_ALLOCATED",
-        "M01_PROTECTION_PROBE_PAGE_ALLOCATED",
-        "M01_PAGE_TABLE_STATE_ARENA_ALLOCATED",
-        "M01_STAGE3_MAP_RECAPTURED",
-        "M01_CR3_STUB_MATERIALIZED",
-        "M01_PAGE_TABLES_BUILT",
-        "M01_PAGING_MODE_VALIDATED",
-        "M01_PRE_CR3",
-        "M01_FIRMWARE_CR3_RESTORED",
-        "M01_RFLAGS_RESTORED",
-        "M01_PGE_CYCLE_VERIFIED",
-        "M01_OWNED_CR3_CANARY_VERIFIED",
-        "M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED",
-        "M01_POST_CR3",
-        "M01_RW_TO_RX_VERIFIED",
-        "M01_TLB_INVALIDATION_COMPLETE",
-        "M01_RX_PROBE_EXECUTED",
-        "M01_PAGE_ZERO_ABSENT",
-        "TEST_PASS m01.stage3",
-        "CLROS_M01_LIVE_BOOT_MEMORY_READY",
-        "OS_SMOKE_PASS"
-    ];
+    private static readonly string[] M01SuccessMarkers = QemuContracts.M01StageThreeGuestMarkers.ToArray();
 
-    private static readonly string[] M02ForbiddenMarkers =
-    [
-        "M02_STUB_PAGE_MATERIALIZATION_FAILED",
-        "M02_STUB_PAGE_READBACK_FAILED",
-        "M02_STUB_PAGE_HASH_MISMATCH",
-        "M02_SAFE_PROBE_FAILED",
-        "M02_OUT8_EXECUTED",
-        "M02_IN8_EXECUTED",
-        "M02_PORT_IO_ATTEMPTED",
-        "M02_PRIVILEGED_STUB_TARGETED",
-        "TEST_FAIL m02.017"
-    ];
+    private static readonly string[] M02ForbiddenMarkers = QemuContracts.M02IssueForbiddenMarkers.ToArray();
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        Console.WriteLine("TEST_START " + TestName);
-        int failures = 0;
-
-        RunCase(
-            "reviewed fixed page reconstructs exactly",
-            TestReviewedFixedPage,
-            ref failures);
-        RunCase(
-            "EFI marker writer and cross-stage order are exact",
-            TestEfiMarkerWriterAndOrder,
-            ref failures);
-        RunCase(
-            "project and build selector are fail closed",
-            TestProjectAndBuildSelector,
-            ref failures);
-        RunCase(
-            "QEMU profiles are immutable and match the guest",
-            TestQemuProfiles,
-            ref failures);
-        RunCase(
-            "integration source keeps one safe no-firmware invocation",
-            TestIntegrationSourceBoundary,
-            ref failures);
-
-        if (failures != 0)
-        {
-            Console.WriteLine(
-                "TEST_FAIL " + TestName + " host-contract failures=" + failures);
-            throw new InvalidOperationException(
-                "M02-017 EFI integration host tests failed: " + failures);
-        }
-
-        Console.WriteLine(M02SuccessMarkers[4]);
-        Console.WriteLine("TEST_PASS " + TestName);
-    }
-
-    private static void RunCase(
-        string name,
-        Func<bool> test,
-        ref int failures)
-    {
-        try
-        {
-            if (test())
-            {
-                return;
-            }
-
-            failures++;
-            Console.WriteLine(
-                "M02_017_CASE_FAIL " + Normalize(name));
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "M02_017_CASE_FAIL "
-                + Normalize(name)
-                + " "
-                + ex.GetType().Name
-                + ": "
-                + ex.Message);
-        }
-    }
-
+    [HostTest("m02.017 reviewed fixed page reconstructs exactly", HostLane.Fast, 0)]
     private static bool TestReviewedFixedPage()
     {
         void* allocation = NativeMemory.AlignedAlloc(
@@ -218,6 +89,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
         }
     }
 
+    [HostTest("m02.017 EFI marker writer and cross-stage order are exact", HostLane.Fast, 1)]
     private static bool TestEfiMarkerWriterAndOrder()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -355,6 +227,7 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
             && readyMarker < passMarker;
     }
 
+    [HostTest("m02.017 project and build selector are fail closed", HostLane.Fast, 2)]
     private static bool TestProjectAndBuildSelector()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -386,8 +259,6 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
                 "'$(EnableM02SafeStubProbe)' == 'true'",
                 StringComparison.Ordinal))
             .ToArray();
-        string script = File.ReadAllText(
-            Path.Combine(root, "scripts", "build-efi-shell.ps1"));
 
         return defaults.Length == 1
             && defaults[0].Value == "false"
@@ -452,101 +323,15 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
                 @"Diagnostics\ExistingIn8Out8StubBytesRWPagesFinalize.cs")
             && BuildEfiShellPreflightTests.HasExactCanonicalEfiCompileItem(
                 @"Boot\M02SafeStubPageIntegration.cs",
-                string.Empty)
-            && script.Contains(
-                "[switch] $EnableM02SafeStubProbe",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "reviewed=\" + $m01SourceClosure.ReviewedSourceCount",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "$arguments += \"-p:EnableM02SafeStubProbe=true\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "Write-Host \"EFI_PROBE M02_SAFE_STUB\"",
-                StringComparison.Ordinal);
+                string.Empty);
     }
 
-    private static bool TestQemuProfiles()
-    {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string script = File.ReadAllText(
-            Path.Combine(root, "scripts", "run-qemu-smoke.ps1"));
-        string[] expectedCombined = BuildCombinedSuccessMarkers();
-        string[] expectedForbidden =
-        [
-            .. M01ForbiddenMarkers(),
-            .. M02ForbiddenMarkers
-        ];
-        string[] scriptSuccess = ExtractPowerShellArray(
-            script,
-            "$script:M02SafeStubRequiredMarkers = @(");
-        string[] scriptForbidden = ExtractPowerShellArray(
-            script,
-            "$script:M02SafeStubForbiddenMarkers = @(");
-        string[] shimSuccess = ExtractCSharpArray(
-            script,
-            "private static readonly string[] M02GuestMarkers =");
-        string[] shimForbidden = ExtractCSharpArray(
-            script,
-            "private static readonly string[] M02ForbiddenMarkers =");
-        string[] m01ShimSuccess = ExtractCSharpArray(
-            script,
-            "private static readonly string[] GuestMarkers =");
-        string[] m01ShimForbidden = ExtractCSharpArray(
-            script,
-            "private static readonly string[] ForbiddenMarkers =");
+    [HostTest("m02.017 QEMU profiles are immutable and match the guest", HostLane.Fast, 3)]
+    private static bool TestQemuProfiles() => EfiProfileTestControls.Returning("M02SafeStub",
+        QemuContracts.M02SafeStubRequiredMarkers,QemuContracts.M02SafeStubForbiddenMarkers,
+        M02SuccessMarkers[4],M02ForbiddenMarkers[0]);
 
-        return expectedCombined.Length == 48
-            && expectedForbidden.Length == 34
-            && scriptSuccess.SequenceEqual(
-                expectedCombined,
-                StringComparer.Ordinal)
-            && scriptForbidden.SequenceEqual(
-                expectedForbidden,
-                StringComparer.Ordinal)
-            && shimSuccess.SequenceEqual(
-                expectedCombined,
-                StringComparer.Ordinal)
-            && shimForbidden.SequenceEqual(
-                expectedForbidden,
-                StringComparer.Ordinal)
-            && m01ShimSuccess.SequenceEqual(
-                M01SuccessMarkers,
-                StringComparer.Ordinal)
-            && m01ShimForbidden.SequenceEqual(
-                M01ForbiddenMarkers(),
-                StringComparer.Ordinal)
-            && scriptSuccess.Distinct(
-                StringComparer.Ordinal).Count() == 48
-            && scriptForbidden.Distinct(
-                StringComparer.Ordinal).Count() == 34
-            && script.Contains(
-                "$requiredMarkers = @(",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "$script:M02SafeStubRequiredMarkers",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "$script:M02SafeStubForbiddenMarkers",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "$buildArguments += \"-EnableM02SafeStubProbe\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "m02_safe_stub_probe_requires_build_efi",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "m02_safe_stub_probe_forbids_skip_image_build",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "CLROS_M02_SAFE_STUB_PROBE",
-                StringComparison.Ordinal);
-    }
-
+    [HostTest("m02.017 integration source keeps one safe no-firmware invocation", HostLane.Fast, 4)]
     private static bool TestIntegrationSourceBoundary()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -719,106 +504,6 @@ internal static unsafe class M02SafeStubPageEfiEntryTests
         }
 
         return markers;
-    }
-
-    private static string[] ExtractPowerShellArray(
-        string source,
-        string token)
-    {
-        string normalized = source.Replace(
-            "\r\n",
-            "\n",
-            StringComparison.Ordinal);
-        int start = normalized.IndexOf(token, StringComparison.Ordinal);
-        int end = start < 0
-            ? -1
-            : normalized.IndexOf(
-                "\n)",
-                start + token.Length,
-                StringComparison.Ordinal);
-        return ExtractQuotedValues(normalized, start, end);
-    }
-
-    private static string[] ExtractCSharpArray(
-        string source,
-        string token)
-    {
-        int tokenStart = source.IndexOf(token, StringComparison.Ordinal);
-        int start = tokenStart < 0
-            ? -1
-            : source.IndexOf(
-                "{",
-                tokenStart + token.Length,
-                StringComparison.Ordinal);
-        int end = start < 0
-            ? -1
-            : source.IndexOf(
-                "};",
-                start + 1,
-                StringComparison.Ordinal);
-        return ExtractQuotedValues(source, start, end);
-    }
-
-    private static string[] ExtractQuotedValues(
-        string source,
-        int start,
-        int end)
-    {
-        if (start < 0 || end <= start)
-        {
-            return [];
-        }
-
-        return Regex.Matches(
-                source[start..end],
-                "\"(?<value>[^\"]*)\"",
-                RegexOptions.CultureInvariant)
-            .Cast<Match>()
-            .Select(match => match.Groups["value"].Value)
-            .ToArray();
-    }
-
-    private static string[] BuildCombinedSuccessMarkers()
-    {
-        List<string> markers = [];
-        markers.AddRange(M01SuccessMarkers.Take(25));
-        markers.AddRange(M02SuccessMarkers.Take(3));
-        markers.AddRange(M01SuccessMarkers.Skip(25).Take(14));
-        markers.AddRange(M02SuccessMarkers.Skip(3));
-        markers.AddRange(M01SuccessMarkers.Skip(39));
-        return markers.ToArray();
-    }
-
-    private static string[] M01ForbiddenMarkers()
-    {
-        return
-        [
-            "LIVE_ALLOCATOR_NOT_INSTALLED",
-            "BOOT_PAGE_ALLOCATOR_NOT_READY",
-            "M01_ARBITRARY_CONVENTIONAL_PAGE_USED",
-            "M01_PAGE_OUTSIDE_ALLOCATOR_ARENA",
-            "M01_PAGE_TABLE_OUTSIDE_ARENA",
-            "M01_PROTECTION_PROBE_ALLOCATION_FAILED",
-            "M01_PROTECTION_PROBE_ALIAS",
-            "M01_CR3_STUB_READBACK_FAILED",
-            "M01_PAGING_MODE_VALIDATION_FAILED",
-            "M01_PGE_CLEAR_FAILED",
-            "M01_PGE_RESTORE_FAILED",
-            "M01_EXECUTABLE_TABLE_DATA",
-            "M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED",
-            "M01_FIRMWARE_CALLBACK_DURING_OWNED_CR3",
-            "M01_FIRMWARE_CR3_RESTORE_FAILED",
-            "M01_CR4_RESTORE_FAILED",
-            "M01_RFLAGS_RESTORE_FAILED",
-            "M01_OWNED_CR3_CANARY_FAILED",
-            "M01_RX_PROBE_FAILED",
-            "TEST_FAIL",
-            "OS_SMOKE_FAIL",
-            "M01_INTEGRATION_FAIL",
-            "M01_STAGE1_FAIL",
-            "M01_STAGE2_FAIL",
-            "M01_STAGE3_FAIL"
-        ];
     }
 
     private static int CountOccurrences(

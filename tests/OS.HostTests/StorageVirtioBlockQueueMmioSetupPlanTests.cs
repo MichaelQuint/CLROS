@@ -14,65 +14,7 @@ internal static class StorageVirtioBlockQueueMmioSetupPlanTests
     private const ushort DeviceMaximumQueueSize = 16;
     private const ushort QueueNotifyOffset = 7;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run(
-            "storage.virtioblk.queuesetup plans queue zero common config commands",
-            TestPlansQueueZeroCommonConfigCommands,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup rejects failed block descriptor",
-            TestRejectsFailedBlockDescriptor,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup rejects queue metadata",
-            TestRejectsQueueMetadata,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup rejects physical addresses",
-            TestRejectsPhysicalAddresses,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup reports command destination capacity",
-            TestReportsCommandDestinationCapacity,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio-blk queue MMIO setup plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.virtioblk.queuesetup plans queue zero common config commands", HostLane.Fast, 0)]
     private static bool TestPlansQueueZeroCommonConfigCommands()
     {
         VirtioBlockQueueMmioSetupCommand[] commands =
@@ -87,7 +29,7 @@ internal static class StorageVirtioBlockQueueMmioSetupPlanTests
         VirtioBlockQueueMmioSetupPlan plan = result.Plan;
         VirtqueueSplitRingPlan queue = VirtqueueSplitRingPlan.Create(QueueSize).Plan;
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioBlockQueueMmioSetupPlanStatus.Success
             && result.DeviceKind == VirtioPciDeviceKind.Block
             && result.BindingStatus == VirtioPciBindingPlanStatus.Success
@@ -124,9 +66,10 @@ internal static class StorageVirtioBlockQueueMmioSetupPlanTests
             && !VirtioBlockQueueMmioSetupPlanner.PerformsDiskRead
             && !VirtioBlockQueueMmioSetupPlanner.PerformsDiskWrite
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueMmioSetupCommand>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueMmioSetupPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueMmioSetupPlanResult>());
     }
 
+    [HostTest("storage.virtioblk.queuesetup rejects failed block descriptor", HostLane.Fast, 1)]
     private static bool TestRejectsFailedBlockDescriptor()
     {
         VirtioBlockQueueMmioSetupCommand[] commands =
@@ -147,7 +90,7 @@ internal static class StorageVirtioBlockQueueMmioSetupPlanTests
                 CreateMetadata(),
                 commands);
 
-        return !defaultDescriptor.Succeeded
+        return HostCheck.Result(!defaultDescriptor.Succeeded
             && defaultDescriptor.Status == VirtioBlockQueueMmioSetupPlanStatus.DescriptorNotReady
             && defaultDescriptor.DeviceKind == VirtioPciDeviceKind.Unknown
             && defaultDescriptor.RequiredCommandCount == VirtioBlockQueueMmioSetupPlanner.RequiredCommandCount
@@ -155,9 +98,10 @@ internal static class StorageVirtioBlockQueueMmioSetupPlanTests
             && !networkDescriptor.Succeeded
             && networkDescriptor.Status == VirtioBlockQueueMmioSetupPlanStatus.NotBlockDevice
             && networkDescriptor.DeviceKind == VirtioPciDeviceKind.Network
-            && networkDescriptor.BlockConfigurationStatus == default;
+            && networkDescriptor.BlockConfigurationStatus == default);
     }
 
+    [HostTest("storage.virtioblk.queuesetup rejects queue metadata", HostLane.Fast, 2)]
     private static bool TestRejectsQueueMetadata()
     {
         VirtioBlockQueueMmioSetupCommand[] commands =
@@ -200,7 +144,7 @@ internal static class StorageVirtioBlockQueueMmioSetupPlanTests
                 new VirtioBlockQueueMmioSetupQueueDeviceMetadata(DeviceMaximumQueueSize, false, 0),
                 commands);
 
-        return !invalidQueuePlan.Succeeded
+        return HostCheck.Result(!invalidQueuePlan.Succeeded
             && invalidQueuePlan.Status == VirtioBlockQueueMmioSetupPlanStatus.QueuePlanFailed
             && invalidQueuePlan.QueuePlanStatus == VirtqueueSplitRingPlanStatus.QueueSizeNotPowerOfTwo
             && !unavailable.Succeeded
@@ -213,9 +157,10 @@ internal static class StorageVirtioBlockQueueMmioSetupPlanTests
             && aboveMaximum.Status == VirtioBlockQueueMmioSetupPlanStatus.QueueSizeRejected
             && aboveMaximum.DeviceMaximumQueueSize == QueueSize - 1
             && !missingNotify.Succeeded
-            && missingNotify.Status == VirtioBlockQueueMmioSetupPlanStatus.MissingNotifyOffset;
+            && missingNotify.Status == VirtioBlockQueueMmioSetupPlanStatus.MissingNotifyOffset);
     }
 
+    [HostTest("storage.virtioblk.queuesetup rejects physical addresses", HostLane.Fast, 3)]
     private static bool TestRejectsPhysicalAddresses()
     {
         VirtioBlockQueueMmioSetupCommand[] commands =
@@ -253,7 +198,7 @@ internal static class StorageVirtioBlockQueueMmioSetupPlanTests
                 CreateMetadata(),
                 commands);
 
-        return !badDescriptor.Succeeded
+        return HostCheck.Result(!badDescriptor.Succeeded
             && badDescriptor.Status == VirtioBlockQueueMmioSetupPlanStatus.InvalidPhysicalAddress
             && badDescriptor.FailingAddressKind == VirtioBlockQueueMmioSetupAddressKind.DescriptorTable
             && badDescriptor.FailingPhysicalAddress == 0x100003
@@ -263,9 +208,10 @@ internal static class StorageVirtioBlockQueueMmioSetupPlanTests
             && badDriver.FailingPhysicalAddress == 0
             && !deviceOverflow.Succeeded
             && deviceOverflow.Status == VirtioBlockQueueMmioSetupPlanStatus.PhysicalAddressOverflow
-            && deviceOverflow.FailingAddressKind == VirtioBlockQueueMmioSetupAddressKind.DeviceRing;
+            && deviceOverflow.FailingAddressKind == VirtioBlockQueueMmioSetupAddressKind.DeviceRing);
     }
 
+    [HostTest("storage.virtioblk.queuesetup reports command destination capacity", HostLane.Fast, 4)]
     private static bool TestReportsCommandDestinationCapacity()
     {
         VirtioBlockQueueMmioSetupCommand[] commands =
@@ -278,27 +224,28 @@ internal static class StorageVirtioBlockQueueMmioSetupPlanTests
             CreateMetadata(),
             commands);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockQueueMmioSetupPlanStatus.CommandDestinationTooSmall
             && result.RequiredCommandCount == VirtioBlockQueueMmioSetupPlanner.RequiredCommandCount
             && result.AvailableCommandCount == VirtioBlockQueueMmioSetupPlanner.RequiredCommandCount - 1
             && result.PlannedQueueSize == QueueSize
             && result.DeviceMaximumQueueSize == DeviceMaximumQueueSize
-            && result.CommandCount == 0;
+            && result.CommandCount == 0);
     }
 
+    [HostTest("storage.virtioblk.queuesetup default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioBlockQueueMmioSetupPlanResult result = default;
         VirtioBlockQueueMmioSetupCommand command = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.CommandCount == 0
             && result.RequiredCommandCount == 0
             && command.Kind == VirtioBlockQueueMmioSetupCommandKind.WriteQueueSelect
             && !command.ReadsRegister
-            && command.WritesRegister;
+            && command.WritesRegister);
     }
 
     private static bool CommandsMatchPlan(

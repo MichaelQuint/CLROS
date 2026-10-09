@@ -3,13 +3,11 @@ using OS.Std;
 
 internal static class StdAsciiByteTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void Run()
     {
         const string name = "std.ascii byte helpers";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             ExpectBool("IsDigit", (byte)'0', true, Ascii.IsDigit((byte)'0'));
             ExpectBool("IsDigit", (byte)'9', true, Ascii.IsDigit((byte)'9'));
@@ -83,14 +81,7 @@ internal static class StdAsciiByteTests
             ExpectSpanEqual(Bytes("Manifest.Json"), Bytes("Manifest-Json"), false);
             ExpectSpanEqual(new byte[] { 0x80 }, new byte[] { 0x80 }, true);
             ExpectSpanEqual(new byte[] { 0x80 }, new byte[] { 0x81 }, false);
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void ExpectBool(string methodName, byte input, bool expected, bool actual)

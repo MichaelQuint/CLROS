@@ -4,21 +4,8 @@ using OS.Std.Text;
 
 internal static class StdAsciiKeyValueSplitterTests
 {
-    [ModuleInitializer]
-    internal static void Run()
-    {
-        RunScenario("std.ascii keyvalue splits first delimiter", TestSplitsFirstDelimiter);
-        RunScenario("std.ascii keyvalue preserves delimiter in value", TestPreservesDelimiterInValue);
-        RunScenario("std.ascii keyvalue trims key and value", TestTrimsKeyAndValue);
-        RunScenario("std.ascii keyvalue allows empty value", TestAllowsEmptyValue);
-        RunScenario("std.ascii keyvalue rejects empty key", TestRejectsEmptyKey);
-        RunScenario("std.ascii keyvalue rejects missing delimiter", TestRejectsMissingDelimiter);
-        RunScenario("std.ascii keyvalue rejects invalid ranges", TestRejectsInvalidRanges);
-        RunScenario("std.ascii keyvalue rejects invalid delimiter and options", TestRejectsInvalidDelimiterAndOptions);
-        RunScenario("std.ascii keyvalue rejects non ascii input", TestRejectsNonAsciiInput);
-        RunScenario("std.ascii keyvalue compatibility boundary", TestCompatibilityBoundary);
-    }
 
+    [HostTest("std.ascii keyvalue splits first delimiter", HostLane.Fast, 0)]
     private static void TestSplitsFirstDelimiter()
     {
         ReadOnlySpan<byte> source = "app.kind=package"u8;
@@ -34,6 +21,7 @@ internal static class StdAsciiKeyValueSplitterTests
         ExpectToken("value", source, "package"u8, result.Value);
     }
 
+    [HostTest("std.ascii keyvalue preserves delimiter in value", HostLane.Fast, 1)]
     private static void TestPreservesDelimiterInValue()
     {
         ReadOnlySpan<byte> source = "xxurl=http://127.0.0.1:8080/a=b;tail"u8;
@@ -50,6 +38,7 @@ internal static class StdAsciiKeyValueSplitterTests
         ExpectToken("value", source, "http://127.0.0.1:8080/a=b"u8, result.Value);
     }
 
+    [HostTest("std.ascii keyvalue trims key and value", HostLane.Fast, 2)]
     private static void TestTrimsKeyAndValue()
     {
         ReadOnlySpan<byte> source = " \t listen =  0.0.0.0:8080 \r\n"u8;
@@ -64,6 +53,7 @@ internal static class StdAsciiKeyValueSplitterTests
         ExpectToken("value", source, "0.0.0.0:8080"u8, result.Value);
     }
 
+    [HostTest("std.ascii keyvalue allows empty value", HostLane.Fast, 3)]
     private static void TestAllowsEmptyValue()
     {
         ReadOnlySpan<byte> source = "feature.enabled="u8;
@@ -77,6 +67,7 @@ internal static class StdAsciiKeyValueSplitterTests
         ExpectInt("value start", source.Length, result.Value.Start);
     }
 
+    [HostTest("std.ascii keyvalue rejects empty key", HostLane.Fast, 4)]
     private static void TestRejectsEmptyKey()
     {
         AsciiKeyValueSplitResult result = AsciiKeyValueSplitter.Split("=value"u8, (byte)'=');
@@ -92,6 +83,7 @@ internal static class StdAsciiKeyValueSplitterTests
         ExpectBool("trimmed empty key not success", false, result.Succeeded);
     }
 
+    [HostTest("std.ascii keyvalue rejects missing delimiter", HostLane.Fast, 5)]
     private static void TestRejectsMissingDelimiter()
     {
         AsciiKeyValueSplitResult result = AsciiKeyValueSplitter.Split("name"u8, (byte)'=');
@@ -101,6 +93,7 @@ internal static class StdAsciiKeyValueSplitterTests
         ExpectBool("missing delimiter not success", false, result.Succeeded);
     }
 
+    [HostTest("std.ascii keyvalue rejects invalid ranges", HostLane.Fast, 6)]
     private static void TestRejectsInvalidRanges()
     {
         ReadOnlySpan<byte> source = "0123456789"u8;
@@ -126,6 +119,7 @@ internal static class StdAsciiKeyValueSplitterTests
         ExpectStatus("over end", AsciiKeyValueSplitStatus.InvalidRange, overEnd);
     }
 
+    [HostTest("std.ascii keyvalue rejects invalid delimiter and options", HostLane.Fast, 7)]
     private static void TestRejectsInvalidDelimiterAndOptions()
     {
         AsciiKeyValueSplitResult invalidDelimiter = AsciiKeyValueSplitter.Split("a=b"u8, 0x80);
@@ -142,6 +136,7 @@ internal static class StdAsciiKeyValueSplitterTests
         ExpectStatus("invalid options", AsciiKeyValueSplitStatus.InvalidOptions, invalidOptions);
     }
 
+    [HostTest("std.ascii keyvalue rejects non ascii input", HostLane.Fast, 8)]
     private static void TestRejectsNonAsciiInput()
     {
         ReadOnlySpan<byte> nonAscii = new byte[] { (byte)'a', (byte)'=', 0x80 };
@@ -158,6 +153,7 @@ internal static class StdAsciiKeyValueSplitterTests
         ExpectInt("control index", 2, result.InvalidInputIndex);
     }
 
+    [HostTest("std.ascii keyvalue compatibility boundary", HostLane.Fast, 9)]
     private static void TestCompatibilityBoundary()
     {
         ExpectBool("status is partial", true, AsciiKeyValueSplitter.Status == CompatibilityStatus.Partial);
@@ -169,22 +165,6 @@ internal static class StdAsciiKeyValueSplitterTests
             "result contains no managed references",
             false,
             RuntimeHelpers.IsReferenceOrContainsReferences<AsciiKeyValueSplitResult>());
-    }
-
-    private static void RunScenario(string name, Action test)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            test();
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
     }
 
     private static void ExpectStatus(

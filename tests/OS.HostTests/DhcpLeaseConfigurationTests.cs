@@ -3,46 +3,8 @@ using OS.Net;
 
 internal static class DhcpLeaseConfigurationTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.dhcp.lease materializes full config", TestMaterializesFullConfig, ref failures);
-        Run("net.dhcp.lease materializes partial config", TestMaterializesPartialConfig, ref failures);
-        Run("net.dhcp.lease rejects missing address", TestRejectsMissingAddress, ref failures);
-        Run("net.dhcp.lease rejects missing server identifier", TestRejectsMissingServerIdentifier, ref failures);
-        Run("net.dhcp.lease rejects zero lease time", TestRejectsZeroLeaseTime, ref failures);
-        Run("net.dhcp.lease rejects invalid subnet mask", TestRejectsInvalidSubnetMask, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("DHCP lease configuration host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.dhcp.lease materializes full config", HostLane.Fast, 0)]
     private static bool TestMaterializesFullConfig()
     {
         DhcpClientLease lease = new DhcpClientLease(
@@ -60,7 +22,7 @@ internal static class DhcpLeaseConfigurationTests
             lease,
             out DhcpLeaseConfiguration configuration);
 
-        return status == DhcpLeaseConfigurationStatus.Success
+        return HostCheck.Result(status == DhcpLeaseConfigurationStatus.Success
             && configuration.HasAddress
             && configuration.Address == Address()
             && configuration.HasServerIdentifier
@@ -72,9 +34,10 @@ internal static class DhcpLeaseConfigurationTests
             && configuration.HasRouter
             && configuration.Router == Router()
             && configuration.HasDnsServer
-            && configuration.DnsServer == DnsServer();
+            && configuration.DnsServer == DnsServer());
     }
 
+    [HostTest("net.dhcp.lease materializes partial config", HostLane.Fast, 1)]
     private static bool TestMaterializesPartialConfig()
     {
         DhcpClientLease lease = new DhcpClientLease(
@@ -92,7 +55,7 @@ internal static class DhcpLeaseConfigurationTests
             lease,
             out DhcpLeaseConfiguration configuration);
 
-        return status == DhcpLeaseConfigurationStatus.Success
+        return HostCheck.Result(status == DhcpLeaseConfigurationStatus.Success
             && configuration.HasAddress
             && configuration.Address == Address()
             && configuration.HasServerIdentifier
@@ -104,9 +67,10 @@ internal static class DhcpLeaseConfigurationTests
             && !configuration.HasRouter
             && configuration.Router == default
             && !configuration.HasDnsServer
-            && configuration.DnsServer == default;
+            && configuration.DnsServer == default);
     }
 
+    [HostTest("net.dhcp.lease rejects missing address", HostLane.Fast, 2)]
     private static bool TestRejectsMissingAddress()
     {
         DhcpClientLease lease = new DhcpClientLease(
@@ -124,10 +88,11 @@ internal static class DhcpLeaseConfigurationTests
             lease,
             out DhcpLeaseConfiguration configuration);
 
-        return status == DhcpLeaseConfigurationStatus.MissingAddress
-            && configuration.Equals(default(DhcpLeaseConfiguration));
+        return HostCheck.Result(status == DhcpLeaseConfigurationStatus.MissingAddress
+            && configuration.Equals(default(DhcpLeaseConfiguration)));
     }
 
+    [HostTest("net.dhcp.lease rejects missing server identifier", HostLane.Fast, 3)]
     private static bool TestRejectsMissingServerIdentifier()
     {
         DhcpClientLease lease = new DhcpClientLease(
@@ -145,10 +110,11 @@ internal static class DhcpLeaseConfigurationTests
             lease,
             out DhcpLeaseConfiguration configuration);
 
-        return status == DhcpLeaseConfigurationStatus.MissingServerIdentifier
-            && configuration.Equals(default(DhcpLeaseConfiguration));
+        return HostCheck.Result(status == DhcpLeaseConfigurationStatus.MissingServerIdentifier
+            && configuration.Equals(default(DhcpLeaseConfiguration)));
     }
 
+    [HostTest("net.dhcp.lease rejects zero lease time", HostLane.Fast, 4)]
     private static bool TestRejectsZeroLeaseTime()
     {
         DhcpClientLease lease = new DhcpClientLease(
@@ -166,10 +132,11 @@ internal static class DhcpLeaseConfigurationTests
             lease,
             out DhcpLeaseConfiguration configuration);
 
-        return status == DhcpLeaseConfigurationStatus.ZeroLeaseTime
-            && configuration.Equals(default(DhcpLeaseConfiguration));
+        return HostCheck.Result(status == DhcpLeaseConfigurationStatus.ZeroLeaseTime
+            && configuration.Equals(default(DhcpLeaseConfiguration)));
     }
 
+    [HostTest("net.dhcp.lease rejects invalid subnet mask", HostLane.Fast, 5)]
     private static bool TestRejectsInvalidSubnetMask()
     {
         DhcpClientLease lease = new DhcpClientLease(
@@ -187,8 +154,8 @@ internal static class DhcpLeaseConfigurationTests
             lease,
             out DhcpLeaseConfiguration configuration);
 
-        return status == DhcpLeaseConfigurationStatus.InvalidSubnetMask
-            && configuration.Equals(default(DhcpLeaseConfiguration));
+        return HostCheck.Result(status == DhcpLeaseConfigurationStatus.InvalidSubnetMask
+            && configuration.Equals(default(DhcpLeaseConfiguration)));
     }
 
     private static Ipv4Address Address()

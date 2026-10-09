@@ -5,53 +5,8 @@ using OS.Pal;
 
 internal static class NativeAppExitStatusTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("appmodel.exit status formats success marker", TestFormatsSuccessMarker, ref failures);
-        Run("appmodel.exit status formats nonzero marker", TestFormatsNonzeroMarker, ref failures);
-        Run("appmodel.exit status formats launcher failure", TestFormatsLauncherFailure, ref failures);
-        Run("appmodel.exit status rejects invalid input", TestRejectsInvalidInput, ref failures);
-        Run("appmodel.exit status parser parses formatted marker", TestParsesFormattedMarker, ref failures);
-        Run("appmodel.exit status parser rejects malformed marker", TestParserRejectsMalformedMarker, ref failures);
-        Run("appmodel.exit status parser accepts address status aliases", TestParserAcceptsAddressStatusAliases, ref failures);
-        Run("appmodel.exit status parser uses shared memory helpers", TestParserUsesSharedMemoryHelpers, ref failures);
-        Run("appmodel.exit status formatter uses shared ascii text builder", TestFormatterUsesSharedAsciiTextBuilder, ref failures);
-        Run("appmodel.exit status create default result is not success", TestCreateDefaultResultIsNotSuccess, ref failures);
-        Run("appmodel.exit status marker default result is not success", TestMarkerDefaultResultIsNotSuccess, ref failures);
-        Run("appmodel.exit status parser default result is not success", TestParserDefaultResultIsNotSuccess, ref failures);
-        Run("appmodel.exit status writes marker to app log", TestWritesMarkerToAppLog, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app exit status host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel.exit status formats success marker", HostLane.Fast, 0)]
     private static bool TestFormatsSuccessMarker()
     {
         NativeAppExitStatusCreateResult create =
@@ -61,15 +16,16 @@ internal static class NativeAppExitStatusTests
         NativeAppExitMarkerResult format =
             NativeAppExitStatusFormatter.TryFormat(create.Record, marker);
 
-        return create.Succeeded
+        return HostCheck.Result(create.Succeeded
             && create.IsInitialized
             && format.Succeeded
             && format.IsInitialized
             && format.BytesWritten == format.RequiredBytes
             && ToAscii(marker[..format.BytesWritten]) ==
-                "APP_EXIT code=0 status=OSHOST_STATUS_OK";
+                "APP_EXIT code=0 status=OSHOST_STATUS_OK");
     }
 
+    [HostTest("appmodel.exit status formats nonzero marker", HostLane.Fast, 1)]
     private static bool TestFormatsNonzeroMarker()
     {
         NativeAppExitStatusCreateResult create =
@@ -79,15 +35,16 @@ internal static class NativeAppExitStatusTests
         NativeAppExitMarkerResult format =
             NativeAppExitStatusFormatter.TryFormat(create.Record, marker);
 
-        return create.Succeeded
+        return HostCheck.Result(create.Succeeded
             && create.IsInitialized
             && !create.Record.LauncherFailure
             && format.Succeeded
             && format.IsInitialized
             && ToAscii(marker[..format.BytesWritten]) ==
-                "APP_EXIT code=7 status=OSHOST_STATUS_INTERNAL_ERROR";
+                "APP_EXIT code=7 status=OSHOST_STATUS_INTERNAL_ERROR");
     }
 
+    [HostTest("appmodel.exit status formats launcher failure", HostLane.Fast, 2)]
     private static bool TestFormatsLauncherFailure()
     {
         NativeAppExitStatusCreateResult create =
@@ -97,16 +54,17 @@ internal static class NativeAppExitStatusTests
         NativeAppExitMarkerResult format =
             NativeAppExitStatusFormatter.TryFormat(create.Record, marker);
 
-        return create.Succeeded
+        return HostCheck.Result(create.Succeeded
             && create.IsInitialized
             && create.Record.LauncherFailure
             && create.Record.ExitCode == NativeAppExitStatusFormatter.MaximumExitCode
             && format.Succeeded
             && format.IsInitialized
             && ToAscii(marker[..format.BytesWritten]) ==
-                "APP_EXIT code=255 status=OSHOST_STATUS_NOT_SUPPORTED";
+                "APP_EXIT code=255 status=OSHOST_STATUS_NOT_SUPPORTED");
     }
 
+    [HostTest("appmodel.exit status rejects invalid input", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidInput()
     {
         NativeAppExitStatusCreateResult negative =
@@ -124,7 +82,7 @@ internal static class NativeAppExitStatusTests
                 NativeAppExitStatusFormatter.CreateNormalExit(0, OSHostStatus.Ok).Record,
                 small);
 
-        return negative.Status == NativeAppExitMarkerStatus.InvalidExitCode
+        return HostCheck.Result(negative.Status == NativeAppExitMarkerStatus.InvalidExitCode
             && negative.IsInitialized
             && tooLarge.Status == NativeAppExitMarkerStatus.InvalidExitCode
             && tooLarge.IsInitialized
@@ -134,9 +92,10 @@ internal static class NativeAppExitStatusTests
             && invalidLauncher.IsInitialized
             && tooSmall.Status == NativeAppExitMarkerStatus.DestinationTooSmall
             && tooSmall.IsInitialized
-            && tooSmall.RequiredBytes > small.Length;
+            && tooSmall.RequiredBytes > small.Length);
     }
 
+    [HostTest("appmodel.exit status parser parses formatted marker", HostLane.Fast, 4)]
     private static bool TestParsesFormattedMarker()
     {
         Span<byte> successMarker = stackalloc byte[NativeAppExitStatusFormatter.MaximumMarkerBytes];
@@ -163,7 +122,7 @@ internal static class NativeAppExitStatusTests
         NativeAppExitParseResult launcherParse =
             NativeAppExitStatusFormatter.TryParse(launcherMarker[..launcherFormat.BytesWritten]);
 
-        return successCreate.Succeeded
+        return HostCheck.Result(successCreate.Succeeded
             && successFormat.Succeeded
             && successParse.Succeeded
             && successParse.IsInitialized
@@ -182,9 +141,10 @@ internal static class NativeAppExitStatusTests
             && launcherParse.Succeeded
             && launcherParse.Record.ExitCode == NativeAppExitStatusFormatter.MaximumExitCode
             && launcherParse.Record.Status == OSHostStatus.NotSupported
-            && launcherParse.Record.LauncherFailure;
+            && launcherParse.Record.LauncherFailure);
     }
 
+    [HostTest("appmodel.exit status parser rejects malformed marker", HostLane.Fast, 5)]
     private static bool TestParserRejectsMalformedMarker()
     {
         NativeAppExitParseResult invalidPrefix =
@@ -206,7 +166,7 @@ internal static class NativeAppExitStatusTests
         NativeAppExitParseResult truncatedStatusValue =
             ParseAscii("APP_EXIT code=0 status=");
 
-        return invalidPrefix.IsInitialized
+        return HostCheck.Result(invalidPrefix.IsInitialized
             && !invalidPrefix.Succeeded
             && invalidPrefix.Status == NativeAppExitParseStatus.InvalidPrefix
             && fieldOrder.Status == NativeAppExitParseStatus.InvalidFieldOrder
@@ -216,9 +176,10 @@ internal static class NativeAppExitStatusTests
             && extraField.Status == NativeAppExitParseStatus.ExtraFields
             && truncatedPrefix.Status == NativeAppExitParseStatus.TruncatedFields
             && truncatedStatusField.Status == NativeAppExitParseStatus.TruncatedFields
-            && truncatedStatusValue.Status == NativeAppExitParseStatus.TruncatedFields;
+            && truncatedStatusValue.Status == NativeAppExitParseStatus.TruncatedFields);
     }
 
+    [HostTest("appmodel.exit status parser accepts address status aliases", HostLane.Fast, 6)]
     private static bool TestParserAcceptsAddressStatusAliases()
     {
         NativeAppExitParseResult addrInUse =
@@ -230,23 +191,24 @@ internal static class NativeAppExitStatusTests
         NativeAppExitParseResult addressNotAvailable =
             ParseAscii("APP_EXIT code=1 status=OSHOST_STATUS_ADDRESS_NOT_AVAILABLE");
 
-        return addrInUse.Succeeded
+        return HostCheck.Result(addrInUse.Succeeded
             && addrInUse.Record.Status == OSHostStatus.AddressInUse
             && addressInUse.Succeeded
             && addressInUse.Record.Status == OSHostStatus.AddressInUse
             && addrNotAvailable.Succeeded
             && addrNotAvailable.Record.Status == OSHostStatus.AddressNotAvailable
             && addressNotAvailable.Succeeded
-            && addressNotAvailable.Record.Status == OSHostStatus.AddressNotAvailable;
+            && addressNotAvailable.Record.Status == OSHostStatus.AddressNotAvailable);
     }
 
+    [HostTest("appmodel.exit status parser uses shared memory helpers", HostLane.Fast, 7)]
     private static bool TestParserUsesSharedMemoryHelpers()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Runtime", "NativeAppExitStatus.cs"));
 
-        return source.Contains(
+        return HostCheck.Result(source.Contains(
                 "OS.Std.MemoryExtensions.StartsWith(line, AppExitMarker)",
                 StringComparison.Ordinal)
             && source.Contains(
@@ -275,16 +237,17 @@ internal static class NativeAppExitStatusTests
                 StringComparison.Ordinal)
             && !source.Contains(
                 "private static bool EqualsBytes(ReadOnlySpan<byte>",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("appmodel.exit status formatter uses shared ascii text builder", HostLane.Fast, 8)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Runtime", "NativeAppExitStatus.cs"));
 
-        return source.Contains(
+        return HostCheck.Result(source.Contains(
                 "AsciiDecimalFormatter.CountInt32Digits(record.ExitCode)",
                 StringComparison.Ordinal)
             && source.Contains(
@@ -301,49 +264,53 @@ internal static class NativeAppExitStatusTests
                 StringComparison.Ordinal)
             && !source.Contains(
                 "destination[cursor--] = (byte)('0' +",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("appmodel.exit status create default result is not success", HostLane.Fast, 9)]
     private static bool TestCreateDefaultResultIsNotSuccess()
     {
         NativeAppExitStatusCreateResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppExitMarkerStatus.Success
             && result.Record.ExitCode == 0
             && result.Record.Status == OSHostStatus.Ok
             && !result.Record.LauncherFailure
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppExitStatusCreateResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppExitStatusCreateResult>());
     }
 
+    [HostTest("appmodel.exit status marker default result is not success", HostLane.Fast, 10)]
     private static bool TestMarkerDefaultResultIsNotSuccess()
     {
         NativeAppExitMarkerResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppExitMarkerStatus.Success
             && result.BytesWritten == 0
             && result.RequiredBytes == 0
             && result.LogStatus == OSHostStatus.Ok
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppExitMarkerResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppExitMarkerResult>());
     }
 
+    [HostTest("appmodel.exit status parser default result is not success", HostLane.Fast, 11)]
     private static bool TestParserDefaultResultIsNotSuccess()
     {
         NativeAppExitParseResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppExitParseStatus.Success
             && result.Record.ExitCode == 0
             && result.Record.Status == OSHostStatus.Ok
             && !result.Record.LauncherFailure
             && result.BytesRead == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppExitParseResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppExitParseResult>());
     }
 
+    [HostTest("appmodel.exit status writes marker to app log", HostLane.Fast, 12)]
     private static bool TestWritesMarkerToAppLog()
     {
         OSHostAppLogTable table = new(recordCapacity: 1, maxRecordBytes: 96);
@@ -356,7 +323,7 @@ internal static class NativeAppExitStatusTests
         Span<byte> marker = stackalloc byte[write.RequiredBytes];
         OSHostAppLogReadResult read = table.TryCopyRecord(0, marker);
 
-        return write.Succeeded
+        return HostCheck.Result(write.Succeeded
             && create.IsInitialized
             && write.IsInitialized
             && write.LogStatus == OSHostStatus.Ok
@@ -365,7 +332,7 @@ internal static class NativeAppExitStatusTests
             && read.StreamId == OSHostAppLogConstants.StreamStdout
             && read.Flags == OSHostAppLogConstants.FlagMachineReadable
             && ToAscii(marker[..(int)read.BytesCopied]) ==
-                "APP_EXIT code=0 status=OSHOST_STATUS_OK";
+                "APP_EXIT code=0 status=OSHOST_STATUS_OK");
     }
 
     private static string ToAscii(ReadOnlySpan<byte> bytes)

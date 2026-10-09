@@ -229,23 +229,8 @@ internal static class M04StringAllocationEfiIntegrationTests
     private const string Flag="EnableM04StringAllocationProbe";
     private static readonly string[] Chain=["EnableM01LoadedImageStackProbe","EnableM01LiveAllocatorProbe","EnableM04IndependentEndianConformanceProbe",
         "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe","EnableM04ArithmeticConformanceProbe","EnableM04LayoutContractProbe","EnableM04ManagedHeapPageRangeProbe","EnableM04RhpNewFastProbe","EnableM04SzArrayAllocationProbe"];
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        Run("source profile and original handoff",TestSource);
-        Run("actual POD core and bounded String metadata",TestCore);
-        Run("ordinary wrapper admission and strict existing firewall",TestFirewall);
-        Run("strongest full transcript and negatives",TestTranscript);
-        Run("explicit profile prerequisites and conflicts",TestProfiles);
-        Run("actual default and four String artifacts",TestArtifacts);
-    }
-    private static void Run(string name,Action test)
-    {
-        Console.WriteLine("TEST_START m04.009.efi "+name);
-        try{test();Console.WriteLine("TEST_PASS m04.009.efi "+name);}
-        catch(Exception ex){Console.WriteLine("TEST_FAIL m04.009.efi "+name+" "+ex.Message);throw;}
-    }
 
+    [HostTest("m04.009.efi actual POD core and bounded String metadata", HostLane.Native, 1)]
     private static void TestCore()
     {
         string root=HostToolProcess.FindRepositoryRoot(),directory=Scratch(root,"core");
@@ -261,31 +246,24 @@ internal static class M04StringAllocationEfiIntegrationTests
         Need(result.Code==0 && result.Output.Contains("TEST_PASS string.core.tests",StringComparison.Ordinal),result.Output);
     }
 
-    private static void TestFirewall()
-    {
-        string root=HostToolProcess.FindRepositoryRoot(),directory=Scratch(root,"firewall"),ps=Path.Combine(directory,"Test.ps1");
-        File.WriteAllText(ps,"""
-            param([string]$Root)
-            $ErrorActionPreference='Stop';$t=$null;$e=$null
-            $ast=[System.Management.Automation.Language.Parser]::ParseFile((Join-Path $Root 'scripts/build-efi-shell.ps1'),[ref]$t,[ref]$e)
-            if($e.Count){throw 'parse'}
-            foreach($name in @('Get-M01Utf8Sha256','Get-NostdlibEfiActiveSource','Test-M01ActiveSourceSurface')) {
-                $f=$ast.Find({param($n)$n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name},$true);. ([scriptblock]::Create($f.Extent.Text))
-            }
-            $name='..\OS.Kernel\Runtime\GuestTestStringAllocationCharacterStorage.cs'
-            $text=[IO.File]::ReadAllText((Join-Path $Root 'src/OS.Kernel/Runtime/GuestTestStringAllocationCharacterStorage.cs'))
-            foreach($good in @($text,$text.Replace("`r`n","`n"))) {if(-not (Test-M01ActiveSourceSurface $good $name).Succeeded){throw 'ordinary scalar wrapper rejected'}}
-            foreach($bad in @('using System; public class X {}','public class X { object value = new object(); }')) {if((Test-M01ActiveSourceSurface $bad $name).Succeeded){throw 'generic surface expanded'}}
-            Write-Output 'TEST_PASS m04.009.efi.firewall'
-            """);
-        Result r=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",ps,"-Root",root]);Save(directory,r);Need(r.Code==0,r.Output);
-    }
+    [HostTest("m04.009.efi source admission and strict firewall", HostLane.Fast, 2)]
+private static void TestFirewall()
+{
+    const string name = @"..\OS.Kernel\Runtime\GuestTestStringAllocationCharacterStorage.cs";
+    string text = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS.Kernel/Runtime/GuestTestStringAllocationCharacterStorage.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
+    foreach (string good in new[] { text, text.Replace("\n", "\r\n", StringComparison.Ordinal) })
+        Need(OS.Tooling.EfiSourceAdmission.Inspect(good, name).Succeeded, "reviewed source admission");
+    foreach (string bad in new[] { "using System; public class X {}", "public class X { object value = new object(); }" })
+        Need(!OS.Tooling.EfiSourceAdmission.Inspect(bad, name).Succeeded, "generic surface remains closed");
 
+}
+
+    [HostTest("m04.009.efi source profile and original handoff", HostLane.Fast, 0)]
     private static void TestSource()
     {
         string root=HostToolProcess.FindRepositoryRoot();XDocument project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
         string[] items=project.Descendants("Compile").Select(x=>x.Attribute("Include")!.Value+"|"+(x.Attribute("Link")?.Value??"")).ToArray();
-        Need(items.Length==122 && items[82]=="..\\OS.Kernel\\Runtime\\GuestTestStringAllocationCharacterStorage.cs|Runtime\\GuestTestStringAllocationCharacterStorage.cs" &&
+        Need(items.Length==OS.Tooling.EfiContracts.CompileItems.Count && items[82]=="..\\OS.Kernel\\Runtime\\GuestTestStringAllocationCharacterStorage.cs|Runtime\\GuestTestStringAllocationCharacterStorage.cs" &&
             items[83]=="..\\OS.Kernel\\Diagnostics\\StringAllocationProbeAuthority.cs|Diagnostics\\StringAllocationProbeAuthority.cs","two exact String includes");
         foreach(var pair in new[]{(Flag,"M04_STRING_ALLOCATION_PROBE"),("EnableM04StringAllocationBeforeBindProbe","M04_STRING_ALLOCATION_BEFORE_BIND_PROBE"),("EnableM04StringAllocationExhaustionProbe","M04_STRING_ALLOCATION_EXHAUSTION_PROBE"),("EnableM04StringAllocationInvalidLengthProbe","M04_STRING_ALLOCATION_INVALID_LENGTH_PROBE")})
         {
@@ -293,11 +271,11 @@ internal static class M04StringAllocationEfiIntegrationTests
             Need(project.Descendants("PropertyGroup").Single(x=>x.Attribute("Condition")?.Value=="'$("+pair.Item1+")' == 'true'").Element("DefineConstants")?.Value=="$(DefineConstants);"+pair.Item2,"exact selected compiler symbol");
         }
         foreach(string required in Chain)Need(project.Descendants("Error").Any(x=>x.Attribute("Condition")?.Value=="'$("+Flag+")' == 'true' and '$("+required+")' != 'true'"),"explicit prerequisite "+required);
+        HostCheck.Registered(typeof(GuestTestStringAllocationCharacterStorageTests));
+        HostCheck.Registered(typeof(GuestTestRhpNewFastTests));
         foreach(var file in new[]{("src/OS.Kernel/Runtime/GuestTestStringAllocationCharacterStorage.cs","0676ab5b69838bd12575a9d3c2059f8c39872cfa67c5b9fd0c37227568822aba"),
-            ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs","7a14fa23e28548fa94d30e5569f786a1ce4c5bbe2375ac5b23a493d06f20ebd5"),
-            ("tests/OS.HostTests/GuestTestStringAllocationCharacterStorageTests.cs","ca62c5e77851f4b6d85e5be713abcbab21056681b1c1a463efdc076d0d991267"),
-            ("tests/OS.HostTests/GuestTestRhpNewFastTests.cs","7a89abb2719a94e51a218370e62fe6a4cf217252eb9ba8ff7ae693fdbc8b940e"),
-            ("src/OS/Boot/EfiEntry.cs","b68bc18fa8734829c03161ce874b192c683a8b13269387469cba916e71b69583")})
+            ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs",OS.Tooling.EfiContracts.AllocationSourceSha256),
+            ("src/OS/Boot/EfiEntry.cs",OS.Tooling.EfiContracts.EfiEntrySourceSha256)})
             Need(Hash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(root,file.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)))==file.Item2,"reviewed host/entry source "+file.Item1);
         string adapter=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/RhpNewFastAllocation.cs"));
         Need(adapter.Contains("GuestTestStringAllocationCharacterStorage.TryAllocate(*access, bump, 80,",StringComparison.Ordinal) &&
@@ -308,6 +286,7 @@ internal static class M04StringAllocationEfiIntegrationTests
         Need(Regex.Matches(adapter,@"private static RhpNewFastBumpState s_bump;").Count==1 && Regex.Matches(adapter,@"GuestTestRhpNewFast\.InitializeOnce\(").Count==1,"sole original state/binder");
         foreach(string forbidden in new[]{"FreeOnePage(","FreePages(","RhBox(","new object[","throw ","System.Reflection","System.Console"})Need(!adapter.Contains(forbidden,StringComparison.Ordinal),"no scope expansion");
     }
+    [HostTest("m04.009.efi explicit profile prerequisites and conflicts", HostLane.Native, 4)]
     private static void TestProfiles()
     {
         string root=HostToolProcess.FindRepositoryRoot(),directory=Scratch(root,"profiles");
@@ -328,17 +307,17 @@ internal static class M04StringAllocationEfiIntegrationTests
         int id=0;
         foreach(string[] flags in invalid)foreach(bool runner in new[]{false,true})
         {
-            Result r=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts",runner?"run-qemu-smoke.ps1":"build-efi-shell.ps1"),
-                ..(runner?new[]{"-BootPolicy", "Diagnostic", "-DryRun","-BuildEfi"}:new[]{"-PreflightOnly","-LogPath",Path.Combine(directory,"preflight-"+id+".log")}),..flags.Select(x=>"-"+x)]);
-            Save(Path.Combine(directory,(id++).ToString()),r);Need(r.Code!=0 && (r.Output.Contains("m04_",StringComparison.Ordinal) || (flags.Contains("EnableM03FirmwareEntropySeedProbe",StringComparer.Ordinal) && r.Output.Contains("m03_firmware_entropy_profile_conflict property=EnableM01LiveAllocatorProbe",StringComparison.Ordinal)) || (flags.Contains("EnableM03MemoryMapCaptureProbe",StringComparer.Ordinal) && r.Output.Contains("m03_memory_map_capture_profile_conflict property=EnableM01LoadedImageStackProbe",StringComparison.Ordinal))),"explicit profile rejection "+string.Join(',',flags)+" "+r.Output);
+            Result r=Command([..(runner ? new[] { "qemu", "smoke" } : new[] { "efi", "build" }), ..(runner?new[]{"-BootPolicy", "Diagnostic", "-DryRun","-BuildEfi"}:new[]{"-PreflightOnly","-LogPath",Path.Combine(directory,"preflight-"+id+".log")}), ..flags.Select(x=>"-"+x)]);
+            Save(Path.Combine(directory,(id++).ToString()),r);Need(r.Code!=0 && (r.Output.Contains("m04_",StringComparison.Ordinal) || (flags.Contains("EnableM03FirmwareEntropySeedProbe",StringComparer.Ordinal) && r.Output.Contains("m03_firmware_entropy_profile_conflict property=EnableM01LoadedImageStackProbe",StringComparison.Ordinal)) || (flags.Contains("EnableM03MemoryMapCaptureProbe",StringComparer.Ordinal) && r.Output.Contains("m03_memory_map_capture_profile_conflict property=EnableM01LoadedImageStackProbe",StringComparison.Ordinal))),"explicit profile rejection "+string.Join(',',flags)+" "+r.Output);
         }
         foreach(string[] flags in negatives.Select(x=>all.Append(x).ToArray()).Prepend(all))
         {
-            Result r=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts/run-qemu-smoke.ps1"),"-BootPolicy", "Diagnostic", "-DryRun","-BuildEfi",..flags.Select(x=>"-"+x)]);
+            Result r=Command(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", ..flags.Select(x=>"-"+x)]);
             Save(Path.Combine(directory,(id++).ToString()),r);Need(r.Code==0,r.Output);
             Need(r.Output.Contains("TEST_FAIL m04.009",StringComparison.Ordinal),"negative profile keeps generic failure classification");
         }
     }
+    [HostTest("m04.009.efi actual default and four String artifacts", HostLane.Native, 5)]
     private static void TestArtifacts()
     {
         string root=HostToolProcess.FindRepositoryRoot();
@@ -346,17 +325,17 @@ internal static class M04StringAllocationEfiIntegrationTests
         foreach(var lane in new[]{("default",Array.Empty<string>()),("positive",all),("before-bind",all.Append("EnableM04StringAllocationBeforeBindProbe").ToArray()),("exhaustion",all.Append("EnableM04StringAllocationExhaustionProbe").ToArray()),("invalid-length",all.Append("EnableM04StringAllocationInvalidLengthProbe").ToArray())})
         {
             string directory=Scratch(root,"artifact-"+lane.Item1),artifact=Path.Combine(root,"artifacts/efi/issue528-tests-"+Guid.NewGuid().ToString("N")+".EFI");
-            Result r=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts/build-efi-shell.ps1"),"-EfiOutputPath",artifact,"-LogPath",Path.Combine(directory,"publish.log"),..lane.Item2.Select(x=>"-"+x)]);
+            Result r=Command(["efi", "build", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory,"publish.log"), ..lane.Item2.Select(x=>"-"+x)]);
             Save(directory,r);
             Need(r.Code==0 && r.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal) && r.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),r.Output);
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(directory,file.Item2));
             using var document=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=document.RootElement;
-            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==138,"actual138 raw sources");
+            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==OS.Tooling.EfiEvidence.SourceClosurePaths(root).Count,"complete raw source inventory");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw source unchanged");
-            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==122,"actual122 compile items");
+            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==OS.Tooling.EfiContracts.CompileItems.Count,"actual122 compile items");
             var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-            Need(flags.Length==52,"complete52 evaluated flags");
+            Need(flags.Length==OS.Tooling.EfiContracts.DiagnosticProbes.Count,"complete52 evaluated flags");
             foreach(var f in flags)Need(f.Value.GetString()==(lane.Item2.Contains(f.Name,StringComparer.Ordinal)?"true":"false"),"actual requested/evaluated profile "+f.Name);
             TestMetadata(directory,lane.Item1!="default");
             if(lane.Item1!="default")TestLinkedRoutes(root,directory,lane.Item1);
@@ -537,14 +516,11 @@ internal static class M04StringAllocationEfiIntegrationTests
             StringSymbol=mtName,StringRva=mt,RelatedObjectSymbol=objectName,RelatedObjectRva=related,StringPrefix=Convert.ToHexString(raw),ObjectPrefix=Convert.ToHexString(objectPrefix),
             Dir64Rva=mt+8,ExportRva=symbols["RhNewString"],Code=code,GuestAccepted=false},new System.Text.Json.JsonSerializerOptions{WriteIndented=true}));
     }
+    [HostTest("m04.009.efi strongest full transcript and negatives", HostLane.Fast, 3)]
     private static void TestTranscript()
     {
         string root=HostToolProcess.FindRepositoryRoot(),directory=Scratch(root,"transcript");
-        string source=File.ReadAllText(Path.Combine(root,"scripts/run-qemu-smoke.ps1"));
-        Need(source.Contains("QEMU_SCRIPT_M04_STRING_TRANSCRIPT exactWholeLines=true lines=72 allocations=7 used=200 count=7 terminal=true",StringComparison.Ordinal),"reported exact transcript line count");
-        string defs=Between(source,"$script:M04IndependentEndianConformanceReadyMarker =","function Invoke-NativeCommand {");
-        string functions=Between(source,"function Assert-M04ManagedHeapPageRangeTranscript {","function Assert-M04LayoutContractTranscript {");
-        Result dry=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts/run-qemu-smoke.ps1"),"-BootPolicy", "Diagnostic", "-DryRun","-BuildEfi",..Chain.Append(Flag).Select(x=>"-"+x)]);
+        Result dry=Command(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", ..Chain.Append(Flag).Select(x=>"-"+x)]);
         Save(Path.Combine(directory,"dryrun"),dry);Need(dry.Code==0,dry.Output);
         string[] chain=dry.Output.Replace("\r","").Split('\n').Single(x=>x.StartsWith("ORDERED_MARKERS ",StringComparison.Ordinal))[16..].Split(';');
         List<string> lines=["TEST_START efi.main",..chain.Take(6),"UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 3","UEFI_MEMORY_MAP_OWNED","BOOT_HANDOFF_READY","UEFI_MEMORY_MAP_NORMALIZED","BOOT_MEMORY_MAP_ACCEPTED","BOOT_MEMORY_REGIONS_READY","BOOT_MEMORY_REGION_COUNT 3","BOOT_PAGE_ALLOCATOR_READY status=Ready regions=3 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0","BOOT_ACPI_RSDP_HANDOFF_READY","UEFI_ACPI_RSDP_READY",..chain.Skip(6)];
@@ -586,13 +562,15 @@ internal static class M04StringAllocationEfiIntegrationTests
         string malformed=Path.Combine(directory,"malformed-utf8.log");File.WriteAllBytes(malformed,[0xC0,0xAF,..Encoding.ASCII.GetBytes(good)]);
         manifest=[..manifest,new {Path=malformed,Accept=false}];
         string json=Path.Combine(directory,"cases.json");File.WriteAllText(json,System.Text.Json.JsonSerializer.Serialize(manifest));
-        string ps=Path.Combine(directory,"Test.ps1");File.WriteAllText(ps,"$ErrorActionPreference='Stop'\n"+defs+functions+"\n$cases=[IO.File]::ReadAllText('"+json+"')|ConvertFrom-Json\n"+"""
-            foreach($case in $cases){$accepted=$true;$reason='';try{Assert-M04StringAllocationTranscript $case.Path}catch{$accepted=$false;$reason=$_.Exception.Message};if($accepted -ne $case.Accept){throw ($case.Path+' accepted='+$accepted+' reason='+$reason)}}
-            foreach($exitCode in @('0','-1','2147483647','-2147483648')){Assert-M04ManagedHeapRunnerResult @('SERIAL_MARKER_DRAIN milliseconds=750',('QEMU_PROCESS_RESULT disposition=runner-terminated exitCode='+$exitCode))}
-            foreach($exitCode in @('none','2147483648','-2147483649','-0','01','+1')){$rejected=$false;try{Assert-M04ManagedHeapRunnerResult @('SERIAL_MARKER_DRAIN milliseconds=750',('QEMU_PROCESS_RESULT disposition=runner-terminated exitCode='+$exitCode))}catch{$rejected=$true};if(-not $rejected){throw 'invalid exit admitted'}}
-            Write-Output ('TEST_PASS m04.009.efi.transcript cases='+$cases.Count)
-            """);
-        Result result=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",ps]);Save(directory,result);Need(result.Code==0,result.Output);
+        foreach(var entry in manifest)
+        {
+            bool accepted = true;
+            try { OS.Tooling.QemuTranscripts.AssertM04StringAllocationTranscript(entry.Path); }
+            catch (OS.Tooling.ToolFailure) { accepted = false; }
+            Need(accepted == entry.Accept, "whole transcript control " + entry.Path + " expected=" + entry.Accept);
+        }
+        EfiTranscriptControls.RunnerExitCodes();
+        Console.WriteLine("TRANSCRIPT_CONTROLS m04.009 cases=" + manifest.Length);
     }
     private static string Between(string text,string start,string end){int i=text.IndexOf(start,StringComparison.Ordinal);Need(i>=0,start);int j=text.IndexOf(end,i,StringComparison.Ordinal);Need(j>=i,end);return text[i..j];}
 
@@ -603,12 +581,7 @@ internal static class M04StringAllocationEfiIntegrationTests
     private static Result Process(string root,string executable,string[] arguments)
     {
         ProcessStartInfo start=new(executable){WorkingDirectory=root,UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
-        if(string.Equals(executable,"powershell.exe",StringComparison.OrdinalIgnoreCase))
-        {
-            string modules=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","WindowsPowerShell","v1.0","Modules");
-            string inherited=Environment.GetEnvironmentVariable("PSModulePath")??string.Empty;
-            start.Environment["PSModulePath"]=modules+(inherited.Length==0?string.Empty:Path.PathSeparator+inherited);
-        }
+
         foreach(string a in arguments)start.ArgumentList.Add(a);
         string evidence=Scratch(root,"child-command");DateTime begun=DateTime.UtcNow;
         File.WriteAllText(Path.Combine(evidence,"command.json"),System.Text.Json.JsonSerializer.Serialize(new {Executable=executable,Arguments=arguments,WorkingDirectory=root,StartedUtc=begun}));
@@ -628,6 +601,7 @@ internal static class M04StringAllocationEfiIntegrationTests
 
     private static void Need(bool x,string reason){if(!x)throw new InvalidOperationException(reason);}
 
+    private static Result Command(params string[] args) { var result = HostToolProcess.RunTool(args); return new(result.ExitCode, result.Output + result.Error); }
     private readonly record struct Result(int Code,string Output);
 }
 #endif

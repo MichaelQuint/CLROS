@@ -4,45 +4,8 @@ using OS.Std.Binary;
 
 internal static unsafe class EfiConfigurationTableScannerTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("uefi.config acpi2 preferred", TestAcpi20Preferred, ref failures);
-        Run("uefi.config acpi1 fallback", TestAcpi10Fallback, ref failures);
-        Run("uefi.config acpi missing", TestAcpiMissing, ref failures);
-        Run("uefi.config acpi zero pointer rejected", TestZeroPointerRejected, ref failures);
-        Run("uefi.config invalid metadata rejected", TestInvalidMetadataRejected, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("EFI configuration-table scanner host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("uefi.config acpi2 preferred", HostLane.Fast, 0)]
     private static bool TestAcpi20Preferred()
     {
         EfiConfigurationTableEntry[] tables =
@@ -58,10 +21,11 @@ internal static unsafe class EfiConfigurationTableScannerTests
         EfiConfigurationTableScanResult spanResult = EfiConfigurationTableScanner.Scan(tables);
         EfiConfigurationTableScanResult pointerResult = ScanPointer(tables);
 
-        return IsSuccess(spanResult, EfiAcpiTableKind.Acpi20, 0x2000)
-            && IsSuccess(pointerResult, EfiAcpiTableKind.Acpi20, 0x2000);
+        return HostCheck.Result(IsSuccess(spanResult, EfiAcpiTableKind.Acpi20, 0x2000)
+            && IsSuccess(pointerResult, EfiAcpiTableKind.Acpi20, 0x2000));
     }
 
+    [HostTest("uefi.config acpi1 fallback", HostLane.Fast, 1)]
     private static bool TestAcpi10Fallback()
     {
         EfiConfigurationTableEntry[] tables =
@@ -75,10 +39,11 @@ internal static unsafe class EfiConfigurationTableScannerTests
         EfiConfigurationTableScanResult spanResult = EfiConfigurationTableScanner.Scan(tables);
         EfiConfigurationTableScanResult pointerResult = ScanPointer(tables);
 
-        return IsSuccess(spanResult, EfiAcpiTableKind.Acpi10, 0x3000)
-            && IsSuccess(pointerResult, EfiAcpiTableKind.Acpi10, 0x3000);
+        return HostCheck.Result(IsSuccess(spanResult, EfiAcpiTableKind.Acpi10, 0x3000)
+            && IsSuccess(pointerResult, EfiAcpiTableKind.Acpi10, 0x3000));
     }
 
+    [HostTest("uefi.config acpi missing", HostLane.Fast, 2)]
     private static bool TestAcpiMissing()
     {
         EfiConfigurationTableEntry[] tables =
@@ -89,10 +54,11 @@ internal static unsafe class EfiConfigurationTableScannerTests
         EfiConfigurationTableScanResult spanResult = EfiConfigurationTableScanner.Scan(tables);
         EfiConfigurationTableScanResult pointerResult = ScanPointer(tables);
 
-        return IsFailure(spanResult, EfiConfigurationTableScanStatus.NotFound)
-            && IsFailure(pointerResult, EfiConfigurationTableScanStatus.NotFound);
+        return HostCheck.Result(IsFailure(spanResult, EfiConfigurationTableScanStatus.NotFound)
+            && IsFailure(pointerResult, EfiConfigurationTableScanStatus.NotFound));
     }
 
+    [HostTest("uefi.config acpi zero pointer rejected", HostLane.Fast, 3)]
     private static bool TestZeroPointerRejected()
     {
         EfiConfigurationTableEntry[] acpi20Zero =
@@ -117,12 +83,13 @@ internal static unsafe class EfiConfigurationTableScannerTests
         EfiConfigurationTableScanResult acpi10SpanResult = EfiConfigurationTableScanner.Scan(acpi10Zero);
         EfiConfigurationTableScanResult acpi10PointerResult = ScanPointer(acpi10Zero);
 
-        return IsFailure(acpi20SpanResult, EfiConfigurationTableScanStatus.InvalidPointer)
+        return HostCheck.Result(IsFailure(acpi20SpanResult, EfiConfigurationTableScanStatus.InvalidPointer)
             && IsFailure(acpi20PointerResult, EfiConfigurationTableScanStatus.InvalidPointer)
             && IsFailure(acpi10SpanResult, EfiConfigurationTableScanStatus.InvalidPointer)
-            && IsFailure(acpi10PointerResult, EfiConfigurationTableScanStatus.InvalidPointer);
+            && IsFailure(acpi10PointerResult, EfiConfigurationTableScanStatus.InvalidPointer));
     }
 
+    [HostTest("uefi.config invalid metadata rejected", HostLane.Fast, 4)]
     private static bool TestInvalidMetadataRejected()
     {
         EfiConfigurationTableScanResult invalidAddress = EfiConfigurationTableScanner.Scan(
@@ -133,8 +100,8 @@ internal static unsafe class EfiConfigurationTableScannerTests
             null,
             EfiConfigurationTableScanner.MaximumTableCount + 1);
 
-        return IsFailure(invalidAddress, EfiConfigurationTableScanStatus.InvalidConfigurationTableAddress)
-            && IsFailure(invalidCount, EfiConfigurationTableScanStatus.InvalidConfigurationTableCount);
+        return HostCheck.Result(IsFailure(invalidAddress, EfiConfigurationTableScanStatus.InvalidConfigurationTableAddress)
+            && IsFailure(invalidCount, EfiConfigurationTableScanStatus.InvalidConfigurationTableCount));
     }
 
     private static EfiConfigurationTableScanResult ScanPointer(EfiConfigurationTableEntry[] entries)

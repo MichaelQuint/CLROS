@@ -11,49 +11,7 @@ internal static class DnsResolverTransactionPlannerTests
     private const int ExpectedQueryLength = DnsMessage.HeaderLength + EncodedExampleComLength + 4;
     private const uint ExpectedTtl = 60;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.dns.client.transaction writes query frame", TestWritesQueryFrame, ref failures);
-        Run("net.dns.client.transaction resolves matching response", TestResolvesMatchingResponse, ref failures);
-        Run("net.dns.client.transaction default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("net.dns.client.transaction rejects wrong transaction", TestRejectsWrongTransaction, ref failures);
-        Run("net.dns.client.transaction rejects wrong server", TestRejectsWrongServer, ref failures);
-        Run("net.dns.client.transaction rejects wrong udp ports", TestRejectsWrongUdpPorts, ref failures);
-        Run("net.dns.client.transaction reports nxdomain and no answer", TestReportsNxdomainAndNoAnswer, ref failures);
-        Run("net.dns.client.transaction reports malformed response", TestReportsMalformedResponse, ref failures);
-        Run("net.dns.client.transaction reports unsupported answer type", TestReportsUnsupportedAnswerType, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("DNS resolver transaction planner host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.dns.client.transaction writes query frame", HostLane.Fast, 0)]
     private static bool TestWritesQueryFrame()
     {
         DnsResolverTransactionPlanner planner = DnsResolverTransactionPlanner.Create(PlannerInfo());
@@ -69,7 +27,7 @@ internal static class DnsResolverTransactionPlannerTests
             out EthernetIpv4UdpPacketInfo packetInfo,
             out ReadOnlySpan<byte> payload);
 
-        return status == DnsResolverTransactionPlanStatus.Success
+        return HostCheck.Result(status == DnsResolverTransactionPlanStatus.Success
             && result.Succeeded
             && result.QueryFrameResult.Succeeded
             && result.BytesWritten == DnsUdpFrame.QueryFrameHeaderLength + ExpectedQueryLength
@@ -90,9 +48,10 @@ internal static class DnsResolverTransactionPlannerTests
             && payload[^4] == 0x00
             && payload[^3] == 0x01
             && payload[^2] == 0x00
-            && payload[^1] == 0x01;
+            && payload[^1] == 0x01);
     }
 
+    [HostTest("net.dns.client.transaction default result is not success", HostLane.Fast, 2)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         DnsResolverTransactionPlanResult defaultResult = default;
@@ -113,7 +72,7 @@ internal static class DnsResolverTransactionPlannerTests
             "example.com",
             out DnsResolverTransactionPlanResult failure);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == DnsResolverTransactionPlanStatus.Success
             && !defaultResult.QueryFrameResult.IsInitialized
@@ -156,9 +115,10 @@ internal static class DnsResolverTransactionPlannerTests
             && failure.BytesWritten == 0
             && failure.ResponseSize == 0
             && failurePlanner.State == DnsResolverState.Initial
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<DnsResolverTransactionPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<DnsResolverTransactionPlanResult>());
     }
 
+    [HostTest("net.dns.client.transaction resolves matching response", HostLane.Fast, 1)]
     private static bool TestResolvesMatchingResponse()
     {
         DnsResolverTransactionPlanner planner = PreparedPlanner();
@@ -180,7 +140,7 @@ internal static class DnsResolverTransactionPlannerTests
             receiveBuffer,
             out DnsResolverTransactionPlanResult result);
 
-        return status == DnsResolverTransactionPlanStatus.Success
+        return HostCheck.Result(status == DnsResolverTransactionPlanStatus.Success
             && result.Succeeded
             && result.ReceiveFrameResult.Succeeded
             && result.UdpResult.Succeeded
@@ -191,9 +151,10 @@ internal static class DnsResolverTransactionPlannerTests
             && result.ResponseSize == payload.Length
             && result.SourceServer == DnsServerAddress()
             && planner.State == DnsResolverState.Resolved
-            && planner.ResolvedAddress == ResolvedAddress();
+            && planner.ResolvedAddress == ResolvedAddress());
     }
 
+    [HostTest("net.dns.client.transaction rejects wrong transaction", HostLane.Fast, 3)]
     private static bool TestRejectsWrongTransaction()
     {
         DnsResolverTransactionPlanner planner = PreparedPlanner();
@@ -215,15 +176,16 @@ internal static class DnsResolverTransactionPlannerTests
             receiveBuffer,
             out DnsResolverTransactionPlanResult result);
 
-        return status == DnsResolverTransactionPlanStatus.WrongTransaction
+        return HostCheck.Result(status == DnsResolverTransactionPlanStatus.WrongTransaction
             && !result.Succeeded
             && result.ResolverStatus == DnsResolverStatus.TransactionIdMismatch
             && result.MessageStatus == DnsMessageStatus.TransactionIdMismatch
             && result.ResponseSize == payload.Length
             && result.SourceServer == DnsServerAddress()
-            && planner.State == DnsResolverState.Failed;
+            && planner.State == DnsResolverState.Failed);
     }
 
+    [HostTest("net.dns.client.transaction rejects wrong server", HostLane.Fast, 4)]
     private static bool TestRejectsWrongServer()
     {
         DnsResolverTransactionPlanner planner = PreparedPlanner();
@@ -246,15 +208,16 @@ internal static class DnsResolverTransactionPlannerTests
             receiveBuffer,
             out DnsResolverTransactionPlanResult result);
 
-        return status == DnsResolverTransactionPlanStatus.WrongServer
+        return HostCheck.Result(status == DnsResolverTransactionPlanStatus.WrongServer
             && !result.Succeeded
             && result.UdpResult.Succeeded
             && result.SourceServer == wrongServer
             && result.ResponseSize == payload.Length
             && result.ReceiveFrameResult.Status == default
-            && planner.State == DnsResolverState.QueryWritten;
+            && planner.State == DnsResolverState.QueryWritten);
     }
 
+    [HostTest("net.dns.client.transaction rejects wrong udp ports", HostLane.Fast, 5)]
     private static bool TestRejectsWrongUdpPorts()
     {
         DnsResolverTransactionPlanner planner = PreparedPlanner();
@@ -276,14 +239,15 @@ internal static class DnsResolverTransactionPlannerTests
             receiveBuffer,
             out DnsResolverTransactionPlanResult result);
 
-        return status == DnsResolverTransactionPlanStatus.WrongUdpPorts
+        return HostCheck.Result(status == DnsResolverTransactionPlanStatus.WrongUdpPorts
             && !result.Succeeded
             && result.UdpResult.Succeeded
             && result.ReceiveFrameResult.Status == DnsUdpFrameStatus.WrongUdpPorts
             && result.SourceServer == DnsServerAddress()
-            && planner.State == DnsResolverState.QueryWritten;
+            && planner.State == DnsResolverState.QueryWritten);
     }
 
+    [HostTest("net.dns.client.transaction reports nxdomain and no answer", HostLane.Fast, 6)]
     private static bool TestReportsNxdomainAndNoAnswer()
     {
         DnsResolverTransactionPlanner nxdomainPlanner = PreparedPlanner();
@@ -322,14 +286,15 @@ internal static class DnsResolverTransactionPlannerTests
             noAnswerBuffer,
             out DnsResolverTransactionPlanResult noAnswerResult);
 
-        return nxdomainStatus == DnsResolverTransactionPlanStatus.Nxdomain
+        return HostCheck.Result(nxdomainStatus == DnsResolverTransactionPlanStatus.Nxdomain
             && nxdomainResult.MessageStatus == DnsMessageStatus.ResponseCodeFailure
             && nxdomainPlanner.State == DnsResolverState.Failed
             && noAnswerStatus == DnsResolverTransactionPlanStatus.NoAnswer
             && noAnswerResult.MessageStatus == DnsMessageStatus.NoAnswer
-            && noAnswerPlanner.State == DnsResolverState.Failed;
+            && noAnswerPlanner.State == DnsResolverState.Failed);
     }
 
+    [HostTest("net.dns.client.transaction reports malformed response", HostLane.Fast, 7)]
     private static bool TestReportsMalformedResponse()
     {
         DnsResolverTransactionPlanner planner = PreparedPlanner();
@@ -352,13 +317,14 @@ internal static class DnsResolverTransactionPlannerTests
             receiveBuffer,
             out DnsResolverTransactionPlanResult result);
 
-        return status == DnsResolverTransactionPlanStatus.MalformedResponse
+        return HostCheck.Result(status == DnsResolverTransactionPlanStatus.MalformedResponse
             && !result.Succeeded
             && result.MessageStatus == DnsMessageStatus.TruncatedAnswer
             && result.ResponseSize == payload.Length
-            && planner.State == DnsResolverState.Failed;
+            && planner.State == DnsResolverState.Failed);
     }
 
+    [HostTest("net.dns.client.transaction reports unsupported answer type", HostLane.Fast, 8)]
     private static bool TestReportsUnsupportedAnswerType()
     {
         DnsResolverTransactionPlanner planner = PreparedPlanner();
@@ -380,11 +346,11 @@ internal static class DnsResolverTransactionPlannerTests
             receiveBuffer,
             out DnsResolverTransactionPlanResult result);
 
-        return status == DnsResolverTransactionPlanStatus.UnsupportedAnswerType
+        return HostCheck.Result(status == DnsResolverTransactionPlanStatus.UnsupportedAnswerType
             && !result.Succeeded
             && result.MessageStatus == DnsMessageStatus.UnsupportedType
             && result.ResponseSize == payload.Length
-            && planner.State == DnsResolverState.Failed;
+            && planner.State == DnsResolverState.Failed);
     }
 
     private static DnsResolverTransactionPlanner PreparedPlanner()

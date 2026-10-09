@@ -10,31 +10,11 @@ using Module = OS.Kernel.Runtime.TypeManagerModuleMetadataLiveNativeAOTImage;
 
 internal static unsafe class CompilerInterfaceDispatchTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-        Run("exact-and-cache", ExactAndCache, ref failures);
-        Run("reference-variance", ReferenceVariance, ref failures);
-        Run("declaring-owner", DeclaringOwner, ref failures);
-        Run("receiver-lifetime", ReceiverLifetime, ref failures);
-        Run("original-authorities", OriginalAuthorities, ref failures);
-        Run("cell-encoding", CellEncoding, ref failures);
-        Run("metadata-and-targets", MetadataAndTargets, ref failures);
-        Run("finite-cache", FiniteCache, ref failures);
-        if (failures != 0) throw new InvalidOperationException("compiler interface dispatch failures=" + failures);
-    }
 
-    private static void Run(string name, Action action, ref int failures)
-    {
-        string marker = "m04.016.interface-dispatch." + name;
-        Console.WriteLine("TEST_START " + marker);
-        try { action(); Console.WriteLine("TEST_PASS " + marker); }
-        catch (Exception error) { failures++; Console.WriteLine("TEST_FAIL " + marker + " " + error.Message); }
-    }
     private static void Check(bool value, string reason) { if (!value) throw new InvalidOperationException(reason); }
     private static void Expect(Status actual, Status expected) => Check(actual == expected, "expected=" + expected + " actual=" + actual);
 
+    [HostTest("m04.016.interface-dispatch.exact-and-cache", HostLane.Fast, 0)]
     private static void ExactAndCache()
     {
         using var f = new Fixture();
@@ -58,6 +38,7 @@ internal static unsafe class CompilerInterfaceDispatchTests
         Console.WriteLine("M04_DISPATCH_HOST_LAYOUT state=" + Core.StateBytes + " required64=" + Core.RequiredStorage(64, 64));
     }
 
+    [HostTest("m04.016.interface-dispatch.reference-variance", HostLane.Fast, 1)]
     private static void ReferenceVariance()
     {
         using var f = new Fixture();
@@ -96,6 +77,7 @@ internal static unsafe class CompilerInterfaceDispatchTests
             "derived variance precedes base exact");
     }
 
+    [HostTest("m04.016.interface-dispatch.declaring-owner", HostLane.Fast, 2)]
     private static void DeclaringOwner()
     {
         using var f = new Fixture();
@@ -112,6 +94,7 @@ internal static unsafe class CompilerInterfaceDispatchTests
             virtualResult.Target == virtualCase.Address(0x11080), "true virtual uses original receiver override");
     }
 
+    [HostTest("m04.016.interface-dispatch.receiver-lifetime", HostLane.Fast, 3)]
     private static void ReceiverLifetime()
     {
         using var f = new Fixture();
@@ -140,6 +123,7 @@ internal static unsafe class CompilerInterfaceDispatchTests
             "old receipt cache cannot serve new lifetime");
     }
 
+    [HostTest("m04.016.interface-dispatch.original-authorities", HostLane.Fast, 4)]
     private static void OriginalAuthorities()
     {
         using var f = new Fixture();
@@ -163,6 +147,7 @@ internal static unsafe class CompilerInterfaceDispatchTests
         receiver = inline.Allocate(0x2300); Expect(inline.Bind(), Status.Success); inline.Resolve(receiver, 0); inline.Guards();
     }
 
+    [HostTest("m04.016.interface-dispatch.cell-encoding", HostLane.Fast, 5)]
     private static void CellEncoding()
     {
         foreach (ulong word in new ulong[] { 0, 0xFF8, 1, 2, 0x100000003 })
@@ -198,6 +183,7 @@ internal static unsafe class CompilerInterfaceDispatchTests
         }
     }
 
+    [HostTest("m04.016.interface-dispatch.metadata-and-targets", HostLane.Fast, 6)]
     private static void MetadataAndTargets()
     {
         using (var f = new Fixture())
@@ -264,6 +250,7 @@ internal static unsafe class CompilerInterfaceDispatchTests
         }
     }
 
+    [HostTest("m04.016.interface-dispatch.finite-cache", HostLane.Fast, 7)]
     private static void FiniteCache()
     {
         using var f = new Fixture(); var a = f.Allocate(0x2300); var b = f.Allocate(0x2400);

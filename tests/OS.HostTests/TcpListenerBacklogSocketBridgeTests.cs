@@ -4,46 +4,8 @@ using OS.Pal;
 
 internal static class TcpListenerBacklogSocketBridgeTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.tcp.listener.socketbridge enqueues accepted connection", TestEnqueuesAcceptedConnection, ref failures);
-        Run("net.tcp.listener.socketbridge rejects empty backlog", TestRejectsEmptyBacklog, ref failures);
-        Run("net.tcp.listener.socketbridge propagates non-listener failure", TestPropagatesNonListenerFailure, ref failures);
-        Run("net.tcp.listener.socketbridge preserves accepted endpoint metadata", TestPreservesAcceptedEndpointMetadata, ref failures);
-        Run("net.tcp.listener.socketbridge default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("net.tcp.listener.socketbridge preserves mock-only boundary", TestPreservesMockOnlyBoundary, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("TCP listener backlog socket bridge host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.tcp.listener.socketbridge enqueues accepted connection", HostLane.Fast, 0)]
     private static bool TestEnqueuesAcceptedConnection()
     {
         TcpListenerBacklogEntry[] backlog = new TcpListenerBacklogEntry[2];
@@ -60,7 +22,7 @@ internal static class TcpListenerBacklogSocketBridgeTests
             out TcpListenerBacklogSocketBridgeResult result);
         OSHostSocketAcceptResult accepted = table.Accept(listener);
 
-        return status == TcpListenerBacklogSocketBridgeStatus.Success
+        return HostCheck.Result(status == TcpListenerBacklogSocketBridgeStatus.Success
             && result.Succeeded
             && result.BacklogStatus == TcpListenerBacklogStatus.Success
             && result.SocketStatus == OSHostStatus.Ok
@@ -68,9 +30,10 @@ internal static class TcpListenerBacklogSocketBridgeTests
             && TcpListenerBacklog.Inspect(backlog).Count == 0
             && accepted.Succeeded
             && accepted.LocalEndpoint.PortHostOrder == connection.LocalPort
-            && accepted.RemoteEndpoint.PortHostOrder == connection.RemotePort;
+            && accepted.RemoteEndpoint.PortHostOrder == connection.RemotePort);
     }
 
+    [HostTest("net.tcp.listener.socketbridge rejects empty backlog", HostLane.Fast, 1)]
     private static bool TestRejectsEmptyBacklog()
     {
         TcpListenerBacklogEntry[] backlog = new TcpListenerBacklogEntry[1];
@@ -83,14 +46,15 @@ internal static class TcpListenerBacklogSocketBridgeTests
             listener,
             out TcpListenerBacklogSocketBridgeResult result);
 
-        return status == TcpListenerBacklogSocketBridgeStatus.BacklogUnavailable
+        return HostCheck.Result(status == TcpListenerBacklogSocketBridgeStatus.BacklogUnavailable
             && !result.Succeeded
             && result.BacklogStatus == TcpListenerBacklogStatus.Success
             && result.SocketStatus == OSHostStatus.WouldBlock
             && result.BacklogCount == 0
-            && table.Accept(listener).Status == OSHostStatus.WouldBlock;
+            && table.Accept(listener).Status == OSHostStatus.WouldBlock);
     }
 
+    [HostTest("net.tcp.listener.socketbridge propagates non-listener failure", HostLane.Fast, 2)]
     private static bool TestPropagatesNonListenerFailure()
     {
         TcpListenerBacklogEntry[] backlog = new TcpListenerBacklogEntry[1];
@@ -105,14 +69,15 @@ internal static class TcpListenerBacklogSocketBridgeTests
             created.Socket,
             out TcpListenerBacklogSocketBridgeResult result);
 
-        return status == TcpListenerBacklogSocketBridgeStatus.SocketEnqueueFailed
+        return HostCheck.Result(status == TcpListenerBacklogSocketBridgeStatus.SocketEnqueueFailed
             && !result.Succeeded
             && result.SocketStatus == OSHostStatus.InvalidArgument
             && result.BacklogStatus == TcpListenerBacklogStatus.Success
             && TcpListenerBacklog.Inspect(backlog).Count == 1
-            && table.Accept(created.Socket).Status == OSHostStatus.InvalidArgument;
+            && table.Accept(created.Socket).Status == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("net.tcp.listener.socketbridge preserves accepted endpoint metadata", HostLane.Fast, 3)]
     private static bool TestPreservesAcceptedEndpointMetadata()
     {
         TcpListenerBacklogEntry[] backlog = new TcpListenerBacklogEntry[1];
@@ -135,7 +100,7 @@ internal static class TcpListenerBacklogSocketBridgeTests
             out TcpListenerBacklogSocketBridgeResult bridge);
         OSHostSocketAcceptResult accepted = table.Accept(listener);
 
-        return bridge.Succeeded
+        return HostCheck.Result(bridge.Succeeded
             && bridge.LocalEndpoint.Address0 == 192
             && bridge.LocalEndpoint.Address1 == 0
             && bridge.LocalEndpoint.Address2 == 2
@@ -150,9 +115,10 @@ internal static class TcpListenerBacklogSocketBridgeTests
             && accepted.RemoteEndpoint.Address0 == 198
             && accepted.RemoteEndpoint.Address3 == 77
             && bridge.Connection.LocalNextSequenceNumber == connection.LocalNextSequenceNumber
-            && bridge.Connection.RemoteNextSequenceNumber == connection.RemoteNextSequenceNumber;
+            && bridge.Connection.RemoteNextSequenceNumber == connection.RemoteNextSequenceNumber);
     }
 
+    [HostTest("net.tcp.listener.socketbridge default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         TcpListenerBacklogSocketBridgeResult defaultResult = default;
@@ -171,7 +137,7 @@ internal static class TcpListenerBacklogSocketBridgeTests
             localEndpoint,
             remoteEndpoint);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == TcpListenerBacklogSocketBridgeStatus.Success
             && failure.IsInitialized
@@ -185,9 +151,10 @@ internal static class TcpListenerBacklogSocketBridgeTests
             && failure.Connection.RemotePort == connection.RemotePort
             && failure.LocalEndpoint.PortHostOrder == localEndpoint.PortHostOrder
             && failure.RemoteEndpoint.PortHostOrder == remoteEndpoint.PortHostOrder
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpListenerBacklogSocketBridgeResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpListenerBacklogSocketBridgeResult>());
     }
 
+    [HostTest("net.tcp.listener.socketbridge preserves mock-only boundary", HostLane.Fast, 5)]
     private static bool TestPreservesMockOnlyBoundary()
     {
         TcpListenerBacklogEntry[] backlog = new TcpListenerBacklogEntry[1];
@@ -199,7 +166,7 @@ internal static class TcpListenerBacklogSocketBridgeTests
             listener: new OSHostSocketHandle(1),
             out TcpListenerBacklogSocketBridgeResult result);
 
-        return TcpListenerBacklogSocketBridge.UsesCallerOwnedBacklog
+        return HostCheck.Result(TcpListenerBacklogSocketBridge.UsesCallerOwnedBacklog
             && TcpListenerBacklogSocketBridge.UsesMockSocketTable
             && !TcpListenerBacklogSocketBridge.ExportsPalFunctions
             && !TcpListenerBacklogSocketBridge.OpensLiveSockets
@@ -207,7 +174,7 @@ internal static class TcpListenerBacklogSocketBridgeTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpListenerBacklogSocketBridgeResult>()
             && missingTable == TcpListenerBacklogSocketBridgeStatus.MissingSocketTable
             && result.SocketStatus == OSHostStatus.InvalidArgument
-            && TcpListenerBacklog.Inspect(backlog).Count == 1;
+            && TcpListenerBacklog.Inspect(backlog).Count == 1);
     }
 
     private static TcpListenerBacklogConnection Connection(ushort remotePort)

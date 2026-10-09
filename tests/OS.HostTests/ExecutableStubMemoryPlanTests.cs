@@ -3,50 +3,13 @@ using OS.Kernel.Runtime;
 
 internal static class ExecutableStubMemoryPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("executable stub memory plan accepts write-then-execute policy", TestAcceptsWriteThenExecutePolicy, ref failures);
-        Run("executable stub memory plan rejects accidental rwx policy", TestRejectsAccidentalRwxPolicy, ref failures);
-        Run("executable stub memory plan calculates aligned layout", TestCalculatesAlignedLayout, ref failures);
-        Run("executable stub memory plan rejects invalid inputs", TestRejectsInvalidInputs, ref failures);
-        Run("executable stub memory plan default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Executable stub memory plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("executable stub memory plan accepts write-then-execute policy", HostLane.Fast, 0)]
     private static bool TestAcceptsWriteThenExecutePolicy()
     {
         ExecutableStubMemoryPlanResult result = ExecutableStubMemoryPlan.Create(64);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == ExecutableStubMemoryPlanStatus.Success
             && result.RequestedPayloadLength == 64
@@ -57,9 +20,10 @@ internal static class ExecutableStubMemoryPlanTests
             && result.WritePhaseProtection == (ExecutableStubMemoryProtection.Read | ExecutableStubMemoryProtection.Write)
             && result.ExecutePhaseProtection == (ExecutableStubMemoryProtection.Read | ExecutableStubMemoryProtection.Execute)
             && result.FinalProtection == (ExecutableStubMemoryProtection.Read | ExecutableStubMemoryProtection.Execute)
-            && result.Flags == ExecutableStubMemoryPlanFlags.None;
+            && result.Flags == ExecutableStubMemoryPlanFlags.None);
     }
 
+    [HostTest("executable stub memory plan rejects accidental rwx policy", HostLane.Fast, 1)]
     private static bool TestRejectsAccidentalRwxPolicy()
     {
         ExecutableStubMemoryProtection rwx =
@@ -85,14 +49,15 @@ internal static class ExecutableStubMemoryPlanTests
             finalProtection: ExecutableStubMemoryProtection.Read | ExecutableStubMemoryProtection.Execute,
             ExecutableStubMemoryPlanFlags.AllowTemporaryWritableExecutableException);
 
-        return !rejected.Succeeded
+        return HostCheck.Result(!rejected.Succeeded
             && rejected.Status == ExecutableStubMemoryPlanStatus.AccidentalWritableExecutable
             && rejected.RequiredByteLength == 0
             && ExecutableStubMemoryPlan.IsWritableExecutable(rwx)
             && explicitException.Succeeded
-            && explicitException.RequiredByteLength == 4096;
+            && explicitException.RequiredByteLength == 4096);
     }
 
+    [HostTest("executable stub memory plan calculates aligned layout", HostLane.Fast, 2)]
     private static bool TestCalculatesAlignedLayout()
     {
         ExecutableStubMemoryPlanResult result = ExecutableStubMemoryPlan.Create(
@@ -100,13 +65,14 @@ internal static class ExecutableStubMemoryPlanTests
             pageSize: 4096,
             alignment: 64);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.PayloadOffset == 64
             && result.RequiredByteLength == 8192
             && ExecutableStubMemoryPlan.AlignUp(ExecutableStubMemoryPlan.MetadataPrefixByteLength, 64) == 64
-            && ExecutableStubMemoryPlan.AlignUp(4161, 4096) == 8192;
+            && ExecutableStubMemoryPlan.AlignUp(4161, 4096) == 8192);
     }
 
+    [HostTest("executable stub memory plan rejects invalid inputs", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidInputs()
     {
         ExecutableStubMemoryPlanResult zeroPayload = ExecutableStubMemoryPlan.Create(0);
@@ -127,7 +93,7 @@ internal static class ExecutableStubMemoryPlanTests
             pageSize: 4096,
             alignment: 8192);
 
-        return !zeroPayload.Succeeded
+        return HostCheck.Result(!zeroPayload.Succeeded
             && zeroPayload.IsInitialized
             && zeroPayload.Status == ExecutableStubMemoryPlanStatus.InvalidPayloadLength
             && !smallPage.Succeeded
@@ -137,20 +103,21 @@ internal static class ExecutableStubMemoryPlanTests
             && !invalidAlignment.Succeeded
             && invalidAlignment.Status == ExecutableStubMemoryPlanStatus.InvalidAlignment
             && !tooLargeAlignment.Succeeded
-            && tooLargeAlignment.Status == ExecutableStubMemoryPlanStatus.AlignmentGreaterThanPageSize;
+            && tooLargeAlignment.Status == ExecutableStubMemoryPlanStatus.AlignmentGreaterThanPageSize);
     }
 
+    [HostTest("executable stub memory plan default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         ExecutableStubMemoryPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == ExecutableStubMemoryPlanStatus.Success
             && result.RequestedPayloadLength == 0
             && result.PageSize == 0
             && result.Alignment == 0
             && result.PayloadOffset == 0
-            && result.RequiredByteLength == 0;
+            && result.RequiredByteLength == 0);
     }
 }

@@ -3,51 +3,15 @@ using OS.Kernel.Diagnostics;
 
 internal static class PortIoStubPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("port io stub plan encodes callable out8 stub", TestEncodesCallableOut8Stub, ref failures);
-        Run("port io stub plan encodes callable in8 stub", TestEncodesCallableIn8Stub, ref failures);
-        Run("port io stub plan rejects invalid inputs", TestRejectsInvalidInputs, ref failures);
-        Run("port io stub plan default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Port I/O stub plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("port io stub plan encodes callable out8 stub", HostLane.Fast, 0)]
     private static bool TestEncodesCallableOut8Stub()
     {
         byte[] bytes = new byte[PortIoStubPlan.Out8RequiredByteLength];
 
         PortIoStubPlanResult result = PortIoStubPlan.Out8.Emit(bytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == PortIoStubPlanStatus.Success
             && result.BytesWritten == PortIoStubPlan.Out8RequiredByteLength
             && result.RequiredBytes == PortIoStubPlan.Out8RequiredByteLength
@@ -65,16 +29,17 @@ internal static class PortIoStubPlanTests
             && bytes[3] == 0x89
             && bytes[4] == 0xca
             && bytes[5] == 0xee
-            && bytes[6] == 0xc3;
+            && bytes[6] == 0xc3);
     }
 
+    [HostTest("port io stub plan encodes callable in8 stub", HostLane.Fast, 1)]
     private static bool TestEncodesCallableIn8Stub()
     {
         byte[] bytes = new byte[PortIoStubPlan.In8RequiredByteLength];
 
         PortIoStubPlanResult result = PortIoStubPlan.In8.Emit(bytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == PortIoStubPlanStatus.Success
             && result.BytesWritten == PortIoStubPlan.In8RequiredByteLength
             && result.RequiredBytes == PortIoStubPlan.In8RequiredByteLength
@@ -88,9 +53,10 @@ internal static class PortIoStubPlanTests
             && bytes[1] == 0x89
             && bytes[2] == 0xca
             && bytes[3] == 0xec
-            && bytes[4] == 0xc3;
+            && bytes[4] == 0xc3);
     }
 
+    [HostTest("port io stub plan rejects invalid inputs", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidInputs()
     {
         byte[] bytes = new byte[PortIoStubPlan.MaximumRequiredByteLength];
@@ -101,7 +67,7 @@ internal static class PortIoStubPlanTests
             new PortIoStubPlan((PortIoOperationKind)255).Emit(bytes);
         PortIoStubPlanResult shortBuffer = PortIoStubPlan.In8.Emit(shortBytes);
 
-        return !invalidDefault.Succeeded
+        return HostCheck.Result(!invalidDefault.Succeeded
             && invalidDefault.Status == PortIoStubPlanStatus.InvalidOperationKind
             && invalidDefault.BytesWritten == 0
             && invalidDefault.RequiredBytes == 0
@@ -116,16 +82,17 @@ internal static class PortIoStubPlanTests
             && PortIoStubPlan.GetRequiredByteLength(PortIoOperationKind.Out8) == PortIoStubPlan.Out8RequiredByteLength
             && PortIoStubPlan.GetRequiredByteLength(PortIoOperationKind.In8) == PortIoStubPlan.In8RequiredByteLength
             && PortIoStubPlan.GetRequiredByteLength(PortIoOperationKind.None) == 0
-            && bytes[0] == 0;
+            && bytes[0] == 0);
     }
 
+    [HostTest("port io stub plan default result is not success", HostLane.Fast, 3)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         PortIoStubPlanResult result = default;
         PortIoStubPlanResult failed =
             PortIoStubPlanResult.Fail(PortIoStubPlanStatus.InvalidOperationKind, requiredBytes: 0);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == PortIoStubPlanStatus.Success
             && result.BytesWritten == 0
@@ -136,6 +103,6 @@ internal static class PortIoStubPlanTests
             && failed.BytesWritten == 0
             && failed.RequiredBytes == 0
             && !PortIoStubPlanResult.Success(0, 0).Succeeded
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<PortIoStubPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<PortIoStubPlanResult>());
     }
 }

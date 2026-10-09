@@ -13,64 +13,7 @@ internal static class ExecutableStubBundleMaterializerTests
         FaultProbeStubPlan.InvalidOpcodeRequiredByteLength +
         FaultProbeStubPlan.NullWriteRequiredByteLength;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run(
-            "executable stub bundle materializer copies planned diagnostic stubs",
-            TestCopiesPlannedDiagnosticStubs,
-            ref failures);
-        Run(
-            "executable stub bundle materializer applies payload base offset",
-            TestAppliesPayloadBaseOffset,
-            ref failures);
-        Run(
-            "executable stub bundle materializer rejects failed plans",
-            TestRejectsFailedPlans,
-            ref failures);
-        Run(
-            "executable stub bundle materializer rejects undersized destination or source",
-            TestRejectsUndersizedDestinationOrSource,
-            ref failures);
-        Run(
-            "executable stub bundle materializer default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-        Run(
-            "executable stub bundle materializer uses shared buffer operations",
-            TestUsesSharedBufferOperations,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Executable stub bundle materializer host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("executable stub bundle materializer copies planned diagnostic stubs", HostLane.Fast, 0)]
     private static bool TestCopiesPlannedDiagnosticStubs()
     {
         Span<byte> com1Out8 = stackalloc byte[PortIoStubPlan.Out8RequiredByteLength];
@@ -90,7 +33,7 @@ internal static class ExecutableStubBundleMaterializerTests
             invalidOpcodeProbe,
             nullWriteProbe))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         ExecutableStubMemoryPlanResult memoryPlan = ExecutableStubMemoryPlan.Create(512);
@@ -111,7 +54,7 @@ internal static class ExecutableStubBundleMaterializerTests
                     nullWriteProbe),
                 payloadDestination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == ExecutableStubBundleMaterializerStatus.Success
             && result.BytesCopied == (nuint)ExpectedDiagnosticBytesCopied
@@ -129,9 +72,10 @@ internal static class ExecutableStubBundleMaterializerTests
             && payloadDestination.Slice((int)bundlePlan.LoadTaskRegisterOffset, loadTaskRegister.Length).SequenceEqual(loadTaskRegister)
             && payloadDestination.Slice((int)bundlePlan.InvalidOpcodeProbeOffset, invalidOpcodeProbe.Length).SequenceEqual(invalidOpcodeProbe)
             && payloadDestination.Slice((int)bundlePlan.NullWriteProbeOffset, nullWriteProbe.Length).SequenceEqual(nullWriteProbe)
-            && payloadDestination[PortIoStubPlan.Out8RequiredByteLength] == 0xcc;
+            && payloadDestination[PortIoStubPlan.Out8RequiredByteLength] == 0xcc);
     }
 
+    [HostTest("executable stub bundle materializer applies payload base offset", HostLane.Fast, 1)]
     private static bool TestAppliesPayloadBaseOffset()
     {
         Span<byte> com1Out8 = stackalloc byte[PortIoStubPlan.Out8RequiredByteLength];
@@ -151,7 +95,7 @@ internal static class ExecutableStubBundleMaterializerTests
             invalidOpcodeProbe,
             nullWriteProbe))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         ExecutableStubMemoryPlanResult memoryPlan = ExecutableStubMemoryPlan.Create(512);
@@ -177,14 +121,15 @@ internal static class ExecutableStubBundleMaterializerTests
         int com1Out8Offset = payloadBaseOffset + (int)bundlePlan.Com1Out8Offset;
         int nullWriteOffset = payloadBaseOffset + (int)bundlePlan.NullWriteProbeOffset;
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && memoryDestination.Slice(com1Out8Offset, com1Out8.Length).SequenceEqual(com1Out8)
             && memoryDestination.Slice(nullWriteOffset, nullWriteProbe.Length).SequenceEqual(nullWriteProbe)
             && memoryDestination[0] == 0xcc
             && memoryDestination[payloadBaseOffset - 1] == 0xcc
-            && memoryDestination[payloadBaseOffset + PortIoStubPlan.Out8RequiredByteLength] == 0xcc;
+            && memoryDestination[payloadBaseOffset + PortIoStubPlan.Out8RequiredByteLength] == 0xcc);
     }
 
+    [HostTest("executable stub bundle materializer rejects failed plans", HostLane.Fast, 2)]
     private static bool TestRejectsFailedPlans()
     {
         Span<byte> com1Out8 = stackalloc byte[PortIoStubPlan.Out8RequiredByteLength];
@@ -204,7 +149,7 @@ internal static class ExecutableStubBundleMaterializerTests
             invalidOpcodeProbe,
             nullWriteProbe))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         ExecutableStubBundleMaterializerSources sources =
@@ -247,7 +192,7 @@ internal static class ExecutableStubBundleMaterializerTests
                 sources,
                 destination);
 
-        return !failedBundleResult.Succeeded
+        return HostCheck.Result(!failedBundleResult.Succeeded
             && failedBundleResult.IsInitialized
             && failedBundleResult.Status == ExecutableStubBundleMaterializerStatus.InvalidBundlePlan
             && failedBundleResult.BundlePlanStatus == ExecutableStubBundlePlanStatus.InvalidMemoryPlan
@@ -258,9 +203,10 @@ internal static class ExecutableStubBundleMaterializerTests
             && failedMemoryResult.BytesCopied == 0
             && !missingSlotResult.Succeeded
             && missingSlotResult.Status == ExecutableStubBundleMaterializerStatus.MissingSlot
-            && missingSlotResult.BytesCopied == 0;
+            && missingSlotResult.BytesCopied == 0);
     }
 
+    [HostTest("executable stub bundle materializer rejects undersized destination or source", HostLane.Fast, 3)]
     private static bool TestRejectsUndersizedDestinationOrSource()
     {
         Span<byte> com1Out8 = stackalloc byte[PortIoStubPlan.Out8RequiredByteLength];
@@ -280,7 +226,7 @@ internal static class ExecutableStubBundleMaterializerTests
             invalidOpcodeProbe,
             nullWriteProbe))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         ExecutableStubMemoryPlanResult memoryPlan = ExecutableStubMemoryPlan.Create(512);
@@ -313,28 +259,30 @@ internal static class ExecutableStubBundleMaterializerTests
                     nullWriteProbe),
                 destination);
 
-        return !undersizedDestinationResult.Succeeded
+        return HostCheck.Result(!undersizedDestinationResult.Succeeded
             && undersizedDestinationResult.Status == ExecutableStubBundleMaterializerStatus.DestinationTooSmall
             && undersizedDestinationResult.BytesCopied == 0
             && !undersizedSourceResult.Succeeded
             && undersizedSourceResult.Status == ExecutableStubBundleMaterializerStatus.SourceTooSmall
-            && undersizedSourceResult.BytesCopied == 0;
+            && undersizedSourceResult.BytesCopied == 0);
     }
 
+    [HostTest("executable stub bundle materializer default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         ExecutableStubBundleMaterializerResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == ExecutableStubBundleMaterializerStatus.Success
             && result.BundlePlanStatus == ExecutableStubBundlePlanStatus.Success
             && result.MemoryPlanStatus == ExecutableStubMemoryPlanStatus.Success
             && result.BytesCopied == 0
             && result.Com1Out8BytesCopied == 0
-            && result.InvalidOpcodeProbeBytesCopied == 0;
+            && result.InvalidOpcodeProbeBytesCopied == 0);
     }
 
+    [HostTest("executable stub bundle materializer uses shared buffer operations", HostLane.Fast, 5)]
     private static bool TestUsesSharedBufferOperations()
     {
         string source = File.ReadAllText(Path.Combine(
@@ -344,13 +292,13 @@ internal static class ExecutableStubBundleMaterializerTests
             "Runtime",
             "ExecutableStubBundleMaterializer.cs"));
 
-        return source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
             && source.Contains("BufferOperations.MemoryCopy(", StringComparison.Ordinal)
             && source.Contains("source.Slice(0, requiredBytes),", StringComparison.Ordinal)
             && source.Contains("destination.Slice(destinationStart, requiredBytes)", StringComparison.Ordinal)
             && !source.Contains(
                 "source.Slice(0, requiredBytes).CopyTo(destination.Slice(destinationStart, requiredBytes))",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
     private static ExecutableStubBundlePlanResult CreateDiagnosticBundlePlan(

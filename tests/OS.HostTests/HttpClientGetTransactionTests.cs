@@ -4,53 +4,8 @@ using OS.Net;
 
 internal static class HttpClientGetTransactionTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.http client writes request and parses response", TestWritesRequestAndParsesResponse, ref failures);
-        Run("net.http client rejects malformed response", TestRejectsMalformedResponse, ref failures);
-        Run("net.http client rejects invalid state transitions", TestRejectsInvalidStateTransitions, ref failures);
-        Run("net.http client rejects invalid request inputs", TestRejectsInvalidRequestInputs, ref failures);
-        Run("net.http client default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("net.http.clientget formatter formats success marker", TestFormatterFormatsSuccessMarker, ref failures);
-        Run("net.http.clientget formatter names duplicate content length", TestFormatterNamesDuplicateContentLength, ref failures);
-        Run("net.http.clientget formatter reports short destination", TestFormatterReportsShortDestination, ref failures);
-        Run("net.http.clientget formatter default result is not success", TestFormatterDefaultResultIsNotSuccess, ref failures);
-        Run(
-            "network http client transaction formatter uses shared ascii text builder",
-            TestFormatterUsesSharedAsciiTextBuilder,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("HTTP client transaction host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.http client writes request and parses response", HostLane.Fast, 0)]
     private static bool TestWritesRequestAndParsesResponse()
     {
         byte[] host = Encoding.ASCII.GetBytes("example.test");
@@ -74,7 +29,7 @@ internal static class HttpClientGetTransactionTests
             || transaction.State != HttpClientGetTransactionState.RequestWritten
             || transaction.RequestBytesWritten != requestResult.BytesWritten)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         string requestText = Encoding.ASCII.GetString(request, 0, requestResult.BytesWritten);
@@ -85,14 +40,14 @@ internal static class HttpClientGetTransactionTests
             "Connection: close\r\n" +
             "\r\n")
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         HttpClientGetTransactionStatus responseStatus = transaction.ReceiveResponse(
             response,
             out HttpClientGetTransactionResult responseResult);
 
-        return responseStatus == HttpClientGetTransactionStatus.Success
+        return HostCheck.Result(responseStatus == HttpClientGetTransactionStatus.Success
             && responseResult.Succeeded
             && responseResult.State == HttpClientGetTransactionState.ResponseReceived
             && responseResult.ResponseStatus == HttpResponseParseStatus.Success
@@ -109,9 +64,10 @@ internal static class HttpClientGetTransactionTests
             && transaction.StatusCode == 200
             && transaction.BodyOffset == responseResult.BodyOffset
             && transaction.BodyLength == responseResult.BodyLength
-            && transaction.ConnectionClose;
+            && transaction.ConnectionClose);
     }
 
+    [HostTest("net.http client rejects malformed response", HostLane.Fast, 1)]
     private static bool TestRejectsMalformedResponse()
     {
         byte[] malformed = Encoding.ASCII.GetBytes("HTTP/1.1 20X OK\r\n\r\n");
@@ -120,7 +76,7 @@ internal static class HttpClientGetTransactionTests
         byte[] truncated = Encoding.ASCII.GetBytes(
             "HTTP/1.1 200 OK\r\nContent-Length: 8\r\n\r\nhello");
 
-        return ReceiveFails(
+        return HostCheck.Result(ReceiveFails(
                 malformed,
                 HttpClientGetTransactionStatus.MalformedResponse,
                 HttpResponseParseStatus.InvalidStatusCode)
@@ -131,9 +87,10 @@ internal static class HttpClientGetTransactionTests
             && ReceiveFails(
                 truncated,
                 HttpClientGetTransactionStatus.TruncatedBody,
-                HttpResponseParseStatus.BodyTooShort);
+                HttpResponseParseStatus.BodyTooShort));
     }
 
+    [HostTest("net.http client rejects invalid state transitions", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidStateTransitions()
     {
         byte[] host = Encoding.ASCII.GetBytes("example.test");
@@ -149,7 +106,7 @@ internal static class HttpClientGetTransactionTests
             || earlyReceiveResult.State != HttpClientGetTransactionState.Initial
             || transaction.State != HttpClientGetTransactionState.Initial)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         HttpClientGetTransactionStatus writeStatus = transaction.TryWriteRequest(
@@ -160,7 +117,7 @@ internal static class HttpClientGetTransactionTests
         if (writeStatus != HttpClientGetTransactionStatus.Success
             || transaction.State != HttpClientGetTransactionState.RequestWritten)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         HttpClientGetTransactionStatus secondWriteStatus = transaction.TryWriteRequest(
@@ -172,7 +129,7 @@ internal static class HttpClientGetTransactionTests
             || secondWriteResult.State != HttpClientGetTransactionState.RequestWritten
             || transaction.State != HttpClientGetTransactionState.RequestWritten)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         HttpClientGetTransactionStatus responseStatus = transaction.ReceiveResponse(
@@ -182,18 +139,19 @@ internal static class HttpClientGetTransactionTests
             || !responseResult.Succeeded
             || transaction.State != HttpClientGetTransactionState.ResponseReceived)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         HttpClientGetTransactionStatus secondReceiveStatus = transaction.ReceiveResponse(
             response,
             out HttpClientGetTransactionResult secondReceiveResult);
 
-        return secondReceiveStatus == HttpClientGetTransactionStatus.InvalidState
+        return HostCheck.Result(secondReceiveStatus == HttpClientGetTransactionStatus.InvalidState
             && secondReceiveResult.State == HttpClientGetTransactionState.ResponseReceived
-            && transaction.State == HttpClientGetTransactionState.ResponseReceived;
+            && transaction.State == HttpClientGetTransactionState.ResponseReceived);
     }
 
+    [HostTest("net.http client rejects invalid request inputs", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidRequestInputs()
     {
         byte[] host = Encoding.ASCII.GetBytes("example.test");
@@ -203,7 +161,7 @@ internal static class HttpClientGetTransactionTests
         byte[] missingSlashPath = Encoding.ASCII.GetBytes("healthz");
         Span<byte> request = stackalloc byte[16];
 
-        return WriteFails(
+        return HostCheck.Result(WriteFails(
                 invalidHost,
                 path,
                 request,
@@ -226,16 +184,17 @@ internal static class HttpClientGetTransactionTests
                 path,
                 request,
                 HttpClientGetTransactionStatus.RequestBufferTooSmall,
-                HttpRequestBuilderStatus.DestinationTooSmall);
+                HttpRequestBuilderStatus.DestinationTooSmall));
     }
 
+    [HostTest("net.http client default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         HttpClientGetTransactionResult defaultResult = default;
         HttpClientGetTransactionResult invalidStateResult =
             HttpClientGetTransactionResult.InvalidState(HttpClientGetTransactionState.Initial);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == HttpClientGetTransactionStatus.Success
             && invalidStateResult.IsInitialized
@@ -247,9 +206,10 @@ internal static class HttpClientGetTransactionTests
             && invalidStateResult.BytesWritten == 0
             && invalidStateResult.BodyLength == 0
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                HttpClientGetTransactionResult>();
+                HttpClientGetTransactionResult>());
     }
 
+    [HostTest("net.http.clientget formatter formats success marker", HostLane.Fast, 5)]
     private static bool TestFormatterFormatsSuccessMarker()
     {
         byte[] host = Encoding.ASCII.GetBytes("example.test");
@@ -267,14 +227,14 @@ internal static class HttpClientGetTransactionTests
                 request,
                 out HttpClientGetTransactionResult requestResult) != HttpClientGetTransactionStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (transaction.ReceiveResponse(
                 response,
                 out HttpClientGetTransactionResult responseResult) != HttpClientGetTransactionStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         HttpClientGetTransactionDiagnosticFormatResult query =
@@ -291,7 +251,7 @@ internal static class HttpClientGetTransactionTests
             requestResult.BytesWritten +
             " responseStatus=200 bodyBytes=5";
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && !query.Succeeded
             && query.Status == HttpClientGetTransactionDiagnosticFormatStatus.Success
             && query.TransactionStatus == HttpClientGetTransactionStatus.Success
@@ -303,9 +263,10 @@ internal static class HttpClientGetTransactionTests
             && format.BytesWritten == expected.Length
             && format.RequiredBytes == expected.Length
             && format.AvailableBytes == destination.Length
-            && text == expected;
+            && text == expected);
     }
 
+    [HostTest("net.http.clientget formatter names duplicate content length", HostLane.Fast, 6)]
     private static bool TestFormatterNamesDuplicateContentLength()
     {
         byte[] host = Encoding.ASCII.GetBytes("example.test");
@@ -323,7 +284,7 @@ internal static class HttpClientGetTransactionTests
                 request,
                 out HttpClientGetTransactionResult requestResult) != HttpClientGetTransactionStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         HttpClientGetTransactionStatus status = transaction.ReceiveResponse(
@@ -332,7 +293,7 @@ internal static class HttpClientGetTransactionTests
         if (status != HttpClientGetTransactionStatus.MalformedResponse ||
             responseResult.ResponseStatus != HttpResponseParseStatus.DuplicateContentLength)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         HttpClientGetTransactionDiagnosticFormatResult query =
@@ -351,7 +312,7 @@ internal static class HttpClientGetTransactionTests
             requestResult.BytesWritten +
             " responseStatus=0 bodyBytes=0";
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && !query.Succeeded
             && query.Status == HttpClientGetTransactionDiagnosticFormatStatus.Success
             && query.TransactionStatus == HttpClientGetTransactionStatus.MalformedResponse
@@ -359,9 +320,10 @@ internal static class HttpClientGetTransactionTests
             && format.Succeeded
             && format.TransactionStatus == HttpClientGetTransactionStatus.MalformedResponse
             && format.BytesWritten == expected.Length
-            && text == expected;
+            && text == expected);
     }
 
+    [HostTest("net.http.clientget formatter reports short destination", HostLane.Fast, 7)]
     private static bool TestFormatterReportsShortDestination()
     {
         byte[] host = Encoding.ASCII.GetBytes("example.test");
@@ -378,14 +340,14 @@ internal static class HttpClientGetTransactionTests
                 request,
                 out HttpClientGetTransactionResult _) != HttpClientGetTransactionStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (transaction.ReceiveResponse(
                 response,
                 out HttpClientGetTransactionResult responseResult) != HttpClientGetTransactionStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         HttpClientGetTransactionDiagnosticFormatResult query =
@@ -398,7 +360,7 @@ internal static class HttpClientGetTransactionTests
                 transaction.RequestBytesWritten,
                 destination);
 
-        return shortResult.IsInitialized
+        return HostCheck.Result(shortResult.IsInitialized
             && !shortResult.Succeeded
             && shortResult.Status == HttpClientGetTransactionDiagnosticFormatStatus.DestinationTooSmall
             && shortResult.TransactionStatus == HttpClientGetTransactionStatus.Success
@@ -407,9 +369,10 @@ internal static class HttpClientGetTransactionTests
             && shortResult.AvailableBytes == destination.Length
             && query.RequiredBytes > destination.Length
             && destination[0] == 0xA5
-            && destination[11] == 0xA5;
+            && destination[11] == 0xA5);
     }
 
+    [HostTest("net.http.clientget formatter default result is not success", HostLane.Fast, 8)]
     private static bool TestFormatterDefaultResultIsNotSuccess()
     {
         Span<byte> destination = stackalloc byte[64];
@@ -427,7 +390,7 @@ internal static class HttpClientGetTransactionTests
                 requestBytesWritten: 0);
         HttpClientGetTransactionDiagnosticFormatResult defaultFormat = default;
 
-        return invalidFormat.IsInitialized
+        return HostCheck.Result(invalidFormat.IsInitialized
             && !invalidFormat.Succeeded
             && invalidFormat.Status == HttpClientGetTransactionDiagnosticFormatStatus.InvalidResult
             && invalidFormat.TransactionStatus == HttpClientGetTransactionStatus.Success
@@ -445,9 +408,10 @@ internal static class HttpClientGetTransactionTests
             && destination[0] == 0xCC
             && destination[63] == 0xCC
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                HttpClientGetTransactionDiagnosticFormatResult>();
+                HttpClientGetTransactionDiagnosticFormatResult>());
     }
 
+    [HostTest("network http client transaction formatter uses shared ascii text builder", HostLane.Fast, 9)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -459,7 +423,7 @@ internal static class HttpClientGetTransactionTests
                 "Net",
                 "HttpClientGetTransactionDiagnosticFormatter.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains(
                 "AsciiDecimalFormatter.CountInt64Digits(requestBytesWritten)",
                 StringComparison.Ordinal)
@@ -497,7 +461,7 @@ internal static class HttpClientGetTransactionTests
                 "destination[offset + index] = (byte)('0' +",
                 StringComparison.Ordinal)
             && !source.Contains("value /= 10", StringComparison.Ordinal)
-            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal);
+            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal));
     }
 
     private static bool WriteFails(

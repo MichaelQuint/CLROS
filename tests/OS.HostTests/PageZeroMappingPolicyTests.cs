@@ -38,7 +38,7 @@ internal static unsafe class PageZeroMappingPolicyTests
     private const int PolicyInspectedEntryCountOffset = 104;
     private const int PolicyTerminalRawEntryOffset = 112;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START " + IssueTestName);
@@ -101,26 +101,28 @@ internal static unsafe class PageZeroMappingPolicyTests
         Func<bool> test,
         ref int failures)
     {
-        try
+        HostCheck.Run(IssueTestName + " " + name, () =>
         {
-            if (test())
-                return;
-
-            failures++;
-            Console.WriteLine(
-                "M01_015_CASE_FAIL " + Normalize(name));
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "M01_015_CASE_FAIL "
-                + Normalize(name)
-                + " "
-                + ex.GetType().Name
-                + ": "
-                + ex.Message);
-        }
+            try
+            {
+                if (test())
+                    return true;
+                Console.WriteLine(
+                    "M01_015_CASE_FAIL " + Normalize(name));
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    "M01_015_CASE_FAIL "
+                    + Normalize(name)
+                    + " "
+                    + ex.GetType().Name
+                    + ": "
+                    + ex.Message);
+                throw;
+            }
+        }, ref failures);
     }
 
     private static bool TestTypeContracts()

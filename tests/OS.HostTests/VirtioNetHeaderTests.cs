@@ -5,46 +5,8 @@ using OS.Std.Binary;
 
 internal static class VirtioNetHeaderTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.virtionet.header writes zero tx header", TestWritesZeroedTxHeader, ref failures);
-        Run("drivers.virtionet.header parses rx frame metadata", TestParsesRxFrameMetadata, ref failures);
-        Run("drivers.virtionet.header rejects truncated header", TestRejectsTruncatedHeader, ref failures);
-        Run("drivers.virtionet.header rejects missing ethernet header", TestRejectsMissingEthernetHeader, ref failures);
-        Run("drivers.virtionet.header rejects offload and gso", TestRejectsOffloadAndGso, ref failures);
-        Run("drivers.virtionet.header default results are not success", TestDefaultResultsAreNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio-net header host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtionet.header writes zero tx header", HostLane.Fast, 0)]
     private static bool TestWritesZeroedTxHeader()
     {
         byte[] header = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers + 2];
@@ -61,16 +23,17 @@ internal static class VirtioNetHeaderTests
             zeroed &= header[index] == 0;
         }
 
-        return status == VirtioNetHeaderStatus.Success
+        return HostCheck.Result(status == VirtioNetHeaderStatus.Success
             && bytesWritten == VirtioNetHeader.HeaderLengthWithoutMergeableBuffers
             && zeroed
             && header[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers] == 0xCC
             && header[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers + 1] == 0xCC
             && parseResult.Succeeded
             && parseResult.IsInitialized
-            && parseResult.Header.ValidateNoOffload() == VirtioNetHeaderStatus.Success;
+            && parseResult.Header.ValidateNoOffload() == VirtioNetHeaderStatus.Success);
     }
 
+    [HostTest("drivers.virtionet.header parses rx frame metadata", HostLane.Fast, 1)]
     private static bool TestParsesRxFrameMetadata()
     {
         byte[] receiveBuffer = CreateReceivedFrame(payloadBytes: 4);
@@ -79,7 +42,7 @@ internal static class VirtioNetHeaderTests
             VirtioNetHeader.TryParseReceivedFrameNoOffload(receiveBuffer);
 
         VirtioNetReceivedFrameMetadata metadata = result.Metadata;
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioNetHeaderStatus.Success
             && result.Header.Flags == 0
@@ -96,9 +59,10 @@ internal static class VirtioNetHeaderTests
             && metadata.EthernetPayloadLength == 4
             && metadata.EthernetHeader.Destination == DestinationMac
             && metadata.EthernetHeader.Source == SourceMac
-            && metadata.EthernetHeader.EtherType == EthernetHeader.EtherTypeIpv4;
+            && metadata.EthernetHeader.EtherType == EthernetHeader.EtherTypeIpv4);
     }
 
+    [HostTest("drivers.virtionet.header rejects truncated header", HostLane.Fast, 2)]
     private static bool TestRejectsTruncatedHeader()
     {
         byte[] truncated = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers - 1];
@@ -107,13 +71,14 @@ internal static class VirtioNetHeaderTests
         VirtioNetReceivedFrameParseResult frameResult =
             VirtioNetHeader.TryParseReceivedFrameNoOffload(truncated);
 
-        return !headerResult.Succeeded
+        return HostCheck.Result(!headerResult.Succeeded
             && headerResult.Status == VirtioNetHeaderStatus.BufferTooSmall
             && headerResult.BytesConsumed == truncated.Length
             && !frameResult.Succeeded
-            && frameResult.Status == VirtioNetHeaderStatus.BufferTooSmall;
+            && frameResult.Status == VirtioNetHeaderStatus.BufferTooSmall);
     }
 
+    [HostTest("drivers.virtionet.header rejects missing ethernet header", HostLane.Fast, 3)]
     private static bool TestRejectsMissingEthernetHeader()
     {
         byte[] missingEthernet =
@@ -122,10 +87,11 @@ internal static class VirtioNetHeaderTests
         VirtioNetReceivedFrameParseResult result =
             VirtioNetHeader.TryParseReceivedFrameNoOffload(missingEthernet);
 
-        return !result.Succeeded
-            && result.Status == VirtioNetHeaderStatus.MissingEthernetHeader;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == VirtioNetHeaderStatus.MissingEthernetHeader);
     }
 
+    [HostTest("drivers.virtionet.header rejects offload and gso", HostLane.Fast, 4)]
     private static bool TestRejectsOffloadAndGso()
     {
         byte[] header = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers];
@@ -146,7 +112,7 @@ internal static class VirtioNetHeaderTests
             parsed.Header.ChecksumOffset != 16 ||
             parsed.Header.ValidateNoOffload() != VirtioNetHeaderStatus.UnsupportedChecksumOffload)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] checksumOffload = CreateReceivedFrame(payloadBytes: 0);
@@ -168,20 +134,21 @@ internal static class VirtioNetHeaderTests
         VirtioNetReceivedFrameParseResult offloadFlagsResult =
             VirtioNetHeader.TryParseReceivedFrameNoOffload(offloadFlags);
 
-        return !checksumResult.Succeeded
+        return HostCheck.Result(!checksumResult.Succeeded
             && checksumResult.Status == VirtioNetHeaderStatus.UnsupportedChecksumOffload
             && !gsoResult.Succeeded
             && gsoResult.Status == VirtioNetHeaderStatus.UnsupportedGenericSegmentationOffload
             && !offloadFlagsResult.Succeeded
-            && offloadFlagsResult.Status == VirtioNetHeaderStatus.UnsupportedOffloadFlags;
+            && offloadFlagsResult.Status == VirtioNetHeaderStatus.UnsupportedOffloadFlags);
     }
 
+    [HostTest("drivers.virtionet.header default results are not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         VirtioNetHeaderParseResult header = default;
         VirtioNetReceivedFrameParseResult frame = default;
 
-        return !header.IsInitialized
+        return HostCheck.Result(!header.IsInitialized
             && !header.Succeeded
             && header.Status == VirtioNetHeaderStatus.Success
             && header.BytesConsumed == 0
@@ -190,7 +157,7 @@ internal static class VirtioNetHeaderTests
             && frame.Status == VirtioNetHeaderStatus.Success
             && frame.Metadata.VirtioHeaderLength == 0
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetHeaderParseResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetReceivedFrameParseResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetReceivedFrameParseResult>());
     }
 
     private static byte[] CreateReceivedFrame(int payloadBytes)

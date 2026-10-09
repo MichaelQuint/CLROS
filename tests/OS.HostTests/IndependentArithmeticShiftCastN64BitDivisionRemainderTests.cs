@@ -9,11 +9,10 @@ using Catalog = OS.Std.Numerics.IndependentArithmeticShiftCastN64BitDivisionRema
 
 internal static class IndependentArithmeticShiftCastN64BitDivisionRemainderTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void Run()
     {
-        Console.WriteLine("TEST_START m04.004");
-        try
+        HostCheck.Run("m04.004", () =>
         {
             CheckCatalog();
             CheckBoundaryMatrix();
@@ -21,13 +20,7 @@ internal static class IndependentArithmeticShiftCastN64BitDivisionRemainderTests
             CheckNoStdLibCompilation();
             Console.WriteLine("CLROS_M04_004_READY vectors=57 fingerprint=45FDFA24DD72EA28"
                 + " referenceFilesRequired=false hostConformance=true guestIntegrated=false gate4=Fail");
-            Console.WriteLine("TEST_PASS m04.004");
-        }
-        catch (Exception error)
-        {
-            Console.WriteLine("TEST_FAIL m04.004 " + error.GetType().Name + ": " + error.Message);
-            throw;
-        }
+        });
     }
 
     private static void CheckCatalog()

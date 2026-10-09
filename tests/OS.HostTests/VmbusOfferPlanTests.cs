@@ -4,47 +4,8 @@ using OS.Std.Binary;
 
 internal static class VmbusOfferPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.vmbus.offer parses storage offer", TestParsesStorageOffer, ref failures);
-        Run("drivers.vmbus.offer parses network offer", TestParsesNetworkOffer, ref failures);
-        Run("drivers.vmbus.offer rejects malformed offer", TestRejectsMalformedOffer, ref failures);
-        Run("drivers.vmbus.offer rejects unsupported class", TestRejectsUnsupportedClass, ref failures);
-        Run("drivers.vmbus.offer rejects duplicate channel ids", TestRejectsDuplicateChannelIds, ref failures);
-        Run("drivers.vmbus.offer rejects metadata bounds", TestRejectsMetadataBounds, ref failures);
-        Run("drivers.vmbus.offer default results are not success", TestDefaultResultsAreNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("VMBus offer plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.vmbus.offer parses storage offer", HostLane.Fast, 0)]
     private static bool TestParsesStorageOffer()
     {
         byte[] offer = CreateOffer(
@@ -58,7 +19,7 @@ internal static class VmbusOfferPlanTests
 
         VmbusOfferParseResult result = VmbusOfferPlan.ParseOffer(offer);
 
-        return VmbusOfferPlan.OfferChannelMessageType == 1
+        return HostCheck.Result(VmbusOfferPlan.OfferChannelMessageType == 1
             && VmbusOfferPlan.OfferMessageLength == 192
             && VmbusOfferPlan.UserDefinedDataLength == 120
             && VmbusOfferPlan.MaximumFixtureMetadataLength == 64
@@ -76,9 +37,10 @@ internal static class VmbusOfferPlanTests
             && result.Descriptor.SubChannelIndex == 0
             && result.Descriptor.HasMonitorNotificationFacility
             && result.Descriptor.ConnectionId == 0x01020304
-            && result.Descriptor.MetadataLength == 7;
+            && result.Descriptor.MetadataLength == 7);
     }
 
+    [HostTest("drivers.vmbus.offer parses network offer", HostLane.Fast, 1)]
     private static bool TestParsesNetworkOffer()
     {
         byte[] networkOffer = CreateOffer(
@@ -104,7 +66,7 @@ internal static class VmbusOfferPlanTests
         VmbusOfferParseResult single = VmbusOfferPlan.ParseOffer(networkOffer);
         VmbusOfferCatalogParseResult catalogResult = VmbusOfferPlan.ParseCatalog(catalog, descriptors);
 
-        return VmbusOfferPlan.ClassifyInterfaceType(VmbusOfferPlan.NetVscInterfaceTypeGuid)
+        return HostCheck.Result(VmbusOfferPlan.ClassifyInterfaceType(VmbusOfferPlan.NetVscInterfaceTypeGuid)
                 == VmbusSyntheticDeviceClass.Network
             && VmbusOfferPlan.IsSupportedInterfaceType(VmbusOfferPlan.NetVscInterfaceTypeGuid)
             && single.Succeeded
@@ -121,9 +83,10 @@ internal static class VmbusOfferPlanTests
             && descriptors[0].DeviceClass == VmbusSyntheticDeviceClass.Network
             && descriptors[0].ChildRelationId == 77
             && descriptors[1].DeviceClass == VmbusSyntheticDeviceClass.Storage
-            && descriptors[1].ChildRelationId == 78;
+            && descriptors[1].ChildRelationId == 78);
     }
 
+    [HostTest("drivers.vmbus.offer rejects malformed offer", HostLane.Fast, 2)]
     private static bool TestRejectsMalformedOffer()
     {
         byte[] validOffer = CreateOffer(
@@ -149,7 +112,7 @@ internal static class VmbusOfferPlanTests
         VmbusOfferParseResult zeroInstanceResult = VmbusOfferPlan.ParseOffer(zeroInstanceGuid);
         VmbusOfferParseResult zeroChannelResult = VmbusOfferPlan.ParseOffer(zeroChannelId);
 
-        return !shortResult.Succeeded
+        return HostCheck.Result(!shortResult.Succeeded
             && shortResult.Status == VmbusOfferPlanStatus.MalformedLength
             && shortResult.ExpectedLength == VmbusOfferPlan.OfferMessageLength
             && shortResult.ActualLength == VmbusOfferPlan.OfferMessageLength - 1
@@ -160,9 +123,10 @@ internal static class VmbusOfferPlanTests
             && !zeroInstanceResult.Succeeded
             && zeroInstanceResult.Status == VmbusOfferPlanStatus.ZeroInstanceGuid
             && !zeroChannelResult.Succeeded
-            && zeroChannelResult.Status == VmbusOfferPlanStatus.ZeroChannelId;
+            && zeroChannelResult.Status == VmbusOfferPlanStatus.ZeroChannelId);
     }
 
+    [HostTest("drivers.vmbus.offer rejects unsupported class", HostLane.Fast, 3)]
     private static bool TestRejectsUnsupportedClass()
     {
         byte[] unknownOffer = CreateOffer(
@@ -175,12 +139,13 @@ internal static class VmbusOfferPlanTests
 
         VmbusOfferParseResult result = VmbusOfferPlan.ParseOffer(unknownOffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VmbusOfferPlanStatus.UnsupportedInterfaceTypeGuid
             && VmbusOfferPlan.ClassifyInterfaceType(CreateUnknownGuid()) == VmbusSyntheticDeviceClass.Unknown
-            && !VmbusOfferPlan.IsSupportedInterfaceType(CreateUnknownGuid());
+            && !VmbusOfferPlan.IsSupportedInterfaceType(CreateUnknownGuid()));
     }
 
+    [HostTest("drivers.vmbus.offer rejects duplicate channel ids", HostLane.Fast, 4)]
     private static bool TestRejectsDuplicateChannelIds()
     {
         byte[] firstOffer = CreateOffer(
@@ -210,7 +175,7 @@ internal static class VmbusOfferPlanTests
         VmbusOfferCatalogParseResult malformedCatalog =
             VmbusOfferPlan.ParseCatalog(catalog.AsSpan(0, catalog.Length - 1), descriptors);
 
-        return !duplicate.Succeeded
+        return HostCheck.Result(!duplicate.Succeeded
             && duplicate.Status == VmbusOfferPlanStatus.DuplicateChannelId
             && duplicate.OfferCount == 2
             && duplicate.ParsedOfferCount == 1
@@ -222,9 +187,10 @@ internal static class VmbusOfferPlanTests
             && destinationTooSmall.Status == VmbusOfferPlanStatus.DestinationTooSmall
             && destinationTooSmall.RequiredOfferCapacity == 2
             && !malformedCatalog.Succeeded
-            && malformedCatalog.Status == VmbusOfferPlanStatus.MalformedLength;
+            && malformedCatalog.Status == VmbusOfferPlanStatus.MalformedLength);
     }
 
+    [HostTest("drivers.vmbus.offer rejects metadata bounds", HostLane.Fast, 5)]
     private static bool TestRejectsMetadataBounds()
     {
         byte[] longMetadata = new byte[VmbusOfferPlan.MaximumFixtureMetadataLength + 1];
@@ -249,25 +215,26 @@ internal static class VmbusOfferPlanTests
         VmbusOfferParseResult tooLong = VmbusOfferPlan.ParseOffer(longMetadataOffer);
         VmbusOfferParseResult invalidAscii = VmbusOfferPlan.ParseOffer(invalidMetadataOffer);
 
-        return !tooLong.Succeeded
+        return HostCheck.Result(!tooLong.Succeeded
             && tooLong.Status == VmbusOfferPlanStatus.MetadataTooLong
             && !invalidAscii.Succeeded
-            && invalidAscii.Status == VmbusOfferPlanStatus.MetadataContainsInvalidAscii;
+            && invalidAscii.Status == VmbusOfferPlanStatus.MetadataContainsInvalidAscii);
     }
 
+    [HostTest("drivers.vmbus.offer default results are not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         VmbusOfferParseResult parseResult = default;
         VmbusOfferCatalogParseResult catalogResult = default;
 
-        return !parseResult.IsInitialized
+        return HostCheck.Result(!parseResult.IsInitialized
             && !parseResult.Succeeded
             && parseResult.Status == VmbusOfferPlanStatus.Success
             && !catalogResult.IsInitialized
             && !catalogResult.Succeeded
             && catalogResult.Status == VmbusOfferPlanStatus.Success
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VmbusOfferParseResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VmbusOfferCatalogParseResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VmbusOfferCatalogParseResult>());
     }
 
     private static byte[] CreateOffer(

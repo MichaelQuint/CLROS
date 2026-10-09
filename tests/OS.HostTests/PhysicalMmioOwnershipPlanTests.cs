@@ -8,45 +8,7 @@ internal static class PhysicalMmioOwnershipPlanTests
 {
     private const ulong PageSize = BootMemoryRegionRecord.PageSize;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("platform.mmio ownership accepts ecam", TestAcceptsEcam, ref failures);
-        Run("platform.mmio ownership rejects usable-memory overlap", TestRejectsUsableMemoryOverlap, ref failures);
-        Run("platform.mmio ownership reports capacity", TestReportsCapacity, ref failures);
-        Run("platform.mmio ownership rejects arithmetic overflow", TestRejectsArithmeticOverflow, ref failures);
-        Run("platform.mmio ownership default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Physical MMIO ownership plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("platform.mmio ownership accepts ecam", HostLane.Fast, 0)]
     private static bool TestAcceptsEcam()
     {
         PciEcamSegment[] segments =
@@ -63,7 +25,7 @@ internal static class PhysicalMmioOwnershipPlanTests
         PhysicalMmioOwnershipPlanResult result =
             PhysicalMmioOwnershipPlan.PlanEcam(segments, usable, ranges);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == PhysicalMmioOwnershipPlanStatus.Success
             && result.SourceSegmentCount == 2
@@ -86,9 +48,10 @@ internal static class PhysicalMmioOwnershipPlanTests
             && !PhysicalMmioOwnershipPlan.PerformsVolatileMmio
             && !PhysicalMmioOwnershipPlan.PerformsPciEnumeration
             && !RuntimeHelpers.IsReferenceOrContainsReferences<PhysicalMmioOwnershipRange>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<PhysicalMmioOwnershipPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<PhysicalMmioOwnershipPlanResult>());
     }
 
+    [HostTest("platform.mmio ownership rejects usable-memory overlap", HostLane.Fast, 1)]
     private static bool TestRejectsUsableMemoryOverlap()
     {
         PciEcamSegment[] segments =
@@ -112,7 +75,7 @@ internal static class PhysicalMmioOwnershipPlanTests
         PhysicalMmioOwnershipPlanResult result =
             PhysicalMmioOwnershipPlan.PlanEcam(segments, usable, ranges);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PhysicalMmioOwnershipPlanStatus.UsableMemoryOverlap
             && result.FailingSegmentIndex == 0
@@ -121,9 +84,10 @@ internal static class PhysicalMmioOwnershipPlanTests
             && result.FailingPhysicalEndExclusive == 0x300000
             && result.FailingSegment.BasePhysicalAddress == 0x200000
             && ranges[0].SourceSegmentIndex == sentinel.SourceSegmentIndex
-            && ranges[0].PhysicalStart == sentinel.PhysicalStart;
+            && ranges[0].PhysicalStart == sentinel.PhysicalStart);
     }
 
+    [HostTest("platform.mmio ownership reports capacity", HostLane.Fast, 2)]
     private static bool TestReportsCapacity()
     {
         PciEcamSegment[] segments =
@@ -144,7 +108,7 @@ internal static class PhysicalMmioOwnershipPlanTests
         PhysicalMmioOwnershipPlanResult result =
             PhysicalMmioOwnershipPlan.PlanEcam(segments, ReadOnlySpan<BootMemoryUsableRange>.Empty, ranges);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PhysicalMmioOwnershipPlanStatus.DestinationTooSmall
             && result.SourceSegmentCount == 2
@@ -152,9 +116,10 @@ internal static class PhysicalMmioOwnershipPlanTests
             && result.AvailableRangeCapacity == 1
             && result.TotalBytes == 2UL * PciEcamConfigurationSpace.BytesPerBus
             && ranges[0].SourceSegmentIndex == sentinel.SourceSegmentIndex
-            && ranges[0].PhysicalStart == sentinel.PhysicalStart;
+            && ranges[0].PhysicalStart == sentinel.PhysicalStart);
     }
 
+    [HostTest("platform.mmio ownership rejects arithmetic overflow", HostLane.Fast, 3)]
     private static bool TestRejectsArithmeticOverflow()
     {
         PciEcamSegment[] segments =
@@ -166,20 +131,21 @@ internal static class PhysicalMmioOwnershipPlanTests
         PhysicalMmioOwnershipPlanResult result =
             PhysicalMmioOwnershipPlan.PlanEcam(segments, ReadOnlySpan<BootMemoryUsableRange>.Empty, ranges);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PhysicalMmioOwnershipPlanStatus.AddressRangeOverflow
             && result.FailingSegmentIndex == 0
             && result.FailingSegment.BasePhysicalAddress == 0xFFFFFFFFFFF00000
             && result.FailingPhysicalStart == 0xFFFFFFFFFFF00000
-            && result.FailingPhysicalEndExclusive == 0;
+            && result.FailingPhysicalEndExclusive == 0);
     }
 
+    [HostTest("platform.mmio ownership default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         PhysicalMmioOwnershipPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == PhysicalMmioOwnershipPlanStatus.Success
             && result.SourceSegmentCount == 0
@@ -191,7 +157,7 @@ internal static class PhysicalMmioOwnershipPlanTests
             && result.FailingUsableRangeIndex == 0
             && result.TotalBytes == 0
             && result.FailingPhysicalStart == 0
-            && result.FailingPhysicalEndExclusive == 0;
+            && result.FailingPhysicalEndExclusive == 0);
     }
 
     private static BootMemoryUsableRange UsableRange(

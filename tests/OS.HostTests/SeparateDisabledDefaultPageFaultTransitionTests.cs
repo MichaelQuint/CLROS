@@ -12,11 +12,10 @@ internal static unsafe class SeparateDisabledDefaultPageFaultTransitionTests
     private const ulong Pat = 0x0007040600070406;
     private const ulong C = 0x0000000100000000, D = 0x0000000200000000, T = 0x0000000300000000;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
-        Console.WriteLine("TEST_START m02.014.transition");
-        try
+        HostCheck.Run("m02.014.transition", () =>
         {
             using Fixture fixture = new();
             fixture.Prepare();
@@ -29,13 +28,7 @@ internal static unsafe class SeparateDisabledDefaultPageFaultTransitionTests
             TestSyntheticFailures(fixture);
             TestRequestsAndCorruption(fixture);
             TestMappingAndBounds(fixture);
-        }
-        catch (Exception exception)
-        {
-            Console.WriteLine("TEST_FAIL m02.014.transition " + exception.Message);
-            throw;
-        }
-        Console.WriteLine("TEST_PASS m02.014.transition");
+        });
     }
 
     private static void TestPreparedBytes(Fixture f)

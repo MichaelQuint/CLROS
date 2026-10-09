@@ -1,3 +1,4 @@
+using OS.Tooling;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
@@ -16,34 +17,15 @@ internal static class GiteaBacklogManifestTests
     private const string M02SafeStubDurableClosureMarker =
         "CLROS_M02_020_READY epics=16 children=329 issues=345 managed=429 m02Children=20 m02017Issue=427 m02017Pr=435 m02017Merge=d2872746059a7200431b6d3bc89c6e02cb42fa8b closureMarkers=2";
 
-    private static readonly IReadOnlyDictionary<string, int> ExpectedChildren =
-        new Dictionary<string, int>(StringComparer.Ordinal)
-        {
-            ["M00"] = 23,
-            ["M01"] = 36,
-            ["M02"] = 20,
-            ["M03"] = 11,
-            ["M04"] = 24,
-            ["M05"] = 21,
-            ["M06"] = 19,
-            ["M07"] = 25,
-            ["M08"] = 20,
-            ["M09"] = 30,
-            ["M10"] = 14,
-            ["M11"] = 18,
-            ["M12"] = 18,
-            ["M13"] = 18,
-            ["M14"] = 18,
-            ["M15"] = 15
-        };
+    private static readonly IReadOnlyDictionary<string, int> ExpectedChildren = BacklogContracts.Children;
 
-    [ModuleInitializer]
+    [HostFixture]
     internal static void Run()
     {
         int failures = 0;
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string manifestPath = Path.Combine(repositoryRoot, ".gitea", "backlog", "clros-issues.json");
-        string scriptPath = Path.Combine(repositoryRoot, "scripts", "sync-gitea-backlog.ps1");
+        string scriptPath = Path.Combine(repositoryRoot, "tools", "OS.Tooling", "BacklogSync.cs");
         string tempRoot = Path.Combine(Path.GetTempPath(), "clros-gitea-backlog-tests-" + Guid.NewGuid().ToString("N"));
 
         try
@@ -90,23 +72,8 @@ internal static class GiteaBacklogManifestTests
 
     private static void RunTest(string name, Func<bool> test, ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
 
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " assertion_failed");
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestManifestShape(string manifestPath)
@@ -115,7 +82,7 @@ internal static class GiteaBacklogManifestTests
         if (bytes.Length < 3 ||
             (bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         string json;
@@ -125,12 +92,12 @@ internal static class GiteaBacklogManifestTests
         }
         catch (DecoderFallbackException)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (json.Contains('\uFFFD') || json.Contains('\u00E2'))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         using JsonDocument document = JsonDocument.Parse(json);
@@ -142,24 +109,18 @@ internal static class GiteaBacklogManifestTests
             root.GetProperty("policy").GetProperty("closureEvidenceMarkerFormat").GetString() !=
                 "<!-- clros-evidence-reviewed:{key} -->")
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         JsonElement milestones = root.GetProperty("milestones");
         JsonElement labels = root.GetProperty("labels");
         JsonElement issues = root.GetProperty("issues");
-        if (milestones.GetArrayLength() != 16 || labels.GetArrayLength() != 68 || issues.GetArrayLength() != 346)
+        if (milestones.GetArrayLength() != BacklogContracts.Children.Count || issues.GetArrayLength() != BacklogContracts.IssueCount || labels.GetArrayLength() < BacklogContracts.RequiredLabels.Count)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        string[] requiredFields =
-        [
-            "key", "title", "milestone", "parentKey", "dependencyKeys", "labels", "priority",
-            "ownedPaths", "forbiddenPaths", "collisionLane", "summary", "currentEvidence",
-            "implementationNotes", "referenceInfluences", "acceptanceCriteria", "requiredMarkers",
-            "requiredCommands", "documentationPaths", "evidenceBoundary", "desiredState"
-        ];
+        var requiredFields = BacklogContracts.RequiredIssueFields;
 
         HashSet<string> keys = new HashSet<string>(StringComparer.Ordinal);
         Dictionary<string, JsonElement> issueByKey = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
@@ -169,14 +130,14 @@ internal static class GiteaBacklogManifestTests
             {
                 if (!issue.TryGetProperty(field, out _))
                 {
-                    return false;
+                    return HostCheck.Result(false);
                 }
             }
 
             string key = issue.GetProperty("key").GetString() ?? string.Empty;
             if (!keys.Add(key))
             {
-                return false;
+                return HostCheck.Result(false);
             }
             issueByKey.Add(key, issue);
 
@@ -185,33 +146,25 @@ internal static class GiteaBacklogManifestTests
                 string.IsNullOrWhiteSpace(issue.GetProperty("currentEvidence").GetString()) ||
                 string.IsNullOrWhiteSpace(issue.GetProperty("evidenceBoundary").GetString()))
             {
-                return false;
+                return HostCheck.Result(false);
             }
 
             if (!key.EndsWith("-EPIC", StringComparison.Ordinal) &&
                 !key.StartsWith("M01-", StringComparison.Ordinal) &&
                 !string.Equals(key, "M03-007", StringComparison.Ordinal))
             {
-                string ownedPathList = string.Join(
-                    ", ",
-                    issue.GetProperty("ownedPaths")
-                        .EnumerateArray()
-                        .Select(path => path.GetString() ?? string.Empty));
-                string expectedOwnedPathNote =
-                    "The proposed owned paths are exact for this slice: " +
-                    ownedPathList +
-                    ". Any additional shared integration file requires a separately claimed collision-lane issue.";
+                string expectedOwnedPathNote = BacklogContracts.OwnershipNote;
                 string[] exactPathNotes = issue.GetProperty("implementationNotes")
                     .EnumerateArray()
                     .Select(note => note.GetString() ?? string.Empty)
                     .Where(note => note.StartsWith(
-                        "The proposed owned paths are exact for this slice:",
+                        "The ownedPaths inventory is the exact scope for this slice.",
                         StringComparison.Ordinal))
                     .ToArray();
                 if (exactPathNotes.Length != 1 ||
                     !string.Equals(exactPathNotes[0], expectedOwnedPathNote, StringComparison.Ordinal))
                 {
-                    return false;
+                    return HostCheck.Result(false);
                 }
             }
         }
@@ -220,14 +173,14 @@ internal static class GiteaBacklogManifestTests
         {
             if (!keys.Contains(milestone + "-EPIC"))
             {
-                return false;
+                return HostCheck.Result(false);
             }
 
             for (int number = 1; number <= childCount; number++)
             {
                 if (!keys.Contains(milestone + "-" + number.ToString("000")))
                 {
-                    return false;
+                    return HostCheck.Result(false);
                 }
             }
         }
@@ -238,25 +191,25 @@ internal static class GiteaBacklogManifestTests
             {
                 if (!keys.Contains(dependency.GetString() ?? string.Empty))
                 {
-                    return false;
+                    return HostCheck.Result(false);
                 }
             }
         }
 
-        return ValidateM00Contracts(issueByKey) &&
-            ValidateM00ExitGate(issueByKey) &&
-            ValidateM00OwnedPathSerialization(issueByKey) &&
-            ValidateSyncVerifyRequiresApply(issueByKey) &&
-            ValidateM01ContractsV2(issues, issueByKey) &&
-            ValidateM03PermanentCr3Handoff(issueByKey) &&
-            DependenciesEqual(issueByKey["M06-001"], "M05-019") &&
-            DependenciesEqual(issueByKey["M06-019"], "M06-018", "M05-021") &&
-            DependenciesEqual(issueByKey["M07-001"], "M05-019") &&
-            DependenciesEqual(issueByKey["M07-024"], "M07-023", "M05-021") &&
-            DependenciesEqual(issueByKey["M09-001"], "M04-023", "M06-019", "M07-025", "M08-019") &&
-            DependenciesEqual(issueByKey["M12-018"], "M12-016") &&
-            DependenciesEqual(issueByKey["M13-018"], "M13-016") &&
-            DependenciesEqual(issueByKey["M15-014"], "M15-009");
+        return HostCheck.Result(ValidateM00Contracts(issueByKey)) &&
+            HostCheck.Result(ValidateM00ExitGate(issueByKey)) &&
+            HostCheck.Result(ValidateM00OwnedPathSerialization(issueByKey)) &&
+            HostCheck.Result(ValidateSyncVerifyRequiresApply(issueByKey)) &&
+            HostCheck.Result(ValidateM01ContractsV2(issues, issueByKey)) &&
+            HostCheck.Result(ValidateM03PermanentCr3Handoff(issueByKey)) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M06-001"], "M05-019")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M06-019"], "M06-018", "M05-021")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M07-001"], "M05-019")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M07-024"], "M07-023", "M05-021")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M09-001"], "M04-023", "M06-019", "M07-025", "M08-019")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M12-018"], "M12-016")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M13-018"], "M13-016")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M15-014"], "M15-009"));
     }
 
     private static bool TestM01InstructionPublicationManifest(string manifestPath)
@@ -271,8 +224,8 @@ internal static class GiteaBacklogManifestTests
                         ?? string.Empty,
                     issue => issue,
                     StringComparer.Ordinal);
-        return ValidateM01StageThreeClosure(issueByKey) &&
-            ValidateM01InstructionPublicationContracts(issueByKey);
+        return HostCheck.Result(ValidateM01StageThreeClosure(issueByKey)) &&
+            HostCheck.Result(ValidateM01InstructionPublicationContracts(issueByKey));
     }
 
     private static bool TestM01DurabilityRepairMarker(string manifestPath)
@@ -289,7 +242,7 @@ internal static class GiteaBacklogManifestTests
                     StringComparer.Ordinal);
         if (!ValidateM01DurabilityRepairContracts(issueByKey))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Console.WriteLine(M01DurabilityRepairMarker);
@@ -310,7 +263,7 @@ internal static class GiteaBacklogManifestTests
                     StringComparer.Ordinal);
         if (!ValidateM02DurableClosureContracts(issueByKey))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Console.WriteLine(M02DurableClosureMarker);
@@ -332,7 +285,7 @@ internal static class GiteaBacklogManifestTests
                     StringComparer.Ordinal);
         if (!ValidateM02MaterializerDurableClosureContracts(issueByKey))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Console.WriteLine(M02MaterializerDurableClosureMarker);
@@ -354,7 +307,7 @@ internal static class GiteaBacklogManifestTests
                     StringComparer.Ordinal);
         if (!ValidateM02SafeStubDurableClosureContracts(issueByKey))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Console.WriteLine(M02SafeStubDurableClosureMarker);
@@ -380,23 +333,23 @@ internal static class GiteaBacklogManifestTests
             "source/control-flow",
             "M01-033 through M01-035"
         ];
-        return string.Equals(
+        return HostCheck.Result(string.Equals(
                 issue.GetProperty("desiredState").GetString(),
                 "closed",
-                StringComparison.Ordinal) &&
-            JsonArrayContainsExact(labels, "agent:done") &&
-            CountPrefix(labels, "agent:") == 1 &&
-            requiredEvidenceTerms.All(term =>
-                currentEvidence.Contains(term, StringComparison.Ordinal)) &&
-            evidenceBoundary.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(JsonArrayContainsExact(labels, "agent:done")) &&
+            HostCheck.Result(CountPrefix(labels, "agent:") == 1) &&
+            HostCheck.Result(requiredEvidenceTerms.All(term =>
+                currentEvidence.Contains(term, StringComparison.Ordinal))) &&
+            HostCheck.Result(evidenceBoundary.Contains(
                 "host oracle, not fake-EFI or live-firmware execution",
-                StringComparison.Ordinal) &&
-            evidenceBoundary.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(evidenceBoundary.Contains(
                 "immutable-text first-publication serialization",
-                StringComparison.Ordinal) &&
-            evidenceBoundary.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(evidenceBoundary.Contains(
                 "M01-033 through M01-035 must close before M01-026",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
     private static bool ValidateM00Contracts(IReadOnlyDictionary<string, JsonElement> issueByKey)
@@ -429,85 +382,85 @@ internal static class GiteaBacklogManifestTests
             if (staleDomainPhrases.Any(phrase =>
                 combined.Contains(phrase, StringComparison.Ordinal)))
             {
-                return false;
+                return HostCheck.Result(false);
             }
 
             if (CountPrefix(issue.GetProperty("implementationNotes"), "Positive case:") != 1 ||
                 CountPrefix(issue.GetProperty("implementationNotes"), "Failure cases:") != 1 ||
                 CountPrefix(issue.GetProperty("implementationNotes"), "Explicit non-goal:") != 1)
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
         JsonElement originalBacklog = issueByKey["M00-001"];
         JsonElement repair = issueByKey["M00-023"];
-        return JsonElementContains(
+        return HostCheck.Result(JsonElementContains(
                 originalBacklog.GetProperty("requiredMarkers"),
-                "children=303 issues=319") &&
-            JsonElementContains(
+                "children=303 issues=319")) &&
+            HostCheck.Result(JsonElementContains(
                 originalBacklog.GetProperty("acceptanceCriteria"),
-                "16-milestone/319-issue manifest") &&
-            !JsonElementContains(
+                "16-milestone/319-issue manifest")) &&
+            HostCheck.Result(!JsonElementContains(
                 originalBacklog.GetProperty("requiredMarkers"),
-                "issues=331") &&
-            DependenciesEqual(repair, "M00-022") &&
-            JsonElementContains(
+                "issues=331")) &&
+            HostCheck.Result(DependenciesEqual(repair, "M00-022")) &&
+            HostCheck.Result(JsonElementContains(
                 repair.GetProperty("requiredMarkers"),
-                "children=315 issues=331") &&
-            JsonElementContains(
+                "children=315 issues=331")) &&
+            HostCheck.Result(JsonElementContains(
                 repair.GetProperty("requiredMarkers"),
-                "SYNC_VERIFY_PASS milestones=16 labels=68 issues=331") &&
-            JsonElementContains(
+                "SYNC_VERIFY_PASS milestones=16 labels=68 issues=331")) &&
+            HostCheck.Result(JsonElementContains(
                 repair.GetProperty("requiredCommands"),
-                "sync-gitea-backlog.ps1 -Apply") &&
-            CountExact(
+                "backlog sync -Apply")) &&
+            HostCheck.Result(CountExact(
                 repair.GetProperty("requiredCommands"),
-                "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\sync-gitea-backlog.ps1") == 2 &&
-            JsonElementContains(
+                "dotnet run --project tools/OS.Tooling -- backlog sync") == 2) &&
+            HostCheck.Result(JsonElementContains(
                 repair.GetProperty("acceptanceCriteria"),
-                "final no-write preview reports all 415 managed objects unchanged") &&
-            JsonElementContains(
+                "final no-write preview reports all 415 managed objects unchanged")) &&
+            HostCheck.Result(JsonElementContains(
                 repair.GetProperty("acceptanceCriteria"),
-                "guarded pre-apply no-write preview reports exactly wouldCreate=11 and wouldUpdate=24") &&
-            JsonElementContains(
+                "guarded pre-apply no-write preview reports exactly wouldCreate=11 and wouldUpdate=24")) &&
+            HostCheck.Result(JsonElementContains(
                 repair.GetProperty("implementationNotes"),
-                "M03-007 gains the post-ExitBootServices permanent-CR3 handoff contract") &&
-            JsonElementContains(
+                "M03-007 gains the post-ExitBootServices permanent-CR3 handoff contract")) &&
+            HostCheck.Result(JsonElementContains(
                 repair.GetProperty("implementationNotes"),
-                "M03-EPIC is consequently updated") &&
-            JsonElementContains(
+                "M03-EPIC is consequently updated")) &&
+            HostCheck.Result(JsonElementContains(
                 repair.GetProperty("acceptanceCriteria"),
-                "creates exactly 11 issues, updates exactly 24 existing issues") &&
-            string.Equals(
+                "creates exactly 11 issues, updates exactly 24 existing issues")) &&
+            HostCheck.Result(string.Equals(
                 repair.GetProperty("desiredState").GetString(),
                 "closed",
-                StringComparison.Ordinal) &&
-            string.Equals(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(string.Equals(
                 issueByKey["M00-EPIC"].GetProperty("desiredState").GetString(),
                 "closed",
-                StringComparison.Ordinal) &&
-            HasOwnedPath(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(HasOwnedPath(
                 issueByKey["M00-001"],
-                "tests/OS.HostTests/RepositoryRecoveryTests.cs") &&
-            HasOwnedPath(
+                "tests/OS.HostTests/RepositoryRecoveryTests.cs")) &&
+            HostCheck.Result(HasOwnedPath(
                 issueByKey["M00-004"],
-                "tests/OS.HostTests/HttpResponseParserTests.cs") &&
-            HasOwnedPath(
+                "tests/OS.HostTests/HttpResponseParserTests.cs")) &&
+            HostCheck.Result(HasOwnedPath(
                 issueByKey["M00-014"],
-                "scripts/check-naming.ps1") &&
-            HasOwnedPath(
+                "tools/OS.Tooling/RepositoryChecks.cs")) &&
+            HostCheck.Result(HasOwnedPath(
                 issueByKey["M00-018"],
-                "scripts/test-efi-artifact.ps1") &&
-            HasOwnedPath(
+                "tools/OS.Tooling/EfiVerify.cs")) &&
+            HostCheck.Result(HasOwnedPath(
                 issueByKey["M00-018"],
-                "tests/OS.HostTests/EfiArtifactVerificationScriptTests.cs") &&
-            !HasOwnedPath(
+                "tests/OS.HostTests/EfiArtifactVerificationScriptTests.cs")) &&
+            HostCheck.Result(!HasOwnedPath(
                 issueByKey["M00-016"],
-                "tests/OS.HostTests/RepositoryRecoveryTests.cs") &&
-            DependenciesEqual(issueByKey["M00-003"], "M00-002", "M00-015") &&
-            DependenciesEqual(issueByKey["M00-006"], "M00-002", "M00-014") &&
-            DependenciesEqual(
+                "tests/OS.HostTests/RepositoryRecoveryTests.cs")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M00-003"], "M00-002", "M00-015")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M00-006"], "M00-002", "M00-014")) &&
+            HostCheck.Result(DependenciesEqual(
                 issueByKey["M00-022"],
                 "M00-017",
                 "M00-018",
@@ -517,22 +470,22 @@ internal static class GiteaBacklogManifestTests
                 "M00-009",
                 "M00-010",
                 "M00-012",
-                "M00-013") &&
-            JsonElementContains(
+                "M00-013")) &&
+            HostCheck.Result(JsonElementContains(
                 issueByKey["M00-017"].GetProperty("requiredMarkers"),
-                "EFI_PREFLIGHT_ILCOMPILER") &&
-            JsonElementContains(
+                "EFI_PREFLIGHT_ILCOMPILER")) &&
+            HostCheck.Result(JsonElementContains(
                 issueByKey["M00-017"].GetProperty("requiredMarkers"),
-                "EFI_PREFLIGHT_QEMU_IMG") &&
-            JsonElementContains(
+                "EFI_PREFLIGHT_QEMU_IMG")) &&
+            HostCheck.Result(JsonElementContains(
                 issueByKey["M00-019"].GetProperty("requiredMarkers"),
-                "SERIAL_MARKER_STREAM status=Passed terminal=Success") &&
-            issueByKey["M00-022"].GetProperty("labels")
+                "SERIAL_MARKER_STREAM status=Passed terminal=Success")) &&
+            HostCheck.Result(issueByKey["M00-022"].GetProperty("labels")
                 .EnumerateArray()
-                .Any(label => label.GetString() == "evidence:qemu") &&
-            JsonElementContains(
+                .Any(label => label.GetString() == "evidence:qemu")) &&
+            HostCheck.Result(JsonElementContains(
                 issueByKey["M00-015"].GetProperty("acceptanceCriteria"),
-                "clros-ci-smoke-logs");
+                "clros-ci-smoke-logs"));
     }
 
     private static bool ValidateM00ExitGate(
@@ -543,7 +496,7 @@ internal static class GiteaBacklogManifestTests
             string requiredKey = "M00-" + number.ToString("000");
             if (!DependsTransitively(issueByKey, "M01-001", requiredKey))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
@@ -577,7 +530,7 @@ internal static class GiteaBacklogManifestTests
             .ToArray();
         if (!actualOrder.SequenceEqual(expectedOrder, StringComparer.Ordinal))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         IReadOnlyDictionary<string, string> expectedTitles =
@@ -785,12 +738,12 @@ internal static class GiteaBacklogManifestTests
                 (number != 10 &&
                     !combined.Contains("NOSTDLIB_EFI", StringComparison.Ordinal)))
             {
-                return false;
+                return HostCheck.Result(false);
             }
 
             if (!OwnedPathsEqual(issue, expectedLeafPaths[key]))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
@@ -805,7 +758,7 @@ internal static class GiteaBacklogManifestTests
                 issueByKey["M01-020"],
                 "references/zerosharp-master/efi-no-runtime/efinoruntime.csproj"))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         string leaf001Evidence =
@@ -849,10 +802,10 @@ internal static class GiteaBacklogManifestTests
                 issueByKey["M01-015"].GetProperty("implementationNotes"),
                 "M02-014"))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return ValidateM01IntegrationContractsV2(issueByKey);
+        return HostCheck.Result(ValidateM01IntegrationContractsV2(issueByKey));
     }
 
     private static bool ValidateM01ReferenceLabels(
@@ -893,7 +846,7 @@ internal static class GiteaBacklogManifestTests
                         "license-blocked",
                         StringComparison.Ordinal)))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
@@ -978,7 +931,7 @@ internal static class GiteaBacklogManifestTests
                 ["M01-020"] =
                 [
                     "src/OS/OS.csproj",
-                    "scripts/build-efi-shell.ps1",
+                    "tools/OS.Tooling/EfiBuild.cs",
                     "tests/OS.HostTests/BuildEfiShellPreflightTests.cs",
                     "tests/OS.HostTests/BootPageAllocatorFreeCoalescingTests.cs",
                     "tests/OS.HostTests/BootPageAllocatorOnePageAllocationTests.cs",
@@ -1016,7 +969,7 @@ internal static class GiteaBacklogManifestTests
                 ],
                 ["M01-022"] =
                 [
-                    "scripts/run-qemu-smoke.ps1",
+                    "tools/OS.Tooling/QemuSmoke.cs",
                     "tools/OS.QemuRunner/Program.cs",
                     "tools/OS.QemuRunner/SerialMarkerStateMachine.cs",
                     "tests/OS.HostTests/QemuRunnerTests.cs",
@@ -1031,7 +984,7 @@ internal static class GiteaBacklogManifestTests
                 ],
                 ["M01-024"] =
                 [
-                    "scripts/run-qemu-smoke.ps1",
+                    "tools/OS.Tooling/QemuSmoke.cs",
                     "tests/OS.HostTests/QemuRunnerTests.cs",
                     "docs/qemu.md",
                     "docs/boot.md",
@@ -1044,7 +997,7 @@ internal static class GiteaBacklogManifestTests
                 ],
                 ["M01-026"] =
                 [
-                    "scripts/run-qemu-smoke.ps1",
+                    "tools/OS.Tooling/QemuSmoke.cs",
                     "tests/OS.HostTests/QemuRunnerTests.cs",
                     "docs/qemu.md",
                     "docs/boot.md",
@@ -1104,7 +1057,7 @@ internal static class GiteaBacklogManifestTests
                     issue.GetProperty("labels"),
                     "evidence:host")))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
@@ -1139,7 +1092,7 @@ internal static class GiteaBacklogManifestTests
                 composite.GetProperty("labels"),
                 "evidence:host"))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         foreach (string key in hostOnlyIssues)
@@ -1159,7 +1112,7 @@ internal static class GiteaBacklogManifestTests
                     issueByKey[key].GetProperty("requiredCommands"),
                     " -Qemu \""))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
@@ -1272,7 +1225,7 @@ internal static class GiteaBacklogManifestTests
                     guestMarkers[key],
                     guestFailureMarkers[key]))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
@@ -1311,7 +1264,7 @@ internal static class GiteaBacklogManifestTests
             !stage3Commands.Contains("M01_RX_PROBE_FAILED", StringComparison.Ordinal) ||
             stage3Commands.Contains("M01_OWNED_CR3_ENTERED", StringComparison.Ordinal))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         string linkNotes =
@@ -1353,27 +1306,27 @@ internal static class GiteaBacklogManifestTests
                 issueByKey["M01-020"].GetProperty("requiredCommands"),
                 "-EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe"))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return ValidateM01PrerequisiteRepairContracts(issueByKey) &&
-            ValidateM01InstructionPublicationContracts(issueByKey) &&
-            ValidateM01DurabilityRepairContracts(issueByKey) &&
-            efiIssues.All(key =>
+        return HostCheck.Result(ValidateM01PrerequisiteRepairContracts(issueByKey)) &&
+            HostCheck.Result(ValidateM01InstructionPublicationContracts(issueByKey)) &&
+            HostCheck.Result(ValidateM01DurabilityRepairContracts(issueByKey)) &&
+            HostCheck.Result(efiIssues.All(key =>
                 JsonElementContains(
                     issueByKey[key].GetProperty("requiredCommands"),
-                    "build-efi-shell.ps1") &&
+                    "efi build") &&
                 !JsonElementContains(
                     issueByKey[key].GetProperty("requiredCommands"),
-                    "run-qemu-smoke.ps1")) &&
-            HasOwnedPath(issueByKey["M01-026"], "docs/completion-gates.md") &&
-            JsonElementContains(
+                    "qemu smoke"))) &&
+            HostCheck.Result(HasOwnedPath(issueByKey["M01-026"], "docs/completion-gates.md")) &&
+            HostCheck.Result(JsonElementContains(
                 issueByKey["M01-026"].GetProperty("acceptanceCriteria"),
-                "M02-014") &&
-            DependenciesEqual(issueByKey["M02-EPIC"], "M01-036") &&
-            DependenciesEqual(issueByKey["M02-001"], "M01-036") &&
-            DependenciesEqual(issueByKey["M04-EPIC"], "M01-036") &&
-            DependenciesEqual(issueByKey["M04-001"], "M01-036");
+                "M02-014")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M02-EPIC"], "M01-036")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M02-001"], "M01-036")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M04-EPIC"], "M01-036")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M04-001"], "M01-036"));
     }
 
     private static bool ValidateM01PrerequisiteRepairContracts(
@@ -1405,7 +1358,7 @@ internal static class GiteaBacklogManifestTests
                 "M01-032") ||
             !DependenciesEqual(issueByKey["M01-026"], "M01-035"))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         foreach (string key in repairKeys)
@@ -1427,7 +1380,7 @@ internal static class GiteaBacklogManifestTests
                     " -OvmfCode \"",
                     StringComparison.Ordinal))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
@@ -1439,7 +1392,7 @@ internal static class GiteaBacklogManifestTests
                 ".gitea/backlog/clros-issues.json") ||
             !HasOwnedPath(
                 issueByKey["M01-028"],
-                "scripts/sync-gitea-backlog.ps1") ||
+                "tools/OS.Tooling/BacklogSync.cs") ||
             !HasOwnedPath(
                 issueByKey["M01-028"],
                 "tests/OS.HostTests/GiteaBacklogManifestTests.cs") ||
@@ -1484,7 +1437,7 @@ internal static class GiteaBacklogManifestTests
                 issueByKey["M01-032"],
                 "tests/OS.HostTests/M01OwnedCr3CompositeTransitionTests.cs"))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int left = 0; left < repairKeys.Length; left++)
@@ -1524,7 +1477,7 @@ internal static class GiteaBacklogManifestTests
                         repairKeys[right],
                         repairKeys[left]))
                 {
-                    return false;
+                    return HostCheck.Result(false);
                 }
             }
         }
@@ -1542,7 +1495,7 @@ internal static class GiteaBacklogManifestTests
             !DependenciesEqual(issueByKey["M01-035"], "M01-034") ||
             !DependenciesEqual(issueByKey["M01-026"], "M01-035"))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         IReadOnlyDictionary<string, string?> lanes =
@@ -1602,11 +1555,11 @@ internal static class GiteaBacklogManifestTests
                 !JsonArrayContainsExact(labels, types[key]) ||
                 CountPrefix(labels, "type:") != 1 ||
                 !laneContractSatisfied ||
-                commands.Contains("run-qemu-smoke.ps1", StringComparison.Ordinal) ||
+                commands.Contains("qemu smoke", StringComparison.Ordinal) ||
                 commands.Contains(" -Qemu \"", StringComparison.Ordinal) ||
                 commands.Contains(" -OvmfCode \"", StringComparison.Ordinal))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
@@ -1678,8 +1631,8 @@ internal static class GiteaBacklogManifestTests
                 "src/OS/Runtime/MethodImplAttribute.cs",
                 "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets",
                 "tools/AGENTS.override.md",
-                "scripts/build-efi-shell.ps1",
-                "scripts/test-efi-artifact.ps1",
+                "tools/OS.Tooling/EfiBuild.cs",
+                "tools/OS.Tooling/EfiVerify.cs",
                 "tests/OS.HostTests/M01InstructionPublicationBuildIntegrationTests.cs",
                 "tests/OS.HostTests/BuildEfiShellPreflightTests.cs",
                 "tests/OS.HostTests/EfiArtifactVerificationScriptTests.cs",
@@ -1701,7 +1654,7 @@ internal static class GiteaBacklogManifestTests
             requiredPublicationEvidenceTerms.Any(term =>
                 !publicationEvidence.Contains(term, StringComparison.Ordinal)))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (!JsonElementContains(
@@ -1724,7 +1677,7 @@ internal static class GiteaBacklogManifestTests
                 "InstructionPublicationSerializerGenerator.cs") ||
             JsonElementContains(
                 integration.GetProperty("forbiddenPaths"),
-                "scripts/build-efi-shell.ps1") ||
+                "tools/OS.Tooling/EfiBuild.cs") ||
             JsonElementContains(
                 integration.GetProperty("forbiddenPaths"),
                 "docs/security.md") ||
@@ -1742,9 +1695,9 @@ internal static class GiteaBacklogManifestTests
                 "tools/OS.X64TextSerializerGenerator/**") ||
             !JsonElementContains(
                 publication.GetProperty("forbiddenPaths"),
-                "scripts/test-efi-artifact.ps1"))
+                "tools/OS.Tooling/EfiVerify.cs"))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         string generatorContract =
@@ -1873,7 +1826,7 @@ internal static class GiteaBacklogManifestTests
             publicationTerms.Any(term =>
                 !publicationContract.Contains(term, StringComparison.Ordinal)))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (!ReferencePathExists(
@@ -1901,7 +1854,7 @@ internal static class GiteaBacklogManifestTests
                 publication.GetProperty("labels"),
                 "reference:test-only"))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         string epicContract =
@@ -1920,60 +1873,60 @@ internal static class GiteaBacklogManifestTests
                 issueByKey["M01-026"].GetProperty("acceptanceCriteria")) +
             "\n" +
             issueByKey["M01-026"].GetProperty("evidenceBoundary").GetString();
-        return epicContract.Contains(
+        return HostCheck.Result(epicContract.Contains(
                 "M01-033 generates one deterministic C# AMD64 COFF serializer",
-                StringComparison.Ordinal) &&
-            epicContract.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(epicContract.Contains(
                 "All 36 keyed child issues",
-                StringComparison.Ordinal) &&
-            qemuContract.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(qemuContract.Contains(
                 "Accepted implementation commit 8f1edea17f2de425520e239af58d37aa3b182146",
-                StringComparison.Ordinal) &&
-            qemuContract.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(qemuContract.Contains(
                 "exactly four checked publication-epoch calls",
-                StringComparison.Ordinal) &&
-            qemuContract.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(qemuContract.Contains(
                 "runtime-observable aggregate success marker",
-                StringComparison.Ordinal) &&
-            qemuContract.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(qemuContract.Contains(
                 "M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED",
-                StringComparison.Ordinal) &&
-            qemuContract.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(qemuContract.Contains(
                 "M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED",
-                StringComparison.Ordinal) &&
-            qemuContract.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(qemuContract.Contains(
                 "QEMU/TCG",
-                StringComparison.Ordinal) &&
-            qemuContract.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(qemuContract.Contains(
                 "does not empirically prove absence of speculative code-store bypass",
-                StringComparison.Ordinal) &&
-            qemuContract.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(qemuContract.Contains(
                 "does not prove cross-core instruction publication",
-                StringComparison.Ordinal) &&
-            JsonElementContains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(JsonElementContains(
                 integration.GetProperty("requiredCommands"),
-                "build-efi-shell.ps1") &&
-            JsonElementContains(
+                "efi build")) &&
+            HostCheck.Result(JsonElementContains(
                 publication.GetProperty("requiredCommands"),
-                "build-efi-shell.ps1") &&
-            JsonElementContains(
+                "efi build")) &&
+            HostCheck.Result(JsonElementContains(
                 integration.GetProperty("requiredCommands"),
-                "test-efi-artifact.ps1") &&
-            JsonElementContains(
+                "efi verify")) &&
+            HostCheck.Result(JsonElementContains(
                 integration.GetProperty("requiredCommands"),
-                "-EfiArtifact .\\artifacts\\efi\\BOOTX64.EFI") &&
-            JsonElementContains(
+                "-EfiArtifact .\\artifacts\\efi\\BOOTX64.EFI")) &&
+            HostCheck.Result(JsonElementContains(
                 publication.GetProperty("requiredCommands"),
-                "test-efi-artifact.ps1") &&
-            JsonElementContains(
+                "efi verify")) &&
+            HostCheck.Result(JsonElementContains(
                 publication.GetProperty("requiredCommands"),
-                "-EfiArtifact .\\artifacts\\efi\\BOOTX64.EFI") &&
-            JsonElementContains(
+                "-EfiArtifact .\\artifacts\\efi\\BOOTX64.EFI")) &&
+            HostCheck.Result(JsonElementContains(
                 issueByKey["M01-026"].GetProperty("requiredCommands"),
-                "M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED") &&
-            JsonElementContains(
+                "M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED")) &&
+            HostCheck.Result(JsonElementContains(
                 issueByKey["M01-026"].GetProperty("requiredCommands"),
-                "M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED");
+                "M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED"));
     }
 
     private static bool ValidateM01DurabilityRepairContracts(
@@ -2057,7 +2010,7 @@ internal static class GiteaBacklogManifestTests
             !OwnedPathsEqual(
                 repair,
                 ".gitea/backlog/clros-issues.json",
-                "scripts/sync-gitea-backlog.ps1",
+                "tools/OS.Tooling/BacklogSync.cs",
                 "tests/OS.HostTests/GiteaBacklogManifestTests.cs",
                 "tests/OS.HostTests/RepositoryRecoveryTests.cs",
                 "tests/OS.HostTests/M01LivePagingPrerequisiteManifestTests.cs",
@@ -2073,8 +2026,8 @@ internal static class GiteaBacklogManifestTests
                 "src/OS.Kernel/Boot/BootSequence.cs",
                 "src/OS.Kernel/Boot/BootSequencePlan.cs",
                 "src/OS.Kernel/Diagnostics/Probes.cs",
-                "scripts/build-efi-shell.ps1",
-                "scripts/run-qemu-smoke.ps1",
+                "tools/OS.Tooling/EfiBuild.cs",
+                "tools/OS.Tooling/QemuSmoke.cs",
                 "tests/OS.HostTests/QemuRunnerTests.cs",
                 "README.md",
                 "references/** (read-only)",
@@ -2092,19 +2045,19 @@ internal static class GiteaBacklogManifestTests
                 repair.GetProperty("implementationNotes"),
                 "create only M02-017"))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         string repairCommands = JsonArrayText(
             repair.GetProperty("requiredCommands"));
         if (repairCommands.Contains(" -Qemu \"", StringComparison.Ordinal) ||
             repairCommands.Contains(" -OvmfCode \"", StringComparison.Ordinal) ||
-            !repairCommands.Contains("sync-gitea-backlog.ps1 -SelfTest", StringComparison.Ordinal) ||
-            !repairCommands.Contains("sync-gitea-backlog.ps1 -Offline", StringComparison.Ordinal) ||
-            !repairCommands.Contains("run-qemu-smoke.ps1 -DryRun", StringComparison.Ordinal) ||
-            !repairCommands.Contains("build-efi-shell.ps1", StringComparison.Ordinal))
+            !repairCommands.Contains("backlog sync -SelfTest", StringComparison.Ordinal) ||
+            !repairCommands.Contains("backlog sync -Offline", StringComparison.Ordinal) ||
+            !repairCommands.Contains("qemu smoke -DryRun", StringComparison.Ordinal) ||
+            !repairCommands.Contains("efi build", StringComparison.Ordinal))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (!ValidateHostProductionLeaf(
@@ -2146,7 +2099,7 @@ internal static class GiteaBacklogManifestTests
                 "agent:done",
                 "closed"))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         string strategyContract =
@@ -2185,7 +2138,7 @@ internal static class GiteaBacklogManifestTests
             !ledgerContract.Contains("one audited stack-probe", StringComparison.Ordinal) ||
             !ledgerContract.Contains("Gate 4 failing", StringComparison.Ordinal))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         string safeContract =
@@ -2215,8 +2168,8 @@ internal static class GiteaBacklogManifestTests
                 "src/OS/OS.csproj",
                 "src/OS/Boot/EfiEntry.cs",
                 "src/OS/Boot/M02SafeStubPageIntegration.cs",
-                "scripts/build-efi-shell.ps1",
-                "scripts/run-qemu-smoke.ps1",
+                "tools/OS.Tooling/EfiBuild.cs",
+                "tools/OS.Tooling/QemuSmoke.cs",
                 "tests/OS.HostTests/M02SafeStubPageEfiEntryTests.cs",
                 "tests/OS.HostTests/BuildEfiShellPreflightTests.cs",
                 "tests/OS.HostTests/QemuRunnerTests.cs",
@@ -2243,7 +2196,7 @@ internal static class GiteaBacklogManifestTests
             !safeCommands.Contains("-EnableM01OwnedPagingProbe", StringComparison.Ordinal) ||
             CountExact(
                 safeIntegration.GetProperty("requiredCommands"),
-                "powershell -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\run-qemu-smoke.ps1 -BuildEfi -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe -EnableM02SafeStubProbe -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 30") != 1 ||
+                "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe -EnableM02SafeStubProbe -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 30") != 1 ||
             !DependenciesEqual(issueByKey["M02-003"], "M02-020") ||
             !DependenciesEqual(issueByKey["M02-EPIC"], "M01-036") ||
             !DependenciesEqual(issueByKey["M04-EPIC"], "M01-036") ||
@@ -2253,7 +2206,7 @@ internal static class GiteaBacklogManifestTests
                 "M02-016",
                 "M03-006"))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         return true;
@@ -2290,8 +2243,8 @@ internal static class GiteaBacklogManifestTests
                 JsonElementContains(
                     issue.GetProperty("requiredMarkers"),
                     readyMarker) &&
-                commands.Contains("run-qemu-smoke.ps1 -DryRun", StringComparison.Ordinal) &&
-                commands.Contains("build-efi-shell.ps1", StringComparison.Ordinal) &&
+                commands.Contains("qemu smoke -DryRun", StringComparison.Ordinal) &&
+                commands.Contains("efi build", StringComparison.Ordinal) &&
                 !commands.Contains(" -Qemu \"", StringComparison.Ordinal) &&
                 !commands.Contains(" -OvmfCode \"", StringComparison.Ordinal);
         }
@@ -2311,7 +2264,7 @@ internal static class GiteaBacklogManifestTests
         ];
         if (requiredKeys.Any(key => !issueByKey.ContainsKey(key)))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         JsonElement epic = issueByKey["M02-EPIC"];
@@ -2358,47 +2311,47 @@ internal static class GiteaBacklogManifestTests
             "realQemuRun=false"
         ];
 
-        return DependenciesEqual(strategy, "M01-036") &&
-            string.Equals(
+        return HostCheck.Result(DependenciesEqual(strategy, "M01-036")) &&
+            HostCheck.Result(string.Equals(
                 strategy.GetProperty("desiredState").GetString(),
                 "closed",
-                StringComparison.Ordinal) &&
-            JsonArrayContainsExact(strategyLabels, "agent:done") &&
-            !JsonArrayContainsExact(strategyLabels, "agent:blocked") &&
-            CountPrefix(strategyLabels, "agent:") == 1 &&
-            strategyEvidenceAnchors.All(anchor =>
-                strategyEvidence.Contains(anchor, StringComparison.Ordinal)) &&
-            DependenciesEqual(closure, "M02-001") &&
-            string.Equals(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(JsonArrayContainsExact(strategyLabels, "agent:done")) &&
+            HostCheck.Result(!JsonArrayContainsExact(strategyLabels, "agent:blocked")) &&
+            HostCheck.Result(CountPrefix(strategyLabels, "agent:") == 1) &&
+            HostCheck.Result(strategyEvidenceAnchors.All(anchor =>
+                strategyEvidence.Contains(anchor, StringComparison.Ordinal))) &&
+            HostCheck.Result(DependenciesEqual(closure, "M02-001")) &&
+            HostCheck.Result(string.Equals(
                 closure.GetProperty("desiredState").GetString(),
                 "closed",
-                StringComparison.Ordinal) &&
-            string.Equals(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(string.Equals(
                 closure.GetProperty("collisionLane").GetString(),
                 "lane:solution-baseline",
-                StringComparison.Ordinal) &&
-            JsonArrayContainsExact(closureLabels, "agent:done") &&
-            JsonArrayContainsExact(closureLabels, "priority:p0") &&
-            JsonArrayContainsExact(closureLabels, "type:tooling") &&
-            JsonArrayContainsExact(closureLabels, "evidence:host") &&
-            JsonArrayContainsExact(closureLabels, "component:repo") &&
-            JsonArrayContainsExact(closureLabels, "phase:m02-diagnostics") &&
-            JsonArrayContainsExact(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(JsonArrayContainsExact(closureLabels, "agent:done")) &&
+            HostCheck.Result(JsonArrayContainsExact(closureLabels, "priority:p0")) &&
+            HostCheck.Result(JsonArrayContainsExact(closureLabels, "type:tooling")) &&
+            HostCheck.Result(JsonArrayContainsExact(closureLabels, "evidence:host")) &&
+            HostCheck.Result(JsonArrayContainsExact(closureLabels, "component:repo")) &&
+            HostCheck.Result(JsonArrayContainsExact(closureLabels, "phase:m02-diagnostics")) &&
+            HostCheck.Result(JsonArrayContainsExact(
                 closureLabels,
-                "lane:solution-baseline") &&
-            CountPrefix(closureLabels, "agent:") == 1 &&
-            CountPrefix(closureLabels, "type:") == 1 &&
-            CountPrefix(closureLabels, "evidence:") == 1 &&
-            CountPrefix(closureLabels, "lane:") == 1 &&
-            OwnedPathsEqual(
+                "lane:solution-baseline")) &&
+            HostCheck.Result(CountPrefix(closureLabels, "agent:") == 1) &&
+            HostCheck.Result(CountPrefix(closureLabels, "type:") == 1) &&
+            HostCheck.Result(CountPrefix(closureLabels, "evidence:") == 1) &&
+            HostCheck.Result(CountPrefix(closureLabels, "lane:") == 1) &&
+            HostCheck.Result(OwnedPathsEqual(
                 closure,
                 ".gitea/backlog/clros-issues.json",
-                "scripts/sync-gitea-backlog.ps1",
+                "tools/OS.Tooling/BacklogSync.cs",
                 "tests/OS.HostTests/GiteaBacklogManifestTests.cs",
                 "tests/OS.HostTests/RepositoryRecoveryTests.cs",
                 "docs/issue-labels.md",
-                "docs/repo-audit.md") &&
-            JsonStringArrayEquals(
+                "docs/repo-audit.md")) &&
+            HostCheck.Result(JsonStringArrayEquals(
                 closure.GetProperty("forbiddenPaths"),
                 "src/**",
                 "std/**",
@@ -2411,82 +2364,82 @@ internal static class GiteaBacklogManifestTests
                 "tests/OS.HostTests/ManagedX64StubStrategyADRUseExistingAuditedTests.cs",
                 "docs/diagnostics.md",
                 "docs/boot-order.md",
-                "scripts/build-efi-shell.ps1",
-                "scripts/run-qemu-smoke.ps1",
+                "tools/OS.Tooling/EfiBuild.cs",
+                "tools/OS.Tooling/QemuSmoke.cs",
                 "tools/**",
                 "README.md",
                 "docs/completion-gates.md",
                 "references/** (read-only)",
-                "done/** (reserve one new step only after implementation evidence exists)") &&
-            JsonStringArrayEquals(
+                "done/** (reserve one new step only after implementation evidence exists)")) &&
+            HostCheck.Result(JsonStringArrayEquals(
                 closure.GetProperty("requiredMarkers"),
                 "TEST_START m02.018",
                 M02DurableClosureMarker,
                 "TEST_PASS m02.018",
-                "TEST_FAIL m02.018 <reason>") &&
-            JsonStringArrayEquals(
+                "TEST_FAIL m02.018 <reason>")) &&
+            HostCheck.Result(JsonStringArrayEquals(
                 closure.GetProperty("documentationPaths"),
                 "docs/issue-labels.md",
-                "docs/repo-audit.md") &&
-            closureEvidence.Contains("issue #429", StringComparison.Ordinal) &&
-            closureEvidence.Contains(
+                "docs/repo-audit.md")) &&
+            HostCheck.Result(closureEvidence.Contains("issue #429", StringComparison.Ordinal)) &&
+            HostCheck.Result(closureEvidence.Contains(
                 "85528a5513f1cf24396ff29acc6787bc015ec9c5",
-                StringComparison.Ordinal) &&
-            closureNotes.Contains(
-                "The proposed owned paths are exact for this slice:",
-                StringComparison.Ordinal) &&
-            closureNotes.Contains(M02DurableClosureMarker, StringComparison.Ordinal) &&
-            closureNotes.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureNotes.Contains(
+                "The ownedPaths inventory is the exact scope for this slice.",
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureNotes.Contains(M02DurableClosureMarker, StringComparison.Ordinal)) &&
+            HostCheck.Result(closureNotes.Contains(
                 "<!-- clros-evidence-reviewed:M02-018 -->",
-                StringComparison.Ordinal) &&
-            closureAcceptance.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureAcceptance.Contains(
                 "all 427 objects unchanged/skipped",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
                 "dotnet build .\\CLROS.slnx --nologo -m:1",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
                 "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
-                "sync-gitea-backlog.ps1 -Offline",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
-                "sync-gitea-backlog.ps1 -SelfTest",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
-                "run-qemu-smoke.ps1 -DryRun",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
-                "build-efi-shell.ps1",
-                StringComparison.Ordinal) &&
-            !closureCommands.Contains(" -Qemu \"", StringComparison.Ordinal) &&
-            !closureCommands.Contains(" -OvmfCode \"", StringComparison.Ordinal) &&
-            DependenciesEqual(materializer, "M02-018") &&
-            DependenciesEqual(safeIntegration, "M02-019") &&
-            DependenciesEqual(livePortIo, "M02-020") &&
-            JsonElementContains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
+                "backlog sync -Offline",
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
+                "backlog sync -SelfTest",
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
+                "qemu smoke -DryRun",
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
+                "efi build",
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(!closureCommands.Contains(" -Qemu \"", StringComparison.Ordinal)) &&
+            HostCheck.Result(!closureCommands.Contains(" -OvmfCode \"", StringComparison.Ordinal)) &&
+            HostCheck.Result(DependenciesEqual(materializer, "M02-018")) &&
+            HostCheck.Result(DependenciesEqual(safeIntegration, "M02-019")) &&
+            HostCheck.Result(DependenciesEqual(livePortIo, "M02-020")) &&
+            HostCheck.Result(JsonElementContains(
                 epic.GetProperty("acceptanceCriteria"),
-                "All 20 keyed child issues") &&
-            closure.GetProperty("ownedPaths")
+                "All 20 keyed child issues")) &&
+            HostCheck.Result(closure.GetProperty("ownedPaths")
                 .EnumerateArray()
                 .Select(path => path.GetString() ?? string.Empty)
                 .All(path =>
                     !path.StartsWith("src/", StringComparison.Ordinal) &&
                     !path.StartsWith("std/", StringComparison.Ordinal) &&
-                    !path.StartsWith("apps/", StringComparison.Ordinal)) &&
-            closureBoundary.Contains(
+                    !path.StartsWith("apps/", StringComparison.Ordinal))) &&
+            HostCheck.Result(closureBoundary.Contains(
                 "changes no production C#",
-                StringComparison.Ordinal) &&
-            closureBoundary.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureBoundary.Contains(
                 "does not prove live page materialization",
-                StringComparison.Ordinal) &&
-            closureBoundary.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureBoundary.Contains(
                 "CloudReady status",
-                StringComparison.Ordinal) &&
-            closureBoundary.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureBoundary.Contains(
                 "production readiness",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
     private static bool ValidateM02MaterializerDurableClosureContracts(
@@ -2502,7 +2455,7 @@ internal static class GiteaBacklogManifestTests
         ];
         if (requiredKeys.Any(key => !issueByKey.ContainsKey(key)))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         JsonElement epic = issueByKey["M02-EPIC"];
@@ -2550,51 +2503,51 @@ internal static class GiteaBacklogManifestTests
             "realQemuRun=false"
         ];
 
-        return DependenciesEqual(materializer, "M02-018") &&
-            string.Equals(
+        return HostCheck.Result(DependenciesEqual(materializer, "M02-018")) &&
+            HostCheck.Result(string.Equals(
                 materializer.GetProperty("desiredState").GetString(),
                 "closed",
-                StringComparison.Ordinal) &&
-            JsonArrayContainsExact(materializerLabels, "agent:done") &&
-            !JsonArrayContainsExact(materializerLabels, "agent:blocked") &&
-            CountPrefix(materializerLabels, "agent:") == 1 &&
-            materializerEvidenceAnchors.All(anchor =>
-                materializerEvidence.Contains(anchor, StringComparison.Ordinal)) &&
-            string.Equals(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(JsonArrayContainsExact(materializerLabels, "agent:done")) &&
+            HostCheck.Result(!JsonArrayContainsExact(materializerLabels, "agent:blocked")) &&
+            HostCheck.Result(CountPrefix(materializerLabels, "agent:") == 1) &&
+            HostCheck.Result(materializerEvidenceAnchors.All(anchor =>
+                materializerEvidence.Contains(anchor, StringComparison.Ordinal))) &&
+            HostCheck.Result(string.Equals(
                 closure.GetProperty("title").GetString(),
                 "[M02-019] Persist reviewed M02-002 closure intent and converge the tracker before safe EFI integration.",
-                StringComparison.Ordinal) &&
-            DependenciesEqual(closure, "M02-002") &&
-            string.Equals(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(DependenciesEqual(closure, "M02-002")) &&
+            HostCheck.Result(string.Equals(
                 closure.GetProperty("desiredState").GetString(),
                 "closed",
-                StringComparison.Ordinal) &&
-            string.Equals(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(string.Equals(
                 closure.GetProperty("collisionLane").GetString(),
                 "lane:solution-baseline",
-                StringComparison.Ordinal) &&
-            JsonArrayContainsExact(closureLabels, "agent:done") &&
-            JsonArrayContainsExact(closureLabels, "priority:p0") &&
-            JsonArrayContainsExact(closureLabels, "type:tooling") &&
-            JsonArrayContainsExact(closureLabels, "evidence:host") &&
-            JsonArrayContainsExact(closureLabels, "component:repo") &&
-            JsonArrayContainsExact(closureLabels, "phase:m02-diagnostics") &&
-            JsonArrayContainsExact(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(JsonArrayContainsExact(closureLabels, "agent:done")) &&
+            HostCheck.Result(JsonArrayContainsExact(closureLabels, "priority:p0")) &&
+            HostCheck.Result(JsonArrayContainsExact(closureLabels, "type:tooling")) &&
+            HostCheck.Result(JsonArrayContainsExact(closureLabels, "evidence:host")) &&
+            HostCheck.Result(JsonArrayContainsExact(closureLabels, "component:repo")) &&
+            HostCheck.Result(JsonArrayContainsExact(closureLabels, "phase:m02-diagnostics")) &&
+            HostCheck.Result(JsonArrayContainsExact(
                 closureLabels,
-                "lane:solution-baseline") &&
-            CountPrefix(closureLabels, "agent:") == 1 &&
-            CountPrefix(closureLabels, "type:") == 1 &&
-            CountPrefix(closureLabels, "evidence:") == 1 &&
-            CountPrefix(closureLabels, "lane:") == 1 &&
-            OwnedPathsEqual(
+                "lane:solution-baseline")) &&
+            HostCheck.Result(CountPrefix(closureLabels, "agent:") == 1) &&
+            HostCheck.Result(CountPrefix(closureLabels, "type:") == 1) &&
+            HostCheck.Result(CountPrefix(closureLabels, "evidence:") == 1) &&
+            HostCheck.Result(CountPrefix(closureLabels, "lane:") == 1) &&
+            HostCheck.Result(OwnedPathsEqual(
                 closure,
                 ".gitea/backlog/clros-issues.json",
-                "scripts/sync-gitea-backlog.ps1",
+                "tools/OS.Tooling/BacklogSync.cs",
                 "tests/OS.HostTests/GiteaBacklogManifestTests.cs",
                 "tests/OS.HostTests/RepositoryRecoveryTests.cs",
                 "docs/issue-labels.md",
-                "docs/repo-audit.md") &&
-            JsonStringArrayEquals(
+                "docs/repo-audit.md")) &&
+            HostCheck.Result(JsonStringArrayEquals(
                 closure.GetProperty("forbiddenPaths"),
                 "src/**",
                 "std/**",
@@ -2609,88 +2562,88 @@ internal static class GiteaBacklogManifestTests
                 "tests/OS.HostTests/ExistingIn8Out8StubBytesRWPagesFinalizeTests.cs",
                 "docs/diagnostics.md",
                 "docs/boot-order.md",
-                "scripts/build-efi-shell.ps1",
-                "scripts/run-qemu-smoke.ps1",
+                "tools/OS.Tooling/EfiBuild.cs",
+                "tools/OS.Tooling/QemuSmoke.cs",
                 "tools/**",
                 "README.md",
                 "docs/completion-gates.md",
                 "references/** (read-only)",
-                "done/** (reserve one new step only after implementation evidence exists)") &&
-            JsonStringArrayEquals(
+                "done/** (reserve one new step only after implementation evidence exists)")) &&
+            HostCheck.Result(JsonStringArrayEquals(
                 closure.GetProperty("requiredMarkers"),
                 "TEST_START m02.019",
                 M02MaterializerDurableClosureMarker,
                 "TEST_PASS m02.019",
-                "TEST_FAIL m02.019 <reason>") &&
-            JsonStringArrayEquals(
+                "TEST_FAIL m02.019 <reason>")) &&
+            HostCheck.Result(JsonStringArrayEquals(
                 closure.GetProperty("documentationPaths"),
                 "docs/issue-labels.md",
-                "docs/repo-audit.md") &&
-            closureEvidence.Contains("issue #432", StringComparison.Ordinal) &&
-            closureEvidence.Contains("claim comment #6661", StringComparison.Ordinal) &&
-            closureEvidence.Contains("PR #431", StringComparison.Ordinal) &&
-            closureEvidence.Contains(
+                "docs/repo-audit.md")) &&
+            HostCheck.Result(closureEvidence.Contains("issue #432", StringComparison.Ordinal)) &&
+            HostCheck.Result(closureEvidence.Contains("claim comment #6661", StringComparison.Ordinal)) &&
+            HostCheck.Result(closureEvidence.Contains("PR #431", StringComparison.Ordinal)) &&
+            HostCheck.Result(closureEvidence.Contains(
                 "da856db657575d8f8d67713c7afe96e113854e54",
-                StringComparison.Ordinal) &&
-            closureNotes.Contains(
-                "The proposed owned paths are exact for this slice:",
-                StringComparison.Ordinal) &&
-            closureNotes.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureNotes.Contains(
+                "The ownedPaths inventory is the exact scope for this slice.",
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureNotes.Contains(
                 M02MaterializerDurableClosureMarker,
-                StringComparison.Ordinal) &&
-            closureNotes.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureNotes.Contains(
                 "<!-- clros-evidence-reviewed:M02-019 -->",
-                StringComparison.Ordinal) &&
-            closureAcceptance.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureAcceptance.Contains(
                 "all 428 objects unchanged/skipped",
-                StringComparison.Ordinal) &&
-            closureAcceptance.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureAcceptance.Contains(
                 "M02-017 the smallest collision-safe ready issue",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
                 "dotnet build .\\CLROS.slnx --nologo -m:1",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
                 "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
-                "sync-gitea-backlog.ps1 -Offline",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
-                "sync-gitea-backlog.ps1 -SelfTest",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
-                "run-qemu-smoke.ps1 -DryRun",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
-                "build-efi-shell.ps1",
-                StringComparison.Ordinal) &&
-            !closureCommands.Contains(" -Qemu \"", StringComparison.Ordinal) &&
-            !closureCommands.Contains(" -OvmfCode \"", StringComparison.Ordinal) &&
-            DependenciesEqual(safeIntegration, "M02-019") &&
-            DependenciesEqual(livePortIo, "M02-020") &&
-            JsonElementContains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
+                "backlog sync -Offline",
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
+                "backlog sync -SelfTest",
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
+                "qemu smoke -DryRun",
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
+                "efi build",
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(!closureCommands.Contains(" -Qemu \"", StringComparison.Ordinal)) &&
+            HostCheck.Result(!closureCommands.Contains(" -OvmfCode \"", StringComparison.Ordinal)) &&
+            HostCheck.Result(DependenciesEqual(safeIntegration, "M02-019")) &&
+            HostCheck.Result(DependenciesEqual(livePortIo, "M02-020")) &&
+            HostCheck.Result(JsonElementContains(
                 epic.GetProperty("acceptanceCriteria"),
-                "All 20 keyed child issues") &&
-            closure.GetProperty("ownedPaths")
+                "All 20 keyed child issues")) &&
+            HostCheck.Result(closure.GetProperty("ownedPaths")
                 .EnumerateArray()
                 .Select(path => path.GetString() ?? string.Empty)
                 .All(path =>
                     !path.StartsWith("src/", StringComparison.Ordinal) &&
                     !path.StartsWith("std/", StringComparison.Ordinal) &&
-                    !path.StartsWith("apps/", StringComparison.Ordinal)) &&
-            closureBoundary.Contains(
+                    !path.StartsWith("apps/", StringComparison.Ordinal))) &&
+            HostCheck.Result(closureBoundary.Contains(
                 "changes no production C#",
-                StringComparison.Ordinal) &&
-            closureBoundary.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureBoundary.Contains(
                 "does not prove live page materialization",
-                StringComparison.Ordinal) &&
-            closureBoundary.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureBoundary.Contains(
                 "CloudReady status",
-                StringComparison.Ordinal) &&
-            closureBoundary.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureBoundary.Contains(
                 "production readiness",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
     private static bool ValidateM02SafeStubDurableClosureContracts(
@@ -2706,7 +2659,7 @@ internal static class GiteaBacklogManifestTests
         ];
         if (requiredKeys.Any(key => !issueByKey.ContainsKey(key)))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         JsonElement epic = issueByKey["M02-EPIC"];
@@ -2758,12 +2711,12 @@ internal static class GiteaBacklogManifestTests
             "9C2C8EBC64BCA601CE6CDB2D231DA784EE9555B546FB7426A46A433B71353965"
         ];
 
-        return DependenciesEqual(safeIntegration, "M02-019") &&
-            string.Equals(
+        return HostCheck.Result(DependenciesEqual(safeIntegration, "M02-019")) &&
+            HostCheck.Result(string.Equals(
                 safeIntegration.GetProperty("desiredState").GetString(),
                 "closed",
-                StringComparison.Ordinal) &&
-            JsonStringArrayEquals(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(JsonStringArrayEquals(
                 safeLabels,
                 "agent:done",
                 "priority:p1",
@@ -2773,14 +2726,14 @@ internal static class GiteaBacklogManifestTests
                 "component:diagnostics",
                 "component:qemu",
                 "phase:m02-diagnostics",
-                "lane:efi-entry") &&
-            OwnedPathsEqual(
+                "lane:efi-entry")) &&
+            HostCheck.Result(OwnedPathsEqual(
                 safeIntegration,
                 "src/OS/OS.csproj",
                 "src/OS/Boot/EfiEntry.cs",
                 "src/OS/Boot/M02SafeStubPageIntegration.cs",
-                "scripts/build-efi-shell.ps1",
-                "scripts/run-qemu-smoke.ps1",
+                "tools/OS.Tooling/EfiBuild.cs",
+                "tools/OS.Tooling/QemuSmoke.cs",
                 "tests/OS.HostTests/M02SafeStubPageEfiEntryTests.cs",
                 "tests/OS.HostTests/BuildEfiShellPreflightTests.cs",
                 "tests/OS.HostTests/QemuRunnerTests.cs",
@@ -2789,8 +2742,8 @@ internal static class GiteaBacklogManifestTests
                 "docs/boot-order.md",
                 "docs/efi-build.md",
                 "docs/qemu.md",
-                "docs/completion-gates.md") &&
-            JsonStringArrayEquals(
+                "docs/completion-gates.md")) &&
+            HostCheck.Result(JsonStringArrayEquals(
                 safeIntegration.GetProperty("forbiddenPaths"),
                 ".gitea/backlog/**",
                 "src/OS/Boot/X64InstructionPublication.cs",
@@ -2807,8 +2760,8 @@ internal static class GiteaBacklogManifestTests
                 "tools/**",
                 "README.md",
                 "references/** (read-only)",
-                "done/** (reserve one new step only after fresh real-QEMU evidence exists)") &&
-            JsonStringArrayEquals(
+                "done/** (reserve one new step only after fresh real-QEMU evidence exists)")) &&
+            HostCheck.Result(JsonStringArrayEquals(
                 safeIntegration.GetProperty("requiredMarkers"),
                 "TEST_START m02.017",
                 "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E",
@@ -2824,23 +2777,23 @@ internal static class GiteaBacklogManifestTests
                 "M02_IN8_EXECUTED",
                 "M02_PORT_IO_ATTEMPTED",
                 "M02_PRIVILEGED_STUB_TARGETED",
-                "TEST_FAIL m02.017 <reason>") &&
-            safeEvidenceAnchors.All(anchor =>
-                safeEvidence.Contains(anchor, StringComparison.Ordinal)) &&
-            string.Equals(
+                "TEST_FAIL m02.017 <reason>")) &&
+            HostCheck.Result(safeEvidenceAnchors.All(anchor =>
+                safeEvidence.Contains(anchor, StringComparison.Ordinal))) &&
+            HostCheck.Result(string.Equals(
                 closure.GetProperty("title").GetString(),
                 "[M02-020] Persist reviewed M02-017 safe-stub closure and converge the tracker before privileged I/O.",
-                StringComparison.Ordinal) &&
-            DependenciesEqual(closure, "M02-017") &&
-            string.Equals(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(DependenciesEqual(closure, "M02-017")) &&
+            HostCheck.Result(string.Equals(
                 closure.GetProperty("desiredState").GetString(),
                 "closed",
-                StringComparison.Ordinal) &&
-            string.Equals(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(string.Equals(
                 closure.GetProperty("collisionLane").GetString(),
                 "lane:solution-baseline",
-                StringComparison.Ordinal) &&
-            JsonStringArrayEquals(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(JsonStringArrayEquals(
                 closureLabels,
                 "agent:done",
                 "priority:p0",
@@ -2848,23 +2801,23 @@ internal static class GiteaBacklogManifestTests
                 "evidence:host",
                 "component:repo",
                 "phase:m02-diagnostics",
-                "lane:solution-baseline") &&
-            OwnedPathsEqual(
+                "lane:solution-baseline")) &&
+            HostCheck.Result(OwnedPathsEqual(
                 closure,
                 ".gitea/backlog/clros-issues.json",
-                "scripts/sync-gitea-backlog.ps1",
+                "tools/OS.Tooling/BacklogSync.cs",
                 "tests/OS.HostTests/GiteaBacklogManifestTests.cs",
                 "tests/OS.HostTests/RepositoryRecoveryTests.cs",
                 "docs/issue-labels.md",
-                "docs/repo-audit.md") &&
-            JsonStringArrayEquals(
+                "docs/repo-audit.md")) &&
+            HostCheck.Result(JsonStringArrayEquals(
                 closure.GetProperty("forbiddenPaths"),
                 "src/**",
                 "std/**",
                 "apps/**",
-                "scripts/build-efi-shell.ps1",
-                "scripts/run-qemu-smoke.ps1",
-                "scripts/test-efi-artifact.ps1",
+                "tools/OS.Tooling/EfiBuild.cs",
+                "tools/OS.Tooling/QemuSmoke.cs",
+                "tools/OS.Tooling/EfiVerify.cs",
                 "tests/OS.HostTests/M02SafeStubPageEfiEntryTests.cs",
                 "tests/OS.HostTests/BuildEfiShellPreflightTests.cs",
                 "tests/OS.HostTests/QemuRunnerTests.cs",
@@ -2878,83 +2831,83 @@ internal static class GiteaBacklogManifestTests
                 "tools/**",
                 "README.md",
                 "references/** (read-only)",
-                "done/** (reserve one new step only after implementation evidence exists)") &&
-            JsonStringArrayEquals(
+                "done/** (reserve one new step only after implementation evidence exists)")) &&
+            HostCheck.Result(JsonStringArrayEquals(
                 closure.GetProperty("requiredMarkers"),
                 "TEST_START m02.020",
                 M02SafeStubDurableClosureMarker,
                 "TEST_PASS m02.020",
-                "TEST_FAIL m02.020 <reason>") &&
-            JsonStringArrayEquals(
+                "TEST_FAIL m02.020 <reason>")) &&
+            HostCheck.Result(JsonStringArrayEquals(
                 closure.GetProperty("documentationPaths"),
                 "docs/issue-labels.md",
-                "docs/repo-audit.md") &&
-            closureEvidence.Contains("live issue #436", StringComparison.Ordinal) &&
-            closureEvidence.Contains("PR #435", StringComparison.Ordinal) &&
-            closureEvidence.Contains(
+                "docs/repo-audit.md")) &&
+            HostCheck.Result(closureEvidence.Contains("live issue #436", StringComparison.Ordinal)) &&
+            HostCheck.Result(closureEvidence.Contains("PR #435", StringComparison.Ordinal)) &&
+            HostCheck.Result(closureEvidence.Contains(
                 "d2872746059a7200431b6d3bc89c6e02cb42fa8b",
-                StringComparison.Ordinal) &&
-            closureNotes.Contains(
-                "The proposed owned paths are exact for this slice:",
-                StringComparison.Ordinal) &&
-            closureNotes.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureNotes.Contains(
+                "The ownedPaths inventory is the exact scope for this slice.",
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureNotes.Contains(
                 M02SafeStubDurableClosureMarker,
-                StringComparison.Ordinal) &&
-            closureNotes.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureNotes.Contains(
                 "<!-- clros-evidence-reviewed:M02-020 -->",
-                StringComparison.Ordinal) &&
-            closureAcceptance.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureAcceptance.Contains(
                 "all 429 objects unchanged/skipped",
-                StringComparison.Ordinal) &&
-            closureAcceptance.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureAcceptance.Contains(
                 "M02-003 the smallest collision-safe ready issue",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
                 "dotnet build .\\CLROS.slnx --nologo -m:1",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
                 "dotnet build .\\tests\\OS.HostTests\\OS.HostTests.csproj --nologo",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
-                "sync-gitea-backlog.ps1 -Offline",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
-                "sync-gitea-backlog.ps1 -SelfTest",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
-                "run-qemu-smoke.ps1 -DryRun",
-                StringComparison.Ordinal) &&
-            closureCommands.Contains(
-                "build-efi-shell.ps1",
-                StringComparison.Ordinal) &&
-            !closureCommands.Contains(" -Qemu \"", StringComparison.Ordinal) &&
-            !closureCommands.Contains(" -OvmfCode \"", StringComparison.Ordinal) &&
-            DependenciesEqual(materializerClosure, "M02-002") &&
-            DependenciesEqual(safeIntegration, "M02-019") &&
-            DependenciesEqual(closure, "M02-017") &&
-            DependenciesEqual(livePortIo, "M02-020") &&
-            JsonElementContains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
+                "backlog sync -Offline",
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
+                "backlog sync -SelfTest",
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
+                "qemu smoke -DryRun",
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureCommands.Contains(
+                "efi build",
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(!closureCommands.Contains(" -Qemu \"", StringComparison.Ordinal)) &&
+            HostCheck.Result(!closureCommands.Contains(" -OvmfCode \"", StringComparison.Ordinal)) &&
+            HostCheck.Result(DependenciesEqual(materializerClosure, "M02-002")) &&
+            HostCheck.Result(DependenciesEqual(safeIntegration, "M02-019")) &&
+            HostCheck.Result(DependenciesEqual(closure, "M02-017")) &&
+            HostCheck.Result(DependenciesEqual(livePortIo, "M02-020")) &&
+            HostCheck.Result(JsonElementContains(
                 epic.GetProperty("acceptanceCriteria"),
-                "All 20 keyed child issues") &&
-            closure.GetProperty("ownedPaths")
+                "All 20 keyed child issues")) &&
+            HostCheck.Result(closure.GetProperty("ownedPaths")
                 .EnumerateArray()
                 .Select(path => path.GetString() ?? string.Empty)
                 .All(path =>
                     !path.StartsWith("src/", StringComparison.Ordinal) &&
                     !path.StartsWith("std/", StringComparison.Ordinal) &&
-                    !path.StartsWith("apps/", StringComparison.Ordinal)) &&
-            closureBoundary.Contains(
+                    !path.StartsWith("apps/", StringComparison.Ordinal))) &&
+            HostCheck.Result(closureBoundary.Contains(
                 "changes no production C#",
-                StringComparison.Ordinal) &&
-            closureBoundary.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureBoundary.Contains(
                 "does not prove new live page behavior",
-                StringComparison.Ordinal) &&
-            closureBoundary.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureBoundary.Contains(
                 "CloudReady status",
-                StringComparison.Ordinal) &&
-            closureBoundary.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(closureBoundary.Contains(
                 "production readiness",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
     private static bool ValidateM03PermanentCr3Handoff(
@@ -2965,38 +2918,38 @@ internal static class GiteaBacklogManifestTests
         string acceptance = JsonArrayText(issue.GetProperty("acceptanceCriteria"));
         string commands = JsonArrayText(issue.GetProperty("requiredCommands"));
         string evidence = issue.GetProperty("evidenceBoundary").GetString() ?? string.Empty;
-        return DependenciesEqual(issue, "M01-026", "M02-016", "M03-006") &&
-            string.Equals(
+        return HostCheck.Result(DependenciesEqual(issue, "M01-026", "M02-016", "M03-006")) &&
+            HostCheck.Result(string.Equals(
                 issue.GetProperty("collisionLane").GetString(),
                 "lane:efi-entry",
-                StringComparison.Ordinal) &&
-            JsonArrayContainsExact(issue.GetProperty("labels"), "lane:efi-entry") &&
-            HasOwnedPath(issue, "src/OS/Boot/EfiEntry.cs") &&
-            HasOwnedPath(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(JsonArrayContainsExact(issue.GetProperty("labels"), "lane:efi-entry")) &&
+            HostCheck.Result(HasOwnedPath(issue, "src/OS/Boot/EfiEntry.cs")) &&
+            HostCheck.Result(HasOwnedPath(
                 issue,
-                "tests/OS.HostTests/M03PermanentCr3AfterExitEfiEntryTests.cs") &&
-            notes.Contains(
+                "tests/OS.HostTests/M03PermanentCr3AfterExitEfiEntryTests.cs")) &&
+            HostCheck.Result(notes.Contains(
                 "Permanent owned-CR3 adoption before a successful ExitBootServices return is forbidden",
-                StringComparison.Ordinal) &&
-            notes.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(notes.Contains(
                 "make no firmware call ever again",
-                StringComparison.Ordinal) &&
-            notes.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(notes.Contains(
                 "M03_PERMANENT_CR3_ADOPTED",
-                StringComparison.Ordinal) &&
-            acceptance.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(acceptance.Contains(
                 "no permanent adoption occurs before successful EBS",
-                StringComparison.Ordinal) &&
-            commands.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(commands.Contains(
                 "M03_EBS_RETURNED_SUCCESS,M03_PERMANENT_CR3_ADOPTED,M03_POST_EBS_OWNED_DIAGNOSTIC",
-                StringComparison.Ordinal) &&
-            commands.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(commands.Contains(
                 "M03_FIRMWARE_CALL_AFTER_EBS",
-                StringComparison.Ordinal) &&
-            evidence.Contains(
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(evidence.Contains(
                 "adopted permanently before owned post-EBS diagnostics",
-                StringComparison.Ordinal) &&
-            evidence.Contains("M03-008", StringComparison.Ordinal);
+                StringComparison.Ordinal)) &&
+            HostCheck.Result(evidence.Contains("M03-008", StringComparison.Ordinal));
     }
 
     private static bool ValidateSyncVerifyRequiresApply(
@@ -3009,9 +2962,9 @@ internal static class GiteaBacklogManifestTests
                     "SYNC_VERIFY_PASS") &&
                 !JsonElementContains(
                     issue.GetProperty("requiredCommands"),
-                    "sync-gitea-backlog.ps1 -Apply"))
+                    "backlog sync -Apply"))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
@@ -3065,7 +3018,7 @@ internal static class GiteaBacklogManifestTests
                     string.Equals(leftLane, rightLane, StringComparison.Ordinal);
                 if (!dependencySerialized && !laneSerialized)
                 {
-                    return false;
+                    return HostCheck.Result(false);
                 }
             }
         }
@@ -3195,7 +3148,7 @@ internal static class GiteaBacklogManifestTests
                 issue.GetProperty("requiredMarkers"),
                 expectedRequiredMarkers))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         string commands = JsonArrayText(issue.GetProperty("requiredCommands"));
@@ -3216,7 +3169,7 @@ internal static class GiteaBacklogManifestTests
                         expectedGuestList,
                         StringComparison.Ordinal)))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
@@ -3234,6 +3187,8 @@ internal static class GiteaBacklogManifestTests
 
     private static bool TestOfflinePreview(string scriptPath, string manifestPath)
     {
+        var inventory = BacklogManifest.Read(manifestPath);
+        int totalManaged = inventory.Issues.Count + inventory.Labels.Count + inventory.Milestones.Count;
         byte[] before = SHA256.HashData(File.ReadAllBytes(manifestPath));
         DateTime beforeWriteTime = File.GetLastWriteTimeUtc(manifestPath);
 
@@ -3241,43 +3196,33 @@ internal static class GiteaBacklogManifestTests
 
         byte[] after = SHA256.HashData(File.ReadAllBytes(manifestPath));
         DateTime afterWriteTime = File.GetLastWriteTimeUtc(manifestPath);
-        return result.ExitCode == 0 &&
-            result.Output.Contains("SYNC_MANIFEST_VALID milestones=16 labels=68 epics=16 children=330 issues=346", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_MODE preview", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_OFFLINE manifest_only", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_KEYS action=skipped count=430", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_SUMMARY created=0 updated=0 unchanged=0 skipped=430 failed=0 wouldCreate=0 wouldUpdate=0", StringComparison.Ordinal) &&
-            result.Output.Contains("TEST_PASS gitea.backlog.sync", StringComparison.Ordinal) &&
-            before.AsSpan().SequenceEqual(after) &&
-            beforeWriteTime == afterWriteTime;
+        return HostCheck.Result(result.ExitCode == 0) &&
+            HostCheck.Result(result.Output.Contains($"SYNC_MANIFEST_VALID milestones={inventory.Milestones.Count} labels={inventory.Labels.Count} epics={inventory.Milestones.Count} children={BacklogContracts.ChildCount} issues={inventory.Issues.Count}", StringComparison.Ordinal)) &&
+            HostCheck.Result(result.Output.Contains("SYNC_MODE preview", StringComparison.Ordinal)) &&
+            HostCheck.Result(result.Output.Contains("SYNC_OFFLINE manifest_only", StringComparison.Ordinal)) &&
+            HostCheck.Result(result.Output.Contains($"SYNC_KEYS action=skipped count={totalManaged}", StringComparison.Ordinal)) &&
+            HostCheck.Result(result.Output.Contains($"SYNC_SUMMARY created=0 updated=0 unchanged=0 skipped={totalManaged} failed=0 wouldCreate=0 wouldUpdate=0", StringComparison.Ordinal)) &&
+            HostCheck.Result(result.Output.Contains("TEST_PASS gitea.backlog.sync", StringComparison.Ordinal)) &&
+            HostCheck.Result(before.AsSpan().SequenceEqual(after)) &&
+            HostCheck.Result(beforeWriteTime == afterWriteTime);
     }
 
     private static bool TestManagedBodySelfTest(string scriptPath)
     {
         ProcessResult result = RunScript(scriptPath, "-SelfTest");
-        string[] milestoneCases =
-        [
-            "open-unchanged", "preserve-closed", "closed-unchanged", "closed-description",
-            "explicit-reopen", "reopen-unchanged", "reviewed-close", "missing-open",
-            "missing-closed", "missing-reopen", "missing-child", "missing-epic",
-            "missing-epic-label", "nonordinal-epic-label", "wrong-membership",
-            "open-child", "unreviewed-child", "unreviewed-epic", "no-closed-intent",
-            "open-dependency", "open-epic", "open-supplement", "inconsistent-closed",
-            "invalid-remote-state", "array-remote-state", "nonordinal-remote-state",
-            "nonordinal-supplement-state", "due-date"
-        ];
+        var milestoneCases = BacklogSelfTest.MilestoneCaseNames;
         string[] actualMilestoneCases = result.Output.Split('\n')
             .Select(line => line.TrimEnd('\r'))
             .Where(line => line.StartsWith("SYNC_SELF_TEST_MILESTONE_CASE_PASS ", StringComparison.Ordinal))
             .ToArray();
-        return result.ExitCode == 0 &&
-            actualMilestoneCases.SequenceEqual(milestoneCases.Select(name =>
-                "SYNC_SELF_TEST_MILESTONE_CASE_PASS name=" + name + " modes=preview,apply"), StringComparer.Ordinal) &&
-            result.Output.Contains("SYNC_SELF_TEST_MILESTONE_POLICY_PASS cases=28 modes=preview,apply actualApiCalls=0", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_SELF_TEST_MANAGED_BODY_PASS", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_SELF_TEST_HIDDEN_KEY_ADOPTION_PASS key=M02-020 markers=1 wouldCreate=0 duplicateMarkersRejected=true", StringComparison.Ordinal) &&
-            result.Output.Contains("SYNC_SELF_TEST_STATE_POLICY_PASS", StringComparison.Ordinal) &&
-            result.Output.Contains("TEST_PASS gitea.backlog.sync", StringComparison.Ordinal);
+        return HostCheck.Result(result.ExitCode == 0) &&
+            HostCheck.Result(actualMilestoneCases.SequenceEqual(milestoneCases.Select(name =>
+                "SYNC_SELF_TEST_MILESTONE_CASE_PASS name=" + name + " modes=preview,apply"), StringComparer.Ordinal)) &&
+            HostCheck.Result(result.Output.Contains($"SYNC_SELF_TEST_MILESTONE_POLICY_PASS cases={milestoneCases.Count} modes=preview,apply actualApiCalls=0", StringComparison.Ordinal)) &&
+            HostCheck.Result(result.Output.Contains("SYNC_SELF_TEST_MANAGED_BODY_PASS", StringComparison.Ordinal)) &&
+            HostCheck.Result(result.Output.Contains("SYNC_SELF_TEST_HIDDEN_KEY_ADOPTION_PASS key=M02-020 markers=1 wouldCreate=0 duplicateMarkersRejected=true", StringComparison.Ordinal)) &&
+            HostCheck.Result(result.Output.Contains("SYNC_SELF_TEST_STATE_POLICY_PASS", StringComparison.Ordinal)) &&
+            HostCheck.Result(result.Output.Contains("TEST_PASS gitea.backlog.sync", StringComparison.Ordinal));
     }
 
     private static bool TestRequiredFieldsAndMilestoneIntent(
@@ -3286,7 +3231,7 @@ internal static class GiteaBacklogManifestTests
         if (!TestInvalidManifest(scriptPath, manifestPath, tempRoot, "missing",
                 RemoveRequiredField, "missing required field 'summary'"))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         string?[] invalidStates = [null, "null", "0", "true", "[]", "[\"open\"]", "[\"closed\",\"reopen\"]", "{}", "\"\"",
@@ -3303,7 +3248,7 @@ internal static class GiteaBacklogManifestTests
                         else { milestone["state"] = JsonNode.Parse(value); }
                     }, "state must be exactly open, closed or reopen"))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
@@ -3317,7 +3262,7 @@ internal static class GiteaBacklogManifestTests
             if (result.ExitCode != 0 || !result.Output.Contains("SYNC_OFFLINE manifest_only", StringComparison.Ordinal) ||
                 !result.Output.Contains("TEST_PASS gitea.backlog.sync", StringComparison.Ordinal))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
         return true;
@@ -3325,21 +3270,19 @@ internal static class GiteaBacklogManifestTests
 
     private static bool TestDedicatedIssueLabelEndpoint(string scriptPath)
     {
-        string script = File.ReadAllText(scriptPath);
-        return script.Contains(
-                "[ValidateSet(\"GET\", \"POST\", \"PUT\", \"PATCH\")]",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "-Path \"$($RemoteState.repositoryPath)/issues/$number/labels\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "-Body @{ labels = $desiredLabelIds }",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "Gitea's EditIssueOption does not accept labels.",
-                StringComparison.Ordinal);
+        int calls = 0;
+        Task<JsonNode?> Api(string method, string path, JsonObject? body, CancellationToken cancellation)
+        {
+            calls++;
+            HostCheck.Equal("PUT", method);
+            HostCheck.Equal("/repos/admin/CLROS/issues/17/labels", path);
+            HostCheck.Equal(1, body!.Count);
+            HostCheck.True(body["labels"]!.AsArray().Select(x => (int)x!).SequenceEqual(new[] { 3, 7 }));
+            return Task.FromResult<JsonNode?>(new JsonArray(new JsonObject { ["id"] = 3 }, new JsonObject { ["id"] = 7 }));
+        }
+        var response = BacklogSync.ReplaceLabelsAsync(Api, 17, new JsonArray(3, 7)).GetAwaiter().GetResult();
+        return HostCheck.Result(calls == 1) && HostCheck.Result(response.Count == 2);
     }
-
     private static bool TestCanonicalTargetRefusal(string scriptPath)
     {
         ProcessResult result = RunScript(
@@ -3348,9 +3291,9 @@ internal static class GiteaBacklogManifestTests
             "-BaseUrl",
             "http://localhost:3001");
 
-        return result.ExitCode == 1 &&
-            result.Output.Contains("TEST_FAIL gitea.backlog.sync", StringComparison.Ordinal) &&
-            result.Output.Contains("Refusing non-canonical target", StringComparison.Ordinal);
+        return HostCheck.Result(result.ExitCode == 1) &&
+            HostCheck.Result(result.Output.Contains("TEST_FAIL gitea.backlog.sync", StringComparison.Ordinal)) &&
+            HostCheck.Result(result.Output.Contains("Refusing non-canonical target", StringComparison.Ordinal));
     }
 
     private static bool TestInvalidManifest(
@@ -3370,9 +3313,9 @@ internal static class GiteaBacklogManifestTests
         File.WriteAllText(path, json, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
         ProcessResult result = RunScript(scriptPath, "-Offline", "-ManifestPath", path);
-        return result.ExitCode == 1 &&
-            result.Output.Contains("TEST_FAIL gitea.backlog.sync", StringComparison.Ordinal) &&
-            result.Output.Contains(expectedFailure, StringComparison.Ordinal);
+        return HostCheck.Result(result.ExitCode == 1) &&
+            HostCheck.Result(result.Output.Contains("TEST_FAIL gitea.backlog.sync", StringComparison.Ordinal)) &&
+            HostCheck.Result(result.Output.Contains(expectedFailure, StringComparison.Ordinal));
     }
 
     private static void RemoveRequiredField(JsonObject root)
@@ -3465,35 +3408,10 @@ internal static class GiteaBacklogManifestTests
 
     private static ProcessResult RunScript(string scriptPath, params string[] arguments)
     {
-        ProcessStartInfo start = new ProcessStartInfo
-        {
-            FileName = "powershell.exe",
-            RedirectStandardError = true,
-            RedirectStandardOutput = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        start.ArgumentList.Add("-NoProfile");
-        start.ArgumentList.Add("-ExecutionPolicy");
-        start.ArgumentList.Add("Bypass");
-        start.ArgumentList.Add("-File");
-        start.ArgumentList.Add(scriptPath);
-        foreach (string argument in arguments)
-        {
-            start.ArgumentList.Add(argument);
-        }
-
-        using Process process = Process.Start(start)
-            ?? throw new InvalidOperationException("Failed to start PowerShell.");
-        string output = process.StandardOutput.ReadToEnd() + process.StandardError.ReadToEnd();
-        if (!process.WaitForExit(120_000))
-        {
-            process.Kill(entireProcessTree: true);
-            throw new TimeoutException("Gitea backlog script did not exit within 120 seconds.");
-        }
-        return new ProcessResult(process.ExitCode, output);
+        using StringWriter output = new();
+        int exit = BacklogSync.RunAsync(HostToolProcess.FindRepositoryRoot(), arguments, output).GetAwaiter().GetResult();
+        return new ProcessResult(exit, output.ToString());
     }
-
     private readonly struct ProcessResult(int exitCode, string output)
     {
         internal int ExitCode { get; } = exitCode;

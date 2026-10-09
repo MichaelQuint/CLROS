@@ -4,44 +4,8 @@ using OS.Std.Binary;
 
 internal static class UefiMemoryDescriptorReaderTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("uefi.descriptor.reader decodes 40-byte stride", TestDecodesFortyByteStride, ref failures);
-        Run("uefi.descriptor.reader decodes 48-byte stride", TestDecodesFortyEightByteStride, ref failures);
-        Run("uefi.descriptor.reader rejects invalid metadata", TestRejectsInvalidMetadata, ref failures);
-        Run("uefi.descriptor.reader reports source and destination capacity", TestReportsCapacityFailures, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("UEFI descriptor reader host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("uefi.descriptor.reader decodes 40-byte stride", HostLane.Fast, 0)]
     private static bool TestDecodesFortyByteStride()
     {
         byte[] source = new byte[80];
@@ -68,7 +32,7 @@ internal static class UefiMemoryDescriptorReaderTests
             descriptorCount: 2,
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == UefiMemoryDescriptorReaderStatus.Success
             && result.DescriptorsWritten == 2
             && result.RequiredSourceBytes == 80
@@ -82,9 +46,10 @@ internal static class UefiMemoryDescriptorReaderTests
             && destination[1].PhysicalStart == 0x200000
             && destination[1].VirtualStart == 0xFFFF800000200000
             && destination[1].NumberOfPages == 512
-            && destination[1].Attribute == 0xF;
+            && destination[1].Attribute == 0xF);
     }
 
+    [HostTest("uefi.descriptor.reader decodes 48-byte stride", HostLane.Fast, 1)]
     private static bool TestDecodesFortyEightByteStride()
     {
         byte[] source = new byte[96];
@@ -120,7 +85,7 @@ internal static class UefiMemoryDescriptorReaderTests
             descriptorCount: 2,
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.DescriptorsWritten == 2
             && result.RequiredSourceBytes == 96
             && destination[0].Type == UefiMemoryType.RuntimeServicesCode
@@ -134,9 +99,10 @@ internal static class UefiMemoryDescriptorReaderTests
             && destination[1].NumberOfPages == 1
             && destination[1].Attribute == 0x1
             && destination[2].Type == UefiMemoryType.PersistentMemory
-            && destination[2].PhysicalStart == 0xDEADBEEF;
+            && destination[2].PhysicalStart == 0xDEADBEEF);
     }
 
+    [HostTest("uefi.descriptor.reader rejects invalid metadata", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidMetadata()
     {
         byte[] source = new byte[48];
@@ -184,14 +150,15 @@ internal static class UefiMemoryDescriptorReaderTests
             descriptorCount: (ulong.MaxValue / 48) + 1,
             destination);
 
-        return IsStatus(missingSource, UefiMemoryDescriptorReaderStatus.MissingSource)
+        return HostCheck.Result(IsStatus(missingSource, UefiMemoryDescriptorReaderStatus.MissingSource)
             && IsStatus(invalidSize, UefiMemoryDescriptorReaderStatus.InvalidDescriptorSize)
             && IsStatus(invalidVersion, UefiMemoryDescriptorReaderStatus.InvalidDescriptorVersion)
             && IsStatus(zeroCount, UefiMemoryDescriptorReaderStatus.InvalidDescriptorCount)
             && IsStatus(countTooLarge, UefiMemoryDescriptorReaderStatus.InvalidDescriptorCount)
-            && IsStatus(sizeOverflow, UefiMemoryDescriptorReaderStatus.SizeOverflow);
+            && IsStatus(sizeOverflow, UefiMemoryDescriptorReaderStatus.SizeOverflow));
     }
 
+    [HostTest("uefi.descriptor.reader reports source and destination capacity", HostLane.Fast, 3)]
     private static bool TestReportsCapacityFailures()
     {
         byte[] source = new byte[48];
@@ -218,14 +185,14 @@ internal static class UefiMemoryDescriptorReaderTests
             descriptorCount: 1,
             Span<UefiMemoryDescriptor>.Empty);
 
-        return !sourceTooSmall.Succeeded
+        return HostCheck.Result(!sourceTooSmall.Succeeded
             && sourceTooSmall.Status == UefiMemoryDescriptorReaderStatus.SourceTooSmall
             && sourceTooSmall.RequiredSourceBytes == 48
             && sourceTooSmall.RequiredDestinationCount == 1
             && !destinationTooSmall.Succeeded
             && destinationTooSmall.Status == UefiMemoryDescriptorReaderStatus.DestinationTooSmall
             && destinationTooSmall.RequiredSourceBytes == 48
-            && destinationTooSmall.RequiredDestinationCount == 1;
+            && destinationTooSmall.RequiredDestinationCount == 1);
     }
 
     private static bool IsStatus(

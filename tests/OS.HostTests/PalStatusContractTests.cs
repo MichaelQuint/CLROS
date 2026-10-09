@@ -5,52 +5,8 @@ using OS.Pal;
 
 internal static class PalStatusContractTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("pal.status_contract validates config and environment statuses", TestConfigAndEnvironmentStatusSets, ref failures);
-        Run("pal.status_contract validates time and console statuses", TestTimeAndConsoleStatusSets, ref failures);
-        Run("pal.status_contract validates memory package and socket statuses", TestMemoryPackageAndSocketStatusSets, ref failures);
-        Run("pal.status_contract formats domain names", TestFormatsDomainNames, ref failures);
-        Run("pal.status_contract formats extended domain names", TestFormatsExtendedDomainNames, ref failures);
-        Run("pal.status_contract rejects malformed inputs without throwing", TestRejectsMalformedInputs, ref failures);
-        Run("pal.status_contract result layouts contain no managed references", TestResultLayoutsContainNoManagedReferences, ref failures);
-        Run("pal.status_contract default results are not success", TestDefaultResultsAreNotSuccess, ref failures);
-        Run(
-            "pal.status_contract domain formatter uses shared ascii text builder",
-            TestDomainFormatterUsesSharedAsciiTextBuilder,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL status-contract host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.status_contract validates config and environment statuses", HostLane.Fast, 0)]
     private static bool TestConfigAndEnvironmentStatusSets()
     {
         OSHostStatusContractResult configBuffer =
@@ -62,7 +18,7 @@ internal static class PalStatusContractTests
         OSHostStatusContractResult environmentConnectionReset =
             OSHostStatusContract.Validate(OSHostAbiStatusDomain.Environment, OSHostStatus.ConnectionReset);
 
-        return configBuffer.Succeeded
+        return HostCheck.Result(configBuffer.Succeeded
             && configBuffer.IsAllowed
             && configBuffer.Category == OSHostStatusCategory.CallerError
             && (configBuffer.AllowedStatusMask & (1UL << (int)OSHostStatus.BufferTooSmall)) != 0
@@ -74,9 +30,10 @@ internal static class PalStatusContractTests
             && environmentNotFound.Domain == OSHostAbiStatusDomain.Environment
             && environmentConnectionReset.IsInitialized
             && !environmentConnectionReset.Succeeded
-            && environmentConnectionReset.Status == OSHostStatus.NotSupported;
+            && environmentConnectionReset.Status == OSHostStatus.NotSupported);
     }
 
+    [HostTest("pal.status_contract validates time and console statuses", HostLane.Fast, 1)]
     private static bool TestTimeAndConsoleStatusSets()
     {
         OSHostStatusContractResult timeNotSupported =
@@ -90,7 +47,7 @@ internal static class PalStatusContractTests
         OSHostStatusContractResult consoleNetworkDown =
             OSHostStatusContract.Validate(OSHostAbiStatusDomain.ConsoleLog, OSHostStatus.NetworkDown);
 
-        return timeNotSupported.Succeeded
+        return HostCheck.Result(timeNotSupported.Succeeded
             && timeNotSupported.Category == OSHostStatusCategory.Unsupported
             && timeTimedOut.Succeeded
             && timeTimedOut.Category == OSHostStatusCategory.RuntimeUnavailable
@@ -99,9 +56,10 @@ internal static class PalStatusContractTests
             && consoleOutOfMemory.Succeeded
             && consoleOutOfMemory.Category == OSHostStatusCategory.ResourceError
             && !consoleNetworkDown.Succeeded
-            && consoleNetworkDown.Status == OSHostStatus.NotSupported;
+            && consoleNetworkDown.Status == OSHostStatus.NotSupported);
     }
 
+    [HostTest("pal.status_contract validates memory package and socket statuses", HostLane.Fast, 2)]
     private static bool TestMemoryPackageAndSocketStatusSets()
     {
         OSHostStatusContractResult memoryAccessDenied =
@@ -117,7 +75,7 @@ internal static class PalStatusContractTests
         OSHostStatusContractResult socketNetworkDown =
             OSHostStatusContract.Validate(OSHostAbiStatusDomain.Socket, OSHostStatus.NetworkDown);
 
-        return memoryAccessDenied.Succeeded
+        return HostCheck.Result(memoryAccessDenied.Succeeded
             && memoryAccessDenied.Category == OSHostStatusCategory.CallerError
             && (memoryAccessDenied.AllowedStatusMask & (1UL << (int)OSHostStatus.AccessDenied)) != 0
             && memoryWouldBlock.IsInitialized
@@ -132,9 +90,10 @@ internal static class PalStatusContractTests
             && socketAddressInUse.Succeeded
             && socketAddressInUse.Category == OSHostStatusCategory.CallerError
             && socketNetworkDown.Succeeded
-            && socketNetworkDown.Category == OSHostStatusCategory.RuntimeUnavailable;
+            && socketNetworkDown.Category == OSHostStatusCategory.RuntimeUnavailable);
     }
 
+    [HostTest("pal.status_contract formats domain names", HostLane.Fast, 3)]
     private static bool TestFormatsDomainNames()
     {
         Span<byte> destination = stackalloc byte[64];
@@ -152,7 +111,7 @@ internal static class PalStatusContractTests
         OSHostStatusDomainNameFormatResult shortResult =
             OSHostStatusContract.FormatDomainName(OSHostAbiStatusDomain.Time, shortDestination);
 
-        return format.Succeeded
+        return HostCheck.Result(format.Succeeded
             && actualName == "OSHOST_ABI_DOMAIN_CONSOLE_LOG"
             && query.IsInitialized
             && !query.Succeeded
@@ -164,9 +123,10 @@ internal static class PalStatusContractTests
             && shortResult.RequiredBytes == (uint)"OSHOST_ABI_DOMAIN_TIME".Length
             && shortDestination[0] == 0xCC
             && shortDestination[1] == 0xCC
-            && shortDestination[2] == 0xCC;
+            && shortDestination[2] == 0xCC);
     }
 
+    [HostTest("pal.status_contract formats extended domain names", HostLane.Fast, 4)]
     private static bool TestFormatsExtendedDomainNames()
     {
         Span<byte> destination = stackalloc byte[64];
@@ -184,7 +144,7 @@ internal static class PalStatusContractTests
         OSHostStatusDomainNameFormatResult shortResult =
             OSHostStatusContract.FormatDomainName(OSHostAbiStatusDomain.Memory, shortDestination);
 
-        return format.Succeeded
+        return HostCheck.Result(format.Succeeded
             && actualName == "OSHOST_ABI_DOMAIN_PACKAGE_FILE"
             && query.IsInitialized
             && !query.Succeeded
@@ -197,9 +157,10 @@ internal static class PalStatusContractTests
             && shortDestination[0] == 0xA5
             && shortDestination[1] == 0xA5
             && shortDestination[2] == 0xA5
-            && shortDestination[3] == 0xA5;
+            && shortDestination[3] == 0xA5);
     }
 
+    [HostTest("pal.status_contract rejects malformed inputs without throwing", HostLane.Fast, 5)]
     private static bool TestRejectsMalformedInputs()
     {
         OSHostStatusContractResult unknownDomain =
@@ -209,7 +170,7 @@ internal static class PalStatusContractTests
         OSHostStatusDomainNameFormatResult unknownDomainName =
             OSHostStatusContract.QueryDomainNameRequiredBytes((OSHostAbiStatusDomain)(-1));
 
-        return unknownDomain.IsInitialized
+        return HostCheck.Result(unknownDomain.IsInitialized
             && !unknownDomain.Succeeded
             && unknownDomain.Status == OSHostStatus.InvalidArgument
             && unknownDomain.AllowedStatusMask == 0
@@ -220,21 +181,23 @@ internal static class PalStatusContractTests
             && unknownDomainName.IsInitialized
             && !unknownDomainName.Succeeded
             && unknownDomainName.Status == OSHostStatus.InvalidArgument
-            && unknownDomainName.RequiredBytes == 0;
+            && unknownDomainName.RequiredBytes == 0);
     }
 
+    [HostTest("pal.status_contract result layouts contain no managed references", HostLane.Fast, 6)]
     private static bool TestResultLayoutsContainNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostStatusContractResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostStatusDomainNameFormatResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<OSHostStatusContractResult>()
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostStatusDomainNameFormatResult>());
     }
 
+    [HostTest("pal.status_contract default results are not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         OSHostStatusContractResult statusResult = default;
         OSHostStatusDomainNameFormatResult nameResult = default;
 
-        return !statusResult.IsInitialized
+        return HostCheck.Result(!statusResult.IsInitialized
             && !statusResult.IsAllowed
             && !statusResult.Succeeded
             && statusResult.Status == OSHostStatus.Ok
@@ -245,19 +208,20 @@ internal static class PalStatusContractTests
             && nameResult.Status == OSHostStatus.Ok
             && nameResult.BytesWritten == 0
             && nameResult.RequiredBytes == 0
-            && nameResult.Flags == 0;
+            && nameResult.Flags == 0);
     }
 
+    [HostTest("pal.status_contract domain formatter uses shared ascii text builder", HostLane.Fast, 8)]
     private static bool TestDomainFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Pal", "OSHostStatusContract.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains(
                 "AsciiTextBuilder.AppendBytes(destination, 0, name)",
                 StringComparison.Ordinal)
-            && !source.Contains("name.CopyTo(destination)", StringComparison.Ordinal);
+            && !source.Contains("name.CopyTo(destination)", StringComparison.Ordinal));
     }
 }

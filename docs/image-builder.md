@@ -2,7 +2,7 @@
 
 ## Current Status
 
-`tools/OS.ImageBuilder` can emit a non-writing dry-run layout plan, create a deterministic raw disk image containing a GPT-partitioned FAT32 EFI System Partition, build deterministic `OSPKGv0` app-package files from an input directory, wrap a raw native app binary in the minimal `OSAPPv0` native payload header, build a validated single-file native app package directly from a native manifest plus raw app bytes, compose that package into a raw native-app image in one host command, validate that a package contains the manifest-selected `app.path` with a valid native payload header, and emit local size/SHA-256 metadata for existing image artifacts. It also has a host-side `qemu-img` wrapper that can convert an existing raw image to qcow2 when `qemu-img` is available; `scripts/run-qemu-qcow2-smoke.ps1` now proves the converted qcow2 artifact boots through QEMU/OVMF on a host with QEMU and `qemu-img`.
+`tools/OS.ImageBuilder` can emit a non-writing dry-run layout plan, create a deterministic raw disk image containing a GPT-partitioned FAT32 EFI System Partition, build deterministic `OSPKGv0` app-package files from an input directory, wrap a raw native app binary in the minimal `OSAPPv0` native payload header, build a validated single-file native app package directly from a native manifest plus raw app bytes, compose that package into a raw native-app image in one host command, validate that a package contains the manifest-selected `app.path` with a valid native payload header, and emit local size/SHA-256 metadata for existing image artifacts. It also has a host-side `qemu-img` wrapper that can convert an existing raw image to qcow2 when `qemu-img` is available. `dotnet run --project tools/OS.Tooling -- qemu qcow2` coordinates conversion and local QEMU/OVMF smoke; boot proof requires its real execution and captured guest markers.
 
 The raw image places the staged EFI artifact at the default UEFI removable-media path:
 
@@ -154,7 +154,7 @@ the package root into a deterministic `OSPKGv0` package and stages it at
 native-tier package staging so later guest package readers have one stable
 on-disk target.
 
-Host tests also run `apps/MinimalApiSmoke/publish-kestrel-smoke-package.ps1`
+Host tests also run `dotnet run --project tools/OS.Tooling -- kestrel package`
 into a temporary output root with `-WorkloadProfile SingleMinimalApi`, require
 the script's workload-profile, package, and contract markers, stage that real
 publish output with `create-raw --kestrel-package`, then read back
@@ -321,7 +321,7 @@ The command first validates the raw-image inputs, builds a package with the same
 After building a native app image, the QEMU smoke wrapper can dry-run the future app-readiness marker requirements without launching QEMU:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -RequireNativeAppMarkers -Image .\artifacts\images\os.raw
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun -RequireNativeAppMarkers -Image .\artifacts\images\os.raw
 ```
 
 This only proves the runner would require the existing boot smoke markers plus `APP_PACKAGE_READY`, `APP_LAUNCH_READY`, `APP_PAYLOAD_READY`, `APP_EXEC_MAPPING_READY`, `APP_EXEC_MEMORY_READY`, `APP_INVOCATION_READY`, and `APP_ENTRY_READY`. It does not prove that the image boots to those markers or that app code executes.
@@ -491,17 +491,17 @@ ISO generation is pending.
 
 The dry-run plan writes a default manifest when `--manifest` is omitted and reserves the app-package guest path when `--package` is omitted. It can plan and write manifest/package bytes when `--manifest` or `--package` is provided, `build-package` can create parser-valid package files from a host directory, and `validate-package` can validate manifest/package/payload consistency on the host. None of these paths prove guest app loading.
 
-QEMU execution is handled by `tools/OS.QemuRunner`, `scripts/run-qemu-smoke.ps1`, and `scripts/run-qemu-qcow2-smoke.ps1`, not by the image builder itself. The qcow2 wrapper only produces the artifact; the qcow2 smoke script combines that artifact conversion with the QEMU runner. The Azure fixed VHD, AWS AMI, and image metadata paths are local validation/dry-run or local inspection contracts only.
+QEMU execution is handled by `tools/OS.QemuRunner` and the `OS.Tooling qemu smoke` and `OS.Tooling qemu qcow2` commands. The image builder's qcow2 conversion only produces the artifact; the qcow2 smoke command combines that conversion with the QEMU runner. The Azure fixed VHD, AWS AMI, and image metadata paths are local validation/dry-run or local inspection contracts only.
 
-`scripts/run-baseline-evidence.ps1` and `scripts/run-ci-smoke.ps1` now include qcow2 smoke-intent evidence by default. In the default host-tolerant mode they create small intent placeholder images under the evidence log directory and run `scripts/run-qemu-qcow2-smoke.ps1 -DryRun`; this validates command, marker, and workload-profile wiring without requiring `qemu-img`, QEMU, OVMF, or a real converted qcow2 artifact. Passing `-RunQcow2RealSmoke` to the CI or baseline script switches that lane to the configured real qcow2 wrapper path.
+`dotnet run --project tools/OS.Tooling -- baseline evidence` and `dotnet run --project tools/OS.Tooling -- ci smoke` include qcow2 smoke-intent evidence by default. They create small intent placeholder images under the evidence log directory and invoke `qemu qcow2 --dry-run`; this validates command, marker, and workload-profile wiring without requiring `qemu-img`, QEMU, OVMF, or a real converted qcow2 artifact. Passing `--run-qcow2-real-smoke` to the CI or baseline command switches that lane to real qcow2 smoke execution.
 
-`scripts/run-baseline-evidence.ps1` and `scripts/run-ci-smoke.ps1` also record
+The baseline and CI evidence commands also record
 `qemu-img` discovery before planning or executing the qcow2 lane. They emit
 `BASELINE_QEMU_IMG_DISCOVERY`/`CI_SMOKE_QEMU_IMG_DISCOVERY` and
 `BASELINE_QCOW2_CONVERSION_INTENT`/`CI_SMOKE_QCOW2_CONVERSION_INTENT`, then
 write matching `qemuImgDiscovery` and `qcow2ConversionIntent` objects into the
 top-level summary and the qcow2 step. Missing `qemu-img` is a host-tool
-prerequisite blocker for `-RunQcow2RealSmoke`; it is not a raw image generation
+prerequisite blocker for `--run-qcow2-real-smoke`; it is not a raw image generation
 failure and does not block default dry-run intent evidence.
 
 ## Tests
@@ -554,7 +554,7 @@ failure and does not block default dry-run intent evidence.
   `\OS\APP.PKG` entry, and emits
   `TEST_PASS imagebuilder.kestrel_package records single profile`.
 - `create-raw --kestrel-package` can consume the real
-  `apps/MinimalApiSmoke/publish-kestrel-smoke-package.ps1` output and emits
+  `dotnet run --project tools/OS.Tooling -- kestrel package` output and emits
   `TEST_PASS imagebuilder.kestrel_package stages published package`.
 - The generated raw ESP preserves the published MinimalApiSmoke package-file
   bytes and emits
@@ -611,8 +611,8 @@ dotnet run --project .\tools\OS.ImageBuilder\OS.ImageBuilder.csproj -- convert-q
 dotnet run --project .\tools\OS.ImageBuilder\OS.ImageBuilder.csproj -- convert-azure-vhd --input .\artifacts\images\os.raw --output .\artifacts\images\os.vhd --dry-run
 dotnet run --project .\tools\OS.ImageBuilder\OS.ImageBuilder.csproj -- plan-aws-ami --input .\artifacts\images\os.raw --format raw --architecture x86_64 --virtualization hvm --root-device ebs --boot-mode uefi --ena-support true --dry-run
 dotnet run --project .\tools\OS.ImageBuilder\OS.ImageBuilder.csproj -- describe-image --input .\artifacts\images\os.raw --format raw
-.\scripts\run-qemu-qcow2-smoke.ps1 -DryRun
-.\scripts\run-qemu-qcow2-smoke.ps1 -RawImage artifacts/images/os.raw -Qcow2Image artifacts/images/os.qcow2 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -QemuImg "C:\Program Files\qemu\qemu-img.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
+dotnet run --project tools/OS.Tooling -- qemu qcow2 -DryRun
+dotnet run --project tools/OS.Tooling -- qemu qcow2 -RawImage artifacts/images/os.raw -Qcow2Image artifacts/images/os.qcow2 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -QemuImg "C:\Program Files\qemu\qemu-img.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
 ```
 
 Evidence from 2026-05-22 for issue #298:

@@ -3,46 +3,8 @@ using OS.Kernel.Diagnostics;
 
 internal static class BootEventRecordRingBufferTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("diagnostics.boot_event_record records caller owned events", TestRecordsCallerOwnedEvents, ref failures);
-        Run("diagnostics.boot_event_record overwrites oldest deterministically", TestOverwritesOldest, ref failures);
-        Run("diagnostics.boot_event_record reports snapshot capacity", TestReportsSnapshotCapacity, ref failures);
-        Run("diagnostics.boot_event_record rejects missing storage", TestRejectsMissingStorage, ref failures);
-        Run("diagnostics.boot_event_record default results are not success", TestDefaultResultsAreNotSuccess, ref failures);
-        Run("diagnostics.boot_event_record layouts contain no managed references", TestLayoutsContainNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Boot event record ring buffer tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("diagnostics.boot_event_record records caller owned events", HostLane.Fast, 0)]
     private static bool TestRecordsCallerOwnedEvents()
     {
         Span<BootEventRecord> storage = stackalloc BootEventRecord[4];
@@ -63,7 +25,7 @@ internal static class BootEventRecordRingBufferTests
         Span<BootEventRecord> snapshot = stackalloc BootEventRecord[4];
         BootEventRecordRingBufferResult snapshotResult = buffer.Snapshot(snapshot);
 
-        return first.Succeeded
+        return HostCheck.Result(first.Succeeded
             && second.Succeeded
             && snapshotResult.Succeeded
             && snapshotResult.Written == 2
@@ -82,9 +44,10 @@ internal static class BootEventRecordRingBufferTests
             && snapshot[1].Arg0 == 0xBB
             && snapshot[1].Arg1 == 0xCC
             && buffer.Count == 2
-            && buffer.NextSequence == 3;
+            && buffer.NextSequence == 3);
     }
 
+    [HostTest("diagnostics.boot_event_record overwrites oldest deterministically", HostLane.Fast, 1)]
     private static bool TestOverwritesOldest()
     {
         Span<BootEventRecord> storage = stackalloc BootEventRecord[3];
@@ -98,7 +61,7 @@ internal static class BootEventRecordRingBufferTests
         Span<BootEventRecord> snapshot = stackalloc BootEventRecord[3];
         BootEventRecordRingBufferResult result = buffer.Snapshot(snapshot);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Written == 3
             && result.Required == 3
             && snapshot[0].Sequence == 2
@@ -109,9 +72,10 @@ internal static class BootEventRecordRingBufferTests
             && snapshot[2].Kind == BootEventRecordKind.Panic
             && snapshot[2].EventId == 103
             && buffer.Count == 3
-            && buffer.NextSequence == 5;
+            && buffer.NextSequence == 5);
     }
 
+    [HostTest("diagnostics.boot_event_record reports snapshot capacity", HostLane.Fast, 2)]
     private static bool TestReportsSnapshotCapacity()
     {
         Span<BootEventRecord> storage = stackalloc BootEventRecord[4];
@@ -124,7 +88,7 @@ internal static class BootEventRecordRingBufferTests
         Span<BootEventRecord> snapshot = stackalloc BootEventRecord[2];
         BootEventRecordRingBufferResult result = buffer.Snapshot(snapshot);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == BootEventRecordRingBufferStatus.DestinationTooSmall
             && result.Written == 2
@@ -133,9 +97,10 @@ internal static class BootEventRecordRingBufferTests
             && snapshot[0].Sequence == 3
             && snapshot[0].EventId == 3
             && snapshot[1].Sequence == 4
-            && snapshot[1].EventId == 4;
+            && snapshot[1].EventId == 4);
     }
 
+    [HostTest("diagnostics.boot_event_record rejects missing storage", HostLane.Fast, 3)]
     private static bool TestRejectsMissingStorage()
     {
         Span<BootEventRecord> storage = stackalloc BootEventRecord[0];
@@ -145,29 +110,31 @@ internal static class BootEventRecordRingBufferTests
         Span<BootEventRecord> snapshot = stackalloc BootEventRecord[1];
         BootEventRecordRingBufferResult read = buffer.Snapshot(snapshot);
 
-        return !buffer.IsInitialized
+        return HostCheck.Result(!buffer.IsInitialized
             && !write.Succeeded
             && write.Status == BootEventRecordRingBufferStatus.NoStorage
             && write.Required == 1
             && !read.Succeeded
             && read.Status == BootEventRecordRingBufferStatus.NotInitialized
-            && read.Written == 0;
+            && read.Written == 0);
     }
 
+    [HostTest("diagnostics.boot_event_record default results are not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         BootEventRecordRingBufferResult result = default;
         BootEventRecord record = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == BootEventRecordRingBufferStatus.Success
-            && !record.IsInitialized;
+            && !record.IsInitialized);
     }
 
+    [HostTest("diagnostics.boot_event_record layouts contain no managed references", HostLane.Fast, 5)]
     private static bool TestLayoutsContainNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<BootEventRecord>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<BootEventRecordRingBufferResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<BootEventRecord>()
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<BootEventRecordRingBufferResult>());
     }
 }

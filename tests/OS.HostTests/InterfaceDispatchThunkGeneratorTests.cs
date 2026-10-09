@@ -7,16 +7,15 @@ using System.Text.Json;
 
 internal static class InterfaceDispatchThunkGeneratorTests
 {
-    private const string Hash = "228630B0AD4D6AB298414FDA0FCF07E76CB4699A63339FA59BA331AFDC3AEB61";
+    private static readonly string Hash = OS.Tooling.EfiContracts.InterfaceDispatchObjectSha256.ToUpperInvariant();
     private static void Need(bool value, string reason)
     { if (!value) throw new InvalidOperationException(reason); }
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         const string name = "m04.016.thunk";
-        Console.WriteLine("TEST_START " + name);
-        try
+        HostCheck.Run(name, () =>
         {
             string root = HostToolProcess.FindRepositoryRoot();
             string folder = Path.Combine(root, "artifacts", "issue572-thunk-tests", Guid.NewGuid().ToString("N"));
@@ -28,14 +27,14 @@ internal static class InterfaceDispatchThunkGeneratorTests
             string created = Run(root, folder, "create", 0, arguments);
             string unchanged = Run(root, folder, "unchanged", 0, arguments);
             string Expected(string state) => "TEST_START m04.016.thunk.generate" + Environment.NewLine +
-                "M04_INTERFACE_DISPATCH_THUNK_READY bytes=828 sha256=" + Hash + " state=" + state + Environment.NewLine +
+                "M04_INTERFACE_DISPATCH_THUNK_READY bytes=" + OS.Tooling.EfiContracts.InterfaceDispatchObjectBytes + " sha256=" + Hash + " state=" + state + Environment.NewLine +
                 "TEST_PASS m04.016.thunk.generate" + Environment.NewLine;
             Need(created == Expected("created") && unchanged == Expected("unchanged"), "exact CLI mode/result markers");
             Need(Run(root, folder, "duplicate", 2, [..arguments, "--interface-dispatch"]).Contains("argument_duplicate", StringComparison.Ordinal), "duplicate mode");
             Need(Run(root, folder, "conflict", 2, [..arguments, "--checked-reference-barriers"]).Contains("argument_mode_conflict", StringComparison.Ordinal), "conflicting modes");
             Need(Run(root, folder, "reverse-conflict", 2, [tool, "--checked-reference-barriers", ..arguments[1..]]).Contains("argument_mode_conflict", StringComparison.Ordinal), "mode conflict independent of order");
             byte[] bytes = File.ReadAllBytes(Path.Combine(folder, "dispatch.obj"));
-            Need(bytes.Length == 828 && Convert.ToHexString(SHA256.HashData(bytes)) == Hash, "whole deterministic object");
+            Need(bytes.Length == OS.Tooling.EfiContracts.InterfaceDispatchObjectBytes && Convert.ToHexString(SHA256.HashData(bytes)) == Hash, "whole deterministic object");
             byte[] text = VerifyObject(bytes);
             foreach (int residue in new[] { 0, 8 })
             {
@@ -45,17 +44,14 @@ internal static class InterfaceDispatchThunkGeneratorTests
                 VerifyBridge(text, residue, false, true, 0x1234ABCD);
             }
             // Existing modes must remain byte-identical after the shared writer extension.
-            foreach (var mode in new[] { ("serializer.obj", Array.Empty<string>(), 336, "DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B"),
-                ("references.obj", new[]{"--checked-reference-barriers"}, 1645, "E96ABF595503B9D1AE38DEE740F93AE9B3EB84F05D6395B931E4B5D74F65D808") })
+        foreach (var mode in new[] { ("serializer.obj", Array.Empty<string>(), OS.Tooling.EfiContracts.SerializerObjectBytes, OS.Tooling.EfiContracts.SerializerObjectSha256.ToUpperInvariant()),
+            ("references.obj", new[]{"--checked-reference-barriers"}, OS.Tooling.EfiContracts.CheckedReferenceObjectBytes, OS.Tooling.EfiContracts.CheckedReferenceObjectSha256.ToUpperInvariant()) })
             {
                 Run(root, folder, mode.Item1, 0, [tool, ..mode.Item2, "--output-root", folder, "--output-file", mode.Item1]);
                 byte[] prior = File.ReadAllBytes(Path.Combine(folder, mode.Item1));
                 Need(prior.Length == mode.Item3 && Convert.ToHexString(SHA256.HashData(prior)) == mode.Item4, "old mode identity " + mode.Item1);
             }
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception error)
-        { Console.WriteLine("TEST_FAIL " + name + " " + error.Message); throw; }
+        });
     }
 
     private static byte[] VerifyObject(byte[] bytes)

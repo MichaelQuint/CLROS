@@ -6,42 +6,7 @@ internal static class PalMemoryFacadeTests
     private const ulong PageSize = OSHostMemoryProtectionPlan.DefaultPageSize;
     private const ulong BaseAddress = 0x600000;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("pal.memory facade translates alloc free protect query", TestTranslatesAllocFreeProtectQuery, ref failures);
-        Run("pal.memory facade rejects null outputs and table", TestRejectsNullOutputsAndTable, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL memory facade host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.memory facade translates alloc free protect query", HostLane.Fast, 0)]
     private static unsafe bool TestTranslatesAllocFreeProtectQuery()
     {
         OSHostMemoryTable table = NewTable(pageCapacity: 4, handleCapacity: 1);
@@ -54,7 +19,7 @@ internal static class PalMemoryFacadeTests
             range.BaseAddress != BaseAddress ||
             range.ByteLength != PageSize)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostMemoryQueryResult query;
@@ -69,14 +34,15 @@ internal static class PalMemoryFacadeTests
             facade.QueryMemory(range.BaseAddress, &query) != OSHostStatus.Ok ||
             query.Range.ProtectionFlags != executeRange.ProtectionFlags)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return facade.FreePages(allocation) == OSHostStatus.Ok
+        return HostCheck.Result(facade.FreePages(allocation) == OSHostStatus.Ok
             && facade.FreePages(allocation) == OSHostStatus.InvalidArgument
-            && facade.QueryMemory(range.BaseAddress, &query) == OSHostStatus.NotFound;
+            && facade.QueryMemory(range.BaseAddress, &query) == OSHostStatus.NotFound);
     }
 
+    [HostTest("pal.memory facade rejects null outputs and table", HostLane.Fast, 1)]
     private static unsafe bool TestRejectsNullOutputsAndTable()
     {
         OSHostMemoryTable table = NewTable(pageCapacity: 1, handleCapacity: 1);
@@ -94,16 +60,16 @@ internal static class PalMemoryFacadeTests
             facade.AllocPages(Request(pageCount: 1), &allocation, null) != OSHostStatus.InvalidArgument ||
             facade.QueryMemory(BaseAddress, null) != OSHostStatus.InvalidArgument)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostStatus nullAllocStatus = nullFacade.AllocPages(Request(pageCount: 1), &allocation, &range);
-        return nullAllocStatus == OSHostStatus.InvalidArgument
+        return HostCheck.Result(nullAllocStatus == OSHostStatus.InvalidArgument
             && !allocation.IsValid
             && range.BaseAddress == 0
             && nullFacade.FreePages(new OSHostHandle(1)) == OSHostStatus.InvalidArgument
             && nullFacade.ProtectPages(protectRange) == OSHostStatus.InvalidArgument
-            && nullFacade.QueryMemory(BaseAddress, &query) == OSHostStatus.InvalidArgument;
+            && nullFacade.QueryMemory(BaseAddress, &query) == OSHostStatus.InvalidArgument);
     }
 
     private static OSHostMemoryTable NewTable(ulong pageCapacity, int handleCapacity)

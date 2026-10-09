@@ -6,45 +6,7 @@ internal static class BootPageFreeListPlanTests
 {
     private const ulong PageSize = BootMemoryRegionRecord.PageSize;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("memory.boot freelist nodes constructs", TestConstructsNodes, ref failures);
-        Run("memory.boot freelist nodes rejects failed planner", TestRejectsFailedPlanner, ref failures);
-        Run("memory.boot freelist nodes reports destination capacity", TestReportsDestinationCapacity, ref failures);
-        Run("memory.boot freelist nodes rejects invalid segment shape", TestRejectsInvalidSegmentShape, ref failures);
-        Run("memory.boot freelist nodes rejects arithmetic overflow", TestRejectsArithmeticOverflow, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Boot page free-list plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("memory.boot freelist nodes constructs", HostLane.Fast, 0)]
     private static bool TestConstructsNodes()
     {
         Span<BootPageFreeSegment> freeSegments = stackalloc BootPageFreeSegment[2];
@@ -56,7 +18,7 @@ internal static class BootPageFreeListPlanTests
             freeSegments,
             nodes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == BootPageFreeListPlanStatus.Success
             && result.AllocatorPlanStatus == BootPageAllocatorPlanStatus.Success
             && result.FreeSegmentCount == 2
@@ -81,9 +43,10 @@ internal static class BootPageFreeListPlanTests
             && nodes[1].PhysicalEndExclusive == 0x300000 + (6 * PageSize)
             && nodes[1].PageCount == 6
             && nodes[1].ByteLength == 6 * PageSize
-            && nodes[1].NextNodeIndex == -1;
+            && nodes[1].NextNodeIndex == -1);
     }
 
+    [HostTest("memory.boot freelist nodes rejects failed planner", HostLane.Fast, 1)]
     private static bool TestRejectsFailedPlanner()
     {
         Span<BootMemoryUsableRange> usable = stackalloc BootMemoryUsableRange[1];
@@ -105,14 +68,15 @@ internal static class BootPageFreeListPlanTests
             freeSegments,
             nodes);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == BootPageFreeListPlanStatus.AllocatorPlanFailed
             && result.AllocatorPlanStatus == BootPageAllocatorPlanStatus.InvalidPageSize
             && result.HeadNodeIndex == -1
             && nodes[0].PhysicalStart == sentinel.PhysicalStart
-            && nodes[0].NextNodeIndex == sentinel.NextNodeIndex;
+            && nodes[0].NextNodeIndex == sentinel.NextNodeIndex);
     }
 
+    [HostTest("memory.boot freelist nodes reports destination capacity", HostLane.Fast, 2)]
     private static bool TestReportsDestinationCapacity()
     {
         Span<BootPageFreeSegment> freeSegments = stackalloc BootPageFreeSegment[2];
@@ -136,7 +100,7 @@ internal static class BootPageFreeListPlanTests
             shortSource,
             enoughDestination);
 
-        return !destinationTooSmall.Succeeded
+        return HostCheck.Result(!destinationTooSmall.Succeeded
             && destinationTooSmall.Status == BootPageFreeListPlanStatus.DestinationTooSmall
             && destinationTooSmall.RequiredNodeCapacity == 2
             && destinationTooSmall.AvailableNodeCapacity == 1
@@ -147,9 +111,10 @@ internal static class BootPageFreeListPlanTests
             && sourceTooSmall.RequiredNodeCapacity == 2
             && sourceTooSmall.AvailableNodeCapacity == 2
             && sourceTooSmall.AvailableSegmentCapacity == 1
-            && enoughDestination[0].PhysicalStart == sentinel.PhysicalStart;
+            && enoughDestination[0].PhysicalStart == sentinel.PhysicalStart);
     }
 
+    [HostTest("memory.boot freelist nodes rejects invalid segment shape", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidSegmentShape()
     {
         Span<BootPageFreeSegment> freeSegments = stackalloc BootPageFreeSegment[2];
@@ -203,7 +168,7 @@ internal static class BootPageFreeListPlanTests
             overlapping,
             nodes);
 
-        return !zeroPages.Succeeded
+        return HostCheck.Result(!zeroPages.Succeeded
             && zeroPages.Status == BootPageFreeListPlanStatus.InvalidSegmentPageCount
             && zeroPages.InvalidSegmentIndex == 0
             && zeroPreserved
@@ -222,9 +187,10 @@ internal static class BootPageFreeListPlanTests
             && nodes[0].PhysicalStart == sentinel.PhysicalStart
             && !overlapResult.Succeeded
             && overlapResult.Status == BootPageFreeListPlanStatus.OverlappingSegment
-            && overlapResult.InvalidSegmentIndex == 1;
+            && overlapResult.InvalidSegmentIndex == 1);
     }
 
+    [HostTest("memory.boot freelist nodes rejects arithmetic overflow", HostLane.Fast, 4)]
     private static bool TestRejectsArithmeticOverflow()
     {
         Span<BootPageFreeSegment> freeSegments = stackalloc BootPageFreeSegment[2];
@@ -263,7 +229,7 @@ internal static class BootPageFreeListPlanTests
             countMismatch,
             nodes);
 
-        return !byteOverflow.Succeeded
+        return HostCheck.Result(!byteOverflow.Succeeded
             && byteOverflow.Status == BootPageFreeListPlanStatus.SegmentByteCountOverflow
             && byteOverflowPreserved
             && !addressOverflow.Succeeded
@@ -273,7 +239,7 @@ internal static class BootPageFreeListPlanTests
             && totalMismatch.Status == BootPageFreeListPlanStatus.TotalPageCountMismatch
             && totalMismatch.TotalFreePages == 5
             && totalMismatch.TotalFreeBytes == 5 * PageSize
-            && nodes[0].PhysicalStart == sentinel.PhysicalStart;
+            && nodes[0].PhysicalStart == sentinel.PhysicalStart);
     }
 
     private static BootPageFreeListPlanResult BuildWithInvalidSegment(

@@ -145,9 +145,9 @@ Common commands from `C:\Projects\CLROS`:
 dotnet build .\tests\OS.HostTests\OS.HostTests.csproj --nologo
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
 dotnet build .\CLROS.slnx --nologo -m:1
-.\scripts\check-naming.ps1
-.\scripts\run-qemu-smoke.ps1 -DryRun
-.\scripts\build-efi-shell.ps1
+dotnet run --project tools/OS.Tooling -- repo check
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun
+dotnet run --project tools/OS.Tooling -- efi build
 git diff --check
 ```
 

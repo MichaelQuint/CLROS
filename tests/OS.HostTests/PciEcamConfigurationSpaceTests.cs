@@ -3,48 +3,8 @@ using OS.Drivers;
 
 internal static class PciEcamConfigurationSpaceTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.pci.ecam calculates config address", TestCalculatesConfigAddress, ref failures);
-        Run("drivers.pci.ecam rejects bus outside segment", TestRejectsBusOutsideSegment, ref failures);
-        Run(
-            "drivers.pci.ecam rejects invalid device function register",
-            TestRejectsInvalidDeviceFunctionRegister,
-            ref failures);
-        Run("drivers.pci.ecam rejects address overflow", TestRejectsAddressOverflow, ref failures);
-        Run("drivers.pci.ecam default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PCI ECAM configuration-space host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.pci.ecam calculates config address", HostLane.Fast, 0)]
     private static bool TestCalculatesConfigAddress()
     {
         PciEcamSegment segment = new PciEcamSegment(
@@ -67,7 +27,7 @@ internal static class PciEcamConfigurationSpaceTests
             (5UL * PciEcamConfigurationSpace.BytesPerFunction) +
             0x10UL;
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == PciEcamConfigurationSpaceStatus.Success
             && result.Segment.SegmentGroup == 2
@@ -77,9 +37,10 @@ internal static class PciEcamConfigurationSpaceTests
             && result.RegisterOffset == 0x10
             && result.AccessWidth == 4
             && result.EcamOffset == expectedOffset
-            && result.PhysicalAddress == 0xE0000000UL + expectedOffset;
+            && result.PhysicalAddress == 0xE0000000UL + expectedOffset);
     }
 
+    [HostTest("drivers.pci.ecam rejects bus outside segment", HostLane.Fast, 1)]
     private static bool TestRejectsBusOutsideSegment()
     {
         PciEcamSegment segment = new PciEcamSegment(
@@ -112,7 +73,7 @@ internal static class PciEcamConfigurationSpaceTests
             registerOffset: 0,
             accessWidth: 4);
 
-        return !beforeStart.Succeeded
+        return HostCheck.Result(!beforeStart.Succeeded
             && beforeStart.IsInitialized
             && beforeStart.Status == PciEcamConfigurationSpaceStatus.BusOutsideSegment
             && !afterEnd.Succeeded
@@ -120,9 +81,10 @@ internal static class PciEcamConfigurationSpaceTests
             && afterEnd.Status == PciEcamConfigurationSpaceStatus.BusOutsideSegment
             && !invalidRange.Succeeded
             && invalidRange.IsInitialized
-            && invalidRange.Status == PciEcamConfigurationSpaceStatus.InvalidBusRange;
+            && invalidRange.Status == PciEcamConfigurationSpaceStatus.InvalidBusRange);
     }
 
+    [HostTest("drivers.pci.ecam rejects invalid device function register", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidDeviceFunctionRegister()
     {
         PciEcamSegment segment = new PciEcamSegment(
@@ -179,7 +141,7 @@ internal static class PciEcamConfigurationSpaceTests
             registerOffset: 2,
             accessWidth: 4);
 
-        return !invalidDevice.Succeeded
+        return HostCheck.Result(!invalidDevice.Succeeded
             && invalidDevice.IsInitialized
             && invalidDevice.Status == PciEcamConfigurationSpaceStatus.InvalidDevice
             && !invalidFunction.Succeeded
@@ -196,9 +158,10 @@ internal static class PciEcamConfigurationSpaceTests
             && invalidWidth.Status == PciEcamConfigurationSpaceStatus.InvalidAccessWidth
             && !invalidAlignment.Succeeded
             && invalidAlignment.IsInitialized
-            && invalidAlignment.Status == PciEcamConfigurationSpaceStatus.InvalidRegisterAlignment;
+            && invalidAlignment.Status == PciEcamConfigurationSpaceStatus.InvalidRegisterAlignment);
     }
 
+    [HostTest("drivers.pci.ecam rejects address overflow", HostLane.Fast, 3)]
     private static bool TestRejectsAddressOverflow()
     {
         PciEcamSegment segment = new PciEcamSegment(
@@ -215,17 +178,18 @@ internal static class PciEcamConfigurationSpaceTests
             registerOffset: 0,
             accessWidth: 4);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PciEcamConfigurationSpaceStatus.AddressOverflow
-            && result.PhysicalAddress == 0;
+            && result.PhysicalAddress == 0);
     }
 
+    [HostTest("drivers.pci.ecam default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         PciEcamConfigurationAddressResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == PciEcamConfigurationSpaceStatus.Success
             && result.Segment.BasePhysicalAddress == 0
@@ -238,6 +202,6 @@ internal static class PciEcamConfigurationSpaceTests
             && result.RegisterOffset == 0
             && result.AccessWidth == 0
             && result.EcamOffset == 0
-            && result.PhysicalAddress == 0;
+            && result.PhysicalAddress == 0);
     }
 }

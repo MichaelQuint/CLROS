@@ -9,47 +9,7 @@ internal static class VirtioPciBindingCatalogTests
     private const byte IsrOffset = 0x80;
     private const byte DeviceOffset = 0xA0;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.virtio.pci.catalog binds multiple candidates", TestBindsMultipleCandidates, ref failures);
-        Run("drivers.virtio.pci.catalog preserves source indexes", TestPreservesSourceIndexes, ref failures);
-        Run("drivers.virtio.pci.catalog reports missing config source", TestReportsMissingConfigSource, ref failures);
-        Run("drivers.virtio.pci.catalog reports missing bar-size source", TestReportsMissingBarSizeSource, ref failures);
-        Run("drivers.virtio.pci.catalog reports binding failure", TestReportsBindingFailure, ref failures);
-        Run("drivers.virtio.pci.catalog reports destination exhaustion", TestReportsDestinationExhaustion, ref failures);
-        Run("drivers.virtio.pci.catalog default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio PCI binding catalog host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtio.pci.catalog binds multiple candidates", HostLane.Fast, 0)]
     private static bool TestBindsMultipleCandidates()
     {
         VirtioPciCandidate[] candidates =
@@ -75,7 +35,7 @@ internal static class VirtioPciBindingCatalogTests
             barSizeSources,
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioPciBindingCatalogStatus.Success
             && result.InspectedCandidateCount == 2
             && result.BindingCount == 2
@@ -91,9 +51,10 @@ internal static class VirtioPciBindingCatalogTests
             && destination[1].Plan.Succeeded
             && destination[1].Binding.DeviceKind == VirtioPciDeviceKind.Network
             && destination[1].Bus == 3
-            && destination[1].Device == 5;
+            && destination[1].Device == 5);
     }
 
+    [HostTest("drivers.virtio.pci.catalog preserves source indexes", HostLane.Fast, 1)]
     private static bool TestPreservesSourceIndexes()
     {
         VirtioPciCandidate[] candidates =
@@ -127,7 +88,7 @@ internal static class VirtioPciBindingCatalogTests
             destination);
         VirtioPciBindingCatalogEntry entry = destination[0];
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.BindingCount == 1
             && entry.SourceIndex == 44
             && entry.Candidate.SourceIndex == 44
@@ -141,9 +102,10 @@ internal static class VirtioPciBindingCatalogTests
             && entry.Device == 0x05
             && entry.Function == 0x06
             && entry.Binding.Identity.DeviceId == 0x1041
-            && entry.Binding.DeviceKind == VirtioPciDeviceKind.Network;
+            && entry.Binding.DeviceKind == VirtioPciDeviceKind.Network);
     }
 
+    [HostTest("drivers.virtio.pci.catalog reports missing config source", HostLane.Fast, 2)]
     private static bool TestReportsMissingConfigSource()
     {
         VirtioPciCandidate[] candidates =
@@ -162,16 +124,17 @@ internal static class VirtioPciBindingCatalogTests
             barSizeSources,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioPciBindingCatalogStatus.MissingConfigurationSource
             && result.InspectedCandidateCount == 1
             && result.BindingCount == 0
             && result.RequiredBindingCapacity == 1
             && result.FailingCandidateIndex == 0
             && result.FailingSourceIndex == 7
-            && result.FailingPlan.Status == default;
+            && result.FailingPlan.Status == default);
     }
 
+    [HostTest("drivers.virtio.pci.catalog reports missing bar-size source", HostLane.Fast, 3)]
     private static bool TestReportsMissingBarSizeSource()
     {
         VirtioPciCandidate[] candidates =
@@ -190,16 +153,17 @@ internal static class VirtioPciBindingCatalogTests
             Array.Empty<VirtioPciBarSizeSource>(),
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioPciBindingCatalogStatus.MissingBarSizeSource
             && result.InspectedCandidateCount == 1
             && result.BindingCount == 0
             && result.RequiredBindingCapacity == 1
             && result.FailingCandidateIndex == 0
             && result.FailingSourceIndex == 8
-            && result.FailingPlan.Status == default;
+            && result.FailingPlan.Status == default);
     }
 
+    [HostTest("drivers.virtio.pci.catalog reports binding failure", HostLane.Fast, 4)]
     private static bool TestReportsBindingFailure()
     {
         VirtioPciCandidate[] candidates =
@@ -222,7 +186,7 @@ internal static class VirtioPciBindingCatalogTests
             barSizeSources,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioPciBindingCatalogStatus.BindingFailed
             && result.InspectedCandidateCount == 1
             && result.BindingCount == 0
@@ -230,9 +194,10 @@ internal static class VirtioPciBindingCatalogTests
             && result.FailingCandidateIndex == 0
             && result.FailingSourceIndex == 11
             && result.FailingPlan.Status == VirtioPciBindingPlanStatus.HeaderParseFailed
-            && result.FailingPlan.HeaderStatus == PciConfigurationHeaderStatus.BufferTooSmall;
+            && result.FailingPlan.HeaderStatus == PciConfigurationHeaderStatus.BufferTooSmall);
     }
 
+    [HostTest("drivers.virtio.pci.catalog reports destination exhaustion", HostLane.Fast, 5)]
     private static bool TestReportsDestinationExhaustion()
     {
         VirtioPciCandidate[] candidates =
@@ -258,7 +223,7 @@ internal static class VirtioPciBindingCatalogTests
             barSizeSources,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioPciBindingCatalogStatus.DestinationTooSmall
             && result.InspectedCandidateCount == 2
             && result.BindingCount == 1
@@ -267,19 +232,20 @@ internal static class VirtioPciBindingCatalogTests
             && result.FailingSourceIndex == 21
             && destination[0].SourceIndex == 20
             && destination[0].Plan.Succeeded
-            && destination[0].Binding.DeviceKind == VirtioPciDeviceKind.Block;
+            && destination[0].Binding.DeviceKind == VirtioPciDeviceKind.Block);
     }
 
+    [HostTest("drivers.virtio.pci.catalog default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioPciBindingCatalogResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioPciBindingCatalogStatus.Success
             && result.BindingCount == 0
             && result.RequiredBindingCapacity == 0
-            && result.FailingPlan.Status == default;
+            && result.FailingPlan.Status == default);
     }
 
     private static VirtioPciCandidate CreateCandidate(

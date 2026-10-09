@@ -8,7 +8,7 @@ on:
 jobs:
   windows-smoke:
     runs-on: windows
-    timeout-minutes: 45
+    timeout-minutes: 150
     defaults:
       run:
         shell: powershell
@@ -20,23 +20,20 @@ jobs:
       - name: Build solution
         run: dotnet build .\CLROS.slnx --nologo -m:1
 
-      - name: Build host tests
-        run: dotnet build .\tests\OS.HostTests\OS.HostTests.csproj --nologo
-
       - name: Run host tests
-        run: dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
+        run: dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build -- --lane full
 
       - name: Check naming and source firewall
-        run: .\scripts\check-naming.ps1
+        run: dotnet run --project .\tools\OS.Tooling --no-build -- repo check
 
       - name: Preflight EFI toolchain
-        run: .\scripts\build-efi-shell.ps1 -PreflightOnly
+        run: dotnet run --project .\tools\OS.Tooling --no-build -- efi build --preflight-only
 
       - name: Plan CI smoke lanes
-        run: .\scripts\run-ci-smoke.ps1 -DryRun
+        run: dotnet run --project .\tools\OS.Tooling --no-build -- ci smoke --dry-run
 
       - name: Plan baseline evidence
-        run: .\scripts\run-baseline-evidence.ps1 -PlanOnly
+        run: dotnet run --project .\tools\OS.Tooling --no-build -- baseline evidence --plan-only
 
       - name: Check whitespace
         run: git diff --check

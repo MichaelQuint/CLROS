@@ -21,7 +21,7 @@ internal static class KestrelSmokePackageContractTests
     private const string AppSettingsPath = "apps/minimal-api/appsettings.json";
     private const string MinimalApiSmokeProjectPath = "apps/MinimalApiSmoke/MinimalApiSmoke.csproj";
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         int failures = 0;
@@ -754,24 +754,8 @@ internal static class KestrelSmokePackageContractTests
 
     private static void Run(string name, ref int failures, Func<bool> test)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool ExpectKestrelPackageValidation(

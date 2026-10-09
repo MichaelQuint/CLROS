@@ -4,47 +4,8 @@ using OS.Std.Binary;
 
 internal static class PciBarSizingProbeDerivedSizePlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.pci.bar.sizeprobe.derive derives 32bit aperture from fake readback", TestDerives32BitApertureFromFakeReadback, ref failures);
-        Run("drivers.pci.bar.sizeprobe.derive derives 64bit aperture from fake readbacks", TestDerives64BitApertureFromFakeReadbacks, ref failures);
-        Run("drivers.pci.bar.sizeprobe.derive propagates execution failure", TestPropagatesExecutionFailure, ref failures);
-        Run("drivers.pci.bar.sizeprobe.derive propagates sizing failure", TestPropagatesSizingFailure, ref failures);
-        Run("drivers.pci.bar.sizeprobe.derive feeds virtio aperture validation", TestFeedsVirtioApertureValidation, ref failures);
-        Run("drivers.pci.bar.sizeprobe.derive default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("drivers.pci.bar.sizeprobe.derive preserves no-live-config-access boundary", TestPreservesNoLiveConfigAccessBoundary, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PCI BAR sizing probe derived-size host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.pci.bar.sizeprobe.derive derives 32bit aperture from fake readback", HostLane.Fast, 0)]
     private static bool TestDerives32BitApertureFromFakeReadback()
     {
         PciBarDescriptorSet bars = DecodeBars(CreateHeader(bar0: 0xFE000008, bar2: 0, bar3: 0));
@@ -54,7 +15,7 @@ internal static class PciBarSizingProbeDerivedSizePlanTests
         PciBarSizingProbeDerivedSizeResult result = Plan(bars, accessor);
         Span<ulong> sizes = stackalloc ulong[PciBarDecoder.BarCount];
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingProbeDerivedSizeStatus.Success
             && result.AddressPlanStatus == PciBarSizingProbeAddressPlanStatus.Success
@@ -66,9 +27,10 @@ internal static class PciBarSizingProbeDerivedSizePlanTests
             && result.TryCopySizesTo(sizes)
             && sizes[0] == 0x1000
             && sizes[1] == 0
-            && accessor.OperationCount == 3;
+            && accessor.OperationCount == 3);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.derive derives 64bit aperture from fake readbacks", HostLane.Fast, 1)]
     private static bool TestDerives64BitApertureFromFakeReadbacks()
     {
         PciBarDescriptorSet bars = DecodeBars(CreateHeader(bar0: 0, bar2: 0x8000000C, bar3: 0x00000001));
@@ -79,7 +41,7 @@ internal static class PciBarSizingProbeDerivedSizePlanTests
         PciBarSizingProbeDerivedSizeResult result = Plan(bars, accessor);
         Span<ulong> sizes = stackalloc ulong[PciBarDecoder.BarCount];
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Execution.ReadbackCount == 2
             && result.Sizing.Bars.Bar2.SizeBytes == 0x2000
@@ -91,9 +53,10 @@ internal static class PciBarSizingProbeDerivedSizePlanTests
             && sizes[3] == 0
             && accessor.OperationCount == 6
             && IsOperation(accessor.Operations[4], PciBarSizingProbeCommandKind.RestoreOriginal, registerOffset: 0x1C, value: 0x00000001)
-            && IsOperation(accessor.Operations[5], PciBarSizingProbeCommandKind.RestoreOriginal, registerOffset: 0x18, value: 0x8000000C);
+            && IsOperation(accessor.Operations[5], PciBarSizingProbeCommandKind.RestoreOriginal, registerOffset: 0x18, value: 0x8000000C));
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.derive propagates execution failure", HostLane.Fast, 2)]
     private static bool TestPropagatesExecutionFailure()
     {
         PciBarDescriptorSet bars = DecodeBars(CreateHeader(bar0: 0xFE000008, bar2: 0, bar3: 0));
@@ -102,7 +65,7 @@ internal static class PciBarSizingProbeDerivedSizePlanTests
 
         PciBarSizingProbeDerivedSizeResult result = Plan(bars, accessor);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingProbeDerivedSizeStatus.ExecutionFailed
             && result.AddressPlanStatus == PciBarSizingProbeAddressPlanStatus.Success
@@ -111,9 +74,10 @@ internal static class PciBarSizingProbeDerivedSizePlanTests
             && result.FailingBarIndex == 0
             && result.Execution.FailingCommandIndex == 1
             && result.Execution.ReadbackCount == 0
-            && accessor.OperationCount == 2;
+            && accessor.OperationCount == 2);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.derive propagates sizing failure", HostLane.Fast, 3)]
     private static bool TestPropagatesSizingFailure()
     {
         PciBarDescriptorSet bars = DecodeBars(CreateHeader(bar0: 0xFE000008, bar2: 0, bar3: 0));
@@ -122,7 +86,7 @@ internal static class PciBarSizingProbeDerivedSizePlanTests
 
         PciBarSizingProbeDerivedSizeResult result = Plan(bars, accessor);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingProbeDerivedSizeStatus.SizingFailed
             && result.AddressPlanStatus == PciBarSizingProbeAddressPlanStatus.Success
@@ -131,9 +95,10 @@ internal static class PciBarSizingProbeDerivedSizePlanTests
             && result.FailingBarIndex == 0
             && result.FailingDescriptorStatus == PciBarSizeDescriptorStatus.MalformedReadback
             && result.Execution.ReadbackCount == 1
-            && result.Sizing.Bars.Bar0.RawReadback == 0xFFFFF000;
+            && result.Sizing.Bars.Bar0.RawReadback == 0xFFFFF000);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.derive feeds virtio aperture validation", HostLane.Fast, 4)]
     private static bool TestFeedsVirtioApertureValidation()
     {
         ushort deviceId = (ushort)(VirtioPciDeviceDiscovery.ModernDeviceIdStart +
@@ -154,7 +119,7 @@ internal static class PciBarSizingProbeDerivedSizePlanTests
             config,
             sizes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && copied
             && sizes[0] == 0x1000
@@ -166,15 +131,16 @@ internal static class PciBarSizingProbeDerivedSizePlanTests
             && binding.Binding.Apertures.CommonConfiguration.BarSize == 0x1000
             && binding.Binding.Apertures.NotifyConfiguration.BarSize == 0x1000
             && binding.Binding.Apertures.IsrStatus.BarSize == 0x1000
-            && binding.Binding.Apertures.DeviceConfiguration.BarSize == 0x1000;
+            && binding.Binding.Apertures.DeviceConfiguration.BarSize == 0x1000);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.derive default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         PciBarSizingProbeDerivedSizeResult result = default;
         Span<ulong> sizes = stackalloc ulong[PciBarDecoder.BarCount];
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == PciBarSizingProbeDerivedSizeStatus.Success
             && result.AddressPlanStatus == PciBarSizingProbeAddressPlanStatus.Success
@@ -188,9 +154,10 @@ internal static class PciBarSizingProbeDerivedSizePlanTests
             && !result.Sizing.Succeeded
             && !result.TryCopySizesTo(sizes)
             && result.FailingBarIndex == 0
-            && result.FailingDescriptorStatus == PciBarSizeDescriptorStatus.Success;
+            && result.FailingDescriptorStatus == PciBarSizeDescriptorStatus.Success);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.derive preserves no-live-config-access boundary", HostLane.Fast, 6)]
     private static bool TestPreservesNoLiveConfigAccessBoundary()
     {
         PciBarDescriptorSet bars = DecodeBars(CreateHeader(bar0: 0xFE000008, bar2: 0, bar3: 0));
@@ -199,7 +166,7 @@ internal static class PciBarSizingProbeDerivedSizePlanTests
 
         PciBarSizingProbeDerivedSizeResult result = Plan(bars, accessor);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && PciBarSizingProbeDerivedSizePlanner.RequiresDecodedBarDescriptors
             && PciBarSizingProbeDerivedSizePlanner.RequiresAddressPlan
@@ -218,7 +185,7 @@ internal static class PciBarSizingProbeDerivedSizePlanTests
             && !PciBarSizingProbeDerivedSizePlanner.HandlesInterrupts
             && !PciBarSizingProbeDerivedSizePlanner.PerformsPacketIo
             && !PciBarSizingProbeDerivedSizePlanner.PerformsBlockIo
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciBarSizingProbeDerivedSizeResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciBarSizingProbeDerivedSizeResult>());
     }
 
     private static PciBarSizingProbeDerivedSizeResult Plan(

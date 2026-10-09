@@ -13,7 +13,7 @@ children, with its #68 prerequisite checked. Use the verified source Gitea at
 The canonical backlog taxonomy and desired issue state are version-controlled in
 `.gitea/backlog/clros-issues.json`. The local Gitea repository at
 `http://localhost:3000/admin/CLROS` is synchronized additively by
-`scripts/sync-gitea-backlog.ps1`.
+`dotnet run --project tools/OS.Tooling -- backlog sync`.
 
 The 2026-07-25 reconstruction initially created 68 managed labels, 16
 milestones, 16 epics, and 303 child issues. The additive M00-023 evidence-model
@@ -162,6 +162,18 @@ preview reported all 424 managed objects unchanged with zero create, update,
 skip, or failure action. None of these administrative inventory changes
 advances a capability or completion gate.
 
+
+The synchronizer is a .NET 10 C# service. `BacklogContracts.Children` is the
+single reviewed child inventory; the validator and tests derive epic, child,
+issue and managed-object totals from it and the manifest. Update that inventory
+when accepting a new slice. Existing historical evidence counts remain frozen.
+Offline validation and self-tests do not load credentials or open a connection.
+The self-test exercises managed-body preservation, closure ordering and all
+milestone policy cases against an injected API. Preview never writes; apply
+re-reads the tracker and verifies convergence after updates. HTTP redirects are
+refused and credentials are read only from the existing runtime environment or
+the matching local-gitea tea entry. Endpoint restrictions remain loopback-only;
+this port does not authorize using this destination host's different Gitea.
 ## Implemented Behavior
 
 - Agent state: `agent:ready`, `agent:claimed`, `agent:blocked`,
@@ -317,16 +329,16 @@ never closes or reopens an issue unless the manifest explicitly changes
 Preview and validation:
 
 ```powershell
-.\scripts\sync-gitea-backlog.ps1 -Offline
-.\scripts\sync-gitea-backlog.ps1 -SelfTest
-.\scripts\sync-gitea-backlog.ps1
+dotnet run --project tools/OS.Tooling -- backlog sync --offline
+dotnet run --project tools/OS.Tooling -- backlog sync --self-test
+dotnet run --project tools/OS.Tooling -- backlog sync
 ```
 
 Apply only after reviewing the preview:
 
 ```powershell
-.\scripts\sync-gitea-backlog.ps1 -Apply
-.\scripts\sync-gitea-backlog.ps1
+dotnet run --project tools/OS.Tooling -- backlog sync --apply
+dotnet run --project tools/OS.Tooling -- backlog sync
 ```
 
 The final command must converge with no `wouldCreate`, `wouldUpdate`, or failed

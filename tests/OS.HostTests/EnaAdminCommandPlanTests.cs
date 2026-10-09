@@ -5,53 +5,15 @@ using OS.Std.Binary;
 
 internal static class EnaAdminCommandPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.ena.admin.command plans get feature", TestPlansGetFeature, ref failures);
-        Run("drivers.ena.admin.command validates completion", TestValidatesCompletion, ref failures);
-        Run("drivers.ena.admin.command rejects timeout budget", TestRejectsTimeoutBudget, ref failures);
-        Run("drivers.ena.admin.command rejects invalid inputs", TestRejectsInvalidInputs, ref failures);
-        Run("drivers.ena.admin.command rejects completion failures", TestRejectsCompletionFailures, ref failures);
-        Run("drivers.ena.admin.command rejects default results", TestRejectsDefaultResults, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ENA admin command plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.ena.admin.command rejects default results", HostLane.Fast, 5)]
     private static bool TestRejectsDefaultResults()
     {
         EnaAdminCommandPlanResult plan = default;
         EnaAdminCommandSubmissionResult submission = default;
         EnaAdminCommandCompletionValidationResult completion = default;
 
-        return !plan.IsInitialized
+        return HostCheck.Result(!plan.IsInitialized
             && !plan.Succeeded
             && plan.Status == EnaAdminCommandPlanStatus.Success
             && !submission.IsInitialized
@@ -63,9 +25,10 @@ internal static class EnaAdminCommandPlanTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<EnaAdminCommandPlanResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<EnaAdminCommandSubmissionResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                EnaAdminCommandCompletionValidationResult>();
+                EnaAdminCommandCompletionValidationResult>());
     }
 
+    [HostTest("drivers.ena.admin.command plans get feature", HostLane.Fast, 0)]
     private static bool TestPlansGetFeature()
     {
         EnaAdminCommandPlanResult result =
@@ -76,7 +39,7 @@ internal static class EnaAdminCommandPlanTests
                 timeoutTicks: EnaAdminCommandPlan.MinimumTimeoutTicks);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         EnaAdminCommandPlan plan = result.Plan;
@@ -90,7 +53,7 @@ internal static class EnaAdminCommandPlanTests
                 descriptor.AsSpan(0, plan.SubmissionDescriptorLength),
                 out EnaAdminGetFeatureCommand command);
 
-        return result.Status == EnaAdminCommandPlanStatus.Success
+        return HostCheck.Result(result.Status == EnaAdminCommandPlanStatus.Success
             && result.CommandId == 0x0123
             && result.FeatureId == EnaAdminFeatureId.DeviceAttributes
             && result.SubmissionPhase
@@ -122,9 +85,10 @@ internal static class EnaAdminCommandPlanTests
             && !EnaAdminCommandPlan.RingsDoorbell
             && !EnaAdminCommandPlan.ConfiguresInterrupts
             && !EnaAdminCommandPlan.PerformsPacketIo
-            && !EnaAdminCommandPlan.ExecutesAdminCommand;
+            && !EnaAdminCommandPlan.ExecutesAdminCommand);
     }
 
+    [HostTest("drivers.ena.admin.command validates completion", HostLane.Fast, 1)]
     private static bool TestValidatesCompletion()
     {
         EnaAdminCommandPlanResult result =
@@ -135,7 +99,7 @@ internal static class EnaAdminCommandPlanTests
                 timeoutTicks: EnaAdminCommandPlan.MinimumTimeoutTicks + 10);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] response = CreateDeviceAttributesResponse(
@@ -156,7 +120,7 @@ internal static class EnaAdminCommandPlanTests
         EnaAdminCommandCompletionValidationResult validation =
             result.Plan.ValidateDeviceAttributesCompletion(response);
 
-        return validation.Succeeded
+        return HostCheck.Result(validation.Succeeded
             && validation.Status == EnaAdminCommandPlanStatus.Success
             && validation.DeviceAttributesStatus == EnaDeviceAttributesStatus.Success
             && validation.InputLength == EnaDeviceAttributesParser.ResponseByteLength
@@ -174,9 +138,10 @@ internal static class EnaAdminCommandPlanTests
             && validation.DeviceAttributes.PhysicalAddressWidth == 48
             && validation.DeviceAttributes.VirtualAddressWidth == 64
             && validation.DeviceAttributes.MacAddress == TestMac
-            && validation.DeviceAttributes.MaxMtu == 9001;
+            && validation.DeviceAttributes.MaxMtu == 9001);
     }
 
+    [HostTest("drivers.ena.admin.command rejects timeout budget", HostLane.Fast, 2)]
     private static bool TestRejectsTimeoutBudget()
     {
         EnaAdminCommandPlanResult zero =
@@ -198,15 +163,16 @@ internal static class EnaAdminCommandPlanTests
                 expectedCompletionPhase: true,
                 timeoutTicks: EnaAdminCommandPlan.MinimumTimeoutTicks);
 
-        return !zero.Succeeded
+        return HostCheck.Result(!zero.Succeeded
             && zero.Status == EnaAdminCommandPlanStatus.TimeoutBudgetTooSmall
             && zero.TimeoutTicks == 0
             && !tooSmall.Succeeded
             && tooSmall.Status == EnaAdminCommandPlanStatus.TimeoutBudgetTooSmall
             && tooSmall.TimeoutTicks == EnaAdminCommandPlan.MinimumTimeoutTicks - 1
-            && exactMinimum.Succeeded;
+            && exactMinimum.Succeeded);
     }
 
+    [HostTest("drivers.ena.admin.command rejects invalid inputs", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidInputs()
     {
         EnaAdminCommandPlanResult commandOutOfRange =
@@ -230,14 +196,14 @@ internal static class EnaAdminCommandPlanTests
                 timeoutTicks: EnaAdminCommandPlan.MinimumTimeoutTicks);
         if (!valid.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         EnaAdminCommandSubmissionResult shortSubmission =
             valid.Plan.TryWriteSubmission(
                 new byte[EnaAdminDescriptors.GetFeatureCommandByteLength - 1]);
 
-        return !commandOutOfRange.Succeeded
+        return HostCheck.Result(!commandOutOfRange.Succeeded
             && commandOutOfRange.Status == EnaAdminCommandPlanStatus.CommandIdOutOfRange
             && commandOutOfRange.CommandId == 0x1000
             && !unsupportedFeature.Succeeded
@@ -246,9 +212,10 @@ internal static class EnaAdminCommandPlanTests
             && !shortSubmission.Succeeded
             && shortSubmission.Status == EnaAdminCommandPlanStatus.SubmissionBufferTooSmall
             && shortSubmission.DescriptorStatus == EnaAdminDescriptorStatus.BufferTooSmall
-            && shortSubmission.BytesWritten == 0;
+            && shortSubmission.BytesWritten == 0);
     }
 
+    [HostTest("drivers.ena.admin.command rejects completion failures", HostLane.Fast, 4)]
     private static bool TestRejectsCompletionFailures()
     {
         EnaAdminCommandPlanResult result =
@@ -259,7 +226,7 @@ internal static class EnaAdminCommandPlanTests
                 timeoutTicks: EnaAdminCommandPlan.MinimumTimeoutTicks);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         EnaAdminCommandPlan plan = result.Plan;
@@ -332,7 +299,7 @@ internal static class EnaAdminCommandPlanTests
         EnaAdminCommandCompletionValidationResult shortResult =
             plan.ValidateDeviceAttributesCompletion(tooShort);
 
-        return !commandResult.Succeeded
+        return HostCheck.Result(!commandResult.Succeeded
             && commandResult.Status == EnaAdminCommandPlanStatus.CompletionCommandIdMismatch
             && commandResult.DeviceAttributesStatus == EnaDeviceAttributesStatus.CommandIdMismatch
             && commandResult.CommandId == 0x0021
@@ -352,7 +319,7 @@ internal static class EnaAdminCommandPlanTests
             && !shortResult.Succeeded
             && shortResult.Status == EnaAdminCommandPlanStatus.CompletionBufferTooSmall
             && shortResult.DeviceAttributesStatus == EnaDeviceAttributesStatus.BufferTooSmall
-            && shortResult.InputLength == tooShort.Length;
+            && shortResult.InputLength == tooShort.Length);
     }
 
     private static byte[] CreateDeviceAttributesResponse(

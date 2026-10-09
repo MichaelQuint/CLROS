@@ -11,79 +11,7 @@ internal static class NativeAppArgumentHandoffPlanTests
     private const string AppPath = "apps/hello.bin";
     private const string Arguments = "--port=8080 --mode cloud";
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("appmodel invocation args handoff composes vector", TestComposesVector, ref failures);
-        Run("appmodel invocation args handoff rejects invocation failure", TestRejectsInvocationFailure, ref failures);
-        Run(
-            "appmodel invocation args handoff rejects argument-vector failure",
-            TestRejectsArgumentVectorFailure,
-            ref failures);
-        Run(
-            "appmodel invocation args handoff rejects parsed-byte mismatch",
-            TestRejectsParsedByteMismatch,
-            ref failures);
-        Run(
-            "appmodel invocation args handoff rejects default dependency results",
-            TestRejectsDefaultDependencyResults,
-            ref failures);
-        Run(
-            "appmodel invocation args handoff rejects impossible counts",
-            TestRejectsImpossibleCounts,
-            ref failures);
-        Run(
-            "appmodel invocation args handoff default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-        Run(
-            "appmodel invocation args handoff layout contains no managed references",
-            TestLayoutContainsNoManagedReferences,
-            ref failures);
-        Run("boot.sequence app args handoff ready", TestBootSequenceAppArgsHandoffReady, ref failures);
-        Run(
-            "boot.sequence app args handoff rejects failed result",
-            TestBootSequenceAppArgsHandoffRejectsFailedResult,
-            ref failures);
-        Run(
-            "boot.sequence app args handoff rejects default result",
-            TestBootSequenceAppArgsHandoffRejectsDefaultResult,
-            ref failures);
-        Run(
-            "boot.sequence app args handoff preserves default markers",
-            TestBootSequenceAppArgsHandoffPreservesDefaultMarkers,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app argument handoff plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel invocation args handoff composes vector", HostLane.Fast, 0)]
     private static bool TestComposesVector()
     {
         byte[] source = ValidManifest(Arguments);
@@ -96,7 +24,7 @@ internal static class NativeAppArgumentHandoffPlanTests
 
         int expectedParsedBytes = "--port=8080".Length + "--mode".Length + "cloud".Length;
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppArgumentHandoffPlanStatus.Success
             && result.InvocationStatus == NativeAppInvocationPlanStatus.Success
@@ -109,9 +37,10 @@ internal static class NativeAppArgumentHandoffPlanTests
             && !NativeAppArgumentHandoffPlanner.ExecutesApp
             && !NativeAppArgumentHandoffPlanner.DefinesFinalAbi
             && !NativeAppArgumentHandoffPlanner.AllocatesStack
-            && !NativeAppArgumentHandoffPlanner.StartsHostedDotNet;
+            && !NativeAppArgumentHandoffPlanner.StartsHostedDotNet);
     }
 
+    [HostTest("appmodel invocation args handoff rejects invocation failure", HostLane.Fast, 1)]
     private static bool TestRejectsInvocationFailure()
     {
         NativeAppInvocationPlanResult invocation = NativeAppInvocationPlanResult.Fail(
@@ -126,14 +55,15 @@ internal static class NativeAppArgumentHandoffPlanTests
         NativeAppArgumentHandoffPlanResult result =
             NativeAppArgumentHandoffPlanner.Compose(invocation, vector);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppArgumentHandoffPlanStatus.InvocationPlanFailed
             && result.InvocationStatus == NativeAppInvocationPlanStatus.InvalidStackSize
             && result.ArgumentVectorStatus == NativeAppArgumentVectorStatus.Success
-            && result.ArgumentCount == 1;
+            && result.ArgumentCount == 1);
     }
 
+    [HostTest("appmodel invocation args handoff rejects argument-vector failure", HostLane.Fast, 2)]
     private static bool TestRejectsArgumentVectorFailure()
     {
         NativeAppArgumentVectorPlanResult vector = NativeAppArgumentVectorPlanResult.Fail(
@@ -145,13 +75,14 @@ internal static class NativeAppArgumentHandoffPlanTests
         NativeAppArgumentHandoffPlanResult result =
             NativeAppArgumentHandoffPlanner.Compose(invocation, vector);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppArgumentHandoffPlanStatus.ArgumentVectorFailed
             && result.InvocationStatus == NativeAppInvocationPlanStatus.Success
-            && result.ArgumentVectorStatus == NativeAppArgumentVectorStatus.UnterminatedQuote;
+            && result.ArgumentVectorStatus == NativeAppArgumentVectorStatus.UnterminatedQuote);
     }
 
+    [HostTest("appmodel invocation args handoff rejects parsed-byte mismatch", HostLane.Fast, 3)]
     private static bool TestRejectsParsedByteMismatch()
     {
         NativeAppArgumentVectorPlanResult vector = CreateVector("abcd");
@@ -160,14 +91,15 @@ internal static class NativeAppArgumentHandoffPlanTests
         NativeAppArgumentHandoffPlanResult result =
             NativeAppArgumentHandoffPlanner.Compose(invocation, vector);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppArgumentHandoffPlanStatus.ParsedArgumentBytesMismatch
             && result.ArgumentCount == 1
             && result.ParsedArgumentBytes == 4
-            && result.RawLaunchArgumentByteLength == 3;
+            && result.RawLaunchArgumentByteLength == 3);
     }
 
+    [HostTest("appmodel invocation args handoff rejects default dependency results", HostLane.Fast, 4)]
     private static bool TestRejectsDefaultDependencyResults()
     {
         NativeAppArgumentVectorPlanResult readyVector = CreateVector("arg");
@@ -178,20 +110,21 @@ internal static class NativeAppArgumentHandoffPlanTests
         NativeAppArgumentHandoffPlanResult defaultVector =
             NativeAppArgumentHandoffPlanner.Compose(readyInvocation, default);
 
-        return !defaultInvocation.Succeeded
+        return HostCheck.Result(!defaultInvocation.Succeeded
             && defaultInvocation.IsInitialized
             && defaultInvocation.Status == NativeAppArgumentHandoffPlanStatus.InvocationPlanNotInitialized
             && !defaultVector.Succeeded
             && defaultVector.IsInitialized
-            && defaultVector.Status == NativeAppArgumentHandoffPlanStatus.ArgumentVectorNotInitialized;
+            && defaultVector.Status == NativeAppArgumentHandoffPlanStatus.ArgumentVectorNotInitialized);
     }
 
+    [HostTest("appmodel invocation args handoff rejects impossible counts", HostLane.Fast, 5)]
     private static bool TestRejectsImpossibleCounts()
     {
         NativeAppArgumentVector vector = default;
         if (!vector.TryAdd(default))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppArgumentVectorPlanResult argumentVector =
@@ -201,18 +134,19 @@ internal static class NativeAppArgumentHandoffPlanTests
         NativeAppArgumentHandoffPlanResult result =
             NativeAppArgumentHandoffPlanner.Compose(invocation, argumentVector);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppArgumentHandoffPlanStatus.ImpossibleArgumentCount
             && result.ArgumentCount == 1
-            && result.ParsedArgumentBytes == 0;
+            && result.ParsedArgumentBytes == 0);
     }
 
+    [HostTest("appmodel invocation args handoff default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAppArgumentHandoffPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppArgumentHandoffPlanStatus.Success
             && result.InvocationStatus == NativeAppInvocationPlanStatus.Success
@@ -221,14 +155,16 @@ internal static class NativeAppArgumentHandoffPlanTests
             && result.ParsedArgumentBytes == 0
             && result.RawLaunchArgumentByteLength == 0
             && !result.ExecutesApp
-            && !result.DefinesFinalAbi;
+            && !result.DefinesFinalAbi);
     }
 
+    [HostTest("appmodel invocation args handoff layout contains no managed references", HostLane.Fast, 7)]
     private static bool TestLayoutContainsNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppArgumentHandoffPlanResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppArgumentHandoffPlanResult>());
     }
 
+    [HostTest("boot.sequence app args handoff ready", HostLane.Fast, 8)]
     private static bool TestBootSequenceAppArgsHandoffReady()
     {
         NativeAppArgumentHandoffPlanResult handoff = CreateHandoff(Arguments);
@@ -241,7 +177,7 @@ internal static class NativeAppArgumentHandoffPlanTests
             events);
         string expectedMarker = BootSequence.CreateNativeAppArgumentHandoffReadyMarker(handoff);
 
-        return handoff.Succeeded
+        return HostCheck.Result(handoff.Succeeded
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
@@ -251,9 +187,10 @@ internal static class NativeAppArgumentHandoffPlanTests
             && expectedMarker.Contains("stackBytesAvailable=false", StringComparison.Ordinal)
             && expectedMarker.Contains("executesApp=false", StringComparison.Ordinal)
             && expectedMarker.Contains("definesFinalAbi=false", StringComparison.Ordinal)
-            && expectedMarker.Contains("startsKestrel=false", StringComparison.Ordinal);
+            && expectedMarker.Contains("startsKestrel=false", StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence app args handoff rejects failed result", HostLane.Fast, 9)]
     private static bool TestBootSequenceAppArgsHandoffRejectsFailedResult()
     {
         NativeAppArgumentHandoffPlanResult handoff = NativeAppArgumentHandoffPlanResult.Fail(
@@ -274,7 +211,7 @@ internal static class NativeAppArgumentHandoffPlanTests
             NativeAppArgumentHandoffReadinessStatus.HandoffFailed,
             handoff);
 
-        return handoff.IsInitialized
+        return HostCheck.Result(handoff.IsInitialized
             && !handoff.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
@@ -290,9 +227,10 @@ internal static class NativeAppArgumentHandoffPlanTests
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
             && expectedMarker ==
-                "APP_ARGS_HANDOFF_NOT_READY status=HandoffFailed initialized=true handoff=ArgumentVectorFailed invocation=Success argumentVector=UnterminatedQuote argumentCount=0 argumentBytes=0 parsedArgumentBytes=0 rawArgumentBytes=12 stackBytes=0 stackBytesAvailable=false executesApp=false definesFinalAbi=false startsHostedDotNet=false startsKestrel=false";
+                "APP_ARGS_HANDOFF_NOT_READY status=HandoffFailed initialized=true handoff=ArgumentVectorFailed invocation=Success argumentVector=UnterminatedQuote argumentCount=0 argumentBytes=0 parsedArgumentBytes=0 rawArgumentBytes=12 stackBytes=0 stackBytesAvailable=false executesApp=false definesFinalAbi=false startsHostedDotNet=false startsKestrel=false");
     }
 
+    [HostTest("boot.sequence app args handoff rejects default result", HostLane.Fast, 10)]
     private static bool TestBootSequenceAppArgsHandoffRejectsDefaultResult()
     {
         NativeAppArgumentHandoffPlanResult handoff = default;
@@ -307,7 +245,7 @@ internal static class NativeAppArgumentHandoffPlanTests
             NativeAppArgumentHandoffReadinessStatus.NotInitialized,
             handoff);
 
-        return !handoff.IsInitialized
+        return HostCheck.Result(!handoff.IsInitialized
             && !handoff.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
@@ -317,9 +255,10 @@ internal static class NativeAppArgumentHandoffPlanTests
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
             && expectedMarker ==
-                "APP_ARGS_HANDOFF_NOT_READY status=NotInitialized initialized=false handoff=Success invocation=Success argumentVector=Success argumentCount=0 argumentBytes=0 parsedArgumentBytes=0 rawArgumentBytes=0 stackBytes=0 stackBytesAvailable=false executesApp=false definesFinalAbi=false startsHostedDotNet=false startsKestrel=false";
+                "APP_ARGS_HANDOFF_NOT_READY status=NotInitialized initialized=false handoff=Success invocation=Success argumentVector=Success argumentCount=0 argumentBytes=0 parsedArgumentBytes=0 rawArgumentBytes=0 stackBytes=0 stackBytesAvailable=false executesApp=false definesFinalAbi=false startsHostedDotNet=false startsKestrel=false");
     }
 
+    [HostTest("boot.sequence app args handoff preserves default markers", HostLane.Fast, 11)]
     private static bool TestBootSequenceAppArgsHandoffPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -328,19 +267,19 @@ internal static class NativeAppArgumentHandoffPlanTests
         BootResult result = BootSequence.Run(serial, events);
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.ContainsPrefix(BootSequence.NativeAppArgumentHandoffReadyPrefix)
-            && !serial.ContainsPrefix(BootSequence.NativeAppArgumentHandoffNotReadyPrefix);
+        return HostCheck.Result(!serial.ContainsPrefix(BootSequence.NativeAppArgumentHandoffReadyPrefix)
+            && !serial.ContainsPrefix(BootSequence.NativeAppArgumentHandoffNotReadyPrefix));
     }
 
     private static NativeAppArgumentVectorPlanResult CreateVector(string arguments)

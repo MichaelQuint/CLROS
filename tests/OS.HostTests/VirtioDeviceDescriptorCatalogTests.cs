@@ -12,56 +12,7 @@ internal static class VirtioDeviceDescriptorCatalogTests
     private const byte DeviceOffset = 0xA0;
     private const ulong UnsupportedDeviceFeature = 1UL << 42;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.virtio.descriptor.catalog creates block descriptor", TestCreatesBlockDescriptor, ref failures);
-        Run("drivers.virtio.descriptor.catalog creates network descriptor", TestCreatesNetworkDescriptor, ref failures);
-        Run("drivers.virtio.descriptor.catalog reports missing device config", TestReportsMissingDeviceConfig, ref failures);
-        Run("drivers.virtio.descriptor.catalog reports unsupported kind", TestReportsUnsupportedKind, ref failures);
-        Run("drivers.virtio.descriptor.catalog reports config parse failure", TestReportsConfigParseFailure, ref failures);
-        Run("drivers.virtio.descriptor.catalog reports initialization failure", TestReportsInitializationFailure, ref failures);
-        Run("drivers.virtio.descriptor.catalog reports destination exhaustion", TestReportsDestinationExhaustion, ref failures);
-        Run("drivers.virtio.descriptor.catalog.derive creates block descriptor", TestDerivedCreatesBlockDescriptor, ref failures);
-        Run("drivers.virtio.descriptor.catalog.derive creates network descriptor", TestDerivedCreatesNetworkDescriptor, ref failures);
-        Run("drivers.virtio.descriptor.catalog.derive reports derived binding failure", TestDerivedReportsBindingFailure, ref failures);
-        Run("drivers.virtio.descriptor.catalog.derive reports missing device config", TestDerivedReportsMissingDeviceConfig, ref failures);
-        Run("drivers.virtio.descriptor.catalog.derive reports config parse failure", TestDerivedReportsConfigParseFailure, ref failures);
-        Run("drivers.virtio.descriptor.catalog.derive reports initialization failure", TestDerivedReportsInitializationFailure, ref failures);
-        Run("drivers.virtio.descriptor.catalog.derive reports destination exhaustion", TestDerivedReportsDestinationExhaustion, ref failures);
-        Run("drivers.virtio.descriptor.catalog.derive default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("drivers.virtio.descriptor.catalog.derive preserves no-live-device boundary", TestDerivedPreservesNoLiveDeviceBoundary, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio device descriptor catalog host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtio.descriptor.catalog creates block descriptor", HostLane.Fast, 0)]
     private static bool TestCreatesBlockDescriptor()
     {
         VirtioDeviceDescriptorSource[] sources =
@@ -84,7 +35,7 @@ internal static class VirtioDeviceDescriptorCatalogTests
             destination);
         VirtioDeviceDescriptor descriptor = destination[0];
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioDeviceDescriptorCatalogStatus.Success
             && result.InspectedSourceCount == 1
             && result.DescriptorCount == 1
@@ -103,9 +54,10 @@ internal static class VirtioDeviceDescriptorCatalogTests
             && descriptor.InitializationProfile.RequiredQueueCount
                 == VirtioDeviceInitializationProfile.BlockRequiredQueueCount
             && descriptor.InitializationProfile.InitializationPlan.SelectedFeatures
-                == VirtioDeviceInitializationProfile.BlockOptionalFeatureMask;
+                == VirtioDeviceInitializationProfile.BlockOptionalFeatureMask);
     }
 
+    [HostTest("drivers.virtio.descriptor.catalog creates network descriptor", HostLane.Fast, 1)]
     private static bool TestCreatesNetworkDescriptor()
     {
         MacAddress macAddress = new MacAddress(0x02, 0x10, 0x20, 0x30, 0x40, 0x50);
@@ -133,7 +85,7 @@ internal static class VirtioDeviceDescriptorCatalogTests
             destination);
         VirtioDeviceDescriptor descriptor = destination[0];
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && descriptor.SourceIndex == 6
             && descriptor.DeviceKind == VirtioPciDeviceKind.Network
             && descriptor.BindingPlan.Succeeded
@@ -148,9 +100,10 @@ internal static class VirtioDeviceDescriptorCatalogTests
             && descriptor.InitializationProfile.RequiredQueueCount
                 == VirtioDeviceInitializationProfile.NetworkRequiredQueueCount
             && descriptor.InitializationProfile.InitializationPlan.SelectedFeatures
-                == VirtioDeviceInitializationProfile.NetworkOptionalFeatureMask;
+                == VirtioDeviceInitializationProfile.NetworkOptionalFeatureMask);
     }
 
+    [HostTest("drivers.virtio.descriptor.catalog reports missing device config", HostLane.Fast, 2)]
     private static bool TestReportsMissingDeviceConfig()
     {
         VirtioDeviceDescriptorSource[] sources =
@@ -168,7 +121,7 @@ internal static class VirtioDeviceDescriptorCatalogTests
             Array.Empty<VirtioDeviceConfigurationSource>(),
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioDeviceDescriptorCatalogStatus.MissingDeviceConfiguration
             && result.InspectedSourceCount == 1
             && result.DescriptorCount == 0
@@ -179,9 +132,10 @@ internal static class VirtioDeviceDescriptorCatalogTests
             && result.FailingBindingPlan.Succeeded
             && result.FailingBlockConfiguration.Status == default
             && result.FailingNetworkConfiguration.Status == default
-            && result.FailingInitializationProfile.Status == default;
+            && result.FailingInitializationProfile.Status == default);
     }
 
+    [HostTest("drivers.virtio.descriptor.catalog reports unsupported kind", HostLane.Fast, 3)]
     private static bool TestReportsUnsupportedKind()
     {
         VirtioDeviceDescriptorSource source = CreateSource(
@@ -210,15 +164,16 @@ internal static class VirtioDeviceDescriptorCatalogTests
             configurations,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioDeviceDescriptorCatalogStatus.UnsupportedDeviceKind
             && result.FailingSourceIndex == 9
             && result.FailingInputIndex == 0
             && result.FailingDeviceKind == (VirtioPciDeviceKind)99
             && result.FailingBindingPlan.Succeeded
-            && result.FailingBindingPlan.Binding.DeviceKind == VirtioPciDeviceKind.Block;
+            && result.FailingBindingPlan.Binding.DeviceKind == VirtioPciDeviceKind.Block);
     }
 
+    [HostTest("drivers.virtio.descriptor.catalog reports config parse failure", HostLane.Fast, 4)]
     private static bool TestReportsConfigParseFailure()
     {
         VirtioDeviceDescriptorSource[] sources =
@@ -242,7 +197,7 @@ internal static class VirtioDeviceDescriptorCatalogTests
             configurations,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioDeviceDescriptorCatalogStatus.ConfigParseFailed
             && result.InspectedSourceCount == 1
             && result.DescriptorCount == 0
@@ -252,9 +207,10 @@ internal static class VirtioDeviceDescriptorCatalogTests
             && result.FailingDeviceKind == VirtioPciDeviceKind.Block
             && result.FailingBlockConfiguration.Status == VirtioBlockDeviceConfigStatus.ConfigTooSmall
             && result.FailingNetworkConfiguration.Status == default
-            && result.FailingInitializationProfile.Status == default;
+            && result.FailingInitializationProfile.Status == default);
     }
 
+    [HostTest("drivers.virtio.descriptor.catalog reports initialization failure", HostLane.Fast, 5)]
     private static bool TestReportsInitializationFailure()
     {
         MacAddress macAddress = new MacAddress(0x02, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE);
@@ -277,7 +233,7 @@ internal static class VirtioDeviceDescriptorCatalogTests
             configurations,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioDeviceDescriptorCatalogStatus.InitializationProfileFailed
             && result.InspectedSourceCount == 1
             && result.DescriptorCount == 0
@@ -290,9 +246,10 @@ internal static class VirtioDeviceDescriptorCatalogTests
             && result.FailingInitializationProfile.Status
                 == VirtioDeviceInitializationProfileStatus.InitializationPlanFailed
             && result.FailingInitializationProfile.InitializationPlan.Status
-                == VirtioDeviceInitializationPlanStatus.InsufficientQueueCount;
+                == VirtioDeviceInitializationPlanStatus.InsufficientQueueCount);
     }
 
+    [HostTest("drivers.virtio.descriptor.catalog reports destination exhaustion", HostLane.Fast, 6)]
     private static bool TestReportsDestinationExhaustion()
     {
         VirtioDeviceDescriptorSource[] sources =
@@ -324,7 +281,7 @@ internal static class VirtioDeviceDescriptorCatalogTests
             configurations,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioDeviceDescriptorCatalogStatus.DestinationTooSmall
             && result.InspectedSourceCount == 2
             && result.DescriptorCount == 1
@@ -334,9 +291,10 @@ internal static class VirtioDeviceDescriptorCatalogTests
             && result.FailingDeviceKind == VirtioPciDeviceKind.Network
             && destination[0].SourceIndex == 20
             && destination[0].DeviceKind == VirtioPciDeviceKind.Block
-            && destination[0].BlockDeviceInfo.BlockCount == 16;
+            && destination[0].BlockDeviceInfo.BlockCount == 16);
     }
 
+    [HostTest("drivers.virtio.descriptor.catalog.derive creates block descriptor", HostLane.Fast, 7)]
     private static bool TestDerivedCreatesBlockDescriptor()
     {
         VirtioDeviceDescriptorDerivedBindingSource[] sources =
@@ -359,7 +317,7 @@ internal static class VirtioDeviceDescriptorCatalogTests
             destination);
         VirtioDeviceDescriptor descriptor = destination[0];
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioDeviceDescriptorCatalogStatus.Success
             && result.InspectedSourceCount == 1
             && result.DescriptorCount == 1
@@ -371,9 +329,10 @@ internal static class VirtioDeviceDescriptorCatalogTests
             && descriptor.BlockDeviceInfo.BlockCount == 128
             && descriptor.InitializationProfile.Succeeded
             && descriptor.InitializationProfile.InitializationPlan.SelectedFeatures
-                == VirtioDeviceInitializationProfile.BlockOptionalFeatureMask;
+                == VirtioDeviceInitializationProfile.BlockOptionalFeatureMask);
     }
 
+    [HostTest("drivers.virtio.descriptor.catalog.derive creates network descriptor", HostLane.Fast, 8)]
     private static bool TestDerivedCreatesNetworkDescriptor()
     {
         MacAddress macAddress = new MacAddress(0x02, 0x11, 0x22, 0x33, 0x44, 0x55);
@@ -399,7 +358,7 @@ internal static class VirtioDeviceDescriptorCatalogTests
             destination);
         VirtioDeviceDescriptor descriptor = destination[0];
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && descriptor.SourceIndex == 26
             && descriptor.DeviceKind == VirtioPciDeviceKind.Network
             && descriptor.BindingPlan.Succeeded
@@ -408,9 +367,10 @@ internal static class VirtioDeviceDescriptorCatalogTests
             && descriptor.NetworkDeviceConfiguration.IsLinkUp
             && descriptor.InitializationProfile.Succeeded
             && descriptor.InitializationProfile.InitializationPlan.SelectedFeatures
-                == VirtioDeviceInitializationProfile.NetworkOptionalFeatureMask;
+                == VirtioDeviceInitializationProfile.NetworkOptionalFeatureMask);
     }
 
+    [HostTest("drivers.virtio.descriptor.catalog.derive reports derived binding failure", HostLane.Fast, 9)]
     private static bool TestDerivedReportsBindingFailure()
     {
         FakePciConfigDwordAccessor accessor = CreateSuccessfulAccessor();
@@ -435,7 +395,7 @@ internal static class VirtioDeviceDescriptorCatalogTests
             configurations,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioDeviceDescriptorCatalogStatus.BindingPlanFailed
             && result.InspectedSourceCount == 1
             && result.DescriptorCount == 0
@@ -443,9 +403,10 @@ internal static class VirtioDeviceDescriptorCatalogTests
             && result.FailingInputIndex == 0
             && result.FailingDerivedBindingPlan.Status == VirtioPciBindingDerivedBarSizePlanStatus.DerivedSizeFailed
             && result.FailingDerivedBindingPlan.SizingStatus == PciBarSizingPlanStatus.MalformedReadback
-            && result.FailingBindingPlan.Status == default;
+            && result.FailingBindingPlan.Status == default);
     }
 
+    [HostTest("drivers.virtio.descriptor.catalog.derive reports missing device config", HostLane.Fast, 10)]
     private static bool TestDerivedReportsMissingDeviceConfig()
     {
         VirtioDeviceDescriptorDerivedBindingSource[] sources =
@@ -463,15 +424,16 @@ internal static class VirtioDeviceDescriptorCatalogTests
             Array.Empty<VirtioDeviceConfigurationSource>(),
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioDeviceDescriptorCatalogStatus.MissingDeviceConfiguration
             && result.FailingSourceIndex == 30
             && result.FailingInputIndex == 0
             && result.FailingDerivedBindingPlan.Succeeded
             && result.FailingBindingPlan.Succeeded
-            && result.FailingBlockConfiguration.Status == default;
+            && result.FailingBlockConfiguration.Status == default);
     }
 
+    [HostTest("drivers.virtio.descriptor.catalog.derive reports config parse failure", HostLane.Fast, 11)]
     private static bool TestDerivedReportsConfigParseFailure()
     {
         VirtioDeviceDescriptorDerivedBindingSource[] sources =
@@ -495,14 +457,15 @@ internal static class VirtioDeviceDescriptorCatalogTests
             configurations,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioDeviceDescriptorCatalogStatus.ConfigParseFailed
             && result.FailingSourceIndex == 32
             && result.FailingDerivedBindingPlan.Succeeded
             && result.FailingBlockConfiguration.Status == VirtioBlockDeviceConfigStatus.ConfigTooSmall
-            && result.FailingInitializationProfile.Status == default;
+            && result.FailingInitializationProfile.Status == default);
     }
 
+    [HostTest("drivers.virtio.descriptor.catalog.derive reports initialization failure", HostLane.Fast, 12)]
     private static bool TestDerivedReportsInitializationFailure()
     {
         MacAddress macAddress = new MacAddress(0x02, 0x66, 0x77, 0x88, 0x99, 0xAA);
@@ -525,7 +488,7 @@ internal static class VirtioDeviceDescriptorCatalogTests
             configurations,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioDeviceDescriptorCatalogStatus.InitializationProfileFailed
             && result.FailingSourceIndex == 34
             && result.FailingDeviceKind == VirtioPciDeviceKind.Network
@@ -534,9 +497,10 @@ internal static class VirtioDeviceDescriptorCatalogTests
             && result.FailingInitializationProfile.Status
                 == VirtioDeviceInitializationProfileStatus.InitializationPlanFailed
             && result.FailingInitializationProfile.InitializationPlan.Status
-                == VirtioDeviceInitializationPlanStatus.InsufficientQueueCount;
+                == VirtioDeviceInitializationPlanStatus.InsufficientQueueCount);
     }
 
+    [HostTest("drivers.virtio.descriptor.catalog.derive reports destination exhaustion", HostLane.Fast, 13)]
     private static bool TestDerivedReportsDestinationExhaustion()
     {
         VirtioDeviceDescriptorDerivedBindingSource[] sources =
@@ -568,7 +532,7 @@ internal static class VirtioDeviceDescriptorCatalogTests
             configurations,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioDeviceDescriptorCatalogStatus.DestinationTooSmall
             && result.InspectedSourceCount == 2
             && result.DescriptorCount == 1
@@ -578,14 +542,15 @@ internal static class VirtioDeviceDescriptorCatalogTests
             && result.FailingDeviceKind == VirtioPciDeviceKind.Network
             && result.FailingDerivedBindingPlan.Succeeded
             && destination[0].SourceIndex == 40
-            && destination[0].DeviceKind == VirtioPciDeviceKind.Block;
+            && destination[0].DeviceKind == VirtioPciDeviceKind.Block);
     }
 
+    [HostTest("drivers.virtio.descriptor.catalog.derive default result is not success", HostLane.Fast, 14)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioDeviceDescriptorCatalogResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioDeviceDescriptorCatalogStatus.Success
             && result.InspectedSourceCount == 0
@@ -595,9 +560,10 @@ internal static class VirtioDeviceDescriptorCatalogTests
             && result.FailingInputIndex == 0
             && result.FailingBindingPlan.Status == default
             && result.FailingDerivedBindingPlan.Status == default
-            && result.FailingInitializationProfile.Status == default;
+            && result.FailingInitializationProfile.Status == default);
     }
 
+    [HostTest("drivers.virtio.descriptor.catalog.derive preserves no-live-device boundary", HostLane.Fast, 15)]
     private static bool TestDerivedPreservesNoLiveDeviceBoundary()
     {
         VirtioDeviceDescriptorDerivedBindingSource[] sources =
@@ -623,7 +589,7 @@ internal static class VirtioDeviceDescriptorCatalogTests
             configurations,
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioDeviceDescriptorCatalog.RequiresCallerProvidedDescriptorSources
             && VirtioDeviceDescriptorCatalog.RequiresCallerProvidedDeviceConfiguration
             && VirtioDeviceDescriptorCatalog.RequiresCallerProvidedFeatureMetadata
@@ -641,7 +607,7 @@ internal static class VirtioDeviceDescriptorCatalogTests
             && !VirtioDeviceDescriptorCatalog.PerformsPacketIo
             && !VirtioDeviceDescriptorCatalog.PerformsBlockIo
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioDeviceDescriptorDerivedBindingSource>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioDeviceDescriptorCatalogResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioDeviceDescriptorCatalogResult>());
     }
 
     private static VirtioDeviceDescriptorSource CreateSource(

@@ -3,53 +3,15 @@ using System.Xml.Linq;
 
 internal static class HostToolProjectBoundaryTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("tools.project boundary excludes artifact sources", TestToolsExcludeArtifactSources, ref failures);
-        Run("tools.project boundary keeps expected host tools", TestToolProjectInventory, ref failures);
-        Run(
-            "tools.x64 serializer excludes native and object sources",
-            TestX64SerializerSourceBoundary,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Host tool project boundary tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("tools.project boundary excludes artifact sources", HostLane.Fast, 0)]
     private static bool TestToolsExcludeArtifactSources()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string propsPath = Path.Combine(repositoryRoot, "tools", "Directory.Build.props");
         if (!File.Exists(propsPath))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         XDocument document = XDocument.Load(propsPath);
@@ -58,28 +20,33 @@ internal static class HostToolProjectBoundaryTests
             .FirstOrDefault()
             ?.Value;
 
-        return defaultItemExcludes is not null
+        return HostCheck.Result(defaultItemExcludes is not null
             && defaultItemExcludes.Contains("$(DefaultItemExcludes)", StringComparison.Ordinal)
-            && defaultItemExcludes.Contains("$(MSBuildProjectDirectory)\\artifacts\\**\\*", StringComparison.Ordinal);
+            && defaultItemExcludes.Contains("$(MSBuildProjectDirectory)\\artifacts\\**\\*", StringComparison.Ordinal));
     }
 
+    [HostTest("tools.project boundary keeps expected host tools", HostLane.Fast, 1)]
     private static bool TestToolProjectInventory()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string toolsRoot = Path.Combine(repositoryRoot, "tools");
         string[] projects = Directory.GetFiles(toolsRoot, "*.csproj", SearchOption.AllDirectories)
+            .Where(path => !HasGeneratedDirectorySegment(toolsRoot, path) &&
+                !Path.GetRelativePath(toolsRoot, path).Split(Path.DirectorySeparatorChar).Contains("artifacts"))
             .Select(path => Path.GetFileNameWithoutExtension(path))
             .Order(StringComparer.Ordinal)
             .ToArray();
 
-        return projects.Length == 5
-            && projects[0] == "OS.ImageBuilder"
-            && projects[1] == "OS.LibvirtRunner"
-            && projects[2] == "OS.ManifestTool"
-            && projects[3] == "OS.QemuRunner"
-            && projects[4] == "OS.X64TextSerializerGenerator";
+        string[] declared = XDocument.Load(Path.Combine(repositoryRoot, "CLROS.slnx"))
+            .Descendants("Project").Select(node => (string?)node.Attribute("Path"))
+            .Where(path => path is not null && path.Replace('\\', '/').StartsWith("tools/", StringComparison.Ordinal))
+            .Select(path => Path.GetFileNameWithoutExtension(path!)).Order(StringComparer.Ordinal).ToArray();
+        HostCheck.True(declared.Length != 0, "solution declares host tools");
+        HostCheck.Equal(string.Join(";", declared), string.Join(";", projects));
+        return HostCheck.Result(true);
     }
 
+    [HostTest("tools.x64 serializer excludes native and object sources", HostLane.Fast, 2)]
     private static bool TestX64SerializerSourceBoundary()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -89,7 +56,7 @@ internal static class HostToolProjectBoundaryTests
             "OS.X64TextSerializerGenerator");
         if (!Directory.Exists(generatorRoot))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         HashSet<string> forbiddenExtensions = new(StringComparer.OrdinalIgnoreCase)
@@ -102,10 +69,10 @@ internal static class HostToolProjectBoundaryTests
             ".s"
         };
 
-        return Directory
+        return HostCheck.Result(Directory
             .EnumerateFiles(generatorRoot, "*", SearchOption.AllDirectories)
             .Where(path => !HasGeneratedDirectorySegment(generatorRoot, path))
-            .All(path => !forbiddenExtensions.Contains(Path.GetExtension(path)));
+            .All(path => !forbiddenExtensions.Contains(Path.GetExtension(path))));
     }
 
     private static bool HasGeneratedDirectorySegment(string root, string path)

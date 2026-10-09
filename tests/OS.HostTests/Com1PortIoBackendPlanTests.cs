@@ -4,66 +4,14 @@ using OS.Kernel.Runtime;
 
 internal static class Com1PortIoBackendPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run(
-            "com1 port io backend plan accepts ready prerequisites",
-            TestAcceptsReadyPrerequisites,
-            ref failures);
-        Run(
-            "com1 port io backend plan rejects invalid serial config",
-            TestRejectsInvalidSerialConfiguration,
-            ref failures);
-        Run(
-            "com1 port io backend plan rejects missing stub readiness",
-            TestRejectsMissingStubReadiness,
-            ref failures);
-        Run(
-            "com1 port io backend plan rejects insufficient stub memory plan",
-            TestRejectsInsufficientStubMemoryPlan,
-            ref failures);
-        Run(
-            "com1 port io backend plan default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("COM1 port I/O backend plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("com1 port io backend plan accepts ready prerequisites", HostLane.Fast, 0)]
     private static bool TestAcceptsReadyPrerequisites()
     {
         Com1PortIoBackendPlanResult result =
             Com1PortIoBackendPlan.CreateReady().Validate();
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == Com1PortIoBackendPlanStatus.Success
             && result.SerialConfigurationStatus == SerialPortConfigurationStatus.Success
@@ -72,9 +20,10 @@ internal static class Com1PortIoBackendPlanTests
             && result.StubMemoryPlanStatus == ExecutableStubMemoryPlanStatus.Success
             && result.RequiredStubBytes == PortIoStubPlan.Out8RequiredByteLength + PortIoStubPlan.In8RequiredByteLength
             && result.RequiredStubBytes == Com1PortIoBackendPlan.RequiredExecutableStubBytes
-            && result.AvailableStubBytes >= (nuint)Com1PortIoBackendPlan.RequiredExecutableStubBytes;
+            && result.AvailableStubBytes >= (nuint)Com1PortIoBackendPlan.RequiredExecutableStubBytes);
     }
 
+    [HostTest("com1 port io backend plan rejects invalid serial config", HostLane.Fast, 1)]
     private static bool TestRejectsInvalidSerialConfiguration()
     {
         Com1PortIoBackendPlan plan = new Com1PortIoBackendPlan(
@@ -90,7 +39,7 @@ internal static class Com1PortIoBackendPlanTests
 
         Com1PortIoBackendPlanResult result = plan.Validate();
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == Com1PortIoBackendPlanStatus.InvalidSerialConfiguration
             && result.SerialConfigurationStatus == SerialPortConfigurationStatus.InvalidBasePort
@@ -98,9 +47,10 @@ internal static class Com1PortIoBackendPlanTests
             && result.StubPlanStatus == PortIoStubPlanStatus.Success
             && result.StubMemoryPlanStatus == ExecutableStubMemoryPlanStatus.Success
             && result.RequiredStubBytes == Com1PortIoBackendPlan.RequiredExecutableStubBytes
-            && result.AvailableStubBytes >= (nuint)Com1PortIoBackendPlan.RequiredExecutableStubBytes;
+            && result.AvailableStubBytes >= (nuint)Com1PortIoBackendPlan.RequiredExecutableStubBytes);
     }
 
+    [HostTest("com1 port io backend plan rejects missing stub readiness", HostLane.Fast, 2)]
     private static bool TestRejectsMissingStubReadiness()
     {
         Com1PortIoBackendPlan missingOperationPlan = new Com1PortIoBackendPlan(
@@ -127,7 +77,7 @@ internal static class Com1PortIoBackendPlanTests
         Com1PortIoBackendPlanResult operationResult = missingOperationPlan.Validate();
         Com1PortIoBackendPlanResult stubResult = missingStubPlan.Validate();
 
-        return !operationResult.Succeeded
+        return HostCheck.Result(!operationResult.Succeeded
             && operationResult.IsInitialized
             && operationResult.Status == Com1PortIoBackendPlanStatus.MissingOperationPlan
             && operationResult.OperationPlanStatus == PortIoOperationPlanStatus.InvalidOperationKind
@@ -138,9 +88,10 @@ internal static class Com1PortIoBackendPlanTests
             && stubResult.Status == Com1PortIoBackendPlanStatus.MissingStubPlan
             && stubResult.OperationPlanStatus == PortIoOperationPlanStatus.Success
             && stubResult.StubPlanStatus == PortIoStubPlanStatus.InvalidOperationKind
-            && stubResult.StubMemoryPlanStatus == ExecutableStubMemoryPlanStatus.Success;
+            && stubResult.StubMemoryPlanStatus == ExecutableStubMemoryPlanStatus.Success);
     }
 
+    [HostTest("com1 port io backend plan rejects insufficient stub memory plan", HostLane.Fast, 3)]
     private static bool TestRejectsInsufficientStubMemoryPlan()
     {
         Com1PortIoBackendPlanResult unavailableResult =
@@ -165,7 +116,7 @@ internal static class Com1PortIoBackendPlanTests
         Com1PortIoBackendPlanResult tooSmallResult =
             Com1PortIoBackendPlan.CreateReady(tooSmallMemoryPlan).Validate();
 
-        return !unavailableResult.Succeeded
+        return HostCheck.Result(!unavailableResult.Succeeded
             && unavailableResult.IsInitialized
             && unavailableResult.Status == Com1PortIoBackendPlanStatus.StubMemoryPlanUnavailable
             && unavailableResult.StubMemoryPlanStatus == ExecutableStubMemoryPlanStatus.InvalidPayloadLength
@@ -176,14 +127,15 @@ internal static class Com1PortIoBackendPlanTests
             && tooSmallResult.Status == Com1PortIoBackendPlanStatus.StubMemoryPlanTooSmall
             && tooSmallResult.StubMemoryPlanStatus == ExecutableStubMemoryPlanStatus.Success
             && tooSmallResult.RequiredStubBytes == Com1PortIoBackendPlan.RequiredExecutableStubBytes
-            && tooSmallResult.AvailableStubBytes == (nuint)Com1PortIoBackendPlan.RequiredExecutableStubBytes - 1;
+            && tooSmallResult.AvailableStubBytes == (nuint)Com1PortIoBackendPlan.RequiredExecutableStubBytes - 1);
     }
 
+    [HostTest("com1 port io backend plan default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         Com1PortIoBackendPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == Com1PortIoBackendPlanStatus.Success
             && result.SerialConfigurationStatus == SerialPortConfigurationStatus.Success
@@ -191,6 +143,6 @@ internal static class Com1PortIoBackendPlanTests
             && result.StubPlanStatus == PortIoStubPlanStatus.Success
             && result.StubMemoryPlanStatus == ExecutableStubMemoryPlanStatus.Success
             && result.RequiredStubBytes == 0
-            && result.AvailableStubBytes == 0;
+            && result.AvailableStubBytes == 0);
     }
 }

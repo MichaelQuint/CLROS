@@ -16,56 +16,29 @@ internal static class M04LayoutContractEfiIntegrationTests
     private const string SpanFlag = "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe";
     private const string EndianFlag = "EnableM04IndependentEndianConformanceProbe";
     private const string Symbol = "M04_LAYOUT_CONTRACT_PROBE";
-    private const string Ready = "CLROS_M04_005_READY profile=ilc10.0.12-win-x64-le checks=19 shapes=3 prefixBytes=24 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail";
-    private const string Failed = "M04_LAYOUT_CONTRACT_FAILED";
+    private const string Ready = OS.Tooling.QemuContracts.Record280;
+    private const string Failed = OS.Tooling.QemuContracts.Record318;
     private const string Leaf = "src/OS.Kernel/Runtime/ObjectArrayStringEETypeMethodTableLayoutContracts.cs";
-    private const string LeafTests = "tests/OS.HostTests/ObjectArrayStringEETypeMethodTableLayoutContractsTests.cs";
-    private const string CompileHash = "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
+    private static readonly string CompileHash = OS.Tooling.EfiContracts.CompileInventorySha256;
     // Reviewed source identity uses UTF-8 text with only CRLF normalized to LF.
     // EFI artifact and same-build source-authority hashes remain raw byte hashes.
-    private const string LeafSourceHash = "ab9fd84a8010567c58111ab8c336ddac3e27c1942676c34e3ef31b51aa550225";
-    private const string LeafTestSourceHash = "a134d5a11676f97a63054065ebb616b32b3e9fd81d9e4842447897640e73bf7a";
+    private static readonly string LeafSourceHash = OS.Tooling.EfiContracts.SourceIdentities[@"..\OS.Kernel\Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs"];
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        Console.WriteLine("TEST_START m04.005.efi.integration");
-        Run("frozen leaf and explicit default-off closure", TestProject);
-        Run("source identity accepts line endings and rejects content changes", TestSourceIdentity);
-        Run("no-stdlib metadata preserves NoInlining", TestNoStdLibMetadata);
-        Run("compiled adapter accepts results and rejects each mismatch", TestAdapter);
-        Run("build and verifier reject missing and conflicting prerequisites", TestBuildAndVerifierArguments);
-        Run("profile propagation and sibling preservation", TestProfiles);
-        Run("ordinal whole-line transcript and OVMF return", TestStrictTranscript);
-        Run("frozen kernel source admission rejects mutations", TestSourceFirewall);
-        Console.WriteLine("TEST_PASS m04.005.efi.integration");
-    }
 
-    private static void Run(string name, Action test)
-    {
-        Console.WriteLine("TEST_START m04.005.efi " + name);
-        try
-        {
-            test();
-            Console.WriteLine("TEST_PASS m04.005.efi " + name);
-        }
-        catch (Exception error)
-        {
-            Console.WriteLine("TEST_FAIL m04.005.efi " + name + " " + error.Message);
-            throw;
-        }
-    }
 
+
+
+    [HostTest("m04.005.efi frozen leaf and explicit default-off closure", HostLane.Fast, 0)]
     private static void TestProject()
     {
         string root = Root();
         XDocument project = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
         string[] keys = project.Descendants("Compile").Select(item =>
             item.Attribute("Include")!.Value + "|" + (item.Attribute("Link")?.Value ?? "")).ToArray();
-        Require(keys.Length == 122 && Hash(Encoding.UTF8.GetBytes(string.Join('\n', keys) + "\n")) == CompileHash,
-            "exact 88-item closure");
-        Require(SourceIdentityHash(File.ReadAllText(Path.Combine(root, Leaf))) == LeafSourceHash &&
-            SourceIdentityHash(File.ReadAllText(Path.Combine(root, LeafTests))) == LeafTestSourceHash, "reviewed source identities");
+        Require(keys.Length == OS.Tooling.EfiContracts.CompileItems.Count && Hash(Encoding.UTF8.GetBytes(string.Join('\n', keys) + "\n")) == CompileHash,
+            "reviewed explicit compile inventory");
+        Require(SourceIdentityHash(File.ReadAllText(Path.Combine(root, Leaf))) == LeafSourceHash, "reviewed production source identity");
+        HostCheck.Registered(typeof(ObjectArrayStringEETypeMethodTableLayoutContractsTests));
         XElement[] defaults = project.Descendants(Flag).ToArray();
         Require(defaults.Length == 1 && defaults[0].Value == "false" &&
             defaults[0].Attribute("Condition")?.Value == "'$(" + Flag + ")' == ''", "one false default");
@@ -81,19 +54,17 @@ internal static class M04LayoutContractEfiIntegrationTests
             Require(project.Descendants("Error").Count(error => error.Attribute("Condition")?.Value == condition) == 1,
                 "project dependency " + dependency);
         }
-        foreach (string file in new[] { "scripts/build-efi-shell.ps1", "scripts/test-efi-artifact.ps1" })
+        foreach (bool build in new[] { true, false })
         {
-            string source = File.ReadAllText(Path.Combine(root, file)).Replace("\r", "");
-            Require(source.Contains("-p:" + Flag + "=true", StringComparison.Ordinal) &&
-                source.Contains(Flag + ",\" +", StringComparison.Ordinal) &&
-                source.Contains("ObjectArrayStringEETypeMethodTableLayoutContracts.cs|Runtime", StringComparison.Ordinal),
-                "requested/evaluated/source profile: " + file);
+            var profile = OS.Tooling.EfiOptions.Parse(["--" + EndianFlag, "--" + SpanFlag, "--" + ArithmeticFlag, "--" + Flag], build).Profile();
+            foreach (string flag in new[] { EndianFlag, SpanFlag, ArithmeticFlag, Flag }) Require(profile.IsEnabled(flag), "explicit selected profile " + flag);
         }
     }
 
+    [HostTest("m04.005.efi source identity accepts line endings and rejects content changes", HostLane.Fast, 1)]
     private static void TestSourceIdentity()
     {
-        foreach ((string relative, string expected) in new[] { (Leaf, LeafSourceHash), (LeafTests, LeafTestSourceHash) })
+        foreach ((string relative, string expected) in new[] { (Leaf, LeafSourceHash) })
         {
             string lf = File.ReadAllText(Path.Combine(Root(), relative)).Replace("\r\n", "\n", StringComparison.Ordinal);
             string crlf = lf.Replace("\n", "\r\n", StringComparison.Ordinal);
@@ -106,6 +77,7 @@ internal static class M04LayoutContractEfiIntegrationTests
         }
     }
 
+    [HostTest("m04.005.efi no-stdlib metadata preserves NoInlining", HostLane.Native, 2)]
     private static void TestNoStdLibMetadata()
     {
         string root = Root();
@@ -138,7 +110,7 @@ internal static class M04LayoutContractEfiIntegrationTests
         Require((evaluate.ImplAttributes & MethodImplAttributes.NoInlining) != 0, "NoInlining retained in IL metadata");
     }
 
-
+    [HostTest("m04.005.efi compiled adapter accepts results and rejects each mismatch", HostLane.Native, 3)]
     private static void TestAdapter()
     {
         string root = Root();
@@ -226,6 +198,7 @@ internal static class M04LayoutContractEfiIntegrationTests
 
     private static string[] EnabledArguments() => ["-BuildEfi", "-" + EndianFlag, "-" + SpanFlag, "-" + ArithmeticFlag, "-" + Flag];
 
+    [HostTest("m04.005.efi profile propagation and sibling preservation", HostLane.Fast, 5)]
     private static void TestProfiles()
     {
         string root = Root();
@@ -259,10 +232,8 @@ internal static class M04LayoutContractEfiIntegrationTests
             Require(Qemu(root, EnabledArguments().Where(x => x != missing).ToArray()).ExitCode != 0, "reject missing " + missing);
         foreach (string disabled in new[] { "-" + EndianFlag, "-" + SpanFlag, "-" + ArithmeticFlag })
         {
-            string command = "& '" + Path.Combine(root, "scripts/run-qemu-smoke.ps1").Replace("'", "''") + "' -BootPolicy Diagnostic -DryRun " +
-                string.Join(' ', EnabledArguments().Select(x => x == disabled ? x + ":$false" : x));
-            ScriptResult explicitFalse = Process(root, "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command);
-            Require(explicitFalse.ExitCode != 0 && explicitFalse.Output.Contains("m04_layout_contract_probe_requires_explicit_m04_chain", StringComparison.Ordinal), explicitFalse.Output);
+            ScriptResult explicitFalse = Qemu(root, EnabledArguments().Select(x => x == disabled ? x + ":false" : x).ToArray());
+            Require(explicitFalse.ExitCode != 0 && explicitFalse.Output.Contains("m04_layout_contract_requires_explicit_m04_chain", StringComparison.Ordinal), explicitFalse.Output);
         }
         foreach (string extra in new[] { "-SkipImageBuild", "-EnableM02OwnedGdtTssTerminalProbe", "-EnableM02Ud2VectorStateProbe" })
             Require(Qemu(root, [.. EnabledArguments(), extra]).ExitCode != 0, "reject conflicting " + extra);
@@ -270,46 +241,33 @@ internal static class M04LayoutContractEfiIntegrationTests
             Require(Qemu(root, argument, Ready).ExitCode != 0, "marker requires typed profile " + argument);
     }
 
+    [HostTest("m04.005.efi build and verifier reject missing and conflicting prerequisites", HostLane.Fast, 4)]
     private static void TestBuildAndVerifierArguments()
     {
-        string root = Root();
         string[] switches = EnabledArguments()[1..];
-        foreach (string script in new[] { "scripts/build-efi-shell.ps1", "scripts/test-efi-artifact.ps1" })
+        foreach (bool build in new[] { true, false })
         {
-            string[] preflight = script.Contains("build-efi", StringComparison.Ordinal)
-                ? ["-PreflightOnly", "-LogPath", Path.Combine(Scratch("invalid-profile"), "preflight.log")] : [];
             foreach (string missing in new[] { "-" + EndianFlag, "-" + SpanFlag, "-" + ArithmeticFlag })
             {
-                ScriptResult result = Process(root, "powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
-                    Path.Combine(root, script), .. preflight, .. switches.Where(x => x != missing)]);
-                Require(result.ExitCode != 0 && result.Output.Contains("m04_layout_contract_requires_explicit_m04_chain", StringComparison.Ordinal), result.Output);
-                // PowerShell -Command preserves explicit false SwitchParameter values on 5.1.
-                string command = "& '" + Path.Combine(root, script).Replace("'", "''") + "' " +
-                    string.Join(' ', preflight.Select(x => x.StartsWith("-", StringComparison.Ordinal) ? x : "'" + x.Replace("'", "''") + "'")) + " " +
-                    string.Join(' ', switches.Select(x => x == missing ? x + ":$false" : x));
-                ScriptResult explicitFalse = Process(root, "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command);
-                Require(explicitFalse.ExitCode != 0 && explicitFalse.Output.Contains("m04_layout_contract_requires_explicit_m04_chain", StringComparison.Ordinal), explicitFalse.Output);
+                foreach (string[] arguments in new[] { switches.Where(x => x != missing).ToArray(), switches.Select(x => x == missing ? x + ":false" : x).ToArray() })
+                {
+                    var result = HostToolProcess.ValidateEfiProfile(build, arguments);
+                    Require(result.ExitCode != 0 && result.Output.Contains("m04_layout_contract_requires_explicit_m04_chain", StringComparison.Ordinal), result.Output);
+                }
             }
             foreach (string terminal in new[] { "-EnableM02OwnedGdtTssTerminalProbe", "-EnableM02Ud2VectorStateProbe" })
             {
-                ScriptResult result = Process(root, "powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
-                    Path.Combine(root, script), .. preflight, .. switches, terminal]);
+                var result = HostToolProcess.ValidateEfiProfile(build, [.. switches, terminal]);
                 Require(result.ExitCode != 0 && result.Output.Contains("m04_layout_contract_forbids_", StringComparison.Ordinal), result.Output);
             }
         }
     }
 
+    [HostTest("m04.005.efi ordinal whole-line transcript and OVMF return", HostLane.Fast, 6)]
     private static void TestStrictTranscript()
     {
         string root = Root();
-        string source = File.ReadAllText(Path.Combine(root, "scripts/run-qemu-smoke.ps1"));
         string directory = Scratch("serial");
-        string markerDefinitions = Between(source, "$script:M04IndependentEndianConformanceReadyMarker =", "function Invoke-NativeCommand {");
-        string function = Between(source, "function Assert-M04LayoutContractTranscript {", "function Merge-QemuSmokeMarkerList {");
-        Require(function.Contains("[System.StringComparison]::Ordinal)", StringComparison.Ordinal) &&
-            !function.Contains("-ceq", StringComparison.Ordinal) && !function.Contains("-cne", StringComparison.Ordinal), "ordinal whole-line comparison");
-        Require(source.Contains("if ($EnableM04LayoutContractProbe -and -not $DryRun -and $runnerExitCode -eq 0)", StringComparison.Ordinal) &&
-            source.Contains("Assert-M04LayoutContractTranscript -SerialLogPath $SerialLog", StringComparison.Ordinal), "strict post-capture gate enabled only for layout");
         string[] chain = Markers(Qemu(root, EnabledArguments()).Output, "ORDERED_MARKERS ");
         string good = string.Join('\n', chain) + "\nOS_BOOT_OK\nTEST_PASS boot.sequence\nOS_SMOKE_PASS\n";
         List<(string Text, bool Accept)> cases = [(good, true), (good.Replace("\n", "\r\n", StringComparison.Ordinal), true)];
@@ -349,58 +307,16 @@ internal static class M04LayoutContractEfiIntegrationTests
         cases.Add((good.Replace(Ready, Ready.Insert(7, "\uFEFF"), StringComparison.Ordinal), false));
         var files = cases.Select((c, i) => new { Path = Path.Combine(directory, i + ".log"), c.Accept }).ToArray();
         for (int i = 0; i < cases.Count; i++) File.WriteAllText(files[i].Path, cases[i].Text, new UTF8Encoding(false));
-        string manifest = Path.Combine(directory, "cases.json");
-        File.WriteAllText(manifest, System.Text.Json.JsonSerializer.Serialize(files));
-        string harness = Path.Combine(directory, "Check.ps1");
-        File.WriteAllText(harness, "$ErrorActionPreference='Stop'\n" + markerDefinitions + function +
-            "\n$cases = Get-Content -Raw -LiteralPath '" + manifest.Replace("'", "''") + "' | ConvertFrom-Json\n" + """
-            foreach ($case in $cases) {
-                $accepted = $true
-                try { Assert-M04LayoutContractTranscript -SerialLogPath $case.Path }
-                catch { $accepted = $false }
-                if ($accepted -ne $case.Accept) { throw ('serial case: ' + $case.Path) }
-            }
-            Write-Output ('TEST_PASS m04.005.efi.serial cases=' + $cases.Count)
-            """);
-        ScriptResult result = Process(root, "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", harness);
-        File.WriteAllText(Path.Combine(directory, "run.log"), result.Output);
-        Require(result.ExitCode == 0 && result.Output.Contains("TEST_PASS m04.005.efi.serial", StringComparison.Ordinal), result.Output);
+        foreach (var item in files)
+        {
+            bool accepted = true;
+            try { OS.Tooling.QemuTranscripts.AssertM04LayoutContractTranscript(item.Path); }
+            catch (OS.Tooling.ToolFailure) { accepted = false; }
+            Require(accepted == item.Accept, "strict whole-line transcript " + item.Path);
+        }
     }
-
-    private static void TestSourceFirewall()
-    {
-        string root = Root();
-        string directory = Scratch("firewall");
-        string harness = Path.Combine(directory, "Check.ps1");
-        File.WriteAllText(harness, """
-            param([string] $Root)
-            $ErrorActionPreference='Stop'
-            $source = Join-Path $Root 'scripts/build-efi-shell.ps1'
-            $tokens=$null; $errors=$null
-            $ast=[System.Management.Automation.Language.Parser]::ParseFile($source,[ref]$tokens,[ref]$errors)
-            if ($errors.Count -ne 0) { throw 'script parse' }
-            foreach ($name in @('Get-M01Utf8Sha256','Get-NostdlibEfiActiveSource','Test-M01ActiveSourceSurface')) {
-                $definition=$ast.Find({param($node) $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq $name},$true)
-                . ([scriptblock]::Create($definition.Extent.Text))
-            }
-            $name='..\OS.Kernel\Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs'
-            $text=[IO.File]::ReadAllText((Join-Path $Root 'src/OS.Kernel/Runtime/ObjectArrayStringEETypeMethodTableLayoutContracts.cs'))
-            $lf=$text.Replace("`r`n","`n")
-            foreach ($valid in @($lf,$lf.Replace("`n","`r`n"))) {
-                if (-not (Test-M01ActiveSourceSurface -SourceText $valid -SourceName $name).Succeeded) { throw 'line endings' }
-            }
-            foreach ($changed in @($lf+' ',$lf+"`r",$lf.Replace('10.0.12','10.0.13'),$lf+"`n// changed")) {
-                if ((Test-M01ActiveSourceSurface -SourceText $changed -SourceName $name).Succeeded) { throw 'content identity' }
-            }
-            foreach ($other in @('..\OS.Kernel\Runtime\Other.cs',($name+' '),$name.ToLowerInvariant(),
-                $name.Replace('\','/'),$name.Replace('Runtime\','Runtime\.\'),$name.Insert(10,[string][char]0))) {
-                if ((Test-M01ActiveSourceSurface -SourceText $lf -SourceName $other).Succeeded) { throw 'path identity' }
-            }
-            Write-Output 'TEST_PASS m04.005.efi.firewall'
-            """);
-        ScriptResult result = Process(root, "powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", harness, "-Root", root);
-        Require(result.ExitCode == 0 && result.Output.Contains("TEST_PASS m04.005.efi.firewall", StringComparison.Ordinal), result.Output);
-    }
+    [HostTest("m04.005.efi frozen kernel source admission rejects mutations", HostLane.Fast, 7)]
+    private static void TestSourceFirewall() => EfiSourceAdmissionTests.ReviewedIdentity();
 
     private static string Between(string text, string first, string next)
     {
@@ -528,16 +444,21 @@ internal static class M04LayoutContractEfiIntegrationTests
     private static string Compile(string root, string relative) =>
         "<Compile Include=\"" + SecurityElement.Escape(Path.Combine(root, relative)) + "\"/>";
 
-    private static ScriptResult Qemu(string root, params string[] arguments) =>
-        Process(root, "powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File",
-            Path.Combine(root, "scripts/run-qemu-smoke.ps1"), "-BootPolicy", "Diagnostic", "-DryRun", .. arguments]);
+    private static ScriptResult Qemu(string root, params string[] arguments)
+    {
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. arguments]);
+        return new(result.ExitCode, result.Output + result.Error);
+    }
 
     private static ScriptResult Process(string root, string executable, params string[] arguments)
     {
         ProcessStartInfo start = new(executable)
         {
-            WorkingDirectory = root, UseShellExecute = false, CreateNoWindow = true,
-            RedirectStandardOutput = true, RedirectStandardError = true
+            WorkingDirectory = root,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
         };
         foreach (string argument in arguments) start.ArgumentList.Add(argument);
         using System.Diagnostics.Process process = System.Diagnostics.Process.Start(start)!;

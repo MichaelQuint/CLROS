@@ -1,3 +1,4 @@
+using OS.Tooling;
 using System.Diagnostics;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
@@ -12,36 +13,19 @@ using System.Xml.Linq;
 internal static class M02PageFaultCr2ErrorCodeEfiIntegrationTests
 {
     private const string Flag="EnableM02PageFaultCr2ErrorCodeProbe";
-    private const string Ready="CLROS_M02_014_READY vector=14 hardwareErrorCode=true errorCode=0 cr2=0 pageZeroAbsent=true guardPagesAbsent=4 ist=2 rf=true ownedCr3=true hardwareStateCaptured=true faultTriggered=true terminalHalt=true postExitBootServices=false";
+    private static readonly string Ready=QemuContracts.M02PageFaultCr2ErrorCodeReadyMarker[0];
     private static readonly string[] Prerequisites=["EnableM01LoadedImageStackProbe","EnableM01LiveAllocatorProbe","EnableM01OwnedPagingProbe","EnableM02SafeStubProbe","EnableM02CheckedPortIoBindingProbe","EnableM02Com1OwnedPortIoProbe","EnableM02OwnedCom1ReadyProbe","EnableM02PanicSafeOwnedCom1Probe"];
     private static readonly string[] Conflicts=["EnableM02OwnedX64GdtEncodingProbe","EnableM02GuardedIstStackAllocationProbe","EnableM02OwnedGdtTssTerminalProbe","EnableM02NormalizedInterruptFramePageProbe","EnableM02OwnedIdtGatePopulationProbe","EnableM02IdtrContinuedExecutionProbe","EnableM02Ud2VectorStateProbe","EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe","EnableM04ArithmeticConformanceProbe","EnableM04LayoutContractProbe","EnableM04ManagedHeapPageRangeProbe"];
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        Console.WriteLine("TEST_START m02.014.efi");
-        Run("source closure and terminal ordering",TestProject);
-        Run("compiled actual adapter controlled backing",TestAdapter);
-        Run("strict numeric transcript and lifecycle",TestTranscript);
-        Run("default-off profile prerequisites and conflicts",TestProfiles);
-        Run("frozen source firewall",TestFirewall);
-        Run("complete default and enabled actual NativeAOT artifact authority",TestArtifacts);
-        Console.WriteLine("CLROS_M02_014_EFI_HOST_READY guestExecution=false faultTriggered=false postExitBootServices=false");
-        Console.WriteLine("TEST_PASS m02.014.efi");
-    }
-    private static void Run(string name,Action action)
-    {
-        Console.WriteLine("TEST_START m02.014.efi "+name);
-        try {action();Console.WriteLine("TEST_PASS m02.014.efi "+name);}
-        catch(Exception e){Console.WriteLine("TEST_FAIL m02.014.efi "+name+" "+e.Message);throw;}
-    }
+    [HostTest("m02.014.efi source closure and terminal ordering", HostLane.Fast, 0)]
     private static void TestProject()
     {
         string root=Root(); XDocument project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
-        var items=project.Descendants("Compile").ToArray();Require(items.Length==122,"122 explicit compile items");
+        var items=project.Descendants("Compile").ToArray();Require(items.Length==OS.Tooling.EfiContracts.CompileItems.Count,"complete explicit compile inventory");
         foreach(string name in new[]{"NullPointerProbeAuthority.cs","NullPageFaultProbePlan.cs","SeparateDisabledDefaultPageFaultCR2ErrorCode.cs","SeparateDisabledDefaultPageFaultPageTables.cs","SeparateDisabledDefaultPageFaultTransition.cs"})
             Require(items.Count(x=>x.Attribute("Include")?.Value=="..\\OS.Kernel\\Diagnostics\\"+name && x.Attribute("Link")?.Value=="Diagnostics\\"+name)==1,"exact new item "+name);
         Require(BootSequencePlanTests.HasNoStdlibBootAuthorityBoundary(),"guarded EFI boot/probe authority excludes host surfaces");
-        foreach(var pair in new[]{("src/OS.Kernel/Diagnostics/SeparateDisabledDefaultPageFaultPageTables.cs","4ec0cfb1cd2a07f0834463c5fd2ea1d6882e3fc76e85b3d9e49607b47abbb3e2"),("src/OS.Kernel/Diagnostics/SeparateDisabledDefaultPageFaultTransition.cs","5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373"),("tests/OS.HostTests/SeparateDisabledDefaultPageFaultTransitionTests.cs","463db1a1108fb4a62917c6fb4408c6c08b21301b9ed62e94faf62fd8ae4daa8e")})
+        HostCheck.Registered(typeof(SeparateDisabledDefaultPageFaultTransitionTests));
+        foreach(var pair in new[]{("src/OS.Kernel/Diagnostics/SeparateDisabledDefaultPageFaultPageTables.cs",OS.Tooling.EfiContracts.SourceIdentities[@"..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultPageTables.cs"]),("src/OS.Kernel/Diagnostics/SeparateDisabledDefaultPageFaultTransition.cs",EfiContracts.PageFaultTransitionSourceSha256)})
             Require(Hash(File.ReadAllText(Path.Combine(root,pair.Item1)).Replace("\r\n","\n",StringComparison.Ordinal))==pair.Item2,"frozen LF source "+pair.Item1);
         string authority=File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Diagnostics/NullPointerProbeAuthority.cs"));
         Require(authority.Contains("public const bool EnableNullPointerPanicProbe = false;",StringComparison.Ordinal) && !File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Diagnostics/Probes.cs")).Contains("public const bool EnableNullPointerPanicProbe",StringComparison.Ordinal),"unique false authority");
@@ -56,6 +40,7 @@ internal static class M02PageFaultCr2ErrorCodeEfiIntegrationTests
         Require(adapter.Contains("stackalloc OS.Kernel.Diagnostics.SeparatePageFaultMappingRange[6]",StringComparison.Ordinal)&&adapter.Contains("stackalloc OS.Kernel.Memory.X64PageTableImagePage[43]",StringComparison.Ordinal),"bounded caller stack scratch");
         int caller=entry.IndexOf("M02PageFaultAdapter.Run(s_console",StringComparison.Ordinal);Require(caller>entry.LastIndexOf("EfiEntry.WriteBootSequencePlan(",caller,StringComparison.Ordinal),"terminal diagnostic continuation");
     }
+    [HostTest("m02.014.efi compiled actual adapter controlled backing", HostLane.Native, 1)]
     private static void TestAdapter()
     {
         string root=Root(),dir=Scratch("adapter");
@@ -171,10 +156,11 @@ internal static class M02PageFaultCr2ErrorCodeEfiIntegrationTests
         File.WriteAllText(Path.Combine(dir,"Adapter.csproj"),"<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks><ImplicitUsings>enable</ImplicitUsings></PropertyGroup><ItemGroup><ProjectReference Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS.Kernel/OS.Kernel.csproj"))+"\"/><Compile Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS/Boot/X64InstructionPublication.cs"))+"\"/><Compile Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS/Runtime/RuntimeImportAttribute.cs"))+"\"/></ItemGroup></Project>");
         Result r=Process(root,"dotnet","run","--project",Path.Combine(dir,"Adapter.csproj"),"-c","Release");File.WriteAllText(Path.Combine(dir,"run.log"),r.Output);Require(r.Code==0,r.Output);
     }
+    [HostTest("m02.014.efi strict numeric transcript and lifecycle", HostLane.Fast, 2)]
     private static void TestTranscript()
     {
         string root=Root(),dir=Scratch("transcript");
-        string valid="OVMF firmware\r\nOS_BOOT_OK\r\nTEST_PASS boot.sequence\r\nOS_SMOKE_PASS\r\nTEST_START m02.014\r\nM02_PAGE_FAULT_LAYOUT code=0x0000000000100000 data=0x0000000000200000 tables=0x0000000000300000 faultRip=0x0000000000101B19 codePages=3 dataPages=10 tablePages=43 mappedPages=52\r\nM02_PAGE_FAULT_MODE firmwareCs=0x0000000000000008 cr0=0x0000000080010033 firmwareCr3=0x0000000000400000 cr4Before=0x00000000000000A0 efer=0x0000000000000D00 pat=0x0007040600070406 physicalBits=0x0000000000000030\r\nM02_PAGE_FAULT_ROOT cr3=0x0000000000300000 expectedCr3=0x0000000000300000 cr4=0x0000000000000020 expectedCr4=0x0000000000000020\r\nM02_PAGE_FAULT_ABSENT role=zero linear=0x0000000000000000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000303003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_ABSENT role=df linear=0x0000000000202000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000304003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_ABSENT role=pf linear=0x0000000000204000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000304003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_ABSENT role=nmi linear=0x0000000000206000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000304003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_ABSENT role=transition linear=0x0000000000208000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000304003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_FRAME vector=0x000000000000000E hasErrorCode=0x0000000000000001 error=0x0000000000000000 cr2=0x0000000000000000 rip=0x0000000000101B19 cs=0x0000000000000008 rflags=0x0000000000010046 savedRsp=0x000000000020A000 savedSs=0x0000000000000010 handlerRsp=0x0000000000205F40 handlerSs=0x0000000000000000 cr3=0x0000000000300000\r\nCLROS_M02_014_READY vector=14 hardwareErrorCode=true errorCode=0 cr2=0 pageZeroAbsent=true guardPagesAbsent=4 ist=2 rf=true ownedCr3=true hardwareStateCaptured=true faultTriggered=true terminalHalt=true postExitBootServices=false\r\nTEST_PASS m02.014\r\n";
+        string valid="OVMF firmware\r\nOS_BOOT_OK\r\nTEST_PASS boot.sequence\r\nOS_SMOKE_PASS\r\nTEST_START m02.014\r\nM02_PAGE_FAULT_LAYOUT code=0x0000000000100000 data=0x0000000000200000 tables=0x0000000000300000 faultRip=0x0000000000101B19 codePages=3 dataPages=10 tablePages=43 mappedPages=52\r\nM02_PAGE_FAULT_MODE firmwareCs=0x0000000000000008 cr0=0x0000000080010033 firmwareCr3=0x0000000000400000 cr4Before=0x00000000000000A0 efer=0x0000000000000D00 pat=0x0007040600070406 physicalBits=0x0000000000000030\r\nM02_PAGE_FAULT_ROOT cr3=0x0000000000300000 expectedCr3=0x0000000000300000 cr4=0x0000000000000020 expectedCr4=0x0000000000000020\r\nM02_PAGE_FAULT_ABSENT role=zero linear=0x0000000000000000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000303003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_ABSENT role=df linear=0x0000000000202000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000304003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_ABSENT role=pf linear=0x0000000000204000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000304003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_ABSENT role=nmi linear=0x0000000000206000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000304003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_ABSENT role=transition linear=0x0000000000208000 levelsRead=0x0000000000000004 pml4e=0x0000000000301003 pdpte=0x0000000000302023 pde=0x0000000000304003 pte=0x0000000000000000\r\nM02_PAGE_FAULT_FRAME vector=0x000000000000000E hasErrorCode=0x0000000000000001 error=0x0000000000000000 cr2=0x0000000000000000 rip=0x0000000000101B19 cs=0x0000000000000008 rflags=0x0000000000010046 savedRsp=0x000000000020A000 savedSs=0x0000000000000010 handlerRsp=0x0000000000205F40 handlerSs=0x0000000000000000 cr3=0x0000000000300000\r\n"+Ready+"\r\nTEST_PASS m02.014\r\n";
         List<(string Text,bool Accept)> cases=[(valid,true),(valid+"\r\n",true),(valid.Replace("firmwareCs=0x0000000000000008","firmwareCs=0x0000000000000038",StringComparison.Ordinal).Replace(" cs=0x0000000000000008"," cs=0x0000000000000038",StringComparison.Ordinal),true),(valid.Replace("firmwareCs=0x0000000000000008","firmwareCs=0x0000000000000038",StringComparison.Ordinal),false)];
         foreach(string token in new[]{"TEST_FAIL","OS_SMOKE_FAIL","CLROS_M02_014_HOST_READY","CLROS_M02_014_PAGE_IMAGE_HOST_READY","CLROS_M02_014_TRANSITION_HOST_READY","CLROS_M02_014_EFI_HOST_READY","M02_PAGE_FAULT_CR2_ERROR_CODE_FAILED","M02_PAGE_FAULT_LAYOUT"})
             for(int split=1;split<token.Length;split++)cases.Add((token[..split]+"\r\n"+token[split..]+"\r\n"+valid,false));
@@ -213,37 +199,22 @@ internal static class M02PageFaultCr2ErrorCodeEfiIntegrationTests
         var records=cases.Select((x,i)=>new{Path=Path.Combine(dir,i+".log"),x.Accept}).ToArray();
         for(int i=0;i<cases.Count;i++)File.WriteAllText(records[i].Path,cases[i].Text,new UTF8Encoding(false));
         File.WriteAllText(Path.Combine(dir,"cases.json"),JsonSerializer.Serialize(records));
-        string script="param([string]$Root,[string]$Cases)\n$ErrorActionPreference='Stop'\n"+ExtractFunctions+"\n"+"""
-            $names=@('Assert-M02PageFaultCr2ErrorCodeTranscript','Assert-M02PageFaultRunnerResult','Test-M02PageFaultCr2ErrorCodeOwnedMarker')
-            LoadFunctions (Join-Path $Root 'scripts/run-qemu-smoke.ps1') $names
-            $script:M02PageFaultCr2ErrorCodeReadyMarker='__READY__'
-            $records=ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($Cases))
-            foreach($case in $records) {
-                $accepted=$true;$reason=''
-                try { Assert-M02PageFaultCr2ErrorCodeTranscript $case.Path } catch {$accepted=$false;$reason=$_.Exception.Message}
-                if($accepted -ne $case.Accept){throw ($case.Path+' accepted='+$accepted+' '+$reason)}
-            }
-            foreach($code in @('0','1','-1','-2147483648','2147483647')) {Assert-M02PageFaultRunnerResult @('SERIAL_MARKER_DRAIN milliseconds=750',('QEMU_PROCESS_RESULT disposition=runner-terminated exitCode='+$code))}
-            foreach($code in @('none','-0','01','+1','2147483648','-2147483649','99999999999999999999')) {
-                $ok=$false;try{Assert-M02PageFaultRunnerResult @('SERIAL_MARKER_DRAIN milliseconds=750',('QEMU_PROCESS_RESULT disposition=runner-terminated exitCode='+$code));$ok=$true}catch{}
-                if($ok){throw 'invalid native exit'}
-            }
-            foreach($line in @('QEMU_PROCESS_RESULT disposition=exited exitCode=0','QEMU_PROCESS_RESULT disposition=cleanup-failed exitCode=0','QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1 ')) {
-                $ok=$false;try{Assert-M02PageFaultRunnerResult @('SERIAL_MARKER_DRAIN milliseconds=750',$line);$ok=$true}catch{}
-                if($ok){throw 'invalid lifecycle'}
-            }
-            Write-Output ('TEST_PASS m02.014.efi.transcript cases='+$records.Count)
-            """.Replace("__READY__",Ready,StringComparison.Ordinal);
-        Result r=PowerShell(dir,script,"-Root",root,"-Cases",Path.Combine(dir,"cases.json"));Require(r.Code==0,r.Output);
+        foreach(var record in records) {
+            bool accepted=true;string reason=string.Empty;
+            try { QemuTranscripts.AssertM02PageFaultCr2ErrorCodeTranscript(record.Path); }
+            catch(ToolFailure error) { accepted=false;reason=error.Message; }
+            Require(accepted==record.Accept,record.Path+" accepted="+accepted+" "+reason);
+        }
+        QemuTerminalControls.Lifecycle(lines=>QemuTranscripts.AssertM02PageFaultRunnerResult(lines.ToArray()),false);
     }
+    [HostTest("m02.014.efi default-off profile prerequisites and conflicts", HostLane.Fast, 3)]
     private static void TestProfiles()
     {
         string root=Root();Result baseline=Qemu();Save("default-dry",baseline);Require(baseline.Code==0&&!baseline.Output.Contains("TEST_START m02.014;",StringComparison.Ordinal),baseline.Output);
-        Result enabled=Qemu("-BuildEfi","-"+Flag);Save("enabled-dry",enabled);Require(enabled.Code==0&&enabled.Output.Contains("M02_PAGE_FAULT_LAYOUT",StringComparison.Ordinal)&&enabled.Output.Contains("terminalProfile=true",StringComparison.Ordinal),enabled.Output);
-        foreach(string script in new[]{"scripts/run-qemu-smoke.ps1","scripts/build-efi-shell.ps1","scripts/test-efi-artifact.ps1"}) {
-            string arguments=script.Contains("run-qemu",StringComparison.Ordinal)?"-DryRun -BuildEfi":script.Contains("build-efi",StringComparison.Ordinal)?"-PreflightOnly -LogPath artifacts/issue517-tests/rejected.log":"-EfiArtifact missing.EFI";
+        Result enabled=Qemu("-BuildEfi","-"+Flag);Save("enabled-dry",enabled);Require(enabled.Code==0&&enabled.Output.Contains("M02_PAGE_FAULT_LAYOUT",StringComparison.Ordinal),enabled.Output);
+        foreach(string endpoint in new[]{"qemu","build","verify"}) {
             foreach(string option in Prerequisites) {
-                Result r=Process(root,"powershell.exe","-NoProfile","-Command","& '"+Path.Combine(root,script)+"' "+arguments+" -"+Flag+" -"+option+":$false");
+                Result r=Profile(endpoint,["-"+Flag,"-"+option+"=false"]);
                 Save("explicit-false-"+option,r);Require(r.Code!=0&&r.Output.Contains("explicit_false_prerequisite",StringComparison.Ordinal),r.Output);
             }
             foreach(string option in Conflicts) {
@@ -253,69 +224,49 @@ internal static class M02PageFaultCr2ErrorCodeEfiIntegrationTests
                 int index=Array.IndexOf(m04,option);
                 string opposing=index<0?string.Empty:" "+string.Join(' ',m04.Take(index).Select(x=>"-"+x));
                 if(index==4)opposing+=" -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe";
-                Result r=Process(root,"powershell.exe","-NoProfile","-Command","& '"+Path.Combine(root,script)+"' "+arguments+" -"+Flag+" -"+option+opposing);
+                Result r=Profile(endpoint,["-"+Flag,"-"+option,..opposing.Split(' ',StringSplitOptions.RemoveEmptyEntries)]);
                 Save("conflict-"+option,r);Require(r.Code!=0&&r.Output.Contains("m02_page_fault_cr2_error_code_profile_conflict",StringComparison.Ordinal),r.Output);
             }
         }
         Result endian=Qemu("-BuildEfi","-"+Flag,"-EnableM04IndependentEndianConformanceProbe");Require(endian.Code==0,"optional independent endian "+endian.Output);
         foreach(string[] args in new[]{new[]{"-"+Flag},new[]{"-BuildEfi","-"+Flag,"-SkipImageBuild"},new[]{"-BuildEfi","-"+Flag,"-M01RawObservationLog","artifacts/forbidden.log"},new[]{"-RequireMarker",Ready}}) {Result r=Qemu(args);Save("invalid-profile",r);Require(r.Code!=0,r.Output);}
     }
+    [HostTest("m02.014.efi frozen source firewall", HostLane.Fast, 4)]
     private static void TestFirewall()
     {
-        string dir=Scratch("firewall");Result r=PowerShell(dir,"param([string]$Root)\n$ErrorActionPreference='Stop'\n"+ExtractFunctions+"\n"+"""
-            LoadFunctions (Join-Path $Root 'scripts/build-efi-shell.ps1') @('Get-M01Utf8Sha256','Get-NostdlibEfiActiveSource','Test-M01ActiveSourceSurface')
-            $name='..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultPageTables.cs'
-            $text=[IO.File]::ReadAllText((Join-Path $Root 'src/OS.Kernel/Diagnostics/SeparateDisabledDefaultPageFaultPageTables.cs')).Replace("`r`n","`n")
-            foreach($value in @($text,$text.Replace("`n","`r`n"))) {if(-not(Test-M01ActiveSourceSurface $value $name).Succeeded){throw 'exact identity rejected'}}
-            foreach($value in @(($text+' '),($text+"`r"),$text.Replace('4096','4095'),($text+"`n// changed"))) {if((Test-M01ActiveSourceSurface $value $name).Succeeded){throw 'changed content accepted'}}
-            foreach($value in @($name.ToLowerInvariant(),($name+' '),$name.Replace('\','/'),$name.Replace('Diagnostics\','Diagnostics\.\'),$name.Insert(4,[string][char]0),'other.cs')) {if((Test-M01ActiveSourceSurface $text $value).Succeeded){throw 'wrong path accepted'}}
-            Write-Output 'TEST_PASS m02.014.efi.firewall'
-            ""","-Root",Root());Require(r.Code==0,r.Output);
+        string name=@"..\OS.Kernel\Diagnostics\SeparateDisabledDefaultPageFaultPageTables.cs";
+        string text=File.ReadAllText(Path.Combine(Root(),"src/OS.Kernel/Diagnostics/SeparateDisabledDefaultPageFaultPageTables.cs")).Replace("\r\n","\n",StringComparison.Ordinal);
+        foreach(string value in new[]{text,text.Replace("\n","\r\n",StringComparison.Ordinal)})Require(EfiSourceAdmission.Inspect(value,name).Succeeded,"exact identity rejected");
+        foreach(string value in new[]{text+" ",text+"\r",text.Replace("4096","4095",StringComparison.Ordinal),text+"\n// changed"})Require(!EfiSourceAdmission.Inspect(value,name).Succeeded,"changed content accepted");
+        foreach(string value in new[]{name.ToLowerInvariant(),name+" ",name.Replace('\\','/'),name.Replace(@"Diagnostics\",@"Diagnostics\.\",StringComparison.Ordinal),name.Insert(4,"\0"),"other.cs"})Require(!EfiSourceAdmission.Inspect(text,value).Succeeded,"wrong path accepted");
     }
+    [HostTest("m02.014.efi complete default and enabled actual NativeAOT artifact authority", HostLane.Native, 5)]
     private static void TestArtifacts()
     {
         string root=Root();
         foreach(bool enabled in new[]{false,true}) {
             string id="issue517-tests-"+Guid.NewGuid().ToString("N"),dir=Scratch(enabled?"artifact-enabled":"artifact-default");
             string artifact="artifacts/efi/"+id+".EFI";
-            Result r=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File","scripts/build-efi-shell.ps1","-EfiOutputPath",artifact,"-LogPath",Path.Combine(dir,"publish.log"),..(enabled?new[]{"-"+Flag}:Array.Empty<string>())]);
+            Result r=Tool(["efi","build","--boot-policy","Diagnostic","-EfiOutputPath",artifact,"-LogPath",Path.Combine(dir,"publish.log"),..(enabled?new[]{"-"+Flag}:Array.Empty<string>())]);
             File.WriteAllText(Path.Combine(dir,"run.log"),r.Output);Require(r.Code==0&&r.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal)&&r.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),r.Output);
             string link=Path.ChangeExtension(Path.Combine(root,artifact),"link.json");
             if(!File.Exists(link))link=Path.Combine(root,artifact)+".link.json";
             using JsonDocument document=JsonDocument.Parse(File.ReadAllText(link));JsonElement evidence=document.RootElement;
-            var inputs=evidence.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Require(inputs.Length==138,"138 raw authority inputs");
+            var inputs=evidence.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Require(inputs.Length==EfiEvidence.SourceClosurePaths(root).Count,"complete raw authority inputs");
             foreach(var input in inputs)Require(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))).Equals(input.GetProperty("sha256").GetString(),StringComparison.OrdinalIgnoreCase),"raw source identity");
-            var evaluation=evidence.GetProperty("postRestoreEvaluation");Require(evaluation.GetProperty("compileCount").GetInt32()==122,"122 evaluated files");
-            var properties=evaluation.GetProperty("properties");var flags=properties.EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Require(flags.Length==52,"complete 52-switch vector");
+            var evaluation=evidence.GetProperty("postRestoreEvaluation");Require(evaluation.GetProperty("compileCount").GetInt32()==OS.Tooling.EfiContracts.CompileItems.Count,"complete evaluated compile inventory");
+            var properties=evaluation.GetProperty("properties");var flags=properties.EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Require(flags.Length==OS.Tooling.EfiContracts.DiagnosticProbes.Count,"complete diagnostic switch inventory");
             foreach(var flag in flags)Require(flag.Value.GetString()==(enabled&&(Prerequisites.Contains(flag.Name,StringComparer.Ordinal)||flag.Name==Flag)?"true":"false"),"actual evaluated "+flag.Name);
             string assembly=Path.Combine(root,"src/OS/bin/Release/net10.0/win-x64/OS.dll");using var reader=new PEReader(File.OpenRead(assembly));Require(reader.GetMetadataReader().AssemblyReferences.Count==0,"actual no-stdlib metadata");
         }
     }
-    private const string ExtractFunctions="""
-        function LoadFunctions([string]$Path,[string[]]$Names) {
-            $ast=[Management.Automation.Language.Parser]::ParseFile($Path,[ref]$null,[ref]$null)
-            foreach($name in $Names) {
-                $f=$ast.Find({param($a) $a -is [Management.Automation.Language.FunctionDefinitionAst] -and $a.Name -ceq $name},$true)
-                if($null -eq $f){throw ('missing '+$name)}
-                . ([scriptblock]::Create($f.Extent.Text.Replace(('function '+$name+' '),('function global:'+$name+' '))))
-            }
-        }
-        """;
-    private static Result PowerShell(string dir,string text,params string[] args){string ps=Path.Combine(dir,"Test.ps1");File.WriteAllText(ps,text);Result r=Process(Root(),"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",ps,..args]);File.WriteAllText(Path.Combine(dir,"run.log"),r.Output);return r;}
     private static string Adapter(string text) => Between(text,"    private static class M02PageFaultAdapter","#endif");
     private static string Between(string text,string start,string end) {int i=text.IndexOf(start,StringComparison.Ordinal);Require(i>=0,start);return text[i..text.IndexOf(end,i,StringComparison.Ordinal)];}
     private static string Hash(string text)=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text))).ToLowerInvariant();
-    private static Result Qemu(params string[] args)=>Process(Root(),"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(Root(),"scripts/run-qemu-smoke.ps1"),"-DryRun",..args]);
     private static string[] Markers(string output,string prefix)=>output.Replace("\r","").Split('\n').Single(x=>x.StartsWith(prefix,StringComparison.Ordinal))[prefix.Length..].Split(';');
     private static Result Process(string root,string exe,params string[] args)
     {
         ProcessStartInfo start=new(exe){WorkingDirectory=root,UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
-        if (string.Equals(exe,"powershell.exe",StringComparison.OrdinalIgnoreCase))
-        {
-            string modules=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","WindowsPowerShell","v1.0","Modules");
-            string inherited=Environment.GetEnvironmentVariable("PSModulePath")??string.Empty;
-            start.Environment["PSModulePath"]=modules+(inherited.Length==0?string.Empty:Path.PathSeparator+inherited);
-        }
         foreach(string arg in args)start.ArgumentList.Add(arg);
         using System.Diagnostics.Process process=System.Diagnostics.Process.Start(start)!;
         Task<string> stdout=process.StandardOutput.ReadToEndAsync(),stderr=process.StandardError.ReadToEndAsync();
@@ -326,6 +277,12 @@ internal static class M02PageFaultCr2ErrorCodeEfiIntegrationTests
     private static string Scratch(string name){string path=Path.Combine(Root(),"artifacts/issue517-tests",name,Guid.NewGuid().ToString("N"));Directory.CreateDirectory(path);return path;}
     private static string Root(){for(DirectoryInfo? d=new(Environment.CurrentDirectory);d!=null;d=d.Parent)if(File.Exists(Path.Combine(d.FullName,"CLROS.slnx")))return d.FullName;throw new DirectoryNotFoundException();}
     private static void Require(bool value,string reason){if(!value)throw new InvalidOperationException(reason);}
+    private static Result Qemu(params string[] args)=>Tool(["qemu","smoke","--boot-policy","Diagnostic","--dry-run",..args]);
+    private static Result Tool(params string[] args) { var r=HostToolProcess.RunTool(args);return new(r.ExitCode,r.Output+r.Error); }
+    private static Result Profile(string endpoint,string[] args) {
+        var r=endpoint=="qemu"?HostToolProcess.RunTool(["qemu","smoke","--boot-policy","Diagnostic","--dry-run","--build-efi",..args]):HostToolProcess.ValidateEfiProfile(endpoint=="build",["--boot-policy","Diagnostic",..args]);
+        return new(r.ExitCode,r.Output+r.Error);
+    }
     private readonly record struct Result(int Code,string Output);
 
 }

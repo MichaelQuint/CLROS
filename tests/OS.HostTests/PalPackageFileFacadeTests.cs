@@ -13,48 +13,7 @@ internal static class PalPackageFileFacadeTests
     private const int AppContentLength = 23;
     private const int ConfigContentLength = 31;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("pal.package facade opens reads info closes", TestOpensReadsInfoCloses, ref failures);
-        Run("pal.package facade reports missing and unsafe paths", TestReportsMissingAndUnsafePaths, ref failures);
-        Run("pal.package facade reports small read buffers", TestReportsSmallReadBuffers, ref failures);
-        Run("pal.package facade rejects stale handles", TestRejectsStaleHandles, ref failures);
-        Run("pal.package facade reports handle exhaustion", TestReportsHandleExhaustion, ref failures);
-        Run("pal.package facade enumerates package files", TestEnumeratesPackageFiles, ref failures);
-        Run("pal.package facade rejects malformed request shapes", TestRejectsMalformedRequestShapes, ref failures);
-        Run("pal.package facade result layouts contain no managed references", TestResultLayoutsContainNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL package facade host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.package facade opens reads info closes", HostLane.Fast, 0)]
     private static bool TestOpensReadsInfoCloses()
     {
         OSHostPackageFileFacade facade = CreateFacade(capacity: 2);
@@ -65,7 +24,7 @@ internal static class PalPackageFileFacadeTests
             || !open.File.IsValid
             || open.Info.ByteLength != AppContentLength)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] destination = new byte[6];
@@ -79,15 +38,16 @@ internal static class PalPackageFileFacadeTests
         OSHostStatus closeStatus = facade.CloseFile(open.File);
         OSHostStatus closedInfoStatus = facade.GetFileInfo(open.File, out _);
 
-        return read.Succeeded
+        return HostCheck.Result(read.Succeeded
             && read.BytesRead == (ulong)destination.Length
             && RangeMatches(destination, AppContentSeed, startIndex: 3)
             && infoStatus == OSHostStatus.Ok
             && info.ByteLength == AppContentLength
             && closeStatus == OSHostStatus.Ok
-            && closedInfoStatus == OSHostStatus.InvalidArgument;
+            && closedInfoStatus == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.package facade reports missing and unsafe paths", HostLane.Fast, 1)]
     private static bool TestReportsMissingAndUnsafePaths()
     {
         OSHostPackageFileFacade facade = CreateFacade(capacity: 2);
@@ -101,10 +61,11 @@ internal static class PalPackageFileFacadeTests
             PathRequest(traversal),
             traversal);
 
-        return missingResult.Status == OSHostStatus.NotFound
-            && traversalResult.Status == OSHostStatus.AccessDenied;
+        return HostCheck.Result(missingResult.Status == OSHostStatus.NotFound
+            && traversalResult.Status == OSHostStatus.AccessDenied);
     }
 
+    [HostTest("pal.package facade reports small read buffers", HostLane.Fast, 2)]
     private static bool TestReportsSmallReadBuffers()
     {
         OSHostPackageFileFacade facade = CreateFacade(capacity: 1);
@@ -112,7 +73,7 @@ internal static class PalPackageFileFacadeTests
         OSHostPackageFileOpenResult open = facade.OpenPackageFile(PathRequest(path), path);
         if (!open.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> destination = stackalloc byte[4];
@@ -122,11 +83,12 @@ internal static class PalPackageFileFacadeTests
             new OSHostByteSpan(0x3000, 7),
             destination);
 
-        return read.Status == OSHostStatus.BufferTooSmall
+        return HostCheck.Result(read.Status == OSHostStatus.BufferTooSmall
             && read.BytesRead == 0
-            && read.RequiredBytes == 7;
+            && read.RequiredBytes == 7);
     }
 
+    [HostTest("pal.package facade rejects stale handles", HostLane.Fast, 3)]
     private static bool TestRejectsStaleHandles()
     {
         OSHostPackageFileFacade facade = CreateFacade(capacity: 1);
@@ -134,7 +96,7 @@ internal static class PalPackageFileFacadeTests
         OSHostPackageFileOpenResult open = facade.OpenPackageFile(PathRequest(path), path);
         if (!open.Succeeded || facade.CloseFile(open.File) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> destination = stackalloc byte[1];
@@ -144,11 +106,12 @@ internal static class PalPackageFileFacadeTests
             new OSHostByteSpan(0x4000, 1),
             destination);
 
-        return read.Status == OSHostStatus.InvalidArgument
+        return HostCheck.Result(read.Status == OSHostStatus.InvalidArgument
             && facade.CloseFile(open.File) == OSHostStatus.InvalidArgument
-            && facade.GetFileInfo(open.File, out _) == OSHostStatus.InvalidArgument;
+            && facade.GetFileInfo(open.File, out _) == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.package facade reports handle exhaustion", HostLane.Fast, 4)]
     private static bool TestReportsHandleExhaustion()
     {
         OSHostPackageFileFacade facade = CreateFacade(capacity: 1);
@@ -162,11 +125,12 @@ internal static class PalPackageFileFacadeTests
             PathRequest(configPath),
             configPath);
 
-        return first.Succeeded
+        return HostCheck.Result(first.Succeeded
             && second.Status == OSHostStatus.OutOfMemory
-            && !second.File.IsValid;
+            && !second.File.IsValid);
     }
 
+    [HostTest("pal.package facade enumerates package files", HostLane.Fast, 5)]
     private static bool TestEnumeratesPackageFiles()
     {
         OSHostPackageFileFacade facade = CreateFacade(capacity: 1);
@@ -182,15 +146,16 @@ internal static class PalPackageFileFacadeTests
             new OSHostByteSpan(0x6000, (ulong)tooSmall.Length),
             tooSmall);
 
-        return first.Succeeded
+        return HostCheck.Result(first.Succeeded
             && first.BytesWritten == (ulong)AppPath.Length
             && first.Info.ByteLength == AppContentLength
             && PathMatches(firstPath, AppPath)
             && small.Status == OSHostStatus.BufferTooSmall
             && small.RequiredBytes == (ulong)ConfigPath.Length
-            && small.Info.ByteLength == ConfigContentLength;
+            && small.Info.ByteLength == ConfigContentLength);
     }
 
+    [HostTest("pal.package facade rejects malformed request shapes", HostLane.Fast, 6)]
     private static bool TestRejectsMalformedRequestShapes()
     {
         OSHostPackageFileFacade facade = CreateFacade(capacity: 1);
@@ -211,18 +176,19 @@ internal static class PalPackageFileFacadeTests
             new OSHostByteSpan(0x2000, 99),
             Span<byte>.Empty);
 
-        return nullOpen.Status == OSHostStatus.InvalidArgument
+        return HostCheck.Result(nullOpen.Status == OSHostStatus.InvalidArgument
             && flags.Status == OSHostStatus.InvalidArgument
             && lengthMismatch.Status == OSHostStatus.InvalidArgument
-            && enumerateMismatch.Status == OSHostStatus.InvalidArgument;
+            && enumerateMismatch.Status == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.package facade result layouts contain no managed references", HostLane.Fast, 7)]
     private static bool TestResultLayoutsContainNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostPackageFileOpenResult>()
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<OSHostPackageFileOpenResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostPackageFileReadResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostPackageFileEnumerationResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostFileInfo>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostFileInfo>());
     }
 
     private static OSHostPackageFileFacade CreateFacade(int capacity)

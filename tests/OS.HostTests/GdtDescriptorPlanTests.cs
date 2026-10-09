@@ -6,43 +6,7 @@ internal static class GdtDescriptorPlanTests
     private const ulong TssBaseAddress = 0xffff80000020f000UL;
     private const uint TssLimit = 103;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("gdt descriptor plan encodes kernel segments", TestEncodesKernelSegments, ref failures);
-        Run("gdt descriptor plan encodes tss descriptor", TestEncodesTssDescriptor, ref failures);
-        Run("gdt descriptor plan rejects invalid inputs", TestRejectsInvalidInputs, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("GDT descriptor plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("gdt descriptor plan encodes kernel segments", HostLane.Fast, 0)]
     private static bool TestEncodesKernelSegments()
     {
         byte[] bytes = new byte[GdtDescriptorPlan.RequiredByteLength];
@@ -52,7 +16,7 @@ internal static class GdtDescriptorPlanTests
             TssLimit,
             bytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == GdtDescriptorPlanStatus.Ok
             && result.BytesWritten == GdtDescriptorPlan.RequiredByteLength
             && result.RequiredBytes == GdtDescriptorPlan.RequiredByteLength
@@ -64,9 +28,10 @@ internal static class GdtDescriptorPlanTests
             && bytes[GdtDescriptorPlan.KernelCodeDescriptorOffset + 5] == 0x9a
             && bytes[GdtDescriptorPlan.KernelCodeDescriptorOffset + 6] == 0x20
             && bytes[GdtDescriptorPlan.KernelDataDescriptorOffset + 5] == 0x92
-            && bytes[GdtDescriptorPlan.KernelDataDescriptorOffset + 6] == 0x00;
+            && bytes[GdtDescriptorPlan.KernelDataDescriptorOffset + 6] == 0x00);
     }
 
+    [HostTest("gdt descriptor plan encodes tss descriptor", HostLane.Fast, 1)]
     private static bool TestEncodesTssDescriptor()
     {
         byte[] bytes = new byte[GdtDescriptorPlan.RequiredByteLength];
@@ -78,7 +43,7 @@ internal static class GdtDescriptorPlanTests
 
         int offset = GdtDescriptorPlan.TssDescriptorOffset;
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && bytes[offset + 0] == 0x67
             && bytes[offset + 1] == 0x00
             && bytes[offset + 2] == 0x00
@@ -94,9 +59,10 @@ internal static class GdtDescriptorPlanTests
             && bytes[offset + 12] == 0x00
             && bytes[offset + 13] == 0x00
             && bytes[offset + 14] == 0x00
-            && bytes[offset + 15] == 0x00;
+            && bytes[offset + 15] == 0x00);
     }
 
+    [HostTest("gdt descriptor plan rejects invalid inputs", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidInputs()
     {
         byte[] bytes = new byte[GdtDescriptorPlan.RequiredByteLength];
@@ -119,7 +85,7 @@ internal static class GdtDescriptorPlanTests
             GdtDescriptorPlan.MaximumTssLimit + 1,
             bytes);
 
-        return !shortBuffer.Succeeded
+        return HostCheck.Result(!shortBuffer.Succeeded
             && shortBuffer.Status == GdtDescriptorPlanStatus.OutputBufferTooSmall
             && shortBuffer.RequiredBytes == GdtDescriptorPlan.RequiredByteLength
             && !nullTssBase.Succeeded
@@ -127,7 +93,7 @@ internal static class GdtDescriptorPlanTests
             && !smallTssLimit.Succeeded
             && smallTssLimit.Status == GdtDescriptorPlanStatus.InvalidTssLimit
             && !largeTssLimit.Succeeded
-            && largeTssLimit.Status == GdtDescriptorPlanStatus.InvalidTssLimit;
+            && largeTssLimit.Status == GdtDescriptorPlanStatus.InvalidTssLimit);
     }
 
     private static bool IsZero(byte[] bytes, int offset, int length)

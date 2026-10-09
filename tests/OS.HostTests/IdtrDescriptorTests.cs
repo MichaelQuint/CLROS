@@ -5,58 +5,23 @@ internal static class IdtrDescriptorTests
 {
     private const ulong IdtBaseAddress = 0xffff800000100000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("idtr descriptor creates 4096-byte table pointer", TestCreates4096ByteTablePointer, ref failures);
-        Run("idtr descriptor writes packed bytes", TestWritesPackedBytes, ref failures);
-        Run("idtr descriptor rejects invalid inputs", TestRejectsInvalidInputs, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("IDTR descriptor host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("idtr descriptor creates 4096-byte table pointer", HostLane.Fast, 0)]
     private static bool TestCreates4096ByteTablePointer()
     {
         IdtrDescriptorResult result = IdtrDescriptor.Create(
             IdtBaseAddress,
             IdtTablePlan.EncodedByteLength);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == IdtrDescriptorStatus.Ok
             && result.ActualBytes == IdtTablePlan.EncodedByteLength
             && result.RequiredBytes == IdtrDescriptor.RequiredTableByteLength
             && result.Descriptor.Limit == 4095
             && result.Descriptor.Limit == IdtrDescriptor.RequiredLimit
-            && result.Descriptor.BaseAddress == IdtBaseAddress;
+            && result.Descriptor.BaseAddress == IdtBaseAddress);
     }
 
+    [HostTest("idtr descriptor writes packed bytes", HostLane.Fast, 1)]
     private static bool TestWritesPackedBytes()
     {
         IdtrDescriptorResult createResult = IdtrDescriptor.Create(
@@ -69,7 +34,7 @@ internal static class IdtrDescriptorTests
         byte[] shortBytes = new byte[IdtrDescriptor.EncodedLength - 1];
         IdtrDescriptorResult shortWriteResult = createResult.Descriptor.Write(shortBytes);
 
-        return createResult.Succeeded
+        return HostCheck.Result(createResult.Succeeded
             && writeResult.Succeeded
             && writeResult.ActualBytes == IdtrDescriptor.EncodedLength
             && writeResult.RequiredBytes == IdtrDescriptor.EncodedLength
@@ -86,9 +51,10 @@ internal static class IdtrDescriptorTests
             && !shortWriteResult.Succeeded
             && shortWriteResult.Status == IdtrDescriptorStatus.OutputBufferTooSmall
             && shortWriteResult.ActualBytes == shortBytes.Length
-            && shortWriteResult.RequiredBytes == IdtrDescriptor.EncodedLength;
+            && shortWriteResult.RequiredBytes == IdtrDescriptor.EncodedLength);
     }
 
+    [HostTest("idtr descriptor rejects invalid inputs", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidInputs()
     {
         IdtrDescriptorResult nullBase = IdtrDescriptor.Create(0, IdtTablePlan.EncodedByteLength);
@@ -99,13 +65,13 @@ internal static class IdtrDescriptorTests
             IdtBaseAddress,
             IdtTablePlan.EncodedByteLength + IdtGateDescriptor.EncodedLength);
 
-        return !nullBase.Succeeded
+        return HostCheck.Result(!nullBase.Succeeded
             && nullBase.Status == IdtrDescriptorStatus.NullBaseAddress
             && !tooSmall.Succeeded
             && tooSmall.Status == IdtrDescriptorStatus.TableTooSmall
             && tooSmall.ActualBytes == IdtTablePlan.EncodedByteLength - 1
             && !tooLarge.Succeeded
             && tooLarge.Status == IdtrDescriptorStatus.TableTooLarge
-            && tooLarge.ActualBytes == IdtTablePlan.EncodedByteLength + IdtGateDescriptor.EncodedLength;
+            && tooLarge.ActualBytes == IdtTablePlan.EncodedByteLength + IdtGateDescriptor.EncodedLength);
     }
 }

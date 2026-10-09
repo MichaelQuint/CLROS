@@ -425,7 +425,7 @@ $directories = Get-ChildItem .\references -Directory
 if ($directories.Count -ne 39) { throw "reference inventory changed" }
 Test-Path .\references\SharpOS-main\done\step143.md
 Test-Path .\references\nativeaot-patcher-main\src\Cosmos.Kernel.HAL\Devices\Virtio
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\check-naming.ps1
+dotnet run --project tools/OS.Tooling -- repo check
 git diff --check
 ```
 

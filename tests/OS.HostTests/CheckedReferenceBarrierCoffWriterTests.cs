@@ -24,8 +24,9 @@ internal static class CheckedReferenceBarrierCoffWriterTests
         "000000001400000000000000000020000200" +
         "21000000436865636B656443616C6C6261636B0042756C6B43616C6C6261636B00";
 
-    private static int Main()
+    private static int Main(string[] args)
     {
+        Check(args.Length == 2, "reviewed serializer hash and size arguments");
         DefaultPolicy();
         ExternalDataPolicy();
         CompleteObject();
@@ -33,7 +34,7 @@ internal static class CheckedReferenceBarrierCoffWriterTests
         UndefinedSymbols();
         OverlapRejections();
         CapacityAndPrecedence();
-        SerializerRegression();
+        SerializerRegression(args[0], int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture));
         Console.WriteLine("COFF_REL32_CONTROL_PASS default structure bounds symbols overlaps capacity serializer");
         return 0;
     }
@@ -202,13 +203,13 @@ internal static class CheckedReferenceBarrierCoffWriterTests
             count==0 && failure==CoffWriteError.InvalidRelocation,"validation precedes capacity");
     }
 
-    private static void SerializerRegression()
+    private static void SerializerRegression(string expectedHash, int expectedSize)
     {
-        byte[] bytes=Pattern(370);byte[] before=(byte[])bytes.Clone();
-        Check(InstructionPublicationSerializerGenerator.TryGenerate(bytes.AsSpan(17,336),out int n,out var error) &&
-            n==336 && error==CoffWriteError.None,"original serializer");
-        Check(Convert.ToHexString(SHA256.HashData(bytes.AsSpan(17,336)))=="DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B","original 336-byte hash");
-        Check(bytes.AsSpan(0,17).SequenceEqual(before.AsSpan(0,17)) && bytes.AsSpan(353).SequenceEqual(before.AsSpan(353)),"serializer guards");
+        byte[] bytes=Pattern(expectedSize+34);byte[] before=(byte[])bytes.Clone();
+        Check(InstructionPublicationSerializerGenerator.TryGenerate(bytes.AsSpan(17,expectedSize),out int n,out var error) &&
+            n==expectedSize && error==CoffWriteError.None,"original serializer");
+        Check(Convert.ToHexString(SHA256.HashData(bytes.AsSpan(17,expectedSize)))==expectedHash,"reviewed complete serializer hash");
+        Check(bytes.AsSpan(0,17).SequenceEqual(before.AsSpan(0,17)) && bytes.AsSpan(17+expectedSize).SequenceEqual(before.AsSpan(17+expectedSize)),"serializer guards");
     }
 
     private static void Reject(Amd64CoffObjectDefinition d,bool opt,CoffWriteError expected)
@@ -226,12 +227,11 @@ internal static class CheckedReferenceBarrierCoffWriterTests
     private static uint U32(byte[] b,int p)=>BinaryPrimitives.ReadUInt32LittleEndian(b.AsSpan(p,4));
     private static void Check(bool ok,string message){if(!ok)throw new InvalidOperationException(message);}
 #else
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         const string name="m04.010.coff.writer";
-        Console.WriteLine("TEST_START "+name);
-        try
+        HostCheck.Run(name, () =>
         {
             string root=HostToolProcess.FindRepositoryRoot();
             string folder=Path.Combine(root,"artifacts","issue79-coff-writer-tests",Guid.NewGuid().ToString("N"));
@@ -251,16 +251,10 @@ internal static class CheckedReferenceBarrierCoffWriterTests
                 """,new UTF8Encoding(false));
             Run(folder,"build",120000,["build","Probe.csproj","--nologo","--disable-build-servers","-m:1","-nodeReuse:false",
                 "-p:ImportDirectoryBuildProps=false","-p:ImportDirectoryBuildTargets=false"]);
-            string output=Run(folder,"run",30000,[Path.Combine(folder,"bin","Debug","net10.0","Probe.dll")]);
+            string output=Run(folder,"run",30000,[Path.Combine(folder,"bin","Debug","net10.0","Probe.dll"), OS.Tooling.EfiContracts.SerializerObjectSha256.ToUpperInvariant(), OS.Tooling.EfiContracts.SerializerObjectBytes.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
             if(output!="COFF_REL32_CONTROL_PASS default structure bounds symbols overlaps capacity serializer"+Environment.NewLine)
                 throw new InvalidOperationException("child control marker mismatch");
-            Console.WriteLine("TEST_PASS "+name);
-        }
-        catch
-        {
-            Console.WriteLine("TEST_FAIL "+name+" assertion_failed");
-            throw;
-        }
+        });
     }
 
     private static string Run(string folder,string label,int timeout,string[] arguments)

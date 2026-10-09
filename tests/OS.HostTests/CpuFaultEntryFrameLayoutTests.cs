@@ -4,45 +4,8 @@ using OS.Std.Binary;
 
 internal static class CpuFaultEntryFrameLayoutTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("fault entry frame layout writes and reads page fault frame", TestPageFaultRoundTrip, ref failures);
-        Run("fault entry frame layout writes and reads invalid opcode frame", TestInvalidOpcodeRoundTrip, ref failures);
-        Run("fault entry frame layout rejects inconsistent error-code metadata", TestRejectsInconsistentErrorCodeMetadata, ref failures);
-        Run("fault entry frame layout rejects undersized buffers", TestRejectsUndersizedBuffers, ref failures);
-        Run("fault entry frame layout rejects unknown vectors", TestRejectsUnknownVectors, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("CPU fault entry frame layout host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("fault entry frame layout writes and reads page fault frame", HostLane.Fast, 0)]
     private static bool TestPageFaultRoundTrip()
     {
         CpuFaultFrame frame = CreateFrame(
@@ -59,7 +22,7 @@ internal static class CpuFaultEntryFrameLayoutTests
             stackSegment: 0x0010);
         CpuFaultEntryFrameLayoutResult readResult = CpuFaultEntryFrameLayout.TryRead(storage);
 
-        return writeResult.Succeeded
+        return HostCheck.Result(writeResult.Succeeded
             && writeResult.Status == CpuFaultEntryFrameLayoutStatus.Ok
             && readResult.Succeeded
             && readResult.Status == CpuFaultEntryFrameLayoutStatus.Ok
@@ -78,9 +41,10 @@ internal static class CpuFaultEntryFrameLayoutTests
             && SameFrame(frame, readResult.Frame)
             && readResult.CodeSegment == 0x0008
             && readResult.StackSegment == 0x0010
-            && SameFaultText(frame, readResult.Frame);
+            && SameFaultText(frame, readResult.Frame));
     }
 
+    [HostTest("fault entry frame layout writes and reads invalid opcode frame", HostLane.Fast, 1)]
     private static bool TestInvalidOpcodeRoundTrip()
     {
         CpuFaultFrame frame = CreateFrame(
@@ -93,7 +57,7 @@ internal static class CpuFaultEntryFrameLayoutTests
         CpuFaultEntryFrameLayoutResult writeResult = CpuFaultEntryFrameLayout.TryWrite(storage, frame);
         CpuFaultEntryFrameLayoutResult readResult = CpuFaultEntryFrameLayout.TryRead(storage);
 
-        return writeResult.Succeeded
+        return HostCheck.Result(writeResult.Succeeded
             && readResult.Succeeded
             && readResult.Frame.Vector == FaultVectorCatalog.InvalidOpcode
             && !readResult.Frame.HasErrorCode
@@ -102,9 +66,10 @@ internal static class CpuFaultEntryFrameLayoutTests
             && ReadSlot(storage, CpuFaultEntryFrameLayout.HasErrorCodeOffset) == 0
             && ReadSlot(storage, CpuFaultEntryFrameLayout.ErrorCodeOffset) == 0
             && SameFrame(frame, readResult.Frame)
-            && SameFaultText(frame, readResult.Frame);
+            && SameFaultText(frame, readResult.Frame));
     }
 
+    [HostTest("fault entry frame layout rejects inconsistent error-code metadata", HostLane.Fast, 2)]
     private static bool TestRejectsInconsistentErrorCodeMetadata()
     {
         byte[] storage = CreateStorage();
@@ -129,15 +94,16 @@ internal static class CpuFaultEntryFrameLayoutTests
         WriteSlot(encoded, CpuFaultEntryFrameLayout.HasErrorCodeOffset, 0);
         CpuFaultEntryFrameLayoutResult readResult = CpuFaultEntryFrameLayout.TryRead(encoded);
 
-        return !pageFaultWriteResult.Succeeded
+        return HostCheck.Result(!pageFaultWriteResult.Succeeded
             && pageFaultWriteResult.Status == CpuFaultEntryFrameLayoutStatus.InconsistentErrorCodeMetadata
             && !invalidOpcodeWriteResult.Succeeded
             && invalidOpcodeWriteResult.Status == CpuFaultEntryFrameLayoutStatus.InconsistentErrorCodeMetadata
             && !readResult.Succeeded
             && readResult.Status == CpuFaultEntryFrameLayoutStatus.InconsistentErrorCodeMetadata
-            && readResult.Vector == FaultVectorCatalog.PageFault;
+            && readResult.Vector == FaultVectorCatalog.PageFault);
     }
 
+    [HostTest("fault entry frame layout rejects undersized buffers", HostLane.Fast, 3)]
     private static bool TestRejectsUndersizedBuffers()
     {
         CpuFaultFrame frame = CreateFrame(
@@ -151,15 +117,16 @@ internal static class CpuFaultEntryFrameLayoutTests
         CpuFaultEntryFrameLayoutResult writeResult = CpuFaultEntryFrameLayout.TryWrite(storage, frame);
         CpuFaultEntryFrameLayoutResult readResult = CpuFaultEntryFrameLayout.TryRead(storage);
 
-        return !writeResult.Succeeded
+        return HostCheck.Result(!writeResult.Succeeded
             && writeResult.Status == CpuFaultEntryFrameLayoutStatus.BufferTooSmall
             && writeResult.RequiredBytes == CpuFaultEntryFrameLayout.TotalSize
             && !readResult.Succeeded
             && readResult.Status == CpuFaultEntryFrameLayoutStatus.BufferTooSmall
             && readResult.RequiredBytes == CpuFaultEntryFrameLayout.TotalSize
-            && AllBytesEqual(storage, 0xa5);
+            && AllBytesEqual(storage, 0xa5));
     }
 
+    [HostTest("fault entry frame layout rejects unknown vectors", HostLane.Fast, 4)]
     private static bool TestRejectsUnknownVectors()
     {
         const int unknownVector = 32;
@@ -177,12 +144,12 @@ internal static class CpuFaultEntryFrameLayoutTests
         WriteSlot(encoded, CpuFaultEntryFrameLayout.HasErrorCodeOffset, 0);
         CpuFaultEntryFrameLayoutResult readResult = CpuFaultEntryFrameLayout.TryRead(encoded);
 
-        return !writeResult.Succeeded
+        return HostCheck.Result(!writeResult.Succeeded
             && writeResult.Status == CpuFaultEntryFrameLayoutStatus.UnknownVector
             && writeResult.Vector == unknownVector
             && !readResult.Succeeded
             && readResult.Status == CpuFaultEntryFrameLayoutStatus.UnknownVector
-            && readResult.Vector == unknownVector;
+            && readResult.Vector == unknownVector);
     }
 
     private static CpuFaultFrame CreateFrame(

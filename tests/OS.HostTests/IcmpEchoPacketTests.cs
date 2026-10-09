@@ -3,46 +3,8 @@ using OS.Net;
 
 internal static class IcmpEchoPacketTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.icmp echo request round trip", TestEchoRequestRoundTrip, ref failures);
-        Run("net.icmp echo reply round trip", TestEchoReplyRoundTrip, ref failures);
-        Run("net.icmp rejects bad checksum", TestRejectsBadChecksum, ref failures);
-        Run("net.icmp rejects short packet", TestRejectsShortPacket, ref failures);
-        Run("net.icmp rejects unsupported type code", TestRejectsUnsupportedTypeAndCode, ref failures);
-        Run("net.icmp rejects small destination", TestRejectsSmallDestination, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ICMP echo packet host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.icmp echo request round trip", HostLane.Fast, 0)]
     private static bool TestEchoRequestRoundTrip()
     {
         byte[] payload = { 0x70, 0x69, 0x6E, 0x67, 0x21 };
@@ -67,7 +29,7 @@ internal static class IcmpEchoPacketTests
             out IcmpEchoPacket echo,
             out ReadOnlySpan<byte> parsedPayload);
 
-        return writeStatus == PacketParseStatus.Success
+        return HostCheck.Result(writeStatus == PacketParseStatus.Success
             && bytesWritten == expected.Length
             && packet.AsSpan(0, bytesWritten).SequenceEqual(expected)
             && parseStatus == PacketParseStatus.Success
@@ -78,9 +40,10 @@ internal static class IcmpEchoPacketTests
             && echo.Checksum == 0xE5F3
             && echo.Identifier == 0x1234
             && echo.SequenceNumber == 0x0007
-            && parsedPayload.SequenceEqual(payload);
+            && parsedPayload.SequenceEqual(payload));
     }
 
+    [HostTest("net.icmp echo reply round trip", HostLane.Fast, 1)]
     private static bool TestEchoReplyRoundTrip()
     {
         byte[] payload = { 0x4F, 0x53, 0x5F, 0x4F, 0x4B };
@@ -105,7 +68,7 @@ internal static class IcmpEchoPacketTests
             out IcmpEchoPacket echo,
             out ReadOnlySpan<byte> parsedPayload);
 
-        return writeStatus == PacketParseStatus.Success
+        return HostCheck.Result(writeStatus == PacketParseStatus.Success
             && bytesWritten == expected.Length
             && packet.AsSpan(0, bytesWritten).SequenceEqual(expected)
             && parseStatus == PacketParseStatus.Success
@@ -116,9 +79,10 @@ internal static class IcmpEchoPacketTests
             && echo.Checksum == 0x466B
             && echo.Identifier == 0xBEEF
             && echo.SequenceNumber == 0x0102
-            && parsedPayload.SequenceEqual(payload);
+            && parsedPayload.SequenceEqual(payload));
     }
 
+    [HostTest("net.icmp rejects bad checksum", HostLane.Fast, 2)]
     private static bool TestRejectsBadChecksum()
     {
         byte[] packet = CreateEchoRequest();
@@ -129,11 +93,12 @@ internal static class IcmpEchoPacketTests
             out IcmpEchoPacket echo,
             out ReadOnlySpan<byte> payload);
 
-        return status == PacketParseStatus.BadChecksum
+        return HostCheck.Result(status == PacketParseStatus.BadChecksum
             && echo.Type == 0
-            && payload.Length == 0;
+            && payload.Length == 0);
     }
 
+    [HostTest("net.icmp rejects short packet", HostLane.Fast, 3)]
     private static bool TestRejectsShortPacket()
     {
         byte[] packet = new byte[IcmpEchoPacket.HeaderLength - 1];
@@ -143,11 +108,12 @@ internal static class IcmpEchoPacketTests
             out IcmpEchoPacket echo,
             out ReadOnlySpan<byte> payload);
 
-        return status == PacketParseStatus.BufferTooSmall
+        return HostCheck.Result(status == PacketParseStatus.BufferTooSmall
             && echo.Type == 0
-            && payload.Length == 0;
+            && payload.Length == 0);
     }
 
+    [HostTest("net.icmp rejects unsupported type code", HostLane.Fast, 4)]
     private static bool TestRejectsUnsupportedTypeAndCode()
     {
         byte[] unsupportedType = CreateEchoRequest();
@@ -183,14 +149,15 @@ internal static class IcmpEchoPacketTests
             ReadOnlySpan<byte>.Empty,
             out int codeBytesWritten);
 
-        return parseTypeStatus == PacketParseStatus.UnsupportedIcmpType
+        return HostCheck.Result(parseTypeStatus == PacketParseStatus.UnsupportedIcmpType
             && parseCodeStatus == PacketParseStatus.UnsupportedIcmpCode
             && writeTypeStatus == PacketParseStatus.UnsupportedIcmpType
             && writeCodeStatus == PacketParseStatus.UnsupportedIcmpCode
             && typeBytesWritten == 0
-            && codeBytesWritten == 0;
+            && codeBytesWritten == 0);
     }
 
+    [HostTest("net.icmp rejects small destination", HostLane.Fast, 5)]
     private static bool TestRejectsSmallDestination()
     {
         byte[] payload = { 0x01 };
@@ -203,8 +170,8 @@ internal static class IcmpEchoPacketTests
             payload,
             out int bytesWritten);
 
-        return status == PacketParseStatus.BufferTooSmall
-            && bytesWritten == 0;
+        return HostCheck.Result(status == PacketParseStatus.BufferTooSmall
+            && bytesWritten == 0);
     }
 
     private static byte[] CreateEchoRequest()

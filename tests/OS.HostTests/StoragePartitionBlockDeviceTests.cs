@@ -3,47 +3,8 @@ using OS.Storage;
 
 internal static class StoragePartitionBlockDeviceTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("storage partition device reads relative blocks", TestReadsRelativeBlocks, ref failures);
-        Run("storage partition device rejects out of range partition", TestRejectsOutOfRangePartition, ref failures);
-        Run("storage partition device rejects read past partition end", TestRejectsReadPastPartitionEnd, ref failures);
-        Run(
-            "storage partition device default result is not success",
-            TestDefaultCreateResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Storage partition block device host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage partition device reads relative blocks", HostLane.Fast, 0)]
     private static bool TestReadsRelativeBlocks()
     {
         MemoryBlockDevice parent = MemoryBlockDevice.Create(512, 12);
@@ -53,22 +14,23 @@ internal static class StoragePartitionBlockDeviceTests
             blockCount: 3);
         if (!create.Succeeded || create.Device is null)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] destination = new byte[1024];
         BlockReadResult read = create.Device.ReadBlocks(1, 2, destination);
 
-        return create.Device.Info.BlockSize == parent.Info.BlockSize
+        return HostCheck.Result(create.Device.Info.BlockSize == parent.Info.BlockSize
             && create.Device.Info.BlockCount == 3
             && create.Device.Info.CapacityBytes == 1536
             && create.Device.ParentStartBlock == 4
             && read.Succeeded
             && read.BlocksRead == 2
             && read.BytesRead == 1024
-            && MatchesRange(destination, parent.Bytes, 5 * 512);
+            && MatchesRange(destination, parent.Bytes, 5 * 512));
     }
 
+    [HostTest("storage partition device rejects out of range partition", HostLane.Fast, 1)]
     private static bool TestRejectsOutOfRangePartition()
     {
         MemoryBlockDevice parent = MemoryBlockDevice.Create(512, 4);
@@ -86,14 +48,15 @@ internal static class StoragePartitionBlockDeviceTests
             startBlock: 3,
             blockCount: 2);
 
-        return !zeroCount.Succeeded
+        return HostCheck.Result(!zeroCount.Succeeded
             && zeroCount.Status == BlockDeviceStatus.InvalidBlockCount
             && !atEnd.Succeeded
             && atEnd.Status == BlockDeviceStatus.InvalidBlockRange
             && !crossesEnd.Succeeded
-            && crossesEnd.Status == BlockDeviceStatus.InvalidBlockRange;
+            && crossesEnd.Status == BlockDeviceStatus.InvalidBlockRange);
     }
 
+    [HostTest("storage partition device rejects read past partition end", HostLane.Fast, 2)]
     private static bool TestRejectsReadPastPartitionEnd()
     {
         MemoryBlockDevice parent = MemoryBlockDevice.Create(512, 8);
@@ -103,27 +66,28 @@ internal static class StoragePartitionBlockDeviceTests
             blockCount: 2);
         if (!create.Succeeded || create.Device is null)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] destination = new byte[1024];
         BlockReadResult atEnd = create.Device.ReadBlocks(2, 1, destination);
         BlockReadResult crossesEnd = create.Device.ReadBlocks(1, 2, destination);
 
-        return !atEnd.Succeeded
+        return HostCheck.Result(!atEnd.Succeeded
             && atEnd.Status == BlockDeviceStatus.InvalidBlockRange
             && !crossesEnd.Succeeded
-            && crossesEnd.Status == BlockDeviceStatus.InvalidBlockRange;
+            && crossesEnd.Status == BlockDeviceStatus.InvalidBlockRange);
     }
 
+    [HostTest("storage partition device default result is not success", HostLane.Fast, 3)]
     private static bool TestDefaultCreateResultIsNotSuccess()
     {
         PartitionBlockDeviceCreateResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == BlockDeviceStatus.Success
-            && result.Device is null;
+            && result.Device is null);
     }
 
     private static bool MatchesRange(byte[] actual, byte[] expected, int expectedOffset)

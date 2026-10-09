@@ -8,57 +8,7 @@ internal static class TcpIpv4FramePlannerTests
     private const uint ClientInitialSequence = 0x10203040;
     private const uint ServerInitialSequence = 0x50607080;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.tcp.ipv4.frame writes syn frame", TestWritesSynFrame, ref failures);
-        Run("net.tcp.ipv4.frame writes syn checksum", TestWritesSynChecksum, ref failures);
-        Run("net.tcp.ipv4.frame accepts syn ack frame", TestAcceptsSynAckFrame, ref failures);
-        Run("net.tcp.ipv4.frame writes final ack frame", TestWritesFinalAckFrame, ref failures);
-        Run("net.tcp.ipv4.frame writes final ack checksum", TestWritesFinalAckChecksum, ref failures);
-        Run("net.tcp.ipv4.frame rejects wrong peer", TestRejectsWrongPeer, ref failures);
-        Run("net.tcp.ipv4.frame rejects protocol and bounds", TestRejectsProtocolAndBounds, ref failures);
-        Run("net.tcp.ipv4.frame rejects bad tcp checksum", TestRejectsBadTcpChecksum, ref failures);
-        Run("net.tcp.ipv4.frame rejects bad tcp syn ack", TestRejectsBadTcpSynAck, ref failures);
-        Run("net.tcp.ipv4.frame rejects identity and short output", TestRejectsIdentityAndShortOutput, ref failures);
-        Run("net.tcp.ipv4.frame default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("net.tcp mac validation uses shared helpers", TestMacValidationUsesSharedHelpers, ref failures);
-        Run("net.tcp zero mac validation uses shared helper", TestZeroMacValidationUsesSharedHelper, ref failures);
-        Run(
-            "net.tcp ipv4 frame planners use shared buffer operations",
-            TestTcpIpv4FramePlannersUseSharedBufferOperations,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("TCP IPv4 frame planner host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.tcp.ipv4.frame writes syn frame", HostLane.Fast, 0)]
     private static bool TestWritesSynFrame()
     {
         TcpIpv4FramePlanner planner = CreatePlanner();
@@ -77,10 +27,10 @@ internal static class TcpIpv4FramePlannerTests
             || result.TcpSegmentLength != TcpHeader.MinHeaderLength
             || result.LocalNextSequenceNumber != ClientInitialSequence + 1)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return TryParseTcpFrame(
+        return HostCheck.Result(TryParseTcpFrame(
                 frame.AsSpan(0, result.BytesWritten),
                 out EthernetHeader ethernet,
                 out Ipv4Header ipv4,
@@ -99,9 +49,10 @@ internal static class TcpIpv4FramePlannerTests
             && tcp.AcknowledgementNumber == 0
             && tcp.Flags == TcpActiveConnectTransaction.FlagSyn
             && tcp.WindowSize == 0x3000
-            && tcp.Checksum != 0;
+            && tcp.Checksum != 0);
     }
 
+    [HostTest("net.tcp.ipv4.frame writes syn checksum", HostLane.Fast, 1)]
     private static bool TestWritesSynChecksum()
     {
         TcpIpv4FramePlanner planner = CreatePlanner();
@@ -118,7 +69,7 @@ internal static class TcpIpv4FramePlannerTests
                 out TcpHeader tcp,
                 out ReadOnlySpan<byte> tcpSegment))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Ipv4TransportChecksumStatus checksumStatus = Ipv4TransportChecksum.Validate(
@@ -128,15 +79,16 @@ internal static class TcpIpv4FramePlannerTests
             tcpSegment,
             out Ipv4TransportChecksumResult checksumResult);
 
-        return status == TcpIpv4FramePlanStatus.Success
+        return HostCheck.Result(status == TcpIpv4FramePlanStatus.Success
             && result.Succeeded
             && result.TcpHeader.Checksum == tcp.Checksum
             && tcp.Checksum != 0
             && checksumStatus == Ipv4TransportChecksumStatus.Success
             && checksumResult.IsValid
-            && checksumResult.TransportLength == TcpHeader.MinHeaderLength;
+            && checksumResult.TransportLength == TcpHeader.MinHeaderLength);
     }
 
+    [HostTest("net.tcp.ipv4.frame accepts syn ack frame", HostLane.Fast, 2)]
     private static bool TestAcceptsSynAckFrame()
     {
         TcpIpv4FramePlanner planner = PreparedPlanner();
@@ -155,7 +107,7 @@ internal static class TcpIpv4FramePlannerTests
             synAck,
             out TcpIpv4FramePlanResult result);
 
-        return status == TcpIpv4FramePlanStatus.Success
+        return HostCheck.Result(status == TcpIpv4FramePlanStatus.Success
             && result.Succeeded
             && result.State == TcpActiveConnectState.SynSent
             && planner.State == TcpActiveConnectState.SynSent
@@ -171,9 +123,10 @@ internal static class TcpIpv4FramePlannerTests
             && result.TcpHeader.SourcePort == RemotePort
             && result.TcpHeader.DestinationPort == LocalPort
             && result.TcpSegmentOffset == EthernetHeader.HeaderLength + Ipv4Header.MinHeaderLength
-            && result.TcpSegmentLength == TcpHeader.MinHeaderLength;
+            && result.TcpSegmentLength == TcpHeader.MinHeaderLength);
     }
 
+    [HostTest("net.tcp.ipv4.frame writes final ack frame", HostLane.Fast, 3)]
     private static bool TestWritesFinalAckFrame()
     {
         TcpIpv4FramePlanner planner = PreparedPlanner();
@@ -191,7 +144,7 @@ internal static class TcpIpv4FramePlannerTests
                 synAck,
                 out TcpIpv4FramePlanResult _) != TcpIpv4FramePlanStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] finalAck = new byte[TcpIpv4FramePlanner.HeaderBytes];
@@ -199,7 +152,7 @@ internal static class TcpIpv4FramePlannerTests
             finalAck,
             out TcpIpv4FramePlanResult result);
 
-        return status == TcpIpv4FramePlanStatus.Success
+        return HostCheck.Result(status == TcpIpv4FramePlanStatus.Success
             && result.Succeeded
             && result.State == TcpActiveConnectState.Established
             && planner.State == TcpActiveConnectState.Established
@@ -216,9 +169,10 @@ internal static class TcpIpv4FramePlannerTests
             && tcp.DestinationPort == RemotePort
             && tcp.SequenceNumber == ClientInitialSequence + 1
             && tcp.AcknowledgementNumber == ServerInitialSequence + 1
-            && tcp.Flags == TcpActiveConnectTransaction.FlagAck;
+            && tcp.Flags == TcpActiveConnectTransaction.FlagAck);
     }
 
+    [HostTest("net.tcp.ipv4.frame writes final ack checksum", HostLane.Fast, 4)]
     private static bool TestWritesFinalAckChecksum()
     {
         TcpIpv4FramePlanner planner = PreparedEstablishedPlanner();
@@ -235,7 +189,7 @@ internal static class TcpIpv4FramePlannerTests
                 out TcpHeader tcp,
                 out ReadOnlySpan<byte> tcpSegment))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Ipv4TransportChecksumStatus checksumStatus = Ipv4TransportChecksum.Validate(
@@ -245,16 +199,17 @@ internal static class TcpIpv4FramePlannerTests
             tcpSegment,
             out Ipv4TransportChecksumResult checksumResult);
 
-        return status == TcpIpv4FramePlanStatus.Success
+        return HostCheck.Result(status == TcpIpv4FramePlanStatus.Success
             && result.Succeeded
             && result.State == TcpActiveConnectState.Established
             && result.TcpHeader.Checksum == tcp.Checksum
             && tcp.Checksum != 0
             && checksumStatus == Ipv4TransportChecksumStatus.Success
             && checksumResult.IsValid
-            && checksumResult.TransportLength == TcpHeader.MinHeaderLength;
+            && checksumResult.TransportLength == TcpHeader.MinHeaderLength);
     }
 
+    [HostTest("net.tcp.ipv4.frame rejects wrong peer", HostLane.Fast, 5)]
     private static bool TestRejectsWrongPeer()
     {
         TcpIpv4FramePlanner wrongMacPlanner = PreparedPlanner();
@@ -287,7 +242,7 @@ internal static class TcpIpv4FramePlannerTests
             wrongIp,
             out TcpIpv4FramePlanResult wrongIpResult);
 
-        return wrongMacStatus == TcpIpv4FramePlanStatus.WrongRemoteMac
+        return HostCheck.Result(wrongMacStatus == TcpIpv4FramePlanStatus.WrongRemoteMac
             && !wrongMacResult.Succeeded
             && wrongMacResult.PacketStatus == PacketParseStatus.Success
             && wrongMacPlanner.State == TcpActiveConnectState.SynSent
@@ -295,9 +250,10 @@ internal static class TcpIpv4FramePlannerTests
             && !wrongIpResult.Succeeded
             && wrongIpResult.PacketStatus == PacketParseStatus.Success
             && wrongIpResult.Ipv4Header.Source == new Ipv4Address(203, 0, 113, 80)
-            && wrongIpPlanner.State == TcpActiveConnectState.SynSent;
+            && wrongIpPlanner.State == TcpActiveConnectState.SynSent);
     }
 
+    [HostTest("net.tcp.ipv4.frame rejects protocol and bounds", HostLane.Fast, 6)]
     private static bool TestRejectsProtocolAndBounds()
     {
         TcpIpv4FramePlanner shortPlanner = PreparedPlanner();
@@ -331,7 +287,7 @@ internal static class TcpIpv4FramePlannerTests
             wrongProtocol,
             out TcpIpv4FramePlanResult protocolResult);
 
-        return shortStatus == TcpIpv4FramePlanStatus.FrameParseFailed
+        return HostCheck.Result(shortStatus == TcpIpv4FramePlanStatus.FrameParseFailed
             && shortResult.PacketStatus == PacketParseStatus.BufferTooSmall
             && shortPlanner.State == TcpActiveConnectState.SynSent
             && ethernetStatus == PacketParseStatus.Success
@@ -340,9 +296,10 @@ internal static class TcpIpv4FramePlannerTests
             && etherTypePlanner.State == TcpActiveConnectState.SynSent
             && protocolStatus == TcpIpv4FramePlanStatus.UnsupportedIpProtocol
             && protocolResult.PacketStatus == PacketParseStatus.UnsupportedIpProtocol
-            && protocolPlanner.State == TcpActiveConnectState.SynSent;
+            && protocolPlanner.State == TcpActiveConnectState.SynSent);
     }
 
+    [HostTest("net.tcp.ipv4.frame rejects bad tcp checksum", HostLane.Fast, 7)]
     private static bool TestRejectsBadTcpChecksum()
     {
         TcpIpv4FramePlanner planner = PreparedPlanner();
@@ -362,7 +319,7 @@ internal static class TcpIpv4FramePlannerTests
             synAck,
             out TcpIpv4FramePlanResult result);
 
-        return status == TcpIpv4FramePlanStatus.BadTcpChecksum
+        return HostCheck.Result(status == TcpIpv4FramePlanStatus.BadTcpChecksum
             && !result.Succeeded
             && result.TcpStatus == TcpActiveConnectStatus.Success
             && result.PacketStatus == PacketParseStatus.BadChecksum
@@ -370,9 +327,10 @@ internal static class TcpIpv4FramePlannerTests
             && result.TcpHeader.DestinationPort == LocalPort
             && result.TcpSegmentOffset == EthernetHeader.HeaderLength + Ipv4Header.MinHeaderLength
             && result.TcpSegmentLength == TcpHeader.MinHeaderLength
-            && planner.State == TcpActiveConnectState.SynSent;
+            && planner.State == TcpActiveConnectState.SynSent);
     }
 
+    [HostTest("net.tcp.ipv4.frame rejects bad tcp syn ack", HostLane.Fast, 8)]
     private static bool TestRejectsBadTcpSynAck()
     {
         TcpIpv4FramePlanner wrongAckPlanner = PreparedPlanner();
@@ -405,7 +363,7 @@ internal static class TcpIpv4FramePlannerTests
             wrongPort,
             out TcpIpv4FramePlanResult wrongPortResult);
 
-        return wrongAckStatus == TcpIpv4FramePlanStatus.WrongAcknowledgementNumber
+        return HostCheck.Result(wrongAckStatus == TcpIpv4FramePlanStatus.WrongAcknowledgementNumber
             && !wrongAckResult.Succeeded
             && wrongAckResult.TcpStatus == TcpActiveConnectStatus.WrongAcknowledgementNumber
             && wrongAckResult.TcpHeader.AcknowledgementNumber == ClientInitialSequence + 2
@@ -414,9 +372,10 @@ internal static class TcpIpv4FramePlannerTests
             && !wrongPortResult.Succeeded
             && wrongPortResult.TcpStatus == TcpActiveConnectStatus.UnexpectedPorts
             && wrongPortResult.TcpHeader.SourcePort == RemotePort + 1
-            && wrongPortPlanner.State == TcpActiveConnectState.Failed;
+            && wrongPortPlanner.State == TcpActiveConnectState.Failed);
     }
 
+    [HostTest("net.tcp.ipv4.frame rejects identity and short output", HostLane.Fast, 9)]
     private static bool TestRejectsIdentityAndShortOutput()
     {
         TcpIpv4FramePlanner invalidLocal = TcpIpv4FramePlanner.Create(
@@ -439,7 +398,7 @@ internal static class TcpIpv4FramePlannerTests
             shortFrame.AsSpan(0, shortFrame.Length - 1),
             out TcpIpv4FramePlanResult shortResult);
 
-        return invalidStatus == TcpIpv4FramePlanStatus.InvalidLocalIdentity
+        return HostCheck.Result(invalidStatus == TcpIpv4FramePlanStatus.InvalidLocalIdentity
             && !invalidResult.Succeeded
             && invalidResult.State == TcpActiveConnectState.Closed
             && frame[0] == PoisonByte
@@ -449,9 +408,10 @@ internal static class TcpIpv4FramePlannerTests
             && shortResult.PacketStatus == PacketParseStatus.BufferTooSmall
             && shortOutput.State == TcpActiveConnectState.Closed
             && shortFrame[0] == PoisonByte
-            && shortFrame[^1] == PoisonByte;
+            && shortFrame[^1] == PoisonByte);
     }
 
+    [HostTest("net.tcp.ipv4.frame default result is not success", HostLane.Fast, 10)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         TcpIpv4FramePlannerInfo info = new(
@@ -498,7 +458,7 @@ internal static class TcpIpv4FramePlannerTests
             remoteInitialSequenceNumber: 0,
             remoteNextSequenceNumber: 0);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == TcpIpv4FramePlanStatus.Success
             && success.IsInitialized
@@ -527,43 +487,46 @@ internal static class TcpIpv4FramePlannerTests
             && failure.TcpStatus == TcpActiveConnectStatus.BufferTooSmall
             && failure.PacketStatus == PacketParseStatus.BufferTooSmall
             && failure.BytesWritten == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpIpv4FramePlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpIpv4FramePlanResult>());
     }
 
+    [HostTest("net.tcp mac validation uses shared helpers", HostLane.Fast, 11)]
     private static bool TestMacValidationUsesSharedHelpers()
     {
         string root = HostToolProcess.FindRepositoryRoot();
 
-        return TcpPlannerSourceUsesSharedBroadcastHelper(ReadKernelNetSource(root, "TcpIpv4FramePlanner.cs"))
+        return HostCheck.Result(TcpPlannerSourceUsesSharedBroadcastHelper(ReadKernelNetSource(root, "TcpIpv4FramePlanner.cs"))
             && TcpPlannerSourceUsesSharedBroadcastHelper(ReadKernelNetSource(root, "TcpPassiveIpv4FramePlanner.cs"))
             && TcpPlannerSourceUsesSharedBroadcastHelper(
                 ReadKernelNetSource(root, "TcpEstablishedStreamIpv4FramePlanner.cs"))
             && TcpPlannerSourceUsesSharedBroadcastHelper(
-                ReadKernelNetSource(root, "TcpConnectionCloseIpv4FramePlanner.cs"));
+                ReadKernelNetSource(root, "TcpConnectionCloseIpv4FramePlanner.cs")));
     }
 
+    [HostTest("net.tcp zero mac validation uses shared helper", HostLane.Fast, 12)]
     private static bool TestZeroMacValidationUsesSharedHelper()
     {
         string root = HostToolProcess.FindRepositoryRoot();
 
-        return TcpPlannerSourceUsesSharedZeroHelper(ReadKernelNetSource(root, "TcpIpv4FramePlanner.cs"))
+        return HostCheck.Result(TcpPlannerSourceUsesSharedZeroHelper(ReadKernelNetSource(root, "TcpIpv4FramePlanner.cs"))
             && TcpPlannerSourceUsesSharedZeroHelper(ReadKernelNetSource(root, "TcpPassiveIpv4FramePlanner.cs"))
             && TcpPlannerSourceUsesSharedZeroHelper(
                 ReadKernelNetSource(root, "TcpEstablishedStreamIpv4FramePlanner.cs"))
             && TcpPlannerSourceUsesSharedZeroHelper(
-                ReadKernelNetSource(root, "TcpConnectionCloseIpv4FramePlanner.cs"));
+                ReadKernelNetSource(root, "TcpConnectionCloseIpv4FramePlanner.cs")));
     }
 
+    [HostTest("net.tcp ipv4 frame planners use shared buffer operations", HostLane.Fast, 13)]
     private static bool TestTcpIpv4FramePlannersUseSharedBufferOperations()
     {
         string root = HostToolProcess.FindRepositoryRoot();
 
-        return TcpPlannerSourceUsesSharedBufferOperations(ReadKernelNetSource(root, "TcpIpv4FramePlanner.cs"))
+        return HostCheck.Result(TcpPlannerSourceUsesSharedBufferOperations(ReadKernelNetSource(root, "TcpIpv4FramePlanner.cs"))
             && TcpPlannerSourceUsesSharedBufferOperations(ReadKernelNetSource(root, "TcpPassiveIpv4FramePlanner.cs"))
             && TcpPlannerSourceUsesSharedBufferOperations(
                 ReadKernelNetSource(root, "TcpEstablishedStreamIpv4FramePlanner.cs"))
             && TcpPlannerSourceUsesSharedBufferOperations(
-                ReadKernelNetSource(root, "TcpConnectionCloseIpv4FramePlanner.cs"));
+                ReadKernelNetSource(root, "TcpConnectionCloseIpv4FramePlanner.cs")));
     }
 
     private static string ReadKernelNetSource(string root, string fileName)

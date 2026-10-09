@@ -6,49 +6,7 @@ internal static class DhcpClientTransactionPlannerTests
 {
     private const uint TransactionId = 0x50617221;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.dhcp.client.transaction writes discover frame", TestWritesDiscoverFrame, ref failures);
-        Run("net.dhcp.client.transaction completes offer request ack", TestCompletesOfferRequestAck, ref failures);
-        Run("net.dhcp.client.transaction default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("net.dhcp.client.transaction rejects wrong xid", TestRejectsWrongTransactionId, ref failures);
-        Run("net.dhcp.client.transaction rejects invalid transition", TestRejectsInvalidTransition, ref failures);
-        Run("net.dhcp.client.transaction rejects missing server id", TestRejectsMissingServerIdentifier, ref failures);
-        Run("net.dhcp.client.transaction rejects malformed packet", TestRejectsMalformedPacket, ref failures);
-        Run("net.dhcp.client.transaction rejects invalid lease config", TestRejectsInvalidLeaseConfiguration, ref failures);
-        Run("net.dhcp.client mac validation uses shared helpers", TestMacValidationUsesSharedHelpers, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("DHCP transaction planner host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.dhcp.client.transaction writes discover frame", HostLane.Fast, 0)]
     private static bool TestWritesDiscoverFrame()
     {
         DhcpClientTransactionPlanner planner = CreatePlanner();
@@ -62,7 +20,7 @@ internal static class DhcpClientTransactionPlannerTests
             out EthernetIpv4UdpPacketInfo info,
             out ReadOnlySpan<byte> payload);
 
-        return status == DhcpClientTransactionPlannerStatus.Success
+        return HostCheck.Result(status == DhcpClientTransactionPlannerStatus.Success
             && result.Succeeded
             && result.State == DhcpClientState.DiscoverSent
             && planner.State == DhcpClientState.DiscoverSent
@@ -79,9 +37,10 @@ internal static class DhcpClientTransactionPlannerTests
             && info.SourcePort == DhcpMessage.ClientPort
             && info.DestinationPort == DhcpMessage.ServerPort
             && payload.Length == DhcpUdpFrame.DiscoverPayloadLength
-            && payload[DhcpMessage.OptionsOffset + 2] == DhcpMessage.MessageTypeDiscover;
+            && payload[DhcpMessage.OptionsOffset + 2] == DhcpMessage.MessageTypeDiscover);
     }
 
+    [HostTest("net.dhcp.client.transaction completes offer request ack", HostLane.Fast, 1)]
     private static bool TestCompletesOfferRequestAck()
     {
         DhcpClientTransactionPlanner planner = CreatePlanner();
@@ -92,7 +51,7 @@ internal static class DhcpClientTransactionPlannerTests
             != DhcpClientTransactionPlannerStatus.Success
             || discoverResult.State != DhcpClientState.DiscoverSent)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] offer = CreateServerReplyFrame(
@@ -113,7 +72,7 @@ internal static class DhcpClientTransactionPlannerTests
             || planner.ServerIdentifier != ServerAddress()
             || offerResult.PayloadOffset != DhcpUdpFrame.FrameHeaderLength)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] request = new byte[DhcpUdpFrame.RequestFrameLength];
@@ -125,7 +84,7 @@ internal static class DhcpClientTransactionPlannerTests
             || planner.State != DhcpClientState.RequestSent
             || !RequestFrameContainsExpectedOptions(request, requestResult.BytesWritten))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] ack = CreateServerReplyFrame(
@@ -139,7 +98,7 @@ internal static class DhcpClientTransactionPlannerTests
             ack,
             out DhcpClientTransactionPlannerResult ackResult);
 
-        return ackStatus == DhcpClientTransactionPlannerStatus.Success
+        return HostCheck.Result(ackStatus == DhcpClientTransactionPlannerStatus.Success
             && ackResult.Succeeded
             && ackResult.State == DhcpClientState.Bound
             && planner.State == DhcpClientState.Bound
@@ -156,9 +115,10 @@ internal static class DhcpClientTransactionPlannerTests
             && ackResult.LeaseConfiguration.Router == ServerAddress()
             && ackResult.LeaseConfiguration.HasDnsServer
             && ackResult.LeaseConfiguration.DnsServer == DnsAddress()
-            && planner.LeaseConfiguration.Address == OfferedAddress();
+            && planner.LeaseConfiguration.Address == OfferedAddress());
     }
 
+    [HostTest("net.dhcp.client.transaction default result is not success", HostLane.Fast, 2)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         DhcpClientTransactionPlannerResult defaultResult = default;
@@ -177,7 +137,7 @@ internal static class DhcpClientTransactionPlannerTests
                 request,
                 out DhcpClientTransactionPlannerResult failure);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == DhcpClientTransactionPlannerStatus.Success
             && defaultResult.State == DhcpClientState.Initial
@@ -217,9 +177,10 @@ internal static class DhcpClientTransactionPlannerTests
             && failure.MessageStatus == DhcpMessageStatus.Success
             && failure.BytesWritten == 0
             && failurePlanner.State == DhcpClientState.Initial
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<DhcpClientTransactionPlannerResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<DhcpClientTransactionPlannerResult>());
     }
 
+    [HostTest("net.dhcp.client.transaction rejects wrong xid", HostLane.Fast, 3)]
     private static bool TestRejectsWrongTransactionId()
     {
         DhcpClientTransactionPlanner planner = CreatePlanner();
@@ -229,7 +190,7 @@ internal static class DhcpClientTransactionPlannerTests
                 out DhcpClientTransactionPlannerResult _)
             != DhcpClientTransactionPlannerStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] offer = CreateServerReplyFrame(
@@ -244,14 +205,15 @@ internal static class DhcpClientTransactionPlannerTests
             offer,
             out DhcpClientTransactionPlannerResult result);
 
-        return status == DhcpClientTransactionPlannerStatus.WrongTransactionId
+        return HostCheck.Result(status == DhcpClientTransactionPlannerStatus.WrongTransactionId
             && !result.Succeeded
             && result.ClientStatus == DhcpClientStatus.TransactionIdMismatch
             && result.MessageStatus == DhcpMessageStatus.Success
             && result.State == DhcpClientState.Failed
-            && planner.State == DhcpClientState.Failed;
+            && planner.State == DhcpClientState.Failed);
     }
 
+    [HostTest("net.dhcp.client.transaction rejects invalid transition", HostLane.Fast, 4)]
     private static bool TestRejectsInvalidTransition()
     {
         DhcpClientTransactionPlanner planner = CreatePlanner();
@@ -261,14 +223,15 @@ internal static class DhcpClientTransactionPlannerTests
             request,
             out DhcpClientTransactionPlannerResult result);
 
-        return status == DhcpClientTransactionPlannerStatus.InvalidState
+        return HostCheck.Result(status == DhcpClientTransactionPlannerStatus.InvalidState
             && !result.Succeeded
             && result.ClientStatus == DhcpClientStatus.InvalidState
             && result.State == DhcpClientState.Initial
             && result.BytesWritten == 0
-            && planner.State == DhcpClientState.Initial;
+            && planner.State == DhcpClientState.Initial);
     }
 
+    [HostTest("net.dhcp.client.transaction rejects missing server id", HostLane.Fast, 5)]
     private static bool TestRejectsMissingServerIdentifier()
     {
         DhcpClientTransactionPlanner planner = CreatePlanner();
@@ -278,7 +241,7 @@ internal static class DhcpClientTransactionPlannerTests
                 out DhcpClientTransactionPlannerResult _)
             != DhcpClientTransactionPlannerStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] offer = CreateServerReplyFrame(
@@ -293,14 +256,15 @@ internal static class DhcpClientTransactionPlannerTests
             offer,
             out DhcpClientTransactionPlannerResult result);
 
-        return status == DhcpClientTransactionPlannerStatus.MissingServerIdentifier
+        return HostCheck.Result(status == DhcpClientTransactionPlannerStatus.MissingServerIdentifier
             && !result.Succeeded
             && result.ClientStatus == DhcpClientStatus.MissingServerIdentifier
             && result.MessageStatus == DhcpMessageStatus.Success
             && result.State == DhcpClientState.Failed
-            && planner.State == DhcpClientState.Failed;
+            && planner.State == DhcpClientState.Failed);
     }
 
+    [HostTest("net.dhcp.client.transaction rejects malformed packet", HostLane.Fast, 6)]
     private static bool TestRejectsMalformedPacket()
     {
         DhcpClientTransactionPlanner planner = CreatePlanner();
@@ -310,7 +274,7 @@ internal static class DhcpClientTransactionPlannerTests
                 out DhcpClientTransactionPlannerResult _)
             != DhcpClientTransactionPlannerStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] offer = CreateServerReplyFrame(
@@ -325,15 +289,16 @@ internal static class DhcpClientTransactionPlannerTests
             offer,
             out DhcpClientTransactionPlannerResult result);
 
-        return status == DhcpClientTransactionPlannerStatus.MalformedPacket
+        return HostCheck.Result(status == DhcpClientTransactionPlannerStatus.MalformedPacket
             && !result.Succeeded
             && result.FrameStatus == DhcpUdpFrameStatus.DhcpMessageFailed
             && result.MessageStatus == DhcpMessageStatus.MissingMagicCookie
             && result.ClientStatus == DhcpClientStatus.Success
             && result.State == DhcpClientState.DiscoverSent
-            && planner.State == DhcpClientState.DiscoverSent;
+            && planner.State == DhcpClientState.DiscoverSent);
     }
 
+    [HostTest("net.dhcp.client.transaction rejects invalid lease config", HostLane.Fast, 7)]
     private static bool TestRejectsInvalidLeaseConfiguration()
     {
         DhcpClientTransactionPlanner planner = CreatePlanner();
@@ -343,7 +308,7 @@ internal static class DhcpClientTransactionPlannerTests
                 out DhcpClientTransactionPlannerResult _)
             != DhcpClientTransactionPlannerStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] offer = CreateServerReplyFrame(
@@ -358,7 +323,7 @@ internal static class DhcpClientTransactionPlannerTests
                 out DhcpClientTransactionPlannerResult _)
             != DhcpClientTransactionPlannerStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] request = new byte[DhcpUdpFrame.RequestFrameLength];
@@ -367,7 +332,7 @@ internal static class DhcpClientTransactionPlannerTests
                 out DhcpClientTransactionPlannerResult _)
             != DhcpClientTransactionPlannerStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] ack = CreateServerReplyFrame(
@@ -382,15 +347,16 @@ internal static class DhcpClientTransactionPlannerTests
             ack,
             out DhcpClientTransactionPlannerResult result);
 
-        return status == DhcpClientTransactionPlannerStatus.LeaseConfigurationFailed
+        return HostCheck.Result(status == DhcpClientTransactionPlannerStatus.LeaseConfigurationFailed
             && !result.Succeeded
             && result.ClientStatus == DhcpClientStatus.Success
             && result.LeaseStatus == DhcpLeaseConfigurationStatus.InvalidSubnetMask
             && result.State == DhcpClientState.RequestSent
             && planner.State == DhcpClientState.RequestSent
-            && planner.LeaseConfiguration.Equals(default(DhcpLeaseConfiguration));
+            && planner.LeaseConfiguration.Equals(default(DhcpLeaseConfiguration)));
     }
 
+    [HostTest("net.dhcp.client mac validation uses shared helpers", HostLane.Fast, 8)]
     private static bool TestMacValidationUsesSharedHelpers()
     {
         DhcpClientTransactionPlanner zeroPlanner =
@@ -414,7 +380,7 @@ internal static class DhcpClientTransactionPlannerTests
             "Net",
             "DhcpClientTransactionPlanner.cs"));
 
-        return zeroStatus == DhcpClientTransactionPlannerStatus.InvalidClientIdentity
+        return HostCheck.Result(zeroStatus == DhcpClientTransactionPlannerStatus.InvalidClientIdentity
             && zeroResult.IsInitialized
             && !zeroResult.Succeeded
             && zeroResult.Status == DhcpClientTransactionPlannerStatus.InvalidClientIdentity
@@ -427,7 +393,7 @@ internal static class DhcpClientTransactionPlannerTests
             && source.Contains("macAddress.IsZero", StringComparison.Ordinal)
             && source.Contains("macAddress.IsBroadcast", StringComparison.Ordinal)
             && !source.Contains("macAddress == default", StringComparison.Ordinal)
-            && !source.Contains("Octet0 != 0xFF", StringComparison.Ordinal);
+            && !source.Contains("Octet0 != 0xFF", StringComparison.Ordinal));
     }
 
     private static bool RequestFrameContainsExpectedOptions(byte[] frame, int bytesWritten)

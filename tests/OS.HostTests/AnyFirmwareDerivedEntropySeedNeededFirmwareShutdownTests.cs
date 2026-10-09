@@ -6,37 +6,6 @@ using CaptureSeed = OS.Boot.AnyFirmwareDerivedEntropySeedNeededFirmwareShutdown;
 
 internal static class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdownTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-        Run("m03.003", TestSuccess, ref failures);
-        Run("m03.003 retains bytes after scratch mutation and firmware denial", TestRetention, ref failures);
-        Run("m03.003 admits zero and repeated source bytes", TestNoQualityHeuristic, ref failures);
-        Run("m03.003 rejects invalid lengths and capacities before source", TestGeometry, ref failures);
-        Run("m03.003 rejects complete buffer aliases", TestBufferAliases, ref failures);
-        Run("m03.003 rejects publication aliases before source", TestPublicationAliases, ref failures);
-        Run("m03.003 reports firmware denial without source calls", TestFirmwareDenial, ref failures);
-        Run("m03.003 preserves retained storage on source failures", TestSourceFailures, ref failures);
-        Run("m03.003 rejects inexact and default source results", TestSourceResults, ref failures);
-        Run("m03.003 rejects repeated and malformed publication", TestPublication, ref failures);
-        Run("m03.003 status precedence preserves all admitted storage", TestPrecedence, ref failures);
-        Run("m03.003 POD and warmed zero allocation", TestNoAllocation, ref failures);
-        if (failures != 0)
-            throw new InvalidOperationException("M03-003 entropy retention tests failed: " + failures);
-    }
-
-    private static void Run(string name, Action test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-        try { test(); Console.WriteLine("TEST_PASS " + name); }
-        catch (Exception ex)
-        {
-            failures++;
-            // Only a status/reason is emitted, never source or retained bytes.
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
 
     private static void Check(bool condition, string reason)
     {
@@ -100,6 +69,7 @@ internal static class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdownTests
         }
     }
 
+    [HostTest("m03.003", HostLane.Fast, 0)]
     private static void TestSuccess()
     {
         foreach (int count in new[] { 32, 64 })
@@ -127,6 +97,7 @@ internal static class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdownTests
         Check(exactResult.Succeeded && exact.Provider.LastLength == 64, "exact payload capacity");
     }
 
+    [HostTest("m03.003 retains bytes after scratch mutation and firmware denial", HostLane.Fast, 1)]
     private static void TestRetention()
     {
         Fixture f = new();
@@ -143,6 +114,7 @@ internal static class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdownTests
             "repeat does not reacquire firmware");
     }
 
+    [HostTest("m03.003 admits zero and repeated source bytes", HostLane.Fast, 2)]
     private static void TestNoQualityHeuristic()
     {
         foreach (int constant in new[] { 0, 0xA5 })
@@ -153,6 +125,7 @@ internal static class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdownTests
         }
     }
 
+    [HostTest("m03.003 rejects invalid lengths and capacities before source", HostLane.Fast, 3)]
     private static void TestGeometry()
     {
         foreach (int count in new[] { int.MinValue, -1, 0, 1, 31, 33, 63, 65, int.MaxValue })
@@ -170,6 +143,7 @@ internal static class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdownTests
         AssertRejected(missing, null, 32, 96, 96, FirmwareEntropySeedStatus.InvalidSource, true);
     }
 
+    [HostTest("m03.003 rejects complete buffer aliases", HostLane.Fast, 4)]
     private static void TestBufferAliases()
     {
         foreach ((int a, int al, int b, int bl) in new[] {
@@ -189,6 +163,7 @@ internal static class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdownTests
         Check(adjacent[7] == PatternByte(7, 0xC3) && adjacent[136] == PatternByte(136, 0xC3), "adjacent guards");
     }
 
+    [HostTest("m03.003 rejects publication aliases before source", HostLane.Fast, 5)]
     private static void TestPublicationAliases()
     {
         foreach (bool inScratch in new[] { false, true })
@@ -206,6 +181,7 @@ internal static class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdownTests
         }
     }
 
+    [HostTest("m03.003 reports firmware denial without source calls", HostLane.Fast, 6)]
     private static void TestFirmwareDenial()
     {
         foreach (bool exited in new[] { false, true })
@@ -220,6 +196,7 @@ internal static class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdownTests
         }
     }
 
+    [HostTest("m03.003 preserves retained storage on source failures", HostLane.Fast, 7)]
     private static void TestSourceFailures()
     {
         foreach (int failure in new[] { 1, 2, 3 })
@@ -235,6 +212,7 @@ internal static class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdownTests
         }
     }
 
+    [HostTest("m03.003 rejects inexact and default source results", HostLane.Fast, 8)]
     private static void TestSourceResults()
     {
         foreach (int reported in new[] { 1, 31, 33, 64, int.MaxValue })
@@ -257,6 +235,7 @@ internal static class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdownTests
         }
     }
 
+    [HostTest("m03.003 rejects repeated and malformed publication", HostLane.Fast, 9)]
     private static void TestPublication()
     {
         foreach (int value in new[] { int.MinValue, -1, 1, 31, 32, 33, 63, 64, 65, int.MaxValue })
@@ -269,6 +248,7 @@ internal static class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdownTests
         }
     }
 
+    [HostTest("m03.003 status precedence preserves all admitted storage", HostLane.Fast, 10)]
     private static void TestPrecedence()
     {
         Fixture f = new();
@@ -297,6 +277,7 @@ internal static class AnyFirmwareDerivedEntropySeedNeededFirmwareShutdownTests
         return r;
     }
 
+    [HostTest("m03.003 POD and warmed zero allocation", HostLane.Fast, 11)]
     private static void TestNoAllocation()
     {
         Check(!RuntimeHelpers.IsReferenceOrContainsReferences<FirmwareEntropySeedPublication>()

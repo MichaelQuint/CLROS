@@ -9,59 +9,7 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
     private const uint LocalNextSequence = 0x01020304;
     private const uint RemoteNextSequence = 0x10203040;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.tcp.close.ipv4 writes active fin checksum", TestWritesActiveFinChecksum, ref failures);
-        Run("net.tcp.close.ipv4 rejects identity and short output", TestRejectsIdentityAndShortOutput, ref failures);
-        Run("net.tcp.close.ipv4 default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run(
-            "net.tcp.close.ipv4.formatter formats active close marker",
-            TestFormatterFormatsActiveCloseMarker,
-            ref failures);
-        Run(
-            "net.tcp.close.ipv4.formatter reports short destination",
-            TestFormatterReportsShortDestination,
-            ref failures);
-        Run(
-            "net.tcp.close.ipv4.formatter rejects default result",
-            TestFormatterRejectsDefaultResult,
-            ref failures);
-        Run(
-            "net.tcp.close.ipv4.formatter uses shared ascii text builder",
-            TestFormatterUsesSharedAsciiTextBuilder,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("TCP close IPv4 frame planner host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.tcp.close.ipv4 writes active fin checksum", HostLane.Fast, 0)]
     private static bool TestWritesActiveFinChecksum()
     {
         TcpConnectionCloseIpv4FramePlanner planner = CreatePlanner();
@@ -85,7 +33,7 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
             || planner.LocalNextSequenceNumber != LocalNextSequence + 1
             || planner.RemoteNextSequenceNumber != RemoteNextSequence)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (!TryParseTcpFrame(
@@ -95,7 +43,7 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
                 out TcpHeader tcp,
                 out ReadOnlySpan<byte> tcpSegment))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Ipv4TransportChecksumStatus checksumStatus = Ipv4TransportChecksum.Validate(
@@ -105,7 +53,7 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
             tcpSegment,
             out Ipv4TransportChecksumResult checksumResult);
 
-        return ethernet.Source == LocalMac()
+        return HostCheck.Result(ethernet.Source == LocalMac()
             && ethernet.Destination == RemoteMac()
             && ethernet.EtherType == EthernetHeader.EtherTypeIpv4
             && ipv4.Source == LocalAddress()
@@ -123,9 +71,10 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
             && result.TcpHeader.Checksum == tcp.Checksum
             && checksumStatus == Ipv4TransportChecksumStatus.Success
             && checksumResult.IsValid
-            && checksumResult.TransportLength == TcpHeader.MinHeaderLength;
+            && checksumResult.TransportLength == TcpHeader.MinHeaderLength);
     }
 
+    [HostTest("net.tcp.close.ipv4 rejects identity and short output", HostLane.Fast, 1)]
     private static bool TestRejectsIdentityAndShortOutput()
     {
         TcpConnectionCloseIpv4FramePlanner invalidLocal = TcpConnectionCloseIpv4FramePlanner.Create(
@@ -162,7 +111,7 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
             frame.AsSpan(0, TcpConnectionCloseIpv4FramePlanner.HeaderBytes - 1),
             out TcpConnectionCloseIpv4FramePlanResult shortOutputResult);
 
-        return invalidLocalStatus == TcpConnectionCloseIpv4FramePlanStatus.InvalidLocalIdentity
+        return HostCheck.Result(invalidLocalStatus == TcpConnectionCloseIpv4FramePlanStatus.InvalidLocalIdentity
             && !invalidLocalResult.Succeeded
             && invalidLocal.State == TcpConnectionCloseState.Established
             && invalidLocal.LocalNextSequenceNumber == LocalNextSequence
@@ -176,9 +125,10 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
             && shortOutputResult.PacketStatus == PacketParseStatus.BufferTooSmall
             && shortOutput.State == TcpConnectionCloseState.Established
             && shortOutput.LocalNextSequenceNumber == LocalNextSequence
-            && shortOutput.RemoteNextSequenceNumber == RemoteNextSequence;
+            && shortOutput.RemoteNextSequenceNumber == RemoteNextSequence);
     }
 
+    [HostTest("net.tcp.close.ipv4 default result is not success", HostLane.Fast, 2)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         TcpConnectionCloseIpv4FramePlannerInfo info = new(
@@ -216,7 +166,7 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
             LocalNextSequence,
             RemoteNextSequence);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == TcpConnectionCloseIpv4FramePlanStatus.Success
             && success.IsInitialized
@@ -244,9 +194,10 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
             && failure.TcpStatus == TcpConnectionCloseStatus.BufferTooSmall
             && failure.PacketStatus == PacketParseStatus.BufferTooSmall
             && failure.BytesWritten == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpConnectionCloseIpv4FramePlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpConnectionCloseIpv4FramePlanResult>());
     }
 
+    [HostTest("net.tcp.close.ipv4.formatter formats active close marker", HostLane.Fast, 3)]
     private static bool TestFormatterFormatsActiveCloseMarker()
     {
         TcpConnectionCloseIpv4FramePlanResult result = CreateSuccessfulFramePlan();
@@ -270,7 +221,7 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
             " localSeq=" + result.LocalNextSequenceNumber +
             " remoteSeq=" + result.RemoteNextSequenceNumber;
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && !query.Succeeded
             && query.Status == TcpConnectionCloseIpv4FramePlanDiagnosticFormatStatus.Success
             && query.FrameStatus == TcpConnectionCloseIpv4FramePlanStatus.Success
@@ -284,9 +235,10 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
             && format.AvailableBytes == destination.Length
             && text == expected
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                TcpConnectionCloseIpv4FramePlanDiagnosticFormatResult>();
+                TcpConnectionCloseIpv4FramePlanDiagnosticFormatResult>());
     }
 
+    [HostTest("net.tcp.close.ipv4.formatter reports short destination", HostLane.Fast, 4)]
     private static bool TestFormatterReportsShortDestination()
     {
         TcpConnectionCloseIpv4FramePlanResult result = CreateSuccessfulFramePlan();
@@ -298,7 +250,7 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
         TcpConnectionCloseIpv4FramePlanDiagnosticFormatResult shortResult =
             TcpConnectionCloseIpv4FramePlanDiagnosticFormatter.FormatResult(result, destination);
 
-        return shortResult.IsInitialized
+        return HostCheck.Result(shortResult.IsInitialized
             && !shortResult.Succeeded
             && shortResult.Status == TcpConnectionCloseIpv4FramePlanDiagnosticFormatStatus.DestinationTooSmall
             && shortResult.FrameStatus == TcpConnectionCloseIpv4FramePlanStatus.Success
@@ -307,9 +259,10 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
             && shortResult.AvailableBytes == destination.Length
             && query.RequiredBytes > destination.Length
             && destination[0] == 0xCC
-            && destination[30] == 0xCC;
+            && destination[30] == 0xCC);
     }
 
+    [HostTest("net.tcp.close.ipv4.formatter rejects default result", HostLane.Fast, 5)]
     private static bool TestFormatterRejectsDefaultResult()
     {
         Span<byte> destination = stackalloc byte[64];
@@ -322,7 +275,7 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
             TcpConnectionCloseIpv4FramePlanDiagnosticFormatter.QueryRequiredBytes(defaultResult);
         TcpConnectionCloseIpv4FramePlanDiagnosticFormatResult defaultFormat = default;
 
-        return format.IsInitialized
+        return HostCheck.Result(format.IsInitialized
             && !format.Succeeded
             && format.Status == TcpConnectionCloseIpv4FramePlanDiagnosticFormatStatus.InvalidResult
             && format.FrameStatus == TcpConnectionCloseIpv4FramePlanStatus.Success
@@ -340,9 +293,10 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
             && defaultFormat.RequiredBytes == 0
             && defaultFormat.AvailableBytes == 0
             && destination[0] == 0xAA
-            && destination[63] == 0xAA;
+            && destination[63] == 0xAA);
     }
 
+    [HostTest("net.tcp.close.ipv4.formatter uses shared ascii text builder", HostLane.Fast, 6)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -354,7 +308,7 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
                 "Net",
                 "TcpConnectionCloseIpv4FramePlanDiagnosticFormatter.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains(
                 "AsciiDecimalFormatter.CountInt32Digits(result.BytesWritten)",
                 StringComparison.Ordinal)
@@ -386,7 +340,7 @@ internal static class TcpConnectionCloseIpv4FramePlannerTests
                 "destination[offset + index] = (byte)('0' +",
                 StringComparison.Ordinal)
             && !source.Contains("value /= 10", StringComparison.Ordinal)
-            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal);
+            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal));
     }
 
     private static TcpConnectionCloseIpv4FramePlanResult CreateSuccessfulFramePlan()

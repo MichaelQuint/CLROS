@@ -2,6 +2,25 @@
 
 ## Current Status
 
+The maintained smoke commands are C# 14/.NET 10 services in `OS.Tooling`.
+Build the solution once, then use the already-built tooling for repeated checks:
+
+```powershell
+dotnet build CLROS.slnx --nologo -m:1
+dotnet tools/OS.Tooling/bin/Debug/net10.0/OS.Tooling.dll qemu smoke --dry-run
+dotnet tools/OS.Tooling/bin/Debug/net10.0/OS.Tooling.dll qemu qcow2 --dry-run
+```
+
+The PascalCase option aliases used in the examples remain supported alongside
+GNU-style options. `QemuContracts` owns shared marker inventories;
+`EfiContracts` and `EfiProfile` own source expectations and profile selection.
+`QemuTranscripts` validates raw captures directly in process, including strict
+UTF-8/CRLF framing and numeric relationships. The compiled `OS.QemuCapture`
+preserves stopped-guest QMP observations and native cleanup without generating
+another project per run. Host controls and dry runs do not establish new guest
+acceptance; the historical source-bound evidence below retains its stated scope.
+
+
 Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 
 An unqualified raw-image smoke selects `VerifiedExit`, publishes a fresh EFI/image and requires the complete 79-record post-exit transcript with empty child stderr. See [boot](boot.md) and [EFI build](efi-build.md) for policy and evidence limits.
@@ -14,7 +33,7 @@ conversion/reuse wrapper builds and selects Diagnostic and does not establish
 normal verified-exit acceptance. Marker presets and dry runs remain host-side
 contracts, not proof of the named guest subsystem.
 
-QEMU smoke now has real OVMF boot proof for the EFI smoke path from both raw and qcow2 image artifacts. `scripts/run-qemu-smoke.ps1` builds `artifacts/images/os.raw` through `OS.ImageBuilder`, boots it with QEMU/OVMF, captures serial output to `artifacts/logs/qemu-smoke.log`, writes a concise summary artifact to `artifacts/logs/qemu-smoke.summary.log`, and requires the current boot boundary markers by default. `scripts/run-qemu-qcow2-smoke.ps1` converts the raw image to `artifacts/images/os.qcow2` through `qemu-img`, boots it with `--disk-format qcow2`, and writes separate qcow2 serial and summary artifacts.
+QEMU smoke now has real OVMF boot proof for the EFI smoke path from both raw and qcow2 image artifacts. `dotnet run --project tools/OS.Tooling -- qemu smoke` builds `artifacts/images/os.raw` through `OS.ImageBuilder`, boots it with QEMU/OVMF, captures serial output to `artifacts/logs/qemu-smoke.log`, writes a concise summary artifact to `artifacts/logs/qemu-smoke.summary.log`, and requires the current boot boundary markers by default. `dotnet run --project tools/OS.Tooling -- qemu qcow2` converts the raw image to `artifacts/images/os.qcow2` through `qemu-img`, boots it with `--disk-format qcow2`, and writes separate qcow2 serial and summary artifacts.
 
 The compatibility smoke proves OVMF loads `\EFI\BOOT\BOOTX64.EFI` and emits the firmware-visible records. Ordinary verified exit additionally requires the owned post-exit checks and then halts; neither path starts an application workload.
 
@@ -351,7 +370,7 @@ records and the 512-character boundary, and reject 513 characters.
 The development real command was:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -412,7 +431,7 @@ explicitly distinct.
 The development real command was:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -484,7 +503,7 @@ CLROS_M02_007_READY encoding=guestValidated callerOwned=true readBack=true gdtBy
 The real evidence command is:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -553,7 +572,7 @@ CLROS_M02_008_READY stacks=3 guards=3 doubleFaultIst=1 pageFaultIst=2 nmiIst=3 w
 The exact real-evidence command is:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -623,7 +642,7 @@ refused. This avoids classifying the expected terminal halt as an incomplete
 raw-observation capture. The complete real-evidence command is:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -690,7 +709,7 @@ limits.
 The accepted real command was:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -789,7 +808,7 @@ before `UEFI_MEMORY_MAP_READY`.
 The real command was:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -892,7 +911,7 @@ reset, triple fault, timeout, missing output, or spontaneous exit as failure.
 The verified dry-run command is:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -DryRun `
   -BuildEfi `
   -EnableM02IdtrContinuedExecutionProbe
@@ -906,7 +925,7 @@ complete M02-012 forbidden set.
 The required real evidence command is:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -BuildEfi `
   -EnableM02IdtrContinuedExecutionProbe `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
@@ -977,7 +996,7 @@ satisfy the run.
 The verified typed dry run is:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -DryRun `
   -BuildEfi `
   -EnableM02Ud2VectorStateProbe
@@ -993,7 +1012,7 @@ post-pass-noise transcripts.
 The accepted real-evidence command was:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 45 `
@@ -1075,7 +1094,7 @@ These invocation errors are stable and fail before build or guest execution:
 The fresh real 2026-08-05 command was:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 15 `
@@ -1140,7 +1159,7 @@ reasons reject a missing M04-002 dependency, a missing `-BuildEfi`,
 The profile can be inspected without build or boot proof using:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -DryRun `
   -BuildEfi `
   -EnableM04IndependentEndianConformanceProbe `
@@ -1150,7 +1169,7 @@ The profile can be inspected without build or boot proof using:
 The accepted real-QEMU evidence run used fresh issue- and head-specific paths:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -1208,7 +1227,7 @@ The default-false `-EnableM04ArithmeticConformanceProbe` switch requires
 `-SkipImageBuild` and terminal M02-009/M02-013 combinations. Dry-run example:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi `
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun -BuildEfi `
   -EnableM04IndependentEndianConformanceProbe `
   -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe `
   -EnableM04ArithmeticConformanceProbe
@@ -1264,7 +1283,7 @@ profile is disabled. Use unique paths for each acceptance attempt; the EFI
 must be a direct child of `artifacts/efi`. Use this command template:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -BuildEfi `
   -EnableM04IndependentEndianConformanceProbe `
   -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe `
@@ -1337,7 +1356,7 @@ evidence at source `4b18b4f`, following the complete host gate. Use unique
 parent-assigned output paths and all seven explicit switches for the heap lane:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BuildEfi `
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi `
   -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe `
   -EnableM04IndependentEndianConformanceProbe `
   -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe `
@@ -1473,8 +1492,8 @@ double-fault recovery nor universal triple-fault prevention.
 - `tools/OS.QemuRunner` accepts `--workload-profile SingleMinimalApi|MultiMinimalApi`, defaults to `SingleMinimalApi` for direct CLI runs, and emits `WORKLOAD_PROFILE <value>` in dry-run, real-run console output, and real-run summary logs. Scripts still pass the selected workload profile explicitly.
 - `tools/OS.QemuRunner` discovers QEMU and OVMF from explicit arguments, environment variables, and common install paths.
 - Real mode fails with machine-readable reasons for missing image, missing QEMU, missing OVMF, timeout, missing serial marker, `OS_SMOKE_FAIL`, any `TEST_FAIL ...` marker, conflicting terminal state, cleanup failure, or a spontaneous nonzero QEMU exit.
-- `scripts/run-qemu-smoke.ps1` preserves dry-run behavior without requiring QEMU, OVMF, or an image. Real mode now runs a script-level host preflight before optional EFI/image build and before launching `OS.QemuRunner`. The preflight resolves QEMU and OVMF, emits `TEST_START qemu.smoke.preflight`, `QEMU_SCRIPT_PREFLIGHT_QEMU`, `QEMU_SCRIPT_PREFLIGHT_OVMF`, and `TEST_PASS qemu.smoke.preflight`, or fails early with `TEST_FAIL qemu.smoke qemu_not_found` or `TEST_FAIL qemu.smoke ovmf_not_found`.
-- Before launching the runner in real mode, `scripts/run-qemu-smoke.ps1` validates the selected image artifact and disk format, emits `QEMU_SCRIPT_PREFLIGHT_IMAGE` and `QEMU_SCRIPT_PREFLIGHT_DISK_FORMAT`, and fails with `TEST_FAIL qemu.smoke image_not_found`, `image_empty`, or `disk_format_mismatch` when the artifact cannot be used.
+- `dotnet run --project tools/OS.Tooling -- qemu smoke` preserves dry-run behavior without requiring QEMU, OVMF, or an image. Real mode now runs a host preflight before optional EFI/image build and before launching `OS.QemuRunner`. The preflight resolves QEMU and OVMF, emits `TEST_START qemu.smoke.preflight`, `QEMU_SCRIPT_PREFLIGHT_QEMU`, `QEMU_SCRIPT_PREFLIGHT_OVMF`, and `TEST_PASS qemu.smoke.preflight`, or fails early with `TEST_FAIL qemu.smoke qemu_not_found` or `TEST_FAIL qemu.smoke ovmf_not_found`.
+- Before launching the runner in real mode, `dotnet run --project tools/OS.Tooling -- qemu smoke` validates the selected image artifact and disk format, emits `QEMU_SCRIPT_PREFLIGHT_IMAGE` and `QEMU_SCRIPT_PREFLIGHT_DISK_FORMAT`, and fails with `TEST_FAIL qemu.smoke image_not_found`, `image_empty`, or `disk_format_mismatch` when the artifact cannot be used.
 - The runner polls the serial log while QEMU runs and terminates QEMU after all required markers appear. The boot timeout is a hard deadline checked before marker/drain completion on every poll. If an HTTP probe is configured, the runner keeps QEMU alive until the probe completes under the probe's separately bounded timeout.
 - `tools/OS.QemuRunner` always requires the baseline markers `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`. Repeatable `--require-marker <marker>` arguments append requirements; they cannot replace the baseline or remove the success terminal.
 - Repeatable `--require-ordered-marker <marker>` arguments define a
@@ -1575,37 +1594,35 @@ double-fault recovery nor universal triple-fault prevention.
 - Dry-run output emits `HTTP_PROBE url=<url> expected_status=<code> expected_body_bytes=<bytes> timeout_seconds=<seconds>` without printing the expected body text.
 - Real QEMU mode runs the HTTP probe only after configured serial required markers are satisfied. It emits `HTTP_PROBE_START`, `HTTP_PROBE_PASS`, or `HTTP_PROBE_FAIL` with endpoint, status, byte count, response body SHA-256, and elapsed time. It does not print the expected or actual response body.
 - Real QEMU mode fails with `TEST_FAIL qemu.runner.http_probe reason=<reason>` and `OS_SMOKE_FAIL http-probe=<reason>` when status, expected body, request, or timeout validation fails.
-- `scripts/run-qemu-smoke.ps1 -DryRun` validates runner wiring without requiring QEMU, OVMF, or an existing image.
-- `scripts/run-qemu-smoke.ps1` accepts `-WorkloadProfile SingleMinimalApi|MultiMinimalApi`, validates it before invoking tools, passes it to MSBuild-backed `dotnet run` calls as `/p:OSWorkloadProfile=<value>`, and passes it to `OS.QemuRunner` as `--workload-profile <value>`.
-- `scripts/run-qemu-smoke.ps1` defaults to `artifacts/efi/BOOTX64.EFI`, builds `artifacts/images/os.raw`, captures serial output to `artifacts/logs/qemu-smoke.log`, writes `artifacts/logs/qemu-smoke.summary.log`, and forwards one or more `-RequireMarker` values to the runner.
-- `scripts/run-qemu-smoke.ps1` accepts `-DiskFormat raw|qcow2`, defaults to `raw`, validates the value before invoking the runner, and supports comma-delimited marker lists in script-level `-RequireMarker` and `-ForbidMarker` arguments.
-- `scripts/run-qemu-smoke.ps1` accepts comma-delimited or repeated
+- `dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun` validates runner wiring without requiring QEMU, OVMF, or an existing image.
+- `dotnet run --project tools/OS.Tooling -- qemu smoke` accepts `-WorkloadProfile SingleMinimalApi|MultiMinimalApi`, validates it before invoking tools, passes it to the compiled image builder and `OS.QemuRunner` as `--workload-profile <value>`.
+- `dotnet run --project tools/OS.Tooling -- qemu smoke` defaults to `artifacts/efi/BOOTX64.EFI`, builds `artifacts/images/os.raw`, captures serial output to `artifacts/logs/qemu-smoke.log`, writes `artifacts/logs/qemu-smoke.summary.log`, and forwards one or more `-RequireMarker` values to the runner.
+- `dotnet run --project tools/OS.Tooling -- qemu smoke` accepts `-DiskFormat raw|qcow2`, defaults to `raw`, validates the value before invoking the runner, and supports comma-delimited marker lists in tool-level `-RequireMarker` and `-ForbidMarker` arguments.
+- `dotnet run --project tools/OS.Tooling -- qemu smoke` accepts comma-delimited or repeated
   `-RequireOrderedMarker` and `-RequireUniqueMarker` values, removes empty
   entries and ordinal duplicates, and forwards each normalized value to the
   corresponding runner option. Its dry-run evidence prints
-  `QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS` and
-  `QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS`.
+  `ORDERED_MARKERS` and `UNIQUE_MARKERS`; `QEMU_SCRIPT_PROFILE` reports the
+  counts from the selected shared inventory.
 - `-EnableM01LoadedImageStackProbe` is fail-closed evidence selection. It
   requires `-BuildEfi`, rejects `-SkipImageBuild`, and forwards the probe only
   to the fresh EFI build; an old image cannot be silently accepted as
   M01-022 evidence.
 - `-EnableM01LiveAllocatorProbe` is the stricter nested M01-024 evidence
   selector. It requires `-EnableM01LoadedImageStackProbe` and `-BuildEfi`,
-  rejects `-SkipImageBuild`, emits
-  `QEMU_SCRIPT_M01_LIVE_ALLOCATOR_PROBE`, and forwards both probe switches
+  rejects `-SkipImageBuild` and forwards both probe switches
   only to the fresh EFI build. A stage-two-only, stale-EFI, or stale-image
   selection fails before QEMU launch.
 - `-EnableM01OwnedPagingProbe` is the cumulative M01-026 evidence selector.
   It requires `-EnableM01LiveAllocatorProbe` and `-BuildEfi`, rejects
-  `-SkipImageBuild`, emits
-  `QEMU_SCRIPT_M01_OWNED_PAGING_PROBE`, and forwards the third switch exactly
+  `-SkipImageBuild` and forwards the third switch exactly
   once to the same fresh EFI build as the loaded-image-stack and live-allocator
   switches. The existing stage-two dependency check transitively rejects a
   paging selection without the loaded-image-stack profile. These selector
   checks prove only fail-closed command construction; `-DryRun` is not guest
   execution evidence.
-- A non-dry-run owned-paging selection generates and strictly builds a
-  per-run .NET 10 QEMU proxy. The proxy preserves the real QEMU path, accepts
+- A non-dry-run owned-paging selection uses the already-built .NET 10
+  `OS.QemuCapture` proxy with private per-run paths. The proxy preserves the real QEMU path, accepts
   only the runner's audited 256 MiB q35/TCG/headless argument shape, rejects
   caller-supplied monitor/QMP channels, and opens a private loopback QMP
   channel. The normal `OS.QemuRunner` remains the public marker/timeout
@@ -1644,13 +1661,13 @@ double-fault recovery nor universal triple-fault prevention.
   serial log, copied five-file EFI bundle, and hashes. This evidence statement
   is specific to that tuple; the mechanism description and every `-DryRun`
   remain host evidence only.
-- Script defaults require `OS_BOOT_OK`, `TEST_PASS boot.sequence`,
+- Diagnostic smoke defaults require `OS_BOOT_OK`, `TEST_PASS boot.sequence`,
   `OS_SMOKE_PASS`, `UEFI_MEMORY_MAP_OWNED`, `BOOT_HANDOFF_READY`,
   `UEFI_MEMORY_MAP_NORMALIZED`, `BOOT_MEMORY_MAP_ACCEPTED`,
   `BOOT_MEMORY_REGIONS_READY`, `BOOT_MEMORY_REGION_COUNT`,
   `BOOT_PAGE_ALLOCATOR_READY`, `BOOT_ACPI_RSDP_HANDOFF_READY`, and
   `UEFI_ACPI_RSDP_READY`.
-- `scripts/run-qemu-smoke.ps1` accepts `-MarkerPreset baseline|acpi|app-args|app-exit|app-lifecycle|app-selection|cctor-preflight|cctor-work-items|diagnostics|fetch-http|fetch-http-endpoint|fetch-http-tcp-exchange|http-static-response|http-static-tcp-response|manifest-env|nativeaot-heap|pal-export|uefi-gone|virtio-rx-tcp-dispatch` and forwards the selected preset to the runner. It supports repeated or comma-delimited preset values and emits `QEMU_MARKER_PRESETS <list>` before runner dry-run output.
+- `dotnet run --project tools/OS.Tooling -- qemu smoke` accepts `-MarkerPreset baseline|acpi|app-args|app-exit|app-lifecycle|app-selection|cctor-preflight|cctor-work-items|diagnostics|fetch-http|fetch-http-endpoint|fetch-http-tcp-exchange|http-static-response|http-static-tcp-response|manifest-env|nativeaot-heap|pal-export|uefi-gone|virtio-rx-tcp-dispatch` and forwards the selected preset to the runner. It supports repeated or comma-delimited preset values and emits `QEMU_MARKER_PRESETS <list>` before runner dry-run output.
 - `app-args` also accepts aliases `app_args`, `app-arguments`, and `native-app-args`; these normalize to the canonical `app-args` preset before the runner receives them.
 - `app-lifecycle` also accepts aliases `app_lifecycle`, `native-app-lifecycle`, and `applifecycle`; these normalize to the canonical `app-lifecycle` preset before the runner receives them.
 - `app-selection` also accepts aliases `app_selection`, `native-app-selection`, and `appselection`; these normalize to the canonical `app-selection` preset before the runner receives them.
@@ -1665,9 +1682,9 @@ double-fault recovery nor universal triple-fault prevention.
 - Passing `-RequireMarker` explicitly replaces the defaults for targeted probes such as UEFI-gone simulation variants.
 - Passing `-RequireNativeAppMarkers` appends the host-tested native app readiness marker sequence to the active required marker list: `APP_PACKAGE_READY`, `APP_LAUNCH_READY`, `APP_PAYLOAD_READY`, `APP_EXEC_MAPPING_READY`, `APP_EXEC_MEMORY_READY`, `APP_INVOCATION_READY`, and `APP_ENTRY_READY`. This is a dry-run-friendly preset for future native-app images; it does not make those markers part of the default smoke path.
 - Passing `-ForbidMarker` adds negative marker assertions without changing required marker behavior. Use it to prove disabled firmware probes remain inactive on the default smoke path.
-- `scripts/build-efi-shell.ps1 -EnableUefiGoneSimulationProbe` builds an explicit simulation artifact that emits `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
-- `scripts/build-efi-shell.ps1 -EnableAcpiPhysicalDiscoveryProbe` builds an explicit ACPI physical discovery artifact that emits the five `ACPI_*` validation markers before the normal boot marker plan.
-- `scripts/run-baseline-evidence.ps1` requires a new or empty evidence
+- `dotnet run --project tools/OS.Tooling -- efi build -EnableUefiGoneSimulationProbe` builds an explicit simulation artifact that emits `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
+- `dotnet run --project tools/OS.Tooling -- efi build -EnableAcpiPhysicalDiscoveryProbe` builds an explicit ACPI physical discovery artifact that emits the five `ACPI_*` validation markers before the normal boot marker plan.
+- `dotnet run --project tools/OS.Tooling -- baseline evidence` requires a new or empty evidence
   directory, runs the solution build, explicit host-test build, `--no-build`
   host execution, naming/source firewall, QEMU dry runs, qcow2/libvirt intent,
   `git diff --check`, and `git status --short`, and records `qemu-img`
@@ -1676,14 +1693,14 @@ double-fault recovery nor universal triple-fault prevention.
   terminal `TEST_FAIL host.tests`, and round-trips to a consistent summary.
   `-WorkloadProfile` remains propagated through the build, QEMU, qcow2, and
   libvirt lanes.
-- `scripts/run-baseline-evidence.ps1 -PlanOnly` writes a plan-only `os.baseline.evidence.summary.v0` summary without executing build, QEMU, qcow2, or libvirt commands. The summary records stable artifact fields for `baseline.qemu.diagnostics.dryrun`, `baseline.qemu.qcow2.*`, and libvirt intent lanes, including serial logs, summary logs, qcow2 image/disk-format intent, `qemuImgDiscovery`, `qcow2ConversionIntent`, libvirt domain XML, and the diagnostics marker preset.
-- `scripts/run-ci-smoke.ps1` creates a timestamped `artifacts/logs/ci-smoke-*` evidence directory, writes `ci-smoke.artifacts.json` and `ci-smoke.summary.json`, captures managed build and host-test logs, captures the default QEMU dry-run log, captures a native-app marker dry-run, captures diagnostics, app-args, app-exit, cctor-preflight, cctor-work-items, fetch-http, fetch-http-endpoint, fetch-http-tcp-exchange, http-static-response, http-static-tcp-response, virtio-rx-tcp-dispatch, manifest-env, nativeaot-heap, and pal-export marker-preset dry-run lanes, captures qcow2 smoke intent through `scripts/run-qemu-qcow2-smoke.ps1 -DryRun`, records `qemu-img` discovery and qcow2 conversion intent for the qcow2 lane, records libvirt dry-run/missing-tool intent artifacts, and records a `git diff --check` lane. These CI marker-preset lanes are artifact-contract dry-runs only and do not launch real QEMU.
-- `scripts/run-ci-smoke.ps1` passes `-WorkloadProfile` through QEMU, qcow2,
+- `dotnet run --project tools/OS.Tooling -- baseline evidence -PlanOnly` writes a plan-only `os.baseline.evidence.summary.v0` summary without executing build, QEMU, qcow2, or libvirt commands. The summary records stable artifact fields for `baseline.qemu.diagnostics.dryrun`, `baseline.qemu.qcow2.*`, and libvirt intent lanes, including serial logs, summary logs, qcow2 image/disk-format intent, `qemuImgDiscovery`, `qcow2ConversionIntent`, libvirt domain XML, and the diagnostics marker preset.
+- `dotnet run --project tools/OS.Tooling -- ci smoke` creates a timestamped `artifacts/logs/ci-smoke-*` evidence directory, writes `ci-smoke.artifacts.json` and `ci-smoke.summary.json`, captures managed build and host-test logs, captures the default QEMU dry-run log, captures a native-app marker dry-run, captures diagnostics, app-args, app-exit, cctor-preflight, cctor-work-items, fetch-http, fetch-http-endpoint, fetch-http-tcp-exchange, http-static-response, http-static-tcp-response, virtio-rx-tcp-dispatch, manifest-env, nativeaot-heap, and pal-export marker-preset dry-run lanes, captures qcow2 smoke intent through `dotnet run --project tools/OS.Tooling -- qemu qcow2 -DryRun`, records `qemu-img` discovery and qcow2 conversion intent for the qcow2 lane, records libvirt dry-run/missing-tool intent artifacts, and records a `git diff --check` lane. These CI marker-preset lanes are artifact-contract dry-runs only and do not launch real QEMU.
+- `dotnet run --project tools/OS.Tooling -- ci smoke` passes `-WorkloadProfile` through QEMU, qcow2,
   and libvirt lanes. This keeps nested tool builds aligned with the repo-wide
   `OSWorkloadProfile` validation target.
-- `scripts/run-ci-smoke.ps1 -RunQcow2RealSmoke` switches only the qcow2 lane from intent dry-run to the configured real qcow2 wrapper. Use it only with valid `-Qemu`, `-QemuImg`, and `-OvmfCode` inputs or equivalent host discovery.
+- `dotnet run --project tools/OS.Tooling -- ci smoke -RunQcow2RealSmoke` switches only the qcow2 lane from intent dry-run to the configured real qcow2 wrapper. Use it only with valid `-Qemu`, `-QemuImg`, and `-OvmfCode` inputs or equivalent host discovery.
 - `tools/OS.ImageBuilder convert-qcow2` can convert an existing raw image to qcow2 through `qemu-img`, with dry-run discovery and skip behavior that does not require `qemu-img`.
-- `scripts/run-qemu-qcow2-smoke.ps1` wraps the current qcow2 evidence flow: optional EFI build, raw image build, `convert-qcow2`, and QEMU smoke with `-DiskFormat qcow2`.
+- `dotnet run --project tools/OS.Tooling -- qemu qcow2` wraps the current qcow2 evidence flow: optional EFI build, raw image build, `convert-qcow2`, and QEMU smoke with `-DiskFormat qcow2`.
 
 Baseline qemu-img plan diagnostics:
 
@@ -1706,7 +1723,7 @@ TEST_PASS ci.smoke.qemu_img.discovery
 Ordinary verified-exit dry run:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun
 ```
 
 This selects `VerifiedExit` and the complete 79-record transcript, with
@@ -1716,7 +1733,7 @@ checks. It validates the launch plan only.
 The following historical 12-marker plan is available explicitly:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -BootPolicy Diagnostic
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun -BootPolicy Diagnostic
 ```
 
 Expected workload profile evidence includes:
@@ -1751,7 +1768,7 @@ TEST_PASS qemu.runner.preflight
 Dry run with the native app readiness preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -RequireNativeAppMarkers
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -RequireNativeAppMarkers
 ```
 
 Expected dry-run marker evidence includes the default smoke markers plus the host-tested app readiness markers:
@@ -1763,7 +1780,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the opt-in ACPI physical discovery marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset acpi
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -MarkerPreset acpi
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in ACPI validation markers:
@@ -1777,7 +1794,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future app-exit observer marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset app-exit
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -MarkerPreset app-exit
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in app-exit observer readiness marker:
@@ -1791,7 +1808,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future native app lifecycle marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset app-lifecycle
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -MarkerPreset app-lifecycle
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in native app lifecycle readiness marker:
@@ -1805,7 +1822,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future app-selection marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset app-selection
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -MarkerPreset app-selection
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in app-selection readiness marker:
@@ -1819,7 +1836,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future native app argument-vector marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset app-args
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -MarkerPreset app-args
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in native app argument-vector readiness marker:
@@ -1833,7 +1850,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future NativeAOT cctor preflight marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset cctor-preflight
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -MarkerPreset cctor-preflight
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in runtime cctor preflight readiness marker:
@@ -1847,7 +1864,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future NativeAOT cctor work-item marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset cctor-work-items
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -MarkerPreset cctor-work-items
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in runtime cctor work-item readiness marker:
@@ -1861,7 +1878,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the host-only diagnostics readiness marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset diagnostics
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -MarkerPreset diagnostics
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the diagnostics readiness-chain markers:
@@ -1876,7 +1893,7 @@ ORDERED_MARKERS FAULT_INFRA_READY;EARLY_DIAGNOSTICS_READY;DIAGNOSTIC_STUBS_MATER
 Dry run with the future FetchApp HTTP completion marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset fetch-http
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -MarkerPreset fetch-http
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in FetchApp completion readiness marker:
@@ -1890,7 +1907,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future FetchApp HTTP endpoint marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset fetch-http-endpoint
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -MarkerPreset fetch-http-endpoint
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in FetchApp endpoint readiness marker:
@@ -1904,7 +1921,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future FetchApp HTTP TCP exchange marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset fetch-http-tcp-exchange
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -MarkerPreset fetch-http-tcp-exchange
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in FetchApp HTTP TCP exchange marker:
@@ -1918,7 +1935,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future tiny HTTP static response marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset http-static-response
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -MarkerPreset http-static-response
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in HTTP static response readiness and diagnostic markers:
@@ -1932,7 +1949,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future tiny HTTP static TCP response marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset http-static-tcp-response
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -MarkerPreset http-static-tcp-response
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the
@@ -1947,7 +1964,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future native manifest environment marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset manifest-env
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -MarkerPreset manifest-env
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the opt-in native manifest environment readiness marker:
@@ -1961,7 +1978,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the future UEFI-gone and owned-serial readiness marker preset:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -MarkerPreset uefi-gone
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -MarkerPreset uefi-gone
 ```
 
 Expected dry-run marker evidence includes the current script defaults plus the future firmware-denial and owned-serial readiness markers:
@@ -1975,7 +1992,7 @@ REQUIRED_MARKERS OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS;UEFI_MEMORY_MA
 Dry run with the later multi-app profile selected:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -WorkloadProfile MultiMinimalApi
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun -WorkloadProfile MultiMinimalApi
 ```
 
 Expected workload profile evidence includes:
@@ -1988,13 +2005,13 @@ TEST_PASS workload.profile.tooling propagates multi
 CI smoke artifact-plan dry run:
 
 ```powershell
-.\scripts\run-ci-smoke.ps1 -DryRun
+dotnet run --project tools/OS.Tooling -- ci smoke -DryRun
 ```
 
 To record the multi profile in CI dry-run evidence:
 
 ```powershell
-.\scripts\run-ci-smoke.ps1 -DryRun -WorkloadProfile MultiMinimalApi
+dotnet run --project tools/OS.Tooling -- ci smoke -DryRun -WorkloadProfile MultiMinimalApi
 ```
 
 Expected CI dry-run markers:
@@ -2025,7 +2042,7 @@ TEST_PASS ci.smoke.dryrun includes git diff check
 Local CI smoke artifact collection:
 
 ```powershell
-.\scripts\run-ci-smoke.ps1
+dotnet run --project tools/OS.Tooling -- ci smoke
 ```
 
 This writes per-step logs and a machine-readable summary under `artifacts/logs/ci-smoke-*`. It returns nonzero if any managed build, host-test, QEMU dry-run, native-app-marker dry-run, diagnostics-marker dry-run, app-args marker dry-run, app-exit marker dry-run, cctor-preflight marker dry-run, cctor-work-items marker dry-run, fetch-http marker dry-run, fetch-http-endpoint marker dry-run, fetch-http-tcp-exchange marker dry-run, http-static-response marker dry-run, http-static-tcp-response marker dry-run, virtio-rx-tcp-dispatch marker dry-run, manifest-env marker dry-run, nativeaot-heap marker dry-run, pal-export marker dry-run, qcow2 smoke-intent dry-run, libvirt XML dry-run, libvirt missing-tool command, or `git diff --check` lane returns nonzero. The QEMU and qcow2 steps still pass `-DryRun` by default and are artifact/command-shape evidence only. The app-args lane requires only the `app-args` marker-preset contract in dry-run output, the app-exit lane requires only the `app-exit` marker-preset contract in dry-run output, the cctor-preflight lane requires only the `cctor-preflight` marker-preset contract in dry-run output, the cctor-work-items lane requires only the `cctor-work-items` marker-preset contract in dry-run output, the fetch-http lane requires only the `fetch-http` marker-preset contract in dry-run output, the fetch-http-endpoint lane requires only the `fetch-http-endpoint` marker-preset contract in dry-run output, the fetch-http-tcp-exchange lane requires only the `fetch-http-tcp-exchange` marker-preset contract in dry-run output, the http-static-response lane requires only the `http-static-response` marker-preset contract in dry-run output, the http-static-tcp-response lane requires only the `http-static-tcp-response` marker-preset contract in dry-run output, the virtio-rx-tcp-dispatch lane requires only the `virtio-rx-tcp-dispatch` marker-preset contract in dry-run output, the manifest-env lane requires only the `manifest-env` marker-preset contract in dry-run output, the nativeaot-heap lane requires only the `nativeaot-heap` marker-preset contract in dry-run output, and the pal-export lane requires only the `pal-export` marker-preset contract in dry-run output. They do not prove guest app execution, native app argument-vector materialization, live app-exit observation, class-constructor execution, NativeAOT heap bootstrap, PAL export consumption, NativeAOT runtime-helper completion, FetchApp execution, manifest loading from disk, process environment materialization, live networking, virtio-net RX/TCP dispatch, HTTP GET, HTTP server/static response, HTTP static TCP response, TCP exchange, hosted .NET, or Kestrel. The libvirt missing-tool lane intentionally passes a missing `virsh` path and expects `TEST_SKIP libvirt.smoke missing_tool=virsh`; it is not a real libvirt boot attempt. Windows CI agent prerequisites and bring-up commands are canonical in `docs/host-requirements.md`.
@@ -2033,7 +2050,7 @@ This writes per-step logs and a machine-readable summary under `artifacts/logs/c
 Configured real qcow2 CI lane:
 
 ```powershell
-.\scripts\run-ci-smoke.ps1 -RunQcow2RealSmoke -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -QemuImg "C:\Program Files\qemu\qemu-img.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd"
+dotnet run --project tools/OS.Tooling -- ci smoke -RunQcow2RealSmoke -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -QemuImg "C:\Program Files\qemu\qemu-img.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd"
 ```
 
 This keeps the libvirt lanes in dry-run/missing-tool mode and only changes the qcow2 wrapper lane from intent dry-run to configured real-run evidence.
@@ -2041,13 +2058,13 @@ This keeps the libvirt lanes in dry-run/missing-tool mode and only changes the q
 Dry run with an alternate required marker:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -RequireMarker UEFI_GONE_SIM_PASS
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -RequireMarker UEFI_GONE_SIM_PASS
 ```
 
 Dry run with disabled firmware probe markers forbidden:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -ForbidMarker UEFI_EBS_FRESH_MAP_PROBE_START,UEFI_EBS_CALL_SKIPPED
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -ForbidMarker UEFI_EBS_FRESH_MAP_PROBE_START,UEFI_EBS_CALL_SKIPPED
 ```
 
 Expected forbidden-marker evidence includes:
@@ -2059,7 +2076,7 @@ FORBIDDEN_MARKERS UEFI_EBS_FRESH_MAP_PROBE_START;UEFI_EBS_CALL_SKIPPED
 Dry run requiring multiple serial markers:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -DryRun -RequireMarker OS_BOOT_OK,UEFI_GONE_SIM_PASS
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -DryRun -RequireMarker OS_BOOT_OK,UEFI_GONE_SIM_PASS
 ```
 
 Direct runner dry run with the future Kestrel HTTP probe contract:
@@ -2105,7 +2122,7 @@ TEST_PASS qemu.runner.dryrun
 Wrapper dry run for the full qcow2 smoke flow:
 
 ```powershell
-.\scripts\run-qemu-qcow2-smoke.ps1 -DryRun
+dotnet run --project tools/OS.Tooling -- qemu qcow2 -DryRun
 ```
 
 Expected dry-run evidence includes:
@@ -2150,32 +2167,32 @@ Valid app-exit records are summarized separately as `APP_EXIT_RESULT code=<n> st
 Build and boot the UEFI-gone simulation EFI variant:
 
 ```powershell
-.\scripts\build-efi-shell.ps1 -EnableUefiGoneSimulationProbe -EfiOutputPath artifacts/efi/BOOTX64-SIM.EFI -LogPath artifacts/logs/efi-shell-publish-sim.log
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -EfiArtifact artifacts/efi/BOOTX64-SIM.EFI -Image artifacts/images/os-sim.raw -SerialLog artifacts/logs/qemu-smoke-sim.log -MarkerPreset uefi-gone
+dotnet run --project tools/OS.Tooling -- efi build -EnableUefiGoneSimulationProbe -EfiOutputPath artifacts/efi/BOOTX64-SIM.EFI -LogPath artifacts/logs/efi-shell-publish-sim.log
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -EfiArtifact artifacts/efi/BOOTX64-SIM.EFI -Image artifacts/images/os-sim.raw -SerialLog artifacts/logs/qemu-smoke-sim.log -MarkerPreset uefi-gone
 ```
 
 Build and boot the ACPI physical discovery EFI variant:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
 ```
 
 Real smoke on the current Windows host:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
+dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
 ```
 
 Real qcow2 smoke on the current Windows host:
 
 ```powershell
-.\scripts\run-qemu-qcow2-smoke.ps1 -BuildEfi -RawImage artifacts/images/os.raw -Qcow2Image artifacts/images/os.qcow2 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -QemuImg "C:\Program Files\qemu\qemu-img.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
+dotnet run --project tools/OS.Tooling -- qemu qcow2 -BuildEfi -RawImage artifacts/images/os.raw -Qcow2Image artifacts/images/os.qcow2 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -QemuImg "C:\Program Files\qemu\qemu-img.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
 ```
 
 Real smoke proving disabled fresh-map probe markers are absent:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BootPolicy Diagnostic -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -ForbidMarker UEFI_EBS_FRESH_MAP_PROBE_START,UEFI_EBS_CALL_SKIPPED
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -ForbidMarker UEFI_EBS_FRESH_MAP_PROBE_START,UEFI_EBS_CALL_SKIPPED
 ```
 
 If `-OvmfCode` is omitted, the runner checks `OS_OVMF_CODE`, `OVMF_CODE`, `QEMU_OVMF_CODE`, the QEMU install directory, and common Windows/Linux OVMF locations.
@@ -2185,10 +2202,9 @@ If `-OvmfCode` is omitted, the runner checks `OS_OVMF_CODE`, `OVMF_CODE`, `QEMU_
 - WHPX/KVM acceleration selection is not implemented; QEMU uses TCG.
 - ISO launch paths are not implemented in `tools/OS.QemuRunner`.
 - libvirt real boot is not implemented.
-- The default EFI smoke retains firmware services. Separate opt-in profiles
-  have bounded real `ExitBootServices`, adapter revocation and owned post-exit
-  diagnostics acceptance; general continuing drivers and workloads remain
-  unsupported.
+- Ordinary `VerifiedExit` leaves firmware boot services and completes the accepted
+  owned subsystem checks. Explicit `Diagnostic` retains the legacy profiles;
+  general continuing drivers and workloads remain unsupported.
 - QEMU runner HTTP probing is host-runner behavior only until it is pointed at a real guest endpoint. Local-loopback tests prove probe evaluation, not any hosted-workload completion gate; see `docs/completion-gates.md` and `docs/kestrel.md` for the full Kestrel/hosted .NET evidence boundary.
 - QEMU runner `APP_EXIT` parsing is summary-parser behavior only. It does not prove a guest app ran, a live app exit was observed, a supervisor captured status, or restart policy executed.
 - `-MarkerPreset http-static-response` is a required-marker preset only. It does not prove a live HTTP server, sockets, Kestrel, hosted .NET, or cloud readiness unless a real QEMU serial log from a matching guest image emits `HTTP_STATIC_RESPONSE_READY` and `HTTP_STATIC_RESPONSE`.
@@ -2216,14 +2232,14 @@ If `-OvmfCode` is omitted, the runner checks `OS_OVMF_CODE`, `OVMF_CODE`, `QEMU_
 - `OS.QemuRunner preflight` is image/input validation only. It does not parse
   GPT/FAT32 contents, prove that QEMU accepts the command line, launch a VM,
   capture serial output, or satisfy boot/cloud completion gates.
-- `scripts/run-qemu-smoke.ps1` host preflight is prerequisite evidence only. It
+- `dotnet run --project tools/OS.Tooling -- qemu smoke` host preflight is prerequisite evidence only. It
   proves the wrapper can find QEMU/OVMF and validate the selected image shape
   before launching the runner; it does not prove QEMU boot, serial markers,
   `ExitBootServices`, cloud readiness, hosted .NET, or Kestrel.
 
 ## Tests
 
-Host tests validate the extracted QEMU command builder and runner contracts through dry-run output, including base command construction, serial log arguments, OVMF pflash arguments, default/custom required marker reporting, the script-level native app marker preset, currently supported virtio-net arguments, default raw disk format, qcow2 disk format, invalid disk format arguments, preflight pass/fail validation for raw image artifacts, missing images, and raw/qcow2 format mismatches, HTTP probe dry-run output, invalid HTTP probe arguments, real-mode local-loopback HTTP probe pass/fail/timeout behavior, app-exit summary output, and missing-image failure. Script-level host tests now also invoke `scripts/run-qemu-smoke.ps1` with fake paths to prove dry-run remains QEMU-free and real mode fails before the runner for missing QEMU, missing OVMF, and missing images. The QEMU runner CLI tests execute the already-built `tools/OS.QemuRunner/bin/<configuration>/net10.0/OS.QemuRunner.dll` with `dotnet <dll>`, not nested `dotnet run --project`. Host tests also validate `--summary-log` without requiring real QEMU by using deterministic fake QEMU command scripts that write serial markers, including app-exit summary artifact coverage. Focused parser tests validate that `SerialMarkerSummary` passes required markers, reports missing markers, rejects marker-substring false positives, reports forbidden markers, preserves observed marker order including `ACPI_` lines, reports ordered marker failures, observes `APP_EXIT` marker lines, extracts app-exit status records, reports absent app-exit status, reports malformed app-exit markers with reasons, and keeps required-marker behavior unchanged. QEMU preset host tests now cover the `app-args` preset and aliases `app_args`, `app-arguments`, and `native-app-args`, the `app-lifecycle` preset and aliases `app_lifecycle`, `native-app-lifecycle`, and `applifecycle`, the `fetch-http-endpoint` preset and aliases `fetch_endpoint`, `fetchhttp-endpoint`, and `fetchapp-http-endpoint`, the `fetch-http-tcp-exchange` preset and aliases `fetch_http_tcp_exchange`, `fetch-http-exchange`, and `fetchapp-http-tcp-exchange`, the `http-static-response` preset and aliases `http_static_response`, `tiny-http-static`, and `tinyhttp-static`, the `http-static-tcp-response` preset and aliases `http_static_tcp_response`, `tiny-http-tcp-static`, and `tinyhttp-tcp-static`, the `virtio-rx-tcp-dispatch` preset and aliases `virtio_rx_tcp_dispatch`, `virtio-net-rx-tcp-dispatch`, and `virtionet-rx-tcp-dispatch`, the `cctor-work-items` preset and aliases `cctor_work_items`, `cctor-workitem`, and `cctor-work-item`, and the `manifest-env` preset and aliases `native-manifest-env`, `manifest_environment`, and `manifestenv`, without claiming live argument-vector materialization, native app lifecycle execution, FetchApp, networking, TCP exchange, HTTP static response service, HTTP static TCP response service, virtio-net RX/TCP dispatch, manifest loading, environment materialization, app execution, or class-constructor execution proof. CI smoke host tests validate that `scripts/run-ci-smoke.ps1 -DryRun` writes the artifact plan and includes planned serial, summary, image, marker preset, and domain XML artifacts for raw QEMU dry-run, native-app marker dry-run, diagnostics marker-preset dry-run, app-args marker-preset dry-run, app-exit marker-preset dry-run, cctor-preflight marker-preset dry-run, fetch-http marker-preset dry-run, fetch-http-endpoint marker-preset dry-run, fetch-http-tcp-exchange marker-preset dry-run, http-static-response marker-preset dry-run, http-static-tcp-response marker-preset dry-run, virtio-rx-tcp-dispatch marker-preset dry-run, qcow2 smoke intent, and libvirt smoke intent. CI smoke tests also cover found and missing fake `qemu-img` discovery paths, including `CI_SMOKE_QEMU_IMG_DISCOVERY`, top-level `qemuImgDiscovery`/`qcow2ConversionIntent`, and matching qcow2-step fields without executing conversion. The executed CI failure-path test also verifies the diagnostics dry-run log contains `QEMU_MARKER_PRESETS diagnostics`, `MARKER_PRESETS diagnostics`, `DIAGNOSTICS_CHAIN_READY`, `DIAGNOSTIC_STUB_INVOCATION_READY`, and the ordered diagnostics marker chain; verifies the app-args dry-run log contains `QEMU_MARKER_PRESETS app-args`, `MARKER_PRESETS app-args`, and `APP_ARGS_VECTOR_READY`; verifies the app-exit dry-run log contains `QEMU_MARKER_PRESETS app-exit`, `MARKER_PRESETS app-exit`, and `APP_EXIT_OBSERVER_READY`; verifies the cctor-preflight dry-run log contains `QEMU_MARKER_PRESETS cctor-preflight`, `MARKER_PRESETS cctor-preflight`, and `NATIVEAOT_CCTOR_RUNNER_PREFLIGHT_READY`; verifies the fetch-http dry-run log contains `QEMU_MARKER_PRESETS fetch-http`, `MARKER_PRESETS fetch-http`, and `FETCH_APP_HTTP_COMPLETION_READY`; verifies the fetch-http-endpoint dry-run log contains `QEMU_MARKER_PRESETS fetch-http-endpoint`, `MARKER_PRESETS fetch-http-endpoint`, and `FETCHAPP_HTTP_ENDPOINT_READY`; verifies the fetch-http-tcp-exchange dry-run log contains `QEMU_MARKER_PRESETS fetch-http-tcp-exchange`, `MARKER_PRESETS fetch-http-tcp-exchange`, and `FETCH_APP_HTTP_TCP_EXCHANGE_READY`; verifies the http-static-response dry-run log contains `QEMU_MARKER_PRESETS http-static-response`, `MARKER_PRESETS http-static-response`, `HTTP_STATIC_RESPONSE_READY`, and `HTTP_STATIC_RESPONSE`; verifies the http-static-tcp-response dry-run log contains `QEMU_MARKER_PRESETS http-static-tcp-response`, `MARKER_PRESETS http-static-tcp-response`, `HTTP_STATIC_TCP_RESPONSE_READY`, and `HTTP_STATIC_TCP_RESPONSE`; verifies the virtio-rx-tcp-dispatch dry-run log contains `QEMU_MARKER_PRESETS virtio-rx-tcp-dispatch`, `MARKER_PRESETS virtio-rx-tcp-dispatch`, `VIRTIO_NET_RX_TCP_DISPATCH_READY`, and `VIRTIO_NET_RX_TCP_DISPATCH`; and verifies the execute summary records a passing `ci.smoke.git.diffcheck` lane. Baseline evidence script host tests verify qcow2 and libvirt intent lanes keep workload-profile propagation wired, execute `run-baseline-evidence.ps1 -PlanOnly` to validate the artifact-summary shape for diagnostics, qcow2, and libvirt intent lanes, and cover found/missing fake `qemu-img` discovery paths without executing conversion.
+Host tests validate the extracted QEMU command builder and runner contracts through dry-run output, including base command construction, serial log arguments, OVMF pflash arguments, default/custom required marker reporting, the script-level native app marker preset, currently supported virtio-net arguments, default raw disk format, qcow2 disk format, invalid disk format arguments, preflight pass/fail validation for raw image artifacts, missing images, and raw/qcow2 format mismatches, HTTP probe dry-run output, invalid HTTP probe arguments, real-mode local-loopback HTTP probe pass/fail/timeout behavior, app-exit summary output, and missing-image failure. Tool-level host tests now also invoke `dotnet run --project tools/OS.Tooling -- qemu smoke` with fake paths to prove dry-run remains QEMU-free and real mode fails before the runner for missing QEMU, missing OVMF, and missing images. The QEMU runner CLI tests execute the already-built `tools/OS.QemuRunner/bin/<configuration>/net10.0/OS.QemuRunner.dll` with `dotnet <dll>`, not nested `dotnet run --project`. Host tests also validate `--summary-log` without requiring real QEMU by using deterministic fake QEMU command scripts that write serial markers, including app-exit summary artifact coverage. Focused parser tests validate that `SerialMarkerSummary` passes required markers, reports missing markers, rejects marker-substring false positives, reports forbidden markers, preserves observed marker order including `ACPI_` lines, reports ordered marker failures, observes `APP_EXIT` marker lines, extracts app-exit status records, reports absent app-exit status, reports malformed app-exit markers with reasons, and keeps required-marker behavior unchanged. QEMU preset host tests now cover the `app-args` preset and aliases `app_args`, `app-arguments`, and `native-app-args`, the `app-lifecycle` preset and aliases `app_lifecycle`, `native-app-lifecycle`, and `applifecycle`, the `fetch-http-endpoint` preset and aliases `fetch_endpoint`, `fetchhttp-endpoint`, and `fetchapp-http-endpoint`, the `fetch-http-tcp-exchange` preset and aliases `fetch_http_tcp_exchange`, `fetch-http-exchange`, and `fetchapp-http-tcp-exchange`, the `http-static-response` preset and aliases `http_static_response`, `tiny-http-static`, and `tinyhttp-static`, the `http-static-tcp-response` preset and aliases `http_static_tcp_response`, `tiny-http-tcp-static`, and `tinyhttp-tcp-static`, the `virtio-rx-tcp-dispatch` preset and aliases `virtio_rx_tcp_dispatch`, `virtio-net-rx-tcp-dispatch`, and `virtionet-rx-tcp-dispatch`, the `cctor-work-items` preset and aliases `cctor_work_items`, `cctor-workitem`, and `cctor-work-item`, and the `manifest-env` preset and aliases `native-manifest-env`, `manifest_environment`, and `manifestenv`, without claiming live argument-vector materialization, native app lifecycle execution, FetchApp, networking, TCP exchange, HTTP static response service, HTTP static TCP response service, virtio-net RX/TCP dispatch, manifest loading, environment materialization, app execution, or class-constructor execution proof. CI smoke host tests validate that `dotnet run --project tools/OS.Tooling -- ci smoke -DryRun` writes the artifact plan and includes planned serial, summary, image, marker preset, and domain XML artifacts for raw QEMU dry-run, native-app marker dry-run, diagnostics marker-preset dry-run, app-args marker-preset dry-run, app-exit marker-preset dry-run, cctor-preflight marker-preset dry-run, fetch-http marker-preset dry-run, fetch-http-endpoint marker-preset dry-run, fetch-http-tcp-exchange marker-preset dry-run, http-static-response marker-preset dry-run, http-static-tcp-response marker-preset dry-run, virtio-rx-tcp-dispatch marker-preset dry-run, qcow2 smoke intent, and libvirt smoke intent. CI smoke tests also cover found and missing fake `qemu-img` discovery paths, including `CI_SMOKE_QEMU_IMG_DISCOVERY`, top-level `qemuImgDiscovery`/`qcow2ConversionIntent`, and matching qcow2-step fields without executing conversion. The executed CI failure-path test also verifies the diagnostics dry-run log contains `QEMU_MARKER_PRESETS diagnostics`, `MARKER_PRESETS diagnostics`, `DIAGNOSTICS_CHAIN_READY`, `DIAGNOSTIC_STUB_INVOCATION_READY`, and the ordered diagnostics marker chain; verifies the app-args dry-run log contains `QEMU_MARKER_PRESETS app-args`, `MARKER_PRESETS app-args`, and `APP_ARGS_VECTOR_READY`; verifies the app-exit dry-run log contains `QEMU_MARKER_PRESETS app-exit`, `MARKER_PRESETS app-exit`, and `APP_EXIT_OBSERVER_READY`; verifies the cctor-preflight dry-run log contains `QEMU_MARKER_PRESETS cctor-preflight`, `MARKER_PRESETS cctor-preflight`, and `NATIVEAOT_CCTOR_RUNNER_PREFLIGHT_READY`; verifies the fetch-http dry-run log contains `QEMU_MARKER_PRESETS fetch-http`, `MARKER_PRESETS fetch-http`, and `FETCH_APP_HTTP_COMPLETION_READY`; verifies the fetch-http-endpoint dry-run log contains `QEMU_MARKER_PRESETS fetch-http-endpoint`, `MARKER_PRESETS fetch-http-endpoint`, and `FETCHAPP_HTTP_ENDPOINT_READY`; verifies the fetch-http-tcp-exchange dry-run log contains `QEMU_MARKER_PRESETS fetch-http-tcp-exchange`, `MARKER_PRESETS fetch-http-tcp-exchange`, and `FETCH_APP_HTTP_TCP_EXCHANGE_READY`; verifies the http-static-response dry-run log contains `QEMU_MARKER_PRESETS http-static-response`, `MARKER_PRESETS http-static-response`, `HTTP_STATIC_RESPONSE_READY`, and `HTTP_STATIC_RESPONSE`; verifies the http-static-tcp-response dry-run log contains `QEMU_MARKER_PRESETS http-static-tcp-response`, `MARKER_PRESETS http-static-tcp-response`, `HTTP_STATIC_TCP_RESPONSE_READY`, and `HTTP_STATIC_TCP_RESPONSE`; verifies the virtio-rx-tcp-dispatch dry-run log contains `QEMU_MARKER_PRESETS virtio-rx-tcp-dispatch`, `MARKER_PRESETS virtio-rx-tcp-dispatch`, `VIRTIO_NET_RX_TCP_DISPATCH_READY`, and `VIRTIO_NET_RX_TCP_DISPATCH`; and verifies the execute summary records a passing `ci.smoke.git.diffcheck` lane. Baseline evidence script host tests verify qcow2 and libvirt intent lanes keep workload-profile propagation wired, execute `dotnet run --project tools/OS.Tooling -- baseline evidence -PlanOnly` to validate the artifact-summary shape for diagnostics, qcow2, and libvirt intent lanes, and cover found/missing fake `qemu-img` discovery paths without executing conversion.
 
 M02-010 integration tests additionally pin the exact 17/5/3/3 dry-run profile,
 the three stable invalid-argument reasons, the exact 370-character success
@@ -2286,7 +2302,7 @@ its zero-byte stderr has SHA-256
 
 The accepted r16 host gate also proves all 15 focused M01-026 groups:
 manifest/stage-three marker parity, switch forwarding, invalid-selector
-rejection, strict generated-shim compilation, shim/manifest parity, dry-run
+rejection, strict compiled-capture build, capture/manifest parity, dry-run
 inactivity, owned-paging requirement, path-overlap rejection, fail-closed
 wrapper structure, complete-sidecar acceptance, POD-hash and serial-hash
 rejection, invalid-runtime-address rejection, call-gate-address rejection, and
@@ -2477,7 +2493,7 @@ QEMU evidence from 2026-05-21:
 - Real qcow2 smoke on 2026-05-22 emitted `TEST_PASS imagebuilder.raw`, `TEST_PASS imagebuilder.qcow2`, `TEST_PASS qemu.smoke`, and `TEST_PASS qemu.qcow2.smoke` using `C:\Program Files\qemu\qemu-img.exe`, `C:\Program Files\qemu\qemu-system-x86_64.exe`, and `C:\Program Files\qemu\share\edk2-x86_64-code.fd`.
 - `artifacts/logs/qemu-smoke-qcow2.log` contains `BOOT_MEMORY_REGIONS_READY`, `BOOT_MEMORY_REGION_COUNT 102`, `OS_BOOT_OK`, and `OS_SMOKE_PASS`.
 - `artifacts/logs/qemu-smoke-qcow2.summary.log` reports `QEMU_SMOKE_STATUS pass`, `IMAGE_ARTIFACT artifacts/images/os.qcow2`, `MISSING_MARKERS none`, `FORBIDDEN_MARKER_HIT none`, and `FAIL_REASON none`.
-- CI dry-run on 2026-05-22 emitted `TEST_PASS ci.smoke.dryrun includes qcow2 smoke intent` and planned `ci.smoke.qemu.qcow2.dryrun` with `run-qemu-qcow2-smoke.ps1 -DryRun`, `qemu-qcow2-serial.log`, `qemu-qcow2.summary.log`, and a qcow2 image path under the CI evidence directory.
+- CI dry-run on 2026-05-22 emitted `TEST_PASS ci.smoke.dryrun includes qcow2 smoke intent` and planned `ci.smoke.qemu.qcow2.dryrun` with `dotnet run --project tools/OS.Tooling -- qemu qcow2 -DryRun`, `qemu-qcow2-serial.log`, `qemu-qcow2.summary.log`, and a qcow2 image path under the CI evidence directory.
 - Serial summary parser host tests on 2026-05-22 emitted `TEST_PASS qemu.serial summary passes required markers`, `TEST_PASS qemu.serial summary reports missing markers`, `TEST_PASS qemu.serial summary reports forbidden markers`, and `TEST_PASS qemu.serial summary preserves marker order`.
 - App-exit summary parser host tests on 2026-05-22 emitted `TEST_PASS qemu.summary app exit marker parsed`, `TEST_PASS qemu.summary app exit absent reported`, `TEST_PASS qemu.summary app exit malformed reported`, and `TEST_PASS qemu.serial summary keeps required marker behavior unchanged`.
 - Fake-QEMU runner host tests on 2026-05-22 emitted `TEST_PASS qemu.runner app exit summary emitted`.
@@ -2610,7 +2626,7 @@ The positive default-off profile requires a fresh build and all seven explicit
 prerequisites:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BuildEfi `
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -2657,7 +2673,7 @@ The default-off positive profile uses a fresh build and all eight explicit
 prerequisites:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BuildEfi `
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -2754,9 +2770,8 @@ records,20 String records and8 boot-tail records. It checks the same original
 allocator authority, seven allocations at used200/count7, five String
 length/UTF-16/terminator/padding observations, retained objects and256-byte
 observation slots within6672-byte scratch storage. Only empty or the separately
-pinned304-byte OVMF preamble is admitted. Smoke-parser UInt64 constants use
-equivalent positive decimal values where Windows PowerShell would otherwise
-interpret high-bit hexadecimal literals as signed integers.
+pinned304-byte OVMF preamble is admitted. The native C# parser validates full-width
+unsigned 64-bit values without signed conversion.
 
 The before-bind, exhaustion and invalid-length streams contain49/65/50 records
 and end exactly with `TEST_FAIL m04.009 not_initialized`, `exhausted` or
@@ -2883,7 +2898,7 @@ is established.
 The bounded profile accepted in [step1003](../done/step1003.md) runs with:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BuildEfi `
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi `
   -EnableM04GcStaticRootMaterializationProbe `
   -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe `
   -EnableM04IndependentEndianConformanceProbe `

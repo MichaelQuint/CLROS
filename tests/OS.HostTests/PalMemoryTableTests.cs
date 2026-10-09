@@ -7,48 +7,7 @@ internal static class PalMemoryTableTests
     private const ulong PageSize = OSHostMemoryProtectionPlan.DefaultPageSize;
     private const ulong BaseAddress = 0x400000;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("pal.memory table allocates aligned pages", TestAllocatesAlignedPages, ref failures);
-        Run("pal.memory table rejects invalid request shape", TestRejectsInvalidRequestShape, ref failures);
-        Run("pal.memory table reports capacity exhaustion", TestReportsCapacityExhaustion, ref failures);
-        Run("pal.memory table reuses freed ranges and rejects stale handles", TestReusesFreedRangesAndRejectsStaleHandles, ref failures);
-        Run("pal.memory table protects write then execute", TestProtectsWriteThenExecute, ref failures);
-        Run("pal.memory table rejects stale and partial ranges", TestRejectsStaleAndPartialRanges, ref failures);
-        Run("pal.memory table layouts are stable", TestLayoutsAreStable, ref failures);
-        Run("pal.memory table default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL memory table host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.memory table allocates aligned pages", HostLane.Fast, 0)]
     private static bool TestAllocatesAlignedPages()
     {
         OSHostMemoryTable table = NewTable(pageCapacity: 8, handleCapacity: 2);
@@ -61,7 +20,7 @@ internal static class PalMemoryTableTests
             alloc.Range.ProtectionFlags != (ulong)ReadWrite ||
             table.ActiveCount != 1)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (table.TryGetEntry(alloc.Allocation, out OSHostMemoryTableEntry entry) != OSHostStatus.Ok ||
@@ -69,17 +28,18 @@ internal static class PalMemoryTableTests
             entry.Range.BaseAddress != BaseAddress ||
             entry.StateFlags != OSHostMemoryStateFlags.Allocated)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostStatus queryStatus = table.QueryMemory(BaseAddress + PageSize, out OSHostMemoryQueryResult query);
-        return queryStatus == OSHostStatus.Ok
+        return HostCheck.Result(queryStatus == OSHostStatus.Ok
             && query.Range.BaseAddress == alloc.Range.BaseAddress
             && query.Range.ByteLength == alloc.Range.ByteLength
             && query.PageSizeBytes == PageSize
-            && query.StateFlags == OSHostMemoryStateFlags.Allocated;
+            && query.StateFlags == OSHostMemoryStateFlags.Allocated);
     }
 
+    [HostTest("pal.memory table rejects invalid request shape", HostLane.Fast, 1)]
     private static bool TestRejectsInvalidRequestShape()
     {
         OSHostMemoryTable table = NewTable(pageCapacity: 8, handleCapacity: 2);
@@ -102,16 +62,17 @@ internal static class PalMemoryTableTests
         OSHostMemoryAllocationResult invalidPage = invalidPageTable.AllocPages(Request(pageCount: 1, alignment: PageSize));
         OSHostMemoryAllocationResult invalidBase = invalidBaseTable.AllocPages(Request(pageCount: 1, alignment: PageSize));
 
-        return zeroPages.Status == OSHostStatus.InvalidArgument
+        return HostCheck.Result(zeroPages.Status == OSHostStatus.InvalidArgument
             && smallAlignment.Status == OSHostStatus.InvalidArgument
             && nonPowerOfTwoAlignment.Status == OSHostStatus.InvalidArgument
             && directExecute.Status == OSHostStatus.InvalidArgument
             && rwx.Status == OSHostStatus.AccessDenied
             && invalidPage.Status == OSHostStatus.InvalidArgument
             && invalidBase.Status == OSHostStatus.InvalidArgument
-            && table.ActiveCount == 0;
+            && table.ActiveCount == 0);
     }
 
+    [HostTest("pal.memory table reports capacity exhaustion", HostLane.Fast, 2)]
     private static bool TestReportsCapacityExhaustion()
     {
         OSHostMemoryTable handleLimited = NewTable(pageCapacity: 8, handleCapacity: 1);
@@ -121,13 +82,14 @@ internal static class PalMemoryTableTests
         OSHostMemoryTable pageLimited = NewTable(pageCapacity: 1, handleCapacity: 2);
         OSHostMemoryAllocationResult tooManyPages = pageLimited.AllocPages(Request(pageCount: 2, alignment: PageSize));
 
-        return first.Succeeded
+        return HostCheck.Result(first.Succeeded
             && noHandle.Status == OSHostStatus.OutOfMemory
             && tooManyPages.Status == OSHostStatus.OutOfMemory
             && handleLimited.ActiveCount == 1
-            && pageLimited.ActiveCount == 0;
+            && pageLimited.ActiveCount == 0);
     }
 
+    [HostTest("pal.memory table reuses freed ranges and rejects stale handles", HostLane.Fast, 3)]
     private static bool TestReusesFreedRangesAndRejectsStaleHandles()
     {
         OSHostMemoryTable table = NewTable(pageCapacity: 4, handleCapacity: 1);
@@ -136,7 +98,7 @@ internal static class PalMemoryTableTests
         if (!first.Succeeded ||
             table.FreePages(first.Allocation) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostStatus staleFree = table.FreePages(first.Allocation);
@@ -144,14 +106,15 @@ internal static class PalMemoryTableTests
         OSHostStatus staleQuery = table.QueryMemory(first.Range.BaseAddress, out _);
         OSHostMemoryAllocationResult second = table.AllocPages(Request(pageCount: 1, alignment: PageSize));
 
-        return staleFree == OSHostStatus.InvalidArgument
+        return HostCheck.Result(staleFree == OSHostStatus.InvalidArgument
             && staleEntry == OSHostStatus.InvalidArgument
             && staleQuery == OSHostStatus.NotFound
             && second.Succeeded
             && second.Range.BaseAddress == first.Range.BaseAddress
-            && second.Allocation.Value != first.Allocation.Value;
+            && second.Allocation.Value != first.Allocation.Value);
     }
 
+    [HostTest("pal.memory table protects write then execute", HostLane.Fast, 4)]
     private static bool TestProtectsWriteThenExecute()
     {
         OSHostMemoryTable table = NewTable(pageCapacity: 4, handleCapacity: 1);
@@ -165,7 +128,7 @@ internal static class PalMemoryTableTests
             table.ProtectPages(executeRange) != OSHostStatus.Ok ||
             table.QueryMemory(alloc.Range.BaseAddress, out OSHostMemoryQueryResult query) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostMemoryRange writeAgain = new(
@@ -177,11 +140,12 @@ internal static class PalMemoryTableTests
             alloc.Range.ByteLength,
             (ulong)(ReadWrite | OSHostPageProtection.Execute));
 
-        return query.Range.ProtectionFlags == (ulong)ReadExecute
+        return HostCheck.Result(query.Range.ProtectionFlags == (ulong)ReadExecute
             && table.ProtectPages(writeAgain) == OSHostStatus.InvalidArgument
-            && table.ProtectPages(rwx) == OSHostStatus.AccessDenied;
+            && table.ProtectPages(rwx) == OSHostStatus.AccessDenied);
     }
 
+    [HostTest("pal.memory table rejects stale and partial ranges", HostLane.Fast, 5)]
     private static bool TestRejectsStaleAndPartialRanges()
     {
         OSHostMemoryTable table = NewTable(pageCapacity: 4, handleCapacity: 1);
@@ -200,37 +164,39 @@ internal static class PalMemoryTableTests
             table.ProtectPages(outside) != OSHostStatus.InvalidArgument ||
             table.FreePages(alloc.Allocation) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return table.ProtectPages(alloc.Range) == OSHostStatus.InvalidArgument
+        return HostCheck.Result(table.ProtectPages(alloc.Range) == OSHostStatus.InvalidArgument
             && table.QueryMemory(alloc.Range.BaseAddress, out _) == OSHostStatus.NotFound
-            && table.QueryMemory(0, out _) == OSHostStatus.InvalidArgument;
+            && table.QueryMemory(0, out _) == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.memory table layouts are stable", HostLane.Fast, 6)]
     private static bool TestLayoutsAreStable()
     {
         if (RuntimeHelpers.IsReferenceOrContainsReferences<OSHostMemoryAllocationResult>() ||
             RuntimeHelpers.IsReferenceOrContainsReferences<OSHostMemoryTableEntry>())
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return Marshal.SizeOf<OSHostMemoryAllocationResult>() == 40
+        return HostCheck.Result(Marshal.SizeOf<OSHostMemoryAllocationResult>() == 40
             && Marshal.SizeOf<OSHostMemoryTableEntry>() == 40
             && Offset<OSHostMemoryAllocationResult>(nameof(OSHostMemoryAllocationResult.Status)) == 0
             && Offset<OSHostMemoryAllocationResult>(nameof(OSHostMemoryAllocationResult.Allocation)) == 8
             && Offset<OSHostMemoryAllocationResult>(nameof(OSHostMemoryAllocationResult.Range)) == 16
             && Offset<OSHostMemoryTableEntry>(nameof(OSHostMemoryTableEntry.Allocation)) == 0
             && Offset<OSHostMemoryTableEntry>(nameof(OSHostMemoryTableEntry.Range)) == 8
-            && Offset<OSHostMemoryTableEntry>(nameof(OSHostMemoryTableEntry.StateFlags)) == 32;
+            && Offset<OSHostMemoryTableEntry>(nameof(OSHostMemoryTableEntry.StateFlags)) == 32);
     }
 
+    [HostTest("pal.memory table default result is not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         OSHostMemoryAllocationResult allocation = default;
 
-        return !allocation.Succeeded
+        return HostCheck.Result(!allocation.Succeeded
             && allocation.Status == OSHostStatus.Ok
             && allocation.Reserved == 0
             && allocation.Allocation.Value == 0
@@ -238,7 +204,7 @@ internal static class PalMemoryTableTests
             && allocation.Range.ByteLength == 0
             && allocation.Range.ProtectionFlags == 0
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostMemoryAllocationResult>()
-            && Marshal.SizeOf<OSHostMemoryAllocationResult>() == 40;
+            && Marshal.SizeOf<OSHostMemoryAllocationResult>() == 40);
     }
 
     private static OSHostMemoryTable NewTable(ulong pageCapacity, int handleCapacity)

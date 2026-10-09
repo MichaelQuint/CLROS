@@ -9,48 +9,7 @@ internal static class TcpPassiveListenerBacklogBridgeTests
     private const uint ServerInitialSequence = 0xa0b0c0d0;
     private const int TcpChecksumOffset = 16;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.tcp.passive.backlog enqueues established connection", TestEnqueuesEstablishedConnection, ref failures);
-        Run("net.tcp.passive.backlog rejects failed handshake", TestRejectsFailedHandshake, ref failures);
-        Run("net.tcp.passive.backlog rejects non-established result", TestRejectsNonEstablishedResult, ref failures);
-        Run("net.tcp.passive.backlog propagates backlog full", TestPropagatesBacklogFull, ref failures);
-        Run("net.tcp.passive.backlog propagates duplicate endpoint", TestPropagatesDuplicateEndpoint, ref failures);
-        Run("net.tcp.passive.backlog preserves no-socket boundary", TestPreservesNoSocketBoundary, ref failures);
-        Run("net.tcp.passive.backlog default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "TCP passive listener backlog bridge host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.tcp.passive.backlog enqueues established connection", HostLane.Fast, 0)]
     private static bool TestEnqueuesEstablishedConnection()
     {
         Span<TcpListenerBacklogEntry> entries = stackalloc TcpListenerBacklogEntry[2];
@@ -62,7 +21,7 @@ internal static class TcpPassiveListenerBacklogBridgeTests
                 passiveResult,
                 out TcpPassiveListenerBacklogBridgeResult result);
 
-        return status == TcpPassiveListenerBacklogBridgeStatus.Success
+        return HostCheck.Result(status == TcpPassiveListenerBacklogBridgeStatus.Success
             && result.Succeeded
             && result.PassiveStatus == TcpPassiveIpv4FramePlanStatus.Success
             && result.TcpStatus == TcpPassiveOpenHandshakeStatus.Success
@@ -81,9 +40,10 @@ internal static class TcpPassiveListenerBacklogBridgeTests
             && result.Connection.RemoteNextSequenceNumber == ClientInitialSequence + 1
             && entries[0].State == TcpListenerBacklogEntryState.PendingAccept
             && entries[0].Connection.HasSameEndpoint(result.Connection)
-            && entries[1].State == TcpListenerBacklogEntryState.Free;
+            && entries[1].State == TcpListenerBacklogEntryState.Free);
     }
 
+    [HostTest("net.tcp.passive.backlog rejects failed handshake", HostLane.Fast, 1)]
     private static bool TestRejectsFailedHandshake()
     {
         Span<TcpListenerBacklogEntry> entries = stackalloc TcpListenerBacklogEntry[1];
@@ -97,7 +57,7 @@ internal static class TcpPassiveListenerBacklogBridgeTests
                 passiveResult,
                 out TcpPassiveListenerBacklogBridgeResult result);
 
-        return status == TcpPassiveListenerBacklogBridgeStatus.PassiveOpenFailed
+        return HostCheck.Result(status == TcpPassiveListenerBacklogBridgeStatus.PassiveOpenFailed
             && !result.Succeeded
             && result.PassiveStatus == TcpPassiveIpv4FramePlanStatus.WrongAcknowledgementNumber
             && result.TcpStatus == TcpPassiveOpenHandshakeStatus.WrongAcknowledgementNumber
@@ -105,9 +65,10 @@ internal static class TcpPassiveListenerBacklogBridgeTests
             && result.BacklogCount == 1
             && result.BacklogCapacity == 1
             && entries[0].State == TcpListenerBacklogEntryState.PendingAccept
-            && entries[0].Connection.HasSameEndpoint(existing);
+            && entries[0].Connection.HasSameEndpoint(existing));
     }
 
+    [HostTest("net.tcp.passive.backlog rejects non-established result", HostLane.Fast, 2)]
     private static bool TestRejectsNonEstablishedResult()
     {
         Span<TcpListenerBacklogEntry> entries = stackalloc TcpListenerBacklogEntry[1];
@@ -119,16 +80,17 @@ internal static class TcpPassiveListenerBacklogBridgeTests
                 passiveResult,
                 out TcpPassiveListenerBacklogBridgeResult result);
 
-        return status == TcpPassiveListenerBacklogBridgeStatus.NotEstablished
+        return HostCheck.Result(status == TcpPassiveListenerBacklogBridgeStatus.NotEstablished
             && !result.Succeeded
             && result.PassiveStatus == TcpPassiveIpv4FramePlanStatus.Success
             && result.PassiveState == TcpPassiveOpenHandshakeState.SynReceived
             && result.BacklogStatus == TcpListenerBacklogStatus.Success
             && result.BacklogCount == 0
             && result.BacklogCapacity == 1
-            && entries[0].State == TcpListenerBacklogEntryState.Free;
+            && entries[0].State == TcpListenerBacklogEntryState.Free);
     }
 
+    [HostTest("net.tcp.passive.backlog propagates backlog full", HostLane.Fast, 3)]
     private static bool TestPropagatesBacklogFull()
     {
         Span<TcpListenerBacklogEntry> entries = stackalloc TcpListenerBacklogEntry[1];
@@ -142,7 +104,7 @@ internal static class TcpPassiveListenerBacklogBridgeTests
                 passiveResult,
                 out TcpPassiveListenerBacklogBridgeResult result);
 
-        return status == TcpPassiveListenerBacklogBridgeStatus.BacklogEnqueueFailed
+        return HostCheck.Result(status == TcpPassiveListenerBacklogBridgeStatus.BacklogEnqueueFailed
             && !result.Succeeded
             && result.BacklogStatus == TcpListenerBacklogStatus.BacklogFull
             && result.BacklogCount == 1
@@ -150,9 +112,10 @@ internal static class TcpPassiveListenerBacklogBridgeTests
             && result.RequiredCapacity == 2
             && result.EntryIndex == TcpListenerBacklog.NoEntryIndex
             && entries[0].State == TcpListenerBacklogEntryState.PendingAccept
-            && entries[0].Connection.HasSameEndpoint(existing);
+            && entries[0].Connection.HasSameEndpoint(existing));
     }
 
+    [HostTest("net.tcp.passive.backlog propagates duplicate endpoint", HostLane.Fast, 4)]
     private static bool TestPropagatesDuplicateEndpoint()
     {
         Span<TcpListenerBacklogEntry> entries = stackalloc TcpListenerBacklogEntry[2];
@@ -172,7 +135,7 @@ internal static class TcpPassiveListenerBacklogBridgeTests
                 passiveResult,
                 out TcpPassiveListenerBacklogBridgeResult result);
 
-        return status == TcpPassiveListenerBacklogBridgeStatus.BacklogEnqueueFailed
+        return HostCheck.Result(status == TcpPassiveListenerBacklogBridgeStatus.BacklogEnqueueFailed
             && !result.Succeeded
             && result.BacklogStatus == TcpListenerBacklogStatus.DuplicateEndpoint
             && result.BacklogCount == 1
@@ -180,20 +143,22 @@ internal static class TcpPassiveListenerBacklogBridgeTests
             && result.RequiredCapacity == 2
             && result.EntryIndex == 0
             && entries[0].Connection.HasSameEndpoint(duplicate)
-            && entries[1].State == TcpListenerBacklogEntryState.Free;
+            && entries[1].State == TcpListenerBacklogEntryState.Free);
     }
 
+    [HostTest("net.tcp.passive.backlog preserves no-socket boundary", HostLane.Fast, 5)]
     private static bool TestPreservesNoSocketBoundary()
     {
-        return TcpPassiveListenerBacklogBridge.RequiresCallerOwnedBacklogStorage
+        return HostCheck.Result(TcpPassiveListenerBacklogBridge.RequiresCallerOwnedBacklogStorage
             && !TcpPassiveListenerBacklogBridge.ParsesPackets
             && !TcpPassiveListenerBacklogBridge.ExportsSocketHandles
             && !TcpPassiveListenerBacklogBridge.OwnsTimers
             && !TcpPassiveListenerBacklogBridge.RetransmitsSegments
             && !TcpPassiveListenerBacklogBridge.UsesVirtioNet
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpPassiveListenerBacklogBridgeResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpPassiveListenerBacklogBridgeResult>());
     }
 
+    [HostTest("net.tcp.passive.backlog default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         TcpPassiveListenerBacklogBridgeResult defaultResult = default;
@@ -209,7 +174,7 @@ internal static class TcpPassiveListenerBacklogBridgeTests
                 TcpListenerBacklog.NoEntryIndex,
                 connection);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == TcpPassiveListenerBacklogBridgeStatus.Success
             && failureResult.IsInitialized
@@ -222,7 +187,7 @@ internal static class TcpPassiveListenerBacklogBridgeTests
             && failureResult.EntryIndex == TcpListenerBacklog.NoEntryIndex
             && failureResult.Connection.HasSameEndpoint(connection)
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                TcpPassiveListenerBacklogBridgeResult>();
+                TcpPassiveListenerBacklogBridgeResult>());
     }
 
     private static TcpPassiveIpv4FramePlanResult CompleteHandshake()

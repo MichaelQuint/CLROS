@@ -10,72 +10,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
     private const ulong DataPhysicalAddress = 0x0020_0000UL;
     private const ulong StatusPhysicalAddress = 0x0030_0000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("storage.virtioblk.ownership marks published descriptors in flight", TestMarksPublishedDescriptorsInFlight, ref failures);
-        Run("storage.virtioblk.ownership reclaims completed descriptors", TestReclaimsCompletedDescriptors, ref failures);
-        Run("storage.virtioblk.ownership rejects failed publish", TestRejectsFailedPublish, ref failures);
-        Run("storage.virtioblk.ownership rejects failed completion", TestRejectsFailedCompletion, ref failures);
-        Run("storage.virtioblk.ownership rejects short state table", TestRejectsShortStateTable, ref failures);
-        Run("storage.virtioblk.ownership rejects descriptor already in flight", TestRejectsDescriptorAlreadyInFlight, ref failures);
-        Run("storage.virtioblk.ownership rejects descriptor not in flight", TestRejectsDescriptorNotInFlight, ref failures);
-        Run("storage.virtioblk.ownership rejects duplicate completion", TestRejectsDuplicateCompletion, ref failures);
-        Run("storage.virtioblk.ownership preserves no-live-device boundary", TestOwnershipPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.freelist selects first free triple", TestFreeListSelectsFirstFreeTriple, ref failures);
-        Run("storage.virtioblk.freelist skips in-flight descriptors", TestFreeListSkipsInFlightDescriptors, ref failures);
-        Run("storage.virtioblk.freelist reports capacity exhaustion", TestFreeListReportsCapacityExhaustion, ref failures);
-        Run("storage.virtioblk.freelist rejects invalid state", TestFreeListRejectsInvalidState, ref failures);
-        Run("storage.virtioblk.freelist preserves no-live-device boundary", TestFreeListPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.publishplan publishes selected free chain", TestPublishPlanPublishesSelectedFreeChain, ref failures);
-        Run("storage.virtioblk.publishplan skips in-flight descriptors", TestPublishPlanSkipsInFlightDescriptors, ref failures);
-        Run("storage.virtioblk.publishplan rejects free-list exhaustion", TestPublishPlanRejectsFreeListExhaustion, ref failures);
-        Run("storage.virtioblk.publishplan preserves state on publish failure", TestPublishPlanPreservesStateOnPublishFailure, ref failures);
-        Run("storage.virtioblk.publishplan rejects invalid ownership state", TestPublishPlanRejectsInvalidOwnershipState, ref failures);
-        Run("storage.virtioblk.publishplan preserves no-live-device boundary", TestPublishPlanPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.reclaimplan composes publish completion ownership", TestReclaimPlanComposesPublishCompletionOwnership, ref failures);
-        Run("storage.virtioblk.reclaimplan rejects failed publish", TestReclaimPlanRejectsFailedPublish, ref failures);
-        Run("storage.virtioblk.reclaimplan rejects no completion", TestReclaimPlanRejectsNoCompletion, ref failures);
-        Run("storage.virtioblk.reclaimplan rejects ownership mismatch", TestReclaimPlanRejectsOwnershipMismatch, ref failures);
-        Run("storage.virtioblk.reclaimplan preserves no-live-device boundary", TestReclaimPlanPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.cursor publishes and advances available index", TestCursorPublishesAndAdvancesAvailableIndex, ref failures);
-        Run("storage.virtioblk.cursor preserves index on publish failure", TestCursorPreservesIndexOnPublishFailure, ref failures);
-        Run("storage.virtioblk.cursor reclaims and advances used index", TestCursorReclaimsAndAdvancesUsedIndex, ref failures);
-        Run("storage.virtioblk.cursor preserves used index on reclaim failure", TestCursorPreservesUsedIndexOnReclaimFailure, ref failures);
-        Run("storage.virtioblk.cursor preserves no-live-device boundary", TestCursorPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.ownership default results are not success", TestDefaultResultsAreNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio block descriptor ownership host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.virtioblk.ownership marks published descriptors in flight", HostLane.Fast, 0)]
     private static bool TestMarksPublishedDescriptorsInFlight()
     {
         VirtioBlockReadLifecyclePublishResult publish =
@@ -92,7 +27,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
         VirtioBlockDescriptorOwnershipPlanResult result =
             VirtioBlockDescriptorOwnershipPlan.MarkPublished(publish, states);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioBlockDescriptorOwnershipStatus.Success
             && result.PublishStatus == VirtioBlockReadLifecyclePublishStatus.Success
             && result.RequestHeaderDescriptorIndex == 2
@@ -106,9 +41,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && states[2] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[3] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[4] == VirtioBlockDescriptorOwnershipState.InFlight
-            && states[7] == VirtioBlockDescriptorOwnershipState.InFlight;
+            && states[7] == VirtioBlockDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("storage.virtioblk.ownership reclaims completed descriptors", HostLane.Fast, 1)]
     private static bool TestReclaimsCompletedDescriptors()
     {
         VirtioBlockReadLifecyclePublishResult publish =
@@ -129,7 +65,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
         VirtioBlockDescriptorOwnershipPlanResult reclaim =
             VirtioBlockDescriptorOwnershipPlan.ApplyCompletion(completion, states);
 
-        return mark.Succeeded
+        return HostCheck.Result(mark.Succeeded
             && completion.Succeeded
             && reclaim.Succeeded
             && reclaim.Status == VirtioBlockDescriptorOwnershipStatus.Success
@@ -142,9 +78,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && states[1] == VirtioBlockDescriptorOwnershipState.Free
             && states[2] == VirtioBlockDescriptorOwnershipState.Free
             && states[3] == VirtioBlockDescriptorOwnershipState.Free
-            && states[6] == VirtioBlockDescriptorOwnershipState.InFlight;
+            && states[6] == VirtioBlockDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("storage.virtioblk.ownership rejects failed publish", HostLane.Fast, 2)]
     private static bool TestRejectsFailedPublish()
     {
         VirtioBlockReadLifecyclePublishResult failedPublish = CreateFailedPublish();
@@ -154,15 +91,16 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
         VirtioBlockDescriptorOwnershipPlanResult result =
             VirtioBlockDescriptorOwnershipPlan.MarkPublished(failedPublish, states);
 
-        return !failedPublish.Succeeded
+        return HostCheck.Result(!failedPublish.Succeeded
             && failedPublish.Status == VirtioBlockReadLifecyclePublishStatus.ReadPlanFailed
             && !result.Succeeded
             && result.Status == VirtioBlockDescriptorOwnershipStatus.PublishFailed
             && result.PublishStatus == VirtioBlockReadLifecyclePublishStatus.ReadPlanFailed
             && result.DescriptorsMarkedInFlight == 0
-            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free));
     }
 
+    [HostTest("storage.virtioblk.ownership rejects failed completion", HostLane.Fast, 3)]
     private static bool TestRejectsFailedCompletion()
     {
         VirtioBlockReadLifecyclePublishResult publish =
@@ -189,7 +127,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
         VirtioBlockDescriptorOwnershipPlanResult result =
             VirtioBlockDescriptorOwnershipPlan.ApplyCompletion(failedCompletion, states);
 
-        return mark.Succeeded
+        return HostCheck.Result(mark.Succeeded
             && !failedCompletion.Succeeded
             && failedCompletion.CompletionReaderStatus == VirtioBlockUsedRingCompletionReaderStatus.NoCompletion
             && !result.Succeeded
@@ -197,9 +135,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && result.CompletionStatus == VirtioBlockReadLifecycleCompletionStatus.CompletionFailed
             && states[0] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[1] == VirtioBlockDescriptorOwnershipState.InFlight
-            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight;
+            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("storage.virtioblk.ownership rejects short state table", HostLane.Fast, 4)]
     private static bool TestRejectsShortStateTable()
     {
         VirtioBlockReadLifecyclePublishResult publish =
@@ -219,7 +158,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
         VirtioBlockDescriptorOwnershipPlanResult reclaim =
             VirtioBlockDescriptorOwnershipPlan.ApplyCompletion(completion, states);
 
-        return !mark.Succeeded
+        return HostCheck.Result(!mark.Succeeded
             && mark.Status == VirtioBlockDescriptorOwnershipStatus.StateTableTooSmall
             && mark.RequiredStateTableLength == 5
             && mark.StateTableLength == states.Length
@@ -227,9 +166,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && reclaim.Status == VirtioBlockDescriptorOwnershipStatus.StateTableTooSmall
             && reclaim.RequiredStateTableLength == 5
             && reclaim.StateTableLength == states.Length
-            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free));
     }
 
+    [HostTest("storage.virtioblk.ownership rejects descriptor already in flight", HostLane.Fast, 5)]
     private static bool TestRejectsDescriptorAlreadyInFlight()
     {
         VirtioBlockReadLifecyclePublishResult publish =
@@ -246,16 +186,17 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
         VirtioBlockDescriptorOwnershipPlanResult result =
             VirtioBlockDescriptorOwnershipPlan.MarkPublished(publish, states);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockDescriptorOwnershipStatus.DescriptorAlreadyInFlight
             && result.RequestHeaderDescriptorIndex == 0
             && result.DataBufferDescriptorIndex == 1
             && result.StatusByteDescriptorIndex == 2
             && states[0] == VirtioBlockDescriptorOwnershipState.Free
             && states[1] == VirtioBlockDescriptorOwnershipState.InFlight
-            && states[2] == VirtioBlockDescriptorOwnershipState.Free;
+            && states[2] == VirtioBlockDescriptorOwnershipState.Free);
     }
 
+    [HostTest("storage.virtioblk.ownership rejects descriptor not in flight", HostLane.Fast, 6)]
     private static bool TestRejectsDescriptorNotInFlight()
     {
         VirtioBlockReadLifecyclePublishResult publish =
@@ -276,15 +217,16 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
         VirtioBlockDescriptorOwnershipPlanResult result =
             VirtioBlockDescriptorOwnershipPlan.ApplyCompletion(completion, states);
 
-        return mark.Succeeded
+        return HostCheck.Result(mark.Succeeded
             && completion.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockDescriptorOwnershipStatus.DescriptorNotInFlight
             && states[0] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[1] == VirtioBlockDescriptorOwnershipState.Free
-            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight;
+            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("storage.virtioblk.ownership rejects duplicate completion", HostLane.Fast, 7)]
     private static bool TestRejectsDuplicateCompletion()
     {
         VirtioBlockReadLifecyclePublishResult publish =
@@ -306,15 +248,16 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
         VirtioBlockDescriptorOwnershipPlanResult duplicate =
             VirtioBlockDescriptorOwnershipPlan.ApplyCompletion(completion, states);
 
-        return mark.Succeeded
+        return HostCheck.Result(mark.Succeeded
             && firstReclaim.Succeeded
             && !duplicate.Succeeded
             && duplicate.Status == VirtioBlockDescriptorOwnershipStatus.DuplicateCompletion
             && states[0] == VirtioBlockDescriptorOwnershipState.Free
             && states[1] == VirtioBlockDescriptorOwnershipState.Free
-            && states[2] == VirtioBlockDescriptorOwnershipState.Free;
+            && states[2] == VirtioBlockDescriptorOwnershipState.Free);
     }
 
+    [HostTest("storage.virtioblk.ownership preserves no-live-device boundary", HostLane.Fast, 8)]
     private static bool TestOwnershipPreservesNoLiveDeviceBoundary()
     {
         VirtioBlockReadLifecyclePublishResult publish =
@@ -329,7 +272,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
         VirtioBlockDescriptorOwnershipPlanResult result =
             VirtioBlockDescriptorOwnershipPlan.MarkPublished(publish, states);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && !VirtioBlockDescriptorOwnershipPlan.PerformsMmio
             && !VirtioBlockDescriptorOwnershipPlan.NotifiesDevice
             && !VirtioBlockDescriptorOwnershipPlan.PollsDevice
@@ -342,9 +285,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && !VirtioBlockDescriptorOwnershipPlan.WritesQueueMemory
             && VirtioBlockDescriptorOwnershipPlan.MutatesCallerOwnedStateTable
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDescriptorOwnershipState>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDescriptorOwnershipPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDescriptorOwnershipPlanResult>());
     }
 
+    [HostTest("storage.virtioblk.freelist selects first free triple", HostLane.Fast, 9)]
     private static bool TestFreeListSelectsFirstFreeTriple()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -356,7 +300,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 queue,
                 states);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioBlockDescriptorFreeListStatus.Success
             && result.QueuePlanStatus == VirtqueueSplitRingPlanStatus.Success
             && result.RequestHeaderDescriptorIndex == 0
@@ -367,9 +311,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && result.DescriptorsScanned == 3
             && result.RequiredStateTableLength == QueueSize
             && result.StateTableLength == states.Length
-            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free));
     }
 
+    [HostTest("storage.virtioblk.freelist skips in-flight descriptors", HostLane.Fast, 10)]
     private static bool TestFreeListSkipsInFlightDescriptors()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -383,15 +328,16 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 queue,
                 states);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.RequestHeaderDescriptorIndex == 2
             && result.DataBufferDescriptorIndex == 3
             && result.StatusByteDescriptorIndex == 4
             && result.DescriptorsScanned == 5
             && states[0] == VirtioBlockDescriptorOwnershipState.InFlight
-            && states[1] == VirtioBlockDescriptorOwnershipState.InFlight;
+            && states[1] == VirtioBlockDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("storage.virtioblk.freelist reports capacity exhaustion", HostLane.Fast, 11)]
     private static bool TestFreeListReportsCapacityExhaustion()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -412,14 +358,15 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 queue,
                 states);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockDescriptorFreeListStatus.NoFreeDescriptorTriple
             && result.DescriptorsRequired == VirtioBlockDescriptorChainPlan.RequiredDescriptorCount
             && result.DescriptorsScanned == QueueSize
             && result.RequiredStateTableLength == QueueSize
-            && result.StateTableLength == states.Length;
+            && result.StateTableLength == states.Length);
     }
 
+    [HostTest("storage.virtioblk.freelist rejects invalid state", HostLane.Fast, 12)]
     private static bool TestFreeListRejectsInvalidState()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -432,15 +379,16 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 queue,
                 states);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockDescriptorFreeListStatus.InvalidDescriptorState
             && result.InvalidDescriptorIndex == 2
             && result.DescriptorsScanned == 2
             && result.RequiredStateTableLength == QueueSize
             && result.StateTableLength == states.Length
-            && states[2] == (VirtioBlockDescriptorOwnershipState)99;
+            && states[2] == (VirtioBlockDescriptorOwnershipState)99);
     }
 
+    [HostTest("storage.virtioblk.freelist preserves no-live-device boundary", HostLane.Fast, 13)]
     private static bool TestFreeListPreservesNoLiveDeviceBoundary()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -451,7 +399,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 queue,
                 states);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && !VirtioBlockDescriptorFreeListPlanner.PerformsMmio
             && !VirtioBlockDescriptorFreeListPlanner.NotifiesDevice
             && !VirtioBlockDescriptorFreeListPlanner.PollsDevice
@@ -462,9 +410,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && !VirtioBlockDescriptorFreeListPlanner.PerformsDiskRead
             && !VirtioBlockDescriptorFreeListPlanner.ReadsQueueMemory
             && !VirtioBlockDescriptorFreeListPlanner.MutatesCallerOwnedStateTable
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDescriptorFreeListResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDescriptorFreeListResult>());
     }
 
+    [HostTest("storage.virtioblk.ownership default results are not success", HostLane.Fast, 30)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         VirtioBlockDescriptorFreeListResult freeList = default;
@@ -474,7 +423,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
         VirtioBlockQueueCursorPublishResult cursorPublish = default;
         VirtioBlockQueueCursorReclaimResult cursorReclaim = default;
 
-        return !freeList.IsInitialized
+        return HostCheck.Result(!freeList.IsInitialized
             && freeList.Status == VirtioBlockDescriptorFreeListStatus.Success
             && !freeList.Succeeded
             && !ownership.IsInitialized
@@ -497,9 +446,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDescriptorPublishPlanResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDescriptorReclaimPlanResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueCursorPublishResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueCursorReclaimResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueCursorReclaimResult>());
     }
 
+    [HostTest("storage.virtioblk.publishplan publishes selected free chain", HostLane.Fast, 14)]
     private static bool TestPublishPlanPublishesSelectedFreeChain()
     {
         VirtioBlockDescriptorOwnershipState[] states =
@@ -513,7 +463,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 out byte[] requestHeader,
                 out byte[] queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioBlockDescriptorPublishPlanStatus.Success
             && result.QueuePlanStatus == VirtqueueSplitRingPlanStatus.Success
             && result.FreeListStatus == VirtioBlockDescriptorFreeListStatus.Success
@@ -539,9 +489,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && states[2] == VirtioBlockDescriptorOwnershipState.InFlight
             && EndianPrimitives.ReadUInt64LittleEndian(requestHeader.AsSpan(8, sizeof(ulong))) == 2
             && ReadUInt16(queueMemory, (int)result.LifecyclePublish.AvailableRingEntryOffset) == 0
-            && ReadUInt16(queueMemory, (int)result.LifecyclePublish.QueuePlan.AvailableRing.Offset + 2) == 8;
+            && ReadUInt16(queueMemory, (int)result.LifecyclePublish.QueuePlan.AvailableRing.Offset + 2) == 8);
     }
 
+    [HostTest("storage.virtioblk.publishplan skips in-flight descriptors", HostLane.Fast, 15)]
     private static bool TestPublishPlanSkipsInFlightDescriptors()
     {
         VirtioBlockDescriptorOwnershipState[] states =
@@ -559,7 +510,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 out _,
                 out _);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.RequestHeaderDescriptorIndex == 3
             && result.DataBufferDescriptorIndex == 4
             && result.StatusByteDescriptorIndex == 5
@@ -570,9 +521,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && states[2] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[3] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[4] == VirtioBlockDescriptorOwnershipState.InFlight
-            && states[5] == VirtioBlockDescriptorOwnershipState.InFlight;
+            && states[5] == VirtioBlockDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("storage.virtioblk.publishplan rejects free-list exhaustion", HostLane.Fast, 16)]
     private static bool TestPublishPlanRejectsFreeListExhaustion()
     {
         VirtioBlockDescriptorOwnershipState[] states =
@@ -596,7 +548,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 out byte[] requestHeader,
                 out byte[] queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockDescriptorPublishPlanStatus.FreeListFailed
             && result.FreeListStatus == VirtioBlockDescriptorFreeListStatus.NoFreeDescriptorTriple
             && !result.LifecyclePublishAttempted
@@ -607,9 +559,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && AllBytesEqual(requestHeader, 0)
             && AllBytesEqual(queueMemory, 0)
             && states[2] == VirtioBlockDescriptorOwnershipState.InFlight
-            && states[5] == VirtioBlockDescriptorOwnershipState.InFlight;
+            && states[5] == VirtioBlockDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("storage.virtioblk.publishplan preserves state on publish failure", HostLane.Fast, 17)]
     private static bool TestPublishPlanPreservesStateOnPublishFailure()
     {
         VirtioBlockDescriptorOwnershipState[] states =
@@ -624,7 +577,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 out _,
                 out _);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockDescriptorPublishPlanStatus.LifecyclePublishFailed
             && result.FreeListStatus == VirtioBlockDescriptorFreeListStatus.Success
             && result.LifecyclePublishStatus == VirtioBlockReadLifecyclePublishStatus.ReadPlanFailed
@@ -633,9 +586,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && result.DescriptorsSelected == VirtioBlockDescriptorChainPlan.RequiredDescriptorCount
             && result.DescriptorsWritten == 0
             && result.DescriptorsMarkedInFlight == 0
-            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free));
     }
 
+    [HostTest("storage.virtioblk.publishplan rejects invalid ownership state", HostLane.Fast, 18)]
     private static bool TestPublishPlanRejectsInvalidOwnershipState()
     {
         VirtioBlockDescriptorOwnershipState[] states =
@@ -651,15 +605,16 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 out _,
                 out _);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockDescriptorPublishPlanStatus.FreeListFailed
             && result.FreeListStatus == VirtioBlockDescriptorFreeListStatus.InvalidDescriptorState
             && !result.LifecyclePublishAttempted
             && !result.OwnershipMarkAttempted
             && result.DescriptorsSelected == 0
-            && states[0] == (VirtioBlockDescriptorOwnershipState)99;
+            && states[0] == (VirtioBlockDescriptorOwnershipState)99);
     }
 
+    [HostTest("storage.virtioblk.publishplan preserves no-live-device boundary", HostLane.Fast, 19)]
     private static bool TestPublishPlanPreservesNoLiveDeviceBoundary()
     {
         VirtioBlockDescriptorOwnershipState[] states =
@@ -673,7 +628,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 out _,
                 out _);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && !VirtioBlockDescriptorPublishPlanner.PerformsMmio
             && !VirtioBlockDescriptorPublishPlanner.NotifiesDevice
             && !VirtioBlockDescriptorPublishPlanner.PollsDevice
@@ -686,9 +641,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && VirtioBlockDescriptorPublishPlanner.WritesQueueMemory
             && VirtioBlockDescriptorPublishPlanner.WritesRequestHeader
             && VirtioBlockDescriptorPublishPlanner.MutatesCallerOwnedStateTable
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDescriptorPublishPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDescriptorPublishPlanResult>());
     }
 
+    [HostTest("storage.virtioblk.reclaimplan composes publish completion ownership", HostLane.Fast, 20)]
     private static bool TestReclaimPlanComposesPublishCompletionOwnership()
     {
         VirtioBlockDescriptorOwnershipState[] states =
@@ -711,7 +667,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 status,
                 states);
 
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && result.Succeeded
             && result.Status == VirtioBlockDescriptorReclaimPlanStatus.Success
             && result.PublishPlanStatus == VirtioBlockDescriptorPublishPlanStatus.Success
@@ -744,9 +700,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && result.Completion.CompletedDescriptorHead == 0
             && result.OwnershipReclaim.DescriptorsFreed ==
                 VirtioBlockDescriptorChainPlan.RequiredDescriptorCount
-            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free));
     }
 
+    [HostTest("storage.virtioblk.reclaimplan rejects failed publish", HostLane.Fast, 21)]
     private static bool TestReclaimPlanRejectsFailedPublish()
     {
         VirtioBlockDescriptorOwnershipState[] states =
@@ -768,7 +725,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 status,
                 states);
 
-        return !publish.Succeeded
+        return HostCheck.Result(!publish.Succeeded
             && publish.Status == VirtioBlockDescriptorPublishPlanStatus.LifecyclePublishFailed
             && !result.Succeeded
             && result.Status == VirtioBlockDescriptorReclaimPlanStatus.PublishPlanFailed
@@ -779,9 +736,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && result.PreviousUsedIndex == 5
             && result.CurrentUsedIndex == 5
             && result.DescriptorsFreed == 0
-            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free));
     }
 
+    [HostTest("storage.virtioblk.reclaimplan rejects no completion", HostLane.Fast, 22)]
     private static bool TestReclaimPlanRejectsNoCompletion()
     {
         VirtioBlockDescriptorOwnershipState[] states =
@@ -807,7 +765,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 status,
                 states);
 
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockDescriptorReclaimPlanStatus.CompletionFailed
             && result.PublishPlanStatus == VirtioBlockDescriptorPublishPlanStatus.Success
@@ -821,9 +779,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && result.DescriptorsFreed == 0
             && states[0] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[1] == VirtioBlockDescriptorOwnershipState.InFlight
-            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight;
+            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("storage.virtioblk.reclaimplan rejects ownership mismatch", HostLane.Fast, 23)]
     private static bool TestReclaimPlanRejectsOwnershipMismatch()
     {
         VirtioBlockDescriptorOwnershipState[] states =
@@ -847,7 +806,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 status,
                 states);
 
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockDescriptorReclaimPlanStatus.OwnershipReclaimFailed
             && result.CompletionStatus == VirtioBlockReadLifecycleCompletionStatus.Success
@@ -858,9 +817,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && result.DescriptorsFreed == 0
             && states[publish.RequestHeaderDescriptorIndex] == VirtioBlockDescriptorOwnershipState.Free
             && states[publish.DataBufferDescriptorIndex] == VirtioBlockDescriptorOwnershipState.InFlight
-            && states[publish.StatusByteDescriptorIndex] == VirtioBlockDescriptorOwnershipState.InFlight;
+            && states[publish.StatusByteDescriptorIndex] == VirtioBlockDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("storage.virtioblk.reclaimplan preserves no-live-device boundary", HostLane.Fast, 24)]
     private static bool TestReclaimPlanPreservesNoLiveDeviceBoundary()
     {
         VirtioBlockDescriptorOwnershipState[] states =
@@ -883,7 +843,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 status,
                 states);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockDescriptorReclaimPlanner.RequiresSuccessfulPublishPlan
             && VirtioBlockDescriptorReclaimPlanner.RequiresCallerOwnedQueueMemory
             && VirtioBlockDescriptorReclaimPlanner.RequiresCallerOwnedStatusBuffer
@@ -907,9 +867,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && !VirtioBlockDescriptorReclaimPlanner.WaitsForUsedRingCompletion
             && !VirtioBlockDescriptorReclaimPlanner.WritesQueueMemory
             && !VirtioBlockDescriptorReclaimPlanner.WritesRequestHeader
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDescriptorReclaimPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDescriptorReclaimPlanResult>());
     }
 
+    [HostTest("storage.virtioblk.cursor publishes and advances available index", HostLane.Fast, 25)]
     private static bool TestCursorPublishesAndAdvancesAvailableIndex()
     {
         VirtioBlockDescriptorOwnershipState[] states =
@@ -928,7 +889,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 out _,
                 out byte[] queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioBlockQueueCursorPublishStatus.Success
             && result.PublishPlanStatus == VirtioBlockDescriptorPublishPlanStatus.Success
             && result.FreeListStatus == VirtioBlockDescriptorFreeListStatus.Success
@@ -947,9 +908,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && states[1] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[2] == VirtioBlockDescriptorOwnershipState.InFlight
             && EndianPrimitives.ReadUInt64LittleEndian(requestHeader.AsSpan(8, sizeof(ulong))) == 2
-            && ReadUInt16(queueMemory, (int)result.Publish.LifecyclePublish.AvailableRingEntryOffset) == 0;
+            && ReadUInt16(queueMemory, (int)result.Publish.LifecyclePublish.AvailableRingEntryOffset) == 0);
     }
 
+    [HostTest("storage.virtioblk.cursor preserves index on publish failure", HostLane.Fast, 26)]
     private static bool TestCursorPreservesIndexOnPublishFailure()
     {
         VirtioBlockDescriptorOwnershipState[] states =
@@ -968,7 +930,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 out _,
                 out byte[] queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockQueueCursorPublishStatus.PublishPlanFailed
             && result.PublishPlanStatus == VirtioBlockDescriptorPublishPlanStatus.LifecyclePublishFailed
             && result.LifecyclePublishStatus == VirtioBlockReadLifecyclePublishStatus.ReadPlanFailed
@@ -980,9 +942,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && cursor.UsedRingIndex == 4
             && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free)
             && AllBytesEqual(requestHeader, 0)
-            && AllBytesEqual(queueMemory, 0);
+            && AllBytesEqual(queueMemory, 0));
     }
 
+    [HostTest("storage.virtioblk.cursor reclaims and advances used index", HostLane.Fast, 27)]
     private static bool TestCursorReclaimsAndAdvancesUsedIndex()
     {
         VirtioBlockDescriptorOwnershipState[] states =
@@ -1009,7 +972,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 states,
                 ref cursor);
 
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && reclaim.Succeeded
             && reclaim.Status == VirtioBlockQueueCursorReclaimStatus.Success
             && reclaim.ReclaimPlanStatus == VirtioBlockDescriptorReclaimPlanStatus.Success
@@ -1026,9 +989,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && cursor.AvailableRingIndex == 3
             && cursor.UsedRingIndex == 9
             && reclaim.Reclaim.NextUsedIndex == 9
-            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free));
     }
 
+    [HostTest("storage.virtioblk.cursor preserves used index on reclaim failure", HostLane.Fast, 28)]
     private static bool TestCursorPreservesUsedIndexOnReclaimFailure()
     {
         VirtioBlockDescriptorOwnershipState[] states =
@@ -1058,7 +1022,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 states,
                 ref cursor);
 
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && !reclaim.Succeeded
             && reclaim.Status == VirtioBlockQueueCursorReclaimStatus.ReclaimPlanFailed
             && reclaim.ReclaimPlanStatus == VirtioBlockDescriptorReclaimPlanStatus.CompletionFailed
@@ -1074,9 +1038,10 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && cursor.UsedRingIndex == 6
             && states[0] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[1] == VirtioBlockDescriptorOwnershipState.InFlight
-            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight;
+            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("storage.virtioblk.cursor preserves no-live-device boundary", HostLane.Fast, 29)]
     private static bool TestCursorPreservesNoLiveDeviceBoundary()
     {
         VirtioBlockDescriptorOwnershipState[] states =
@@ -1102,7 +1067,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
                 states,
                 ref cursor);
 
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && reclaim.Succeeded
             && VirtioBlockQueueCursorPlanner.RequiresCallerOwnedCursorState
             && VirtioBlockQueueCursorPlanner.RequiresCallerOwnedQueueMemory
@@ -1130,7 +1095,7 @@ internal static class StorageVirtioBlockDescriptorOwnershipPlanTests
             && !VirtioBlockQueueCursorPlanner.WaitsForUsedRingCompletion
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueCursorState>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueCursorPublishResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueCursorReclaimResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueCursorReclaimResult>());
     }
 
     private static VirtioBlockReadLifecyclePublishResult CreateSuccessfulPublish(

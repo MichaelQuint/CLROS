@@ -3,24 +3,14 @@ using OS.Std.Net;
 
 internal static class StdInternetChecksumTests
 {
-    [ModuleInitializer]
-    internal static void Run()
-    {
-        RunScenario("std.internet.checksum empty input", TestEmptyInput);
-        RunScenario("std.internet.checksum rfc1071 vector", TestRfc1071Vector);
-        RunScenario("std.internet.checksum odd byte pads high", TestOddBytePadsHigh);
-        RunScenario("std.internet.checksum segmented odd boundary", TestSegmentedOddBoundary);
-        RunScenario("std.internet.checksum four segment vector", TestFourSegmentVector);
-        RunScenario("std.internet.checksum accumulator preserves pending byte", TestAccumulatorPreservesPendingByte);
-        RunScenario("std.internet.checksum validates packet checksum", TestValidatesPacketChecksum);
-        RunScenario("std.internet.checksum reset clears state", TestResetClearsState);
-    }
 
+    [HostTest("std.internet.checksum empty input", HostLane.Fast, 0)]
     private static void TestEmptyInput()
     {
         ExpectValue("empty input", InternetChecksum.EmptyChecksum, InternetChecksum.Compute(ReadOnlySpan<byte>.Empty));
     }
 
+    [HostTest("std.internet.checksum rfc1071 vector", HostLane.Fast, 1)]
     private static void TestRfc1071Vector()
     {
         ReadOnlySpan<byte> source = new byte[]
@@ -31,6 +21,7 @@ internal static class StdInternetChecksumTests
         ExpectValue("RFC 1071 sample", 0x220D, InternetChecksum.Compute(source));
     }
 
+    [HostTest("std.internet.checksum odd byte pads high", HostLane.Fast, 2)]
     private static void TestOddBytePadsHigh()
     {
         ReadOnlySpan<byte> source = new byte[] { 0x01, 0x02, 0x03 };
@@ -38,6 +29,7 @@ internal static class StdInternetChecksumTests
         ExpectValue("odd input", 0xFBFD, InternetChecksum.Compute(source));
     }
 
+    [HostTest("std.internet.checksum segmented odd boundary", HostLane.Fast, 3)]
     private static void TestSegmentedOddBoundary()
     {
         ReadOnlySpan<byte> first = new byte[] { 0x01 };
@@ -46,6 +38,7 @@ internal static class StdInternetChecksumTests
         ExpectValue("segmented odd boundary", 0xFBFD, InternetChecksum.Compute(first, second));
     }
 
+    [HostTest("std.internet.checksum four segment vector", HostLane.Fast, 4)]
     private static void TestFourSegmentVector()
     {
         ReadOnlySpan<byte> first = new byte[] { 0x00 };
@@ -56,6 +49,7 @@ internal static class StdInternetChecksumTests
         ExpectValue("four segment RFC 1071 sample", 0x220D, InternetChecksum.Compute(first, second, third, fourth));
     }
 
+    [HostTest("std.internet.checksum accumulator preserves pending byte", HostLane.Fast, 5)]
     private static void TestAccumulatorPreservesPendingByte()
     {
         InternetChecksumAccumulator accumulator = InternetChecksum.CreateAccumulator();
@@ -76,6 +70,7 @@ internal static class StdInternetChecksumTests
         ExpectValue("split deadbeef", 0x6262, accumulator.Finish());
     }
 
+    [HostTest("std.internet.checksum validates packet checksum", HostLane.Fast, 6)]
     private static void TestValidatesPacketChecksum()
     {
         byte[] packet =
@@ -97,6 +92,7 @@ internal static class StdInternetChecksumTests
         }
     }
 
+    [HostTest("std.internet.checksum reset clears state", HostLane.Fast, 7)]
     private static void TestResetClearsState()
     {
         InternetChecksumAccumulator accumulator = InternetChecksum.CreateAccumulator();
@@ -109,22 +105,6 @@ internal static class StdInternetChecksumTests
         }
 
         ExpectValue("reset empty finish", InternetChecksum.EmptyChecksum, accumulator.Finish());
-    }
-
-    private static void RunScenario(string name, Action test)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            test();
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
     }
 
     private static void ExpectValue(string scenario, ushort expected, ushort actual)

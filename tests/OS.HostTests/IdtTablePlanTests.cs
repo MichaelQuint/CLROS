@@ -3,44 +3,8 @@ using OS.Kernel.Diagnostics;
 
 internal static class IdtTablePlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("idt table plan binds required fault vectors", TestBindsRequiredFaultVectors, ref failures);
-        Run("idt table plan rejects missing required vector", TestRejectsMissingRequiredVector, ref failures);
-        Run("idt table plan requires double fault ist", TestRequiresDoubleFaultIst, ref failures);
-        Run("idt table plan writes descriptor bytes", TestWritesDescriptorBytes, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("IDT table plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("idt table plan binds required fault vectors", HostLane.Fast, 0)]
     private static bool TestBindsRequiredFaultVectors()
     {
         IdtGateDescriptor[] table = new IdtGateDescriptor[IdtTablePlan.EntryCount];
@@ -55,7 +19,7 @@ internal static class IdtTablePlanTests
 
         IdtTablePlanResult validateResult = IdtTablePlan.ValidateRequiredFaultTable(table);
 
-        return createResult.Succeeded
+        return HostCheck.Result(createResult.Succeeded
             && createResult.Status == IdtTablePlanStatus.Ok
             && validateResult.Succeeded
             && validateResult.Status == IdtTablePlanStatus.Ok
@@ -65,9 +29,10 @@ internal static class IdtTablePlanTests
             && table[FaultVectorCatalog.DoubleFault].IstIndex == 1
             && table[FaultVectorCatalog.PageFault].Present
             && IdtTablePlan.IsRequiredFaultVector(FaultVectorCatalog.GeneralProtectionFault)
-            && !IdtTablePlan.IsRequiredFaultVector(FaultVectorCatalog.Breakpoint);
+            && !IdtTablePlan.IsRequiredFaultVector(FaultVectorCatalog.Breakpoint));
     }
 
+    [HostTest("idt table plan rejects missing required vector", HostLane.Fast, 1)]
     private static bool TestRejectsMissingRequiredVector()
     {
         IdtGateDescriptor[] table = CreateValidTable();
@@ -80,14 +45,15 @@ internal static class IdtTablePlanTests
 
         IdtTablePlanResult missingDoubleFault = IdtTablePlan.ValidateRequiredFaultTable(table);
 
-        return !missingPageFault.Succeeded
+        return HostCheck.Result(!missingPageFault.Succeeded
             && missingPageFault.Status == IdtTablePlanStatus.MissingRequiredVector
             && missingPageFault.Vector == FaultVectorCatalog.PageFault
             && !missingDoubleFault.Succeeded
             && missingDoubleFault.Status == IdtTablePlanStatus.MissingRequiredVector
-            && missingDoubleFault.Vector == FaultVectorCatalog.DoubleFault;
+            && missingDoubleFault.Vector == FaultVectorCatalog.DoubleFault);
     }
 
+    [HostTest("idt table plan requires double fault ist", HostLane.Fast, 2)]
     private static bool TestRequiresDoubleFaultIst()
     {
         IdtGateDescriptor[] table = new IdtGateDescriptor[IdtTablePlan.EntryCount];
@@ -112,15 +78,16 @@ internal static class IdtTablePlanTests
 
         IdtTablePlanResult validateResult = IdtTablePlan.ValidateRequiredFaultTable(invalidTable);
 
-        return !createResult.Succeeded
+        return HostCheck.Result(!createResult.Succeeded
             && createResult.Status == IdtTablePlanStatus.DoubleFaultIstRequired
             && createResult.Vector == FaultVectorCatalog.DoubleFault
             && noIstDoubleFault.Succeeded
             && !validateResult.Succeeded
             && validateResult.Status == IdtTablePlanStatus.DoubleFaultIstRequired
-            && validateResult.Vector == FaultVectorCatalog.DoubleFault;
+            && validateResult.Vector == FaultVectorCatalog.DoubleFault);
     }
 
+    [HostTest("idt table plan writes descriptor bytes", HostLane.Fast, 3)]
     private static bool TestWritesDescriptorBytes()
     {
         IdtGateDescriptor[] table = CreateValidTable();
@@ -134,7 +101,7 @@ internal static class IdtTablePlanTests
             table,
             new byte[IdtTablePlan.EncodedByteLength - 1]);
 
-        return writeResult.Succeeded
+        return HostCheck.Result(writeResult.Succeeded
             && writeResult.RequiredBytes == IdtTablePlan.EncodedByteLength
             && bytes.Length == 4096
             && bytes[pageFaultOffset + 0] == 0x00
@@ -145,7 +112,7 @@ internal static class IdtTablePlanTests
             && bytes[doubleFaultOffset + 4] == 0x01
             && bytes[doubleFaultOffset + 5] == 0x8e
             && !smallBufferResult.Succeeded
-            && smallBufferResult.Status == IdtTablePlanStatus.DescriptorBufferTooSmall;
+            && smallBufferResult.Status == IdtTablePlanStatus.DescriptorBufferTooSmall);
     }
 
     private static IdtGateDescriptor[] CreateValidTable()

@@ -12,53 +12,7 @@ internal static class BootSequenceAppSelectionReadinessTests
     private const ushort FileCount = 1;
     private const int AppContentLength = 40;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("boot.sequence app selection ready", TestAppSelectionReady, ref failures);
-        Run(
-            "boot.sequence app selection rejects manifest failure",
-            TestRejectsManifestFailure,
-            ref failures);
-        Run(
-            "boot.sequence app selection rejects package failure",
-            TestRejectsPackageFailure,
-            ref failures);
-        Run(
-            "boot.sequence app selection rejects descriptor failure",
-            TestRejectsDescriptorFailure,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Boot sequence app selection readiness host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("boot.sequence app selection ready", HostLane.Fast, 0)]
     private static bool TestAppSelectionReady()
     {
         AppSelectionInputs inputs = CreateReadyInputs();
@@ -73,12 +27,13 @@ internal static class BootSequenceAppSelectionReadinessTests
             serial,
             events);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.AppSelectionReady
-            && events.Snapshot()[0] == BootSequence.AppSelectionReady;
+            && events.Snapshot()[0] == BootSequence.AppSelectionReady);
     }
 
+    [HostTest("boot.sequence app selection rejects manifest failure", HostLane.Fast, 1)]
     private static bool TestRejectsManifestFailure()
     {
         AppSelectionInputs inputs = CreateReadyInputs();
@@ -104,13 +59,14 @@ internal static class BootSequenceAppSelectionReadinessTests
             OsPackageFileSystemStatus.Success,
             OsPackageStatus.Success);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(nameof(AppSelectionReadinessStatus.ManifestFailed), StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence app selection rejects package failure", HostLane.Fast, 2)]
     private static bool TestRejectsPackageFailure()
     {
         AppSelectionInputs inputs = CreateReadyInputs();
@@ -133,13 +89,14 @@ internal static class BootSequenceAppSelectionReadinessTests
             OsPackageFileSystemStatus.Success,
             OsPackageStatus.Success);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(nameof(AppSelectionReadinessStatus.PackageFailed), StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence app selection rejects descriptor failure", HostLane.Fast, 3)]
     private static bool TestRejectsDescriptorFailure()
     {
         byte[] manifestSource = ValidManifest(AppPath);
@@ -169,14 +126,14 @@ internal static class BootSequenceAppSelectionReadinessTests
             OsPackageFileSystemStatus.MissingFile,
             OsPackageStatus.MissingFile);
 
-        return !descriptor.Succeeded
+        return HostCheck.Result(!descriptor.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
                 nameof(AppSelectionReadinessStatus.LaunchDescriptorFailed),
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
     private static AppSelectionInputs CreateReadyInputs()

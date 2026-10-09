@@ -19,7 +19,7 @@ internal static unsafe class GuestTestArrayAllocationLengthOverflowChecksTests
     private const ulong Token2 = 0xABCD987600000018;
     private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void Run()
     {
         Console.WriteLine("TEST_START m04.008");
@@ -48,9 +48,8 @@ internal static unsafe class GuestTestArrayAllocationLengthOverflowChecksTests
 
     private static void Group(string name, Action test)
     {
-        Console.WriteLine("TEST_START m04.008." + name);
-        try { test(); Console.WriteLine("TEST_PASS m04.008." + name); }
-        catch (Exception error) { Console.WriteLine("TEST_FAIL m04.008." + name + " " + error.GetType().Name); throw; }
+
+        HostCheck.Run("m04.008." + name, test);
     }
 
     private static void CheckContract()

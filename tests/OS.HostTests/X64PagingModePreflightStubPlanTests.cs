@@ -80,28 +80,30 @@ internal static unsafe class X64PagingModePreflightStubPlanTests
         Func<bool> test,
         ref int failures)
     {
-        try
+        HostCheck.Run(TestName + " " + name, () =>
         {
-            if (test())
+            try
             {
-                return;
+                if (test())
+                {
+                    return true;
+                }
+                Console.WriteLine(
+                    "M01_013_PREFLIGHT_CASE_FAIL " + Normalize(name));
+                return false;
             }
-
-            failures++;
-            Console.WriteLine(
-                "M01_013_PREFLIGHT_CASE_FAIL " + Normalize(name));
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "M01_013_PREFLIGHT_CASE_FAIL "
-                + Normalize(name)
-                + " "
-                + ex.GetType().Name
-                + " "
-                + Normalize(ex.Message));
-        }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    "M01_013_PREFLIGHT_CASE_FAIL "
+                    + Normalize(name)
+                    + " "
+                    + ex.GetType().Name
+                    + " "
+                    + Normalize(ex.Message));
+                throw;
+            }
+        }, ref failures);
     }
 
     private static bool TestEnumAndPodContract()

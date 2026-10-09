@@ -46,78 +46,7 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
     private static readonly Guid EspGuid = new Guid("c12a7328-f81f-11d2-ba4b-00a0c93ec93b");
     private static readonly Guid UniquePartitionGuid = new Guid("bbbbbbbb-1111-2222-3333-cccccccccccc");
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("storage.virtio package preflight validates buffers", TestValidatesBuffers, ref failures);
-        Run("storage.virtio package preflight rejects incomplete session", TestRejectsIncompleteSession, ref failures);
-        Run("storage.virtio package preflight reports scratch capacity", TestReportsScratchCapacity, ref failures);
-        Run("storage.virtio package preflight preserves storage boundary", TestPreservesStorageBoundary, ref failures);
-        Run("storage.virtio package preflight default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run(
-            "storage.virtioblk package preflight stages package file",
-            TestStagesPackageFileFromReadSessionPreflight,
-            ref failures);
-        Run(
-            "storage.virtioblk package file staging formatter formats success marker",
-            TestPackageFileStagingFormatterFormatsSuccessMarker,
-            ref failures);
-        Run(
-            "storage.virtioblk package file staging formatter reports short destination",
-            TestPackageFileStagingFormatterReportsShortDestination,
-            ref failures);
-        Run(
-            "storage.virtioblk package file staging formatter default result is not success",
-            TestPackageFileStagingFormatterDefaultResultIsNotSuccess,
-            ref failures);
-        Run(
-            "storage virtio block package file staging formatter uses shared ascii text builder",
-            TestPackageFileStagingFormatterUsesSharedAsciiTextBuilder,
-            ref failures);
-        Run(
-            "boot.sequence package file staging preflight ready",
-            TestBootSequencePackageFileStagingPreflightReady,
-            ref failures);
-        Run(
-            "boot.sequence package file staging preflight blocks default result",
-            TestBootSequencePackageFileStagingPreflightBlocksDefaultResult,
-            ref failures);
-        Run(
-            "appmodel.selection preflight rejects incomplete read session",
-            TestAppSelectionPreflightRejectsIncompleteReadSession,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio block package read preflight host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.virtio package preflight validates buffers", HostLane.Fast, 0)]
     private static bool TestValidatesBuffers()
     {
         VirtioBlockReadOnlyReadSessionResult session = ExecuteReadSession(validRequestHeader: true);
@@ -136,7 +65,7 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             partitions,
             packageBuffer);
 
-        return session.Succeeded
+        return HostCheck.Result(session.Succeeded
             && result.Succeeded
             && result.Status == VirtioBlockPackageReadPreflightStatus.Success
             && result.ReadSessionComplete
@@ -153,9 +82,10 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             && result.PackageLoad.GptStatus == GptStatus.Success
             && result.PackageLoad.Fat32Status == Fat32Status.Success
             && result.PackageLoad.PackageStatus == OsPackageStatus.Success
-            && result.PackageLoad.BytesRead == package.Length;
+            && result.PackageLoad.BytesRead == package.Length);
     }
 
+    [HostTest("storage.virtio package preflight rejects incomplete session", HostLane.Fast, 1)]
     private static bool TestRejectsIncompleteSession()
     {
         VirtioBlockReadOnlyReadSessionResult session = ExecuteReadSession(validRequestHeader: false);
@@ -173,7 +103,7 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             partitions,
             packageBuffer);
 
-        return !session.Succeeded
+        return HostCheck.Result(!session.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockPackageReadPreflightStatus.IncompleteReadSession
             && !result.ReadSessionComplete
@@ -184,9 +114,10 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             && result.CursorBefore.AvailableRingIndex == 4
             && result.CursorBefore.UsedRingIndex == 8
             && result.CursorAfter.AvailableRingIndex == 4
-            && result.CursorAfter.UsedRingIndex == 8;
+            && result.CursorAfter.UsedRingIndex == 8);
     }
 
+    [HostTest("storage.virtio package preflight reports scratch capacity", HostLane.Fast, 2)]
     private static bool TestReportsScratchCapacity()
     {
         VirtioBlockReadOnlyReadSessionResult session = ExecuteReadSession(validRequestHeader: true);
@@ -204,7 +135,7 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             partitions,
             packageBuffer);
 
-        return session.Succeeded
+        return HostCheck.Result(session.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockPackageReadPreflightStatus.HeaderScratchTooSmall
             && result.ReadSessionComplete
@@ -216,9 +147,10 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             && result.PackageBufferBytesRequired == VirtioBlockPackageReadPreflight.MinimumPackageBufferBytes
             && result.PackageBufferBytesAvailable == checked((ulong)packageBuffer.Length)
             && result.CursorAfter.AvailableRingIndex == 5
-            && result.CursorAfter.UsedRingIndex == 9;
+            && result.CursorAfter.UsedRingIndex == 9);
     }
 
+    [HostTest("storage.virtio package preflight preserves storage boundary", HostLane.Fast, 3)]
     private static bool TestPreservesStorageBoundary()
     {
         VirtioBlockReadOnlyReadSessionResult session = ExecuteReadSession(validRequestHeader: true);
@@ -237,7 +169,7 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             partitions,
             packageBuffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.ReadSessionComplete
             && result.CursorBefore.AvailableRingIndex == 4
             && result.CursorAfter.AvailableRingIndex == 5
@@ -262,9 +194,10 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             && !VirtioBlockPackageReadPreflight.PollsDevice
             && !VirtioBlockPackageReadPreflight.HandlesInterrupts
             && !VirtioBlockPackageReadPreflight.ReadsRealDisk
-            && !VirtioBlockPackageReadPreflight.WaitsForUsedRingCompletion;
+            && !VirtioBlockPackageReadPreflight.WaitsForUsedRingCompletion);
     }
 
+    [HostTest("storage.virtio package preflight default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioBlockPackageReadPreflightResult result = default;
@@ -283,7 +216,7 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             partitions,
             packageBuffer);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockPackageReadPreflightStatus.Success
             && result.ReadSessionStatus == VirtioBlockReadOnlyReadSessionStatus.Success
@@ -292,9 +225,10 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             && failed.Status == VirtioBlockPackageReadPreflightStatus.IncompleteReadSession
             && failed.ReadSessionStatus == VirtioBlockReadOnlyReadSessionStatus.AdapterFailed
             && !failed.PackageLoadAttempted
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockPackageReadPreflightResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockPackageReadPreflightResult>());
     }
 
+    [HostTest("storage.virtioblk package preflight stages package file", HostLane.Fast, 5)]
     private static bool TestStagesPackageFileFromReadSessionPreflight()
     {
         VirtioBlockReadOnlyReadSessionResult session = ExecuteReadSession(validRequestHeader: true);
@@ -317,7 +251,7 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
                 "bin/app.dll"u8,
                 staging);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioBlockPackageFileStagingPreflightStatus.Success
             && result.ReadSessionStatus == VirtioBlockReadOnlyReadSessionStatus.Success
@@ -354,9 +288,10 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             && !VirtioBlockPackageFileStagingPreflight.ExecutesAppCode
             && !VirtioBlockPackageFileStagingPreflight.StartsHostedDotNet
             && !VirtioBlockPackageFileStagingPreflight.StartsKestrel
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockPackageFileStagingPreflightResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockPackageFileStagingPreflightResult>());
     }
 
+    [HostTest("storage.virtioblk package file staging formatter formats success marker", HostLane.Fast, 6)]
     private static bool TestPackageFileStagingFormatterFormatsSuccessMarker()
     {
         VirtioBlockPackageFileStagingPreflightResult preflight =
@@ -383,7 +318,7 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             "readSessionBytes=1024 packageBytes=" + package.Length.ToString() + " stagedBytes=4 stagingCapacity=4 " +
             "sourceFileBytes=4 requiredBytes=4 sourceRangeOverflow=false";
 
-        return preflight.Succeeded
+        return HostCheck.Result(preflight.Succeeded
             && query.Succeeded
             && result.Succeeded
             && result.Status == VirtioBlockPackageFileStagingPreflightDiagnosticFormatStatus.Success
@@ -394,9 +329,10 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             && result.AvailableBytes == destination.Length
             && marker == expected
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockPackageFileStagingPreflightDiagnosticFormatResult>();
+                VirtioBlockPackageFileStagingPreflightDiagnosticFormatResult>());
     }
 
+    [HostTest("storage.virtioblk package file staging formatter reports short destination", HostLane.Fast, 7)]
     private static bool TestPackageFileStagingFormatterReportsShortDestination()
     {
         VirtioBlockPackageFileStagingPreflightResult preflight =
@@ -412,7 +348,7 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
                 preflight,
                 destination);
 
-        return query.Succeeded
+        return HostCheck.Result(query.Succeeded
             && !result.Succeeded
             && result.Status ==
                 VirtioBlockPackageFileStagingPreflightDiagnosticFormatStatus.DestinationTooSmall
@@ -420,9 +356,10 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             && result.BytesWritten == 0
             && result.RequiredBytes == query.RequiredBytes
             && result.AvailableBytes == destination.Length
-            && AllBytesEqual(destination, 0xCC);
+            && AllBytesEqual(destination, 0xCC));
     }
 
+    [HostTest("storage.virtioblk package file staging formatter default result is not success", HostLane.Fast, 8)]
     private static bool TestPackageFileStagingFormatterDefaultResultIsNotSuccess()
     {
         VirtioBlockPackageFileStagingPreflightResult preflight = default;
@@ -437,7 +374,7 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
                 destination);
         VirtioBlockPackageFileStagingPreflightDiagnosticFormatResult defaultResult = default;
 
-        return !preflight.Succeeded
+        return HostCheck.Result(!preflight.Succeeded
             && !query.Succeeded
             && query.Status ==
                 VirtioBlockPackageFileStagingPreflightDiagnosticFormatStatus.InvalidResult
@@ -447,9 +384,10 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
                 VirtioBlockPackageFileStagingPreflightDiagnosticFormatStatus.InvalidResult
             && result.BytesWritten == 0
             && !defaultResult.IsInitialized
-            && !defaultResult.Succeeded;
+            && !defaultResult.Succeeded);
     }
 
+    [HostTest("storage virtio block package file staging formatter uses shared ascii text builder", HostLane.Fast, 9)]
     private static bool TestPackageFileStagingFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -461,7 +399,7 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
                 "Storage",
                 "VirtioBlockPackageFileStagingPreflightDiagnosticFormatter.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains(
                 "AsciiTextBuilder.AppendBytes(destination, offset, value)",
                 StringComparison.Ordinal)
@@ -490,9 +428,10 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             && !source.Contains("private static void AppendUInt64(", StringComparison.Ordinal)
             && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal)
             && !source.Contains("destination[offset + index] = (byte)('0' +", StringComparison.Ordinal)
-            && !source.Contains("value /= 10;", StringComparison.Ordinal);
+            && !source.Contains("value /= 10;", StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence package file staging preflight ready", HostLane.Fast, 10)]
     private static bool TestBootSequencePackageFileStagingPreflightReady()
     {
         VirtioBlockPackageFileStagingPreflightResult preflight =
@@ -507,7 +446,7 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
         string expectedMarker = BootSequence.CreateAppPackageFileStagingPreflightReadyMarker(
             preflight);
 
-        return preflight.Succeeded
+        return HostCheck.Result(preflight.Succeeded
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
@@ -522,9 +461,10 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             && expectedMarker.Contains("staging=Success", StringComparison.Ordinal)
             && expectedMarker.Contains("stagedBytes=4", StringComparison.Ordinal)
             && expectedMarker.Contains("destinationCapacity=4", StringComparison.Ordinal)
-            && expectedMarker.Contains("packageBufferCapacity=1024", StringComparison.Ordinal);
+            && expectedMarker.Contains("packageBufferCapacity=1024", StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence package file staging preflight blocks default result", HostLane.Fast, 11)]
     private static bool TestBootSequencePackageFileStagingPreflightBlocksDefaultResult()
     {
         VirtioBlockPackageFileStagingPreflightResult preflight = default;
@@ -539,7 +479,7 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
             AppPackageFileStagingPreflightReadinessStatus.NotInitialized,
             preflight);
 
-        return !preflight.Succeeded
+        return HostCheck.Result(!preflight.Succeeded
             && !preflight.IsInitialized
             && !result.Succeeded
             && result.Reason.Contains(
@@ -552,9 +492,10 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
                 BootSequence.AppPackageFileStagingPreflightNotReadyPrefix,
                 StringComparison.Ordinal)
             && expectedMarker.Contains("initialized=false", StringComparison.Ordinal)
-            && expectedMarker.Contains("status=NotInitialized", StringComparison.Ordinal);
+            && expectedMarker.Contains("status=NotInitialized", StringComparison.Ordinal));
     }
 
+    [HostTest("appmodel.selection preflight rejects incomplete read session", HostLane.Fast, 12)]
     private static bool TestAppSelectionPreflightRejectsIncompleteReadSession()
     {
         VirtioBlockReadOnlyReadSessionResult session = ExecuteReadSession(validRequestHeader: false);
@@ -576,14 +517,14 @@ internal static class StorageVirtioBlockPackageReadPreflightTests
                 BootInfo.CreateHost(BootCapabilities.TextOutput),
                 NativeAppLaunchRuntimeCapabilities.PackageStorage);
 
-        return !session.Succeeded
+        return HostCheck.Result(!session.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockNativeAppSelectionPreflightStatus.IncompleteReadSession
             && !result.ReadSessionComplete
             && result.ReadSessionStatus == VirtioBlockReadOnlyReadSessionStatus.AdapterFailed
             && result.BlockDeviceStatus == BlockDeviceStatus.Success
             && !result.ScratchPlanAttempted
-            && !result.SelectionLoadAttempted;
+            && !result.SelectionLoadAttempted);
     }
 
     private static VirtioBlockPackageFileStagingPreflightResult

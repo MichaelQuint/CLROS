@@ -3,60 +3,20 @@ using OS.Cloud;
 
 internal static class AzureWireServerGoalStateTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("cloud.azure.wireserver parses goal state", ref failures, TestParseGoalState);
-        Run("cloud.azure.wireserver parses case-insensitive trimmed tags", ref failures, TestParsesCaseInsensitiveTrimmedTags);
-        Run("cloud.azure.wireserver rejects empty goal-state elements", ref failures, TestRejectsEmptyElements);
-        Run("cloud.azure.wireserver rejects missing close tags", ref failures, TestRejectsMissingCloseTags);
-        Run("cloud.azure.wireserver uses first duplicate goal-state tag", ref failures, TestUsesFirstDuplicateTag);
-        Run("cloud.azure.wireserver enforces goal-state size boundary", ref failures, TestGoalStateSizeBoundary);
-        Run("cloud.azure.wireserver rejects missing ids", ref failures, TestRejectsMissingIds);
-        Run("cloud.azure.wireserver formats ready health body", ref failures, TestFormatsReadyHealthBody);
-        Run("cloud.azure.wireserver plans goalstate and health requests", ref failures, TestPlansRequests);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Azure WireServer host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, ref int failures, Func<bool> test)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("cloud.azure.wireserver parses goal state", HostLane.Fast, 0)]
     private static bool TestParseGoalState()
     {
         AzureWireServerGoalStateParseResult result =
             AzureWireServerGoalStateParser.Parse(GoalStateXml("container-123", "instance-456", "7"));
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.GoalState.ContainerId == "container-123"
             && result.GoalState.InstanceId == "instance-456"
-            && result.GoalState.Incarnation == "7";
+            && result.GoalState.Incarnation == "7");
     }
 
+    [HostTest("cloud.azure.wireserver parses case-insensitive trimmed tags", HostLane.Fast, 1)]
     private static bool TestParsesCaseInsensitiveTrimmedTags()
     {
         AzureWireServerGoalStateParseResult result =
@@ -67,12 +27,13 @@ internal static class AzureWireServerGoalStateTests
                 "<RoleInstance><INSTANCEID>\n instance-456 \t</instanceid></RoleInstance>" +
                 "</GoalState>");
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.GoalState.ContainerId == "container-123"
             && result.GoalState.InstanceId == "instance-456"
-            && result.GoalState.Incarnation == "7";
+            && result.GoalState.Incarnation == "7");
     }
 
+    [HostTest("cloud.azure.wireserver rejects empty goal-state elements", HostLane.Fast, 2)]
     private static bool TestRejectsEmptyElements()
     {
         AzureWireServerGoalStateParseResult emptyContainer =
@@ -82,11 +43,12 @@ internal static class AzureWireServerGoalStateTests
         AzureWireServerGoalStateParseResult emptyIncarnation =
             AzureWireServerGoalStateParser.Parse(GoalStateXml("container-123", "instance-456", string.Empty));
 
-        return emptyContainer.Status == AzureWireServerGoalStateStatus.MissingContainerId
+        return HostCheck.Result(emptyContainer.Status == AzureWireServerGoalStateStatus.MissingContainerId
             && emptyInstance.Status == AzureWireServerGoalStateStatus.MissingInstanceId
-            && emptyIncarnation.Status == AzureWireServerGoalStateStatus.MissingIncarnation;
+            && emptyIncarnation.Status == AzureWireServerGoalStateStatus.MissingIncarnation);
     }
 
+    [HostTest("cloud.azure.wireserver rejects missing close tags", HostLane.Fast, 3)]
     private static bool TestRejectsMissingCloseTags()
     {
         AzureWireServerGoalStateParseResult missingContainerClose =
@@ -99,11 +61,12 @@ internal static class AzureWireServerGoalStateTests
             AzureWireServerGoalStateParser.Parse(
                 "<GoalState><Incarnation>7<Container><ContainerId>container-123</ContainerId></Container><RoleInstance><InstanceId>instance-456</InstanceId></RoleInstance></GoalState>");
 
-        return missingContainerClose.Status == AzureWireServerGoalStateStatus.MissingContainerId
+        return HostCheck.Result(missingContainerClose.Status == AzureWireServerGoalStateStatus.MissingContainerId
             && missingInstanceClose.Status == AzureWireServerGoalStateStatus.MissingInstanceId
-            && missingIncarnationClose.Status == AzureWireServerGoalStateStatus.MissingIncarnation;
+            && missingIncarnationClose.Status == AzureWireServerGoalStateStatus.MissingIncarnation);
     }
 
+    [HostTest("cloud.azure.wireserver uses first duplicate goal-state tag", HostLane.Fast, 4)]
     private static bool TestUsesFirstDuplicateTag()
     {
         AzureWireServerGoalStateParseResult result =
@@ -114,12 +77,13 @@ internal static class AzureWireServerGoalStateTests
                 "<RoleInstance><InstanceId>instance-first</InstanceId><InstanceId>instance-second</InstanceId></RoleInstance>" +
                 "</GoalState>");
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.GoalState.ContainerId == "container-first"
             && result.GoalState.InstanceId == "instance-first"
-            && result.GoalState.Incarnation == "7";
+            && result.GoalState.Incarnation == "7");
     }
 
+    [HostTest("cloud.azure.wireserver enforces goal-state size boundary", HostLane.Fast, 5)]
     private static bool TestGoalStateSizeBoundary()
     {
         string exactLimitXml = PadGoalStateXmlToMaxChars(GoalStateXml("container-123", "instance-456", "7"));
@@ -128,14 +92,15 @@ internal static class AzureWireServerGoalStateTests
         AzureWireServerGoalStateParseResult oversized =
             AzureWireServerGoalStateParser.Parse(exactLimitXml + "x");
 
-        return exactLimitXml.Length == AzureWireServerGoalStateParser.MaxGoalStateXmlChars
+        return HostCheck.Result(exactLimitXml.Length == AzureWireServerGoalStateParser.MaxGoalStateXmlChars
             && exactLimit.Succeeded
             && exactLimit.GoalState.ContainerId == "container-123"
             && exactLimit.GoalState.InstanceId == "instance-456"
             && exactLimit.GoalState.Incarnation == "7"
-            && oversized.Status == AzureWireServerGoalStateStatus.InputTooLarge;
+            && oversized.Status == AzureWireServerGoalStateStatus.InputTooLarge);
     }
 
+    [HostTest("cloud.azure.wireserver rejects missing ids", HostLane.Fast, 6)]
     private static bool TestRejectsMissingIds()
     {
         AzureWireServerGoalStateParseResult missingContainer =
@@ -147,11 +112,12 @@ internal static class AzureWireServerGoalStateTests
         AzureWireServerGoalStateParseResult oversized =
             AzureWireServerGoalStateParser.Parse(new string('x', AzureWireServerGoalStateParser.MaxGoalStateXmlChars + 1));
 
-        return missingContainer.Status == AzureWireServerGoalStateStatus.MissingContainerId
+        return HostCheck.Result(missingContainer.Status == AzureWireServerGoalStateStatus.MissingContainerId
             && missingInstance.Status == AzureWireServerGoalStateStatus.MissingInstanceId
-            && oversized.Status == AzureWireServerGoalStateStatus.InputTooLarge;
+            && oversized.Status == AzureWireServerGoalStateStatus.InputTooLarge);
     }
 
+    [HostTest("cloud.azure.wireserver formats ready health body", HostLane.Fast, 7)]
     private static bool TestFormatsReadyHealthBody()
     {
         AzureWireServerGoalState goalState = new AzureWireServerGoalState(
@@ -162,13 +128,14 @@ internal static class AzureWireServerGoalStateTests
         AzureWireServerHealthBodyResult result =
             AzureWireServerHealthFormatter.FormatReady(goalState);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Body.Contains("<GoalStateIncarnation>7</GoalStateIncarnation>", StringComparison.Ordinal)
             && result.Body.Contains("<ContainerId>container-123</ContainerId>", StringComparison.Ordinal)
             && result.Body.Contains("<InstanceId>instance-456</InstanceId>", StringComparison.Ordinal)
-            && result.Body.Contains("<State>Ready</State>", StringComparison.Ordinal);
+            && result.Body.Contains("<State>Ready</State>", StringComparison.Ordinal));
     }
 
+    [HostTest("cloud.azure.wireserver plans goalstate and health requests", HostLane.Fast, 8)]
     private static bool TestPlansRequests()
     {
         AzureWireServerHttpRequestPlan goalState =
@@ -177,7 +144,7 @@ internal static class AzureWireServerGoalStateTests
             AzureWireServerRequestPlanner.CreateReadyHealthRequest(
                 new AzureWireServerGoalState("container-123", "instance-456", "7"));
 
-        return goalState.Method == "GET"
+        return HostCheck.Result(goalState.Method == "GET"
             && goalState.Host == AzureWireServerRequestPlanner.PlatformHost
             && goalState.Port == AzureWireServerRequestPlanner.PlatformPort
             && goalState.PathAndQuery == AzureWireServerRequestPlanner.GoalStatePath
@@ -186,7 +153,7 @@ internal static class AzureWireServerGoalStateTests
             && health.Request.Method == "POST"
             && health.Request.PathAndQuery == AzureWireServerRequestPlanner.HealthPath
             && health.Request.ContentType == AzureWireServerRequestPlanner.HealthContentType
-            && health.Request.BodyByteLength > 0;
+            && health.Request.BodyByteLength > 0);
     }
 
     private static string GoalStateXml(string containerId, string instanceId, string incarnation)

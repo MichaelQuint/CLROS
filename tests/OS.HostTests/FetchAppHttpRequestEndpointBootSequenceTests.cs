@@ -5,49 +5,8 @@ using OS.Net;
 
 internal static class FetchAppHttpRequestEndpointBootSequenceTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("boot.sequence fetch http endpoint ready", TestReadyMarker, ref failures);
-        Run("boot.sequence fetch http endpoint rejects failed result", TestRejectsFailedResult, ref failures);
-        Run("boot.sequence fetch http endpoint rejects default result", TestRejectsDefaultResult, ref failures);
-        Run("boot.sequence fetch http endpoint preserves default markers", TestPreservesDefaultMarkers, ref failures);
-        Run("fetch http endpoint uses shared memory prefix and equality helpers", TestUsesSharedMemoryHelpers, ref failures);
-        Run(
-            "fetch.http request endpoint formatter uses shared ascii text builder",
-            TestFormatterUsesSharedAsciiTextBuilder,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("FetchApp HTTP endpoint BootSequence tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("boot.sequence fetch http endpoint ready", HostLane.Fast, 0)]
     private static bool TestReadyMarker()
     {
         FetchAppHttpRequestEndpointResult endpoint = ReadyEndpoint();
@@ -60,7 +19,7 @@ internal static class FetchAppHttpRequestEndpointBootSequenceTests
             events);
         string expectedMarker = BootSequence.CreateFetchAppHttpRequestEndpointReadyMarker(endpoint);
 
-        return endpoint.Succeeded
+        return HostCheck.Result(endpoint.Succeeded
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
@@ -69,9 +28,10 @@ internal static class FetchAppHttpRequestEndpointBootSequenceTests
                 "FETCHAPP_HTTP_ENDPOINT_READY status=Ready initialized=true endpoint=Success port=8080 hostBytes=14 pathBytes=8 requiredHostBytes=14 requiredPathBytes=8 availableHostBytes=64 availablePathBytes=128 configuredUrl=false configuredHost=true configuredPort=true configuredPath=true"
             && !expectedMarker.Contains("fetch.internal", StringComparison.Ordinal)
             && !expectedMarker.Contains("/healthz", StringComparison.Ordinal)
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpRequestEndpointResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpRequestEndpointResult>());
     }
 
+    [HostTest("boot.sequence fetch http endpoint rejects failed result", HostLane.Fast, 1)]
     private static bool TestRejectsFailedResult()
     {
         FetchAppHttpRequestEndpointResult endpoint = FetchAppHttpRequestEndpointResult.Create(
@@ -98,7 +58,7 @@ internal static class FetchAppHttpRequestEndpointBootSequenceTests
             FetchAppHttpRequestEndpointReadinessStatus.EndpointFailed,
             endpoint);
 
-        return endpoint.IsInitialized
+        return HostCheck.Result(endpoint.IsInitialized
             && !endpoint.Succeeded
             && endpoint.Status == FetchAppHttpRequestEndpointStatus.InvalidPort
             && !result.Succeeded
@@ -109,9 +69,10 @@ internal static class FetchAppHttpRequestEndpointBootSequenceTests
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
             && expectedMarker ==
-                "FETCHAPP_HTTP_ENDPOINT_NOT_READY status=EndpointFailed initialized=true endpoint=InvalidPort port=0 hostBytes=0 pathBytes=0 requiredHostBytes=14 requiredPathBytes=8 availableHostBytes=64 availablePathBytes=128 configuredUrl=false configuredHost=true configuredPort=true configuredPath=true";
+                "FETCHAPP_HTTP_ENDPOINT_NOT_READY status=EndpointFailed initialized=true endpoint=InvalidPort port=0 hostBytes=0 pathBytes=0 requiredHostBytes=14 requiredPathBytes=8 availableHostBytes=64 availablePathBytes=128 configuredUrl=false configuredHost=true configuredPort=true configuredPath=true");
     }
 
+    [HostTest("boot.sequence fetch http endpoint rejects default result", HostLane.Fast, 2)]
     private static bool TestRejectsDefaultResult()
     {
         FetchAppHttpRequestEndpointResult endpoint = default;
@@ -126,7 +87,7 @@ internal static class FetchAppHttpRequestEndpointBootSequenceTests
             FetchAppHttpRequestEndpointReadinessStatus.NotInitialized,
             endpoint);
 
-        return !endpoint.IsInitialized
+        return HostCheck.Result(!endpoint.IsInitialized
             && !endpoint.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
@@ -136,9 +97,10 @@ internal static class FetchAppHttpRequestEndpointBootSequenceTests
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
             && expectedMarker ==
-                "FETCHAPP_HTTP_ENDPOINT_NOT_READY status=NotInitialized initialized=false endpoint=Success port=0 hostBytes=0 pathBytes=0 requiredHostBytes=0 requiredPathBytes=0 availableHostBytes=0 availablePathBytes=0 configuredUrl=false configuredHost=false configuredPort=false configuredPath=false";
+                "FETCHAPP_HTTP_ENDPOINT_NOT_READY status=NotInitialized initialized=false endpoint=Success port=0 hostBytes=0 pathBytes=0 requiredHostBytes=0 requiredPathBytes=0 availableHostBytes=0 availablePathBytes=0 configuredUrl=false configuredHost=false configuredPort=false configuredPath=false");
     }
 
+    [HostTest("boot.sequence fetch http endpoint preserves default markers", HostLane.Fast, 3)]
     private static bool TestPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -147,20 +109,21 @@ internal static class FetchAppHttpRequestEndpointBootSequenceTests
         BootResult result = BootSequence.Run(serial, events);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return !serial.ContainsPrefix(BootSequence.FetchAppHttpRequestEndpointReadyPrefix)
-            && !serial.ContainsPrefix(BootSequence.FetchAppHttpRequestEndpointNotReadyPrefix);
+        return HostCheck.Result(!serial.ContainsPrefix(BootSequence.FetchAppHttpRequestEndpointReadyPrefix)
+            && !serial.ContainsPrefix(BootSequence.FetchAppHttpRequestEndpointNotReadyPrefix));
     }
 
+    [HostTest("fetch http endpoint uses shared memory prefix and equality helpers", HostLane.Fast, 4)]
     private static bool TestUsesSharedMemoryHelpers()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string endpointSource = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Net", "FetchAppHttpRequestEndpoint.cs"));
 
-        return endpointSource.Contains(
+        return HostCheck.Result(endpointSource.Contains(
                 "OS.Std.MemoryExtensions.StartsWith(url, \"https://\"u8)",
                 StringComparison.Ordinal)
             && endpointSource.Contains(
@@ -192,9 +155,10 @@ internal static class FetchAppHttpRequestEndpointBootSequenceTests
                 StringComparison.Ordinal)
             && !endpointSource.Contains(
                 "private static int IndexOf(ReadOnlySpan<byte>",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("fetch.http request endpoint formatter uses shared ascii text builder", HostLane.Fast, 5)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -206,7 +170,7 @@ internal static class FetchAppHttpRequestEndpointBootSequenceTests
                 "Net",
                 "FetchAppHttpRequestEndpointDiagnosticFormatter.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains(
                 "AsciiDecimalFormatter.CountUInt64Digits(result.Port)",
                 StringComparison.Ordinal)
@@ -250,7 +214,7 @@ internal static class FetchAppHttpRequestEndpointBootSequenceTests
                 "destination[offset + index] = (byte)('0' +",
                 StringComparison.Ordinal)
             && !source.Contains("value /= 10", StringComparison.Ordinal)
-            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal);
+            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal));
     }
 
     private static FetchAppHttpRequestEndpointResult ReadyEndpoint()

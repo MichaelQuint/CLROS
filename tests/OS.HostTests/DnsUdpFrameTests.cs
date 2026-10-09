@@ -10,47 +10,7 @@ internal static class DnsUdpFrameTests
     private const int EncodedExampleComLength = 13;
     private const int ExpectedQueryLength = DnsMessage.HeaderLength + EncodedExampleComLength + 4;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.dns.udp writes query frame", TestWritesQueryFrame, ref failures);
-        Run("net.dns.udp query default result is not success", TestQueryDefaultResultIsNotSuccess, ref failures);
-        Run("net.dns.udp resolves response payload", TestResolvesResponsePayload, ref failures);
-        Run("net.dns.udp receive default result is not success", TestReceiveDefaultResultIsNotSuccess, ref failures);
-        Run("net.dns.udp rejects wrong udp ports", TestRejectsWrongUdpPorts, ref failures);
-        Run("net.dns.udp reports resolver parse failure", TestReportsResolverParseFailure, ref failures);
-        Run("net.dns.udp reports short frame buffer", TestReportsShortFrameBuffer, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("DNS UDP frame host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.dns.udp writes query frame", HostLane.Fast, 0)]
     private static bool TestWritesQueryFrame()
     {
         DnsResolverTransaction transaction = DnsResolverTransaction.Create(TransactionId);
@@ -67,7 +27,7 @@ internal static class DnsUdpFrameTests
             out EthernetIpv4UdpPacketInfo packetInfo,
             out ReadOnlySpan<byte> payload);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == DnsUdpFrameStatus.Success
             && result.ResolverStatus == DnsResolverStatus.Success
             && result.MessageStatus == DnsMessageStatus.Success
@@ -92,9 +52,10 @@ internal static class DnsUdpFrameTests
             && payload[^4] == 0x00
             && payload[^3] == 0x01
             && payload[^2] == 0x00
-            && payload[^1] == 0x01;
+            && payload[^1] == 0x01);
     }
 
+    [HostTest("net.dns.udp query default result is not success", HostLane.Fast, 1)]
     private static bool TestQueryDefaultResultIsNotSuccess()
     {
         DnsUdpQueryFrameResult defaultResult = default;
@@ -115,7 +76,7 @@ internal static class DnsUdpFrameTests
             "example.com",
             ref failureTransaction);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == DnsUdpFrameStatus.Success
             && defaultResult.ResolverStatus == DnsResolverStatus.Success
@@ -145,9 +106,10 @@ internal static class DnsUdpFrameTests
             && failure.DnsPayloadOffset == 0
             && failure.DnsPayloadLength == 0
             && failureTransaction.State == DnsResolverState.Initial
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<DnsUdpQueryFrameResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<DnsUdpQueryFrameResult>());
     }
 
+    [HostTest("net.dns.udp resolves response payload", HostLane.Fast, 2)]
     private static bool TestResolvesResponsePayload()
     {
         DnsResolverTransaction transaction = PreparedTransaction();
@@ -163,7 +125,7 @@ internal static class DnsUdpFrameTests
             ClientPort,
             ref transaction);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == DnsUdpFrameStatus.Success
             && result.UdpStatus == UdpReceiveDispatchStatus.Success
             && result.UdpPacketStatus == PacketParseStatus.Success
@@ -177,9 +139,10 @@ internal static class DnsUdpFrameTests
             && result.DestinationPort == ClientPort
             && result.DnsPayloadLength > DnsMessage.HeaderLength
             && transaction.State == DnsResolverState.Resolved
-            && transaction.ResolvedAddress == ResolvedAddress();
+            && transaction.ResolvedAddress == ResolvedAddress());
     }
 
+    [HostTest("net.dns.udp receive default result is not success", HostLane.Fast, 3)]
     private static bool TestReceiveDefaultResultIsNotSuccess()
     {
         DnsUdpReceiveFrameResult defaultResult = default;
@@ -210,7 +173,7 @@ internal static class DnsUdpFrameTests
             ClientPort,
             ref failureTransaction);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == DnsUdpFrameStatus.Success
             && !defaultResult.UdpResult.IsInitialized
@@ -241,9 +204,10 @@ internal static class DnsUdpFrameTests
             && failure.SourcePort == 5300
             && failure.DestinationPort == ClientPort
             && failureTransaction.State == DnsResolverState.QueryWritten
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<DnsUdpReceiveFrameResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<DnsUdpReceiveFrameResult>());
     }
 
+    [HostTest("net.dns.udp rejects wrong udp ports", HostLane.Fast, 4)]
     private static bool TestRejectsWrongUdpPorts()
     {
         DnsResolverTransaction transaction = PreparedTransaction();
@@ -259,7 +223,7 @@ internal static class DnsUdpFrameTests
             ClientPort,
             ref transaction);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == DnsUdpFrameStatus.WrongUdpPorts
             && result.UdpStatus == UdpReceiveDispatchStatus.Success
             && result.UdpPacketStatus == PacketParseStatus.Success
@@ -267,9 +231,10 @@ internal static class DnsUdpFrameTests
             && !result.ResolverInvoked
             && result.SourcePort == 5300
             && result.DestinationPort == ClientPort
-            && transaction.State == DnsResolverState.QueryWritten;
+            && transaction.State == DnsResolverState.QueryWritten);
     }
 
+    [HostTest("net.dns.udp reports resolver parse failure", HostLane.Fast, 5)]
     private static bool TestReportsResolverParseFailure()
     {
         DnsResolverTransaction transaction = PreparedTransaction();
@@ -285,7 +250,7 @@ internal static class DnsUdpFrameTests
             ClientPort,
             ref transaction);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == DnsUdpFrameStatus.ResolverParseFailed
             && result.UdpStatus == UdpReceiveDispatchStatus.Success
             && result.UdpPacketStatus == PacketParseStatus.Success
@@ -294,9 +259,10 @@ internal static class DnsUdpFrameTests
             && result.ResolverStatus == DnsResolverStatus.MessageParseFailed
             && result.MessageStatus == DnsMessageStatus.UnsupportedType
             && result.ResolverResult.State == DnsResolverState.Failed
-            && transaction.State == DnsResolverState.Failed;
+            && transaction.State == DnsResolverState.Failed);
     }
 
+    [HostTest("net.dns.udp reports short frame buffer", HostLane.Fast, 6)]
     private static bool TestReportsShortFrameBuffer()
     {
         DnsResolverTransaction transaction = DnsResolverTransaction.Create(TransactionId);
@@ -308,7 +274,7 @@ internal static class DnsUdpFrameTests
             "example.com",
             ref transaction);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == DnsUdpFrameStatus.BufferTooSmall
             && result.ResolverStatus == DnsResolverStatus.BufferTooSmall
             && result.MessageStatus == DnsMessageStatus.BufferTooSmall
@@ -316,7 +282,7 @@ internal static class DnsUdpFrameTests
             && result.BytesWritten == 0
             && result.DnsPayloadOffset == 0
             && result.DnsPayloadLength == 0
-            && transaction.State == DnsResolverState.Initial;
+            && transaction.State == DnsResolverState.Initial);
     }
 
     private static DnsResolverTransaction PreparedTransaction()

@@ -6,57 +6,13 @@ using OS.Pal;
 
 internal static class PalExportCatalogTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("pal.export catalog lists required symbols", TestCatalogListsRequiredSymbols, ref failures);
-        Run("pal.export catalog rejects duplicate symbols", TestCatalogRejectsDuplicateSymbols, ref failures);
-        Run("pal.export catalog rejects invalid names", TestCatalogRejectsInvalidNames, ref failures);
-        Run("pal.export catalog formats validation marker", TestFormatsValidationMarker, ref failures);
-        Run("pal.export catalog formatter uses shared ascii text builder", TestFormatterUsesSharedAsciiTextBuilder, ref failures);
-        Run("pal.export catalog formatter reports short destination", TestFormatterReportsShortDestination, ref failures);
-        Run("pal.export catalog formatter default result is not success", TestFormatterDefaultResultIsNotSuccess, ref failures);
-        Run("pal.export catalog result default is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("boot.sequence pal export catalog ready", TestBootSequencePalExportCatalogReady, ref failures);
-        Run("boot.sequence pal export catalog rejects duplicate", TestBootSequencePalExportCatalogRejectsDuplicate, ref failures);
-        Run("boot.sequence pal export catalog blocks default result", TestBootSequencePalExportCatalogBlocksDefaultResult, ref failures);
-        Run("boot.sequence pal export catalog preserves default markers", TestBootSequencePalExportCatalogPreservesDefaultMarkers, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL export catalog host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.export catalog lists required symbols", HostLane.Fast, 0)]
     private static bool TestCatalogListsRequiredSymbols()
     {
         OSHostExportCatalogValidationResult validation = OSHostExportCatalog.ValidateRequiredCatalog();
 
-        return validation.Succeeded
+        return HostCheck.Result(validation.Succeeded
             && validation.EntryCount == OSHostExportCatalog.RequiredExportCount
             && OSHostExportCatalog.RequiredExportCount == 56
             && OSHostExportCatalog.ContainsRequiredExport("OSHost_AllocPages")
@@ -76,9 +32,10 @@ internal static class PalExportCatalogTests
             && OSHostExportCatalog.ContainsRequiredExport("OSHost_MutexLock")
             && OSHostExportCatalog.ContainsRequiredExport("OSHost_MemoryBarrier")
             && !OSHostExportCatalog.ContainsRequiredExport("SharpOSHost_AllocPages")
-            && !OSHostExportCatalog.ContainsRequiredExport("OSHost_");
+            && !OSHostExportCatalog.ContainsRequiredExport("OSHost_"));
     }
 
+    [HostTest("pal.export catalog rejects duplicate symbols", HostLane.Fast, 1)]
     private static bool TestCatalogRejectsDuplicateSymbols()
     {
         OSHostExportCatalogEntry[] entries =
@@ -95,7 +52,7 @@ internal static class PalExportCatalogTests
 
         OSHostExportCatalogValidationResult validation = OSHostExportCatalog.Validate(entries);
 
-        return validation.IsInitialized
+        return HostCheck.Result(validation.IsInitialized
             && !validation.Succeeded
             && validation.Status == OSHostExportCatalogStatus.DuplicateName
             && validation.EntryIndex == 1
@@ -103,9 +60,10 @@ internal static class PalExportCatalogTests
             && validation.EntryCount == entries.Length
             && validation.HasEntryMetadata
             && validation.Domain == OSHostExportDomain.Memory
-            && validation.Signature == OSHostExportSignature.StatusMemoryRequestHandleOut;
+            && validation.Signature == OSHostExportSignature.StatusMemoryRequestHandleOut);
     }
 
+    [HostTest("pal.export catalog rejects invalid names", HostLane.Fast, 2)]
     private static bool TestCatalogRejectsInvalidNames()
     {
         OSHostExportCatalogEntry[] emptyName =
@@ -134,7 +92,7 @@ internal static class PalExportCatalogTests
         OSHostExportCatalogValidationResult wrongPrefixResult = OSHostExportCatalog.Validate(wrongPrefix);
         OSHostExportCatalogValidationResult badCharacterResult = OSHostExportCatalog.Validate(badCharacter);
 
-        return !OSHostExportCatalog.IsValidExportName(null)
+        return HostCheck.Result(!OSHostExportCatalog.IsValidExportName(null)
             && !OSHostExportCatalog.IsValidExportName(string.Empty)
             && !emptyNameResult.Succeeded
             && emptyNameResult.Status == OSHostExportCatalogStatus.InvalidName
@@ -144,9 +102,10 @@ internal static class PalExportCatalogTests
             && !wrongPrefixResult.Succeeded
             && wrongPrefixResult.Status == OSHostExportCatalogStatus.InvalidName
             && !badCharacterResult.Succeeded
-            && badCharacterResult.Status == OSHostExportCatalogStatus.InvalidName;
+            && badCharacterResult.Status == OSHostExportCatalogStatus.InvalidName);
     }
 
+    [HostTest("pal.export catalog formats validation marker", HostLane.Fast, 3)]
     private static bool TestFormatsValidationMarker()
     {
         Span<byte> destination = stackalloc byte[192];
@@ -185,7 +144,7 @@ internal static class PalExportCatalogTests
         OSHostExportCatalogDiagnosticFormatResult query =
             OSHostExportCatalogDiagnosticFormatter.QueryRequiredBytes(failureValidation);
 
-        return successFormat.Succeeded
+        return HostCheck.Result(successFormat.Succeeded
             && successFormat.Status == OSHostStatus.Ok
             && successFormat.CatalogStatus == OSHostExportCatalogStatus.Success
             && successText == "PAL_EXPORT_CATALOG_VALIDATION status=Success entryCount=56 firstFailingIndex=-1 duplicateIndex=-1 domain=unavailable signature=unavailable"
@@ -197,9 +156,10 @@ internal static class PalExportCatalogTests
             && query.Status == OSHostStatus.Ok
             && query.CatalogStatus == OSHostExportCatalogStatus.DuplicateName
             && query.BytesWritten == 0
-            && query.RequiredBytes == failureFormat.RequiredBytes;
+            && query.RequiredBytes == failureFormat.RequiredBytes);
     }
 
+    [HostTest("pal.export catalog formatter reports short destination", HostLane.Fast, 5)]
     private static bool TestFormatterReportsShortDestination()
     {
         OSHostExportCatalogEntry[] entries =
@@ -223,7 +183,7 @@ internal static class PalExportCatalogTests
         OSHostExportCatalogDiagnosticFormatResult shortResult =
             OSHostExportCatalogDiagnosticFormatter.FormatValidationResult(validation, destination);
 
-        return shortResult.IsInitialized
+        return HostCheck.Result(shortResult.IsInitialized
             && !shortResult.Succeeded
             && shortResult.Status == OSHostStatus.BufferTooSmall
             && shortResult.CatalogStatus == OSHostExportCatalogStatus.DuplicateName
@@ -231,16 +191,17 @@ internal static class PalExportCatalogTests
             && shortResult.RequiredBytes == query.RequiredBytes
             && shortResult.AvailableBytes == (uint)destination.Length
             && destination[0] == 0xA5
-            && destination[11] == 0xA5;
+            && destination[11] == 0xA5);
     }
 
+    [HostTest("pal.export catalog formatter uses shared ascii text builder", HostLane.Fast, 4)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Pal", "OSHostExportCatalog.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains(
                 "AsciiDecimalFormatter.CountInt32Digits(validation.EntryCount)",
                 StringComparison.Ordinal)
@@ -260,9 +221,10 @@ internal static class PalExportCatalogTests
             && !source.Contains("private static int GetInt32DecimalByteCount", StringComparison.Ordinal)
             && !source.Contains("private static void AppendInt32", StringComparison.Ordinal)
             && !source.Contains("magnitude /= 10", StringComparison.Ordinal)
-            && !source.Contains("Span<byte> digits = stackalloc byte[10]", StringComparison.Ordinal);
+            && !source.Contains("Span<byte> digits = stackalloc byte[10]", StringComparison.Ordinal));
     }
 
+    [HostTest("pal.export catalog formatter default result is not success", HostLane.Fast, 6)]
     private static bool TestFormatterDefaultResultIsNotSuccess()
     {
         Span<byte> destination = stackalloc byte[64];
@@ -277,7 +239,7 @@ internal static class PalExportCatalogTests
             OSHostExportCatalogDiagnosticFormatter.QueryRequiredBytes(defaultValidation);
         OSHostExportCatalogDiagnosticFormatResult defaultFormat = default;
 
-        return invalidFormat.IsInitialized
+        return HostCheck.Result(invalidFormat.IsInitialized
             && !invalidFormat.Succeeded
             && invalidFormat.Status == OSHostStatus.InvalidArgument
             && invalidFormat.CatalogStatus == OSHostExportCatalogStatus.Success
@@ -294,14 +256,15 @@ internal static class PalExportCatalogTests
             && defaultFormat.RequiredBytes == 0
             && defaultFormat.AvailableBytes == 0
             && destination[0] == 0xCC
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostExportCatalogDiagnosticFormatResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostExportCatalogDiagnosticFormatResult>());
     }
 
+    [HostTest("pal.export catalog result default is not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         OSHostExportCatalogValidationResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.HasEntryMetadata
             && !result.Succeeded
             && result.Status == OSHostExportCatalogStatus.Success
@@ -310,9 +273,10 @@ internal static class PalExportCatalogTests
             && result.DuplicateEntryIndex == 0
             && result.Domain == OSHostExportDomain.Memory
             && result.Signature == OSHostExportSignature.StatusOnly
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostExportCatalogValidationResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostExportCatalogValidationResult>());
     }
 
+    [HostTest("boot.sequence pal export catalog ready", HostLane.Fast, 8)]
     private static bool TestBootSequencePalExportCatalogReady()
     {
         OSHostExportCatalogValidationResult validation = OSHostExportCatalog.ValidateRequiredCatalog();
@@ -322,14 +286,15 @@ internal static class PalExportCatalogTests
         BootResult result = BootSequence.RunPalExportCatalogReadiness(validation, serial, events);
         string expectedMarker = BootSequence.CreatePalExportCatalogReadyMarker(validation);
 
-        return validation.Succeeded
+        return HostCheck.Result(validation.Succeeded
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
-            && expectedMarker == "PAL_EXPORT_CATALOG_READY status=Ready initialized=true catalog=Success entryCount=56 firstFailingIndex=-1 duplicateIndex=-1 domain=unavailable signature=unavailable";
+            && expectedMarker == "PAL_EXPORT_CATALOG_READY status=Ready initialized=true catalog=Success entryCount=56 firstFailingIndex=-1 duplicateIndex=-1 domain=unavailable signature=unavailable");
     }
 
+    [HostTest("boot.sequence pal export catalog rejects duplicate", HostLane.Fast, 9)]
     private static bool TestBootSequencePalExportCatalogRejectsDuplicate()
     {
         OSHostExportCatalogEntry[] entries =
@@ -352,7 +317,7 @@ internal static class PalExportCatalogTests
             PalExportCatalogReadinessStatus.CatalogValidationFailed,
             validation);
 
-        return !validation.Succeeded
+        return HostCheck.Result(!validation.Succeeded
             && validation.Status == OSHostExportCatalogStatus.DuplicateName
             && !result.Succeeded
             && result.Reason.Contains(
@@ -361,9 +326,10 @@ internal static class PalExportCatalogTests
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
-            && expectedMarker == "PAL_EXPORT_CATALOG_NOT_READY status=CatalogValidationFailed initialized=true catalog=DuplicateName entryCount=2 firstFailingIndex=1 duplicateIndex=0 domain=Memory signature=StatusMemoryRequestHandleOut";
+            && expectedMarker == "PAL_EXPORT_CATALOG_NOT_READY status=CatalogValidationFailed initialized=true catalog=DuplicateName entryCount=2 firstFailingIndex=1 duplicateIndex=0 domain=Memory signature=StatusMemoryRequestHandleOut");
     }
 
+    [HostTest("boot.sequence pal export catalog blocks default result", HostLane.Fast, 10)]
     private static bool TestBootSequencePalExportCatalogBlocksDefaultResult()
     {
         OSHostExportCatalogValidationResult validation = default;
@@ -375,7 +341,7 @@ internal static class PalExportCatalogTests
             PalExportCatalogReadinessStatus.NotInitialized,
             validation);
 
-        return !validation.IsInitialized
+        return HostCheck.Result(!validation.IsInitialized
             && !validation.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
@@ -384,9 +350,10 @@ internal static class PalExportCatalogTests
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
-            && expectedMarker == "PAL_EXPORT_CATALOG_NOT_READY status=NotInitialized initialized=false catalog=Success entryCount=0 firstFailingIndex=-1 duplicateIndex=-1 domain=unavailable signature=unavailable";
+            && expectedMarker == "PAL_EXPORT_CATALOG_NOT_READY status=NotInitialized initialized=false catalog=Success entryCount=0 firstFailingIndex=-1 duplicateIndex=-1 domain=unavailable signature=unavailable");
     }
 
+    [HostTest("boot.sequence pal export catalog preserves default markers", HostLane.Fast, 11)]
     private static bool TestBootSequencePalExportCatalogPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -395,7 +362,7 @@ internal static class PalExportCatalogTests
         BootResult result = BootSequence.Run(serial, events);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int index = 0; index < serial.Count; index++)
@@ -404,11 +371,11 @@ internal static class PalExportCatalogTests
             if (line.StartsWith(BootSequence.PalExportCatalogReadyPrefix, StringComparison.Ordinal)
                 || line.StartsWith(BootSequence.PalExportCatalogNotReadyPrefix, StringComparison.Ordinal))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return true;
+        return HostCheck.Result(true);
     }
 
     private sealed class SequenceTestSerialSink : ISerialSink

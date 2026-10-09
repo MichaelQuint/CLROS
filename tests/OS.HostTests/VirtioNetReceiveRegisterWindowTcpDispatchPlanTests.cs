@@ -31,101 +31,7 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
     private const uint LocalNextSequence = 0x01020304;
     private const uint RemoteNextSequence = 0x10203040;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run(
-            "drivers.virtionet.rx.tcp.dispatch.windowexec accepts established payload",
-            TestAcceptsEstablishedPayload,
-            ref failures);
-        Run(
-            "drivers.virtionet.rx.tcp.dispatch.windowexec acknowledges passive fin",
-            TestAcknowledgesPassiveFin,
-            ref failures);
-        Run(
-            "drivers.virtionet.rx.tcp.dispatch.windowexec rejects failed rx dispatch",
-            TestRejectsFailedRxDispatch,
-            ref failures);
-        Run(
-            "drivers.virtionet.rx.tcp.dispatch.windowexec rejects non-TCP protocol",
-            TestRejectsNonTcpProtocol,
-            ref failures);
-        Run(
-            "drivers.virtionet.rx.tcp.dispatch.windowexec rejects bad TCP checksum or TCP dispatch failure",
-            TestRejectsBadTcpChecksumOrDispatchFailure,
-            ref failures);
-        Run(
-            "drivers.virtionet.rx.tcp.dispatch.windowexec rejects failed TCP stream path",
-            TestRejectsFailedTcpStreamPath,
-            ref failures);
-        Run(
-            "drivers.virtionet.rx.tcp.dispatch.windowexec default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-        Run(
-            "drivers.virtionet.rx.tcp.dispatch formatter formats success marker",
-            TestFormatterFormatsSuccessMarker,
-            ref failures);
-        Run(
-            "drivers.virtionet.rx.tcp.dispatch formatter reports short destination",
-            TestFormatterReportsShortDestination,
-            ref failures);
-        Run(
-            "drivers.virtionet.rx.tcp.dispatch formatter rejects default result",
-            TestFormatterRejectsDefaultResult,
-            ref failures);
-        Run(
-            "drivers.virtionet.rx.tcp.dispatch formatter uses shared ascii text builder",
-            TestFormatterUsesSharedAsciiTextBuilder,
-            ref failures);
-        Run(
-            "boot.sequence virtio rx tcp dispatch emits ready marker",
-            TestBootSequenceEmitsReadyMarker,
-            ref failures);
-        Run(
-            "boot.sequence virtio rx tcp dispatch rejects failed result",
-            TestBootSequenceRejectsFailedResult,
-            ref failures);
-        Run(
-            "boot.sequence virtio rx tcp dispatch rejects default result",
-            TestBootSequenceRejectsDefaultResult,
-            ref failures);
-        Run(
-            "boot.sequence virtio rx tcp dispatch preserves default markers",
-            TestBootSequencePreservesDefaultMarkers,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio-net RX register-window TCP dispatch host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtionet.rx.tcp.dispatch.windowexec accepts established payload", HostLane.Fast, 0)]
     private static bool TestAcceptsEstablishedPayload()
     {
         byte[] payload = Encoding.ASCII.GetBytes("data");
@@ -157,7 +63,7 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             read,
             out TcpEstablishedStreamReadResult readResult);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioNetReceiveRegisterWindowTcpDispatchStatus.Success
             && result.ReceiveDispatchStatus == VirtioNetReceiveRegisterWindowDispatchStatus.Success
             && result.SlabCompletionStatus == VirtioNetReceiveRegisterWindowSlabCompletionStatus.Success
@@ -181,9 +87,10 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             && close.State == TcpConnectionCloseState.Established
             && readStatus == TcpEstablishedStreamStatus.Success
             && readResult.BytesRead == payload.Length
-            && BytesEqual(read, payload);
+            && BytesEqual(read, payload));
     }
 
+    [HostTest("drivers.virtionet.rx.tcp.dispatch.windowexec acknowledges passive fin", HostLane.Fast, 1)]
     private static bool TestAcknowledgesPassiveFin()
     {
         TestDispatchInput input = CreateDispatchInput(
@@ -217,7 +124,7 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             ackSegment,
             out Ipv4TransportChecksumResult checksum);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.TcpAction == TcpReceiveDispatchAction.FinAcknowledged
             && result.PayloadBytes == 0
             && result.PassiveAckBytes == TcpHeader.MinHeaderLength
@@ -225,9 +132,10 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             && result.TcpDispatch.CloseState == TcpConnectionCloseState.CloseWait
             && close.State == TcpConnectionCloseState.CloseWait
             && checksumStatus == Ipv4TransportChecksumStatus.Success
-            && checksum.IsValid;
+            && checksum.IsValid);
     }
 
+    [HostTest("drivers.virtionet.rx.tcp.dispatch.windowexec rejects failed rx dispatch", HostLane.Fast, 2)]
     private static bool TestRejectsFailedRxDispatch()
     {
         TestContext context = CreateContext();
@@ -252,7 +160,7 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
                 ref close,
                 Span<byte>.Empty);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetReceiveRegisterWindowTcpDispatchStatus.ReceiveDispatchFailed
             && result.ReceiveDispatchStatus == VirtioNetReceiveRegisterWindowDispatchStatus.SlabCompletionFailed
             && result.SlabCompletionStatus == VirtioNetReceiveRegisterWindowSlabCompletionStatus.NoCompletion
@@ -261,9 +169,10 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             && result.PayloadBytes == 0
             && result.PassiveAckBytes == 0
             && stream.RemoteNextSequenceNumber == RemoteNextSequence
-            && close.State == TcpConnectionCloseState.Established;
+            && close.State == TcpConnectionCloseState.Established);
     }
 
+    [HostTest("drivers.virtionet.rx.tcp.dispatch.windowexec rejects non-TCP protocol", HostLane.Fast, 3)]
     private static bool TestRejectsNonTcpProtocol()
     {
         TestDispatchInput input = CreateDispatchInput(
@@ -284,7 +193,7 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
                 ref close,
                 Span<byte>.Empty);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetReceiveRegisterWindowTcpDispatchStatus.UnsupportedProtocol
             && result.ReceiveDispatchStatus == VirtioNetReceiveRegisterWindowDispatchStatus.Success
             && result.NetworkDispatchStatus == NetworkReceiveDispatchStatus.Success
@@ -293,9 +202,10 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             && result.PayloadBytes == 0
             && result.PassiveAckBytes == 0
             && stream.RemoteNextSequenceNumber == RemoteNextSequence
-            && close.State == TcpConnectionCloseState.Established;
+            && close.State == TcpConnectionCloseState.Established);
     }
 
+    [HostTest("drivers.virtionet.rx.tcp.dispatch.windowexec rejects bad TCP checksum or TCP dispatch failure", HostLane.Fast, 4)]
     private static bool TestRejectsBadTcpChecksumOrDispatchFailure()
     {
         TestDispatchInput input = CreateDispatchInput(
@@ -321,7 +231,7 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
                 ref close,
                 Span<byte>.Empty);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetReceiveRegisterWindowTcpDispatchStatus.BadTcpChecksum
             && result.ReceiveDispatchStatus == VirtioNetReceiveRegisterWindowDispatchStatus.Success
             && result.NetworkDispatchStatus == NetworkReceiveDispatchStatus.Success
@@ -331,9 +241,10 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             && result.PassiveAckBytes == 0
             && stream.RemoteNextSequenceNumber == RemoteNextSequence
             && stream.UnreadBytes == 0
-            && close.State == TcpConnectionCloseState.Established;
+            && close.State == TcpConnectionCloseState.Established);
     }
 
+    [HostTest("drivers.virtionet.rx.tcp.dispatch.windowexec rejects failed TCP stream path", HostLane.Fast, 5)]
     private static bool TestRejectsFailedTcpStreamPath()
     {
         TestDispatchInput input = CreateDispatchInput(
@@ -359,7 +270,7 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
                 ref close,
                 Span<byte>.Empty);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetReceiveRegisterWindowTcpDispatchStatus.TcpStreamFailed
             && result.ReceiveDispatchStatus == VirtioNetReceiveRegisterWindowDispatchStatus.Success
             && result.TcpDispatchStatus == TcpReceiveDispatchStatus.TcpStreamFailed
@@ -369,14 +280,15 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             && result.PayloadBytes == 0
             && stream.RemoteNextSequenceNumber == RemoteNextSequence
             && stream.UnreadBytes == 0
-            && close.State == TcpConnectionCloseState.Established;
+            && close.State == TcpConnectionCloseState.Established);
     }
 
+    [HostTest("drivers.virtionet.rx.tcp.dispatch.windowexec default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioNetReceiveRegisterWindowTcpDispatchResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioNetReceiveRegisterWindowTcpDispatchStatus.Success
             && result.ReceiveDispatchStatus == default
@@ -409,9 +321,10 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             && !VirtioNetReceiveRegisterWindowTcpDispatchPlanner.DispatchesSockets
             && VirtioNetReceiveRegisterWindowTcpDispatchPlanner.MutatesTcpControlBlocks
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetReceiveRegisterWindowTcpDispatchResult>();
+                VirtioNetReceiveRegisterWindowTcpDispatchResult>());
     }
 
+    [HostTest("drivers.virtionet.rx.tcp.dispatch formatter formats success marker", HostLane.Fast, 7)]
     private static bool TestFormatterFormatsSuccessMarker()
     {
         VirtioNetReceiveRegisterWindowTcpDispatchResult result =
@@ -426,7 +339,7 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
                 destination);
         string marker = Encoding.ASCII.GetString(destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && query.IsInitialized
             && query.Status == VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatStatus.Success
             && query.DispatchStatus == VirtioNetReceiveRegisterWindowTcpDispatchStatus.Success
@@ -455,9 +368,10 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             && marker.Contains(" sockets=false", StringComparison.Ordinal)
             && marker.Contains(" socketDispatch=false", StringComparison.Ordinal)
             && marker.Contains(" kestrel=false", StringComparison.Ordinal)
-            && marker.Contains(" tcpControlBlocks=true", StringComparison.Ordinal);
+            && marker.Contains(" tcpControlBlocks=true", StringComparison.Ordinal));
     }
 
+    [HostTest("drivers.virtionet.rx.tcp.dispatch formatter reports short destination", HostLane.Fast, 8)]
     private static bool TestFormatterReportsShortDestination()
     {
         VirtioNetReceiveRegisterWindowTcpDispatchResult result =
@@ -472,7 +386,7 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
                 result,
                 destination);
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && query.Status == VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatStatus.Success
             && format.IsInitialized
             && !format.Succeeded
@@ -482,9 +396,10 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             && format.RequiredBytes == query.RequiredBytes
             && format.AvailableBytes == destination.Length
             && destination[0] == 0xCC
-            && destination[destination.Length - 1] == 0xCC;
+            && destination[destination.Length - 1] == 0xCC);
     }
 
+    [HostTest("drivers.virtionet.rx.tcp.dispatch formatter rejects default result", HostLane.Fast, 9)]
     private static bool TestFormatterRejectsDefaultResult()
     {
         Span<byte> destination = stackalloc byte[64];
@@ -499,7 +414,7 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatter.QueryRequiredBytes(result);
         VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult defaultFormat = default;
 
-        return format.IsInitialized
+        return HostCheck.Result(format.IsInitialized
             && !format.Succeeded
             && format.Status == VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatStatus.InvalidResult
             && format.DispatchStatus == VirtioNetReceiveRegisterWindowTcpDispatchStatus.Success
@@ -517,9 +432,10 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             && destination[0] == 0xCC
             && destination[63] == 0xCC
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult>();
+                VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatResult>());
     }
 
+    [HostTest("drivers.virtionet.rx.tcp.dispatch formatter uses shared ascii text builder", HostLane.Fast, 10)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -530,7 +446,7 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             "Drivers",
             "VirtioNetReceiveRegisterWindowTcpDispatchDiagnosticFormatter.cs"));
 
-        return source.Contains("AsciiTextBuilder.AppendBytes(destination, offset, value)", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("AsciiTextBuilder.AppendBytes(destination, offset, value)", StringComparison.Ordinal)
             && source.Contains("AsciiTextBuilder.AppendInt64Decimal(destination, offset, value)", StringComparison.Ordinal)
             && source.Contains("AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value)", StringComparison.Ordinal)
             && source.Contains("AsciiDecimalFormatter.CountInt32Digits", StringComparison.Ordinal)
@@ -540,9 +456,10 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             && !source.Contains("AsciiDecimalFormatter.FormatUInt32(destination[offset..], value)", StringComparison.Ordinal)
             && !source.Contains("private static void AppendInt32", StringComparison.Ordinal)
             && !source.Contains("private static void AppendUInt32", StringComparison.Ordinal)
-            && !source.Contains("private static void Append(ReadOnlySpan<byte>", StringComparison.Ordinal);
+            && !source.Contains("private static void Append(ReadOnlySpan<byte>", StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence virtio rx tcp dispatch emits ready marker", HostLane.Fast, 11)]
     private static bool TestBootSequenceEmitsReadyMarker()
     {
         VirtioNetReceiveRegisterWindowTcpDispatchResult result =
@@ -552,7 +469,7 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
 
         BootResult boot = BootSequence.RunVirtioNetRxTcpDispatchReadiness(result, serial, events);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && boot.Succeeded
             && serial.Count == 2
             && serial.LineAt(0) == BootSequence.VirtioNetRxTcpDispatchReady
@@ -561,9 +478,10 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
             && events.Snapshot()[0] == BootSequence.VirtioNetRxTcpDispatchReady
             && events.Snapshot()[1].StartsWith(
                 "VIRTIO_NET_RX_TCP_DISPATCH status=Success",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence virtio rx tcp dispatch rejects failed result", HostLane.Fast, 12)]
     private static bool TestBootSequenceRejectsFailedResult()
     {
         VirtioNetReceiveRegisterWindowTcpDispatchResult result =
@@ -573,7 +491,7 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
 
         BootResult boot = BootSequence.RunVirtioNetRxTcpDispatchReadiness(result, serial, events);
 
-        return result.IsInitialized
+        return HostCheck.Result(result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioNetReceiveRegisterWindowTcpDispatchStatus.BadTcpChecksum
             && !boot.Succeeded
@@ -589,9 +507,10 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
                 StringComparison.Ordinal)
             && serial.LineAt(0).Contains("status=DispatchFailed", StringComparison.Ordinal)
             && serial.LineAt(0).Contains("dispatch=BadTcpChecksum", StringComparison.Ordinal)
-            && events.Snapshot()[0] == serial.LineAt(0);
+            && events.Snapshot()[0] == serial.LineAt(0));
     }
 
+    [HostTest("boot.sequence virtio rx tcp dispatch rejects default result", HostLane.Fast, 13)]
     private static bool TestBootSequenceRejectsDefaultResult()
     {
         VirtioNetReceiveRegisterWindowTcpDispatchResult result = default;
@@ -600,7 +519,7 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
 
         BootResult boot = BootSequence.RunVirtioNetRxTcpDispatchReadiness(result, serial, events);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !boot.Succeeded
             && boot.Reason.Contains(
                 nameof(VirtioNetRxTcpDispatchReadinessStatus.NotInitialized),
@@ -611,9 +530,10 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
                 StringComparison.Ordinal)
             && serial.LineAt(0).Contains("status=NotInitialized", StringComparison.Ordinal)
             && serial.LineAt(0).Contains("format=InvalidResult", StringComparison.Ordinal)
-            && events.Snapshot()[0] == serial.LineAt(0);
+            && events.Snapshot()[0] == serial.LineAt(0));
     }
 
+    [HostTest("boot.sequence virtio rx tcp dispatch preserves default markers", HostLane.Fast, 14)]
     private static bool TestBootSequencePreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -622,20 +542,20 @@ internal static class VirtioNetReceiveRegisterWindowTcpDispatchPlanTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.VirtioNetRxTcpDispatchReady)
+        return HostCheck.Result(!serial.Contains(BootSequence.VirtioNetRxTcpDispatchReady)
             && !serial.ContainsPrefix(BootSequence.VirtioNetRxTcpDispatchNotReadyPrefix)
-            && !serial.ContainsPrefix("VIRTIO_NET_RX_TCP_DISPATCH status=");
+            && !serial.ContainsPrefix("VIRTIO_NET_RX_TCP_DISPATCH status="));
     }
 
     private static TestDispatchInput CreateDispatchInput(

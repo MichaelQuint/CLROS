@@ -11,52 +11,7 @@ internal static class NativeAppLaunchDescriptorTests
     private const ushort FileCount = 1;
     private const int AppContentLength = 40;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run(
-            "appmodel launch descriptor accepts package payload header",
-            TestAcceptsPackagePayloadHeader,
-            ref failures);
-        Run(
-            "appmodel launch descriptor rejects invalid payload header",
-            TestRejectsInvalidPayloadHeader,
-            ref failures);
-        Run(
-            "appmodel launch descriptor default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app launch descriptor host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel launch descriptor rejects invalid payload header", HostLane.Fast, 1)]
     private static bool TestRejectsInvalidPayloadHeader()
     {
         byte[] manifestSource = ValidManifest(AppPath);
@@ -66,15 +21,16 @@ internal static class NativeAppLaunchDescriptorTests
         NativeAppLaunchDescriptorResult descriptor =
             NativeAppLaunchDescriptorBuilder.Create(manifestSource, package, launchPlan);
 
-        return !descriptor.Succeeded
+        return HostCheck.Result(!descriptor.Succeeded
             && descriptor.IsInitialized
             && descriptor.Status == NativeAppLaunchDescriptorStatus.InvalidPayloadHeader
             && descriptor.LaunchStatus == NativeAppLaunchStatus.Success
             && descriptor.PackageFileStatus == OsPackageFileSystemStatus.Success
             && descriptor.PackageStatus == OsPackageStatus.Success
-            && descriptor.PayloadHeaderStatus == NativeAppPayloadHeaderStatus.InvalidMagic;
+            && descriptor.PayloadHeaderStatus == NativeAppPayloadHeaderStatus.InvalidMagic);
     }
 
+    [HostTest("appmodel launch descriptor accepts package payload header", HostLane.Fast, 0)]
     private static bool TestAcceptsPackagePayloadHeader()
     {
         byte[] manifestSource = ValidManifest(AppPath);
@@ -84,7 +40,7 @@ internal static class NativeAppLaunchDescriptorTests
         NativeAppLaunchDescriptorResult descriptor =
             NativeAppLaunchDescriptorBuilder.Create(manifestSource, package, launchPlan);
 
-        return descriptor.Succeeded
+        return HostCheck.Result(descriptor.Succeeded
             && descriptor.IsInitialized
             && descriptor.Status == NativeAppLaunchDescriptorStatus.Success
             && descriptor.LaunchStatus == NativeAppLaunchStatus.Success
@@ -93,21 +49,22 @@ internal static class NativeAppLaunchDescriptorTests
             && descriptor.PayloadHeaderStatus == NativeAppPayloadHeaderStatus.Success
             && descriptor.Descriptor.AppBinaryLength == AppContentLength
             && descriptor.Descriptor.ArgumentByteLength == "--port=8080".Length
-            && descriptor.Descriptor.PayloadHeader.EntryOffset == NativeAppPayloadHeader.HeaderSize;
+            && descriptor.Descriptor.PayloadHeader.EntryOffset == NativeAppPayloadHeader.HeaderSize);
     }
 
+    [HostTest("appmodel launch descriptor default result is not success", HostLane.Fast, 2)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAppLaunchDescriptorResult descriptor = default;
 
-        return !descriptor.IsInitialized
+        return HostCheck.Result(!descriptor.IsInitialized
             && !descriptor.Succeeded
             && descriptor.Status == NativeAppLaunchDescriptorStatus.Success
             && descriptor.LaunchStatus == NativeAppLaunchStatus.Success
             && descriptor.PackageFileStatus == OsPackageFileSystemStatus.Success
             && descriptor.PackageStatus == OsPackageStatus.Success
             && descriptor.PayloadHeaderStatus == NativeAppPayloadHeaderStatus.Success
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppLaunchDescriptorResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppLaunchDescriptorResult>());
     }
 
     private static NativeAppLaunchPlanResult CreateLaunchPlan(byte[] manifestSource)

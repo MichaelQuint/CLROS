@@ -8,44 +8,7 @@ internal static class TcpPassiveOpenHandshakeTests
     private const uint ClientInitialSequence = 0x10203040;
     private const uint ServerInitialSequence = 0xa0b0c0d0;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.tcp passive handshake transitions listen-synack-established", TestListenSynAckEstablished, ref failures);
-        Run("net.tcp passive handshake rejects wrong final ack", TestRejectsWrongFinalAck, ref failures);
-        Run("net.tcp passive handshake rejects invalid syn", TestRejectsInvalidSyn, ref failures);
-        Run("net.tcp passive handshake default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("TCP passive-open handshake host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.tcp passive handshake transitions listen-synack-established", HostLane.Fast, 0)]
     private static bool TestListenSynAckEstablished()
     {
         TcpPassiveOpenHandshake handshake = TcpPassiveOpenHandshake.Create(
@@ -78,7 +41,7 @@ internal static class TcpPassiveOpenHandshakeTests
             || handshake.RemoteNextSequenceNumber != ClientInitialSequence + 1
             || handshake.LocalNextSequenceNumber != ServerInitialSequence + 1)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (!ParseHeader(synAck, out TcpHeader synAckHeader)
@@ -90,7 +53,7 @@ internal static class TcpPassiveOpenHandshakeTests
             || synAckHeader.WindowSize != 0x4000
             || synAckHeader.Checksum != 0x2222)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> finalAck = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -110,19 +73,20 @@ internal static class TcpPassiveOpenHandshakeTests
             || ackResult.State != TcpPassiveOpenHandshakeState.Established
             || handshake.State != TcpPassiveOpenHandshakeState.Established)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         TcpPassiveOpenHandshakeStatus invalidStateStatus = handshake.ReceiveFinalAck(
             finalAck.Slice(0, finalAckBytes),
             out TcpPassiveOpenHandshakeTransitionResult invalidStateResult);
 
-        return invalidStateStatus == TcpPassiveOpenHandshakeStatus.InvalidState
+        return HostCheck.Result(invalidStateStatus == TcpPassiveOpenHandshakeStatus.InvalidState
             && !invalidStateResult.Succeeded
             && invalidStateResult.State == TcpPassiveOpenHandshakeState.Established
-            && handshake.State == TcpPassiveOpenHandshakeState.Established;
+            && handshake.State == TcpPassiveOpenHandshakeState.Established);
     }
 
+    [HostTest("net.tcp passive handshake rejects wrong final ack", HostLane.Fast, 1)]
     private static bool TestRejectsWrongFinalAck()
     {
         TcpPassiveOpenHandshake handshake = CreateSynReceivedHandshake();
@@ -140,12 +104,13 @@ internal static class TcpPassiveOpenHandshakeTests
             finalAck.Slice(0, finalAckBytes),
             out TcpPassiveOpenHandshakeTransitionResult result);
 
-        return status == TcpPassiveOpenHandshakeStatus.WrongAcknowledgementNumber
+        return HostCheck.Result(status == TcpPassiveOpenHandshakeStatus.WrongAcknowledgementNumber
             && !result.Succeeded
             && result.State == TcpPassiveOpenHandshakeState.Failed
-            && handshake.State == TcpPassiveOpenHandshakeState.Failed;
+            && handshake.State == TcpPassiveOpenHandshakeState.Failed);
     }
 
+    [HostTest("net.tcp passive handshake rejects invalid syn", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidSyn()
     {
         bool missingSynRejected = RejectsSyn(
@@ -182,14 +147,15 @@ internal static class TcpPassiveOpenHandshakeTests
             ack.Slice(0, ackBytes),
             out TcpPassiveOpenHandshakeTransitionResult invalidStateResult);
 
-        return missingSynRejected
+        return HostCheck.Result(missingSynRejected
             && wrongSourcePortRejected
             && wrongDestinationPortRejected
             && invalidStateStatus == TcpPassiveOpenHandshakeStatus.InvalidState
             && invalidStateResult.State == TcpPassiveOpenHandshakeState.Listen
-            && handshake.State == TcpPassiveOpenHandshakeState.Listen;
+            && handshake.State == TcpPassiveOpenHandshakeState.Listen);
     }
 
+    [HostTest("net.tcp passive handshake default result is not success", HostLane.Fast, 3)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         TcpPassiveOpenHandshakeTransitionResult defaultResult = default;
@@ -201,7 +167,7 @@ internal static class TcpPassiveOpenHandshakeTests
                 localNextSequenceNumber: ServerInitialSequence,
                 remoteNextSequenceNumber: 0);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == TcpPassiveOpenHandshakeStatus.Success
             && failedResult.IsInitialized
@@ -210,7 +176,7 @@ internal static class TcpPassiveOpenHandshakeTests
             && failedResult.State == TcpPassiveOpenHandshakeState.Listen
             && failedResult.LocalNextSequenceNumber == ServerInitialSequence
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                TcpPassiveOpenHandshakeTransitionResult>();
+                TcpPassiveOpenHandshakeTransitionResult>());
     }
 
     private static TcpPassiveOpenHandshake CreateSynReceivedHandshake()

@@ -16,49 +16,7 @@ internal static class AcpiMcfgPhysicalDiscoveryTests
         (byte)'E',
         (byte)'T');
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("acpi.mcfg.discovery reads xsdt child mcfg from physical memory", TestReadsXsdtChildMcfgFromPhysicalMemory, ref failures);
-        Run("acpi.mcfg.discovery reads rsdt child mcfg from physical memory", TestReadsRsdtChildMcfgFromPhysicalMemory, ref failures);
-        Run("acpi.mcfg.discovery reports physical mcfg missing", TestReportsPhysicalMcfgMissing, ref failures);
-        Run("acpi.mcfg.discovery reports child header read failure", TestReportsChildHeaderReadFailure, ref failures);
-        Run("acpi.mcfg.discovery reports child full read failure", TestReportsChildFullReadFailure, ref failures);
-        Run("acpi.mcfg.discovery rejects invalid physical mcfg checksum", TestRejectsInvalidPhysicalMcfgChecksum, ref failures);
-        Run("acpi.mcfg.discovery reports physical mcfg parse failure", TestReportsPhysicalMcfgParseFailure, ref failures);
-        Run("acpi.mcfg.discovery reports physical segment destination exhaustion", TestReportsPhysicalSegmentDestinationExhaustion, ref failures);
-        Run("acpi.mcfg.discovery physical result contains no managed references", TestPhysicalResultContainsNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ACPI MCFG physical discovery host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("acpi.mcfg.discovery reads xsdt child mcfg from physical memory", HostLane.Fast, 0)]
     private static bool TestReadsXsdtChildMcfgFromPhysicalMemory()
     {
         byte[] xsdt = CreateXsdt(HpetAddress, McfgAddress);
@@ -82,7 +40,7 @@ internal static class AcpiMcfgPhysicalDiscoveryTests
             childTable,
             segments);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == AcpiMcfgPhysicalDiscoveryStatus.Success
             && result.PointerListStatus == AcpiSdtParseStatus.Success
             && result.McfgParseStatus == AcpiMcfgParseStatus.Success
@@ -100,9 +58,10 @@ internal static class AcpiMcfgPhysicalDiscoveryTests
             && segments[0].BasePhysicalAddress == 0x00000000E0000000
             && segments[0].SegmentGroup == 0
             && segments[0].StartBus == 0
-            && segments[0].EndBus == 0x3F;
+            && segments[0].EndBus == 0x3F);
     }
 
+    [HostTest("acpi.mcfg.discovery reads rsdt child mcfg from physical memory", HostLane.Fast, 1)]
     private static bool TestReadsRsdtChildMcfgFromPhysicalMemory()
     {
         byte[] rsdt = CreateRsdt((uint)McfgAddress);
@@ -125,7 +84,7 @@ internal static class AcpiMcfgPhysicalDiscoveryTests
             childTable,
             segments);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.PointerCount == 1
             && result.PointerIndex == 0
             && result.PhysicalAddress == McfgAddress
@@ -134,9 +93,10 @@ internal static class AcpiMcfgPhysicalDiscoveryTests
             && segments[0].EndBus == 0x1F
             && segments[1].SegmentGroup == 1
             && segments[1].StartBus == 0x20
-            && segments[1].EndBus == 0x3F;
+            && segments[1].EndBus == 0x3F);
     }
 
+    [HostTest("acpi.mcfg.discovery reports physical mcfg missing", HostLane.Fast, 2)]
     private static bool TestReportsPhysicalMcfgMissing()
     {
         byte[] xsdt = CreateXsdt(HpetAddress);
@@ -157,12 +117,13 @@ internal static class AcpiMcfgPhysicalDiscoveryTests
             childTable,
             segments);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == AcpiMcfgPhysicalDiscoveryStatus.SignatureNotFound
             && result.PointerCount == 1
-            && result.PointerIndex == -1;
+            && result.PointerIndex == -1);
     }
 
+    [HostTest("acpi.mcfg.discovery reports child header read failure", HostLane.Fast, 3)]
     private static bool TestReportsChildHeaderReadFailure()
     {
         byte[] xsdt = CreateXsdt(McfgAddress);
@@ -186,14 +147,15 @@ internal static class AcpiMcfgPhysicalDiscoveryTests
             childTable,
             segments);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == AcpiMcfgPhysicalDiscoveryStatus.ChildHeaderReadFailed
             && result.PointerIndex == 0
             && result.PhysicalAddress == McfgAddress
             && result.PhysicalReadStatus == PlatformPhysicalMemoryStatus.SourceFailed
-            && result.RequiredBytes == AcpiSdtParser.HeaderLength;
+            && result.RequiredBytes == AcpiSdtParser.HeaderLength);
     }
 
+    [HostTest("acpi.mcfg.discovery reports child full read failure", HostLane.Fast, 4)]
     private static bool TestReportsChildFullReadFailure()
     {
         byte[] xsdt = CreateXsdt(McfgAddress);
@@ -217,14 +179,15 @@ internal static class AcpiMcfgPhysicalDiscoveryTests
             childTable,
             segments);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == AcpiMcfgPhysicalDiscoveryStatus.ChildFullReadFailed
             && result.PointerIndex == 0
             && result.PhysicalAddress == McfgAddress
             && result.PhysicalReadStatus == PlatformPhysicalMemoryStatus.SourceUnavailable
-            && result.DeclaredLength == mcfg.Length;
+            && result.DeclaredLength == mcfg.Length);
     }
 
+    [HostTest("acpi.mcfg.discovery rejects invalid physical mcfg checksum", HostLane.Fast, 5)]
     private static bool TestRejectsInvalidPhysicalMcfgChecksum()
     {
         byte[] xsdt = CreateXsdt(McfgAddress);
@@ -247,13 +210,14 @@ internal static class AcpiMcfgPhysicalDiscoveryTests
             childTable,
             segments);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == AcpiMcfgPhysicalDiscoveryStatus.ChildTableChecksumInvalid
             && result.McfgParseStatus == AcpiMcfgParseStatus.Success
             && result.PointerIndex == 0
-            && result.DeclaredLength == mcfg.Length;
+            && result.DeclaredLength == mcfg.Length);
     }
 
+    [HostTest("acpi.mcfg.discovery reports physical mcfg parse failure", HostLane.Fast, 6)]
     private static bool TestReportsPhysicalMcfgParseFailure()
     {
         byte[] xsdt = CreateXsdt(McfgAddress);
@@ -274,13 +238,14 @@ internal static class AcpiMcfgPhysicalDiscoveryTests
             childTable,
             segments);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == AcpiMcfgPhysicalDiscoveryStatus.McfgParseFailed
             && result.McfgParseStatus == AcpiMcfgParseStatus.DeclaredLengthTooSmall
             && result.RequiredBytes == AcpiMcfgParser.MinimumLength
-            && result.PointerIndex == 0;
+            && result.PointerIndex == 0);
     }
 
+    [HostTest("acpi.mcfg.discovery reports physical segment destination exhaustion", HostLane.Fast, 7)]
     private static bool TestReportsPhysicalSegmentDestinationExhaustion()
     {
         byte[] xsdt = CreateXsdt(McfgAddress);
@@ -303,16 +268,17 @@ internal static class AcpiMcfgPhysicalDiscoveryTests
             childTable,
             segments);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == AcpiMcfgPhysicalDiscoveryStatus.McfgParseFailed
             && result.McfgParseStatus == AcpiMcfgParseStatus.DestinationTooSmall
             && result.RequiredSegmentCapacity == 2
-            && result.SegmentCount == 0;
+            && result.SegmentCount == 0);
     }
 
+    [HostTest("acpi.mcfg.discovery physical result contains no managed references", HostLane.Fast, 8)]
     private static bool TestPhysicalResultContainsNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<AcpiMcfgPhysicalDiscoveryResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<AcpiMcfgPhysicalDiscoveryResult>());
     }
 
     private static AcpiRootSdtSnapshotResult RootSnapshot(AcpiSdtTableKind tableKind, byte[] table)

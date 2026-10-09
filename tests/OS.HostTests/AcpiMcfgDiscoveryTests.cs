@@ -14,46 +14,7 @@ internal static class AcpiMcfgDiscoveryTests
         (byte)'E',
         (byte)'T');
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("acpi.mcfg.discovery selects and parses mcfg", TestSelectsAndParsesMcfg, ref failures);
-        Run("acpi.mcfg.discovery preserves selected physical address", TestPreservesSelectedPhysicalAddress, ref failures);
-        Run("acpi.mcfg.discovery reports directory miss", TestReportsDirectoryMiss, ref failures);
-        Run("acpi.mcfg.discovery reports mcfg parse failure", TestReportsMcfgParseFailure, ref failures);
-        Run("acpi.mcfg.discovery reports segment destination exhaustion", TestReportsSegmentDestinationExhaustion, ref failures);
-        Run("acpi.mcfg.discovery supports direct pointer list input", TestSupportsDirectPointerListInput, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ACPI MCFG discovery host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("acpi.mcfg.discovery selects and parses mcfg", HostLane.Fast, 0)]
     private static bool TestSelectsAndParsesMcfg()
     {
         byte[] xsdt = CreateXsdt(HpetAddress, McfgAddress);
@@ -83,7 +44,7 @@ internal static class AcpiMcfgDiscoveryTests
             sources,
             segments);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == AcpiMcfgDiscoveryStatus.Success
             && result.DirectoryStatus == AcpiTableDirectoryStatus.Success
             && result.McfgParseStatus == AcpiMcfgParseStatus.Success
@@ -101,9 +62,10 @@ internal static class AcpiMcfgDiscoveryTests
             && segments[1].BasePhysicalAddress == 0x00000000E4000000
             && segments[1].SegmentGroup == 1
             && segments[1].StartBus == 0x40
-            && segments[1].EndBus == 0x7F;
+            && segments[1].EndBus == 0x7F);
     }
 
+    [HostTest("acpi.mcfg.discovery preserves selected physical address", HostLane.Fast, 1)]
     private static bool TestPreservesSelectedPhysicalAddress()
     {
         byte[] xsdt = CreateXsdt(HpetAddress, McfgAddress);
@@ -128,7 +90,7 @@ internal static class AcpiMcfgDiscoveryTests
             sources,
             segments);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.SelectedPhysicalAddress == McfgAddress
             && result.SelectedPointerIndex == 1
             && result.SelectedSourceIndex == 1
@@ -136,9 +98,10 @@ internal static class AcpiMcfgDiscoveryTests
             && result.DirectoryResult.PhysicalAddress == McfgAddress
             && result.DirectoryResult.PointerIndex == 1
             && result.DirectoryResult.SourceIndex == 1
-            && result.McfgParseResult.DeclaredLength == mcfg.Length;
+            && result.McfgParseResult.DeclaredLength == mcfg.Length);
     }
 
+    [HostTest("acpi.mcfg.discovery reports directory miss", HostLane.Fast, 2)]
     private static bool TestReportsDirectoryMiss()
     {
         byte[] xsdt = CreateXsdt(HpetAddress);
@@ -155,14 +118,15 @@ internal static class AcpiMcfgDiscoveryTests
             sources,
             segments);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == AcpiMcfgDiscoveryStatus.DirectoryFailed
             && result.DirectoryStatus == AcpiTableDirectoryStatus.SignatureNotFound
             && result.DirectoryResult.RequestedSignature == AcpiTableDirectory.McfgSignature
             && result.PointerCount == 1
-            && !result.McfgParseAttempted;
+            && !result.McfgParseAttempted);
     }
 
+    [HostTest("acpi.mcfg.discovery reports mcfg parse failure", HostLane.Fast, 3)]
     private static bool TestReportsMcfgParseFailure()
     {
         byte[] xsdt = CreateXsdt(McfgAddress);
@@ -187,16 +151,17 @@ internal static class AcpiMcfgDiscoveryTests
             sources,
             segments);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == AcpiMcfgDiscoveryStatus.McfgParseFailed
             && result.DirectoryStatus == AcpiTableDirectoryStatus.Success
             && result.McfgParseStatus == AcpiMcfgParseStatus.InvalidReservedBytes
             && result.McfgParseAttempted
             && result.SelectedPhysicalAddress == McfgAddress
             && result.SelectedPointerIndex == 0
-            && result.SelectedSourceIndex == 0;
+            && result.SelectedSourceIndex == 0);
     }
 
+    [HostTest("acpi.mcfg.discovery reports segment destination exhaustion", HostLane.Fast, 4)]
     private static bool TestReportsSegmentDestinationExhaustion()
     {
         byte[] xsdt = CreateXsdt(McfgAddress);
@@ -224,15 +189,16 @@ internal static class AcpiMcfgDiscoveryTests
             sources,
             segments);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == AcpiMcfgDiscoveryStatus.McfgParseFailed
             && result.DirectoryStatus == AcpiTableDirectoryStatus.Success
             && result.McfgParseStatus == AcpiMcfgParseStatus.DestinationTooSmall
             && result.RequiredSegmentCapacity == 2
             && result.SegmentCount == 0
-            && result.SelectedPhysicalAddress == McfgAddress;
+            && result.SelectedPhysicalAddress == McfgAddress);
     }
 
+    [HostTest("acpi.mcfg.discovery supports direct pointer list input", HostLane.Fast, 5)]
     private static bool TestSupportsDirectPointerListInput()
     {
         ulong[] tablePointers = [McfgAddress];
@@ -253,7 +219,7 @@ internal static class AcpiMcfgDiscoveryTests
             sources,
             segments);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.PointerCount == 1
             && result.SelectedPointerIndex == 0
             && result.SelectedSourceIndex == 0
@@ -261,7 +227,7 @@ internal static class AcpiMcfgDiscoveryTests
             && result.SegmentCount == 1
             && segments[0].SegmentGroup == 3
             && segments[0].StartBus == 0x80
-            && segments[0].EndBus == 0x8F;
+            && segments[0].EndBus == 0x8F);
     }
 
     private static byte[] CreateXsdt(params ulong[] pointers)

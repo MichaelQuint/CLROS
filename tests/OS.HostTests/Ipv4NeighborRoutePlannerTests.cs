@@ -4,68 +4,8 @@ using OS.Net;
 
 internal static class Ipv4NeighborRoutePlannerTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.ipv4.neighbor returns cached mac", TestReturnsCachedMac, ref failures);
-        Run("net.ipv4.neighbor writes arp request on cache miss", TestWritesArpRequestOnCacheMiss, ref failures);
-        Run("net.ipv4.neighbor preserves cache on request write", TestPreservesCacheOnRequestWrite, ref failures);
-        Run("net.ipv4.neighbor rejects undersized request buffer", TestRejectsUndersizedRequestBuffer, ref failures);
-        Run("net.ipv4.neighbor handles cache capacity unchanged", TestHandlesCacheCapacityUnchanged, ref failures);
-        Run("net.ipv4.neighbor rejects invalid target input", TestRejectsInvalidTargetInput, ref failures);
-        Run("net.ipv4.neighbor default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("net.ipv4.neighbor.formatter formats cached route", TestFormatterFormatsCachedRoute, ref failures);
-        Run(
-            "net.ipv4.neighbor.formatter formats arp request and failure",
-            TestFormatterFormatsArpRequestAndFailure,
-            ref failures);
-        Run(
-            "net.ipv4.neighbor.formatter reports short destination",
-            TestFormatterReportsShortDestination,
-            ref failures);
-        Run(
-            "net.ipv4.neighbor.formatter rejects default result",
-            TestFormatterRejectsDefaultResult,
-            ref failures);
-        Run(
-            "net.ipv4.neighbor.formatter metadata contains no managed references",
-            TestFormatterMetadataContainsNoManagedReferences,
-            ref failures);
-        Run(
-            "net.ipv4.neighbor.formatter uses shared ascii text builder",
-            TestFormatterUsesSharedAsciiTextBuilder,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("IPv4 neighbor route planner host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.ipv4.neighbor returns cached mac", HostLane.Fast, 0)]
     private static bool TestReturnsCachedMac()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[1];
@@ -80,7 +20,7 @@ internal static class Ipv4NeighborRoutePlannerTests
             Span<byte>.Empty,
             out Ipv4NeighborRoutePlanResult result);
 
-        return status == Ipv4NeighborRoutePlanStatus.Success
+        return HostCheck.Result(status == Ipv4NeighborRoutePlanStatus.Success
             && result.Succeeded
             && result.Action == Ipv4NeighborRoutePlanAction.UseCachedMac
             && result.TargetMac == TargetMac()
@@ -90,9 +30,10 @@ internal static class Ipv4NeighborRoutePlannerTests
             && result.PacketStatus == PacketParseStatus.Success
             && result.CacheCount == 1
             && result.CacheCapacity == 1
-            && cache.Count == 1;
+            && cache.Count == 1);
     }
 
+    [HostTest("net.ipv4.neighbor writes arp request on cache miss", HostLane.Fast, 1)]
     private static bool TestWritesArpRequestOnCacheMiss()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[1];
@@ -117,12 +58,13 @@ internal static class Ipv4NeighborRoutePlannerTests
             || result.CacheCapacity != 1
             || cache.Count != 0)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return IsExpectedArpRequest(frame);
+        return HostCheck.Result(IsExpectedArpRequest(frame));
     }
 
+    [HostTest("net.ipv4.neighbor preserves cache on request write", HostLane.Fast, 2)]
     private static bool TestPreservesCacheOnRequestWrite()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[2];
@@ -144,7 +86,7 @@ internal static class Ipv4NeighborRoutePlannerTests
             TargetAddress(),
             out ArpNeighborCacheLookupResult target);
 
-        return status == Ipv4NeighborRoutePlanStatus.Success
+        return HostCheck.Result(status == Ipv4NeighborRoutePlanStatus.Success
             && result.Action == Ipv4NeighborRoutePlanAction.SendArpRequest
             && result.CacheCount == 1
             && result.CacheCapacity == 2
@@ -154,9 +96,10 @@ internal static class Ipv4NeighborRoutePlannerTests
             && cached.Entry.LastUpdatedTick == 100
             && targetStatus == ArpNeighborCacheStatus.NotFound
             && !target.Succeeded
-            && IsExpectedArpRequest(frame);
+            && IsExpectedArpRequest(frame));
     }
 
+    [HostTest("net.ipv4.neighbor rejects undersized request buffer", HostLane.Fast, 3)]
     private static bool TestRejectsUndersizedRequestBuffer()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[1];
@@ -171,7 +114,7 @@ internal static class Ipv4NeighborRoutePlannerTests
             frame,
             out Ipv4NeighborRoutePlanResult result);
 
-        return status == Ipv4NeighborRoutePlanStatus.RequestBufferTooSmall
+        return HostCheck.Result(status == Ipv4NeighborRoutePlanStatus.RequestBufferTooSmall
             && !result.Succeeded
             && result.Action == Ipv4NeighborRoutePlanAction.None
             && result.BytesWritten == 0
@@ -180,9 +123,10 @@ internal static class Ipv4NeighborRoutePlannerTests
             && result.PacketStatus == PacketParseStatus.BufferTooSmall
             && result.CacheCount == 0
             && result.CacheCapacity == 1
-            && cache.Count == 0;
+            && cache.Count == 0);
     }
 
+    [HostTest("net.ipv4.neighbor handles cache capacity unchanged", HostLane.Fast, 4)]
     private static bool TestHandlesCacheCapacityUnchanged()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[1];
@@ -198,16 +142,17 @@ internal static class Ipv4NeighborRoutePlannerTests
             frame,
             out Ipv4NeighborRoutePlanResult result);
 
-        return status == Ipv4NeighborRoutePlanStatus.Success
+        return HostCheck.Result(status == Ipv4NeighborRoutePlanStatus.Success
             && result.Action == Ipv4NeighborRoutePlanAction.SendArpRequest
             && result.CacheStatus == ArpNeighborCacheStatus.NotFound
             && result.CacheCount == 1
             && result.CacheCapacity == 1
             && cache.Count == 1
             && cache.Capacity == 1
-            && IsExpectedArpRequest(frame);
+            && IsExpectedArpRequest(frame));
     }
 
+    [HostTest("net.ipv4.neighbor rejects invalid target input", HostLane.Fast, 5)]
     private static bool TestRejectsInvalidTargetInput()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[1];
@@ -223,7 +168,7 @@ internal static class Ipv4NeighborRoutePlannerTests
             frame,
             out Ipv4NeighborRoutePlanResult result);
 
-        return status == Ipv4NeighborRoutePlanStatus.InvalidTargetAddress
+        return HostCheck.Result(status == Ipv4NeighborRoutePlanStatus.InvalidTargetAddress
             && !result.Succeeded
             && result.Action == Ipv4NeighborRoutePlanAction.None
             && result.BytesWritten == 0
@@ -234,9 +179,10 @@ internal static class Ipv4NeighborRoutePlannerTests
             && result.CacheCapacity == 1
             && cache.Count == 0
             && frame[0] == 0xA5
-            && frame[^1] == 0xA5;
+            && frame[^1] == 0xA5);
     }
 
+    [HostTest("net.ipv4.neighbor default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         Ipv4NeighborRoutePlanResult defaultResult = default;
@@ -260,7 +206,7 @@ internal static class Ipv4NeighborRoutePlannerTests
             cacheCount: 1,
             cacheCapacity: 2);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == Ipv4NeighborRoutePlanStatus.Success
             && cached.IsInitialized
@@ -282,9 +228,10 @@ internal static class Ipv4NeighborRoutePlannerTests
             && failure.PacketStatus == PacketParseStatus.BufferTooSmall
             && failure.CacheCount == 1
             && failure.CacheCapacity == 2
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<Ipv4NeighborRoutePlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<Ipv4NeighborRoutePlanResult>());
     }
 
+    [HostTest("net.ipv4.neighbor.formatter formats cached route", HostLane.Fast, 7)]
     private static bool TestFormatterFormatsCachedRoute()
     {
         Ipv4NeighborRoutePlanResult result = CreateCachedRoutePlan();
@@ -300,7 +247,7 @@ internal static class Ipv4NeighborRoutePlannerTests
             "IPV4_NEIGHBOR_ROUTE status=Success action=UseCachedMac cache=Success arp=Success " +
             "packet=Success bytes=0 cacheCount=1 cacheCapacity=1 targetMac=02:00:00:00:00:20";
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && !query.Succeeded
             && query.Status == Ipv4NeighborRoutePlanDiagnosticFormatStatus.Success
             && query.RouteStatus == Ipv4NeighborRoutePlanStatus.Success
@@ -312,9 +259,10 @@ internal static class Ipv4NeighborRoutePlannerTests
             && format.BytesWritten == expected.Length
             && format.RequiredBytes == expected.Length
             && format.AvailableBytes == destination.Length
-            && text == expected;
+            && text == expected);
     }
 
+    [HostTest("net.ipv4.neighbor.formatter formats arp request and failure", HostLane.Fast, 8)]
     private static bool TestFormatterFormatsArpRequestAndFailure()
     {
         Ipv4NeighborRoutePlanResult request = CreateArpRequestPlan();
@@ -344,7 +292,7 @@ internal static class Ipv4NeighborRoutePlannerTests
             "IPV4_NEIGHBOR_ROUTE status=RequestBufferTooSmall action=None cache=NotFound " +
             "arp=BufferTooSmall packet=BufferTooSmall bytes=0 cacheCount=0 cacheCapacity=1";
 
-        return requestQuery.IsInitialized
+        return HostCheck.Result(requestQuery.IsInitialized
             && requestQuery.Status == Ipv4NeighborRoutePlanDiagnosticFormatStatus.Success
             && requestQuery.RequiredBytes == expectedRequest.Length
             && requestFormat.Succeeded
@@ -357,9 +305,10 @@ internal static class Ipv4NeighborRoutePlannerTests
             && failureFormat.Succeeded
             && failureFormat.RouteStatus == Ipv4NeighborRoutePlanStatus.RequestBufferTooSmall
             && failureFormat.BytesWritten == expectedFailure.Length
-            && failureText == expectedFailure;
+            && failureText == expectedFailure);
     }
 
+    [HostTest("net.ipv4.neighbor.formatter reports short destination", HostLane.Fast, 9)]
     private static bool TestFormatterReportsShortDestination()
     {
         Ipv4NeighborRoutePlanResult result = CreateCachedRoutePlan();
@@ -371,7 +320,7 @@ internal static class Ipv4NeighborRoutePlannerTests
         Ipv4NeighborRoutePlanDiagnosticFormatResult shortResult =
             Ipv4NeighborRoutePlanDiagnosticFormatter.FormatResult(result, destination);
 
-        return shortResult.IsInitialized
+        return HostCheck.Result(shortResult.IsInitialized
             && !shortResult.Succeeded
             && shortResult.Status == Ipv4NeighborRoutePlanDiagnosticFormatStatus.DestinationTooSmall
             && shortResult.RouteStatus == Ipv4NeighborRoutePlanStatus.Success
@@ -380,9 +329,10 @@ internal static class Ipv4NeighborRoutePlannerTests
             && shortResult.AvailableBytes == destination.Length
             && query.RequiredBytes > destination.Length
             && destination[0] == 0xA5
-            && destination[23] == 0xA5;
+            && destination[23] == 0xA5);
     }
 
+    [HostTest("net.ipv4.neighbor.formatter rejects default result", HostLane.Fast, 10)]
     private static bool TestFormatterRejectsDefaultResult()
     {
         Span<byte> destination = stackalloc byte[64];
@@ -432,7 +382,7 @@ internal static class Ipv4NeighborRoutePlannerTests
         Ipv4NeighborRoutePlanDiagnosticFormatResult unknownPacketFormat =
             Ipv4NeighborRoutePlanDiagnosticFormatter.FormatResult(unknownPacketStatus, destination);
 
-        return invalidFormat.IsInitialized
+        return HostCheck.Result(invalidFormat.IsInitialized
             && !invalidFormat.Succeeded
             && invalidFormat.Status == Ipv4NeighborRoutePlanDiagnosticFormatStatus.InvalidResult
             && invalidFormat.RouteStatus == Ipv4NeighborRoutePlanStatus.Success
@@ -465,23 +415,25 @@ internal static class Ipv4NeighborRoutePlannerTests
             && defaultFormat.Status == Ipv4NeighborRoutePlanDiagnosticFormatStatus.Success
             && defaultFormat.RouteStatus == Ipv4NeighborRoutePlanStatus.Success
             && destination[0] == 0xCC
-            && destination[63] == 0xCC;
+            && destination[63] == 0xCC);
     }
 
+    [HostTest("net.ipv4.neighbor.formatter metadata contains no managed references", HostLane.Fast, 11)]
     private static bool TestFormatterMetadataContainsNoManagedReferences()
     {
         Ipv4NeighborRoutePlanResult result = CreateArpRequestPlan();
         Ipv4NeighborRoutePlanDiagnosticFormatResult query =
             Ipv4NeighborRoutePlanDiagnosticFormatter.QueryRequiredBytes(result);
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && query.Status == Ipv4NeighborRoutePlanDiagnosticFormatStatus.Success
             && query.RouteStatus == Ipv4NeighborRoutePlanStatus.Success
             && !query.Succeeded
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                Ipv4NeighborRoutePlanDiagnosticFormatResult>();
+                Ipv4NeighborRoutePlanDiagnosticFormatResult>());
     }
 
+    [HostTest("net.ipv4.neighbor.formatter uses shared ascii text builder", HostLane.Fast, 12)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -492,14 +444,14 @@ internal static class Ipv4NeighborRoutePlannerTests
             "Net",
             "Ipv4NeighborRoutePlanDiagnosticFormatter.cs"));
 
-        return source.Contains("AsciiTextBuilder.AppendBytes(destination, offset, value)", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("AsciiTextBuilder.AppendBytes(destination, offset, value)", StringComparison.Ordinal)
             && source.Contains("AsciiTextBuilder.AppendInt64Decimal(destination, offset, value)", StringComparison.Ordinal)
             && source.Contains("AsciiTextBuilder.AppendByte(destination, offset", StringComparison.Ordinal)
             && source.Contains("AsciiDecimalFormatter.CountInt32Digits", StringComparison.Ordinal)
             && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal)
             && !source.Contains("AsciiDecimalFormatter.FormatInt32(destination[offset..], value)", StringComparison.Ordinal)
             && !source.Contains("private static void AppendInt32", StringComparison.Ordinal)
-            && !source.Contains("private static void Append(ReadOnlySpan<byte>", StringComparison.Ordinal);
+            && !source.Contains("private static void Append(ReadOnlySpan<byte>", StringComparison.Ordinal));
     }
 
     private static Ipv4NeighborRoutePlanResult CreateCachedRoutePlan()

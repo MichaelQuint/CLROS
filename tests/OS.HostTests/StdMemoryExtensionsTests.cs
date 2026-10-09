@@ -4,7 +4,7 @@ using OS.Std;
 
 internal static class StdMemoryExtensionsTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void Run()
     {
         RunStartsWithEndsWithContract();
@@ -19,9 +19,7 @@ internal static class StdMemoryExtensionsTests
         RunCharTryCopyToContract();
 
         const string name = "std.memoryextensions byte span helpers";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             byte[] empty = Array.Empty<byte>();
             byte[] source = new byte[] { 1, 2, 3, 2, 4 };
@@ -139,22 +137,13 @@ internal static class StdMemoryExtensionsTests
                 "TryCopyTo too-small preserves destination",
                 true,
                 StdMemoryExtensions.SequenceEqual(tryCopyTooSmallDestination, new byte[] { 9, 9 }));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunCountByteValuesContract()
     {
         const string name = "std.memoryextensions count byte values";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             byte[] empty = Array.Empty<byte>();
             byte[] source = new byte[] { 0, 1, 2, 1, 3, 1, 0 };
@@ -165,22 +154,13 @@ internal static class StdMemoryExtensionsTests
             ExpectInt("Count repeated", 3, StdMemoryExtensions.Count(source, (byte)1));
             ExpectInt("Count zero byte", 2, StdMemoryExtensions.Count(source, (byte)0));
             ExpectInt("Count all values", allSame.Length, StdMemoryExtensions.Count(allSame, (byte)7));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunIndexOfAnyByteValuesContract()
     {
         const string name = "std.memoryextensions indexofany byte values";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             byte[] empty = Array.Empty<byte>();
             byte[] source = new byte[] { 9, 8, 7, 6, 8, 5 };
@@ -196,22 +176,13 @@ internal static class StdMemoryExtensionsTests
             ExpectInt("IndexOfAny three values first argument later", 3, StdMemoryExtensions.IndexOfAny(source, (byte)6, (byte)4, (byte)3));
             ExpectInt("IndexOfAny three values duplicate needles", 1, StdMemoryExtensions.IndexOfAny(source, (byte)8, (byte)8, (byte)4));
             ExpectInt("IndexOfAny three values missing", -1, StdMemoryExtensions.IndexOfAny(source, (byte)1, (byte)2, (byte)3));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunTryCopyToSuccessContract()
     {
         const string name = "std.memoryextensions trycopyto success";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             byte[] source = new byte[] { 1, 2, 3 };
             byte[] destination = new byte[] { 9, 9, 9, 9 };
@@ -221,22 +192,13 @@ internal static class StdMemoryExtensionsTests
                 "TryCopyTo writes prefix",
                 true,
                 StdMemoryExtensions.SequenceEqual(destination, new byte[] { 1, 2, 3, 9 }));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunTryCopyToTooSmallContract()
     {
         const string name = "std.memoryextensions trycopyto too-small";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             byte[] source = new byte[] { 1, 2, 3 };
             byte[] destination = new byte[] { 9, 8 };
@@ -246,22 +208,13 @@ internal static class StdMemoryExtensionsTests
                 "TryCopyTo leaves destination unchanged",
                 true,
                 StdMemoryExtensions.SequenceEqual(destination, new byte[] { 9, 8 }));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunTryCopyToOverlapContract()
     {
         const string name = "std.memoryextensions trycopyto overlap";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             byte[] copyOverlapForward = new byte[] { 1, 2, 3, 4, 5 };
             ExpectBool(
@@ -282,22 +235,13 @@ internal static class StdMemoryExtensionsTests
                 "TryCopyTo overlap backward destination",
                 true,
                 StdMemoryExtensions.SequenceEqual(copyOverlapBackward, new byte[] { 1, 1, 2, 3, 4 }));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunStartsWithEndsWithContract()
     {
         const string name = "std.memoryextensions byte span startswith endswith";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             byte[] source = new byte[] { 1, 2, 3, 4 };
             byte[] exact = new byte[] { 1, 2, 3, 4 };
@@ -314,22 +258,13 @@ internal static class StdMemoryExtensionsTests
             ExpectBool("EndsWith suffix", true, StdMemoryExtensions.EndsWith(source, new byte[] { 3, 4 }));
             ExpectBool("EndsWith mismatch", false, StdMemoryExtensions.EndsWith(source, new byte[] { 2, 3 }));
             ExpectBool("EndsWith too long", false, StdMemoryExtensions.EndsWith(new byte[] { 3, 4 }, source));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunCharSearchContract()
     {
         const string name = "std.memoryextensions char search";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             ReadOnlySpan<char> empty = ReadOnlySpan<char>.Empty;
             ReadOnlySpan<char> source = "alpha beta alpha".AsSpan();
@@ -345,22 +280,13 @@ internal static class StdMemoryExtensionsTests
             ExpectInt("LastIndexOf repeated char", 13, StdMemoryExtensions.LastIndexOf(source, 'p'));
             ExpectInt("LastIndexOf missing char", -1, StdMemoryExtensions.LastIndexOf(source, 'z'));
             ExpectInt("LastIndexOf empty", -1, StdMemoryExtensions.LastIndexOf(empty, 'a'));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunCharSequencePrefixSuffixContract()
     {
         const string name = "std.memoryextensions char sequence prefix suffix";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             char[] empty = Array.Empty<char>();
             char[] source = new char[] { 'c', 'l', 'o', 'u', 'd' };
@@ -384,22 +310,13 @@ internal static class StdMemoryExtensionsTests
             ExpectBool("EndsWith exact", true, StdMemoryExtensions.EndsWith(source, same));
             ExpectBool("EndsWith mismatch", false, StdMemoryExtensions.EndsWith(source, new char[] { 'o', 'd' }));
             ExpectBool("EndsWith longer", false, StdMemoryExtensions.EndsWith(shorter, source));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunCharCopyToContract()
     {
         const string name = "std.memoryextensions char copyto";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             char[] source = new char[] { 'O', 'S', '1' };
             char[] copyExact = new char[source.Length];
@@ -437,22 +354,13 @@ internal static class StdMemoryExtensionsTests
                 "CopyTo too-small preserves destination",
                 true,
                 StdMemoryExtensions.SequenceEqual(tooSmallDestination, new char[] { '9', '9' }));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunCharTryCopyToContract()
     {
         const string name = "std.memoryextensions char trycopyto";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             char[] source = new char[] { 'C', 'L', 'R' };
             char[] destination = new char[] { 'x', 'x', 'x', 'x' };
@@ -492,14 +400,7 @@ internal static class StdMemoryExtensionsTests
                 "TryCopyTo overlap backward destination",
                 true,
                 StdMemoryExtensions.SequenceEqual(copyOverlapBackward, new char[] { 'a', 'a', 'b', 'c', 'd' }));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void ExpectBool(string scenario, bool expected, bool actual)

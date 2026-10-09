@@ -10,49 +10,7 @@ internal static class TcpPassiveIpv4FramePlannerTests
     private const byte PoisonByte = 0xA5;
     private const int TcpChecksumOffset = 16;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.tcp.passive.ipv4 writes syn ack frame", TestWritesSynAckFrame, ref failures);
-        Run("net.tcp.passive.ipv4 writes syn ack checksum", TestWritesSynAckChecksum, ref failures);
-        Run("net.tcp.passive.ipv4 accepts final ack frame", TestAcceptsFinalAckFrame, ref failures);
-        Run("net.tcp.passive.ipv4 rejects wrong listener identity", TestRejectsWrongListenerIdentity, ref failures);
-        Run("net.tcp.passive.ipv4 rejects malformed protocol frames", TestRejectsMalformedProtocolFrames, ref failures);
-        Run("net.tcp.passive.ipv4 rejects bad tcp checksum", TestRejectsBadTcpChecksum, ref failures);
-        Run("net.tcp.passive.ipv4 rejects bad final ack", TestRejectsBadFinalAck, ref failures);
-        Run("net.tcp.passive.ipv4 rejects short output", TestRejectsShortOutput, ref failures);
-        Run("net.tcp.passive.ipv4 default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("TCP passive IPv4 frame planner host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.tcp.passive.ipv4 writes syn ack frame", HostLane.Fast, 0)]
     private static bool TestWritesSynAckFrame()
     {
         TcpPassiveIpv4FramePlanner planner = CreatePlanner();
@@ -90,10 +48,10 @@ internal static class TcpPassiveIpv4FramePlannerTests
             || result.RemoteInitialSequenceNumber != ClientInitialSequence
             || result.RemoteNextSequenceNumber != ClientInitialSequence + 1)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return TryParseTcpFrame(
+        return HostCheck.Result(TryParseTcpFrame(
                 synAck.AsSpan(0, result.BytesWritten),
                 out EthernetHeader ethernet,
                 out Ipv4Header ipv4,
@@ -112,9 +70,10 @@ internal static class TcpPassiveIpv4FramePlannerTests
             && tcp.AcknowledgementNumber == ClientInitialSequence + 1
             && tcp.Flags == (TcpPassiveOpenHandshake.FlagSyn | TcpPassiveOpenHandshake.FlagAck)
             && tcp.WindowSize == 0x3456
-            && tcp.Checksum != 0;
+            && tcp.Checksum != 0);
     }
 
+    [HostTest("net.tcp.passive.ipv4 writes syn ack checksum", HostLane.Fast, 1)]
     private static bool TestWritesSynAckChecksum()
     {
         TcpPassiveIpv4FramePlanner planner = CreatePlanner();
@@ -142,7 +101,7 @@ internal static class TcpPassiveIpv4FramePlannerTests
                 out TcpHeader tcp,
                 out ReadOnlySpan<byte> tcpSegment))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Ipv4TransportChecksumStatus checksumStatus = Ipv4TransportChecksum.Validate(
@@ -152,16 +111,17 @@ internal static class TcpPassiveIpv4FramePlannerTests
             tcpSegment,
             out Ipv4TransportChecksumResult checksumResult);
 
-        return status == TcpPassiveIpv4FramePlanStatus.Success
+        return HostCheck.Result(status == TcpPassiveIpv4FramePlanStatus.Success
             && result.Succeeded
             && result.State == TcpPassiveOpenHandshakeState.SynReceived
             && result.TcpHeader.Checksum == tcp.Checksum
             && tcp.Checksum != 0
             && checksumStatus == Ipv4TransportChecksumStatus.Success
             && checksumResult.IsValid
-            && checksumResult.TransportLength == TcpHeader.MinHeaderLength;
+            && checksumResult.TransportLength == TcpHeader.MinHeaderLength);
     }
 
+    [HostTest("net.tcp.passive.ipv4 accepts final ack frame", HostLane.Fast, 2)]
     private static bool TestAcceptsFinalAckFrame()
     {
         TcpPassiveIpv4FramePlanner planner = PreparedPlanner();
@@ -180,7 +140,7 @@ internal static class TcpPassiveIpv4FramePlannerTests
             finalAck,
             out TcpPassiveIpv4FramePlanResult result);
 
-        return status == TcpPassiveIpv4FramePlanStatus.Success
+        return HostCheck.Result(status == TcpPassiveIpv4FramePlanStatus.Success
             && result.Succeeded
             && result.State == TcpPassiveOpenHandshakeState.Established
             && planner.State == TcpPassiveOpenHandshakeState.Established
@@ -204,9 +164,10 @@ internal static class TcpPassiveIpv4FramePlannerTests
             && result.TcpHeader.DestinationPort == LocalPort
             && result.TcpHeader.SequenceNumber == ClientInitialSequence + 1
             && result.TcpHeader.AcknowledgementNumber == ServerInitialSequence + 1
-            && result.TcpHeader.Flags == TcpPassiveOpenHandshake.FlagAck;
+            && result.TcpHeader.Flags == TcpPassiveOpenHandshake.FlagAck);
     }
 
+    [HostTest("net.tcp.passive.ipv4 rejects wrong listener identity", HostLane.Fast, 3)]
     private static bool TestRejectsWrongListenerIdentity()
     {
         TcpPassiveIpv4FramePlanner wrongMacPlanner = CreatePlanner();
@@ -257,7 +218,7 @@ internal static class TcpPassiveIpv4FramePlannerTests
             new byte[TcpPassiveIpv4FramePlanner.HeaderBytes],
             out TcpPassiveIpv4FramePlanResult wrongPortResult);
 
-        return wrongMacStatus == TcpPassiveIpv4FramePlanStatus.WrongLocalMac
+        return HostCheck.Result(wrongMacStatus == TcpPassiveIpv4FramePlanStatus.WrongLocalMac
             && !wrongMacResult.Succeeded
             && wrongMacResult.PacketStatus == PacketParseStatus.Success
             && wrongMacPlanner.State == TcpPassiveOpenHandshakeState.Listen
@@ -270,9 +231,10 @@ internal static class TcpPassiveIpv4FramePlannerTests
             && !wrongPortResult.Succeeded
             && wrongPortResult.TcpStatus == TcpPassiveOpenHandshakeStatus.UnexpectedPorts
             && wrongPortResult.TcpHeader.DestinationPort == LocalPort + 1
-            && wrongPortPlanner.State == TcpPassiveOpenHandshakeState.Failed;
+            && wrongPortPlanner.State == TcpPassiveOpenHandshakeState.Failed);
     }
 
+    [HostTest("net.tcp.passive.ipv4 rejects malformed protocol frames", HostLane.Fast, 4)]
     private static bool TestRejectsMalformedProtocolFrames()
     {
         TcpPassiveIpv4FramePlanner shortPlanner = CreatePlanner();
@@ -325,7 +287,7 @@ internal static class TcpPassiveIpv4FramePlannerTests
             new byte[TcpPassiveIpv4FramePlanner.HeaderBytes],
             out TcpPassiveIpv4FramePlanResult badSynResult);
 
-        return shortStatus == TcpPassiveIpv4FramePlanStatus.FrameParseFailed
+        return HostCheck.Result(shortStatus == TcpPassiveIpv4FramePlanStatus.FrameParseFailed
             && shortResult.PacketStatus == PacketParseStatus.BufferTooSmall
             && shortPlanner.State == TcpPassiveOpenHandshakeState.Listen
             && ethernetStatus == PacketParseStatus.Success
@@ -338,9 +300,10 @@ internal static class TcpPassiveIpv4FramePlannerTests
             && badSynStatus == TcpPassiveIpv4FramePlanStatus.InvalidTcpFlags
             && badSynResult.TcpStatus == TcpPassiveOpenHandshakeStatus.InvalidFlags
             && badSynResult.TcpHeader.Flags == TcpPassiveOpenHandshake.FlagAck
-            && badSynPlanner.State == TcpPassiveOpenHandshakeState.Failed;
+            && badSynPlanner.State == TcpPassiveOpenHandshakeState.Failed);
     }
 
+    [HostTest("net.tcp.passive.ipv4 rejects bad final ack", HostLane.Fast, 6)]
     private static bool TestRejectsBadFinalAck()
     {
         TcpPassiveIpv4FramePlanner wrongAckPlanner = PreparedPlanner();
@@ -388,7 +351,7 @@ internal static class TcpPassiveIpv4FramePlannerTests
             wrongFlags,
             out TcpPassiveIpv4FramePlanResult wrongFlagsResult);
 
-        return wrongAckStatus == TcpPassiveIpv4FramePlanStatus.WrongAcknowledgementNumber
+        return HostCheck.Result(wrongAckStatus == TcpPassiveIpv4FramePlanStatus.WrongAcknowledgementNumber
             && !wrongAckResult.Succeeded
             && wrongAckResult.TcpStatus == TcpPassiveOpenHandshakeStatus.WrongAcknowledgementNumber
             && wrongAckResult.TcpHeader.AcknowledgementNumber == ServerInitialSequence + 2
@@ -402,9 +365,10 @@ internal static class TcpPassiveIpv4FramePlannerTests
             && !wrongFlagsResult.Succeeded
             && wrongFlagsResult.TcpStatus == TcpPassiveOpenHandshakeStatus.InvalidFlags
             && wrongFlagsResult.TcpHeader.Flags == (TcpPassiveOpenHandshake.FlagSyn | TcpPassiveOpenHandshake.FlagAck)
-            && wrongFlagsPlanner.State == TcpPassiveOpenHandshakeState.Failed;
+            && wrongFlagsPlanner.State == TcpPassiveOpenHandshakeState.Failed);
     }
 
+    [HostTest("net.tcp.passive.ipv4 rejects bad tcp checksum", HostLane.Fast, 5)]
     private static bool TestRejectsBadTcpChecksum()
     {
         TcpPassiveIpv4FramePlanner synPlanner = CreatePlanner();
@@ -442,7 +406,7 @@ internal static class TcpPassiveIpv4FramePlannerTests
             badFinalAck,
             out TcpPassiveIpv4FramePlanResult finalAckResult);
 
-        return synStatus == TcpPassiveIpv4FramePlanStatus.BadTcpChecksum
+        return HostCheck.Result(synStatus == TcpPassiveIpv4FramePlanStatus.BadTcpChecksum
             && !synResult.Succeeded
             && synResult.TcpStatus == TcpPassiveOpenHandshakeStatus.Success
             && synResult.PacketStatus == PacketParseStatus.BadChecksum
@@ -457,9 +421,10 @@ internal static class TcpPassiveIpv4FramePlannerTests
             && finalAckResult.State == TcpPassiveOpenHandshakeState.SynReceived
             && finalAckResult.TcpHeader.SequenceNumber == ClientInitialSequence + 1
             && finalAckResult.TcpHeader.AcknowledgementNumber == ServerInitialSequence + 1
-            && finalAckPlanner.State == TcpPassiveOpenHandshakeState.SynReceived;
+            && finalAckPlanner.State == TcpPassiveOpenHandshakeState.SynReceived);
     }
 
+    [HostTest("net.tcp.passive.ipv4 rejects short output", HostLane.Fast, 7)]
     private static bool TestRejectsShortOutput()
     {
         TcpPassiveIpv4FramePlanner planner = CreatePlanner();
@@ -480,15 +445,16 @@ internal static class TcpPassiveIpv4FramePlannerTests
             shortSynAck.AsSpan(0, shortSynAck.Length - 1),
             out TcpPassiveIpv4FramePlanResult result);
 
-        return status == TcpPassiveIpv4FramePlanStatus.FrameBufferTooSmall
+        return HostCheck.Result(status == TcpPassiveIpv4FramePlanStatus.FrameBufferTooSmall
             && !result.Succeeded
             && result.TcpStatus == TcpPassiveOpenHandshakeStatus.BufferTooSmall
             && result.PacketStatus == PacketParseStatus.BufferTooSmall
             && planner.State == TcpPassiveOpenHandshakeState.Listen
             && shortSynAck[0] == PoisonByte
-            && shortSynAck[^1] == PoisonByte;
+            && shortSynAck[^1] == PoisonByte);
     }
 
+    [HostTest("net.tcp.passive.ipv4 default result is not success", HostLane.Fast, 8)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         TcpPassiveIpv4FramePlannerInfo info = new(
@@ -533,7 +499,7 @@ internal static class TcpPassiveIpv4FramePlannerTests
             remoteInitialSequenceNumber: 0,
             remoteNextSequenceNumber: 0);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == TcpPassiveIpv4FramePlanStatus.Success
             && success.IsInitialized
@@ -562,7 +528,7 @@ internal static class TcpPassiveIpv4FramePlannerTests
             && failure.TcpStatus == TcpPassiveOpenHandshakeStatus.BufferTooSmall
             && failure.PacketStatus == PacketParseStatus.BufferTooSmall
             && failure.BytesWritten == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpPassiveIpv4FramePlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpPassiveIpv4FramePlanResult>());
     }
 
     private static TcpPassiveIpv4FramePlanner PreparedPlanner()

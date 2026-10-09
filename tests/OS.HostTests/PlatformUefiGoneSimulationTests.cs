@@ -6,73 +6,8 @@ using OS.Std.Binary;
 
 internal static class PlatformUefiGoneSimulationTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run(
-            "platform.uefi gone simulation denies all guarded adapters",
-            TestSimulationDeniesAllGuardedAdapters,
-            ref failures);
-        Run(
-            "platform.uefi gone simulation denies filesystem adapter",
-            TestSimulationDeniesFileSystemAdapter,
-            ref failures);
-        Run(
-            "platform.uefi gone simulation denies console memorymap and config adapters",
-            TestSimulationDeniesGuardedAdapters,
-            ref failures);
-        Run(
-            "platform.uefi gone simulation reports console allowance",
-            TestSimulationReportsConsoleAllowance,
-            ref failures);
-        Run(
-            "platform.uefi gone simulation reports timer allowance",
-            TestSimulationReportsTimerAllowance,
-            ref failures);
-        Run(
-            "platform.uefi gone simulation rejects already-exited firmware",
-            TestSimulationRejectsAlreadyExitedFirmware,
-            ref failures);
-        Run(
-            "platform.config tables scans ACPI before UEFI gone",
-            TestConfigurationTablesScanBeforeUefiGone,
-            ref failures);
-        Run(
-            "platform.config tables rejects scan in UEFI-gone simulation",
-            TestConfigurationTablesRejectAfterUefiGone,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Platform UEFI-gone simulation host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("platform.uefi gone simulation denies all guarded adapters", HostLane.Fast, 0)]
     private static bool TestSimulationDeniesAllGuardedAdapters()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -97,7 +32,7 @@ internal static class PlatformUefiGoneSimulationTests
             new GuardedPlatformFramebuffer(firmware, framebufferSource),
             new GuardedPlatformFileSystem(firmware, fileSystemSource));
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == PlatformUefiGoneSimulationStatus.Success
             && result.Marker == PlatformUefiGoneSimulation.PlatformDeniedMarker
             && firmware.Mode == FirmwareServicesMode.UefiGoneSimulated
@@ -128,9 +63,10 @@ internal static class PlatformUefiGoneSimulationTests
             && randomSource.FillCount == 0
             && physicalSource.ReadCount == 0
             && framebufferSource.CaptureCount == 0
-            && fileSystemSource.ReadCount == 0;
+            && fileSystemSource.ReadCount == 0);
     }
 
+    [HostTest("platform.uefi gone simulation denies filesystem adapter", HostLane.Fast, 1)]
     private static bool TestSimulationDeniesFileSystemAdapter()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -155,7 +91,7 @@ internal static class PlatformUefiGoneSimulationTests
             new GuardedPlatformFramebuffer(firmware, framebufferSource),
             new GuardedPlatformFileSystem(firmware, fileSystemSource));
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.FileSystem.Status == PlatformFileSystemStatus.FirmwareServicesUnavailable
             && result.FileSystem.Mode == FirmwareServicesMode.UefiGoneSimulated
             && result.FileSystem.Operation == PlatformFileSystemOperations.ReadFile
@@ -166,9 +102,10 @@ internal static class PlatformUefiGoneSimulationTests
             && timerSource.ReadCount == 0
             && randomSource.FillCount == 0
             && physicalSource.ReadCount == 0
-            && framebufferSource.CaptureCount == 0;
+            && framebufferSource.CaptureCount == 0);
     }
 
+    [HostTest("platform.uefi gone simulation denies console memorymap and config adapters", HostLane.Fast, 2)]
     private static bool TestSimulationDeniesGuardedAdapters()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -188,7 +125,7 @@ internal static class PlatformUefiGoneSimulationTests
             memoryMap,
             configurationTables);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == PlatformUefiGoneSimulationStatus.Success
             && result.Marker == PlatformUefiGoneSimulation.PlatformDeniedMarker
             && firmware.Mode == FirmwareServicesMode.UefiGoneSimulated
@@ -206,9 +143,10 @@ internal static class PlatformUefiGoneSimulationTests
                 == PlatformConfigurationTableOperations.ScanAcpiRsdp
             && consoleSink.LineCount == 0
             && memoryMapSource.CaptureCount == 0
-            && configurationSource.ScanCount == 0;
+            && configurationSource.ScanCount == 0);
     }
 
+    [HostTest("platform.uefi gone simulation reports console allowance", HostLane.Fast, 3)]
     private static bool TestSimulationReportsConsoleAllowance()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -227,16 +165,17 @@ internal static class PlatformUefiGoneSimulationTests
             memoryMap,
             configurationTables);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformUefiGoneSimulationStatus.ConsoleCallNotDenied
             && result.Marker
                 == PlatformUefiGoneSimulation.FailMarkerPrefix
                     + nameof(PlatformUefiGoneSimulationStatus.ConsoleCallNotDenied)
             && console.WriteCount == 1
             && memoryMapSource.CaptureCount == 0
-            && configurationSource.ScanCount == 0;
+            && configurationSource.ScanCount == 0);
     }
 
+    [HostTest("platform.uefi gone simulation reports timer allowance", HostLane.Fast, 4)]
     private static bool TestSimulationReportsTimerAllowance()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -259,7 +198,7 @@ internal static class PlatformUefiGoneSimulationTests
             new GuardedPlatformPhysicalMemory(firmware, physicalSource),
             new GuardedPlatformFramebuffer(firmware, framebufferSource));
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformUefiGoneSimulationStatus.TimerCallNotDenied
             && result.Marker
                 == PlatformUefiGoneSimulation.FailMarkerPrefix
@@ -278,9 +217,10 @@ internal static class PlatformUefiGoneSimulationTests
             && configurationSource.ScanCount == 0
             && randomSource.FillCount == 0
             && physicalSource.ReadCount == 0
-            && framebufferSource.CaptureCount == 0;
+            && framebufferSource.CaptureCount == 0);
     }
 
+    [HostTest("platform.uefi gone simulation rejects already-exited firmware", HostLane.Fast, 5)]
     private static bool TestSimulationRejectsAlreadyExitedFirmware()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -296,15 +236,16 @@ internal static class PlatformUefiGoneSimulationTests
             new GuardedPlatformMemoryMap(firmware, memoryMapSource),
             new GuardedPlatformConfigurationTables(firmware, configurationSource));
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformUefiGoneSimulationStatus.SimulationDenied
             && result.Transition.Mode == FirmwareServicesMode.BootServicesExited
             && firmware.Mode == FirmwareServicesMode.BootServicesExited
             && consoleSink.LineCount == 0
             && memoryMapSource.CaptureCount == 0
-            && configurationSource.ScanCount == 0;
+            && configurationSource.ScanCount == 0);
     }
 
+    [HostTest("platform.config tables scans ACPI before UEFI gone", HostLane.Fast, 6)]
     private static bool TestConfigurationTablesScanBeforeUefiGone()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -315,7 +256,7 @@ internal static class PlatformUefiGoneSimulationTests
 
         PlatformConfigurationTableScanResult result = configurationTables.ScanAcpiRsdp();
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == PlatformConfigurationTableScanStatus.Success
             && result.Mode == FirmwareServicesMode.BootServicesAvailable
             && result.Operation == PlatformConfigurationTableOperations.ScanAcpiRsdp
@@ -323,9 +264,10 @@ internal static class PlatformUefiGoneSimulationTests
             && result.AcpiScanStatus == EfiConfigurationTableScanStatus.Ok
             && result.TableKind == EfiAcpiTableKind.Acpi20
             && result.RsdpAddress == 0x1000
-            && source.ScanCount == 1;
+            && source.ScanCount == 1);
     }
 
+    [HostTest("platform.config tables rejects scan in UEFI-gone simulation", HostLane.Fast, 7)]
     private static bool TestConfigurationTablesRejectAfterUefiGone()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -337,12 +279,12 @@ internal static class PlatformUefiGoneSimulationTests
 
         PlatformConfigurationTableScanResult result = configurationTables.ScanAcpiRsdp();
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformConfigurationTableScanStatus.FirmwareServicesUnavailable
             && result.Mode == FirmwareServicesMode.UefiGoneSimulated
             && result.Operation == PlatformConfigurationTableOperations.ScanAcpiRsdp
             && !result.AcpiScanAttempted
-            && source.ScanCount == 0;
+            && source.ScanCount == 0);
     }
 
     private static UefiMemoryMapSnapshot CreateValidSnapshot()

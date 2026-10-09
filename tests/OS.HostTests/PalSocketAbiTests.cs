@@ -22,48 +22,7 @@ internal static class PalSocketAbiTests
         typeof(OSHostSocketAddressQueryRequest)
     ];
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("pal.socket.abi validates pod layouts", TestValidatesPodLayouts, ref failures);
-        Run("pal.socket.abi validates status codes", TestValidatesStatusCodes, ref failures);
-        Run("pal.socket.abi rejects managed boundary assumptions", TestRejectsManagedBoundaryAssumptions, ref failures);
-        Run("pal.socket abi exposes endpoint contracts", TestExposesEndpointContracts, ref failures);
-        Run("pal.socket abi rejects invalid endpoint values", TestRejectsInvalidEndpointValues, ref failures);
-        Run("pal.socket abi exposes deterministic status codes", TestExposesDeterministicStatusCodes, ref failures);
-        Run("pal.socket abi default operation result is not success", TestDefaultOperationResultIsNotSuccess, ref failures);
-        Run("pal.socket options reject unsupported values", TestRejectsUnsupportedSocketOptions, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL socket ABI host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.socket.abi validates pod layouts", HostLane.Fast, 0)]
     private static bool TestValidatesPodLayouts()
     {
         foreach (Type type in SocketAbiStructTypes)
@@ -72,7 +31,7 @@ internal static class PalSocketAbiTests
             if (layout is null || layout.Value != LayoutKind.Sequential)
             {
                 Console.WriteLine("PAL socket ABI struct is not sequential: " + type.FullName);
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
@@ -85,10 +44,10 @@ internal static class PalSocketAbiTests
             || Marshal.SizeOf<OSHostSocketOptionRequest>() != 32
             || Marshal.SizeOf<OSHostSocketAddressQueryRequest>() != 24)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return Offset<OSHostSocketBindRequest>(nameof(OSHostSocketBindRequest.Socket)) == 0
+        return HostCheck.Result(Offset<OSHostSocketBindRequest>(nameof(OSHostSocketBindRequest.Socket)) == 0
             && Offset<OSHostSocketBindRequest>(nameof(OSHostSocketBindRequest.Address)) == 8
             && Offset<OSHostSocketBindRequest>(nameof(OSHostSocketBindRequest.Flags)) == 40
             && Offset<OSHostSocketListenRequest>(nameof(OSHostSocketListenRequest.Backlog)) == 8
@@ -102,12 +61,13 @@ internal static class PalSocketAbiTests
             && Offset<OSHostSocketShutdownRequest>(nameof(OSHostSocketShutdownRequest.Direction)) == 8
             && Offset<OSHostSocketOptionRequest>(nameof(OSHostSocketOptionRequest.OptionName)) == 8
             && Offset<OSHostSocketOptionRequest>(nameof(OSHostSocketOptionRequest.Value)) == 16
-            && Offset<OSHostSocketAddressQueryRequest>(nameof(OSHostSocketAddressQueryRequest.AddressKind)) == 8;
+            && Offset<OSHostSocketAddressQueryRequest>(nameof(OSHostSocketAddressQueryRequest.AddressKind)) == 8);
     }
 
+    [HostTest("pal.socket.abi validates status codes", HostLane.Fast, 1)]
     private static bool TestValidatesStatusCodes()
     {
-        return HasStatusCode(OSHostStatus.InvalidArgument, 1)
+        return HostCheck.Result(HasStatusCode(OSHostStatus.InvalidArgument, 1)
             && HasStatusCode(OSHostStatus.NotSupported, 2)
             && HasStatusCode(OSHostStatus.OutOfMemory, 6)
             && HasStatusCode(OSHostStatus.WouldBlock, 7)
@@ -120,9 +80,10 @@ internal static class PalSocketAbiTests
             && OSHostStatusNames.GetConstantName(OSHostStatus.ConnectionReset) == "OSHOST_STATUS_CONNECTION_RESET"
             && OSHostStatusNames.GetConstantName(OSHostStatus.Closed) == "OSHOST_STATUS_CLOSED"
             && OSHostStatusNames.IsDefined((int)OSHostStatus.Closed)
-            && !OSHostStatusNames.IsDefined(20);
+            && !OSHostStatusNames.IsDefined(20));
     }
 
+    [HostTest("pal.socket.abi rejects managed boundary assumptions", HostLane.Fast, 2)]
     private static bool TestRejectsManagedBoundaryAssumptions()
     {
         foreach (Type type in SocketAbiStructTypes)
@@ -130,7 +91,7 @@ internal static class PalSocketAbiTests
             if (ContainsReferenceField(type, new HashSet<Type>()))
             {
                 Console.WriteLine("PAL socket ABI struct contains a managed field: " + type.FullName);
-                return false;
+                return HostCheck.Result(false);
             }
 
             foreach (FieldInfo field in type.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic))
@@ -138,21 +99,22 @@ internal static class PalSocketAbiTests
                 if (!field.IsPublic || !field.IsInitOnly)
                 {
                     Console.WriteLine("PAL socket ABI field is not public readonly: " + type.FullName + "." + field.Name);
-                    return false;
+                    return HostCheck.Result(false);
                 }
             }
         }
 
-        return AssertUnmanaged<OSHostSocketBindRequest>()
+        return HostCheck.Result(AssertUnmanaged<OSHostSocketBindRequest>()
             && AssertUnmanaged<OSHostSocketListenRequest>()
             && AssertUnmanaged<OSHostSocketAcceptRequest>()
             && AssertUnmanaged<OSHostSocketAcceptOutput>()
             && AssertUnmanaged<OSHostSocketConnectRequest>()
             && AssertUnmanaged<OSHostSocketShutdownRequest>()
             && AssertUnmanaged<OSHostSocketOptionRequest>()
-            && AssertUnmanaged<OSHostSocketAddressQueryRequest>();
+            && AssertUnmanaged<OSHostSocketAddressQueryRequest>());
     }
 
+    [HostTest("pal.socket abi exposes endpoint contracts", HostLane.Fast, 3)]
     private static bool TestExposesEndpointContracts()
     {
         if (RuntimeHelpers.IsReferenceOrContainsReferences<OSHostSocketHandle>()
@@ -161,7 +123,7 @@ internal static class PalSocketAbiTests
             || RuntimeHelpers.IsReferenceOrContainsReferences<OSHostSocketWaitOptions>()
             || RuntimeHelpers.IsReferenceOrContainsReferences<OSHostSocketOperationResult>())
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (Marshal.SizeOf<OSHostSocketHandle>() != 8
@@ -170,7 +132,7 @@ internal static class PalSocketAbiTests
             || Marshal.SizeOf<OSHostSocketWaitOptions>() != 40
             || Marshal.SizeOf<OSHostSocketOperationResult>() != 32)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (Offset<OSHostIpv4Endpoint>(nameof(OSHostIpv4Endpoint.Family)) != 0
@@ -185,7 +147,7 @@ internal static class PalSocketAbiTests
             || Offset<OSHostSocketOperationResult>(nameof(OSHostSocketOperationResult.BytesTransferred)) != 8
             || Offset<OSHostSocketOperationResult>(nameof(OSHostSocketOperationResult.Socket)) != 16)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostStatus status = OSHostIpv4Endpoint.TryCreate(
@@ -202,7 +164,7 @@ internal static class PalSocketAbiTests
             || endpoint.PortHostOrder != 8080
             || endpoint.ToAddressNetworkOrder() != 0x7F000001)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostSocketAddress genericAddress = endpoint.AsSocketAddress();
@@ -211,7 +173,7 @@ internal static class PalSocketAbiTests
             || genericAddress.AddressHigh != 0
             || genericAddress.AddressLow != 0x7F000001)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostSocketHandle socket = new OSHostSocketHandle(0x100);
@@ -221,12 +183,13 @@ internal static class PalSocketAbiTests
             OSHostSocketConstants.WaitModeAccept,
             flags: 0);
 
-        return socket.IsValid
+        return HostCheck.Result(socket.IsValid
             && socket.AsHandle().Value == 0x100
             && OSHostSocketHandle.FromHandle(socket.AsHandle()).Value == socket.Value
-            && waitOptions.Validate() == OSHostStatus.Ok;
+            && waitOptions.Validate() == OSHostStatus.Ok);
     }
 
+    [HostTest("pal.socket abi rejects invalid endpoint values", HostLane.Fast, 4)]
     private static bool TestRejectsInvalidEndpointValues()
     {
         OSHostStatus zeroPortStatus = OSHostIpv4Endpoint.TryCreate(
@@ -239,7 +202,7 @@ internal static class PalSocketAbiTests
         if (zeroPortStatus != OSHostStatus.InvalidArgument
             || zeroPortEndpoint.IsValid)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostIpv4Endpoint wrongFamily = new OSHostIpv4Endpoint(
@@ -251,7 +214,7 @@ internal static class PalSocketAbiTests
             address3: 1);
         if (OSHostIpv4Endpoint.Validate(wrongFamily) != OSHostStatus.InvalidArgument)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostSocketWaitOptions invalidSocket = new OSHostSocketWaitOptions(
@@ -261,7 +224,7 @@ internal static class PalSocketAbiTests
             flags: 0);
         if (invalidSocket.Validate() != OSHostStatus.InvalidArgument)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostSocketWaitOptions invalidMode = new OSHostSocketWaitOptions(
@@ -271,7 +234,7 @@ internal static class PalSocketAbiTests
             flags: 0);
         if (invalidMode.Validate() != OSHostStatus.InvalidArgument)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostSocketWaitOptions invalidTimeout = new OSHostSocketWaitOptions(
@@ -281,26 +244,26 @@ internal static class PalSocketAbiTests
             flags: 0);
         if (invalidTimeout.Validate() != OSHostStatus.InvalidArgument)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (OSHostSocketTimeouts.TryFromMilliseconds(-2, tickFrequency: 1_000, out _) != OSHostStatus.InvalidArgument)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (OSHostSocketTimeouts.TryFromMilliseconds(-1, tickFrequency: 1_000, out OSHostTimeout infinite) != OSHostStatus.Ok
             || infinite.Kind != OSHostSocketConstants.TimeoutKindInfinite
             || !OSHostSocketTimeouts.IsValid(infinite))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (OSHostSocketTimeouts.TryFromMilliseconds(0, tickFrequency: 1_000, out OSHostTimeout immediate) != OSHostStatus.Ok
             || immediate.Kind != OSHostSocketConstants.TimeoutKindImmediate
             || !OSHostSocketTimeouts.IsValid(immediate))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (OSHostSocketTimeouts.TryFromMilliseconds(1_500, tickFrequency: 1_000, out OSHostTimeout relative) != OSHostStatus.Ok
@@ -308,14 +271,15 @@ internal static class PalSocketAbiTests
             || relative.Ticks != 1_500
             || relative.TickFrequency != 1_000)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return OSHostSocketTimeouts.TryFromMilliseconds(long.MaxValue, ulong.MaxValue, out OSHostTimeout clamped) == OSHostStatus.Ok
+        return HostCheck.Result(OSHostSocketTimeouts.TryFromMilliseconds(long.MaxValue, ulong.MaxValue, out OSHostTimeout clamped) == OSHostStatus.Ok
             && clamped.Ticks == ulong.MaxValue
-            && OSHostSocketTimeouts.IsValid(clamped);
+            && OSHostSocketTimeouts.IsValid(clamped));
     }
 
+    [HostTest("pal.socket abi exposes deterministic status codes", HostLane.Fast, 5)]
     private static bool TestExposesDeterministicStatusCodes()
     {
         if (!HasStatusCode(OSHostStatus.WouldBlock, 7)
@@ -328,7 +292,7 @@ internal static class PalSocketAbiTests
             || !HasStatusCode(OSHostStatus.TryAgain, 16)
             || !HasStatusCode(OSHostStatus.Closed, 19))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (OSHostStatusNames.GetConstantName(OSHostStatus.Ok) != "OSHOST_STATUS_OK"
@@ -342,7 +306,7 @@ internal static class PalSocketAbiTests
             || OSHostStatusNames.GetConstantName(OSHostStatus.Closed) != "OSHOST_STATUS_CLOSED"
             || OSHostStatusNames.GetConstantName(999) != OSHostStatusNames.Unknown)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostSocketOperationResult wouldBlock = OSHostSocketOperationResult.FromStatus(
@@ -353,7 +317,7 @@ internal static class PalSocketAbiTests
             || !wouldBlock.IsRetryable
             || wouldBlock.ValidateStatus() != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostSocketOperationResult ok = OSHostSocketOperationResult.FromStatus(
@@ -364,7 +328,7 @@ internal static class PalSocketAbiTests
             || ok.IsRetryable
             || ok.BytesTransferred != 128)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostSocketOperationResult invalid = new OSHostSocketOperationResult(
@@ -373,9 +337,10 @@ internal static class PalSocketAbiTests
             bytesTransferred: 0,
             socket: new OSHostSocketHandle(7),
             reserved: 0);
-        return invalid.ValidateStatus() == OSHostStatus.InvalidArgument;
+        return HostCheck.Result(invalid.ValidateStatus() == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.socket abi default operation result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultOperationResultIsNotSuccess()
     {
         OSHostSocketOperationResult result = default;
@@ -384,16 +349,17 @@ internal static class PalSocketAbiTests
             bytesTransferred: 0,
             new OSHostSocketHandle(7));
 
-        return result.StatusCode == (int)OSHostStatus.Ok
+        return HostCheck.Result(result.StatusCode == (int)OSHostStatus.Ok
             && !result.Succeeded
             && !result.Socket.IsValid
             && result.BytesTransferred == 0
             && result.ValidateStatus() == OSHostStatus.Ok
             && zeroByteSuccess.Succeeded
             && zeroByteSuccess.BytesTransferred == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostSocketOperationResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostSocketOperationResult>());
     }
 
+    [HostTest("pal.socket options reject unsupported values", HostLane.Fast, 7)]
     private static bool TestRejectsUnsupportedSocketOptions()
     {
         if (!OSHostSocketOptions.IsDefined(OSHostSocketConstants.SocketOptionNoDelay)
@@ -403,7 +369,7 @@ internal static class PalSocketAbiTests
             || !OSHostSocketOptions.IsDefined(OSHostSocketConstants.SocketOptionKeepAlive)
             || OSHostSocketOptions.IsDefined(99))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (OSHostSocketOptions.Validate(
@@ -419,10 +385,10 @@ internal static class PalSocketAbiTests
                 OSHostSocketConstants.SocketOptionSendTimeoutMilliseconds,
                 OSHostSocketOptionValue.TimeoutMilliseconds(1500)) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return OSHostSocketOptions.Validate(
+        return HostCheck.Result(OSHostSocketOptions.Validate(
                 OSHostSocketConstants.SocketOptionNoDelay,
                 new OSHostSocketOptionValue(2, reserved: 0)) == OSHostStatus.InvalidArgument
             && OSHostSocketOptions.Validate(
@@ -433,7 +399,7 @@ internal static class PalSocketAbiTests
                 OSHostSocketOptionValue.TimeoutMilliseconds(-2)) == OSHostStatus.InvalidArgument
             && OSHostSocketOptions.Validate(
                 99,
-                OSHostSocketOptionValue.Boolean(enabled: true)) == OSHostStatus.InvalidArgument;
+                OSHostSocketOptionValue.Boolean(enabled: true)) == OSHostStatus.InvalidArgument);
     }
 
     private static int Offset<T>(string fieldName)

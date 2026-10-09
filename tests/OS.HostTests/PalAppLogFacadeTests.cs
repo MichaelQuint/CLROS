@@ -4,46 +4,8 @@ using OS.Pal;
 
 internal static class PalAppLogFacadeTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("pal.app_log facade writes stdout", TestWritesStdout, ref failures);
-        Run("pal.app_log facade writes stderr", TestWritesStderr, ref failures);
-        Run("pal.app_log facade rejects invalid stream", TestRejectsInvalidStream, ref failures);
-        Run("pal.app_log facade rejects oversized write", TestRejectsOversizedWrite, ref failures);
-        Run("pal.app_log facade reports exhaustion", TestReportsExhaustion, ref failures);
-        Run("pal.app_log facade preserves machine marker flag", TestPreservesMachineMarkerFlag, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL app log facade host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.app_log facade writes stdout", HostLane.Fast, 0)]
     private static bool TestWritesStdout()
     {
         OSHostAppLogTable table = new(recordCapacity: 2, maxRecordBytes: 64);
@@ -57,16 +19,17 @@ internal static class PalAppLogFacadeTests
         Span<byte> destination = stackalloc byte[payload.Length];
         OSHostAppLogReadResult read = table.TryCopyRecord(write.RecordIndex, destination);
 
-        return write.Succeeded
+        return HostCheck.Result(write.Succeeded
             && write.RecordIndex == 0
             && write.BytesWritten == (uint)payload.Length
             && table.Count == 1
             && read.Succeeded
             && read.StreamId == OSHostAppLogConstants.StreamStdout
             && read.Flags == 0
-            && BytesEqual(payload, destination);
+            && BytesEqual(payload, destination));
     }
 
+    [HostTest("pal.app_log facade writes stderr", HostLane.Fast, 1)]
     private static bool TestWritesStderr()
     {
         OSHostAppLogTable table = new(recordCapacity: 2, maxRecordBytes: 64);
@@ -80,20 +43,21 @@ internal static class PalAppLogFacadeTests
         if (!write.Succeeded
             || table.TryGetEntry(write.RecordIndex, out OSHostAppLogTableEntry entry) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> destination = stackalloc byte[payload.Length];
         OSHostAppLogReadResult read = table.TryCopyRecord(write.RecordIndex, destination);
 
-        return entry.IsStderr
+        return HostCheck.Result(entry.IsStderr
             && !entry.IsStdout
             && entry.Flags == OSHostAppLogConstants.FlagMachineReadable
             && read.Succeeded
             && read.StreamId == OSHostAppLogConstants.StreamStderr
-            && BytesEqual(payload, destination);
+            && BytesEqual(payload, destination));
     }
 
+    [HostTest("pal.app_log facade rejects invalid stream", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidStream()
     {
         OSHostAppLogTable table = new(recordCapacity: 1, maxRecordBytes: 16);
@@ -104,12 +68,13 @@ internal static class PalAppLogFacadeTests
             Request(streamId: 99, payload, flags: 0),
             payload);
 
-        return write.Status == OSHostStatus.InvalidArgument
+        return HostCheck.Result(write.Status == OSHostStatus.InvalidArgument
             && write.RecordIndex == uint.MaxValue
             && write.BytesWritten == 0
-            && table.Count == 0;
+            && table.Count == 0);
     }
 
+    [HostTest("pal.app_log facade rejects oversized write", HostLane.Fast, 3)]
     private static bool TestRejectsOversizedWrite()
     {
         OSHostAppLogTable table = new(recordCapacity: 1, maxRecordBytes: 4);
@@ -121,13 +86,14 @@ internal static class PalAppLogFacadeTests
             payload);
         OSHostAppLogReadResult read = table.TryCopyRecord(0, stackalloc byte[1]);
 
-        return write.Status == OSHostStatus.BufferTooSmall
+        return HostCheck.Result(write.Status == OSHostStatus.BufferTooSmall
             && write.RecordIndex == uint.MaxValue
             && write.BytesWritten == 0
             && table.Count == 0
-            && read.Status == OSHostStatus.InvalidArgument;
+            && read.Status == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.app_log facade reports exhaustion", HostLane.Fast, 4)]
     private static bool TestReportsExhaustion()
     {
         OSHostAppLogTable table = new(recordCapacity: 1, maxRecordBytes: 16);
@@ -142,14 +108,15 @@ internal static class PalAppLogFacadeTests
             Request(OSHostAppLogConstants.StreamStderr, secondPayload, flags: 0),
             secondPayload);
 
-        return first.Succeeded
+        return HostCheck.Result(first.Succeeded
             && first.RecordIndex == 0
             && second.Status == OSHostStatus.OutOfMemory
             && second.RecordIndex == uint.MaxValue
             && second.BytesWritten == 0
-            && table.Count == 1;
+            && table.Count == 1);
     }
 
+    [HostTest("pal.app_log facade preserves machine marker flag", HostLane.Fast, 5)]
     private static bool TestPreservesMachineMarkerFlag()
     {
         OSHostAppLogTable table = new(recordCapacity: 2, maxRecordBytes: 128);
@@ -163,11 +130,11 @@ internal static class PalAppLogFacadeTests
         Span<byte> destination = stackalloc byte[marker.Length];
         OSHostAppLogReadResult read = table.TryCopyRecord(write.RecordIndex, destination);
 
-        return write.Succeeded
+        return HostCheck.Result(write.Succeeded
             && read.Succeeded
             && read.StreamId == OSHostAppLogConstants.StreamStdout
             && read.Flags == OSHostAppLogConstants.FlagMachineReadable
-            && Encoding.ASCII.GetString(destination) == "APP_EXIT code=0 status=OSHOST_STATUS_OK";
+            && Encoding.ASCII.GetString(destination) == "APP_EXIT code=0 status=OSHOST_STATUS_OK");
     }
 
     private static OSHostWriteLogBytesRequest Request(uint streamId, byte[] payload, uint flags)

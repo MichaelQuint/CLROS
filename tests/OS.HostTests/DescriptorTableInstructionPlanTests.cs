@@ -7,44 +7,7 @@ internal static class DescriptorTableInstructionPlanTests
     private const int LidtDisplacement = unchecked((int)0x44332211);
     private const int LgdtDisplacement = unchecked((int)0x88776655);
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("descriptor instruction plan encodes lidt", TestEncodesLidt, ref failures);
-        Run("descriptor instruction plan encodes lgdt", TestEncodesLgdt, ref failures);
-        Run("descriptor instruction plan encodes ltr", TestEncodesLtr, ref failures);
-        Run("descriptor instruction plan rejects invalid inputs", TestRejectsInvalidInputs, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Descriptor instruction plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("descriptor instruction plan encodes lidt", HostLane.Fast, 0)]
     private static bool TestEncodesLidt()
     {
         byte[] bytes = CreatePoisonedBuffer(DescriptorTableInstructionPlan.RipRelativeDescriptorInstructionLength + 1);
@@ -54,7 +17,7 @@ internal static class DescriptorTableInstructionPlanTests
             LidtDisplacement,
             bytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == DescriptorTableInstructionPlanStatus.Ok
             && result.OperationKind == DescriptorTableInstructionKind.Lidt
             && result.BytesWritten == DescriptorTableInstructionPlan.RipRelativeDescriptorInstructionLength
@@ -71,9 +34,10 @@ internal static class DescriptorTableInstructionPlanTests
                 bytes.AsSpan(
                     DescriptorTableInstructionPlan.RipRelativeDisplacementOffset,
                     DescriptorTableInstructionPlan.RipRelativeDisplacementLength)) == unchecked((uint)LidtDisplacement)
-            && bytes[DescriptorTableInstructionPlan.RipRelativeDescriptorInstructionLength] == 0xcc;
+            && bytes[DescriptorTableInstructionPlan.RipRelativeDescriptorInstructionLength] == 0xcc);
     }
 
+    [HostTest("descriptor instruction plan encodes lgdt", HostLane.Fast, 1)]
     private static bool TestEncodesLgdt()
     {
         byte[] bytes = CreatePoisonedBuffer(DescriptorTableInstructionPlan.RipRelativeDescriptorInstructionLength + 1);
@@ -83,7 +47,7 @@ internal static class DescriptorTableInstructionPlanTests
             LgdtDisplacement,
             bytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == DescriptorTableInstructionPlanStatus.Ok
             && result.OperationKind == DescriptorTableInstructionKind.Lgdt
             && result.BytesWritten == DescriptorTableInstructionPlan.RipRelativeDescriptorInstructionLength
@@ -97,9 +61,10 @@ internal static class DescriptorTableInstructionPlanTests
                 bytes.AsSpan(
                     DescriptorTableInstructionPlan.RipRelativeDisplacementOffset,
                     DescriptorTableInstructionPlan.RipRelativeDisplacementLength)) == unchecked((uint)LgdtDisplacement)
-            && bytes[DescriptorTableInstructionPlan.RipRelativeDescriptorInstructionLength] == 0xcc;
+            && bytes[DescriptorTableInstructionPlan.RipRelativeDescriptorInstructionLength] == 0xcc);
     }
 
+    [HostTest("descriptor instruction plan encodes ltr", HostLane.Fast, 2)]
     private static bool TestEncodesLtr()
     {
         byte[] bytes = CreatePoisonedBuffer(DescriptorTableInstructionPlan.LtrAxInstructionLength + 1);
@@ -109,7 +74,7 @@ internal static class DescriptorTableInstructionPlanTests
             ripRelativeDisplacement: 0,
             bytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == DescriptorTableInstructionPlanStatus.Ok
             && result.OperationKind == DescriptorTableInstructionKind.Ltr
             && result.BytesWritten == DescriptorTableInstructionPlan.LtrAxInstructionLength
@@ -119,9 +84,10 @@ internal static class DescriptorTableInstructionPlanTests
             && bytes[0] == DescriptorTableInstructionPlan.TwoByteOpcodePrefix
             && bytes[1] == DescriptorTableInstructionPlan.LtrOpcode
             && bytes[2] == DescriptorTableInstructionPlan.LtrAxModRm
-            && bytes[DescriptorTableInstructionPlan.LtrAxInstructionLength] == 0xcc;
+            && bytes[DescriptorTableInstructionPlan.LtrAxInstructionLength] == 0xcc);
     }
 
+    [HostTest("descriptor instruction plan rejects invalid inputs", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidInputs()
     {
         byte[] validBytes = CreatePoisonedBuffer(DescriptorTableInstructionPlan.RipRelativeDescriptorInstructionLength);
@@ -141,7 +107,7 @@ internal static class DescriptorTableInstructionPlanTests
             ripRelativeDisplacement: 0,
             shortLtrBytes);
 
-        return !invalidKind.Succeeded
+        return HostCheck.Result(!invalidKind.Succeeded
             && invalidKind.Status == DescriptorTableInstructionPlanStatus.InvalidOperationKind
             && invalidKind.OperationKind == (DescriptorTableInstructionKind)99
             && invalidKind.BytesWritten == 0
@@ -164,7 +130,7 @@ internal static class DescriptorTableInstructionPlanTests
             && DescriptorTableInstructionPlan.Validate(
                 DescriptorTableInstructionKind.Lgdt,
                 DescriptorTableInstructionPlan.RipRelativeDescriptorInstructionLength - 1)
-                == DescriptorTableInstructionPlanStatus.OutputBufferTooSmall;
+                == DescriptorTableInstructionPlanStatus.OutputBufferTooSmall);
     }
 
     private static byte[] CreatePoisonedBuffer(int length)

@@ -6,48 +6,7 @@ internal static class NetworkReceiveDispatcherTests
 {
     private const ushort UnsupportedEtherType = 0x86DD;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.rx.dispatch parses arp payload", TestParsesArpPayload, ref failures);
-        Run("net.rx.dispatch parses ipv4 payload", TestParsesIpv4Payload, ref failures);
-        Run("net.rx.dispatch reports classifier failure", TestReportsClassifierFailure, ref failures);
-        Run("net.rx.dispatch reports arp parse failure", TestReportsArpParseFailure, ref failures);
-        Run("net.rx.dispatch reports ipv4 parse failure", TestReportsIpv4ParseFailure, ref failures);
-        Run("net.rx.dispatch reports unsupported payload", TestReportsUnsupportedPayload, ref failures);
-        Run("net.rx.dispatch default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Network receive dispatcher host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.rx.dispatch parses arp payload", HostLane.Fast, 0)]
     private static bool TestParsesArpPayload()
     {
         byte[] buffer = CreateArpReceiveBuffer();
@@ -55,7 +14,7 @@ internal static class NetworkReceiveDispatcherTests
         NetworkReceiveDispatchResult result =
             NetworkReceiveDispatcher.Dispatch(buffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == NetworkReceiveDispatchStatus.Success
             && result.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.Success
             && result.ClassifierPacketStatus == PacketParseStatus.Success
@@ -72,9 +31,10 @@ internal static class NetworkReceiveDispatcherTests
             && result.ArpPacket.TargetMac == default
             && result.ArpPacket.TargetAddress == TargetAddress()
             && result.Ipv4PayloadOffset == 0
-            && result.Ipv4PayloadLength == 0;
+            && result.Ipv4PayloadLength == 0);
     }
 
+    [HostTest("net.rx.dispatch parses ipv4 payload", HostLane.Fast, 1)]
     private static bool TestParsesIpv4Payload()
     {
         byte[] buffer = CreateIpv4UdpReceiveBuffer();
@@ -82,7 +42,7 @@ internal static class NetworkReceiveDispatcherTests
         NetworkReceiveDispatchResult result =
             NetworkReceiveDispatcher.Dispatch(buffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == NetworkReceiveDispatchStatus.Success
             && result.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.Success
             && result.ClassifierPacketStatus == PacketParseStatus.Success
@@ -94,9 +54,10 @@ internal static class NetworkReceiveDispatcherTests
             && result.Ipv4Header.Protocol == Ipv4Header.ProtocolUdp
             && result.Ipv4Header.TotalLength == Ipv4Header.MinHeaderLength + UdpHeader.HeaderLength + 4
             && result.Ipv4PayloadOffset == ExpectedPayloadOffset + Ipv4Header.MinHeaderLength
-            && result.Ipv4PayloadLength == UdpHeader.HeaderLength + 4;
+            && result.Ipv4PayloadLength == UdpHeader.HeaderLength + 4);
     }
 
+    [HostTest("net.rx.dispatch reports classifier failure", HostLane.Fast, 2)]
     private static bool TestReportsClassifierFailure()
     {
         byte[] buffer = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers - 1];
@@ -104,16 +65,17 @@ internal static class NetworkReceiveDispatcherTests
         NetworkReceiveDispatchResult result =
             NetworkReceiveDispatcher.Dispatch(buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NetworkReceiveDispatchStatus.ClassifierFailed
             && result.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.BufferTooSmall
             && result.ClassifierPacketStatus == PacketParseStatus.BufferTooSmall
             && result.PayloadPacketStatus == PacketParseStatus.BufferTooSmall
             && result.PayloadKind == EthernetPayloadKind.Unsupported
             && result.PayloadOffset == 0
-            && result.PayloadLength == 0;
+            && result.PayloadLength == 0);
     }
 
+    [HostTest("net.rx.dispatch reports arp parse failure", HostLane.Fast, 3)]
     private static bool TestReportsArpParseFailure()
     {
         byte[] buffer = CreateReceiveBuffer(
@@ -123,16 +85,17 @@ internal static class NetworkReceiveDispatcherTests
         NetworkReceiveDispatchResult result =
             NetworkReceiveDispatcher.Dispatch(buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NetworkReceiveDispatchStatus.ArpParseFailed
             && result.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.Success
             && result.ClassifierPacketStatus == PacketParseStatus.Success
             && result.PayloadPacketStatus == PacketParseStatus.BufferTooSmall
             && result.PayloadKind == EthernetPayloadKind.Arp
             && result.PayloadOffset == ExpectedPayloadOffset
-            && result.PayloadLength == ArpPacket.PacketLength - 1;
+            && result.PayloadLength == ArpPacket.PacketLength - 1);
     }
 
+    [HostTest("net.rx.dispatch reports ipv4 parse failure", HostLane.Fast, 4)]
     private static bool TestReportsIpv4ParseFailure()
     {
         byte[] buffer = CreateReceiveBuffer(
@@ -142,16 +105,17 @@ internal static class NetworkReceiveDispatcherTests
         NetworkReceiveDispatchResult result =
             NetworkReceiveDispatcher.Dispatch(buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NetworkReceiveDispatchStatus.Ipv4ParseFailed
             && result.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.Success
             && result.ClassifierPacketStatus == PacketParseStatus.Success
             && result.PayloadPacketStatus == PacketParseStatus.BufferTooSmall
             && result.PayloadKind == EthernetPayloadKind.Ipv4
             && result.PayloadOffset == ExpectedPayloadOffset
-            && result.PayloadLength == Ipv4Header.MinHeaderLength - 1;
+            && result.PayloadLength == Ipv4Header.MinHeaderLength - 1);
     }
 
+    [HostTest("net.rx.dispatch reports unsupported payload", HostLane.Fast, 5)]
     private static bool TestReportsUnsupportedPayload()
     {
         byte[] buffer = CreateReceiveBuffer(UnsupportedEtherType, payloadBytes: 8);
@@ -159,7 +123,7 @@ internal static class NetworkReceiveDispatcherTests
         NetworkReceiveDispatchResult result =
             NetworkReceiveDispatcher.Dispatch(buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NetworkReceiveDispatchStatus.UnsupportedPayload
             && result.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.UnsupportedPayload
             && result.ClassifierPacketStatus == PacketParseStatus.UnsupportedEtherType
@@ -167,9 +131,10 @@ internal static class NetworkReceiveDispatcherTests
             && result.PayloadKind == EthernetPayloadKind.Unsupported
             && result.EthernetHeader.EtherType == UnsupportedEtherType
             && result.PayloadOffset == ExpectedPayloadOffset
-            && result.PayloadLength == 8;
+            && result.PayloadLength == 8);
     }
 
+    [HostTest("net.rx.dispatch default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NetworkReceiveDispatchResult defaultResult = default;
@@ -180,7 +145,7 @@ internal static class NetworkReceiveDispatcherTests
         NetworkReceiveDispatchResult failure =
             NetworkReceiveDispatcher.Dispatch(CreateReceiveBuffer(UnsupportedEtherType, payloadBytes: 8));
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == NetworkReceiveDispatchStatus.Success
             && defaultResult.PayloadPacketStatus == PacketParseStatus.Success
@@ -206,7 +171,7 @@ internal static class NetworkReceiveDispatcherTests
             && failure.PayloadKind == EthernetPayloadKind.Unsupported
             && failure.PayloadOffset == ExpectedPayloadOffset
             && failure.PayloadLength == 8
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NetworkReceiveDispatchResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NetworkReceiveDispatchResult>());
     }
 
     private static byte[] CreateArpReceiveBuffer()

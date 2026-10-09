@@ -3,48 +3,8 @@ using OS.Pal;
 
 internal static class PalTimerTableTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("pal.timer monotonic snapshot is stable", TestMonotonicSnapshotIsStable, ref failures);
-        Run("pal.timer one shot arms and fires", TestOneShotArmsAndFires, ref failures);
-        Run("pal.timer stores completion wait handle", TestStoresCompletionWaitHandle, ref failures);
-        Run("pal.timer cancel prevents fire", TestCancelPreventsFire, ref failures);
-        Run("pal.timer periodic advances deterministically", TestPeriodicAdvancesDeterministically, ref failures);
-        Run("pal.timer timeout deadline comparison is deterministic", TestTimeoutDeadlineComparisonIsDeterministic, ref failures);
-        Run("pal.timer invalid handles are rejected", TestInvalidHandlesAreRejected, ref failures);
-        Run("pal.timer default results are not success", TestDefaultResultsAreNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL timer table host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.timer monotonic snapshot is stable", HostLane.Fast, 0)]
     private static bool TestMonotonicSnapshotIsStable()
     {
         OSHostTimerTable table = new(tickFrequency: 1_000_000, capacity: 2);
@@ -54,23 +14,24 @@ internal static class PalTimerTableTests
             initial.TickFrequency != 1_000_000 ||
             initial.WallClockUnixNanoseconds != 123)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (table.AdvanceBy(250) != OSHostStatus.Ok ||
             table.AdvanceTo(500) != OSHostStatus.Ok ||
             table.AdvanceTo(499) != OSHostStatus.InvalidArgument)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimeSnapshot afterAdvance = table.GetSnapshot();
-        return afterAdvance.MonotonicTicks == 500
+        return HostCheck.Result(afterAdvance.MonotonicTicks == 500
             && afterAdvance.TickFrequency == 1_000_000
             && table.CurrentTicks == 500
-            && table.ActiveCount == 0;
+            && table.ActiveCount == 0);
     }
 
+    [HostTest("pal.timer one shot arms and fires", HostLane.Fast, 1)]
     private static bool TestOneShotArmsAndFires()
     {
         OSHostTimerTable table = new(tickFrequency: 1_000, capacity: 1);
@@ -79,7 +40,7 @@ internal static class PalTimerTableTests
             !create.Timer.IsValid ||
             table.ActiveCount != 1)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (table.Arm(create.Timer, OneShot(dueTicks: 10)) != OSHostStatus.Ok ||
@@ -88,28 +49,28 @@ internal static class PalTimerTableTests
             armed.DueTicks != 10 ||
             armed.Periodic)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (table.AdvanceTo(9) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimerPollResult beforeDue = table.Poll(create.Timer);
         if (!beforeDue.Succeeded || beforeDue.Signaled || beforeDue.NextDueTicks != 10)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (table.AdvanceTo(10) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimerPollResult fired = table.Poll(create.Timer);
         OSHostTimerPollResult secondPoll = table.Poll(create.Timer);
-        return fired.Succeeded
+        return HostCheck.Result(fired.Succeeded
             && fired.Signaled
             && fired.FiredCount == 1
             && fired.NextDueTicks == 0
@@ -117,9 +78,10 @@ internal static class PalTimerTableTests
             && !secondPoll.Signaled
             && table.TryGetEntry(create.Timer, out OSHostTimerTableEntry disarmed) == OSHostStatus.Ok
             && disarmed.State == OSHostTimerLifecycleState.Created
-            && disarmed.TotalFiredCount == 1;
+            && disarmed.TotalFiredCount == 1);
     }
 
+    [HostTest("pal.timer cancel prevents fire", HostLane.Fast, 3)]
     private static bool TestCancelPreventsFire()
     {
         OSHostTimerTable table = new(tickFrequency: 10_000, capacity: 1);
@@ -128,18 +90,19 @@ internal static class PalTimerTableTests
             table.Cancel(create.Timer) != OSHostStatus.Ok ||
             table.AdvanceTo(100) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimerPollResult poll = table.Poll(create.Timer);
-        return poll.Succeeded
+        return HostCheck.Result(poll.Succeeded
             && !poll.Signaled
             && poll.FiredCount == 0
             && table.TryGetEntry(create.Timer, out OSHostTimerTableEntry entry) == OSHostStatus.Ok
             && entry.State == OSHostTimerLifecycleState.Created
-            && entry.TotalFiredCount == 0;
+            && entry.TotalFiredCount == 0);
     }
 
+    [HostTest("pal.timer stores completion wait handle", HostLane.Fast, 2)]
     private static bool TestStoresCompletionWaitHandle()
     {
         OSHostTimerTable table = new(tickFrequency: 1_000, capacity: 1);
@@ -149,7 +112,7 @@ internal static class PalTimerTableTests
             table.TryGetEntry(create.Timer, out OSHostTimerTableEntry entry) != OSHostStatus.Ok ||
             entry.CompletionWaitHandle.Value != completionWaitHandle.Value)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimerPollResult beforeDue = table.Poll(create.Timer);
@@ -157,34 +120,35 @@ internal static class PalTimerTableTests
             beforeDue.Signaled ||
             beforeDue.CompletionWaitHandle.Value != completionWaitHandle.Value)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (table.AdvanceTo(10) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimerPollResult fired = table.Poll(create.Timer);
-        return fired.Succeeded
+        return HostCheck.Result(fired.Succeeded
             && fired.Signaled
             && fired.CompletionWaitHandle.Value == completionWaitHandle.Value
             && table.TryGetEntry(create.Timer, out OSHostTimerTableEntry disarmed) == OSHostStatus.Ok
-            && !disarmed.CompletionWaitHandle.IsValid;
+            && !disarmed.CompletionWaitHandle.IsValid);
     }
 
+    [HostTest("pal.timer periodic advances deterministically", HostLane.Fast, 4)]
     private static bool TestPeriodicAdvancesDeterministically()
     {
         OSHostTimerTable table = new(tickFrequency: 1_000, capacity: 1);
         OSHostTimerCreateResult create = table.Create(Periodic(dueTicks: 10, periodTicks: 5));
         if (!create.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (table.AdvanceTo(24) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimerPollResult firstPoll = table.Poll(create.Timer);
@@ -193,37 +157,38 @@ internal static class PalTimerTableTests
             firstPoll.FiredCount != 3 ||
             firstPoll.NextDueTicks != 25)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimerPollResult beforeNext = table.Poll(create.Timer);
         if (!beforeNext.Succeeded || beforeNext.Signaled || beforeNext.NextDueTicks != 25)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (table.AdvanceBy(11) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimerPollResult secondPoll = table.Poll(create.Timer);
-        return secondPoll.Succeeded
+        return HostCheck.Result(secondPoll.Succeeded
             && secondPoll.Signaled
             && secondPoll.FiredCount == 3
             && secondPoll.NextDueTicks == 40
             && table.TryGetEntry(create.Timer, out OSHostTimerTableEntry entry) == OSHostStatus.Ok
             && entry.State == OSHostTimerLifecycleState.Armed
             && entry.Periodic
-            && entry.TotalFiredCount == 6;
+            && entry.TotalFiredCount == 6);
     }
 
+    [HostTest("pal.timer timeout deadline comparison is deterministic", HostLane.Fast, 5)]
     private static bool TestTimeoutDeadlineComparisonIsDeterministic()
     {
         OSHostTimerTable table = new(tickFrequency: 1_000, capacity: 1);
         if (table.AdvanceTo(100) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimeoutEvaluationResult infinite = table.EvaluateTimeout(OSHostSocketTimeouts.Infinite);
@@ -253,12 +218,12 @@ internal static class PalTimerTableTests
             relativePending.RemainingTicks != 25 ||
             mismatchedFrequency.Status != OSHostStatus.InvalidArgument)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (table.AdvanceTo(120) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimeoutEvaluationResult absoluteExpired = table.EvaluateTimeout(
@@ -266,16 +231,17 @@ internal static class PalTimerTableTests
         OSHostTimeoutEvaluationResult zeroRelative = table.EvaluateTimeout(
             Relative(relativeTicks: 0, tickFrequency: table.TickFrequency));
 
-        return absoluteExpired.Succeeded
+        return HostCheck.Result(absoluteExpired.Succeeded
             && absoluteExpired.IsExpired
             && absoluteExpired.DeadlineTicks == 120
             && absoluteExpired.RemainingTicks == 0
             && zeroRelative.Succeeded
             && zeroRelative.IsExpired
             && zeroRelative.DeadlineTicks == 120
-            && table.EvaluateTimeout(new OSHostTimeout(99, 0, 0, 0)).Status == OSHostStatus.InvalidArgument;
+            && table.EvaluateTimeout(new OSHostTimeout(99, 0, 0, 0)).Status == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.timer invalid handles are rejected", HostLane.Fast, 6)]
     private static bool TestInvalidHandlesAreRejected()
     {
         OSHostTimerTable table = new(tickFrequency: 1_000, capacity: 1);
@@ -296,7 +262,7 @@ internal static class PalTimerTableTests
                 periodTicks: 0,
                 completionWaitHandle: default)).Status != OSHostStatus.InvalidArgument)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimerCreateResult first = table.Create(OneShot(10));
@@ -305,23 +271,24 @@ internal static class PalTimerTableTests
             table.Close(first.Timer) != OSHostStatus.Ok ||
             table.Poll(first.Timer).Status != OSHostStatus.InvalidArgument)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimerCreateResult reused = table.Create(OneShot(30));
-        return reused.Succeeded
+        return HostCheck.Result(reused.Succeeded
             && reused.Timer.Value != first.Timer.Value
             && table.Poll(first.Timer).Status == OSHostStatus.InvalidArgument
-            && table.Poll(reused.Timer).Status == OSHostStatus.Ok;
+            && table.Poll(reused.Timer).Status == OSHostStatus.Ok);
     }
 
+    [HostTest("pal.timer default results are not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         OSHostTimeoutEvaluationResult timeout = default;
         OSHostTimerCreateResult create = default;
         OSHostTimerPollResult poll = default;
 
-        return !timeout.IsInitialized
+        return HostCheck.Result(!timeout.IsInitialized
             && !timeout.Succeeded
             && timeout.Status == OSHostStatus.Ok
             && timeout.State == OSHostTimeoutState.Infinite
@@ -340,7 +307,7 @@ internal static class PalTimerTableTests
             && !poll.Signaled
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostTimeoutEvaluationResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostTimerCreateResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostTimerPollResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostTimerPollResult>());
     }
 
     private static OSHostTimerOptions OneShot(ulong dueTicks)

@@ -1,8 +1,9 @@
+using OS.Tooling;
 using System.Runtime.CompilerServices;
 
 internal static class CiWorkflowTests
 {
-    [ModuleInitializer]
+    [HostFixture]
     internal static void Run()
     {
         int failures = 0;
@@ -21,24 +22,8 @@ internal static class CiWorkflowTests
 
     private static void Run(string name, ref int failures, Func<bool> test)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " assertion_failed");
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " exception=" + ex.GetType().Name);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestIncludesDryRunValidationCommands(string workflow)
@@ -46,9 +31,10 @@ internal static class CiWorkflowTests
         return Contains(workflow, "runs-on: windows")
             && Contains(workflow, "uses: actions/checkout@v4")
             && Contains(workflow, @"dotnet build .\CLROS.slnx --nologo -m:1")
-            && Contains(workflow, @".\scripts\build-efi-shell.ps1 -PreflightOnly")
-            && Contains(workflow, @".\scripts\run-ci-smoke.ps1 -DryRun")
-            && Contains(workflow, @".\scripts\run-baseline-evidence.ps1 -PlanOnly")
+            && Contains(workflow, @"dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build -- --lane full")
+            && Contains(workflow, @"dotnet run --project .\tools\OS.Tooling --no-build -- efi build --preflight-only")
+            && Contains(workflow, @"dotnet run --project .\tools\OS.Tooling --no-build -- ci smoke --dry-run")
+            && Contains(workflow, @"dotnet run --project .\tools\OS.Tooling --no-build -- baseline evidence --plan-only")
             && Contains(workflow, "git diff --check");
     }
 
@@ -57,7 +43,7 @@ internal static class CiWorkflowTests
         return Contains(workflow, "  push:")
             && Contains(workflow, "  pull_request:")
             && Contains(workflow, "  workflow_dispatch:")
-            && Contains(workflow, "timeout-minutes: 45")
+            && Contains(workflow, $"timeout-minutes: {EvidenceOrchestration.WorkflowTimeoutMinutes}")
             && Contains(workflow, "shell: powershell")
             && Contains(workflow, "if: always()");
     }
@@ -71,9 +57,9 @@ internal static class CiWorkflowTests
 
     private static bool TestExcludesRealSmokeDefaults(string workflow)
     {
-        return !Contains(workflow, "-RunQcow2RealSmoke")
-            && !Contains(workflow, @"run-qemu-smoke.ps1 -Qemu")
-            && !Contains(workflow, @"run-qemu-qcow2-smoke.ps1");
+        return !Contains(workflow, "--run-qcow2-real-smoke")
+            && !Contains(workflow, "qemu smoke --qemu")
+            && !Contains(workflow, "qemu qcow2");
     }
 
     private static bool Contains(string text, string value)

@@ -8,13 +8,12 @@ internal static class
     private const string ReferenceTestSha256 =
         "DDC01A437FB2F446B18758E4BECC8DA0370177B33B6271897E7295AE14A007BC";
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void Run()
     {
-        Console.WriteLine("TEST_START m04.002");
-
-        try
+        HostCheck.Run("m04.002", () =>
         {
+
             TestMosaSeriesProjection();
             TestBuiltInCatalogCopiesAndValidates();
             TestReadVectorsAgainstIndependentImplementations();
@@ -47,14 +46,7 @@ internal static class
                 + " referenceTestSha256=" + ReferenceTestSha256
                 + " referenceFilesRequired=false hostConformance=true"
                 + " guestIntegrated=false gate4=Fail");
-            Console.WriteLine("TEST_PASS m04.002");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(
-                "TEST_FAIL m04.002 " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void TestMosaSeriesProjection()

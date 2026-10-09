@@ -8,7 +8,7 @@ internal static class ManagedX64StubStrategyADRUseExistingAuditedTests
         "generatorThreshold=2 generatorEligible=false out8Bytes=7 in8Bytes=5 " +
         "writeThenExecute=true permanentRwx=false";
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START m02.001");
@@ -53,25 +53,8 @@ internal static class ManagedX64StubStrategyADRUseExistingAuditedTests
 
     private static void Run(string name, Func<bool> test, ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " assertion");
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestSelectsExistingAuditedPlans()

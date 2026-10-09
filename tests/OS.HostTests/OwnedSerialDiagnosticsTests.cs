@@ -4,80 +4,8 @@ using OS.Kernel.Platform;
 
 internal static class OwnedSerialDiagnosticsTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run(
-            "diagnostics.owned_serial writes firmware serial before uefi gone",
-            TestWritesFirmwareSerialBeforeUefiGone,
-            ref failures);
-        Run(
-            "diagnostics.owned_serial writes owned serial after uefi gone",
-            TestWritesOwnedSerialAfterUefiGone,
-            ref failures);
-        Run(
-            "diagnostics.owned_serial rejects firmware serial after uefi gone",
-            TestRejectsFirmwareSerialAfterUefiGone,
-            ref failures);
-        Run(
-            "diagnostics.owned_serial reports missing owned transport",
-            TestReportsMissingOwnedTransport,
-            ref failures);
-        Run(
-            "diagnostics.owned_serial reports owned serial unavailable",
-            TestReportsOwnedSerialUnavailable,
-            ref failures);
-        Run(
-            "diagnostics.owned_serial reports short write",
-            TestReportsShortWrite,
-            ref failures);
-        Run(
-            "diagnostics.owned_serial formats boot and panic markers",
-            TestFormatsBootAndPanicMarkers,
-            ref failures);
-        Run(
-            "diagnostics.owned_serial results contain no managed references",
-            TestResultStructsContainNoManagedReferences,
-            ref failures);
-        Run(
-            "diagnostics.owned_serial default results are not success",
-            TestDefaultResultsAreNotSuccess,
-            ref failures);
-        Run(
-            "diagnostics.owned_serial formatter uses shared ascii text builder",
-            TestFormatterUsesSharedAsciiTextBuilder,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Owned serial diagnostics host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("diagnostics.owned_serial writes firmware serial before uefi gone", HostLane.Fast, 0)]
     private static bool TestWritesFirmwareSerialBeforeUefiGone()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -88,7 +16,7 @@ internal static class OwnedSerialDiagnosticsTests
         OwnedSerialDiagnosticWriteResult result =
             WriteTestPassMarker(serial, "firmware_before"u8);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == OwnedSerialDiagnosticWriteStatus.Success
             && result.SerialStatus == PlatformSerialWriteStatus.Success
@@ -97,9 +25,10 @@ internal static class OwnedSerialDiagnosticsTests
             && result.BytesWritten == result.RequiredBytes
             && transport.WriteCount == 1
             && HasCrLf(transport.LastBytes)
-            && StartsWith(transport.LastBytes, OwnedSerialDiagnostics.TestPassOwnedSerialPrefix);
+            && StartsWith(transport.LastBytes, OwnedSerialDiagnostics.TestPassOwnedSerialPrefix));
     }
 
+    [HostTest("diagnostics.owned_serial writes owned serial after uefi gone", HostLane.Fast, 1)]
     private static bool TestWritesOwnedSerialAfterUefiGone()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -111,7 +40,7 @@ internal static class OwnedSerialDiagnosticsTests
         OwnedSerialDiagnosticWriteResult result =
             WriteTestPassMarker(serial, "owned_after_uefi_gone"u8);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == OwnedSerialDiagnosticWriteStatus.Success
             && result.SerialStatus == PlatformSerialWriteStatus.Success
@@ -120,9 +49,10 @@ internal static class OwnedSerialDiagnosticsTests
             && result.BytesWritten == result.RequiredBytes
             && transport.WriteCount == 1
             && HasCrLf(transport.LastBytes)
-            && StartsWith(transport.LastBytes, OwnedSerialDiagnostics.TestPassOwnedSerialPrefix);
+            && StartsWith(transport.LastBytes, OwnedSerialDiagnostics.TestPassOwnedSerialPrefix));
     }
 
+    [HostTest("diagnostics.owned_serial rejects firmware serial after uefi gone", HostLane.Fast, 2)]
     private static bool TestRejectsFirmwareSerialAfterUefiGone()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -134,16 +64,17 @@ internal static class OwnedSerialDiagnosticsTests
         OwnedSerialDiagnosticWriteResult result =
             WriteTestPassMarker(serial, "firmware_rejected"u8);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == OwnedSerialDiagnosticWriteStatus.SerialWriteFailed
             && result.SerialStatus == PlatformSerialWriteStatus.UefiGoneRequiresOwnedSerial
             && result.Mode == FirmwareServicesMode.UefiGoneSimulated
             && result.TransportKind == PlatformSerialTransportKind.FirmwareBacked
             && result.BytesWritten == 0
-            && transport.WriteCount == 0;
+            && transport.WriteCount == 0);
     }
 
+    [HostTest("diagnostics.owned_serial reports missing owned transport", HostLane.Fast, 3)]
     private static bool TestReportsMissingOwnedTransport()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -155,16 +86,17 @@ internal static class OwnedSerialDiagnosticsTests
         OwnedSerialDiagnosticWriteResult result =
             WriteTestPassMarker(serial, "missing_transport"u8);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == OwnedSerialDiagnosticWriteStatus.SerialWriteFailed
             && result.SerialStatus == PlatformSerialWriteStatus.NoOwnedTransport
             && result.Mode == FirmwareServicesMode.UefiGoneSimulated
             && result.TransportKind == PlatformSerialTransportKind.None
             && result.BytesWritten == 0
-            && transport.WriteCount == 0;
+            && transport.WriteCount == 0);
     }
 
+    [HostTest("diagnostics.owned_serial reports owned serial unavailable", HostLane.Fast, 4)]
     private static bool TestReportsOwnedSerialUnavailable()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -176,16 +108,17 @@ internal static class OwnedSerialDiagnosticsTests
         OwnedSerialDiagnosticWriteResult result =
             WriteTestPassMarker(serial, "unavailable"u8);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == OwnedSerialDiagnosticWriteStatus.SerialWriteFailed
             && result.SerialStatus == PlatformSerialWriteStatus.OwnedSerialUnavailable
             && result.Mode == FirmwareServicesMode.UefiGoneSimulated
             && result.TransportKind == PlatformSerialTransportKind.Owned
             && result.BytesWritten == 0
-            && transport.WriteCount == 1;
+            && transport.WriteCount == 1);
     }
 
+    [HostTest("diagnostics.owned_serial reports short write", HostLane.Fast, 5)]
     private static bool TestReportsShortWrite()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -198,7 +131,7 @@ internal static class OwnedSerialDiagnosticsTests
         OwnedSerialDiagnosticWriteResult result =
             WriteTestPassMarker(serial, "short_write"u8);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == OwnedSerialDiagnosticWriteStatus.SerialWriteFailed
             && result.SerialStatus == PlatformSerialWriteStatus.ShortWrite
@@ -206,9 +139,10 @@ internal static class OwnedSerialDiagnosticsTests
             && result.TransportKind == PlatformSerialTransportKind.Owned
             && result.BytesWritten == result.RequiredBytes - 1
             && transport.WriteCount == 1
-            && transport.LastBytes.Length == result.BytesWritten;
+            && transport.LastBytes.Length == result.BytesWritten);
     }
 
+    [HostTest("diagnostics.owned_serial formats boot and panic markers", HostLane.Fast, 6)]
     private static bool TestFormatsBootAndPanicMarkers()
     {
         Span<byte> bootText = stackalloc byte[OwnedSerialSmokeMarkers.MaximumMarkerBytes];
@@ -248,7 +182,7 @@ internal static class OwnedSerialDiagnosticsTests
             invalidMarker.Slice(0, OwnedSerialSmokeMarkers.TestPassPrefix.Length + 1),
             invalidDestination);
 
-        return bootTextResult.Succeeded
+        return HostCheck.Result(bootTextResult.Succeeded
             && panicTextResult.Succeeded
             && boot.Succeeded
             && boot.IsInitialized
@@ -268,23 +202,25 @@ internal static class OwnedSerialDiagnosticsTests
             && tooSmall.Status == OwnedSerialMarkerFormatStatus.DestinationTooSmall
             && !invalid.Succeeded
             && invalid.IsInitialized
-            && invalid.Status == OwnedSerialMarkerFormatStatus.InvalidMarker;
+            && invalid.Status == OwnedSerialMarkerFormatStatus.InvalidMarker);
     }
 
+    [HostTest("diagnostics.owned_serial results contain no managed references", HostLane.Fast, 7)]
     private static bool TestResultStructsContainNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<PlatformSerialTransportResult>()
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<PlatformSerialTransportResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<PlatformSerialWriteResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OwnedSerialMarkerFormatResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OwnedSerialDiagnosticWriteResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OwnedSerialDiagnosticWriteResult>());
     }
 
+    [HostTest("diagnostics.owned_serial default results are not success", HostLane.Fast, 8)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         OwnedSerialMarkerFormatResult format = default;
         OwnedSerialDiagnosticWriteResult write = default;
 
-        return !format.IsInitialized
+        return HostCheck.Result(!format.IsInitialized
             && !format.Succeeded
             && format.Status == OwnedSerialMarkerFormatStatus.Success
             && format.MarkerBytes == 0
@@ -297,9 +233,10 @@ internal static class OwnedSerialDiagnosticsTests
             && write.SerialStatus == PlatformSerialWriteStatus.Unknown
             && write.MarkerBytes == 0
             && write.BytesWritten == 0
-            && write.RequiredBytes == 0;
+            && write.RequiredBytes == 0);
     }
 
+    [HostTest("diagnostics.owned_serial formatter uses shared ascii text builder", HostLane.Fast, 9)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -310,7 +247,7 @@ internal static class OwnedSerialDiagnosticsTests
             "Diagnostics",
             "OwnedSerialDiagnostics.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains(
                 "AsciiTextBuilder.AppendBytes(destination, offset, marker)",
                 StringComparison.Ordinal)
@@ -326,7 +263,7 @@ internal static class OwnedSerialDiagnosticsTests
                 StringComparison.Ordinal)
             && !source.Contains(
                 "destination[marker.Length + 1] = LineFeed",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
     private static bool StartsWith(ReadOnlySpan<byte> bytes, ReadOnlySpan<byte> prefix)

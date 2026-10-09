@@ -51,7 +51,7 @@ internal static unsafe class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
         QueryStatus = TooSmall
     };
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START m03.001");
@@ -76,18 +76,8 @@ internal static unsafe class EFIBUFFERTOOSMALLDescriptorGrowthSlackOverflowTests
 
     private static void Run(string name, Action test, ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
-        try
-        {
-            test();
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + exception.GetType().Name);
-            Console.Error.WriteLine(exception.Message);
-        }
+
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static void Need(bool condition, string reason)

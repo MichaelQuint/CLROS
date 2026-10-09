@@ -13,7 +13,7 @@ internal static unsafe class NoAllocationOrUnrelatedFirmwareCallOccursBetweenTes
     private static FinalMapExitWindowState* active;
     private static bool tryReentry;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START m03.005");
@@ -29,9 +29,8 @@ internal static unsafe class NoAllocationOrUnrelatedFirmwareCallOccursBetweenTes
 
     private static void Run(string name, Action test)
     {
-        Console.WriteLine("TEST_START m03.005 " + name);
-        try { test(); Console.WriteLine("TEST_PASS m03.005 " + name); }
-        catch (Exception e) { Console.WriteLine("TEST_FAIL m03.005 " + name + " " + e.Message); throw; }
+
+        HostCheck.Run("m03.005 " + name, test);
     }
 
     private static void Need(bool condition, string reason)

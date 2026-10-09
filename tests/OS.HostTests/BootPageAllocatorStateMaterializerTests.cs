@@ -15,7 +15,7 @@ internal static class BootPageAllocatorStateMaterializerTests
     private const ulong PageSize =
         BootPageAllocatorStateMaterializer.RequiredPageSize;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         int failures = 0;
@@ -105,30 +105,8 @@ internal static class BootPageAllocatorStateMaterializerTests
         Func<bool> test,
         ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL "
-                + name
-                + " "
-                + ex.GetType().Name
-                + ": "
-                + ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestStableSurfaceAndLayouts()

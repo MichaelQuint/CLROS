@@ -11,25 +11,7 @@ internal static unsafe class X64FrameUnwindTests
     private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
     private static readonly byte[] Registers = [3, 5, 6, 7, 12, 13, 14, 15];
 
-    [ModuleInitializer]
-    internal static void Run()
-    {
-        Group("body", Body);
-        Group("prolog", Prolog);
-        Group("epilog", Epilog);
-        Group("provenance", Provenance);
-        Group("hostile", Hostile);
-        Group("atomic_allocation", AtomicAllocation);
-    }
-
-    private static void Group(string name, Action test)
-    {
-        string marker = "m04.one_frame_unwind." + name;
-        Console.WriteLine("TEST_START " + marker);
-        try { test(); Console.WriteLine("TEST_PASS " + marker); }
-        catch (Exception error) { Console.WriteLine("TEST_FAIL " + marker + " " + error.Message); throw; }
-    }
-
+    [HostTest("m04.one_frame_unwind.body", HostLane.Fast, 0)]
     private static void Body()
     {
         using (Fixture f = new())
@@ -94,6 +76,7 @@ internal static unsafe class X64FrameUnwindTests
         }
     }
 
+    [HostTest("m04.one_frame_unwind.prolog", HostLane.Fast, 1)]
     private static void Prolog()
     {
         using Fixture f = new();
@@ -118,6 +101,7 @@ internal static unsafe class X64FrameUnwindTests
         Success(f, atEntry, caller, atEntry.Rsp, atEntry.Rsp, false, "entry read at exact stack end");
     }
 
+    [HostTest("m04.one_frame_unwind.epilog", HostLane.Fast, 2)]
     private static void Epilog()
     {
         using (Fixture f = new())
@@ -165,6 +149,7 @@ internal static unsafe class X64FrameUnwindTests
         }
     }
 
+    [HostTest("m04.one_frame_unwind.provenance", HostLane.Fast, 3)]
     private static void Provenance()
     {
         using Fixture f = new(); using Fixture other = new(); f.Info(0, 0, []); other.Info(0, 0, []); f.Bind(); other.Bind();
@@ -192,6 +177,7 @@ internal static unsafe class X64FrameUnwindTests
         Failure(f, () => f.Invoke(input), Status.ReturnPcRejected, "foreign return PC");
     }
 
+    [HostTest("m04.one_frame_unwind.hostile", HostLane.Fast, 4)]
     private static void Hostile()
     {
         using (Fixture f = new())
@@ -259,6 +245,7 @@ internal static unsafe class X64FrameUnwindTests
         }
     }
 
+    [HostTest("m04.one_frame_unwind.atomic_allocation", HostLane.Fast, 5)]
     private static void AtomicAllocation()
     {
         using Fixture f = new(); f.Info(5, 0, [5, 0x68, 2, 0, 4, 0x34, 1, 0, 1, 0x72]); f.Bind();

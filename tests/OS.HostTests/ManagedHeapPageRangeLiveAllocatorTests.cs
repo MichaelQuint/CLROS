@@ -13,11 +13,10 @@ using Status = OS.Kernel.Runtime.ManagedHeapPageRangeStatus;
 
 internal static unsafe class ManagedHeapPageRangeLiveAllocatorTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void Run()
     {
-        Console.WriteLine("TEST_START m04.006");
-        try
+        HostCheck.Run("m04.006", () =>
         {
             CheckOriginalAuthorityAndLaterAllocation();
             CheckOffsetAndContentObservations();
@@ -30,13 +29,7 @@ internal static unsafe class ManagedHeapPageRangeLiveAllocatorTests
             Console.WriteLine("CLROS_M04_006_HOST_READY pages=1 bytes=4096 retained=true"
                 + " hostConformance=true guestIntegrated=false objectAllocation=false gc=false"
                 + " hardwareNxProved=false postExitBootServices=false gate4=Fail");
-            Console.WriteLine("TEST_PASS m04.006");
-        }
-        catch (Exception error)
-        {
-            Console.WriteLine("TEST_FAIL m04.006 " + error.GetType().Name + ": " + error.Message);
-            throw;
-        }
+        });
     }
 
     private static void CheckOriginalAuthorityAndLaterAllocation()

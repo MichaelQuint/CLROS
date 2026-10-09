@@ -31,52 +31,7 @@ internal static class NativeManifestLoaderTests
     private static readonly Guid EspGuid = new Guid("c12a7328-f81f-11d2-ba4b-00a0c93ec93b");
     private static readonly Guid UniquePartitionGuid = new Guid("aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb");
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("manifest loader reads native manifest from gpt esp", TestReadsNativeManifestFromGptEsp, ref failures);
-        Run("manifest loader caller-buffer gpt reads native manifest", TestCallerBufferGptReadsNativeManifest, ref failures);
-        Run("manifest loader caller-buffer reports primary gpt source", TestCallerBufferReportsPrimaryGptSource, ref failures);
-        Run("manifest loader caller-buffer gpt falls back to backup", TestCallerBufferGptFallsBackToBackup, ref failures);
-        Run("manifest loader caller-buffer reports backup gpt source", TestCallerBufferReportsBackupGptSource, ref failures);
-        Run("manifest loader caller-buffer gpt rejects crc mismatch", TestCallerBufferGptRejectsCrcMismatch, ref failures);
-        Run("manifest loader caller-buffer reports gpt header capacity", TestCallerBufferReportsGptHeaderCapacity, ref failures);
-        Run("manifest loader caller-buffer reports gpt entry buffer capacity", TestCallerBufferReportsGptEntryBufferCapacity, ref failures);
-        Run("manifest loader caller-buffer reports manifest buffer capacity", TestCallerBufferReportsManifestBufferCapacity, ref failures);
-        Run("manifest loader rejects missing esp", TestRejectsMissingEsp, ref failures);
-        Run("manifest loader rejects malformed native manifest", TestRejectsMalformedNativeManifest, ref failures);
-        Run("manifest loader default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native manifest loader host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("manifest loader reads native manifest from gpt esp", HostLane.Fast, 0)]
     private static bool TestReadsNativeManifestFromGptEsp()
     {
         byte[] manifest = ValidManifest();
@@ -87,7 +42,7 @@ internal static class NativeManifestLoaderTests
             MemoryBlockDevice.FromImage(disk, SectorSize),
             buffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == NativeManifestLoadStatus.Success
             && result.GptStatus == GptStatus.Success
@@ -99,9 +54,10 @@ internal static class NativeManifestLoaderTests
             && result.Manifest.AppKind == NativeManifestAppKind.Package
             && result.Manifest.RuntimeKind == NativeManifestRuntimeKind.NativeAot
             && result.Manifest.NetworkMode == NativeManifestNetworkMode.Dhcp
-            && result.Manifest.LogMode == NativeManifestLogMode.Serial;
+            && result.Manifest.LogMode == NativeManifestLogMode.Serial);
     }
 
+    [HostTest("manifest loader rejects missing esp", HostLane.Fast, 9)]
     private static bool TestRejectsMissingEsp()
     {
         byte[] disk = CreateDiskImage(ValidManifest(), hasEsp: false);
@@ -111,12 +67,13 @@ internal static class NativeManifestLoaderTests
             MemoryBlockDevice.FromImage(disk, SectorSize),
             buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeManifestLoadStatus.GptFailed
-            && result.GptStatus == GptStatus.EfiSystemPartitionNotFound;
+            && result.GptStatus == GptStatus.EfiSystemPartitionNotFound);
     }
 
+    [HostTest("manifest loader rejects malformed native manifest", HostLane.Fast, 10)]
     private static bool TestRejectsMalformedNativeManifest()
     {
         byte[] disk = CreateDiskImage(MalformedManifest(), hasEsp: true);
@@ -126,18 +83,19 @@ internal static class NativeManifestLoaderTests
             MemoryBlockDevice.FromImage(disk, SectorSize),
             buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeManifestLoadStatus.ManifestParseFailed
             && result.Fat32Status == Fat32Status.Success
-            && result.ManifestStatus == NativeManifestParseStatus.InvalidNetworkMode;
+            && result.ManifestStatus == NativeManifestParseStatus.InvalidNetworkMode);
     }
 
+    [HostTest("manifest loader default result is not success", HostLane.Fast, 11)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeManifestLoadResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeManifestLoadStatus.Success
             && result.GptStatus == GptStatus.Success
@@ -148,9 +106,10 @@ internal static class NativeManifestLoaderTests
             && result.BytesRead == 0
             && result.ManifestBytesRequired == 0
             && result.ManifestBufferBytesAvailable == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeManifestLoadResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeManifestLoadResult>());
     }
 
+    [HostTest("manifest loader caller-buffer gpt reads native manifest", HostLane.Fast, 1)]
     private static bool TestCallerBufferGptReadsNativeManifest()
     {
         byte[] manifest = ValidManifest();
@@ -167,7 +126,7 @@ internal static class NativeManifestLoaderTests
             descriptors,
             buffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == NativeManifestLoadStatus.Success
             && result.GptStatus == GptStatus.Success
             && result.GptTableStatus == GptPartitionTableStatus.Success
@@ -179,9 +138,10 @@ internal static class NativeManifestLoaderTests
             && result.ExpectedGptPartitionEntryArrayCrc32 == result.ComputedGptPartitionEntryArrayCrc32
             && result.ManifestStatus == NativeManifestParseStatus.Success
             && result.BytesRead == manifest.Length
-            && FieldEquals(buffer, result.Manifest.AppName, "hello.app");
+            && FieldEquals(buffer, result.Manifest.AppName, "hello.app"));
     }
 
+    [HostTest("manifest loader caller-buffer reports primary gpt source", HostLane.Fast, 2)]
     private static bool TestCallerBufferReportsPrimaryGptSource()
     {
         byte[] manifest = ValidManifest();
@@ -198,11 +158,12 @@ internal static class NativeManifestLoaderTests
             descriptors,
             buffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.GptTableSource == GptPartitionTableSource.Primary
-            && result.ManifestStatus == NativeManifestParseStatus.Success;
+            && result.ManifestStatus == NativeManifestParseStatus.Success);
     }
 
+    [HostTest("manifest loader caller-buffer gpt rejects crc mismatch", HostLane.Fast, 5)]
     private static bool TestCallerBufferGptRejectsCrcMismatch()
     {
         byte[] disk = CreateDiskImage(ValidManifest(), hasEsp: true);
@@ -220,13 +181,14 @@ internal static class NativeManifestLoaderTests
             descriptors,
             buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NativeManifestLoadStatus.GptFailed
             && result.GptTableStatus == GptPartitionTableStatus.PartitionEntryArrayCrcMismatch
             && result.GptCrcStatus == GptPartitionTableCrcStatus.PartitionEntryArrayMismatch
-            && result.ExpectedGptPartitionEntryArrayCrc32 != result.ComputedGptPartitionEntryArrayCrc32;
+            && result.ExpectedGptPartitionEntryArrayCrc32 != result.ComputedGptPartitionEntryArrayCrc32);
     }
 
+    [HostTest("manifest loader caller-buffer gpt falls back to backup", HostLane.Fast, 3)]
     private static bool TestCallerBufferGptFallsBackToBackup()
     {
         byte[] manifest = ValidManifest();
@@ -244,7 +206,7 @@ internal static class NativeManifestLoaderTests
             descriptors,
             buffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == NativeManifestLoadStatus.Success
             && result.GptStatus == GptStatus.Success
             && result.GptTableStatus == GptPartitionTableStatus.Success
@@ -253,9 +215,10 @@ internal static class NativeManifestLoaderTests
             && ReadUInt64(primaryHeader, 72) == BackupPartitionEntryLba
             && result.ManifestStatus == NativeManifestParseStatus.Success
             && result.BytesRead == manifest.Length
-            && FieldEquals(buffer, result.Manifest.AppName, "hello.app");
+            && FieldEquals(buffer, result.Manifest.AppName, "hello.app"));
     }
 
+    [HostTest("manifest loader caller-buffer reports backup gpt source", HostLane.Fast, 4)]
     private static bool TestCallerBufferReportsBackupGptSource()
     {
         byte[] manifest = ValidManifest();
@@ -273,11 +236,12 @@ internal static class NativeManifestLoaderTests
             descriptors,
             buffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.GptTableSource == GptPartitionTableSource.Backup
-            && result.ManifestStatus == NativeManifestParseStatus.Success;
+            && result.ManifestStatus == NativeManifestParseStatus.Success);
     }
 
+    [HostTest("manifest loader caller-buffer reports gpt header capacity", HostLane.Fast, 6)]
     private static bool TestCallerBufferReportsGptHeaderCapacity()
     {
         byte[] disk = CreateDiskImage(ValidManifest(), hasEsp: true);
@@ -293,15 +257,16 @@ internal static class NativeManifestLoaderTests
             descriptors,
             buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NativeManifestLoadStatus.GptFailed
             && result.GptStatus == GptStatus.PrimaryHeaderShortRead
             && result.BlockStatus == BlockDeviceStatus.DestinationTooSmall
             && result.GptHeaderBytesRequired == SectorSize
             && result.GptHeaderBufferBytesAvailable == checked((ulong)primaryHeader.Length)
-            && result.GptPartitionEntryBufferBytesAvailable == checked((ulong)partitionEntries.Length);
+            && result.GptPartitionEntryBufferBytesAvailable == checked((ulong)partitionEntries.Length));
     }
 
+    [HostTest("manifest loader caller-buffer reports gpt entry buffer capacity", HostLane.Fast, 7)]
     private static bool TestCallerBufferReportsGptEntryBufferCapacity()
     {
         byte[] disk = CreateDiskImage(ValidManifest(), hasEsp: true);
@@ -317,7 +282,7 @@ internal static class NativeManifestLoaderTests
             descriptors,
             buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NativeManifestLoadStatus.GptFailed
             && result.GptStatus == GptStatus.PartitionEntryShortRead
             && result.GptTableStatus == GptPartitionTableStatus.PartitionEntryBufferTooSmall
@@ -326,9 +291,10 @@ internal static class NativeManifestLoaderTests
             && result.GptHeaderBufferBytesAvailable == SectorSize
             && result.GptPartitionEntryBytesRequired == PartitionEntryCount * PartitionEntrySize
             && result.GptPartitionEntrySectorBytesRequired == PartitionEntryCount * PartitionEntrySize
-            && result.GptPartitionEntryBufferBytesAvailable == checked((ulong)partitionEntries.Length);
+            && result.GptPartitionEntryBufferBytesAvailable == checked((ulong)partitionEntries.Length));
     }
 
+    [HostTest("manifest loader caller-buffer reports manifest buffer capacity", HostLane.Fast, 8)]
     private static bool TestCallerBufferReportsManifestBufferCapacity()
     {
         byte[] manifest = ValidManifest();
@@ -345,13 +311,13 @@ internal static class NativeManifestLoaderTests
             descriptors,
             buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NativeManifestLoadStatus.Fat32ReadFailed
             && result.Fat32Status == Fat32Status.FileDestinationTooSmall
             && result.ManifestBytesRequired == manifest.Length
             && result.ManifestBufferBytesAvailable == buffer.Length
             && result.BytesRead == 0
-            && result.GptCrcStatus == GptPartitionTableCrcStatus.Validated;
+            && result.GptCrcStatus == GptPartitionTableCrcStatus.Validated);
     }
 
     private static byte[] CreateDiskImage(byte[] manifest, bool hasEsp)

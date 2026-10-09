@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using OS.Tooling;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -31,21 +32,20 @@ internal static class EfiArtifactVerificationScriptTests
     private const int MaximumRuntimeFunctionRecords = 2048;
     private const int MaximumLinkResponseTokens = 4096;
     private const int VerifierFixtureProcessTimeoutMilliseconds = 120_000;
-    private const int ExpectedSourceClosureInputCount = 138;
     private const string SerializerSymbol =
         "CLROS_X64_SerializeInstructionPublication";
     private const string ToolDirectoryBuildPropsPath =
         "tools/Directory.Build.props";
     private const string SerializerBytesSha256 =
-        "df76c8e39e0768d26ea27206ff102d7eadcc35d2c9bdf547b52b1171fd47bdaf";
+        OS.Tooling.EfiContracts.SerializerBytesSha256;
     private const string SerializerObjectSha256 =
-        "da97e50c95e479541b65eb3f96d9c6ded163735857650bee9416324086d55c7b";
+        OS.Tooling.EfiContracts.SerializerObjectSha256;
     private const string SerializerObjectBase64 =
         "ZIYDAAAAAADSAAAAAgAAAAAAAAAvNAAAAAAAAAAAAAAAAAAAFAAAAIwAAAAAAAAAAAAAAAAAAAAgAFBgLzE4AAAAAAAAAAAAAAAAAAgAAACgAAAAAAAAAAAAAAAAAAAAQAAwQC8zMwAAAAAAAAAAAAAAAAAMAAAAqAAAALQAAAAAAAAAAwAAAEAAMEBTuAAAAAC5AAAAAA+iuENMUlNbwwEBAQABMAAAAAAAABQAAAAAAAAAAAAAAAAAAAADAAQAAAAAAAAAAwAIAAAAAQAAAAMAAAAAADAAAAAAAAAAAQAgAAIAAAAAABIAAAAAAAAAAgAAAAMAWgAAAC50ZXh0JGNscm9zc20ALnhkYXRhJGNscm9zc20ALnBkYXRhJGNscm9zc20AQ0xST1NfWDY0X1NlcmlhbGl6ZUluc3RydWN0aW9uUHVibGljYXRpb24A";
     private const string EmptySha256 =
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-    private const string CompileClosureSha256 =
-        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
+    private static readonly string CompileClosureSha256 =
+        OS.Tooling.EfiContracts.CompileInventorySha256;
     private const string AnalyzerClosureSha256 =
         "bea3e700acbeec374acb02a39b8c154e03291cf380edf850fea2114193b7ea14";
     private const string ManagedFixtureConfiguration = "Release";
@@ -76,103 +76,17 @@ internal static class EfiArtifactVerificationScriptTests
         0x01, 0x30, 0x00, 0x00
     ];
 
-    private static readonly RestoreArchiveDescriptor[] ExpectedRestoreArchives =
-    [
-        new(
-            "microsoft.dotnet.ilcompiler",
-            "10.0.12",
-            "microsoft.dotnet.ilcompiler.10.0.12.nupkg",
-            "0b340ade975c2cf3d93d518adddec1e5d910c090b7756e6d37d19b772edc7b8d"),
-        new(
-            "microsoft.net.illink.tasks",
-            "10.0.12",
-            "microsoft.net.illink.tasks.10.0.12.nupkg",
-            "37aa984da51fdc01cc7d57a8647893392f3539cdd5a1d32ce4982be5309bc08b"),
-        new(
-            "runtime.win-x64.microsoft.dotnet.ilcompiler",
-            "10.0.12",
-            "runtime.win-x64.microsoft.dotnet.ilcompiler.10.0.12.nupkg",
-            "7f63d47aea10cd7ac3dd7a2ca04474c7cb683e36ef86b49190382b0c891fbe99"),
-        new(
-            "microsoft.netcore.app.runtime.nativeaot.win-x64",
-            "10.0.12",
-            "microsoft.netcore.app.runtime.nativeaot.win-x64.10.0.12.nupkg",
-            "94e38c861bdd0ef6e5f04492538b66ada2f30876907363a61aa9f03f42fb3406")
-    ];
+    private static readonly RestoreArchiveDescriptor[] ExpectedRestoreArchives = OS.Tooling.EfiContracts.RestoreArchives.Select(a => new RestoreArchiveDescriptor(a.Id, a.Version, a.FileName, a.Sha256)).ToArray();
 
-    private static readonly PackageDescriptor[] ExpectedPackages =
-    [
-        new(
-            "microsoft.dotnet.ilcompiler",
-            "10.0.12",
-            "restore",
-            "AawF393Q+VkdrnrnI1gu612zh5iqpa1AGSvnKCQ3IkMgSKJXIQbO1sXYRgEzOU4f0cPZ6MaCCF29xZSGWlmbuQ==",
-            20,
-            404890,
-            "0262658f79a7fd731130a31b423b28f8bf11810c6bf46f09cbd014af7d9e25fd"),
-        new(
-            "microsoft.net.illink.tasks",
-            "10.0.12",
-            "restore",
-            "xi+BDjFpW+Sb+MHFHaH6Y/gV9I8BluFwRXc1QyCdoZbIK26eNiBeFuMTe/FMwc33G1wdHCyDg7CVTmb8OdQrMQ==",
-            42,
-            5339152,
-            "11d0abb4c856d2c2e8ccce942fa9843df34a026d2c589936e5878b228f859834"),
-        new(
-            "runtime.win-x64.microsoft.dotnet.ilcompiler",
-            "10.0.12",
-            "restore",
-            "clsgU9GnioCJ+PBzQTCoJHxLXRU+7O/BzYrwRT8CUP7jgyYjNgJmNsQ/kbzAA7MG5kDvFoFvIBGHGzYdINh/EQ==",
-            13,
-            37502842,
-            "117ebd47725e7f105b1f3014e610839b88168d8607877e126827316eb1355bc7"),
-        new(
-            "microsoft.netcore.app.runtime.nativeaot.win-x64",
-            "10.0.12",
-            "restore-only",
-            "MPm78CKSJf8Sb0nbXgvzedp2uwFQX4JONl618NhEeAEznK9JLzQ6ETfJZ+UcoW5ScTqa27a+JGQDXD3bUAMTrA==",
-            406,
-            109239870,
-            "c4048f1c42c12a119d30b5d432e957a961689d72ea3fe44091ade5d54d1324be"),
-        new(
-            "microsoft.netcore.app.runtime.nativeaot.win-x64",
-            "10.0.12",
-            "runtime",
-            "MPm78CKSJf8Sb0nbXgvzedp2uwFQX4JONl618NhEeAEznK9JLzQ6ETfJZ+UcoW5ScTqa27a+JGQDXD3bUAMTrA==",
-            406,
-            109239870,
-            "c4048f1c42c12a119d30b5d432e957a961689d72ea3fe44091ade5d54d1324be")
-    ];
+    private static readonly PackageDescriptor[] ExpectedPackages = OS.Tooling.EfiContracts.ConsumedPackageTrees.Select(p => new PackageDescriptor(p.Id, p.Version, p.RootKind, p.ContentHashSha512, p.FileCount, p.TotalBytes, p.AggregateSha256)).ToArray();
 
-    private static readonly string[] PackageBuildClosurePaths =
-    [
-        "microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets",
-        "microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.Publish.targets",
-        "microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.Windows.targets",
-        "microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.targets",
-        "microsoft.dotnet.ilcompiler/10.0.12/tools/netstandard/ILCompiler.Build.Tasks.dll",
-        "microsoft.dotnet.ilcompiler/10.0.12/tools/netstandard/ILCompiler.Build.Tasks.deps.json",
-        "microsoft.net.illink.tasks/10.0.12/build/Microsoft.NET.ILLink.targets",
-        "microsoft.net.illink.tasks/10.0.12/tools/net/ILLink.Tasks.dll",
-        "microsoft.net.illink.tasks/10.0.12/tools/net/ILLink.Tasks.deps.json"
-    ];
+    private static readonly string[] PackageBuildClosurePaths = OS.Tooling.EfiContracts.PackageBuildClosure.Select(p => p.Path).ToArray();
 
-    private static readonly string[] ActivePackageImportEdges =
-    [
-        "sdk|microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets",
-        "microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.DotNet.ILCompiler.SingleEntry.targets|microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.targets",
-        "microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.targets|microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.Windows.targets",
-        "microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.targets|microsoft.dotnet.ilcompiler/10.0.12/build/Microsoft.NETCore.Native.Publish.targets",
-        "sdk|microsoft.net.illink.tasks/10.0.12/build/Microsoft.NET.ILLink.targets"
-    ];
+    private static readonly string[] ActivePackageImportEdges = OS.Tooling.EfiContracts.ActivePackageImportEdges.ToArray();
 
-    private static readonly string[] PackageTaskBindings =
-    [
-        "ComputeManagedAssembliesToCompileToNative|microsoft.dotnet.ilcompiler/10.0.12/tools/netstandard/ILCompiler.Build.Tasks.dll",
-        "ComputeManagedAssemblies|microsoft.net.illink.tasks/10.0.12/tools/net/ILLink.Tasks.dll"
-    ];
+    private static readonly string[] PackageTaskBindings = OS.Tooling.EfiContracts.PackageTaskBindings.ToArray();
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void Run()
     {
         int failures = 0;
@@ -297,28 +211,11 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static void Run(string name, Func<bool> test, ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
-    private static bool TestValidArtifactPasses(string tempRoot)
+    internal static bool TestValidArtifactPasses(string tempRoot)
     {
         string artifact = WriteFixture(tempRoot, "valid artifact with spaces", CreateValidPe());
         LinkEvidencePaths paths = WriteLinkEvidence(artifact);
@@ -378,7 +275,7 @@ internal static class EfiArtifactVerificationScriptTests
         return passed;
     }
 
-    private static bool TestM02Ud2VectorStateSingleSwitchImplication(
+    internal static bool TestM02Ud2VectorStateSingleSwitchImplication(
         string tempRoot)
     {
         string artifact = WriteFixture(
@@ -436,10 +333,7 @@ internal static class EfiArtifactVerificationScriptTests
                 "-EnableM04IndependentEndianConformanceProbe",
                 "-EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"
             ]);
-        string verifierScript = File.ReadAllText(Path.Combine(
-            HostToolProcess.FindRepositoryRoot(),
-            "scripts",
-            "test-efi-artifact.ps1"));
+        ProcessResult explicitFalse = RunVerifier(artifact, additionalArguments: ["-EnableM02Ud2VectorStateProbe", "-EnableM01LoadedImageStackProbe:false"]);
 
         bool passed = enabled.ExitCode == 0
             && enabled.Output.Contains(
@@ -458,9 +352,8 @@ internal static class EfiArtifactVerificationScriptTests
             && m04Conflict.Output.Contains(
                 "m04_span_memory_conformance_forbids_m02_ud2_vector_state",
                 StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "m02_ud2_vector_state_probe_explicit_false_prerequisite",
-                StringComparison.Ordinal);
+            && FailedWith(explicitFalse,
+                "m02_ud2_vector_state_probe_explicit_false_prerequisite");
         if (!passed)
         {
             Console.WriteLine(
@@ -1539,7 +1432,7 @@ internal static class EfiArtifactVerificationScriptTests
             missingVerifierSourcePaths.EvidencePath,
             evidence => RemoveSourceClosureInput(
                 evidence,
-                "scripts/test-efi-artifact.ps1"));
+                "tools/OS.Tooling/EfiVerify.cs"));
         ProcessResult missingVerifierSourceResult = RunVerifier(
             missingVerifierSourceArtifact);
 
@@ -2396,7 +2289,7 @@ internal static class EfiArtifactVerificationScriptTests
                 evidence["nativeAotRuntimePackPath"] = Path.Combine(
                     fixture.PackageRootPath,
                     "microsoft.netcore.app.runtime.nativeaot.win-x64",
-                    "10.0.12");
+                    EfiContracts.NativePackageVersion);
             },
             "package_evidence_root_path_mismatch");
         passed &= EvidenceMutationFails(
@@ -2568,344 +2461,7 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static bool TestBoundedExternalEvaluationRunner(string tempRoot)
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string verifierPath = Path.Combine(
-            repositoryRoot,
-            "scripts",
-            "test-efi-artifact.ps1");
-        string verifierSource = File.ReadAllText(verifierPath);
-        int createProcessCall = verifierSource.IndexOf(
-            "if (!CreateProcessW(",
-            StringComparison.Ordinal);
-        int assignmentCall = verifierSource.IndexOf(
-            "if (!AssignProcessToJobObject(",
-            StringComparison.Ordinal);
-        int resumeCall = verifierSource.IndexOf(
-            "if (ResumeThread(thread)",
-            StringComparison.Ordinal);
-        string[] stableReasons =
-        [
-            "post_restore_evaluation_start_failed",
-            "post_restore_evaluation_timeout",
-            "post_restore_evaluation_output_overflow",
-            "post_restore_evaluation_capture_failed",
-            "post_restore_evaluation_nonzero_exit",
-            "post_restore_evaluation_termination_unconfirmed"
-        ];
-        bool staticContract =
-            !verifierSource.Contains(
-                "& $DotnetHostPath",
-                StringComparison.Ordinal)
-            && verifierSource.Contains(
-                "JobObjectLimitKillOnJobClose",
-                StringComparison.Ordinal)
-            && createProcessCall >= 0
-            && assignmentCall > createProcessCall
-            && resumeCall > assignmentCall
-            && verifierSource.Contains(
-                "-nodeReuse:false",
-                StringComparison.Ordinal)
-            && verifierSource.Contains(
-                "-p:UseSharedCompilation=false",
-                StringComparison.Ordinal)
-            && verifierSource.Contains(
-                "DOTNET_CLI_USE_MSBUILD_SERVER",
-                StringComparison.Ordinal)
-            && verifierSource.Contains(
-                "MSBUILDDISABLENODEREUSE",
-                StringComparison.Ordinal)
-            && verifierSource.Contains(
-                "$expectedSourceClosureInputCount = 138",
-                StringComparison.Ordinal)
-            && stableReasons.All(reason => verifierSource.Contains(
-                reason,
-                StringComparison.Ordinal));
-        if (!staticContract)
-        {
-            Console.WriteLine(
-                "EFI_ARTIFACT_RUNNER_STATIC_CONTRACT_FAIL " +
-                "create=" + createProcessCall +
-                " assign=" + assignmentCall +
-                " resume=" + resumeCall);
-            return false;
-        }
-
-        string probeRoot = Path.Combine(tempRoot, "bounded-runner-probe");
-        Directory.CreateDirectory(probeRoot);
-        string probePath = Path.Combine(
-            probeRoot,
-            "Invoke-BoundedRunnerProbe.ps1");
-        File.WriteAllText(
-            probePath,
-            """
-            param(
-                [Parameter(Mandatory = $true)]
-                [string]$VerifierPath,
-                [Parameter(Mandatory = $true)]
-                [string]$ProbeRoot
-            )
-
-            $ErrorActionPreference = "Stop"
-            Set-StrictMode -Version Latest
-
-            function Write-Failure {
-                param(
-                    [string]$Reason,
-                    [string]$Detail = ""
-                )
-
-                throw "$Reason $Detail"
-            }
-
-            function Assert-Probe {
-                param(
-                    [bool]$Condition,
-                    [string]$Reason
-                )
-
-                if (-not $Condition) {
-                    throw $Reason
-                }
-            }
-
-            $tokens = $null
-            $parseErrors = $null
-            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
-                $VerifierPath,
-                [ref]$tokens,
-                [ref]$parseErrors)
-            Assert-Probe ($parseErrors.Count -eq 0) "verifier_parse_failed"
-            $initializerAst = $ast.Find(
-                {
-                    param($node)
-                    $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
-                        $node.Name -eq "Initialize-BoundedJobProcessRunner"
-                },
-                $true)
-            Assert-Probe ($null -ne $initializerAst) "runner_initializer_missing"
-            Invoke-Expression $initializerAst.Extent.Text
-            Initialize-BoundedJobProcessRunner
-
-            $workingDirectory = [System.IO.Path]::GetFullPath($ProbeRoot)
-            $powershellPath = (Get-Command powershell.exe -CommandType Application |
-                Select-Object -First 1).Source
-            $missingExecutable = Join-Path $workingDirectory "missing-runner-host.exe"
-
-            $positiveCommand =
-                "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding(`$false); " +
-                "[Console]::Out.Write('stdout-ok'); " +
-                "[Console]::Error.Write('stderr-ok')"
-            $positive = [CLROS.Verifier.BoundedJobProcessRunner]::Run(
-                $powershellPath,
-                [string[]]@("-NoProfile", "-Command", $positiveCommand),
-                $workingDirectory,
-                5,
-                4096)
-            Assert-Probe ($positive.Status -eq "Success") "positive_status"
-            Assert-Probe ($positive.ExitCode -eq 0) "positive_exit"
-            Assert-Probe $positive.TerminationConfirmed "positive_termination"
-            Assert-Probe (
-                $positive.Output.Contains("stdout-ok") -and
-                $positive.Output.Contains("stderr-ok")) "positive_output"
-
-            $nonzero = [CLROS.Verifier.BoundedJobProcessRunner]::Run(
-                $powershellPath,
-                [string[]]@("-NoProfile", "-Command", "exit 7"),
-                $workingDirectory,
-                5,
-                4096)
-            Assert-Probe ($nonzero.Status -eq "NonZeroExit") "nonzero_status"
-            Assert-Probe ($nonzero.ExitCode -eq 7) "nonzero_exit"
-            Assert-Probe $nonzero.TerminationConfirmed "nonzero_termination"
-
-            $overflowCommand =
-                "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding(`$false); " +
-                "[Console]::Out.Write('x' * 8192)"
-            $overflow = [CLROS.Verifier.BoundedJobProcessRunner]::Run(
-                $powershellPath,
-                [string[]]@("-NoProfile", "-Command", $overflowCommand),
-                $workingDirectory,
-                5,
-                4096)
-            Assert-Probe ($overflow.Status -eq "OutputOverflow") "overflow_status"
-            Assert-Probe $overflow.TerminationConfirmed "overflow_termination"
-            Assert-Probe ($overflow.Output.Length -le 4096) "overflow_hard_cap"
-            Assert-Probe (
-                $overflow.OutputCharacters -le 4096) "overflow_count_hard_cap"
-
-            $captureFailureCommand =
-                "`$stream = [Console]::OpenStandardOutput(); " +
-                "`$bytes = [byte[]]@(255); " +
-                "`$stream.Write(`$bytes, 0, `$bytes.Length); " +
-                "`$stream.Flush(); Start-Sleep -Seconds 30"
-            $captureFailure = [CLROS.Verifier.BoundedJobProcessRunner]::Run(
-                $powershellPath,
-                [string[]]@("-NoProfile", "-Command", $captureFailureCommand),
-                $workingDirectory,
-                5,
-                4096)
-            Assert-Probe (
-                $captureFailure.Status -eq "CaptureFailed") "capture_status"
-            Assert-Probe (
-                $captureFailure.TerminationConfirmed) "capture_termination"
-
-            $invalidTimeoutLow = [CLROS.Verifier.BoundedJobProcessRunner]::Run(
-                $missingExecutable,
-                [string[]]@(),
-                $workingDirectory,
-                4,
-                4096)
-            $invalidTimeoutHigh = [CLROS.Verifier.BoundedJobProcessRunner]::Run(
-                $missingExecutable,
-                [string[]]@(),
-                $workingDirectory,
-                3601,
-                4096)
-            $invalidLimitLow = [CLROS.Verifier.BoundedJobProcessRunner]::Run(
-                $missingExecutable,
-                [string[]]@(),
-                $workingDirectory,
-                5,
-                4095)
-            $invalidLimitHigh = [CLROS.Verifier.BoundedJobProcessRunner]::Run(
-                $missingExecutable,
-                [string[]]@(),
-                $workingDirectory,
-                5,
-                67108865)
-            $startFailure = [CLROS.Verifier.BoundedJobProcessRunner]::Run(
-                $missingExecutable,
-                [string[]]@(),
-                $workingDirectory,
-                5,
-                4096)
-            Assert-Probe (
-                $invalidTimeoutLow.Status -eq "InvalidTimeout" -and
-                $invalidTimeoutHigh.Status -eq "InvalidTimeout") "invalid_timeout"
-            Assert-Probe (
-                $invalidLimitLow.Status -eq "InvalidOutputLimit" -and
-                $invalidLimitHigh.Status -eq "InvalidOutputLimit") "invalid_limit"
-            Assert-Probe ($startFailure.Status -eq "StartFailed") "start_status"
-
-            $childScriptPath = Join-Path $workingDirectory "lock-child.ps1"
-            $parentScriptPath = Join-Path $workingDirectory "lock-parent.ps1"
-            $sentinelPath = Join-Path $workingDirectory "descendant.lock"
-            [System.IO.File]::WriteAllText(
-                $childScriptPath,
-                @'
-            param([Parameter(Mandatory = $true)][string]$SentinelPath)
-            $stream = [System.IO.File]::Open(
-                $SentinelPath,
-                [System.IO.FileMode]::OpenOrCreate,
-                [System.IO.FileAccess]::ReadWrite,
-                [System.IO.FileShare]::None)
-            try {
-                Start-Sleep -Seconds 60
-            }
-            finally {
-                $stream.Dispose()
-            }
-            '@,
-                (New-Object System.Text.UTF8Encoding($false)))
-            [System.IO.File]::WriteAllText(
-                $parentScriptPath,
-                @'
-            param(
-                [Parameter(Mandatory = $true)][string]$ChildScriptPath,
-                [Parameter(Mandatory = $true)][string]$SentinelPath
-            )
-            $arguments =
-                '-NoProfile -ExecutionPolicy Bypass -File "' +
-                $ChildScriptPath +
-                '" "' +
-                $SentinelPath +
-                '"'
-            $child = Start-Process `
-                -FilePath powershell.exe `
-                -ArgumentList $arguments `
-                -NoNewWindow `
-                -PassThru
-            $deadline = [DateTime]::UtcNow.AddSeconds(4)
-            while (-not (Test-Path -LiteralPath $SentinelPath -PathType Leaf)) {
-                if ([DateTime]::UtcNow -ge $deadline) {
-                    throw "descendant_lock_timeout"
-                }
-                Start-Sleep -Milliseconds 20
-            }
-            Start-Sleep -Seconds 60
-            '@,
-                (New-Object System.Text.UTF8Encoding($false)))
-            $timeout = [CLROS.Verifier.BoundedJobProcessRunner]::Run(
-                $powershellPath,
-                [string[]]@(
-                    "-NoProfile",
-                    "-ExecutionPolicy",
-                    "Bypass",
-                    "-File",
-                    $parentScriptPath,
-                    $childScriptPath,
-                    $sentinelPath),
-                $workingDirectory,
-                5,
-                4096)
-            Assert-Probe ($timeout.Status -eq "TimedOut") "timeout_status"
-            Assert-Probe $timeout.TerminationConfirmed "timeout_termination"
-            Assert-Probe (
-                (Test-Path -LiteralPath $sentinelPath -PathType Leaf)) "sentinel_missing"
-            $sentinelProbe = [System.IO.File]::Open(
-                $sentinelPath,
-                [System.IO.FileMode]::Open,
-                [System.IO.FileAccess]::ReadWrite,
-                [System.IO.FileShare]::None)
-            $sentinelProbe.Dispose()
-            Remove-Item -LiteralPath $sentinelPath -Force
-
-            $handleBaseline = (Get-Process -Id $PID).HandleCount
-            for ($index = 0; $index -lt 8; $index++) {
-                $repeat = [CLROS.Verifier.BoundedJobProcessRunner]::Run(
-                    $powershellPath,
-                    [string[]]@("-NoProfile", "-Command", "exit 0"),
-                    $workingDirectory,
-                    5,
-                    4096)
-                Assert-Probe ($repeat.Status -eq "Success") "repeat_status"
-            }
-            [GC]::Collect()
-            [GC]::WaitForPendingFinalizers()
-            Start-Sleep -Milliseconds 200
-            $handleFinal = (Get-Process -Id $PID).HandleCount
-            Assert-Probe (
-                $handleFinal -le ($handleBaseline + 4)) "runner_handle_leak"
-
-            Write-Output (
-                "BOUNDED_RUNNER_PROBE_PASS " +
-                "baselineHandles=$handleBaseline finalHandles=$handleFinal")
-            """,
-            new UTF8Encoding(false));
-
-        ProcessResult probeResult = RunBoundedProcess(
-            "powershell.exe",
-            [
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                probePath,
-                verifierPath,
-                probeRoot
-            ],
-            timeoutMilliseconds: 45_000);
-        bool passed = !probeResult.TimedOut
-            && probeResult.ExitCode == 0
-            && probeResult.Output.Contains(
-                "BOUNDED_RUNNER_PROBE_PASS",
-                StringComparison.Ordinal);
-        if (!passed)
-        {
-            WriteFixtureDiagnostic("bounded-runner-probe", probeResult);
-        }
-
-        return passed;
+        return NativeToolingTests.VerifyJobRunner(Path.Combine(tempRoot, "bounded-runner-probe"));
     }
 
     private static bool EvidenceMutationFails(
@@ -3024,7 +2580,7 @@ internal static class EfiArtifactVerificationScriptTests
         string metadataPath = Path.Combine(
             fixture.PackageRootPath,
             "microsoft.dotnet.ilcompiler",
-            "10.0.12",
+            EfiContracts.NativePackageVersion,
             ".nupkg.metadata");
         byte[] originalBytes = File.ReadAllBytes(metadataPath);
         ProcessResult result;
@@ -3078,180 +2634,18 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static bool TestSdkLatestPatchVersion(string tempRoot)
     {
-        string probe = Path.Combine(tempRoot, "sdk-latest-patch.ps1");
-        File.WriteAllText(probe, """
-            param([string] $VerifierPath)
-            $ErrorActionPreference = "Stop"
-            Set-StrictMode -Version Latest
-            $tokens = $null; $errors = $null
-            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
-                $VerifierPath, [ref] $tokens, [ref] $errors)
-            if ($errors.Count -ne 0) { throw "verifier_parse_failed" }
-            $functions = @($ast.FindAll({ param($node)
-                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
-                    $node.Name -ceq "Test-SdkLatestPatchVersion"
-            }, $true))
-            if ($functions.Count -ne 1) { throw "sdk_helper_missing" }
-            . ([scriptblock]::Create($functions[0].Extent.Text))
-            foreach ($version in @("10.0.401", "10.0.402", "10.0.499")) {
-                if (-not (Test-SdkLatestPatchVersion $version "10.0.401")) {
-                    throw "latest_patch_rejected $version"
-                }
-            }
-            foreach ($version in @("", "10.0.302", "10.0.400", "10.0.500", "10.0.501",
-                    "10.1.401", "11.0.401", "10.0.401-preview.1", "10.0.401+extra", "invalid")) {
-                if (Test-SdkLatestPatchVersion $version "10.0.401") {
-                    throw "invalid_latest_patch_accepted $version"
-                }
-            }
-            if (-not (Test-SdkLatestPatchVersion "10.0.399" "10.0.300") -or
-                (Test-SdkLatestPatchVersion "10.0.400" "10.0.300") -or
-                (Test-SdkLatestPatchVersion "10.0.401" "invalid") -or
-                (Test-SdkLatestPatchVersion "10.0.401" "10.0.401-preview.1")) {
-                throw "minimum_version_boundary_failed"
-            }
-            Write-Output "SDK_LATEST_PATCH_PASS"
-            """, new UTF8Encoding(false));
-        ProcessResult result = RunBoundedProcess(
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
-                "WindowsPowerShell", "v1.0", "powershell.exe"),
-            ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", probe,
-                Path.Combine(HostToolProcess.FindRepositoryRoot(), "scripts", "test-efi-artifact.ps1")],
-            30_000);
-        if (result.ExitCode != 0) Console.WriteLine(result.Output);
-        return result.ExitCode == 0 && !result.TimedOut &&
-            result.Output.Contains("SDK_LATEST_PATCH_PASS", StringComparison.Ordinal);
+        foreach (string version in new[] { "10.0.401", "10.0.402", "10.0.499" })
+            HostCheck.True(OS.Tooling.EfiVerify.TestSdkLatestPatchVersion(version, "10.0.401"));
+        foreach (string version in new[] { "", "10.0.302", "10.0.400", "10.0.500", "10.0.501", "10.1.401", "11.0.401", "10.0.401-preview.1", "10.0.401+extra", "invalid" })
+            HostCheck.True(!OS.Tooling.EfiVerify.TestSdkLatestPatchVersion(version, "10.0.401"));
+        return HostCheck.Result(OS.Tooling.EfiVerify.TestSdkLatestPatchVersion("10.0.399", "10.0.300") &&
+            !OS.Tooling.EfiVerify.TestSdkLatestPatchVersion("10.0.400", "10.0.300") &&
+            !OS.Tooling.EfiVerify.TestSdkLatestPatchVersion("10.0.401", "invalid") &&
+            !OS.Tooling.EfiVerify.TestSdkLatestPatchVersion("10.0.401", "10.0.401-preview.1"));
     }
-
     private static bool TestReparsePathHelper(string tempRoot)
     {
-        string probeRoot = Path.Combine(tempRoot, "path-helper");
-        Directory.CreateDirectory(probeRoot);
-        string script = Path.Combine(probeRoot, "probe.ps1");
-        File.WriteAllText(script, """
-            param([string]$VerifierPath, [string]$ProbeRoot)
-            $ErrorActionPreference = "Stop"
-            Set-StrictMode -Version Latest
-            function Assert-Probe([bool]$Condition, [string]$Reason) {
-                if (-not $Condition) { throw $Reason }
-            }
-            function Write-Failure([string]$Reason, [string]$Detail) {
-                throw "PATH_REJECT|$Reason|$Detail"
-            }
-            $tokens = $null
-            $errors = $null
-            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
-                $VerifierPath, [ref]$tokens, [ref]$errors)
-            Assert-Probe ($errors.Count -eq 0) "parse_failed"
-            $functions = @($ast.FindAll({ param($node)
-                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
-                    $node.Name -ceq "Assert-NoReparsePoints"
-            }, $true))
-            Assert-Probe ($functions.Count -eq 1) "helper_missing"
-            . ([scriptblock]::Create($functions[0].Extent.Text))
-            function Check-Path([string]$Root, [string]$Path, [string]$Expected) {
-                $actual = "accepted"
-                try { Assert-NoReparsePoints -RootPath $Root -Path $Path -Reason "fixture_reparse" }
-                catch {
-                    $actual = $_.Exception.Message
-                    if (-not $actual.StartsWith("PATH_REJECT|", [StringComparison]::Ordinal)) {
-                        $actual = "EXCEPTION|" + $_.Exception.GetType().Name
-                    }
-                }
-                Assert-Probe ($actual -ceq $Expected) "expected=$Expected actual=$actual"
-            }
-            $literal = [IO.Path]::Combine($ProbeRoot, "literal [abc] #; space")
-            [void][IO.Directory]::CreateDirectory($literal)
-            $file = [IO.Path]::Combine($literal, "hidden [x].txt")
-            [IO.File]::WriteAllText($file, "owned fixture")
-            [IO.File]::SetAttributes($file, [IO.FileAttributes]::Hidden)
-            try {
-                Check-Path $ProbeRoot $file "accepted"
-                Check-Path ($ProbeRoot + "\") $literal "accepted"
-                Check-Path $ProbeRoot ($ProbeRoot + "\.\literal [abc] #; space\hidden [x].txt") "accepted"
-                Check-Path $ProbeRoot $ProbeRoot "accepted"
-                $outside = $ProbeRoot + "-outside\leaf"
-                Check-Path $ProbeRoot $outside "PATH_REJECT|fixture_reparse|path=$outside"
-                $missing = [IO.Path]::Combine($ProbeRoot, "missing")
-                Check-Path $ProbeRoot ($missing + "\leaf") "PATH_REJECT|fixture_reparse|path=$missing type=ItemNotFoundException"
-                # Preserve the original strict-mode error for a provider-null item.
-                Check-Path $ProbeRoot ($file + "\leaf") "EXCEPTION|PropertyNotFoundException"
-                Write-Output "PATH_HELPER_CASES literal_hidden_normalized_root_containment_missing_file_parent=pass"
-                $target = [IO.Path]::Combine($ProbeRoot, "target")
-                [void][IO.Directory]::CreateDirectory($target)
-                [IO.File]::WriteAllText([IO.Path]::Combine($target, "leaf"), "owned target")
-                $junction = [IO.Path]::Combine($ProbeRoot, "junction")
-                $junctionCreated = $false
-                try {
-                    try {
-                        [void](New-Item -ItemType Junction -Path $junction -Target $target -ErrorAction Stop)
-                        $junctionCreated = $true
-                    }
-                    catch { Write-Output ("PATH_HELPER_JUNCTION_UNAVAILABLE " + $_.Exception.GetType().Name) }
-                    if ($junctionCreated) {
-                        Check-Path $ProbeRoot ($junction + "\leaf") "PATH_REJECT|fixture_reparse|path=$junction"
-                        Write-Output "PATH_HELPER_JUNCTION rejected=true"
-                    }
-                }
-                finally { if ($junctionCreated) { [IO.Directory]::Delete($junction) } }
-                $link = [IO.Path]::Combine($ProbeRoot, "file-link")
-                $linkCreated = $false
-                try {
-                    try {
-                        [void](New-Item -ItemType SymbolicLink -Path $link -Target $file -ErrorAction Stop)
-                        $linkCreated = $true
-                    }
-                    catch { Write-Output ("PATH_HELPER_SYMLINK_UNAVAILABLE " + $_.Exception.GetType().Name) }
-                    if ($linkCreated) {
-                        Check-Path $ProbeRoot $link "PATH_REJECT|fixture_reparse|path=$link"
-                        Write-Output "PATH_HELPER_SYMLINK rejected=true"
-                    }
-                }
-                finally { if ($linkCreated) { [IO.File]::Delete($link) } }
-                $restricted = [IO.Path]::Combine($ProbeRoot, "restricted")
-                [IO.File]::WriteAllText($restricted, "owned ACL fixture")
-                $originalAcl = Get-Acl -LiteralPath $restricted
-                $aclChanged = $false
-                try {
-                    try {
-                        $deniedAcl = Get-Acl -LiteralPath $restricted
-                        $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-                            [System.Security.Principal.WindowsIdentity]::GetCurrent().User,
-                            [System.Security.AccessControl.FileSystemRights]::ReadAttributes,
-                            [System.Security.AccessControl.AccessControlType]::Deny)
-                        $deniedAcl.AddAccessRule($rule)
-                        Set-Acl -LiteralPath $restricted -AclObject $deniedAcl
-                        $aclChanged = $true
-                    }
-                    catch { Write-Output ("PATH_HELPER_ACL_UNAVAILABLE " + $_.Exception.GetType().Name) }
-                    if ($aclChanged) {
-                        $providerError = $null
-                        try { [void](Get-Item -LiteralPath $restricted -Force -ErrorAction Stop) }
-                        catch { $providerError = $_.Exception.GetType().Name }
-                        if ($null -eq $providerError) {
-                            Write-Output "PATH_HELPER_ACL_UNAVAILABLE provider_still_reads_attributes"
-                        }
-                        else {
-                            Check-Path $ProbeRoot $restricted "PATH_REJECT|fixture_reparse|path=$restricted type=$providerError"
-                            Write-Output "PATH_HELPER_ACL rejected=true"
-                        }
-                    }
-                }
-                finally { if ($aclChanged) { Set-Acl -LiteralPath $restricted -AclObject $originalAcl } }
-            }
-            finally { [IO.File]::SetAttributes($file, [IO.FileAttributes]::Normal) }
-            Write-Output ("PATH_HELPER_PROBE_PASS edition=" + $PSVersionTable.PSEdition + " version=" + $PSVersionTable.PSVersion)
-            """, new UTF8Encoding(false));
-        ProcessResult result = RunBoundedProcess(
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System),
-                "WindowsPowerShell", "v1.0", "powershell.exe"),
-            ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script,
-                Path.Combine(HostToolProcess.FindRepositoryRoot(), "scripts", "test-efi-artifact.ps1"),
-                probeRoot],
-            30_000);
-        Console.WriteLine(result.Output);
-        return result.ExitCode == 0 && !result.TimedOut &&
-            result.Output.Contains("PATH_HELPER_PROBE_PASS edition=Desktop version=5.1", StringComparison.Ordinal);
+        return AuthorityFilesTests.ValidatePathWalk(Path.Combine(tempRoot, "path-helper-probe"));
     }
 
     private static bool TestAuthorityOutputHardlink(string tempRoot)
@@ -3462,7 +2856,7 @@ internal static class EfiArtifactVerificationScriptTests
         string targetPath = Path.Combine(
             fixture.PackageRootPath,
             "microsoft.dotnet.ilcompiler",
-            "10.0.12",
+            EfiContracts.NativePackageVersion,
             "build",
             "Microsoft.DotNet.ILCompiler.props");
         long originalLength = new FileInfo(targetPath).Length;
@@ -3534,7 +2928,7 @@ internal static class EfiArtifactVerificationScriptTests
         string linkPath = Path.Combine(
             fixture.PackageRootPath,
             "microsoft.dotnet.ilcompiler",
-            "10.0.12",
+            EfiContracts.NativePackageVersion,
             "fixture-reparse");
         string targetPath = Path.Combine(
             Path.GetDirectoryName(artifact)!,
@@ -3905,7 +3299,7 @@ internal static class EfiArtifactVerificationScriptTests
             "\"");
     }
 
-    private static string WriteFixture(string tempRoot, string name, byte[] bytes)
+    internal static string WriteFixture(string tempRoot, string name, byte[] bytes)
     {
         string fixtureDirectory = Path.Combine(tempRoot, name);
         Directory.CreateDirectory(fixtureDirectory);
@@ -3914,7 +3308,7 @@ internal static class EfiArtifactVerificationScriptTests
         return artifact;
     }
 
-    private static byte[] CreateValidPe(uint serializerRva = SerializerRva)
+    internal static byte[] CreateValidPe(uint serializerRva = SerializerRva)
     {
         byte[] bytes = new byte[0x800];
 
@@ -4175,7 +3569,7 @@ internal static class EfiArtifactVerificationScriptTests
         bytes[offset + 3] = 0x00;
     }
 
-    private static LinkEvidencePaths WriteLinkEvidence(
+    internal static LinkEvidencePaths WriteLinkEvidence(
         string artifactPath,
         LinkEvidenceOptions? options = null)
     {
@@ -4244,13 +3638,13 @@ internal static class EfiArtifactVerificationScriptTests
         File.WriteAllBytes(
             windowsSdkLibraryPath,
             Encoding.ASCII.GetBytes("fixture Windows SDK library"));
-        string ilCompilerPackageVersion = "10.0.12";
+        string ilCompilerPackageVersion = EfiContracts.NativePackageVersion;
         string ilCompilerPath = schemaFixture.IlCompilerPath;
         string ilCompilerFileVersion =
             FileVersionInfo.GetVersionInfo(ilCompilerPath).FileVersion
             ?? throw new InvalidOperationException(
                 "Fixture ILCompiler file version is unavailable.");
-        string nativeAotRuntimePackVersion = "10.0.12";
+        string nativeAotRuntimePackVersion = EfiContracts.NativePackageVersion;
         string nativeAotRuntimePackPath = schemaFixture.NativeAotRuntimePackPath;
         string runtimeListPath = Path.Combine(
             nativeAotRuntimePackPath,
@@ -4658,31 +4052,31 @@ internal static class EfiArtifactVerificationScriptTests
             string nativeAotRuntimePackPath = Path.Combine(
                 globalPackageRoot,
                 "microsoft.netcore.app.runtime.nativeaot.win-x64",
-                "10.0.12");
+                EfiContracts.NativePackageVersion);
             string ilCompilerPath = Path.Combine(
                 packageRootPath,
                 "runtime.win-x64.microsoft.dotnet.ilcompiler",
-                "10.0.12",
+                EfiContracts.NativePackageVersion,
                 "tools",
                 "ilc.exe");
             string ilCompilerDiscoverySourcePath = Path.Combine(
                 globalPackageRoot,
                 "runtime.win-x64.microsoft.dotnet.ilcompiler",
-                "10.0.12",
+                EfiContracts.NativePackageVersion,
                 "tools",
                 "ilc.exe");
             string ilCompilerBuildPackageRoot = Path.Combine(
                 packageRootPath,
                 "microsoft.dotnet.ilcompiler",
-                "10.0.12");
+                EfiContracts.NativePackageVersion);
             string ilLinkPackageRoot = Path.Combine(
                 packageRootPath,
                 "microsoft.net.illink.tasks",
-                "10.0.12");
+                EfiContracts.NativePackageVersion);
             string ilCompilerHostPackageRoot = Path.Combine(
                 packageRootPath,
                 "runtime.win-x64.microsoft.dotnet.ilcompiler",
-                "10.0.12");
+                EfiContracts.NativePackageVersion);
             string dotnetSdkDirectory = Path.Combine(
                 Path.GetDirectoryName(dotnetHostPath)!,
                 "sdk",
@@ -4926,25 +4320,7 @@ internal static class EfiArtifactVerificationScriptTests
                     Path.Combine(sourceProjectDirectory, include)));
         }
 
-        string[] explicitRelativePaths =
-        [
-            "CLROS.slnx",
-            "global.json",
-            "Directory.Build.props",
-            "Directory.Build.targets",
-            "src/OS/OS.csproj",
-            "scripts/build-efi-shell.ps1",
-            "scripts/test-efi-artifact.ps1",
-            ToolDirectoryBuildPropsPath,
-            "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets",
-            "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj",
-            "tools/OS.X64TextSerializerGenerator/Program.cs",
-            "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
-            "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/ExceptionHandlingThunkGenerator.cs"
-        ];
+        string[] explicitRelativePaths = OS.Tooling.EfiEvidence.SourceClosurePaths(normalizedSourceRoot).ToArray();
         foreach (string relativePath in explicitRelativePaths)
         {
             sourcePaths.Add(
@@ -5235,15 +4611,15 @@ internal static class EfiArtifactVerificationScriptTests
         string ilCompilerBuildPackageRoot = Path.Combine(
             packageRootPath,
             "microsoft.dotnet.ilcompiler",
-            "10.0.12");
+            EfiContracts.NativePackageVersion);
         string ilCompilerHostPackageRoot = Path.Combine(
             packageRootPath,
             "runtime.win-x64.microsoft.dotnet.ilcompiler",
-            "10.0.12");
+            EfiContracts.NativePackageVersion);
         string ilLinkPackageRoot = Path.Combine(
             packageRootPath,
             "microsoft.net.illink.tasks",
-            "10.0.12");
+            EfiContracts.NativePackageVersion);
         string trailingSeparator =
             Path.DirectorySeparatorChar.ToString(CultureInfo.InvariantCulture);
         var properties = new Dictionary<string, string>
@@ -5414,7 +4790,7 @@ internal static class EfiArtifactVerificationScriptTests
         };
         return new Dictionary<string, object?>
         {
-            ["compileCount"] = 122,
+            ["compileCount"] = OS.Tooling.EfiContracts.CompileItems.Count,
             ["compileSha256"] = CompileClosureSha256,
             ["projectReferenceCount"] = 0,
             ["projectReferenceSha256"] = EmptySha256,
@@ -5552,38 +4928,7 @@ internal static class EfiArtifactVerificationScriptTests
         string normalizedRoot = Path.TrimEndingDirectorySeparator(
             Path.GetFullPath(repositoryRoot));
         var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        string projectDirectory = Path.GetDirectoryName(projectPath)!;
-        XDocument project = XDocument.Load(projectPath);
-        foreach (XElement compile in project.Descendants("Compile"))
-        {
-            string include = compile.Attribute("Include")?.Value
-                ?? throw new InvalidOperationException(
-                    "Fixture project compile input has no Include.");
-            AddSourceClosurePath(
-                paths,
-                normalizedRoot,
-                Path.GetFullPath(Path.Combine(projectDirectory, include)));
-        }
-
-        string[] explicitPaths =
-        [
-            "CLROS.slnx",
-            "global.json",
-            "src/OS/OS.csproj",
-            "Directory.Build.props",
-            "Directory.Build.targets",
-            "scripts/build-efi-shell.ps1",
-            "scripts/test-efi-artifact.ps1",
-            ToolDirectoryBuildPropsPath,
-            "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets",
-            "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj",
-            "tools/OS.X64TextSerializerGenerator/Program.cs",
-            "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
-            "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/ExceptionHandlingThunkGenerator.cs"
-        ];
+        string[] explicitPaths = OS.Tooling.EfiEvidence.SourceClosurePaths(normalizedRoot).ToArray();
         foreach (string relativePath in explicitPaths)
         {
             AddSourceClosurePath(
@@ -5595,14 +4940,6 @@ internal static class EfiArtifactVerificationScriptTests
         string[] orderedPaths = paths
             .Order(StringComparer.Ordinal)
             .ToArray();
-        if (orderedPaths.Length != ExpectedSourceClosureInputCount)
-        {
-            throw new InvalidOperationException(
-                "Fixture source-closure input count changed: expected=" +
-                ExpectedSourceClosureInputCount +
-                " actual=" +
-                orderedPaths.Length);
-        }
         var inputs = new Dictionary<string, string>[orderedPaths.Length];
         var aggregate = new StringBuilder();
         for (int index = 0; index < orderedPaths.Length; index++)
@@ -5851,100 +5188,40 @@ internal static class EfiArtifactVerificationScriptTests
         return RunVerifier(artifactPath);
     }
 
-    private static ProcessResult RunVerifier(
+    internal static ProcessResult RunVerifier(
         string artifactPath,
         string? projectPath = null,
         string? entrySourcePath = null,
         string? serializerObjectPath = null,
         string[]? additionalArguments = null)
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string canonicalScriptPath = Path.Combine(
-            repositoryRoot,
-            "scripts",
-            "test-efi-artifact.ps1");
-        string scriptPath =
-            File.Exists(artifactPath + ".link.json") &&
-            cachedSchemaThreeFixture is not null
-                ? Path.Combine(
-                    cachedSchemaThreeFixture.RepositoryRoot,
-                    "scripts",
-                    "test-efi-artifact.ps1")
-                : canonicalScriptPath;
-
-        ProcessStartInfo start = new ProcessStartInfo
-        {
-            FileName = "powershell.exe",
-            RedirectStandardError = true,
-            RedirectStandardOutput = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-
-        start.ArgumentList.Add("-NoProfile");
-        start.ArgumentList.Add("-ExecutionPolicy");
-        start.ArgumentList.Add("Bypass");
-        start.ArgumentList.Add("-File");
-        start.ArgumentList.Add(scriptPath);
-        start.ArgumentList.Add("-BootPolicy");
-        start.ArgumentList.Add("Diagnostic");
-        start.ArgumentList.Add("-EfiArtifact");
-        start.ArgumentList.Add(artifactPath);
-
-        if (projectPath is not null)
-        {
-            start.ArgumentList.Add("-ProjectPath");
-            start.ArgumentList.Add(projectPath);
-        }
-        if (entrySourcePath is not null)
-        {
-            start.ArgumentList.Add("-EntrySourcePath");
-            start.ArgumentList.Add(entrySourcePath);
-        }
-        if (serializerObjectPath is not null)
-        {
-            start.ArgumentList.Add("-SerializerObjectPath");
-            start.ArgumentList.Add(serializerObjectPath);
-        }
-        if (additionalArguments is not null)
-        {
-            foreach (string argument in additionalArguments)
-            {
-                start.ArgumentList.Add(argument);
-            }
-        }
-
+        string root = File.Exists(artifactPath + ".link.json") && cachedSchemaThreeFixture is not null
+            ? cachedSchemaThreeFixture.RepositoryRoot : HostToolProcess.FindRepositoryRoot();
+        List<string> args = ["--root", root, "--boot-policy", "Diagnostic", "--efi-artifact", artifactPath];
+        if (projectPath is not null) args.AddRange(["--project-path", projectPath]);
+        if (entrySourcePath is not null) args.AddRange(["--entry-source-path", entrySourcePath]);
+        if (serializerObjectPath is not null) args.AddRange(["--serializer-object-path", serializerObjectPath]);
+        if (additionalArguments is not null) args.AddRange(additionalArguments);
+        var output = new StringBuilder("TEST_START efi.artifact.verify\n");
         var stopwatch = Stopwatch.StartNew();
-        using Process process = Process.Start(start)
-            ?? throw new InvalidOperationException("Failed to start PowerShell.");
-        Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
-        Task<string> standardError = process.StandardError.ReadToEndAsync();
-        bool completed = process.WaitForExit(
-            VerifierFixtureProcessTimeoutMilliseconds);
-        if (!completed)
+        try
         {
-            try
-            {
-                process.Kill(entireProcessTree: true);
-            }
-            catch
-            {
-                // A concurrent exit is harmless; TimedOut remains authoritative.
-            }
-
-            process.WaitForExit();
+            OS.Tooling.EfiVerify.Verify(OS.Tooling.EfiOptions.Parse(args.ToArray(), false), line => output.AppendLine(line));
+            output.AppendLine("TEST_PASS efi.artifact.verify");
+            return new ProcessResult(0, output.ToString(), timedOut: false, elapsedMilliseconds: stopwatch.ElapsedMilliseconds);
         }
-
-        Task.WaitAll(standardOutput, standardError);
-        stopwatch.Stop();
-        return new ProcessResult(
-            completed ? process.ExitCode : -1,
-            standardOutput.Result + standardError.Result,
-            timedOut: !completed,
-            elapsedMilliseconds: stopwatch.ElapsedMilliseconds);
+        catch (OS.Tooling.ToolFailure failure)
+        {
+            output.AppendLine("TEST_FAIL efi.artifact.verify " + failure.Message);
+            return new ProcessResult(1, output.ToString(), timedOut: false, elapsedMilliseconds: stopwatch.ElapsedMilliseconds);
+        }
+        catch (Exception error)
+        {
+            output.AppendLine("TEST_FAIL efi.artifact.verify unexpected=" + error.GetType().Name + " " + error.Message);
+            return new ProcessResult(1, output.ToString(), timedOut: false, elapsedMilliseconds: stopwatch.ElapsedMilliseconds);
+        }
     }
-
-    private sealed class LinkEvidenceOptions
+    internal sealed class LinkEvidenceOptions
     {
         public uint MappedEntryRva { get; init; } = EntryPointRva;
 
@@ -5971,7 +5248,7 @@ internal static class EfiArtifactVerificationScriptTests
         public string? AdditionalResponse { get; init; }
     }
 
-    private readonly struct ProcessResult(
+    internal readonly struct ProcessResult(
         int exitCode,
         string output,
         bool timedOut,
@@ -5986,7 +5263,7 @@ internal static class EfiArtifactVerificationScriptTests
         public long ElapsedMilliseconds { get; } = elapsedMilliseconds;
     }
 
-    private readonly record struct LinkEvidencePaths(
+    internal readonly record struct LinkEvidencePaths(
         string MapPath,
         string ResponsePath,
         string EvidencePath,

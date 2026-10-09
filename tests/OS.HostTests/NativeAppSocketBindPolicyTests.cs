@@ -6,47 +6,8 @@ using OS.Pal;
 
 internal static class NativeAppSocketBindPolicyTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("appmodel.socket.policy accepts manifest listen endpoint", TestAcceptsManifestListenEndpoint, ref failures);
-        Run("appmodel.socket.policy accepts wildcard manifest endpoint", TestAcceptsWildcardManifestEndpoint, ref failures);
-        Run("appmodel.socket.policy rejects missing listen endpoint", TestRejectsMissingListenEndpoint, ref failures);
-        Run("appmodel.socket.policy rejects wrong port", TestRejectsWrongPort, ref failures);
-        Run("appmodel.socket.policy rejects wrong address", TestRejectsWrongAddress, ref failures);
-        Run("appmodel.socket.policy preserves no-socket-io boundary", TestPreservesNoSocketIoBoundary, ref failures);
-        Run("appmodel.socket.policy default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app socket bind policy host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel.socket.policy accepts manifest listen endpoint", HostLane.Fast, 0)]
     private static bool TestAcceptsManifestListenEndpoint()
     {
         byte[] source = ManifestWithListen("192.0.2.27:8080");
@@ -59,7 +20,7 @@ internal static class NativeAppSocketBindPolicyTests
             endpoint,
             out NativeAppSocketBindPolicyResult result);
 
-        return status == NativeAppSocketBindPolicyStatus.Success
+        return HostCheck.Result(status == NativeAppSocketBindPolicyStatus.Success
             && result.Succeeded
             && result.IsInitialized
             && result.LaunchStatus == NativeAppLaunchStatus.Success
@@ -73,9 +34,10 @@ internal static class NativeAppSocketBindPolicyTests
             && result.ActualAddress1 == 0
             && result.ActualAddress2 == 2
             && result.ActualAddress3 == 27
-            && !result.Wildcard;
+            && !result.Wildcard);
     }
 
+    [HostTest("appmodel.socket.policy accepts wildcard manifest endpoint", HostLane.Fast, 1)]
     private static bool TestAcceptsWildcardManifestEndpoint()
     {
         byte[] source = ManifestWithListen("0.0.0.0:8080");
@@ -88,7 +50,7 @@ internal static class NativeAppSocketBindPolicyTests
             endpoint,
             out NativeAppSocketBindPolicyResult result);
 
-        return status == NativeAppSocketBindPolicyStatus.Success
+        return HostCheck.Result(status == NativeAppSocketBindPolicyStatus.Success
             && result.Succeeded
             && result.IsInitialized
             && result.ExpectedPort == 8080
@@ -97,9 +59,10 @@ internal static class NativeAppSocketBindPolicyTests
             && result.ExpectedAddress1 == 0
             && result.ExpectedAddress2 == 0
             && result.ExpectedAddress3 == 0
-            && result.Wildcard;
+            && result.Wildcard);
     }
 
+    [HostTest("appmodel.socket.policy rejects missing listen endpoint", HostLane.Fast, 2)]
     private static bool TestRejectsMissingListenEndpoint()
     {
         byte[] source = ManifestWithoutListen();
@@ -112,14 +75,15 @@ internal static class NativeAppSocketBindPolicyTests
             endpoint,
             out NativeAppSocketBindPolicyResult result);
 
-        return status == NativeAppSocketBindPolicyStatus.MissingListenEndpoint
+        return HostCheck.Result(status == NativeAppSocketBindPolicyStatus.MissingListenEndpoint
             && !result.Succeeded
             && result.IsInitialized
             && result.LaunchStatus == NativeAppLaunchStatus.Success
             && result.ExpectedPort == 0
-            && result.ActualPort == 8080;
+            && result.ActualPort == 8080);
     }
 
+    [HostTest("appmodel.socket.policy rejects wrong port", HostLane.Fast, 3)]
     private static bool TestRejectsWrongPort()
     {
         byte[] source = ManifestWithListen("192.0.2.27:8080");
@@ -132,15 +96,16 @@ internal static class NativeAppSocketBindPolicyTests
             endpoint,
             out NativeAppSocketBindPolicyResult result);
 
-        return status == NativeAppSocketBindPolicyStatus.PortMismatch
+        return HostCheck.Result(status == NativeAppSocketBindPolicyStatus.PortMismatch
             && !result.Succeeded
             && result.IsInitialized
             && result.ExpectedPort == 8080
             && result.ActualPort == 8081
             && result.ExpectedAddress0 == 192
-            && result.ActualAddress0 == 192;
+            && result.ActualAddress0 == 192);
     }
 
+    [HostTest("appmodel.socket.policy rejects wrong address", HostLane.Fast, 4)]
     private static bool TestRejectsWrongAddress()
     {
         byte[] source = ManifestWithListen("192.0.2.27:8080");
@@ -153,15 +118,16 @@ internal static class NativeAppSocketBindPolicyTests
             endpoint,
             out NativeAppSocketBindPolicyResult result);
 
-        return status == NativeAppSocketBindPolicyStatus.AddressMismatch
+        return HostCheck.Result(status == NativeAppSocketBindPolicyStatus.AddressMismatch
             && !result.Succeeded
             && result.IsInitialized
             && result.ExpectedPort == 8080
             && result.ActualPort == 8080
             && result.ExpectedAddress3 == 27
-            && result.ActualAddress3 == 28;
+            && result.ActualAddress3 == 28);
     }
 
+    [HostTest("appmodel.socket.policy preserves no-socket-io boundary", HostLane.Fast, 5)]
     private static bool TestPreservesNoSocketIoBoundary()
     {
         byte[] hostSource = ManifestWithListen("localhost:8080");
@@ -177,7 +143,7 @@ internal static class NativeAppSocketBindPolicyTests
             default,
             out NativeAppSocketBindPolicyResult invalidEndpointResult);
 
-        return NativeAppSocketBindPolicy.RequiresManifestListenEndpoint
+        return HostCheck.Result(NativeAppSocketBindPolicy.RequiresManifestListenEndpoint
             && !NativeAppSocketBindPolicy.OpensSockets
             && !NativeAppSocketBindPolicy.CallsPalSocketBind
             && !NativeAppSocketBindPolicy.ExportsPalFunctions
@@ -188,14 +154,15 @@ internal static class NativeAppSocketBindPolicyTests
             && invalidHostResult.IsInitialized
             && invalidEndpointStatus == NativeAppSocketBindPolicyStatus.InvalidBindEndpoint
             && !invalidEndpointResult.Succeeded
-            && invalidEndpointResult.IsInitialized;
+            && invalidEndpointResult.IsInitialized);
     }
 
+    [HostTest("appmodel.socket.policy default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAppSocketBindPolicyResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppSocketBindPolicyStatus.Success
             && result.LaunchStatus == NativeAppLaunchStatus.Success
@@ -210,7 +177,7 @@ internal static class NativeAppSocketBindPolicyTests
             && result.ActualAddress2 == 0
             && result.ActualAddress3 == 0
             && !result.Wildcard
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppSocketBindPolicyResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppSocketBindPolicyResult>());
     }
 
     private static NativeAppLaunchPlanResult CreateLaunchPlan(byte[] source)

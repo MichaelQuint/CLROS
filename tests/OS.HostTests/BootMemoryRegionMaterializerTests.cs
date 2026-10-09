@@ -4,44 +4,8 @@ using OS.Std.Binary;
 
 internal static class BootMemoryRegionMaterializerTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("boot.memory regions materializes descriptors", TestMaterializesDescriptors, ref failures);
-        Run("boot.memory regions reports destination capacity", TestReportsDestinationCapacity, ref failures);
-        Run("boot.memory regions rejects invalid descriptors", TestRejectsInvalidDescriptors, ref failures);
-        Run("boot.memory regions rejects invalid metadata", TestRejectsInvalidMetadata, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Boot memory region materializer host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("boot.memory regions materializes descriptors", HostLane.Fast, 0)]
     private static bool TestMaterializesDescriptors()
     {
         Span<byte> descriptors = stackalloc byte[(int)BootMemoryRegionMaterializer.DescriptorStride48 * 3];
@@ -78,7 +42,7 @@ internal static class BootMemoryRegionMaterializerTests
             descriptorCount: 3,
             regions);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == BootMemoryRegionMaterializationStatus.Success
             && result.DescriptorCount == 3
             && result.RegionCount == 3
@@ -96,9 +60,10 @@ internal static class BootMemoryRegionMaterializerTests
             && regions[1].UefiType == (uint)UefiMemoryType.BootServicesData
             && regions[1].Attribute == 0x10
             && regions[2].UefiType == (uint)UefiMemoryType.RuntimeServicesCode
-            && regions[2].VirtualStart == 0xFFFF800000300000;
+            && regions[2].VirtualStart == 0xFFFF800000300000);
     }
 
+    [HostTest("boot.memory regions reports destination capacity", HostLane.Fast, 1)]
     private static bool TestReportsDestinationCapacity()
     {
         Span<byte> descriptors = stackalloc byte[(int)BootMemoryRegionMaterializer.DescriptorStride40 * 2];
@@ -137,7 +102,7 @@ internal static class BootMemoryRegionMaterializerTests
             descriptorCount: 2,
             regions);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == BootMemoryRegionMaterializationStatus.DestinationTooSmall
             && result.DescriptorCount == 2
             && result.RegionCount == 0
@@ -146,9 +111,10 @@ internal static class BootMemoryRegionMaterializerTests
             && regions[0].UefiType == sentinel.UefiType
             && regions[0].PhysicalStart == sentinel.PhysicalStart
             && regions[0].PageCount == sentinel.PageCount
-            && regions[0].Attribute == sentinel.Attribute;
+            && regions[0].Attribute == sentinel.Attribute);
     }
 
+    [HostTest("boot.memory regions rejects invalid descriptors", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidDescriptors()
     {
         Span<byte> zeroPages = stackalloc byte[(int)BootMemoryRegionMaterializer.DescriptorStride40];
@@ -185,14 +151,15 @@ internal static class BootMemoryRegionMaterializerTests
             descriptorCount: 1,
             regions);
 
-        return !zeroPagesResult.Succeeded
+        return HostCheck.Result(!zeroPagesResult.Succeeded
             && zeroPagesResult.Status == BootMemoryRegionMaterializationStatus.InvalidPageCount
             && zeroPagesResult.InvalidDescriptorIndex == 0
             && !overflowingAddressResult.Succeeded
             && overflowingAddressResult.Status == BootMemoryRegionMaterializationStatus.AddressRangeOverflow
-            && overflowingAddressResult.InvalidDescriptorIndex == 0;
+            && overflowingAddressResult.InvalidDescriptorIndex == 0);
     }
 
+    [HostTest("boot.memory regions rejects invalid metadata", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidMetadata()
     {
         Span<byte> descriptors = stackalloc byte[(int)BootMemoryRegionMaterializer.DescriptorStride40];
@@ -225,12 +192,12 @@ internal static class BootMemoryRegionMaterializerTests
             descriptorCount: 1,
             regions);
 
-        return !invalidSize.Succeeded
+        return HostCheck.Result(!invalidSize.Succeeded
             && invalidSize.Status == BootMemoryRegionMaterializationStatus.InvalidDescriptorSize
             && !invalidVersion.Succeeded
             && invalidVersion.Status == BootMemoryRegionMaterializationStatus.InvalidDescriptorVersion
             && !sourceTooSmall.Succeeded
-            && sourceTooSmall.Status == BootMemoryRegionMaterializationStatus.SourceTooSmall;
+            && sourceTooSmall.Status == BootMemoryRegionMaterializationStatus.SourceTooSmall);
     }
 
     private static void WriteDescriptor(

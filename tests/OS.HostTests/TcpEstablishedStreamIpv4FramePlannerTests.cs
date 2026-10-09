@@ -10,45 +10,7 @@ internal static class TcpEstablishedStreamIpv4FramePlannerTests
     private const uint LocalNextSequence = 0x01020304;
     private const uint RemoteNextSequence = 0x10203040;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.tcp.stream.ipv4 writes payload checksum", TestWritesPayloadChecksum, ref failures);
-        Run("net.tcp.stream.ipv4 receives checksum-valid payload", TestReceivesChecksumValidPayload, ref failures);
-        Run("net.tcp.stream.ipv4 rejects bad checksum", TestRejectsBadChecksum, ref failures);
-        Run("net.tcp.stream.ipv4 rejects identity and short output", TestRejectsIdentityAndShortOutput, ref failures);
-        Run("net.tcp.stream.ipv4 default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("TCP established stream IPv4 frame planner host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.tcp.stream.ipv4 writes payload checksum", HostLane.Fast, 0)]
     private static bool TestWritesPayloadChecksum()
     {
         Span<byte> receiveBuffer = stackalloc byte[16];
@@ -78,7 +40,7 @@ internal static class TcpEstablishedStreamIpv4FramePlannerTests
             || stream.LocalNextSequenceNumber != LocalNextSequence + 4
             || stream.RemoteNextSequenceNumber != RemoteNextSequence)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (!TryParseTcpFrame(
@@ -89,7 +51,7 @@ internal static class TcpEstablishedStreamIpv4FramePlannerTests
                 out ReadOnlySpan<byte> tcpSegment,
                 out ReadOnlySpan<byte> tcpPayload))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Ipv4TransportChecksumStatus checksumStatus = Ipv4TransportChecksum.Validate(
@@ -99,7 +61,7 @@ internal static class TcpEstablishedStreamIpv4FramePlannerTests
             tcpSegment,
             out Ipv4TransportChecksumResult checksumResult);
 
-        return ethernet.Source == LocalMac()
+        return HostCheck.Result(ethernet.Source == LocalMac()
             && ethernet.Destination == RemoteMac()
             && ipv4.Source == LocalAddress()
             && ipv4.Destination == RemoteAddress()
@@ -115,9 +77,10 @@ internal static class TcpEstablishedStreamIpv4FramePlannerTests
             && result.TcpHeader.Checksum == tcp.Checksum
             && BytesEqual(tcpPayload, payload.AsSpan(0, 4))
             && checksumStatus == Ipv4TransportChecksumStatus.Success
-            && checksumResult.IsValid;
+            && checksumResult.IsValid);
     }
 
+    [HostTest("net.tcp.stream.ipv4 receives checksum-valid payload", HostLane.Fast, 1)]
     private static bool TestReceivesChecksumValidPayload()
     {
         Span<byte> receiveBuffer = stackalloc byte[16];
@@ -144,7 +107,7 @@ internal static class TcpEstablishedStreamIpv4FramePlannerTests
             || stream.UnreadBytes != payload.Length
             || stream.AcknowledgementNumber != RemoteNextSequence + (uint)payload.Length)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> destination = stackalloc byte[4];
@@ -152,12 +115,13 @@ internal static class TcpEstablishedStreamIpv4FramePlannerTests
             destination,
             out TcpEstablishedStreamReadResult readResult);
 
-        return readStatus == TcpEstablishedStreamStatus.Success
+        return HostCheck.Result(readStatus == TcpEstablishedStreamStatus.Success
             && readResult.BytesRead == payload.Length
             && readResult.UnreadBytes == 0
-            && BytesEqual(destination, payload);
+            && BytesEqual(destination, payload));
     }
 
+    [HostTest("net.tcp.stream.ipv4 rejects bad checksum", HostLane.Fast, 2)]
     private static bool TestRejectsBadChecksum()
     {
         Span<byte> receiveBuffer = stackalloc byte[16];
@@ -172,7 +136,7 @@ internal static class TcpEstablishedStreamIpv4FramePlannerTests
                 frame,
                 out TcpEstablishedStreamIpv4FramePlanResult result);
 
-        return status == TcpEstablishedStreamIpv4FramePlanStatus.BadTcpChecksum
+        return HostCheck.Result(status == TcpEstablishedStreamIpv4FramePlanStatus.BadTcpChecksum
             && !result.Succeeded
             && result.PacketStatus == PacketParseStatus.BadChecksum
             && result.TcpHeader.SourcePort == RemotePort
@@ -180,9 +144,10 @@ internal static class TcpEstablishedStreamIpv4FramePlannerTests
             && result.TcpSegmentLength == TcpHeader.MinHeaderLength + 4
             && stream.RemoteNextSequenceNumber == RemoteNextSequence
             && stream.LocalNextSequenceNumber == LocalNextSequence
-            && stream.UnreadBytes == 0;
+            && stream.UnreadBytes == 0);
     }
 
+    [HostTest("net.tcp.stream.ipv4 rejects identity and short output", HostLane.Fast, 3)]
     private static bool TestRejectsIdentityAndShortOutput()
     {
         Span<byte> receiveBuffer = stackalloc byte[16];
@@ -220,7 +185,7 @@ internal static class TcpEstablishedStreamIpv4FramePlannerTests
                 frame,
                 out TcpEstablishedStreamIpv4FramePlanResult maximumResult);
 
-        return invalidLocalStatus == TcpEstablishedStreamIpv4FramePlanStatus.InvalidLocalIdentity
+        return HostCheck.Result(invalidLocalStatus == TcpEstablishedStreamIpv4FramePlanStatus.InvalidLocalIdentity
             && !invalidLocalResult.Succeeded
             && shortStatus == TcpEstablishedStreamIpv4FramePlanStatus.FrameBufferTooSmall
             && !shortResult.Succeeded
@@ -230,9 +195,10 @@ internal static class TcpEstablishedStreamIpv4FramePlannerTests
             && maximumResult.StreamStatus == TcpEstablishedStreamStatus.InvalidMaximumPayloadLength
             && stream.LocalNextSequenceNumber == LocalNextSequence
             && stream.RemoteNextSequenceNumber == RemoteNextSequence
-            && stream.UnreadBytes == 0;
+            && stream.UnreadBytes == 0);
     }
 
+    [HostTest("net.tcp.stream.ipv4 default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         TcpEstablishedStreamIpv4FramePlannerInfo info = CreateInfo(maximumPayloadLength: 4);
@@ -269,7 +235,7 @@ internal static class TcpEstablishedStreamIpv4FramePlannerTests
                 LocalNextSequence,
                 RemoteNextSequence);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == TcpEstablishedStreamIpv4FramePlanStatus.Success
             && success.IsInitialized
@@ -287,7 +253,7 @@ internal static class TcpEstablishedStreamIpv4FramePlannerTests
             && !failure.Succeeded
             && failure.Status == TcpEstablishedStreamIpv4FramePlanStatus.BadTcpChecksum
             && failure.PacketStatus == PacketParseStatus.BadChecksum
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpEstablishedStreamIpv4FramePlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpEstablishedStreamIpv4FramePlanResult>());
     }
 
     private static TcpEstablishedStream CreateStream(Span<byte> receiveBuffer)

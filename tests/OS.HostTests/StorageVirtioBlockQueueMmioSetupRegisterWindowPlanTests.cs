@@ -13,121 +13,7 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
     private const ushort DeviceMaximumQueueSize = 16;
     private const ushort QueueNotifyOffset = 7;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run(
-            "storage.virtioblk.queuesetup.window plans setup command accesses",
-            TestPlansSetupCommandAccesses,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.window rejects failed setup plan",
-            TestRejectsFailedSetupPlan,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.window rejects short command source",
-            TestRejectsShortCommandSource,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.window reports destination capacity",
-            TestReportsDestinationCapacity,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.window propagates register window failure",
-            TestPropagatesRegisterWindowFailure,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.window default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.windowexec writes planned setup accesses",
-            TestRegisterWindowExecutionWritesPlannedSetupAccesses,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.windowexec rejects failed setup plan",
-            TestRegisterWindowExecutionRejectsFailedSetupPlan,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.windowexec rejects short command source",
-            TestRegisterWindowExecutionRejectsShortCommandSource,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.windowexec rejects read mismatch",
-            TestRegisterWindowExecutionRejectsReadMismatch,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.windowexec propagates access failure",
-            TestRegisterWindowExecutionPropagatesAccessFailure,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.windowexec preserves no-live-mmio boundary",
-            TestRegisterWindowExecutionPreservesNoLiveMmioBoundary,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.windowexec default result is not success",
-            TestDefaultExecutionResultIsNotSuccess,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.windowbarrier writes queue enable after barrier",
-            TestBarrierExecutionWritesQueueEnableAfterBarrier,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.windowbarrier rejects missing barrier",
-            TestBarrierExecutionRejectsMissingBarrier,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.windowbarrier rejects failed setup plan",
-            TestBarrierExecutionRejectsFailedSetupPlan,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.windowbarrier rejects short command source",
-            TestBarrierExecutionRejectsShortCommandSource,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.windowbarrier propagates access failure",
-            TestBarrierExecutionPropagatesAccessFailure,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.windowbarrier preserves no-live-mmio boundary",
-            TestBarrierExecutionPreservesNoLiveMmioBoundary,
-            ref failures);
-        Run(
-            "storage.virtioblk.queuesetup.windowbarrier default result is not success",
-            TestDefaultBarrierExecutionResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio-blk queue MMIO setup register-window host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.virtioblk.queuesetup.window plans setup command accesses", HostLane.Fast, 0)]
     private static bool TestPlansSetupCommandAccesses()
     {
         VirtioBlockQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -143,7 +29,7 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 registerWindows.Bindings.CommonConfiguration,
                 accessPlans);
 
-        return setup.Succeeded
+        return HostCheck.Result(setup.Succeeded
             && registerWindows.Succeeded
             && result.Succeeded
             && result.Status == VirtioBlockQueueMmioSetupRegisterWindowPlanStatus.Success
@@ -193,9 +79,10 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
             && !VirtioBlockQueueMmioSetupRegisterWindowPlanner.PerformsDiskRead
             && !VirtioBlockQueueMmioSetupRegisterWindowPlanner.PerformsDiskWrite
             && !RuntimeHelpers.IsReferenceOrContainsReferences
-                <VirtioBlockQueueMmioSetupRegisterWindowPlanResult>();
+                <VirtioBlockQueueMmioSetupRegisterWindowPlanResult>());
     }
 
+    [HostTest("storage.virtioblk.queuesetup.window rejects failed setup plan", HostLane.Fast, 1)]
     private static bool TestRejectsFailedSetupPlan()
     {
         VirtioBlockQueueMmioSetupCommand[] commands =
@@ -216,15 +103,16 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 accessPlans);
 
-        return !failedSetup.Succeeded
+        return HostCheck.Result(!failedSetup.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockQueueMmioSetupRegisterWindowPlanStatus.SetupPlanFailed
             && result.SetupPlanStatus == VirtioBlockQueueMmioSetupPlanStatus.DescriptorNotReady
             && result.CommandIndex == -1
             && result.AccessPlansWritten == 0
-            && result.AvailableAccessPlanCount == VirtioBlockQueueMmioSetupPlanner.RequiredCommandCount;
+            && result.AvailableAccessPlanCount == VirtioBlockQueueMmioSetupPlanner.RequiredCommandCount);
     }
 
+    [HostTest("storage.virtioblk.queuesetup.window rejects short command source", HostLane.Fast, 2)]
     private static bool TestRejectsShortCommandSource()
     {
         VirtioBlockQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -239,7 +127,7 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 accessPlans);
 
-        return setup.Succeeded
+        return HostCheck.Result(setup.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockQueueMmioSetupRegisterWindowPlanStatus.CommandSourceTooSmall
             && result.SetupPlanStatus == VirtioBlockQueueMmioSetupPlanStatus.Success
@@ -247,9 +135,10 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
             && result.CommandIndex == commands.Length - 1
             && result.AccessPlansWritten == 0
             && result.RequiredAccessPlanCount == VirtioBlockQueueMmioSetupPlanner.RequiredCommandCount
-            && result.AvailableAccessPlanCount == VirtioBlockQueueMmioSetupPlanner.RequiredCommandCount;
+            && result.AvailableAccessPlanCount == VirtioBlockQueueMmioSetupPlanner.RequiredCommandCount);
     }
 
+    [HostTest("storage.virtioblk.queuesetup.window reports destination capacity", HostLane.Fast, 3)]
     private static bool TestReportsDestinationCapacity()
     {
         VirtioBlockQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -264,7 +153,7 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 accessPlans);
 
-        return setup.Succeeded
+        return HostCheck.Result(setup.Succeeded
             && !result.Succeeded
             && result.Status
                 == VirtioBlockQueueMmioSetupRegisterWindowPlanStatus.AccessPlanDestinationTooSmall
@@ -272,9 +161,10 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
             && result.CommandIndex == accessPlans.Length
             && result.RequiredAccessPlanCount == VirtioBlockQueueMmioSetupPlanner.RequiredCommandCount
             && result.AvailableAccessPlanCount == VirtioBlockQueueMmioSetupPlanner.RequiredCommandCount - 1
-            && result.AccessPlansWritten == 0;
+            && result.AccessPlansWritten == 0);
     }
 
+    [HostTest("storage.virtioblk.queuesetup.window propagates register window failure", HostLane.Fast, 4)]
     private static bool TestPropagatesRegisterWindowFailure()
     {
         VirtioBlockQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -289,7 +179,7 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 default,
                 accessPlans);
 
-        return setup.Succeeded
+        return HostCheck.Result(setup.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockQueueMmioSetupRegisterWindowPlanStatus.RegisterWindowPlanFailed
             && result.SetupPlanStatus == VirtioBlockQueueMmioSetupPlanStatus.Success
@@ -301,21 +191,23 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
             && result.AvailableAccessPlanCount == VirtioBlockQueueMmioSetupPlanner.RequiredCommandCount
             && result.QueueIndex == VirtioBlockQueueMmioSetupPlanner.QueueIndex
             && result.RelativeOffset == VirtioPciModernRegisterMap.CommonConfiguration.QueueSelectOffset
-            && result.WidthBytes == VirtioPciModernRegisterMap.CommonConfiguration.QueueSelectWidth;
+            && result.WidthBytes == VirtioPciModernRegisterMap.CommonConfiguration.QueueSelectWidth);
     }
 
+    [HostTest("storage.virtioblk.queuesetup.window default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioBlockQueueMmioSetupRegisterWindowPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockQueueMmioSetupRegisterWindowPlanStatus.Success
             && result.AccessPlansWritten == 0
             && result.RequiredAccessPlanCount == 0
-            && result.AvailableAccessPlanCount == 0;
+            && result.AvailableAccessPlanCount == 0);
     }
 
+    [HostTest("storage.virtioblk.queuesetup.windowexec writes planned setup accesses", HostLane.Fast, 6)]
     private static bool TestRegisterWindowExecutionWritesPlannedSetupAccesses()
     {
         VirtioBlockQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -331,7 +223,7 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 registerWindows.Bindings.CommonConfiguration,
                 commonBytes);
 
-        return setup.Succeeded
+        return HostCheck.Result(setup.Succeeded
             && registerWindows.Succeeded
             && result.Succeeded
             && result.Status == VirtioBlockQueueMmioSetupRegisterWindowExecutionStatus.Success
@@ -355,9 +247,10 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
             && ReadUInt16(commonBytes, VirtioPciModernRegisterMap.CommonConfiguration.QueueNotifyOffOffset)
                 == QueueNotifyOffset
             && ReadUInt16(commonBytes, VirtioPciModernRegisterMap.CommonConfiguration.QueueEnableOffset)
-                == 1;
+                == 1);
     }
 
+    [HostTest("storage.virtioblk.queuesetup.windowexec rejects failed setup plan", HostLane.Fast, 7)]
     private static bool TestRegisterWindowExecutionRejectsFailedSetupPlan()
     {
         VirtioBlockQueueMmioSetupCommand[] commands =
@@ -377,15 +270,16 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 commonBytes);
 
-        return !failedSetup.Succeeded
+        return HostCheck.Result(!failedSetup.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockQueueMmioSetupRegisterWindowExecutionStatus.SetupPlanFailed
             && result.SetupPlanStatus == VirtioBlockQueueMmioSetupPlanStatus.DescriptorNotReady
             && result.CommandIndex == -1
             && result.CommandsExecuted == 0
-            && AllBytesEqual(commonBytes, 0xCC);
+            && AllBytesEqual(commonBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.queuesetup.windowexec rejects short command source", HostLane.Fast, 8)]
     private static bool TestRegisterWindowExecutionRejectsShortCommandSource()
     {
         VirtioBlockQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -399,15 +293,16 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 commonBytes);
 
-        return setup.Succeeded
+        return HostCheck.Result(setup.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockQueueMmioSetupRegisterWindowExecutionStatus.CommandSourceTooSmall
             && result.SetupPlanStatus == VirtioBlockQueueMmioSetupPlanStatus.Success
             && result.CommandIndex == commands.Length - 1
             && result.CommandsExecuted == commands.Length - 1
-            && AllBytesEqual(commonBytes, 0xCC);
+            && AllBytesEqual(commonBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.queuesetup.windowexec rejects read mismatch", HostLane.Fast, 9)]
     private static bool TestRegisterWindowExecutionRejectsReadMismatch()
     {
         VirtioBlockQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -432,7 +327,7 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 commonBytes);
 
-        return setup.Succeeded
+        return HostCheck.Result(setup.Succeeded
             && commandSource.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockQueueMmioSetupRegisterWindowExecutionStatus.RegisterReadMismatch
@@ -443,9 +338,10 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
             && result.CommandsExecuted == 1
             && result.QueueIndex == VirtioBlockQueueMmioSetupPlanner.QueueIndex
             && result.ExpectedValue == DeviceMaximumQueueSize - 1UL
-            && result.ObservedValue == DeviceMaximumQueueSize;
+            && result.ObservedValue == DeviceMaximumQueueSize);
     }
 
+    [HostTest("storage.virtioblk.queuesetup.windowexec propagates access failure", HostLane.Fast, 10)]
     private static bool TestRegisterWindowExecutionPropagatesAccessFailure()
     {
         VirtioBlockQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -462,7 +358,7 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 commonBytes);
 
-        return setup.Succeeded
+        return HostCheck.Result(setup.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockQueueMmioSetupRegisterWindowExecutionStatus.AccessExecutionFailed
             && result.SetupPlanStatus == VirtioBlockQueueMmioSetupPlanStatus.Success
@@ -472,9 +368,10 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
             && result.CommandKind == VirtioBlockQueueMmioSetupCommandKind.WriteQueueSelect
             && result.CommandIndex == 0
             && result.CommandsExecuted == 0
-            && AllBytesEqual(commonBytes, 0xCC);
+            && AllBytesEqual(commonBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.queuesetup.windowexec preserves no-live-mmio boundary", HostLane.Fast, 11)]
     private static bool TestRegisterWindowExecutionPreservesNoLiveMmioBoundary()
     {
         VirtioBlockQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -488,7 +385,7 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 commonBytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockQueueMmioSetupRegisterWindowExecutor.RequiresRegisterWindowBinding
             && VirtioBlockQueueMmioSetupRegisterWindowExecutor.UsesCallerOwnedWindowBuffer
             && VirtioBlockQueueMmioSetupRegisterWindowExecutor.StagesExpectedDeviceReadValues
@@ -508,22 +405,24 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
             && !VirtioBlockQueueMmioSetupRegisterWindowExecutor.PerformsDiskRead
             && !VirtioBlockQueueMmioSetupRegisterWindowExecutor.PerformsDiskWrite
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockQueueMmioSetupRegisterWindowExecutionResult>();
+                VirtioBlockQueueMmioSetupRegisterWindowExecutionResult>());
     }
 
+    [HostTest("storage.virtioblk.queuesetup.windowexec default result is not success", HostLane.Fast, 12)]
     private static bool TestDefaultExecutionResultIsNotSuccess()
     {
         VirtioBlockQueueMmioSetupRegisterWindowExecutionResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockQueueMmioSetupRegisterWindowExecutionStatus.Success
             && result.CommandsExecuted == 0
             && result.CommandIndex == 0
             && result.ExpectedValue == 0
-            && result.ObservedValue == 0;
+            && result.ObservedValue == 0);
     }
 
+    [HostTest("storage.virtioblk.queuesetup.windowbarrier writes queue enable after barrier", HostLane.Fast, 13)]
     private static bool TestBarrierExecutionWritesQueueEnableAfterBarrier()
     {
         VirtioBlockQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -540,7 +439,7 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 commonBytes,
                 VirtioBlockQueueMmioSetupBarrierReadiness.Ready(44));
 
-        return setup.Succeeded
+        return HostCheck.Result(setup.Succeeded
             && registerWindows.Succeeded
             && result.Succeeded
             && result.Status == VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutionStatus.Success
@@ -571,9 +470,10 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
             && ReadUInt16(commonBytes, VirtioPciModernRegisterMap.CommonConfiguration.QueueNotifyOffOffset)
                 == QueueNotifyOffset
             && ReadUInt16(commonBytes, VirtioPciModernRegisterMap.CommonConfiguration.QueueEnableOffset)
-                == 1;
+                == 1);
     }
 
+    [HostTest("storage.virtioblk.queuesetup.windowbarrier rejects missing barrier", HostLane.Fast, 14)]
     private static bool TestBarrierExecutionRejectsMissingBarrier()
     {
         VirtioBlockQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -596,7 +496,7 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 commonBytes,
                 missingBarrier);
 
-        return setup.Succeeded
+        return HostCheck.Result(setup.Succeeded
             && !result.Succeeded
             && result.Status ==
                 VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutionStatus.MemoryBarrierNotReady
@@ -625,9 +525,10 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
             && ReadUInt16(commonBytes, VirtioPciModernRegisterMap.CommonConfiguration.QueueNotifyOffOffset)
                 == QueueNotifyOffset
             && ReadUInt16(commonBytes, VirtioPciModernRegisterMap.CommonConfiguration.QueueEnableOffset)
-                == 0xCCCC;
+                == 0xCCCC);
     }
 
+    [HostTest("storage.virtioblk.queuesetup.windowbarrier rejects failed setup plan", HostLane.Fast, 15)]
     private static bool TestBarrierExecutionRejectsFailedSetupPlan()
     {
         VirtioBlockQueueMmioSetupCommand[] commands =
@@ -648,7 +549,7 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 commonBytes,
                 VirtioBlockQueueMmioSetupBarrierReadiness.Ready(46));
 
-        return !failedSetup.Succeeded
+        return HostCheck.Result(!failedSetup.Succeeded
             && !result.Succeeded
             && result.Status ==
                 VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutionStatus.SetupPlanFailed
@@ -658,9 +559,10 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
             && result.BarrierSucceeded
             && result.BarrierSequence == 46
             && !result.QueueEnableAttempted
-            && AllBytesEqual(commonBytes, 0xCC);
+            && AllBytesEqual(commonBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.queuesetup.windowbarrier rejects short command source", HostLane.Fast, 16)]
     private static bool TestBarrierExecutionRejectsShortCommandSource()
     {
         VirtioBlockQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -675,7 +577,7 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 commonBytes,
                 VirtioBlockQueueMmioSetupBarrierReadiness.Ready(47));
 
-        return setup.Succeeded
+        return HostCheck.Result(setup.Succeeded
             && !result.Succeeded
             && result.Status ==
                 VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutionStatus.CommandSourceTooSmall
@@ -685,9 +587,10 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
             && result.BarrierSucceeded
             && result.BarrierSequence == 47
             && !result.QueueEnableAttempted
-            && AllBytesEqual(commonBytes, 0xCC);
+            && AllBytesEqual(commonBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.queuesetup.windowbarrier propagates access failure", HostLane.Fast, 17)]
     private static bool TestBarrierExecutionPropagatesAccessFailure()
     {
         VirtioBlockQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -705,7 +608,7 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 commonBytes,
                 VirtioBlockQueueMmioSetupBarrierReadiness.Ready(48));
 
-        return setup.Succeeded
+        return HostCheck.Result(setup.Succeeded
             && !result.Succeeded
             && result.Status ==
                 VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutionStatus.AccessExecutionFailed
@@ -719,9 +622,10 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
             && result.BarrierSucceeded
             && result.BarrierSequence == 48
             && !result.QueueEnableAttempted
-            && AllBytesEqual(commonBytes, 0xCC);
+            && AllBytesEqual(commonBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.queuesetup.windowbarrier preserves no-live-mmio boundary", HostLane.Fast, 18)]
     private static bool TestBarrierExecutionPreservesNoLiveMmioBoundary()
     {
         VirtioBlockQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -736,7 +640,7 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
                 commonBytes,
                 VirtioBlockQueueMmioSetupBarrierReadiness.Ready(49));
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutor.RequiresRegisterWindowBinding
             && VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutor.UsesCallerOwnedWindowBuffer
             && VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutor.StagesExpectedDeviceReadValues
@@ -760,15 +664,16 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
                 VirtioBlockQueueMmioSetupBarrierReadiness>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutionResult>();
+                VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutionResult>());
     }
 
+    [HostTest("storage.virtioblk.queuesetup.windowbarrier default result is not success", HostLane.Fast, 19)]
     private static bool TestDefaultBarrierExecutionResultIsNotSuccess()
     {
         VirtioBlockQueueMmioSetupBarrierReadiness barrier = default;
         VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutionResult result = default;
 
-        return !barrier.Succeeded
+        return HostCheck.Result(!barrier.Succeeded
             && barrier.BarrierSequence == 0
             && !result.IsInitialized
             && !result.Succeeded
@@ -778,7 +683,7 @@ internal static class StorageVirtioBlockQueueMmioSetupRegisterWindowPlanTests
             && result.ExpectedValue == 0
             && result.ObservedValue == 0
             && !result.QueueEnableAttempted
-            && !result.BarrierSucceeded;
+            && !result.BarrierSucceeded);
     }
 
     private static VirtioBlockQueueMmioSetupPlanResult CreateSetupPlan(

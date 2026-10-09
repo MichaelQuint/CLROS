@@ -9,49 +9,7 @@ internal static class TcpEstablishedStreamTests
     private const uint LocalNextSequence = 0x01020304;
     private const uint RemoteNextSequence = 0x10203040;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.tcp stream receives in-order payload", TestReceivesInOrderPayload, ref failures);
-        Run("net.tcp stream preserves unread bytes", TestPreservesUnreadBytes, ref failures);
-        Run("net.tcp stream rejects out-of-order payload", TestRejectsOutOfOrderPayload, ref failures);
-        Run("net.tcp stream rejects wrong acknowledgement", TestRejectsWrongAcknowledgement, ref failures);
-        Run("net.tcp stream writes segmented payload", TestWritesSegmentedPayload, ref failures);
-        Run("net.tcp stream receive default result is not success", TestDefaultReceiveResultIsNotSuccess, ref failures);
-        Run("net.tcp stream read default result is not success", TestDefaultReadResultIsNotSuccess, ref failures);
-        Run("net.tcp stream send default result is not success", TestDefaultSendResultIsNotSuccess, ref failures);
-        Run("net.tcp stream uses shared memory copy helper", TestUsesSharedMemoryCopyHelper, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("TCP established stream host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.tcp stream send default result is not success", HostLane.Fast, 7)]
     private static bool TestDefaultSendResultIsNotSuccess()
     {
         TcpEstablishedStreamSendResult result = default;
@@ -63,7 +21,7 @@ internal static class TcpEstablishedStreamTests
             localNextSequenceNumber: LocalNextSequence,
             remoteNextSequenceNumber: RemoteNextSequence);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == TcpEstablishedStreamStatus.Success
             && result.PacketStatus == PacketParseStatus.Success
@@ -78,9 +36,10 @@ internal static class TcpEstablishedStreamTests
             && failed.Status == TcpEstablishedStreamStatus.NoPayload
             && failed.SequenceNumber == LocalNextSequence
             && failed.AcknowledgementNumber == RemoteNextSequence
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpEstablishedStreamSendResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpEstablishedStreamSendResult>());
     }
 
+    [HostTest("net.tcp stream read default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultReadResultIsNotSuccess()
     {
         TcpEstablishedStreamReadResult result = default;
@@ -89,7 +48,7 @@ internal static class TcpEstablishedStreamTests
             unreadBytes: 0,
             RemoteNextSequence);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == TcpEstablishedStreamStatus.Success
             && result.BytesRead == 0
@@ -99,9 +58,10 @@ internal static class TcpEstablishedStreamTests
             && !failed.Succeeded
             && failed.Status == TcpEstablishedStreamStatus.NoData
             && failed.AcknowledgementNumber == RemoteNextSequence
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpEstablishedStreamReadResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpEstablishedStreamReadResult>());
     }
 
+    [HostTest("net.tcp stream receive default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultReceiveResultIsNotSuccess()
     {
         TcpEstablishedStreamReceiveResult result = default;
@@ -112,7 +72,7 @@ internal static class TcpEstablishedStreamTests
             LocalNextSequence,
             RemoteNextSequence);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == TcpEstablishedStreamStatus.Success
             && result.PacketStatus == PacketParseStatus.Success
@@ -123,9 +83,10 @@ internal static class TcpEstablishedStreamTests
             && failed.IsInitialized
             && !failed.Succeeded
             && failed.Status == TcpEstablishedStreamStatus.NoPayload
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpEstablishedStreamReceiveResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpEstablishedStreamReceiveResult>());
     }
 
+    [HostTest("net.tcp stream receives in-order payload", HostLane.Fast, 0)]
     private static bool TestReceivesInOrderPayload()
     {
         Span<byte> receiveBuffer = stackalloc byte[16];
@@ -151,7 +112,7 @@ internal static class TcpEstablishedStreamTests
             || stream.UnreadBytes != 5
             || stream.AcknowledgementNumber != RemoteNextSequence + 5)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> readBuffer = stackalloc byte[5];
@@ -159,16 +120,17 @@ internal static class TcpEstablishedStreamTests
             readBuffer,
             out TcpEstablishedStreamReadResult readResult);
 
-        return readStatus == TcpEstablishedStreamStatus.Success
+        return HostCheck.Result(readStatus == TcpEstablishedStreamStatus.Success
             && readResult.Succeeded
             && readResult.BytesRead == 5
             && readResult.UnreadBytes == 0
             && readResult.AcknowledgementNumber == RemoteNextSequence + 5
             && BytesEqual(readBuffer, payload)
             && stream.UnreadBytes == 0
-            && stream.RemoteNextSequenceNumber == RemoteNextSequence + 5;
+            && stream.RemoteNextSequenceNumber == RemoteNextSequence + 5);
     }
 
+    [HostTest("net.tcp stream preserves unread bytes", HostLane.Fast, 1)]
     private static bool TestPreservesUnreadBytes()
     {
         Span<byte> receiveBuffer = stackalloc byte[8];
@@ -187,7 +149,7 @@ internal static class TcpEstablishedStreamTests
                 out TcpEstablishedStreamReceiveResult firstReceive) != TcpEstablishedStreamStatus.Success
             || firstReceive.UnreadBytes != 6)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> partialRead = stackalloc byte[2];
@@ -197,7 +159,7 @@ internal static class TcpEstablishedStreamTests
             || partialReadResult.UnreadBytes != 4
             || !BytesEqual(partialRead, Encoding.ASCII.GetBytes("ab")))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] secondPayload = Encoding.ASCII.GetBytes("gh");
@@ -213,7 +175,7 @@ internal static class TcpEstablishedStreamTests
             || secondReceive.UnreadBytes != 6
             || stream.AcknowledgementNumber != RemoteNextSequence + 8)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> finalRead = stackalloc byte[6];
@@ -221,13 +183,14 @@ internal static class TcpEstablishedStreamTests
             finalRead,
             out TcpEstablishedStreamReadResult finalReadResult);
 
-        return finalReadStatus == TcpEstablishedStreamStatus.Success
+        return HostCheck.Result(finalReadStatus == TcpEstablishedStreamStatus.Success
             && finalReadResult.BytesRead == 6
             && finalReadResult.UnreadBytes == 0
             && BytesEqual(finalRead, Encoding.ASCII.GetBytes("cdefgh"))
-            && stream.UnreadBytes == 0;
+            && stream.UnreadBytes == 0);
     }
 
+    [HostTest("net.tcp stream rejects out-of-order payload", HostLane.Fast, 2)]
     private static bool TestRejectsOutOfOrderPayload()
     {
         Span<byte> receiveBuffer = stackalloc byte[16];
@@ -253,7 +216,7 @@ internal static class TcpEstablishedStreamTests
             || stream.AcknowledgementNumber != RemoteNextSequence
             || stream.UnreadBytes != 0)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> inOrderSegment = stackalloc byte[TcpHeader.MinHeaderLength + 3];
@@ -264,7 +227,7 @@ internal static class TcpEstablishedStreamTests
             || inOrderResult.UnreadBytes != 3
             || stream.AcknowledgementNumber != RemoteNextSequence + 3)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> duplicateSegment = stackalloc byte[TcpHeader.MinHeaderLength + 3];
@@ -273,13 +236,14 @@ internal static class TcpEstablishedStreamTests
             duplicateSegment.Slice(0, duplicateBytes),
             out TcpEstablishedStreamReceiveResult duplicateResult);
 
-        return duplicateStatus == TcpEstablishedStreamStatus.DuplicateSegment
+        return HostCheck.Result(duplicateStatus == TcpEstablishedStreamStatus.DuplicateSegment
             && !duplicateResult.Succeeded
             && duplicateResult.UnreadBytes == 3
             && stream.AcknowledgementNumber == RemoteNextSequence + 3
-            && stream.UnreadBytes == 3;
+            && stream.UnreadBytes == 3);
     }
 
+    [HostTest("net.tcp stream rejects wrong acknowledgement", HostLane.Fast, 3)]
     private static bool TestRejectsWrongAcknowledgement()
     {
         Span<byte> receiveBuffer = stackalloc byte[16];
@@ -310,7 +274,7 @@ internal static class TcpEstablishedStreamTests
             || stream.AcknowledgementNumber != RemoteNextSequence
             || stream.UnreadBytes != 0)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> correctSegment = stackalloc byte[TcpHeader.MinHeaderLength + 3];
@@ -319,13 +283,14 @@ internal static class TcpEstablishedStreamTests
             correctSegment.Slice(0, correctBytes),
             out TcpEstablishedStreamReceiveResult correctResult);
 
-        return correctStatus == TcpEstablishedStreamStatus.Success
+        return HostCheck.Result(correctStatus == TcpEstablishedStreamStatus.Success
             && correctResult.Succeeded
             && correctResult.PayloadBytesAccepted == 3
             && correctResult.UnreadBytes == 3
-            && stream.AcknowledgementNumber == RemoteNextSequence + 3;
+            && stream.AcknowledgementNumber == RemoteNextSequence + 3);
     }
 
+    [HostTest("net.tcp stream writes segmented payload", HostLane.Fast, 4)]
     private static bool TestWritesSegmentedPayload()
     {
         Span<byte> receiveBuffer = stackalloc byte[8];
@@ -358,7 +323,7 @@ internal static class TcpEstablishedStreamTests
                 || result.AcknowledgementNumber != RemoteNextSequence
                 || result.LocalNextSequenceNumber != LocalNextSequence + (uint)(payloadOffset + result.PayloadBytesWritten))
             {
-                return false;
+                return HostCheck.Result(false);
             }
 
             if (!ParseOutboundPayload(
@@ -367,19 +332,20 @@ internal static class TcpEstablishedStreamTests
                     RemoteNextSequence,
                     payload.AsSpan(payloadOffset, result.PayloadBytesWritten)))
             {
-                return false;
+                return HostCheck.Result(false);
             }
 
             payloadOffset += result.PayloadBytesWritten;
             segmentsWritten++;
         }
 
-        return segmentsWritten == 3
+        return HostCheck.Result(segmentsWritten == 3
             && payloadOffset == payload.Length
             && stream.LocalNextSequenceNumber == LocalNextSequence + 10
-            && stream.RemoteNextSequenceNumber == RemoteNextSequence;
+            && stream.RemoteNextSequenceNumber == RemoteNextSequence);
     }
 
+    [HostTest("net.tcp stream uses shared memory copy helper", HostLane.Fast, 8)]
     private static bool TestUsesSharedMemoryCopyHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -390,8 +356,8 @@ internal static class TcpEstablishedStreamTests
             "Net",
             "TcpEstablishedStream.cs"));
 
-        return source.Contains("OS.Std.MemoryExtensions.TryCopyTo(source, destination)", StringComparison.Ordinal)
-            && !source.Contains("destination[index] = source[index];", StringComparison.Ordinal);
+        return HostCheck.Result(source.Contains("OS.Std.MemoryExtensions.TryCopyTo(source, destination)", StringComparison.Ordinal)
+            && !source.Contains("destination[index] = source[index];", StringComparison.Ordinal));
     }
 
     private static int WriteRemoteSegment(

@@ -10,59 +10,7 @@ internal static class GptPartitionSelectorTests
     private static readonly Guid SecondUniqueGuid = new("bbbbbbbb-cccc-dddd-eeee-ffffffffffff");
     private static readonly Guid ThirdUniqueGuid = new("cccccccc-dddd-eeee-ffff-111111111111");
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("storage.gpt selector selects type guid", TestSelectsTypeGuid, ref failures);
-        Run("storage.gpt selector selects unique guid", TestSelectsUniqueGuid, ref failures);
-        Run("storage.gpt selector reports missing partition", TestReportsMissingPartition, ref failures);
-        Run(
-            "storage.gpt selector reports duplicate type metadata",
-            TestReportsDuplicateTypeMetadata,
-            ref failures);
-        Run(
-            "storage.gpt selector rejects failed default parse result",
-            TestRejectsFailedDefaultParseResult,
-            ref failures);
-        Run(
-            "storage.gpt selector rejects invalid descriptor metadata",
-            TestRejectsInvalidDescriptorMetadata,
-            ref failures);
-        Run(
-            "storage.gpt selector result layouts contain no managed references",
-            TestResultLayoutsContainNoManagedReferences,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("GPT partition selector host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.gpt selector selects type guid", HostLane.Fast, 0)]
     private static bool TestSelectsTypeGuid()
     {
         GptPartitionDescriptor[] descriptors = CreateDescriptors();
@@ -74,7 +22,7 @@ internal static class GptPartitionSelectorTests
             EfiSystemPartitionGuid,
             out GptPartitionSelectorResult result);
 
-        return status == GptPartitionSelectorStatus.Success
+        return HostCheck.Result(status == GptPartitionSelectorStatus.Success
             && result.Succeeded
             && result.SelectorKind == GptPartitionSelectorKind.PartitionTypeGuid
             && result.ParseStatus == GptPartitionTableStatus.Success
@@ -96,9 +44,10 @@ internal static class GptPartitionSelectorTests
             && !GptPartitionSelector.ReparsesGptBytes
             && !GptPartitionSelector.AllocatesManagedStorage
             && !GptPartitionSelector.ReadsBlockDevice
-            && !GptPartitionSelector.LoadsPackage;
+            && !GptPartitionSelector.LoadsPackage);
     }
 
+    [HostTest("storage.gpt selector selects unique guid", HostLane.Fast, 1)]
     private static bool TestSelectsUniqueGuid()
     {
         GptPartitionDescriptor[] descriptors = CreateDescriptors();
@@ -110,7 +59,7 @@ internal static class GptPartitionSelectorTests
             FirstUniqueGuid,
             out GptPartitionSelectorResult result);
 
-        return status == GptPartitionSelectorStatus.Success
+        return HostCheck.Result(status == GptPartitionSelectorStatus.Success
             && result.Succeeded
             && result.SelectorKind == GptPartitionSelectorKind.UniquePartitionGuid
             && result.SelectedDescriptorIndex == 0
@@ -121,9 +70,10 @@ internal static class GptPartitionSelectorTests
             && result.NameByteOffset == GptPartitionDescriptor.NameOffsetWithinEntryBytes
             && result.MatchCount == 1
             && result.DuplicateCount == 0
-            && result.RequestedGuid == FirstUniqueGuid;
+            && result.RequestedGuid == FirstUniqueGuid);
     }
 
+    [HostTest("storage.gpt selector reports missing partition", HostLane.Fast, 2)]
     private static bool TestReportsMissingPartition()
     {
         GptPartitionDescriptor[] descriptors = CreateDescriptors();
@@ -143,7 +93,7 @@ internal static class GptPartitionSelectorTests
                 Guid.Empty,
                 out GptPartitionSelectorResult missingGuidResult);
 
-        return status == GptPartitionSelectorStatus.NotFound
+        return HostCheck.Result(status == GptPartitionSelectorStatus.NotFound
             && result.IsInitialized
             && !result.Succeeded
             && result.SelectorKind == GptPartitionSelectorKind.PartitionTypeGuid
@@ -154,9 +104,10 @@ internal static class GptPartitionSelectorTests
             && result.RequestedGuid == missingGuid
             && missingGuidStatus == GptPartitionSelectorStatus.MissingGuid
             && !missingGuidResult.Succeeded
-            && missingGuidResult.RequestedGuid == Guid.Empty;
+            && missingGuidResult.RequestedGuid == Guid.Empty);
     }
 
+    [HostTest("storage.gpt selector reports duplicate type metadata", HostLane.Fast, 3)]
     private static bool TestReportsDuplicateTypeMetadata()
     {
         GptPartitionDescriptor[] descriptors = CreateDescriptors();
@@ -176,16 +127,17 @@ internal static class GptPartitionSelectorTests
             EfiSystemPartitionGuid,
             out GptPartitionSelectorResult result);
 
-        return status == GptPartitionSelectorStatus.Success
+        return HostCheck.Result(status == GptPartitionSelectorStatus.Success
             && result.Succeeded
             && result.SelectedDescriptorIndex == 1
             && result.SelectedEntryIndex == 2
             && result.MatchCount == 2
             && result.DuplicateCount == 1
             && result.FirstLba == 60
-            && result.LastLba == 80;
+            && result.LastLba == 80);
     }
 
+    [HostTest("storage.gpt selector rejects failed default parse result", HostLane.Fast, 4)]
     private static bool TestRejectsFailedDefaultParseResult()
     {
         GptPartitionDescriptor[] descriptors = CreateDescriptors();
@@ -220,7 +172,7 @@ internal static class GptPartitionSelectorTests
 
         GptPartitionSelectorResult zeroResult = default;
 
-        return defaultStatus == GptPartitionSelectorStatus.ParseResultNotInitialized
+        return HostCheck.Result(defaultStatus == GptPartitionSelectorStatus.ParseResultNotInitialized
             && defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.ParseStatus == GptPartitionTableStatus.Success
@@ -232,9 +184,10 @@ internal static class GptPartitionSelectorTests
             && emptyResult.PartitionsScanned == 0
             && !zeroResult.IsInitialized
             && !zeroResult.Succeeded
-            && zeroResult.Status == GptPartitionSelectorStatus.Success;
+            && zeroResult.Status == GptPartitionSelectorStatus.Success);
     }
 
+    [HostTest("storage.gpt selector rejects invalid descriptor metadata", HostLane.Fast, 5)]
     private static bool TestRejectsInvalidDescriptorMetadata()
     {
         GptPartitionDescriptor[] descriptors = CreateDescriptors();
@@ -254,20 +207,21 @@ internal static class GptPartitionSelectorTests
             EfiSystemPartitionGuid,
             out GptPartitionSelectorResult result);
 
-        return status == GptPartitionSelectorStatus.InvalidDescriptorMetadata
+        return HostCheck.Result(status == GptPartitionSelectorStatus.InvalidDescriptorMetadata
             && result.IsInitialized
             && !result.Succeeded
             && result.FailingDescriptorIndex == 1
             && result.PartitionsScanned == 2
             && result.MatchCount == 0
-            && result.ParseStatus == GptPartitionTableStatus.Success;
+            && result.ParseStatus == GptPartitionTableStatus.Success);
     }
 
+    [HostTest("storage.gpt selector result layouts contain no managed references", HostLane.Fast, 6)]
     private static bool TestResultLayoutsContainNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<GptPartitionSelectorResult>()
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<GptPartitionSelectorResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<GptPartitionDescriptor>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<GptPartitionTableParseResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<GptPartitionTableParseResult>());
     }
 
     private static GptPartitionDescriptor[] CreateDescriptors()

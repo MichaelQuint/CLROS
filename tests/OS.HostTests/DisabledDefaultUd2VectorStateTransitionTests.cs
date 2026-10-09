@@ -37,7 +37,7 @@ internal static unsafe class DisabledDefaultUd2VectorStateTransitionTests
         "ownedCom1Plan=true terminalPlan=true guestExecution=false " +
         "faultTriggered=false postExitBootServices=false";
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START " + TestName);
@@ -84,24 +84,26 @@ internal static unsafe class DisabledDefaultUd2VectorStateTransitionTests
         Func<bool> test,
         ref int failures)
     {
-        try
+        HostCheck.Run(TestName + " " + name, () =>
         {
-            if (test())
+            try
             {
-                return;
+                if (test())
+                {
+                    return true;
+                }
+                Console.WriteLine("M02_013_TRANSITION_CASE_FAIL " +
+                    Normalize(name));
+                return false;
             }
-
-            failures++;
-            Console.WriteLine("M02_013_TRANSITION_CASE_FAIL " +
-                Normalize(name));
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine(
-                "M02_013_TRANSITION_CASE_FAIL " + Normalize(name) + " " +
-                exception.GetType().Name + ": " + exception.Message);
-        }
+            catch (Exception exception)
+            {
+                Console.WriteLine(
+                    "M02_013_TRANSITION_CASE_FAIL " + Normalize(name) + " " +
+                    exception.GetType().Name + ": " + exception.Message);
+                throw;
+            }
+        }, ref failures);
     }
 
     private static bool TestValueContracts()

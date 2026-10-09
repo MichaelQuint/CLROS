@@ -4,47 +4,8 @@ using OS.Std.Binary;
 
 internal static class PciBusScannerTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.pci.scan records single device", TestRecordsSingleDevice, ref failures);
-        Run("drivers.pci.scan skips absent functions", TestSkipsAbsentFunctions, ref failures);
-        Run("drivers.pci.scan honors multifunction bit", TestHonorsMultifunctionBit, ref failures);
-        Run("drivers.pci.scan skips single-function extras", TestSkipsSingleFunctionExtras, ref failures);
-        Run("drivers.pci.scan reports capacity exhaustion", TestReportsCapacityExhaustion, ref failures);
-        Run("drivers.pci.scan reports reader failure", TestReportsReaderFailure, ref failures);
-        Run("drivers.pci.scan default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PCI bus scanner host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.pci.scan records single device", HostLane.Fast, 0)]
     private static bool TestRecordsSingleDevice()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -68,7 +29,7 @@ internal static class PciBusScannerTests
             devices);
 
         PciScannedDevice device = devices[0];
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == PciBusScanStatus.Success
             && result.DeviceCount == 1
             && result.FunctionReadCount == 1
@@ -84,9 +45,10 @@ internal static class PciBusScannerTests
             && device.HeaderType == PciConfigurationHeader.Type0HeaderType
             && !device.IsMultifunction
             && device.HasCapabilitiesList
-            && device.CapabilityPointer == 0x40;
+            && device.CapabilityPointer == 0x40);
     }
 
+    [HostTest("drivers.pci.scan skips absent functions", HostLane.Fast, 1)]
     private static bool TestSkipsAbsentFunctions()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -97,7 +59,7 @@ internal static class PciBusScannerTests
             configSpace.Read,
             devices);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.DeviceCount == 0
             && result.FunctionReadCount == 3
             && configSpace.ReadCount == 3
@@ -106,9 +68,10 @@ internal static class PciBusScannerTests
             && configSpace.HasRead(0, 2, 0)
             && !configSpace.HasRead(0, 0, 1)
             && !configSpace.HasRead(0, 1, 1)
-            && !configSpace.HasRead(0, 2, 1);
+            && !configSpace.HasRead(0, 2, 1));
     }
 
+    [HostTest("drivers.pci.scan honors multifunction bit", HostLane.Fast, 2)]
     private static bool TestHonorsMultifunctionBit()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -134,7 +97,7 @@ internal static class PciBusScannerTests
             configSpace.Read,
             devices);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.DeviceCount == 2
             && result.FunctionReadCount == 4
             && devices[0].Function == 0
@@ -146,9 +109,10 @@ internal static class PciBusScannerTests
             && configSpace.HasRead(0, 5, 1)
             && configSpace.HasRead(0, 5, 2)
             && configSpace.HasRead(0, 5, 3)
-            && !configSpace.HasRead(0, 5, 4);
+            && !configSpace.HasRead(0, 5, 4));
     }
 
+    [HostTest("drivers.pci.scan skips single-function extras", HostLane.Fast, 3)]
     private static bool TestSkipsSingleFunctionExtras()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -169,13 +133,14 @@ internal static class PciBusScannerTests
             configSpace.Read,
             devices);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.DeviceCount == 1
             && result.FunctionReadCount == 1
             && devices[0].VendorId == 0x1111
-            && !configSpace.HasRead(0, 6, 1);
+            && !configSpace.HasRead(0, 6, 1));
     }
 
+    [HostTest("drivers.pci.scan reports capacity exhaustion", HostLane.Fast, 4)]
     private static bool TestReportsCapacityExhaustion()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -188,7 +153,7 @@ internal static class PciBusScannerTests
             configSpace.Read,
             devices);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PciBusScanStatus.DestinationTooSmall
             && result.DeviceCount == 1
             && result.FunctionReadCount == 2
@@ -196,9 +161,10 @@ internal static class PciBusScannerTests
             && result.FailingBus == 0
             && result.FailingDevice == 1
             && result.FailingFunction == 0
-            && devices[0].DeviceId == 0x0001;
+            && devices[0].DeviceId == 0x0001);
     }
 
+    [HostTest("drivers.pci.scan reports reader failure", HostLane.Fast, 5)]
     private static bool TestReportsReaderFailure()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -219,7 +185,7 @@ internal static class PciBusScannerTests
             configSpace.Read,
             devices);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PciBusScanStatus.ReaderFailed
             && result.ReaderStatus == PciConfigurationSpaceReadStatus.UnsupportedTuple
             && result.DeviceCount == 1
@@ -228,17 +194,18 @@ internal static class PciBusScannerTests
             && result.FailingDevice == 4
             && result.FailingFunction == 2
             && devices[0].Device == 4
-            && devices[0].Function == 0;
+            && devices[0].Function == 0);
     }
 
+    [HostTest("drivers.pci.scan default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         PciBusScanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == PciBusScanStatus.Success
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciBusScanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciBusScanResult>());
     }
 
     private static byte[] CreateHeader(

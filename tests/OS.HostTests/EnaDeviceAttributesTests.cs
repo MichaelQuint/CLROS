@@ -5,58 +5,20 @@ using OS.Std.Binary;
 
 internal static class EnaDeviceAttributesTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.ena.deviceattr parses mac and mtu", TestParsesMacAndMtu, ref failures);
-        Run("drivers.ena.deviceattr preserves address widths", TestPreservesAddressWidths, ref failures);
-        Run("drivers.ena.deviceattr rejects zero mac", TestRejectsZeroMac, ref failures);
-        Run("drivers.ena.deviceattr rejects broadcast mac", TestRejectsBroadcastMac, ref failures);
-        Run("drivers.ena.deviceattr reports completion failure", TestReportsCompletionFailure, ref failures);
-        Run("drivers.ena.deviceattr rejects malformed responses", TestRejectsMalformedResponses, ref failures);
-        Run("drivers.ena.deviceattr rejects default parse result", TestRejectsDefaultParseResult, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ENA device attributes host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.ena.deviceattr rejects default parse result", HostLane.Fast, 6)]
     private static bool TestRejectsDefaultParseResult()
     {
         EnaDeviceAttributesParseResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == EnaDeviceAttributesStatus.Success
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                EnaDeviceAttributesParseResult>();
+                EnaDeviceAttributesParseResult>());
     }
 
+    [HostTest("drivers.ena.deviceattr parses mac and mtu", HostLane.Fast, 0)]
     private static bool TestParsesMacAndMtu()
     {
         byte[] response = CreateDeviceAttributesResponse(
@@ -81,7 +43,7 @@ internal static class EnaDeviceAttributesTests
                 expectedPhase: true);
 
         EnaDeviceAttributes attributes = result.Attributes;
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == EnaDeviceAttributesStatus.Success
             && result.InputLength == EnaDeviceAttributesParser.ResponseByteLength
             && result.BytesConsumed == EnaDeviceAttributesParser.ResponseByteLength
@@ -100,9 +62,10 @@ internal static class EnaDeviceAttributesTests
             && attributes.MaxMtu == 9001
             && !EnaDeviceAttributesParser.PerformsMmio
             && !EnaDeviceAttributesParser.AllocatesDmaMemory
-            && !EnaDeviceAttributesParser.ExecutesAdminCommand;
+            && !EnaDeviceAttributesParser.ExecutesAdminCommand);
     }
 
+    [HostTest("drivers.ena.deviceattr preserves address widths", HostLane.Fast, 1)]
     private static bool TestPreservesAddressWidths()
     {
         byte[] response = CreateDeviceAttributesResponse(
@@ -126,15 +89,16 @@ internal static class EnaDeviceAttributesTests
                 expectedCommandId: 0x0007,
                 expectedPhase: false);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Attributes.PhysicalAddressWidth == 32
             && result.Attributes.VirtualAddressWidth == 33
             && result.Attributes.ExtendedStatus == 0x0002
             && result.Attributes.SupportedFeatures == 0x00000003
             && result.Attributes.Capabilities == 0x00000009
-            && result.Attributes.MaxMtu == 1500;
+            && result.Attributes.MaxMtu == 1500);
     }
 
+    [HostTest("drivers.ena.deviceattr rejects zero mac", HostLane.Fast, 2)]
     private static bool TestRejectsZeroMac()
     {
         byte[] response = CreateDeviceAttributesResponse(
@@ -158,13 +122,14 @@ internal static class EnaDeviceAttributesTests
                 expectedCommandId: 0x0001,
                 expectedPhase: true);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == EnaDeviceAttributesStatus.ZeroMacAddress
             && result.CommandId == 0x0001
             && result.CompletionStatus == EnaAdminCompletionStatus.Success
-            && result.BytesConsumed == 0;
+            && result.BytesConsumed == 0);
     }
 
+    [HostTest("drivers.ena.deviceattr rejects broadcast mac", HostLane.Fast, 3)]
     private static bool TestRejectsBroadcastMac()
     {
         byte[] response = CreateDeviceAttributesResponse(
@@ -188,14 +153,15 @@ internal static class EnaDeviceAttributesTests
                 expectedCommandId: 0x0002,
                 expectedPhase: true);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == EnaDeviceAttributesStatus.BroadcastMacAddress
             && result.CommandId == 0x0002
             && result.ExpectedCommandId == 0x0002
             && result.Phase
-            && result.ExpectedPhase;
+            && result.ExpectedPhase);
     }
 
+    [HostTest("drivers.ena.deviceattr reports completion failure", HostLane.Fast, 4)]
     private static bool TestReportsCompletionFailure()
     {
         byte[] completionFailure = CreateDeviceAttributesResponse(
@@ -262,7 +228,7 @@ internal static class EnaDeviceAttributesTests
                 expectedCommandId: 0x1000,
                 expectedPhase: true);
 
-        return !completionResult.Succeeded
+        return HostCheck.Result(!completionResult.Succeeded
             && completionResult.Status == EnaDeviceAttributesStatus.CompletionStatusNotSuccess
             && completionResult.CompletionStatus == EnaAdminCompletionStatus.IllegalParameter
             && completionResult.CommandId == 0x0003
@@ -275,9 +241,10 @@ internal static class EnaDeviceAttributesTests
             && !phaseResult.Phase
             && phaseResult.ExpectedPhase
             && !commandOutOfRange.Succeeded
-            && commandOutOfRange.Status == EnaDeviceAttributesStatus.CommandIdOutOfRange;
+            && commandOutOfRange.Status == EnaDeviceAttributesStatus.CommandIdOutOfRange);
     }
 
+    [HostTest("drivers.ena.deviceattr rejects malformed responses", HostLane.Fast, 5)]
     private static bool TestRejectsMalformedResponses()
     {
         byte[] tooShort = new byte[EnaDeviceAttributesParser.ResponseByteLength - 1];
@@ -345,7 +312,7 @@ internal static class EnaDeviceAttributesTests
                 expectedCommandId: 0x000A,
                 expectedPhase: true);
 
-        return !shortResult.Succeeded
+        return HostCheck.Result(!shortResult.Succeeded
             && shortResult.Status == EnaDeviceAttributesStatus.BufferTooSmall
             && shortResult.InputLength == tooShort.Length
             && !physicalWidthResult.Succeeded
@@ -353,7 +320,7 @@ internal static class EnaDeviceAttributesTests
             && !virtualWidthResult.Succeeded
             && virtualWidthResult.Status == EnaDeviceAttributesStatus.InvalidVirtualAddressWidth
             && !mtuResult.Succeeded
-            && mtuResult.Status == EnaDeviceAttributesStatus.InvalidMtu;
+            && mtuResult.Status == EnaDeviceAttributesStatus.InvalidMtu);
     }
 
     private static byte[] CreateDeviceAttributesResponse(

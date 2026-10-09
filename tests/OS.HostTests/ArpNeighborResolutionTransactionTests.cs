@@ -3,45 +3,8 @@ using OS.Net;
 
 internal static class ArpNeighborResolutionTransactionTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.arp resolver writes request frame", TestWritesRequestFrame, ref failures);
-        Run("net.arp resolver accepts matching reply", TestAcceptsMatchingReply, ref failures);
-        Run("net.arp resolver rejects mismatched reply", TestRejectsMismatchedReply, ref failures);
-        Run("net.arp resolver times out request", TestTimesOutRequest, ref failures);
-        Run("net.arp resolver default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ARP neighbor resolution host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.arp resolver writes request frame", HostLane.Fast, 0)]
     private static bool TestWritesRequestFrame()
     {
         ArpNeighborResolutionTransaction transaction = CreateTransaction();
@@ -56,7 +19,7 @@ internal static class ArpNeighborResolutionTransactionTests
             || result.BytesWritten != ArpNeighborResolutionTransaction.RequestFrameLength
             || transaction.State != ArpNeighborResolutionState.RequestSent)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         PacketParseStatus ethernetStatus = EthernetHeader.TryDispatch(
@@ -77,7 +40,7 @@ internal static class ArpNeighborResolutionTransactionTests
             || arp.TargetMac != ZeroMac()
             || arp.TargetAddress != TargetAddress())
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         ArpNeighborResolutionStatus repeatStatus = transaction.TryWriteRequest(
@@ -86,7 +49,7 @@ internal static class ArpNeighborResolutionTransactionTests
         if (repeatStatus != ArpNeighborResolutionStatus.InvalidState
             || repeatResult.State != ArpNeighborResolutionState.RequestSent)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         ArpNeighborResolutionTransaction tooSmallTransaction = CreateTransaction();
@@ -95,13 +58,14 @@ internal static class ArpNeighborResolutionTransactionTests
             tooSmall,
             out ArpNeighborResolutionResult tooSmallResult);
 
-        return tooSmallStatus == ArpNeighborResolutionStatus.BufferTooSmall
+        return HostCheck.Result(tooSmallStatus == ArpNeighborResolutionStatus.BufferTooSmall
             && !tooSmallResult.Succeeded
             && tooSmallResult.State == ArpNeighborResolutionState.Initial
             && tooSmallResult.PacketStatus == PacketParseStatus.BufferTooSmall
-            && tooSmallTransaction.State == ArpNeighborResolutionState.Initial;
+            && tooSmallTransaction.State == ArpNeighborResolutionState.Initial);
     }
 
+    [HostTest("net.arp resolver accepts matching reply", HostLane.Fast, 1)]
     private static bool TestAcceptsMatchingReply()
     {
         ArpNeighborResolutionTransaction transaction = CreateRequestSentTransaction();
@@ -118,17 +82,18 @@ internal static class ArpNeighborResolutionTransactionTests
             reply,
             out ArpNeighborResolutionResult result);
 
-        return status == ArpNeighborResolutionStatus.Success
+        return HostCheck.Result(status == ArpNeighborResolutionStatus.Success
             && result.Succeeded
             && result.State == ArpNeighborResolutionState.Resolved
             && result.ResolvedMac == RemoteMac()
             && transaction.State == ArpNeighborResolutionState.Resolved
-            && transaction.ResolvedMac == RemoteMac();
+            && transaction.ResolvedMac == RemoteMac());
     }
 
+    [HostTest("net.arp resolver rejects mismatched reply", HostLane.Fast, 2)]
     private static bool TestRejectsMismatchedReply()
     {
-        return RejectsReply(
+        return HostCheck.Result(RejectsReply(
                 CreateReplyFrame(
                     RemoteMac(),
                     LocalMac(),
@@ -202,9 +167,10 @@ internal static class ArpNeighborResolutionTransactionTests
                 CreateTruncatedReplyFrame(),
                 ArpNeighborResolutionStatus.FrameParseFailed,
                 PacketParseStatus.BufferTooSmall)
-            && RejectsInitialStateReply();
+            && RejectsInitialStateReply());
     }
 
+    [HostTest("net.arp resolver times out request", HostLane.Fast, 3)]
     private static bool TestTimesOutRequest()
     {
         ArpNeighborResolutionTransaction transaction = CreateRequestSentTransaction();
@@ -215,15 +181,16 @@ internal static class ArpNeighborResolutionTransactionTests
         ArpNeighborResolutionStatus invalidStatus = initialTransaction.Timeout(
             out ArpNeighborResolutionResult invalidResult);
 
-        return timeoutStatus == ArpNeighborResolutionStatus.Timeout
+        return HostCheck.Result(timeoutStatus == ArpNeighborResolutionStatus.Timeout
             && !timeoutResult.Succeeded
             && timeoutResult.State == ArpNeighborResolutionState.Failed
             && transaction.State == ArpNeighborResolutionState.Failed
             && invalidStatus == ArpNeighborResolutionStatus.InvalidState
             && invalidResult.State == ArpNeighborResolutionState.Initial
-            && initialTransaction.State == ArpNeighborResolutionState.Initial;
+            && initialTransaction.State == ArpNeighborResolutionState.Initial);
     }
 
+    [HostTest("net.arp resolver default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         ArpNeighborResolutionResult defaultResult = default;
@@ -233,7 +200,7 @@ internal static class ArpNeighborResolutionTransactionTests
                 ArpNeighborResolutionState.Initial,
                 PacketParseStatus.Success);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == ArpNeighborResolutionStatus.Success
             && failedResult.IsInitialized
@@ -244,7 +211,7 @@ internal static class ArpNeighborResolutionTransactionTests
             && failedResult.BytesWritten == 0
             && failedResult.ResolvedMac == default
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                ArpNeighborResolutionResult>();
+                ArpNeighborResolutionResult>());
     }
 
     private static bool RejectsReply(

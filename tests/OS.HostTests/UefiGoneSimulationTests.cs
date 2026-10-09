@@ -5,43 +5,8 @@ using OS.Kernel.Platform;
 
 internal static class UefiGoneSimulationTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("uefi gone simulation emits pass markers and denies firmware calls", TestSimulationPass, ref failures);
-        Run("uefi gone simulation blocks missing owned diagnostics", TestSimulationBlocksMissingDiagnostics, ref failures);
-        Run("uefi gone simulation rejects already-exited firmware mode", TestSimulationAlreadyExited, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("UEFI-gone simulation host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("uefi gone simulation emits pass markers and denies firmware calls", HostLane.Fast, 0)]
     private static bool TestSimulationPass()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -52,7 +17,7 @@ internal static class UefiGoneSimulationTests
         FirmwareCallResult deniedAfterSimulation = firmware.RequireBootServices("LocateProtocol");
         string[] eventSnapshot = events.Snapshot();
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && firmware.Mode == FirmwareServicesMode.UefiGoneSimulated
             && !deniedAfterSimulation.Succeeded
             && serial.Count == 4
@@ -64,9 +29,10 @@ internal static class UefiGoneSimulationTests
             && eventSnapshot[0] == BootSequence.UefiGoneSimulationStart
             && eventSnapshot[1] == BootSequence.UefiGoneSimulationPlatformDenied
             && eventSnapshot[2] == BootSequence.PostFirmwareDiagnosticsReady
-            && eventSnapshot[3] == BootSequence.UefiGoneSimulationPass;
+            && eventSnapshot[3] == BootSequence.UefiGoneSimulationPass);
     }
 
+    [HostTest("uefi gone simulation blocks missing owned diagnostics", HostLane.Fast, 1)]
     private static bool TestSimulationBlocksMissingDiagnostics()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -86,7 +52,7 @@ internal static class UefiGoneSimulationTests
             SerialDiagnosticsGuardStatus.FirmwareConsoleOnly);
         string[] eventSnapshot = events.Snapshot();
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(
                 nameof(SerialDiagnosticsGuardStatus.FirmwareConsoleOnly),
                 StringComparison.Ordinal)
@@ -98,9 +64,10 @@ internal static class UefiGoneSimulationTests
             && eventSnapshot.Length == 3
             && eventSnapshot[0] == BootSequence.UefiGoneSimulationStart
             && eventSnapshot[1] == BootSequence.UefiGoneSimulationPlatformDenied
-            && eventSnapshot[2] == blockedMarker;
+            && eventSnapshot[2] == blockedMarker);
     }
 
+    [HostTest("uefi gone simulation rejects already-exited firmware mode", HostLane.Fast, 2)]
     private static bool TestSimulationAlreadyExited()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -110,12 +77,12 @@ internal static class UefiGoneSimulationTests
 
         BootResult result = BootSequence.RunUefiGoneSimulation(firmware, serial, events);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason == "simulation-denied"
             && firmware.Mode == FirmwareServicesMode.BootServicesExited
             && serial.Count == 2
             && serial.LineAt(0) == BootSequence.UefiGoneSimulationStart
-            && serial.LineAt(1) == "UEFI_GONE_SIM_FAIL reason=simulation-denied";
+            && serial.LineAt(1) == "UEFI_GONE_SIM_FAIL reason=simulation-denied");
     }
 
     private sealed class SimulationSerialSink : ISerialSink

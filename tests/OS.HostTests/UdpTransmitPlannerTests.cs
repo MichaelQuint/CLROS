@@ -3,49 +3,8 @@ using OS.Net;
 
 internal static class UdpTransmitPlannerTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.udp.tx writes ethernet ipv4 udp frame", TestWritesEthernetIpv4UdpFrame, ref failures);
-        Run("net.udp.tx writes nonzero checksum", TestWritesNonZeroChecksum, ref failures);
-        Run("net.udp.tx checksum validates with pseudo header", TestChecksumValidatesWithPseudoHeader, ref failures);
-        Run("net.udp.tx preserves addressing metadata", TestPreservesAddressingMetadata, ref failures);
-        Run("net.udp.tx rejects invalid local identity", TestRejectsInvalidLocalIdentity, ref failures);
-        Run("net.udp.tx rejects invalid destination identity", TestRejectsInvalidDestinationIdentity, ref failures);
-        Run("net.udp.tx rejects short frame buffer", TestRejectsShortFrameBuffer, ref failures);
-        Run("net.udp.tx rejects oversized payload", TestRejectsOversizedPayload, ref failures);
-        Run("net.udp.tx default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("UDP transmit planner host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.udp.tx writes ethernet ipv4 udp frame", HostLane.Fast, 0)]
     private static bool TestWritesEthernetIpv4UdpFrame()
     {
         byte[] payload = { 0x64, 0x61, 0x74, 0x61 };
@@ -68,7 +27,7 @@ internal static class UdpTransmitPlannerTests
             || result.PacketStatus != PacketParseStatus.Success
             || result.BytesWritten != frame.Length)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         PacketParseStatus parseStatus = EthernetIpv4UdpPacket.TryParse(
@@ -76,7 +35,7 @@ internal static class UdpTransmitPlannerTests
             out EthernetIpv4UdpPacketInfo parsed,
             out ReadOnlySpan<byte> parsedPayload);
 
-        return parseStatus == PacketParseStatus.Success
+        return HostCheck.Result(parseStatus == PacketParseStatus.Success
             && parsed.DestinationMac == RemoteMac
             && parsed.SourceMac == LocalMac
             && parsed.SourceAddress == LocalAddress()
@@ -85,9 +44,10 @@ internal static class UdpTransmitPlannerTests
             && parsed.DestinationPort == 53
             && parsed.TimeToLive == 48
             && parsed.Identification == 0x1133
-            && parsedPayload.SequenceEqual(payload);
+            && parsedPayload.SequenceEqual(payload));
     }
 
+    [HostTest("net.udp.tx writes nonzero checksum", HostLane.Fast, 1)]
     private static bool TestWritesNonZeroChecksum()
     {
         byte[] payload = { 0x63, 0x6B };
@@ -112,14 +72,15 @@ internal static class UdpTransmitPlannerTests
             out ReadOnlySpan<byte> _,
             out Ipv4Header _);
 
-        return status == UdpTransmitPlanStatus.Success
+        return HostCheck.Result(status == UdpTransmitPlanStatus.Success
             && result.Succeeded
             && result.BytesWritten == frame.Length
             && parseStatus == PacketParseStatus.Success
             && udp.Checksum != 0
-            && parsedPayload.SequenceEqual(payload);
+            && parsedPayload.SequenceEqual(payload));
     }
 
+    [HostTest("net.udp.tx checksum validates with pseudo header", HostLane.Fast, 2)]
     private static bool TestChecksumValidatesWithPseudoHeader()
     {
         byte[] payload = { 0x64, 0x61, 0x74, 0x61 };
@@ -150,7 +111,7 @@ internal static class UdpTransmitPlannerTests
             udpDatagram,
             out Ipv4TransportChecksumResult checksumResult);
 
-        return status == UdpTransmitPlanStatus.Success
+        return HostCheck.Result(status == UdpTransmitPlanStatus.Success
             && result.Succeeded
             && result.BytesWritten == frame.Length
             && parseStatus == PacketParseStatus.Success
@@ -158,9 +119,10 @@ internal static class UdpTransmitPlannerTests
             && parsedPayload.SequenceEqual(payload)
             && checksumStatus == Ipv4TransportChecksumStatus.Success
             && checksumResult.IsValid
-            && checksumResult.TransportLength == UdpHeader.HeaderLength + payload.Length;
+            && checksumResult.TransportLength == UdpHeader.HeaderLength + payload.Length);
     }
 
+    [HostTest("net.udp.tx preserves addressing metadata", HostLane.Fast, 3)]
     private static bool TestPreservesAddressingMetadata()
     {
         byte[] payload = { 0x01, 0x02 };
@@ -179,7 +141,7 @@ internal static class UdpTransmitPlannerTests
             frame,
             out UdpTransmitPlanResult result);
 
-        return status == UdpTransmitPlanStatus.Success
+        return HostCheck.Result(status == UdpTransmitPlanStatus.Success
             && result.LocalMac == LocalMac
             && result.LocalAddress == LocalAddress()
             && result.DestinationMac == RemoteMac
@@ -189,9 +151,10 @@ internal static class UdpTransmitPlannerTests
             && result.TimeToLive == 64
             && result.Identification == 0xCAFE
             && result.PayloadLength == payload.Length
-            && result.BytesWritten == frame.Length;
+            && result.BytesWritten == frame.Length);
     }
 
+    [HostTest("net.udp.tx rejects invalid local identity", HostLane.Fast, 4)]
     private static bool TestRejectsInvalidLocalIdentity()
     {
         byte[] payload = { 0xAA };
@@ -222,15 +185,16 @@ internal static class UdpTransmitPlannerTests
             frame,
             out UdpTransmitPlanResult zeroPortResult);
 
-        return zeroMacStatus == UdpTransmitPlanStatus.InvalidLocalIdentity
+        return HostCheck.Result(zeroMacStatus == UdpTransmitPlanStatus.InvalidLocalIdentity
             && zeroMacResult.PacketStatus == PacketParseStatus.Success
             && zeroMacResult.BytesWritten == 0
             && zeroPortStatus == UdpTransmitPlanStatus.InvalidLocalIdentity
             && zeroPortResult.SourcePort == 0
             && frame[0] == PoisonByte
-            && frame[^1] == PoisonByte;
+            && frame[^1] == PoisonByte);
     }
 
+    [HostTest("net.udp.tx rejects invalid destination identity", HostLane.Fast, 5)]
     private static bool TestRejectsInvalidDestinationIdentity()
     {
         byte[] payload = { 0xAA };
@@ -261,15 +225,16 @@ internal static class UdpTransmitPlannerTests
             frame,
             out UdpTransmitPlanResult zeroPortResult);
 
-        return zeroMacStatus == UdpTransmitPlanStatus.InvalidDestinationIdentity
+        return HostCheck.Result(zeroMacStatus == UdpTransmitPlanStatus.InvalidDestinationIdentity
             && zeroMacResult.PacketStatus == PacketParseStatus.Success
             && zeroMacResult.BytesWritten == 0
             && zeroPortStatus == UdpTransmitPlanStatus.InvalidDestinationIdentity
             && zeroPortResult.DestinationPort == 0
             && frame[0] == PoisonByte
-            && frame[^1] == PoisonByte;
+            && frame[^1] == PoisonByte);
     }
 
+    [HostTest("net.udp.tx rejects short frame buffer", HostLane.Fast, 6)]
     private static bool TestRejectsShortFrameBuffer()
     {
         byte[] payload = { 0x10, 0x20, 0x30 };
@@ -289,15 +254,16 @@ internal static class UdpTransmitPlannerTests
             shortFrame,
             out UdpTransmitPlanResult result);
 
-        return status == UdpTransmitPlanStatus.FrameBufferTooSmall
+        return HostCheck.Result(status == UdpTransmitPlanStatus.FrameBufferTooSmall
             && !result.Succeeded
             && result.PacketStatus == PacketParseStatus.BufferTooSmall
             && result.BytesWritten == 0
             && result.PayloadLength == payload.Length
             && frame[0] == PoisonByte
-            && frame[^1] == PoisonByte;
+            && frame[^1] == PoisonByte);
     }
 
+    [HostTest("net.udp.tx rejects oversized payload", HostLane.Fast, 7)]
     private static bool TestRejectsOversizedPayload()
     {
         byte[] payload = new byte[UdpTransmitPlanner.MaximumPayloadBytes + 1];
@@ -316,7 +282,7 @@ internal static class UdpTransmitPlannerTests
             frame,
             out UdpTransmitPlanResult result);
 
-        return status == UdpTransmitPlanStatus.PayloadTooLarge
+        return HostCheck.Result(status == UdpTransmitPlanStatus.PayloadTooLarge
             && !result.Succeeded
             && result.PacketStatus == PacketParseStatus.InvalidLength
             && result.BytesWritten == 0
@@ -324,9 +290,10 @@ internal static class UdpTransmitPlannerTests
             && result.LocalMac == LocalMac
             && result.DestinationMac == RemoteMac
             && frame[0] == PoisonByte
-            && frame[^1] == PoisonByte;
+            && frame[^1] == PoisonByte);
     }
 
+    [HostTest("net.udp.tx default result is not success", HostLane.Fast, 8)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         UdpTransmitPlanResult defaultResult = default;
@@ -355,7 +322,7 @@ internal static class UdpTransmitPlannerTests
             identification: 0x7788,
             payloadLength: 4);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == UdpTransmitPlanStatus.Success
             && success.IsInitialized
@@ -377,7 +344,7 @@ internal static class UdpTransmitPlannerTests
             && failure.PacketStatus == PacketParseStatus.BufferTooSmall
             && failure.BytesWritten == 0
             && failure.PayloadLength == 4
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<UdpTransmitPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<UdpTransmitPlanResult>());
     }
 
     private static byte[] CreatePoisonedFrame(int payloadLength)

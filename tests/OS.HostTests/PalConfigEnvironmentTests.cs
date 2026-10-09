@@ -6,59 +6,8 @@ using OS.Pal;
 
 internal static class PalConfigEnvironmentTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("pal.config returns manifest config value", TestReturnsConfigValue, ref failures);
-        Run("pal.config reports buffer too small", TestConfigBufferTooSmall, ref failures);
-        Run("pal.env returns manifest environment value", TestReturnsEnvironmentValue, ref failures);
-        Run("pal.env enumerates environment entries", TestEnumeratesEnvironmentEntries, ref failures);
-        Run("pal.env rejects invalid queries", TestRejectsInvalidQueries, ref failures);
-        Run("pal.config table builds from native manifest", TestBuildsFromNativeManifest, ref failures);
-        Run("pal.config table reports deterministic capacity", TestReportsDeterministicCapacity, ref failures);
-        Run("pal.config table exposes launch fields", TestBuiltTableExposesLaunchFields, ref failures);
-        Run("pal.config table exposes manifest listen endpoint", TestBuiltTableExposesManifestListenEndpoint, ref failures);
-        Run("pal.config table exposes listen host and port", TestBuiltTableExposesListenHostAndPort, ref failures);
-        Run("pal.config facade returns manifest listen endpoint", TestFacadeReturnsManifestListenEndpoint, ref failures);
-        Run("pal.config table omits listen endpoint when absent", TestOmitsListenEndpointWhenAbsent, ref failures);
-        Run("pal.config table preserves host-only boundary", TestPreservesHostOnlyBoundary, ref failures);
-        Run("pal.env table exposes manifest environment", TestBuiltTableExposesEnvironment, ref failures);
-        Run("pal.config table rejects invalid manifest slices", TestRejectsInvalidManifestSlices, ref failures);
-        Run("pal.config table uses shared memory equality helper", TestUsesSharedMemoryEqualityHelper, ref failures);
-        Run("pal.config table uses shared buffer operations", TestUsesSharedBufferOperations, ref failures);
-        Run("pal.config table port formatter uses shared ascii text builder", TestPortFormatterUsesSharedAsciiTextBuilder, ref failures);
-        Run("pal.config table default results are not success", TestDefaultResultsAreNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL config/environment host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.config returns manifest config value", HostLane.Fast, 0)]
     private static bool TestReturnsConfigValue()
     {
         OSHostConfigEnvironmentTable table = CreateTable();
@@ -68,14 +17,15 @@ internal static class PalConfigEnvironmentTests
             Bytes("app.name"),
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == OSHostStatus.Ok
             && result.BytesWritten == (ulong)"minimal.api".Length
             && result.RequiredBytes == result.BytesWritten
-            && BytesEqual(destination, (int)result.BytesWritten, "minimal.api");
+            && BytesEqual(destination, (int)result.BytesWritten, "minimal.api"));
     }
 
+    [HostTest("pal.config reports buffer too small", HostLane.Fast, 1)]
     private static bool TestConfigBufferTooSmall()
     {
         OSHostConfigEnvironmentTable table = CreateTable();
@@ -85,13 +35,14 @@ internal static class PalConfigEnvironmentTests
             Bytes("runtime.assembly"),
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == OSHostStatus.BufferTooSmall
             && result.BytesWritten == 0
-            && result.RequiredBytes == (ulong)"apps/api/MinimalApi.dll".Length;
+            && result.RequiredBytes == (ulong)"apps/api/MinimalApi.dll".Length);
     }
 
+    [HostTest("pal.env returns manifest environment value", HostLane.Fast, 2)]
     private static bool TestReturnsEnvironmentValue()
     {
         OSHostConfigEnvironmentTable table = CreateTable();
@@ -101,13 +52,14 @@ internal static class PalConfigEnvironmentTests
             Bytes("ASPNETCORE_ENVIRONMENT"),
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == OSHostStatus.Ok
             && result.BytesWritten == (ulong)"Production".Length
-            && BytesEqual(destination, (int)result.BytesWritten, "Production");
+            && BytesEqual(destination, (int)result.BytesWritten, "Production"));
     }
 
+    [HostTest("pal.env enumerates environment entries", HostLane.Fast, 3)]
     private static bool TestEnumeratesEnvironmentEntries()
     {
         OSHostConfigEnvironmentTable table = CreateTable();
@@ -119,7 +71,7 @@ internal static class PalConfigEnvironmentTests
             keyDestination,
             valueDestination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == OSHostStatus.Ok
             && result.KeyBytesWritten == (ulong)"PORT".Length
@@ -127,9 +79,10 @@ internal static class PalConfigEnvironmentTests
             && result.RequiredKeyBytes == result.KeyBytesWritten
             && result.RequiredValueBytes == result.ValueBytesWritten
             && BytesEqual(keyDestination, (int)result.KeyBytesWritten, "PORT")
-            && BytesEqual(valueDestination, (int)result.ValueBytesWritten, "8080");
+            && BytesEqual(valueDestination, (int)result.ValueBytesWritten, "8080"));
     }
 
+    [HostTest("pal.env rejects invalid queries", HostLane.Fast, 4)]
     private static bool TestRejectsInvalidQueries()
     {
         OSHostConfigEnvironmentTable table = CreateTable();
@@ -152,7 +105,7 @@ internal static class PalConfigEnvironmentTests
             smallKeyDestination,
             valueDestination);
 
-        return emptyKey.Status == OSHostStatus.InvalidArgument
+        return HostCheck.Result(emptyKey.Status == OSHostStatus.InvalidArgument
             && emptyKey.IsInitialized
             && missingEnv.Status == OSHostStatus.NotFound
             && missingEnv.IsInitialized
@@ -161,27 +114,29 @@ internal static class PalConfigEnvironmentTests
             && tooSmall.Status == OSHostStatus.BufferTooSmall
             && tooSmall.IsInitialized
             && tooSmall.RequiredKeyBytes == (ulong)"ASPNETCORE_ENVIRONMENT".Length
-            && tooSmall.RequiredValueBytes == (ulong)"Production".Length;
+            && tooSmall.RequiredValueBytes == (ulong)"Production".Length);
     }
 
+    [HostTest("pal.config table builds from native manifest", HostLane.Fast, 5)]
     private static bool TestBuildsFromNativeManifest()
     {
         byte[] source = NativeManifestBytes();
         if (!TryCreatePlan(source, out NativeAppLaunchPlan plan))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostConfigEnvironmentTableBuildResult result =
             OSHostConfigEnvironmentTable.FromNativeLaunchPlan(source, plan);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == OSHostStatus.Ok
             && result.Table is not null
             && result.Table.ConfigCount == 7
-            && result.Table.EnvironmentCount == 2;
+            && result.Table.EnvironmentCount == 2);
     }
 
+    [HostTest("pal.config table reports deterministic capacity", HostLane.Fast, 6)]
     private static bool TestReportsDeterministicCapacity()
     {
         OSHostConfigEnvironmentEntry[] config =
@@ -193,7 +148,7 @@ internal static class PalConfigEnvironmentTests
             OSHostConfigEnvironmentTable.Create(config, environment);
         if (!exact.Succeeded || exact.Table is null)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostConfigEnvironmentEntry[] tooManyConfig =
@@ -206,29 +161,30 @@ internal static class PalConfigEnvironmentTests
         OSHostConfigEnvironmentTableBuildResult environmentOverflow =
             OSHostConfigEnvironmentTable.Create(config, tooManyEnvironment);
 
-        return exact.Table.ConfigCount == OSHostConfigEnvironmentTable.MaxConfigEntries
+        return HostCheck.Result(exact.Table.ConfigCount == OSHostConfigEnvironmentTable.MaxConfigEntries
             && exact.Table.EnvironmentCount == OSHostConfigEnvironmentTable.MaxEnvironmentEntries
             && configOverflow.Status == OSHostStatus.OutOfMemory
             && configOverflow.Table is null
             && !configOverflow.Succeeded
             && environmentOverflow.Status == OSHostStatus.OutOfMemory
             && environmentOverflow.Table is null
-            && !environmentOverflow.Succeeded;
+            && !environmentOverflow.Succeeded);
     }
 
+    [HostTest("pal.config table exposes launch fields", HostLane.Fast, 7)]
     private static bool TestBuiltTableExposesLaunchFields()
     {
         byte[] source = NativeManifestBytes();
         if (!TryCreatePlan(source, out NativeAppLaunchPlan plan))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostConfigEnvironmentTableBuildResult build =
             OSHostConfigEnvironmentTable.FromNativeLaunchPlan(source, plan);
         if (!build.Succeeded || build.Table is null)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] destination = new byte[32];
@@ -250,25 +206,26 @@ internal static class PalConfigEnvironmentTests
             Bytes("network"),
             destination);
 
-        return appPathOk
+        return HostCheck.Result(appPathOk
             && runtimeOk
             && network.Succeeded
-            && BytesEqual(destination, (int)network.BytesWritten, "dhcp");
+            && BytesEqual(destination, (int)network.BytesWritten, "dhcp"));
     }
 
+    [HostTest("pal.env table exposes manifest environment", HostLane.Fast, 13)]
     private static bool TestBuiltTableExposesEnvironment()
     {
         byte[] source = NativeManifestBytes();
         if (!TryCreatePlan(source, out NativeAppLaunchPlan plan))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostConfigEnvironmentTableBuildResult build =
             OSHostConfigEnvironmentTable.FromNativeLaunchPlan(source, plan);
         if (!build.Succeeded || build.Table is null)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] destination = new byte[32];
@@ -276,23 +233,24 @@ internal static class PalConfigEnvironmentTests
             Bytes("PORT"),
             destination);
 
-        return value.Succeeded
-            && BytesEqual(destination, (int)value.BytesWritten, "8080");
+        return HostCheck.Result(value.Succeeded
+            && BytesEqual(destination, (int)value.BytesWritten, "8080"));
     }
 
+    [HostTest("pal.config table exposes manifest listen endpoint", HostLane.Fast, 8)]
     private static bool TestBuiltTableExposesManifestListenEndpoint()
     {
         byte[] source = NativeManifestWithListenBytes("0.0.0.0:8080");
         if (!TryCreatePlan(source, out NativeAppLaunchPlan plan))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostConfigEnvironmentTableBuildResult build =
             OSHostConfigEnvironmentTable.FromNativeLaunchPlan(source, plan);
         if (!build.Succeeded || build.Table is null)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] destination = new byte[64];
@@ -300,24 +258,25 @@ internal static class PalConfigEnvironmentTests
             Bytes("kestrel.listen.0"),
             destination);
 
-        return build.Table.ConfigCount == 10
+        return HostCheck.Result(build.Table.ConfigCount == 10
             && endpoint.Succeeded
-            && BytesEqual(destination, (int)endpoint.BytesWritten, "http://0.0.0.0:8080");
+            && BytesEqual(destination, (int)endpoint.BytesWritten, "http://0.0.0.0:8080"));
     }
 
+    [HostTest("pal.config table exposes listen host and port", HostLane.Fast, 9)]
     private static bool TestBuiltTableExposesListenHostAndPort()
     {
         byte[] source = NativeManifestWithListenBytes("192.0.2.42:9090");
         if (!TryCreatePlan(source, out NativeAppLaunchPlan plan))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostConfigEnvironmentTableBuildResult build =
             OSHostConfigEnvironmentTable.FromNativeLaunchPlan(source, plan);
         if (!build.Succeeded || build.Table is null)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] destination = new byte[64];
@@ -332,24 +291,25 @@ internal static class PalConfigEnvironmentTests
             Bytes("kestrel.listen.0.port"),
             destination);
 
-        return hostOk
+        return HostCheck.Result(hostOk
             && port.Succeeded
-            && BytesEqual(destination, (int)port.BytesWritten, "9090");
+            && BytesEqual(destination, (int)port.BytesWritten, "9090"));
     }
 
+    [HostTest("pal.config facade returns manifest listen endpoint", HostLane.Fast, 10)]
     private static bool TestFacadeReturnsManifestListenEndpoint()
     {
         byte[] source = NativeManifestWithListenBytes("0.0.0.0:8080");
         if (!TryCreatePlan(source, out NativeAppLaunchPlan plan))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostConfigEnvironmentTableBuildResult build =
             OSHostConfigEnvironmentTable.FromNativeLaunchPlan(source, plan);
         if (!build.Succeeded || build.Table is null)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostConfigEnvironmentFacade facade = new(build.Table);
@@ -360,23 +320,24 @@ internal static class PalConfigEnvironmentTests
             key,
             destination);
 
-        return endpoint.Succeeded
-            && BytesEqual(destination, (int)endpoint.BytesWritten, "http://0.0.0.0:8080");
+        return HostCheck.Result(endpoint.Succeeded
+            && BytesEqual(destination, (int)endpoint.BytesWritten, "http://0.0.0.0:8080"));
     }
 
+    [HostTest("pal.config table omits listen endpoint when absent", HostLane.Fast, 11)]
     private static bool TestOmitsListenEndpointWhenAbsent()
     {
         byte[] source = NativeManifestBytes();
         if (!TryCreatePlan(source, out NativeAppLaunchPlan plan))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostConfigEnvironmentTableBuildResult build =
             OSHostConfigEnvironmentTable.FromNativeLaunchPlan(source, plan);
         if (!build.Succeeded || build.Table is null)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] destination = new byte[64];
@@ -384,27 +345,29 @@ internal static class PalConfigEnvironmentTests
             Bytes("kestrel.listen.0"),
             destination);
 
-        return build.Table.ConfigCount == 7
-            && endpoint.Status == OSHostStatus.NotFound;
+        return HostCheck.Result(build.Table.ConfigCount == 7
+            && endpoint.Status == OSHostStatus.NotFound);
     }
 
+    [HostTest("pal.config table preserves host-only boundary", HostLane.Fast, 12)]
     private static bool TestPreservesHostOnlyBoundary()
     {
-        return OSHostConfigEnvironmentTable.HostOnly
+        return HostCheck.Result(OSHostConfigEnvironmentTable.HostOnly
             && !OSHostConfigEnvironmentTable.ExportsPalFunctions
             && !OSHostConfigEnvironmentTable.ReadsGuestStorage
             && !OSHostConfigEnvironmentTable.OpensSockets
             && !OSHostConfigEnvironmentTable.StartsKestrel
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostConfigQueryResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostEnvironmentEnumerationResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostEnvironmentEnumerationResult>());
     }
 
+    [HostTest("pal.config table default results are not success", HostLane.Fast, 18)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         OSHostConfigQueryResult query = default;
         OSHostEnvironmentEnumerationResult enumeration = default;
 
-        return !query.IsInitialized
+        return HostCheck.Result(!query.IsInitialized
             && !query.Succeeded
             && query.Status == OSHostStatus.Ok
             && query.BytesWritten == 0
@@ -417,45 +380,48 @@ internal static class PalConfigEnvironmentTests
             && enumeration.RequiredKeyBytes == 0
             && enumeration.RequiredValueBytes == 0
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostConfigQueryResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostEnvironmentEnumerationResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostEnvironmentEnumerationResult>());
     }
 
+    [HostTest("pal.config table rejects invalid manifest slices", HostLane.Fast, 14)]
     private static bool TestRejectsInvalidManifestSlices()
     {
         byte[] source = NativeManifestBytes();
         if (!TryCreatePlan(source, out NativeAppLaunchPlan plan))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostConfigEnvironmentTableBuildResult result =
             OSHostConfigEnvironmentTable.FromNativeLaunchPlan(source.AsMemory(0, 8), plan);
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == OSHostStatus.InvalidArgument
-            && result.Table is null;
+            && result.Table is null);
     }
 
+    [HostTest("pal.config table uses shared memory equality helper", HostLane.Fast, 15)]
     private static bool TestUsesSharedMemoryEqualityHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Pal", "OSHostConfigEnvironmentTable.cs"));
 
-        return source.Contains(
+        return HostCheck.Result(source.Contains(
                 "OS.Std.MemoryExtensions.SequenceEqual(key, keyUtf8)",
                 StringComparison.Ordinal)
             && !source.Contains(
                 "private static bool ByteSequenceEqual",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("pal.config table port formatter uses shared ascii text builder", HostLane.Fast, 17)]
     private static bool TestPortFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Pal", "OSHostConfigEnvironmentTable.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains(
                 "AsciiDecimalFormatter.CountUInt64Digits(port)",
                 StringComparison.Ordinal)
@@ -465,16 +431,17 @@ internal static class PalConfigEnvironmentTests
             && !source.Contains("Span<byte> reversed", StringComparison.Ordinal)
             && !source.Contains("value % 10", StringComparison.Ordinal)
             && !source.Contains("value /= 10", StringComparison.Ordinal)
-            && !source.Contains("reversed[count - index - 1]", StringComparison.Ordinal);
+            && !source.Contains("reversed[count - index - 1]", StringComparison.Ordinal));
     }
 
+    [HostTest("pal.config table uses shared buffer operations", HostLane.Fast, 16)]
     private static bool TestUsesSharedBufferOperations()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Pal", "OSHostConfigEnvironmentTable.cs"));
 
-        return source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
             && source.Contains(
                 "BufferOperations.MemoryCopy(key, keyDestination)",
                 StringComparison.Ordinal)
@@ -496,7 +463,7 @@ internal static class PalConfigEnvironmentTests
             && !source.Contains("host.CopyTo(value.AsSpan(PrefixLength))", StringComparison.Ordinal)
             && !source.Contains(
                 "port.CopyTo(value.AsSpan(PrefixLength + host.Length + 1))",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
     private static OSHostConfigEnvironmentTable CreateTable()

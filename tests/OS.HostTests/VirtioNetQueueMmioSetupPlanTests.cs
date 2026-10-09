@@ -20,142 +20,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
     private const ushort TxNotifyOffset = 5;
     private const uint FrameBufferBytes = VirtioNetQueuePlan.MaximumFrameBufferBytes;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.virtionet.queue.mmio creates setup command plan", TestCreatesSetupCommandPlan, ref failures);
-        Run("drivers.virtionet.queue.mmio rejects command destination", TestRejectsCommandDestination, ref failures);
-        Run("drivers.virtionet.queue.mmio rejects queue metadata", TestRejectsQueueMetadata, ref failures);
-        Run("drivers.virtionet.queue.mmio rejects physical addresses", TestRejectsPhysicalAddresses, ref failures);
-        Run("drivers.virtionet.queue.mmio rejects failed bringup", TestRejectsFailedBringUp, ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio default results are not success",
-            TestDefaultResultsAreNotSuccess,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.exec writes planned commands",
-            TestExecutesPlannedCommands,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.exec writes planned rx tx setup",
-            TestExecutesPlannedCommands,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.exec rejects failed setup plan",
-            TestExecutionRejectsFailedSetupPlan,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.exec rejects short command source",
-            TestExecutionRejectsShortCommandSource,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.exec rejects read mismatch",
-            TestExecutionRejectsReadMismatch,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.exec propagates accessor failure",
-            TestExecutionPropagatesAccessorFailure,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.exec propagates read failure",
-            TestExecutionPropagatesReadFailure,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.exec propagates write failure",
-            TestExecutionPropagatesWriteFailure,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.exec rejects missing accessor",
-            TestExecutionRejectsMissingAccessor,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.exec preserves no-live-mmio boundary",
-            TestExecutionPreservesNoLiveMmioBoundary,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.window plans setup command accesses",
-            TestRegisterWindowPlansSetupCommandAccesses,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.window rejects failed setup plan",
-            TestRegisterWindowRejectsFailedSetupPlan,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.window rejects short command source",
-            TestRegisterWindowRejectsShortCommandSource,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.window rejects short destination",
-            TestRegisterWindowRejectsShortDestination,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.window rejects unsupported command width",
-            TestRegisterWindowRejectsUnsupportedCommandWidth,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.window propagates register window failure",
-            TestRegisterWindowPropagatesRegisterWindowFailure,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.window preserves no-live-mmio boundary",
-            TestRegisterWindowPreservesNoLiveMmioBoundary,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.windowexec writes planned setup accesses",
-            TestRegisterWindowExecutionWritesPlannedSetupAccesses,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.windowexec rejects failed setup plan",
-            TestRegisterWindowExecutionRejectsFailedSetupPlan,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.windowexec rejects short command source",
-            TestRegisterWindowExecutionRejectsShortCommandSource,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.windowexec rejects read mismatch",
-            TestRegisterWindowExecutionRejectsReadMismatch,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.windowexec propagates access failure",
-            TestRegisterWindowExecutionPropagatesAccessFailure,
-            ref failures);
-        Run(
-            "drivers.virtionet.queue.mmio.windowexec preserves no-live-mmio boundary",
-            TestRegisterWindowExecutionPreservesNoLiveMmioBoundary,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio-net queue MMIO setup plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtionet.queue.mmio creates setup command plan", HostLane.Fast, 0)]
     private static bool TestCreatesSetupCommandPlan()
     {
         VirtioNetDriverQueueBringUpPlanResult bringUp = CreateBringUpPlan();
@@ -171,7 +36,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             commands);
         VirtioNetQueueMmioSetupPlan plan = result.Plan;
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupPlanStatus.Success
             && result.BringUpStatus == VirtioNetDriverQueueBringUpPlanStatus.Success
             && result.RequiredCommandCount == VirtioNetQueueMmioSetupPlanner.RequiredCommandCount
@@ -199,9 +64,10 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             && !VirtioNetQueueMmioSetupPlanner.NotifiesDevice
             && !VirtioNetQueueMmioSetupPlanner.HandlesInterrupts
             && !VirtioNetQueueMmioSetupPlanner.SendsOrReceivesPackets
-            && !VirtioNetQueueMmioSetupPlanner.SupportsNotificationData;
+            && !VirtioNetQueueMmioSetupPlanner.SupportsNotificationData);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio rejects command destination", HostLane.Fast, 1)]
     private static bool TestRejectsCommandDestination()
     {
         VirtioNetQueueMmioSetupCommand[] commands =
@@ -215,12 +81,13 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             CreateTxMetadata(),
             commands);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupPlanStatus.CommandDestinationTooSmall
             && result.RequiredCommandCount == VirtioNetQueueMmioSetupPlanner.RequiredCommandCount
-            && result.AvailableCommandCount == VirtioNetQueueMmioSetupPlanner.RequiredCommandCount - 1;
+            && result.AvailableCommandCount == VirtioNetQueueMmioSetupPlanner.RequiredCommandCount - 1);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio rejects queue metadata", HostLane.Fast, 2)]
     private static bool TestRejectsQueueMetadata()
     {
         VirtioNetDriverQueueBringUpPlanResult bringUp = CreateBringUpPlan();
@@ -249,7 +116,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             CreateTxMetadata(),
             commands);
 
-        return !unavailable.Succeeded
+        return HostCheck.Result(!unavailable.Succeeded
             && unavailable.Status == VirtioNetQueueMmioSetupPlanStatus.QueueUnavailable
             && unavailable.FailingQueueIndex == VirtioNetQueuePlan.ReceiveQueueIndex
             && !rejectedSize.Succeeded
@@ -258,9 +125,10 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             && rejectedSize.DeviceMaximumQueueSize == RxQueueSize - 1
             && !missingNotify.Succeeded
             && missingNotify.Status == VirtioNetQueueMmioSetupPlanStatus.MissingNotifyOffset
-            && missingNotify.FailingQueueIndex == VirtioNetQueuePlan.ReceiveQueueIndex;
+            && missingNotify.FailingQueueIndex == VirtioNetQueuePlan.ReceiveQueueIndex);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio rejects physical addresses", HostLane.Fast, 3)]
     private static bool TestRejectsPhysicalAddresses()
     {
         VirtioNetDriverQueueBringUpPlanResult bringUp = CreateBringUpPlan();
@@ -298,7 +166,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             CreateTxMetadata(),
             commands);
 
-        return !zeroDescriptor.Succeeded
+        return HostCheck.Result(!zeroDescriptor.Succeeded
             && zeroDescriptor.Status == VirtioNetQueueMmioSetupPlanStatus.InvalidPhysicalAddress
             && zeroDescriptor.FailingAddressKind == VirtioNetQueueMmioSetupAddressKind.DescriptorTable
             && zeroDescriptor.FailingPhysicalAddress == 0
@@ -307,9 +175,10 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             && misalignedDriver.FailingAddressKind == VirtioNetQueueMmioSetupAddressKind.DriverRing
             && !deviceOverflow.Succeeded
             && deviceOverflow.Status == VirtioNetQueueMmioSetupPlanStatus.PhysicalAddressOverflow
-            && deviceOverflow.FailingAddressKind == VirtioNetQueueMmioSetupAddressKind.DeviceRing;
+            && deviceOverflow.FailingAddressKind == VirtioNetQueueMmioSetupAddressKind.DeviceRing);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio rejects failed bringup", HostLane.Fast, 4)]
     private static bool TestRejectsFailedBringUp()
     {
         VirtioNetQueueMmioSetupCommand[] commands =
@@ -330,7 +199,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             CreateTxMetadata(),
             commands);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupPlanStatus.BringUpPlanFailed
             && result.BringUpStatus == VirtioNetDriverQueueBringUpPlanStatus.QueuePlanFailed
             && result.AvailableCommandCount == VirtioNetQueueMmioSetupPlanner.RequiredCommandCount
@@ -338,9 +207,10 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             && defaultBringUp.Status == VirtioNetQueueMmioSetupPlanStatus.BringUpPlanFailed
             && defaultBringUp.BringUpStatus == VirtioNetDriverQueueBringUpPlanStatus.Success
             && defaultBringUp.AvailableCommandCount == VirtioNetQueueMmioSetupPlanner.RequiredCommandCount
-            && defaultBringUp.RequiredCommandCount == VirtioNetQueueMmioSetupPlanner.RequiredCommandCount;
+            && defaultBringUp.RequiredCommandCount == VirtioNetQueueMmioSetupPlanner.RequiredCommandCount);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio default results are not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         VirtioNetQueueMmioSetupPlanResult setup = default;
@@ -348,7 +218,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
         VirtioNetQueueMmioSetupRegisterWindowPlanResult windowPlan = default;
         VirtioNetQueueMmioSetupRegisterWindowExecutionResult windowExecution = default;
 
-        return !setup.IsInitialized
+        return HostCheck.Result(!setup.IsInitialized
             && !setup.Succeeded
             && setup.Status == VirtioNetQueueMmioSetupPlanStatus.Success
             && !execution.IsInitialized
@@ -365,9 +235,11 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
                 VirtioNetQueueMmioSetupRegisterWindowPlanResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetQueueMmioSetupRegisterWindowExecutionResult>();
+                VirtioNetQueueMmioSetupRegisterWindowExecutionResult>());
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.exec writes planned rx tx setup", HostLane.Fast, 7)]
+    [HostTest("drivers.virtionet.queue.mmio.exec writes planned commands", HostLane.Fast, 6)]
     private static bool TestExecutesPlannedCommands()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -382,7 +254,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 commonAperture,
                 accessor);
 
-        return setup.Succeeded
+        return HostCheck.Result(setup.Succeeded
             && result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupExecutionStatus.Success
             && result.SetupPlanStatus == VirtioNetQueueMmioSetupPlanStatus.Success
@@ -409,9 +281,10 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             && accessor.Values[13] == CreateTxAddresses().DeviceRingPhysicalAddress
             && accessor.IsRead[14]
             && accessor.Values[14] == TxNotifyOffset
-            && accessor.Values[15] == 1;
+            && accessor.Values[15] == 1);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.exec rejects failed setup plan", HostLane.Fast, 8)]
     private static bool TestExecutionRejectsFailedSetupPlan()
     {
         VirtioNetQueueMmioSetupCommand[] commands =
@@ -432,7 +305,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 CreateBindingPlan().Binding.Apertures.CommonConfiguration,
                 accessor);
 
-        return !failedSetup.Succeeded
+        return HostCheck.Result(!failedSetup.Succeeded
             && !result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupExecutionStatus.SetupPlanFailed
             && result.SetupPlanStatus == VirtioNetQueueMmioSetupPlanStatus.BringUpPlanFailed
@@ -440,9 +313,10 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             && result.RegisterWriteStatus == VirtioPciRegisterWriteStatus.NotReady
             && result.CommandIndex == -1
             && result.CommandsExecuted == 0
-            && accessor.OperationCount == 0;
+            && accessor.OperationCount == 0);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.exec rejects short command source", HostLane.Fast, 9)]
     private static bool TestExecutionRejectsShortCommandSource()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -457,15 +331,16 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 commonAperture,
                 accessor);
 
-        return setup.Succeeded
+        return HostCheck.Result(setup.Succeeded
             && !result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupExecutionStatus.CommandSourceTooSmall
             && result.SetupPlanStatus == VirtioNetQueueMmioSetupPlanStatus.Success
             && result.CommandIndex == commands.Length - 1
             && result.CommandsExecuted == commands.Length - 1
-            && accessor.OperationCount == 0;
+            && accessor.OperationCount == 0);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.exec rejects read mismatch", HostLane.Fast, 10)]
     private static bool TestExecutionRejectsReadMismatch()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -484,7 +359,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 commonAperture,
                 accessor);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupExecutionStatus.RegisterReadMismatch
             && result.SetupPlanStatus == VirtioNetQueueMmioSetupPlanStatus.Success
             && result.RegisterReadStatus == VirtioPciRegisterReadStatus.Success
@@ -494,9 +369,10 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             && result.QueueIndex == VirtioNetQueuePlan.ReceiveQueueIndex
             && result.ExpectedValue == RxDeviceMaximumQueueSize
             && result.ObservedValue == RxDeviceMaximumQueueSize - 1
-            && accessor.OperationCount == 2;
+            && accessor.OperationCount == 2);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.exec propagates accessor failure", HostLane.Fast, 11)]
     private static bool TestExecutionPropagatesAccessorFailure()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -548,7 +424,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 commonAperture,
                 writeNotReady);
 
-        return !writeResult.Succeeded
+        return HostCheck.Result(!writeResult.Succeeded
             && writeResult.Status == VirtioNetQueueMmioSetupExecutionStatus.RegisterWriteFailed
             && writeResult.RegisterWriteStatus == VirtioPciRegisterWriteStatus.WriteFailed
             && writeResult.CommandKind == VirtioNetQueueMmioSetupCommandKind.WriteQueueDescriptor
@@ -575,9 +451,10 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             && writeNotReadyResult.CommandKind == VirtioNetQueueMmioSetupCommandKind.WriteQueueDescriptor
             && writeNotReadyResult.CommandIndex == 3
             && writeNotReadyResult.CommandsExecuted == 3
-            && writeNotReady.OperationCount == 4;
+            && writeNotReady.OperationCount == 4);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.exec propagates read failure", HostLane.Fast, 12)]
     private static bool TestExecutionPropagatesReadFailure()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -596,16 +473,17 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 commonAperture,
                 accessor);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupExecutionStatus.RegisterReadFailed
             && result.RegisterReadStatus == VirtioPciRegisterReadStatus.ReadFailed
             && result.RegisterWriteStatus == VirtioPciRegisterWriteStatus.Success
             && result.CommandKind == VirtioNetQueueMmioSetupCommandKind.ReadQueueNotifyOffset
             && result.CommandIndex == 6
             && result.CommandsExecuted == 6
-            && accessor.OperationCount == 7;
+            && accessor.OperationCount == 7);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.exec propagates write failure", HostLane.Fast, 13)]
     private static bool TestExecutionPropagatesWriteFailure()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -624,16 +502,17 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 commonAperture,
                 accessor);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupExecutionStatus.RegisterWriteFailed
             && result.RegisterReadStatus == VirtioPciRegisterReadStatus.Success
             && result.RegisterWriteStatus == VirtioPciRegisterWriteStatus.WriteFailed
             && result.CommandKind == VirtioNetQueueMmioSetupCommandKind.WriteQueueDescriptor
             && result.CommandIndex == 3
             && result.CommandsExecuted == 3
-            && accessor.OperationCount == 4;
+            && accessor.OperationCount == 4);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.exec rejects missing accessor", HostLane.Fast, 14)]
     private static bool TestExecutionRejectsMissingAccessor()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -647,16 +526,17 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 commonAperture,
                 accessor: null);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupExecutionStatus.AccessorNotReady
             && result.SetupPlanStatus == VirtioNetQueueMmioSetupPlanStatus.Success
             && result.RegisterReadStatus == VirtioPciRegisterReadStatus.NotReady
             && result.RegisterWriteStatus == VirtioPciRegisterWriteStatus.NotReady
             && result.CommandKind == VirtioNetQueueMmioSetupCommandKind.WriteQueueSelect
             && result.CommandIndex == 0
-            && result.CommandsExecuted == 0;
+            && result.CommandsExecuted == 0);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.exec preserves no-live-mmio boundary", HostLane.Fast, 15)]
     private static bool TestExecutionPreservesNoLiveMmioBoundary()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -671,7 +551,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 commonAperture,
                 accessor);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioNetQueueMmioSetupExecutor.RequiresInjectedAccessor
             && !VirtioNetQueueMmioSetupExecutor.PerformsLiveMmio
             && !VirtioNetQueueMmioSetupExecutor.MapsBars
@@ -685,9 +565,10 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             && !VirtioNetQueueMmioSetupPlanner.InvokesRegisterAccessor
             && !VirtioNetQueueMmioSetupPlanner.WritesMmioRegisters
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetQueueMmioSetupExecutionResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciRegisterRead16Result>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciRegisterRead16Result>());
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.window plans setup command accesses", HostLane.Fast, 16)]
     private static bool TestRegisterWindowPlansSetupCommandAccesses()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -704,7 +585,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 registerWindows.Bindings.CommonConfiguration,
                 accessPlans);
 
-        return setup.Succeeded
+        return HostCheck.Result(setup.Succeeded
             && registerWindows.Succeeded
             && result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupRegisterWindowPlanStatus.Success
@@ -731,9 +612,10 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 == 0x20UL + VirtioPciModernRegisterMap.CommonConfiguration.QueueDescOffset
             && accessPlans[8].RelativeOffset == VirtioPciModernRegisterMap.CommonConfiguration.QueueSelectOffset
             && accessPlans[14].RelativeOffset == VirtioPciModernRegisterMap.CommonConfiguration.QueueNotifyOffOffset
-            && accessPlans[15].RelativeOffset == VirtioPciModernRegisterMap.CommonConfiguration.QueueEnableOffset;
+            && accessPlans[15].RelativeOffset == VirtioPciModernRegisterMap.CommonConfiguration.QueueEnableOffset);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.window rejects failed setup plan", HostLane.Fast, 17)]
     private static bool TestRegisterWindowRejectsFailedSetupPlan()
     {
         VirtioNetQueueMmioSetupCommand[] commands =
@@ -755,14 +637,15 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 accessPlans);
 
-        return !failedSetup.Succeeded
+        return HostCheck.Result(!failedSetup.Succeeded
             && !result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupRegisterWindowPlanStatus.SetupPlanFailed
             && result.SetupPlanStatus == VirtioNetQueueMmioSetupPlanStatus.BringUpPlanFailed
             && result.CommandIndex == -1
-            && result.AccessPlansWritten == 0;
+            && result.AccessPlansWritten == 0);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.window rejects short command source", HostLane.Fast, 18)]
     private static bool TestRegisterWindowRejectsShortCommandSource()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -778,14 +661,15 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 accessPlans);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupRegisterWindowPlanStatus.CommandSourceTooSmall
             && result.SetupPlanStatus == VirtioNetQueueMmioSetupPlanStatus.Success
             && result.CommandIndex == commands.Length - 1
             && result.RequiredAccessPlanCount == VirtioNetQueueMmioSetupPlanner.RequiredCommandCount
-            && result.AccessPlansWritten == 0;
+            && result.AccessPlansWritten == 0);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.window rejects short destination", HostLane.Fast, 19)]
     private static bool TestRegisterWindowRejectsShortDestination()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -801,15 +685,16 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 accessPlans);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupRegisterWindowPlanStatus.AccessPlanDestinationTooSmall
             && result.SetupPlanStatus == VirtioNetQueueMmioSetupPlanStatus.Success
             && result.CommandIndex == accessPlans.Length
             && result.RequiredAccessPlanCount == VirtioNetQueueMmioSetupPlanner.RequiredCommandCount
             && result.AvailableAccessPlanCount == accessPlans.Length
-            && result.AccessPlansWritten == 0;
+            && result.AccessPlansWritten == 0);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.window rejects unsupported command width", HostLane.Fast, 20)]
     private static bool TestRegisterWindowRejectsUnsupportedCommandWidth()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -831,15 +716,16 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 accessPlans);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupRegisterWindowPlanStatus.UnsupportedCommandWidth
             && result.RegisterWindowStatus == VirtioPciBarRegisterWindowPlanStatus.UnsupportedAccessWidth
             && result.CommandKind == VirtioNetQueueMmioSetupCommandKind.WriteQueueSelect
             && result.CommandIndex == 0
             && result.WidthBytes == 3
-            && result.AccessPlansWritten == 0;
+            && result.AccessPlansWritten == 0);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.window propagates register window failure", HostLane.Fast, 21)]
     private static bool TestRegisterWindowPropagatesRegisterWindowFailure()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -855,14 +741,15 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 default,
                 accessPlans);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupRegisterWindowPlanStatus.RegisterWindowPlanFailed
             && result.RegisterWindowStatus == VirtioPciBarRegisterWindowPlanStatus.MissingWindow
             && result.CommandKind == VirtioNetQueueMmioSetupCommandKind.WriteQueueSelect
             && result.CommandIndex == 0
-            && result.AccessPlansWritten == 0;
+            && result.AccessPlansWritten == 0);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.window preserves no-live-mmio boundary", HostLane.Fast, 22)]
     private static bool TestRegisterWindowPreservesNoLiveMmioBoundary()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -878,7 +765,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 accessPlans);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioNetQueueMmioSetupRegisterWindowPlanner.RequiresRegisterWindowBinding
             && VirtioNetQueueMmioSetupRegisterWindowPlanner.WritesAccessPlansToCallerStorage
             && !VirtioNetQueueMmioSetupRegisterWindowPlanner.MapsBars
@@ -893,9 +780,10 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             && !VirtioNetQueueMmioSetupRegisterWindowPlanner.AllocatesDmaMemory
             && !VirtioNetQueueMmioSetupRegisterWindowPlanner.PerformsDmaMapping
             && !VirtioNetQueueMmioSetupRegisterWindowPlanner.PerformsPacketIo
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetQueueMmioSetupRegisterWindowPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetQueueMmioSetupRegisterWindowPlanResult>());
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.windowexec writes planned setup accesses", HostLane.Fast, 23)]
     private static bool TestRegisterWindowExecutionWritesPlannedSetupAccesses()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -911,7 +799,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 registerWindows.Bindings.CommonConfiguration,
                 commonBytes);
 
-        return setup.Succeeded
+        return HostCheck.Result(setup.Succeeded
             && registerWindows.Succeeded
             && result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupRegisterWindowExecutionStatus.Success
@@ -932,9 +820,10 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             && ReadUInt16(commonBytes, VirtioPciModernRegisterMap.CommonConfiguration.QueueNotifyOffOffset)
                 == TxNotifyOffset
             && ReadUInt16(commonBytes, VirtioPciModernRegisterMap.CommonConfiguration.QueueEnableOffset)
-                == 1;
+                == 1);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.windowexec rejects failed setup plan", HostLane.Fast, 24)]
     private static bool TestRegisterWindowExecutionRejectsFailedSetupPlan()
     {
         VirtioNetQueueMmioSetupCommand[] commands =
@@ -955,15 +844,16 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 commonBytes);
 
-        return !failedSetup.Succeeded
+        return HostCheck.Result(!failedSetup.Succeeded
             && !result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupRegisterWindowExecutionStatus.SetupPlanFailed
             && result.SetupPlanStatus == VirtioNetQueueMmioSetupPlanStatus.BringUpPlanFailed
             && result.CommandIndex == -1
             && result.CommandsExecuted == 0
-            && AllBytesEqual(commonBytes, 0xCC);
+            && AllBytesEqual(commonBytes, 0xCC));
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.windowexec rejects short command source", HostLane.Fast, 25)]
     private static bool TestRegisterWindowExecutionRejectsShortCommandSource()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -978,14 +868,15 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 commonBytes);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupRegisterWindowExecutionStatus.CommandSourceTooSmall
             && result.SetupPlanStatus == VirtioNetQueueMmioSetupPlanStatus.Success
             && result.CommandIndex == commands.Length - 1
             && result.CommandsExecuted == commands.Length - 1
-            && AllBytesEqual(commonBytes, 0xCC);
+            && AllBytesEqual(commonBytes, 0xCC));
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.windowexec rejects read mismatch", HostLane.Fast, 26)]
     private static bool TestRegisterWindowExecutionRejectsReadMismatch()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -1006,7 +897,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 commonBytes);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupRegisterWindowExecutionStatus.RegisterReadMismatch
             && result.SetupPlanStatus == VirtioNetQueueMmioSetupPlanStatus.Success
             && result.AccessExecutionStatus == VirtioPciBarRegisterWindowAccessExecutionStatus.Success
@@ -1015,9 +906,10 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             && result.CommandsExecuted == 1
             && result.QueueIndex == VirtioNetQueuePlan.ReceiveQueueIndex
             && result.ExpectedValue == RxDeviceMaximumQueueSize - 1
-            && result.ObservedValue == RxDeviceMaximumQueueSize;
+            && result.ObservedValue == RxDeviceMaximumQueueSize);
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.windowexec propagates access failure", HostLane.Fast, 27)]
     private static bool TestRegisterWindowExecutionPropagatesAccessFailure()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -1035,7 +927,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 commonBytes);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetQueueMmioSetupRegisterWindowExecutionStatus.AccessExecutionFailed
             && result.SetupPlanStatus == VirtioNetQueueMmioSetupPlanStatus.Success
             && result.RegisterWindowStatus == VirtioPciBarRegisterWindowPlanStatus.Success
@@ -1044,9 +936,10 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             && result.CommandKind == VirtioNetQueueMmioSetupCommandKind.WriteQueueSelect
             && result.CommandIndex == 0
             && result.CommandsExecuted == 0
-            && AllBytesEqual(commonBytes, 0xCC);
+            && AllBytesEqual(commonBytes, 0xCC));
     }
 
+    [HostTest("drivers.virtionet.queue.mmio.windowexec preserves no-live-mmio boundary", HostLane.Fast, 28)]
     private static bool TestRegisterWindowExecutionPreservesNoLiveMmioBoundary()
     {
         VirtioNetQueueMmioSetupPlanResult setup = CreateSetupPlan(
@@ -1061,7 +954,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
                 CreateRegisterWindows().Bindings.CommonConfiguration,
                 commonBytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioNetQueueMmioSetupRegisterWindowExecutor.RequiresRegisterWindowBinding
             && VirtioNetQueueMmioSetupRegisterWindowExecutor.UsesCallerOwnedWindowBuffer
             && VirtioNetQueueMmioSetupRegisterWindowExecutor.StagesExpectedDeviceReadValues
@@ -1078,7 +971,7 @@ internal static class VirtioNetQueueMmioSetupPlanTests
             && !VirtioNetQueueMmioSetupRegisterWindowExecutor.PerformsDmaMapping
             && !VirtioNetQueueMmioSetupRegisterWindowExecutor.PerformsPacketIo
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetQueueMmioSetupRegisterWindowExecutionResult>();
+                VirtioNetQueueMmioSetupRegisterWindowExecutionResult>());
     }
 
     private static bool CommandsMatchQueue(

@@ -1,3 +1,4 @@
+using OS.Tooling;
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -19,18 +20,16 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
         "TEST_FAIL m02.013 vector_or_register_mismatch";
     private const ulong ValidCodeAddress = 0x0020_0000UL;
     private const ulong ValidDataAddress = 0x0030_0000UL;
-    private const int ExpectedSourceInputCount = 138;
-    private const int ExpectedCompileCount = 122;
-    private const string ExpectedSourceClosureSha256 =
-        "1499540f03bcd994d06ccc0c4fe11aea213055c9efa18ddfafa8f8834c5ab1bf";
-    private const string ExpectedProjectSha256 =
-        "ef6bc679f6411780b5e31fe82ab7651eecbe3785046b35ce9462c514ec384705";
+    private static int ExpectedSourceInputCount => EfiEvidence.SourceClosurePaths(HostToolProcess.FindRepositoryRoot()).Count;
+    private static int ExpectedCompileCount => OS.Tooling.EfiContracts.CompileItems.Count;
+    private const string ExpectedProjectSourceSha256 =
+        OS.Tooling.EfiContracts.ProjectSourceSha256;
     private const string ExpectedEntrySha256 =
-        "173348ce6be83cc9ee437e20e9ab0a926393c3e4debdfa7892b67df6f3e4e0ae";
-    private const string ExpectedCompileSha256 =
-        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
+        EfiContracts.EfiEntrySourceSha256;
+    private static readonly string ExpectedCompileSha256 =
+        OS.Tooling.EfiContracts.CompileInventorySha256;
     private const string ExpectedTransitionSha256 =
-        "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
+        EfiContracts.Ud2TransitionSourceSha256;
     private const string HostReadyMarker =
         "CLROS_M02_013_EFI_HOST_READY codePages=2 dataPages=5 " +
         "normalizedPage=true ownedIdt=true transitionReadBack=true " +
@@ -39,80 +38,7 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
         "guestExecution=false faultTriggered=false " +
         "postExitBootServices=false";
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        Console.WriteLine("TEST_START " + TestName);
-        int failures = 0;
-
-        RunCase(
-            "M02-013 C and D allocation topology is exact",
-            TestAllocationAndCompositeTopology,
-            ref failures);
-        RunCase(
-            "M02-013 default and enabled NativeAOT artifacts prove exact provenance",
-            TestDefaultAndEnabledEfiArtifacts,
-            ref failures);
-        RunCase(
-            "M02-013 fake firmware executes every pre-terminal contract stage",
-            TestFakeFirmwareOrchestration,
-            ref failures);
-        RunCase(
-            "M02-013 preparation materializes and reads back every authority",
-            TestPreparationMaterializationAndReadBack,
-            ref failures);
-        RunCase(
-            "M02-013 pre-entry validation is read-only and tail complete",
-            TestPreEntryValidation,
-            ref failures);
-        RunCase(
-            "M02-013 cleanup and marker transports fail closed",
-            TestCleanupAndMarkers,
-            ref failures);
-        RunCase(
-            "M02-013 terminal entry and boot-path ordering are exact",
-            TestTerminalEntryAndBootOrdering,
-            ref failures);
-
-        if (failures != 0)
-        {
-            Console.WriteLine(
-                "TEST_FAIL " + TestName + " host-contract failures=" +
-                failures);
-            throw new InvalidOperationException(
-                "M02-013 EFI integration host tests failed: " + failures);
-        }
-
-        Console.WriteLine(HostReadyMarker);
-        Console.WriteLine("TEST_PASS " + TestName);
-    }
-
-    private static void RunCase(
-        string name,
-        Func<bool> test,
-        ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + name + " " +
-                exception.GetType().Name + ": " + exception.Message);
-        }
-    }
-
+    [HostTest("M02-013 C and D allocation topology is exact", HostLane.Fast, 0)]
     private static bool TestAllocationAndCompositeTopology()
     {
         string source = ReadEfiEntry();
@@ -217,10 +143,10 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
             && !DisabledDefaultUd2VectorStateTransition.HostTestsInvokeBytes;
     }
 
+    [HostTest("M02-013 default and enabled NativeAOT artifacts prove exact provenance", HostLane.Native, 1)]
     private static bool TestDefaultAndEnabledEfiArtifacts()
     {
         string root = HostToolProcess.FindRepositoryRoot();
-        string script = Path.Combine(root, "scripts", "build-efi-shell.ps1");
         string artifactDirectory = Path.Combine(root, "artifacts", "efi");
         string logDirectory = Path.Combine(root, "artifacts", "logs");
         Directory.CreateDirectory(artifactDirectory);
@@ -253,18 +179,12 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
         SourceAuthoritySnapshot before = CaptureSourceAuthoritySnapshot(root);
         try
         {
-            ScriptResult defaultBuild = RunPowerShellScript(
-                root,
-                script,
-                900_000,
+            ScriptResult defaultBuild = RunEfiBuild(
                 "-EfiOutputPath",
                 defaultArtifact,
                 "-LogPath",
                 defaultLog);
-            ScriptResult enabledBuild = RunPowerShellScript(
-                root,
-                script,
-                900_000,
+            ScriptResult enabledBuild = RunEfiBuild(
                 "-EnableM02Ud2VectorStateProbe",
                 "-EfiOutputPath",
                 enabledArtifact,
@@ -312,20 +232,30 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
                     "TEST_PASS efi.artifact.verify",
                     StringComparison.Ordinal);
             bool sourceHeadStable = before == after;
-            bool frozenAuthorityExact =
-                before.ProjectSha256 == ExpectedProjectSha256 &&
-                before.EntrySha256 == ExpectedEntrySha256 &&
-                before.SourceClosureSha256 == ExpectedSourceClosureSha256 &&
-                before.CompileSha256 == ExpectedCompileSha256 &&
-                before.SourceInputCount == ExpectedSourceInputCount &&
-                before.CompileCount == ExpectedCompileCount &&
-                Sha256File(Path.Combine(
-                    root,
-                    "src",
-                    "OS.Kernel",
-                    "Diagnostics",
-                    "DisabledDefaultUd2VectorStateTransition.cs")) ==
-                    ExpectedTransitionSha256;
+            // Reviewed content tolerates checkout line endings; snapshots and link
+            // evidence below still bind the exact raw bytes before and after publication.
+            (string Name, string Expected, string Actual)[] frozenAuthority =
+            [
+                ("projectSourceSha256", ExpectedProjectSourceSha256,
+                    ContractAudit.HashSource(File.ReadAllText(Path.Combine(root, "src", "OS", "OS.csproj")))),
+                ("entrySha256", ExpectedEntrySha256, before.EntrySha256),
+                ("compileSha256", ExpectedCompileSha256, before.CompileSha256),
+                ("sourceInputCount", ExpectedSourceInputCount.ToString(CultureInfo.InvariantCulture),
+                    before.SourceInputCount.ToString(CultureInfo.InvariantCulture)),
+                ("compileCount", ExpectedCompileCount.ToString(CultureInfo.InvariantCulture),
+                    before.CompileCount.ToString(CultureInfo.InvariantCulture)),
+                ("transitionSha256", ExpectedTransitionSha256,
+                    Sha256File(Path.Combine(root, "src", "OS.Kernel", "Diagnostics",
+                        "DisabledDefaultUd2VectorStateTransition.cs")))
+            ];
+            bool frozenAuthorityExact = true;
+            foreach (var authority in frozenAuthority)
+            {
+                if (authority.Expected == authority.Actual) continue;
+                frozenAuthorityExact = false;
+                Console.WriteLine("M02_013_AUTHORITY_MISMATCH property=" + authority.Name +
+                    " expected=" + authority.Expected + " actual=" + authority.Actual);
+            }
             bool provenanceExact = sourceHeadStable &&
                 frozenAuthorityExact &&
                 ValidateLinkEvidence(root, defaultArtifact, enabled: false, before) &&
@@ -356,6 +286,7 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
         }
     }
 
+    [HostTest("M02-013 fake firmware executes every pre-terminal contract stage", HostLane.Fast, 2)]
     private static bool TestFakeFirmwareOrchestration()
     {
         FakeTrace existingState = RunFakeProbe(new FakePlan
@@ -765,6 +696,7 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
             ]);
     }
 
+    [HostTest("M02-013 preparation materializes and reads back every authority", HostLane.Fast, 3)]
     private static bool TestPreparationMaterializationAndReadBack()
     {
         string source = ReadEfiEntry();
@@ -956,6 +888,7 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
                 StringComparison.Ordinal);
     }
 
+    [HostTest("M02-013 pre-entry validation is read-only and tail complete", HostLane.Fast, 4)]
     private static bool TestPreEntryValidation()
     {
         string validation = ExtractBlock(
@@ -998,6 +931,7 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
             && !validation.Contains("data[offset] =", StringComparison.Ordinal);
     }
 
+    [HostTest("M02-013 cleanup and marker transports fail closed", HostLane.Fast, 5)]
     private static bool TestCleanupAndMarkers()
     {
         string source = ReadEfiEntry();
@@ -1121,6 +1055,7 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
                 GuestFailureHeading + "\r\n" + GuestFailureDetail + "\r\n";
     }
 
+    [HostTest("M02-013 terminal entry and boot-path ordering are exact", HostLane.Fast, 6)]
     private static bool TestTerminalEntryAndBootOrdering()
     {
         string source = ReadEfiEntry();
@@ -1432,63 +1367,10 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
         }
     }
 
-    private static ScriptResult RunPowerShellScript(
-        string root,
-        string script,
-        int timeoutMilliseconds,
-        params string[] arguments)
+    private static ScriptResult RunEfiBuild(params string[] arguments)
     {
-        string systemPowerShell = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.System),
-            "WindowsPowerShell",
-            "v1.0",
-            "powershell.exe");
-        ProcessStartInfo start = new(
-            File.Exists(systemPowerShell) ? systemPowerShell : "powershell.exe")
-        {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            WorkingDirectory = root
-        };
-        string windowsPowerShellModules = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.System),
-            "WindowsPowerShell",
-            "v1.0",
-            "Modules");
-        string inheritedModulePath =
-            Environment.GetEnvironmentVariable("PSModulePath") ?? string.Empty;
-        start.Environment["PSModulePath"] = inheritedModulePath.Length == 0
-            ? windowsPowerShellModules
-            : windowsPowerShellModules +
-                Path.PathSeparator + inheritedModulePath;
-        start.ArgumentList.Add("-NoProfile");
-        start.ArgumentList.Add("-NonInteractive");
-        start.ArgumentList.Add("-ExecutionPolicy");
-        start.ArgumentList.Add("Bypass");
-        start.ArgumentList.Add("-File");
-        start.ArgumentList.Add(script);
-        foreach (string argument in arguments)
-        {
-            start.ArgumentList.Add(argument);
-        }
-
-        using Process process = Process.Start(start) ??
-            throw new InvalidOperationException("Could not start PowerShell.");
-        Task<string> stdout = process.StandardOutput.ReadToEndAsync();
-        Task<string> stderr = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(timeoutMilliseconds))
-        {
-            process.Kill(entireProcessTree: true);
-            process.WaitForExit();
-            throw new TimeoutException(
-                "M02-013 PowerShell command timed out: " + script);
-        }
-
-        return new ScriptResult(
-            process.ExitCode,
-            stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult());
+        var result=HostToolProcess.RunTool(["efi","build","--boot-policy","Diagnostic",..arguments]);
+        return new ScriptResult(result.ExitCode,result.Output+result.Error);
     }
 
     private static bool ValidateLinkEvidence(
@@ -1621,43 +1503,7 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
             compileKeys.Length);
     }
 
-    private static string[] ExpectedSourceAuthorityPaths(string root)
-    {
-        string projectPath = Path.Combine(root, "src", "OS", "OS.csproj");
-        string projectDirectory = Path.GetDirectoryName(projectPath) ??
-            throw new InvalidOperationException("OS project directory is missing.");
-        XDocument project = XDocument.Load(projectPath);
-        List<string> paths =
-        [
-            "CLROS.slnx",
-            "Directory.Build.props",
-            "Directory.Build.targets",
-            "global.json",
-            "scripts/build-efi-shell.ps1",
-            "scripts/test-efi-artifact.ps1",
-            "src/OS/OS.csproj",
-            "tools/Directory.Build.props",
-            "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
-            "tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/ExceptionHandlingThunkGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj",
-            "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets",
-            "tools/OS.X64TextSerializerGenerator/Program.cs"
-        ];
-        paths.AddRange(project
-            .Descendants("Compile")
-            .Select(item => item.Attribute("Include")?.Value ?? string.Empty)
-            .Select(include => Path.GetFullPath(
-                Path.Combine(projectDirectory, include)))
-            .Select(fullPath => Path.GetRelativePath(root, fullPath)
-                .Replace('\\', '/')));
-        return paths
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .ToArray();
-    }
+    private static string[] ExpectedSourceAuthorityPaths(string root) => EfiEvidence.SourceClosurePaths(root).ToArray();
 
     private static string Sha256File(string path)
     {

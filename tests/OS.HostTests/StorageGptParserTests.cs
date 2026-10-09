@@ -21,61 +21,13 @@ internal static class StorageGptParserTests
     private static readonly Guid UniquePartitionGuid = new Guid("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
     private static readonly Guid SecondUniquePartitionGuid = new Guid("bbbbbbbb-cccc-dddd-eeee-ffffffffffff");
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("storage gpt parses valid primary first partition", TestValidPrimaryFirstPartition, ref failures);
-        Run("storage gpt rejects bad primary signature", TestBadSignature, ref failures);
-        Run("storage gpt rejects invalid entry size", TestInvalidEntrySize, ref failures);
-        Run("storage gpt reports primary header short read", TestPrimaryHeaderShortRead, ref failures);
-        Run("storage gpt reports partition entry short read", TestPartitionEntryShortRead, ref failures);
-        Run("storage gpt rejects unsupported geometry", TestUnsupportedGeometry, ref failures);
-        Run("storage gpt rejects partition entry array out of range", TestPartitionEntryArrayOutOfRange, ref failures);
-        Run("storage gpt result defaults are not success", TestDefaultResultsAreNotSuccess, ref failures);
-        Run("storage gpt locates esp partition", TestLocateEfiSystemPartition, ref failures);
-        Run("storage gpt selects non-first efi system partition", TestSelectEfiSystemPartitionNonFirst, ref failures);
-        Run("storage gpt rejects missing esp partition", TestMissingEfiSystemPartition, ref failures);
-        Run("storage gpt skips empty entries while selecting esp", TestEmptyEntriesSkipped, ref failures);
-        Run("storage gpt reports esp entry array short read", TestEfiSystemPartitionEntryShortRead, ref failures);
-        Run("storage gpt rejects invalid esp lba range", TestEfiSystemPartitionInvalidLbaRange, ref failures);
-        Run("storage gpt parser uses shared memory helpers", TestParserUsesSharedMemoryHelpers, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Storage GPT parser host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage gpt parses valid primary first partition", HostLane.Fast, 0)]
     private static bool TestValidPrimaryFirstPartition()
     {
         byte[] image = CreateValidGptImage();
         GptParseResult result = GptParser.ReadPrimaryFirstPartition(MemoryBlockDevice.FromImage(image, SectorSize));
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == GptStatus.Success
             && result.BlockStatus == BlockDeviceStatus.Success
             && result.Header.CurrentLba == 1
@@ -91,9 +43,10 @@ internal static class StorageGptParserTests
             && result.FirstPartition.FirstLba == FirstPartitionLba
             && result.FirstPartition.LastLba == LastPartitionLba
             && result.FirstPartition.Attributes == PartitionAttributes
-            && result.FirstPartition.Name == "OSDATA";
+            && result.FirstPartition.Name == "OSDATA");
     }
 
+    [HostTest("storage gpt rejects bad primary signature", HostLane.Fast, 1)]
     private static bool TestBadSignature()
     {
         byte[] image = CreateValidGptImage();
@@ -101,10 +54,11 @@ internal static class StorageGptParserTests
 
         GptParseResult result = GptParser.ReadPrimaryFirstPartition(MemoryBlockDevice.FromImage(image, SectorSize));
 
-        return !result.Succeeded
-            && result.Status == GptStatus.InvalidHeaderSignature;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == GptStatus.InvalidHeaderSignature);
     }
 
+    [HostTest("storage gpt rejects invalid entry size", HostLane.Fast, 2)]
     private static bool TestInvalidEntrySize()
     {
         byte[] image = CreateValidGptImage();
@@ -112,10 +66,11 @@ internal static class StorageGptParserTests
 
         GptParseResult result = GptParser.ReadPrimaryFirstPartition(MemoryBlockDevice.FromImage(image, SectorSize));
 
-        return !result.Succeeded
-            && result.Status == GptStatus.InvalidPartitionEntrySize;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == GptStatus.InvalidPartitionEntrySize);
     }
 
+    [HostTest("storage gpt reports primary header short read", HostLane.Fast, 3)]
     private static bool TestPrimaryHeaderShortRead()
     {
         byte[] image = CreateValidGptImage();
@@ -123,10 +78,11 @@ internal static class StorageGptParserTests
             MemoryBlockDevice.FromImage(image, SectorSize),
             shortReadLba: 1));
 
-        return !result.Succeeded
-            && result.Status == GptStatus.PrimaryHeaderShortRead;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == GptStatus.PrimaryHeaderShortRead);
     }
 
+    [HostTest("storage gpt reports partition entry short read", HostLane.Fast, 4)]
     private static bool TestPartitionEntryShortRead()
     {
         byte[] image = CreateValidGptImage();
@@ -134,18 +90,20 @@ internal static class StorageGptParserTests
             MemoryBlockDevice.FromImage(image, SectorSize),
             shortReadLba: PartitionEntryLba));
 
-        return !result.Succeeded
-            && result.Status == GptStatus.PartitionEntryShortRead;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == GptStatus.PartitionEntryShortRead);
     }
 
+    [HostTest("storage gpt rejects unsupported geometry", HostLane.Fast, 5)]
     private static bool TestUnsupportedGeometry()
     {
         GptParseResult result = GptParser.ReadPrimaryFirstPartition(new GeometryOnlyBlockDevice(8192, 4));
 
-        return !result.Succeeded
-            && result.Status == GptStatus.UnsupportedGeometry;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == GptStatus.UnsupportedGeometry);
     }
 
+    [HostTest("storage gpt rejects partition entry array out of range", HostLane.Fast, 6)]
     private static bool TestPartitionEntryArrayOutOfRange()
     {
         byte[] image = CreateValidGptImage();
@@ -153,10 +111,11 @@ internal static class StorageGptParserTests
 
         GptParseResult result = GptParser.ReadPrimaryFirstPartition(MemoryBlockDevice.FromImage(image, SectorSize));
 
-        return !result.Succeeded
-            && result.Status == GptStatus.InvalidPartitionEntryArrayRange;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == GptStatus.InvalidPartitionEntryArrayRange);
     }
 
+    [HostTest("storage gpt result defaults are not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         GptParseResult parse = default;
@@ -168,7 +127,7 @@ internal static class StorageGptParserTests
         GptEfiSystemPartitionLocationResult locationFailure =
             GptEfiSystemPartitionLocationResult.Fail(GptStatus.InvalidPartitionEntryRange);
 
-        return !parse.IsInitialized
+        return HostCheck.Result(!parse.IsInitialized
             && !parse.Succeeded
             && parse.Status == GptStatus.Success
             && parse.BlockStatus == BlockDeviceStatus.Success
@@ -197,16 +156,17 @@ internal static class StorageGptParserTests
             && locationFailure.IsInitialized
             && !locationFailure.Succeeded
             && locationFailure.Status == GptStatus.InvalidPartitionEntryRange
-            && locationFailure.BlockStatus == BlockDeviceStatus.Success;
+            && locationFailure.BlockStatus == BlockDeviceStatus.Success);
     }
 
+    [HostTest("storage gpt locates esp partition", HostLane.Fast, 8)]
     private static bool TestLocateEfiSystemPartition()
     {
         byte[] image = CreateValidGptImage();
         GptEfiSystemPartitionLocationResult result = GptParser.LocatePrimaryEfiSystemPartition(
             MemoryBlockDevice.FromImage(image, SectorSize));
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == GptStatus.Success
             && result.BlockStatus == BlockDeviceStatus.Success
             && result.Header.PartitionEntryCount == PartitionEntryCount
@@ -219,9 +179,10 @@ internal static class StorageGptParserTests
             && result.BlockSizeBytes == SectorSize
             && result.PartitionByteOffset == FirstPartitionLba * SectorSize
             && result.PartitionByteLength == (LastPartitionLba - FirstPartitionLba + 1) * SectorSize
-            && result.Partition.Name == "OSDATA";
+            && result.Partition.Name == "OSDATA");
     }
 
+    [HostTest("storage gpt selects non-first efi system partition", HostLane.Fast, 9)]
     private static bool TestSelectEfiSystemPartitionNonFirst()
     {
         byte[] image = CreateGptImageWithoutEntries();
@@ -247,16 +208,17 @@ internal static class StorageGptParserTests
         GptPartitionSelectionResult result = GptParser.SelectPrimaryEfiSystemPartition(
             MemoryBlockDevice.FromImage(image, SectorSize));
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.PartitionEntryIndex == 1
             && result.Partition.PartitionTypeGuid == EfiSystemPartitionGuid
             && result.Partition.UniquePartitionGuid == SecondUniquePartitionGuid
             && result.FirstLba == 62
             && result.LastLba == 80
             && result.Partition.Attributes == PartitionAttributes
-            && result.Partition.Name == "EFI System";
+            && result.Partition.Name == "EFI System");
     }
 
+    [HostTest("storage gpt rejects missing esp partition", HostLane.Fast, 10)]
     private static bool TestMissingEfiSystemPartition()
     {
         byte[] image = CreateGptImageWithoutEntries();
@@ -273,10 +235,11 @@ internal static class StorageGptParserTests
         GptEfiSystemPartitionLocationResult result = GptParser.LocatePrimaryEfiSystemPartition(
             MemoryBlockDevice.FromImage(image, SectorSize));
 
-        return !result.Succeeded
-            && result.Status == GptStatus.EfiSystemPartitionNotFound;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == GptStatus.EfiSystemPartitionNotFound);
     }
 
+    [HostTest("storage gpt skips empty entries while selecting esp", HostLane.Fast, 11)]
     private static bool TestEmptyEntriesSkipped()
     {
         byte[] image = CreateGptImageWithoutEntries();
@@ -293,13 +256,14 @@ internal static class StorageGptParserTests
         GptPartitionSelectionResult result = GptParser.SelectPrimaryEfiSystemPartition(
             MemoryBlockDevice.FromImage(image, SectorSize));
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.PartitionEntryIndex == 2
             && result.FirstLba == 62
             && result.LastLba == 80
-            && result.Partition.Name == "ESP2";
+            && result.Partition.Name == "ESP2");
     }
 
+    [HostTest("storage gpt reports esp entry array short read", HostLane.Fast, 12)]
     private static bool TestEfiSystemPartitionEntryShortRead()
     {
         byte[] image = CreateGptImageWithoutEntries();
@@ -317,10 +281,11 @@ internal static class StorageGptParserTests
             MemoryBlockDevice.FromImage(image, SectorSize),
             shortReadLba: PartitionEntryLba + 1));
 
-        return !result.Succeeded
-            && result.Status == GptStatus.PartitionEntryShortRead;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == GptStatus.PartitionEntryShortRead);
     }
 
+    [HostTest("storage gpt rejects invalid esp lba range", HostLane.Fast, 13)]
     private static bool TestEfiSystemPartitionInvalidLbaRange()
     {
         byte[] image = CreateGptImageWithoutEntries();
@@ -337,17 +302,18 @@ internal static class StorageGptParserTests
         GptEfiSystemPartitionLocationResult result = GptParser.LocatePrimaryEfiSystemPartition(
             MemoryBlockDevice.FromImage(image, SectorSize));
 
-        return !result.Succeeded
-            && result.Status == GptStatus.InvalidPartitionEntryRange;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == GptStatus.InvalidPartitionEntryRange);
     }
 
+    [HostTest("storage gpt parser uses shared memory helpers", HostLane.Fast, 14)]
     private static bool TestParserUsesSharedMemoryHelpers()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "GptParser.cs"));
 
-        return source.Contains(
+        return HostCheck.Result(source.Contains(
                 "OS.Std.MemoryExtensions.SequenceEqual(bytes[..8], \"EFI PART\"u8)",
                 StringComparison.Ordinal)
             && source.Contains(
@@ -367,7 +333,7 @@ internal static class StorageGptParserTests
                 StringComparison.Ordinal)
             && !source.Contains(
                 "bytes[i] != 0",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
     private static byte[] CreateValidGptImage()

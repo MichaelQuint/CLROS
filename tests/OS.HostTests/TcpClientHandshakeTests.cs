@@ -8,44 +8,7 @@ internal static class TcpClientHandshakeTests
     private const uint ClientInitialSequence = 0x01020304;
     private const uint ServerInitialSequence = 0x8090a0b0;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.tcp handshake transitions syn-synack-ack", TestSynSynAckAckTransition, ref failures);
-        Run("net.tcp handshake rejects wrong ack number", TestRejectsWrongAckNumber, ref failures);
-        Run("net.tcp handshake rejects missing synack flags", TestRejectsMissingSynAckFlags, ref failures);
-        Run("net.tcp handshake default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("TCP client handshake host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.tcp handshake transitions syn-synack-ack", HostLane.Fast, 0)]
     private static bool TestSynSynAckAckTransition()
     {
         TcpClientHandshake handshake = TcpClientHandshake.Create(
@@ -66,7 +29,7 @@ internal static class TcpClientHandshakeTests
             || handshake.State != TcpClientHandshakeState.SynSent
             || handshake.LocalNextSequenceNumber != ClientInitialSequence + 1)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (!ParseHeader(syn, out TcpHeader synHeader)
@@ -78,7 +41,7 @@ internal static class TcpClientHandshakeTests
             || synHeader.WindowSize != 0x4000
             || synHeader.Checksum != 0x1111)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> synAck = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -98,7 +61,7 @@ internal static class TcpClientHandshakeTests
             || handshake.RemoteNextSequenceNumber != ServerInitialSequence + 1
             || receiveResult.RemoteNextSequenceNumber != ServerInitialSequence + 1)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> finalAck = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -113,19 +76,20 @@ internal static class TcpClientHandshakeTests
             || ackResult.BytesWritten != TcpHeader.MinHeaderLength
             || handshake.State != TcpClientHandshakeState.Established)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return ParseHeader(finalAck, out TcpHeader ackHeader)
+        return HostCheck.Result(ParseHeader(finalAck, out TcpHeader ackHeader)
             && ackHeader.SourcePort == LocalPort
             && ackHeader.DestinationPort == RemotePort
             && ackHeader.SequenceNumber == ClientInitialSequence + 1
             && ackHeader.AcknowledgementNumber == ServerInitialSequence + 1
             && ackHeader.Flags == TcpClientHandshake.FlagAck
             && ackHeader.WindowSize == 0x4000
-            && ackHeader.Checksum == 0;
+            && ackHeader.Checksum == 0);
     }
 
+    [HostTest("net.tcp handshake rejects wrong ack number", HostLane.Fast, 1)]
     private static bool TestRejectsWrongAckNumber()
     {
         TcpClientHandshake handshake = TcpClientHandshake.Create(
@@ -139,7 +103,7 @@ internal static class TcpClientHandshakeTests
                 checksum: 0,
                 out TcpClientHandshakeTransitionResult _) != TcpClientHandshakeStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> synAck = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -152,12 +116,13 @@ internal static class TcpClientHandshakeTests
             synAck.Slice(0, synAckBytes),
             out TcpClientHandshakeTransitionResult result);
 
-        return status == TcpClientHandshakeStatus.WrongAcknowledgementNumber
+        return HostCheck.Result(status == TcpClientHandshakeStatus.WrongAcknowledgementNumber
             && !result.Succeeded
             && result.State == TcpClientHandshakeState.Failed
-            && handshake.State == TcpClientHandshakeState.Failed;
+            && handshake.State == TcpClientHandshakeState.Failed);
     }
 
+    [HostTest("net.tcp handshake rejects missing synack flags", HostLane.Fast, 2)]
     private static bool TestRejectsMissingSynAckFlags()
     {
         TcpClientHandshake handshake = TcpClientHandshake.Create(
@@ -171,7 +136,7 @@ internal static class TcpClientHandshakeTests
                 checksum: 0,
                 out TcpClientHandshakeTransitionResult _) != TcpClientHandshakeStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> synAck = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -184,12 +149,13 @@ internal static class TcpClientHandshakeTests
             synAck.Slice(0, synAckBytes),
             out TcpClientHandshakeTransitionResult result);
 
-        return status == TcpClientHandshakeStatus.InvalidFlags
+        return HostCheck.Result(status == TcpClientHandshakeStatus.InvalidFlags
             && !result.Succeeded
             && result.State == TcpClientHandshakeState.Failed
-            && handshake.State == TcpClientHandshakeState.Failed;
+            && handshake.State == TcpClientHandshakeState.Failed);
     }
 
+    [HostTest("net.tcp handshake default result is not success", HostLane.Fast, 3)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         TcpClientHandshakeTransitionResult defaultResult = default;
@@ -201,7 +167,7 @@ internal static class TcpClientHandshakeTests
                 localNextSequenceNumber: 7,
                 remoteNextSequenceNumber: 0);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == TcpClientHandshakeStatus.Success
             && failedResult.IsInitialized
@@ -210,7 +176,7 @@ internal static class TcpClientHandshakeTests
             && failedResult.State == TcpClientHandshakeState.Initial
             && failedResult.LocalNextSequenceNumber == 7
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                TcpClientHandshakeTransitionResult>();
+                TcpClientHandshakeTransitionResult>());
     }
 
     private static int WriteServerSegment(

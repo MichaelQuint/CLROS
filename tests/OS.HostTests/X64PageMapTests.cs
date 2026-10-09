@@ -11,7 +11,7 @@ internal static unsafe class X64PageMapTests
     private const string TestName = "m01.014.01.map";
 
 #if !M01_014_MAP_FOCUSED && !M01_014_INVLPG_FOCUSED && !M01_014_PROTECTION_FOCUSED
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
 #endif
     internal static void RunAllM01014()
     {
@@ -75,26 +75,28 @@ internal static unsafe class X64PageMapTests
         Func<bool> test,
         ref int failures)
     {
-        try
+        HostCheck.Run(TestName + " " + name, () =>
         {
-            if (test())
-                return;
-
-            failures++;
-            Console.WriteLine(
-                "M01_014_MAP_CASE_FAIL " + Normalize(name));
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "M01_014_MAP_CASE_FAIL "
-                + Normalize(name)
-                + " "
-                + ex.GetType().Name
-                + ": "
-                + ex.Message);
-        }
+            try
+            {
+                if (test())
+                    return true;
+                Console.WriteLine(
+                    "M01_014_MAP_CASE_FAIL " + Normalize(name));
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    "M01_014_MAP_CASE_FAIL "
+                    + Normalize(name)
+                    + " "
+                    + ex.GetType().Name
+                    + ": "
+                    + ex.Message);
+                throw;
+            }
+        }, ref failures);
     }
 
     private static bool TestTypeContracts()

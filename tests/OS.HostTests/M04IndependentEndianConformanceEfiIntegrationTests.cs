@@ -8,13 +8,13 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
 {
     private const string TestName = "m04.002.efi.integration";
     private const string ReadyMarker =
-        "CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 fingerprint=E81E4451E8D999F6 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail";
+        OS.Tooling.QemuContracts.Record278;
     private const string FailureMarker =
-        "M04_ENDIAN_CONFORMANCE_FAILED";
-    private const string CompileClosureSha256 =
-        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
+        OS.Tooling.QemuContracts.Record274;
+    private static readonly string CompileClosureSha256 =
+        OS.Tooling.EfiContracts.CompileInventorySha256;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START " + TestName);
@@ -53,25 +53,8 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
         Func<bool> test,
         ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
 
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + name + " " + exception.GetType().Name + ": " +
-                exception.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestCompileClosureAndFlag()
@@ -126,12 +109,11 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
                     "'$(EnableM04IndependentEndianConformanceProbe)' == 'true'")
             .ToArray();
 
-        string buildScript = File.ReadAllText(
-            Path.Combine(root, "scripts", "build-efi-shell.ps1"));
-        string verifierScript = File.ReadAllText(
-            Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
+        foreach (bool build in new[] { true, false })
+            if (!OS.Tooling.EfiOptions.Parse(["--EnableM04IndependentEndianConformanceProbe"], build).Profile().IsEnabled("EnableM04IndependentEndianConformanceProbe")) return false;
+        HostCheck.Equal(0, OS.Tooling.ContractAudit.Inspect(root).Count);
 
-        return compileItems.Length == 122
+        return compileItems.Length == OS.Tooling.EfiContracts.CompileItems.Count
             && compileHash == CompileClosureSha256
             && backendIndex >= 0
             && ownedWriterIndex == backendIndex + 1
@@ -149,33 +131,7 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
             && symbolGroups.Length == 1
             && symbolGroups[0].Elements("DefineConstants").Single().Value ==
                 "$(DefineConstants);M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE"
-            && buildScript.Contains(
-                "[switch] $EnableM04IndependentEndianConformanceProbe",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "$arguments +=\n                \"-p:EnableM04IndependentEndianConformanceProbe=true\"",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "\"-EnableM04IndependentEndianConformanceProbe\",\n            \"true\"",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "$parameterName -ceq \"EnableM04IndependentEndianConformanceProbe\"",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "[System.Boolean]::Parse($parameterValue)",
-                StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "[switch]$EnableM04IndependentEndianConformanceProbe",
-                StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 138",
-                StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "$compileItems.Count -ne 122",
-                StringComparison.Ordinal);
+            ;
     }
 
     private static bool TestNoStdLibCatalogSource()
@@ -366,36 +322,17 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
     }
 
     private static bool TestQemuProfile()
+{
+    const string flag = "--EnableM04IndependentEndianConformanceProbe";
+    var plan = OS.Tooling.QemuProfiles.Create(OS.Tooling.QemuSmokeOptions.Parse("--boot-policy", "Diagnostic", "--dry-run", "--build-efi", flag));
+    if (!plan.Required.Contains(ReadyMarker) || !plan.Forbidden.Contains(FailureMarker) || !plan.IsEnabled("EnableM04IndependentEndianConformanceProbe")) return false;
+    foreach (string[] arguments in new string[][] { [flag], ["--build-efi", "--skip-image-build", flag] })
     {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(root, "scripts", "run-qemu-smoke.ps1"))
-            .Replace("\r\n", "\n", StringComparison.Ordinal);
-
-        return source.Contains(
-                "[switch] $EnableM04IndependentEndianConformanceProbe",
-                StringComparison.Ordinal)
-            && source.Contains(ReadyMarker, StringComparison.Ordinal)
-            && source.Contains(FailureMarker, StringComparison.Ordinal)
-            && source.Contains(
-                "$script:M04IndependentEndianConformanceRequiredMarkers",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$script:M04IndependentEndianConformanceForbiddenMarkers",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "m04_independent_endian_conformance_probe_requires_build_efi",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "m04_independent_endian_conformance_probe_forbids_skip_image_build",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$buildArguments +=\n                \"-EnableM04IndependentEndianConformanceProbe\"",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "profileRequired=15 profileForbidden=3",
-                StringComparison.Ordinal);
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", ..arguments]);
+        if (result.ExitCode == 0 || result.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal)) return false;
     }
+    return true;
+}
 
     private static string ExtractAsciiMarker(string source, string methodToken)
     {

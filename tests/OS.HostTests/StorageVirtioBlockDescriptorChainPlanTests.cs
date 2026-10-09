@@ -9,45 +9,7 @@ internal static class StorageVirtioBlockDescriptorChainPlanTests
     private const ulong DataPhysicalAddress = 0x0020_0000UL;
     private const ulong StatusPhysicalAddress = 0x0030_0000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("storage.virtioblk descriptor chain plans three descriptors", TestPlansThreeDescriptors, ref failures);
-        Run("storage.virtioblk descriptor chain marks data writable", TestMarksDataWritable, ref failures);
-        Run("storage.virtioblk descriptor chain rejects insufficient descriptors", TestRejectsInsufficientDescriptors, ref failures);
-        Run("storage.virtioblk descriptor chain rejects failed transaction plan", TestRejectsFailedTransactionPlan, ref failures);
-        Run("storage.virtioblk descriptor chain default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio block descriptor-chain host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.virtioblk descriptor chain plans three descriptors", HostLane.Fast, 0)]
     private static bool TestPlansThreeDescriptors()
     {
         VirtioBlockReadTransactionPlanResult transaction = CreateSuccessfulTransaction();
@@ -64,11 +26,11 @@ internal static class StorageVirtioBlockDescriptorChainPlanTests
             statusBytePhysicalAddress: StatusPhysicalAddress);
         if (!result.Succeeded || result.Status != VirtioBlockDescriptorChainPlanStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioBlockDescriptorChainPlan plan = result.Plan;
-        return plan.QueuePlan.QueueSize == QueueSize
+        return HostCheck.Result(plan.QueuePlan.QueueSize == QueueSize
             && plan.TransactionPlan.DataByteCount == 1024
             && plan.RequestPlan.RequestType == VirtioBlockRequestType.Read
             && plan.HeadDescriptorIndex == 1
@@ -105,9 +67,10 @@ internal static class StorageVirtioBlockDescriptorChainPlanTests
             && !VirtioBlockDescriptorChainPlan.PerformsMmio
             && !VirtioBlockDescriptorChainPlan.NotifiesDevice
             && !VirtioBlockDescriptorChainPlan.HandlesInterrupts
-            && !VirtioBlockDescriptorChainPlan.PerformsDiskRead;
+            && !VirtioBlockDescriptorChainPlan.PerformsDiskRead);
     }
 
+    [HostTest("storage.virtioblk descriptor chain marks data writable", HostLane.Fast, 1)]
     private static bool TestMarksDataWritable()
     {
         VirtioBlockDescriptorChainPlanResult result = VirtioBlockDescriptorChainPlan.Create(
@@ -122,19 +85,20 @@ internal static class StorageVirtioBlockDescriptorChainPlanTests
 
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioBlockDescriptorChainPlan plan = result.Plan;
-        return !plan.RequestHeaderDescriptor.DeviceWritable
+        return HostCheck.Result(!plan.RequestHeaderDescriptor.DeviceWritable
             && plan.RequestHeaderDescriptor.DeviceReadable
             && plan.DataBufferDescriptor.DeviceWritable
             && !plan.DataBufferDescriptor.DeviceReadable
             && plan.StatusByteDescriptor.DeviceWritable
             && plan.DataBufferDescriptor.Flags == (VirtioBlockDescriptorMetadata.NextFlag | VirtioBlockDescriptorMetadata.DeviceWriteFlag)
-            && plan.StatusByteDescriptor.Flags == VirtioBlockDescriptorMetadata.DeviceWriteFlag;
+            && plan.StatusByteDescriptor.Flags == VirtioBlockDescriptorMetadata.DeviceWriteFlag);
     }
 
+    [HostTest("storage.virtioblk descriptor chain rejects insufficient descriptors", HostLane.Fast, 2)]
     private static bool TestRejectsInsufficientDescriptors()
     {
         VirtioBlockDescriptorChainPlanResult result = VirtioBlockDescriptorChainPlan.Create(
@@ -147,12 +111,13 @@ internal static class StorageVirtioBlockDescriptorChainPlanTests
             dataBufferPhysicalAddress: DataPhysicalAddress,
             statusBytePhysicalAddress: StatusPhysicalAddress);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockDescriptorChainPlanStatus.InsufficientDescriptors
             && result.TransactionPlanStatus == VirtioBlockReadTransactionPlanStatus.Success
-            && result.QueuePlanStatus == VirtqueueSplitRingPlanStatus.Success;
+            && result.QueuePlanStatus == VirtqueueSplitRingPlanStatus.Success);
     }
 
+    [HostTest("storage.virtioblk descriptor chain rejects failed transaction plan", HostLane.Fast, 3)]
     private static bool TestRejectsFailedTransactionPlan()
     {
         Span<byte> requestHeader = stackalloc byte[(int)VirtioBlockRequestPlan.RequestHeaderLength];
@@ -180,13 +145,14 @@ internal static class StorageVirtioBlockDescriptorChainPlanTests
             dataBufferPhysicalAddress: DataPhysicalAddress,
             statusBytePhysicalAddress: StatusPhysicalAddress);
 
-        return !failedTransaction.Succeeded
+        return HostCheck.Result(!failedTransaction.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockDescriptorChainPlanStatus.TransactionPlanFailed
             && result.TransactionPlanStatus == VirtioBlockReadTransactionPlanStatus.DestinationTooSmall
-            && result.QueuePlanStatus == VirtqueueSplitRingPlanStatus.Success;
+            && result.QueuePlanStatus == VirtqueueSplitRingPlanStatus.Success);
     }
 
+    [HostTest("storage.virtioblk descriptor chain default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioBlockDescriptorChainPlanResult result = default;
@@ -197,7 +163,7 @@ internal static class StorageVirtioBlockDescriptorChainPlanTests
                 VirtioBlockRequestPlanStatus.Success,
                 VirtqueueSplitRingPlanStatus.Success);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockDescriptorChainPlanStatus.Success
             && result.TransactionPlanStatus == VirtioBlockReadTransactionPlanStatus.Success
@@ -209,7 +175,7 @@ internal static class StorageVirtioBlockDescriptorChainPlanTests
             && failed.IsInitialized
             && !failed.Succeeded
             && failed.Status == VirtioBlockDescriptorChainPlanStatus.InsufficientDescriptors
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDescriptorChainPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDescriptorChainPlanResult>());
     }
 
     private static VirtioBlockReadTransactionPlanResult CreateSuccessfulTransaction()

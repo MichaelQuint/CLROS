@@ -4,47 +4,8 @@ using OS.Std.Binary;
 
 internal static class PciBarSizingProbeAddressPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.pci.bar.sizeprobe.address binds 32bit command addresses", TestBinds32BitCommandAddresses, ref failures);
-        Run("drivers.pci.bar.sizeprobe.address binds 64bit command addresses", TestBinds64BitCommandAddresses, ref failures);
-        Run("drivers.pci.bar.sizeprobe.address propagates probe plan failure", TestPropagatesProbePlanFailure, ref failures);
-        Run("drivers.pci.bar.sizeprobe.address propagates ecam address failure", TestPropagatesEcamAddressFailure, ref failures);
-        Run("drivers.pci.bar.sizeprobe.address rejects short destination", TestRejectsShortDestination, ref failures);
-        Run("drivers.pci.bar.sizeprobe.address default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("drivers.pci.bar.sizeprobe.address preserves no-live-config-access boundary", TestPreservesNoLiveConfigAccessBoundary, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PCI BAR sizing probe address host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.pci.bar.sizeprobe.address binds 32bit command addresses", HostLane.Fast, 0)]
     private static bool TestBinds32BitCommandAddresses()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -68,7 +29,7 @@ internal static class PciBarSizingProbeAddressPlanTests
                 commands);
 
         ulong expectedPhysical = ExpectedAddress(segment, bus: 0x24, device: 3, function: 5, registerOffset: 0x10);
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingProbeAddressPlanStatus.Success
             && result.ProbePlanStatus == PciBarSizingProbePlanStatus.Success
@@ -107,9 +68,10 @@ internal static class PciBarSizingProbeAddressPlanTests
                 value: 0xFE000008,
                 expectedPhysical,
                 isUpperPart: false,
-                PciBarKind.Memory32);
+                PciBarKind.Memory32));
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.address binds 64bit command addresses", HostLane.Fast, 1)]
     private static bool TestBinds64BitCommandAddresses()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -135,7 +97,7 @@ internal static class PciBarSizingProbeAddressPlanTests
 
         ulong lowPhysical = ExpectedAddress(segment, bus: 11, device: 2, function: 6, registerOffset: 0x18);
         ulong highPhysical = ExpectedAddress(segment, bus: 11, device: 2, function: 6, registerOffset: 0x1C);
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.CommandCount == 6
             && result.RequiredCommandCount == 6
@@ -204,9 +166,10 @@ internal static class PciBarSizingProbeAddressPlanTests
                 value: 0x8000000C,
                 lowPhysical,
                 isUpperPart: false,
-                PciBarKind.Memory64);
+                PciBarKind.Memory64));
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.address propagates probe plan failure", HostLane.Fast, 2)]
     private static bool TestPropagatesProbePlanFailure()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -224,7 +187,7 @@ internal static class PciBarSizingProbeAddressPlanTests
                 bars,
                 commands);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingProbeAddressPlanStatus.ProbePlanFailed
             && result.ProbePlanStatus == PciBarSizingProbePlanStatus.DescriptorMalformed
@@ -233,9 +196,10 @@ internal static class PciBarSizingProbeAddressPlanTests
             && result.FailingCommandIndex == PciBarSizingProbeAddressPlanner.NoCommandIndex
             && result.FailingBarIndex == 5
             && result.FailingBarKind == PciBarKind.Malformed
-            && commands[0].Kind == default;
+            && commands[0].Kind == default);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.address propagates ecam address failure", HostLane.Fast, 3)]
     private static bool TestPropagatesEcamAddressFailure()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -258,7 +222,7 @@ internal static class PciBarSizingProbeAddressPlanTests
                 bars,
                 commands);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingProbeAddressPlanStatus.AddressPlanningFailed
             && result.ProbePlanStatus == PciBarSizingProbePlanStatus.Success
@@ -271,9 +235,10 @@ internal static class PciBarSizingProbeAddressPlanTests
             && result.FailingBarIndex == 0
             && result.FailingRegisterOffset == 0x10
             && result.FailingBarKind == PciBarKind.Memory32
-            && commands[0].Kind == default;
+            && commands[0].Kind == default);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.address rejects short destination", HostLane.Fast, 4)]
     private static bool TestRejectsShortDestination()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -291,7 +256,7 @@ internal static class PciBarSizingProbeAddressPlanTests
                 bars,
                 commands);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingProbeAddressPlanStatus.DestinationTooSmall
             && result.ProbePlanStatus == PciBarSizingProbePlanStatus.Success
@@ -300,14 +265,15 @@ internal static class PciBarSizingProbeAddressPlanTests
             && result.FailingCommandIndex == PciBarSizingProbeAddressPlanner.NoCommandIndex
             && result.FailingBarIndex == PciBarDecoder.NoBarIndex
             && commands[0].Kind == default
-            && commands[1].Kind == default;
+            && commands[1].Kind == default);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.address default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         PciBarSizingProbeAddressPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == PciBarSizingProbeAddressPlanStatus.Success
             && result.ProbePlanStatus == PciBarSizingProbePlanStatus.Success
@@ -321,9 +287,10 @@ internal static class PciBarSizingProbeAddressPlanTests
             && result.FailingCommandIndex == 0
             && result.FailingBarIndex == 0
             && result.FailingRegisterOffset == 0
-            && result.FailingBarKind == PciBarKind.Absent;
+            && result.FailingBarKind == PciBarKind.Absent);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.address preserves no-live-config-access boundary", HostLane.Fast, 6)]
     private static bool TestPreservesNoLiveConfigAccessBoundary()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -341,7 +308,7 @@ internal static class PciBarSizingProbeAddressPlanTests
                 bars,
                 commands);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && PciBarSizingProbeAddressPlanner.RequiresDecodedBarDescriptors
             && PciBarSizingProbeAddressPlanner.RequiresCallerProvidedEcamSegment
@@ -360,7 +327,7 @@ internal static class PciBarSizingProbeAddressPlanTests
             && !PciBarSizingProbeAddressPlanner.PerformsPacketIo
             && !PciBarSizingProbeAddressPlanner.PerformsBlockIo
             && !RuntimeHelpers.IsReferenceOrContainsReferences<PciBarSizingProbeAddressPlanResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciBarSizingProbeAddressCommand>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciBarSizingProbeAddressCommand>());
     }
 
     private static bool IsAddressCommand(

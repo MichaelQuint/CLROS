@@ -13,53 +13,7 @@ internal static class StorageVirtioBlockDeviceConfigTests
     private const ulong DeviceBarPhysicalBase = 0x80003000UL;
     private const ulong DeviceBarVirtualBase = 0xFFFF800000003000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("storage.virtioblk.config parses capacity", TestParsesCapacity, ref failures);
-        Run("storage.virtioblk.config creates block info", TestCreatesBlockInfo, ref failures);
-        Run("storage.virtioblk.config rejects short config", TestRejectsShortConfig, ref failures);
-        Run("storage.virtioblk.config rejects zero capacity", TestRejectsZeroCapacity, ref failures);
-        Run("storage.virtioblk.config reports capacity overflow", TestReportsCapacityOverflow, ref failures);
-        Run("storage.virtioblk.config.windowexec reads capacity", TestRegisterWindowReadsCapacity, ref failures);
-        Run("storage.virtioblk.config.windowexec rejects short scratch buffer", TestRegisterWindowRejectsShortScratchBuffer, ref failures);
-        Run("storage.virtioblk.config.windowexec propagates register window failure", TestRegisterWindowPropagatesRegisterWindowFailure, ref failures);
-        Run("storage.virtioblk.config.windowexec propagates access failure", TestRegisterWindowPropagatesAccessFailure, ref failures);
-        Run("storage.virtioblk.config.windowexec propagates config parse failure", TestRegisterWindowPropagatesConfigParseFailure, ref failures);
-        Run("storage.virtioblk.config.windowexec preserves no-live-mmio boundary", TestRegisterWindowPreservesNoLiveMmioBoundary, ref failures);
-        Run("storage.virtioblk.config default result is not success", TestDefaultConfigResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk.config.windowexec default result is not success", TestDefaultRegisterWindowResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio block device config host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.virtioblk.config parses capacity", HostLane.Fast, 0)]
     private static bool TestParsesCapacity()
     {
         Span<byte> config = stackalloc byte[VirtioBlockDeviceConfig.CapacityLength];
@@ -67,15 +21,16 @@ internal static class StorageVirtioBlockDeviceConfigTests
 
         VirtioBlockDeviceConfigResult result = VirtioBlockDeviceConfig.Parse(config);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioBlockDeviceConfigStatus.Success
             && result.BlockDeviceStatus == BlockDeviceStatus.Success
             && result.RawCapacitySectors == 4096
             && result.SectorSizeBytes == VirtioBlockDeviceConfig.SectorSizeBytes
             && !VirtioBlockDeviceConfig.PerformsMmio
-            && !VirtioBlockDeviceConfig.ReadsDeviceConfig;
+            && !VirtioBlockDeviceConfig.ReadsDeviceConfig);
     }
 
+    [HostTest("storage.virtioblk.config creates block info", HostLane.Fast, 1)]
     private static bool TestCreatesBlockInfo()
     {
         Span<byte> config = stackalloc byte[VirtioBlockDeviceConfig.CapacityLength];
@@ -83,25 +38,27 @@ internal static class StorageVirtioBlockDeviceConfigTests
 
         VirtioBlockDeviceConfigResult result = VirtioBlockDeviceConfig.Parse(config);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.BlockDeviceInfo.BlockSize == 512
             && result.BlockDeviceInfo.BlockCount == 8
-            && result.BlockDeviceInfo.CapacityBytes == 4096;
+            && result.BlockDeviceInfo.CapacityBytes == 4096);
     }
 
+    [HostTest("storage.virtioblk.config rejects short config", HostLane.Fast, 2)]
     private static bool TestRejectsShortConfig()
     {
         Span<byte> config = stackalloc byte[VirtioBlockDeviceConfig.CapacityLength - 1];
 
         VirtioBlockDeviceConfigResult result = VirtioBlockDeviceConfig.Parse(config);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockDeviceConfigStatus.ConfigTooSmall
             && result.BlockDeviceStatus == BlockDeviceStatus.Success
             && result.RawCapacitySectors == 0
-            && result.SectorSizeBytes == VirtioBlockDeviceConfig.SectorSizeBytes;
+            && result.SectorSizeBytes == VirtioBlockDeviceConfig.SectorSizeBytes);
     }
 
+    [HostTest("storage.virtioblk.config rejects zero capacity", HostLane.Fast, 3)]
     private static bool TestRejectsZeroCapacity()
     {
         Span<byte> config = stackalloc byte[VirtioBlockDeviceConfig.CapacityLength];
@@ -109,12 +66,13 @@ internal static class StorageVirtioBlockDeviceConfigTests
 
         VirtioBlockDeviceConfigResult result = VirtioBlockDeviceConfig.Parse(config);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockDeviceConfigStatus.InvalidCapacity
             && result.BlockDeviceStatus == BlockDeviceStatus.InvalidBlockCount
-            && result.RawCapacitySectors == 0;
+            && result.RawCapacitySectors == 0);
     }
 
+    [HostTest("storage.virtioblk.config reports capacity overflow", HostLane.Fast, 4)]
     private static bool TestReportsCapacityOverflow()
     {
         Span<byte> config = stackalloc byte[VirtioBlockDeviceConfig.CapacityLength];
@@ -124,12 +82,13 @@ internal static class StorageVirtioBlockDeviceConfigTests
 
         VirtioBlockDeviceConfigResult result = VirtioBlockDeviceConfig.Parse(config);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockDeviceConfigStatus.CapacityOverflow
             && result.BlockDeviceStatus == BlockDeviceStatus.Overflow
-            && result.RawCapacitySectors == (ulong.MaxValue / VirtioBlockDeviceConfig.SectorSizeBytes) + 1UL;
+            && result.RawCapacitySectors == (ulong.MaxValue / VirtioBlockDeviceConfig.SectorSizeBytes) + 1UL);
     }
 
+    [HostTest("storage.virtioblk.config.windowexec reads capacity", HostLane.Fast, 5)]
     private static bool TestRegisterWindowReadsCapacity()
     {
         VirtioPciBarRegisterWindowBindingResult windows =
@@ -143,7 +102,7 @@ internal static class StorageVirtioBlockDeviceConfigTests
                 deviceWindowBytes,
                 scratch);
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && result.Succeeded
             && result.Status == VirtioBlockDeviceConfigRegisterWindowReadStatus.Success
             && result.ConfigStatus == VirtioBlockDeviceConfigStatus.Success
@@ -162,9 +121,10 @@ internal static class StorageVirtioBlockDeviceConfigTests
             && result.AccessWidthBytes == VirtioBlockDeviceConfig.CapacityLength
             && result.BarRelativeOffset == DeviceConfigurationBarOffset
             && result.Value == 4096
-            && EndianPrimitives.ReadUInt64LittleEndian(scratch) == 4096;
+            && EndianPrimitives.ReadUInt64LittleEndian(scratch) == 4096);
     }
 
+    [HostTest("storage.virtioblk.config.windowexec rejects short scratch buffer", HostLane.Fast, 6)]
     private static bool TestRegisterWindowRejectsShortScratchBuffer()
     {
         VirtioPciBarRegisterWindowBindingResult windows =
@@ -178,16 +138,17 @@ internal static class StorageVirtioBlockDeviceConfigTests
                 deviceWindowBytes,
                 scratch);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockDeviceConfigRegisterWindowReadStatus.ScratchBufferTooSmall
             && result.ConfigStatus == VirtioBlockDeviceConfigStatus.ConfigTooSmall
             && result.RegisterWindowPlanStatus == VirtioPciBarRegisterWindowPlanStatus.Success
             && result.AccessExecutionStatus == VirtioPciBarRegisterWindowAccessExecutionStatus.Success
             && result.ScratchLength == VirtioBlockDeviceConfig.CapacityLength - 1
             && result.BytesRead == 0
-            && AllBytesEqual(scratch, 0xCC);
+            && AllBytesEqual(scratch, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.config.windowexec propagates register window failure", HostLane.Fast, 7)]
     private static bool TestRegisterWindowPropagatesRegisterWindowFailure()
     {
         byte[] deviceWindowBytes = CreateDeviceWindowBytes(rawCapacitySectors: 4096);
@@ -199,14 +160,15 @@ internal static class StorageVirtioBlockDeviceConfigTests
                 deviceWindowBytes,
                 scratch);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockDeviceConfigRegisterWindowReadStatus.RegisterWindowPlanFailed
             && result.RegisterWindowPlanStatus == VirtioPciBarRegisterWindowPlanStatus.MissingWindow
             && result.AccessExecutionStatus == VirtioPciBarRegisterWindowAccessExecutionStatus.Success
             && result.BytesRead == 0
-            && AllBytesEqual(scratch, 0xCC);
+            && AllBytesEqual(scratch, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.config.windowexec propagates access failure", HostLane.Fast, 8)]
     private static bool TestRegisterWindowPropagatesAccessFailure()
     {
         VirtioPciBarRegisterWindowBindingResult windows =
@@ -222,16 +184,17 @@ internal static class StorageVirtioBlockDeviceConfigTests
                 deviceWindowBytes,
                 scratch);
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockDeviceConfigRegisterWindowReadStatus.AccessExecutionFailed
             && result.RegisterWindowPlanStatus == VirtioPciBarRegisterWindowPlanStatus.Success
             && result.AccessExecutionStatus ==
                 VirtioPciBarRegisterWindowAccessExecutionStatus.WindowBufferTooSmall
             && result.BytesRead == 0
-            && AllBytesEqual(scratch, 0xCC);
+            && AllBytesEqual(scratch, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.config.windowexec propagates config parse failure", HostLane.Fast, 9)]
     private static bool TestRegisterWindowPropagatesConfigParseFailure()
     {
         VirtioPciBarRegisterWindowBindingResult windows =
@@ -245,15 +208,16 @@ internal static class StorageVirtioBlockDeviceConfigTests
                 deviceWindowBytes,
                 scratch);
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockDeviceConfigRegisterWindowReadStatus.ConfigParseFailed
             && result.ConfigStatus == VirtioBlockDeviceConfigStatus.InvalidCapacity
             && result.BlockDeviceStatus == BlockDeviceStatus.InvalidBlockCount
             && result.RawCapacitySectors == 0
-            && result.BytesRead == VirtioBlockDeviceConfig.CapacityLength;
+            && result.BytesRead == VirtioBlockDeviceConfig.CapacityLength);
     }
 
+    [HostTest("storage.virtioblk.config.windowexec preserves no-live-mmio boundary", HostLane.Fast, 10)]
     private static bool TestRegisterWindowPreservesNoLiveMmioBoundary()
     {
         VirtioPciBarRegisterWindowBindingResult windows =
@@ -267,7 +231,7 @@ internal static class StorageVirtioBlockDeviceConfigTests
                 deviceWindowBytes,
                 scratch);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockDeviceConfigRegisterWindowReader.RequiresRegisterWindowBinding
             && VirtioBlockDeviceConfigRegisterWindowReader.UsesCallerOwnedWindowBuffer
             && VirtioBlockDeviceConfigRegisterWindowReader.UsesCallerOwnedScratchBuffer
@@ -290,9 +254,10 @@ internal static class StorageVirtioBlockDeviceConfigTests
             && !VirtioBlockDeviceConfigRegisterWindowReader.PerformsBlockIo
             && !VirtioBlockDeviceConfigRegisterWindowReader.PerformsDiskRead
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockDeviceConfigRegisterWindowReadResult>();
+                VirtioBlockDeviceConfigRegisterWindowReadResult>());
     }
 
+    [HostTest("storage.virtioblk.config default result is not success", HostLane.Fast, 11)]
     private static bool TestDefaultConfigResultIsNotSuccess()
     {
         VirtioBlockDeviceConfigResult result = default;
@@ -303,7 +268,7 @@ internal static class StorageVirtioBlockDeviceConfigTests
                 rawCapacitySectors: 0,
                 VirtioBlockDeviceConfig.SectorSizeBytes);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockDeviceConfigStatus.Success
             && result.BlockDeviceStatus == BlockDeviceStatus.Success
@@ -315,9 +280,10 @@ internal static class StorageVirtioBlockDeviceConfigTests
             && failed.Status == VirtioBlockDeviceConfigStatus.InvalidCapacity
             && failed.BlockDeviceStatus == BlockDeviceStatus.InvalidBlockCount
             && failed.SectorSizeBytes == VirtioBlockDeviceConfig.SectorSizeBytes
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDeviceConfigResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDeviceConfigResult>());
     }
 
+    [HostTest("storage.virtioblk.config.windowexec default result is not success", HostLane.Fast, 12)]
     private static bool TestDefaultRegisterWindowResultIsNotSuccess()
     {
         VirtioBlockDeviceConfigRegisterWindowReadResult result = default;
@@ -329,7 +295,7 @@ internal static class StorageVirtioBlockDeviceConfigTests
                 deviceWindowBytes,
                 scratch);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockDeviceConfigRegisterWindowReadStatus.Success
             && result.ConfigStatus == VirtioBlockDeviceConfigStatus.Success
@@ -344,7 +310,7 @@ internal static class StorageVirtioBlockDeviceConfigTests
             && failed.Status == VirtioBlockDeviceConfigRegisterWindowReadStatus.ScratchBufferTooSmall
             && failed.ConfigStatus == VirtioBlockDeviceConfigStatus.ConfigTooSmall
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockDeviceConfigRegisterWindowReadResult>();
+                VirtioBlockDeviceConfigRegisterWindowReadResult>());
     }
 
     private static VirtioPciBarRegisterWindowBindingResult CreateBoundRegisterWindows(

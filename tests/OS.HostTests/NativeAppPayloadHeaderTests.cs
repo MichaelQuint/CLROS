@@ -4,82 +4,47 @@ using OS.Std.Binary;
 
 internal static class NativeAppPayloadHeaderTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("appmodel payload header accepts v0 native payload", TestAcceptsV0NativePayload, ref failures);
-        Run("appmodel payload header rejects bad magic", TestRejectsBadMagic, ref failures);
-        Run("appmodel payload header rejects unsupported version", TestRejectsUnsupportedVersion, ref failures);
-        Run("appmodel payload header rejects invalid entry offset", TestRejectsInvalidEntryOffset, ref failures);
-        Run("appmodel payload header default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("appmodel payload header uses shared memory equality helper", TestUsesSharedMemoryEqualityHelper, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app payload header host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel payload header accepts v0 native payload", HostLane.Fast, 0)]
     private static bool TestAcceptsV0NativePayload()
     {
         byte[] payload = CreatePayload(NativeAppPayloadHeader.HeaderSize);
         NativeAppPayloadHeaderResult result = NativeAppPayloadHeader.Parse(payload);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppPayloadHeaderStatus.Success
             && result.Header.Version == NativeAppPayloadHeader.SupportedVersion
             && result.Header.HeaderSizeValue == NativeAppPayloadHeader.HeaderSize
             && result.Header.Flags == 0
-            && result.Header.EntryOffset == NativeAppPayloadHeader.HeaderSize;
+            && result.Header.EntryOffset == NativeAppPayloadHeader.HeaderSize);
     }
 
+    [HostTest("appmodel payload header rejects bad magic", HostLane.Fast, 1)]
     private static bool TestRejectsBadMagic()
     {
         byte[] payload = CreatePayload(NativeAppPayloadHeader.HeaderSize);
         payload[0] = (byte)'X';
 
         NativeAppPayloadHeaderResult result = NativeAppPayloadHeader.Parse(payload);
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
-            && result.Status == NativeAppPayloadHeaderStatus.InvalidMagic;
+            && result.Status == NativeAppPayloadHeaderStatus.InvalidMagic);
     }
 
+    [HostTest("appmodel payload header rejects unsupported version", HostLane.Fast, 2)]
     private static bool TestRejectsUnsupportedVersion()
     {
         byte[] payload = CreatePayload(NativeAppPayloadHeader.HeaderSize);
         EndianPrimitives.WriteUInt16LittleEndian(payload.AsSpan(8, 2), 1);
 
         NativeAppPayloadHeaderResult result = NativeAppPayloadHeader.Parse(payload);
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
-            && result.Status == NativeAppPayloadHeaderStatus.UnsupportedVersion;
+            && result.Status == NativeAppPayloadHeaderStatus.UnsupportedVersion);
     }
 
+    [HostTest("appmodel payload header rejects invalid entry offset", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidEntryOffset()
     {
         byte[] beforeHeader = CreatePayload(NativeAppPayloadHeader.HeaderSize - 1);
@@ -88,31 +53,33 @@ internal static class NativeAppPayloadHeaderTests
         NativeAppPayloadHeaderResult beforeHeaderResult = NativeAppPayloadHeader.Parse(beforeHeader);
         NativeAppPayloadHeaderResult endOfPayloadResult = NativeAppPayloadHeader.Parse(endOfPayload);
 
-        return !beforeHeaderResult.Succeeded
+        return HostCheck.Result(!beforeHeaderResult.Succeeded
             && beforeHeaderResult.IsInitialized
             && beforeHeaderResult.Status == NativeAppPayloadHeaderStatus.InvalidEntryOffset
             && !endOfPayloadResult.Succeeded
             && endOfPayloadResult.IsInitialized
-            && endOfPayloadResult.Status == NativeAppPayloadHeaderStatus.InvalidEntryOffset;
+            && endOfPayloadResult.Status == NativeAppPayloadHeaderStatus.InvalidEntryOffset);
     }
 
+    [HostTest("appmodel payload header default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAppPayloadHeaderResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppPayloadHeaderStatus.Success
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppPayloadHeaderResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppPayloadHeaderResult>());
     }
 
+    [HostTest("appmodel payload header uses shared memory equality helper", HostLane.Fast, 5)]
     private static bool TestUsesSharedMemoryEqualityHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Manifest", "NativeAppPayloadHeader.cs"));
 
-        return source.Contains(
+        return HostCheck.Result(source.Contains(
                 "OS.Std.MemoryExtensions.SequenceEqual(value, Magic)",
                 StringComparison.Ordinal)
             && source.Contains(
@@ -141,7 +108,7 @@ internal static class NativeAppPayloadHeaderTests
                 StringComparison.Ordinal)
             && !source.Contains(
                 "value[7] == 0",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
     private static byte[] CreatePayload(ulong entryOffset)

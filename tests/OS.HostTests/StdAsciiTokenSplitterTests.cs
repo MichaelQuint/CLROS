@@ -4,21 +4,8 @@ using OS.Std.Text;
 
 internal static class StdAsciiTokenSplitterTests
 {
-    [ModuleInitializer]
-    internal static void Run()
-    {
-        RunScenario("std.ascii tokens splits fields", TestSplitsFields);
-        RunScenario("std.ascii tokens preserves empty fields", TestPreservesEmptyFields);
-        RunScenario("std.ascii tokens trims fields", TestTrimsFields);
-        RunScenario("std.ascii tokens removes empty fields", TestRemovesEmptyFields);
-        RunScenario("std.ascii tokens trims then removes empty fields", TestTrimsThenRemovesEmptyFields);
-        RunScenario("std.ascii tokens removes all empty fields", TestRemovesAllEmptyFields);
-        RunScenario("std.ascii tokens reports destination capacity", TestReportsDestinationCapacity);
-        RunScenario("std.ascii tokens rejects invalid ranges", TestRejectsInvalidRanges);
-        RunScenario("std.ascii tokens rejects non ascii input", TestRejectsNonAsciiInput);
-        RunScenario("std.ascii tokens compatibility boundary", TestCompatibilityBoundary);
-    }
 
+    [HostTest("std.ascii tokens splits fields", HostLane.Fast, 0)]
     private static void TestSplitsFields()
     {
         ReadOnlySpan<byte> source = "app.kind=package;runtime.kind=native-aot;listen=0.0.0.0:8080"u8;
@@ -33,6 +20,7 @@ internal static class StdAsciiTokenSplitterTests
         ExpectToken("third", source, "listen=0.0.0.0:8080"u8, tokens[2]);
     }
 
+    [HostTest("std.ascii tokens preserves empty fields", HostLane.Fast, 1)]
     private static void TestPreservesEmptyFields()
     {
         ReadOnlySpan<byte> source = "alpha,,omega,"u8;
@@ -48,6 +36,7 @@ internal static class StdAsciiTokenSplitterTests
         ExpectToken("empty tail", source, ReadOnlySpan<byte>.Empty, tokens[3]);
     }
 
+    [HostTest("std.ascii tokens trims fields", HostLane.Fast, 2)]
     private static void TestTrimsFields()
     {
         ReadOnlySpan<byte> source = " alpha ,\tbeta\r\n, gamma "u8;
@@ -66,6 +55,7 @@ internal static class StdAsciiTokenSplitterTests
         ExpectToken("third", source, "gamma"u8, tokens[2]);
     }
 
+    [HostTest("std.ascii tokens removes empty fields", HostLane.Fast, 3)]
     private static void TestRemovesEmptyFields()
     {
         ReadOnlySpan<byte> source = "alpha,,beta,"u8;
@@ -83,6 +73,7 @@ internal static class StdAsciiTokenSplitterTests
         ExpectToken("second", source, "beta"u8, tokens[1]);
     }
 
+    [HostTest("std.ascii tokens trims then removes empty fields", HostLane.Fast, 4)]
     private static void TestTrimsThenRemovesEmptyFields()
     {
         ReadOnlySpan<byte> source = " alpha , \t , beta ,\r\n"u8;
@@ -100,6 +91,7 @@ internal static class StdAsciiTokenSplitterTests
         ExpectToken("second", source, "beta"u8, tokens[1]);
     }
 
+    [HostTest("std.ascii tokens removes all empty fields", HostLane.Fast, 5)]
     private static void TestRemovesAllEmptyFields()
     {
         ReadOnlySpan<byte> source = " , \t ,\r\n"u8;
@@ -117,6 +109,7 @@ internal static class StdAsciiTokenSplitterTests
         ExpectBool("zero-token success", true, result.Succeeded);
     }
 
+    [HostTest("std.ascii tokens reports destination capacity", HostLane.Fast, 6)]
     private static void TestReportsDestinationCapacity()
     {
         ReadOnlySpan<byte> source = "GET /healthz HTTP/1.1"u8;
@@ -142,6 +135,7 @@ internal static class StdAsciiTokenSplitterTests
         ExpectBool("trimmed no partial write", true, tokens[0].Start == 50 && tokens[0].Length == 2);
     }
 
+    [HostTest("std.ascii tokens rejects invalid ranges", HostLane.Fast, 7)]
     private static void TestRejectsInvalidRanges()
     {
         ReadOnlySpan<byte> source = "0123456789"u8;
@@ -171,6 +165,7 @@ internal static class StdAsciiTokenSplitterTests
         ExpectStatus("over end", AsciiTokenSplitStatus.InvalidRange, overEnd);
     }
 
+    [HostTest("std.ascii tokens rejects non ascii input", HostLane.Fast, 8)]
     private static void TestRejectsNonAsciiInput()
     {
         ReadOnlySpan<byte> source = new byte[] { (byte)'a', (byte)'=', 0x80 };
@@ -188,6 +183,7 @@ internal static class StdAsciiTokenSplitterTests
         ExpectInt("control index", 1, result.InvalidInputIndex);
     }
 
+    [HostTest("std.ascii tokens compatibility boundary", HostLane.Fast, 9)]
     private static void TestCompatibilityBoundary()
     {
         ExpectBool("status is partial", true, AsciiTokenSplitter.Status == CompatibilityStatus.Partial);
@@ -211,22 +207,6 @@ internal static class StdAsciiTokenSplitterTests
             tokens,
             (AsciiTokenSplitOptions)0x80);
         ExpectStatus("invalid options", AsciiTokenSplitStatus.InvalidOptions, invalidOptions);
-    }
-
-    private static void RunScenario(string name, Action test)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            test();
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
     }
 
     private static void ExpectStatus(

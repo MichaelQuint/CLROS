@@ -3,44 +3,8 @@ using OS.Pal;
 
 internal static class PalRandomFacadeTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("pal.random facade fills caller buffer", TestFillsCallerBuffer, ref failures);
-        Run("pal.random facade rejects malformed request", TestRejectsMalformedRequest, ref failures);
-        Run("pal.random facade reports unavailable table", TestReportsUnavailableTable, ref failures);
-        Run("pal.random facade propagates entropy status", TestPropagatesEntropyStatus, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL random facade host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.random facade fills caller buffer", HostLane.Fast, 0)]
     private static bool TestFillsCallerBuffer()
     {
         OSHostRandomFacade facade = new(NewTable(maxRequestBytes: 32));
@@ -48,12 +12,13 @@ internal static class PalRandomFacadeTests
 
         OSHostRandomBytesResult result = facade.GetRandomBytes(Request(destination.Length), destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.BytesWritten == 12
             && result.RequestSequence == 0
-            && !AllEqual(destination, 0);
+            && !AllEqual(destination, 0));
     }
 
+    [HostTest("pal.random facade rejects malformed request", HostLane.Fast, 1)]
     private static bool TestRejectsMalformedRequest()
     {
         OSHostRandomFacade facade = new(NewTable(maxRequestBytes: 16));
@@ -74,12 +39,13 @@ internal static class PalRandomFacadeTests
                 reserved: 1),
             destination);
 
-        return zeroAddress.Status == OSHostStatus.InvalidArgument
+        return HostCheck.Result(zeroAddress.Status == OSHostStatus.InvalidArgument
             && lengthMismatch.Status == OSHostStatus.InvalidArgument
             && reserved.Status == OSHostStatus.InvalidArgument
-            && destination[0] == 0xDD;
+            && destination[0] == 0xDD);
     }
 
+    [HostTest("pal.random facade reports unavailable table", HostLane.Fast, 2)]
     private static bool TestReportsUnavailableTable()
     {
         OSHostRandomFacade facade = new(table: null);
@@ -88,11 +54,12 @@ internal static class PalRandomFacadeTests
 
         OSHostRandomBytesResult result = facade.GetRandomBytes(Request(destination.Length), destination);
 
-        return result.Status == OSHostStatus.InvalidArgument
+        return HostCheck.Result(result.Status == OSHostStatus.InvalidArgument
             && result.BytesWritten == 0
-            && destination[0] == 0xEE;
+            && destination[0] == 0xEE);
     }
 
+    [HostTest("pal.random facade propagates entropy status", HostLane.Fast, 3)]
     private static bool TestPropagatesEntropyStatus()
     {
         OSHostRandomFacade noEntropy = new(new OSHostRandomTable(ReadOnlySpan<byte>.Empty, maxRequestBytes: 16));
@@ -102,10 +69,10 @@ internal static class PalRandomFacadeTests
         OSHostRandomBytesResult unavailable = noEntropy.GetRandomBytes(Request(destination.Length), destination);
         OSHostRandomBytesResult tooLarge = small.GetRandomBytes(Request(destination.Length), destination);
 
-        return unavailable.Status == OSHostStatus.TryAgain
+        return HostCheck.Result(unavailable.Status == OSHostStatus.TryAgain
             && unavailable.BytesWritten == 0
             && tooLarge.Status == OSHostStatus.BufferTooSmall
-            && tooLarge.BytesWritten == 0;
+            && tooLarge.BytesWritten == 0);
     }
 
     private static OSHostRandomTable NewTable(int maxRequestBytes)

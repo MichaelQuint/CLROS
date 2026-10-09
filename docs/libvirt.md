@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Libvirt boot support is not implemented. Host-side deterministic domain XML generation exists and does not require libvirt to be installed. `tools/OS.LibvirtRunner validate-xml` validates generated domain XML shape and emits a deterministic summary without connecting to libvirt. `tools/OS.LibvirtRunner plan-lifecycle` and `scripts/run-libvirt-smoke.ps1 -PlanLifecycle` now emit an opt-in real-libvirt lifecycle plan that records the future create/start/poll/timeout/cleanup order without starting a domain. `tools/OS.LibvirtRunner check-serial` validates an already-captured serial log against required and forbidden marker contracts using the same parser contract as `OS.QemuRunner`. `scripts/run-libvirt-smoke.ps1` also provides dry-run, check-serial-only, and missing-tool evidence for raw/qcow2 smoke wiring without claiming a real libvirt boot. The `libvirt-csharp` reference is present at `references/libvirt-csharp-main`.
+Libvirt boot support is not implemented. Host-side deterministic domain XML generation exists and does not require libvirt to be installed. `tools/OS.LibvirtRunner validate-xml` validates generated domain XML shape and emits a deterministic summary without connecting to libvirt. `tools/OS.LibvirtRunner plan-lifecycle` and `dotnet run --project tools/OS.Tooling -- libvirt smoke --plan-lifecycle` now emit an opt-in real-libvirt lifecycle plan that records the future create/start/poll/timeout/cleanup order without starting a domain. `tools/OS.LibvirtRunner check-serial` validates an already-captured serial log against required and forbidden marker contracts using the same parser contract as `OS.QemuRunner`. `dotnet run --project tools/OS.Tooling -- libvirt smoke` also provides dry-run, check-serial-only, and missing-tool evidence for raw/qcow2 smoke wiring without claiming a real libvirt boot. The `libvirt-csharp` reference is present at `references/libvirt-csharp-main`.
 
 ## Implemented Behavior
 
@@ -35,14 +35,14 @@ Libvirt boot support is not implemented. Host-side deterministic domain XML gene
   `LIBVIRT_DIAG image.detected.format=raw-compatible|qcow2` so libvirt intent
   logs show the exact host-side image-format validation boundary before any
   domain lifecycle exists.
-- `scripts/run-libvirt-smoke.ps1 -DryRun` writes a domain XML artifact and emits `TEST_PASS libvirt.smoke.dryrun` without requiring `virsh` or a libvirt daemon.
-- `scripts/run-libvirt-smoke.ps1 -PlanLifecycle` writes the normal domain XML artifact, writes a lifecycle plan artifact, echoes the `LIBVIRT_LIFECYCLE_*` contract, and emits `TEST_PASS libvirt.lifecycle.plan` without requiring `virsh` or a libvirt daemon.
-- `scripts/run-libvirt-smoke.ps1 -CheckSerialOnly` invokes `OS.LibvirtRunner check-serial` against the configured serial log and writes the configured summary artifact without generating XML or requiring `virsh`.
-- `scripts/run-libvirt-smoke.ps1` accepts `-WorkloadProfile SingleMinimalApi|MultiMinimalApi`, emits workload-profile evidence, and passes `/p:OSWorkloadProfile=<value>` through nested `dotnet run --project` calls so repo-wide workload-profile validation remains satisfied.
-- `scripts/run-libvirt-smoke.ps1` will not start a domain by default even when `virsh` is present. The future real-run path requires `-AllowRealLibvirtLifecycle`; with the switch present the script still stops at `TEST_FAIL libvirt.smoke.real_run_not_implemented` until real lifecycle execution exists.
-- `scripts/run-libvirt-smoke.ps1` without `-DryRun` validates the image, resolves `virsh` from `-Virsh`, `VIRSH`, or PATH, and emits `TEST_SKIP libvirt.smoke missing_tool=virsh` plus `TEST_PASS libvirt.smoke.missing_tool_reported` when libvirt is not available. This is honest missing-tool evidence, not boot proof.
-- `scripts/run-ci-smoke.ps1` and `scripts/run-baseline-evidence.ps1` now record libvirt smoke intent by running the dry-run XML path and a deterministic missing-tool path with `-Virsh` pointed at a non-existent file under the evidence directory. Both scripts pass `-WorkloadProfile` through those libvirt intent lanes. The missing-tool lane uses a small intent placeholder image so it can reach the `virsh` discovery branch without requiring a real qcow2 conversion.
-- `scripts/run-baseline-evidence.ps1 -PlanOnly` records libvirt dry-run and missing-tool artifact intent in `summary.json`, including the qcow2 image path, disk format, serial log, summary log, and domain XML path, without connecting to libvirt or starting a domain.
+- `dotnet run --project tools/OS.Tooling -- libvirt smoke --dry-run` writes a domain XML artifact and emits `TEST_PASS libvirt.smoke.dryrun` without requiring `virsh` or a libvirt daemon.
+- `dotnet run --project tools/OS.Tooling -- libvirt smoke --plan-lifecycle` writes the normal domain XML artifact, writes a lifecycle plan artifact, echoes the `LIBVIRT_LIFECYCLE_*` contract, and emits `TEST_PASS libvirt.lifecycle.plan` without requiring `virsh` or a libvirt daemon.
+- `dotnet run --project tools/OS.Tooling -- libvirt smoke --check-serial-only` invokes `OS.LibvirtRunner check-serial` against the configured serial log and writes the configured summary artifact without generating XML or requiring `virsh`.
+- `dotnet run --project tools/OS.Tooling -- libvirt smoke` accepts `--workload-profile SingleMinimalApi|MultiMinimalApi`, emits workload-profile evidence, and invokes the already-built .NET runner directly. No PowerShell or nested build is used.
+- `dotnet run --project tools/OS.Tooling -- libvirt smoke` will not start a domain by default even when `virsh` is present. The future real-run path requires `--allow-real-libvirt-lifecycle`; with the switch present the command still stops at `TEST_FAIL libvirt.smoke.real_run_not_implemented` until real lifecycle execution exists.
+- `dotnet run --project tools/OS.Tooling -- libvirt smoke` without `--dry-run` validates the image, resolves `virsh` from `--virsh`, `VIRSH`, or PATH, and emits `TEST_SKIP libvirt.smoke missing_tool=virsh` plus `TEST_PASS libvirt.smoke.missing_tool_reported` when libvirt is not available. This is honest missing-tool evidence, not boot proof.
+- `dotnet run --project tools/OS.Tooling -- ci smoke` and `dotnet run --project tools/OS.Tooling -- baseline evidence` record libvirt smoke intent by running the dry-run XML path and a deterministic missing-tool path with `--virsh` pointed at a non-existent file under the evidence directory. Both commands pass `--workload-profile` through those libvirt intent lanes. The missing-tool lane uses a small intent placeholder image so it can reach the `virsh` discovery branch without requiring a real qcow2 conversion.
+- `dotnet run --project tools/OS.Tooling -- baseline evidence --plan-only` records libvirt dry-run and missing-tool artifact intent in `summary.json`, including the qcow2 image path, disk format, serial log, summary log, and domain XML path, without connecting to libvirt or starting a domain.
 
 ## Unsupported Behavior
 
@@ -52,15 +52,13 @@ Libvirt connection, transient domain creation, live serial marker polling, timeo
 
 `tests/OS.HostTests/LibvirtRunnerTests.cs` covers network-none XML, OVMF loader XML, default virtio network XML, raw/qcow2 disk driver XML, XML validation pass/fail summaries, invalid disk-format rejection, lifecycle plan order/markers/opt-in guard, diagnostic readiness lines, required/forbidden marker diagnostics, smoke-wrapper dry-run/missing-tool/lifecycle/check-serial marker contracts, `check-serial` pass/missing-marker/forbidden-marker behavior, summary artifact writing, and opt-in image-path validation without requiring native libvirt. Image-path validation now covers missing images, empty images, diagnostic byte/header reporting, raw images accidentally passed as qcow2, and qcow2 images accidentally passed as raw. The runner tests execute the already-built `tools/OS.LibvirtRunner/bin/<configuration>/net10.0/OS.LibvirtRunner.dll` with `dotnet <dll>`, not nested `dotnet run --project`.
 
-Host tool project-boundary tests enumerate the current five expected projects
-(`OS.ImageBuilder`, `OS.LibvirtRunner`, `OS.ManifestTool`, `OS.QemuRunner`, and
-the standalone M01-033 `OS.X64TextSerializerGenerator`) and emit
+Host tool project-boundary tests validate the shared reviewed tool inventory and emit
 `TEST_PASS tools.project boundary excludes artifact sources` and
 `TEST_PASS tools.project boundary keeps expected host tools`.
 
 CI-smoke failure-injection tests verify that the libvirt dry-run and
-missing-tool lanes still pass when the injected `-DotNet` executable fails only
-the managed build and host-test steps. Baseline evidence script tests verify
+missing-tool lanes still pass when the injected process executor fails only
+the managed build and host-test steps. Baseline evidence tests verify
 that qcow2 and libvirt intent lanes carry the selected workload profile instead
 of silently falling back to the default.
 

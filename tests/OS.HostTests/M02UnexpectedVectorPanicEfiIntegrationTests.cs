@@ -1,3 +1,4 @@
+using OS.Tooling;
 using System.Diagnostics;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
@@ -13,29 +14,8 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
 {
     private const string Flag = "EnableM02UnexpectedVectorPanicProbe";
     private static readonly string[] Prerequisites=["EnableM01LoadedImageStackProbe","EnableM01LiveAllocatorProbe","EnableM01OwnedPagingProbe","EnableM02SafeStubProbe","EnableM02CheckedPortIoBindingProbe","EnableM02Com1OwnedPortIoProbe","EnableM02OwnedCom1ReadyProbe","EnableM02PanicSafeOwnedCom1Probe"];
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        Run("source profile and original authority", TestProject);
-        Run("admitted cleanup authority", TestCleanup);
-        Run("actual adapter data-only preparation", TestAdapter);
-        Run("strict complete panic transcript", TestTranscript);
-        Run("profile propagation and rejection", TestProfiles);
-        Run("ordinary source firewall", TestFirewall);
-        Run("actual default and enabled NativeAOT artifacts", TestArtifacts);
-    }
 
-    private static void Run(string name, Action test)
-    {
-        Console.WriteLine("TEST_START m02.016.efi " + name);
-        try { test(); Console.WriteLine("TEST_PASS m02.016.efi " + name); }
-        catch (Exception exception)
-        {
-            Console.WriteLine("TEST_FAIL m02.016.efi " + name + " " + exception.Message);
-            throw;
-        }
-    }
-
+    [HostTest("m02.016.efi admitted cleanup authority", HostLane.Native, 1)]
     private static void TestCleanup()
     {
         string root = Root();
@@ -240,17 +220,18 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
         string[] registers=["rip","rsp","rbp","rflags","cr2","cr3","rax","rbx","rcx","rdx","rsi","rdi","r8","r9","r10","r11","r12","r13","r14","r15"];
         ulong[] captured=[c+5058,d+28672,0x10203040,0x46,0,0x300000,24,0x1234,0xa09b00,d+4096,0x5678,0x9abc,0x300000,0x3456,0x789a,0xbcde,0x1357,0x2468,0x369c,0x48ad];
         string fault="OS_SMOKE_FAIL subsystem=idt reason=unexpected-vector vector=32 errorCodePresent=false errorCode=0x0000000000000000 "+string.Join(' ',registers.Select((name,i)=>name+"=0x"+captured[i].ToString("X16")))+"\r\n";
-        return "TEST_START efi.main\r\nEFI_CONSOLE_READY\r\nUEFI_MEMORY_MAP_READY\r\nUEFI_MEMORY_MAP_DESCRIPTOR_COUNT 2\r\nUEFI_MEMORY_MAP_OWNED\r\nBOOT_HANDOFF_READY\r\nUEFI_MEMORY_MAP_NORMALIZED\r\nBOOT_MEMORY_MAP_ACCEPTED\r\nBOOT_MEMORY_REGIONS_READY\r\nBOOT_MEMORY_REGION_COUNT 2\r\nBOOT_PAGE_ALLOCATOR_READY status=Ready regions=2 conventionalPages=10 conventionalBytes=40960 freeNodes=2 freePages=10 freeBytes=40960 pageSize=4096 statusCode=0\r\nBOOT_ACPI_RSDP_HANDOFF_READY\r\nUEFI_ACPI_RSDP_READY\r\nTEST_START m01.stage1\r\nM01_LOADED_IMAGE_CAPTURED\r\nM01_STACK_SWITCH_STUB_READY\r\nM01_STACK_ARENA_ALLOCATED\r\nM01_STACK_GUARD_RESERVED\r\nM01_STAGE1_MAP_RECAPTURED\r\nM01_STAGE1_RESERVATIONS_VALIDATED\r\nM01_OWNED_STACK_READY\r\nM01_OWNED_STACK_SWITCHED\r\nM01_RSP_CONTAINED\r\nTEST_PASS m01.stage1\r\nTEST_START m01.stage2\r\nM01_ALLOCATOR_ARENA_ALLOCATED\r\nM01_STAGE2_MAP_RECAPTURED\r\nM01_RESERVATIONS_APPLIED\r\nM01_LIVE_ALLOCATED_4K\r\nM01_LIVE_PAGE_WITHIN_ARENA\r\nM01_LIVE_FREED_4K\r\nM01_DOUBLE_FREE_REJECTED\r\nTEST_PASS m01.stage2\r\nTEST_START m01.stage3\r\nM01_CR3_STUB_PAGE_ALLOCATED\r\nM01_PROTECTION_PROBE_PAGE_ALLOCATED\r\nM01_PAGE_TABLE_STATE_ARENA_ALLOCATED\r\nM01_STAGE3_MAP_RECAPTURED\r\nTEST_START m02.017\r\nM02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56\r\nM02_STUB_PAGE_READBACK_VERIFIED fnv1a64=982E5B7E3EE58E56\r\nM01_CR3_STUB_MATERIALIZED\r\nM01_PAGE_TABLES_BUILT\r\nM01_PAGING_MODE_VALIDATED\r\nM01_PRE_CR3\r\nM01_FIRMWARE_CR3_RESTORED\r\nM01_RFLAGS_RESTORED\r\nM01_PGE_CYCLE_VERIFIED\r\nM01_OWNED_CR3_CANARY_VERIFIED\r\nM01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED\r\nM01_POST_CR3\r\nM01_RW_TO_RX_VERIFIED\r\nM01_TLB_INVALIDATION_COMPLETE\r\nM01_RX_PROBE_EXECUTED\r\nM01_PAGE_ZERO_ABSENT\r\nM02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B\r\nCLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56 temporaryOwnedRootRx=true portIoExecuted=false\r\nTEST_PASS m02.017\r\nCLROS_M02_003_READY bindingReady=true out8AddressChecked=true in8AddressChecked=true guestInvocation=false portIoExecuted=false\r\nCLROS_M02_004_READY configurationWrites=7 bindingReady=true guestPortIo=true guestIn8=false markerTransport=uefiSerial postExitBootServices=false\r\nOWNED_COM1_READY\r\nCLROS_M02_005_READY marker=OWNED_COM1_READY markerBytes=16 lineEndingBytes=2 configurationWrites=7 lineStatusPolls=18 ownedWriter=true ownedMarkerTransport=com1PortIo evidenceMarkerTransport=uefiSerial guestPortIo=true guestIn8=true postExitBootServices=false\r\nCLROS_M02_006_READY panicFormatter=bounded ownedCom1Transport=true callerScratch=true statusCoded=true firmwareFallback=false\r\nCLROS_M02_006_EVIDENCE markerBytes=125 serialBytes=127 configurationWrites=7 lineStatusPolls=127 markerTransport=com1PortIo evidenceTransport=uefiSerial guestPortIo=true guestIn8=true panicFormatter=linked panicReporter=ownedCom1 callerScratch=true statusCoded=true firmwareFallback=false postExitBootServices=false\r\nTEST_PASS m01.stage3\r\nCLROS_M01_LIVE_BOOT_MEMORY_READY\r\nTEST_START boot.sequence\r\nBOOT_PHASE PhaseA.Audit START\r\nBOOT_PHASE PhaseA.Audit PASS\r\nBOOT_PHASE PhaseA.Diagnostics START\r\nBOOT_PHASE PhaseA.Diagnostics PASS\r\nOS_BOOT_OK\r\nTEST_PASS boot.sequence\r\nOS_SMOKE_PASS\r\n"+metadata+fault;
+        return QemuTerminalControls.Prefix()+metadata+fault;
     }
 
+    [HostTest("m02.016.efi source profile and original authority", HostLane.Fast, 0)]
     private static void TestProject()
     {
         string root=Root();var project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
-        var items=project.Descendants("Compile").ToArray();Require(items.Length==122,"122 exact compiler inputs");
+        var items=project.Descendants("Compile").ToArray();Require(items.Length==OS.Tooling.EfiContracts.CompileItems.Count,"complete exact compiler inputs");
         foreach(string name in new[]{"UnexpectedVectorPanicProbeAuthority.cs","UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification.cs"})
             Require(items.Count(x=>x.Attribute("Include")?.Value=="..\\OS.Kernel\\Diagnostics\\"+name && x.Attribute("Link")?.Value=="Diagnostics\\"+name)==1,"one linked declaration "+name);
         var defaults=project.Descendants().Where(x=>x.Attribute("Condition")?.Value=="'$("+x.Name.LocalName+")' == ''" && x.Name.LocalName.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-        Require(defaults.Length==49 && defaults.All(x=>x.Value=="false") && defaults.Count(x=>x.Name.LocalName==Flag)==1,"49 literal false defaults");
+        Require(defaults.Select(x=>x.Name.LocalName).Order(StringComparer.Ordinal).SequenceEqual(EfiContracts.ProjectDefaultProbes.Order(StringComparer.Ordinal)) && defaults.All(x=>x.Value=="false") && defaults.Count(x=>x.Name.LocalName==Flag)==1,"complete literal false defaults");
         foreach(string addedFlag in new[]{"EnableM03FirstRealExitBootServicesProbe","EnableM04SeededCollectorChurnProbe","EnableM03FirmwareAdapterRevocationProbe","EnableM04ClassConstructorExecutionProbe","EnableM04InterfaceDispatchProbe","EnableM04X64UnwindMetadataProbe","EnableM03OwnedSubsystemSurvivalProbe","EnableM03OwnedSubsystemPanicProbe","EnableM04SimpleThrowCatchProbe","EnableM04SingleFinallyCatchProbe"})
             Require(defaults.Count(x=>x.Name.LocalName==addedFlag && x.Value=="false")==1,"one literal false default "+addedFlag);
         var errors=project.Descendants("Error").Where(x=>x.Attribute("Condition")!.Value.Contains("$("+Flag+")",StringComparison.Ordinal)).ToArray();
@@ -260,9 +241,9 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
         string[] conflicts=Conflicts(project);Require(conflicts.Length==33,"exact conflict vector");
         foreach(string conflict in conflicts)foreach((string a,string b) in new[]{(Flag,conflict),(conflict,Flag)})
             Require(errors.Count(x=>x.Attribute("Condition")?.Value=="'$("+a+")' == 'true' and '$("+b+")' == 'true'")==1,"reciprocal conflict "+a+"/"+b);
-        foreach(var pair in new[]{("src/OS.Kernel/Diagnostics/UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification.cs","EC3583012BAACA4B9CD9D13093C941196478A3FE12C89330C86D8C7AE39CA899"),
-            ("tests/OS.HostTests/UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassificationTests.cs","9A5EA1B4D40BC957063AC63322DC78108BAE575ABD050032CB9B6D1AD02076CD"),
-            ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs","7a14fa23e28548fa94d30e5569f786a1ce4c5bbe2375ac5b23a493d06f20ebd5")})
+        HostCheck.Registered(typeof(UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassificationTests));
+        foreach(var pair in new[]{("src/OS.Kernel/Diagnostics/UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification.cs",EfiContracts.UnexpectedPanicSourceSha256),
+            ("src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs",OS.Tooling.EfiContracts.AllocationSourceSha256)})
             Require(Hash(File.ReadAllText(Path.Combine(root,pair.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)).Equals(pair.Item2,StringComparison.OrdinalIgnoreCase),"reviewed normalized source "+pair.Item1);
         string entry=File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs")),adapter=Adapter(entry);
         string run=Member(adapter,"internal static void Run("),callback=Member(adapter,"private static uint Callback("),prepare=Member(adapter,"internal static bool Prepare(");
@@ -279,6 +260,7 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
         .Where(x=>x.StartsWith("'$("+Flag+")' == 'true' and '",StringComparison.Ordinal)&&x.EndsWith(" == 'true'",StringComparison.Ordinal))
         .Select(x=>Regex.Matches(x,@"\$\(([^)]+)\)")[1].Groups[1].Value).ToArray();
 
+    [HostTest("m02.016.efi actual adapter data-only preparation", HostLane.Native, 2)]
     private static void TestAdapter()
     {
         string root=Root(),dir=Scratch("adapter");string source=Adapter(File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs")));
@@ -334,15 +316,17 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
         Result result=Process(root,"dotnet","run","--project",Path.Combine(dir,"Adapter.csproj"),"-c","Release");Require(result.Code==0&&result.Error.Length==0,result.Output+result.Error);
     }
 
+    [HostTest("m02.016.efi strict complete panic transcript", HostLane.Fast, 3)]
     private static void TestTranscript()
     {
         string dir=Scratch("transcript"),valid=Transcript();var cases=new List<(string Text,bool Accept)> { (valid,true) };
         byte[] preamble=Convert.FromBase64String("G1syShtbMDE7MDFIG1s9M2gbWzJKG1swMTswMUgbWzJKG1swMTswMUgbWz0zaBtbMkobWzAxOzAxSBtbMkobWzAxOzAxSBtbPTNoG1syShtbMDE7MDFIQmRzRHhlOiBsb2FkaW5nIEJvb3QwMDAxICJVRUZJIFFFTVUgSEFSRERJU0sgUU0wMDAxMyAiIGZyb20gUGNpUm9vdCgweDApL1BjaSgweDIsMHgwKS9TYXRhKDB4MCwweEZGRkYsMHgwKQ0KQmRzRHhlOiBzdGFydGluZyBCb290MDAwMSAiVUVGSSBRRU1VIEhBUkRESVNLIFFNMDAwMTMgIiBmcm9tIFBjaVJvb3QoMHgwKS9QY2koMHgyLDB4MCkvU2F0YSgweDAsMHhGRkZGLDB4MCkNCg==");
-        Require(Convert.ToHexString(SHA256.HashData(preamble))=="BB50E913C752428AE49AE6C20879196F507926CC685CAD83986494244299D124","fixed OVMF prefix identity");
+        Require(Convert.ToHexString(SHA256.HashData(preamble))==QemuTranscripts.FirmwarePrefixSha256,"fixed OVMF prefix identity");
         cases.Add((Encoding.ASCII.GetString(preamble)+valid,true));
         preamble[0]^=1;cases.Add((Encoding.ASCII.GetString(preamble)+valid,false));
-        string[] lines=valid.Split("\r\n");Require(lines.Length==77,"76 owned records");
-        for(int i=0;i<76;i++) {
+        int recordCount=QemuContracts.M02UnexpectedCaptureRecordCount,prefixCount=QemuContracts.M02TerminalPrefix.Count;
+        string[] lines=valid.Split("\r\n");Require(lines.Length==recordCount+1,"complete owned record inventory");
+        for(int i=0;i<recordCount;i++) {
             var copy=lines.ToList();copy.RemoveAt(i);cases.Add((string.Join("\r\n",copy),false));
             copy=lines.ToList();copy.Insert(i,lines[i]);cases.Add((string.Join("\r\n",copy),false));
             foreach(string suffix in new[]{" ","\0","\u200b"}){copy=lines.ToList();copy[i]+=suffix;cases.Add((string.Join("\r\n",copy),false));}
@@ -350,8 +334,8 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
         foreach(string suffix in new[]{"\r\n","\0","OS_SMOKE_PASS\r\n","TEST_FAIL late\r\n","firmware return\r\n"})cases.Add((valid+suffix,false));
         foreach(string prefix in new[]{"arbitrary\r\n","\0","TE\r\nST_FAIL\r\n","\ufeff"})cases.Add((prefix+valid,false));
         foreach(string ending in new[]{"\n","\r"})cases.Add((valid.Replace("\r\n",ending,StringComparison.Ordinal),false));
-        for(int row=74;row<76;row++)foreach(Match field in Regex.Matches(lines[row],@" ([A-Za-z0-9]+)=0x([0-9A-F]{16})")) {
-            string key=field.Groups[1].Value;bool diagnostic=row==75&&new[]{"rbp","cr2","rbx","rsi","rdi","r9","r10","r11","r12","r13","r14","r15"}.Contains(key,StringComparer.Ordinal);
+        for(int row=prefixCount;row<recordCount;row++)foreach(Match field in Regex.Matches(lines[row],@" ([A-Za-z0-9]+)=0x([0-9A-F]{16})")) {
+            string key=field.Groups[1].Value;bool diagnostic=row==prefixCount+1&&new[]{"rbp","cr2","rbx","rsi","rdi","r9","r10","r11","r12","r13","r14","r15"}.Contains(key,StringComparer.Ordinal);
             var copy=(string[])lines.Clone();copy[row]=copy[row][..field.Index]+" "+key+"=0xFFFFFFFFFFFFFFFF"+copy[row][(field.Index+field.Length)..];cases.Add((string.Join("\r\n",copy),diagnostic));
             copy=(string[])lines.Clone();copy[row]=copy[row][..field.Index]+field.Value+"0"+copy[row][(field.Index+field.Length)..];cases.Add((string.Join("\r\n",copy),false));
         }
@@ -361,40 +345,30 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
         string malformed=Path.Combine(dir,"malformed-utf8.log");File.WriteAllBytes(malformed,[0xc0,0xaf,..Encoding.ASCII.GetBytes(valid)]);
         records=[..records,new{Path=malformed,Accept=false}];
         File.WriteAllText(Path.Combine(dir,"cases.json"),JsonSerializer.Serialize(records));
-        Result r=PowerShell(dir,"param([string]$Root,[string]$Cases)\n$ErrorActionPreference='Stop'\n"+ExtractFunctions+"\n"+"""
-            LoadFunctions (Join-Path $Root 'scripts/run-qemu-smoke.ps1') @('Assert-M02UnexpectedVectorPanicTranscript','Assert-M02UnexpectedVectorPanicPrefix')
-            $records=ConvertFrom-Json -InputObject ([IO.File]::ReadAllText($Cases))
-            foreach($case in $records){$ok=$true;try{Assert-M02UnexpectedVectorPanicTranscript $case.Path}catch{$ok=$false};if($ok -ne $case.Accept){throw ('transcript '+$case.Path+' accepted='+$ok)}}
-            Write-Output ('M02_UNEXPECTED_TRANSCRIPT_CONTROLS cases='+$records.Count)
-            ""","-Root",Root(),"-Cases",Path.Combine(dir,"cases.json"));Require(r.Code==0&&r.Error.Length==0,r.Output+r.Error);
-        // Compile the actual complete parser class, not a copied implementation.
-        string production=File.ReadAllText(Path.Combine(Root(),"tools/OS.QemuRunner/Program.cs"));string parser=Member(production,"static class UnexpectedVectorPanicCapture");
-        File.WriteAllText(Path.Combine(dir,"Parser.cs"),"using System.Text;\nusing OS.Tools.QemuRunner;\n"+parser);
-        // The capacity belongs to the actual marker-state implementation in OS.QemuRunner.
-        File.WriteAllText(Path.Combine(dir,"Driver.cs"),"""
-            using System.Text.Json;
-            var cases=JsonDocument.Parse(File.ReadAllText(args[0])).RootElement;
-            foreach(var c in cases.EnumerateArray()) {
-                string text=System.Text.Encoding.UTF8.GetString(File.ReadAllBytes(c.GetProperty("Path").GetString()!));
-                int status=UnexpectedVectorPanicCapture.Evaluate(text,out _);
-                if((status==1)!=c.GetProperty("Accept").GetBoolean())throw new Exception("parser "+c.GetProperty("Path")+" status="+status);
-                if(status==1)for(int n=0;n<text.Length;n++)if(UnexpectedVectorPanicCapture.Evaluate(text[..n],out _)<0)throw new Exception("valid partial "+n);
-            }
-            Console.WriteLine("M02_UNEXPECTED_PARSER_CONTROLS passed=true");
-            """);
-        File.WriteAllText(Path.Combine(dir,"Parser.csproj"),"<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion><OutputType>Exe</OutputType><ImplicitUsings>enable</ImplicitUsings></PropertyGroup><ItemGroup><ProjectReference Include=\""+SecurityElement.Escape(Path.Combine(Root(),"tools/OS.QemuRunner/OS.QemuRunner.csproj"))+"\"/></ItemGroup></Project>");
-        r=Process(Root(),"dotnet","run","--project",Path.Combine(dir,"Parser.csproj"),"-c","Release","--",Path.Combine(dir,"cases.json"));Require(r.Code==0&&r.Error.Length==0,r.Output+r.Error);
+        foreach(var record in records) {
+            bool accepted=true;string reason=string.Empty;
+            try { QemuTranscripts.AssertM02UnexpectedVectorPanicTranscript(record.Path); }
+            catch(ToolFailure error) { accepted=false;reason=error.Message; }
+            Require(accepted==record.Accept,record.Path+" accepted="+accepted+" "+reason);
+            string text=Encoding.UTF8.GetString(File.ReadAllBytes(record.Path));
+            int status=UnexpectedVectorPanicCapture.Evaluate(text,out _);
+            Require((status==1)==record.Accept,"runner parser "+record.Path+" status="+status);
+            if(status==1)for(int n=0;n<text.Length;n++)Require(UnexpectedVectorPanicCapture.Evaluate(text[..n],out _)>=0,"valid partial "+n);
+        }
     }
 
+    [HostTest("m02.016.efi profile propagation and rejection", HostLane.Fast, 4)]
     private static void TestProfiles()
     {
         string root=Root();Result baseline=Qemu();Require(baseline.Code==0&&!baseline.Output.Contains("--expect-unexpected-vector-panic",StringComparison.Ordinal),baseline.Output);
-        Result enabled=Qemu("-BuildEfi","-"+Flag);Require(enabled.Code==0&&enabled.Output.Contains("QEMU_SCRIPT_M02_UNEXPECTED_VECTOR_PANIC_PROBE enabled=true expectedRunnerExit=19 outcome=expected-panic wholeLines=76",StringComparison.Ordinal)&&enabled.Output.Contains("M02_UNEXPECTED_STATE",StringComparison.Ordinal),enabled.Output);
-        Require(File.ReadAllText(Path.Combine(root,"scripts/run-qemu-smoke.ps1")).Contains("if ($EnableM02UnexpectedVectorPanicProbe) { $arguments += \"--expect-unexpected-vector-panic\" }",StringComparison.Ordinal),"exact typed runner option forwarding");
+        Result enabled=Qemu("-BuildEfi","-"+Flag);Require(enabled.Code==0&&enabled.Output.Contains("M02_UNEXPECTED_STATE",StringComparison.Ordinal),enabled.Output);
+        IReadOnlyList<string>? forwarded=null;
+        int dryResult=QemuSmoke.RunAsync(root,QemuSmokeOptions.Parse(["--dry-run","--build-efi","--boot-policy","Diagnostic","-"+Flag]),TextWriter.Null,
+            (name,args)=> { Require(name=="OS.QemuRunner","dry-run invokes the runner");forwarded=args;return Task.FromResult(new OS.Tooling.ProcessResult(0,"","",false,false,false,TimeSpan.Zero)); }).GetAwaiter().GetResult();
+        Require(dryResult==0&&forwarded is not null&&forwarded.Count(x=>x=="--expect-unexpected-vector-panic")==1,"exact typed runner option forwarding");
         foreach(string[] args in new[]{new[]{"-"+Flag},new[]{"-BuildEfi","-"+Flag,"-SkipImageBuild"},new[]{"-BuildEfi","-"+Flag,"-M01RawObservationLog","artifacts/forbidden.log"},new[]{"-RequireMarker","M02_UNEXPECTED_STATE"},new[]{"-BuildEfi","-"+Flag,"-MarkerPreset","acpi"}})Require(Qemu(args).Code!=0,"invalid typed panic profile");
-        foreach(string script in new[]{"scripts/run-qemu-smoke.ps1","scripts/build-efi-shell.ps1","scripts/test-efi-artifact.ps1"}) {
-            string arguments=script.Contains("run-qemu",StringComparison.Ordinal)?"-DryRun -BuildEfi":script.Contains("build-efi",StringComparison.Ordinal)?"-PreflightOnly -LogPath artifacts/issue526-tests/rejected.log":"-EfiArtifact missing.EFI";
-            foreach(string prerequisite in Prerequisites){Result r=Process(root,"powershell.exe","-NoProfile","-Command","& '"+Path.Combine(root,script)+"' "+arguments+" -"+Flag+" -"+prerequisite+":$false");Require(r.Code!=0&&r.Output.Contains("explicit_false_prerequisite",StringComparison.Ordinal),r.Output+r.Error);}
+        foreach(string endpoint in new[]{"qemu","build","verify"}) {
+            foreach(string prerequisite in Prerequisites){Result r=Profile(endpoint,["-"+Flag,"-"+prerequisite+"=false"]);Require(r.Code!=0&&r.Output.Contains("explicit_false_prerequisite",StringComparison.Ordinal),r.Output+r.Error);}
             foreach(string conflict in Conflicts(XDocument.Load(Path.Combine(root,"src/OS/OS.csproj")))) {
                 string[] chain=["EnableM04IndependentEndianConformanceProbe","EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe","EnableM04ArithmeticConformanceProbe","EnableM04LayoutContractProbe","EnableM04ManagedHeapPageRangeProbe","EnableM04RhpNewFastProbe","EnableM04SzArrayAllocationProbe"];
                 int index=Array.IndexOf(chain,conflict);
@@ -403,52 +377,41 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
                 if(conflict=="EnableM04CheckedReferenceBarrierProbe")index=5;
                 // Supply both profiles' prerequisites so missing-chain validation cannot mask the collision.
                 string companion=string.Concat(Prerequisites.Concat(chain.Take(index+1)).Where(x=>x!=conflict).Distinct(StringComparer.Ordinal).Select(x=>" -"+x));
-                Result r=Process(root,"powershell.exe","-NoProfile","-Command","& '"+Path.Combine(root,script)+"' "+arguments+" -"+Flag+" -"+conflict+companion);
+                Result r=Profile(endpoint,["-"+Flag,"-"+conflict,..companion.Split(' ',StringSplitOptions.RemoveEmptyEntries)]);
                 Require(r.Code!=0&&(r.Output+r.Error).Contains("profile",StringComparison.Ordinal),"conflict "+conflict+" "+r.Output+r.Error);
             }
         }
     }
+    [HostTest("m02.016.efi ordinary source firewall", HostLane.Fast, 5)]
     private static void TestFirewall()
     {
-        string dir=Scratch("firewall");Result r=PowerShell(dir,"param([string]$Root)\n$ErrorActionPreference='Stop'\n"+ExtractFunctions+"\n"+"""
-            LoadFunctions (Join-Path $Root 'scripts/build-efi-shell.ps1') @('Get-M01Utf8Sha256','Get-NostdlibEfiActiveSource','Test-M01ActiveSourceSurface')
-            foreach($leaf in @('UnexpectedVectorPanicProbeAuthority','UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification')) {
-                $name='..\OS.Kernel\Diagnostics\'+$leaf+'.cs';$text=[IO.File]::ReadAllText((Join-Path $Root ('src/OS.Kernel/Diagnostics/'+$leaf+'.cs')))
-                if(-not(Test-M01ActiveSourceSurface $text $name).Succeeded){throw 'ordinary source rejected'}
-                foreach($bad in @('using System.Text;','class Bad { object M()=>new object(); }','class Bad { void M(){throw null;} }')){if((Test-M01ActiveSourceSurface ($text+"`n"+$bad) $name).Succeeded){throw 'generic bypass'}}
-            }
-            LoadFunctions (Join-Path $Root 'scripts/run-qemu-smoke.ps1') @('Invoke-NativeCommand')
-            Invoke-NativeCommand -Command { & powershell.exe -NoProfile -Command 'exit 0' } -RequireEmptyError
-            foreach($code in @(32,13,10,9)) {
-                $rejected=$false
-                try { Invoke-NativeCommand -Command { & powershell.exe -NoProfile -Command "[Console]::Error.Write([char]$code)" } -RequireEmptyError }
-                catch {
-                    $prefix='m02_unexpected_vector_panic_native_stderr path='
-                    if(-not $_.Exception.Message.StartsWith($prefix,[StringComparison]::Ordinal)){throw}
-                    $preserved=$_.Exception.Message.Substring($prefix.Length)
-                    if(-not [IO.File]::Exists($preserved) -or ([IO.FileInfo]$preserved).Length -eq 0){throw 'nonempty stderr not preserved'}
-                    $rejected=$true
-                }
-                if(-not $rejected){throw 'whitespace native stderr accepted'}
-            }
-            Write-Output 'M02_UNEXPECTED_FIREWALL ordinary=true genericRejections=true rawEmptyError=true'
-
-            ""","-Root",Root());Require(r.Code==0&&r.Error.Length==0,r.Output+r.Error);
+        foreach(string leaf in new[]{"UnexpectedVectorPanicProbeAuthority","UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassification"}) {
+            string name=@"..\OS.Kernel\Diagnostics\"+leaf+".cs",text=File.ReadAllText(Path.Combine(Root(),"src/OS.Kernel/Diagnostics",leaf+".cs"));
+            Require(EfiSourceAdmission.Inspect(text,name).Succeeded,"ordinary reviewed source rejected");
+            foreach(string bad in new[]{"using System.Text;","class Bad { object M()=>new object(); }","class Bad { void M(){throw null;} }"})Require(!EfiSourceAdmission.Inspect(text+"\n"+bad,name).Succeeded,"generic firewall bypass");
+        }
+        string path=Path.Combine(Scratch("stderr"),"preserved.log");
+        QemuTranscripts.RequireEmptyNativeError(string.Empty,path);
+        foreach(char value in new[]{' ','\r','\n','\t'}) {
+            QemuTerminalControls.AssertRejected(()=>QemuTranscripts.RequireEmptyNativeError(value.ToString(),path),"whitespace stderr accepted");
+            Require(File.ReadAllText(path)==value.ToString(),"raw stderr preserved");
+        }
     }
 
+    [HostTest("m02.016.efi actual default and enabled NativeAOT artifacts", HostLane.Native, 6)]
     private static void TestArtifacts()
     {
         string root=Root();foreach(bool enabled in new[]{false,true}) {
             string dir=Scratch(enabled?"artifact-enabled":"artifact-default"),artifact="artifacts/efi/issue526-tests-"+Guid.NewGuid().ToString("N")+".EFI";
-            Result r=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File","scripts/build-efi-shell.ps1","-EfiOutputPath",artifact,"-LogPath",Path.Combine(dir,"publish.log"),..(enabled?new[]{"-"+Flag}:Array.Empty<string>())]);
+            Result r=Tool(["efi","build","--boot-policy","Diagnostic","-EfiOutputPath",artifact,"-LogPath",Path.Combine(dir,"publish.log"),..(enabled?new[]{"-"+Flag}:Array.Empty<string>())]);
             File.WriteAllText(Path.Combine(dir,"run.log"),r.Output+r.Error);Require(r.Code==0&&r.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal)&&r.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),r.Output+r.Error);
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(Path.Combine(root,artifact)+suffix,Path.Combine(dir,"image.EFI"+suffix));
             foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(dir,file.Item2));
             using var document=JsonDocument.Parse(File.ReadAllText(Path.Combine(root,artifact)+".link.json"));var evidence=document.RootElement;
-            var inputs=evidence.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Require(inputs.Length==138,"138 raw source inputs");
+            var inputs=evidence.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Require(inputs.Length==EfiEvidence.SourceClosurePaths(root).Count,"complete raw source inputs");
             foreach(var input in inputs)Require(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))).Equals(input.GetProperty("sha256").GetString(),StringComparison.OrdinalIgnoreCase),"same raw source");
-            var evaluation=evidence.GetProperty("postRestoreEvaluation");Require(evaluation.GetProperty("compileCount").GetInt32()==122,"122 compiler items");
-            var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Require(flags.Length==52,"52 exact evaluated switches");
+            var evaluation=evidence.GetProperty("postRestoreEvaluation");Require(evaluation.GetProperty("compileCount").GetInt32()==OS.Tooling.EfiContracts.CompileItems.Count,"complete compiler inventory");
+            var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Require(flags.Length==OS.Tooling.EfiContracts.DiagnosticProbes.Count,"complete evaluated diagnostic switches");
             foreach(var flag in flags)Require(flag.Value.GetString()==(enabled&&(flag.Name==Flag||Prerequisites.Contains(flag.Name,StringComparer.Ordinal))?"true":"false"),"evaluated "+flag.Name);
             using var pe=new PEReader(File.OpenRead(Path.Combine(dir,"OS.dll")));var md=pe.GetMetadataReader();Require(md.AssemblyReferences.Count==0&&md.GetString(md.GetAssemblyDefinition().Name)=="OS","actual no-stdlib OS");
             var types=md.TypeDefinitions.Where(h=>md.GetString(md.GetTypeDefinition(h).Name)=="M02UnexpectedVectorPanicAdapter").ToArray();Require(types.Length==(enabled?1:0),"compiled default adapter exclusion");
@@ -494,16 +457,6 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
         }
         return calls.ToArray();
     }
-    private const string ExtractFunctions="""
-        function LoadFunctions([string]$Path,[string[]]$Names) {
-            $ast=[Management.Automation.Language.Parser]::ParseFile($Path,[ref]$null,[ref]$null)
-            foreach($name in $Names) {
-                $f=$ast.Find({param($a) $a -is [Management.Automation.Language.FunctionDefinitionAst] -and $a.Name -ceq $name},$true)
-                if($null -eq $f){throw ('missing '+$name)}
-                . ([scriptblock]::Create($f.Extent.Text.Replace(('function '+$name+' '),('function global:'+$name+' '))))
-            }
-        }
-        """;
 
     private static string Member(string source, string signature)
     {
@@ -526,13 +479,16 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
     private static string Adapter(string source){int start=source.IndexOf("    private static class M02UnexpectedVectorPanicAdapter",StringComparison.Ordinal);Require(start>=0,"adapter");return source[start..source.IndexOf("#endif",start,StringComparison.Ordinal)];}
     private static string Hash(string text)=>Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(text)));
     private static string Scratch(string name){string p=Path.Combine(Root(),"artifacts/issue526-tests",name,Guid.NewGuid().ToString("N"));Directory.CreateDirectory(p);return p;}
-    private static Result Qemu(params string[] args)=>Process(Root(),"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File","scripts/run-qemu-smoke.ps1","-BootPolicy","Diagnostic","-DryRun",..args]);
-    private static Result PowerShell(string dir,string source,params string[] args){string path=Path.Combine(dir,"Test.ps1");File.WriteAllText(path,source);return Process(Root(),"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",path,..args]);}
+    private static Result Qemu(params string[] args)=>Tool(["qemu","smoke","--boot-policy","Diagnostic","--dry-run",..args]);
+    private static Result Tool(params string[] args) { var r=HostToolProcess.RunTool(args);return new(r.ExitCode,r.Output,r.Error); }
+    private static Result Profile(string endpoint,string[] args) {
+        var r=endpoint=="qemu"?HostToolProcess.RunTool(["qemu","smoke","--boot-policy","Diagnostic","--dry-run","--build-efi",..args]):HostToolProcess.ValidateEfiProfile(endpoint=="build",["--boot-policy","Diagnostic",..args]);
+        return new(r.ExitCode,r.Output,r.Error);
+    }
     private readonly record struct Result(int Code,string Output,string Error);
     private static Result Process(string root,string executable,params string[] args)
     {
         string dir=Scratch("process");var start=new ProcessStartInfo(executable){WorkingDirectory=root,UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
-        if(executable.Equals("powershell.exe",StringComparison.OrdinalIgnoreCase))start.Environment["PSModulePath"]=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32/WindowsPowerShell/v1.0/Modules")+Path.PathSeparator+(Environment.GetEnvironmentVariable("PSModulePath")??string.Empty);
         foreach(string arg in args)start.ArgumentList.Add(arg);DateTime began=DateTime.UtcNow;
         using var process=System.Diagnostics.Process.Start(start)!;var output=process.StandardOutput.ReadToEndAsync();var error=process.StandardError.ReadToEndAsync();bool timedOut=!process.WaitForExit(600000);if(timedOut){process.Kill(true);process.WaitForExit();}Task.WaitAll(output,error);
         File.WriteAllText(Path.Combine(dir,"stdout.log"),output.Result);File.WriteAllText(Path.Combine(dir,"stderr.log"),error.Result);

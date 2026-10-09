@@ -4,78 +4,44 @@ using OS.Std.Binary;
 
 internal static class VirtioPciIsrStatusTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.virtiopci.isr parses queue interrupt", TestParsesQueueInterrupt, ref failures);
-        Run("drivers.virtiopci.isr parses config change", TestParsesConfigChange, ref failures);
-        Run("drivers.virtiopci.isr preserves reserved bits", TestPreservesReservedBits, ref failures);
-        Run("drivers.virtiopci.isr plans one byte read", TestPlansOneByteRead, ref failures);
-        Run("drivers.virtiopci.isr default read plan result is not success", TestDefaultReadPlanResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio PCI ISR status host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtiopci.isr parses queue interrupt", HostLane.Fast, 0)]
     private static bool TestParsesQueueInterrupt()
     {
         VirtioPciIsrStatus status =
             VirtioPciIsrStatusParser.Parse(VirtioPciIsrStatusParser.QueueInterruptMask);
 
-        return status.RawStatus == VirtioPciIsrStatusParser.QueueInterruptMask
+        return HostCheck.Result(status.RawStatus == VirtioPciIsrStatusParser.QueueInterruptMask
             && status.HasQueueInterrupt
             && !status.HasDeviceConfigurationChange
-            && status.ReservedBits == 0;
+            && status.ReservedBits == 0);
     }
 
+    [HostTest("drivers.virtiopci.isr parses config change", HostLane.Fast, 1)]
     private static bool TestParsesConfigChange()
     {
         VirtioPciIsrStatus status =
             VirtioPciIsrStatusParser.Parse(VirtioPciIsrStatusParser.DeviceConfigurationChangeMask);
 
-        return status.RawStatus == VirtioPciIsrStatusParser.DeviceConfigurationChangeMask
+        return HostCheck.Result(status.RawStatus == VirtioPciIsrStatusParser.DeviceConfigurationChangeMask
             && !status.HasQueueInterrupt
             && status.HasDeviceConfigurationChange
-            && status.ReservedBits == 0;
+            && status.ReservedBits == 0);
     }
 
+    [HostTest("drivers.virtiopci.isr preserves reserved bits", HostLane.Fast, 2)]
     private static bool TestPreservesReservedBits()
     {
         const byte rawStatus = 0xAD;
         VirtioPciIsrStatus status = VirtioPciIsrStatusParser.Parse(rawStatus);
 
-        return status.RawStatus == rawStatus
+        return HostCheck.Result(status.RawStatus == rawStatus
             && status.HasQueueInterrupt
             && !status.HasDeviceConfigurationChange
-            && status.ReservedBits == (rawStatus & VirtioPciIsrStatusParser.ReservedBitsMask);
+            && status.ReservedBits == (rawStatus & VirtioPciIsrStatusParser.ReservedBitsMask));
     }
 
+    [HostTest("drivers.virtiopci.isr plans one byte read", HostLane.Fast, 3)]
     private static bool TestPlansOneByteRead()
     {
         VirtioPciBarApertureSet apertures = CreateApertures();
@@ -85,7 +51,7 @@ internal static class VirtioPciIsrStatusTests
         VirtioPciIsrReadPlanResult wrongAperture =
             VirtioPciIsrStatusParser.CreateReadPlan(apertures.CommonConfiguration);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioPciIsrReadPlanStatus.Success
             && result.Plan.Aperture.CapabilityType == VirtioPciCapabilityType.IsrStatus
             && result.Plan.RelativeOffset == VirtioPciIsrStatusParser.ReadOffset
@@ -99,14 +65,15 @@ internal static class VirtioPciIsrStatusTests
             && !VirtioPciIsrStatusParser.DrainsQueues
             && !VirtioPciIsrStatusParser.DispatchesPackets
             && !wrongAperture.Succeeded
-            && wrongAperture.Status == VirtioPciIsrReadPlanStatus.InvalidApertureCapability;
+            && wrongAperture.Status == VirtioPciIsrReadPlanStatus.InvalidApertureCapability);
     }
 
+    [HostTest("drivers.virtiopci.isr default read plan result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultReadPlanResultIsNotSuccess()
     {
         VirtioPciIsrReadPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioPciIsrReadPlanStatus.Success
             && result.Aperture.CapabilityType == default
@@ -114,7 +81,7 @@ internal static class VirtioPciIsrStatusTests
             && result.Plan.RelativeOffset == VirtioPciIsrStatusParser.ReadOffset
             && result.Plan.WidthBytes == VirtioPciIsrStatusParser.ReadWidthBytes
             && result.Plan.ReadClearsStatus == VirtioPciIsrStatusParser.IntxReadClearsStatus
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciIsrReadPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciIsrReadPlanResult>());
     }
 
     private static VirtioPciBarApertureSet CreateApertures()

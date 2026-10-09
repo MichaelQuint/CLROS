@@ -35,51 +35,7 @@ internal static class NativeAppSelectionLoaderTests
     private static readonly Guid EspGuid = new("c12a7328-f81f-11d2-ba4b-00a0c93ec93b");
     private static readonly Guid UniquePartitionGuid = new("dddddddd-1111-2222-3333-eeeeeeeeeeee");
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("appmodel selection loader composes image inputs", TestComposesImageInputs, ref failures);
-        Run("appmodel selection loader reports primary gpt source", TestReportsPrimaryGptSource, ref failures);
-        Run("appmodel selection loader gpt falls back to backup", TestGptFallsBackToBackup, ref failures);
-        Run("appmodel selection loader reports backup gpt source", TestReportsBackupGptSource, ref failures);
-        Run("appmodel selection loader rejects manifest load", TestRejectsManifestLoad, ref failures);
-        Run("appmodel selection loader reports manifest scratch capacity", TestReportsManifestScratchCapacity, ref failures);
-        Run("appmodel selection loader rejects package load", TestRejectsPackageLoad, ref failures);
-        Run("appmodel selection loader reports package scratch capacity", TestReportsPackageScratchCapacity, ref failures);
-        Run("appmodel selection loader rejects launch capability", TestRejectsLaunchCapability, ref failures);
-        Run("appmodel selection loader rejects descriptor failure", TestRejectsDescriptorFailure, ref failures);
-        Run("appmodel selection loader default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app selection loader host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel selection loader composes image inputs", HostLane.Fast, 0)]
     private static bool TestComposesImageInputs()
     {
         byte[] disk = CreateDiskImage(ValidManifest(AppPath), ValidPackage(AppPath), hasEsp: true, hasPackage: true);
@@ -87,7 +43,7 @@ internal static class NativeAppSelectionLoaderTests
 
         NativeAppSelectionLoadResult result = Load(disk, scratch, NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == NativeAppSelectionLoadStatus.Success
             && result.ManifestLoad.GptCrcStatus == GptPartitionTableCrcStatus.Validated
             && result.PackageLoad.GptCrcStatus == GptPartitionTableCrcStatus.Validated
@@ -98,9 +54,10 @@ internal static class NativeAppSelectionLoaderTests
             && result.Descriptor.Descriptor.PayloadHeader.EntryOffset == NativeAppPayloadHeader.HeaderSize
             && result.Descriptor.Descriptor.NetworkMode == NativeManifestNetworkMode.Dhcp
             && result.Descriptor.Descriptor.LogMode == NativeManifestLogMode.Serial
-            && FieldEquals(scratch.ManifestBuffer, result.ManifestLoad.Manifest.AppPath, AppPath);
+            && FieldEquals(scratch.ManifestBuffer, result.ManifestLoad.Manifest.AppPath, AppPath));
     }
 
+    [HostTest("appmodel selection loader reports primary gpt source", HostLane.Fast, 1)]
     private static bool TestReportsPrimaryGptSource()
     {
         byte[] disk = CreateDiskImage(ValidManifest(AppPath), ValidPackage(AppPath), hasEsp: true, hasPackage: true);
@@ -111,11 +68,12 @@ internal static class NativeAppSelectionLoaderTests
             scratch,
             NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.ManifestGptTableSource == GptPartitionTableSource.Primary
-            && result.PackageGptTableSource == GptPartitionTableSource.Primary;
+            && result.PackageGptTableSource == GptPartitionTableSource.Primary);
     }
 
+    [HostTest("appmodel selection loader gpt falls back to backup", HostLane.Fast, 2)]
     private static bool TestGptFallsBackToBackup()
     {
         byte[] disk = CreateDiskImage(ValidManifest(AppPath), ValidPackage(AppPath), hasEsp: true, hasPackage: true);
@@ -127,7 +85,7 @@ internal static class NativeAppSelectionLoaderTests
             scratch,
             NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == NativeAppSelectionLoadStatus.Success
             && result.ManifestLoad.Succeeded
             && result.PackageLoad.Succeeded
@@ -136,9 +94,10 @@ internal static class NativeAppSelectionLoaderTests
             && ReadUInt64(scratch.PrimaryHeader, 24) == BackupHeaderLba
             && ReadUInt64(scratch.PrimaryHeader, 72) == BackupPartitionEntryLba
             && result.Descriptor.Succeeded
-            && result.Descriptor.Descriptor.AppBinaryLength == AppContentLength;
+            && result.Descriptor.Descriptor.AppBinaryLength == AppContentLength);
     }
 
+    [HostTest("appmodel selection loader reports backup gpt source", HostLane.Fast, 3)]
     private static bool TestReportsBackupGptSource()
     {
         byte[] disk = CreateDiskImage(ValidManifest(AppPath), ValidPackage(AppPath), hasEsp: true, hasPackage: true);
@@ -150,11 +109,12 @@ internal static class NativeAppSelectionLoaderTests
             scratch,
             NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.ManifestGptTableSource == GptPartitionTableSource.Backup
-            && result.PackageGptTableSource == GptPartitionTableSource.Backup;
+            && result.PackageGptTableSource == GptPartitionTableSource.Backup);
     }
 
+    [HostTest("appmodel selection loader rejects manifest load", HostLane.Fast, 4)]
     private static bool TestRejectsManifestLoad()
     {
         byte[] disk = CreateDiskImage(MalformedManifest(), ValidPackage(AppPath), hasEsp: true, hasPackage: true);
@@ -162,12 +122,13 @@ internal static class NativeAppSelectionLoaderTests
 
         NativeAppSelectionLoadResult result = Load(disk, scratch, NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NativeAppSelectionLoadStatus.ManifestLoadFailed
             && result.ManifestLoad.Status == NativeManifestLoadStatus.ManifestParseFailed
-            && result.ManifestLoad.ManifestStatus == NativeManifestParseStatus.InvalidNetworkMode;
+            && result.ManifestLoad.ManifestStatus == NativeManifestParseStatus.InvalidNetworkMode);
     }
 
+    [HostTest("appmodel selection loader rejects package load", HostLane.Fast, 6)]
     private static bool TestRejectsPackageLoad()
     {
         byte[] disk = CreateDiskImage(ValidManifest(AppPath), ValidPackage(AppPath), hasEsp: true, hasPackage: false);
@@ -175,14 +136,15 @@ internal static class NativeAppSelectionLoaderTests
 
         NativeAppSelectionLoadResult result = Load(disk, scratch, NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NativeAppSelectionLoadStatus.PackageLoadFailed
             && result.ManifestLoad.Succeeded
             && result.PackageLoad.Status == OsPackageLoadStatus.Fat32ReadFailed
             && result.PackageLoad.Fat32Status == Fat32Status.MissingFile
-            && result.PackageParse.Status == OsPackageStatus.MissingFile;
+            && result.PackageParse.Status == OsPackageStatus.MissingFile);
     }
 
+    [HostTest("appmodel selection loader reports manifest scratch capacity", HostLane.Fast, 5)]
     private static bool TestReportsManifestScratchCapacity()
     {
         byte[] manifest = ValidManifest(AppPath);
@@ -192,15 +154,16 @@ internal static class NativeAppSelectionLoaderTests
 
         NativeAppSelectionLoadResult result = Load(disk, scratch, NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NativeAppSelectionLoadStatus.ManifestLoadFailed
             && result.ManifestLoad.Status == NativeManifestLoadStatus.Fat32ReadFailed
             && result.ManifestLoad.Fat32Status == Fat32Status.FileDestinationTooSmall
             && result.ManifestLoad.ManifestBytesRequired == manifest.Length
             && result.ManifestLoad.ManifestBufferBytesAvailable == scratch.ManifestBuffer.Length
-            && result.PackageLoad.Status == OsPackageLoadStatus.Success;
+            && result.PackageLoad.Status == OsPackageLoadStatus.Success);
     }
 
+    [HostTest("appmodel selection loader reports package scratch capacity", HostLane.Fast, 7)]
     private static bool TestReportsPackageScratchCapacity()
     {
         byte[] manifest = ValidManifest(AppPath);
@@ -210,16 +173,17 @@ internal static class NativeAppSelectionLoaderTests
 
         NativeAppSelectionLoadResult result = Load(disk, scratch, NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NativeAppSelectionLoadStatus.PackageLoadFailed
             && result.ManifestLoad.Succeeded
             && result.PackageLoad.Status == OsPackageLoadStatus.Fat32ReadFailed
             && result.PackageLoad.Fat32Status == Fat32Status.FileDestinationTooSmall
             && result.PackageLoad.PackageBytesRequired == package.Length
             && result.PackageLoad.PackageBufferBytesAvailable == scratch.PackageBuffer.Length
-            && result.PackageParse.Status == OsPackageStatus.MissingFile;
+            && result.PackageParse.Status == OsPackageStatus.MissingFile);
     }
 
+    [HostTest("appmodel selection loader rejects launch capability", HostLane.Fast, 8)]
     private static bool TestRejectsLaunchCapability()
     {
         byte[] disk = CreateDiskImage(ValidManifest(AppPath), ValidPackage(AppPath), hasEsp: true, hasPackage: true);
@@ -227,15 +191,16 @@ internal static class NativeAppSelectionLoaderTests
 
         NativeAppSelectionLoadResult result = Load(disk, scratch, NativeAppLaunchRuntimeCapabilities.PackageStorage);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NativeAppSelectionLoadStatus.LaunchPlanFailed
             && result.ManifestLoad.Succeeded
             && result.PackageLoad.Succeeded
             && result.PackageParse.Succeeded
             && result.LaunchPlan.Status == NativeAppLaunchStatus.MissingRuntimeCapabilities
-            && result.LaunchPlan.MissingRuntimeCapabilities == NativeAppLaunchRuntimeCapabilities.Network;
+            && result.LaunchPlan.MissingRuntimeCapabilities == NativeAppLaunchRuntimeCapabilities.Network);
     }
 
+    [HostTest("appmodel selection loader rejects descriptor failure", HostLane.Fast, 9)]
     private static bool TestRejectsDescriptorFailure()
     {
         byte[] disk = CreateDiskImage(ValidManifest(AppPath), ValidPackage("apps/other.bin"), hasEsp: true, hasPackage: true);
@@ -243,22 +208,23 @@ internal static class NativeAppSelectionLoaderTests
 
         NativeAppSelectionLoadResult result = Load(disk, scratch, NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NativeAppSelectionLoadStatus.LaunchDescriptorFailed
             && result.ManifestLoad.Succeeded
             && result.PackageLoad.Succeeded
             && result.PackageParse.Succeeded
             && result.LaunchPlan.Succeeded
             && result.Descriptor.Status == NativeAppLaunchDescriptorStatus.PackageFileMissing
-            && result.Descriptor.PackageFileStatus == OsPackageFileSystemStatus.MissingFile;
+            && result.Descriptor.PackageFileStatus == OsPackageFileSystemStatus.MissingFile);
     }
 
+    [HostTest("appmodel selection loader default result is not success", HostLane.Fast, 10)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAppSelectionLoadResult result = default;
 
-        return !result.Succeeded
-            && result.Status == NativeAppSelectionLoadStatus.Success;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == NativeAppSelectionLoadStatus.Success);
     }
 
     private static NativeAppSelectionLoadResult Load(

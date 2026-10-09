@@ -10,52 +10,7 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
     private const ulong DataPhysicalAddress = 0x0020_0000UL;
     private const ulong StatusPhysicalAddress = 0x0030_0000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("storage.virtioblk descriptor writer writes three descriptors", TestWritesThreeDescriptors, ref failures);
-        Run("storage.virtioblk descriptor writer writes available ring head", TestWritesAvailableRingHead, ref failures);
-        Run("storage.virtioblk descriptor writer preserves unrelated memory", TestPreservesUnrelatedMemory, ref failures);
-        Run("storage.virtioblk descriptor writer rejects failed plan", TestRejectsFailedPlan, ref failures);
-        Run("storage.virtioblk descriptor writer rejects undersized queue memory", TestRejectsUndersizedQueueMemory, ref failures);
-        Run("storage.virtioblk descriptor writer rejects descriptor index range", TestRejectsDescriptorIndexRange, ref failures);
-        Run("storage.virtioblk descriptor writer rejects invalid available slot", TestRejectsInvalidAvailableSlot, ref failures);
-        Run("storage.virtioblk descriptor writer rejects arithmetic overflow", TestRejectsArithmeticOverflow, ref failures);
-        Run(
-            "storage.virtioblk descriptor writer default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio block descriptor-chain writer host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.virtioblk descriptor writer writes three descriptors", HostLane.Fast, 0)]
     private static bool TestWritesThreeDescriptors()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -65,7 +20,7 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
             availableRingIndex: 9);
         if (!descriptorPlan.Succeeded || !queue.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] queueMemory = new byte[(int)queue.Plan.EndOffset];
@@ -79,11 +34,11 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
             result.NextAvailableRingIndex != 10 ||
             result.DescriptorsWritten != VirtioBlockDescriptorChainPlan.RequiredDescriptorCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioBlockDescriptorChainPlan plan = descriptorPlan.Plan;
-        return DescriptorMatches(
+        return HostCheck.Result(DescriptorMatches(
                 queueMemory,
                 plan.RequestHeaderDescriptor.DescriptorTableOffset,
                 HeaderPhysicalAddress,
@@ -108,9 +63,10 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
             && !VirtioBlockDescriptorChainWriter.PerformsMmio
             && !VirtioBlockDescriptorChainWriter.NotifiesDevice
             && !VirtioBlockDescriptorChainWriter.WaitsForUsedRingCompletion
-            && !VirtioBlockDescriptorChainWriter.PerformsDiskRead;
+            && !VirtioBlockDescriptorChainWriter.PerformsDiskRead);
     }
 
+    [HostTest("storage.virtioblk descriptor writer writes available ring head", HostLane.Fast, 1)]
     private static bool TestWritesAvailableRingHead()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -120,7 +76,7 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
             availableRingIndex: 9);
         if (!descriptorPlan.Succeeded || !queue.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] queueMemory = new byte[(int)queue.Plan.EndOffset];
@@ -130,7 +86,7 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
             VirtioBlockDescriptorChainWriter.Write(descriptorPlan, queue, queueMemory);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioBlockDescriptorChainPlan plan = descriptorPlan.Plan;
@@ -139,14 +95,15 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
         int availableEntryOffset = (int)plan.AvailableRingEntryOffset;
         int previousAvailableEntryOffset = availableEntryOffset - 2;
 
-        return ReadUInt16(queueMemory, availableIndexOffset) == 10
+        return HostCheck.Result(ReadUInt16(queueMemory, availableIndexOffset) == 10
             && ReadUInt16(queueMemory, availableEntryOffset) == plan.HeadDescriptorIndex
             && queueMemory[availableFlagsOffset] == 0x5a
             && queueMemory[availableFlagsOffset + 1] == 0x5a
             && queueMemory[previousAvailableEntryOffset] == 0x5a
-            && queueMemory[previousAvailableEntryOffset + 1] == 0x5a;
+            && queueMemory[previousAvailableEntryOffset + 1] == 0x5a);
     }
 
+    [HostTest("storage.virtioblk descriptor writer preserves unrelated memory", HostLane.Fast, 2)]
     private static bool TestPreservesUnrelatedMemory()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -156,7 +113,7 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
             availableRingIndex: 9);
         if (!descriptorPlan.Succeeded || !queue.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] queueMemory = new byte[(int)queue.Plan.EndOffset];
@@ -171,10 +128,11 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
         VirtioBlockDescriptorChainWriterResult result =
             VirtioBlockDescriptorChainWriter.Write(descriptorPlan, queue, queueMemory);
 
-        return result.Succeeded &&
-            MemoryOutsideWriterRangesUnchanged(queueMemory, original, descriptorPlan.Plan);
+        return HostCheck.Result(result.Succeeded &&
+            MemoryOutsideWriterRangesUnchanged(queueMemory, original, descriptorPlan.Plan));
     }
 
+    [HostTest("storage.virtioblk descriptor writer rejects failed plan", HostLane.Fast, 3)]
     private static bool TestRejectsFailedPlan()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -185,15 +143,16 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
         VirtioBlockDescriptorChainWriterResult result =
             VirtioBlockDescriptorChainWriter.Write(descriptorPlan, queue, queueMemory);
 
-        return !descriptorPlan.Succeeded
+        return HostCheck.Result(!descriptorPlan.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockDescriptorChainWriterStatus.DescriptorPlanFailed
             && result.DescriptorPlanStatus == VirtioBlockDescriptorChainPlanStatus.TransactionPlanFailed
             && result.QueuePlanStatus == VirtqueueSplitRingPlanStatus.Success
             && result.DescriptorsWritten == 0
-            && AllBytesEqual(queueMemory, 0x7e);
+            && AllBytesEqual(queueMemory, 0x7e));
     }
 
+    [HostTest("storage.virtioblk descriptor writer rejects undersized queue memory", HostLane.Fast, 4)]
     private static bool TestRejectsUndersizedQueueMemory()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -203,7 +162,7 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
             availableRingIndex: 9);
         if (!descriptorPlan.Succeeded || !queue.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] queueMemory = new byte[(int)queue.Plan.EndOffset - 1];
@@ -212,12 +171,13 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
         VirtioBlockDescriptorChainWriterResult result =
             VirtioBlockDescriptorChainWriter.Write(descriptorPlan, queue, queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockDescriptorChainWriterStatus.QueueMemoryTooSmall
             && result.DescriptorsWritten == 0
-            && AllBytesEqual(queueMemory, 0xa5);
+            && AllBytesEqual(queueMemory, 0xa5));
     }
 
+    [HostTest("storage.virtioblk descriptor writer rejects descriptor index range", HostLane.Fast, 5)]
     private static bool TestRejectsDescriptorIndexRange()
     {
         VirtqueueSplitRingPlanResult plannedQueue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -228,7 +188,7 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
             availableRingIndex: 0);
         if (!descriptorPlan.Succeeded || !smallerQueue.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] queueMemory = new byte[(int)smallerQueue.Plan.EndOffset];
@@ -237,11 +197,12 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
         VirtioBlockDescriptorChainWriterResult result =
             VirtioBlockDescriptorChainWriter.Write(descriptorPlan, smallerQueue, queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockDescriptorChainWriterStatus.DescriptorIndexOutOfRange
-            && AllBytesEqual(queueMemory, 0x44);
+            && AllBytesEqual(queueMemory, 0x44));
     }
 
+    [HostTest("storage.virtioblk descriptor writer rejects invalid available slot", HostLane.Fast, 6)]
     private static bool TestRejectsInvalidAvailableSlot()
     {
         VirtqueueSplitRingPlanResult plannedQueue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -252,7 +213,7 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
             availableRingIndex: 7);
         if (!descriptorPlan.Succeeded || !smallerQueue.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] queueMemory = new byte[(int)smallerQueue.Plan.EndOffset];
@@ -261,11 +222,12 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
         VirtioBlockDescriptorChainWriterResult result =
             VirtioBlockDescriptorChainWriter.Write(descriptorPlan, smallerQueue, queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockDescriptorChainWriterStatus.InvalidAvailableRingSlot
-            && AllBytesEqual(queueMemory, 0x33);
+            && AllBytesEqual(queueMemory, 0x33));
     }
 
+    [HostTest("storage.virtioblk descriptor writer rejects arithmetic overflow", HostLane.Fast, 7)]
     private static bool TestRejectsArithmeticOverflow()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(
@@ -277,7 +239,7 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
             availableRingIndex: 0);
         if (!descriptorPlan.Succeeded || !queue.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> queueMemory = stackalloc byte[16];
@@ -286,11 +248,12 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
         VirtioBlockDescriptorChainWriterResult result =
             VirtioBlockDescriptorChainWriter.Write(descriptorPlan, queue, queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockDescriptorChainWriterStatus.ArithmeticOverflow
-            && AllBytesEqual(queueMemory, 0x22);
+            && AllBytesEqual(queueMemory, 0x22));
     }
 
+    [HostTest("storage.virtioblk descriptor writer default result is not success", HostLane.Fast, 8)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioBlockDescriptorChainWriterResult result = default;
@@ -299,7 +262,7 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
             VirtioBlockDescriptorChainPlanStatus.Success,
             VirtqueueSplitRingPlanStatus.Success);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockDescriptorChainWriterStatus.Success
             && result.DescriptorPlanStatus == VirtioBlockDescriptorChainPlanStatus.Success
@@ -315,7 +278,7 @@ internal static class StorageVirtioBlockDescriptorChainWriterTests
             && failed.HeadDescriptorIndex == 0
             && failed.NextAvailableRingIndex == 0
             && failed.DescriptorsWritten == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDescriptorChainWriterResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockDescriptorChainWriterResult>());
     }
 
     private static VirtioBlockDescriptorChainPlanResult CreateDescriptorPlan(

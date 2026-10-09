@@ -6,45 +6,7 @@ internal static class BootPageAllocatorPlanTests
 {
     private const ulong PageSize = BootMemoryRegionRecord.PageSize;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("memory.boot freelist plans usable ranges", TestPlansUsableRanges, ref failures);
-        Run("memory.boot freelist rejects invalid page size", TestRejectsInvalidPageSize, ref failures);
-        Run("memory.boot freelist rejects overlapping reservations", TestRejectsOverlappingReservations, ref failures);
-        Run("memory.boot freelist reports destination capacity", TestReportsDestinationCapacity, ref failures);
-        Run("memory.boot freelist rejects arithmetic overflow", TestRejectsArithmeticOverflow, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Boot page allocator plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("memory.boot freelist plans usable ranges", HostLane.Fast, 0)]
     private static bool TestPlansUsableRanges()
     {
         Span<BootMemoryUsableRange> usable = stackalloc BootMemoryUsableRange[2];
@@ -62,7 +24,7 @@ internal static class BootPageAllocatorPlanTests
             reserved,
             freeSegments);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == BootPageAllocatorPlanStatus.Success
             && result.UsableRangeCount == 2
             && result.ReservedRangeCount == 2
@@ -83,9 +45,10 @@ internal static class BootPageAllocatorPlanTests
             && freeSegments[1].PhysicalStart == 0x300000
             && freeSegments[1].PhysicalEndExclusive == 0x300000 + (6 * PageSize)
             && freeSegments[1].PageCount == 6
-            && freeSegments[1].ByteLength == 6 * PageSize;
+            && freeSegments[1].ByteLength == 6 * PageSize);
     }
 
+    [HostTest("memory.boot freelist rejects invalid page size", HostLane.Fast, 1)]
     private static bool TestRejectsInvalidPageSize()
     {
         Span<BootMemoryUsableRange> usable = stackalloc BootMemoryUsableRange[1];
@@ -104,15 +67,16 @@ internal static class BootPageAllocatorPlanTests
             reserved,
             destination);
 
-        return !zero.Succeeded
+        return HostCheck.Result(!zero.Succeeded
             && zero.Status == BootPageAllocatorPlanStatus.InvalidPageSize
             && zero.RequiredFreeSegmentCapacity == 0
             && zero.InvalidUsableRangeIndex == -1
             && zero.InvalidReservedRangeIndex == -1
             && !notPowerOfTwo.Succeeded
-            && notPowerOfTwo.Status == BootPageAllocatorPlanStatus.InvalidPageSize;
+            && notPowerOfTwo.Status == BootPageAllocatorPlanStatus.InvalidPageSize);
     }
 
+    [HostTest("memory.boot freelist rejects overlapping reservations", HostLane.Fast, 2)]
     private static bool TestRejectsOverlappingReservations()
     {
         Span<BootMemoryUsableRange> usable = stackalloc BootMemoryUsableRange[1];
@@ -140,7 +104,7 @@ internal static class BootPageAllocatorPlanTests
             overlapsReserved,
             emptyDestination);
 
-        return !usableOverlap.Succeeded
+        return HostCheck.Result(!usableOverlap.Succeeded
             && usableOverlap.Status == BootPageAllocatorPlanStatus.OverlappingReservedRange
             && usableOverlap.InvalidReservedRangeIndex == 0
             && usableOverlap.InvalidUsableRangeIndex == -1
@@ -152,9 +116,10 @@ internal static class BootPageAllocatorPlanTests
             && !reservedOverlap.Succeeded
             && reservedOverlap.Status == BootPageAllocatorPlanStatus.OverlappingReservedRange
             && reservedOverlap.InvalidReservedRangeIndex == 1
-            && reservedOverlap.RequiredFreeSegmentCapacity == 0;
+            && reservedOverlap.RequiredFreeSegmentCapacity == 0);
     }
 
+    [HostTest("memory.boot freelist reports destination capacity", HostLane.Fast, 3)]
     private static bool TestReportsDestinationCapacity()
     {
         Span<BootMemoryUsableRange> usable = stackalloc BootMemoryUsableRange[2];
@@ -171,7 +136,7 @@ internal static class BootPageAllocatorPlanTests
             reserved,
             tooSmall);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == BootPageAllocatorPlanStatus.FreeSegmentDestinationTooSmall
             && result.UsableRangeCount == 2
             && result.ReservedRangeCount == 0
@@ -181,9 +146,10 @@ internal static class BootPageAllocatorPlanTests
             && result.TotalFreePages == 2
             && result.TotalFreeBytes == 2 * PageSize
             && tooSmall[0].SourceUsableRangeIndex == 77
-            && tooSmall[0].PhysicalStart == 0x770000;
+            && tooSmall[0].PhysicalStart == 0x770000);
     }
 
+    [HostTest("memory.boot freelist rejects arithmetic overflow", HostLane.Fast, 4)]
     private static bool TestRejectsArithmeticOverflow()
     {
         Span<BootMemoryUsableRange> pageByteOverflow = stackalloc BootMemoryUsableRange[1];
@@ -218,11 +184,11 @@ internal static class BootPageAllocatorPlanTests
             reserved,
             destination);
 
-        return !pageOverflowResult.Succeeded
+        return HostCheck.Result(!pageOverflowResult.Succeeded
             && pageOverflowResult.Status == BootPageAllocatorPlanStatus.PageByteCountOverflow
             && pageOverflowResult.InvalidUsableRangeIndex == 0
             && !addressOverflowResult.Succeeded
-            && addressOverflowResult.Status == BootPageAllocatorPlanStatus.AddressRangeOverflow;
+            && addressOverflowResult.Status == BootPageAllocatorPlanStatus.AddressRangeOverflow);
     }
 
     private static BootMemoryUsableRange Usable(

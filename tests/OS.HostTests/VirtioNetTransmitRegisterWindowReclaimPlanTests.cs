@@ -24,76 +24,19 @@ internal static class VirtioNetTransmitRegisterWindowReclaimPlanTests
     private const ulong TxHeaderPhysicalAddress = 0x0050_0000UL;
     private const ulong TxFramePhysicalAddress = 0x0060_0000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run(
-            "drivers.virtionet.tx.reclaim.windowexec composes readiness completion ownership",
-            TestComposesReadinessCompletionOwnership,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.reclaim.windowexec default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.reclaim.windowexec rejects failed readiness",
-            TestRejectsFailedReadiness,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.reclaim.windowexec rejects no completion",
-            TestRejectsNoCompletion,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.reclaim.windowexec rejects ownership mismatch",
-            TestRejectsOwnershipMismatch,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.reclaim.windowexec preserves no-live-mmio boundary",
-            TestPreservesNoLiveMmioBoundary,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio-net TX register-window reclaim host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtionet.tx.reclaim.windowexec default result is not success", HostLane.Fast, 1)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioNetTransmitRegisterWindowReclaimResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioNetTransmitRegisterWindowReclaimStatus.Success
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetTransmitRegisterWindowReclaimResult>();
+                VirtioNetTransmitRegisterWindowReclaimResult>());
     }
 
+    [HostTest("drivers.virtionet.tx.reclaim.windowexec composes readiness completion ownership", HostLane.Fast, 0)]
     private static bool TestComposesReadinessCompletionOwnership()
     {
         TestContext context = CreateContext();
@@ -126,7 +69,7 @@ internal static class VirtioNetTransmitRegisterWindowReclaimPlanTests
                 previousUsedIndex,
                 queueMemory);
 
-        return readiness.Succeeded
+        return HostCheck.Result(readiness.Succeeded
             && result.Succeeded
             && result.Status == VirtioNetTransmitRegisterWindowReclaimStatus.Success
             && result.ReadinessStatus == VirtioNetTransmitRegisterWindowReadinessStatus.Success
@@ -173,9 +116,10 @@ internal static class VirtioNetTransmitRegisterWindowReclaimPlanTests
             && states[0] == VirtioNetTransmitDescriptorOwnershipState.Free
             && states[1] == VirtioNetTransmitDescriptorOwnershipState.Free
             && states[2] == VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free;
+            && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
+    [HostTest("drivers.virtionet.tx.reclaim.windowexec rejects failed readiness", HostLane.Fast, 2)]
     private static bool TestRejectsFailedReadiness()
     {
         TestContext context = CreateContext();
@@ -204,7 +148,7 @@ internal static class VirtioNetTransmitRegisterWindowReclaimPlanTests
                 previousUsedIndex: 2,
                 queueMemory);
 
-        return !setupExecution.Succeeded
+        return HostCheck.Result(!setupExecution.Succeeded
             && !readiness.Succeeded
             && !result.Succeeded
             && result.Status == VirtioNetTransmitRegisterWindowReclaimStatus.ReadinessFailed
@@ -217,9 +161,10 @@ internal static class VirtioNetTransmitRegisterWindowReclaimPlanTests
             && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free)
             && BytesAreZero(txHeader)
             && BytesAreZero(queueMemory)
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("drivers.virtionet.tx.reclaim.windowexec rejects no completion", HostLane.Fast, 3)]
     private static bool TestRejectsNoCompletion()
     {
         TestContext context = CreateContext();
@@ -245,7 +190,7 @@ internal static class VirtioNetTransmitRegisterWindowReclaimPlanTests
                 previousUsedIndex,
                 queueMemory);
 
-        return readiness.Succeeded
+        return HostCheck.Result(readiness.Succeeded
             && !result.Succeeded
             && result.Status == VirtioNetTransmitRegisterWindowReclaimStatus.CompletionPlanFailed
             && result.ReadinessStatus == VirtioNetTransmitRegisterWindowReadinessStatus.Success
@@ -262,9 +207,10 @@ internal static class VirtioNetTransmitRegisterWindowReclaimPlanTests
             && states[0] == VirtioNetTransmitDescriptorOwnershipState.InFlight
             && states[1] == VirtioNetTransmitDescriptorOwnershipState.InFlight
             && states[2] == VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free;
+            && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
+    [HostTest("drivers.virtionet.tx.reclaim.windowexec rejects ownership mismatch", HostLane.Fast, 4)]
     private static bool TestRejectsOwnershipMismatch()
     {
         TestContext context = CreateContext();
@@ -298,7 +244,7 @@ internal static class VirtioNetTransmitRegisterWindowReclaimPlanTests
                 previousUsedIndex,
                 queueMemory);
 
-        return readiness.Succeeded
+        return HostCheck.Result(readiness.Succeeded
             && !result.Succeeded
             && result.Status == VirtioNetTransmitRegisterWindowReclaimStatus.OwnershipReclaimFailed
             && result.CompletionPlanStatus == VirtioNetTransmitCompletionPlanStatus.Success
@@ -308,9 +254,10 @@ internal static class VirtioNetTransmitRegisterWindowReclaimPlanTests
             && result.ReclaimedDescriptorCount == VirtioNetTransmitLifecycle.RequiredDescriptorCount
             && result.DescriptorsFreed == 0
             && states[readiness.HeaderDescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[readiness.FrameDescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.InFlight;
+            && states[readiness.FrameDescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("drivers.virtionet.tx.reclaim.windowexec preserves no-live-mmio boundary", HostLane.Fast, 5)]
     private static bool TestPreservesNoLiveMmioBoundary()
     {
         TestContext context = CreateContext();
@@ -343,7 +290,7 @@ internal static class VirtioNetTransmitRegisterWindowReclaimPlanTests
                 previousUsedIndex,
                 queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioNetTransmitRegisterWindowReclaimPlanner.RequiresSuccessfulRegisterWindowReadiness
             && VirtioNetTransmitRegisterWindowReclaimPlanner.ConsumesRegisterWindowNotificationProvenance
             && VirtioNetTransmitRegisterWindowReclaimPlanner.RequiresCallerOwnedQueueMemory
@@ -368,7 +315,7 @@ internal static class VirtioNetTransmitRegisterWindowReclaimPlanTests
             && !VirtioNetTransmitRegisterWindowReclaimPlanner.WritesTransmitHeader
             && !VirtioNetTransmitRegisterWindowReclaimPlanner.InvokesRegisterWindowAccessExecutor
             && !VirtioNetTransmitRegisterWindowReclaimPlanner.WritesCallerOwnedNotifyWindowBuffer
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetTransmitRegisterWindowReclaimResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetTransmitRegisterWindowReclaimResult>());
     }
 
     private static VirtioNetTransmitRegisterWindowReadinessResult CreateSuccessfulReadiness(

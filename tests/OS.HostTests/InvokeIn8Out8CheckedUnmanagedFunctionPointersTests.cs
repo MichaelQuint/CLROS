@@ -13,7 +13,7 @@ internal static unsafe class InvokeIn8Out8CheckedUnmanagedFunctionPointersTests
     private static int _in8CallCount;
     private static ushort _lastIn8Port;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START m02.003");
@@ -66,25 +66,8 @@ internal static unsafe class InvokeIn8Out8CheckedUnmanagedFunctionPointersTests
 
     private static void Run(string name, Func<bool> test, ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + name + " " + exception.GetType().Name + ": " + exception.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestBindsAndInvokesCheckedUnmanagedTargets()

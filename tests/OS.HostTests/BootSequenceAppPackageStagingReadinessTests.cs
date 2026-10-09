@@ -7,53 +7,8 @@ using OS.Storage;
 
 internal static class BootSequenceAppPackageStagingReadinessTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("boot.sequence app package staging ready", TestAppPackageStagingReady, ref failures);
-        Run(
-            "boot.sequence app package staging rejects readiness failure",
-            TestAppPackageStagingRejectsReadinessFailure,
-            ref failures);
-        Run(
-            "boot.sequence app package staging blocks default result",
-            TestAppPackageStagingBlocksDefaultResult,
-            ref failures);
-        Run(
-            "boot.sequence app package staging preserves default markers",
-            TestAppPackageStagingPreservesDefaultMarkers,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Boot sequence app package staging tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("boot.sequence app package staging ready", HostLane.Fast, 0)]
     private static bool TestAppPackageStagingReady()
     {
         NativeAppPackageStagingReadinessResult readiness = CreateReadyReadiness();
@@ -62,13 +17,14 @@ internal static class BootSequenceAppPackageStagingReadinessTests
 
         BootResult result = BootSequence.RunAppPackageStagingReadiness(readiness, serial, events);
 
-        return readiness.Succeeded
+        return HostCheck.Result(readiness.Succeeded
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.AppPackageStagingReady
-            && events.Snapshot()[0] == BootSequence.AppPackageStagingReady;
+            && events.Snapshot()[0] == BootSequence.AppPackageStagingReady);
     }
 
+    [HostTest("boot.sequence app package staging rejects readiness failure", HostLane.Fast, 1)]
     private static bool TestAppPackageStagingRejectsReadinessFailure()
     {
         NativeAppPackageStagingReadinessResult readiness = NativeAppPackageStagingReadinessResult.Fail(
@@ -98,7 +54,7 @@ internal static class BootSequenceAppPackageStagingReadinessTests
 
         BootResult result = BootSequence.RunAppPackageStagingReadiness(readiness, serial, events);
 
-        return !readiness.Succeeded
+        return HostCheck.Result(!readiness.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
                 nameof(AppPackageStagingReadinessStatus.StagingReadinessFailed),
@@ -108,9 +64,10 @@ internal static class BootSequenceAppPackageStagingReadinessTests
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence app package staging blocks default result", HostLane.Fast, 2)]
     private static bool TestAppPackageStagingBlocksDefaultResult()
     {
         NativeAppPackageStagingReadinessResult readiness = default;
@@ -122,15 +79,16 @@ internal static class BootSequenceAppPackageStagingReadinessTests
 
         BootResult result = BootSequence.RunAppPackageStagingReadiness(readiness, serial, events);
 
-        return !readiness.IsInitialized
+        return HostCheck.Result(!readiness.IsInitialized
             && !readiness.Succeeded
             && !result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && expectedMarker.Contains("initialized=false", StringComparison.Ordinal)
-            && expectedMarker.Contains("readiness=Success", StringComparison.Ordinal);
+            && expectedMarker.Contains("readiness=Success", StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence app package staging preserves default markers", HostLane.Fast, 3)]
     private static bool TestAppPackageStagingPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -139,20 +97,20 @@ internal static class BootSequenceAppPackageStagingReadinessTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.AppPackageStagingReady)
+        return HostCheck.Result(!serial.Contains(BootSequence.AppPackageStagingReady)
             && !serial.ContainsPrefix(BootSequence.AppPackageStagingNotReadyPrefix)
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppPackageStagingReadinessResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppPackageStagingReadinessResult>());
     }
 
     private static NativeAppPackageStagingReadinessResult CreateReadyReadiness()

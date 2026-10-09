@@ -15,7 +15,7 @@ internal static unsafe class X64Cr3LoadStubPlanTests
     private const string LoadTestName = "m01.013.01.load";
 
 #if !M01_013_LOAD_FOCUSED && !M01_013_PREFLIGHT_FOCUSED && !M01_013_TRANSITION_FOCUSED
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
 #endif
     internal static void RunAllM01013()
     {
@@ -104,26 +104,28 @@ internal static unsafe class X64Cr3LoadStubPlanTests
         Func<bool> test,
         ref int failures)
     {
-        try
+        HostCheck.Run(LoadTestName + " " + name, () =>
         {
-            if (test())
-                return;
-
-            failures++;
-            Console.WriteLine(
-                "M01_013_LOAD_CASE_FAIL " + Normalize(name));
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "M01_013_LOAD_CASE_FAIL "
-                + Normalize(name)
-                + " "
-                + ex.GetType().Name
-                + ": "
-                + ex.Message);
-        }
+            try
+            {
+                if (test())
+                    return true;
+                Console.WriteLine(
+                    "M01_013_LOAD_CASE_FAIL " + Normalize(name));
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    "M01_013_LOAD_CASE_FAIL "
+                    + Normalize(name)
+                    + " "
+                    + ex.GetType().Name
+                    + ": "
+                    + ex.Message);
+                throw;
+            }
+        }, ref failures);
     }
 
     private static bool TestEnumPodAndConstants()
@@ -1156,6 +1158,8 @@ internal static unsafe class X64Cr3LoadStubPlanTests
 
     private static bool TestAggregateCoordinatorContract()
     {
+        HostCheck.SingleFixture(typeof(X64Cr3LoadStubPlanTests), nameof(RunAllM01013),
+            typeof(X64PagingModePreflightStubPlanTests), typeof(X64ReversibleCr3TransitionStubPlanTests));
         string root = HostToolProcess.FindRepositoryRoot();
         string loadPath = Path.Combine(
             root,
@@ -1182,14 +1186,6 @@ internal static unsafe class X64Cr3LoadStubPlanTests
         string loadSource = File.ReadAllText(loadPath);
         string preflightSource = File.ReadAllText(preflightPath);
         string transitionSource = File.ReadAllText(transitionPath);
-        string moduleInitializer = "[" + "ModuleInitializer]";
-        if (CountOccurrences(loadSource, moduleInitializer) != 1
-            || CountOccurrences(preflightSource, moduleInitializer) != 0
-            || CountOccurrences(transitionSource, moduleInitializer) != 0)
-        {
-            return false;
-        }
-
         string startMarker = "\"TEST_START " + "m01.013\"";
         string readyMarker = "\"CLROS_M01_" + "013_READY\"";
         string passMarker = "\"TEST_PASS " + "m01.013\"";

@@ -6,48 +6,7 @@ internal static class BootPageAllocatorStateTests
 {
     private const ulong PageSize = BootMemoryRegionRecord.PageSize;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("memory.boot allocator state initializes", TestInitializes, ref failures);
-        Run("memory.boot allocator state rejects failed free-list plan", TestRejectsFailedFreeListPlan, ref failures);
-        Run("memory.boot allocator state rejects empty free-list", TestRejectsEmptyFreeList, ref failures);
-        Run("memory.boot allocator state rejects source capacity", TestRejectsSourceCapacity, ref failures);
-        Run("memory.boot allocator state rejects corrupted node shape", TestRejectsCorruptedNodeShape, ref failures);
-        Run("memory.boot allocator state rejects invalid chain", TestRejectsInvalidChain, ref failures);
-        Run("memory.boot allocator state default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("memory.boot allocator state layouts contain no managed references", TestLayoutsContainNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Boot page allocator state host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("memory.boot allocator state initializes", HostLane.Fast, 0)]
     private static bool TestInitializes()
     {
         Span<BootPageFreeListNode> nodes = stackalloc BootPageFreeListNode[2];
@@ -57,7 +16,7 @@ internal static class BootPageAllocatorStateTests
             freeListPlan,
             nodes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == BootPageAllocatorStateStatus.Success
             && result.FreeListPlanStatus == BootPageFreeListPlanStatus.Success
             && result.RequiredNodeCapacity == 2
@@ -74,9 +33,10 @@ internal static class BootPageAllocatorStateTests
             && result.State.FreePageCount == 10
             && result.State.FreeByteCount == 10 * PageSize
             && result.State.AllocatedPageCount == 0
-            && result.State.AllocatedByteCount == 0;
+            && result.State.AllocatedByteCount == 0);
     }
 
+    [HostTest("memory.boot allocator state rejects failed free-list plan", HostLane.Fast, 1)]
     private static bool TestRejectsFailedFreeListPlan()
     {
         Span<BootMemoryUsableRange> usable = stackalloc BootMemoryUsableRange[1];
@@ -100,16 +60,17 @@ internal static class BootPageAllocatorStateTests
             freeListPlan,
             nodes);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == BootPageAllocatorStateStatus.FreeListPlanFailed
             && result.FreeListPlanStatus == BootPageFreeListPlanStatus.AllocatorPlanFailed
             && result.RequiredNodeCapacity == 0
             && result.AvailableNodeCapacity == 1
             && result.VisitedNodeCount == 0
             && result.InvalidNodeIndex == -1
-            && !result.State.IsInitialized;
+            && !result.State.IsInitialized);
     }
 
+    [HostTest("memory.boot allocator state rejects empty free-list", HostLane.Fast, 2)]
     private static bool TestRejectsEmptyFreeList()
     {
         Span<BootMemoryUsableRange> usable = stackalloc BootMemoryUsableRange[0];
@@ -131,16 +92,17 @@ internal static class BootPageAllocatorStateTests
             freeListPlan,
             nodes);
 
-        return allocatorPlan.Succeeded
+        return HostCheck.Result(allocatorPlan.Succeeded
             && freeListPlan.Succeeded
             && !result.Succeeded
             && result.Status == BootPageAllocatorStateStatus.NoFreeNodes
             && result.FreeListPlanStatus == BootPageFreeListPlanStatus.Success
             && result.RequiredNodeCapacity == 0
             && result.AvailableNodeCapacity == 0
-            && result.State.IsInitialized == false;
+            && result.State.IsInitialized == false);
     }
 
+    [HostTest("memory.boot allocator state rejects source capacity", HostLane.Fast, 3)]
     private static bool TestRejectsSourceCapacity()
     {
         Span<BootPageFreeListNode> nodes = stackalloc BootPageFreeListNode[2];
@@ -152,16 +114,17 @@ internal static class BootPageAllocatorStateTests
             freeListPlan,
             tooSmall);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == BootPageAllocatorStateStatus.SourceNodeCapacityTooSmall
             && result.RequiredNodeCapacity == 2
             && result.AvailableNodeCapacity == 1
             && result.VisitedNodeCount == 0
             && result.InvalidNodeIndex == -1
             && result.TotalFreePages == 0
-            && result.TotalFreeBytes == 0;
+            && result.TotalFreeBytes == 0);
     }
 
+    [HostTest("memory.boot allocator state rejects corrupted node shape", HostLane.Fast, 4)]
     private static bool TestRejectsCorruptedNodeShape()
     {
         BootPageAllocatorStateInitResult zeroPages = InitializeWithCorruptedFirstNode(
@@ -224,7 +187,7 @@ internal static class BootPageAllocatorStateTests
                 byteLength: 4 * PageSize,
                 nextNodeIndex: 1));
 
-        return !zeroPages.Succeeded
+        return HostCheck.Result(!zeroPages.Succeeded
             && zeroPages.Status == BootPageAllocatorStateStatus.InvalidNodePageCount
             && zeroPages.InvalidNodeIndex == 0
             && !unaligned.Succeeded
@@ -236,9 +199,10 @@ internal static class BootPageAllocatorStateTests
             && !addressOverflow.Succeeded
             && addressOverflow.Status == BootPageAllocatorStateStatus.NodeAddressRangeOverflow
             && !endMismatch.Succeeded
-            && endMismatch.Status == BootPageAllocatorStateStatus.NodePhysicalEndMismatch;
+            && endMismatch.Status == BootPageAllocatorStateStatus.NodePhysicalEndMismatch);
     }
 
+    [HostTest("memory.boot allocator state rejects invalid chain", HostLane.Fast, 5)]
     private static bool TestRejectsInvalidChain()
     {
         Span<BootPageFreeListNode> invalidNextNodes = stackalloc BootPageFreeListNode[2];
@@ -283,7 +247,7 @@ internal static class BootPageAllocatorStateTests
             shortChainPlan,
             shortChainNodes);
 
-        return !invalidNext.Succeeded
+        return HostCheck.Result(!invalidNext.Succeeded
             && invalidNext.Status == BootPageAllocatorStateStatus.InvalidNextNodeIndex
             && invalidNext.InvalidNodeIndex == 2
             && invalidNext.VisitedNodeCount == 1
@@ -293,23 +257,25 @@ internal static class BootPageAllocatorStateTests
             && cycle.VisitedNodeCount == 2
             && !shortChain.Succeeded
             && shortChain.Status == BootPageAllocatorStateStatus.FreeListNodeCountMismatch
-            && shortChain.VisitedNodeCount == 1;
+            && shortChain.VisitedNodeCount == 1);
     }
 
+    [HostTest("memory.boot allocator state default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         BootPageAllocatorStateInitResult result = default;
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == BootPageAllocatorStateStatus.Success
-            && result.State.IsInitialized == false;
+            && result.State.IsInitialized == false);
     }
 
+    [HostTest("memory.boot allocator state layouts contain no managed references", HostLane.Fast, 7)]
     private static bool TestLayoutsContainNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<BootPageAllocatorState>()
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<BootPageAllocatorState>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<BootPageAllocatorStateInitResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<BootPageFreeListNode>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<BootPageFreeListNode>());
     }
 
     private static BootPageAllocatorStateInitResult InitializeWithCorruptedFirstNode(

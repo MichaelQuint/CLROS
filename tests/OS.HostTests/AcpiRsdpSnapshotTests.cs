@@ -5,47 +5,8 @@ using OS.Std.Binary;
 
 internal static class AcpiRsdpSnapshotTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("acpi.rsdp.snapshot reads acpi1 base", TestReadsAcpi10Base, ref failures);
-        Run("acpi.rsdp.snapshot rereads acpi2 extended length", TestReadsAcpi20ExtendedLength, ref failures);
-        Run("acpi.rsdp.snapshot reports scratch capacity", TestReportsScratchCapacity, ref failures);
-        Run("acpi.rsdp.snapshot reports physical read failure", TestReportsPhysicalReadFailure, ref failures);
-        Run("acpi.rsdp.snapshot reports extended read failure", TestReportsExtendedReadFailure, ref failures);
-        Run("acpi.rsdp.snapshot reports validation failure", TestReportsValidationFailure, ref failures);
-        Run("acpi.rsdp.snapshot result contains no managed references", TestResultContainsNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ACPI RSDP snapshot host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("acpi.rsdp.snapshot reads acpi1 base", HostLane.Fast, 0)]
     private static bool TestReadsAcpi10Base()
     {
         byte[] rsdp = CreateValidAcpi10();
@@ -57,7 +18,7 @@ internal static class AcpiRsdpSnapshotTests
             0x100000,
             scratch);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == AcpiRsdpSnapshotStatus.Success
             && result.PhysicalAddress == 0x100000
             && result.BytesRead == AcpiRsdpValidator.BaseLength
@@ -73,9 +34,10 @@ internal static class AcpiRsdpSnapshotTests
             && physicalMemory.ReadCount == 1
             && physicalMemory.RequestedBytes[0] == AcpiRsdpValidator.BaseLength
             && scratch[0] == (byte)'R'
-            && scratch[7] == (byte)' ';
+            && scratch[7] == (byte)' ');
     }
 
+    [HostTest("acpi.rsdp.snapshot rereads acpi2 extended length", HostLane.Fast, 1)]
     private static bool TestReadsAcpi20ExtendedLength()
     {
         byte[] rsdp = CreateValidAcpi20(length: 40);
@@ -87,7 +49,7 @@ internal static class AcpiRsdpSnapshotTests
             0x200000,
             scratch);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == AcpiRsdpSnapshotStatus.Success
             && result.PhysicalAddress == 0x200000
             && result.BytesRead == 40
@@ -104,9 +66,10 @@ internal static class AcpiRsdpSnapshotTests
             && physicalMemory.RequestedBytes[0] == AcpiRsdpValidator.BaseLength
             && physicalMemory.RequestedBytes[1] == AcpiRsdpValidator.ExtendedHeaderLength
             && physicalMemory.RequestedBytes[2] == 40
-            && scratch[39] == rsdp[39];
+            && scratch[39] == rsdp[39]);
     }
 
+    [HostTest("acpi.rsdp.snapshot reports scratch capacity", HostLane.Fast, 2)]
     private static bool TestReportsScratchCapacity()
     {
         byte[] rsdp = CreateValidAcpi20(length: 40);
@@ -136,7 +99,7 @@ internal static class AcpiRsdpSnapshotTests
             0x200000,
             tooSmallForExtended);
 
-        return !invalidPointer.Succeeded
+        return HostCheck.Result(!invalidPointer.Succeeded
             && invalidPointer.Status == AcpiRsdpSnapshotStatus.InvalidPhysicalAddress
             && !baseCapacity.Succeeded
             && baseCapacity.Status == AcpiRsdpSnapshotStatus.ScratchTooSmall
@@ -150,9 +113,10 @@ internal static class AcpiRsdpSnapshotTests
             && headerCapacity.RequiredBytes == AcpiRsdpValidator.ExtendedHeaderLength
             && !extendedCapacity.Succeeded
             && extendedCapacity.Status == AcpiRsdpSnapshotStatus.ScratchTooSmall
-            && extendedCapacity.RequiredBytes == 40;
+            && extendedCapacity.RequiredBytes == 40);
     }
 
+    [HostTest("acpi.rsdp.snapshot reports physical read failure", HostLane.Fast, 3)]
     private static bool TestReportsPhysicalReadFailure()
     {
         PhysicalMemoryDouble physicalMemory = PhysicalMemoryDouble.FailOnCall(
@@ -166,16 +130,17 @@ internal static class AcpiRsdpSnapshotTests
             0x300000,
             scratch);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == AcpiRsdpSnapshotStatus.PhysicalReadFailed
             && result.PhysicalAddress == 0x300000
             && result.PhysicalReadStatus == PlatformPhysicalMemoryStatus.SourceFailed
             && result.BytesRead == 0
             && result.RequiredBytes == AcpiRsdpValidator.BaseLength
             && !result.ExtendedReadAttempted
-            && physicalMemory.ReadCount == 1;
+            && physicalMemory.ReadCount == 1);
     }
 
+    [HostTest("acpi.rsdp.snapshot reports extended read failure", HostLane.Fast, 4)]
     private static bool TestReportsExtendedReadFailure()
     {
         byte[] rsdp = CreateValidAcpi20(length: 40);
@@ -190,14 +155,15 @@ internal static class AcpiRsdpSnapshotTests
             0x300000,
             scratch);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == AcpiRsdpSnapshotStatus.ExtendedReadFailed
             && result.PhysicalAddress == 0x300000
             && result.PhysicalReadStatus == PlatformPhysicalMemoryStatus.SourceUnavailable
             && result.ExtendedReadAttempted
-            && physicalMemory.ReadCount == 2;
+            && physicalMemory.ReadCount == 2);
     }
 
+    [HostTest("acpi.rsdp.snapshot reports validation failure", HostLane.Fast, 5)]
     private static bool TestReportsValidationFailure()
     {
         byte[] invalidBase = CreateValidAcpi10();
@@ -220,19 +186,20 @@ internal static class AcpiRsdpSnapshotTests
             0x500000,
             scratch);
 
-        return !baseResult.Succeeded
+        return HostCheck.Result(!baseResult.Succeeded
             && baseResult.Status == AcpiRsdpSnapshotStatus.BaseValidationFailed
             && baseResult.ValidationStatus == AcpiRsdpValidationStatus.InvalidSignature
             && !baseResult.ExtendedReadAttempted
             && !extendedResult.Succeeded
             && extendedResult.Status == AcpiRsdpSnapshotStatus.ExtendedValidationFailed
             && extendedResult.ValidationStatus == AcpiRsdpValidationStatus.InvalidExtendedChecksum
-            && extendedResult.ExtendedReadAttempted;
+            && extendedResult.ExtendedReadAttempted);
     }
 
+    [HostTest("acpi.rsdp.snapshot result contains no managed references", HostLane.Fast, 6)]
     private static bool TestResultContainsNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<AcpiRsdpSnapshotResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<AcpiRsdpSnapshotResult>());
     }
 
     private static byte[] CreateValidAcpi10()

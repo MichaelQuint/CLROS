@@ -10,9 +10,9 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
     private const string AggregateName = "m01.033";
     private const string ToolProjectName = "OS.X64TextSerializerGenerator";
     private const string ObjectFileName = "instruction-publication.obj";
-    private const int ExpectedObjectSize = 336;
-    private const string ExpectedSha256 =
-        "DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B";
+    private const int ExpectedObjectSize = OS.Tooling.EfiContracts.SerializerObjectBytes;
+    private static readonly string ExpectedSha256 =
+        OS.Tooling.EfiContracts.SerializerObjectSha256.ToUpperInvariant();
 
     private const ushort Amd64Machine = 0x8664;
     private const ushort Amd64Addr32Nb = 0x0003;
@@ -39,36 +39,35 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
     private static readonly byte[] ExpectedStringTable = BuildExpectedStringTable();
     private static string? _boundedProcessHelperPath;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
-        Console.WriteLine("TEST_START " + AggregateName);
+        HostCheck.Run(AggregateName, () =>
+        {
 
-        try
-        {
-            Execute();
-            Console.WriteLine(
-                "CLROS_M01_033_READY bytes=" +
-                ExpectedObjectSize.ToString(CultureInfo.InvariantCulture) +
-                " sha256=" +
-                ExpectedSha256);
-            Console.WriteLine("TEST_PASS " + AggregateName);
-        }
-        catch (M01TestFailureException ex)
-        {
-            Console.WriteLine("TEST_FAIL " + AggregateName + " " + ex.Code);
-            throw new InvalidOperationException(
-                "M01-033 serializer generator tests failed: " + ex.Code,
-                ex);
-        }
-        catch (Exception ex)
-        {
-            string code = "unexpected-" + ex.GetType().Name;
-            Console.WriteLine("TEST_FAIL " + AggregateName + " " + code);
-            throw new InvalidOperationException(
-                "M01-033 serializer generator tests failed: " + code,
-                ex);
-        }
+            try
+            {
+                Execute();
+                Console.WriteLine(
+                    "CLROS_M01_033_READY bytes=" +
+                    ExpectedObjectSize.ToString(CultureInfo.InvariantCulture) +
+                    " sha256=" +
+                    ExpectedSha256);
+            }
+            catch (M01TestFailureException ex)
+            {
+                throw new InvalidOperationException(
+                    "M01-033 serializer generator tests failed: " + ex.Code,
+                    ex);
+            }
+            catch (Exception ex)
+            {
+                string code = "unexpected-" + ex.GetType().Name;
+                throw new InvalidOperationException(
+                    "M01-033 serializer generator tests failed: " + code,
+                    ex);
+            }
+        });
     }
 
     private static void Execute()
@@ -1058,7 +1057,9 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             using OS.X64TextSerializerGenerator;
 
             const string ExpectedHash =
-                "DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B";
+                "__SERIALIZER_OBJECT_SHA256__";
+            const int ExpectedSize = __SERIALIZER_OBJECT_BYTES__;
+            const string ExpectedSymbol = "__SERIALIZER_SYMBOL__";
 
             var failures = new List<string>();
             Amd64CoffObjectDefinition baseline = CreateBaseline();
@@ -1244,7 +1245,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
                     in baseline,
                     out int requiredSize,
                     out CoffWriteError sizeError) ||
-                requiredSize != 336 ||
+                requiredSize != ExpectedSize ||
                 sizeError != CoffWriteError.None)
             {
                 failures.Add("required-size");
@@ -1303,12 +1304,12 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
                 }
             }
 
-            byte[] generatorExact = Enumerable.Repeat((byte)0xA5, 336).ToArray();
+            byte[] generatorExact = Enumerable.Repeat((byte)0xA5, ExpectedSize).ToArray();
             if (!InstructionPublicationSerializerGenerator.TryGenerate(
                     generatorExact,
                     out int generated,
                     out CoffWriteError generatorError) ||
-                generated != 336 ||
+                generated != ExpectedSize ||
                 generatorError != CoffWriteError.None ||
                 Convert.ToHexString(SHA256.HashData(generatorExact)) != ExpectedHash)
             {
@@ -1413,7 +1414,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
                 CoffSymbolDefinition[] symbols =
                 [
                     new(
-                        "CLROS_X64_SerializeInstructionPublication",
+                        ExpectedSymbol,
                         0,
                         1,
                         0x20,
@@ -1422,7 +1423,9 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
                 ];
                 return new(0x8664, 0, sections, symbols);
             }
-            """,
+            """.Replace("__SERIALIZER_OBJECT_SHA256__", ExpectedSha256, StringComparison.Ordinal)
+                .Replace("__SERIALIZER_OBJECT_BYTES__", ExpectedObjectSize.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                .Replace("__SERIALIZER_SYMBOL__", OS.Tooling.EfiContracts.SerializerSymbol, StringComparison.Ordinal),
             new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
         ProcessResult buildResult = RunCleanBuild(
@@ -1669,7 +1672,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
 
         ParsedSymbol exported = coff.Symbols[0];
         Require(
-            exported.Name == "CLROS_X64_SerializeInstructionPublication",
+            exported.Name == OS.Tooling.EfiContracts.SerializerSymbol,
             "external-symbol-name");
         Require(exported.RawNameStringOffset == 48, "external-symbol-name-offset");
         Require(exported.Value == 0, "external-symbol-value");
@@ -2065,17 +2068,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         Directory.CreateDirectory(fakeRoot);
 
         string partialPath = Path.Combine(fakeRoot, "partial.obj");
-        string partialScript = Path.Combine(fakeRoot, "partial.ps1");
-        File.WriteAllText(
-            partialScript,
-            "param([string]$OutputPath)\r\n" +
-            "[IO.File]::WriteAllBytes($OutputPath, [byte[]](1,2,3,4,5,6,7,8))\r\n" +
-            "[Console]::Out.WriteLine('partial-object-written')\r\n",
-            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-
-        ProcessStartInfo partialStart = NewPowerShellStartInfo(fakeRoot);
-        partialStart.ArgumentList.Add("-File");
-        partialStart.ArgumentList.Add(partialScript);
+        ProcessStartInfo partialStart = NewControlStartInfo(fakeRoot, "partial-object");
         partialStart.ArgumentList.Add(partialPath);
         ProcessResult partial = RunBounded(partialStart, 10_000);
         Require(!partial.TimedOut && partial.ExitCode == 0, "fake-partial-process");
@@ -2091,17 +2084,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         Require(File.Exists(partialPath), "fake-partial-file-missing");
         RequireRejected(File.ReadAllBytes(partialPath), "partial-process-output");
 
-        string timeoutScript = Path.Combine(fakeRoot, "timeout.ps1");
-        File.WriteAllText(
-            timeoutScript,
-            "[Console]::Out.WriteLine('partial-before-timeout')\r\n" +
-            "[Console]::Out.Flush()\r\n" +
-            "[Threading.Thread]::Sleep(30000)\r\n",
-            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-
-        ProcessStartInfo timeoutStart = NewPowerShellStartInfo(fakeRoot);
-        timeoutStart.ArgumentList.Add("-File");
-        timeoutStart.ArgumentList.Add(timeoutScript);
+        ProcessStartInfo timeoutStart = NewControlStartInfo(fakeRoot, "partial-before-timeout");
         ProcessResult timeout = RunBounded(timeoutStart, 2_000);
         Require(timeout.TimedOut, "fake-child-timeout-not-detected");
         Require(
@@ -2114,15 +2097,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             timeout.StandardOutput.Contains("partial-before-timeout", StringComparison.Ordinal),
             "fake-child-timeout-lost-partial-output");
 
-        string overflowScript = Path.Combine(fakeRoot, "overflow.ps1");
-        File.WriteAllText(
-            overflowScript,
-            "[Console]::Out.Write(('X' * 4096))\r\n",
-            new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-
-        ProcessStartInfo overflowStart = NewPowerShellStartInfo(fakeRoot);
-        overflowStart.ArgumentList.Add("-File");
-        overflowStart.ArgumentList.Add(overflowScript);
+        ProcessStartInfo overflowStart = NewControlStartInfo(fakeRoot, "uppercase-output");
         ProcessResult overflow = RunBounded(
             overflowStart,
             timeoutMilliseconds: 10_000,
@@ -2139,10 +2114,9 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             "fake-child-overflow-capture");
     }
 
-    private static ProcessStartInfo NewPowerShellStartInfo(string workingDirectory)
+    private static ProcessStartInfo NewControlStartInfo(string workingDirectory, string control)
     {
-        string executable = OperatingSystem.IsWindows() ? "powershell.exe" : "pwsh";
-        ProcessStartInfo start = new ProcessStartInfo(executable)
+        ProcessStartInfo start = new ProcessStartInfo("dotnet")
         {
             UseShellExecute = false,
             RedirectStandardOutput = true,
@@ -2150,11 +2124,9 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             WorkingDirectory = workingDirectory,
             CreateNoWindow = true
         };
-        start.ArgumentList.Add("-NoLogo");
-        start.ArgumentList.Add("-NoProfile");
-        start.ArgumentList.Add("-NonInteractive");
-        start.ArgumentList.Add("-ExecutionPolicy");
-        start.ArgumentList.Add("Bypass");
+        start.ArgumentList.Add(typeof(HostTestRunner).Assembly.Location);
+        start.ArgumentList.Add("--runner-control");
+        start.ArgumentList.Add(control);
         return start;
     }
 
@@ -2385,7 +2357,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
         WriteNullTerminatedAscii(
             result,
             48,
-            "CLROS_X64_SerializeInstructionPublication");
+            OS.Tooling.EfiContracts.SerializerSymbol);
         return result;
     }
 

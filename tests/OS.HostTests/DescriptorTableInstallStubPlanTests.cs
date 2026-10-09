@@ -6,48 +6,7 @@ internal static class DescriptorTableInstallStubPlanTests
 {
     private const ushort TssSelector = GdtDescriptorPlan.TssSelector;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("descriptor install stub plan encodes lidt stub", TestEncodesLidtStub, ref failures);
-        Run("descriptor install stub plan encodes lgdt stub", TestEncodesLgdtStub, ref failures);
-        Run("descriptor install stub plan encodes ltr stub", TestEncodesLtrStub, ref failures);
-        Run("descriptor install stub plan rejects invalid inputs", TestRejectsInvalidInputs, ref failures);
-        Run(
-            "descriptor install stub plan uses shared buffer operations",
-            TestUsesSharedBufferOperations,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Descriptor install stub plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("descriptor install stub plan encodes lidt stub", HostLane.Fast, 0)]
     private static bool TestEncodesLidtStub()
     {
         byte[] descriptor = CreateDescriptorPayload(0x10);
@@ -56,7 +15,7 @@ internal static class DescriptorTableInstallStubPlanTests
         DescriptorTableInstallStubPlanResult result =
             DescriptorTableInstallStubPlan.EmitLidt(descriptor, bytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == DescriptorTableInstallStubPlanStatus.Ok
             && result.OperationKind == DescriptorTableInstructionKind.Lidt
             && result.BytesWritten == DescriptorTableInstallStubPlan.DescriptorStubRequiredByteLength
@@ -79,9 +38,10 @@ internal static class DescriptorTableInstallStubPlanTests
             && bytes[DescriptorTableInstructionPlan.RipRelativeDescriptorInstructionLength]
                 == DescriptorTableInstallStubPlan.RetOpcode
             && PayloadMatches(bytes, descriptor)
-            && bytes[DescriptorTableInstallStubPlan.DescriptorStubRequiredByteLength] == 0xcc;
+            && bytes[DescriptorTableInstallStubPlan.DescriptorStubRequiredByteLength] == 0xcc);
     }
 
+    [HostTest("descriptor install stub plan encodes lgdt stub", HostLane.Fast, 1)]
     private static bool TestEncodesLgdtStub()
     {
         byte[] descriptor = CreateDescriptorPayload(0x40);
@@ -90,7 +50,7 @@ internal static class DescriptorTableInstallStubPlanTests
         DescriptorTableInstallStubPlanResult result =
             DescriptorTableInstallStubPlan.EmitLgdt(descriptor, bytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == DescriptorTableInstallStubPlanStatus.Ok
             && result.OperationKind == DescriptorTableInstructionKind.Lgdt
             && result.BytesWritten == DescriptorTableInstallStubPlan.DescriptorStubRequiredByteLength
@@ -108,9 +68,10 @@ internal static class DescriptorTableInstallStubPlanTests
             && bytes[DescriptorTableInstructionPlan.RipRelativeDescriptorInstructionLength]
                 == DescriptorTableInstallStubPlan.RetOpcode
             && PayloadMatches(bytes, descriptor)
-            && bytes[DescriptorTableInstallStubPlan.DescriptorStubRequiredByteLength] == 0xcc;
+            && bytes[DescriptorTableInstallStubPlan.DescriptorStubRequiredByteLength] == 0xcc);
     }
 
+    [HostTest("descriptor install stub plan encodes ltr stub", HostLane.Fast, 2)]
     private static bool TestEncodesLtrStub()
     {
         byte[] bytes = CreatePoisonedBuffer(DescriptorTableInstallStubPlan.LtrStubRequiredByteLength + 1);
@@ -118,7 +79,7 @@ internal static class DescriptorTableInstallStubPlanTests
         DescriptorTableInstallStubPlanResult result =
             DescriptorTableInstallStubPlan.EmitLtr(TssSelector, bytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == DescriptorTableInstallStubPlanStatus.Ok
             && result.OperationKind == DescriptorTableInstructionKind.Ltr
             && result.BytesWritten == DescriptorTableInstallStubPlan.LtrStubRequiredByteLength
@@ -141,9 +102,10 @@ internal static class DescriptorTableInstallStubPlanTests
             && bytes[DescriptorTableInstallStubPlan.LtrInstructionOffset + 2]
                 == DescriptorTableInstructionPlan.LtrAxModRm
             && bytes[DescriptorTableInstallStubPlan.LtrRetOffset] == DescriptorTableInstallStubPlan.RetOpcode
-            && bytes[DescriptorTableInstallStubPlan.LtrStubRequiredByteLength] == 0xcc;
+            && bytes[DescriptorTableInstallStubPlan.LtrStubRequiredByteLength] == 0xcc);
     }
 
+    [HostTest("descriptor install stub plan rejects invalid inputs", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidInputs()
     {
         byte[] descriptor = CreateDescriptorPayload(0x70);
@@ -164,7 +126,7 @@ internal static class DescriptorTableInstallStubPlanTests
         DescriptorTableInstallStubPlanResult outputTooSmall =
             DescriptorTableInstallStubPlan.EmitLgdt(descriptor, shortBytes);
 
-        return !invalidKind.Succeeded
+        return HostCheck.Result(!invalidKind.Succeeded
             && invalidKind.Status == DescriptorTableInstallStubPlanStatus.InvalidOperationKind
             && invalidKind.OperationKind == (DescriptorTableInstructionKind)99
             && invalidKind.BytesWritten == 0
@@ -203,7 +165,7 @@ internal static class DescriptorTableInstallStubPlanTests
                 DescriptorTableInstructionKind.Lgdt,
                 descriptor.Length,
                 TssSelector,
-                shortBytes.Length) == DescriptorTableInstallStubPlanStatus.OutputBufferTooSmall;
+                shortBytes.Length) == DescriptorTableInstallStubPlanStatus.OutputBufferTooSmall);
     }
 
     private static bool PayloadMatches(byte[] bytes, byte[] descriptor)
@@ -213,6 +175,7 @@ internal static class DescriptorTableInstallStubPlanTests
             DescriptorTableInstallStubPlan.DescriptorPayloadLength).SequenceEqual(descriptor);
     }
 
+    [HostTest("descriptor install stub plan uses shared buffer operations", HostLane.Fast, 4)]
     private static bool TestUsesSharedBufferOperations()
     {
         string source = File.ReadAllText(Path.Combine(
@@ -222,7 +185,7 @@ internal static class DescriptorTableInstallStubPlanTests
             "Diagnostics",
             "DescriptorTableInstallStubPlan.cs"));
 
-        return source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
             && source.Contains("BufferOperations.MemoryCopy(", StringComparison.Ordinal)
             && source.Contains("descriptorPayload,", StringComparison.Ordinal)
             && source.Contains(
@@ -233,7 +196,7 @@ internal static class DescriptorTableInstallStubPlanTests
                 StringComparison.Ordinal)
             && !source.Contains(
                 "descriptorPayload.CopyTo(destination.Slice(EmbeddedDescriptorOffset, DescriptorPayloadLength))",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
     private static byte[] CreateDescriptorPayload(byte seed)

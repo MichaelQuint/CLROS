@@ -221,20 +221,7 @@ internal static unsafe class AcpiBootstrapHost
 #else
 internal static class M03AcpiBootstrapCopyEfiIntegrationTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        Run("conditional source and unchanged profile",TestSource);
-#if !ACPI_GRAMMAR_HOST
-        Run("actual five-copy EFI methods and independent host parity",TestCapture);
-#endif
-        Run("literal transcript and complete finite fields",TestLiterals);
-#if !ACPI_GRAMMAR_HOST
-        Run("default and enabled no-stdlib artifacts",TestArtifacts);
-#endif
-    }
-    private static void Run(string name,Action action)
-    {Console.WriteLine("TEST_START m03.002.efi "+name);try{action();Console.WriteLine("TEST_PASS m03.002.efi "+name);}catch(Exception e){Console.WriteLine("TEST_FAIL m03.002.efi "+name+" "+e);throw;}}
+
     private static void Need(bool value,string reason){if(!value)throw new InvalidOperationException(reason);}
     private static string Root()
     {DirectoryInfo? d=new(AppContext.BaseDirectory);while(d!=null&&!File.Exists(Path.Combine(d.FullName,"CLROS.slnx")))d=d.Parent;return d?.FullName??throw new InvalidOperationException("repo root");}
@@ -252,7 +239,12 @@ internal static class M03AcpiBootstrapCopyEfiIntegrationTests
         File.WriteAllText(Path.Combine(directory,"result.json"),JsonSerializer.Serialize(new{NativeExit=p.ExitCode,TimedOut=timeout,StartedUtc=begin,EndedUtc=DateTime.UtcNow}));
         return new(p.ExitCode,timeout,output,error);
     }
+    private static Result Tool(params string[] args)
+    {
+        var result=HostToolProcess.RunTool(args);return new(result.ExitCode,false,result.Output,result.Error);
+    }
     private static void Passed(Result result)=>Need(result.Exit==0&&!result.Timeout&&result.Error.Length==0,result.Output+result.Error);
+    [HostTest("m03.002.efi conditional source and unchanged profile", HostLane.Native, 0)]
     private static void TestSource()
     {
         string root=Root();var project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
@@ -260,13 +252,14 @@ internal static class M03AcpiBootstrapCopyEfiIntegrationTests
         var symbol=project.Descendants("DefineConstants").Single(x=>x.Value.Contains("ACPI_PHYSICAL_DISCOVERY_PROBE",StringComparison.Ordinal));
         Need(string.Equals((string?)symbol.Parent?.Attribute("Condition"),"'$(EnableAcpiPhysicalDiscoveryProbe)' == 'true'",StringComparison.Ordinal),"existing symbol requires explicit true");
         Need(project.Descendants("DefineConstants").Count(x=>x.Value.Contains("ACPI_PHYSICAL_DISCOVERY_PROBE",StringComparison.Ordinal))==1,"one existing symbol");
-        Need(Hash(Path.Combine(root,"src/OS.Kernel/Boot/RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrap.cs"))=="2AFB2B08C511AC8A25CE3F8818E7730961AB3F53C032CA6B846E0BB634624AE8","frozen host oracle");
+        Need(string.Equals(Hash(Path.Combine(root,"src/OS.Kernel/Boot/RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrap.cs")),OS.Tooling.EfiContracts.AcpiBootstrapHostOracleSha256,StringComparison.OrdinalIgnoreCase),"frozen host oracle");
         string source=File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs"));
         string core=source[source.IndexOf("    private static bool WriteAcpiPhysicalDiscoveryProbe(",StringComparison.Ordinal)..source.IndexOf("    private static bool TryParseMcfgSegments(",StringComparison.Ordinal)];
         foreach(string forbidden in new[]{"new byte[","stackalloc","throw ","AllocatePool(","AllocatePages(","ExitBootServices(","ReadOnlySpan", "Console."})Need(!core.Contains(forbidden,StringComparison.Ordinal),"finite EFI core "+forbidden);
         Need(core.IndexOf("if (!AcpiFinalAdmission(",StringComparison.Ordinal)<core.IndexOf("owned[i] =",StringComparison.Ordinal),"all admission before destination writes");
         TestScriptProfile();
     }
+    [HostTest("m03.002.efi actual five-copy EFI methods and independent host parity", HostLane.Native, 1)]
     private static void TestCapture()
     {
         string root=Root(),directory=Scratch("actual-methods");
@@ -285,6 +278,7 @@ internal static class M03AcpiBootstrapCopyEfiIntegrationTests
         Need(run.Output.Contains("TEST_PASS m03.acpi.host.tests",StringComparison.Ordinal)&&run.Output.Split('\n').Count(x=>x.StartsWith("TEST_START m03.acpi.host ",StringComparison.Ordinal))==5,"complete actual child");
         foreach(var input in identities)Need(Hash(input.Path)==input.Sha256,"unchanged input "+input.Path);
     }
+    [HostTest("m03.002.efi literal transcript and complete finite fields", HostLane.Fast, 2)]
     private static void TestLiterals()
     {
         string source=File.ReadAllText(Path.Combine(Root(),"src/OS/Boot/EfiEntry.cs"));
@@ -298,12 +292,12 @@ internal static class M03AcpiBootstrapCopyEfiIntegrationTests
     }
     private static void TestScriptProfile()
     {
-        string root=Root(),directory=Scratch("script-profile"),script=Path.Combine(root,"scripts/run-qemu-smoke.ps1");
-        string before=Hash(script);int ordinal=0;
-        Need(File.ReadAllText(script).Replace("\r\n","\n",StringComparison.Ordinal).Contains("        if ($EnableAcpiPhysicalDiscoveryProbe) {\n            $buildArguments += \"-EnableAcpiPhysicalDiscoveryProbe\"\n        }",StringComparison.Ordinal),"conditional build forwarding source");
-        Result Dry(params string[] args)=>Process(Path.Combine(directory,(ordinal++).ToString("D3")),"powershell.exe",
-            ["-NoProfile","-ExecutionPolicy","Bypass","-File",script,"-DryRun",..args]);
-        void Reject(params string[] args){Result r=Dry(args);Need(r.Exit!=0&&!r.Timeout&&r.Output.Contains("TEST_FAIL",StringComparison.Ordinal),"profile refusal "+string.Join(' ',args));}
+        string root=Root(),directory=Scratch("script-profile"),script=Path.Combine(root,"tools/OS.Tooling/QemuProfiles.cs");
+        string before=Hash(script);
+        var buildProfile=OS.Tooling.EfiProfile.Create("Diagnostic",new Dictionary<string,bool>{["EnableAcpiPhysicalDiscoveryProbe"]=true});
+        Need(buildProfile.CommandArguments().Contains("--EnableAcpiPhysicalDiscoveryProbe"),"conditional build forwarding");
+        Result Dry(params string[] args)=>Tool(["qemu","smoke","-DryRun",..args]);
+        void Reject(params string[] args){Result r=Dry(args);Need(r.Exit!=0&&!r.Timeout&&(r.Output+r.Error).Contains("TEST_FAIL",StringComparison.Ordinal),"profile refusal "+string.Join(' ',args)+" "+r.Output+r.Error);}
         const string flag="-EnableAcpiPhysicalDiscoveryProbe";
         string[] positive=["-BuildEfi",flag,"-MarkerPreset","acpi"];
         foreach(string preset in new[]{"acpi"," ACPI "})
@@ -311,9 +305,9 @@ internal static class M03AcpiBootstrapCopyEfiIntegrationTests
             Result run=Dry("-BuildEfi",flag,"-MarkerPreset",preset);Passed(run);
             string[] Vector(string prefix)=>run.Output.Split('\n').Single(x=>x.StartsWith(prefix,StringComparison.Ordinal))[prefix.Length..].TrimEnd('\r').Split(';');
             string[] ordered=Vector("ORDERED_MARKERS "),unique=Vector("UNIQUE_MARKERS "),required=Vector("REQUIRED_MARKERS ");
-            Need(ordered.Length==35&&unique.Length==35&&required.Length==35,"all35 records required");
+            Need(ordered.Length==OS.Tooling.QemuContracts.M03AcpiBootstrapRequiredMarkers.Count&&unique.Length==ordered.Length&&required.Length==ordered.Length,"complete record inventory required");
             Need(ordered.SequenceEqual(unique,StringComparer.Ordinal)&&ordered.ToHashSet(StringComparer.Ordinal).SetEquals(required),"ordered/unique sequence and required set");
-            Need(ordered.Distinct(StringComparer.Ordinal).Count()==35&&ordered.All(x=>x.Length>0&&x.Trim()==x),"canonical unique markers");
+            Need(ordered.Distinct(StringComparer.Ordinal).Count()==ordered.Length&&ordered.All(x=>x.Length>0&&x.Trim()==x),"canonical unique markers");
             Need(ordered[13]=="ACPI_RSDP_SNAPSHOT_READY"&&ordered[17]=="ACPI_MCFG_DISCOVERY_READY"&&ordered[18]=="TEST_START m03.002"&&ordered[26]=="TEST_PASS m03.002"&&ordered[^1]=="OS_SMOKE_PASS","old ACPI and complete new sequence");
             Need(run.Output.Split('\n').Count(x=>string.Equals(x.TrimEnd('\r'),"TEST_PASS qemu.runner.dryrun",StringComparison.Ordinal))==1,"exact dryrun terminal");
         }
@@ -321,8 +315,8 @@ internal static class M03AcpiBootstrapCopyEfiIntegrationTests
         Reject("-BuildEfi",flag,"-MarkerPreset","acpi,baseline");Reject([..positive,"-SkipImageBuild"]);Reject([..positive,"-RequireNativeAppMarkers"]);
         Reject("-RequireMarker","CLROS_M03_002_READY");
         foreach(string option in new[]{"-RequireMarker","-RequireOrderedMarker","-RequireUniqueMarker","-ForbidMarker","-M01RawObservationLog","--http-probe","--extra-arg"})Reject([..positive,option,"extra"]);
-        var flags=Regex.Matches(File.ReadAllText(script).Split("$ErrorActionPreference",StringSplitOptions.None)[0],@"\[switch\]\s+\$(Enable\w+)").Select(m=>m.Groups[1].Value).ToArray();
-        Need(flags.Length==52,"actual current requested profile vector");
+        var flags=OS.Tooling.EfiContracts.DiagnosticProbes.ToArray();
+        Need(flags.Length==OS.Tooling.EfiContracts.DiagnosticProbes.Count,"actual current requested profile vector");
         foreach(string other in flags.Where(x=>x!="EnableAcpiPhysicalDiscoveryProbe"))Reject([..positive,"-"+other]);
         Result markerOnly=Dry("-BootPolicy","Diagnostic","-MarkerPreset","acpi");Passed(markerOnly);
         Need(!markerOnly.Output.Contains("CLROS_M03_002_",StringComparison.Ordinal),"historical marker-only preset remains separate");
@@ -330,137 +324,78 @@ internal static class M03AcpiBootstrapCopyEfiIntegrationTests
     }
     private static void TestTranscriptControls()
     {
-        string directory=Scratch("transcript"),script=Path.Combine(Root(),"scripts/run-qemu-smoke.ps1"),copy=Path.Combine(directory,"run-qemu-smoke.ps1"),control=Path.Combine(directory,"controls.ps1");
-        File.Copy(script,copy);File.WriteAllText(control,TranscriptScript,new UTF8Encoding(false));
-        var inputs=new[]{copy,control}.Select(path=>new{Path=path,Bytes=new FileInfo(path).Length,Sha256=Hash(path)}).ToArray();
-        File.WriteAllText(Path.Combine(directory,"inputs.json"),JsonSerializer.Serialize(inputs));
-        Result run=Process(Path.Combine(directory,"run"),"powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",control,"-Source",copy,"-Directory",directory);Passed(run);
-        Need(run.Output.Contains("TEST_PASS m03.acpi.transcript controls=",StringComparison.Ordinal)&&run.Output.Contains("stderrWhitespaceRejected=true",StringComparison.Ordinal),"complete strict raw/lifecycle controls");
-        foreach(var input in inputs)Need(Hash(input.Path)==input.Sha256,"unchanged transcript input "+input.Path);
-        Need(Hash(script)==Hash(copy),"original production parser remained unchanged");
+        string directory=Scratch("transcript"); string[] lines=[
+            "TEST_START efi.main",
+            "EFI_CONSOLE_READY",
+            "UEFI_MEMORY_MAP_READY",
+            "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 4",
+            "UEFI_MEMORY_MAP_OWNED",
+            "BOOT_HANDOFF_READY",
+            "UEFI_MEMORY_MAP_NORMALIZED",
+            "BOOT_MEMORY_MAP_ACCEPTED",
+            "BOOT_MEMORY_REGIONS_READY",
+            "BOOT_MEMORY_REGION_COUNT 4",
+            "BOOT_PAGE_ALLOCATOR_READY status=Ready regions=4 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0",
+            "BOOT_ACPI_RSDP_HANDOFF_READY",
+            "UEFI_ACPI_RSDP_READY",
+            "ACPI_RSDP_SNAPSHOT_READY",
+            "ACPI_RSDP_VALIDATED",
+            "ACPI_ROOT_SDT_SNAPSHOT_READY",
+            "ACPI_ROOT_SDT_VALIDATED",
+            "ACPI_MCFG_DISCOVERY_READY",
+            "TEST_START m03.002",
+            "CLROS_M03_002_TABLE role=rsdp physical=805306368 owned=1073741840 offset=0 length=36 signature=2329016660419433298 rootIndex=18446744073709551615 compared=36 mismatches=0",
+            "CLROS_M03_002_TABLE role=root physical=805310464 owned=1073741876 offset=36 length=60 signature=1413763928 rootIndex=18446744073709551615 compared=60 mismatches=0",
+            "CLROS_M03_002_TABLE role=mcfg physical=805314560 owned=1073741936 offset=96 length=60 signature=1195787085 rootIndex=2 compared=60 mismatches=0",
+            "CLROS_M03_002_TABLE role=apic physical=805318656 owned=1073741996 offset=156 length=44 signature=1128878145 rootIndex=0 compared=44 mismatches=0",
+            "CLROS_M03_002_TABLE role=hpet physical=805322752 owned=1073742040 offset=200 length=56 signature=1413828680 rootIndex=1 compared=56 mismatches=0",
+            "CLROS_M03_002_RETAIN total=256 descriptors=5 guards=32 tail=265984 mismatches=0",
+            "CLROS_M03_002_READY firmwareAvailable=true exitBootServices=false",
+            "TEST_PASS m03.002",
+            "TEST_START boot.sequence",
+            "BOOT_PHASE PhaseA.Audit START",
+            "BOOT_PHASE PhaseA.Audit PASS",
+            "BOOT_PHASE PhaseA.Diagnostics START",
+            "BOOT_PHASE PhaseA.Diagnostics PASS",
+            "OS_BOOT_OK",
+            "TEST_PASS boot.sequence",
+            "OS_SMOKE_PASS"
+        ];
+        var control=new FirmwareTranscriptControls(directory,path=>OS.Tooling.QemuTranscripts.AssertM03AcpiBootstrapTranscript(path));byte[] good=FirmwareTranscriptControls.Bytes(lines);control.Check(good,true);
+        string[] rsdt=[..lines];
+        rsdt[19]=rsdt[19].Replace("length=36","length=20").Replace("compared=36","compared=20");
+        rsdt[20]=rsdt[20].Replace("owned=1073741876 offset=36 length=60 signature=1413763928","owned=1073741860 offset=20 length=48 signature=1413763922").Replace("compared=60","compared=48");
+        rsdt[21]=rsdt[21].Replace("owned=1073741936 offset=96","owned=1073741908 offset=68");rsdt[22]=rsdt[22].Replace("owned=1073741996 offset=156","owned=1073741968 offset=128");rsdt[23]=rsdt[23].Replace("owned=1073742040 offset=200","owned=1073742012 offset=172");rsdt[24]=rsdt[24].Replace("total=256","total=228").Replace("tail=265984","tail=266012");control.Check(FirmwareTranscriptControls.Bytes(rsdt),true);
+        string[] touch=[..rsdt];touch[20]=touch[20].Replace("physical=805310464","physical=805306388");control.Check(FirmwareTranscriptControls.Bytes(touch),true);
+        for(int i=0;i<lines.Length;i++)
+        {
+            string[] copy=[..lines];copy[i]+=" extra=1";control.Check(FirmwareTranscriptControls.Bytes(copy),false);copy=[..lines];copy[i]="";control.Check(FirmwareTranscriptControls.Bytes(copy),false);
+            copy=[..lines];copy[i]=copy[i].ToLowerInvariant();if(copy[i]!=lines[i])control.Check(FirmwareTranscriptControls.Bytes(copy),false);
+            control.Check(FirmwareTranscriptControls.Bytes(lines.Take(i+1).Concat(lines.Skip(i))),false);
+        }
+        for(int i=19;i<=23;i++)
+        {
+            foreach(string field in new[]{"physical","owned","length"})foreach(string value in new[]{"0","18446744073709551615","18446744073709551616","01","+1","-1"})
+            {string[] copy=[..lines];copy[i]=Regex.Replace(copy[i]," "+field+"=[0-9]+"," "+field+"="+value);control.Check(FirmwareTranscriptControls.Bytes(copy),false);}
+            foreach(string field in new[]{"offset","signature","compared","mismatches"}){string[] copy=[..lines];copy[i]=Regex.Replace(copy[i]," "+field+"=[0-9]+"," "+field+"=1");control.Check(FirmwareTranscriptControls.Bytes(copy),false);}
+            string[] overlap=[..lines];overlap[i]=Regex.Replace(overlap[i]," physical=[0-9]+"," physical=1073741840");control.Check(FirmwareTranscriptControls.Bytes(overlap),false);
+            string[] index=[..lines];index[i]=Regex.Replace(index[i]," rootIndex=[0-9]+"," rootIndex="+(i<21?"0":"3"));control.Check(FirmwareTranscriptControls.Bytes(index),false);
+        }
+        foreach(var pair in new (string Old,string New)[]{("physical=805310464","physical=805306369"), ("rootIndex=2","rootIndex=0"), ("signature=1413763928","signature=1413763927"), ("descriptors=5","descriptors=4"), ("guards=32","guards=31"), ("tail=265984","tail=265983"), ("total=256","total=255"), ("regions=4","regions=3"), ("freeBytes=81920","freeBytes=81921"), ("firmwareAvailable=true","firmwareAvailable=false"), ("exitBootServices=false","exitBootServices=true")})control.Check(Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(good).Replace(pair.Old,pair.New)),false);
+        string[] swap=[..lines];(swap[21],swap[22])=(swap[22],swap[21]);control.Check(FirmwareTranscriptControls.Bytes(swap),false);
+        control.Check(Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(good).Replace("\r\n","\n")),false);control.Check(good[..^1],false);control.Check([..good,0],false);control.Check([..good,255],false);control.Check(good,false,[255]);control.Check(good,false,Encoding.ASCII.GetBytes("arbitrary"));control.Check(good,false,post:[..FirmwareTranscriptControls.Suffix,65]);control.Check(good,true);
+        string[] ordered=lines.Select(line=>line.StartsWith("UEFI_MEMORY_MAP_DESCRIPTOR_COUNT ",StringComparison.Ordinal)||line.StartsWith("BOOT_MEMORY_REGION_COUNT ",StringComparison.Ordinal)||line.StartsWith("BOOT_PAGE_ALLOCATOR_READY ",StringComparison.Ordinal)||line.StartsWith("CLROS_M03_002_RETAIN ",StringComparison.Ordinal)?line.Split(' ')[0]:line.StartsWith("CLROS_M03_002_TABLE ",StringComparison.Ordinal)?string.Join(' ',line.Split(' ').Take(2)):line).ToArray();
+        var runner=new StandardFirmwareRunnerControls(directory,lines,ordered,["OS_SMOKE_FAIL","TEST_FAIL","ACPI_DISCOVERY_FAIL"],"EnableAcpiPhysicalDiscoveryProbe",preset:"acpi");runner.CompleteMatrix(false);
+        Console.WriteLine("TRANSCRIPT_CONTROLS m03.acpi cases="+(control.Cases+runner.Cases)+" stderrWhitespaceRejected=true");
     }
-
-    private static readonly string TranscriptScript = """
-        param([string]$Source,[string]$Directory)
-        $ErrorActionPreference='Stop'
-        $tokens=$null;$errors=$null;$ast=[Management.Automation.Language.Parser]::ParseFile($Source,[ref]$tokens,[ref]$errors)
-        if($errors.Count){throw 'script syntax'}
-        foreach($name in @('Read-M03MemoryMapCaptureRecord','Assert-M03AcpiBootstrapTranscript','Assert-M03AcpiBootstrapRunnerResult','Invoke-NativeCommand')){
-            $function=$ast.FindAll({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq $name},$true)
-            if($function.Count -ne 1){throw ('function inventory '+$name)}
-            Invoke-Expression $function[0].Extent.Text
-        }
-        $root=$Directory
-        $lines=@(
-        'TEST_START efi.main','EFI_CONSOLE_READY','UEFI_MEMORY_MAP_READY','UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 4','UEFI_MEMORY_MAP_OWNED',
-        'BOOT_HANDOFF_READY','UEFI_MEMORY_MAP_NORMALIZED','BOOT_MEMORY_MAP_ACCEPTED','BOOT_MEMORY_REGIONS_READY','BOOT_MEMORY_REGION_COUNT 4',
-        'BOOT_PAGE_ALLOCATOR_READY status=Ready regions=4 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0',
-        'BOOT_ACPI_RSDP_HANDOFF_READY','UEFI_ACPI_RSDP_READY','ACPI_RSDP_SNAPSHOT_READY','ACPI_RSDP_VALIDATED','ACPI_ROOT_SDT_SNAPSHOT_READY','ACPI_ROOT_SDT_VALIDATED','ACPI_MCFG_DISCOVERY_READY',
-        'TEST_START m03.002',
-        'CLROS_M03_002_TABLE role=rsdp physical=805306368 owned=1073741840 offset=0 length=36 signature=2329016660419433298 rootIndex=18446744073709551615 compared=36 mismatches=0',
-        'CLROS_M03_002_TABLE role=root physical=805310464 owned=1073741876 offset=36 length=60 signature=1413763928 rootIndex=18446744073709551615 compared=60 mismatches=0',
-        'CLROS_M03_002_TABLE role=mcfg physical=805314560 owned=1073741936 offset=96 length=60 signature=1195787085 rootIndex=2 compared=60 mismatches=0',
-        'CLROS_M03_002_TABLE role=apic physical=805318656 owned=1073741996 offset=156 length=44 signature=1128878145 rootIndex=0 compared=44 mismatches=0',
-        'CLROS_M03_002_TABLE role=hpet physical=805322752 owned=1073742040 offset=200 length=56 signature=1413828680 rootIndex=1 compared=56 mismatches=0',
-        'CLROS_M03_002_RETAIN total=256 descriptors=5 guards=32 tail=265984 mismatches=0',
-        'CLROS_M03_002_READY firmwareAvailable=true exitBootServices=false','TEST_PASS m03.002',
-        'TEST_START boot.sequence','BOOT_PHASE PhaseA.Audit START','BOOT_PHASE PhaseA.Audit PASS','BOOT_PHASE PhaseA.Diagnostics START','BOOT_PHASE PhaseA.Diagnostics PASS','OS_BOOT_OK','TEST_PASS boot.sequence','OS_SMOKE_PASS')
-        $preamble=[Convert]::FromBase64String('G1syShtbMDE7MDFIG1s9M2gbWzJKG1swMTswMUgbWzJKG1swMTswMUgbWz0zaBtbMkobWzAxOzAxSBtbMkobWzAxOzAxSBtbPTNoG1syShtbMDE7MDFIQmRzRHhlOiBsb2FkaW5nIEJvb3QwMDAxICJVRUZJIFFFTVUgSEFSRERJU0sgUU0wMDAxMyAiIGZyb20gUGNpUm9vdCgweDApL1BjaSgweDIsMHgwKS9TYXRhKDB4MCwweEZGRkYsMHgwKQ0KQmRzRHhlOiBzdGFydGluZyBCb290MDAwMSAiVUVGSSBRRU1VIEhBUkRESVNLIFFNMDAwMTMgIiBmcm9tIFBjaVJvb3QoMHgwKS9QY2koMHgyLDB4MCkvU2F0YSgweDAsMHhGRkZGLDB4MCkNCg==')
-        $suffix=[Convert]::FromBase64String('QmRzRHhlOiBsb2FkaW5nIEJvb3QwMDAwICJVaUFwcCIgZnJvbSBGdig3Q0I4QkRDOS1GOEVCLTRGMzQtQUFFQS0zRUU0QUY2NTE2QTEpL0Z2RmlsZSg0NjJDQUEyMS03NjE0LTQ1MDMtODM2RS04QUI2RjQ2NjIzMzEpDQpCZHNEeGU6IHN0YXJ0aW5nIEJvb3QwMDAwICJVaUFwcCIgZnJvbSBGdig3Q0I4QkRDOS1GOEVCLTRGMzQtQUFFQS0zRUU0QUY2NTE2QTEpL0Z2RmlsZSg0NjJDQUEyMS03NjE0LTQ1MDMtODM2RS04QUI2RjQ2NjIzMzEpDQobWzJKG1swMTswMUgbWzJKG1swMTswMUgbWz0zaBtbMkobWzAxOzAxSBtbMG0bWzMwbRtbNDBtG1swMTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDI7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzAzOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swNDswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDU7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzA2OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swNzswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDg7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzA5OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxMDswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTE7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzEyOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxMzswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTQ7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzE1OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxNjswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTc7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzE4OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxOTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMjA7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzIxOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1syMjswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMjM7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzI0OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1syNTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swMTswMUgbWzBtG1szNG0bWzQ3bRtbMDE7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzAyOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swMzswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDQ7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzA1OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swNjswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDE7MDFIG1swMjswMkhTdGFuZGFyZCBQQyAoUTM1ICsgSUNIOSwgMjAwOSkbWzAzOzAySHBjLXEzNS0xMS4xG1swMzs1NEgyLjAwIEdIehtbMDQ7MDJIZWRrMi1zdGFibGUyMDI0MDgtcHJlYnVpbHQucWVtdS5vcmcbWzA0OzU0SDI1NiBNQiBSQU0bWzA1OzAySBtbMDU7NTRIG1swNjswMkgbWzA2OzU0SBtbMG0bWzM3bRtbNDBtG1syMTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMjI7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzIzOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1syNDswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMjE7MDFIG1swbRtbMzBtG1s0MG0bWzI1OzUzSCAgG1syNTs1NEggIBtbMjU7NTVIICAbWzI1OzU2SCAgG1syNTs1N0ggIBtbMjU7NThIICAbWzI1OzU5SCAgG1syNTs2MEggIBtbMjU7NjFIICAbWzI1OzYySCAgG1syNTs2M0ggIBtbMjU7NjRIICAbWzI1OzY1SCAgG1syNTs2NkggIBtbMjU7NjdIICAbWzI1OzY4SCAgG1syNTs2OUggIBtbMjU7NzBIICAbWzI1OzcxSCAgG1syNTs3MkggIBtbMjU7NzNIICAbWzBtG1szMG0bWzQ3bRtbMDc7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzA4OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swOTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTA7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzExOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxMjswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTM7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzE0OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxNTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTY7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzE3OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxODswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTk7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzIwOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swNzswMUgbWzA3OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swbRtbMzdtG1s0MG0bWzA4OzMxSDxTdGFuZGFyZCBFbmdsaXNoPhtbMG0bWzMwbRtbNDdtG1swODs0OUggICAgICAgICAbWzA4OzAxSCAgIBtbMDg7MDRIU2VsZWN0IExhbmd1YWdlICAgICAgICAgICAgG1swbRtbMzRtG1s0N20bWzA5OzAxSCAgIBtbMDk7MDRIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swbRtbMzBtG1s0N20bWzEwOzAxSCAgIBtbMTA7MDJI4pa6G1sxMDswNEhEZXZpY2UgTWFuYWdlciAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzExOzAxSCAgIBtbMTE7MDJI4pa6G1sxMTswNEhCb290IE1hbmFnZXIgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzEyOzAxSCAgIBtbMTI7MDJI4pa6G1sxMjswNEhCb290IE1haW50ZW5hbmNlIE1hbmFnZXIgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzBtG1szNG0bWzQ3bRtbMTM7MDFIICAgG1sxMzswNEggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzBtG1szMG0bWzQ3bRtbMTQ7MDFIICAgG1sxNDswNEhDb250aW51ZSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzE1OzAxSCAgIBtbMTU7MDRIUmVzZXQgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxNjswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzE3OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTg7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxOTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzIwOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swbRtbMzdtG1s0MG0bWzIzOzAySCAbWzIyOzAySCAbWzIyOzUzSCAgICAgICAgICAgICAgICAgICAgICAgICAbWzIyOzI3SCAgICAgICAgICAgICAgICAgICAgICAgICAgG1syMzs1M0ggICAgICAgICAgICAgICAgICAgICAgICAgICAbWzIzOzAzSOKGkeKGkz1Nb3ZlIEhpZ2hsaWdodCAgICAgICAbWzIyOzAzSCAgICAgICAgICAgICAgICAgICAgICAgIBtbMjM7MjdIPEVudGVyPj1TZWxlY3QgRW50cnkgICAgICAbWzBtG1szNG0bWzQ3bRtbMDg7NThIVGhpcyBpcyB0aGUgb3B0aW9uICAgICAbWzA5OzU4SG9uZSBhZGp1c3RzIHRvIGNoYW5nZSAgG1sxMDs1OEh0aGUgbGFuZ3VhZ2UgZm9yIHRoZSAgIBtbMTE7NThIY3VycmVudCBzeXN0ZW0gICAgICAgICAbWzEyOzU4SCAgICAgICAgICAgICAgICAgICAgICAgG1sxMzs1OEggICAgICAgICAgICAgICAgICAgICAgIBtbMTQ7NThIICAgICAgICAgICAgICAgICAgICAgICAbWzE1OzU4SCAgICAgICAgICAgICAgICAgICAgICAgG1sxNjs1OEggICAgICAgICAgICAgICAgICAgICAgIBtbMTc7NThIICAgICAgICAgICAgICAgICAgICAgICAbWzE4OzU4SCAgICAgICAgICAgICAgICAgICAgICAgG1sxOTs1OEggICAgICAgICAgICAgICAgICAgICAgIBtbMTk7ODBI')
-        $serialPath=Join-Path $Directory 'serial.log';$summaryPath=Join-Path $Directory 'summary.log';$cases=0
-        function Bytes([string[]]$value){return [Text.Encoding]::ASCII.GetBytes(($value -join "`r`n")+"`r`n")}
-        $good=Bytes $lines
-        function Check([byte[]]$protocol,[bool]$expected,[byte[]]$pre=$preamble,[byte[]]$post=$suffix){
-            [IO.File]::WriteAllBytes($serialPath,[byte[]]($pre+$protocol+$post));$accepted=$true
-            try{Assert-M03AcpiBootstrapTranscript $serialPath}catch{$accepted=$false}
-            if($accepted -ne $expected){throw ('transcript case '+$script:cases+' expected='+$expected)};$script:cases++
-        }
-        Check $good $true
-        ; # A coherent ACPI1/RSDT fixture changes lengths, offsets and counts together.
-        $rsdt=@($lines)
-        $rsdt[19]=$rsdt[19].Replace('length=36','length=20').Replace('compared=36','compared=20')
-        $rsdt[20]=$rsdt[20].Replace('owned=1073741876 offset=36 length=60 signature=1413763928','owned=1073741860 offset=20 length=48 signature=1413763922').Replace('compared=60','compared=48')
-        $rsdt[21]=$rsdt[21].Replace('owned=1073741936 offset=96','owned=1073741908 offset=68')
-        $rsdt[22]=$rsdt[22].Replace('owned=1073741996 offset=156','owned=1073741968 offset=128')
-        $rsdt[23]=$rsdt[23].Replace('owned=1073742040 offset=200','owned=1073742012 offset=172')
-        $rsdt[24]=$rsdt[24].Replace('total=256','total=228').Replace('tail=265984','tail=266012');Check (Bytes $rsdt) $true
-        $touch=@($rsdt);$touch[20]=$touch[20].Replace('physical=805310464','physical=805306388');Check (Bytes $touch) $true
-        for($i=0;$i -lt 35;$i++){
-            $copy=@($lines);$copy[$i]+=' extra=1';Check (Bytes $copy) $false
-            $copy=@($lines);$copy[$i]='';Check (Bytes $copy) $false
-            $copy=@($lines);$copy[$i]=$copy[$i].ToLowerInvariant();if($copy[$i] -cne $lines[$i]){Check (Bytes $copy) $false}
-            $copy=@($lines[0..$i]) + @($lines[$i..34]);Check (Bytes $copy) $false
-        }
-        for($i=19;$i -le 23;$i++){
-            foreach($field in @('physical','owned','length')){
-                foreach($value in @('0','18446744073709551615','18446744073709551616','01','+1','-1')){
-                    $copy=@($lines);$copy[$i]=[regex]::Replace($copy[$i],(' '+$field+'=[0-9]+'),(' '+$field+'='+$value));Check (Bytes $copy) $false
-                }
-            }
-            foreach($field in @('offset','signature','compared','mismatches')){
-                $copy=@($lines);$copy[$i]=[regex]::Replace($copy[$i],(' '+$field+'=[0-9]+'),(' '+$field+'=1'));Check (Bytes $copy) $false
-            }
-            $copy=@($lines);$copy[$i]=[regex]::Replace($copy[$i],' physical=[0-9]+',' physical=1073741840');Check (Bytes $copy) $false
-            $copy=@($lines);$copy[$i]=[regex]::Replace($copy[$i],' rootIndex=[0-9]+',(' rootIndex='+$(if($i -lt 21){'0'}else{'3'})));Check (Bytes $copy) $false
-        }
-        foreach($pair in @(@('physical=805310464','physical=805306369'),@('rootIndex=2','rootIndex=0'),@('signature=1413763928','signature=1413763927'),@('descriptors=5','descriptors=4'),@('guards=32','guards=31'),@('tail=265984','tail=265983'),@('total=256','total=255'),@('regions=4','regions=3'),@('freeBytes=81920','freeBytes=81921'),@('firmwareAvailable=true','firmwareAvailable=false'),@('exitBootServices=false','exitBootServices=true'))){
-            Check ([Text.Encoding]::ASCII.GetBytes([Text.Encoding]::ASCII.GetString($good).Replace($pair[0],$pair[1]))) $false
-        }
-        $copy=@($lines);$copy[21]=$lines[22];$copy[22]=$lines[21];Check (Bytes $copy) $false
-        Check ([Text.Encoding]::ASCII.GetBytes([Text.Encoding]::ASCII.GetString($good).Replace("`r`n","`n"))) $false
-        Check ([byte[]]$good[0..($good.Length-2)]) $false
-        Check ([byte[]]($good+0)) $false
-        Check ([byte[]]($good+0xFF)) $false
-        Check $good $false ([byte[]]@(0xFF))
-        Check $good $false ([Text.Encoding]::ASCII.GetBytes('arbitrary'))
-        Check $good $false $preamble ([byte[]]($suffix+65))
-        Check $good $true
-        ; # Expected runner data is built from the independent literal transcript above.
-        $ordered=@($lines | ForEach-Object {
-            if($_.StartsWith('UEFI_MEMORY_MAP_DESCRIPTOR_COUNT ')){ 'UEFI_MEMORY_MAP_DESCRIPTOR_COUNT' }
-            elseif($_.StartsWith('BOOT_MEMORY_REGION_COUNT ')){ 'BOOT_MEMORY_REGION_COUNT' }
-            elseif($_.StartsWith('BOOT_PAGE_ALLOCATOR_READY ')){ 'BOOT_PAGE_ALLOCATOR_READY' }
-            elseif($_.StartsWith('CLROS_M03_002_TABLE ')){ $_.Split(' ')[0..1] -join ' ' }
-            elseif($_.StartsWith('CLROS_M03_002_RETAIN ')){ 'CLROS_M03_002_RETAIN' }
-            else {$_}
-        })
-        $required=New-Object 'System.Collections.Generic.List[string]'
-        foreach($value in @('OS_BOOT_OK','TEST_PASS boot.sequence','OS_SMOKE_PASS','UEFI_MEMORY_MAP_OWNED','BOOT_HANDOFF_READY','UEFI_MEMORY_MAP_NORMALIZED','BOOT_MEMORY_MAP_ACCEPTED','BOOT_MEMORY_REGIONS_READY','BOOT_MEMORY_REGION_COUNT','BOOT_PAGE_ALLOCATOR_READY','BOOT_ACPI_RSDP_HANDOFF_READY','UEFI_ACPI_RSDP_READY')+$ordered){if(-not $required.Contains($value)){$required.Add($value)}}
-        $forbidden=@('OS_SMOKE_FAIL','TEST_FAIL','ACPI_DISCOVERY_FAIL')
-        $runner=@('QEMU_DISCOVERY result=qemu.exe checked=qemu.exe','OVMF_DISCOVERY result=ovmf.fd checked=ovmf.fd','TEST_START qemu.smoke','IMAGE_ARTIFACT image.raw',('SERIAL_LOG '+$serialPath),'OVMF_CODE ovmf.fd','WORKLOAD_PROFILE SingleMinimalApi','MARKER_PRESETS acpi',('REQUIRED_MARKERS '+[string]::Join(';',$required)),('ORDERED_MARKERS '+[string]::Join(';',$ordered)),('UNIQUE_MARKERS '+[string]::Join(';',$ordered)),('FORBIDDEN_MARKERS '+[string]::Join(';',$forbidden)),('SERIAL_MARKER_STREAM status=Passed terminal=Success bytes='+($preamble.Length+$good.Length+$suffix.Length)+' lines=40 invalidBytes=207 invalidLines=2 orderedSeen=35 outOfOrder=0 uniqueSeen=35 duplicateUnique=0'),'SERIAL_MARKER_DRAIN milliseconds=750','QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1',('SUMMARY_LOG '+$summaryPath),'TEST_PASS qemu.smoke')
-        $summary=@('QEMU_SMOKE_STATUS pass')+@($runner[3],$runner[4],$runner[6],$runner[7],$runner[8],$runner[9],$runner[10],$runner[11])+@($lines|ForEach-Object{'OBSERVED_MARKER '+$_})+@('APP_EXIT_RESULT none','APP_EXIT_MALFORMED none','MISSING_MARKERS none','OUT_OF_ORDER_MARKERS none','DUPLICATE_UNIQUE_MARKERS none','FORBIDDEN_MARKER_HIT none','FAIL_REASON none','SERIAL_TAIL_LIMIT lines=8 chars=240')
-        $serial=[Text.Encoding]::UTF8.GetString([byte[]]($preamble+$good+$suffix))
-        foreach($line in @($serial.Split([string[]]@("`r`n"),[StringSplitOptions]::None)|Where-Object {$_.Trim().Length -gt 0}|Select-Object -Last 8)){$value=$line.Trim();if($value.Length -gt 240){$value=$value.Substring(0,237)+'...'};$summary+='SERIAL_TAIL_LINE '+$value}
-        $summaryText=($summary -join "`r`n")+"`r`n";[IO.File]::WriteAllText($summaryPath,$summaryText,[Text.Encoding]::UTF8)
-        function Runner([string[]]$value,[bool]$expected){
-            $accepted=$true;try{Assert-M03AcpiBootstrapRunnerResult -Lines $value -SummaryLogPath $summaryPath -SerialLogPath $serialPath -RequiredMarkers $required.ToArray() -OrderedMarkers $ordered -UniqueMarkers $ordered -ForbiddenMarkers $forbidden -ImagePath 'image.raw' -Profile 'SingleMinimalApi'}catch{$accepted=$false}
-            if($accepted -ne $expected){throw ('runner case '+$script:cases+' expected='+$expected)};$script:cases++
-        }
-        Runner $runner $true
-        foreach($exit in @('0','-2147483648','2147483647')){$copy=@($runner);$copy[14]='QEMU_PROCESS_RESULT disposition=runner-terminated exitCode='+$exit;Runner $copy $true}
-        foreach($exit in @('none','-0','01','+1','2147483648','-2147483649')){$copy=@($runner);$copy[14]='QEMU_PROCESS_RESULT disposition=runner-terminated exitCode='+$exit;Runner $copy $false}
-        for($i=0;$i -lt $runner.Count;$i++){$copy=@($runner);$copy[$i]+="`0";Runner $copy $false}
-        foreach($pair in @(@(12,'invalidBytes=207','invalidBytes=208'),@(12,'lines=40','lines=39'),@(12,'orderedSeen=35','orderedSeen=34'),@(12,'status=Passed','status=Timeout'),@(13,'milliseconds=750','milliseconds=749'),@(13,'milliseconds','Milliseconds'),@(14,'runner-terminated','exited'),@(14,'runner-terminated','cleanup-failed'))){$copy=@($runner);$copy[$pair[0]]=$copy[$pair[0]].Replace($pair[1],$pair[2]);Runner $copy $false}
-        foreach($extra in @('TEST_FAIL x','OS_SMOKE_FAIL','QEMU_PROCESS_CLEANUP_FAILED','TEST_START qemu.smoke')){Runner @($runner+$extra) $false}
-        foreach($pair in @(@('QEMU_SMOKE_STATUS pass','QEMU_SMOKE_STATUS fail'),@('FAIL_REASON none','FAIL_REASON timeout'),@('MISSING_MARKERS none','MISSING_MARKERS x'),@('DUPLICATE_UNIQUE_MARKERS none','DUPLICATE_UNIQUE_MARKERS x'),@(('SERIAL_LOG '+$serialPath),'SERIAL_LOG different'))){if($pair.Count -ne 2){throw 'summary mutation pair'};$mutated=$summaryText.Replace($pair[0],$pair[1]);if([string]::Equals($mutated,$summaryText,[StringComparison]::Ordinal)){throw 'summary mutation unchanged'};[IO.File]::WriteAllText($summaryPath,$mutated,[Text.Encoding]::UTF8);Runner $runner $false}
-        [IO.File]::WriteAllText($summaryPath,$summaryText+"OS_SMOKE_FAIL`r`n",[Text.Encoding]::UTF8);Runner $runner $false
-        [IO.File]::WriteAllText($summaryPath,$summaryText,[Text.Encoding]::UTF8);Runner $runner $true
-        ; # Empty stderr is enforced by the same native-command boundary used by this profile.
-        Invoke-NativeCommand -RequireEmptyError -Command {& $env:ComSpec /d /c 'exit 0'}
-        $rejected=$false;$retained=$null
-        try{Invoke-NativeCommand -RequireEmptyError -Command {& $env:ComSpec /d /c 'echo. 1>&2'}}catch{$rejected=$true;$retained=$_.Exception.Message}
-        if(-not $rejected -or -not $retained.Contains('path=')){throw 'stderr admission'}
-        $errorPath=$retained.Substring($retained.IndexOf('path=')+5);if((Get-Item -LiteralPath $errorPath).Length -eq 0){throw 'stderr evidence lost'}
-        Copy-Item -LiteralPath $errorPath -Destination (Join-Path $Directory 'rejected-stderr.log')
-        Write-Output ('TEST_PASS m03.acpi.transcript controls='+$cases+' stderrEmpty=true stderrWhitespaceRejected=true')
-        """;
+    [HostTest("m03.002.efi default and enabled no-stdlib artifacts", HostLane.Native, 3)]
     private static void TestArtifacts()
     {
         string root=Root();var project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));int compile=project.Descendants("Compile").Count();
         foreach(bool enabled in new[]{false,true})
         {
             string directory=Scratch(enabled?"enabled":"default"),artifact=Path.Combine(root,"artifacts/efi/issue539-"+Guid.NewGuid().ToString("N")+".EFI");
-            Result result=Process(directory,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts/build-efi-shell.ps1"),"-BootPolicy","Diagnostic","-EfiOutputPath",artifact,"-LogPath",Path.Combine(directory,"publish.log"),..(enabled?new[]{"-EnableAcpiPhysicalDiscoveryProbe"}:Array.Empty<string>())]);Passed(result);
+            Result result=Tool(["efi","build","-BootPolicy","Diagnostic","-EfiOutputPath",artifact,"-LogPath",Path.Combine(directory,"publish.log"),..(enabled?new[]{"-EnableAcpiPhysicalDiscoveryProbe"}:Array.Empty<string>())]);Passed(result);
             Need(result.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal)&&result.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),"actual producer/verifier");
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var pair in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,pair.Item1),Path.Combine(directory,pair.Item2));

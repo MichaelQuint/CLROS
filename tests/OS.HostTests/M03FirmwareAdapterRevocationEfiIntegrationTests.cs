@@ -9,22 +9,10 @@ internal static class M03FirmwareAdapterRevocationEfiIntegrationTests
     private const string Flag = "EnableM03FirmwareAdapterRevocationProbe";
     private static string Root => HostToolProcess.FindRepositoryRoot();
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        Run("retained original authority and default-off child profile", Source);
-        Run("complete marker admission and missing copied-capability refusals", Profile);
-    }
-
-    private static void Run(string name, Action action)
-    {
-        Console.WriteLine("TEST_START m03.008.efi " + name);
-        try { action(); Console.WriteLine("TEST_PASS m03.008.efi " + name); }
-        catch (Exception error) { Console.WriteLine("TEST_FAIL m03.008.efi " + name + " " + error); throw; }
-    }
     private static void Need(bool value, string reason)
     { if (!value) throw new InvalidOperationException(reason); }
 
+    [HostTest("m03.008.efi retained original authority and default-off child profile", HostLane.Fast, 0)]
     private static void Source()
     {
         var project = XDocument.Load(Path.Combine(Root, "src/OS/OS.csproj"));
@@ -50,19 +38,13 @@ internal static class M03FirmwareAdapterRevocationEfiIntegrationTests
     }
 
     private static string Invoke(params string[] arguments)
-    {
-        var start = new ProcessStartInfo("powershell.exe") { WorkingDirectory = Root, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
-        foreach (string item in new[] { "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", Path.Combine(Root, "scripts/run-qemu-smoke.ps1"), "-DryRun", "-BuildEfi" }.Concat(arguments)) start.ArgumentList.Add(item);
-        start.Environment["PSModulePath"] = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32/WindowsPowerShell/v1.0/Modules");
-        using var process = Process.Start(start)!;
-        var output = process.StandardOutput.ReadToEndAsync(); var error = process.StandardError.ReadToEndAsync();
-        bool ended = process.WaitForExit(120_000);
-        if (!ended) { process.Kill(true); process.WaitForExit(); }
-        string stdout = output.GetAwaiter().GetResult(), stderr = error.GetAwaiter().GetResult();
-        Need(ended && process.ExitCode == 0 && stderr.Length == 0, stdout + stderr);
-        return stdout;
-    }
+{
+    var plan = OS.Tooling.QemuProfiles.Create(OS.Tooling.QemuSmokeOptions.Parse(["-DryRun", "-BuildEfi", ..arguments]));
+    return "REQUIRED_MARKERS " + string.Join(';', plan.Required) + "\nORDERED_MARKERS " + string.Join(';', plan.Ordered) +
+        "\nUNIQUE_MARKERS " + string.Join(';', plan.Unique) + "\nFORBIDDEN_MARKERS " + string.Join(';', plan.Forbidden) + "\n";
+}
 
+    [HostTest("m03.008.efi complete marker admission and missing copied-capability refusals", HostLane.Native, 1)]
     private static void Profile()
     {
         foreach (bool revocation in new[] { false, true }) CheckProfile(revocation);

@@ -4,64 +4,11 @@ using OS.Kernel.Diagnostics;
 
 internal static class OwnedSerialSmokeMarkersTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run(
-            "diagnostics.serialmarkers exposes smoke marker constants",
-            TestExposesSmokeMarkerConstants,
-            ref failures);
-        Run(
-            "diagnostics.serialmarkers recognizes test marker prefixes",
-            TestRecognizesTestMarkerPrefixes,
-            ref failures);
-        Run(
-            "diagnostics.serialmarkers rejects invalid markers",
-            TestRejectsInvalidMarkers,
-            ref failures);
-        Run(
-            "diagnostics.serialmarkers preserves no-allocation contract",
-            TestPreservesNoAllocationContract,
-            ref failures);
-        Run(
-            "diagnostics.serialmarkers uses shared ascii text builder",
-            TestUsesSharedAsciiTextBuilder,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Owned serial smoke marker host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("diagnostics.serialmarkers exposes smoke marker constants", HostLane.Fast, 0)]
     private static bool TestExposesSmokeMarkerConstants()
     {
-        return OwnedSerialSmokeMarkers.TestStartText == SerialSmokeMarkers.TestStart
+        return HostCheck.Result(OwnedSerialSmokeMarkers.TestStartText == SerialSmokeMarkers.TestStart
             && OwnedSerialSmokeMarkers.TestPassText == SerialSmokeMarkers.TestPass
             && OwnedSerialSmokeMarkers.TestFailText == SerialSmokeMarkers.TestFail
             && OwnedSerialSmokeMarkers.BootOkText == SerialSmokeMarkers.BootOk
@@ -93,12 +40,13 @@ internal static class OwnedSerialSmokeMarkersTests
                 OwnedSerialSmokeMarkers.TestPassPrefixText)
             && SpanTextEquals(
                 OwnedSerialSmokeMarkers.DiagnosticsPanicPrefix,
-                OwnedSerialSmokeMarkers.DiagnosticsPanicPrefixText);
+                OwnedSerialSmokeMarkers.DiagnosticsPanicPrefixText));
     }
 
+    [HostTest("diagnostics.serialmarkers recognizes test marker prefixes", HostLane.Fast, 1)]
     private static bool TestRecognizesTestMarkerPrefixes()
     {
-        return OwnedSerialSmokeMarkers.IsTestMarkerPrefix(OwnedSerialSmokeMarkers.TestStartMarker)
+        return HostCheck.Result(OwnedSerialSmokeMarkers.IsTestMarkerPrefix(OwnedSerialSmokeMarkers.TestStartMarker)
             && OwnedSerialSmokeMarkers.IsTestMarkerPrefix(OwnedSerialSmokeMarkers.TestPassMarker)
             && OwnedSerialSmokeMarkers.IsTestMarkerPrefix(OwnedSerialSmokeMarkers.TestFailMarker)
             && !OwnedSerialSmokeMarkers.IsTestMarkerPrefix(OwnedSerialSmokeMarkers.OsSmokePassMarker)
@@ -112,9 +60,10 @@ internal static class OwnedSerialSmokeMarkersTests
             && OwnedSerialSmokeMarkers.IsKnownSmokeMarker("OS_BOOT_OK"u8)
             && OwnedSerialSmokeMarkers.IsKnownSmokeMarker("OS_SMOKE_PASS"u8)
             && OwnedSerialSmokeMarkers.IsKnownSmokeMarker(
-                "OS_SMOKE_FAIL subsystem=diagnostics reason=owned-serial"u8);
+                "OS_SMOKE_FAIL subsystem=diagnostics reason=owned-serial"u8));
     }
 
+    [HostTest("diagnostics.serialmarkers rejects invalid markers", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidMarkers()
     {
         Span<byte> tooLong = stackalloc byte[OwnedSerialSmokeMarkers.MaximumMarkerBytes + 1];
@@ -130,7 +79,7 @@ internal static class OwnedSerialSmokeMarkersTests
         OwnedSerialSmokeMarkerFormatResult panicToken =
             OwnedSerialSmokeMarkers.FormatDiagnosticsPanicMarker("bad reason"u8, destination);
 
-        return !OwnedSerialSmokeMarkers.IsValidMarker(ReadOnlySpan<byte>.Empty)
+        return HostCheck.Result(!OwnedSerialSmokeMarkers.IsValidMarker(ReadOnlySpan<byte>.Empty)
             && !OwnedSerialSmokeMarkers.IsValidMarker(" TEST_PASS diagnostics.serialmarkers"u8)
             && !OwnedSerialSmokeMarkers.IsValidMarker("TEST_PASS diagnostics.serialmarkers "u8)
             && !OwnedSerialSmokeMarkers.IsValidMarker("TEST_PASS diagnostics.serialmarkers\n"u8)
@@ -146,9 +95,10 @@ internal static class OwnedSerialSmokeMarkersTests
             && !panicToken.Succeeded
             && panicToken.Status == OwnedSerialSmokeMarkerFormatStatus.InvalidToken
             && destination[0] == 0xA5
-            && destination[^1] == 0xA5;
+            && destination[^1] == 0xA5);
     }
 
+    [HostTest("diagnostics.serialmarkers preserves no-allocation contract", HostLane.Fast, 3)]
     private static bool TestPreservesNoAllocationContract()
     {
         Span<byte> destination = stackalloc byte[OwnedSerialSmokeMarkers.MaximumMarkerBytes];
@@ -156,7 +106,7 @@ internal static class OwnedSerialSmokeMarkersTests
             OwnedSerialSmokeMarkers.FormatTestPassMarker("warmup"u8, destination);
         if (!warmup.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         _ = OwnedSerialSmokeMarkers.HasTestMarkerPrefix(destination[..warmup.BytesWritten]);
@@ -171,18 +121,18 @@ internal static class OwnedSerialSmokeMarkersTests
             if (!result.Succeeded ||
                 !OwnedSerialSmokeMarkers.HasTestMarkerPrefix(destination[..result.BytesWritten]))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
         long after = GC.GetAllocatedBytesForCurrentThread();
 
-        return after == before
+        return HostCheck.Result(after == before
             && result.IsInitialized
             && result.Status == OwnedSerialSmokeMarkerFormatStatus.Success
             && result.PrefixBytes == OwnedSerialSmokeMarkers.TestPassPrefix.Length
             && result.TokenBytes == "contract"u8.Length
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OwnedSerialSmokeMarkerFormatResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OwnedSerialSmokeMarkerFormatResult>());
     }
 
     private static bool SpanTextEquals(ReadOnlySpan<byte> bytes, string text)
@@ -190,6 +140,7 @@ internal static class OwnedSerialSmokeMarkersTests
         return Encoding.ASCII.GetString(bytes) == text;
     }
 
+    [HostTest("diagnostics.serialmarkers uses shared ascii text builder", HostLane.Fast, 4)]
     private static bool TestUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -200,11 +151,11 @@ internal static class OwnedSerialSmokeMarkersTests
             "Diagnostics",
             "OwnedSerialSmokeMarkers.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains("AsciiTextBuilder.AppendBytes(destination, offset, value)", StringComparison.Ordinal)
             && source.Contains("AsciiTextBuilder.AppendByte(destination, offset, value)", StringComparison.Ordinal)
             && !source.Contains("prefix.CopyTo(destination)", StringComparison.Ordinal)
             && !source.Contains("token.CopyTo(destination.Slice", StringComparison.Ordinal)
-            && !source.Contains("destination[prefix.Length] = Space", StringComparison.Ordinal);
+            && !source.Contains("destination[prefix.Length] = Space", StringComparison.Ordinal));
     }
 }

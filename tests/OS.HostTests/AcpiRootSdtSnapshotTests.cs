@@ -5,50 +5,8 @@ using OS.Std.Binary;
 
 internal static class AcpiRootSdtSnapshotTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("acpi.root_sdt.snapshot reads rsdt from acpi1 rsdp", TestReadsRsdtFromAcpi10Rsdp, ref failures);
-        Run("acpi.root_sdt.snapshot prefers xsdt from acpi2 rsdp", TestPrefersXsdtFromAcpi20Rsdp, ref failures);
-        Run("acpi.root_sdt.snapshot falls back to rsdt when xsdt address is zero", TestFallsBackToRsdtWhenXsdtMissing, ref failures);
-        Run("acpi.root_sdt.snapshot rejects invalid rsdp input", TestRejectsInvalidRsdpInput, ref failures);
-        Run("acpi.root_sdt.snapshot rejects missing root address", TestRejectsMissingRootAddress, ref failures);
-        Run("acpi.root_sdt.snapshot reports scratch and destination capacity", TestReportsScratchAndDestinationCapacity, ref failures);
-        Run("acpi.root_sdt.snapshot reports physical read failures", TestReportsPhysicalReadFailures, ref failures);
-        Run("acpi.root_sdt.snapshot rejects invalid signature length and checksum", TestRejectsInvalidSignatureLengthAndChecksum, ref failures);
-        Run("acpi.root_sdt.snapshot rejects invalid pointer array length", TestRejectsInvalidPointerArrayLength, ref failures);
-        Run("acpi.root_sdt.snapshot result contains no managed references", TestResultContainsNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ACPI root SDT snapshot host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("acpi.root_sdt.snapshot reads rsdt from acpi1 rsdp", HostLane.Fast, 0)]
     private static bool TestReadsRsdtFromAcpi10Rsdp()
     {
         byte[] rsdt = CreateRsdt(0x00110000, 0x00120000);
@@ -66,7 +24,7 @@ internal static class AcpiRootSdtSnapshotTests
             header,
             table);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == AcpiRootSdtSnapshotStatus.Success
             && result.TableKind == AcpiSdtTableKind.Rsdt
             && result.PhysicalAddress == 0x00200000
@@ -80,9 +38,10 @@ internal static class AcpiRootSdtSnapshotTests
             && physicalMemory.ReadCount == 2
             && physicalMemory.RequestedBytes[0] == AcpiSdtParser.HeaderLength
             && physicalMemory.RequestedBytes[1] == rsdt.Length
-            && table[0] == (byte)'R';
+            && table[0] == (byte)'R');
     }
 
+    [HostTest("acpi.root_sdt.snapshot prefers xsdt from acpi2 rsdp", HostLane.Fast, 1)]
     private static bool TestPrefersXsdtFromAcpi20Rsdp()
     {
         byte[] xsdt = CreateXsdt(0x0000000100100000, 0x0000000100200000);
@@ -101,16 +60,17 @@ internal static class AcpiRootSdtSnapshotTests
             header,
             table);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.TableKind == AcpiSdtTableKind.Xsdt
             && result.PhysicalAddress == 0x00300000
             && result.BytesRead == xsdt.Length
             && result.EntryCount == 2
             && !result.UsedRsdtFallback
             && result.TableSignature == AcpiSdtParser.XsdtSignature
-            && table[0] == (byte)'X';
+            && table[0] == (byte)'X');
     }
 
+    [HostTest("acpi.root_sdt.snapshot falls back to rsdt when xsdt address is zero", HostLane.Fast, 2)]
     private static bool TestFallsBackToRsdtWhenXsdtMissing()
     {
         byte[] rsdt = CreateRsdt(0x00110000);
@@ -128,13 +88,14 @@ internal static class AcpiRootSdtSnapshotTests
             header,
             table);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.TableKind == AcpiSdtTableKind.Rsdt
             && result.PhysicalAddress == 0x00200000
             && result.EntryCount == 1
-            && result.UsedRsdtFallback;
+            && result.UsedRsdtFallback);
     }
 
+    [HostTest("acpi.root_sdt.snapshot rejects invalid rsdp input", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidRsdpInput()
     {
         Span<byte> header = stackalloc byte[AcpiSdtParser.HeaderLength];
@@ -145,11 +106,12 @@ internal static class AcpiRootSdtSnapshotTests
             header,
             table);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == AcpiRootSdtSnapshotStatus.InvalidRsdpSnapshot
-            && result.RsdpStatus == AcpiRsdpSnapshotStatus.InvalidPhysicalAddress;
+            && result.RsdpStatus == AcpiRsdpSnapshotStatus.InvalidPhysicalAddress);
     }
 
+    [HostTest("acpi.root_sdt.snapshot rejects missing root address", HostLane.Fast, 4)]
     private static bool TestRejectsMissingRootAddress()
     {
         AcpiRsdpSnapshotResult rsdp = CreateRsdpSnapshot(
@@ -169,13 +131,14 @@ internal static class AcpiRootSdtSnapshotTests
             header,
             table);
 
-        return !unavailable.Succeeded
+        return HostCheck.Result(!unavailable.Succeeded
             && unavailable.Status == AcpiRootSdtSnapshotStatus.PhysicalMemoryUnavailable
             && unavailable.PhysicalReadStatus == PlatformPhysicalMemoryStatus.SourceUnavailable
             && !missing.Succeeded
-            && missing.Status == AcpiRootSdtSnapshotStatus.NoUsableRootTableAddress;
+            && missing.Status == AcpiRootSdtSnapshotStatus.NoUsableRootTableAddress);
     }
 
+    [HostTest("acpi.root_sdt.snapshot reports scratch and destination capacity", HostLane.Fast, 5)]
     private static bool TestReportsScratchAndDestinationCapacity()
     {
         byte[] rsdt = CreateRsdt(0x00110000, 0x00120000);
@@ -199,15 +162,16 @@ internal static class AcpiRootSdtSnapshotTests
             header,
             shortTable);
 
-        return !scratchResult.Succeeded
+        return HostCheck.Result(!scratchResult.Succeeded
             && scratchResult.Status == AcpiRootSdtSnapshotStatus.ScratchTooSmall
             && scratchResult.RequiredBytes == AcpiSdtParser.HeaderLength
             && !destinationResult.Succeeded
             && destinationResult.Status == AcpiRootSdtSnapshotStatus.DestinationTooSmall
             && destinationResult.RequiredBytes == rsdt.Length
-            && destinationResult.DeclaredLength == rsdt.Length;
+            && destinationResult.DeclaredLength == rsdt.Length);
     }
 
+    [HostTest("acpi.root_sdt.snapshot reports physical read failures", HostLane.Fast, 6)]
     private static bool TestReportsPhysicalReadFailures()
     {
         byte[] rsdt = CreateRsdt(0x00110000);
@@ -228,14 +192,15 @@ internal static class AcpiRootSdtSnapshotTests
             header,
             table);
 
-        return !headerFailure.Succeeded
+        return HostCheck.Result(!headerFailure.Succeeded
             && headerFailure.Status == AcpiRootSdtSnapshotStatus.HeaderReadFailed
             && headerFailure.PhysicalReadStatus == PlatformPhysicalMemoryStatus.SourceFailed
             && !fullFailure.Succeeded
             && fullFailure.Status == AcpiRootSdtSnapshotStatus.FullReadFailed
-            && fullFailure.PhysicalReadStatus == PlatformPhysicalMemoryStatus.SourceUnavailable;
+            && fullFailure.PhysicalReadStatus == PlatformPhysicalMemoryStatus.SourceUnavailable);
     }
 
+    [HostTest("acpi.root_sdt.snapshot rejects invalid signature length and checksum", HostLane.Fast, 7)]
     private static bool TestRejectsInvalidSignatureLengthAndChecksum()
     {
         byte[] wrongSignature = CreateTable(
@@ -269,7 +234,7 @@ internal static class AcpiRootSdtSnapshotTests
             header,
             table);
 
-        return !signatureResult.Succeeded
+        return HostCheck.Result(!signatureResult.Succeeded
             && signatureResult.Status == AcpiRootSdtSnapshotStatus.InvalidSignature
             && signatureResult.TableSignature == AcpiTableDirectory.McfgSignature
             && !lengthResult.Succeeded
@@ -277,9 +242,10 @@ internal static class AcpiRootSdtSnapshotTests
             && lengthResult.DeclaredLength == AcpiSdtParser.HeaderLength - 1
             && !checksumResult.Succeeded
             && checksumResult.Status == AcpiRootSdtSnapshotStatus.InvalidChecksum
-            && checksumResult.DeclaredLength == badChecksum.Length;
+            && checksumResult.DeclaredLength == badChecksum.Length);
     }
 
+    [HostTest("acpi.root_sdt.snapshot rejects invalid pointer array length", HostLane.Fast, 8)]
     private static bool TestRejectsInvalidPointerArrayLength()
     {
         byte[] invalidRsdt = CreateTableWithPayload(
@@ -297,14 +263,15 @@ internal static class AcpiRootSdtSnapshotTests
             header,
             table);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == AcpiRootSdtSnapshotStatus.InvalidPointerArrayLength
-            && result.RequiredBytes == AcpiSdtParser.HeaderLength + AcpiSdtParser.RsdtPointerSize;
+            && result.RequiredBytes == AcpiSdtParser.HeaderLength + AcpiSdtParser.RsdtPointerSize);
     }
 
+    [HostTest("acpi.root_sdt.snapshot result contains no managed references", HostLane.Fast, 9)]
     private static bool TestResultContainsNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<AcpiRootSdtSnapshotResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<AcpiRootSdtSnapshotResult>());
     }
 
     private static AcpiRsdpSnapshotResult CreateRsdpSnapshot(

@@ -7,13 +7,12 @@ using OS.Std.Memory;
 
 internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void Run()
     {
-        Console.WriteLine("TEST_START m04.003");
-
-        try
+        HostCheck.Run("m04.003", () =>
         {
+
             TestCatalogShapeAndRetrieval();
             TestExplicitCompatibilityPolicies();
             TestBuiltInCopyAndValidation();
@@ -59,14 +58,7 @@ internal static class SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests
                 ExpectedReadinessMarker,
                 readinessMarker);
             Console.WriteLine(readinessMarker);
-            Console.WriteLine("TEST_PASS m04.003");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(
-                "TEST_FAIL m04.003 " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void TestCatalogShapeAndRetrieval()

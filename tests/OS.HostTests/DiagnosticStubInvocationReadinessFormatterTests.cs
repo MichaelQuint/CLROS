@@ -6,46 +6,8 @@ using OS.Kernel.Runtime;
 
 internal static class DiagnosticStubInvocationReadinessFormatterTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("diagnostics.stub_invocation formatter formats ready marker", TestFormatsReadyMarker, ref failures);
-        Run("diagnostics.stub_invocation formatter formats not-ready marker", TestFormatsNotReadyMarker, ref failures);
-        Run("diagnostics.stub_invocation formatter reports short destination", TestReportsShortDestination, ref failures);
-        Run("diagnostics.stub_invocation formatter rejects invalid status", TestRejectsInvalidStatus, ref failures);
-        Run("diagnostics.stub_invocation formatter uses shared ascii text builder", TestUsesSharedAsciiTextBuilder, ref failures);
-        Run("diagnostics.stub_invocation formatter default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Diagnostic stub invocation readiness formatter tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("diagnostics.stub_invocation formatter formats ready marker", HostLane.Fast, 0)]
     private static bool TestFormatsReadyMarker()
     {
         Span<byte> destination = stackalloc byte[DiagnosticStubInvocationReadinessFormatter.MaximumMarkerBytes];
@@ -55,14 +17,15 @@ internal static class DiagnosticStubInvocationReadinessFormatterTests
 
         string marker = Encoding.ASCII.GetString(destination[..result.BytesWritten]);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == DiagnosticStubInvocationMarkerFormatStatus.Success
             && result.BytesWritten == BootSequence.DiagnosticStubInvocationReady.Length
             && result.RequiredBytes == BootSequence.DiagnosticStubInvocationReady.Length
-            && marker == BootSequence.DiagnosticStubInvocationReady;
+            && marker == BootSequence.DiagnosticStubInvocationReady);
     }
 
+    [HostTest("diagnostics.stub_invocation formatter formats not-ready marker", HostLane.Fast, 1)]
     private static bool TestFormatsNotReadyMarker()
     {
         DiagnosticStubInvocationReadinessResult readiness = default;
@@ -74,7 +37,7 @@ internal static class DiagnosticStubInvocationReadinessFormatterTests
         string marker = Encoding.ASCII.GetString(destination[..result.BytesWritten]);
         string expected = BootSequence.CreateDiagnosticStubInvocationNotReadyMarker(readiness);
 
-        return !readiness.IsInitialized
+        return HostCheck.Result(!readiness.IsInitialized
             && !readiness.Succeeded
             && result.Succeeded
             && result.BytesWritten == expected.Length
@@ -82,9 +45,10 @@ internal static class DiagnosticStubInvocationReadinessFormatterTests
             && marker == expected
             && marker.StartsWith(BootSequence.DiagnosticStubInvocationNotReadyPrefix, StringComparison.Ordinal)
             && marker.Contains("initialized=false", StringComparison.Ordinal)
-            && marker.EndsWith("in8=0", StringComparison.Ordinal);
+            && marker.EndsWith("in8=0", StringComparison.Ordinal));
     }
 
+    [HostTest("diagnostics.stub_invocation formatter reports short destination", HostLane.Fast, 2)]
     private static bool TestReportsShortDestination()
     {
         DiagnosticStubInvocationReadinessResult readiness = default;
@@ -96,7 +60,7 @@ internal static class DiagnosticStubInvocationReadinessFormatterTests
         DiagnosticStubInvocationMarkerFormatResult result =
             DiagnosticStubInvocationReadinessFormatter.TryFormatNotReadyMarker(readiness, destination);
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && query.Status == DiagnosticStubInvocationMarkerFormatStatus.Success
             && query.RequiredBytes > destination.Length
             && !query.Succeeded
@@ -106,9 +70,10 @@ internal static class DiagnosticStubInvocationReadinessFormatterTests
             && result.BytesWritten == 0
             && result.RequiredBytes == query.RequiredBytes
             && destination[0] == 0xA5
-            && destination[^1] == 0xA5;
+            && destination[^1] == 0xA5);
     }
 
+    [HostTest("diagnostics.stub_invocation formatter rejects invalid status", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidStatus()
     {
         ExecutableStubPageTransitionPlanResult pageTransition =
@@ -134,15 +99,16 @@ internal static class DiagnosticStubInvocationReadinessFormatterTests
         DiagnosticStubInvocationMarkerFormatResult result =
             DiagnosticStubInvocationReadinessFormatter.TryFormatNotReadyMarker(readiness, destination);
 
-        return result.IsInitialized
+        return HostCheck.Result(result.IsInitialized
             && !result.Succeeded
             && result.Status == DiagnosticStubInvocationMarkerFormatStatus.InvalidStatus
             && result.BytesWritten == 0
             && result.RequiredBytes == 0
             && destination[0] == 0xCC
-            && destination[^1] == 0xCC;
+            && destination[^1] == 0xCC);
     }
 
+    [HostTest("diagnostics.stub_invocation formatter uses shared ascii text builder", HostLane.Fast, 4)]
     private static bool TestUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -154,7 +120,7 @@ internal static class DiagnosticStubInvocationReadinessFormatterTests
                 "Diagnostics",
                 "DiagnosticStubInvocationReadinessFormatter.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains("AsciiDecimalFormatter.CountUInt64Digits((ulong)readiness.PayloadBaseAddress)", StringComparison.Ordinal)
             && source.Contains("AsciiDecimalFormatter.CountUInt64Digits((ulong)readiness.PayloadEndAddress)", StringComparison.Ordinal)
             && source.Contains("AsciiDecimalFormatter.CountUInt64Digits((ulong)readiness.BytesMaterialized)", StringComparison.Ordinal)
@@ -171,19 +137,20 @@ internal static class DiagnosticStubInvocationReadinessFormatterTests
             && !source.Contains("ReadyMarker.CopyTo(destination)", StringComparison.Ordinal)
             && !source.Contains("source.CopyTo(destination", StringComparison.Ordinal)
             && !source.Contains("AsciiDecimalFormatter.FormatUInt64(destination.Slice(offset), value)", StringComparison.Ordinal)
-            && !source.Contains("destination[cursor] = (byte)('0' +", StringComparison.Ordinal);
+            && !source.Contains("destination[cursor] = (byte)('0' +", StringComparison.Ordinal));
     }
 
+    [HostTest("diagnostics.stub_invocation formatter default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         DiagnosticStubInvocationMarkerFormatResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == DiagnosticStubInvocationMarkerFormatStatus.Success
             && result.BytesWritten == 0
             && result.RequiredBytes == 0
             && result.Flags == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<DiagnosticStubInvocationMarkerFormatResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<DiagnosticStubInvocationMarkerFormatResult>());
     }
 }

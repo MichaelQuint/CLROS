@@ -114,7 +114,7 @@ returns only non-secret smoke metadata through source-generated JSON metadata.
 The host packaging command is:
 
 ```powershell
-.\apps\MinimalApiSmoke\publish-kestrel-smoke-package.ps1
+dotnet run --project tools/OS.Tooling -- kestrel package
 ```
 
 The command publishes the framework-dependent .NET 10 app into
@@ -122,10 +122,11 @@ The command publishes the framework-dependent .NET 10 app into
 `artifacts/kestrel-smoke/package.json` with the `kestrel.smoke.package.v0`
 manifest shape, runs `OS.ManifestTool validate-kestrel-package --profile
 SingleMinimalApi`, and performs a negative validation that rejects a manifest
-missing `OS_SMOKE_EXPECTED_BODY`. The script emits `WORKLOAD_PROFILE
+missing `OS_SMOKE_EXPECTED_BODY`. The C# command emits `WORKLOAD_PROFILE
 SingleMinimalApi` and passes `/p:OSWorkloadProfile=SingleMinimalApi` through its
-nested `dotnet publish` and `dotnet run --project` calls so repo-wide profile
-validation is satisfied. Expected host-only markers are:
+`dotnet publish` call. Validation invokes the already-built `OS.ManifestTool`
+DLL directly, so package checks do not rebuild that tool. Build `CLROS.slnx`
+before using `--no-build` tooling. Expected host-only markers are:
 
 ```text
 WORKLOAD_PROFILE SingleMinimalApi
@@ -314,7 +315,7 @@ This contract still needs fail-fast or `OSHOST_STATUS_NOT_SUPPORTED` exports whe
 Host-build fixture evidence is useful but not sufficient. It may include:
 
 - `dotnet build` or `dotnet publish` for a .NET 10 ASP.NET Minimal API fixture.
-- `apps/MinimalApiSmoke/publish-kestrel-smoke-package.ps1` output showing the
+- `dotnet run --project tools/OS.Tooling -- kestrel package` output showing the
   staged `package.json`, `apps/minimal-api` publish layout, contract validation,
   and missing-expected-body rejection markers.
 - Host-side tests that verify source-generated JSON metadata, trimming/AOT warnings, fixture route shape, deterministic response text, PAL ABI layout, `OSHost` socket endpoint/status/timeout value contracts, mock memory allocation/protection/query behavior, mock socket create/bind/listen/accept-queue lifecycle behavior, mock socket partial I/O and peer close/reset behavior, mock timer behavior and timer-facade status translation, mock wait/event table behavior and wait-facade status translation, or mock package-file open/read-at/enumeration lifecycle behavior.

@@ -10,67 +10,7 @@ internal static class NativeAotClassConstructorStateTableTests
     private const uint TypeId = 7;
     private const uint FailureCode = 0xC0DE0001;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("runtime.cctor state begins and completes", TestBeginsAndCompletes, ref failures);
-        Run("runtime.cctor state detects reentry cycle", TestDetectsReentryCycle, ref failures);
-        Run("runtime.cctor state preserves failure", TestPreservesFailure, ref failures);
-        Run("runtime.cctor state rejects duplicate keys", TestRejectsDuplicateKeys, ref failures);
-        Run("runtime.cctor state default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("runtime.cctor state layouts contain no managed references", TestLayoutsContainNoManagedReferences, ref failures);
-        Run("runtime.cctor state formatter formats success marker", TestFormatterFormatsSuccessMarker, ref failures);
-        Run("runtime.cctor state formatter reports short destination", TestFormatterReportsShortDestination, ref failures);
-        Run("runtime.cctor state formatter rejects default result", TestFormatterRejectsDefaultResult, ref failures);
-        Run(
-            "runtime.cctor state formatter uses shared ascii text builder",
-            TestFormatterUsesSharedAsciiTextBuilder,
-            ref failures);
-        Run("runtime.cctor runner preflight ready", TestRunnerPreflightReady, ref failures);
-        Run("runtime.cctor runner preflight rejects default table", TestRunnerPreflightRejectsDefaultTable, ref failures);
-        Run("runtime.cctor runner preflight rejects failed state", TestRunnerPreflightRejectsFailedState, ref failures);
-        Run("runtime.cctor runner preflight rejects pending state", TestRunnerPreflightRejectsPendingState, ref failures);
-        Run("runtime.cctor runner preflight rejects missing metadata", TestRunnerPreflightRejectsMissingMetadata, ref failures);
-        Run("runtime.cctor runner preflight formatter reports short destination", TestRunnerPreflightFormatterReportsShortDestination, ref failures);
-        Run(
-            "runtime.cctor runner preflight formatter uses shared ascii text builder",
-            TestRunnerPreflightFormatterUsesSharedAsciiTextBuilder,
-            ref failures);
-        Run("boot.sequence cctor runner preflight ready", TestBootSequenceCctorRunnerPreflightReady, ref failures);
-        Run("boot.sequence cctor runner preflight rejects failed result", TestBootSequenceCctorRunnerPreflightRejectsFailedResult, ref failures);
-        Run("boot.sequence cctor runner preflight rejects default result", TestBootSequenceCctorRunnerPreflightRejectsDefaultResult, ref failures);
-        Run("boot.sequence cctor runner preflight preserves default markers", TestBootSequenceCctorRunnerPreflightPreservesDefaultMarkers, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("NativeAOT class constructor state table tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("runtime.cctor state begins and completes", HostLane.Fast, 0)]
     private static bool TestBeginsAndCompletes()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -88,7 +28,7 @@ internal static class NativeAotClassConstructorStateTableTests
         NativeAotClassConstructorStateTableResult secondBegin =
             NativeAotClassConstructorStateTable.TryBegin(entries, key);
 
-        return registered.Succeeded
+        return HostCheck.Result(registered.Succeeded
             && registered.State == NativeAotClassConstructorState.Uninitialized
             && registered.SlotIndex == 0
             && registered.OccupiedCount == 1
@@ -104,9 +44,10 @@ internal static class NativeAotClassConstructorStateTableTests
             && readback.State == NativeAotClassConstructorState.Initialized
             && readback.FailureCode == 0
             && !secondBegin.Succeeded
-            && secondBegin.Status == NativeAotClassConstructorStateTableStatus.AlreadyInitialized;
+            && secondBegin.Status == NativeAotClassConstructorStateTableStatus.AlreadyInitialized);
     }
 
+    [HostTest("runtime.cctor state detects reentry cycle", HostLane.Fast, 1)]
     private static bool TestDetectsReentryCycle()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -118,16 +59,17 @@ internal static class NativeAotClassConstructorStateTableTests
         NativeAotClassConstructorStateTableResult reentry =
             NativeAotClassConstructorStateTable.TryBegin(entries, key);
 
-        return !reentry.Succeeded
+        return HostCheck.Result(!reentry.Succeeded
             && reentry.Status == NativeAotClassConstructorStateTableStatus.ReentryCycle
             && reentry.PreviousState == NativeAotClassConstructorState.Initializing
             && reentry.State == NativeAotClassConstructorState.Initializing
             && reentry.SlotIndex == 0
             && reentry.DuplicateSlotIndex == -1
             && entries[0].State == NativeAotClassConstructorState.Initializing
-            && entries[0].TransitionCount == 1;
+            && entries[0].TransitionCount == 1);
     }
 
+    [HostTest("runtime.cctor state preserves failure", HostLane.Fast, 2)]
     private static bool TestPreservesFailure()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -151,7 +93,7 @@ internal static class NativeAotClassConstructorStateTableTests
         NativeAotClassConstructorStateTableResult zeroFailure =
             NativeAotClassConstructorStateTable.MarkFailed(entries, secondKey, failureCode: 0);
 
-        return failed.Succeeded
+        return HostCheck.Result(failed.Succeeded
             && failed.PreviousState == NativeAotClassConstructorState.Initializing
             && failed.State == NativeAotClassConstructorState.Failed
             && failed.FailureCode == FailureCode
@@ -168,9 +110,10 @@ internal static class NativeAotClassConstructorStateTableTests
             && lateInitialized.FailureCode == FailureCode
             && !zeroFailure.Succeeded
             && zeroFailure.Status == NativeAotClassConstructorStateTableStatus.FailureCodeRequired
-            && entries[1].State == NativeAotClassConstructorState.Initializing;
+            && entries[1].State == NativeAotClassConstructorState.Initializing);
     }
 
+    [HostTest("runtime.cctor state rejects duplicate keys", HostLane.Fast, 3)]
     private static bool TestRejectsDuplicateKeys()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -202,7 +145,7 @@ internal static class NativeAotClassConstructorStateTableTests
         NativeAotClassConstructorStateTableResult corruptDuplicate =
             NativeAotClassConstructorStateTable.TryGet(corrupt, key);
 
-        return first.Succeeded
+        return HostCheck.Result(first.Succeeded
             && !duplicate.Succeeded
             && duplicate.Status == NativeAotClassConstructorStateTableStatus.DuplicateKey
             && duplicate.SlotIndex == 0
@@ -215,9 +158,10 @@ internal static class NativeAotClassConstructorStateTableTests
             && corruptDuplicate.Status == NativeAotClassConstructorStateTableStatus.DuplicateKey
             && corruptDuplicate.SlotIndex == 0
             && corruptDuplicate.DuplicateSlotIndex == 1
-            && corruptDuplicate.OccupiedCount == 2;
+            && corruptDuplicate.OccupiedCount == 2);
     }
 
+    [HostTest("runtime.cctor state default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -229,19 +173,20 @@ internal static class NativeAotClassConstructorStateTableTests
         NativeAotClassConstructorStateTableResult invalidKey =
             NativeAotClassConstructorStateTable.Register(entries, defaultKey);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == NativeAotClassConstructorStateTableStatus.Success
             && !defaultKey.IsValid
             && !defaultEntry.IsOccupied
             && !invalidKey.Succeeded
             && invalidKey.Status == NativeAotClassConstructorStateTableStatus.InvalidKey
-            && entries[0].State == NativeAotClassConstructorState.Uninitialized;
+            && entries[0].State == NativeAotClassConstructorState.Uninitialized);
     }
 
+    [HostTest("runtime.cctor state layouts contain no managed references", HostLane.Fast, 5)]
     private static bool TestLayoutsContainNoManagedReferences()
     {
-        return NativeAotClassConstructorStateTable.UsesCallerOwnedStorage
+        return HostCheck.Result(NativeAotClassConstructorStateTable.UsesCallerOwnedStorage
             && !NativeAotClassConstructorStateTable.ExecutesConstructors
             && !NativeAotClassConstructorStateTable.UsesReflection
             && !NativeAotClassConstructorStateTable.UsesExceptionControlFlow
@@ -250,9 +195,10 @@ internal static class NativeAotClassConstructorStateTableTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAotClassConstructorStateTableResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAotClassConstructorStateDiagnosticFormatResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAotClassConstructorRunnerPreflightResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAotClassConstructorRunnerPreflightFormatResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAotClassConstructorRunnerPreflightFormatResult>());
     }
 
+    [HostTest("runtime.cctor state formatter formats success marker", HostLane.Fast, 6)]
     private static bool TestFormatterFormatsSuccessMarker()
     {
         NativeAotClassConstructorStateTableResult result = CreateInitializedResult();
@@ -260,7 +206,7 @@ internal static class NativeAotClassConstructorStateTableTests
             NativeAotClassConstructorStateDiagnosticFormatter.QueryRequiredBytes(in result);
         if (!query.Succeeded || query.RequiredBytes <= 0 || query.BytesWritten != 0)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> destination = stackalloc byte[query.RequiredBytes];
@@ -268,14 +214,15 @@ internal static class NativeAotClassConstructorStateTableTests
             NativeAotClassConstructorStateDiagnosticFormatter.FormatResult(in result, destination);
         string marker = Encoding.ASCII.GetString(destination[..format.BytesWritten]);
 
-        return format.Succeeded
+        return HostCheck.Result(format.Succeeded
             && format.TableStatus == NativeAotClassConstructorStateTableStatus.Success
             && format.BytesWritten == query.RequiredBytes
             && format.RequiredBytes == query.RequiredBytes
             && marker ==
-                "NATIVEAOT_CCTOR_STATE status=Success moduleId=1 typeId=7 previousState=Initializing state=Initialized failureCode=0 slotIndex=0 duplicateSlotIndex=-1 occupiedCount=1 capacity=2";
+                "NATIVEAOT_CCTOR_STATE status=Success moduleId=1 typeId=7 previousState=Initializing state=Initialized failureCode=0 slotIndex=0 duplicateSlotIndex=-1 occupiedCount=1 capacity=2");
     }
 
+    [HostTest("runtime.cctor state formatter reports short destination", HostLane.Fast, 7)]
     private static bool TestFormatterReportsShortDestination()
     {
         NativeAotClassConstructorStateTableResult result = CreateInitializedResult();
@@ -283,7 +230,7 @@ internal static class NativeAotClassConstructorStateTableTests
             NativeAotClassConstructorStateDiagnosticFormatter.QueryRequiredBytes(in result);
         if (!query.Succeeded || query.RequiredBytes <= 1)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> destination = stackalloc byte[query.RequiredBytes - 1];
@@ -295,16 +242,17 @@ internal static class NativeAotClassConstructorStateTableTests
         NativeAotClassConstructorStateDiagnosticFormatResult format =
             NativeAotClassConstructorStateDiagnosticFormatter.FormatResult(in result, destination);
 
-        return !format.Succeeded
+        return HostCheck.Result(!format.Succeeded
             && format.IsInitialized
             && format.Status == NativeAotClassConstructorStateDiagnosticFormatStatus.DestinationTooSmall
             && format.TableStatus == NativeAotClassConstructorStateTableStatus.Success
             && format.BytesWritten == 0
             && format.RequiredBytes == query.RequiredBytes
             && format.AvailableBytes == destination.Length
-            && AllBytesEqual(destination, 0xA5);
+            && AllBytesEqual(destination, 0xA5));
     }
 
+    [HostTest("runtime.cctor state formatter rejects default result", HostLane.Fast, 8)]
     private static bool TestFormatterRejectsDefaultResult()
     {
         NativeAotClassConstructorStateTableResult defaultTableResult = default;
@@ -316,7 +264,7 @@ internal static class NativeAotClassConstructorStateTableTests
         NativeAotClassConstructorStateDiagnosticFormatResult format =
             NativeAotClassConstructorStateDiagnosticFormatter.FormatResult(in defaultTableResult, destination);
 
-        return !defaultFormatResult.IsInitialized
+        return HostCheck.Result(!defaultFormatResult.IsInitialized
             && !defaultFormatResult.Succeeded
             && !query.Succeeded
             && query.Status == NativeAotClassConstructorStateDiagnosticFormatStatus.InvalidResult
@@ -325,9 +273,10 @@ internal static class NativeAotClassConstructorStateTableTests
             && format.Status == NativeAotClassConstructorStateDiagnosticFormatStatus.InvalidResult
             && format.BytesWritten == 0
             && format.RequiredBytes == 0
-            && format.AvailableBytes == destination.Length;
+            && format.AvailableBytes == destination.Length);
     }
 
+    [HostTest("runtime.cctor state formatter uses shared ascii text builder", HostLane.Fast, 9)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -339,7 +288,7 @@ internal static class NativeAotClassConstructorStateTableTests
                 "Runtime",
                 "NativeAotClassConstructorStateDiagnosticFormatter.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains(
                 "AsciiDecimalFormatter.CountUInt64Digits(result.Key.ModuleId)",
                 StringComparison.Ordinal)
@@ -383,9 +332,10 @@ internal static class NativeAotClassConstructorStateTableTests
                 "destination[offset + index] = (byte)('0' +",
                 StringComparison.Ordinal)
             && !source.Contains("value /= 10", StringComparison.Ordinal)
-            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal);
+            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal));
     }
 
+    [HostTest("runtime.cctor runner preflight ready", HostLane.Fast, 10)]
     private static bool TestRunnerPreflightReady()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -404,7 +354,7 @@ internal static class NativeAotClassConstructorStateTableTests
             NativeAotClassConstructorRunnerPreflightDiagnosticFormatter.QueryRequiredBytes(in preflight);
         if (!query.Succeeded || query.RequiredBytes <= 0)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> destination = stackalloc byte[query.RequiredBytes];
@@ -412,7 +362,7 @@ internal static class NativeAotClassConstructorStateTableTests
             NativeAotClassConstructorRunnerPreflightDiagnosticFormatter.FormatResult(in preflight, destination);
         string marker = Encoding.ASCII.GetString(destination[..format.BytesWritten]);
 
-        return preflight.Succeeded
+        return HostCheck.Result(preflight.Succeeded
             && preflight.Status == NativeAotClassConstructorRunnerPreflightStatus.Ready
             && preflight.TypeCount == 2
             && preflight.TargetMetadataCount == 2
@@ -425,9 +375,10 @@ internal static class NativeAotClassConstructorStateTableTests
             && NativeAotClassConstructorRunnerPreflight.RequiresTargetMetadata
             && format.Succeeded
             && marker ==
-                "NATIVEAOT_CCTOR_RUNNER_PREFLIGHT status=Ready initialized=true executesConstructors=false typeCount=2 targetMetadataCount=2 occupiedCount=2 capacity=2 firstProblemIndex=-1 firstProblemState=Uninitialized firstProblemFailureCode=0";
+                "NATIVEAOT_CCTOR_RUNNER_PREFLIGHT status=Ready initialized=true executesConstructors=false typeCount=2 targetMetadataCount=2 occupiedCount=2 capacity=2 firstProblemIndex=-1 firstProblemState=Uninitialized firstProblemFailureCode=0");
     }
 
+    [HostTest("runtime.cctor runner preflight rejects default table", HostLane.Fast, 11)]
     private static bool TestRunnerPreflightRejectsDefaultTable()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -441,7 +392,7 @@ internal static class NativeAotClassConstructorStateTableTests
         NativeAotClassConstructorRunnerPreflightFormatResult invalidQuery =
             NativeAotClassConstructorRunnerPreflightDiagnosticFormatter.QueryRequiredBytes(in defaultResult);
 
-        return !preflight.Succeeded
+        return HostCheck.Result(!preflight.Succeeded
             && preflight.IsInitialized
             && preflight.Status == NativeAotClassConstructorRunnerPreflightStatus.NotInitialized
             && preflight.OccupiedCount == 0
@@ -451,9 +402,10 @@ internal static class NativeAotClassConstructorStateTableTests
             && !defaultFormatResult.IsInitialized
             && !defaultFormatResult.Succeeded
             && !invalidQuery.Succeeded
-            && invalidQuery.Status == NativeAotClassConstructorRunnerPreflightFormatStatus.InvalidResult;
+            && invalidQuery.Status == NativeAotClassConstructorRunnerPreflightFormatStatus.InvalidResult);
     }
 
+    [HostTest("runtime.cctor runner preflight rejects failed state", HostLane.Fast, 12)]
     private static bool TestRunnerPreflightRejectsFailedState()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -467,13 +419,14 @@ internal static class NativeAotClassConstructorStateTableTests
         NativeAotClassConstructorRunnerPreflightResult preflight =
             NativeAotClassConstructorRunnerPreflight.Validate(entries, typeCount: 1, targetMetadataCount: 1);
 
-        return !preflight.Succeeded
+        return HostCheck.Result(!preflight.Succeeded
             && preflight.Status == NativeAotClassConstructorRunnerPreflightStatus.FailedConstructor
             && preflight.FirstProblemIndex == 0
             && preflight.FirstProblemState == NativeAotClassConstructorState.Failed
-            && preflight.FirstProblemFailureCode == FailureCode;
+            && preflight.FirstProblemFailureCode == FailureCode);
     }
 
+    [HostTest("runtime.cctor runner preflight rejects pending state", HostLane.Fast, 13)]
     private static bool TestRunnerPreflightRejectsPendingState()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -486,12 +439,13 @@ internal static class NativeAotClassConstructorStateTableTests
         NativeAotClassConstructorRunnerPreflightResult preflight =
             NativeAotClassConstructorRunnerPreflight.Validate(entries, typeCount: 1, targetMetadataCount: 1);
 
-        return !preflight.Succeeded
+        return HostCheck.Result(!preflight.Succeeded
             && preflight.Status == NativeAotClassConstructorRunnerPreflightStatus.PendingOrReentrantConstructor
             && preflight.FirstProblemIndex == 0
-            && preflight.FirstProblemState == NativeAotClassConstructorState.Initializing;
+            && preflight.FirstProblemState == NativeAotClassConstructorState.Initializing);
     }
 
+    [HostTest("runtime.cctor runner preflight rejects missing metadata", HostLane.Fast, 14)]
     private static bool TestRunnerPreflightRejectsMissingMetadata()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -509,15 +463,16 @@ internal static class NativeAotClassConstructorStateTableTests
         NativeAotClassConstructorRunnerPreflightResult typeMismatch =
             NativeAotClassConstructorRunnerPreflight.Validate(entries, typeCount: 1, targetMetadataCount: 1);
 
-        return !missingMetadata.Succeeded
+        return HostCheck.Result(!missingMetadata.Succeeded
             && missingMetadata.Status == NativeAotClassConstructorRunnerPreflightStatus.MissingTargetMetadata
             && !extraMetadata.Succeeded
             && extraMetadata.Status == NativeAotClassConstructorRunnerPreflightStatus.TargetMetadataCountMismatch
             && !typeMismatch.Succeeded
             && typeMismatch.Status == NativeAotClassConstructorRunnerPreflightStatus.TypeCountMismatch
-            && typeMismatch.OccupiedCount == 2;
+            && typeMismatch.OccupiedCount == 2);
     }
 
+    [HostTest("runtime.cctor runner preflight formatter reports short destination", HostLane.Fast, 15)]
     private static bool TestRunnerPreflightFormatterReportsShortDestination()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -530,7 +485,7 @@ internal static class NativeAotClassConstructorStateTableTests
             NativeAotClassConstructorRunnerPreflightDiagnosticFormatter.QueryRequiredBytes(in preflight);
         if (!query.Succeeded || query.RequiredBytes <= 1)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> destination = stackalloc byte[query.RequiredBytes - 1];
@@ -544,15 +499,16 @@ internal static class NativeAotClassConstructorStateTableTests
                 in preflight,
                 destination);
 
-        return !format.Succeeded
+        return HostCheck.Result(!format.Succeeded
             && format.Status == NativeAotClassConstructorRunnerPreflightFormatStatus.DestinationTooSmall
             && format.PreflightStatus == NativeAotClassConstructorRunnerPreflightStatus.Ready
             && format.BytesWritten == 0
             && format.RequiredBytes == query.RequiredBytes
             && format.AvailableBytes == destination.Length
-            && AllBytesEqual(destination, 0xA5);
+            && AllBytesEqual(destination, 0xA5));
     }
 
+    [HostTest("runtime.cctor runner preflight formatter uses shared ascii text builder", HostLane.Fast, 16)]
     private static bool TestRunnerPreflightFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -564,7 +520,7 @@ internal static class NativeAotClassConstructorStateTableTests
                 "Runtime",
                 "NativeAotClassConstructorRunnerPreflight.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains(
                 "AsciiDecimalFormatter.CountInt32Digits(result.TypeCount)",
                 StringComparison.Ordinal)
@@ -611,9 +567,10 @@ internal static class NativeAotClassConstructorStateTableTests
                 "destination[offset + index] = (byte)('0' +",
                 StringComparison.Ordinal)
             && !source.Contains("value /= 10", StringComparison.Ordinal)
-            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal);
+            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence cctor runner preflight ready", HostLane.Fast, 17)]
     private static bool TestBootSequenceCctorRunnerPreflightReady()
     {
         NativeAotClassConstructorRunnerPreflightResult preflight = CreateReadyPreflight();
@@ -627,15 +584,16 @@ internal static class NativeAotClassConstructorStateTableTests
         string expectedMarker =
             BootSequence.CreateNativeAotClassConstructorRunnerPreflightReadyMarker(preflight);
 
-        return preflight.Succeeded
+        return HostCheck.Result(preflight.Succeeded
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
             && expectedMarker ==
-                "NATIVEAOT_CCTOR_RUNNER_PREFLIGHT_READY status=Ready initialized=true preflight=Ready typeCount=2 targetMetadataCount=2 occupiedCount=2 capacity=2 firstProblemIndex=-1 firstProblemState=Uninitialized firstProblemFailureCode=0 executesConstructors=false usesReflection=false usesExceptionControlFlow=false requiresTargetMetadata=true";
+                "NATIVEAOT_CCTOR_RUNNER_PREFLIGHT_READY status=Ready initialized=true preflight=Ready typeCount=2 targetMetadataCount=2 occupiedCount=2 capacity=2 firstProblemIndex=-1 firstProblemState=Uninitialized firstProblemFailureCode=0 executesConstructors=false usesReflection=false usesExceptionControlFlow=false requiresTargetMetadata=true");
     }
 
+    [HostTest("boot.sequence cctor runner preflight rejects failed result", HostLane.Fast, 18)]
     private static bool TestBootSequenceCctorRunnerPreflightRejectsFailedResult()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -659,7 +617,7 @@ internal static class NativeAotClassConstructorStateTableTests
                 NativeAotClassConstructorRunnerPreflightReadinessStatus.PreflightFailed,
                 preflight);
 
-        return !preflight.Succeeded
+        return HostCheck.Result(!preflight.Succeeded
             && preflight.Status == NativeAotClassConstructorRunnerPreflightStatus.FailedConstructor
             && !result.Succeeded
             && result.Reason.Contains(
@@ -669,9 +627,10 @@ internal static class NativeAotClassConstructorStateTableTests
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
             && expectedMarker ==
-                "NATIVEAOT_CCTOR_RUNNER_PREFLIGHT_NOT_READY status=PreflightFailed initialized=true preflight=FailedConstructor typeCount=1 targetMetadataCount=1 occupiedCount=1 capacity=1 firstProblemIndex=0 firstProblemState=Failed firstProblemFailureCode=3235774465 executesConstructors=false usesReflection=false usesExceptionControlFlow=false requiresTargetMetadata=true";
+                "NATIVEAOT_CCTOR_RUNNER_PREFLIGHT_NOT_READY status=PreflightFailed initialized=true preflight=FailedConstructor typeCount=1 targetMetadataCount=1 occupiedCount=1 capacity=1 firstProblemIndex=0 firstProblemState=Failed firstProblemFailureCode=3235774465 executesConstructors=false usesReflection=false usesExceptionControlFlow=false requiresTargetMetadata=true");
     }
 
+    [HostTest("boot.sequence cctor runner preflight rejects default result", HostLane.Fast, 19)]
     private static bool TestBootSequenceCctorRunnerPreflightRejectsDefaultResult()
     {
         NativeAotClassConstructorRunnerPreflightResult preflight = default;
@@ -687,7 +646,7 @@ internal static class NativeAotClassConstructorStateTableTests
                 NativeAotClassConstructorRunnerPreflightReadinessStatus.NotInitialized,
                 preflight);
 
-        return !preflight.IsInitialized
+        return HostCheck.Result(!preflight.IsInitialized
             && !preflight.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
@@ -697,9 +656,10 @@ internal static class NativeAotClassConstructorStateTableTests
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
             && expectedMarker ==
-                "NATIVEAOT_CCTOR_RUNNER_PREFLIGHT_NOT_READY status=NotInitialized initialized=false preflight=Ready typeCount=0 targetMetadataCount=0 occupiedCount=0 capacity=0 firstProblemIndex=0 firstProblemState=Uninitialized firstProblemFailureCode=0 executesConstructors=false usesReflection=false usesExceptionControlFlow=false requiresTargetMetadata=true";
+                "NATIVEAOT_CCTOR_RUNNER_PREFLIGHT_NOT_READY status=NotInitialized initialized=false preflight=Ready typeCount=0 targetMetadataCount=0 occupiedCount=0 capacity=0 firstProblemIndex=0 firstProblemState=Uninitialized firstProblemFailureCode=0 executesConstructors=false usesReflection=false usesExceptionControlFlow=false requiresTargetMetadata=true");
     }
 
+    [HostTest("boot.sequence cctor runner preflight preserves default markers", HostLane.Fast, 20)]
     private static bool TestBootSequenceCctorRunnerPreflightPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -708,7 +668,7 @@ internal static class NativeAotClassConstructorStateTableTests
         BootResult result = BootSequence.Run(serial, events);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int index = 0; index < serial.Count; index++)
@@ -721,11 +681,11 @@ internal static class NativeAotClassConstructorStateTableTests
                     BootSequence.NativeAotClassConstructorRunnerPreflightNotReadyPrefix,
                     StringComparison.Ordinal))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return true;
+        return HostCheck.Result(true);
     }
 
     private static NativeAotClassConstructorRunnerPreflightResult CreateReadyPreflight()

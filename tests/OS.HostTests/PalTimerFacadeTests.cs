@@ -4,48 +4,8 @@ using OS.Pal;
 
 internal static class PalTimerFacadeTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("pal.timer facade returns monotonic snapshot", TestReturnsMonotonicSnapshot, ref failures);
-        Run("pal.timer facade creates and arms one shot", TestCreatesAndArmsOneShot, ref failures);
-        Run("pal.timer facade arms completion wait handle", TestArmsCompletionWaitHandle, ref failures);
-        Run("pal.timer facade cancels and closes handles", TestCancelsAndClosesHandles, ref failures);
-        Run("pal.timer facade translates invalid handles", TestTranslatesInvalidHandles, ref failures);
-        Run("pal.timer facade reports exhaustion", TestReportsExhaustion, ref failures);
-        Run("pal.timer facade rejects null table", TestRejectsNullTable, ref failures);
-        Run("pal.timer facade poll output layout is stable", TestPollOutputLayoutIsStable, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL timer facade host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.timer facade returns monotonic snapshot", HostLane.Fast, 0)]
     private static unsafe bool TestReturnsMonotonicSnapshot()
     {
         OSHostTimerTable table = new(tickFrequency: 1_000_000, capacity: 1);
@@ -53,19 +13,20 @@ internal static class PalTimerFacadeTests
 
         if (table.AdvanceTo(125) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimeSnapshot snapshot;
         OSHostStatus status = facade.TimeGetMonotonicTicks(&snapshot);
 
-        return status == OSHostStatus.Ok
+        return HostCheck.Result(status == OSHostStatus.Ok
             && snapshot.MonotonicTicks == 125
             && snapshot.TickFrequency == 1_000_000
             && snapshot.WallClockUnixNanoseconds == 0
-            && facade.TimeGetMonotonicTicks(null) == OSHostStatus.InvalidArgument;
+            && facade.TimeGetMonotonicTicks(null) == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.timer facade creates and arms one shot", HostLane.Fast, 1)]
     private static unsafe bool TestCreatesAndArmsOneShot()
     {
         OSHostTimerTable table = new(tickFrequency: 1_000, capacity: 1);
@@ -76,7 +37,7 @@ internal static class PalTimerFacadeTests
             !timer.IsValid ||
             facade.TimerArm(timer, OneShot(dueTicks: 10)) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (table.TryGetEntry(timer, out OSHostTimerTableEntry entry) != OSHostStatus.Ok ||
@@ -84,12 +45,12 @@ internal static class PalTimerFacadeTests
             entry.DueTicks != 10 ||
             entry.Periodic)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (table.AdvanceTo(9) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimerPollOutput beforeDue;
@@ -98,24 +59,25 @@ internal static class PalTimerFacadeTests
             beforeDue.FiredCount != 0 ||
             beforeDue.NextDueTicks != 10)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (table.AdvanceTo(10) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimerPollOutput fired;
-        return facade.TimerPoll(timer, &fired) == OSHostStatus.Ok
+        return HostCheck.Result(facade.TimerPoll(timer, &fired) == OSHostStatus.Ok
             && fired.IsSignaled
             && fired.FiredCount == 1
             && fired.NextDueTicks == 0
             && table.TryGetEntry(timer, out OSHostTimerTableEntry disarmed) == OSHostStatus.Ok
             && disarmed.State == OSHostTimerLifecycleState.Created
-            && disarmed.TotalFiredCount == 1;
+            && disarmed.TotalFiredCount == 1);
     }
 
+    [HostTest("pal.timer facade cancels and closes handles", HostLane.Fast, 3)]
     private static unsafe bool TestCancelsAndClosesHandles()
     {
         OSHostTimerTable table = new(tickFrequency: 1_000, capacity: 1);
@@ -127,7 +89,7 @@ internal static class PalTimerFacadeTests
             facade.TimerCancel(timer) != OSHostStatus.Ok ||
             table.AdvanceTo(100) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostTimerPollOutput poll;
@@ -135,14 +97,15 @@ internal static class PalTimerFacadeTests
             poll.IsSignaled ||
             poll.FiredCount != 0)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return facade.TimerClose(timer) == OSHostStatus.Ok
+        return HostCheck.Result(facade.TimerClose(timer) == OSHostStatus.Ok
             && facade.TimerClose(timer) == OSHostStatus.InvalidArgument
-            && facade.TimerPoll(timer, &poll) == OSHostStatus.InvalidArgument;
+            && facade.TimerPoll(timer, &poll) == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.timer facade arms completion wait handle", HostLane.Fast, 2)]
     private static unsafe bool TestArmsCompletionWaitHandle()
     {
         OSHostTimerTable table = new(tickFrequency: 1_000, capacity: 1);
@@ -153,14 +116,15 @@ internal static class PalTimerFacadeTests
         if (facade.TimerCreate(&timer) != OSHostStatus.Ok ||
             facade.TimerArm(timer, OneShot(10, completionWaitHandle)) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return table.TryGetEntry(timer, out OSHostTimerTableEntry entry) == OSHostStatus.Ok
+        return HostCheck.Result(table.TryGetEntry(timer, out OSHostTimerTableEntry entry) == OSHostStatus.Ok
             && entry.State == OSHostTimerLifecycleState.Armed
-            && entry.CompletionWaitHandle.Value == completionWaitHandle.Value;
+            && entry.CompletionWaitHandle.Value == completionWaitHandle.Value);
     }
 
+    [HostTest("pal.timer facade translates invalid handles", HostLane.Fast, 4)]
     private static unsafe bool TestTranslatesInvalidHandles()
     {
         OSHostTimerTable table = new(tickFrequency: 1_000, capacity: 1);
@@ -178,24 +142,25 @@ internal static class PalTimerFacadeTests
             facade.TimerPoll(missing, null) != OSHostStatus.InvalidArgument ||
             facade.TimerCreate(null) != OSHostStatus.InvalidArgument)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (facade.TimerCreate(&timer) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return facade.TimerArm(timer, OneShot(0)) == OSHostStatus.InvalidArgument
+        return HostCheck.Result(facade.TimerArm(timer, OneShot(0)) == OSHostStatus.InvalidArgument
             && facade.TimerArm(timer, Periodic(dueTicks: 10, periodTicks: 0)) == OSHostStatus.InvalidArgument
             && facade.TimerArm(timer, new OSHostTimerOptions(
                 OSHostTimerTable.TimerOptionsVersion,
                 OSHostTimerTable.TimerFlagPeriodic << 1,
                 dueTicks: 10,
                 periodTicks: 0,
-                completionWaitHandle: default)) == OSHostStatus.InvalidArgument;
+                completionWaitHandle: default)) == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.timer facade reports exhaustion", HostLane.Fast, 5)]
     private static unsafe bool TestReportsExhaustion()
     {
         OSHostTimerTable table = new(tickFrequency: 1_000, capacity: 1);
@@ -208,16 +173,17 @@ internal static class PalTimerFacadeTests
             facade.TimerCreate(&second) != OSHostStatus.OutOfMemory ||
             second.IsValid)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostHandle reused;
-        return facade.TimerClose(first) == OSHostStatus.Ok
+        return HostCheck.Result(facade.TimerClose(first) == OSHostStatus.Ok
             && facade.TimerCreate(&reused) == OSHostStatus.Ok
             && reused.IsValid
-            && reused.Value != first.Value;
+            && reused.Value != first.Value);
     }
 
+    [HostTest("pal.timer facade rejects null table", HostLane.Fast, 6)]
     private static unsafe bool TestRejectsNullTable()
     {
         OSHostTimerFacade facade = new(table: null);
@@ -226,26 +192,27 @@ internal static class PalTimerFacadeTests
         OSHostTimerPollOutput poll;
         OSHostHandle invalid = new(1);
 
-        return facade.TimeGetMonotonicTicks(&snapshot) == OSHostStatus.InvalidArgument
+        return HostCheck.Result(facade.TimeGetMonotonicTicks(&snapshot) == OSHostStatus.InvalidArgument
             && facade.TimerCreate(&timer) == OSHostStatus.InvalidArgument
             && facade.TimerArm(invalid, OneShot(10)) == OSHostStatus.InvalidArgument
             && facade.TimerCancel(invalid) == OSHostStatus.InvalidArgument
             && facade.TimerClose(invalid) == OSHostStatus.InvalidArgument
-            && facade.TimerPoll(invalid, &poll) == OSHostStatus.InvalidArgument;
+            && facade.TimerPoll(invalid, &poll) == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.timer facade poll output layout is stable", HostLane.Fast, 7)]
     private static bool TestPollOutputLayoutIsStable()
     {
         if (RuntimeHelpers.IsReferenceOrContainsReferences<OSHostTimerPollOutput>())
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return Marshal.SizeOf<OSHostTimerPollOutput>() == 24
+        return HostCheck.Result(Marshal.SizeOf<OSHostTimerPollOutput>() == 24
             && Offset<OSHostTimerPollOutput>(nameof(OSHostTimerPollOutput.FiredCount)) == 0
             && Offset<OSHostTimerPollOutput>(nameof(OSHostTimerPollOutput.NextDueTicks)) == 8
             && Offset<OSHostTimerPollOutput>(nameof(OSHostTimerPollOutput.Signaled)) == 16
-            && Offset<OSHostTimerPollOutput>(nameof(OSHostTimerPollOutput.Reserved)) == 20;
+            && Offset<OSHostTimerPollOutput>(nameof(OSHostTimerPollOutput.Reserved)) == 20);
     }
 
     private static OSHostTimerOptions OneShot(ulong dueTicks)

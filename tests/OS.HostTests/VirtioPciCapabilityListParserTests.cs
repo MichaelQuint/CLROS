@@ -13,60 +13,7 @@ internal static class VirtioPciCapabilityListParserTests
     private const uint IsrRegionOffset = 0x3000;
     private const uint DeviceRegionOffset = 0x4000;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run(
-            "drivers.virtiopci.capability parser records required capabilities",
-            TestRecordsRequiredCapabilities,
-            ref failures);
-        Run(
-            "drivers.virtiopci.capability parser rejects truncated capability",
-            TestRejectsTruncatedCapability,
-            ref failures);
-        Run(
-            "drivers.virtiopci.capability parser rejects capability loop",
-            TestRejectsCapabilityLoop,
-            ref failures);
-        Run(
-            "drivers.virtiopci.capability parser feeds discovery contract",
-            TestFeedsDiscoveryContract,
-            ref failures);
-        Run(
-            "drivers.virtiopci.capability parser default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio PCI capability parser host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtiopci.capability parser records required capabilities", HostLane.Fast, 0)]
     private static bool TestRecordsRequiredCapabilities()
     {
         byte[] config = CreateValidConfig();
@@ -78,7 +25,7 @@ internal static class VirtioPciCapabilityListParserTests
             !result.IsInitialized ||
             result.ParsedVirtioCapabilityCount != VirtioPciCapabilityListParser.RequiredCapabilityCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioPciCapabilitySet capabilities = result.Capabilities;
@@ -104,29 +51,30 @@ internal static class VirtioPciCapabilityListParserTests
             capabilities.DeviceConfiguration.Offset != DeviceRegionOffset ||
             capabilities.DeviceConfiguration.Length != VirtioPciDeviceDiscovery.BlockDeviceConfigurationMinimumLength)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<VirtioPciCapabilityMetadata> copiedCapabilities =
             stackalloc VirtioPciCapabilityMetadata[VirtioPciCapabilityListParser.RequiredCapabilityCount];
         if (!result.TryCopyRequiredCapabilities(copiedCapabilities))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioPciCapabilityListParseResult missingDeviceConfiguration = VirtioPciCapabilityListParser.Parse(
             CreateConfigWithoutDeviceConfiguration(),
             CommonOffset);
 
-        return copiedCapabilities[0].Type == VirtioPciCapabilityType.CommonConfiguration
+        return HostCheck.Result(copiedCapabilities[0].Type == VirtioPciCapabilityType.CommonConfiguration
             && copiedCapabilities[1].Type == VirtioPciCapabilityType.NotifyConfiguration
             && copiedCapabilities[2].Type == VirtioPciCapabilityType.IsrStatus
             && copiedCapabilities[3].Type == VirtioPciCapabilityType.DeviceConfiguration
             && !missingDeviceConfiguration.Succeeded
             && missingDeviceConfiguration.Status
-                == VirtioPciCapabilityListParseStatus.MissingDeviceConfigurationCapability;
+                == VirtioPciCapabilityListParseStatus.MissingDeviceConfigurationCapability);
     }
 
+    [HostTest("drivers.virtiopci.capability parser rejects truncated capability", HostLane.Fast, 1)]
     private static bool TestRejectsTruncatedCapability()
     {
         byte[] truncatedConfig = CreateValidConfig();
@@ -140,7 +88,7 @@ internal static class VirtioPciCapabilityListParserTests
             truncatedResult.FailingOffset != CommonOffset ||
             truncatedResult.FailingCapabilityId != VirtioPciCapabilityListParser.VendorSpecificCapabilityId)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] unsupportedConfig = CreateValidConfig();
@@ -150,7 +98,7 @@ internal static class VirtioPciCapabilityListParserTests
             CommonOffset);
         if (unsupportedResult.Status != VirtioPciCapabilityListParseStatus.UnsupportedVendorCapability)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] shortNotifyConfig = CreateValidConfig();
@@ -159,9 +107,10 @@ internal static class VirtioPciCapabilityListParserTests
             shortNotifyConfig,
             CommonOffset);
 
-        return shortNotifyResult.Status == VirtioPciCapabilityListParseStatus.NotifyCapabilityTooShort;
+        return HostCheck.Result(shortNotifyResult.Status == VirtioPciCapabilityListParseStatus.NotifyCapabilityTooShort);
     }
 
+    [HostTest("drivers.virtiopci.capability parser rejects capability loop", HostLane.Fast, 2)]
     private static bool TestRejectsCapabilityLoop()
     {
         byte[] config = CreateValidConfig();
@@ -173,7 +122,7 @@ internal static class VirtioPciCapabilityListParserTests
         if (result.Status != VirtioPciCapabilityListParseStatus.CapabilityLoopDetected ||
             result.FailingOffset != CommonOffset)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] unalignedConfig = CreateValidConfig();
@@ -182,10 +131,11 @@ internal static class VirtioPciCapabilityListParserTests
             unalignedConfig,
             CommonOffset);
 
-        return unalignedResult.Status == VirtioPciCapabilityListParseStatus.CapabilityOffsetUnaligned
-            && unalignedResult.FailingOffset == 0x42;
+        return HostCheck.Result(unalignedResult.Status == VirtioPciCapabilityListParseStatus.CapabilityOffsetUnaligned
+            && unalignedResult.FailingOffset == 0x42);
     }
 
+    [HostTest("drivers.virtiopci.capability parser feeds discovery contract", HostLane.Fast, 3)]
     private static bool TestFeedsDiscoveryContract()
     {
         VirtioPciCapabilityListParseResult parserResult = VirtioPciCapabilityListParser.Parse(
@@ -193,14 +143,14 @@ internal static class VirtioPciCapabilityListParserTests
             CommonOffset);
         if (!parserResult.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<VirtioPciCapabilityMetadata> capabilities =
             stackalloc VirtioPciCapabilityMetadata[VirtioPciCapabilityListParser.RequiredCapabilityCount];
         if (!parserResult.TryCopyRequiredCapabilities(capabilities))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioPciDeviceDiscoveryResult discoveryResult = VirtioPciDeviceDiscovery.Discover(
@@ -209,23 +159,24 @@ internal static class VirtioPciCapabilityListParserTests
                 VirtioPciDeviceDiscovery.ModernDeviceIdStart + VirtioPciDeviceDiscovery.BlockDeviceId),
             capabilities);
 
-        return discoveryResult.Succeeded
+        return HostCheck.Result(discoveryResult.Succeeded
             && discoveryResult.Status == VirtioPciDeviceDiscoveryStatus.Success
             && discoveryResult.DeviceKind == VirtioPciDeviceKind.Block
-            && discoveryResult.Capabilities.NotifyConfiguration.NotifyOffsetMultiplier == 4;
+            && discoveryResult.Capabilities.NotifyConfiguration.NotifyOffsetMultiplier == 4);
     }
 
+    [HostTest("drivers.virtiopci.capability parser default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioPciCapabilityListParseResult result = default;
         Span<VirtioPciCapabilityMetadata> destination =
             stackalloc VirtioPciCapabilityMetadata[VirtioPciCapabilityListParser.RequiredCapabilityCount];
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && result.Status == VirtioPciCapabilityListParseStatus.Success
             && !result.Succeeded
             && !result.TryCopyRequiredCapabilities(destination)
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciCapabilityListParseResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciCapabilityListParseResult>());
     }
 
     private static byte[] CreateValidConfig()

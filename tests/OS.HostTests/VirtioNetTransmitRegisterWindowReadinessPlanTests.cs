@@ -24,84 +24,19 @@ internal static class VirtioNetTransmitRegisterWindowReadinessPlanTests
     private const ulong TxHeaderPhysicalAddress = 0x0050_0000UL;
     private const ulong TxFramePhysicalAddress = 0x0060_0000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run(
-            "drivers.virtionet.tx.readiness.windowexec composes setup publish notify",
-            TestComposesSetupPublishNotify,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.readiness.windowexec default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.readiness.windowexec rejects failed setup window execution",
-            TestRejectsFailedSetupWindowExecution,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.readiness.windowexec rejects failed publish",
-            TestRejectsFailedPublish,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.readiness.windowexec rejects missing barrier",
-            TestRejectsMissingBarrier,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.readiness.windowexec propagates notification plan failure",
-            TestPropagatesNotificationPlanFailure,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.readiness.windowexec propagates notification window failure",
-            TestPropagatesNotificationWindowFailure,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.readiness.windowexec preserves no-live-mmio boundary",
-            TestPreservesNoLiveMmioBoundary,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio-net TX register-window readiness host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtionet.tx.readiness.windowexec default result is not success", HostLane.Fast, 1)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioNetTransmitRegisterWindowReadinessResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioNetTransmitRegisterWindowReadinessStatus.Success
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetTransmitRegisterWindowReadinessResult>();
+                VirtioNetTransmitRegisterWindowReadinessResult>());
     }
 
+    [HostTest("drivers.virtionet.tx.readiness.windowexec composes setup publish notify", HostLane.Fast, 0)]
     private static bool TestComposesSetupPublishNotify()
     {
         TestContext context = CreateContext();
@@ -123,7 +58,7 @@ internal static class VirtioNetTransmitRegisterWindowReadinessPlanTests
             notifyBytes,
             VirtioNetQueueNotificationBarrierReadiness.Ready(51));
 
-        return setupExecution.Succeeded
+        return HostCheck.Result(setupExecution.Succeeded
             && result.Succeeded
             && result.Status == VirtioNetTransmitRegisterWindowReadinessStatus.Success
             && result.QueueSetupPlanStatus == VirtioNetQueueMmioSetupPlanStatus.Success
@@ -186,9 +121,10 @@ internal static class VirtioNetTransmitRegisterWindowReadinessPlanTests
                 expectedFlags: 0,
                 expectedNext: 0)
             && ReadAvailableEntry(queueMemory, context.QueuePlan.Plan.TxQueue, slot: 3) == 0
-            && ReadAvailableIndex(queueMemory, context.QueuePlan.Plan.TxQueue) == 12;
+            && ReadAvailableIndex(queueMemory, context.QueuePlan.Plan.TxQueue) == 12);
     }
 
+    [HostTest("drivers.virtionet.tx.readiness.windowexec rejects failed setup window execution", HostLane.Fast, 2)]
     private static bool TestRejectsFailedSetupWindowExecution()
     {
         TestContext context = CreateContext();
@@ -210,7 +146,7 @@ internal static class VirtioNetTransmitRegisterWindowReadinessPlanTests
             notifyBytes,
             VirtioNetQueueNotificationBarrierReadiness.Ready(52));
 
-        return !setupExecution.Succeeded
+        return HostCheck.Result(!setupExecution.Succeeded
             && !result.Succeeded
             && result.Status ==
                 VirtioNetTransmitRegisterWindowReadinessStatus.QueueSetupWindowExecutionFailed
@@ -224,9 +160,10 @@ internal static class VirtioNetTransmitRegisterWindowReadinessPlanTests
             && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free)
             && BytesAreZero(txHeader)
             && BytesAreZero(queueMemory)
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("drivers.virtionet.tx.readiness.windowexec rejects failed publish", HostLane.Fast, 3)]
     private static bool TestRejectsFailedPublish()
     {
         TestContext context = CreateContext();
@@ -248,7 +185,7 @@ internal static class VirtioNetTransmitRegisterWindowReadinessPlanTests
             notifyBytes,
             VirtioNetQueueNotificationBarrierReadiness.Ready(53));
 
-        return setupExecution.Succeeded
+        return HostCheck.Result(setupExecution.Succeeded
             && !result.Succeeded
             && result.Status == VirtioNetTransmitRegisterWindowReadinessStatus.TransmitPublishFailed
             && result.TransmitPublishPlanStatus ==
@@ -259,9 +196,10 @@ internal static class VirtioNetTransmitRegisterWindowReadinessPlanTests
             && !result.NotificationWindowExecutionAttempted
             && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free)
             && BytesAreZero(queueMemory)
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("drivers.virtionet.tx.readiness.windowexec rejects missing barrier", HostLane.Fast, 4)]
     private static bool TestRejectsMissingBarrier()
     {
         TestContext context = CreateContext();
@@ -289,7 +227,7 @@ internal static class VirtioNetTransmitRegisterWindowReadinessPlanTests
             notifyBytes,
             missingBarrier);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetTransmitRegisterWindowReadinessStatus.BarrierNotReady
             && result.NotificationWindowExecutionStatus ==
                 VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus.MemoryBarrierNotReady
@@ -301,9 +239,10 @@ internal static class VirtioNetTransmitRegisterWindowReadinessPlanTests
             && result.BarrierSequence == 54
             && states[0] == VirtioNetTransmitDescriptorOwnershipState.InFlight
             && states[1] == VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("drivers.virtionet.tx.readiness.windowexec propagates notification plan failure", HostLane.Fast, 5)]
     private static bool TestPropagatesNotificationPlanFailure()
     {
         TestContext context = CreateContext();
@@ -335,7 +274,7 @@ internal static class VirtioNetTransmitRegisterWindowReadinessPlanTests
                 negotiatedFeatures: 0,
                 queueEnabled: false);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetTransmitRegisterWindowReadinessStatus.NotificationPlanFailed
             && result.NotificationPlanStatus == VirtioNetQueueNotificationPlanStatus.NotificationPlanFailed
             && result.PciNotificationStatus == VirtioPciQueueNotificationPlanStatus.QueueNotEnabled
@@ -344,9 +283,10 @@ internal static class VirtioNetTransmitRegisterWindowReadinessPlanTests
             && !result.NotificationWindowExecutionAttempted
             && states[0] == VirtioNetTransmitDescriptorOwnershipState.InFlight
             && states[1] == VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("drivers.virtionet.tx.readiness.windowexec propagates notification window failure", HostLane.Fast, 6)]
     private static bool TestPropagatesNotificationWindowFailure()
     {
         TestContext context = CreateContext();
@@ -369,7 +309,7 @@ internal static class VirtioNetTransmitRegisterWindowReadinessPlanTests
             notifyBytes,
             VirtioNetQueueNotificationBarrierReadiness.Ready(56));
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status ==
                 VirtioNetTransmitRegisterWindowReadinessStatus.NotificationWindowExecutionFailed
             && result.NotificationWindowExecutionStatus ==
@@ -380,9 +320,10 @@ internal static class VirtioNetTransmitRegisterWindowReadinessPlanTests
             && result.NotificationWindowExecutionAttempted
             && result.BarrierSucceeded
             && result.BarrierSequence == 56
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("drivers.virtionet.tx.readiness.windowexec preserves no-live-mmio boundary", HostLane.Fast, 7)]
     private static bool TestPreservesNoLiveMmioBoundary()
     {
         TestContext context = CreateContext();
@@ -404,7 +345,7 @@ internal static class VirtioNetTransmitRegisterWindowReadinessPlanTests
             notifyBytes,
             VirtioNetQueueNotificationBarrierReadiness.Ready(57));
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioNetTransmitRegisterWindowReadinessPlanner.RequiresQueueSetupRegisterWindowExecution
             && VirtioNetTransmitRegisterWindowReadinessPlanner.RequiresRegisterWindowBinding
             && VirtioNetTransmitRegisterWindowReadinessPlanner.RequiresBarrierReadiness
@@ -432,7 +373,7 @@ internal static class VirtioNetTransmitRegisterWindowReadinessPlanTests
             && !VirtioNetTransmitRegisterWindowReadinessPlanner.WaitsForUsedRingCompletion
             && !VirtioNetTransmitRegisterWindowReadinessPlanner.ReadsQueueMemory
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetTransmitRegisterWindowReadinessResult>();
+                VirtioNetTransmitRegisterWindowReadinessResult>());
     }
 
     private static VirtioNetTransmitRegisterWindowReadinessResult ComposeSuccessfulShape(

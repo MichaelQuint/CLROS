@@ -17,7 +17,7 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
     private static TypedExitBootServicesState* active;
     private static bool reentry, reentryPreserved;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         int failures = 0;
@@ -44,9 +44,8 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
 
     private static void Run(string name, Action test, ref int failures)
     {
-        Console.WriteLine("TEST_START m03.004 " + name);
-        try { test(); Console.WriteLine("TEST_PASS m03.004 " + name); }
-        catch (Exception ex) { failures++; Console.WriteLine("TEST_FAIL m03.004 " + name + " " + ex); }
+
+        HostCheck.Run("m03.004 " + name, test, ref failures);
     }
     private static void Check(bool condition, string detail)
     {

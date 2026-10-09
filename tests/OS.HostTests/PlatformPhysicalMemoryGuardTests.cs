@@ -3,50 +3,8 @@ using OS.Kernel.Platform;
 
 internal static class PlatformPhysicalMemoryGuardTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("platform.physical_memory read allowed before UEFI gone", TestAllowedBeforeUefiGone, ref failures);
-        Run("platform.physical_memory read denied in UEFI-gone simulation", TestDeniedAfterUefiGoneSimulation, ref failures);
-        Run("platform.physical_memory read denied after ExitBootServices", TestDeniedAfterExitBootServices, ref failures);
-        Run("platform.physical_memory read rejects invalid range", TestRejectsInvalidRange, ref failures);
-        Run("platform.physical_memory read rejects empty destination", TestRejectsEmptyDestination, ref failures);
-        Run("platform.physical_memory read reports destination capacity", TestReportsDestinationCapacity, ref failures);
-        Run("platform.physical_memory read reports source failure", TestReportsSourceFailure, ref failures);
-        Run("platform.physical_memory read reports source unavailable", TestReportsSourceUnavailable, ref failures);
-        Run("platform.physical_memory read reports short read", TestReportsShortRead, ref failures);
-        Run("platform.physical_memory result contains no managed references", TestResultContainsNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Platform physical-memory guard host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("platform.physical_memory read allowed before UEFI gone", HostLane.Fast, 0)]
     private static bool TestAllowedBeforeUefiGone()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -59,7 +17,7 @@ internal static class PlatformPhysicalMemoryGuardTests
             8,
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == PlatformPhysicalMemoryStatus.Success
             && result.Mode == FirmwareServicesMode.BootServicesAvailable
             && result.Operation == PlatformPhysicalMemoryOperations.ReadBytes
@@ -76,9 +34,10 @@ internal static class PlatformPhysicalMemoryGuardTests
             && destination[1] == 0x91
             && destination[7] == 0x97
             && destination[8] == 0
-            && destination[9] == 0;
+            && destination[9] == 0);
     }
 
+    [HostTest("platform.physical_memory read denied in UEFI-gone simulation", HostLane.Fast, 1)]
     private static bool TestDeniedAfterUefiGoneSimulation()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -92,16 +51,17 @@ internal static class PlatformPhysicalMemoryGuardTests
             8,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformPhysicalMemoryStatus.FirmwareServicesUnavailable
             && result.Mode == FirmwareServicesMode.UefiGoneSimulated
             && result.Operation == PlatformPhysicalMemoryOperations.ReadBytes
             && result.RequestedBytes == 0
             && result.BytesRead == 0
             && source.ReadCount == 0
-            && BufferIsZero(destination);
+            && BufferIsZero(destination));
     }
 
+    [HostTest("platform.physical_memory read denied after ExitBootServices", HostLane.Fast, 2)]
     private static bool TestDeniedAfterExitBootServices()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -115,16 +75,17 @@ internal static class PlatformPhysicalMemoryGuardTests
             8,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformPhysicalMemoryStatus.FirmwareServicesUnavailable
             && result.Mode == FirmwareServicesMode.BootServicesExited
             && result.Operation == PlatformPhysicalMemoryOperations.ReadBytes
             && result.RequestedBytes == 0
             && result.BytesRead == 0
             && source.ReadCount == 0
-            && BufferIsZero(destination);
+            && BufferIsZero(destination));
     }
 
+    [HostTest("platform.physical_memory read rejects invalid range", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidRange()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -145,7 +106,7 @@ internal static class PlatformPhysicalMemoryGuardTests
             8,
             destination);
 
-        return !zeroAddress.Succeeded
+        return HostCheck.Result(!zeroAddress.Succeeded
             && zeroAddress.Status == PlatformPhysicalMemoryStatus.InvalidRange
             && zeroAddress.PhysicalAddress == 0
             && zeroAddress.RequestedBytes == 8
@@ -155,9 +116,10 @@ internal static class PlatformPhysicalMemoryGuardTests
             && !overflow.Succeeded
             && overflow.Status == PlatformPhysicalMemoryStatus.InvalidRange
             && source.ReadCount == 0
-            && BufferIsZero(destination);
+            && BufferIsZero(destination));
     }
 
+    [HostTest("platform.physical_memory read rejects empty destination", HostLane.Fast, 4)]
     private static bool TestRejectsEmptyDestination()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -169,15 +131,16 @@ internal static class PlatformPhysicalMemoryGuardTests
             1,
             Span<byte>.Empty);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformPhysicalMemoryStatus.InvalidDestination
             && result.Mode == FirmwareServicesMode.BootServicesAvailable
             && result.PhysicalAddress == 0x1000
             && result.RequestedBytes == 1
             && result.RequiredBytes == 1
-            && source.ReadCount == 0;
+            && source.ReadCount == 0);
     }
 
+    [HostTest("platform.physical_memory read reports destination capacity", HostLane.Fast, 5)]
     private static bool TestReportsDestinationCapacity()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -190,7 +153,7 @@ internal static class PlatformPhysicalMemoryGuardTests
             8,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformPhysicalMemoryStatus.DestinationTooSmall
             && result.Mode == FirmwareServicesMode.BootServicesAvailable
             && result.PhysicalAddress == 0x1000
@@ -198,9 +161,10 @@ internal static class PlatformPhysicalMemoryGuardTests
             && result.RequiredBytes == 8
             && result.BytesRead == 0
             && source.ReadCount == 0
-            && BufferIsZero(destination);
+            && BufferIsZero(destination));
     }
 
+    [HostTest("platform.physical_memory read reports source failure", HostLane.Fast, 6)]
     private static bool TestReportsSourceFailure()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -214,7 +178,7 @@ internal static class PlatformPhysicalMemoryGuardTests
             8,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformPhysicalMemoryStatus.SourceFailed
             && result.Mode == FirmwareServicesMode.BootServicesAvailable
             && result.PhysicalAddress == 0x1000
@@ -222,9 +186,10 @@ internal static class PlatformPhysicalMemoryGuardTests
             && result.BytesRead == 0
             && result.FirmwareStatus == firmwareStatus
             && source.ReadCount == 1
-            && BufferIsZero(destination);
+            && BufferIsZero(destination));
     }
 
+    [HostTest("platform.physical_memory read reports source unavailable", HostLane.Fast, 7)]
     private static bool TestReportsSourceUnavailable()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -237,16 +202,17 @@ internal static class PlatformPhysicalMemoryGuardTests
             8,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformPhysicalMemoryStatus.SourceUnavailable
             && result.Mode == FirmwareServicesMode.BootServicesAvailable
             && result.PhysicalAddress == 0x1000
             && result.RequestedBytes == 8
             && result.BytesRead == 0
             && source.ReadCount == 1
-            && BufferIsZero(destination);
+            && BufferIsZero(destination));
     }
 
+    [HostTest("platform.physical_memory read reports short read", HostLane.Fast, 8)]
     private static bool TestReportsShortRead()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -259,7 +225,7 @@ internal static class PlatformPhysicalMemoryGuardTests
             8,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformPhysicalMemoryStatus.ShortRead
             && result.Mode == FirmwareServicesMode.BootServicesAvailable
             && result.PhysicalAddress == 0x1000
@@ -271,13 +237,14 @@ internal static class PlatformPhysicalMemoryGuardTests
             && destination[1] == 0x41
             && destination[3] == 0x43
             && destination[4] == 0
-            && destination[7] == 0;
+            && destination[7] == 0);
     }
 
+    [HostTest("platform.physical_memory result contains no managed references", HostLane.Fast, 9)]
     private static bool TestResultContainsNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<PlatformPhysicalMemorySourceResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<PlatformPhysicalMemoryResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<PlatformPhysicalMemorySourceResult>()
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<PlatformPhysicalMemoryResult>());
     }
 
     private static bool BufferIsZero(ReadOnlySpan<byte> buffer)

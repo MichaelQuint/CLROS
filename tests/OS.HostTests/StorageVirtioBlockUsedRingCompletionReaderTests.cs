@@ -9,48 +9,7 @@ internal static class StorageVirtioBlockUsedRingCompletionReaderTests
     private const ushort ExpectedDescriptorHead = 3;
     private const uint ExpectedDataByteCount = 1024;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("storage.virtioblk completion parses successful used entry", TestParsesSuccessfulUsedEntry, ref failures);
-        Run("storage.virtioblk completion advances wrapped used index", TestAdvancesWrappedUsedIndex, ref failures);
-        Run("storage.virtioblk completion rejects unexpected descriptor head", TestRejectsUnexpectedDescriptorHead, ref failures);
-        Run("storage.virtioblk completion rejects unexpected byte count", TestRejectsUnexpectedByteCount, ref failures);
-        Run("storage.virtioblk completion reports device io error", TestReportsDeviceIoError, ref failures);
-        Run("storage.virtioblk completion rejects undersized used ring", TestRejectsUndersizedUsedRing, ref failures);
-        Run("storage.virtioblk completion rejects unknown status byte", TestRejectsUnknownStatusByte, ref failures);
-        Run("storage.virtioblk completion default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio block used-ring completion reader host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.virtioblk completion parses successful used entry", HostLane.Fast, 0)]
     private static bool TestParsesSuccessfulUsedEntry()
     {
         const ushort previousUsedIndex = 9;
@@ -71,7 +30,7 @@ internal static class StorageVirtioBlockUsedRingCompletionReaderTests
                 status,
                 usedRing);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioBlockUsedRingCompletionReaderStatus.Success
             && result.QueueStatus == VirtqueueSplitRingPlanStatus.Success
             && result.PreviousUsedIndex == previousUsedIndex
@@ -87,9 +46,10 @@ internal static class StorageVirtioBlockUsedRingCompletionReaderTests
             && !VirtioBlockUsedRingCompletionReader.HandlesInterrupts
             && !VirtioBlockUsedRingCompletionReader.PerformsDmaMapping
             && !VirtioBlockUsedRingCompletionReader.NotifiesDevice
-            && !VirtioBlockUsedRingCompletionReader.PerformsDiskRead;
+            && !VirtioBlockUsedRingCompletionReader.PerformsDiskRead);
     }
 
+    [HostTest("storage.virtioblk completion advances wrapped used index", HostLane.Fast, 1)]
     private static bool TestAdvancesWrappedUsedIndex()
     {
         const ushort previousUsedIndex = ushort.MaxValue;
@@ -110,14 +70,15 @@ internal static class StorageVirtioBlockUsedRingCompletionReaderTests
                 status,
                 usedRing);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.CurrentUsedIndex == 0
             && result.NextUsedIndex == 0
             && result.UsedRingSlot == 7
             && result.UsedRingElementOffset == 60
-            && result.DescriptorHead == ExpectedDescriptorHead;
+            && result.DescriptorHead == ExpectedDescriptorHead);
     }
 
+    [HostTest("storage.virtioblk completion rejects unexpected descriptor head", HostLane.Fast, 2)]
     private static bool TestRejectsUnexpectedDescriptorHead()
     {
         const ushort previousUsedIndex = 4;
@@ -138,13 +99,14 @@ internal static class StorageVirtioBlockUsedRingCompletionReaderTests
                 status,
                 usedRing);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockUsedRingCompletionReaderStatus.UnexpectedDescriptorHead
             && result.DescriptorHead == ExpectedDescriptorHead + 1u
             && result.UsedByteCount == ExpectedDataByteCount
-            && result.StatusByte == (byte)VirtioBlockDeviceStatus.Ok;
+            && result.StatusByte == (byte)VirtioBlockDeviceStatus.Ok);
     }
 
+    [HostTest("storage.virtioblk completion rejects unexpected byte count", HostLane.Fast, 3)]
     private static bool TestRejectsUnexpectedByteCount()
     {
         const ushort previousUsedIndex = 6;
@@ -165,13 +127,14 @@ internal static class StorageVirtioBlockUsedRingCompletionReaderTests
                 status,
                 usedRing);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockUsedRingCompletionReaderStatus.UnexpectedByteCount
             && result.DescriptorHead == ExpectedDescriptorHead
             && result.UsedByteCount == ExpectedDataByteCount - 1
-            && result.StatusByte == (byte)VirtioBlockDeviceStatus.Ok;
+            && result.StatusByte == (byte)VirtioBlockDeviceStatus.Ok);
     }
 
+    [HostTest("storage.virtioblk completion reports device io error", HostLane.Fast, 4)]
     private static bool TestReportsDeviceIoError()
     {
         const ushort previousUsedIndex = 11;
@@ -192,13 +155,14 @@ internal static class StorageVirtioBlockUsedRingCompletionReaderTests
                 status,
                 usedRing);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockUsedRingCompletionReaderStatus.DeviceIoError
             && result.DescriptorHead == ExpectedDescriptorHead
             && result.UsedByteCount == ExpectedDataByteCount
-            && result.StatusByte == (byte)VirtioBlockDeviceStatus.IoError;
+            && result.StatusByte == (byte)VirtioBlockDeviceStatus.IoError);
     }
 
+    [HostTest("storage.virtioblk completion rejects undersized used ring", HostLane.Fast, 5)]
     private static bool TestRejectsUndersizedUsedRing()
     {
         const ushort previousUsedIndex = 1;
@@ -214,12 +178,13 @@ internal static class StorageVirtioBlockUsedRingCompletionReaderTests
                 status,
                 usedRing);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockUsedRingCompletionReaderStatus.UsedRingTooSmall
             && result.QueueStatus == VirtqueueSplitRingPlanStatus.Success
-            && result.PreviousUsedIndex == previousUsedIndex;
+            && result.PreviousUsedIndex == previousUsedIndex);
     }
 
+    [HostTest("storage.virtioblk completion rejects unknown status byte", HostLane.Fast, 6)]
     private static bool TestRejectsUnknownStatusByte()
     {
         const ushort previousUsedIndex = 2;
@@ -240,13 +205,14 @@ internal static class StorageVirtioBlockUsedRingCompletionReaderTests
                 status,
                 usedRing);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockUsedRingCompletionReaderStatus.UnknownStatusByte
             && result.StatusByte == 0xff
             && result.DescriptorHead == ExpectedDescriptorHead
-            && result.UsedByteCount == ExpectedDataByteCount;
+            && result.UsedByteCount == ExpectedDataByteCount);
     }
 
+    [HostTest("storage.virtioblk completion default result is not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioBlockUsedRingCompletionReaderResult result = default;
@@ -256,7 +222,7 @@ internal static class StorageVirtioBlockUsedRingCompletionReaderTests
                 VirtqueueSplitRingPlanStatus.InvalidQueueSize,
                 previousUsedIndex: 7);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockUsedRingCompletionReaderStatus.Success
             && result.QueueStatus == VirtqueueSplitRingPlanStatus.Success
@@ -271,7 +237,7 @@ internal static class StorageVirtioBlockUsedRingCompletionReaderTests
             && failed.IsInitialized
             && !failed.Succeeded
             && failed.Status == VirtioBlockUsedRingCompletionReaderStatus.InvalidQueueSize
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockUsedRingCompletionReaderResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockUsedRingCompletionReaderResult>());
     }
 
     private static byte[] CreateUsedRing(

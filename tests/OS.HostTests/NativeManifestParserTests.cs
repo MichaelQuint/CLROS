@@ -6,96 +6,14 @@ using OS.Manifest;
 
 internal static class NativeManifestParserTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("manifest kernel parses v0 native manifest", TestParsesV0NativeManifest, ref failures);
-        Run("manifest kernel parses package app fields", TestParsesPackageAppFields, ref failures);
-        Run("manifest kernel parses environment fields", TestParsesEnvironmentFields, ref failures);
-        Run("manifest env diagnostic formats environment metadata", TestEnvironmentDiagnosticFormatsMetadata, ref failures);
-        Run("manifest env diagnostic formats empty environment", TestEnvironmentDiagnosticFormatsEmptyEnvironment, ref failures);
-        Run("manifest env diagnostic reports short destination", TestEnvironmentDiagnosticReportsShortDestination, ref failures);
-        Run("manifest env diagnostic rejects default result", TestEnvironmentDiagnosticRejectsDefaultResult, ref failures);
-        Run("manifest env diagnostic rejects invalid source range", TestEnvironmentDiagnosticRejectsInvalidSourceRange, ref failures);
-        Run("manifest env formatter uses shared ascii text builder", TestEnvironmentDiagnosticFormatterUsesSharedAsciiTextBuilder, ref failures);
-        Run("boot.sequence manifest env ready", TestBootSequenceManifestEnvironmentReady, ref failures);
-        Run("boot.sequence manifest env rejects parse failure", TestBootSequenceManifestEnvironmentRejectsParseFailure, ref failures);
-        Run("boot.sequence manifest env rejects invalid source range", TestBootSequenceManifestEnvironmentRejectsInvalidSourceRange, ref failures);
-        Run("boot.sequence manifest env rejects default result", TestBootSequenceManifestEnvironmentRejectsDefaultResult, ref failures);
-        Run("boot.sequence manifest env formats diagnostic failure marker", TestBootSequenceManifestEnvironmentFormatsDiagnosticFailureMarker, ref failures);
-        Run("boot.sequence manifest env preserves default markers", TestBootSequenceManifestEnvironmentPreservesDefaultMarkers, ref failures);
-        Run("manifest kernel parses listen endpoint", TestParsesListenEndpoint, ref failures);
-        Run("manifest kernel rejects invalid listen endpoint", TestRejectsInvalidListenEndpoint, ref failures);
-        Run("manifest kernel rejects duplicate environment keys", TestRejectsDuplicateEnvironmentKeys, ref failures);
-        Run("manifest kernel rejects invalid environment key", TestRejectsInvalidEnvironmentKey, ref failures);
-        Run("manifest kernel rejects too many environment fields", TestRejectsTooManyEnvironmentFields, ref failures);
-        Run("manifest kernel accepts maximum string field lengths", TestAcceptsMaximumStringFieldLengths, ref failures);
-        Run("manifest kernel rejects oversized string fields", TestRejectsOversizedStringFields, ref failures);
-        Run("manifest kernel rejects unsupported runtime kind", TestRejectsUnsupportedRuntimeKind, ref failures);
-        Run("manifest kernel rejects missing app path", TestRejectsMissingAppPath, ref failures);
-        Run("manifest kernel rejects malformed network mode", TestRejectsMalformedNetworkMode, ref failures);
-        Run("manifest kernel rejects unknown format", TestRejectsUnknownFormat, ref failures);
-        Run("manifest kernel rejects unknown version", TestRejectsUnknownVersion, ref failures);
-        Run("manifest kernel rejects duplicate keys", TestRejectsDuplicateKeys, ref failures);
-        Run("manifest kernel rejects oversized input", TestRejectsOversizedInput, ref failures);
-        Run("manifest kernel rejects non-ascii input", TestRejectsNonAsciiInput, ref failures);
-        Run("manifest kernel rejects control characters", TestRejectsControlCharacters, ref failures);
-        Run("manifest kernel rejects unknown keys", TestRejectsUnknownKeys, ref failures);
-        Run("manifest kernel rejects malformed log mode", TestRejectsMalformedLogMode, ref failures);
-        Run("manifest kernel preserves token splitter semantics", TestPreservesTokenSplitterSemantics, ref failures);
-        Run("manifest kernel preserves equals inside values", TestPreservesEqualsInsideValues, ref failures);
-        Run("manifest kernel uses shared key value splitter", TestUsesSharedKeyValueSplitter, ref failures);
-        Run("manifest kernel uses shared ascii equality helper", TestUsesSharedAsciiEqualityHelper, ref failures);
-        Run("manifest kernel uses shared memory env helpers", TestUsesSharedMemoryEnvironmentHelpers, ref failures);
-        Run("manifest kernel uses shared ascii classification helpers", TestUsesSharedAsciiClassificationHelpers, ref failures);
-        Run("manifest fetchapp config preflight valid config", TestFetchAppConfigPreflightValidConfig, ref failures);
-        Run("manifest fetchapp config preflight defaults", TestFetchAppConfigPreflightDefaults, ref failures);
-        Run("manifest fetchapp config preflight invalid status", TestFetchAppConfigPreflightInvalidStatus, ref failures);
-        Run("manifest fetchapp config preflight empty marker", TestFetchAppConfigPreflightEmptyMarker, ref failures);
-        Run("manifest fetchapp config preflight oversized marker", TestFetchAppConfigPreflightOversizedMarker, ref failures);
-        Run("manifest fetchapp config preflight manifest not ready", TestFetchAppConfigPreflightManifestNotReady, ref failures);
-        Run("boot.sequence fetchapp config preflight ready", TestBootSequenceFetchAppConfigPreflightReady, ref failures);
-        Run("boot.sequence fetchapp config preflight rejects failed result", TestBootSequenceFetchAppConfigPreflightRejectsFailedResult, ref failures);
-        Run("boot.sequence fetchapp config preflight rejects default result", TestBootSequenceFetchAppConfigPreflightRejectsDefaultResult, ref failures);
-        Run("boot.sequence fetchapp config preflight preserves default markers", TestBootSequenceFetchAppConfigPreflightPreservesDefaultMarkers, ref failures);
-        Run("manifest kernel parse default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native manifest parser host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("manifest kernel parses v0 native manifest", HostLane.Fast, 0)]
     private static bool TestParsesV0NativeManifest()
     {
         byte[] source = ValidManifest();
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == NativeManifestParseStatus.Success
             && result.Manifest.Version == NativeManifest.Version0
@@ -106,21 +24,23 @@ internal static class NativeManifestParserTests
             && result.Manifest.AppKind == NativeManifestAppKind.Package
             && result.Manifest.RuntimeKind == NativeManifestRuntimeKind.NativeAot
             && result.Manifest.NetworkMode == NativeManifestNetworkMode.Dhcp
-            && result.Manifest.LogMode == NativeManifestLogMode.Serial;
+            && result.Manifest.LogMode == NativeManifestLogMode.Serial);
     }
 
+    [HostTest("manifest kernel parses package app fields", HostLane.Fast, 1)]
     private static bool TestParsesPackageAppFields()
     {
         byte[] source = ValidManifest();
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Manifest.AppKind == NativeManifestAppKind.Package
             && result.Manifest.RuntimeKind == NativeManifestRuntimeKind.NativeAot
             && FieldEquals(source, result.Manifest.AppName, "hello.app")
-            && FieldEquals(source, result.Manifest.AppPath, "apps/hello.bin");
+            && FieldEquals(source, result.Manifest.AppPath, "apps/hello.bin"));
     }
 
+    [HostTest("manifest kernel parses environment fields", HostLane.Fast, 2)]
     private static bool TestParsesEnvironmentFields()
     {
         byte[] source = Bytes(
@@ -138,12 +58,13 @@ internal static class NativeManifestParserTests
 
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Manifest.EnvironmentCount == 2
             && EnvironmentEntryEquals(source, result.Manifest.GetEnvironmentEntry(0), "ASPNETCORE_ENVIRONMENT", "Production")
-            && EnvironmentEntryEquals(source, result.Manifest.GetEnvironmentEntry(1), "PORT", "8080");
+            && EnvironmentEntryEquals(source, result.Manifest.GetEnvironmentEntry(1), "PORT", "8080"));
     }
 
+    [HostTest("manifest env diagnostic formats environment metadata", HostLane.Fast, 3)]
     private static bool TestEnvironmentDiagnosticFormatsMetadata()
     {
         byte[] source = ManifestWithEnvironment(
@@ -167,7 +88,7 @@ internal static class NativeManifestParserTests
             " firstValueLength=" + first.Value.Length +
             " processEnvironmentMaterialized=false hostedDotNetStarted=false kestrelStarted=false";
 
-        return parsed.Succeeded
+        return HostCheck.Result(parsed.Succeeded
             && query.Status == NativeManifestEnvironmentDiagnosticFormatStatus.Success
             && query.ParseStatus == NativeManifestParseStatus.Success
             && query.RequiredBytes == expected.Length
@@ -178,9 +99,10 @@ internal static class NativeManifestParserTests
             && marker.Contains("processEnvironmentMaterialized=false", StringComparison.Ordinal)
             && marker.Contains("hostedDotNetStarted=false", StringComparison.Ordinal)
             && marker.Contains("kestrelStarted=false", StringComparison.Ordinal)
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeManifestEnvironmentDiagnosticFormatResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeManifestEnvironmentDiagnosticFormatResult>());
     }
 
+    [HostTest("manifest env diagnostic formats empty environment", HostLane.Fast, 4)]
     private static bool TestEnvironmentDiagnosticFormatsEmptyEnvironment()
     {
         byte[] source = ValidManifest();
@@ -198,14 +120,15 @@ internal static class NativeManifestParserTests
             " firstKeyPresent=false firstKeyOffset=-1 firstKeyLength=0 firstValueOffset=-1 firstValueLength=0" +
             " processEnvironmentMaterialized=false hostedDotNetStarted=false kestrelStarted=false";
 
-        return parsed.Succeeded
+        return HostCheck.Result(parsed.Succeeded
             && parsed.Manifest.EnvironmentCount == 0
             && query.Status == NativeManifestEnvironmentDiagnosticFormatStatus.Success
             && query.RequiredBytes == expected.Length
             && format.Succeeded
-            && marker == expected;
+            && marker == expected);
     }
 
+    [HostTest("manifest env diagnostic reports short destination", HostLane.Fast, 5)]
     private static bool TestEnvironmentDiagnosticReportsShortDestination()
     {
         byte[] source = ManifestWithEnvironment("env.PORT=8080\n");
@@ -218,16 +141,17 @@ internal static class NativeManifestParserTests
         NativeManifestEnvironmentDiagnosticFormatResult format =
             NativeManifestEnvironmentDiagnosticFormatter.FormatResult(parsed, source, destination);
 
-        return parsed.Succeeded
+        return HostCheck.Result(parsed.Succeeded
             && query.RequiredBytes > 1
             && format.Status == NativeManifestEnvironmentDiagnosticFormatStatus.DestinationTooSmall
             && format.ParseStatus == NativeManifestParseStatus.Success
             && format.BytesWritten == 0
             && format.RequiredBytes == query.RequiredBytes
             && format.AvailableBytes == destination.Length
-            && AllBytesEqual(destination, 0xCC);
+            && AllBytesEqual(destination, 0xCC));
     }
 
+    [HostTest("manifest env diagnostic rejects default result", HostLane.Fast, 6)]
     private static bool TestEnvironmentDiagnosticRejectsDefaultResult()
     {
         NativeManifestParseResult parsed = default;
@@ -238,13 +162,14 @@ internal static class NativeManifestParserTests
         NativeManifestEnvironmentDiagnosticFormatResult format =
             NativeManifestEnvironmentDiagnosticFormatter.FormatResult(parsed, source, stackalloc byte[64]);
 
-        return !parsed.IsInitialized
+        return HostCheck.Result(!parsed.IsInitialized
             && query.Status == NativeManifestEnvironmentDiagnosticFormatStatus.InvalidResult
             && query.RequiredBytes == 0
             && format.Status == NativeManifestEnvironmentDiagnosticFormatStatus.InvalidResult
-            && format.BytesWritten == 0;
+            && format.BytesWritten == 0);
     }
 
+    [HostTest("manifest env diagnostic rejects invalid source range", HostLane.Fast, 7)]
     private static bool TestEnvironmentDiagnosticRejectsInvalidSourceRange()
     {
         byte[] source = ManifestWithEnvironment("env.PORT=8080\n");
@@ -257,14 +182,15 @@ internal static class NativeManifestParserTests
         NativeManifestEnvironmentDiagnosticFormatResult format =
             NativeManifestEnvironmentDiagnosticFormatter.FormatResult(parsed, truncatedSource, stackalloc byte[256]);
 
-        return parsed.Succeeded
+        return HostCheck.Result(parsed.Succeeded
             && first.Value.Length > 1
             && query.Status == NativeManifestEnvironmentDiagnosticFormatStatus.SourceRangeInvalid
             && query.RequiredBytes == 0
             && format.Status == NativeManifestEnvironmentDiagnosticFormatStatus.SourceRangeInvalid
-            && format.BytesWritten == 0;
+            && format.BytesWritten == 0);
     }
 
+    [HostTest("manifest env formatter uses shared ascii text builder", HostLane.Fast, 8)]
     private static bool TestEnvironmentDiagnosticFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -276,7 +202,7 @@ internal static class NativeManifestParserTests
                 "Manifest",
                 "NativeManifestEnvironmentDiagnosticFormatter.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains(
                 "AsciiDecimalFormatter.CountInt32Digits(result.Manifest.EnvironmentCount)",
                 StringComparison.Ordinal)
@@ -311,9 +237,10 @@ internal static class NativeManifestParserTests
                 "destination[offset + index] = (byte)('0' +",
                 StringComparison.Ordinal)
             && !source.Contains("value /= 10", StringComparison.Ordinal)
-            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal);
+            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence manifest env ready", HostLane.Fast, 9)]
     private static bool TestBootSequenceManifestEnvironmentReady()
     {
         byte[] source = ManifestWithEnvironment(
@@ -336,7 +263,7 @@ internal static class NativeManifestParserTests
             serial,
             events);
 
-        return parsed.Succeeded
+        return HostCheck.Result(parsed.Succeeded
             && format.Succeeded
             && result.Succeeded
             && serial.Count == 1
@@ -347,9 +274,10 @@ internal static class NativeManifestParserTests
                 StringComparison.Ordinal)
             && expectedMarker.Contains("processEnvironmentMaterialized=false", StringComparison.Ordinal)
             && expectedMarker.Contains("hostedDotNetStarted=false", StringComparison.Ordinal)
-            && expectedMarker.Contains("kestrelStarted=false", StringComparison.Ordinal);
+            && expectedMarker.Contains("kestrelStarted=false", StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence manifest env rejects parse failure", HostLane.Fast, 10)]
     private static bool TestBootSequenceManifestEnvironmentRejectsParseFailure()
     {
         byte[] source = Bytes(
@@ -378,7 +306,7 @@ internal static class NativeManifestParserTests
             " availableBytes=512 processEnvironmentMaterialized=false hostedDotNetStarted=false" +
             " kestrelStarted=false";
 
-        return !parsed.Succeeded
+        return HostCheck.Result(!parsed.Succeeded
             && parsed.IsInitialized
             && parsed.Status == NativeManifestParseStatus.UnsupportedVersion
             && !result.Succeeded
@@ -387,9 +315,10 @@ internal static class NativeManifestParserTests
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence manifest env rejects invalid source range", HostLane.Fast, 11)]
     private static bool TestBootSequenceManifestEnvironmentRejectsInvalidSourceRange()
     {
         byte[] source = ManifestWithEnvironment("env.PORT=8080\n");
@@ -411,7 +340,7 @@ internal static class NativeManifestParserTests
             parsed,
             format);
 
-        return parsed.Succeeded
+        return HostCheck.Result(parsed.Succeeded
             && format.Status == NativeManifestEnvironmentDiagnosticFormatStatus.SourceRangeInvalid
             && !result.Succeeded
             && result.Reason.Contains(
@@ -424,9 +353,10 @@ internal static class NativeManifestParserTests
                 "NATIVE_MANIFEST_ENV_NOT_READY status=SourceRangeInvalid initialized=true parse=Success" +
                 " format=SourceRangeInvalid environmentCount=1 errorOffset=-1 bytesWritten=0 requiredBytes=0" +
                 " availableBytes=0 processEnvironmentMaterialized=false hostedDotNetStarted=false" +
-                " kestrelStarted=false";
+                " kestrelStarted=false");
     }
 
+    [HostTest("boot.sequence manifest env rejects default result", HostLane.Fast, 12)]
     private static bool TestBootSequenceManifestEnvironmentRejectsDefaultResult()
     {
         NativeManifestParseResult parsed = default;
@@ -445,16 +375,17 @@ internal static class NativeManifestParserTests
             " availableBytes=512 processEnvironmentMaterialized=false hostedDotNetStarted=false" +
             " kestrelStarted=false";
 
-        return !parsed.IsInitialized
+        return HostCheck.Result(!parsed.IsInitialized
             && !result.Succeeded
             && result.Reason.Contains(
                 nameof(NativeManifestEnvironmentReadinessStatus.NotInitialized),
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence manifest env formats diagnostic failure marker", HostLane.Fast, 13)]
     private static bool TestBootSequenceManifestEnvironmentFormatsDiagnosticFailureMarker()
     {
         byte[] source = ManifestWithEnvironment("env.PORT=8080\n");
@@ -471,14 +402,15 @@ internal static class NativeManifestParserTests
             parsed,
             format);
 
-        return parsed.Succeeded
+        return HostCheck.Result(parsed.Succeeded
             && marker ==
                 "NATIVE_MANIFEST_ENV_NOT_READY status=DiagnosticFormattingFailure initialized=true parse=Success" +
                 " format=DestinationTooSmall environmentCount=1 errorOffset=-1 bytesWritten=0 requiredBytes=256" +
                 " availableBytes=8 processEnvironmentMaterialized=false hostedDotNetStarted=false" +
-                " kestrelStarted=false";
+                " kestrelStarted=false");
     }
 
+    [HostTest("boot.sequence manifest env preserves default markers", HostLane.Fast, 14)]
     private static bool TestBootSequenceManifestEnvironmentPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -487,31 +419,34 @@ internal static class NativeManifestParserTests
         BootResult result = BootSequence.Run(serial, events);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return !serial.ContainsPrefix(BootSequence.NativeManifestEnvironmentReadyPrefix)
-            && !serial.ContainsPrefix(BootSequence.NativeManifestEnvironmentNotReadyPrefix);
+        return HostCheck.Result(!serial.ContainsPrefix(BootSequence.NativeManifestEnvironmentReadyPrefix)
+            && !serial.ContainsPrefix(BootSequence.NativeManifestEnvironmentNotReadyPrefix));
     }
 
+    [HostTest("manifest kernel parses listen endpoint", HostLane.Fast, 15)]
     private static bool TestParsesListenEndpoint()
     {
-        return ParsesListenEndpoint("0.0.0.0:8080", "0.0.0.0", 8080)
-            && ParsesListenEndpoint("api.local:65535", "api.local", 65535);
+        return HostCheck.Result(ParsesListenEndpoint("0.0.0.0:8080", "0.0.0.0", 8080)
+            && ParsesListenEndpoint("api.local:65535", "api.local", 65535));
     }
 
+    [HostTest("manifest kernel rejects invalid listen endpoint", HostLane.Fast, 16)]
     private static bool TestRejectsInvalidListenEndpoint()
     {
-        return RejectsListenEndpoint("0.0.0.0", "dhcp", NativeManifestParseStatus.InvalidListenEndpoint)
+        return HostCheck.Result(RejectsListenEndpoint("0.0.0.0", "dhcp", NativeManifestParseStatus.InvalidListenEndpoint)
             && RejectsListenEndpoint(":8080", "dhcp", NativeManifestParseStatus.InvalidListenEndpoint)
             && RejectsListenEndpoint("bad host:8080", "dhcp", NativeManifestParseStatus.InvalidListenEndpoint)
             && RejectsListenEndpoint("0.0.0.0:0", "dhcp", NativeManifestParseStatus.InvalidListenEndpoint)
             && RejectsListenEndpoint("0.0.0.0:65536", "dhcp", NativeManifestParseStatus.InvalidListenEndpoint)
             && RejectsListenEndpoint("0.0.0.0:4294967296", "dhcp", NativeManifestParseStatus.InvalidListenEndpoint)
             && RejectsListenEndpoint("0.0.0.0:http", "dhcp", NativeManifestParseStatus.InvalidListenEndpoint)
-            && RejectsListenEndpoint("0.0.0.0:8080", "none", NativeManifestParseStatus.ListenRequiresNetwork);
+            && RejectsListenEndpoint("0.0.0.0:8080", "none", NativeManifestParseStatus.ListenRequiresNetwork));
     }
 
+    [HostTest("manifest kernel rejects duplicate environment keys", HostLane.Fast, 17)]
     private static bool TestRejectsDuplicateEnvironmentKeys()
     {
         byte[] source = Bytes(
@@ -528,11 +463,12 @@ internal static class NativeManifestParserTests
             "env.PORT=9090\n");
 
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
-            && result.Status == NativeManifestParseStatus.DuplicateEnvironmentKey;
+            && result.Status == NativeManifestParseStatus.DuplicateEnvironmentKey);
     }
 
+    [HostTest("manifest kernel rejects invalid environment key", HostLane.Fast, 18)]
     private static bool TestRejectsInvalidEnvironmentKey()
     {
         byte[] source = Bytes(
@@ -548,11 +484,12 @@ internal static class NativeManifestParserTests
             "env.port=8080\n");
 
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
-            && result.Status == NativeManifestParseStatus.InvalidEnvironmentKey;
+            && result.Status == NativeManifestParseStatus.InvalidEnvironmentKey);
     }
 
+    [HostTest("manifest kernel rejects too many environment fields", HostLane.Fast, 19)]
     private static bool TestRejectsTooManyEnvironmentFields()
     {
         StringBuilder builder = new StringBuilder()
@@ -574,11 +511,12 @@ internal static class NativeManifestParserTests
         }
 
         NativeManifestParseResult result = NativeManifestParser.Parse(Bytes(builder.ToString()));
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
-            && result.Status == NativeManifestParseStatus.TooManyEnvironmentFields;
+            && result.Status == NativeManifestParseStatus.TooManyEnvironmentFields);
     }
 
+    [HostTest("manifest kernel accepts maximum string field lengths", HostLane.Fast, 20)]
     private static bool TestAcceptsMaximumStringFieldLengths()
     {
         string appName = new string('a', NativeManifestParser.MaximumAppNameLength);
@@ -601,7 +539,7 @@ internal static class NativeManifestParserTests
             "env." + environmentKey + "=" + environmentValue + "\n");
 
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && FieldEquals(source, result.Manifest.AppName, appName)
             && FieldEquals(source, result.Manifest.AppPath, appPath)
             && FieldEquals(source, result.Manifest.Args, args)
@@ -613,12 +551,13 @@ internal static class NativeManifestParserTests
                 source,
                 result.Manifest.GetEnvironmentEntry(0),
                 environmentKey,
-                environmentValue);
+                environmentValue));
     }
 
+    [HostTest("manifest kernel rejects oversized string fields", HostLane.Fast, 21)]
     private static bool TestRejectsOversizedStringFields()
     {
-        return RejectsNativeManifest(
+        return HostCheck.Result(RejectsNativeManifest(
                 "app.name=" + new string('a', NativeManifestParser.MaximumAppNameLength + 1),
                 NativeManifestParseStatus.AppNameTooLong)
             && RejectsNativeManifest(
@@ -635,9 +574,10 @@ internal static class NativeManifestParserTests
                 NativeManifestParseStatus.EnvironmentValueTooLong)
             && RejectsNativeManifest(
                 "listen=" + new string('f', NativeManifestParser.MaximumListenHostLength + 1) + ":8080",
-                NativeManifestParseStatus.InvalidListenEndpoint);
+                NativeManifestParseStatus.InvalidListenEndpoint));
     }
 
+    [HostTest("manifest kernel rejects unsupported runtime kind", HostLane.Fast, 22)]
     private static bool TestRejectsUnsupportedRuntimeKind()
     {
         byte[] source = Bytes(
@@ -652,10 +592,11 @@ internal static class NativeManifestParserTests
             "log=serial\n");
 
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
-        return !result.Succeeded
-            && result.Status == NativeManifestParseStatus.UnsupportedRuntimeKind;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == NativeManifestParseStatus.UnsupportedRuntimeKind);
     }
 
+    [HostTest("manifest kernel rejects missing app path", HostLane.Fast, 23)]
     private static bool TestRejectsMissingAppPath()
     {
         byte[] source = Bytes(
@@ -669,10 +610,11 @@ internal static class NativeManifestParserTests
             "log=serial\n");
 
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
-        return !result.Succeeded
-            && result.Status == NativeManifestParseStatus.MissingAppPath;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == NativeManifestParseStatus.MissingAppPath);
     }
 
+    [HostTest("manifest kernel rejects malformed network mode", HostLane.Fast, 24)]
     private static bool TestRejectsMalformedNetworkMode()
     {
         byte[] source = Bytes(
@@ -687,10 +629,11 @@ internal static class NativeManifestParserTests
             "log=serial\n");
 
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
-        return !result.Succeeded
-            && result.Status == NativeManifestParseStatus.InvalidNetworkMode;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == NativeManifestParseStatus.InvalidNetworkMode);
     }
 
+    [HostTest("manifest kernel rejects unknown version", HostLane.Fast, 26)]
     private static bool TestRejectsUnknownVersion()
     {
         byte[] source = Bytes(
@@ -705,10 +648,11 @@ internal static class NativeManifestParserTests
             "log=serial\n");
 
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
-        return !result.Succeeded
-            && result.Status == NativeManifestParseStatus.UnsupportedVersion;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == NativeManifestParseStatus.UnsupportedVersion);
     }
 
+    [HostTest("manifest kernel rejects unknown format", HostLane.Fast, 25)]
     private static bool TestRejectsUnknownFormat()
     {
         byte[] source = Bytes(
@@ -723,10 +667,11 @@ internal static class NativeManifestParserTests
             "log=serial\n");
 
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
-        return !result.Succeeded
-            && result.Status == NativeManifestParseStatus.UnsupportedFormat;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == NativeManifestParseStatus.UnsupportedFormat);
     }
 
+    [HostTest("manifest kernel rejects duplicate keys", HostLane.Fast, 27)]
     private static bool TestRejectsDuplicateKeys()
     {
         byte[] source = Bytes(
@@ -742,10 +687,11 @@ internal static class NativeManifestParserTests
             "log=serial\n");
 
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
-        return !result.Succeeded
-            && result.Status == NativeManifestParseStatus.DuplicateKey;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == NativeManifestParseStatus.DuplicateKey);
     }
 
+    [HostTest("manifest kernel rejects oversized input", HostLane.Fast, 28)]
     private static bool TestRejectsOversizedInput()
     {
         byte[] source = new byte[NativeManifestParser.MaximumInputLength + 1];
@@ -755,30 +701,33 @@ internal static class NativeManifestParserTests
         }
 
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
-        return !result.Succeeded
-            && result.Status == NativeManifestParseStatus.InputTooLarge;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == NativeManifestParseStatus.InputTooLarge);
     }
 
+    [HostTest("manifest kernel rejects non-ascii input", HostLane.Fast, 29)]
     private static bool TestRejectsNonAsciiInput()
     {
         byte[] source = ValidManifest();
         source[10] = 0x80;
 
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
-        return !result.Succeeded
-            && result.Status == NativeManifestParseStatus.NonAsciiOrControlCharacter;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == NativeManifestParseStatus.NonAsciiOrControlCharacter);
     }
 
+    [HostTest("manifest kernel rejects control characters", HostLane.Fast, 30)]
     private static bool TestRejectsControlCharacters()
     {
         byte[] source = ValidManifest();
         source[10] = (byte)'\t';
 
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
-        return !result.Succeeded
-            && result.Status == NativeManifestParseStatus.NonAsciiOrControlCharacter;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == NativeManifestParseStatus.NonAsciiOrControlCharacter);
     }
 
+    [HostTest("manifest kernel rejects unknown keys", HostLane.Fast, 31)]
     private static bool TestRejectsUnknownKeys()
     {
         byte[] source = Bytes(
@@ -794,10 +743,11 @@ internal static class NativeManifestParserTests
             "runtime=native-aot\n");
 
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
-        return !result.Succeeded
-            && result.Status == NativeManifestParseStatus.UnknownKey;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == NativeManifestParseStatus.UnknownKey);
     }
 
+    [HostTest("manifest kernel rejects malformed log mode", HostLane.Fast, 32)]
     private static bool TestRejectsMalformedLogMode()
     {
         byte[] source = Bytes(
@@ -812,10 +762,11 @@ internal static class NativeManifestParserTests
             "log=file\n");
 
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
-        return !result.Succeeded
-            && result.Status == NativeManifestParseStatus.InvalidLogMode;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == NativeManifestParseStatus.InvalidLogMode);
     }
 
+    [HostTest("manifest kernel preserves token splitter semantics", HostLane.Fast, 33)]
     private static bool TestPreservesTokenSplitterSemantics()
     {
         byte[] crlfSource = Bytes(
@@ -851,7 +802,7 @@ internal static class NativeManifestParserTests
         bareCrSource[10] = (byte)'\r';
         NativeManifestParseResult bareCrResult = NativeManifestParser.Parse(bareCrSource);
 
-        return crlfResult.Succeeded
+        return HostCheck.Result(crlfResult.Succeeded
             && equalsValueResult.Succeeded
             && equalsValueResult.Manifest.EnvironmentCount == 1
             && EnvironmentEntryEquals(
@@ -864,9 +815,10 @@ internal static class NativeManifestParserTests
             && tabResult.ErrorOffset == 10
             && !bareCrResult.Succeeded
             && bareCrResult.Status == NativeManifestParseStatus.MalformedLine
-            && bareCrResult.ErrorOffset == 10;
+            && bareCrResult.ErrorOffset == 10);
     }
 
+    [HostTest("manifest kernel preserves equals inside values", HostLane.Fast, 34)]
     private static bool TestPreservesEqualsInsideValues()
     {
         byte[] source = ManifestWithEnvironment(
@@ -875,7 +827,7 @@ internal static class NativeManifestParserTests
 
         NativeManifestParseResult result = NativeManifestParser.Parse(source);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Manifest.EnvironmentCount == 2
             && EnvironmentEntryEquals(
                 source,
@@ -886,26 +838,28 @@ internal static class NativeManifestParserTests
                 source,
                 result.Manifest.GetEnvironmentEntry(1),
                 "FETCH_HTTP_EXPECTED_MARKER",
-                "left=right=tail");
+                "left=right=tail"));
     }
 
+    [HostTest("manifest kernel uses shared key value splitter", HostLane.Fast, 35)]
     private static bool TestUsesSharedKeyValueSplitter()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string parserSource = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Manifest", "NativeManifestParser.cs"));
 
-        return parserSource.Contains("AsciiKeyValueSplitter.SplitRange", StringComparison.Ordinal)
-            && !parserSource.Contains("Span<AsciiTokenRange> keyValueTokens", StringComparison.Ordinal);
+        return HostCheck.Result(parserSource.Contains("AsciiKeyValueSplitter.SplitRange", StringComparison.Ordinal)
+            && !parserSource.Contains("Span<AsciiTokenRange> keyValueTokens", StringComparison.Ordinal));
     }
 
+    [HostTest("manifest kernel uses shared ascii equality helper", HostLane.Fast, 36)]
     private static bool TestUsesSharedAsciiEqualityHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string parserSource = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Manifest", "NativeManifestParser.cs"));
 
-        return parserSource.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(parserSource.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && parserSource.Contains("AsciiString.Equals(key, \"format\"u8)", StringComparison.Ordinal)
             && parserSource.Contains("AsciiString.Equals(key, \"app.kind\"u8)", StringComparison.Ordinal)
             && parserSource.Contains("AsciiString.Equals(key, \"runtime.kind\"u8)", StringComparison.Ordinal)
@@ -918,16 +872,17 @@ internal static class NativeManifestParserTests
             && !parserSource.Contains("AsciiEquals(", StringComparison.Ordinal)
             && !parserSource.Contains(
                 "private static bool AsciiEquals(ReadOnlySpan<byte>",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("manifest kernel uses shared memory env helpers", HostLane.Fast, 37)]
     private static bool TestUsesSharedMemoryEnvironmentHelpers()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string parserSource = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Manifest", "NativeManifestParser.cs"));
 
-        return parserSource.Contains(
+        return HostCheck.Result(parserSource.Contains(
                 "OS.Std.MemoryExtensions.StartsWith(key, \"env.\"u8)",
                 StringComparison.Ordinal)
             && parserSource.Contains(
@@ -938,28 +893,30 @@ internal static class NativeManifestParserTests
                 StringComparison.Ordinal)
             && !parserSource.Contains(
                 "private static bool ByteSequenceEqual(ReadOnlySpan<byte>",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("manifest kernel uses shared ascii classification helpers", HostLane.Fast, 38)]
     private static bool TestUsesSharedAsciiClassificationHelpers()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string parserSource = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Manifest", "NativeManifestParser.cs"));
 
-        return parserSource.Contains("OS.Std.Ascii.IsLetterOrDigit(value)", StringComparison.Ordinal)
+        return HostCheck.Result(parserSource.Contains("OS.Std.Ascii.IsLetterOrDigit(value)", StringComparison.Ordinal)
             && parserSource.Contains("OS.Std.Ascii.IsUpperLetter", StringComparison.Ordinal)
             && parserSource.Contains("OS.Std.Ascii.IsDigit", StringComparison.Ordinal)
             && !parserSource.Contains("IsAsciiUpperAlpha", StringComparison.Ordinal)
             && !parserSource.Contains("IsAsciiLowerAlpha", StringComparison.Ordinal)
-            && !parserSource.Contains("IsAsciiDigit", StringComparison.Ordinal);
+            && !parserSource.Contains("IsAsciiDigit", StringComparison.Ordinal));
     }
 
+    [HostTest("manifest kernel parse default result is not success", HostLane.Fast, 49)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeManifestParseResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeManifestParseStatus.Success
             && result.ErrorOffset == 0
@@ -971,9 +928,10 @@ internal static class NativeManifestParserTests
             && result.Manifest.NetworkMode == NativeManifestNetworkMode.None
             && result.Manifest.LogMode == NativeManifestLogMode.None
             && result.Manifest.EnvironmentCount == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeManifestParseResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeManifestParseResult>());
     }
 
+    [HostTest("manifest fetchapp config preflight valid config", HostLane.Fast, 39)]
     private static bool TestFetchAppConfigPreflightValidConfig()
     {
         byte[] source = ManifestWithEnvironment(
@@ -989,7 +947,7 @@ internal static class NativeManifestParserTests
                 scratch,
                 requireConfiguredMarker: true);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == NativeManifestFetchAppConfigPreflightStatus.Success
             && result.ManifestLoadStatus == NativeManifestLoadStatus.Success
             && result.ManifestParseStatus == NativeManifestParseStatus.Success
@@ -1001,9 +959,10 @@ internal static class NativeManifestParserTests
             && result.HasConfiguredMarker
             && !result.UsesDefaultMarker
             && ScratchEquals(scratch, result.MarkerBytesWritten, "CONFIG_OK")
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeManifestFetchAppConfigPreflightResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeManifestFetchAppConfigPreflightResult>());
     }
 
+    [HostTest("manifest fetchapp config preflight defaults", HostLane.Fast, 40)]
     private static bool TestFetchAppConfigPreflightDefaults()
     {
         byte[] source = ValidManifest();
@@ -1013,7 +972,7 @@ internal static class NativeManifestParserTests
         NativeManifestFetchAppConfigPreflightResult result =
             NativeManifestFetchAppConfigPreflight.Validate(load, source, scratch);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == NativeManifestFetchAppConfigPreflightStatus.Success
             && result.ExpectedHttpStatusCode == 200
             && result.ExpectedMarkerLength == "FETCH_OK".Length
@@ -1021,12 +980,13 @@ internal static class NativeManifestParserTests
             && result.UsesDefaultMarker
             && !result.HasConfiguredStatus
             && !result.HasConfiguredMarker
-            && ScratchEquals(scratch, result.MarkerBytesWritten, "FETCH_OK");
+            && ScratchEquals(scratch, result.MarkerBytesWritten, "FETCH_OK"));
     }
 
+    [HostTest("manifest fetchapp config preflight invalid status", HostLane.Fast, 41)]
     private static bool TestFetchAppConfigPreflightInvalidStatus()
     {
-        return FetchAppPreflightStatusIs(
+        return HostCheck.Result(FetchAppPreflightStatusIs(
                 "env.FETCH_HTTP_EXPECTED_STATUS=99\n",
                 NativeManifestFetchAppConfigPreflightStatus.InvalidStatusCode)
             && FetchAppPreflightStatusIs(
@@ -1034,9 +994,10 @@ internal static class NativeManifestParserTests
                 NativeManifestFetchAppConfigPreflightStatus.InvalidStatusCode)
             && FetchAppPreflightStatusIs(
                 "env.FETCH_HTTP_EXPECTED_STATUS=OK\n",
-                NativeManifestFetchAppConfigPreflightStatus.InvalidStatusCode);
+                NativeManifestFetchAppConfigPreflightStatus.InvalidStatusCode));
     }
 
+    [HostTest("manifest fetchapp config preflight empty marker", HostLane.Fast, 42)]
     private static bool TestFetchAppConfigPreflightEmptyMarker()
     {
         byte[] source = ManifestWithEnvironment("env.FETCH_HTTP_EXPECTED_MARKER=\n");
@@ -1046,16 +1007,17 @@ internal static class NativeManifestParserTests
         NativeManifestFetchAppConfigPreflightResult result =
             NativeManifestFetchAppConfigPreflight.Validate(load, source, scratch);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeManifestFetchAppConfigPreflightStatus.EmptyMarker
             && result.ExpectationStatus == OS.Net.FetchAppHttpCompletionExpectationStatus.EmptyMarker
             && result.ExpectedMarkerLength == 0
             && result.MarkerBytesWritten == 0
             && result.HasConfiguredMarker
-            && !result.UsesDefaultMarker;
+            && !result.UsesDefaultMarker);
     }
 
+    [HostTest("manifest fetchapp config preflight oversized marker", HostLane.Fast, 43)]
     private static bool TestFetchAppConfigPreflightOversizedMarker()
     {
         string marker = new string('A', OS.Net.FetchAppHttpCompletionExpectation.MaximumExpectedMarkerLength + 1);
@@ -1066,15 +1028,16 @@ internal static class NativeManifestParserTests
         NativeManifestFetchAppConfigPreflightResult result =
             NativeManifestFetchAppConfigPreflight.Validate(load, source, scratch);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeManifestFetchAppConfigPreflightStatus.MarkerTooLarge
             && result.ExpectedMarkerLength == marker.Length
             && result.MarkerRequiredBytes == marker.Length
             && result.HasConfiguredMarker
-            && !result.UsesDefaultMarker;
+            && !result.UsesDefaultMarker);
     }
 
+    [HostTest("manifest fetchapp config preflight manifest not ready", HostLane.Fast, 44)]
     private static bool TestFetchAppConfigPreflightManifestNotReady()
     {
         Span<byte> scratch = stackalloc byte[64];
@@ -1086,7 +1049,7 @@ internal static class NativeManifestParserTests
                 ReadOnlySpan<byte>.Empty,
                 scratch);
 
-        return !defaultResult.Succeeded
+        return HostCheck.Result(!defaultResult.Succeeded
             && defaultResult.IsInitialized
             && defaultResult.Status == NativeManifestFetchAppConfigPreflightStatus.ManifestNotReady
             && defaultResult.ManifestLoadStatus == NativeManifestLoadStatus.Success
@@ -1094,9 +1057,10 @@ internal static class NativeManifestParserTests
             && parseFailureResult.IsInitialized
             && parseFailureResult.Status == NativeManifestFetchAppConfigPreflightStatus.ManifestNotReady
             && parseFailureResult.ManifestLoadStatus == NativeManifestLoadStatus.ManifestParseFailed
-            && parseFailureResult.ManifestParseStatus == NativeManifestParseStatus.UnsupportedVersion;
+            && parseFailureResult.ManifestParseStatus == NativeManifestParseStatus.UnsupportedVersion);
     }
 
+    [HostTest("boot.sequence fetchapp config preflight ready", HostLane.Fast, 45)]
     private static bool TestBootSequenceFetchAppConfigPreflightReady()
     {
         byte[] source = ManifestWithEnvironment(
@@ -1120,15 +1084,16 @@ internal static class NativeManifestParserTests
         string expectedMarker =
             BootSequence.CreateNativeManifestFetchAppConfigPreflightReadyMarker(preflight);
 
-        return preflight.Succeeded
+        return HostCheck.Result(preflight.Succeeded
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
             && expectedMarker ==
-                "FETCHAPP_CONFIG_PREFLIGHT_READY status=Ready initialized=true preflight=Success manifestLoad=Success manifestParse=Success expectation=Success expectedStatus=204 markerLength=9 markerBytesWritten=9 markerRequiredBytes=9 usesDefaultMarker=false configuredStatus=true configuredMarker=true manifestBytesRead=" + source.Length;
+                "FETCHAPP_CONFIG_PREFLIGHT_READY status=Ready initialized=true preflight=Success manifestLoad=Success manifestParse=Success expectation=Success expectedStatus=204 markerLength=9 markerBytesWritten=9 markerRequiredBytes=9 usesDefaultMarker=false configuredStatus=true configuredMarker=true manifestBytesRead=" + source.Length);
     }
 
+    [HostTest("boot.sequence fetchapp config preflight rejects failed result", HostLane.Fast, 46)]
     private static bool TestBootSequenceFetchAppConfigPreflightRejectsFailedResult()
     {
         byte[] source = ManifestWithEnvironment("env.FETCH_HTTP_EXPECTED_STATUS=OK\n");
@@ -1148,7 +1113,7 @@ internal static class NativeManifestParserTests
                 NativeManifestFetchAppConfigPreflightReadinessStatus.PreflightFailed,
                 preflight);
 
-        return preflight.IsInitialized
+        return HostCheck.Result(preflight.IsInitialized
             && !preflight.Succeeded
             && preflight.Status == NativeManifestFetchAppConfigPreflightStatus.InvalidStatusCode
             && !result.Succeeded
@@ -1159,9 +1124,10 @@ internal static class NativeManifestParserTests
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
             && expectedMarker ==
-                "FETCHAPP_CONFIG_PREFLIGHT_NOT_READY status=PreflightFailed initialized=true preflight=InvalidStatusCode manifestLoad=Success manifestParse=Success expectation=InvalidStatusCode expectedStatus=0 markerLength=8 markerBytesWritten=0 markerRequiredBytes=8 usesDefaultMarker=true configuredStatus=true configuredMarker=false manifestBytesRead=" + source.Length;
+                "FETCHAPP_CONFIG_PREFLIGHT_NOT_READY status=PreflightFailed initialized=true preflight=InvalidStatusCode manifestLoad=Success manifestParse=Success expectation=InvalidStatusCode expectedStatus=0 markerLength=8 markerBytesWritten=0 markerRequiredBytes=8 usesDefaultMarker=true configuredStatus=true configuredMarker=false manifestBytesRead=" + source.Length);
     }
 
+    [HostTest("boot.sequence fetchapp config preflight rejects default result", HostLane.Fast, 47)]
     private static bool TestBootSequenceFetchAppConfigPreflightRejectsDefaultResult()
     {
         NativeManifestFetchAppConfigPreflightResult preflight = default;
@@ -1177,7 +1143,7 @@ internal static class NativeManifestParserTests
                 NativeManifestFetchAppConfigPreflightReadinessStatus.NotInitialized,
                 preflight);
 
-        return !preflight.IsInitialized
+        return HostCheck.Result(!preflight.IsInitialized
             && !preflight.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
@@ -1187,9 +1153,10 @@ internal static class NativeManifestParserTests
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
             && expectedMarker ==
-                "FETCHAPP_CONFIG_PREFLIGHT_NOT_READY status=NotInitialized initialized=false preflight=Success manifestLoad=Success manifestParse=Success expectation=Success expectedStatus=0 markerLength=0 markerBytesWritten=0 markerRequiredBytes=0 usesDefaultMarker=false configuredStatus=false configuredMarker=false manifestBytesRead=0";
+                "FETCHAPP_CONFIG_PREFLIGHT_NOT_READY status=NotInitialized initialized=false preflight=Success manifestLoad=Success manifestParse=Success expectation=Success expectedStatus=0 markerLength=0 markerBytesWritten=0 markerRequiredBytes=0 usesDefaultMarker=false configuredStatus=false configuredMarker=false manifestBytesRead=0");
     }
 
+    [HostTest("boot.sequence fetchapp config preflight preserves default markers", HostLane.Fast, 48)]
     private static bool TestBootSequenceFetchAppConfigPreflightPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1198,11 +1165,11 @@ internal static class NativeManifestParserTests
         BootResult result = BootSequence.Run(serial, events);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return !serial.ContainsPrefix(BootSequence.NativeManifestFetchAppConfigPreflightReadyPrefix)
-            && !serial.ContainsPrefix(BootSequence.NativeManifestFetchAppConfigPreflightNotReadyPrefix);
+        return HostCheck.Result(!serial.ContainsPrefix(BootSequence.NativeManifestFetchAppConfigPreflightReadyPrefix)
+            && !serial.ContainsPrefix(BootSequence.NativeManifestFetchAppConfigPreflightNotReadyPrefix));
     }
 
     private static bool RejectsListenEndpoint(

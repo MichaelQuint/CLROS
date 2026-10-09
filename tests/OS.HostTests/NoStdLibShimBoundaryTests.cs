@@ -3,59 +3,25 @@ using System.Xml.Linq;
 
 internal static class NoStdLibShimBoundaryTests
 {
-    [ModuleInitializer]
-    internal static void Run()
-    {
-        int failures = 0;
 
-        Run("nostdlib shim boundary includes explicit EFI project", TestEfiProjectIncludedExplicitly, ref failures);
-        Run("nostdlib shim boundary is explicit in EFI project", TestEfiProjectExplicitShimBoundary, ref failures);
-        Run("nostdlib shim boundary keeps System stubs out of host projects", TestHostProjectsDoNotCompileMinimalRuntime, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("NoStdLib shim boundary tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("nostdlib shim boundary includes explicit EFI project", HostLane.Fast, 0)]
     private static bool TestEfiProjectIncludedExplicitly()
     {
         string root = HostToolProcess.FindRepositoryRoot();
         string solution = File.ReadAllText(
             Path.Combine(root, HostToolProcess.RepositorySolutionFileName));
 
-        return solution.Contains("src/OS/OS.csproj", StringComparison.OrdinalIgnoreCase)
-            || solution.Contains("src\\OS\\OS.csproj", StringComparison.OrdinalIgnoreCase);
+        return HostCheck.Result(solution.Contains("src/OS/OS.csproj", StringComparison.OrdinalIgnoreCase)
+            || solution.Contains("src\\OS\\OS.csproj", StringComparison.OrdinalIgnoreCase));
     }
 
+    [HostTest("nostdlib shim boundary is explicit in EFI project", HostLane.Fast, 1)]
     private static bool TestEfiProjectExplicitShimBoundary()
     {
         string root = HostToolProcess.FindRepositoryRoot();
         XDocument project = XDocument.Load(Path.Combine(root, "src", "OS", "OS.csproj"));
 
-        return HasProperty(project, "NoStdLib", "true")
+        return HostCheck.Result(HasProperty(project, "NoStdLib", "true")
             && HasProperty(project, "DisableImplicitFrameworkReferences", "true")
             && HasProperty(project, "EnableDefaultCompileItems", "false")
             && HasCompileInclude(project, "Runtime\\MinimalRuntime.cs")
@@ -65,7 +31,7 @@ internal static class NoStdLibShimBoundaryTests
             && FixedAllocationDefaultIsSelfContained(root)
             && ArrayAllocationDefaultIsSelfContained(root)
             && StringAllocationDefaultIsSelfContained(root)
-            && !project.Descendants().Any(element => element.Name.LocalName == "ProjectReference");
+            && !project.Descendants().Any(element => element.Name.LocalName == "ProjectReference"));
     }
 
     private static bool FixedAllocationDefaultIsSelfContained(string root)
@@ -131,6 +97,7 @@ internal static class NoStdLibShimBoundaryTests
             source.Contains("#if M04_STRING_ALLOCATION_PROBE\n            return Runtime.RuntimeImports.RhNewString", StringComparison.Ordinal);
     }
 
+    [HostTest("nostdlib shim boundary keeps System stubs out of host projects", HostLane.Fast, 2)]
     private static bool TestHostProjectsDoNotCompileMinimalRuntime()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -151,11 +118,11 @@ internal static class NoStdLibShimBoundaryTests
 
             if (includesShim)
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return true;
+        return HostCheck.Result(true);
     }
 
     private static bool HasProperty(XDocument project, string name, string expectedValue)

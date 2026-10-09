@@ -16,55 +16,54 @@ internal static class M01LivePagingPrerequisiteManifestTests
         "M01-032"
     ];
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void Run()
     {
-        Console.WriteLine("TEST_START " + TestName);
-        try
+        HostCheck.Run(TestName, () =>
         {
-            string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-            string manifestPath = Path.Combine(
-                repositoryRoot,
-                ".gitea",
-                "backlog",
-                "clros-issues.json");
-            byte[] manifestBytes = File.ReadAllBytes(manifestPath);
-            string manifestText = new UTF8Encoding(
-                encoderShouldEmitUTF8Identifier: false,
-                throwOnInvalidBytes: true).GetString(manifestBytes);
-            using JsonDocument manifest = JsonDocument.Parse(manifestText);
-            IReadOnlyDictionary<string, JsonElement> issueByKey =
-                IndexIssues(manifest.RootElement.GetProperty("issues"));
+            try
+            {
+                string repositoryRoot = HostToolProcess.FindRepositoryRoot();
+                string manifestPath = Path.Combine(
+                    repositoryRoot,
+                    ".gitea",
+                    "backlog",
+                    "clros-issues.json");
+                byte[] manifestBytes = File.ReadAllBytes(manifestPath);
+                string manifestText = new UTF8Encoding(
+                    encoderShouldEmitUTF8Identifier: false,
+                    throwOnInvalidBytes: true).GetString(manifestBytes);
+                using JsonDocument manifest = JsonDocument.Parse(manifestText);
+                IReadOnlyDictionary<string, JsonElement> issueByKey =
+                    IndexIssues(manifest.RootElement.GetProperty("issues"));
 
-            Require(
-                ValidateDependencyGraph(issueByKey),
-                "dependency_graph");
-            Require(
-                ValidateHostOnlyEvidenceBoundaries(issueByKey),
-                "host_evidence_boundary");
-            Require(
-                ValidateSerializedOwnership(issueByKey),
-                "ownership_serialization");
-            Require(
-                ValidateIssueContracts(issueByKey),
-                "issue_contract");
-            Require(
-                ValidateBlockerLedger(issueByKey),
-                "blocker_ledger");
+                Require(
+                    ValidateDependencyGraph(issueByKey),
+                    "dependency_graph");
+                Require(
+                    ValidateHostOnlyEvidenceBoundaries(issueByKey),
+                    "host_evidence_boundary");
+                Require(
+                    ValidateSerializedOwnership(issueByKey),
+                    "ownership_serialization");
+                Require(
+                    ValidateIssueContracts(issueByKey),
+                    "issue_contract");
+                Require(
+                    ValidateBlockerLedger(issueByKey),
+                    "blocker_ledger");
 
-            Console.WriteLine(ReadyMarker);
-            Console.WriteLine("TEST_PASS " + TestName);
-        }
-        catch (Exception exception)
-        {
-            string reason = SanitizeReason(exception.Message);
-            Console.WriteLine(
-                "TEST_FAIL " + TestName + " " + reason);
-            throw new InvalidOperationException(
-                "M01-028 live-paging prerequisite manifest tests failed: " +
-                reason,
-                exception);
-        }
+                Console.WriteLine(ReadyMarker);
+            }
+            catch (Exception exception)
+            {
+                string reason = SanitizeReason(exception.Message);
+                throw new InvalidOperationException(
+                    "M01-028 live-paging prerequisite manifest tests failed: " +
+                    reason,
+                    exception);
+            }
+        });
     }
 
     private static IReadOnlyDictionary<string, JsonElement> IndexIssues(
@@ -213,7 +212,7 @@ internal static class M01LivePagingPrerequisiteManifestTests
                         " -OvmfCode \"",
                         StringComparison.Ordinal) ||
                     (command.Contains(
-                            "run-qemu-smoke.ps1",
+                            "qemu smoke",
                             StringComparison.OrdinalIgnoreCase) &&
                         !command.Contains(
                             "-DryRun",
@@ -347,7 +346,7 @@ internal static class M01LivePagingPrerequisiteManifestTests
                 ".gitea/backlog/clros-issues.json") &&
             HasOwnedPath(
                 repair,
-                "scripts/sync-gitea-backlog.ps1") &&
+                "tools/OS.Tooling/BacklogSync.cs") &&
             HasOwnedPath(
                 repair,
                 "tests/OS.HostTests/GiteaBacklogManifestTests.cs") &&

@@ -11,7 +11,7 @@ internal static class EvidenceManifestWriterTests
         new DateTimeOffset(2026, 7, 25, 12, 0, 0, TimeSpan.Zero);
     private static readonly DateTimeOffset Completed = Started.AddSeconds(15);
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void Run()
     {
         int failures = 0;
@@ -56,25 +56,8 @@ internal static class EvidenceManifestWriterTests
 
     private static void RunTest(string name, Func<bool> test, ref int failures)
     {
-        Console.WriteLine("TEST_START evidence.manifest " + name);
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS evidence.manifest " + name);
-                return;
-            }
 
-            failures++;
-            Console.WriteLine("TEST_FAIL evidence.manifest " + name + " assertion_failed");
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL evidence.manifest " + name + " " +
-                ex.GetType().Name + ": " + ex.Message);
-        }
+        HostCheck.Run("evidence.manifest " + name, test, ref failures);
     }
 
     private static bool TestSuccess(string tempRoot)

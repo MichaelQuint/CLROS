@@ -6,60 +6,7 @@ internal static class OwnedSerialDiagnosticsReadinessTests
 {
     private const nuint PayloadBaseAddress = 0x0010_0000;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run(
-            "diagnostics owned serial readiness accepts com1 backend contract",
-            TestAcceptsCom1BackendContract,
-            ref failures);
-        Run(
-            "diagnostics owned serial readiness rejects failed backend plan",
-            TestRejectsFailedBackendPlan,
-            ref failures);
-        Run(
-            "diagnostics owned serial readiness rejects failed backend contract",
-            TestRejectsFailedBackendContract,
-            ref failures);
-        Run(
-            "diagnostics owned serial readiness rejects late firmware unavailable",
-            TestRejectsLateFirmwareUnavailable,
-            ref failures);
-        Run(
-            "diagnostics owned serial readiness default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Owned serial diagnostics readiness host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("diagnostics owned serial readiness accepts com1 backend contract", HostLane.Fast, 0)]
     private static bool TestAcceptsCom1BackendContract()
     {
         OwnedSerialDiagnosticsReadinessResult readiness = CreateReadyOwnedSerialReadiness();
@@ -70,7 +17,7 @@ internal static class OwnedSerialDiagnosticsReadinessTests
         SerialDiagnosticsGuardResult postFirmware =
             guard.RequirePostFirmwareDiagnostics("post-firmware.panic");
 
-        return readiness.Succeeded
+        return HostCheck.Result(readiness.Succeeded
             && readiness.IsInitialized
             && readiness.Status == OwnedSerialDiagnosticsReadinessStatus.Success
             && readiness.BackendPlanStatus == Com1PortIoBackendPlanStatus.Success
@@ -89,9 +36,10 @@ internal static class OwnedSerialDiagnosticsReadinessTests
             && postFirmware.Succeeded
             && postFirmware.PostFirmwareDiagnosticsAvailable
             && guard.OwnedSerialReady
-            && guard.CanUsePostFirmwareDiagnostics;
+            && guard.CanUsePostFirmwareDiagnostics);
     }
 
+    [HostTest("diagnostics owned serial readiness rejects failed backend plan", HostLane.Fast, 1)]
     private static bool TestRejectsFailedBackendPlan()
     {
         Com1PortIoBackendPlanResult backendReadiness = CreateFailedBackendReadiness();
@@ -107,7 +55,7 @@ internal static class OwnedSerialDiagnosticsReadinessTests
         SerialDiagnosticsGuard guard = new SerialDiagnosticsGuard();
         SerialDiagnosticsGuardResult ownedReady = guard.MarkOwnedSerialReady(readiness);
 
-        return !backendReadiness.Succeeded
+        return HostCheck.Result(!backendReadiness.Succeeded
             && !backendContract.Succeeded
             && readiness.IsInitialized
             && readiness.Status == OwnedSerialDiagnosticsReadinessStatus.BackendPlanFailed
@@ -119,9 +67,10 @@ internal static class OwnedSerialDiagnosticsReadinessTests
             && ownedReady.Operation == SerialDiagnosticsGuard.MarkOwnedSerialReadyFromCom1Operation
             && ownedReady.Reason.Contains("BackendPlanFailed", StringComparison.Ordinal)
             && !guard.OwnedSerialReady
-            && !guard.CanUsePostFirmwareDiagnostics;
+            && !guard.CanUsePostFirmwareDiagnostics);
     }
 
+    [HostTest("diagnostics owned serial readiness rejects failed backend contract", HostLane.Fast, 2)]
     private static bool TestRejectsFailedBackendContract()
     {
         Com1PortIoBackendPlanResult backendReadiness = CreateReadyBackendReadiness();
@@ -137,7 +86,7 @@ internal static class OwnedSerialDiagnosticsReadinessTests
         SerialDiagnosticsGuard guard = new SerialDiagnosticsGuard();
         SerialDiagnosticsGuardResult ownedReady = guard.MarkOwnedSerialReady(readiness);
 
-        return backendReadiness.Succeeded
+        return HostCheck.Result(backendReadiness.Succeeded
             && !backendContract.Succeeded
             && readiness.IsInitialized
             && readiness.Status == OwnedSerialDiagnosticsReadinessStatus.BackendContractFailed
@@ -149,9 +98,10 @@ internal static class OwnedSerialDiagnosticsReadinessTests
             && ownedReady.Operation == SerialDiagnosticsGuard.MarkOwnedSerialReadyFromCom1Operation
             && ownedReady.Reason.Contains("BackendContractFailed", StringComparison.Ordinal)
             && !guard.OwnedSerialReady
-            && !guard.CanUsePostFirmwareDiagnostics;
+            && !guard.CanUsePostFirmwareDiagnostics);
     }
 
+    [HostTest("diagnostics owned serial readiness rejects late firmware unavailable", HostLane.Fast, 3)]
     private static bool TestRejectsLateFirmwareUnavailable()
     {
         OwnedSerialDiagnosticsReadinessResult readiness = CreateReadyOwnedSerialReadiness();
@@ -159,7 +109,7 @@ internal static class OwnedSerialDiagnosticsReadinessTests
         SerialDiagnosticsGuardResult firmwareUnavailable = guard.MarkFirmwareServicesUnavailable();
         SerialDiagnosticsGuardResult ownedReady = guard.MarkOwnedSerialReady(readiness);
 
-        return readiness.Succeeded
+        return HostCheck.Result(readiness.Succeeded
             && readiness.IsInitialized
             && firmwareUnavailable.Succeeded
             && firmwareUnavailable.Status == SerialDiagnosticsGuardStatus.FirmwareServicesUnavailable
@@ -169,16 +119,17 @@ internal static class OwnedSerialDiagnosticsReadinessTests
             && ownedReady.Reason.Contains("FirmwareServicesUnavailable", StringComparison.Ordinal)
             && guard.Status == SerialDiagnosticsGuardStatus.FirmwareServicesUnavailable
             && !guard.OwnedSerialReady
-            && !guard.CanUsePostFirmwareDiagnostics;
+            && !guard.CanUsePostFirmwareDiagnostics);
     }
 
+    [HostTest("diagnostics owned serial readiness default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         OwnedSerialDiagnosticsReadinessResult readiness = default;
         SerialDiagnosticsGuard guard = new SerialDiagnosticsGuard();
         SerialDiagnosticsGuardResult ownedReady = guard.MarkOwnedSerialReady(readiness);
 
-        return !readiness.IsInitialized
+        return HostCheck.Result(!readiness.IsInitialized
             && !readiness.Succeeded
             && !readiness.HasResolvedBackendAddresses
             && readiness.Status == OwnedSerialDiagnosticsReadinessStatus.Success
@@ -192,7 +143,7 @@ internal static class OwnedSerialDiagnosticsReadinessTests
             && ownedReady.Status == SerialDiagnosticsGuardStatus.FirmwareConsoleOnly
             && ownedReady.Operation == SerialDiagnosticsGuard.MarkOwnedSerialReadyFromCom1Operation
             && !guard.OwnedSerialReady
-            && !guard.CanUsePostFirmwareDiagnostics;
+            && !guard.CanUsePostFirmwareDiagnostics);
     }
 
     private static OwnedSerialDiagnosticsReadinessResult CreateReadyOwnedSerialReadiness()

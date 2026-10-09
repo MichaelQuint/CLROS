@@ -9,13 +9,13 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
 {
     private const string TestName = "m02.003.efi.integration";
     private const string ReadyMarker =
-        "CLROS_M02_003_READY bindingReady=true out8AddressChecked=true in8AddressChecked=true guestInvocation=false portIoExecuted=false";
+        OS.Tooling.QemuContracts.Record035;
     private const string FailureMarker =
-        "M02_CHECKED_PORT_IO_BINDING_FAILED";
-    private const string CompileClosureSha256 =
-        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
+        OS.Tooling.QemuContracts.Record034;
+    private static readonly string CompileClosureSha256 =
+        OS.Tooling.EfiContracts.CompileInventorySha256;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START " + TestName);
@@ -54,243 +54,29 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
         Func<bool> test,
         ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
 
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + name + " " + ex.GetType().Name + ": " +
-                ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestCompileClosureAndSwitches()
-    {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string projectPath = Path.Combine(root, "src", "OS", "OS.csproj");
-        XDocument project = XDocument.Load(projectPath);
-        XElement[] compileItems = project
-            .Descendants("Compile")
-            .ToArray();
-        string[] compileKeys = compileItems
-            .Select(item =>
-                (item.Attribute("Include")?.Value ?? string.Empty) + "|" +
-                (item.Attribute("Link")?.Value ?? string.Empty))
-            .ToArray();
-        string compileText = string.Join("\n", compileKeys) + "\n";
-        string compileHash = Convert.ToHexString(
-                SHA256.HashData(Encoding.UTF8.GetBytes(compileText)))
-            .ToLowerInvariant();
-        int binderIndex = Array.IndexOf(
-            compileKeys,
-            @"..\OS.Kernel\Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs|Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs");
-        int helperIndex = Array.IndexOf(
-            compileKeys,
-            @"Boot\M02CheckedPortIoFunctionPointerIntegration.cs|");
-
-        XElement[] defaults = project
-            .Descendants("EnableM02CheckedPortIoBindingProbe")
-            .Where(element => element.Attribute("Condition")?.Value ==
-                "'$(EnableM02CheckedPortIoBindingProbe)' == ''")
-            .ToArray();
-        XElement[] ud2ProfileOverrides = project
-            .Descendants("PropertyGroup")
-            .Where(group => group.Attribute("Condition")?.Value ==
-                "'$(EnableM02Ud2VectorStateProbe)' == 'true'")
-            .SelectMany(group => group.Elements(
-                "EnableM02CheckedPortIoBindingProbe"))
-            .ToArray();
-        XElement[] symbols = project
-            .Descendants("PropertyGroup")
-            .Where(element =>
-                element.Attribute("Condition")?.Value ==
-                    "'$(EnableM02CheckedPortIoBindingProbe)' == 'true'")
-            .ToArray();
-        string[] errorConditions = project
-            .Descendants("Error")
-            .Select(element => element.Attribute("Condition")?.Value ?? string.Empty)
-            .Where(value => value.Contains(
-                "EnableM02CheckedPortIoBindingProbe",
-                StringComparison.Ordinal))
-            .ToArray();
-        string[] prerequisiteConditions = errorConditions
-            .Where(value =>
-                value.Contains(
-                    "'$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
-                    StringComparison.Ordinal) &&
-                value.Contains(
-                    "'$(EnableM02SafeStubProbe)' != 'true'",
-                    StringComparison.Ordinal))
-            .ToArray();
-        string[] dependentConditions = errorConditions
-            .Where(value =>
-                value.Contains(
-                    "'$(EnableM02Com1OwnedPortIoProbe)' == 'true'",
-                    StringComparison.Ordinal) &&
-                value.Contains(
-                    "'$(EnableM02CheckedPortIoBindingProbe)' != 'true'",
-                    StringComparison.Ordinal))
-            .ToArray();
-        string buildScript = File.ReadAllText(
-            Path.Combine(root, "scripts", "build-efi-shell.ps1"));
-        string artifactScript = File.ReadAllText(
-            Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
-
-        return compileItems.Length == 122
-            && compileKeys.Count(key => key.Contains(
-                "InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs",
-                StringComparison.Ordinal)) == 1
-            && compileKeys.Count(key => key.Contains(
-                "M02CheckedPortIoFunctionPointerIntegration.cs",
-                StringComparison.Ordinal)) == 1
-            && compileKeys.All(key => !key.Contains(
-                "SerialPortConfiguration.cs",
-                StringComparison.Ordinal))
-            && binderIndex >= 0
-            && helperIndex > binderIndex
-            && compileHash == CompileClosureSha256
-            && defaults.Length == 1
-            && defaults[0].Value == "false"
-            && defaults[0].Attribute("Condition")?.Value ==
-                "'$(EnableM02CheckedPortIoBindingProbe)' == ''"
-            && ud2ProfileOverrides.Length == 1
-            && ud2ProfileOverrides[0].Value == "true"
-            && symbols.Length == 1
-            && symbols[0].Elements("DefineConstants").Single().Value ==
-                "$(DefineConstants);M02_CHECKED_PORT_IO_BINDING_PROBE"
-            && errorConditions.Length == 35
-            && errorConditions.Count(condition => string.Equals(
-                condition,
-                "'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
-                StringComparison.Ordinal)) == 1
-            && errorConditions.Contains(
-                "'$(EnableM03TypedExitBootServicesCallProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM04CheckedReferenceBarrierProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM03MemoryMapCaptureProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' != 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' != 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02DoubleFaultIstProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' != 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM04SzArrayAllocationProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && errorConditions.Contains(
-                "'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && prerequisiteConditions.Length == 1
-            && dependentConditions.Length == 1
-            && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "[switch] $EnableM02CheckedPortIoBindingProbe",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "$arguments += \"-p:EnableM02CheckedPortIoBindingProbe=true\"",
-                StringComparison.Ordinal)
-            && artifactScript.Contains(
-                "$expectedSourceClosureInputCount = 138",
-                StringComparison.Ordinal)
-            && artifactScript.Contains(
-                "$compileItems.Count -ne 122",
-                StringComparison.Ordinal);
-    }
+{
+    string root = HostToolProcess.FindRepositoryRoot();
+    string projectPath = Path.Combine(root, "src", "OS", "OS.csproj");
+    XDocument project = XDocument.Load(projectPath);
+    XElement[] compileItems = project.Descendants("Compile").ToArray();
+    string[] compileKeys = compileItems.Select(item => (item.Attribute("Include")?.Value ?? string.Empty) + "|" + (item.Attribute("Link")?.Value ?? string.Empty)).ToArray();
+    string compileText = string.Join("\n", compileKeys) + "\n";
+    string compileHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(compileText))).ToLowerInvariant();
+    int binderIndex = Array.IndexOf(compileKeys, @"..\OS.Kernel\Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs|Diagnostics\InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs");
+    int helperIndex = Array.IndexOf(compileKeys, @"Boot\M02CheckedPortIoFunctionPointerIntegration.cs|");
+    XElement[] defaults = project.Descendants("EnableM02CheckedPortIoBindingProbe").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02CheckedPortIoBindingProbe)' == ''").ToArray();
+    XElement[] ud2ProfileOverrides = project.Descendants("PropertyGroup").Where(group => group.Attribute("Condition")?.Value == "'$(EnableM02Ud2VectorStateProbe)' == 'true'").SelectMany(group => group.Elements("EnableM02CheckedPortIoBindingProbe")).ToArray();
+    XElement[] symbols = project.Descendants("PropertyGroup").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02CheckedPortIoBindingProbe)' == 'true'").ToArray();
+    string[] errorConditions = project.Descendants("Error").Select(element => element.Attribute("Condition")?.Value ?? string.Empty).Where(value => value.Contains("EnableM02CheckedPortIoBindingProbe", StringComparison.Ordinal)).ToArray();
+    string[] prerequisiteConditions = errorConditions.Where(value => value.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparison.Ordinal) && value.Contains("'$(EnableM02SafeStubProbe)' != 'true'", StringComparison.Ordinal)).ToArray();
+    string[] dependentConditions = errorConditions.Where(value => value.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true'", StringComparison.Ordinal) && value.Contains("'$(EnableM02CheckedPortIoBindingProbe)' != 'true'", StringComparison.Ordinal)).ToArray();
+    return (compileItems.Length == OS.Tooling.EfiContracts.CompileItems.Count && compileKeys.Count(key => key.Contains("InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs", StringComparison.Ordinal)) == 1 && compileKeys.Count(key => key.Contains("M02CheckedPortIoFunctionPointerIntegration.cs", StringComparison.Ordinal)) == 1 && compileKeys.All(key => !key.Contains("SerialPortConfiguration.cs", StringComparison.Ordinal)) && binderIndex >= 0 && helperIndex > binderIndex && compileHash == CompileClosureSha256 && defaults.Length == 1 && defaults[0].Value == "false" && defaults[0].Attribute("Condition")?.Value == "'$(EnableM02CheckedPortIoBindingProbe)' == ''" && ud2ProfileOverrides.Length == 1 && ud2ProfileOverrides[0].Value == "true" && symbols.Length == 1 && symbols[0].Elements("DefineConstants").Single().Value == "$(DefineConstants);M02_CHECKED_PORT_IO_BINDING_PROBE" && errorConditions.Length == 35 && errorConditions.Count(condition => string.Equals(condition, "'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparison.Ordinal)) == 1 && errorConditions.Contains("'$(EnableM03TypedExitBootServicesCallProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM04CheckedReferenceBarrierProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM03MemoryMapCaptureProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM03FirmwareEntropySeedProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02UnexpectedVectorPanicProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' != 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM04RhpNewFastProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02PageFaultCr2ErrorCodeProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' != 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02DoubleFaultIstProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' != 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM04SzArrayAllocationProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM04StringAllocationProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM04StringAllocationBeforeBindProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM04StringAllocationExhaustionProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM04StringAllocationInvalidLengthProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true' and '$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparer.Ordinal) && errorConditions.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal) && prerequisiteConditions.Length == 1 && dependentConditions.Length == 1) && OS.Tooling.ContractAudit.Inspect(root).Count == 0;
+}
 
     private static bool TestBindingSourceBoundary()
     {
@@ -397,37 +183,7 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
             && !source.Contains(".InvokeIn8(", StringComparison.Ordinal);
     }
 
-    private static bool TestQemuProfileSource()
-    {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(root, "scripts", "run-qemu-smoke.ps1"));
-
-        return source.Contains(
-                "[switch] $EnableM02CheckedPortIoBindingProbe",
-                StringComparison.Ordinal)
-            && source.Contains(ReadyMarker, StringComparison.Ordinal)
-            && source.Contains(FailureMarker, StringComparison.Ordinal)
-            && source.Contains(
-                "m02_checked_port_io_binding_probe_requires_safe_stub",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "m02_checked_port_io_binding_probe_requires_build_efi",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "m02_checked_port_io_binding_probe_forbids_skip_image_build",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$buildArguments += \"-EnableM02CheckedPortIoBindingProbe\"",
-                StringComparison.Ordinal)
-            && source.Contains("\"M02_OUT8_EXECUTED\"", StringComparison.Ordinal)
-            && source.Contains("\"M02_IN8_EXECUTED\"", StringComparison.Ordinal)
-            && source.Contains("\"M02_PORT_IO_ATTEMPTED\"", StringComparison.Ordinal)
-            && source.Contains(
-                "\"M02_PRIVILEGED_STUB_TARGETED\"",
-                StringComparison.Ordinal)
-            && source.Contains("\"TEST_FAIL\"", StringComparison.Ordinal);
-    }
+    private static bool TestQemuProfileSource() => EfiProfileTestControls.Returning("M02CheckedPortIoBinding", OS.Tooling.QemuContracts.M02CheckedPortIoBindingRequiredMarkers, OS.Tooling.QemuContracts.M02CheckedPortIoBindingForbiddenMarkers, ReadyMarker, FailureMarker);
 
     private static string ExtractAsciiMarker(string source, string methodToken)
     {

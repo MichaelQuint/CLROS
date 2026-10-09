@@ -3,60 +3,8 @@ using OS.Kernel.Runtime;
 
 internal static class ExecutableStubPageTransitionPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run(
-            "executable stub page transition plan accepts write-then-execute",
-            TestAcceptsWriteThenExecute,
-            ref failures);
-        Run(
-            "executable stub page transition plan rejects rwx default",
-            TestRejectsRwxDefault,
-            ref failures);
-        Run(
-            "executable stub page transition plan rejects unmaterialized payload",
-            TestRejectsUnmaterializedPayload,
-            ref failures);
-        Run(
-            "executable stub page transition plan rejects failed plans and invalid ranges",
-            TestRejectsFailedPlansAndInvalidRanges,
-            ref failures);
-        Run(
-            "executable stub page transition plan default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Executable stub page transition plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("executable stub page transition plan accepts write-then-execute", HostLane.Fast, 0)]
     private static bool TestAcceptsWriteThenExecute()
     {
         ExecutableStubMemoryPlanResult memoryPlan = ExecutableStubMemoryPlan.Create(512);
@@ -71,7 +19,7 @@ internal static class ExecutableStubPageTransitionPlanTests
                 regionBaseAddress,
                 memoryPlan.RequiredByteLength);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == ExecutableStubPageTransitionPlanStatus.Success
             && result.MemoryPlanStatus == ExecutableStubMemoryPlanStatus.Success
@@ -87,9 +35,10 @@ internal static class ExecutableStubPageTransitionPlanTests
             && result.BytesMaterialized == materializerResult.BytesCopied
             && result.WritePhaseProtection == (ExecutableStubMemoryProtection.Read | ExecutableStubMemoryProtection.Write)
             && result.ExecutePhaseProtection == (ExecutableStubMemoryProtection.Read | ExecutableStubMemoryProtection.Execute)
-            && result.FinalProtection == (ExecutableStubMemoryProtection.Read | ExecutableStubMemoryProtection.Execute);
+            && result.FinalProtection == (ExecutableStubMemoryProtection.Read | ExecutableStubMemoryProtection.Execute));
     }
 
+    [HostTest("executable stub page transition plan rejects rwx default", HostLane.Fast, 1)]
     private static bool TestRejectsRwxDefault()
     {
         ExecutableStubMemoryProtection rwx =
@@ -135,16 +84,17 @@ internal static class ExecutableStubPageTransitionPlanTests
                 0x101000,
                 defaultProtectionMemoryPlan.RequiredByteLength);
 
-        return rwxMemoryPlan.Succeeded
+        return HostCheck.Result(rwxMemoryPlan.Succeeded
             && defaultProtectionMemoryPlan.Succeeded
             && !rwxResult.Succeeded
             && rwxResult.Status == ExecutableStubPageTransitionPlanStatus.UnsafeProtectionState
             && rwxResult.MemoryPlanStatus == ExecutableStubMemoryPlanStatus.Success
             && !defaultProtectionResult.Succeeded
             && defaultProtectionResult.Status == ExecutableStubPageTransitionPlanStatus.UnsafeProtectionState
-            && defaultProtectionResult.MemoryPlanStatus == ExecutableStubMemoryPlanStatus.Success;
+            && defaultProtectionResult.MemoryPlanStatus == ExecutableStubMemoryPlanStatus.Success);
     }
 
+    [HostTest("executable stub page transition plan rejects unmaterialized payload", HostLane.Fast, 2)]
     private static bool TestRejectsUnmaterializedPayload()
     {
         ExecutableStubMemoryPlanResult memoryPlan = ExecutableStubMemoryPlan.Create(512);
@@ -161,13 +111,14 @@ internal static class ExecutableStubPageTransitionPlanTests
                 0x100000,
                 memoryPlan.RequiredByteLength);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == ExecutableStubPageTransitionPlanStatus.UnmaterializedPayload
             && result.MemoryPlanStatus == ExecutableStubMemoryPlanStatus.Success
             && result.MaterializerStatus == ExecutableStubBundleMaterializerStatus.InvalidBundlePlan
-            && result.BytesMaterialized == 0;
+            && result.BytesMaterialized == 0);
     }
 
+    [HostTest("executable stub page transition plan rejects failed plans and invalid ranges", HostLane.Fast, 3)]
     private static bool TestRejectsFailedPlansAndInvalidRanges()
     {
         ExecutableStubBundleMaterializerResult materializerResult =
@@ -207,7 +158,7 @@ internal static class ExecutableStubPageTransitionPlanTests
                 nuint.MaxValue - 4095,
                 validMemoryPlan.RequiredByteLength);
 
-        return !failedMemoryResult.Succeeded
+        return HostCheck.Result(!failedMemoryResult.Succeeded
             && failedMemoryResult.IsInitialized
             && failedMemoryResult.Status == ExecutableStubPageTransitionPlanStatus.InvalidMemoryPlan
             && failedMemoryResult.MemoryPlanStatus == ExecutableStubMemoryPlanStatus.InvalidPayloadLength
@@ -218,14 +169,15 @@ internal static class ExecutableStubPageTransitionPlanTests
             && !undersizedPayloadResult.Succeeded
             && undersizedPayloadResult.Status == ExecutableStubPageTransitionPlanStatus.InvalidRange
             && !overflowResult.Succeeded
-            && overflowResult.Status == ExecutableStubPageTransitionPlanStatus.RangeOverflow;
+            && overflowResult.Status == ExecutableStubPageTransitionPlanStatus.RangeOverflow);
     }
 
+    [HostTest("executable stub page transition plan default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         ExecutableStubPageTransitionPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == ExecutableStubPageTransitionPlanStatus.Success
             && result.MemoryPlanStatus == ExecutableStubMemoryPlanStatus.Success
@@ -233,6 +185,6 @@ internal static class ExecutableStubPageTransitionPlanTests
             && result.RegionBaseAddress == 0
             && result.TransitionByteLength == 0
             && result.BytesMaterialized == 0
-            && result.FinalProtection == ExecutableStubMemoryProtection.None;
+            && result.FinalProtection == ExecutableStubMemoryProtection.None);
     }
 }

@@ -27,7 +27,7 @@ internal static unsafe class IDTRContinuedExecutionTests
         "idtrRestored=false continuedExecution=false faultTriggered=false " +
         "postExitBootServices=false";
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START " + TestName);
@@ -60,23 +60,25 @@ internal static unsafe class IDTRContinuedExecutionTests
 
     private static void RunCase(string name, Func<bool> test, ref int failures)
     {
-        try
+        HostCheck.Run(TestName + " " + name, () =>
         {
-            if (test())
+            try
             {
-                return;
+                if (test())
+                {
+                    return true;
+                }
+                Console.WriteLine("M02_012_CASE_FAIL " + Normalize(name));
+                return false;
             }
-
-            failures++;
-            Console.WriteLine("M02_012_CASE_FAIL " + Normalize(name));
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine(
-                "M02_012_CASE_FAIL " + Normalize(name) + " " +
-                exception.GetType().Name + ": " + exception.Message);
-        }
+            catch (Exception exception)
+            {
+                Console.WriteLine(
+                    "M02_012_CASE_FAIL " + Normalize(name) + " " +
+                    exception.GetType().Name + ": " + exception.Message);
+                throw;
+            }
+        }, ref failures);
     }
 
     private static bool TestValueContracts()

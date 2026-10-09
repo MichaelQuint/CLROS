@@ -7,15 +7,14 @@ using System.Text;
 
 internal static class ExceptionHandlingThunkGeneratorTests
 {
-    private const string Hash = "DD32DC30808C3B6DD42981DF652B95F62236BDC8C45C1DAA3DDE32BAB1C981AB";
+    private static readonly string Hash = OS.Tooling.EfiContracts.SimpleCatchObjectSha256.ToUpperInvariant();
     private static void Need(bool ok, string why) { if (!ok) throw new InvalidOperationException(why); }
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         const string name = "m04.021.thunk";
-        Console.WriteLine("TEST_START " + name);
-        try
+        HostCheck.Run(name, () =>
         {
             string root = HostToolProcess.FindRepositoryRoot();
             string folder = Path.Combine(root, "artifacts", "simple-catch-thunk", Guid.NewGuid().ToString("N"));
@@ -24,7 +23,7 @@ internal static class ExceptionHandlingThunkGeneratorTests
             string tool = Path.Combine(root, "tools/OS.X64TextSerializerGenerator/bin/Debug/net10.0/OS.X64TextSerializerGenerator.dll");
             Run(root, folder, "emit", [tool, "--simple-throw-catch", "--output-root", folder, "--output-file", "catch.obj"]);
             byte[] obj = File.ReadAllBytes(Path.Combine(folder, "catch.obj"));
-            Need(obj.Length == 1350 && Convert.ToHexString(SHA256.HashData(obj)) == Hash, "fixed complete object");
+            Need(obj.Length == OS.Tooling.EfiContracts.SimpleCatchObjectBytes && Convert.ToHexString(SHA256.HashData(obj)) == Hash, "fixed complete object");
             Need(BinaryPrimitives.ReadUInt16LittleEndian(obj) == 0x8664 && BinaryPrimitives.ReadUInt16LittleEndian(obj.AsSpan(2)) == 1, "one AMD64 text section");
             Need(BinaryPrimitives.ReadUInt32LittleEndian(obj.AsSpan(36)) == 1032 && BinaryPrimitives.ReadUInt32LittleEndian(obj.AsSpan(40)) == 60, "finite text extent");
             int relocation = (int)BinaryPrimitives.ReadUInt32LittleEndian(obj.AsSpan(44));
@@ -41,9 +40,7 @@ internal static class ExceptionHandlingThunkGeneratorTests
             for (int failure = 0; failure <= 6; failure++) VerifyTransfer(code, failure);
             VerifyFinallyDefinition(tool, folder, code);
             VerifyFinallyCli(root, tool, folder);
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex) { Console.WriteLine("TEST_FAIL " + name + " " + ex); throw; }
+        });
     }
 
     // Inspect the emitted definition without adding a host-tool project reference.
@@ -98,18 +95,18 @@ internal static class ExceptionHandlingThunkGeneratorTests
 
     private static void VerifyFinallyCli(string root, string tool, string folder)
     {
-        const string finallyHash = "D24DA7653745DA1D37F1FC9D286A2E370C32B687A0415E90FC626A597326025A";
+        string finallyHash = OS.Tooling.EfiContracts.SingleFinallyObjectSha256.ToUpperInvariant();
         const string name = "m04.021.finally.thunk.generate";
         string output = Run(root, folder, "finally-emit",
             [tool, "--single-finally-catch", "--output-root", folder, "--output-file", "finally.obj"]);
         byte[] original = File.ReadAllBytes(Path.Combine(folder, "finally.obj"));
-        Need(original.Length == 1707 && Convert.ToHexString(SHA256.HashData(original)) == finallyHash,
+        Need(original.Length == OS.Tooling.EfiContracts.SingleFinallyObjectBytes && Convert.ToHexString(SHA256.HashData(original)) == finallyHash,
             "finally CLI fixed complete object");
         byte[] modeledCode = File.ReadAllBytes(Path.Combine(folder, "finally.text.bin"));
         Need(original.AsSpan(60, modeledCode.Length).SequenceEqual(modeledCode),
             "finally CLI emits the instruction-model bytes");
         Need(output.Contains("TEST_PASS " + name, StringComparison.Ordinal) &&
-            output.Contains("M04_SINGLE_FINALLY_THUNK_READY bytes=1707 sha256=" + finallyHash + " state=", StringComparison.Ordinal),
+            output.Contains("M04_SINGLE_FINALLY_THUNK_READY bytes=" + OS.Tooling.EfiContracts.SingleFinallyObjectBytes + " sha256=" + finallyHash + " state=", StringComparison.Ordinal),
             "finally CLI exact success identity");
         Run(root, folder, "finally-repeat",
             [tool, "--single-finally-catch", "--output-root", folder, "--output-file", "finally.obj"]);

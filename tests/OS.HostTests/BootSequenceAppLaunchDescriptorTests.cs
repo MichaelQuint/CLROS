@@ -13,68 +13,7 @@ internal static class BootSequenceAppLaunchDescriptorTests
     private const byte AppContentSeed = 0x51;
     private const int AppContentLength = 40;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run(
-            "boot.sequence app launch descriptor ready",
-            TestLaunchDescriptorReady,
-            ref failures);
-        Run(
-            "boot.sequence app launch descriptor rejects missing binary",
-            TestRejectsMissingBinary,
-            ref failures);
-        Run(
-            "boot.sequence app launch descriptor rejects launch-plan failure",
-            TestRejectsLaunchPlanFailure,
-            ref failures);
-        Run(
-            "boot.sequence app payload ready",
-            TestPayloadReady,
-            ref failures);
-        Run(
-            "boot.sequence app payload rejects descriptor failure",
-            TestPayloadRejectsDescriptorFailure,
-            ref failures);
-        Run(
-            "boot.sequence app payload rejects invalid header",
-            TestPayloadRejectsInvalidHeader,
-            ref failures);
-        Run(
-            "boot.sequence app payload leaves default markers unchanged",
-            TestPayloadLeavesDefaultMarkersUnchanged,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Boot sequence app launch descriptor host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("boot.sequence app launch descriptor ready", HostLane.Fast, 0)]
     private static bool TestLaunchDescriptorReady()
     {
         byte[] manifestSource = ValidManifest(AppPath);
@@ -87,7 +26,7 @@ internal static class BootSequenceAppLaunchDescriptorTests
         BootEventRingBuffer events = new BootEventRingBuffer(8);
         BootResult result = BootSequence.RunAppLaunchDescriptorReadiness(descriptor, serial, events);
 
-        return descriptor.Succeeded
+        return HostCheck.Result(descriptor.Succeeded
             && descriptor.Descriptor.AppBinaryLength == AppContentLength
             && descriptor.Descriptor.ArgumentByteLength == "--port=8080".Length
             && descriptor.Descriptor.NetworkMode == NativeManifestNetworkMode.Dhcp
@@ -95,9 +34,10 @@ internal static class BootSequenceAppLaunchDescriptorTests
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.AppLaunchReady
-            && events.Snapshot()[0] == BootSequence.AppLaunchReady;
+            && events.Snapshot()[0] == BootSequence.AppLaunchReady);
     }
 
+    [HostTest("boot.sequence app launch descriptor rejects missing binary", HostLane.Fast, 1)]
     private static bool TestRejectsMissingBinary()
     {
         byte[] manifestSource = ValidManifest(AppPath);
@@ -115,7 +55,7 @@ internal static class BootSequenceAppLaunchDescriptorTests
             OsPackageFileSystemStatus.MissingFile,
             OsPackageStatus.MissingFile);
 
-        return !descriptor.Succeeded
+        return HostCheck.Result(!descriptor.Succeeded
             && descriptor.Status == NativeAppLaunchDescriptorStatus.PackageFileMissing
             && !result.Succeeded
             && result.Reason.Contains(
@@ -123,9 +63,10 @@ internal static class BootSequenceAppLaunchDescriptorTests
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence app launch descriptor rejects launch-plan failure", HostLane.Fast, 2)]
     private static bool TestRejectsLaunchPlanFailure()
     {
         NativeAppLaunchDescriptorResult descriptor = NativeAppLaunchDescriptorBuilder.Create(
@@ -148,14 +89,15 @@ internal static class BootSequenceAppLaunchDescriptorTests
             OsPackageFileSystemStatus.Success,
             OsPackageStatus.Success);
 
-        return !descriptor.Succeeded
+        return HostCheck.Result(!descriptor.Succeeded
             && descriptor.Status == NativeAppLaunchDescriptorStatus.LaunchPlanFailed
             && !result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence app payload ready", HostLane.Fast, 3)]
     private static bool TestPayloadReady()
     {
         byte[] manifestSource = ValidManifest(AppPath);
@@ -168,14 +110,15 @@ internal static class BootSequenceAppLaunchDescriptorTests
         BootEventRingBuffer events = new BootEventRingBuffer(8);
         BootResult result = BootSequence.RunAppPayloadReadiness(descriptor, serial, events);
 
-        return descriptor.Succeeded
+        return HostCheck.Result(descriptor.Succeeded
             && descriptor.PayloadHeaderStatus == NativeAppPayloadHeaderStatus.Success
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.AppPayloadReady
-            && events.Snapshot()[0] == BootSequence.AppPayloadReady;
+            && events.Snapshot()[0] == BootSequence.AppPayloadReady);
     }
 
+    [HostTest("boot.sequence app payload rejects descriptor failure", HostLane.Fast, 4)]
     private static bool TestPayloadRejectsDescriptorFailure()
     {
         byte[] manifestSource = ValidManifest(AppPath);
@@ -191,7 +134,7 @@ internal static class BootSequenceAppLaunchDescriptorTests
             NativeAppLaunchDescriptorStatus.PackageFileMissing,
             NativeAppPayloadHeaderStatus.Success);
 
-        return !descriptor.Succeeded
+        return HostCheck.Result(!descriptor.Succeeded
             && descriptor.Status == NativeAppLaunchDescriptorStatus.PackageFileMissing
             && !result.Succeeded
             && result.Reason.Contains(
@@ -199,9 +142,10 @@ internal static class BootSequenceAppLaunchDescriptorTests
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence app payload rejects invalid header", HostLane.Fast, 5)]
     private static bool TestPayloadRejectsInvalidHeader()
     {
         byte[] manifestSource = ValidManifest(AppPath);
@@ -217,7 +161,7 @@ internal static class BootSequenceAppLaunchDescriptorTests
             NativeAppLaunchDescriptorStatus.InvalidPayloadHeader,
             NativeAppPayloadHeaderStatus.InvalidMagic);
 
-        return !descriptor.Succeeded
+        return HostCheck.Result(!descriptor.Succeeded
             && descriptor.Status == NativeAppLaunchDescriptorStatus.InvalidPayloadHeader
             && descriptor.PayloadHeaderStatus == NativeAppPayloadHeaderStatus.InvalidMagic
             && !result.Succeeded
@@ -226,9 +170,10 @@ internal static class BootSequenceAppLaunchDescriptorTests
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence app payload leaves default markers unchanged", HostLane.Fast, 6)]
     private static bool TestPayloadLeavesDefaultMarkersUnchanged()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -237,19 +182,19 @@ internal static class BootSequenceAppLaunchDescriptorTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.AppPayloadReady)
-            && !serial.ContainsPrefix(BootSequence.AppPayloadNotReadyPrefix);
+        return HostCheck.Result(!serial.Contains(BootSequence.AppPayloadReady)
+            && !serial.ContainsPrefix(BootSequence.AppPayloadNotReadyPrefix));
     }
 
     private static NativeAppLaunchPlanResult CreateLaunchPlan(byte[] manifestSource)

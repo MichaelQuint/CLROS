@@ -23,65 +23,7 @@ internal static class VirtioNetReceiveRegisterWindowCompletionPlanTests
     private const uint FrameBufferBytes = VirtioNetReceiveLifecycle.MaximumReceiveBufferBytes;
     private const ulong RxBufferPhysicalAddress = 0x0040_0000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run(
-            "drivers.virtionet.rx.completion.windowexec composes readiness completion classification",
-            TestComposesReadinessCompletionClassification,
-            ref failures);
-        Run(
-            "drivers.virtionet.rx.completion.windowexec rejects failed readiness",
-            TestRejectsFailedReadiness,
-            ref failures);
-        Run(
-            "drivers.virtionet.rx.completion.windowexec rejects no completion",
-            TestRejectsNoCompletion,
-            ref failures);
-        Run(
-            "drivers.virtionet.rx.completion.windowexec propagates classifier failure",
-            TestPropagatesClassifierFailure,
-            ref failures);
-        Run(
-            "drivers.virtionet.rx.completion.windowexec default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-        Run(
-            "drivers.virtionet.rx.completion.windowexec preserves no-live-mmio boundary",
-            TestPreservesNoLiveMmioBoundary,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio-net RX register-window completion host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtionet.rx.completion.windowexec composes readiness completion classification", HostLane.Fast, 0)]
     private static bool TestComposesReadinessCompletionClassification()
     {
         TestContext context = CreateContext();
@@ -108,7 +50,7 @@ internal static class VirtioNetReceiveRegisterWindowCompletionPlanTests
                 queueMemory,
                 receiveBuffer);
 
-        return readiness.Succeeded
+        return HostCheck.Result(readiness.Succeeded
             && result.Succeeded
             && result.Status == VirtioNetReceiveRegisterWindowCompletionStatus.Success
             && result.ReadinessStatus == VirtioNetReceiveReadinessStatus.Success
@@ -153,9 +95,10 @@ internal static class VirtioNetReceiveRegisterWindowCompletionPlanTests
             && result.PayloadKind == EthernetPayloadKind.Ipv4
             && result.PayloadOffset ==
                 VirtioNetHeader.HeaderLengthWithoutMergeableBuffers + EthernetHeader.HeaderLength
-            && result.PayloadLength == 20;
+            && result.PayloadLength == 20);
     }
 
+    [HostTest("drivers.virtionet.rx.completion.windowexec rejects failed readiness", HostLane.Fast, 1)]
     private static bool TestRejectsFailedReadiness()
     {
         TestContext context = CreateContext();
@@ -179,7 +122,7 @@ internal static class VirtioNetReceiveRegisterWindowCompletionPlanTests
                 queueMemory,
                 receiveBuffer);
 
-        return !setupExecution.Succeeded
+        return HostCheck.Result(!setupExecution.Succeeded
             && !readiness.Succeeded
             && !result.Succeeded
             && result.Status == VirtioNetReceiveRegisterWindowCompletionStatus.ReadinessFailed
@@ -189,9 +132,10 @@ internal static class VirtioNetReceiveRegisterWindowCompletionPlanTests
             && result.PreviousUsedIndex == 0
             && result.CurrentUsedIndex == 0
             && BytesAreZero(queueMemory)
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("drivers.virtionet.rx.completion.windowexec rejects no completion", HostLane.Fast, 2)]
     private static bool TestRejectsNoCompletion()
     {
         TestContext context = CreateContext();
@@ -215,7 +159,7 @@ internal static class VirtioNetReceiveRegisterWindowCompletionPlanTests
                 queueMemory,
                 receiveBuffer);
 
-        return readiness.Succeeded
+        return HostCheck.Result(readiness.Succeeded
             && !result.Succeeded
             && result.Status == VirtioNetReceiveRegisterWindowCompletionStatus.CompletionFailed
             && result.CompletionStatus == VirtioNetReceiveLifecycleCompletionStatus.NoCompletion
@@ -226,9 +170,10 @@ internal static class VirtioNetReceiveRegisterWindowCompletionPlanTests
             && result.PreviousUsedIndex == readiness.PreviousUsedIndex
             && result.CurrentUsedIndex == readiness.PreviousUsedIndex
             && result.UsedByteCount == 0
-            && result.PayloadKind == EthernetPayloadKind.Unsupported;
+            && result.PayloadKind == EthernetPayloadKind.Unsupported);
     }
 
+    [HostTest("drivers.virtionet.rx.completion.windowexec propagates classifier failure", HostLane.Fast, 3)]
     private static bool TestPropagatesClassifierFailure()
     {
         TestContext context = CreateContext();
@@ -256,7 +201,7 @@ internal static class VirtioNetReceiveRegisterWindowCompletionPlanTests
                 queueMemory,
                 receiveBuffer);
 
-        return readiness.Succeeded
+        return HostCheck.Result(readiness.Succeeded
             && !result.Succeeded
             && result.Status == VirtioNetReceiveRegisterWindowCompletionStatus.ClassificationFailed
             && result.CompletionStatus == VirtioNetReceiveLifecycleCompletionStatus.FrameClassificationFailed
@@ -266,9 +211,10 @@ internal static class VirtioNetReceiveRegisterWindowCompletionPlanTests
             && result.DescriptorHead == readiness.FirstDescriptorIndex
             && result.BufferIndex == 0
             && result.UsedByteCount == shortUsedByteCount
-            && result.PayloadLength == 0;
+            && result.PayloadLength == 0);
     }
 
+    [HostTest("drivers.virtionet.rx.completion.windowexec default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioNetReceiveRegisterWindowCompletionResult defaultResult = default;
@@ -278,7 +224,7 @@ internal static class VirtioNetReceiveRegisterWindowCompletionPlanTests
                 ReadOnlySpan<byte>.Empty,
                 ReadOnlySpan<byte>.Empty);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == VirtioNetReceiveRegisterWindowCompletionStatus.Success
             && failedResult.IsInitialized
@@ -286,9 +232,10 @@ internal static class VirtioNetReceiveRegisterWindowCompletionPlanTests
             && failedResult.Status == VirtioNetReceiveRegisterWindowCompletionStatus.ReadinessFailed
             && !failedResult.CompletionAttempted
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetReceiveRegisterWindowCompletionResult>();
+                VirtioNetReceiveRegisterWindowCompletionResult>());
     }
 
+    [HostTest("drivers.virtionet.rx.completion.windowexec preserves no-live-mmio boundary", HostLane.Fast, 5)]
     private static bool TestPreservesNoLiveMmioBoundary()
     {
         TestContext context = CreateContext();
@@ -315,7 +262,7 @@ internal static class VirtioNetReceiveRegisterWindowCompletionPlanTests
                 queueMemory,
                 receiveBuffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioNetReceiveRegisterWindowCompletionPlanner.RequiresSuccessfulRegisterWindowReadiness
             && VirtioNetReceiveRegisterWindowCompletionPlanner.ConsumesRegisterWindowNotificationProvenance
             && VirtioNetReceiveRegisterWindowCompletionPlanner.RequiresCallerOwnedQueueMemory
@@ -341,7 +288,7 @@ internal static class VirtioNetReceiveRegisterWindowCompletionPlanTests
             && !VirtioNetReceiveRegisterWindowCompletionPlanner.InvokesRegisterWindowAccessExecutor
             && !VirtioNetReceiveRegisterWindowCompletionPlanner.WritesCallerOwnedNotifyWindowBuffer
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetReceiveRegisterWindowCompletionResult>();
+                VirtioNetReceiveRegisterWindowCompletionResult>());
     }
 
     private static VirtioNetReceiveReadinessResult CreateSuccessfulReadiness(

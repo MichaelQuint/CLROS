@@ -4,54 +4,8 @@ using OS.Std.Binary;
 
 internal static class EnaPciResourcePlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.ena.pci.resources accepts mmio bar", TestAcceptsMmioBar, ref failures);
-        Run("drivers.ena.pci.resources parses msix", TestParsesMsix, ref failures);
-        Run(
-            "drivers.ena.pci.resources rejects malformed aperture",
-            TestRejectsMalformedAperture,
-            ref failures);
-        Run(
-            "drivers.ena.pci.resources rejects malformed msix",
-            TestRejectsMalformedMsix,
-            ref failures);
-        Run(
-            "drivers.ena.pci.resources rejects default results",
-            TestRejectsDefaultResults,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ENA PCI resource plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.ena.pci.resources accepts mmio bar", HostLane.Fast, 0)]
     private static bool TestAcceptsMmioBar()
     {
         PciMsixCapabilitySnapshot msix = CreateMsix(
@@ -62,7 +16,7 @@ internal static class EnaPciResourcePlanTests
             pendingBitArrayOffset: 0x2000);
         EnaPciResourcePlanResult result = EnaPciResourcePlanner.Plan(CreateSnapshot(msix: msix));
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == EnaPciResourcePlanStatus.Success
             && result.CandidateValidationStatus == EnaPciCandidateValidationStatus.Success
             && result.FailingBarIndex == PciBarDecoder.NoBarIndex
@@ -80,15 +34,16 @@ internal static class EnaPciResourcePlanTests
             && result.Plan.MsixTable.Length == 64
             && result.Plan.MsixPendingBitArray.BarIndex == 0
             && result.Plan.MsixPendingBitArray.Offset == 0x2000
-            && result.Plan.MsixPendingBitArray.Length == 8;
+            && result.Plan.MsixPendingBitArray.Length == 8);
     }
 
+    [HostTest("drivers.ena.pci.resources rejects default results", HostLane.Fast, 4)]
     private static bool TestRejectsDefaultResults()
     {
         PciMsixCapabilityParseResult parse = default;
         EnaPciResourcePlanResult plan = default;
 
-        return !parse.IsInitialized
+        return HostCheck.Result(!parse.IsInitialized
             && !parse.Succeeded
             && parse.Status == PciMsixCapabilityParseStatus.Success
             && !plan.IsInitialized
@@ -97,9 +52,10 @@ internal static class EnaPciResourcePlanTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
                 PciMsixCapabilityParseResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                EnaPciResourcePlanResult>();
+                EnaPciResourcePlanResult>());
     }
 
+    [HostTest("drivers.ena.pci.resources parses msix", HostLane.Fast, 1)]
     private static bool TestParsesMsix()
     {
         byte[] configurationSpace = CreateConfigurationSpace(
@@ -113,7 +69,7 @@ internal static class EnaPciResourcePlanTests
         EnaPciResourcePlanResult result =
             EnaPciResourcePlanner.Plan(CreateSnapshot(msix: parse.Capability));
 
-        return parse.Succeeded
+        return HostCheck.Result(parse.Succeeded
             && parse.Status == PciMsixCapabilityParseStatus.Success
             && parse.CapabilityOffset == PciConfigurationHeader.FirstCapabilityPointer
             && parse.Capability.IsPresent
@@ -129,9 +85,10 @@ internal static class EnaPciResourcePlanTests
             && result.Succeeded
             && result.Plan.Msix.TableEntryCount == 8
             && result.Plan.MsixTable.Length == 128
-            && result.Plan.MsixPendingBitArray.Length == 8;
+            && result.Plan.MsixPendingBitArray.Length == 8);
     }
 
+    [HostTest("drivers.ena.pci.resources rejects malformed aperture", HostLane.Fast, 2)]
     private static bool TestRejectsMalformedAperture()
     {
         PciMsixCapabilitySnapshot msix = CreateMsix(
@@ -162,7 +119,7 @@ internal static class EnaPciResourcePlanTests
             apertures: new PciBarApertureSet(0x100, 0, 0, 0, 0, 0),
             msix: msix));
 
-        return !tooSmall.Succeeded
+        return HostCheck.Result(!tooSmall.Succeeded
             && tooSmall.Status == EnaPciResourcePlanStatus.RegisterBarApertureTooSmall
             && tooSmall.FailingBarIndex == 0
             && !notPowerOfTwo.Succeeded
@@ -170,9 +127,10 @@ internal static class EnaPciResourcePlanTests
             && !misaligned.Succeeded
             && misaligned.Status == EnaPciResourcePlanStatus.RegisterBarApertureMisaligned
             && !ioBar.Succeeded
-            && ioBar.Status == EnaPciResourcePlanStatus.RegisterBarIsIo;
+            && ioBar.Status == EnaPciResourcePlanStatus.RegisterBarIsIo);
     }
 
+    [HostTest("drivers.ena.pci.resources rejects malformed msix", HostLane.Fast, 3)]
     private static bool TestRejectsMalformedMsix()
     {
         EnaPciResourcePlanResult outOfRange = EnaPciResourcePlanner.Plan(CreateSnapshot(
@@ -200,14 +158,14 @@ internal static class EnaPciResourcePlanTests
             msix: PciMsixCapabilitySnapshot.Missing,
             preserveMissingMsix: true));
 
-        return !outOfRange.Succeeded
+        return HostCheck.Result(!outOfRange.Succeeded
             && outOfRange.Status == EnaPciResourcePlanStatus.MsixRegionOutOfRange
             && !overlap.Succeeded
             && overlap.Status == EnaPciResourcePlanStatus.MsixRegionsOverlap
             && !invalidBar.Succeeded
             && invalidBar.Status == EnaPciResourcePlanStatus.MsixTableBarInvalid
             && !missing.Succeeded
-            && missing.Status == EnaPciResourcePlanStatus.MissingMsixCapability;
+            && missing.Status == EnaPciResourcePlanStatus.MissingMsixCapability);
     }
 
     private static EnaPciResourceSnapshot CreateSnapshot(

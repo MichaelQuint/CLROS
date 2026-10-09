@@ -7,52 +7,7 @@ internal static class DiagnosticStubInvocationReadinessTests
 {
     private const nuint RegionBaseAddress = 0x0010_0000;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("diagnostics.stub_invocation readiness accepts valid region and addresses", TestAcceptsValidRegionAndAddresses, ref failures);
-        Run("diagnostics.stub_invocation readiness rejects failed page transition", TestRejectsFailedPageTransition, ref failures);
-        Run("diagnostics.stub_invocation readiness rejects unmaterialized payload", TestRejectsUnmaterializedPayload, ref failures);
-        Run("diagnostics.stub_invocation readiness rejects failed backend contract", TestRejectsFailedBackendContract, ref failures);
-        Run("diagnostics.stub_invocation readiness rejects out8 address below region", TestRejectsOut8AddressBelowRegion, ref failures);
-        Run("diagnostics.stub_invocation readiness rejects out8 address at or beyond region end", TestRejectsOut8AddressAtOrBeyondRegionEnd, ref failures);
-        Run("diagnostics.stub_invocation readiness rejects in8 address outside region", TestRejectsIn8AddressOutsideRegion, ref failures);
-        Run("diagnostics.stub_invocation readiness default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("diagnostics.stub_invocation readiness result contains no managed references", TestResultContainsNoManagedReferences, ref failures);
-        Run("boot.sequence stub invocation readiness emits ready marker", TestBootSequenceReadyMarker, ref failures);
-        Run("boot.sequence stub invocation readiness emits blocked marker", TestBootSequenceBlockedMarker, ref failures);
-        Run("boot.sequence stub invocation readiness leaves default markers unchanged", TestBootSequenceDefaultMarkersUnchanged, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Diagnostic stub invocation readiness host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("diagnostics.stub_invocation readiness accepts valid region and addresses", HostLane.Fast, 0)]
     private static bool TestAcceptsValidRegionAndAddresses()
     {
         ExecutableStubPageTransitionPlanResult pageTransition = CreateReadyPageTransition();
@@ -61,7 +16,7 @@ internal static class DiagnosticStubInvocationReadinessTests
         DiagnosticStubInvocationReadinessResult result =
             DiagnosticStubInvocationReadiness.RequireReady(pageTransition, backendContract);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == DiagnosticStubInvocationReadinessStatus.Ready
             && result.PageTransitionStatus == ExecutableStubPageTransitionPlanStatus.Success
@@ -70,9 +25,10 @@ internal static class DiagnosticStubInvocationReadinessTests
             && result.PayloadEndAddress == pageTransition.PayloadEndAddress
             && result.BytesMaterialized == pageTransition.BytesMaterialized
             && result.Out8StubAddress == backendContract.Out8StubAddress
-            && result.In8StubAddress == backendContract.In8StubAddress;
+            && result.In8StubAddress == backendContract.In8StubAddress);
     }
 
+    [HostTest("diagnostics.stub_invocation readiness rejects failed page transition", HostLane.Fast, 1)]
     private static bool TestRejectsFailedPageTransition()
     {
         ExecutableStubMemoryPlanResult memoryPlan = ExecutableStubMemoryPlan.Create(0);
@@ -89,13 +45,14 @@ internal static class DiagnosticStubInvocationReadinessTests
         DiagnosticStubInvocationReadinessResult result =
             DiagnosticStubInvocationReadiness.RequireReady(pageTransition, backendContract);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == DiagnosticStubInvocationReadinessStatus.PageTransitionNotReady
             && result.PageTransitionStatus == ExecutableStubPageTransitionPlanStatus.InvalidMemoryPlan
-            && result.BackendContractStatus == Com1PortIoBackendContractStatus.Success;
+            && result.BackendContractStatus == Com1PortIoBackendContractStatus.Success);
     }
 
+    [HostTest("diagnostics.stub_invocation readiness rejects unmaterialized payload", HostLane.Fast, 2)]
     private static bool TestRejectsUnmaterializedPayload()
     {
         ExecutableStubMemoryPlanResult memoryPlan = ExecutableStubMemoryPlan.Create(512);
@@ -117,12 +74,13 @@ internal static class DiagnosticStubInvocationReadinessTests
         DiagnosticStubInvocationReadinessResult result =
             DiagnosticStubInvocationReadiness.RequireReady(pageTransition, backendContract);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == DiagnosticStubInvocationReadinessStatus.PageTransitionNotReady
             && result.PageTransitionStatus == ExecutableStubPageTransitionPlanStatus.UnmaterializedPayload
-            && result.BytesMaterialized == 0;
+            && result.BytesMaterialized == 0);
     }
 
+    [HostTest("diagnostics.stub_invocation readiness rejects failed backend contract", HostLane.Fast, 3)]
     private static bool TestRejectsFailedBackendContract()
     {
         ExecutableStubPageTransitionPlanResult pageTransition = CreateReadyPageTransition();
@@ -131,14 +89,15 @@ internal static class DiagnosticStubInvocationReadinessTests
         DiagnosticStubInvocationReadinessResult result =
             DiagnosticStubInvocationReadiness.RequireReady(pageTransition, backendContract);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == DiagnosticStubInvocationReadinessStatus.BackendContractNotReady
             && result.PageTransitionStatus == ExecutableStubPageTransitionPlanStatus.Success
             && result.BackendContractStatus == Com1PortIoBackendContractStatus.Success
             && result.Out8StubAddress == 0
-            && result.In8StubAddress == 0;
+            && result.In8StubAddress == 0);
     }
 
+    [HostTest("diagnostics.stub_invocation readiness rejects out8 address below region", HostLane.Fast, 4)]
     private static bool TestRejectsOut8AddressBelowRegion()
     {
         ExecutableStubPageTransitionPlanResult pageTransition = CreateReadyPageTransition();
@@ -149,11 +108,12 @@ internal static class DiagnosticStubInvocationReadinessTests
         DiagnosticStubInvocationReadinessResult result =
             DiagnosticStubInvocationReadiness.RequireReady(pageTransition, backendContract);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == DiagnosticStubInvocationReadinessStatus.Out8AddressOutsideRegion
-            && result.Out8StubAddress == pageTransition.PayloadBaseAddress - 1;
+            && result.Out8StubAddress == pageTransition.PayloadBaseAddress - 1);
     }
 
+    [HostTest("diagnostics.stub_invocation readiness rejects out8 address at or beyond region end", HostLane.Fast, 5)]
     private static bool TestRejectsOut8AddressAtOrBeyondRegionEnd()
     {
         ExecutableStubPageTransitionPlanResult pageTransition = CreateReadyPageTransition();
@@ -169,14 +129,15 @@ internal static class DiagnosticStubInvocationReadinessTests
         DiagnosticStubInvocationReadinessResult beyondEndResult =
             DiagnosticStubInvocationReadiness.RequireReady(pageTransition, beyondEndContract);
 
-        return !atEndResult.Succeeded
+        return HostCheck.Result(!atEndResult.Succeeded
             && atEndResult.Status == DiagnosticStubInvocationReadinessStatus.Out8AddressOutsideRegion
             && atEndResult.Out8StubAddress == pageTransition.PayloadEndAddress
             && !beyondEndResult.Succeeded
             && beyondEndResult.Status == DiagnosticStubInvocationReadinessStatus.Out8AddressOutsideRegion
-            && beyondEndResult.Out8StubAddress == pageTransition.PayloadEndAddress + 1;
+            && beyondEndResult.Out8StubAddress == pageTransition.PayloadEndAddress + 1);
     }
 
+    [HostTest("diagnostics.stub_invocation readiness rejects in8 address outside region", HostLane.Fast, 6)]
     private static bool TestRejectsIn8AddressOutsideRegion()
     {
         ExecutableStubPageTransitionPlanResult pageTransition = CreateReadyPageTransition();
@@ -187,16 +148,17 @@ internal static class DiagnosticStubInvocationReadinessTests
         DiagnosticStubInvocationReadinessResult result =
             DiagnosticStubInvocationReadiness.RequireReady(pageTransition, backendContract);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == DiagnosticStubInvocationReadinessStatus.In8AddressOutsideRegion
-            && result.In8StubAddress == pageTransition.PayloadEndAddress;
+            && result.In8StubAddress == pageTransition.PayloadEndAddress);
     }
 
+    [HostTest("diagnostics.stub_invocation readiness default result is not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         DiagnosticStubInvocationReadinessResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == DiagnosticStubInvocationReadinessStatus.Ready
             && result.PageTransitionStatus == ExecutableStubPageTransitionPlanStatus.Success
@@ -205,14 +167,16 @@ internal static class DiagnosticStubInvocationReadinessTests
             && result.PayloadEndAddress == 0
             && result.BytesMaterialized == 0
             && result.Out8StubAddress == 0
-            && result.In8StubAddress == 0;
+            && result.In8StubAddress == 0);
     }
 
+    [HostTest("diagnostics.stub_invocation readiness result contains no managed references", HostLane.Fast, 8)]
     private static bool TestResultContainsNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<DiagnosticStubInvocationReadinessResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<DiagnosticStubInvocationReadinessResult>());
     }
 
+    [HostTest("boot.sequence stub invocation readiness emits ready marker", HostLane.Fast, 9)]
     private static bool TestBootSequenceReadyMarker()
     {
         DiagnosticStubInvocationReadinessResult readiness = CreateReadyInvocationReadiness();
@@ -221,12 +185,13 @@ internal static class DiagnosticStubInvocationReadinessTests
 
         BootResult result = BootSequence.RunDiagnosticStubInvocationReadiness(readiness, serial, events);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.DiagnosticStubInvocationReady
-            && events.Snapshot()[0] == BootSequence.DiagnosticStubInvocationReady;
+            && events.Snapshot()[0] == BootSequence.DiagnosticStubInvocationReady);
     }
 
+    [HostTest("boot.sequence stub invocation readiness emits blocked marker", HostLane.Fast, 10)]
     private static bool TestBootSequenceBlockedMarker()
     {
         ExecutableStubPageTransitionPlanResult pageTransition = CreateReadyPageTransition();
@@ -242,13 +207,14 @@ internal static class DiagnosticStubInvocationReadinessTests
 
         BootResult result = BootSequence.RunDiagnosticStubInvocationReadiness(readiness, serial, events);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(nameof(DiagnosticStubInvocationReadinessStatus.In8AddressOutsideRegion), StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence stub invocation readiness leaves default markers unchanged", HostLane.Fast, 11)]
     private static bool TestBootSequenceDefaultMarkersUnchanged()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -258,19 +224,19 @@ internal static class DiagnosticStubInvocationReadinessTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.DiagnosticStubInvocationReady)
-            && !serial.ContainsPrefix(BootSequence.DiagnosticStubInvocationNotReadyPrefix);
+        return HostCheck.Result(!serial.Contains(BootSequence.DiagnosticStubInvocationReady)
+            && !serial.ContainsPrefix(BootSequence.DiagnosticStubInvocationNotReadyPrefix));
     }
 
     private static DiagnosticStubInvocationReadinessResult CreateReadyInvocationReadiness()

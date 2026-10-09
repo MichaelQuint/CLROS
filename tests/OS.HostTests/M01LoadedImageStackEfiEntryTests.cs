@@ -16,7 +16,7 @@ internal static class M01LoadedImageStackEfiEntryTests
     private const string ProbeSymbol = "M01_LOADED_IMAGE_STACK_PROBE";
     private const string DoubleFaultSymbol = "M02_DOUBLE_FAULT_IST_PROBE";
     private const string UnexpectedPanicSymbol = "M02_UNEXPECTED_VECTOR_PANIC_PROBE";
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         int failures = 0;
@@ -90,30 +90,8 @@ internal static class M01LoadedImageStackEfiEntryTests
         Func<bool> test,
         ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL "
-                + name
-                + " "
-                + ex.GetType().Name
-                + ": "
-                + ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestDefaultOffProfile()

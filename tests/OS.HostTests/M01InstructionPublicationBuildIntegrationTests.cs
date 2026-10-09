@@ -12,47 +12,45 @@ using System.Xml;
 internal static class M01InstructionPublicationBuildIntegrationTests
 {
     private const string AggregateName = "m01.034";
-    private const string SerializerSymbol =
-        "CLROS_X64_SerializeInstructionPublication";
+    private const string SerializerSymbol = OS.Tooling.EfiContracts.SerializerSymbol;
     private const string SerializerObjectName =
         "CLROS.X64.InstructionPublication.obj";
-    private const int SerializerObjectBytes = 336;
-    private const uint ExpectedSuccessCookie = 0x53524C43;
-    private const string SerializerObjectSha256 =
-        "DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B";
+    private const int SerializerObjectBytes = OS.Tooling.EfiContracts.SerializerObjectBytes;
+    private const uint ExpectedSuccessCookie = OS.Tooling.EfiContracts.SerializerSuccessCookie;
+    private static readonly string SerializerObjectSha256 =
+        OS.Tooling.EfiContracts.SerializerObjectSha256.ToUpperInvariant();
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
-        Console.WriteLine("TEST_START " + AggregateName);
+        HostCheck.Run(AggregateName, () =>
+        {
 
-        try
-        {
-            Execute();
-            Console.WriteLine(
-                "CLROS_M01_034_READY objectBytes=" +
-                SerializerObjectBytes.ToString(CultureInfo.InvariantCulture) +
-                " objectSha256=" +
-                SerializerObjectSha256 +
-                " successCookie=0x" +
-                ExpectedSuccessCookie.ToString("X8", CultureInfo.InvariantCulture));
-            Console.WriteLine("TEST_PASS " + AggregateName);
-        }
-        catch (M01BuildIntegrationFailureException ex)
-        {
-            Console.WriteLine("TEST_FAIL " + AggregateName + " " + ex.Code);
-            throw new InvalidOperationException(
-                "M01-034 build integration tests failed: " + ex.Code,
-                ex);
-        }
-        catch (Exception ex)
-        {
-            string code = "unexpected-" + ex.GetType().Name;
-            Console.WriteLine("TEST_FAIL " + AggregateName + " " + code);
-            throw new InvalidOperationException(
-                "M01-034 build integration tests failed: " + code,
-                ex);
-        }
+            try
+            {
+                Execute();
+                Console.WriteLine(
+                    "CLROS_M01_034_READY objectBytes=" +
+                    SerializerObjectBytes.ToString(CultureInfo.InvariantCulture) +
+                    " objectSha256=" +
+                    SerializerObjectSha256 +
+                    " successCookie=0x" +
+                    ExpectedSuccessCookie.ToString("X8", CultureInfo.InvariantCulture));
+            }
+            catch (M01BuildIntegrationFailureException ex)
+            {
+                throw new InvalidOperationException(
+                    "M01-034 build integration tests failed: " + ex.Code,
+                    ex);
+            }
+            catch (Exception ex)
+            {
+                string code = "unexpected-" + ex.GetType().Name;
+                throw new InvalidOperationException(
+                    "M01-034 build integration tests failed: " + code,
+                    ex);
+            }
+        });
     }
 
     private static void Execute()
@@ -478,12 +476,12 @@ internal static class M01InstructionPublicationBuildIntegrationTests
                 "ClrosIlcHostPackagePath",
                 "'$(ClrosIlcHostPackagePath)' == ''",
                 @"$(UserProfile)\.nuget\packages\" +
-                    @"runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.12"),
+                    @"runtime.win-x64.microsoft.dotnet.ilcompiler\" + OS.Tooling.EfiContracts.NativePackageVersion),
             (
                 "ClrosRuntimePackagePath",
                 "'$(ClrosRuntimePackagePath)' == ''",
                 @"$(UserProfile)\.nuget\packages\" +
-                    @"microsoft.netcore.app.runtime.nativeaot.win-x64\10.0.12")
+                    @"microsoft.netcore.app.runtime.nativeaot.win-x64\" + OS.Tooling.EfiContracts.NativePackageVersion)
         ];
         foreach ((string name, string condition, string value) in
                  pinnedProperties)
@@ -1278,7 +1276,7 @@ internal static class M01InstructionPublicationBuildIntegrationTests
             RequireProcessSuccess(first, "target-first");
             Require(
                 first.Output.Contains(
-                    "X64_SERIALIZER_OBJECT_READY bytes=336 sha256=" +
+                    "X64_SERIALIZER_OBJECT_READY bytes=" + SerializerObjectBytes.ToString(CultureInfo.InvariantCulture) + " sha256=" +
                     SerializerObjectSha256 +
                     " state=created",
                     StringComparison.Ordinal),
@@ -1292,7 +1290,7 @@ internal static class M01InstructionPublicationBuildIntegrationTests
             RequireProcessSuccess(incremental, "target-incremental");
             Require(
                 incremental.Output.Contains(
-                    "X64_SERIALIZER_OBJECT_READY bytes=336 sha256=" +
+                    "X64_SERIALIZER_OBJECT_READY bytes=" + SerializerObjectBytes.ToString(CultureInfo.InvariantCulture) + " sha256=" +
                     SerializerObjectSha256 +
                     " state=unchanged",
                     StringComparison.Ordinal),
@@ -1473,7 +1471,7 @@ internal static class M01InstructionPublicationBuildIntegrationTests
         RequireProcessSuccess(regenerated, "clean-lifecycle-regenerate");
         Require(
             regenerated.Output.Contains(
-                "X64_SERIALIZER_OBJECT_READY bytes=336 sha256=" +
+                "X64_SERIALIZER_OBJECT_READY bytes=" + SerializerObjectBytes.ToString(CultureInfo.InvariantCulture) + " sha256=" +
                 SerializerObjectSha256 +
                 " state=created",
                 StringComparison.Ordinal),
@@ -1685,7 +1683,7 @@ internal static class M01InstructionPublicationBuildIntegrationTests
         RequireProcessSuccess(result, "nested-property-isolation");
         Require(
             result.Output.Contains(
-                "X64_SERIALIZER_OBJECT_READY bytes=336 sha256=" +
+                "X64_SERIALIZER_OBJECT_READY bytes=" + SerializerObjectBytes.ToString(CultureInfo.InvariantCulture) + " sha256=" +
                     SerializerObjectSha256,
                 StringComparison.Ordinal),
             "nested-property-isolation-marker");

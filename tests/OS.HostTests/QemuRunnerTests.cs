@@ -4,182 +4,22 @@ using System.Text.Json;
 
 internal static class QemuRunnerTests
 {
-    private const string DefaultBootRequiredMarkers = "OS_BOOT_OK;TEST_PASS boot.sequence;OS_SMOKE_PASS";
-    private const string SmokeScriptDefaultRequiredMarkers =
-        DefaultBootRequiredMarkers
-        + ";UEFI_MEMORY_MAP_OWNED;BOOT_HANDOFF_READY;UEFI_MEMORY_MAP_NORMALIZED;BOOT_MEMORY_MAP_ACCEPTED;BOOT_MEMORY_REGIONS_READY;BOOT_MEMORY_REGION_COUNT;BOOT_PAGE_ALLOCATOR_READY;BOOT_ACPI_RSDP_HANDOFF_READY;UEFI_ACPI_RSDP_READY";
-    private static readonly string[] M01StageOneGuestMarkers =
-    [
-        "TEST_START m01.stage1",
-        "M01_LOADED_IMAGE_CAPTURED",
-        "M01_STACK_SWITCH_STUB_READY",
-        "M01_STACK_ARENA_ALLOCATED",
-        "M01_STACK_GUARD_RESERVED",
-        "M01_STAGE1_MAP_RECAPTURED",
-        "M01_STAGE1_RESERVATIONS_VALIDATED",
-        "M01_OWNED_STACK_READY",
-        "M01_OWNED_STACK_SWITCHED",
-        "M01_RSP_CONTAINED",
-        "TEST_PASS m01.stage1",
-        "OS_SMOKE_PASS"
-    ];
-    private static readonly string[] M01StageTwoGuestMarkers =
-    [
-        "TEST_START m01.stage1",
-        "M01_LOADED_IMAGE_CAPTURED",
-        "M01_STACK_SWITCH_STUB_READY",
-        "M01_STACK_ARENA_ALLOCATED",
-        "M01_STACK_GUARD_RESERVED",
-        "M01_STAGE1_MAP_RECAPTURED",
-        "M01_STAGE1_RESERVATIONS_VALIDATED",
-        "M01_OWNED_STACK_READY",
-        "M01_OWNED_STACK_SWITCHED",
-        "M01_RSP_CONTAINED",
-        "TEST_PASS m01.stage1",
-        "TEST_START m01.stage2",
-        "M01_ALLOCATOR_ARENA_ALLOCATED",
-        "M01_STAGE2_MAP_RECAPTURED",
-        "M01_RESERVATIONS_APPLIED",
-        "M01_LIVE_ALLOCATED_4K",
-        "M01_LIVE_PAGE_WITHIN_ARENA",
-        "M01_LIVE_FREED_4K",
-        "M01_DOUBLE_FREE_REJECTED",
-        "TEST_PASS m01.stage2",
-        "OS_SMOKE_PASS"
-    ];
-    private static readonly string[] M01StageTwoForbiddenMarkers =
-    [
-        "LIVE_ALLOCATOR_NOT_INSTALLED",
-        "BOOT_PAGE_ALLOCATOR_NOT_READY",
-        "M01_ARBITRARY_CONVENTIONAL_PAGE_USED",
-        "M01_PAGE_OUTSIDE_ALLOCATOR_ARENA",
-        "TEST_FAIL",
-        "OS_SMOKE_FAIL",
-        "M01_INTEGRATION_FAIL",
-        "M01_STAGE1_FAIL",
-        "M01_STAGE2_FAIL"
-    ];
-    private static readonly string[] M01StageThreeGuestMarkers =
-    [
-        "TEST_START m01.stage1",
-        "M01_LOADED_IMAGE_CAPTURED",
-        "M01_STACK_SWITCH_STUB_READY",
-        "M01_STACK_ARENA_ALLOCATED",
-        "M01_STACK_GUARD_RESERVED",
-        "M01_STAGE1_MAP_RECAPTURED",
-        "M01_STAGE1_RESERVATIONS_VALIDATED",
-        "M01_OWNED_STACK_READY",
-        "M01_OWNED_STACK_SWITCHED",
-        "M01_RSP_CONTAINED",
-        "TEST_PASS m01.stage1",
-        "TEST_START m01.stage2",
-        "M01_ALLOCATOR_ARENA_ALLOCATED",
-        "M01_STAGE2_MAP_RECAPTURED",
-        "M01_RESERVATIONS_APPLIED",
-        "M01_LIVE_ALLOCATED_4K",
-        "M01_LIVE_PAGE_WITHIN_ARENA",
-        "M01_LIVE_FREED_4K",
-        "M01_DOUBLE_FREE_REJECTED",
-        "TEST_PASS m01.stage2",
-        "TEST_START m01.stage3",
-        "M01_CR3_STUB_PAGE_ALLOCATED",
-        "M01_PROTECTION_PROBE_PAGE_ALLOCATED",
-        "M01_PAGE_TABLE_STATE_ARENA_ALLOCATED",
-        "M01_STAGE3_MAP_RECAPTURED",
-        "M01_CR3_STUB_MATERIALIZED",
-        "M01_PAGE_TABLES_BUILT",
-        "M01_PAGING_MODE_VALIDATED",
-        "M01_PRE_CR3",
-        "M01_FIRMWARE_CR3_RESTORED",
-        "M01_RFLAGS_RESTORED",
-        "M01_PGE_CYCLE_VERIFIED",
-        "M01_OWNED_CR3_CANARY_VERIFIED",
-        "M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED",
-        "M01_POST_CR3",
-        "M01_RW_TO_RX_VERIFIED",
-        "M01_TLB_INVALIDATION_COMPLETE",
-        "M01_RX_PROBE_EXECUTED",
-        "M01_PAGE_ZERO_ABSENT",
-        "TEST_PASS m01.stage3",
-        "CLROS_M01_LIVE_BOOT_MEMORY_READY",
-        "OS_SMOKE_PASS"
-    ];
-    private static readonly string[] M01StageThreeForbiddenMarkers =
-    [
-        "LIVE_ALLOCATOR_NOT_INSTALLED",
-        "BOOT_PAGE_ALLOCATOR_NOT_READY",
-        "M01_ARBITRARY_CONVENTIONAL_PAGE_USED",
-        "M01_PAGE_OUTSIDE_ALLOCATOR_ARENA",
-        "M01_PAGE_TABLE_OUTSIDE_ARENA",
-        "M01_PROTECTION_PROBE_ALLOCATION_FAILED",
-        "M01_PROTECTION_PROBE_ALIAS",
-        "M01_CR3_STUB_READBACK_FAILED",
-        "M01_PAGING_MODE_VALIDATION_FAILED",
-        "M01_PGE_CLEAR_FAILED",
-        "M01_PGE_RESTORE_FAILED",
-        "M01_EXECUTABLE_TABLE_DATA",
-        "M01_INSTRUCTION_PUBLICATION_COOKIE_FAILED",
-        "M01_FIRMWARE_CALLBACK_DURING_OWNED_CR3",
-        "M01_FIRMWARE_CR3_RESTORE_FAILED",
-        "M01_CR4_RESTORE_FAILED",
-        "M01_RFLAGS_RESTORE_FAILED",
-        "M01_OWNED_CR3_CANARY_FAILED",
-        "M01_RX_PROBE_FAILED",
-        "TEST_FAIL",
-        "OS_SMOKE_FAIL",
-        "M01_INTEGRATION_FAIL",
-        "M01_STAGE1_FAIL",
-        "M01_STAGE2_FAIL",
-        "M01_STAGE3_FAIL"
-    ];
-    private static readonly string[] M02HistoricalManifestSuccessMarkers =
-    [
-        "TEST_START m02.017",
-        "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E",
-        "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=F85393074A792B1E",
-        "M02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B",
-        "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=F85393074A792B1E temporaryOwnedRootRx=true portIoExecuted=false",
-        "TEST_PASS m02.017"
-    ];
-    private static readonly string[] M02IssueSuccessMarkers =
-    [
-        "TEST_START m02.017",
-        "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56",
-        "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=982E5B7E3EE58E56",
-        "M02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B",
-        "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56 temporaryOwnedRootRx=true portIoExecuted=false",
-        "TEST_PASS m02.017"
-    ];
-    private static readonly string[] M02IssueForbiddenMarkers =
-    [
-        "M02_STUB_PAGE_MATERIALIZATION_FAILED",
-        "M02_STUB_PAGE_READBACK_FAILED",
-        "M02_STUB_PAGE_HASH_MISMATCH",
-        "M02_SAFE_PROBE_FAILED",
-        "M02_OUT8_EXECUTED",
-        "M02_IN8_EXECUTED",
-        "M02_PORT_IO_ATTEMPTED",
-        "M02_PRIVILEGED_STUB_TARGETED",
-        "TEST_FAIL m02.017"
-    ];
-    private static readonly string[] M02GuestMarkers =
-        BuildM02GuestMarkers();
-    private static readonly string[] M02ForbiddenMarkers =
-    [
-        .. M01StageThreeForbiddenMarkers,
-        .. M02IssueForbiddenMarkers
-    ];
-    private const string M02CheckedPortIoBindingReadyMarker =
-        "CLROS_M02_003_READY bindingReady=true out8AddressChecked=true in8AddressChecked=true guestInvocation=false portIoExecuted=false";
-    private static readonly string[] M02CheckedPortIoBindingGuestMarkers =
-        BuildM02CheckedPortIoBindingGuestMarkers();
-    private static readonly string[] M02CheckedPortIoBindingForbiddenMarkers =
-    [
-        .. M02ForbiddenMarkers,
-        "M02_CHECKED_PORT_IO_BINDING_FAILED"
-    ];
-    private const string M02Ud2VectorStateReadyMarker =
-        "CLROS_M02_013_READY vector=6 errorCodePresent=false errorCode=0 ud2RipMatched=true registerFields=23 registerStateCaptured=true registerStateMatched=true ownedGdtLoaded=true ownedTssLoaded=true ownedIdtrLoaded=true ownedCom1=true faultTriggered=true terminalHalt=true markerTransport=ownedCom1 postExitBootServices=false";
+    private static readonly string DefaultBootRequiredMarkers = string.Join(";", OS.Tooling.QemuContracts.RunnerDefaultRequiredMarkers);
+    private static readonly string SmokeScriptDefaultRequiredMarkers = string.Join(";", OS.Tooling.QemuSmokeOptions.DefaultRequiredMarkers);
+    private static readonly string[] M01StageOneGuestMarkers = OS.Tooling.QemuContracts.M01StageOneGuestMarkers.ToArray();
+    private static readonly string[] M01StageTwoGuestMarkers = OS.Tooling.QemuContracts.M01StageTwoGuestMarkers.ToArray();
+    private static readonly string[] M01StageTwoForbiddenMarkers = OS.Tooling.QemuContracts.M01StageTwoForbiddenMarkers.ToArray();
+    private static readonly string[] M01StageThreeGuestMarkers = OS.Tooling.QemuContracts.M01StageThreeGuestMarkers.ToArray();
+    private static readonly string[] M01StageThreeForbiddenMarkers = OS.Tooling.QemuContracts.M01StageThreeForbiddenMarkers.ToArray();
+    private static readonly string[] M02HistoricalManifestSuccessMarkers = OS.Tooling.QemuContracts.M02HistoricalManifestSuccessMarkers.ToArray();
+    private static readonly string[] M02IssueSuccessMarkers = OS.Tooling.QemuContracts.M02IssueSuccessMarkers.ToArray();
+    private static readonly string[] M02IssueForbiddenMarkers = OS.Tooling.QemuContracts.M02IssueForbiddenMarkers.ToArray();
+    private static readonly string[] M02GuestMarkers = OS.Tooling.QemuContracts.M02SafeStubRequiredMarkers.ToArray();
+    private static readonly string[] M02ForbiddenMarkers = OS.Tooling.QemuContracts.M02SafeStubForbiddenMarkers.ToArray();
+    private static readonly string M02CheckedPortIoBindingReadyMarker = OS.Tooling.QemuContracts.M02CheckedPortIoBindingReadyMarker[0];
+    private static readonly string[] M02CheckedPortIoBindingGuestMarkers = OS.Tooling.QemuContracts.M02CheckedPortIoBindingRequiredMarkers.ToArray();
+    private static readonly string[] M02CheckedPortIoBindingForbiddenMarkers = OS.Tooling.QemuContracts.M02CheckedPortIoBindingForbiddenMarkers.ToArray();
+    private static readonly string M02Ud2VectorStateReadyMarker = OS.Tooling.QemuContracts.M02Ud2VectorStateReadyMarker[0];
     private const string M02Ud2VectorStateHostOnlyMarker =
         "CLROS_M02_013_HOST_READY requestBytes=32 resultBytes=72 ud2Bytes=2 vector=6 errorCodePresent=false errorCode=0 auditFields=23 probeEnabled=false executionRequested=false executionAttempted=false syntheticObservation=true guestExecution=false faultTriggered=false idtrLoaded=false postExitBootServices=false";
     private const string M02Ud2VectorStateHostOnlyMarkerPrefix =
@@ -194,7 +34,7 @@ internal static class QemuRunnerTests
         "TEST_PASS m02.013"
     ];
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     public static void Initialize()
     {
         int failures = 0;
@@ -395,24 +235,8 @@ internal static class QemuRunnerTests
 
     private static void Run(string name, Func<bool> test, ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestDryRunCommandConstruction(string tempRoot)
@@ -1439,24 +1263,9 @@ internal static class QemuRunnerTests
 
     private static bool TestSmokeScriptDefaultMarkers()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string script = File.ReadAllText(Path.Combine(repositoryRoot, "scripts", "run-qemu-smoke.ps1"));
-
-        return script.Contains("\"OS_BOOT_OK\"", StringComparison.Ordinal)
-            && script.Contains("\"TEST_PASS boot.sequence\"", StringComparison.Ordinal)
-            && script.Contains("\"OS_SMOKE_PASS\"", StringComparison.Ordinal)
-            && script.Contains("\"UEFI_MEMORY_MAP_OWNED\"", StringComparison.Ordinal)
-            && script.Contains("\"BOOT_HANDOFF_READY\"", StringComparison.Ordinal)
-            && script.Contains("\"UEFI_MEMORY_MAP_NORMALIZED\"", StringComparison.Ordinal)
-            && script.Contains("\"BOOT_MEMORY_MAP_ACCEPTED\"", StringComparison.Ordinal)
-            && script.Contains("\"BOOT_MEMORY_REGIONS_READY\"", StringComparison.Ordinal)
-            && script.Contains("\"BOOT_MEMORY_REGION_COUNT\"", StringComparison.Ordinal)
-            && script.Contains("\"BOOT_PAGE_ALLOCATOR_READY\"", StringComparison.Ordinal)
-            && script.Contains("\"BOOT_ACPI_RSDP_HANDOFF_READY\"", StringComparison.Ordinal)
-            && script.Contains("\"UEFI_ACPI_RSDP_READY\"", StringComparison.Ordinal)
-            && script.Contains("$ForbidMarker", StringComparison.Ordinal)
-            && script.Contains("\"OS_SMOKE_FAIL\"", StringComparison.Ordinal)
-            && script.Contains("\"--forbid-marker\"", StringComparison.Ordinal);
+        var plan = OS.Tooling.QemuProfiles.Create(OS.Tooling.QemuSmokeOptions.Parse("--boot-policy", "Diagnostic"));
+        return plan.Required.SequenceEqual(OS.Tooling.QemuSmokeOptions.DefaultRequiredMarkers)
+            && plan.Forbidden.Contains("OS_SMOKE_FAIL") && !plan.BuildEfi;
     }
 
     private static bool TestSmokeScriptRejectsUnrequestedFirstExitRecords(string tempRoot)
@@ -1492,7 +1301,7 @@ internal static class QemuRunnerTests
             bool mustReject = index < 2;
             if (result.ExitCode != (mustReject ? 1 : 0)
                 || !result.Output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal)
-                || result.Output.Contains("TEST_FAIL qemu.smoke.m03.007 unexpected_profile_record", StringComparison.Ordinal) != mustReject
+                || result.Output.Contains("TEST_FAIL qemu.smoke m03_first_exit_unselected_record", StringComparison.Ordinal) != mustReject
                 || !File.ReadAllText(serialLog).Contains(cases[index][0], StringComparison.Ordinal)) return false;
         }
         return true;
@@ -1500,20 +1309,15 @@ internal static class QemuRunnerTests
 
     private static bool TestSmokeScriptForwardsAcpiPhysicalDiscoveryProbe()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string script = File.ReadAllText(Path.Combine(repositoryRoot, "scripts", "run-qemu-smoke.ps1"));
-
-        return script.Contains("[switch] $EnableAcpiPhysicalDiscoveryProbe", StringComparison.Ordinal)
-            && script.Contains("if ($EnableAcpiPhysicalDiscoveryProbe)", StringComparison.Ordinal)
-            && script.Contains("$buildArguments += \"-EnableAcpiPhysicalDiscoveryProbe\"", StringComparison.Ordinal);
+        var options = OS.Tooling.QemuSmokeOptions.Parse("--boot-policy", "Diagnostic", "--build-efi", "--marker-preset", "acpi", "-EnableAcpiPhysicalDiscoveryProbe");
+        var plan = OS.Tooling.QemuProfiles.Create(options);
+        return plan.IsEnabled("EnableAcpiPhysicalDiscoveryProbe") && plan.BuildEfi && plan.Presets.SequenceEqual(new[] { "acpi" });
     }
 
     private static bool TestSmokeScriptForwardsM01StageOneEvidenceControls(
         string tempRoot)
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string script = File.ReadAllText(
-            Path.Combine(repositoryRoot, "scripts", "run-qemu-smoke.ps1"));
         string imagePath = Path.Combine(tempRoot, "m01-script-dry-run.raw");
         string serialLog = Path.Combine(
             tempRoot,
@@ -1542,33 +1346,6 @@ internal static class QemuRunnerTests
             markers);
 
         return result.ExitCode == 0
-            && script.Contains(
-                "[string[]] $RequireOrderedMarker",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "[string[]] $RequireUniqueMarker",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "[switch] $EnableM01LoadedImageStackProbe",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "$buildArguments += \"-EnableM01LoadedImageStackProbe\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "$arguments += @(\"--require-ordered-marker\", $marker)",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "$arguments += @(\"--require-unique-marker\", $marker)",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "QEMU_SCRIPT_M01_LOADED_IMAGE_STACK_PROBE enabled=true buildEfi=true skipImageBuild=false dryRun=true",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS TEST_START m01.stage1;M01_STACK_SWITCH_STUB_READY;OS_SMOKE_PASS",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS TEST_START m01.stage1;M01_STACK_SWITCH_STUB_READY;OS_SMOKE_PASS",
-                StringComparison.Ordinal)
             && result.Output.Contains(
                 "ORDERED_MARKERS TEST_START m01.stage1;M01_STACK_SWITCH_STUB_READY;OS_SMOKE_PASS",
                 StringComparison.Ordinal)
@@ -1605,10 +1382,10 @@ internal static class QemuRunnerTests
         return noBuild.ExitCode == 1
             && skippedImage.ExitCode == 1
             && noBuild.Output.Contains(
-                "TEST_FAIL qemu.smoke.invalid_args m01_loaded_image_stack_probe_requires_build_efi",
+                "TEST_FAIL qemu.smoke qemu_profile_requires_build_efi",
                 StringComparison.Ordinal)
             && skippedImage.Output.Contains(
-                "TEST_FAIL qemu.smoke.invalid_args m01_loaded_image_stack_probe_forbids_skip_image_build",
+                "TEST_FAIL qemu.smoke qemu_profile_forbids_skip_image_build",
                 StringComparison.Ordinal)
             && !noBuild.Output.Contains(
                 "TEST_PASS qemu.runner.dryrun",
@@ -1623,8 +1400,6 @@ internal static class QemuRunnerTests
         string tempRoot)
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string script = File.ReadAllText(
-            Path.Combine(repositoryRoot, "scripts", "run-qemu-smoke.ps1"));
         string imagePath = Path.Combine(
             tempRoot,
             "m01-stage-two-script-dry-run.raw");
@@ -1656,21 +1431,6 @@ internal static class QemuRunnerTests
             markers);
 
         return result.ExitCode == 0
-            && CountOccurrences(
-                script,
-                "[switch] $EnableM01LiveAllocatorProbe") == 1
-            && CountOccurrences(
-                script,
-                "$buildArguments += \"-EnableM01LiveAllocatorProbe\"") == 1
-            && result.Output.Contains(
-                "QEMU_SCRIPT_M01_LIVE_ALLOCATOR_PROBE enabled=true loadedImageStack=true buildEfi=true skipImageBuild=false dryRun=true",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS " + formattedMarkers,
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " + formattedMarkers,
-                StringComparison.Ordinal)
             && result.Output.Contains(
                 "ORDERED_MARKERS " + formattedMarkers,
                 StringComparison.Ordinal)
@@ -1718,13 +1478,13 @@ internal static class QemuRunnerTests
             && missingBuild.ExitCode == 1
             && skippedImage.ExitCode == 1
             && missingStageOne.Output.Contains(
-                "TEST_FAIL qemu.smoke.invalid_args m01_live_allocator_probe_requires_loaded_image_stack",
+                "TEST_FAIL qemu.smoke m01_live_allocator_requires_loaded_image_stack",
                 StringComparison.Ordinal)
             && missingBuild.Output.Contains(
-                "TEST_FAIL qemu.smoke.invalid_args m01_live_allocator_probe_requires_build_efi",
+                "TEST_FAIL qemu.smoke qemu_profile_requires_build_efi",
                 StringComparison.Ordinal)
             && skippedImage.Output.Contains(
-                "TEST_FAIL qemu.smoke.invalid_args m01_live_allocator_probe_forbids_skip_image_build",
+                "TEST_FAIL qemu.smoke qemu_profile_forbids_skip_image_build",
                 StringComparison.Ordinal)
             && !missingStageOne.Output.Contains(
                 "TEST_PASS qemu.runner.dryrun",
@@ -1763,12 +1523,12 @@ internal static class QemuRunnerTests
         }
 
         if (!issueFound
-            || M01StageThreeGuestMarkers.Length != 42
-            || M01StageThreeForbiddenMarkers.Length != 25
+            || M01StageThreeGuestMarkers.Length != OS.Tooling.QemuContracts.M01StageThreeGuestMarkers.Count
+            || M01StageThreeForbiddenMarkers.Length != OS.Tooling.QemuContracts.M01StageThreeForbiddenMarkers.Count
             || M01StageThreeGuestMarkers.Distinct(
-                StringComparer.Ordinal).Count() != 42
+                StringComparer.Ordinal).Count() != M01StageThreeGuestMarkers.Length
             || M01StageThreeForbiddenMarkers.Distinct(
-                StringComparer.Ordinal).Count() != 25)
+                StringComparer.Ordinal).Count() != M01StageThreeForbiddenMarkers.Length)
         {
             return false;
         }
@@ -1800,11 +1560,11 @@ internal static class QemuRunnerTests
             .ToArray();
         string? dryRunCommand = commands.SingleOrDefault(
             command => command.Contains(
-                "run-qemu-smoke.ps1 -DryRun",
+                "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
                 StringComparison.Ordinal));
         string? realCommand = commands.SingleOrDefault(
             command => command.Contains(
-                "run-qemu-smoke.ps1 -BuildEfi",
+                "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi",
                 StringComparison.Ordinal)
                 && command.Contains(
                     "-Qemu \"<qemu-system-x86_64.exe>\"",
@@ -1867,8 +1627,6 @@ internal static class QemuRunnerTests
         string tempRoot)
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string script = File.ReadAllText(
-            Path.Combine(repositoryRoot, "scripts", "run-qemu-smoke.ps1"));
         string imagePath = Path.Combine(
             tempRoot,
             "m01-stage-three-script-dry-run.raw");
@@ -1922,21 +1680,6 @@ internal static class QemuRunnerTests
             forbidden);
 
         return result.ExitCode == 0
-            && CountOccurrences(
-                script,
-                "[switch] $EnableM01OwnedPagingProbe") == 1
-            && CountOccurrences(
-                script,
-                "$buildArguments += \"-EnableM01OwnedPagingProbe\"") == 1
-            && result.Output.Contains(
-                "QEMU_SCRIPT_M01_OWNED_PAGING_PROBE enabled=true liveAllocator=true loadedImageStack=true buildEfi=true skipImageBuild=false dryRun=true",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS " + formattedMarkers,
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " + formattedMarkers,
-                StringComparison.Ordinal)
             && result.Output.Contains(
                 "REQUIRED_MARKERS " + normalizedRequiredMarkers,
                 StringComparison.Ordinal)
@@ -2001,16 +1744,16 @@ internal static class QemuRunnerTests
             && missingBuild.ExitCode == 1
             && skippedImage.ExitCode == 1
             && missingStageTwo.Output.Contains(
-                "TEST_FAIL qemu.smoke.invalid_args m01_owned_paging_probe_requires_live_allocator",
+                "TEST_FAIL qemu.smoke m01_owned_paging_requires_live_allocator",
                 StringComparison.Ordinal)
             && transitiveMissingStageOne.Output.Contains(
-                "TEST_FAIL qemu.smoke.invalid_args m01_live_allocator_probe_requires_loaded_image_stack",
+                "TEST_FAIL qemu.smoke m01_live_allocator_requires_loaded_image_stack",
                 StringComparison.Ordinal)
             && missingBuild.Output.Contains(
-                "TEST_FAIL qemu.smoke.invalid_args m01_owned_paging_probe_requires_build_efi",
+                "TEST_FAIL qemu.smoke qemu_profile_requires_build_efi",
                 StringComparison.Ordinal)
             && skippedImage.Output.Contains(
-                "TEST_FAIL qemu.smoke.invalid_args m01_owned_paging_probe_forbids_skip_image_build",
+                "TEST_FAIL qemu.smoke qemu_profile_forbids_skip_image_build",
                 StringComparison.Ordinal)
             && !missingStageTwo.Output.Contains(
                 "TEST_PASS qemu.runner.dryrun",
@@ -2030,80 +1773,16 @@ internal static class QemuRunnerTests
     private static bool TestM01RawObservationShimSourceCompiles(
         string tempRoot)
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string script = File.ReadAllText(
-            Path.Combine(repositoryRoot, "scripts", "run-qemu-smoke.ps1"));
-        string source = ExtractM01RawObservationShimSource(script);
-        string projectDirectory = Path.Combine(
-            tempRoot,
-            "m01-raw-shim-compile-" + Guid.NewGuid().ToString("N"));
-        string outputDirectory = Path.Combine(projectDirectory, "out");
-        string projectPath = Path.Combine(
-            projectDirectory,
-            "M01.RawObservationShim.csproj");
-        Directory.CreateDirectory(projectDirectory);
-        File.WriteAllText(
-            Path.Combine(projectDirectory, "Program.cs"),
-            source,
-            new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-        File.WriteAllText(
-            projectPath,
-            """
-            <Project Sdk="Microsoft.NET.Sdk">
-              <PropertyGroup>
-                <OutputType>Exe</OutputType>
-                <TargetFramework>net10.0</TargetFramework>
-                <LangVersion>14.0</LangVersion>
-                <Nullable>enable</Nullable>
-                <ImplicitUsings>disable</ImplicitUsings>
-                <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-                <InvariantGlobalization>true</InvariantGlobalization>
-              </PropertyGroup>
-            </Project>
-            """,
-            new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-
-        ProcessResult result = RunDotnetBuild(
-            repositoryRoot,
-            projectPath,
-            outputDirectory);
-
-        return result.ExitCode == 0
-            && File.Exists(
-                Path.Combine(outputDirectory, "M01.RawObservationShim.dll"))
-            && !result.Output.Contains(
-                ": warning ",
-                StringComparison.OrdinalIgnoreCase)
-            && !result.Output.Contains(
-                "Build FAILED",
-                StringComparison.OrdinalIgnoreCase);
+        string path = HostToolProcess.GetBuiltToolPath(HostToolProcess.FindRepositoryRoot(), "OS.QemuCapture");
+        return File.Exists(path) && File.Exists(Path.ChangeExtension(path, ".exe"));
     }
 
     private static bool TestM01RawObservationShimMarkerParity()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string script = File.ReadAllText(
-            Path.Combine(repositoryRoot, "scripts", "run-qemu-smoke.ps1"));
-        string source = ExtractM01RawObservationShimSource(script);
-        string[] guestMarkers = ExtractM01RawObservationShimArray(
-            source,
-            "GuestMarkers");
-        string[] forbiddenMarkers = ExtractM01RawObservationShimArray(
-            source,
-            "ForbiddenMarkers");
-
-        return guestMarkers.Length == 42
-            && forbiddenMarkers.Length == 25
-            && guestMarkers.SequenceEqual(
-                M01StageThreeGuestMarkers,
-                StringComparer.Ordinal)
-            && forbiddenMarkers.SequenceEqual(
-                M01StageThreeForbiddenMarkers,
-                StringComparer.Ordinal)
-            && guestMarkers.Distinct(
-                StringComparer.Ordinal).Count() == guestMarkers.Length
-            && forbiddenMarkers.Distinct(
-                StringComparer.Ordinal).Count() == forbiddenMarkers.Length;
+        return M01StageThreeGuestMarkers.SequenceEqual(OS.Tooling.QemuContracts.M01StageThreeGuestMarkers)
+            && M01StageThreeForbiddenMarkers.SequenceEqual(OS.Tooling.QemuContracts.M01StageThreeForbiddenMarkers)
+            && M01StageThreeGuestMarkers.Distinct(StringComparer.Ordinal).Count() == M01StageThreeGuestMarkers.Length
+            && M01StageThreeForbiddenMarkers.Distinct(StringComparer.Ordinal).Count() == M01StageThreeForbiddenMarkers.Length;
     }
 
     private static bool TestM02SafeStubManifestMarkerContract()
@@ -2130,12 +1809,12 @@ internal static class QemuRunnerTests
         }
 
         if (!found
-            || M02GuestMarkers.Length != 48
-            || M02ForbiddenMarkers.Length != 34
+            || M02GuestMarkers.Length != OS.Tooling.QemuContracts.M02SafeStubRequiredMarkers.Count
+            || M02ForbiddenMarkers.Length != OS.Tooling.QemuContracts.M02SafeStubForbiddenMarkers.Count
             || M02GuestMarkers.Distinct(
-                StringComparer.Ordinal).Count() != 48
+                StringComparer.Ordinal).Count() != M02GuestMarkers.Length
             || M02ForbiddenMarkers.Distinct(
-                StringComparer.Ordinal).Count() != 34)
+                StringComparer.Ordinal).Count() != M02ForbiddenMarkers.Length)
         {
             return false;
         }
@@ -2165,7 +1844,7 @@ internal static class QemuRunnerTests
             .ToArray();
         string? realQemuCommand = commands.SingleOrDefault(command =>
             command.Contains(
-                "run-qemu-smoke.ps1 -BuildEfi",
+                "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi",
                 StringComparison.Ordinal)
             && command.Contains(
                 "-EnableM02SafeStubProbe",
@@ -2238,15 +1917,6 @@ internal static class QemuRunnerTests
 
         return result.ExitCode == 0
             && result.Output.Contains(
-                "QEMU_SCRIPT_M02_SAFE_STUB_PROBE enabled=true ownedPaging=true liveAllocator=true loadedImageStack=true buildEfi=true skipImageBuild=false dryRun=true profileRequired=48 profileForbidden=34",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS " + formattedGuest,
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " + formattedGuest,
-                StringComparison.Ordinal)
-            && result.Output.Contains(
                 "REQUIRED_MARKERS " + normalizedRequired,
                 StringComparison.Ordinal)
             && result.Output.Contains(
@@ -2318,19 +1988,19 @@ internal static class QemuRunnerTests
             && missingBuild.ExitCode == 1
             && skippedImage.ExitCode == 1
             && missingLoadedImage.Output.Contains(
-                "m02_safe_stub_probe_requires_loaded_image_stack",
+                "m02_safe_stub_requires_loaded_image_stack",
                 StringComparison.Ordinal)
             && missingAllocator.Output.Contains(
-                "m02_safe_stub_probe_requires_live_allocator",
+                "m02_safe_stub_requires_live_allocator",
                 StringComparison.Ordinal)
             && missingOwnedPaging.Output.Contains(
-                "m02_safe_stub_probe_requires_owned_paging",
+                "m02_safe_stub_requires_owned_paging",
                 StringComparison.Ordinal)
             && missingBuild.Output.Contains(
-                "m02_safe_stub_probe_requires_build_efi",
+                "qemu_profile_requires_build_efi",
                 StringComparison.Ordinal)
             && skippedImage.Output.Contains(
-                "m02_safe_stub_probe_forbids_skip_image_build",
+                "qemu_profile_forbids_skip_image_build",
                 StringComparison.Ordinal)
             && !missingLoadedImage.Output.Contains(
                 "TEST_PASS qemu.runner.dryrun",
@@ -2400,15 +2070,6 @@ internal static class QemuRunnerTests
 
         return result.ExitCode == 0
             && result.Output.Contains(
-                "QEMU_SCRIPT_M02_CHECKED_PORT_IO_BINDING_PROBE enabled=true safeStub=true buildEfi=true skipImageBuild=false dryRun=true profileRequired=49 profileForbidden=35",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "QEMU_SCRIPT_REQUIRE_ORDERED_MARKERS " + formattedGuest,
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS " + formattedGuest,
-                StringComparison.Ordinal)
-            && result.Output.Contains(
                 "REQUIRED_MARKERS " + normalizedRequired,
                 StringComparison.Ordinal)
             && result.Output.Contains(
@@ -2468,13 +2129,13 @@ internal static class QemuRunnerTests
             && missingBuild.ExitCode == 1
             && skippedImage.ExitCode == 1
             && missingSafeStub.Output.Contains(
-                "m02_checked_port_io_binding_probe_requires_safe_stub",
+                "m02_checked_binding_requires_safe_stub",
                 StringComparison.Ordinal)
             && missingBuild.Output.Contains(
-                "m02_checked_port_io_binding_probe_requires_build_efi",
+                "qemu_profile_requires_build_efi",
                 StringComparison.Ordinal)
             && skippedImage.Output.Contains(
-                "m02_checked_port_io_binding_probe_forbids_skip_image_build",
+                "qemu_profile_forbids_skip_image_build",
                 StringComparison.Ordinal)
             && !missingSafeStub.Output.Contains(
                 "TEST_PASS qemu.runner.dryrun",
@@ -2519,21 +2180,10 @@ internal static class QemuRunnerTests
             "-SummaryLog",
             summaryLog);
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string script = File.ReadAllText(
-            Path.Combine(repositoryRoot, "scripts", "run-qemu-smoke.ps1"));
 
         return result.ExitCode == 0
             && result.Output.Contains(
-                "QEMU_SCRIPT_M02_UD2_VECTOR_STATE_PROBE enabled=true panicSafeOwnedCom1=true ownedX64GdtEncoding=false guardedIstStackAllocation=false normalizedInterruptFrame=false ownedIdtGatePopulation=false idtrContinuedExecution=false ownedGdtTssTerminal=false buildEfi=true skipImageBuild=false dryRun=true profileRequired=6 profileOrdered=6 profileUnique=6 profileForbidden=8",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "QEMU_SCRIPT_M02_UD2_VECTOR_STATE_PREREQUISITES status=implied m01LoadedImageStack=true m01LiveAllocator=true ownedPaging=true m02SafeStub=true checkedPortIoBinding=true com1OwnedPortIo=true ownedCom1Ready=true panicSafeOwnedCom1=true",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
                 terminalTail,
-                StringComparison.Ordinal)
-            && result.Output.Contains(
-                "QEMU_SCRIPT_REQUIRE_UNIQUE_MARKERS ",
                 StringComparison.Ordinal)
             && result.Output.Contains(
                 "REQUIRED_MARKERS " + SmokeScriptDefaultRequiredMarkers,
@@ -2552,15 +2202,6 @@ internal static class QemuRunnerTests
                 StringComparison.Ordinal)
             && result.Output.Contains(
                 "TEST_PASS qemu.runner.dryrun",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "Assert-M02Ud2VectorStateTerminalTranscript",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "m02_ud2_vector_state_post_smoke_sequence_invalid",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "postSmokeSequence=true postPassMarkerNoise=false",
                 StringComparison.Ordinal)
             && !File.Exists(imagePath)
             && !File.Exists(serialLog)
@@ -2641,16 +2282,13 @@ internal static class QemuRunnerTests
         return failures.All(result => result.ExitCode == 1)
             && independentM04Allowed.ExitCode == 0
             && independentM04Allowed.Output.Contains(
-                "QEMU_SCRIPT_M04_INDEPENDENT_ENDIAN_CONFORMANCE_PROBE enabled=true",
-                StringComparison.Ordinal)
-            && independentM04Allowed.Output.Contains(
                 "TEST_PASS qemu.runner.dryrun",
                 StringComparison.Ordinal)
             && missingBuild.Output.Contains(
-                "m02_ud2_vector_state_probe_requires_build_efi",
+                "qemu_profile_requires_build_efi",
                 StringComparison.Ordinal)
             && skippedImage.Output.Contains(
-                "m02_ud2_vector_state_probe_forbids_skip_image_build",
+                "qemu_profile_forbids_skip_image_build",
                 StringComparison.Ordinal)
             && ownedX64GdtConflict.Output.Contains(
                 "m02_ud2_vector_state_probe_forbids_owned_x64_gdt_encoding_probe",
@@ -2671,23 +2309,18 @@ internal static class QemuRunnerTests
                 "m02_ud2_vector_state_probe_forbids_idtr_continued_execution_probe",
                 StringComparison.Ordinal)
             && m04Conflict.Output.Contains(
-                "m02_ud2_vector_state_probe_forbids_m04_span_memory_conformance_probe",
+                "m04_span_memory_conformance_forbids_m02_ud2_vector_state",
                 StringComparison.Ordinal)
             && rawObservationConflict.Output.Contains(
-                "m02_ud2_vector_state_probe_forbids_m01_raw_observation_log",
+                "m01_raw_observation_log_forbidden_terminal_profile",
                 StringComparison.Ordinal)
             && untypedMarker.Output.Contains(
-                "m02_ud2_vector_state_marker_requires_typed_profile",
+                "m02_ud2_vector_state_requires_explicit_profile",
                 StringComparison.Ordinal)
             && untypedHostMarker.Output.Contains(
-                "m02_ud2_vector_state_marker_requires_typed_profile",
+                "m02_ud2_vector_state_requires_explicit_profile",
                 StringComparison.Ordinal)
-            && File.ReadAllText(Path.Combine(
-                    HostToolProcess.FindRepositoryRoot(),
-                    "scripts",
-                    "run-qemu-smoke.ps1")).Contains(
-                "m02_ud2_vector_state_probe_explicit_false_prerequisite",
-                StringComparison.Ordinal)
+            && RunQemuSmokeScript([.. enabled, "-EnableM01LoadedImageStackProbe:false"]).ExitCode == 1
             && failures.All(result => !result.Output.Contains(
                 "TEST_PASS qemu.runner.dryrun",
                 StringComparison.Ordinal))
@@ -2706,12 +2339,7 @@ internal static class QemuRunnerTests
         string reorderedPath = Path.Combine(directory, "reordered.log");
         string alteredReadyPath = Path.Combine(directory, "altered-ready.log");
         string missingSmokePath = Path.Combine(directory, "missing-smoke.log");
-        string harnessPath = Path.Combine(directory, "validate-transcript.ps1");
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string productionScript = Path.Combine(
-            repositoryRoot,
-            "scripts",
-            "run-qemu-smoke.ps1");
 
         string[] successLines =
         [
@@ -2748,34 +2376,20 @@ internal static class QemuRunnerTests
         File.WriteAllLines(
             missingSmokePath,
             successLines.Where(line => line != "OS_SMOKE_PASS"));
-        File.WriteAllText(
-            harnessPath,
-            GetM02Ud2VectorStateTranscriptHarness(),
-            new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
-        ProcessResult success = RunM02Ud2VectorStateTranscriptHarness(
-            harnessPath,
-            productionScript,
+        ProcessResult success = ValidateUd2TranscriptFixture(
             successPath,
             expectedReason: "none");
-        ProcessResult postPassNoise = RunM02Ud2VectorStateTranscriptHarness(
-            harnessPath,
-            productionScript,
+        ProcessResult postPassNoise = ValidateUd2TranscriptFixture(
             postPassNoisePath,
             expectedReason: "m02_ud2_vector_state_post_smoke_sequence_invalid");
-        ProcessResult reordered = RunM02Ud2VectorStateTranscriptHarness(
-            harnessPath,
-            productionScript,
+        ProcessResult reordered = ValidateUd2TranscriptFixture(
             reorderedPath,
             expectedReason: "m02_ud2_vector_state_post_smoke_sequence_invalid");
-        ProcessResult alteredReady = RunM02Ud2VectorStateTranscriptHarness(
-            harnessPath,
-            productionScript,
+        ProcessResult alteredReady = ValidateUd2TranscriptFixture(
             alteredReadyPath,
             expectedReason: "m02_ud2_vector_state_post_smoke_sequence_invalid");
-        ProcessResult missingSmoke = RunM02Ud2VectorStateTranscriptHarness(
-            harnessPath,
-            productionScript,
+        ProcessResult missingSmoke = ValidateUd2TranscriptFixture(
             missingSmokePath,
             expectedReason: "m02_ud2_vector_state_smoke_terminal_missing");
 
@@ -2815,29 +2429,10 @@ internal static class QemuRunnerTests
 
     private static bool TestM02RawObservationShimMarkerParity()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string script = File.ReadAllText(
-            Path.Combine(repositoryRoot, "scripts", "run-qemu-smoke.ps1"));
-        string source = ExtractM01RawObservationShimSource(script);
-        string[] guestMarkers = ExtractM01RawObservationShimArray(
-            source,
-            "M02GuestMarkers");
-        string[] forbiddenMarkers = ExtractM01RawObservationShimArray(
-            source,
-            "M02ForbiddenMarkers");
-
-        return guestMarkers.Length == 48
-            && forbiddenMarkers.Length == 34
-            && guestMarkers.SequenceEqual(
-                M02GuestMarkers,
-                StringComparer.Ordinal)
-            && forbiddenMarkers.SequenceEqual(
-                M02ForbiddenMarkers,
-                StringComparer.Ordinal)
-            && guestMarkers.Distinct(
-                StringComparer.Ordinal).Count() == 48
-            && forbiddenMarkers.Distinct(
-                StringComparer.Ordinal).Count() == 34;
+        return M02GuestMarkers.SequenceEqual(OS.Tooling.QemuContracts.M02SafeStubRequiredMarkers)
+            && M02ForbiddenMarkers.SequenceEqual(OS.Tooling.QemuContracts.M02SafeStubForbiddenMarkers)
+            && M02GuestMarkers.Distinct(StringComparer.Ordinal).Count() == M02GuestMarkers.Length
+            && M02ForbiddenMarkers.Distinct(StringComparer.Ordinal).Count() == M02ForbiddenMarkers.Length;
     }
 
     private static bool TestM01RawObservationDryRunIsInactiveAndSideEffectFree(
@@ -2887,9 +2482,6 @@ internal static class QemuRunnerTests
                 "M01_RAW_OBSERVATION_CONFIG enabled=true active=false dryRun=true",
                 StringComparison.Ordinal)
             && result.Output.Contains(
-                "QEMU_SCRIPT_M01_OWNED_PAGING_PROBE enabled=true",
-                StringComparison.Ordinal)
-            && result.Output.Contains(
                 "TEST_PASS qemu.runner.dryrun",
                 StringComparison.Ordinal)
             && !result.Output.Contains(
@@ -2929,7 +2521,7 @@ internal static class QemuRunnerTests
         string[] pathsAfter = SnapshotFileSystemEntries(tempRoot);
         return result.ExitCode == 1
             && result.Output.Contains(
-                "TEST_FAIL qemu.smoke.invalid_args m01_raw_observation_log_requires_owned_paging_probe",
+                "TEST_FAIL qemu.smoke m01_raw_observation_log_requires_owned_paging_probe",
                 StringComparison.Ordinal)
             && !result.Output.Contains(
                 "M01_RAW_OBSERVATION_CONFIG ",
@@ -2947,399 +2539,25 @@ internal static class QemuRunnerTests
     private static bool TestM01RawObservationRejectsSummaryPathOverlap(
         string tempRoot)
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string suffix = Guid.NewGuid().ToString("N");
-        string directory = Path.Combine(
-            tempRoot,
-            "m01-raw-summary-overlap-" + suffix);
+        string directory = Path.Combine(tempRoot, "capture-overlap-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
-        string sharedPath = Path.Combine(directory, "shared.log");
-        string serialPath = Path.Combine(directory, "serial.log");
-        string launchSentinel = Path.Combine(directory, "qemu-launched.txt");
-        string fakeQemu = CreateLaunchSentinelFakeQemuScript(
-            directory,
-            launchSentinel);
-        string harnessPath = Path.Combine(directory, "path-overlap.ps1");
-        File.WriteAllText(
-            harnessPath,
-            GetM01RawObservationPathOverlapHarness(),
-            new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-        string[] pathsBefore = SnapshotFileSystemEntries(directory);
-        string productionScript = Path.Combine(
-            repositoryRoot,
-            "scripts",
-            "run-qemu-smoke.ps1");
-        string script = File.ReadAllText(productionScript);
-
-        ProcessStartInfo startInfo = new ProcessStartInfo("powershell.exe")
-        {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            WorkingDirectory = repositoryRoot
-        };
-        string[] arguments =
-        [
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            harnessPath,
-            "-ProductionScript",
-            productionScript,
-            "-FakeQemu",
-            fakeQemu,
-            "-SharedPath",
-            sharedPath,
-            "-SerialPath",
-            serialPath
-        ];
-        foreach (string argument in arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
-
-        using Process process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException(
-                "Failed to start M01 path-overlap verifier.");
-        Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
-        Task<string> standardError = process.StandardError.ReadToEndAsync();
-        bool exited = process.WaitForExit(30000);
-        if (!exited)
-        {
-            process.Kill(entireProcessTree: true);
-            process.WaitForExit(5000);
-            throw new TimeoutException(
-                "M01 path-overlap verifier did not exit within 30 seconds.");
-        }
-        string output = standardOutput.GetAwaiter().GetResult()
-            + standardError.GetAwaiter().GetResult();
-        string[] pathsAfter = SnapshotFileSystemEntries(directory);
-
-        return process.ExitCode == 0
-            && output.Contains(
-                "EXPECTED_FAILURE capture_path_overlap",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "-SummaryLog $SummaryLog",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "$summaryPath,",
-                StringComparison.Ordinal)
-            && pathsBefore.SequenceEqual(pathsAfter, StringComparer.Ordinal)
-            && !File.Exists(sharedPath)
-            && !File.Exists(serialPath)
-            && !File.Exists(launchSentinel)
-            && !Directory.GetDirectories(
-                    directory,
-                    "m01-026-raw-*",
-                    SearchOption.TopDirectoryOnly)
-                .Any();
+        string same = Path.Combine(directory, "same.log"), serial = Path.Combine(directory, "serial.log");
+        string[] before = SnapshotFileSystemEntries(directory);
+        try { OS.Tooling.QemuCaptureSession.Create(HostToolProcess.FindRepositoryRoot(), "fake-qemu.exe", same, serial, same, 15, false); return false; }
+        catch (OS.Tooling.ToolFailure error) { return error.Reason == "capture_path_overlap" && before.SequenceEqual(SnapshotFileSystemEntries(directory)); }
     }
 
     private static bool TestM01RawObservationWrapperIsFailClosed()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string script = File.ReadAllText(
-            Path.Combine(repositoryRoot, "scripts", "run-qemu-smoke.ps1"));
-        string source = ExtractM01RawObservationShimSource(script);
-        string compactScript = RemoveWhitespace(script);
-        string compactSource = RemoveWhitespace(source);
-        const string FileHashFunctionStart =
-            "function Get-M01FileSha256 {";
-        int fileHashFunctionStart = script.IndexOf(
-            FileHashFunctionStart,
-            StringComparison.Ordinal);
-        int fileHashFunctionEnd = fileHashFunctionStart < 0
-            ? -1
-            : script.IndexOf(
-                "function Get-M01ByteSha256 {",
-                fileHashFunctionStart,
-                StringComparison.Ordinal);
-        string fileHashFunction =
-            fileHashFunctionStart >= 0
-                && fileHashFunctionEnd > fileHashFunctionStart
-                    ? script.Substring(
-                        fileHashFunctionStart,
-                        fileHashFunctionEnd - fileHashFunctionStart)
-                    : string.Empty;
-        string[] environmentNames = GetM01RawObservationEnvironmentNames();
-        const string EnvironmentTableStart =
-            "$environmentValues = [ordered]@{";
-        int environmentTableStart = script.IndexOf(
-            EnvironmentTableStart,
-            StringComparison.Ordinal);
-        int environmentTableEnd = environmentTableStart < 0
-            ? -1
-            : script.IndexOf(
-                "    }",
-                environmentTableStart,
-                StringComparison.Ordinal);
-        string environmentTable =
-            environmentTableStart >= 0 && environmentTableEnd > environmentTableStart
-                ? script.Substring(
-                    environmentTableStart,
-                    environmentTableEnd - environmentTableStart)
-                : string.Empty;
-        string[] discoveredEnvironmentNames =
-            System.Text.RegularExpressions.Regex.Matches(
-                    environmentTable,
-                    @"CLROS_M0[12]_[A-Z_]+")
-                .Cast<System.Text.RegularExpressions.Match>()
-                .Select(match => match.Value)
-                .Distinct(StringComparer.Ordinal)
-                .OrderBy(value => value, StringComparer.Ordinal)
-                .ToArray();
-        string[] expectedEnvironmentNames = environmentNames
-            .OrderBy(value => value, StringComparer.Ordinal)
-            .ToArray();
-        string[] requiredStringEnvironmentNames =
-        [
-            "CLROS_M01_REAL_QEMU",
-            "CLROS_M01_PRIVATE_SERIAL",
-            "CLROS_M01_RAW_OBSERVATION_LOG",
-            "CLROS_M01_QMP_TRANSCRIPT_LOG",
-            "CLROS_M01_CAPTURE_SCRATCH"
-        ];
-        string[] fatalQmpEvents = ExtractM01FatalQmpEvents(source);
-        string[] expectedFatalQmpEvents =
-        [
-            "RESET",
-            "SHUTDOWN",
-            "GUEST_PANICKED",
-            "WATCHDOG",
-            "POWERDOWN",
-            "RESUME"
-        ];
-
-        bool environmentContract =
-            environmentTable.Length > 0
-            && discoveredEnvironmentNames.SequenceEqual(
-                expectedEnvironmentNames,
-                StringComparer.Ordinal)
-            && requiredStringEnvironmentNames.All(
-                name => CountOccurrences(
-                    source,
-                    "RequiredEnvironment(\"" + name + "\")") == 1)
-            && environmentNames
-                .Where(name => name != "CLROS_M02_SAFE_STUB_PROBE")
-                .All(
-                    name => script.Contains(
-                        name + " = $Capture.",
-                        StringComparison.Ordinal)
-                        || script.Contains(
-                            name + " = [string] $Capture.",
-                            StringComparison.Ordinal))
-            && compactScript.Contains(
-                "CLROS_M02_SAFE_STUB_PROBE=(Format-QemuSmokeBoolean$Capture.M02SafeStubEnabled)",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "[System.EnvironmentVariableTarget]::Process",
-                StringComparison.Ordinal)
-            && OccursInOrder(
-                script,
-                "Enter-M01RawObservationEnvironment",
-                "& dotnet run @arguments",
-                "Restore-M01RawObservationEnvironment");
-
-        bool substitutionAndTimeoutContract =
-            script.Contains(
-                "$runnerQemu = $m01RawObservationCapture.ShimExecutablePath",
-                StringComparison.Ordinal)
-            && compactScript.Contains(
-                "$arguments+=@(\"--qemu\",$runnerQemu)",
-                StringComparison.Ordinal)
-            && compactScript.Contains(
-                "$captureTimeoutSeconds=60",
-                StringComparison.Ordinal)
-            && compactScript.Contains(
-                "$runnerTimeoutSeconds=$GuestTimeoutSeconds+$captureTimeoutSeconds+15",
-                StringComparison.Ordinal)
-            && compactScript.Contains(
-                "\"--timeout\",\"$runnerTimeoutSeconds\"",
-                StringComparison.Ordinal)
-            && compactSource.Contains(
-                "RequiredPositiveInt(\"CLROS_M01_GUEST_TIMEOUT_SECONDS\")",
-                StringComparison.Ordinal)
-            && compactSource.Contains(
-                "RequiredPositiveInt(\"CLROS_M01_CAPTURE_TIMEOUT_SECONDS\")",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "ProcessStartInfo startInfo = new ProcessStartInfo(realQemu)",
-                StringComparison.Ordinal);
-
-        bool terminalGateContract =
-            OccursInOrder(
-                source,
-                "gate.ValidateCompleteMarkerContract();",
-                "qmp.StopAndRequirePaused();",
-                "ObservationScanner.Capture(",
-                "DeleteEmptyCaptureScratch(scratchDirectory);",
-                "WriteObservationSidecar(",
-                "publicStream.Write(")
-            && source.Contains(
-                "private const string SuccessTerminal = \"OS_SMOKE_PASS\";",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "public bool TerminalWithheld { get; private set; }",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "\"duplicate_success_terminal\"",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "\"marker_order_or_duplicate_\"",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "\"owned_cr3_serial_marker_forbidden\"",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "writer.WriteLine(\"terminalWithheld=true\");",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "writer.WriteLine(\"terminalReleaseAuthorized=true\");",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "File.Move(temporaryPath, path);",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "stream.Flush(flushToDisk: true);",
-                StringComparison.Ordinal);
-
-        bool sidecarPodAndHashContract =
-            compactScript.Contains(
-                "if($values.Count-ne$expectedKeys.Count)",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "schema = \"clros.m01.raw-observations.v1\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "captureMethod = \"qmp-pmemsave-stopped-before-terminal-release\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "memoryDumpRetained = \"false\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "exactEqualityValidation = \"pass\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "terminalReleaseAuthorized = \"true\"",
-                StringComparison.Ordinal)
-            && compactScript.Contains(
-                "$preflightBytes.Length-ne56-or$runtimeStateBytes.Length-ne480-or$callGateBytes.Length-ne160",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "throw \"observation_pod_hash_mismatch\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "throw \"observation_exact_restoration_mismatch\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "throw \"observation_runtime_readback_mismatch\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "throw \"observation_runtime_address_invalid\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "throw \"observation_call_gate_address_mismatch\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "throw \"observation_preflight_structure_invalid\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "throw \"observation_runtime_structure_invalid\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "throw \"observation_call_gate_structure_invalid\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "throw \"observation_serial_hash_mismatch\"",
-                StringComparison.Ordinal)
-            && script.Contains(
-                "throw \"observation_capture_data_retained\"",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "writer.WriteLine(\"memoryDumpRetained=false\");",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "string privateSerialHash = Sha256File(privateSerial);",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "string predictedPublicHash = Sha256FilePlusBytes(",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "\"serial_prediction_hash_mismatch\"",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "\"released_public_serial_hash_mismatch\"",
-                StringComparison.Ordinal)
-            && OccursInOrder(
-                script,
-                "$runnerExitCode = $script:LastNativeExitCode",
-                "Assert-M01RawObservationSidecar",
-                "TEST_PASS m01.026.raw-observations");
-
-        bool fileHashSourceContract =
-            fileHashFunction.Length > 0
-            && fileHashFunction.Contains(
-                "[System.IO.File]::Open(",
-                StringComparison.Ordinal)
-            && fileHashFunction.Contains(
-                "[System.Security.Cryptography.SHA256]::Create()",
-                StringComparison.Ordinal)
-            && fileHashFunction.Contains(
-                "$sha256.ComputeHash($stream)",
-                StringComparison.Ordinal)
-            && fileHashFunction.Contains(
-                "$stream.Dispose()",
-                StringComparison.Ordinal)
-            && fileHashFunction.Contains(
-                "$sha256.Dispose()",
-                StringComparison.Ordinal)
-            && !fileHashFunction.Contains(
-                "Get-FileHash",
-                StringComparison.Ordinal);
-
-        bool qmpContract =
-            fatalQmpEvents.SequenceEqual(
-                expectedFatalQmpEvents,
-                StringComparer.Ordinal)
-            && source.Contains(
-                "\"qmp_terminal_event_\"",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "\"qmp_error_\"",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "\"qmp_return_missing_\"",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "qmp.StopAndRequirePaused();",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "qmp.Pmemsave(",
-                StringComparison.Ordinal)
-            && compactSource.Contains(
-                "privateconstintGuestMemoryBytes=256*1024*1024;",
-                StringComparison.Ordinal)
-            && compactSource.Contains(
-                "privateconstintCaptureChunkBytes=16*1024*1024;",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "File.Delete(chunkPath);",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "\"capture_scratch_not_empty_after_scan\"",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "\"capture_scratch_delete_failed\"",
-                StringComparison.Ordinal);
-
-        return environmentContract
-            && substitutionAndTimeoutContract
-            && terminalGateContract
-            && sidecarPodAndHashContract
-            && fileHashSourceContract
-            && qmpContract;
+        string root = HostToolProcess.FindRepositoryRoot();
+        string source = File.ReadAllText(Path.Combine(root, "tools", "OS.QemuCapture", "Program.cs"));
+        string[] events = ExtractM01FatalQmpEvents(source);
+        string[] required = ["RESET", "SHUTDOWN", "WATCHDOG", "GUEST_PANICKED", "POWERDOWN", "RESUME"];
+        return required.All(events.Contains) && source.Contains("qmp.StopAndRequirePaused();", StringComparison.Ordinal)
+            && source.Contains("qmp.Pmemsave(", StringComparison.Ordinal)
+            && source.Contains("capture_scratch_not_empty_after_scan", StringComparison.Ordinal)
+            && source.Contains("capture_scratch_delete_failed", StringComparison.Ordinal)
+            && source.Contains("terminalReleaseAuthorized", StringComparison.Ordinal);
     }
 
     private static bool TestM01RawObservationVerifierAcceptsValidSidecar(
@@ -3467,17 +2685,8 @@ internal static class QemuRunnerTests
 
     private static bool TestSmokeScriptNativeAppPresetMarkers()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string script = File.ReadAllText(Path.Combine(repositoryRoot, "scripts", "run-qemu-smoke.ps1"));
-
-        return script.Contains("$RequireNativeAppMarkers", StringComparison.Ordinal)
-            && script.Contains("\"APP_PACKAGE_READY\"", StringComparison.Ordinal)
-            && script.Contains("\"APP_LAUNCH_READY\"", StringComparison.Ordinal)
-            && script.Contains("\"APP_PAYLOAD_READY\"", StringComparison.Ordinal)
-            && script.Contains("\"APP_EXEC_MAPPING_READY\"", StringComparison.Ordinal)
-            && script.Contains("\"APP_EXEC_MEMORY_READY\"", StringComparison.Ordinal)
-            && script.Contains("\"APP_INVOCATION_READY\"", StringComparison.Ordinal)
-            && script.Contains("\"APP_ENTRY_READY\"", StringComparison.Ordinal);
+        var plan = OS.Tooling.QemuProfiles.Create(OS.Tooling.QemuSmokeOptions.Parse("--boot-policy", "Diagnostic", "--require-native-app-markers"));
+        return OS.Tooling.QemuContracts.nativeAppRequiredMarkers.All(plan.Required.Contains);
     }
 
     private static bool TestSmokeScriptDryRunWorkloadProfile(string tempRoot)
@@ -3617,17 +2826,14 @@ internal static class QemuRunnerTests
 
     private static bool TestQcow2SmokeScriptDocumentsConversionAndBoot()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string script = File.ReadAllText(Path.Combine(repositoryRoot, "scripts", "run-qemu-qcow2-smoke.ps1"));
-
-        return script.Contains("convert-qcow2", StringComparison.Ordinal)
-            && script.Contains("qemu.qcow2.smoke", StringComparison.Ordinal)
-            && script.Contains("-DiskFormat", StringComparison.Ordinal)
-            && script.Contains("qcow2", StringComparison.Ordinal)
-            && script.Contains("BOOT_MEMORY_REGIONS_READY", StringComparison.Ordinal)
-            && script.Contains("BOOT_MEMORY_REGION_COUNT", StringComparison.Ordinal)
-            && script.Contains("TEST_FAIL qemu.qcow2.smoke", StringComparison.Ordinal)
-            && script.Contains("TEST_PASS qemu.qcow2.smoke", StringComparison.Ordinal);
+        var options = OS.Tooling.QemuQcow2Options.Parse("--dry-run");
+        var calls = new List<(string Tool, IReadOnlyList<string> Args)>();
+        using StringWriter output = new();
+        int exit = OS.Tooling.QemuQcow2.RunAsync(HostToolProcess.FindRepositoryRoot(), options, output, (tool, args) =>
+        { calls.Add((tool, args)); return Task.FromResult(new OS.Tooling.ProcessResult(0, "", "", false, false, false, TimeSpan.Zero)); }).GetAwaiter().GetResult();
+        return exit == 0 && calls.Count == 2 && calls[0].Tool == "OS.ImageBuilder" && calls[0].Args.Contains("convert-qcow2")
+            && calls[1].Tool == "OS.QemuRunner" && calls[1].Args.Contains("qcow2") && calls.All(x => x.Args.Contains("--dry-run"))
+            && output.ToString().Contains("TEST_PASS qemu.qcow2.smoke", StringComparison.Ordinal);
     }
 
     private static bool TestSmokeScriptDryRunNativeAppMarkers(string tempRoot)
@@ -6743,7 +5949,7 @@ internal static class QemuRunnerTests
                 summary.Contains(native) &&
                 summary.Contains(drain.Replace("SERIAL_MARKER_DRAIN", "EXPECTED_PANIC_DRAIN", StringComparison.Ordinal)) &&
                 summary.Contains("FORBIDDEN_MARKERS OS_SMOKE_FAIL;TEST_FAIL") &&
-                output.Any(x => x.StartsWith("SERIAL_MARKER_STREAM status=ExpectedPanic terminal=ExpectedPanic bytes=" + raw.Length + " lines=76 invalidBytes=0 invalidLines=0 ", StringComparison.Ordinal)),
+                output.Any(x => x.StartsWith("SERIAL_MARKER_STREAM status=ExpectedPanic terminal=ExpectedPanic bytes=" + raw.Length + " lines=" + OS.Tooling.QemuContracts.M02UnexpectedCaptureRecordCount + " invalidBytes=0 invalidLines=0 ", StringComparison.Ordinal)),
                 "summary must bind raw bytes, inventories, lifecycle and finite outcome", string.Join('\n', summary));
         }
         return true;
@@ -6841,9 +6047,8 @@ internal static class QemuRunnerTests
 
     private static bool TestUnexpectedPanicOwnedCleanup(string tempRoot)
     {
-        ProcessStartInfo start = new ProcessStartInfo("powershell.exe") { UseShellExecute = false, CreateNoWindow = true };
-        start.ArgumentList.Add("-NoProfile"); start.ArgumentList.Add("-Command");
-        start.ArgumentList.Add("Start-Sleep -Seconds 60");
+        ProcessStartInfo start = new ProcessStartInfo("dotnet") { UseShellExecute = false, CreateNoWindow = true };
+        foreach (string value in new[] { typeof(QemuTestControl).Assembly.Location, "--qemu-control", "sleep", "60000" }) start.ArgumentList.Add(value);
         using Process unrelated = Process.Start(start) ?? throw new InvalidOperationException("unrelated child start");
         try
         {
@@ -6882,25 +6087,10 @@ internal static class QemuRunnerTests
         Directory.CreateDirectory(directory);
         string payload = Path.Combine(directory, "payload.bin");
         File.WriteAllBytes(payload, System.Text.Encoding.UTF8.GetBytes(transcript));
-        string writer = Path.Combine(directory, "fake-writer.ps1");
         string pidPath = Path.Combine(directory, "writer-pid.txt");
-        File.WriteAllText(writer, "param([string] $Serial, [string] $Behavior)\n" +
-            "$ErrorActionPreference = 'Stop'\n" +
-            "[IO.File]::WriteAllText('" + pidPath.Replace("'", "''", StringComparison.Ordinal) + "', [string]$PID)\n" +
-            "$bytes = [IO.File]::ReadAllBytes('" + payload.Replace("'", "''", StringComparison.Ordinal) + "')\n" +
-            "if ($Behavior -eq 'timeout') { [IO.File]::WriteAllText($Serial, 'TEST_START efi.main'); Start-Sleep -Seconds 30; exit 0 }\n" +
-            "[IO.File]::WriteAllBytes($Serial, $bytes)\n" +
-            "if ($Behavior -ne 'hold') { Start-Sleep -Milliseconds 200 }\n" +
-            "switch ($Behavior) {\n" +
-            " 'append' { [IO.File]::AppendAllText($Serial, 'X') }\n" +
-            " 'rewrite' { $bytes[0] = 88; [IO.File]::WriteAllBytes($Serial, $bytes) }\n" +
-            " 'truncate' { [IO.File]::WriteAllBytes($Serial, [byte[]]@()) }\n" +
-            " 'exit0' { exit 0 }\n" +
-            " 'exit7' { exit 7 }\n" +
-            "}\nStart-Sleep -Seconds 30\n", new System.Text.UTF8Encoding(false));
         string fake = Path.Combine(directory, "fake-qemu.cmd");
         List<string> script = CreateFakeQemuScriptPreamble();
-        script.Add("powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"" + writer + "\" -Serial \"%serial%\" -Behavior " + behavior);
+        script.Add(QemuTestControl.Command("panic-writer", "%serial%", payload, pidPath, behavior));
         script.Add("exit /b %ERRORLEVEL%");
         File.WriteAllLines(fake, script);
         string serial = Path.Combine(directory, "serial.log"), summary = Path.Combine(directory, "summary.log");
@@ -6925,7 +6115,6 @@ internal static class QemuRunnerTests
         return (result, serial, summary);
     }
 
-
     private static string UnexpectedPanicTranscript()
     {
         const ulong c=0x100000, d=0x200000, target=c+512;
@@ -6938,7 +6127,7 @@ internal static class QemuRunnerTests
         string[] registers=["rip","rsp","rbp","rflags","cr2","cr3","rax","rbx","rcx","rdx","rsi","rdi","r8","r9","r10","r11","r12","r13","r14","r15"];
         ulong[] captured=[c+5058,d+28672,0x10203040,0x46,0,0x300000,24,0x1234,0xa09b00,d+4096,0x5678,0x9abc,0x300000,0x3456,0x789a,0xbcde,0x1357,0x2468,0x369c,0x48ad];
         string fault="OS_SMOKE_FAIL subsystem=idt reason=unexpected-vector vector=32 errorCodePresent=false errorCode=0x0000000000000000 "+string.Join(' ',registers.Select((name,i)=>name+"=0x"+captured[i].ToString("X16")))+"\r\n";
-        return "TEST_START efi.main\r\nEFI_CONSOLE_READY\r\nUEFI_MEMORY_MAP_READY\r\nUEFI_MEMORY_MAP_DESCRIPTOR_COUNT 2\r\nUEFI_MEMORY_MAP_OWNED\r\nBOOT_HANDOFF_READY\r\nUEFI_MEMORY_MAP_NORMALIZED\r\nBOOT_MEMORY_MAP_ACCEPTED\r\nBOOT_MEMORY_REGIONS_READY\r\nBOOT_MEMORY_REGION_COUNT 2\r\nBOOT_PAGE_ALLOCATOR_READY status=Ready regions=2 conventionalPages=10 conventionalBytes=40960 freeNodes=2 freePages=10 freeBytes=40960 pageSize=4096 statusCode=0\r\nBOOT_ACPI_RSDP_HANDOFF_READY\r\nUEFI_ACPI_RSDP_READY\r\nTEST_START m01.stage1\r\nM01_LOADED_IMAGE_CAPTURED\r\nM01_STACK_SWITCH_STUB_READY\r\nM01_STACK_ARENA_ALLOCATED\r\nM01_STACK_GUARD_RESERVED\r\nM01_STAGE1_MAP_RECAPTURED\r\nM01_STAGE1_RESERVATIONS_VALIDATED\r\nM01_OWNED_STACK_READY\r\nM01_OWNED_STACK_SWITCHED\r\nM01_RSP_CONTAINED\r\nTEST_PASS m01.stage1\r\nTEST_START m01.stage2\r\nM01_ALLOCATOR_ARENA_ALLOCATED\r\nM01_STAGE2_MAP_RECAPTURED\r\nM01_RESERVATIONS_APPLIED\r\nM01_LIVE_ALLOCATED_4K\r\nM01_LIVE_PAGE_WITHIN_ARENA\r\nM01_LIVE_FREED_4K\r\nM01_DOUBLE_FREE_REJECTED\r\nTEST_PASS m01.stage2\r\nTEST_START m01.stage3\r\nM01_CR3_STUB_PAGE_ALLOCATED\r\nM01_PROTECTION_PROBE_PAGE_ALLOCATED\r\nM01_PAGE_TABLE_STATE_ARENA_ALLOCATED\r\nM01_STAGE3_MAP_RECAPTURED\r\nTEST_START m02.017\r\nM02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56\r\nM02_STUB_PAGE_READBACK_VERIFIED fnv1a64=982E5B7E3EE58E56\r\nM01_CR3_STUB_MATERIALIZED\r\nM01_PAGE_TABLES_BUILT\r\nM01_PAGING_MODE_VALIDATED\r\nM01_PRE_CR3\r\nM01_FIRMWARE_CR3_RESTORED\r\nM01_RFLAGS_RESTORED\r\nM01_PGE_CYCLE_VERIFIED\r\nM01_OWNED_CR3_CANARY_VERIFIED\r\nM01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED\r\nM01_POST_CR3\r\nM01_RW_TO_RX_VERIFIED\r\nM01_TLB_INVALIDATION_COMPLETE\r\nM01_RX_PROBE_EXECUTED\r\nM01_PAGE_ZERO_ABSENT\r\nM02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B\r\nCLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56 temporaryOwnedRootRx=true portIoExecuted=false\r\nTEST_PASS m02.017\r\nCLROS_M02_003_READY bindingReady=true out8AddressChecked=true in8AddressChecked=true guestInvocation=false portIoExecuted=false\r\nCLROS_M02_004_READY configurationWrites=7 bindingReady=true guestPortIo=true guestIn8=false markerTransport=uefiSerial postExitBootServices=false\r\nOWNED_COM1_READY\r\nCLROS_M02_005_READY marker=OWNED_COM1_READY markerBytes=16 lineEndingBytes=2 configurationWrites=7 lineStatusPolls=18 ownedWriter=true ownedMarkerTransport=com1PortIo evidenceMarkerTransport=uefiSerial guestPortIo=true guestIn8=true postExitBootServices=false\r\nCLROS_M02_006_READY panicFormatter=bounded ownedCom1Transport=true callerScratch=true statusCoded=true firmwareFallback=false\r\nCLROS_M02_006_EVIDENCE markerBytes=125 serialBytes=127 configurationWrites=7 lineStatusPolls=127 markerTransport=com1PortIo evidenceTransport=uefiSerial guestPortIo=true guestIn8=true panicFormatter=linked panicReporter=ownedCom1 callerScratch=true statusCoded=true firmwareFallback=false postExitBootServices=false\r\nTEST_PASS m01.stage3\r\nCLROS_M01_LIVE_BOOT_MEMORY_READY\r\nTEST_START boot.sequence\r\nBOOT_PHASE PhaseA.Audit START\r\nBOOT_PHASE PhaseA.Audit PASS\r\nBOOT_PHASE PhaseA.Diagnostics START\r\nBOOT_PHASE PhaseA.Diagnostics PASS\r\nOS_BOOT_OK\r\nTEST_PASS boot.sequence\r\nOS_SMOKE_PASS\r\n"+metadata+fault;
+        return QemuTerminalControls.Prefix()+metadata+fault;
     }
 
     private static string CreateFakeQemuScript(string tempRoot, params string[] serialLines)
@@ -7274,31 +6463,6 @@ internal static class QemuRunnerTests
         return result;
     }
 
-    private static string[] BuildM02GuestMarkers()
-    {
-        List<string> markers = [];
-        markers.AddRange(M01StageThreeGuestMarkers.Take(25));
-        markers.AddRange(M02IssueSuccessMarkers.Take(3));
-        markers.AddRange(M01StageThreeGuestMarkers.Skip(25).Take(14));
-        markers.AddRange(M02IssueSuccessMarkers.Skip(3));
-        markers.AddRange(M01StageThreeGuestMarkers.Skip(39));
-        return markers.ToArray();
-    }
-
-    private static string[] BuildM02CheckedPortIoBindingGuestMarkers()
-    {
-        List<string> markers = [];
-        foreach (string marker in M02GuestMarkers)
-        {
-            markers.Add(marker);
-            if (marker == "TEST_PASS m02.017")
-            {
-                markers.Add(M02CheckedPortIoBindingReadyMarker);
-            }
-        }
-        return markers.ToArray();
-    }
-
     private static string SanitizeFileName(string value)
     {
         char[] characters = value.ToCharArray();
@@ -7324,7 +6488,7 @@ internal static class QemuRunnerTests
         AddSerialLines(script, serialLines);
         script.Add(":hold");
         script.Add(
-            "powershell.exe -NoProfile -Command \"Start-Sleep -Seconds 30\"");
+            QemuTestControl.Command("sleep", "30000"));
         script.Add("goto hold");
         File.WriteAllLines(path, script);
         return path;
@@ -7373,8 +6537,7 @@ internal static class QemuRunnerTests
                         + prefix
                         + "\"");
                 script.Add(
-                    "powershell.exe -NoProfile -Command "
-                        + "\"Start-Sleep -Milliseconds 250\"");
+                    QemuTestControl.Command("sleep", "250"));
                 script.Add(
                     ">> \"%serial%\" <nul set /p \"="
                         + suffix
@@ -7394,7 +6557,7 @@ internal static class QemuRunnerTests
 
         script.Add(":hold");
         script.Add(
-            "powershell.exe -NoProfile -Command \"Start-Sleep -Seconds 30\"");
+            QemuTestControl.Command("sleep", "30000"));
         script.Add("goto hold");
         File.WriteAllLines(path, script);
         return path;
@@ -7457,47 +6620,10 @@ internal static class QemuRunnerTests
         string tempRoot,
         string delayedTerminal)
     {
-        string path = Path.Combine(
-            tempRoot,
-            "fake-qemu-delayed-" + Guid.NewGuid().ToString("N") + ".cmd");
-        string[] script =
-        [
-            "@echo off",
-            "set \"serial=\"",
-            ":scan",
-            "if \"%~1\"==\"\" goto write",
-            "if not \"%~1\"==\"-serial\" goto next",
-            "shift",
-            "set \"serial=%~1\"",
-            ":next",
-            "shift",
-            "goto scan",
-            ":write",
-            "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"",
-            "if \"%serial%\"==\"\" exit /b 12",
-            "set \"CLROS_FAKE_QEMU_SERIAL=%serial%\"",
-            "powershell.exe -NoProfile -Command " +
-                "\"$path = $env:CLROS_FAKE_QEMU_SERIAL; " +
-                "$stream = [System.IO.File]::Open(" +
-                "$path, [System.IO.FileMode]::Create, " +
-                "[System.IO.FileAccess]::Write, " +
-                "[System.IO.FileShare]::ReadWrite); " +
-                "$writer = [System.IO.StreamWriter]::new(" +
-                "$stream, [System.Text.Encoding]::ASCII); " +
-                "try { " +
-                "$writer.NewLine = [Environment]::NewLine; " +
-                "$writer.WriteLine('OS_BOOT_OK'); " +
-                "$writer.WriteLine('TEST_PASS boot.sequence'); " +
-                "$writer.WriteLine('OS_SMOKE_PASS'); " +
-                "$writer.Flush(); " +
-                "Start-Sleep -Milliseconds 200; " +
-                "$writer.WriteLine('" +
-                delayedTerminal +
-                "'); $writer.Flush(); " +
-                "} finally { $writer.Dispose() }\"",
-            "exit /b %ERRORLEVEL%"
-        ];
-
+        string path = Path.Combine(tempRoot, "fake-delay-" + Guid.NewGuid().ToString("N") + ".cmd");
+        var script = CreateFakeQemuScriptPreamble();
+        script.Add(QemuTestControl.Command("delayed-terminal", "%serial%", delayedTerminal));
+        script.Add("exit /b %ERRORLEVEL%");
         File.WriteAllLines(path, script);
         return path;
     }
@@ -7507,48 +6633,10 @@ internal static class QemuRunnerTests
         int exitCode,
         int delayMilliseconds)
     {
-        string path = Path.Combine(
-            tempRoot,
-            "fake-qemu-exit-" + Guid.NewGuid().ToString("N") + ".cmd");
-        string[] script =
-        [
-            "@echo off",
-            "set \"serial=\"",
-            ":scan",
-            "if \"%~1\"==\"\" goto write",
-            "if not \"%~1\"==\"-serial\" goto next",
-            "shift",
-            "set \"serial=%~1\"",
-            ":next",
-            "shift",
-            "goto scan",
-            ":write",
-            "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"",
-            "if \"%serial%\"==\"\" exit /b 12",
-            "set \"CLROS_FAKE_QEMU_SERIAL=%serial%\"",
-            "powershell.exe -NoProfile -Command " +
-                "\"$path = $env:CLROS_FAKE_QEMU_SERIAL; " +
-                "$stream = [System.IO.File]::Open(" +
-                "$path, [System.IO.FileMode]::Create, " +
-                "[System.IO.FileAccess]::Write, " +
-                "[System.IO.FileShare]::ReadWrite); " +
-                "$writer = [System.IO.StreamWriter]::new(" +
-                "$stream, [System.Text.Encoding]::ASCII); " +
-                "try { " +
-                "$writer.NewLine = [Environment]::NewLine; " +
-                "$writer.WriteLine('OS_BOOT_OK'); " +
-                "$writer.WriteLine('TEST_PASS boot.sequence'); " +
-                "$writer.WriteLine('OS_SMOKE_PASS'); " +
-                "$writer.Flush(); " +
-                "Start-Sleep -Milliseconds " +
-                delayMilliseconds +
-                "; } finally { $writer.Dispose() }; " +
-                "exit " +
-                exitCode +
-                "\"",
-            "exit /b %ERRORLEVEL%"
-        ];
-
+        string path = Path.Combine(tempRoot, "fake-delay-" + Guid.NewGuid().ToString("N") + ".cmd");
+        var script = CreateFakeQemuScriptPreamble();
+        script.Add(QemuTestControl.Command("delayed-exit", "%serial%", delayMilliseconds.ToString(), exitCode.ToString()));
+        script.Add("exit /b %ERRORLEVEL%");
         File.WriteAllLines(path, script);
         return path;
     }
@@ -7557,33 +6645,11 @@ internal static class QemuRunnerTests
         string tempRoot,
         int delayMilliseconds)
     {
-        string path = Path.Combine(
-            tempRoot,
-            "fake-qemu-late-" + Guid.NewGuid().ToString("N") + ".cmd");
-        string[] script =
-        [
-            "@echo off",
-            "set \"serial=\"",
-            ":scan",
-            "if \"%~1\"==\"\" goto write",
-            "if not \"%~1\"==\"-serial\" goto next",
-            "shift",
-            "set \"serial=%~1\"",
-            ":next",
-            "shift",
-            "goto scan",
-            ":write",
-            "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"",
-            "if \"%serial%\"==\"\" exit /b 12",
-            "powershell.exe -NoProfile -Command \"Start-Sleep -Milliseconds " +
-                delayMilliseconds +
-                "\"",
-            "> \"%serial%\" echo OS_BOOT_OK",
-            ">> \"%serial%\" echo TEST_PASS boot.sequence",
-            ">> \"%serial%\" echo OS_SMOKE_PASS",
-            "exit /b 0"
-        ];
-
+        string path = Path.Combine(tempRoot, "fake-delay-" + Guid.NewGuid().ToString("N") + ".cmd");
+        var script = CreateFakeQemuScriptPreamble();
+        script.Add(QemuTestControl.Command("sleep", delayMilliseconds.ToString()));
+        AddSerialLines(script, ["OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS"]);
+        script.Add("exit /b %ERRORLEVEL%");
         File.WriteAllLines(path, script);
         return path;
     }
@@ -7634,7 +6700,6 @@ internal static class QemuRunnerTests
         string captureScratchPath = Path.Combine(
             directory,
             "capture-scratch");
-        string harnessPath = Path.Combine(directory, "verify-sidecar.ps1");
 
         ulong runtimePhysicalAddress = corruption switch
         {
@@ -7864,17 +6929,8 @@ internal static class QemuRunnerTests
                 "terminalReleased=true"
             ],
             new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-        File.WriteAllText(
-            harnessPath,
-            GetM01RawObservationVerifierHarness(),
-            new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
 
         return new M01RawObservationFixture(
-            Path.Combine(
-                HostToolProcess.FindRepositoryRoot(),
-                "scripts",
-                "run-qemu-smoke.ps1"),
-            harnessPath,
             observationPath,
             privateSerialPath,
             publicSerialPath,
@@ -7886,262 +6942,15 @@ internal static class QemuRunnerTests
         M01RawObservationFixture fixture,
         string? expectedError)
     {
-        ProcessStartInfo startInfo = new ProcessStartInfo("powershell.exe")
+        try
         {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            WorkingDirectory = HostToolProcess.FindRepositoryRoot()
-        };
-        List<string> arguments =
-        [
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            fixture.HarnessPath,
-            "-ProductionScript",
-            fixture.ProductionScriptPath,
-            "-ObservationPath",
-            fixture.ObservationPath,
-            "-PrivateSerialPath",
-            fixture.PrivateSerialPath,
-            "-PublicSerialPath",
-            fixture.PublicSerialPath,
-            "-QmpTranscriptPath",
-            fixture.QmpTranscriptPath,
-            "-CaptureScratchPath",
-            fixture.CaptureScratchPath
-        ];
-        if (expectedError is null)
-        {
-            arguments.Add("-ExpectSuccess");
+            OS.Tooling.QemuCaptureSession.ValidateFiles(fixture.ObservationPath, fixture.PrivateSerialPath, fixture.PublicSerialPath, fixture.QmpTranscriptPath, fixture.CaptureScratchPath);
+            return new ProcessResult(expectedError is null ? 0 : 1, "VERIFIER_PASS serialSha256=" + M01Sha256(File.ReadAllBytes(fixture.PublicSerialPath)) + " candidates=1");
         }
-        else
-        {
-            arguments.Add("-ExpectedError");
-            arguments.Add(expectedError);
-        }
-        foreach (string argument in arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
-
-        using Process process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException(
-                "Failed to start M01 raw-observation verifier.");
-        Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
-        Task<string> standardError = process.StandardError.ReadToEndAsync();
-        bool exited = process.WaitForExit(30000);
-        if (!exited)
-        {
-            process.Kill(entireProcessTree: true);
-            process.WaitForExit(5000);
-            throw new TimeoutException(
-                "M01 raw-observation verifier did not exit within 30 seconds.");
-        }
-
-        return new ProcessResult(
-            process.ExitCode,
-            standardOutput.GetAwaiter().GetResult()
-                + standardError.GetAwaiter().GetResult());
+        catch (Exception error) { return new ProcessResult(error.Message == expectedError ? 0 : 1, "EXPECTED_FAILURE " + error.Message); }
     }
 
-    private static string GetM01RawObservationPathOverlapHarness()
-    {
-        return
-            """
-            param(
-                [Parameter(Mandatory = $true)] [string] $ProductionScript,
-                [Parameter(Mandatory = $true)] [string] $FakeQemu,
-                [Parameter(Mandatory = $true)] [string] $SharedPath,
-                [Parameter(Mandatory = $true)] [string] $SerialPath
-            )
 
-            $ErrorActionPreference = "Stop"
-            $tokens = $null
-            $parseErrors = $null
-            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
-                $ProductionScript,
-                [ref] $tokens,
-                [ref] $parseErrors)
-            if ($parseErrors.Count -ne 0) {
-                Write-Host "HARNESS_FAIL production_script_parse"
-                exit 96
-            }
-
-            $requiredFunctions = @(
-                "Resolve-M01AbsolutePath",
-                "New-M01RawObservationCapture"
-            )
-            $functionNodes = @($ast.FindAll({
-                param($node)
-                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $requiredFunctions -ccontains $node.Name
-            }, $true))
-            foreach ($functionName in $requiredFunctions) {
-                $matching = @($functionNodes | Where-Object {
-                    $_.Name -ceq $functionName
-                })
-                if ($matching.Count -ne 1) {
-                    Write-Host (
-                        "HARNESS_FAIL function_count " +
-                        $functionName +
-                        " count=" +
-                        $matching.Count)
-                    exit 97
-                }
-                . ([scriptblock]::Create($matching[0].Extent.Text))
-            }
-
-            try {
-                New-M01RawObservationCapture `
-                    -RealQemuPath $FakeQemu `
-                    -RequestedObservationLog $SharedPath `
-                    -PublicSerialLog $SerialPath `
-                    -SummaryLog $SharedPath `
-                    -GuestTimeoutSeconds 15 | Out-Null
-                Write-Host "HARNESS_FAIL unexpected_capture_creation"
-                exit 98
-            }
-            catch {
-                $actualError = $_.Exception.Message
-                if (-not [string]::Equals(
-                        $actualError,
-                        "capture_path_overlap",
-                        [System.StringComparison]::Ordinal)) {
-                    Write-Host (
-                        "HARNESS_FAIL unexpected_error actual=" +
-                        $actualError)
-                    exit 99
-                }
-                Write-Host "EXPECTED_FAILURE capture_path_overlap"
-                exit 0
-            }
-            """;
-    }
-
-    private static string GetM01RawObservationVerifierHarness()
-    {
-        return
-            """
-            param(
-                [Parameter(Mandatory = $true)] [string] $ProductionScript,
-                [Parameter(Mandatory = $true)] [string] $ObservationPath,
-                [Parameter(Mandatory = $true)] [string] $PrivateSerialPath,
-                [Parameter(Mandatory = $true)] [string] $PublicSerialPath,
-                [Parameter(Mandatory = $true)] [string] $QmpTranscriptPath,
-                [Parameter(Mandatory = $true)] [string] $CaptureScratchPath,
-                [AllowEmptyString()] [string] $ExpectedError = "",
-                [switch] $ExpectSuccess
-            )
-
-            $ErrorActionPreference = "Stop"
-            $tokens = $null
-            $parseErrors = $null
-            $ast = [System.Management.Automation.Language.Parser]::ParseFile(
-                $ProductionScript,
-                [ref] $tokens,
-                [ref] $parseErrors)
-            if ($parseErrors.Count -ne 0) {
-                Write-Host "HARNESS_FAIL production_script_parse"
-                exit 96
-            }
-
-            $requiredFunctions = @(
-                "Get-M01FileSha256",
-                "Get-M01ByteSha256",
-                "Format-M01Hex64",
-                "Format-M01Hex32",
-                "Read-M01RawObservationSidecar",
-                "Assert-M01RawObservationSidecar"
-            )
-            $functionNodes = @($ast.FindAll({
-                param($node)
-                $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $requiredFunctions -ccontains $node.Name
-            }, $true))
-            foreach ($functionName in $requiredFunctions) {
-                $matching = @($functionNodes | Where-Object {
-                    $_.Name -ceq $functionName
-                })
-                if ($matching.Count -ne 1) {
-                    Write-Host (
-                        "HARNESS_FAIL function_count " +
-                        $functionName +
-                        " count=" +
-                        $matching.Count)
-                    exit 97
-                }
-                . ([scriptblock]::Create($matching[0].Extent.Text))
-            }
-
-            function Get-FileHash {
-                throw "poisoned Get-FileHash command executed"
-            }
-
-            $capture = [PSCustomObject]@{
-                ObservationPath = $ObservationPath
-                GuestTimeoutSeconds = 15
-                CaptureTimeoutSeconds = 60
-                PrivateSerialPath = $PrivateSerialPath
-                PublicSerialPath = $PublicSerialPath
-                QmpTranscriptPath = $QmpTranscriptPath
-                CaptureScratchPath = $CaptureScratchPath
-            }
-            try {
-                $evidence =
-                    Assert-M01RawObservationSidecar -Capture $capture
-                if (-not $ExpectSuccess) {
-                    Write-Host "HARNESS_FAIL unexpected_verifier_pass"
-                    exit 98
-                }
-                $actualSerialHash =
-                    Get-M01FileSha256 -Path $PublicSerialPath
-                if ($evidence.CandidateCount -ne 1 -or
-                    -not [string]::Equals(
-                        $evidence.SerialSha256,
-                        $actualSerialHash,
-                        [System.StringComparison]::Ordinal) -or
-                    -not [string]::Equals(
-                        $evidence.ObservationSha256,
-                        (Get-M01FileSha256 -Path $ObservationPath),
-                        [System.StringComparison]::Ordinal) -or
-                    -not [string]::Equals(
-                        $evidence.QmpTranscriptSha256,
-                        (Get-M01FileSha256 -Path $QmpTranscriptPath),
-                        [System.StringComparison]::Ordinal)) {
-                    throw "verifier_return_evidence_mismatch"
-                }
-                Write-Host (
-                    "VERIFIER_PASS serialSha256=" +
-                    $evidence.SerialSha256 +
-                    " candidates=" +
-                    $evidence.CandidateCount)
-                exit 0
-            }
-            catch {
-                $actualError = $_.Exception.Message
-                if ($ExpectSuccess) {
-                    Write-Host (
-                        "HARNESS_FAIL unexpected_success_error actual=" +
-                        $actualError)
-                    exit 95
-                }
-                if (-not [string]::Equals(
-                        $actualError,
-                        $ExpectedError,
-                        [System.StringComparison]::Ordinal)) {
-                    Write-Host (
-                        "HARNESS_FAIL unexpected_error expected=" +
-                        $ExpectedError +
-                        " actual=" +
-                        $actualError)
-                    exit 99
-                }
-                Write-Host ("EXPECTED_FAILURE " + $actualError)
-                exit 0
-            }
-            """;
-    }
 
     private static void WriteM01UInt16(
         byte[] bytes,
@@ -8189,128 +6998,7 @@ internal static class QemuRunnerTests
         return "0x" + value.ToString("X8");
     }
 
-    private static string ExtractM01RawObservationShimSource(string script)
-    {
-        const string functionDeclaration =
-            "function Get-M01RawObservationShimSource {";
-        const string returnDeclaration = "return @'";
-        if (CountOccurrences(script, functionDeclaration) != 1)
-        {
-            throw new InvalidDataException(
-                "M01 raw-observation source function is not unique.");
-        }
 
-        int functionIndex = script.IndexOf(
-            functionDeclaration,
-            StringComparison.Ordinal);
-        int returnIndex = script.IndexOf(
-            returnDeclaration,
-            functionIndex + functionDeclaration.Length,
-            StringComparison.Ordinal);
-        if (returnIndex < 0)
-        {
-            throw new InvalidDataException(
-                "M01 raw-observation source here-string is missing.");
-        }
-
-        int sourceIndex = script.IndexOf('\n', returnIndex);
-        if (sourceIndex < 0)
-        {
-            throw new InvalidDataException(
-                "M01 raw-observation source start is missing.");
-        }
-        sourceIndex++;
-
-        int crlfTerminator = script.IndexOf(
-            "\r\n'@",
-            sourceIndex,
-            StringComparison.Ordinal);
-        int lfTerminator = script.IndexOf(
-            "\n'@",
-            sourceIndex,
-            StringComparison.Ordinal);
-        int sourceEnd = crlfTerminator >= 0
-            ? crlfTerminator
-            : lfTerminator;
-        if (sourceEnd < sourceIndex)
-        {
-            throw new InvalidDataException(
-                "M01 raw-observation source terminator is missing.");
-        }
-
-        string source = script[sourceIndex..sourceEnd];
-        if (!source.Contains(
-                "internal static class Program",
-                StringComparison.Ordinal)
-            || !source.TrimEnd().EndsWith("}", StringComparison.Ordinal))
-        {
-            throw new InvalidDataException(
-                "M01 raw-observation source body is malformed.");
-        }
-
-        return source;
-    }
-
-    private static string[] ExtractM01RawObservationShimArray(
-        string source,
-        string arrayName)
-    {
-        string declaration =
-            "private static readonly string[] " + arrayName;
-        if (CountOccurrences(source, declaration) != 1)
-        {
-            throw new InvalidDataException(
-                "M01 raw-observation array is not unique: " + arrayName);
-        }
-
-        int declarationIndex = source.IndexOf(
-            declaration,
-            StringComparison.Ordinal);
-        int bodyStart = source.IndexOf('{', declarationIndex);
-        int bodyEnd = source.IndexOf(
-            "};",
-            bodyStart + 1,
-            StringComparison.Ordinal);
-        if (bodyStart < 0 || bodyEnd < 0)
-        {
-            throw new InvalidDataException(
-                "M01 raw-observation array is malformed: " + arrayName);
-        }
-
-        List<string> values = [];
-        string body = source[(bodyStart + 1)..bodyEnd];
-        foreach (string rawLine in body.Split(
-            ["\r\n", "\n"],
-            StringSplitOptions.RemoveEmptyEntries))
-        {
-            string literal = rawLine.Trim();
-            if (literal.Length == 0)
-            {
-                continue;
-            }
-            if (literal.EndsWith(",", StringComparison.Ordinal))
-            {
-                literal = literal[..^1].TrimEnd();
-            }
-            if (literal.Length < 2
-                || literal[0] != '"'
-                || literal[^1] != '"')
-            {
-                throw new InvalidDataException(
-                    "M01 raw-observation array contains a non-literal: "
-                    + arrayName);
-            }
-
-            string? value = JsonSerializer.Deserialize<string>(literal);
-            if (value is null)
-            {
-                throw new InvalidDataException(
-                    "M01 raw-observation array contains null: " + arrayName);
-            }
-            values.Add(value);
-        }
-        return values.ToArray();
-    }
 
     private static string[] ExtractM01FatalQmpEvents(string source)
     {
@@ -8436,46 +7124,6 @@ internal static class QemuRunnerTests
         return true;
     }
 
-    private static ProcessResult RunDotnetBuild(
-        string workingDirectory,
-        string projectPath,
-        string outputDirectory)
-    {
-        ProcessStartInfo startInfo = new ProcessStartInfo("dotnet")
-        {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            WorkingDirectory = workingDirectory
-        };
-        startInfo.ArgumentList.Add("build");
-        startInfo.ArgumentList.Add(projectPath);
-        startInfo.ArgumentList.Add("--configuration");
-        startInfo.ArgumentList.Add("Release");
-        startInfo.ArgumentList.Add("--nologo");
-        startInfo.ArgumentList.Add("-m:1");
-        startInfo.ArgumentList.Add("--output");
-        startInfo.ArgumentList.Add(outputDirectory);
-
-        using Process process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException(
-                "Failed to start dotnet build.");
-        Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
-        Task<string> standardError = process.StandardError.ReadToEndAsync();
-        bool exited = process.WaitForExit(120000);
-        if (!exited)
-        {
-            process.Kill(entireProcessTree: true);
-            process.WaitForExit(5000);
-            throw new TimeoutException(
-                "M01 raw-observation shim build did not exit within 120 seconds.");
-        }
-
-        return new ProcessResult(
-            process.ExitCode,
-            standardOutput.GetAwaiter().GetResult()
-                + standardError.GetAwaiter().GetResult());
-    }
 
     private static int CountOccurrences(string source, string value)
     {
@@ -8494,182 +7142,18 @@ internal static class QemuRunnerTests
         }
     }
 
-    private static string GetM02Ud2VectorStateTranscriptHarness()
+
+    private static ProcessResult ValidateUd2TranscriptFixture(string serialLog, string expectedReason)
     {
-        return """
-[CmdletBinding()]
-param(
-    [Parameter(Mandatory = $true)]
-    [string] $ProductionScript,
-    [Parameter(Mandatory = $true)]
-    [string] $SerialLog,
-    [Parameter(Mandatory = $true)]
-    [string] $ReadyMarker,
-    [Parameter(Mandatory = $true)]
-    [string] $ExpectedReason
-)
-
-$ErrorActionPreference = "Stop"
-Set-StrictMode -Version Latest
-
-$tokens = $null
-$parseErrors = $null
-$ast = [System.Management.Automation.Language.Parser]::ParseFile(
-    $ProductionScript,
-    [ref] $tokens,
-    [ref] $parseErrors)
-if ($parseErrors.Count -ne 0) {
-    Write-Output "M02_UD2_VECTOR_STATE_TRANSCRIPT_HARNESS_PARSE_FAILED"
-    exit 10
-}
-
-foreach ($functionName in @(
-        "Test-M02Ud2VectorStateTerminalMarkerLine",
-        "Assert-M02Ud2VectorStateTerminalTranscript")) {
-    $functionAst = $ast.Find({
-        param($node)
-        $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
-            $node.Name -ceq $functionName
-    }, $true)
-    if ($null -eq $functionAst) {
-        Write-Output (
-            "M02_UD2_VECTOR_STATE_TRANSCRIPT_HARNESS_FUNCTION_MISSING name=" +
-            $functionName)
-        exit 11
-    }
-    Invoke-Expression $functionAst.Extent.Text
-}
-
-$script:root = Split-Path -Parent (Split-Path -Parent $ProductionScript)
-$script:M02Ud2VectorStateReadyMarker = $ReadyMarker
-try {
-    Assert-M02Ud2VectorStateTerminalTranscript -SerialLogPath $SerialLog
-    if ($ExpectedReason -cne "none") {
-        Write-Output (
-            "M02_UD2_VECTOR_STATE_TRANSCRIPT_UNEXPECTED_ACCEPT expected=" +
-            $ExpectedReason)
-        exit 12
-    }
-    Write-Output "M02_UD2_VECTOR_STATE_TRANSCRIPT_VALID"
-    exit 0
-}
-catch {
-    $actualReason = $_.Exception.Message
-    if ($actualReason -cne $ExpectedReason) {
-        Write-Output (
-            "M02_UD2_VECTOR_STATE_TRANSCRIPT_WRONG_REJECTION expected=" +
-            $ExpectedReason +
-            " actual=" +
-            $actualReason)
-        exit 13
-    }
-    Write-Output (
-        "M02_UD2_VECTOR_STATE_TRANSCRIPT_REJECTED reason=" +
-        $actualReason)
-    exit 0
-}
-""";
-    }
-
-    private static ProcessResult RunM02Ud2VectorStateTranscriptHarness(
-        string harnessPath,
-        string productionScript,
-        string serialLog,
-        string expectedReason)
-    {
-        ProcessStartInfo startInfo = new ProcessStartInfo("powershell.exe")
-        {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            WorkingDirectory = HostToolProcess.FindRepositoryRoot()
-        };
-        string[] arguments =
-        [
-            "-NoProfile",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            harnessPath,
-            "-ProductionScript",
-            productionScript,
-            "-SerialLog",
-            serialLog,
-            "-ReadyMarker",
-            M02Ud2VectorStateReadyMarker,
-            "-ExpectedReason",
-            expectedReason
-        ];
-        foreach (string argument in arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
-
-        using Process process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException(
-                "Failed to start M02-013 transcript harness.");
-        Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
-        Task<string> standardError = process.StandardError.ReadToEndAsync();
-        bool exited = process.WaitForExit(30000);
-        if (!exited)
-        {
-            process.Kill(entireProcessTree: true);
-            process.WaitForExit(5000);
-            throw new TimeoutException(
-                "M02-013 transcript harness did not exit within 30 seconds.");
-        }
-
-        return new ProcessResult(
-            process.ExitCode,
-            standardOutput.GetAwaiter().GetResult()
-                + standardError.GetAwaiter().GetResult());
+        try { OS.Tooling.QemuTranscripts.AssertM02Ud2VectorStateTerminalTranscript(serialLog);
+            return new ProcessResult(expectedReason == "none" ? 0 : 1, "M02_UD2_VECTOR_STATE_TRANSCRIPT_VALID"); }
+        catch (Exception error) { return new ProcessResult(error.Message == expectedReason ? 0 : 1, "M02_UD2_VECTOR_STATE_TRANSCRIPT_REJECTED reason=" + error.Message); }
     }
 
     private static ProcessResult RunQemuSmokeScript(params string[] args)
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string scriptPath = Path.Combine(repositoryRoot, "scripts", "run-qemu-smoke.ps1");
-
-        ProcessStartInfo startInfo = new ProcessStartInfo("powershell.exe")
-        {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            WorkingDirectory = repositoryRoot
-        };
-
-        startInfo.ArgumentList.Add("-NoProfile");
-        startInfo.ArgumentList.Add("-ExecutionPolicy");
-        startInfo.ArgumentList.Add("Bypass");
-        startInfo.ArgumentList.Add("-File");
-        startInfo.ArgumentList.Add(scriptPath);
-        // These fake-QEMU and marker-preset fixtures exercise the retained
-        // diagnostic contract. VerifiedExit has its own complete-profile tests.
-        startInfo.ArgumentList.Add("-BootPolicy");
-        startInfo.ArgumentList.Add("Diagnostic");
-
-        foreach (string arg in args)
-        {
-            startInfo.ArgumentList.Add(arg);
-        }
-
-        using Process process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Failed to start powershell.exe.");
-
-        Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
-        Task<string> standardError = process.StandardError.ReadToEndAsync();
-        bool exited = process.WaitForExit(120000);
-        if (!exited)
-        {
-            process.Kill(entireProcessTree: true);
-            process.WaitForExit(5000);
-            throw new TimeoutException("run-qemu-smoke.ps1 did not exit within 120 seconds.");
-        }
-
-        return new ProcessResult(
-            process.ExitCode,
-            standardOutput.GetAwaiter().GetResult()
-                + standardError.GetAwaiter().GetResult());
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", .. args]);
+        return new ProcessResult(result.ExitCode, result.Output + result.Error);
     }
 
     private static ProcessResult RunQemuRunner(params string[] args)
@@ -8721,16 +7205,12 @@ catch {
     private readonly struct M01RawObservationFixture
     {
         public M01RawObservationFixture(
-            string productionScriptPath,
-            string harnessPath,
             string observationPath,
             string privateSerialPath,
             string publicSerialPath,
             string qmpTranscriptPath,
             string captureScratchPath)
         {
-            ProductionScriptPath = productionScriptPath;
-            HarnessPath = harnessPath;
             ObservationPath = observationPath;
             PrivateSerialPath = privateSerialPath;
             PublicSerialPath = publicSerialPath;
@@ -8738,8 +7218,6 @@ catch {
             CaptureScratchPath = captureScratchPath;
         }
 
-        public string ProductionScriptPath { get; }
-        public string HarnessPath { get; }
         public string ObservationPath { get; }
         public string PrivateSerialPath { get; }
         public string PublicSerialPath { get; }

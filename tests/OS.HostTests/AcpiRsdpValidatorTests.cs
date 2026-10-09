@@ -4,73 +4,38 @@ using OS.Std.Binary;
 
 internal static class AcpiRsdpValidatorTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("acpi.rsdp validates acpi1 checksum", TestValidAcpi10, ref failures);
-        Run("acpi.rsdp validates acpi2 extended checksum", TestValidAcpi20, ref failures);
-        Run("acpi.rsdp rejects signature metadata and revision", TestRejectsSignatureMetadataAndRevision, ref failures);
-        Run("acpi.rsdp rejects checksum failures", TestRejectsChecksumFailures, ref failures);
-        Run("acpi.rsdp rejects extended length failures", TestRejectsExtendedLengthFailures, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ACPI RSDP validator host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("acpi.rsdp validates acpi1 checksum", HostLane.Fast, 0)]
     private static bool TestValidAcpi10()
     {
         byte[] rsdp = CreateValidAcpi10();
 
         AcpiRsdpValidationResult result = AcpiRsdpValidator.Validate(rsdp);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == AcpiRsdpValidationStatus.Success
             && result.RevisionKind == AcpiRsdpRevisionKind.Acpi10
             && result.Revision == 0
             && result.Length == AcpiRsdpValidator.BaseLength
-            && result.RequiredLength == AcpiRsdpValidator.BaseLength;
+            && result.RequiredLength == AcpiRsdpValidator.BaseLength);
     }
 
+    [HostTest("acpi.rsdp validates acpi2 extended checksum", HostLane.Fast, 1)]
     private static bool TestValidAcpi20()
     {
         byte[] rsdp = CreateValidAcpi20(length: 40);
 
         AcpiRsdpValidationResult result = AcpiRsdpValidator.Validate(rsdp);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == AcpiRsdpValidationStatus.Success
             && result.RevisionKind == AcpiRsdpRevisionKind.Acpi20OrGreater
             && result.Revision == 2
             && result.Length == 40
-            && result.RequiredLength == 40;
+            && result.RequiredLength == 40);
     }
 
+    [HostTest("acpi.rsdp rejects signature metadata and revision", HostLane.Fast, 2)]
     private static bool TestRejectsSignatureMetadataAndRevision()
     {
         byte[] badSignature = CreateValidAcpi10();
@@ -91,16 +56,17 @@ internal static class AcpiRsdpValidatorTests
         AcpiRsdpValidationResult zeroOemResult = AcpiRsdpValidator.Validate(zeroOem);
         AcpiRsdpValidationResult unsupportedRevisionResult = AcpiRsdpValidator.Validate(unsupportedRevision);
 
-        return IsFailure(tooShort, AcpiRsdpValidationStatus.SourceTooShort, AcpiRsdpValidator.BaseLength)
+        return HostCheck.Result(IsFailure(tooShort, AcpiRsdpValidationStatus.SourceTooShort, AcpiRsdpValidator.BaseLength)
             && IsFailure(badSignatureResult, AcpiRsdpValidationStatus.InvalidSignature)
             && IsFailure(zeroOemResult, AcpiRsdpValidationStatus.InvalidOemId)
             && IsFailure(
                 unsupportedRevisionResult,
                 AcpiRsdpValidationStatus.UnsupportedRevision,
                 AcpiRsdpValidator.ExtendedHeaderLength,
-                revision: 1);
+                revision: 1));
     }
 
+    [HostTest("acpi.rsdp rejects checksum failures", HostLane.Fast, 3)]
     private static bool TestRejectsChecksumFailures()
     {
         byte[] badBaseChecksum = CreateValidAcpi10();
@@ -112,15 +78,16 @@ internal static class AcpiRsdpValidatorTests
         AcpiRsdpValidationResult baseResult = AcpiRsdpValidator.Validate(badBaseChecksum);
         AcpiRsdpValidationResult extendedResult = AcpiRsdpValidator.Validate(badExtendedChecksum);
 
-        return IsFailure(baseResult, AcpiRsdpValidationStatus.InvalidBaseChecksum)
+        return HostCheck.Result(IsFailure(baseResult, AcpiRsdpValidationStatus.InvalidBaseChecksum)
             && IsFailure(
                 extendedResult,
                 AcpiRsdpValidationStatus.InvalidExtendedChecksum,
                 AcpiRsdpValidator.ExtendedHeaderLength,
                 revision: 2,
-                length: AcpiRsdpValidator.ExtendedHeaderLength);
+                length: AcpiRsdpValidator.ExtendedHeaderLength));
     }
 
+    [HostTest("acpi.rsdp rejects extended length failures", HostLane.Fast, 4)]
     private static bool TestRejectsExtendedLengthFailures()
     {
         byte[] missingExtendedHeader = CreateValidAcpi10();
@@ -147,7 +114,7 @@ internal static class AcpiRsdpValidatorTests
         AcpiRsdpValidationResult smallerThanHeaderResult = AcpiRsdpValidator.Validate(smallerThanHeader);
         AcpiRsdpValidationResult sourceTooShortResult = AcpiRsdpValidator.Validate(sourceTooShort);
 
-        return IsFailure(
+        return HostCheck.Result(IsFailure(
                 missingHeaderResult,
                 AcpiRsdpValidationStatus.ExtendedHeaderTooShort,
                 AcpiRsdpValidator.ExtendedHeaderLength,
@@ -169,7 +136,7 @@ internal static class AcpiRsdpValidatorTests
                 AcpiRsdpValidationStatus.SourceTooShortForExtendedLength,
                 AcpiRsdpValidator.ExtendedHeaderLength + 4,
                 revision: 2,
-                length: AcpiRsdpValidator.ExtendedHeaderLength + 4);
+                length: AcpiRsdpValidator.ExtendedHeaderLength + 4));
     }
 
     private static bool IsFailure(

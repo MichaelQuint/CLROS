@@ -1,3 +1,4 @@
+using OS.Tooling;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
@@ -7,86 +8,17 @@ using System.Xml.Linq;
 
 internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
 {
+    private static readonly string[] TerminalArguments = ["-EnableM01LoadedImageStackProbe","-EnableM01LiveAllocatorProbe","-EnableM01OwnedPagingProbe","-EnableM02SafeStubProbe","-EnableM02CheckedPortIoBindingProbe","-EnableM02Com1OwnedPortIoProbe","-EnableM02OwnedCom1ReadyProbe","-EnableM02PanicSafeOwnedCom1Probe","-EnableM02OwnedX64GdtEncodingProbe","-EnableM02GuardedIstStackAllocationProbe","-EnableM02OwnedGdtTssTerminalProbe"];
     private const string TestName = "m02.009.efi.integration";
-    private const string ReadyMarker =
-        "CLROS_M02_009_READY gdtr=true tr=true gdtBytes=40 " +
-        "tssBytes=104 gdtrLimit=39 trSelector=24 ownedCom1=true " +
-        "terminalHalt=true postExitBootServices=false";
-    private const string CompileClosureSha256 =
-        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
+    private static readonly string ReadyMarker = QemuContracts.M02OwnedGdtTssTerminalReadyMarker[0];
+    private static readonly string CompileClosureSha256 =
+        OS.Tooling.EfiContracts.CompileInventorySha256;
     private const string ProjectFileSha256 =
-        "ef6bc679f6411780b5e31fe82ab7651eecbe3785046b35ce9462c514ec384705";
+        OS.Tooling.EfiContracts.ProjectSourceSha256;
     private const string CanonicalProjectShapeSha256 =
-        "70b5a8737c78658b7f702f3deaa881d224ef2a4ce04116a8ee92523568748f5a";
+        OS.Tooling.EfiContracts.CanonicalProjectSha256;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        Console.WriteLine("TEST_START " + TestName);
-        int failures = 0;
-
-        RunCase(
-            "m02.009 compile closure flag dependency and tool propagation are exact",
-            TestCompileClosureAndTooling,
-            ref failures);
-        RunCase(
-            "m02.009 prepares two typed pages and cleans data before code",
-            TestPreparationAndCleanup,
-            ref failures);
-        RunCase(
-            "m02.009 starts after OS smoke and enters the terminal stub directly",
-            TestTerminalEntryOrderAndMarkers,
-            ref failures);
-        RunCase(
-            "m02.009 QEMU profile is cumulative terminal and fail closed",
-            TestQemuProfileAndNegativeArguments,
-            ref failures);
-        RunCase(
-            "m02.009 QEMU runner rejects hostile terminal transcripts",
-            TestQemuRunnerTerminalTranscripts,
-            ref failures);
-        RunCase(
-            "m02.009 documentation preserves the pre-exit and W-X evidence boundary",
-            TestDocumentationBoundary,
-            ref failures);
-
-        if (failures != 0)
-        {
-            Console.WriteLine(
-                "TEST_FAIL " + TestName + " host-contract failures=" + failures);
-            throw new InvalidOperationException(
-                "M02-009 EFI integration host tests failed: " + failures);
-        }
-
-        Console.WriteLine("TEST_PASS " + TestName);
-    }
-
-    private static void RunCase(
-        string name,
-        Func<bool> test,
-        ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + name + " " + exception.GetType().Name + ": " +
-                exception.Message);
-        }
-    }
-
+    [HostTest("m02.009 compile closure flag dependency and tool propagation are exact", HostLane.Fast, 0)]
     private static bool TestCompileClosureAndTooling()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -103,7 +35,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
                     Encoding.UTF8.GetBytes(string.Join("\n", compileKeys) + "\n")))
             .ToLowerInvariant();
         string projectHash = Convert.ToHexString(
-                SHA256.HashData(File.ReadAllBytes(projectPath)))
+                SHA256.HashData(Encoding.UTF8.GetBytes(File.ReadAllText(projectPath).Replace("\r\n", "\n", StringComparison.Ordinal))))
             .ToLowerInvariant();
 
         const string GuardedIstKey =
@@ -138,12 +70,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
                     "'$(EnableM02GuardedIstStackAllocationProbe)' != 'true'")
             .ToArray();
 
-        string buildScript = File.ReadAllText(
-            Path.Combine(root, "scripts", "build-efi-shell.ps1"));
-        string verifier = File.ReadAllText(
-            Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
-
-        return compileItems.Length == 122
+        return compileItems.Length == OS.Tooling.EfiContracts.CompileItems.Count
             && compileHash == CompileClosureSha256
             && projectHash == ProjectFileSha256
             && guardedIndex >= 0
@@ -162,40 +89,11 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
             && dependencyErrors[0].Attribute("Text")?.Value ==
                 "EnableM02OwnedGdtTssTerminalProbe requires " +
                 "EnableM02GuardedIstStackAllocationProbe=true."
-            && buildScript.Contains(
-                "[switch] $EnableM02OwnedGdtTssTerminalProbe",
-                StringComparison.Ordinal)
-            && buildScript.Contains(TerminalKey, StringComparison.Ordinal)
-            && buildScript.Contains(
-                "-p:EnableM02OwnedGdtTssTerminalProbe=true",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "EFI_PROBE M02_OWNED_GDT_TSS_TERMINAL",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "owned_gdt_tss_terminal_requires_guarded_ist_stack_allocation",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                CanonicalProjectShapeSha256,
-                StringComparison.Ordinal)
-            && verifier.Contains(
-                "[switch]$EnableM02OwnedGdtTssTerminalProbe",
-                StringComparison.Ordinal)
-            && verifier.Contains(TerminalKey, StringComparison.Ordinal)
-            && verifier.Contains(
-                "$expectedSourceClosureInputCount = 138",
-                StringComparison.Ordinal)
-            && verifier.Contains(
-                "$compileItems.Count -ne 122",
-                StringComparison.Ordinal)
-            && verifier.Contains(
-                "-p:EnableM02OwnedGdtTssTerminalProbe=true",
-                StringComparison.Ordinal);
+            && EfiOptions.Parse(TerminalArguments,true).Profile().IsEnabled("EnableM02OwnedGdtTssTerminalProbe")
+            && EfiOptions.Parse(TerminalArguments,false).Profile().IsEnabled("EnableM02OwnedGdtTssTerminalProbe");
     }
 
+    [HostTest("m02.009 prepares two typed pages and cleans data before code", HostLane.Native, 1)]
     private static bool TestPreparationAndCleanup()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -370,6 +268,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
             && normalMarkers > prepareBeforeMarkers;
     }
 
+    [HostTest("m02.009 starts after OS smoke and enters the terminal stub directly", HostLane.Fast, 2)]
     private static bool TestTerminalEntryOrderAndMarkers()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -461,168 +360,30 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
             && unexpectedMarker == "M02_OWNED_GDT_TSS_UNEXPECTED_RETURN";
     }
 
+    [HostTest("m02.009 QEMU profile is cumulative terminal and fail closed", HostLane.Fast, 3)]
     private static bool TestQemuProfileAndNegativeArguments()
     {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string runnerScriptPath = Path.Combine(
-            root,
-            "scripts",
-            "run-qemu-smoke.ps1");
-        string source = File.ReadAllText(runnerScriptPath).ReplaceLineEndings("\n");
-        int terminalProfile = source.IndexOf(
-            "if ($EnableM02OwnedGdtTssTerminalProbe) {",
-            StringComparison.Ordinal);
-        int guardedProfile = IndexOfAfter(
-            source,
-            "elseif ($EnableM02GuardedIstStackAllocationProbe) {",
-            terminalProfile);
-        string profile = terminalProfile >= 0 && guardedProfile > terminalProfile
-            ? source[terminalProfile..guardedProfile]
-            : string.Empty;
-        string qemuRunner = File.ReadAllText(
-            Path.Combine(root, "tools", "OS.QemuRunner", "Program.cs"));
-
-        ProcessResult missingGuarded = RunPowerShell(
-            runnerScriptPath,
-            "-DryRun",
-            "-EnableM02OwnedGdtTssTerminalProbe");
-        ProcessResult missingBuild = RunPowerShell(
-            runnerScriptPath,
-            "-DryRun",
-            "-EnableM02GuardedIstStackAllocationProbe",
-            "-EnableM02OwnedGdtTssTerminalProbe");
-        ProcessResult missingIntermediate = RunPowerShell(
-            runnerScriptPath,
-            "-DryRun",
-            "-BuildEfi",
-            "-EnableM02GuardedIstStackAllocationProbe",
-            "-EnableM02OwnedGdtTssTerminalProbe");
-        string[] cumulativeFlags =
-        [
-            "-DryRun",
-            "-BuildEfi",
-            "-EnableM02SafeStubProbe",
-            "-EnableM02CheckedPortIoBindingProbe",
-            "-EnableM02Com1OwnedPortIoProbe",
-            "-EnableM02OwnedCom1ReadyProbe",
-            "-EnableM02PanicSafeOwnedCom1Probe",
-            "-EnableM02OwnedX64GdtEncodingProbe",
-            "-EnableM02GuardedIstStackAllocationProbe",
-            "-EnableM02OwnedGdtTssTerminalProbe"
-        ];
-        ProcessResult skipImage = RunPowerShell(
-            runnerScriptPath,
-            [.. cumulativeFlags, "-SkipImageBuild"]);
-        ProcessResult rawLog = RunPowerShell(
-            runnerScriptPath,
-            [.. cumulativeFlags, "-M01RawObservationLog", "blocked.log"]);
-        ProcessResult cumulativeProfile = RunPowerShell(
-            runnerScriptPath,
-            cumulativeFlags);
-        string[] requiredMarkers = ExtractMarkerList(
-            cumulativeProfile.Output,
-            "REQUIRED_MARKERS ");
-        string[] orderedMarkers = ExtractMarkerList(
-            cumulativeProfile.Output,
-            "ORDERED_MARKERS ");
-        string[] uniqueMarkers = ExtractMarkerList(
-            cumulativeProfile.Output,
-            "UNIQUE_MARKERS ");
-        string[] forbiddenMarkers = ExtractMarkerList(
-            cumulativeProfile.Output,
-            "FORBIDDEN_MARKERS ");
-
-        return source.Contains(
-                "[switch] $EnableM02OwnedGdtTssTerminalProbe",
-                StringComparison.Ordinal)
-            && source.Contains(ReadyMarker, StringComparison.Ordinal)
-            && source.Contains("\"TEST_START m02.009\"", StringComparison.Ordinal)
-            && source.Contains("\"TEST_PASS m02.009\"", StringComparison.Ordinal)
-            && source.Contains(
-                "\"M02_OWNED_GDT_TSS_PREENTRY_FAILED\"",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "\"M02_OWNED_GDT_TSS_VERIFY_FAILED\"",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "\"M02_OWNED_GDT_TSS_UNEXPECTED_RETURN\"",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "profileRequired=59 profileForbidden=43",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "rawObservationActive=false",
-                StringComparison.Ordinal)
-            && CountOccurrences(
-                profile,
-                "Merge-QemuSmokeMarkerList -Values @(") == 4
-            && cumulativeProfile.ExitCode == 0
-            && cumulativeProfile.Output.Contains(
-                "M01_RAW_OBSERVATION_CONFIG enabled=true "
-                    + "active=false terminalProfile=true dryRun=true",
-                StringComparison.Ordinal)
-            && requiredMarkers.Length == 59
-            && orderedMarkers.Length == 59
-            && uniqueMarkers.Length == 59
-            && forbiddenMarkers.Length == 43
-            && requiredMarkers.Distinct(StringComparer.Ordinal).Count() == 59
-            && orderedMarkers.Distinct(StringComparer.Ordinal).Count() == 59
-            && uniqueMarkers.Distinct(StringComparer.Ordinal).Count() == 59
-            && forbiddenMarkers.Distinct(StringComparer.Ordinal).Count() == 43
-            && requiredMarkers.SequenceEqual(orderedMarkers)
-            && requiredMarkers.SequenceEqual(uniqueMarkers)
-            && source.Contains(
-                "$EnableM01OwnedPagingProbe -and\n        " +
-                "-not $EnableM02OwnedGdtTssTerminalProbe",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "m02_owned_gdt_tss_terminal_probe_forbids_m01_raw_observation_log",
-                StringComparison.Ordinal)
-            && qemuRunner.Contains(
-                "\"QEMU_PROCESS_RESULT disposition=\" +",
-                StringComparison.Ordinal)
-            && qemuRunner.Contains(
-                "case \"--replace-default-required-markers\":",
-                StringComparison.Ordinal)
-            && qemuRunner.Contains(
-                "--replace-default-required-markers must precede marker arguments.",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$arguments += \"--replace-default-required-markers\"",
-                StringComparison.Ordinal)
-            && qemuRunner.Contains(
-                "? \"runner-terminated\"",
-                StringComparison.Ordinal)
-            && qemuRunner.Contains("qemu_reboot_or_shutdown", StringComparison.Ordinal)
-            && missingGuarded.ExitCode == 1
-            && missingGuarded.Output.Contains(
-                "m02_owned_gdt_tss_terminal_probe_requires_guarded_ist_stack_allocation",
-                StringComparison.Ordinal)
-            && missingBuild.ExitCode == 1
-            && missingBuild.Output.Contains(
-                "m02_owned_gdt_tss_terminal_probe_requires_build_efi",
-                StringComparison.Ordinal)
-            && missingIntermediate.ExitCode == 1
-            && missingIntermediate.Output.Contains(
-                "m02_guarded_ist_stack_allocation_probe_requires_owned_x64_gdt_encoding",
-                StringComparison.Ordinal)
-            && skipImage.ExitCode == 1
-            && skipImage.Output.Contains(
-                "m02_owned_gdt_tss_terminal_probe_forbids_skip_image_build",
-                StringComparison.Ordinal)
-            && rawLog.ExitCode == 1
-            && rawLog.Output.Contains(
-                "m02_owned_gdt_tss_terminal_probe_forbids_m01_raw_observation_log",
-                StringComparison.Ordinal);
+        var plan=QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run","--build-efi",..TerminalArguments]));
+        HostCheck.True(plan.Required.SequenceEqual(QemuContracts.M02OwnedGdtTssTerminalRequiredMarkers),"complete terminal required inventory");
+        HostCheck.True(plan.Required.SequenceEqual(plan.Ordered)&&plan.Required.SequenceEqual(plan.Unique),"complete ordered unique chain");
+        HostCheck.True(plan.Forbidden.SequenceEqual(QemuContracts.M02OwnedGdtTssTerminalForbiddenMarkers),"complete terminal forbidden inventory");
+        HostCheck.True(plan.ReplaceDefaultRequiredMarkers,"terminal plan replaces ordinary return markers");
+        string[][] invalid = [["--dry-run","-EnableM02OwnedGdtTssTerminalProbe"], ["--dry-run",..TerminalArguments], ["--dry-run","--build-efi","-EnableM02GuardedIstStackAllocationProbe","-EnableM02OwnedGdtTssTerminalProbe"], ["--dry-run","--build-efi",..TerminalArguments,"--skip-image-build"], ["--dry-run","--build-efi",..TerminalArguments,"--m01-raw-observation-log","blocked.log"]];
+        foreach(string[] arguments in invalid)QemuTerminalControls.AssertRejected(()=>QemuProfiles.Create(QemuSmokeOptions.Parse(arguments)),"invalid terminal selection");
+        var implicitPlan=QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run","--build-efi",..TerminalArguments.Skip(3)]));
+        HostCheck.True(implicitPlan.Flags.Where(p=>p.Value).Select(p=>p.Key).Order().SequenceEqual(plan.Flags.Where(p=>p.Value).Select(p=>p.Key).Order()),"owned COM1 chain activates original M01 prerequisites");
+        foreach(string flag in TerminalArguments.Take(3))QemuTerminalControls.AssertRejected(()=>QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run","--build-efi",..TerminalArguments.Skip(3),flag+"=false"])),"explicit false prerequisite");
+        IReadOnlyList<string>? runnerArguments=null;
+        int result=QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(),QemuSmokeOptions.Parse(["--dry-run","--build-efi",..TerminalArguments]),TextWriter.Null,
+            (name,args)=>{HostCheck.True(name=="OS.QemuRunner");runnerArguments=args;return Task.FromResult(new OS.Tooling.ProcessResult(0,"","",false,false,false,TimeSpan.Zero));}).GetAwaiter().GetResult();
+        HostCheck.True(result==0&&runnerArguments is not null&&runnerArguments.Contains("--replace-default-required-markers"),"typed runner argument reaches actual invocation");
+        return true;
     }
 
+    [HostTest("m02.009 QEMU runner rejects hostile terminal transcripts", HostLane.Native, 4)]
     private static bool TestQemuRunnerTerminalTranscripts()
     {
         string root = HostToolProcess.FindRepositoryRoot();
-        string runnerScriptPath = Path.Combine(
-            root,
-            "scripts",
-            "run-qemu-smoke.ps1");
         string[] cumulativeFlags =
         [
             "-DryRun",
@@ -636,7 +397,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
             "-EnableM02GuardedIstStackAllocationProbe",
             "-EnableM02OwnedGdtTssTerminalProbe"
         ];
-        ProcessResult profile = RunPowerShell(runnerScriptPath, cumulativeFlags);
+        ProcessResult profile = RunQemu(cumulativeFlags);
         string[] requiredMarkers = ExtractMarkerList(
             profile.Output,
             "REQUIRED_MARKERS ");
@@ -950,6 +711,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
         }
     }
 
+    [HostTest("m02.009 documentation preserves the pre-exit and W-X evidence boundary", HostLane.Fast, 5)]
     private static bool TestDocumentationBoundary()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -1294,7 +1056,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
         {
             script.Add(":hold");
             script.Add(
-                "powershell.exe -NoProfile -Command \"Start-Sleep -Seconds 30\"");
+                QemuTestControl.Command("sleep","30000"));
             script.Add("goto hold");
         }
         else
@@ -1488,49 +1250,10 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
                 .Select(match => match.Groups["value"].Value));
     }
 
-    private static ProcessResult RunPowerShell(
-        string scriptPath,
-        params string[] arguments)
+    private static ProcessResult RunQemu(params string[] arguments)
     {
-        string systemPowerShell = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.System),
-            "WindowsPowerShell",
-            "v1.0",
-            "powershell.exe");
-        ProcessStartInfo start = new(
-            File.Exists(systemPowerShell) ? systemPowerShell : "powershell.exe")
-        {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            WorkingDirectory = Path.GetDirectoryName(scriptPath) ?? string.Empty
-        };
-        start.ArgumentList.Add("-NoProfile");
-        start.ArgumentList.Add("-NonInteractive");
-        start.ArgumentList.Add("-ExecutionPolicy");
-        start.ArgumentList.Add("Bypass");
-        start.ArgumentList.Add("-File");
-        start.ArgumentList.Add(scriptPath);
-        foreach (string argument in arguments)
-        {
-            start.ArgumentList.Add(argument);
-        }
-
-        using Process process = Process.Start(start) ??
-            throw new InvalidOperationException("Could not start PowerShell.");
-        Task<string> stdout = process.StandardOutput.ReadToEndAsync();
-        Task<string> stderr = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(30_000))
-        {
-            process.Kill(entireProcessTree: true);
-            throw new TimeoutException(
-                "PowerShell runner negative-argument check timed out.");
-        }
-
-        string output = stdout.GetAwaiter().GetResult() +
-            stderr.GetAwaiter().GetResult();
-        return new ProcessResult(process.ExitCode, output);
+        var result=HostToolProcess.RunTool(["qemu","smoke","--boot-policy","Diagnostic",..arguments]);
+        return new ProcessResult(result.ExitCode,result.Output+result.Error);
     }
 
     private static int CountOccurrences(string source, string value)

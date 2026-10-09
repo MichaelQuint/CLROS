@@ -4,47 +4,8 @@ using OS.Std.Binary;
 
 internal static class PciBarDecoderTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.pci.bar decodes 32bit mmio", TestDecodes32BitMmio, ref failures);
-        Run("drivers.pci.bar decodes 64bit mmio pair", TestDecodes64BitMmioPair, ref failures);
-        Run("drivers.pci.bar decodes io aperture", TestDecodesIoAperture, ref failures);
-        Run("drivers.pci.bar records absent zero", TestRecordsAbsentZero, ref failures);
-        Run("drivers.pci.bar rejects reserved memory type", TestRejectsReservedMemoryType, ref failures);
-        Run("drivers.pci.bar rejects 64bit at index 5", TestRejects64BitAtIndex5, ref failures);
-        Run("drivers.pci.bar default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PCI BAR decoder host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.pci.bar decodes 32bit mmio", HostLane.Fast, 0)]
     private static bool TestDecodes32BitMmio()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -53,7 +14,7 @@ internal static class PciBarDecoderTests
         PciBarDecodeResult result = PciBarDecoder.Decode(ParseHeader(headerBytes));
         PciBarDescriptor bar0 = result.Bars.Bar0;
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarDecodeStatus.Success
             && result.FailingBarIndex == PciBarDecoder.NoBarIndex
@@ -69,9 +30,10 @@ internal static class PciBarDecoderTests
             && !bar0.IsIo
             && !bar0.ConsumesNextSlot
             && bar0.PairBarIndex == PciBarDecoder.NoBarIndex
-            && result.Bars.Bar1.Kind == PciBarKind.Absent;
+            && result.Bars.Bar1.Kind == PciBarKind.Absent);
     }
 
+    [HostTest("drivers.pci.bar decodes 64bit mmio pair", HostLane.Fast, 1)]
     private static bool TestDecodes64BitMmioPair()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -82,7 +44,7 @@ internal static class PciBarDecoderTests
         PciBarDescriptor bar2 = result.Bars.Bar2;
         PciBarDescriptor bar3 = result.Bars.Bar3;
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && bar2.Index == 2
             && bar2.Kind == PciBarKind.Memory64
@@ -99,9 +61,10 @@ internal static class PciBarDecoderTests
             && bar3.RawValue == 0x00000001
             && bar3.BaseAddressBits == bar2.BaseAddressBits
             && bar3.PairBarIndex == 2
-            && !bar3.IsPresent;
+            && !bar3.IsPresent);
     }
 
+    [HostTest("drivers.pci.bar decodes io aperture", HostLane.Fast, 2)]
     private static bool TestDecodesIoAperture()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -110,7 +73,7 @@ internal static class PciBarDecoderTests
         PciBarDecodeResult result = PciBarDecoder.Decode(ParseHeader(headerBytes));
         PciBarDescriptor bar1 = result.Bars.Bar1;
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && bar1.Index == 1
             && bar1.Kind == PciBarKind.Io
@@ -121,9 +84,10 @@ internal static class PciBarDecoderTests
             && bar1.IsPresent
             && !bar1.IsMemory
             && !bar1.IsPrefetchable
-            && !bar1.ConsumesNextSlot;
+            && !bar1.ConsumesNextSlot);
     }
 
+    [HostTest("drivers.pci.bar records absent zero", HostLane.Fast, 3)]
     private static bool TestRecordsAbsentZero()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -131,7 +95,7 @@ internal static class PciBarDecoderTests
         PciBarDecodeResult result = PciBarDecoder.Decode(ParseHeader(headerBytes));
         Span<PciBarDescriptor> bars = stackalloc PciBarDescriptor[PciBarDecoder.BarCount];
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Bars.TryCopyTo(bars)
             && IsAbsent(bars[0], 0)
@@ -139,9 +103,10 @@ internal static class PciBarDecoderTests
             && IsAbsent(bars[2], 2)
             && IsAbsent(bars[3], 3)
             && IsAbsent(bars[4], 4)
-            && IsAbsent(bars[5], 5);
+            && IsAbsent(bars[5], 5));
     }
 
+    [HostTest("drivers.pci.bar rejects reserved memory type", HostLane.Fast, 4)]
     private static bool TestRejectsReservedMemoryType()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -150,7 +115,7 @@ internal static class PciBarDecoderTests
 
         PciBarDecodeResult result = PciBarDecoder.Decode(ParseHeader(headerBytes));
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarDecodeStatus.ReservedMemoryType
             && result.FailingBarIndex == 0
@@ -161,9 +126,10 @@ internal static class PciBarDecoderTests
             && result.Bars.Bar4.Kind == PciBarKind.Malformed
             && result.Bars.Bar4.Status == PciBarDescriptorStatus.ReservedMemoryType
             && result.Bars.Bar4.RawValue == 0xFE100006
-            && result.Bars.Bar4.BaseAddressBits == 0xFE100000;
+            && result.Bars.Bar4.BaseAddressBits == 0xFE100000);
     }
 
+    [HostTest("drivers.pci.bar rejects 64bit at index 5", HostLane.Fast, 5)]
     private static bool TestRejects64BitAtIndex5()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -172,7 +138,7 @@ internal static class PciBarDecoderTests
         PciBarDecodeResult result = PciBarDecoder.Decode(ParseHeader(headerBytes));
         PciBarDescriptor bar5 = result.Bars.Bar5;
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarDecodeStatus.Memory64AtLastIndex
             && result.FailingBarIndex == 5
@@ -182,14 +148,15 @@ internal static class PciBarDecoderTests
             && bar5.RawValue == 0xFE000004
             && bar5.BaseAddressBits == 0xFE000000
             && !bar5.ConsumesNextSlot
-            && bar5.PairBarIndex == PciBarDecoder.NoBarIndex;
+            && bar5.PairBarIndex == PciBarDecoder.NoBarIndex);
     }
 
+    [HostTest("drivers.pci.bar default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         PciBarDecodeResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == PciBarDecodeStatus.Success
             && result.FailingBarIndex == 0
@@ -197,7 +164,7 @@ internal static class PciBarDecoderTests
             && result.Bars.Bar0.Kind == PciBarKind.Absent
             && result.Bars.Bar0.Status == PciBarDescriptorStatus.Success
             && !result.Bars.Bar0.IsPresent
-            && result.Bars.Bar0.BaseAddressBits == 0;
+            && result.Bars.Bar0.BaseAddressBits == 0);
     }
 
     private static bool IsAbsent(PciBarDescriptor descriptor, byte expectedIndex)

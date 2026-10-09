@@ -4,44 +4,8 @@ using OS.Std.Binary;
 
 internal static class DhcpMessageTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.dhcp writes discover message", TestWritesDiscoverMessage, ref failures);
-        Run("net.dhcp parses offer options", TestParsesOfferOptions, ref failures);
-        Run("net.dhcp writes request message", TestWritesRequestMessage, ref failures);
-        Run("net.dhcp rejects malformed packets", TestRejectsMalformedPackets, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("DHCP message host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.dhcp writes discover message", HostLane.Fast, 0)]
     private static bool TestWritesDiscoverMessage()
     {
         Span<byte> packet = stackalloc byte[256];
@@ -53,7 +17,7 @@ internal static class DhcpMessageTests
             clientMac,
             out int bytesWritten);
 
-        return status == DhcpMessageStatus.Success
+        return HostCheck.Result(status == DhcpMessageStatus.Success
             && bytesWritten == 251
             && packet[0] == DhcpMessage.OpBootRequest
             && packet[1] == DhcpMessage.HardwareTypeEthernet
@@ -72,9 +36,10 @@ internal static class DhcpMessageTests
             && packet[DhcpMessage.OptionsOffset + 7] == DhcpMessage.OptionDomainNameServer
             && packet[DhcpMessage.OptionsOffset + 8] == DhcpMessage.OptionIpAddressLeaseTime
             && packet[DhcpMessage.OptionsOffset + 9] == DhcpMessage.OptionServerIdentifier
-            && packet[DhcpMessage.OptionsOffset + 10] == DhcpMessage.OptionEnd;
+            && packet[DhcpMessage.OptionsOffset + 10] == DhcpMessage.OptionEnd);
     }
 
+    [HostTest("net.dhcp parses offer options", HostLane.Fast, 1)]
     private static bool TestParsesOfferOptions()
     {
         Span<byte> packet = stackalloc byte[300];
@@ -90,7 +55,7 @@ internal static class DhcpMessageTests
             packet.Slice(0, bytesWritten),
             out DhcpMessage parsed);
 
-        return status == DhcpMessageStatus.Success
+        return HostCheck.Result(status == DhcpMessageStatus.Success
             && parsed.MessageType == DhcpMessage.MessageTypeOffer
             && parsed.TransactionId == 0xAABBCCDD
             && parsed.ClientMac == CreateClientMac()
@@ -104,9 +69,10 @@ internal static class DhcpMessageTests
             && parsed.HasRouter
             && parsed.Router == new Ipv4Address(192, 0, 2, 1)
             && parsed.HasDnsServer
-            && parsed.DnsServer == new Ipv4Address(198, 51, 100, 53);
+            && parsed.DnsServer == new Ipv4Address(198, 51, 100, 53));
     }
 
+    [HostTest("net.dhcp writes request message", HostLane.Fast, 2)]
     private static bool TestWritesRequestMessage()
     {
         Span<byte> packet = stackalloc byte[300];
@@ -121,7 +87,7 @@ internal static class DhcpMessageTests
             out int bytesWritten);
 
         int options = DhcpMessage.OptionsOffset;
-        return status == DhcpMessageStatus.Success
+        return HostCheck.Result(status == DhcpMessageStatus.Success
             && bytesWritten == 263
             && packet[0] == DhcpMessage.OpBootRequest
             && packet[1] == DhcpMessage.HardwareTypeEthernet
@@ -136,9 +102,10 @@ internal static class DhcpMessageTests
             && packet[options + 9] == DhcpMessage.OptionServerIdentifier
             && packet[options + 10] == 4
             && Ipv4At(packet, options + 11) == new Ipv4Address(192, 0, 2, 1)
-            && packet[bytesWritten - 1] == DhcpMessage.OptionEnd;
+            && packet[bytesWritten - 1] == DhcpMessage.OptionEnd);
     }
 
+    [HostTest("net.dhcp rejects malformed packets", HostLane.Fast, 3)]
     private static bool TestRejectsMalformedPackets()
     {
         Span<byte> packet = stackalloc byte[300];
@@ -184,12 +151,12 @@ internal static class DhcpMessageTests
             packet.Slice(0, bytesWritten),
             out DhcpMessage _);
 
-        return truncatedStatus == DhcpMessageStatus.TruncatedFixedHeader
+        return HostCheck.Result(truncatedStatus == DhcpMessageStatus.TruncatedFixedHeader
             && cookieStatus == DhcpMessageStatus.MissingMagicCookie
             && hardwareStatus == DhcpMessageStatus.UnsupportedHardwareType
             && hardwareLengthStatus == DhcpMessageStatus.UnsupportedHardwareAddressLength
             && malformedOptionStatus == DhcpMessageStatus.MalformedOptions
-            && unsupportedMessageTypeStatus == DhcpMessageStatus.UnsupportedMessageType;
+            && unsupportedMessageTypeStatus == DhcpMessageStatus.UnsupportedMessageType);
     }
 
     private static int WriteReply(

@@ -10,7 +10,7 @@ using Leaf = OS.Kernel.Diagnostics.UnexpectedVectorPanicEvidenceDeterministicQEM
 
 internal static unsafe class UnexpectedVectorPanicEvidenceDeterministicQEMUFailureClassificationTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START m02.016");
@@ -37,9 +37,8 @@ internal static unsafe class UnexpectedVectorPanicEvidenceDeterministicQEMUFailu
     }
     private static void Group(string suffix, Action action)
     {
-        Console.WriteLine("TEST_START m02.016 " + suffix);
-        try { action(); Console.WriteLine("TEST_PASS m02.016 " + suffix); }
-        catch (Exception error) { Console.WriteLine("TEST_FAIL m02.016 " + suffix + " " + error.GetType().Name); throw; }
+
+        HostCheck.Run("m02.016 " + suffix, action);
     }
     private static void Require(bool condition, string message)
     { if (!condition) throw new InvalidOperationException(message); }

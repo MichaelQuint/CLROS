@@ -3,27 +3,18 @@ using OS.Std.Binary;
 
 internal static class StdEndianPrimitivesTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void Run()
     {
         const string name = "std.endian primitives";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             TestReadExactByteOrder();
             TestWriteExactByteOrder();
             TestTryReadShortBuffers();
             TestTryWriteShortBuffers();
             TestRoundTrips();
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void TestReadExactByteOrder()

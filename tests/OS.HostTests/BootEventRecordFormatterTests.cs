@@ -4,46 +4,8 @@ using OS.Kernel.Diagnostics;
 
 internal static class BootEventRecordFormatterTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("diagnostics.boot_event_formatter formats snapshot records", TestFormatsSnapshotRecords, ref failures);
-        Run("diagnostics.boot_event_formatter reports destination capacity", TestReportsDestinationCapacity, ref failures);
-        Run("diagnostics.boot_event_formatter rejects invalid records", TestRejectsInvalidRecords, ref failures);
-        Run("diagnostics.boot_event_formatter writes through panic buffer", TestWritesThroughPanicBuffer, ref failures);
-        Run("diagnostics.boot_event_formatter default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("diagnostics.boot_event_formatter result contains no managed references", TestResultContainsNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Boot event record formatter tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("diagnostics.boot_event_formatter formats snapshot records", HostLane.Fast, 0)]
     private static bool TestFormatsSnapshotRecords()
     {
         Span<BootEventRecord> records = stackalloc BootEventRecord[2];
@@ -73,7 +35,7 @@ internal static class BootEventRecordFormatterTests
             + "BOOT_EVENT_RECORD sequence=43 kind=panic phase=2 eventId=8"
             + " arg0=0xFFFFFFFFFFFFFFFF arg1=0x0000000000000001 arg2=0x0000000000000000\r\n";
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == BootEventRecordFormatterStatus.Success
             && result.TextStatus == PanicTextBufferStatus.Ok
             && result.RecordsRequested == 2
@@ -81,9 +43,10 @@ internal static class BootEventRecordFormatterTests
             && result.BytesWritten == expected.Length
             && result.RequiredBytes == expected.Length
             && result.InvalidRecordIndex == BootEventRecordFormatter.NoInvalidRecord
-            && ToText(destination.AsSpan(0, result.BytesWritten)) == expected;
+            && ToText(destination.AsSpan(0, result.BytesWritten)) == expected);
     }
 
+    [HostTest("diagnostics.boot_event_formatter reports destination capacity", HostLane.Fast, 1)]
     private static bool TestReportsDestinationCapacity()
     {
         Span<BootEventRecord> records = stackalloc BootEventRecord[1];
@@ -104,7 +67,7 @@ internal static class BootEventRecordFormatterTests
 
         BootEventRecordFormatterResult result = BootEventRecordFormatter.FormatSnapshot(records, destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == BootEventRecordFormatterStatus.DestinationTooSmall
             && result.TextStatus == PanicTextBufferStatus.Ok
@@ -113,9 +76,10 @@ internal static class BootEventRecordFormatterTests
             && result.BytesWritten == 0
             && result.RequiredBytes > destination.Length
             && destination[0] == 0xcc
-            && destination[destination.Length - 1] == 0xcc;
+            && destination[destination.Length - 1] == 0xcc);
     }
 
+    [HostTest("diagnostics.boot_event_formatter rejects invalid records", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidRecords()
     {
         Span<BootEventRecord> records = stackalloc BootEventRecord[2];
@@ -132,7 +96,7 @@ internal static class BootEventRecordFormatterTests
         byte[] destination = new byte[256];
         BootEventRecordFormatterResult result = BootEventRecordFormatter.FormatSnapshot(records, destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == BootEventRecordFormatterStatus.InvalidRecord
             && result.TextStatus == PanicTextBufferStatus.Ok
@@ -141,9 +105,10 @@ internal static class BootEventRecordFormatterTests
             && result.BytesWritten == 0
             && result.RequiredBytes > 0
             && result.InvalidRecordIndex == 1
-            && destination[0] == 0;
+            && destination[0] == 0);
     }
 
+    [HostTest("diagnostics.boot_event_formatter writes through panic buffer", HostLane.Fast, 3)]
     private static bool TestWritesThroughPanicBuffer()
     {
         byte[] destination = new byte[192];
@@ -164,15 +129,16 @@ internal static class BootEventRecordFormatterTests
         string expected = "BOOT_EVENT_RECORD sequence=5 kind=phase phase=9 eventId=11"
             + " arg0=0x0000000000000000 arg1=0x0000000000002222 arg2=0x0000000000003333\r\n";
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.RecordsRequested == 1
             && result.RecordsWritten == 1
             && result.BytesWritten == expected.Length
             && buffer.Succeeded
             && buffer.Written == expected.Length
-            && ToText(buffer.WrittenSpan) == expected;
+            && ToText(buffer.WrittenSpan) == expected);
     }
 
+    [HostTest("diagnostics.boot_event_formatter default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         BootEventRecordFormatterResult result = default;
@@ -194,18 +160,19 @@ internal static class BootEventRecordFormatterTests
             in record,
             ref buffer);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == BootEventRecordFormatterStatus.Success
             && !noRecords.Succeeded
             && noRecords.Status == BootEventRecordFormatterStatus.NoRecords
             && !missingBuffer.Succeeded
-            && missingBuffer.Status == BootEventRecordFormatterStatus.BufferUnavailable;
+            && missingBuffer.Status == BootEventRecordFormatterStatus.BufferUnavailable);
     }
 
+    [HostTest("diagnostics.boot_event_formatter result contains no managed references", HostLane.Fast, 5)]
     private static bool TestResultContainsNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<BootEventRecordFormatterResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<BootEventRecordFormatterResult>());
     }
 
     private static string ToText(ReadOnlySpan<byte> bytes)

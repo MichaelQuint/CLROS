@@ -4,51 +4,8 @@ using OS.Std.Binary;
 
 internal static class PciConfigurationHeaderTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.pci.header parses identity and class", TestParsesIdentityAndClass, ref failures);
-        Run(
-            "drivers.pci.header records bars and capability pointer",
-            TestRecordsBarsAndCapabilityPointer,
-            ref failures);
-        Run("drivers.pci.header rejects invalid vendor", TestRejectsInvalidVendor, ref failures);
-        Run(
-            "drivers.pci.header rejects invalid capability pointer",
-            TestRejectsInvalidCapabilityPointer,
-            ref failures);
-        Run("drivers.pci.header default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PCI configuration header host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.pci.header parses identity and class", HostLane.Fast, 0)]
     private static bool TestParsesIdentityAndClass()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -67,7 +24,7 @@ internal static class PciConfigurationHeaderTests
         PciConfigurationHeaderResult tooSmall =
             PciConfigurationHeader.ParseType0(headerBytes.AsSpan(0, PciConfigurationHeader.Type0HeaderLength - 1));
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == PciConfigurationHeaderStatus.Success
             && result.Header.VendorId == 0x1AF4
@@ -86,9 +43,10 @@ internal static class PciConfigurationHeaderTests
             && unsupportedHeader.Status == PciConfigurationHeaderStatus.UnsupportedHeaderType
             && !tooSmall.Succeeded
             && tooSmall.IsInitialized
-            && tooSmall.Status == PciConfigurationHeaderStatus.BufferTooSmall;
+            && tooSmall.Status == PciConfigurationHeaderStatus.BufferTooSmall);
     }
 
+    [HostTest("drivers.pci.header records bars and capability pointer", HostLane.Fast, 1)]
     private static bool TestRecordsBarsAndCapabilityPointer()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -106,7 +64,7 @@ internal static class PciConfigurationHeaderTests
 
         PciConfigurationHeaderResult result = PciConfigurationHeader.ParseType0(headerBytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Header.StatusRegister == PciConfigurationHeader.StatusCapabilitiesListBit
             && result.Header.Bar0 == 0xFE000000
@@ -116,9 +74,10 @@ internal static class PciConfigurationHeaderTests
             && result.Header.Bar4 == 0
             && result.Header.Bar5 == 0
             && result.Header.HasCapabilitiesList
-            && result.Header.CapabilityPointer == 0x40;
+            && result.Header.CapabilityPointer == 0x40);
     }
 
+    [HostTest("drivers.pci.header rejects invalid vendor", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidVendor()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -128,11 +87,12 @@ internal static class PciConfigurationHeaderTests
 
         PciConfigurationHeaderResult result = PciConfigurationHeader.ParseType0(headerBytes);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
-            && result.Status == PciConfigurationHeaderStatus.InvalidVendor;
+            && result.Status == PciConfigurationHeaderStatus.InvalidVendor);
     }
 
+    [HostTest("drivers.pci.header rejects invalid capability pointer", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidCapabilityPointer()
     {
         byte[] misalignedBytes = CreateBaseHeader();
@@ -150,19 +110,20 @@ internal static class PciConfigurationHeaderTests
         PciConfigurationHeaderResult misaligned = PciConfigurationHeader.ParseType0(misalignedBytes);
         PciConfigurationHeaderResult outOfRange = PciConfigurationHeader.ParseType0(outOfRangeBytes);
 
-        return !misaligned.Succeeded
+        return HostCheck.Result(!misaligned.Succeeded
             && misaligned.IsInitialized
             && misaligned.Status == PciConfigurationHeaderStatus.InvalidCapabilityPointerAlignment
             && !outOfRange.Succeeded
             && outOfRange.IsInitialized
-            && outOfRange.Status == PciConfigurationHeaderStatus.InvalidCapabilityPointerRange;
+            && outOfRange.Status == PciConfigurationHeaderStatus.InvalidCapabilityPointerRange);
     }
 
+    [HostTest("drivers.pci.header default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         PciConfigurationHeaderResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == PciConfigurationHeaderStatus.Success
             && result.Header.VendorId == 0
@@ -170,7 +131,7 @@ internal static class PciConfigurationHeaderTests
             && result.Header.StatusRegister == 0
             && result.Header.HeaderType == 0
             && !result.Header.HasCapabilitiesList
-            && result.Header.CapabilityPointer == 0;
+            && result.Header.CapabilityPointer == 0);
     }
 
     private static byte[] CreateBaseHeader()

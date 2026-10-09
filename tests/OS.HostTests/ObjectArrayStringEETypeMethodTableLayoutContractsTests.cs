@@ -12,11 +12,10 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
 {
     private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void Run()
     {
-        Console.WriteLine("TEST_START m04.005");
-        try
+        HostCheck.Run("m04.005", () =>
         {
             CheckIdentityAndConstants();
             CheckIndependentBytes();
@@ -24,20 +23,14 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
             CheckRejectionsAndFlags();
             CheckPodAndAllocation();
             CheckNoStdLibCompilation();
-            Console.WriteLine("CLROS_M04_005_READY profile=ilc10.0.12-win-x64-le shapes=3 prefixBytes=24"
+            Console.WriteLine("CLROS_M04_005_READY profile=ilc" + OS.Tooling.EfiContracts.NativePackageVersion + "-win-x64-le shapes=3 prefixBytes=24"
                 + " referenceFilesRequired=false hostConformance=true guestIntegrated=false gate4=Fail");
-            Console.WriteLine("TEST_PASS m04.005");
-        }
-        catch (Exception error)
-        {
-            Console.WriteLine("TEST_FAIL m04.005 " + error.GetType().Name + ": " + error.Message);
-            throw;
-        }
+        });
     }
 
     private static void CheckIdentityAndConstants()
     {
-        Require(Layout.ILCompilerVersion == "10.0.12" &&
+        Require(Layout.ILCompilerVersion == OS.Tooling.EfiContracts.NativePackageVersion &&
             Layout.RuntimeSourceCommit == "95017c711e6afc1085133d440e42b4bd78155701", "pinned source identity");
         XDocument project = XDocument.Load(Path.Combine(FindRoot(), "src", "OS", "OS.csproj"));
         foreach (string package in new[] { "Microsoft.DotNet.ILCompiler", "runtime.win-x64.Microsoft.DotNet.ILCompiler" })
@@ -48,9 +41,9 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
         }
         Require(project.Descendants("RuntimeIdentifier").Single().Value == "win-x64", "selected target");
         Require(project.Descendants("ClrosIlcHostPackagePath").Single().Value ==
-                "$(UserProfile)\\.nuget\\packages\\runtime.win-x64.microsoft.dotnet.ilcompiler\\10.0.12" &&
+                "$(UserProfile)\\.nuget\\packages\\runtime.win-x64.microsoft.dotnet.ilcompiler\\" + OS.Tooling.EfiContracts.NativePackageVersion &&
             project.Descendants("ClrosRuntimePackagePath").Single().Value ==
-                "$(UserProfile)\\.nuget\\packages\\microsoft.netcore.app.runtime.nativeaot.win-x64\\10.0.12",
+                "$(UserProfile)\\.nuget\\packages\\microsoft.netcore.app.runtime.nativeaot.win-x64\\" + OS.Tooling.EfiContracts.NativePackageVersion,
             "default compiler and runtime package paths");
         Require(project.Descendants("ResolvedILCompilerPack").Single().Element("PackageDirectory")?.Value ==
                 "$(ClrosIlcHostPackagePath)" &&

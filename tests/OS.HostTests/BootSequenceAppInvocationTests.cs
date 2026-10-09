@@ -6,49 +6,8 @@ using OS.Manifest;
 
 internal static class BootSequenceAppInvocationTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("boot.sequence app invocation ready", TestAppInvocationReady, ref failures);
-        Run(
-            "boot.sequence app invocation rejects plan failure",
-            TestAppInvocationRejectsPlanFailure,
-            ref failures);
-        Run(
-            "boot.sequence app invocation preserves default markers",
-            TestAppInvocationPreservesDefaultMarkers,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Boot sequence app invocation host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("boot.sequence app invocation ready", HostLane.Fast, 0)]
     private static bool TestAppInvocationReady()
     {
         NativeAppInvocationPlanResult invocationPlan = CreateReadyInvocationPlan();
@@ -57,13 +16,14 @@ internal static class BootSequenceAppInvocationTests
 
         BootResult result = BootSequence.RunAppInvocationReadiness(invocationPlan, serial, events);
 
-        return invocationPlan.Succeeded
+        return HostCheck.Result(invocationPlan.Succeeded
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.AppInvocationReady
-            && events.Snapshot()[0] == BootSequence.AppInvocationReady;
+            && events.Snapshot()[0] == BootSequence.AppInvocationReady);
     }
 
+    [HostTest("boot.sequence app invocation rejects plan failure", HostLane.Fast, 1)]
     private static bool TestAppInvocationRejectsPlanFailure()
     {
         NativeAppInvocationPlanResult invocationPlan = NativeAppInvocationPlanResult.Fail(
@@ -82,7 +42,7 @@ internal static class BootSequenceAppInvocationTests
 
         BootResult result = BootSequence.RunAppInvocationReadiness(invocationPlan, serial, events);
 
-        return !invocationPlan.Succeeded
+        return HostCheck.Result(!invocationPlan.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
                 nameof(NativeAppInvocationPlanStatus.ExecutableMemoryPlanFailed),
@@ -95,9 +55,10 @@ internal static class BootSequenceAppInvocationTests
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence app invocation preserves default markers", HostLane.Fast, 2)]
     private static bool TestAppInvocationPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -106,19 +67,19 @@ internal static class BootSequenceAppInvocationTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.AppInvocationReady)
-            && !serial.ContainsPrefix(BootSequence.AppInvocationNotReadyPrefix);
+        return HostCheck.Result(!serial.Contains(BootSequence.AppInvocationReady)
+            && !serial.ContainsPrefix(BootSequence.AppInvocationNotReadyPrefix));
     }
 
     private static NativeAppInvocationPlanResult CreateReadyInvocationPlan()

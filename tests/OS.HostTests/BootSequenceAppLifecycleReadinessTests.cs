@@ -7,50 +7,8 @@ using OS.Pal;
 
 internal static class BootSequenceAppLifecycleReadinessTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("boot.sequence app lifecycle ready", TestAppLifecycleReady, ref failures);
-        Run(
-            "boot.sequence app lifecycle rejects dependency failure",
-            TestAppLifecycleRejectsDependencyFailure,
-            ref failures);
-        Run(
-            "boot.sequence app lifecycle preserves default markers",
-            TestAppLifecyclePreservesDefaultMarkers,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Boot sequence app lifecycle readiness host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("boot.sequence app lifecycle ready", HostLane.Fast, 0)]
     private static bool TestAppLifecycleReady()
     {
         NativeAppLifecyclePlanResult lifecyclePlan = CreateReadyLifecyclePlan();
@@ -59,13 +17,14 @@ internal static class BootSequenceAppLifecycleReadinessTests
 
         BootResult result = BootSequence.RunAppLifecycleReadiness(lifecyclePlan, serial, events);
 
-        return lifecyclePlan.Succeeded
+        return HostCheck.Result(lifecyclePlan.Succeeded
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.AppLifecycleReady
-            && events.Snapshot()[0] == BootSequence.AppLifecycleReady;
+            && events.Snapshot()[0] == BootSequence.AppLifecycleReady);
     }
 
+    [HostTest("boot.sequence app lifecycle rejects dependency failure", HostLane.Fast, 1)]
     private static bool TestAppLifecycleRejectsDependencyFailure()
     {
         NativeAppLifecyclePlanResult lifecyclePlan = NativeAppLifecyclePlanResult.Fail(
@@ -81,7 +40,7 @@ internal static class BootSequenceAppLifecycleReadinessTests
 
         BootResult result = BootSequence.RunAppLifecycleReadiness(lifecyclePlan, serial, events);
 
-        return !lifecyclePlan.Succeeded
+        return HostCheck.Result(!lifecyclePlan.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
                 nameof(NativeAppLifecyclePlanStatus.LogSinkNotReady),
@@ -94,9 +53,10 @@ internal static class BootSequenceAppLifecycleReadinessTests
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence app lifecycle preserves default markers", HostLane.Fast, 2)]
     private static bool TestAppLifecyclePreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -105,19 +65,19 @@ internal static class BootSequenceAppLifecycleReadinessTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.AppLifecycleReady)
-            && !serial.ContainsPrefix(BootSequence.AppLifecycleNotReadyPrefix);
+        return HostCheck.Result(!serial.Contains(BootSequence.AppLifecycleReady)
+            && !serial.ContainsPrefix(BootSequence.AppLifecycleNotReadyPrefix));
     }
 
     private static NativeAppLifecyclePlanResult CreateReadyLifecyclePlan()

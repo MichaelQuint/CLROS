@@ -3,21 +3,14 @@ using OS.Std.Hash;
 
 internal static class StdCrc32Tests
 {
-    [ModuleInitializer]
-    internal static void Run()
-    {
-        RunScenario("std.crc32 empty input", TestEmptyInput);
-        RunScenario("std.crc32 ascii check vector", TestAsciiCheckVector);
-        RunScenario("std.crc32 binary vector", TestBinaryVector);
-        RunScenario("std.crc32 incremental update", TestIncrementalUpdate);
-        RunScenario("std.crc32 byte updates", TestByteUpdates);
-    }
 
+    [HostTest("std.crc32 empty input", HostLane.Fast, 0)]
     private static void TestEmptyInput()
     {
         ExpectValue("empty", 0x00000000u, Crc32.Compute(ReadOnlySpan<byte>.Empty));
     }
 
+    [HostTest("std.crc32 byte updates", HostLane.Fast, 4)]
     private static void TestByteUpdates()
     {
         ExpectValue("empty byte stream", 0u, Crc32.Finish(Crc32.InitialState));
@@ -29,11 +22,13 @@ internal static class StdCrc32Tests
         ExpectValue("all byte values", 0x29058C73u, Crc32.Finish(state));
     }
 
+    [HostTest("std.crc32 ascii check vector", HostLane.Fast, 1)]
     private static void TestAsciiCheckVector()
     {
         ExpectValue("123456789", 0xCBF43926u, Crc32.Compute("123456789"u8));
     }
 
+    [HostTest("std.crc32 binary vector", HostLane.Fast, 2)]
     private static void TestBinaryVector()
     {
         ReadOnlySpan<byte> value = new byte[]
@@ -45,6 +40,7 @@ internal static class StdCrc32Tests
         ExpectValue("range 0..9", 0x456CD746u, Crc32.Compute(value));
     }
 
+    [HostTest("std.crc32 incremental update", HostLane.Fast, 3)]
     private static void TestIncrementalUpdate()
     {
         ReadOnlySpan<byte> first = new byte[] { 0xDE, 0xAD };
@@ -54,22 +50,6 @@ internal static class StdCrc32Tests
         state = Crc32.Update(state, second);
 
         ExpectValue("split deadbeef", 0x7C9CA35Au, Crc32.Finish(state));
-    }
-
-    private static void RunScenario(string name, Action test)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            test();
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
     }
 
     private static void ExpectValue(string scenario, uint expected, uint actual)

@@ -9,11 +9,10 @@ using Status = OS.Kernel.Runtime.CollectorTypeMapStatus;
 
 internal static unsafe class BoundedNonMovingCollectorExplicitRootEnumerationTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void Run()
     {
-        Console.WriteLine("TEST_START m04.013.reference_maps");
-        try
+        HostCheck.Run("m04.013.reference_maps", () =>
         {
             using Fixture f = new();
             Require(!default(CollectorTypeMapResult).Succeeded &&
@@ -78,29 +77,24 @@ internal static unsafe class BoundedNonMovingCollectorExplicitRootEnumerationTes
             Require(valid && bytes == 0 && f.Snapshot().AsSpan().SequenceEqual(before),
                 "repeated inspection allocates and changes no caller bytes");
             f.Guards();
-            Console.WriteLine("TEST_PASS m04.013.reference_maps");
-        }
-        catch (Exception error)
-        {
-            Console.WriteLine("TEST_FAIL m04.013.reference_maps " + error.Message);
-            throw;
-        }
+        });
     }
 
     private static void Require(bool value, string reason)
     { if (!value) throw new InvalidOperationException(reason); }
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void Collection()
     {
-        Console.WriteLine("TEST_START m04.013");
-        try
+        HostCheck.Run("m04.013", () =>
         {
-            Enablement(); GraphAndReuse(); RejectionIsAtomic(); StaticLifetime(); LedgerBounds();
-            Console.WriteLine("TEST_PASS m04.013");
-        }
-        catch (Exception error)
-        { Console.WriteLine("TEST_FAIL m04.013 " + error.Message); throw; }
+            try
+            {
+                Enablement(); GraphAndReuse(); RejectionIsAtomic(); StaticLifetime(); LedgerBounds();
+            }
+            catch (Exception error)
+            { Console.WriteLine("TEST_FAIL m04.013 " + error.Message); throw; }
+        });
     }
 
     private static void Enablement()

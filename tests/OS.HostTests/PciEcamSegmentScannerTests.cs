@@ -4,47 +4,8 @@ using OS.Std.Binary;
 
 internal static class PciEcamSegmentScannerTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.pci.ecam scans one segment", TestScansOneSegment, ref failures);
-        Run("drivers.pci.ecam scans multiple segments", TestScansMultipleSegments, ref failures);
-        Run("drivers.pci.ecam preserves segment metadata", TestPreservesSegmentMetadata, ref failures);
-        Run("drivers.pci.ecam reports destination exhaustion", TestReportsDestinationExhaustion, ref failures);
-        Run("drivers.pci.ecam reports nested scanner failure", TestReportsNestedScannerFailure, ref failures);
-        Run("drivers.pci.ecam rejects invalid segment range", TestRejectsInvalidSegmentRange, ref failures);
-        Run("drivers.pci.ecam.segment default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PCI ECAM segment scanner host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.pci.ecam scans one segment", HostLane.Fast, 0)]
     private static bool TestScansOneSegment()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -75,7 +36,7 @@ internal static class PciEcamSegmentScannerTests
             devices,
             scratch);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == PciEcamSegmentScanStatus.Success
             && result.CompletedSegmentCount == 1
             && result.DeviceCount == 1
@@ -90,9 +51,10 @@ internal static class PciEcamSegmentScannerTests
             && devices[0].Function == 0
             && devices[0].VendorId == 0x1AF4
             && devices[0].DeviceId == 0x1042
-            && configSpace.HasRead(2, 3, 0);
+            && configSpace.HasRead(2, 3, 0));
     }
 
+    [HostTest("drivers.pci.ecam scans multiple segments", HostLane.Fast, 1)]
     private static bool TestScansMultipleSegments()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -113,7 +75,7 @@ internal static class PciEcamSegmentScannerTests
             devices,
             scratch);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.CompletedSegmentCount == 2
             && result.DeviceCount == 2
             && result.FunctionReadCount == 64
@@ -127,9 +89,10 @@ internal static class PciEcamSegmentScannerTests
             && devices[1].EcamBasePhysicalAddress == 0xF0000000UL
             && devices[1].Bus == 4
             && devices[1].DeviceNumber == 2
-            && devices[1].DeviceId == 0x1041;
+            && devices[1].DeviceId == 0x1041);
     }
 
+    [HostTest("drivers.pci.ecam preserves segment metadata", HostLane.Fast, 2)]
     private static bool TestPreservesSegmentMetadata()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -164,7 +127,7 @@ internal static class PciEcamSegmentScannerTests
             scratch);
 
         PciEcamScannedDevice device = devices[0];
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && device.Segment.BasePhysicalAddress == 0x00000008_80000000UL
             && device.EcamBasePhysicalAddress == 0x00000008_80000000UL
             && device.SegmentGroup == 0x1234
@@ -180,9 +143,10 @@ internal static class PciEcamSegmentScannerTests
             && device.Subclass == 0x00
             && device.ProgrammingInterface == 0x01
             && device.HasCapabilitiesList
-            && device.CapabilityPointer == 0x40;
+            && device.CapabilityPointer == 0x40);
     }
 
+    [HostTest("drivers.pci.ecam reports destination exhaustion", HostLane.Fast, 3)]
     private static bool TestReportsDestinationExhaustion()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -202,7 +166,7 @@ internal static class PciEcamSegmentScannerTests
             devices,
             scratch);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PciEcamSegmentScanStatus.DestinationTooSmall
             && result.CompletedSegmentCount == 0
             && result.DeviceCount == 1
@@ -213,9 +177,10 @@ internal static class PciEcamSegmentScannerTests
             && result.NestedResult.Status == PciBusScanStatus.DestinationTooSmall
             && result.NestedResult.RequiredDeviceCapacity == 2
             && devices[0].SegmentGroup == 0
-            && devices[0].DeviceId == 0x0001;
+            && devices[0].DeviceId == 0x0001);
     }
 
+    [HostTest("drivers.pci.ecam reports nested scanner failure", HostLane.Fast, 4)]
     private static bool TestReportsNestedScannerFailure()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -239,7 +204,7 @@ internal static class PciEcamSegmentScannerTests
             devices,
             scratch);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PciEcamSegmentScanStatus.NestedScannerFailed
             && result.CompletedSegmentCount == 0
             && result.DeviceCount == 1
@@ -251,9 +216,10 @@ internal static class PciEcamSegmentScannerTests
             && result.NestedResult.FailingBus == 0
             && result.NestedResult.FailingDevice == 1
             && result.NestedResult.FailingFunction == 0
-            && devices[0].DeviceId == 0x0001;
+            && devices[0].DeviceId == 0x0001);
     }
 
+    [HostTest("drivers.pci.ecam rejects invalid segment range", HostLane.Fast, 5)]
     private static bool TestRejectsInvalidSegmentRange()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -270,7 +236,7 @@ internal static class PciEcamSegmentScannerTests
             devices,
             scratch);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PciEcamSegmentScanStatus.InvalidSegmentRange
             && result.CompletedSegmentCount == 0
             && result.DeviceCount == 0
@@ -278,17 +244,18 @@ internal static class PciEcamSegmentScannerTests
             && result.FailingSegmentIndex == 0
             && result.FailingSegment.StartBus == 8
             && result.FailingSegment.EndBus == 3
-            && configSpace.ReadCount == 0;
+            && configSpace.ReadCount == 0);
     }
 
+    [HostTest("drivers.pci.ecam.segment default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         PciEcamSegmentScanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == PciEcamSegmentScanStatus.Success
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciEcamSegmentScanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciEcamSegmentScanResult>());
     }
 
     private static byte[] CreateHeader(

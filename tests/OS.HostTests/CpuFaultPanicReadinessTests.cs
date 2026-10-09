@@ -5,48 +5,8 @@ using OS.Kernel.Diagnostics;
 
 internal static class CpuFaultPanicReadinessTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("diagnostics.cpu_fault_panic readiness emits os smoke fail", TestReadinessEmitsOsSmokeFail, ref failures);
-        Run("diagnostics.cpu_fault_panic readiness rejects invalid frame", TestReadinessRejectsInvalidFrame, ref failures);
-        Run("diagnostics.cpu_fault_panic readiness reports reporter failure", TestReadinessReportsReporterFailure, ref failures);
-        Run("diagnostics.cpu_fault_panic readiness default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("diagnostics.cpu_fault_panic readiness result contains no managed references", TestResultContainsNoManagedReferences, ref failures);
-        Run("boot.sequence cpu fault panic readiness emits ready marker", TestBootSequenceReadyMarker, ref failures);
-        Run("boot.sequence cpu fault panic readiness emits blocked marker", TestBootSequenceBlockedMarker, ref failures);
-        Run("boot.sequence cpu fault panic readiness preserves default markers", TestBootSequenceDefaultMarkersUnchanged, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("CPU fault panic readiness tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("diagnostics.cpu_fault_panic readiness emits os smoke fail", HostLane.Fast, 0)]
     private static bool TestReadinessEmitsOsSmokeFail()
     {
         byte[] frameBytes = CreateEncodedFrame();
@@ -60,7 +20,7 @@ internal static class CpuFaultPanicReadinessTests
             "idt",
             PanicFormatter.NullDereferenceProbe);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == CpuFaultPanicReadinessStatus.Ready
             && result.FrameStatus == CpuFaultEntryFrameLayoutStatus.Ok
@@ -69,9 +29,10 @@ internal static class CpuFaultPanicReadinessTests
             && result.RequiredFrameBytes == CpuFaultEntryFrameLayout.TotalSize
             && result.BytesFormatted == ExpectedFaultSummary().Length
             && result.BytesFlushed == ExpectedFaultSummary().Length
-            && sink.Text == ExpectedFaultSummary();
+            && sink.Text == ExpectedFaultSummary());
     }
 
+    [HostTest("diagnostics.cpu_fault_panic readiness rejects invalid frame", HostLane.Fast, 1)]
     private static bool TestReadinessRejectsInvalidFrame()
     {
         byte[] frameBytes = new byte[CpuFaultEntryFrameLayout.TotalSize - 1];
@@ -85,7 +46,7 @@ internal static class CpuFaultPanicReadinessTests
             "idt",
             PanicFormatter.NullDereferenceProbe);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == CpuFaultPanicReadinessStatus.FaultFrameInvalid
             && result.FrameStatus == CpuFaultEntryFrameLayoutStatus.BufferTooSmall
@@ -93,9 +54,10 @@ internal static class CpuFaultPanicReadinessTests
             && result.RequiredFrameBytes == CpuFaultEntryFrameLayout.TotalSize
             && result.BytesFormatted == 0
             && result.BytesFlushed == 0
-            && sink.BytesWritten == 0;
+            && sink.BytesWritten == 0);
     }
 
+    [HostTest("diagnostics.cpu_fault_panic readiness reports reporter failure", HostLane.Fast, 2)]
     private static bool TestReadinessReportsReporterFailure()
     {
         byte[] frameBytes = CreateEncodedFrame();
@@ -109,7 +71,7 @@ internal static class CpuFaultPanicReadinessTests
             "idt",
             PanicFormatter.NullDereferenceProbe);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == CpuFaultPanicReadinessStatus.PanicReportFailed
             && result.FrameStatus == CpuFaultEntryFrameLayoutStatus.Ok
@@ -117,27 +79,30 @@ internal static class CpuFaultPanicReadinessTests
             && result.Vector == FaultVectorCatalog.PageFault
             && result.BytesFormatted == ExpectedFaultSummary().Length
             && result.BytesFlushed == 8
-            && sink.Text == ExpectedFaultSummary().Substring(0, 8);
+            && sink.Text == ExpectedFaultSummary().Substring(0, 8));
     }
 
+    [HostTest("diagnostics.cpu_fault_panic readiness default result is not success", HostLane.Fast, 3)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         CpuFaultPanicReadinessResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == CpuFaultPanicReadinessStatus.Ready
             && result.FrameStatus == CpuFaultEntryFrameLayoutStatus.Ok
             && result.ReporterStatus == PanicSerialReporterStatus.Ok
             && result.BytesFormatted == 0
-            && result.BytesFlushed == 0;
+            && result.BytesFlushed == 0);
     }
 
+    [HostTest("diagnostics.cpu_fault_panic readiness result contains no managed references", HostLane.Fast, 4)]
     private static bool TestResultContainsNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<CpuFaultPanicReadinessResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<CpuFaultPanicReadinessResult>());
     }
 
+    [HostTest("boot.sequence cpu fault panic readiness emits ready marker", HostLane.Fast, 5)]
     private static bool TestBootSequenceReadyMarker()
     {
         CpuFaultPanicReadinessResult readiness = CreateReadyPanicReadiness();
@@ -146,13 +111,14 @@ internal static class CpuFaultPanicReadinessTests
 
         BootResult result = BootSequence.RunCpuFaultPanicReadiness(readiness, serial, events);
 
-        return readiness.Succeeded
+        return HostCheck.Result(readiness.Succeeded
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.CpuFaultPanicReady
-            && events.Snapshot()[0] == BootSequence.CpuFaultPanicReady;
+            && events.Snapshot()[0] == BootSequence.CpuFaultPanicReady);
     }
 
+    [HostTest("boot.sequence cpu fault panic readiness emits blocked marker", HostLane.Fast, 6)]
     private static bool TestBootSequenceBlockedMarker()
     {
         CpuFaultPanicReadinessResult readiness = default;
@@ -164,16 +130,17 @@ internal static class CpuFaultPanicReadinessTests
 
         BootResult result = BootSequence.RunCpuFaultPanicReadiness(readiness, serial, events);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(
                 nameof(CpuFaultPanicBootReadinessStatus.PanicReadinessFailed),
                 StringComparison.Ordinal)
             && result.Reason.Contains(nameof(CpuFaultPanicReadinessStatus.Ready), StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence cpu fault panic readiness preserves default markers", HostLane.Fast, 7)]
     private static bool TestBootSequenceDefaultMarkersUnchanged()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -182,19 +149,19 @@ internal static class CpuFaultPanicReadinessTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.CpuFaultPanicReady)
-            && !serial.ContainsPrefix(BootSequence.CpuFaultPanicNotReadyPrefix);
+        return HostCheck.Result(!serial.Contains(BootSequence.CpuFaultPanicReady)
+            && !serial.ContainsPrefix(BootSequence.CpuFaultPanicNotReadyPrefix));
     }
 
     private static CpuFaultPanicReadinessResult CreateReadyPanicReadiness()

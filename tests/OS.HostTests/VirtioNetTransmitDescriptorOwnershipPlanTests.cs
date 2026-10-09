@@ -21,111 +21,25 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
     private const ulong TxHeaderPhysicalAddress = 0x0050_0000UL;
     private const ulong TxFramePhysicalAddress = 0x0060_0000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.virtionet.tx.ownership marks published descriptors in flight", TestMarksPublishedDescriptorsInFlight, ref failures);
-        Run("drivers.virtionet.tx.ownership reclaims completed descriptors", TestReclaimsCompletedDescriptors, ref failures);
-        Run("drivers.virtionet.tx.ownership rejects failed publish", TestRejectsFailedPublish, ref failures);
-        Run("drivers.virtionet.tx.ownership rejects failed completion", TestRejectsFailedCompletion, ref failures);
-        Run("drivers.virtionet.tx.ownership rejects short state table", TestRejectsShortStateTable, ref failures);
-        Run("drivers.virtionet.tx.ownership rejects descriptor already in flight", TestRejectsDescriptorAlreadyInFlight, ref failures);
-        Run("drivers.virtionet.tx.ownership rejects descriptor not in flight", TestRejectsDescriptorNotInFlight, ref failures);
-        Run("drivers.virtionet.tx.ownership rejects duplicate completion", TestRejectsDuplicateCompletion, ref failures);
-        Run("drivers.virtionet.tx.ownership preserves no-mmio boundary", TestPreservesNoMmioBoundary, ref failures);
-        Run("drivers.virtionet.tx.freelist selects first free pair", TestFreeListSelectsFirstFreePair, ref failures);
-        Run("drivers.virtionet.tx.freelist skips in-flight descriptors", TestFreeListSkipsInFlightDescriptors, ref failures);
-        Run("drivers.virtionet.tx.freelist reuses reclaimed descriptors", TestFreeListReusesReclaimedDescriptors, ref failures);
-        Run("drivers.virtionet.tx.freelist reports capacity exhaustion", TestFreeListReportsCapacityExhaustion, ref failures);
-        Run("drivers.virtionet.tx.freelist rejects invalid queue state", TestFreeListRejectsInvalidQueueState, ref failures);
-        Run("drivers.virtionet.tx.freelist preserves no-mmio boundary", TestFreeListPreservesNoMmioBoundary, ref failures);
-        Run("drivers.virtionet.tx.publishplan publishes selected free pair", TestPublishPlanPublishesSelectedFreePair, ref failures);
-        Run("drivers.virtionet.tx.publishplan skips in-flight descriptors", TestPublishPlanSkipsInFlightDescriptors, ref failures);
-        Run("drivers.virtionet.tx.publishplan rejects free-list exhaustion", TestPublishPlanRejectsFreeListExhaustion, ref failures);
-        Run("drivers.virtionet.tx.publishplan preserves state on publish failure", TestPublishPlanPreservesStateOnPublishFailure, ref failures);
-        Run("drivers.virtionet.tx.publishplan rejects invalid ownership state", TestPublishPlanRejectsInvalidOwnershipState, ref failures);
-        Run("drivers.virtionet.tx.publishplan preserves no-mmio boundary", TestPublishPlanPreservesNoMmioBoundary, ref failures);
-        Run(
-            "drivers.virtionet.tx.descriptor default results are not success",
-            TestDescriptorDefaultResultsAreNotSuccess,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.readiness composes setup publish notify",
-            TestReadinessComposesSetupPublishNotify,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.readiness default result is not success",
-            TestReadinessDefaultResultIsNotSuccess,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.readiness rejects failed setup execution",
-            TestReadinessRejectsFailedSetupExecution,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.readiness rejects failed publish",
-            TestReadinessRejectsFailedPublish,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.readiness rejects missing barrier",
-            TestReadinessRejectsMissingBarrier,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.readiness propagates notification failure",
-            TestReadinessPropagatesNotificationFailure,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.readiness preserves no-live-mmio boundary",
-            TestReadinessPreservesNoLiveMmioBoundary,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio-net TX descriptor ownership host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtionet.tx.readiness default result is not success", HostLane.Fast, 23)]
     private static bool TestReadinessDefaultResultIsNotSuccess()
     {
         VirtioNetTransmitReadinessResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioNetTransmitReadinessStatus.Success
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetTransmitReadinessResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetTransmitReadinessResult>());
     }
 
+    [HostTest("drivers.virtionet.tx.descriptor default results are not success", HostLane.Fast, 21)]
     private static bool TestDescriptorDefaultResultsAreNotSuccess()
     {
         VirtioNetTransmitDescriptorFreeListResult freeList = default;
         VirtioNetTransmitDescriptorOwnershipPlanResult ownership = default;
         VirtioNetTransmitDescriptorPublishPlanResult publish = default;
 
-        return !freeList.IsInitialized
+        return HostCheck.Result(!freeList.IsInitialized
             && !freeList.Succeeded
             && freeList.Status == VirtioNetTransmitDescriptorFreeListStatus.Success
             && !ownership.IsInitialized
@@ -139,9 +53,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
                 VirtioNetTransmitDescriptorOwnershipPlanResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetTransmitDescriptorPublishPlanResult>();
+                VirtioNetTransmitDescriptorPublishPlanResult>());
     }
 
+    [HostTest("drivers.virtionet.tx.ownership marks published descriptors in flight", HostLane.Fast, 0)]
     private static bool TestMarksPublishedDescriptorsInFlight()
     {
         TestContext context = CreateContext();
@@ -152,7 +67,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
         VirtioNetTransmitDescriptorOwnershipPlanResult result =
             VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, states);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioNetTransmitDescriptorOwnershipStatus.Success
             && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.Success
             && result.HeaderDescriptorIndex == publish.Plan.HeaderDescriptor.DescriptorIndex
@@ -165,9 +80,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && states[publish.Plan.FrameDescriptor.DescriptorIndex] ==
                 VirtioNetTransmitDescriptorOwnershipState.InFlight
             && states[2] == VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free;
+            && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
+    [HostTest("drivers.virtionet.tx.ownership reclaims completed descriptors", HostLane.Fast, 1)]
     private static bool TestReclaimsCompletedDescriptors()
     {
         TestContext context = CreateContext();
@@ -183,7 +99,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
         VirtioNetTransmitDescriptorOwnershipPlanResult reclaim =
             VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, states);
 
-        return mark.Succeeded
+        return HostCheck.Result(mark.Succeeded
             && completion.Succeeded
             && reclaim.Succeeded
             && reclaim.Status == VirtioNetTransmitDescriptorOwnershipStatus.Success
@@ -193,9 +109,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 VirtioNetTransmitDescriptorOwnershipState.Free
             && states[publish.Plan.FrameDescriptor.DescriptorIndex] ==
                 VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[3] == VirtioNetTransmitDescriptorOwnershipState.InFlight;
+            && states[3] == VirtioNetTransmitDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("drivers.virtionet.tx.ownership rejects failed publish", HostLane.Fast, 2)]
     private static bool TestRejectsFailedPublish()
     {
         TestContext context = CreateContext();
@@ -217,14 +134,15 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
         VirtioNetTransmitDescriptorOwnershipPlanResult result =
             VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(failedPublish, states);
 
-        return !failedPublish.Succeeded
+        return HostCheck.Result(!failedPublish.Succeeded
             && failedPublish.Status == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall
             && !result.Succeeded
             && result.Status == VirtioNetTransmitDescriptorOwnershipStatus.TransmitPublishFailed
             && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall
-            && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free));
     }
 
+    [HostTest("drivers.virtionet.tx.ownership rejects failed completion", HostLane.Fast, 3)]
     private static bool TestRejectsFailedCompletion()
     {
         TestContext context = CreateContext();
@@ -245,7 +163,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
         VirtioNetTransmitDescriptorOwnershipPlanResult result =
             VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(failedCompletion, states);
 
-        return mark.Succeeded
+        return HostCheck.Result(mark.Succeeded
             && !failedCompletion.Succeeded
             && failedCompletion.Status == VirtioNetTransmitCompletionPlanStatus.NoCompletion
             && !result.Succeeded
@@ -254,9 +172,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && states[publish.Plan.HeaderDescriptor.DescriptorIndex] ==
                 VirtioNetTransmitDescriptorOwnershipState.InFlight
             && states[publish.Plan.FrameDescriptor.DescriptorIndex] ==
-                VirtioNetTransmitDescriptorOwnershipState.InFlight;
+                VirtioNetTransmitDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("drivers.virtionet.tx.ownership rejects short state table", HostLane.Fast, 4)]
     private static bool TestRejectsShortStateTable()
     {
         TestContext context = CreateContext();
@@ -271,15 +190,16 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
         VirtioNetTransmitDescriptorOwnershipPlanResult reclaim =
             VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, shortStates);
 
-        return !mark.Succeeded
+        return HostCheck.Result(!mark.Succeeded
             && mark.Status == VirtioNetTransmitDescriptorOwnershipStatus.StateTableTooSmall
             && mark.RequiredStateTableLength == 2
             && mark.StateTableLength == 1
             && !reclaim.Succeeded
             && reclaim.Status == VirtioNetTransmitDescriptorOwnershipStatus.StateTableTooSmall
-            && shortStates[0] == VirtioNetTransmitDescriptorOwnershipState.Free;
+            && shortStates[0] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
+    [HostTest("drivers.virtionet.tx.ownership rejects descriptor already in flight", HostLane.Fast, 5)]
     private static bool TestRejectsDescriptorAlreadyInFlight()
     {
         TestContext context = CreateContext();
@@ -292,14 +212,15 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
         VirtioNetTransmitDescriptorOwnershipPlanResult result =
             VirtioNetTransmitDescriptorOwnershipPlan.MarkPublished(publish, states);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetTransmitDescriptorOwnershipStatus.DescriptorAlreadyInFlight
             && states[publish.Plan.HeaderDescriptor.DescriptorIndex] ==
                 VirtioNetTransmitDescriptorOwnershipState.InFlight
             && states[publish.Plan.FrameDescriptor.DescriptorIndex] ==
-                VirtioNetTransmitDescriptorOwnershipState.Free;
+                VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
+    [HostTest("drivers.virtionet.tx.ownership rejects descriptor not in flight", HostLane.Fast, 6)]
     private static bool TestRejectsDescriptorNotInFlight()
     {
         TestContext context = CreateContext();
@@ -314,14 +235,15 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
         VirtioNetTransmitDescriptorOwnershipPlanResult result =
             VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, states);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetTransmitDescriptorOwnershipStatus.DescriptorNotInFlight
             && states[publish.Plan.HeaderDescriptor.DescriptorIndex] ==
                 VirtioNetTransmitDescriptorOwnershipState.InFlight
             && states[publish.Plan.FrameDescriptor.DescriptorIndex] ==
-                VirtioNetTransmitDescriptorOwnershipState.Free;
+                VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
+    [HostTest("drivers.virtionet.tx.ownership rejects duplicate completion", HostLane.Fast, 7)]
     private static bool TestRejectsDuplicateCompletion()
     {
         TestContext context = CreateContext();
@@ -337,16 +259,17 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
         VirtioNetTransmitDescriptorOwnershipPlanResult second =
             VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, states);
 
-        return mark.Succeeded
+        return HostCheck.Result(mark.Succeeded
             && first.Succeeded
             && !second.Succeeded
             && second.Status == VirtioNetTransmitDescriptorOwnershipStatus.DuplicateCompletion
             && states[publish.Plan.HeaderDescriptor.DescriptorIndex] ==
                 VirtioNetTransmitDescriptorOwnershipState.Free
             && states[publish.Plan.FrameDescriptor.DescriptorIndex] ==
-                VirtioNetTransmitDescriptorOwnershipState.Free;
+                VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
+    [HostTest("drivers.virtionet.tx.ownership preserves no-mmio boundary", HostLane.Fast, 8)]
     private static bool TestPreservesNoMmioBoundary()
     {
         TestContext context = CreateContext();
@@ -360,7 +283,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
         VirtioNetTransmitDescriptorOwnershipPlanResult reclaim =
             VirtioNetTransmitDescriptorOwnershipPlan.ApplyCompletion(completion, states);
 
-        return mark.Succeeded
+        return HostCheck.Result(mark.Succeeded
             && reclaim.Succeeded
             && !VirtioNetTransmitDescriptorOwnershipPlan.PerformsMmio
             && !VirtioNetTransmitDescriptorOwnershipPlan.NotifiesDevice
@@ -369,9 +292,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && !VirtioNetTransmitDescriptorOwnershipPlan.PerformsDmaMapping
             && !VirtioNetTransmitDescriptorOwnershipPlan.PerformsPacketIo
             && !VirtioNetTransmitDescriptorOwnershipPlan.ReadsQueueMemory
-            && VirtioNetTransmitDescriptorOwnershipPlan.MutatesCallerOwnedStateTable;
+            && VirtioNetTransmitDescriptorOwnershipPlan.MutatesCallerOwnedStateTable);
     }
 
+    [HostTest("drivers.virtionet.tx.freelist selects first free pair", HostLane.Fast, 9)]
     private static bool TestFreeListSelectsFirstFreePair()
     {
         TestContext context = CreateContext();
@@ -383,7 +307,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 context.QueuePlan,
                 states);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioNetTransmitDescriptorFreeListStatus.Success
             && result.QueuePlanStatus == VirtioNetQueuePlanStatus.Success
             && result.HeaderDescriptorIndex == 0
@@ -393,9 +317,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && result.RequiredStateTableLength == TxQueueSize
             && result.DescriptorsRequired == VirtioNetTransmitLifecycle.RequiredDescriptorCount
             && result.DescriptorsScanned == 2
-            && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free));
     }
 
+    [HostTest("drivers.virtionet.tx.freelist skips in-flight descriptors", HostLane.Fast, 10)]
     private static bool TestFreeListSkipsInFlightDescriptors()
     {
         TestContext context = CreateContext();
@@ -409,7 +334,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 context.QueuePlan,
                 states);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioNetTransmitDescriptorFreeListStatus.Success
             && result.HeaderDescriptorIndex == 2
             && result.FrameDescriptorIndex == 3
@@ -417,9 +342,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && states[0] == VirtioNetTransmitDescriptorOwnershipState.InFlight
             && states[1] == VirtioNetTransmitDescriptorOwnershipState.InFlight
             && states[2] == VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free;
+            && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
+    [HostTest("drivers.virtionet.tx.freelist reuses reclaimed descriptors", HostLane.Fast, 11)]
     private static bool TestFreeListReusesReclaimedDescriptors()
     {
         TestContext context = CreateContext();
@@ -438,15 +364,16 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 context.QueuePlan,
                 states);
 
-        return mark.Succeeded
+        return HostCheck.Result(mark.Succeeded
             && reclaim.Succeeded
             && result.Succeeded
             && result.HeaderDescriptorIndex == publish.Plan.HeaderDescriptor.DescriptorIndex
             && result.FrameDescriptorIndex == publish.Plan.FrameDescriptor.DescriptorIndex
             && states[result.HeaderDescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[result.FrameDescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.Free;
+            && states[result.FrameDescriptorIndex] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
+    [HostTest("drivers.virtionet.tx.freelist reports capacity exhaustion", HostLane.Fast, 12)]
     private static bool TestFreeListReportsCapacityExhaustion()
     {
         TestContext context = CreateContext();
@@ -463,15 +390,16 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 context.QueuePlan,
                 states);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetTransmitDescriptorFreeListStatus.NoFreeDescriptorPair
             && result.RequiredStateTableLength == TxQueueSize
             && result.StateTableLength == states.Length
             && result.DescriptorsScanned == TxQueueSize
             && states[1] == VirtioNetTransmitDescriptorOwnershipState.Free
-            && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free;
+            && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
+    [HostTest("drivers.virtionet.tx.freelist rejects invalid queue state", HostLane.Fast, 13)]
     private static bool TestFreeListRejectsInvalidQueueState()
     {
         TestContext context = CreateContext();
@@ -490,7 +418,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 context.QueuePlan,
                 shortStates);
 
-        return !invalidState.Succeeded
+        return HostCheck.Result(!invalidState.Succeeded
             && invalidState.Status == VirtioNetTransmitDescriptorFreeListStatus.InvalidDescriptorState
             && invalidState.InvalidDescriptorIndex == 1
             && invalidStates[1] == (VirtioNetTransmitDescriptorOwnershipState)99
@@ -498,9 +426,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && shortState.Status == VirtioNetTransmitDescriptorFreeListStatus.StateTableTooSmall
             && shortState.RequiredStateTableLength == TxQueueSize
             && shortState.StateTableLength == shortStates.Length
-            && shortStates[0] == VirtioNetTransmitDescriptorOwnershipState.Free;
+            && shortStates[0] == VirtioNetTransmitDescriptorOwnershipState.Free);
     }
 
+    [HostTest("drivers.virtionet.tx.freelist preserves no-mmio boundary", HostLane.Fast, 14)]
     private static bool TestFreeListPreservesNoMmioBoundary()
     {
         TestContext context = CreateContext();
@@ -512,7 +441,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 context.QueuePlan,
                 states);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && !VirtioNetTransmitDescriptorFreeListPlanner.PerformsMmio
             && !VirtioNetTransmitDescriptorFreeListPlanner.NotifiesDevice
             && !VirtioNetTransmitDescriptorFreeListPlanner.PollsDevice
@@ -521,9 +450,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && !VirtioNetTransmitDescriptorFreeListPlanner.PerformsPacketIo
             && !VirtioNetTransmitDescriptorFreeListPlanner.ReadsQueueMemory
             && !VirtioNetTransmitDescriptorFreeListPlanner.MutatesCallerOwnedStateTable
-            && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free));
     }
 
+    [HostTest("drivers.virtionet.tx.publishplan publishes selected free pair", HostLane.Fast, 15)]
     private static bool TestPublishPlanPublishesSelectedFreePair()
     {
         TestContext context = CreateContext();
@@ -544,7 +474,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 txHeader,
                 queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioNetTransmitDescriptorPublishPlanStatus.Success
             && result.QueuePlanStatus == VirtioNetQueuePlanStatus.Success
             && result.FreeListStatus == VirtioNetTransmitDescriptorFreeListStatus.Success
@@ -580,9 +510,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 TxFramePhysicalAddress,
                 (uint)frame.Length,
                 flags: 0,
-                next: 0);
+                next: 0));
     }
 
+    [HostTest("drivers.virtionet.tx.publishplan skips in-flight descriptors", HostLane.Fast, 16)]
     private static bool TestPublishPlanSkipsInFlightDescriptors()
     {
         TestContext context = CreateContext();
@@ -604,7 +535,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 txHeader,
                 queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.HeaderDescriptorIndex == 2
             && result.FrameDescriptorIndex == 3
             && result.TransmitPublish.HeadDescriptorIndex == 2
@@ -612,9 +543,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && states[0] == VirtioNetTransmitDescriptorOwnershipState.InFlight
             && states[1] == VirtioNetTransmitDescriptorOwnershipState.InFlight
             && states[2] == VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && states[3] == VirtioNetTransmitDescriptorOwnershipState.InFlight;
+            && states[3] == VirtioNetTransmitDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("drivers.virtionet.tx.publishplan rejects free-list exhaustion", HostLane.Fast, 17)]
     private static bool TestPublishPlanRejectsFreeListExhaustion()
     {
         TestContext context = CreateContext();
@@ -640,7 +572,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 txHeader,
                 queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetTransmitDescriptorPublishPlanStatus.FreeListFailed
             && result.FreeListStatus == VirtioNetTransmitDescriptorFreeListStatus.NoFreeDescriptorPair
             && !result.TransmitPublishAttempted
@@ -650,9 +582,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && result.DescriptorsMarkedInFlight == 0
             && states[1] == VirtioNetTransmitDescriptorOwnershipState.Free
             && states[3] == VirtioNetTransmitDescriptorOwnershipState.Free
-            && AllBytesEqual(queueMemory, 0x37);
+            && AllBytesEqual(queueMemory, 0x37));
     }
 
+    [HostTest("drivers.virtionet.tx.publishplan preserves state on publish failure", HostLane.Fast, 18)]
     private static bool TestPublishPlanPreservesStateOnPublishFailure()
     {
         TestContext context = CreateContext();
@@ -674,7 +607,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 shortTxHeader,
                 queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetTransmitDescriptorPublishPlanStatus.TransmitPublishFailed
             && result.FreeListStatus == VirtioNetTransmitDescriptorFreeListStatus.Success
             && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall
@@ -688,9 +621,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && result.DescriptorsMarkedInFlight == 0
             && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free)
             && AllBytesEqual(shortTxHeader, 0x21)
-            && AllBytesEqual(queueMemory, 0x21);
+            && AllBytesEqual(queueMemory, 0x21));
     }
 
+    [HostTest("drivers.virtionet.tx.publishplan rejects invalid ownership state", HostLane.Fast, 19)]
     private static bool TestPublishPlanRejectsInvalidOwnershipState()
     {
         TestContext context = CreateContext();
@@ -712,16 +646,17 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 txHeader,
                 queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetTransmitDescriptorPublishPlanStatus.FreeListFailed
             && result.FreeListStatus == VirtioNetTransmitDescriptorFreeListStatus.InvalidDescriptorState
             && result.FreeList.InvalidDescriptorIndex == 0
             && !result.TransmitPublishAttempted
             && !result.OwnershipMarkAttempted
             && states[0] == (VirtioNetTransmitDescriptorOwnershipState)99
-            && AllBytesEqual(queueMemory, 0x49);
+            && AllBytesEqual(queueMemory, 0x49));
     }
 
+    [HostTest("drivers.virtionet.tx.publishplan preserves no-mmio boundary", HostLane.Fast, 20)]
     private static bool TestPublishPlanPreservesNoMmioBoundary()
     {
         TestContext context = CreateContext();
@@ -741,7 +676,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 txHeader,
                 queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && !VirtioNetTransmitDescriptorPublishPlanner.PerformsMmio
             && !VirtioNetTransmitDescriptorPublishPlanner.NotifiesDevice
             && !VirtioNetTransmitDescriptorPublishPlanner.PollsDevice
@@ -754,9 +689,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && !VirtioNetTransmitDescriptorPublishPlanner.ReadsQueueMemory
             && VirtioNetTransmitDescriptorPublishPlanner.WritesQueueMemory
             && VirtioNetTransmitDescriptorPublishPlanner.WritesTransmitHeader
-            && VirtioNetTransmitDescriptorPublishPlanner.MutatesCallerOwnedStateTable;
+            && VirtioNetTransmitDescriptorPublishPlanner.MutatesCallerOwnedStateTable);
     }
 
+    [HostTest("drivers.virtionet.tx.readiness composes setup publish notify", HostLane.Fast, 22)]
     private static bool TestReadinessComposesSetupPublishNotify()
     {
         TestContext context = CreateContext();
@@ -786,7 +722,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 notifyAccessor);
 
         int notifyOffset = checked((int)(TxNotifyOffset * NotifyOffsetMultiplier));
-        return setupExecution.Succeeded
+        return HostCheck.Result(setupExecution.Succeeded
             && result.Succeeded
             && result.Status == VirtioNetTransmitReadinessStatus.Success
             && result.QueueSetupPlanStatus == VirtioNetQueueMmioSetupPlanStatus.Success
@@ -824,9 +760,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 TxHeaderPhysicalAddress,
                 VirtioNetTransmitLifecycle.TxHeaderBytes,
                 flags: 1,
-                next: 1);
+                next: 1));
     }
 
+    [HostTest("drivers.virtionet.tx.readiness rejects failed setup execution", HostLane.Fast, 24)]
     private static bool TestReadinessRejectsFailedSetupExecution()
     {
         TestContext context = CreateContext();
@@ -860,7 +797,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 negotiatedFeatures: 0,
                 notifyAccessor);
 
-        return !failedSetupExecution.Succeeded
+        return HostCheck.Result(!failedSetupExecution.Succeeded
             && !result.Succeeded
             && result.Status == VirtioNetTransmitReadinessStatus.QueueSetupExecutionFailed
             && result.QueueSetupExecutionStatus == VirtioNetQueueMmioSetupExecutionStatus.AccessorNotReady
@@ -870,9 +807,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && notifyAccessor.NotifyWrite16Count == 0
             && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free)
             && BytesAreZero(txHeader)
-            && BytesAreZero(queueMemory);
+            && BytesAreZero(queueMemory));
     }
 
+    [HostTest("drivers.virtionet.tx.readiness rejects failed publish", HostLane.Fast, 25)]
     private static bool TestReadinessRejectsFailedPublish()
     {
         TestContext context = CreateContext();
@@ -901,7 +839,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 negotiatedFeatures: 0,
                 notifyAccessor);
 
-        return setupExecution.Succeeded
+        return HostCheck.Result(setupExecution.Succeeded
             && !result.Succeeded
             && result.Status == VirtioNetTransmitReadinessStatus.TransmitPublishFailed
             && result.TransmitPublishPlanStatus ==
@@ -912,9 +850,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && !result.NotificationExecutionAttempted
             && notifyAccessor.NotifyWrite16Count == 0
             && AllStatesAre(states, VirtioNetTransmitDescriptorOwnershipState.Free)
-            && BytesAreZero(queueMemory);
+            && BytesAreZero(queueMemory));
     }
 
+    [HostTest("drivers.virtionet.tx.readiness rejects missing barrier", HostLane.Fast, 26)]
     private static bool TestReadinessRejectsMissingBarrier()
     {
         TestContext context = CreateContext();
@@ -949,7 +888,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 negotiatedFeatures: 0,
                 notifyAccessor);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetTransmitReadinessStatus.BarrierNotReady
             && result.NotificationExecutionStatus ==
                 VirtioNetQueueNotificationExecutionStatus.MemoryBarrierNotReady
@@ -962,9 +901,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && notifyAccessor.NotifyWrite16Count == 0
             && states[0] == VirtioNetTransmitDescriptorOwnershipState.InFlight
             && states[1] == VirtioNetTransmitDescriptorOwnershipState.InFlight
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("drivers.virtionet.tx.readiness propagates notification failure", HostLane.Fast, 27)]
     private static bool TestReadinessPropagatesNotificationFailure()
     {
         TestContext context = CreateContext();
@@ -996,7 +936,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 negotiatedFeatures: 0,
                 notifyAccessor);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetTransmitReadinessStatus.NotificationExecutionFailed
             && result.NotificationExecutionStatus ==
                 VirtioNetQueueNotificationExecutionStatus.SinkWriteFailed
@@ -1005,9 +945,10 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && result.BarrierSequence == 35
             && notifyAccessor.NotifyWrite16Count == 1
             && notifyAccessor.LastStatus == VirtioPciRegisterWriteStatus.WriteFailed
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("drivers.virtionet.tx.readiness preserves no-live-mmio boundary", HostLane.Fast, 28)]
     private static bool TestReadinessPreservesNoLiveMmioBoundary()
     {
         TestContext context = CreateContext();
@@ -1034,7 +975,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
                 negotiatedFeatures: 0,
                 new FakeRegisterAccessor(CreateNotifyBytes(context)));
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioNetTransmitReadinessPlanner.RequiresQueueSetupExecution
             && VirtioNetTransmitReadinessPlanner.RequiresBarrierReadiness
             && VirtioNetTransmitReadinessPlanner.UsesInjectedRegisterAccessor
@@ -1054,7 +995,7 @@ internal static class VirtioNetTransmitDescriptorOwnershipPlanTests
             && !VirtioNetTransmitReadinessPlanner.PerformsPacketTransmit
             && !VirtioNetTransmitReadinessPlanner.WaitsForUsedRingCompletion
             && !VirtioNetTransmitReadinessPlanner.ReadsQueueMemory
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetTransmitReadinessResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetTransmitReadinessResult>());
     }
 
     private static VirtioNetTransmitLifecycleResult CreateTxPublish(

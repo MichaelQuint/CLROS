@@ -4,53 +4,8 @@ using OS.Net;
 
 internal static class HttpRequestParserTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.http.request parses get healthz", TestParsesGetHealthz, ref failures);
-        Run("net.http.request preserves body metadata", TestPreservesBodyMetadata, ref failures);
-        Run("net.http.request accepts single content length", TestAcceptsSingleContentLength, ref failures);
-        Run("net.http.request trims header value OWS", TestTrimsHeaderValueOws, ref failures);
-        Run("net.http.request rejects duplicate content length", TestRejectsDuplicateContentLength, ref failures);
-        Run("net.http.request rejects malformed request line", TestRejectsMalformedRequestLine, ref failures);
-        Run("net.http.request rejects invalid headers and body", TestRejectsInvalidHeadersAndBody, ref failures);
-        Run("net.http.request default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("net.http.request uses shared memory index helper", TestUsesSharedMemoryIndexHelper, ref failures);
-        Run("net.http.request uses shared ascii equality helper", TestUsesSharedAsciiEqualityHelper, ref failures);
-        Run("net.http.request uses shared memory protocol prefix helper", TestUsesSharedMemoryProtocolPrefixHelper, ref failures);
-        Run("net.http.request uses shared ascii token helper", TestUsesSharedAsciiTokenHelper, ref failures);
-        Run("net.http.request uses shared ascii space-or-tab helper", TestUsesSharedAsciiSpaceOrTabHelper, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("HTTP request parser host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.http.request parses get healthz", HostLane.Fast, 0)]
     private static bool TestParsesGetHealthz()
     {
         byte[] request = Encoding.ASCII.GetBytes(
@@ -63,7 +18,7 @@ internal static class HttpRequestParserTests
         string target = Encoding.ASCII.GetString(request, result.TargetOffset, result.TargetLength);
         string host = Encoding.ASCII.GetString(request, result.HostOffset, result.HostLength);
 
-        return status == HttpRequestParseStatus.Success
+        return HostCheck.Result(status == HttpRequestParseStatus.Success
             && result.Succeeded
             && result.Method == HttpRequestMethod.Get
             && target == "/healthz"
@@ -76,9 +31,10 @@ internal static class HttpRequestParserTests
             && result.ContentLength == 0
             && result.ConnectionClose
             && result.BodyOffset == request.Length
-            && result.BodyLength == 0;
+            && result.BodyLength == 0);
     }
 
+    [HostTest("net.http.request preserves body metadata", HostLane.Fast, 1)]
     private static bool TestPreservesBodyMetadata()
     {
         byte[] request = Encoding.ASCII.GetBytes(
@@ -88,7 +44,7 @@ internal static class HttpRequestParserTests
             request,
             out HttpRequestParseResult result);
 
-        return status == HttpRequestParseStatus.Success
+        return HostCheck.Result(status == HttpRequestParseStatus.Success
             && result.Succeeded
             && result.Method == HttpRequestMethod.Post
             && result.ProtocolMajor == 1
@@ -97,9 +53,10 @@ internal static class HttpRequestParserTests
             && result.ContentLength == 4
             && result.BodyLength == 4
             && request[result.BodyOffset] == (byte)'b'
-            && request[result.BodyOffset + 3] == (byte)'y';
+            && request[result.BodyOffset + 3] == (byte)'y');
     }
 
+    [HostTest("net.http.request accepts single content length", HostLane.Fast, 2)]
     private static bool TestAcceptsSingleContentLength()
     {
         byte[] request = Encoding.ASCII.GetBytes(
@@ -109,16 +66,17 @@ internal static class HttpRequestParserTests
             request,
             out HttpRequestParseResult result);
 
-        return status == HttpRequestParseStatus.Success
+        return HostCheck.Result(status == HttpRequestParseStatus.Success
             && result.Succeeded
             && result.HasContentLength
             && result.ContentLength == 4
             && result.HeaderLength == result.BodyOffset
             && result.BodyLength == 4
             && request[result.BodyOffset] == (byte)'b'
-            && request[result.BodyOffset + 3] == (byte)'y';
+            && request[result.BodyOffset + 3] == (byte)'y');
     }
 
+    [HostTest("net.http.request trims header value OWS", HostLane.Fast, 3)]
     private static bool TestTrimsHeaderValueOws()
     {
         byte[] request = Encoding.ASCII.GetBytes(
@@ -141,7 +99,7 @@ internal static class HttpRequestParserTests
 
         string host = Encoding.ASCII.GetString(request, result.HostOffset, result.HostLength);
 
-        return status == HttpRequestParseStatus.Success
+        return HostCheck.Result(status == HttpRequestParseStatus.Success
             && result.Succeeded
             && result.HasHost
             && host == "example.test \t"
@@ -152,9 +110,10 @@ internal static class HttpRequestParserTests
             && request[result.BodyOffset] == (byte)'b'
             && request[result.BodyOffset + 3] == (byte)'y'
             && invalidStatus == HttpRequestParseStatus.InvalidHeader
-            && !invalidResult.Succeeded;
+            && !invalidResult.Succeeded);
     }
 
+    [HostTest("net.http.request rejects duplicate content length", HostLane.Fast, 4)]
     private static bool TestRejectsDuplicateContentLength()
     {
         byte[] duplicateSameCase = Encoding.ASCII.GetBytes(
@@ -169,12 +128,13 @@ internal static class HttpRequestParserTests
             duplicateMixedCase,
             out HttpRequestParseResult mixedCaseResult);
 
-        return sameCaseStatus == HttpRequestParseStatus.DuplicateContentLength
+        return HostCheck.Result(sameCaseStatus == HttpRequestParseStatus.DuplicateContentLength
             && !sameCaseResult.Succeeded
             && mixedCaseStatus == HttpRequestParseStatus.DuplicateContentLength
-            && !mixedCaseResult.Succeeded;
+            && !mixedCaseResult.Succeeded);
     }
 
+    [HostTest("net.http.request rejects malformed request line", HostLane.Fast, 5)]
     private static bool TestRejectsMalformedRequestLine()
     {
         byte[] unsupportedMethod = Encoding.ASCII.GetBytes("PUT /healthz HTTP/1.1\r\n\r\n");
@@ -195,16 +155,17 @@ internal static class HttpRequestParserTests
             missingLineTerminator,
             out HttpRequestParseResult terminatorResult);
 
-        return methodStatus == HttpRequestParseStatus.UnsupportedMethod
+        return HostCheck.Result(methodStatus == HttpRequestParseStatus.UnsupportedMethod
             && !methodResult.Succeeded
             && targetStatus == HttpRequestParseStatus.InvalidRequestTarget
             && !targetResult.Succeeded
             && protocolStatus == HttpRequestParseStatus.InvalidProtocol
             && !protocolResult.Succeeded
             && terminatorStatus == HttpRequestParseStatus.MissingRequestLineTerminator
-            && !terminatorResult.Succeeded;
+            && !terminatorResult.Succeeded);
     }
 
+    [HostTest("net.http.request rejects invalid headers and body", HostLane.Fast, 6)]
     private static bool TestRejectsInvalidHeadersAndBody()
     {
         byte[] invalidHeader = Encoding.ASCII.GetBytes("GET / HTTP/1.1\r\nBad Header: x\r\n\r\n");
@@ -225,39 +186,41 @@ internal static class HttpRequestParserTests
             chunked,
             out HttpRequestParseResult chunkedResult);
 
-        return invalidHeaderStatus == HttpRequestParseStatus.InvalidHeader
+        return HostCheck.Result(invalidHeaderStatus == HttpRequestParseStatus.InvalidHeader
             && !invalidHeaderResult.Succeeded
             && invalidLengthStatus == HttpRequestParseStatus.InvalidContentLength
             && !invalidLengthResult.Succeeded
             && truncatedStatus == HttpRequestParseStatus.BodyTooShort
             && !truncatedResult.Succeeded
             && chunkedStatus == HttpRequestParseStatus.UnsupportedTransferEncoding
-            && !chunkedResult.Succeeded;
+            && !chunkedResult.Succeeded);
     }
 
+    [HostTest("net.http.request default result is not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         HttpRequestParseResult defaultResult = default;
         HttpRequestParseResult failedResult =
             HttpRequestParseResult.Fail(HttpRequestParseStatus.BufferTooSmall);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == HttpRequestParseStatus.Success
             && defaultResult.Method == HttpRequestMethod.Unknown
             && failedResult.IsInitialized
             && !failedResult.Succeeded
             && failedResult.Status == HttpRequestParseStatus.BufferTooSmall
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<HttpRequestParseResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<HttpRequestParseResult>());
     }
 
+    [HostTest("net.http.request uses shared memory index helper", HostLane.Fast, 8)]
     private static bool TestUsesSharedMemoryIndexHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string parserSource = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Net", "HttpRequestParser.cs"));
 
-        return parserSource.Contains(
+        return HostCheck.Result(parserSource.Contains(
                 "OS.Std.MemoryExtensions.IndexOf(bytes.Slice(start), \"\\r\\n\\r\\n\"u8)",
                 StringComparison.Ordinal)
             && parserSource.Contains(
@@ -274,16 +237,17 @@ internal static class HttpRequestParserTests
                 StringComparison.Ordinal)
             && !parserSource.Contains(
                 "for (int index = start; index < endExclusive; index++)",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("net.http.request uses shared ascii equality helper", HostLane.Fast, 9)]
     private static bool TestUsesSharedAsciiEqualityHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string parserSource = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Net", "HttpRequestParser.cs"));
 
-        return parserSource.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(parserSource.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && parserSource.Contains("AsciiString.Equals(method, \"GET\"u8)", StringComparison.Ordinal)
             && parserSource.Contains("AsciiString.Equals(method, \"HEAD\"u8)", StringComparison.Ordinal)
             && parserSource.Contains("AsciiString.Equals(method, \"POST\"u8)", StringComparison.Ordinal)
@@ -296,16 +260,17 @@ internal static class HttpRequestParserTests
             && parserSource.Contains("AsciiString.EqualsIgnoreCase(semanticValue, \"identity\"u8)", StringComparison.Ordinal)
             && !parserSource.Contains("private static bool AsciiEquals(", StringComparison.Ordinal)
             && !parserSource.Contains("private static bool AsciiEqualsIgnoreCase(", StringComparison.Ordinal)
-            && !parserSource.Contains("private static byte ToLowerAscii(", StringComparison.Ordinal);
+            && !parserSource.Contains("private static byte ToLowerAscii(", StringComparison.Ordinal));
     }
 
+    [HostTest("net.http.request uses shared memory protocol prefix helper", HostLane.Fast, 10)]
     private static bool TestUsesSharedMemoryProtocolPrefixHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string parserSource = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Net", "HttpRequestParser.cs"));
 
-        return parserSource.Contains("OS.Std.MemoryExtensions.StartsWith(protocol, \"HTTP/\"u8)", StringComparison.Ordinal)
+        return HostCheck.Result(parserSource.Contains("OS.Std.MemoryExtensions.StartsWith(protocol, \"HTTP/\"u8)", StringComparison.Ordinal)
             && parserSource.Contains("protocol.Length != 8", StringComparison.Ordinal)
             && parserSource.Contains("!OS.Std.Ascii.IsDigit(protocol[5])", StringComparison.Ordinal)
             && parserSource.Contains("protocol[6] != (byte)'.'", StringComparison.Ordinal)
@@ -314,34 +279,36 @@ internal static class HttpRequestParserTests
             && !parserSource.Contains("request[secondSpace + 2] != (byte)'T'", StringComparison.Ordinal)
             && !parserSource.Contains("request[secondSpace + 3] != (byte)'T'", StringComparison.Ordinal)
             && !parserSource.Contains("request[secondSpace + 4] != (byte)'P'", StringComparison.Ordinal)
-            && !parserSource.Contains("request[secondSpace + 5] != (byte)'/'", StringComparison.Ordinal);
+            && !parserSource.Contains("request[secondSpace + 5] != (byte)'/'", StringComparison.Ordinal));
     }
 
+    [HostTest("net.http.request uses shared ascii token helper", HostLane.Fast, 11)]
     private static bool TestUsesSharedAsciiTokenHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string parserSource = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Net", "HttpRequestParser.cs"));
 
-        return parserSource.Contains("OS.Std.Ascii.IsLetterOrDigit(value)", StringComparison.Ordinal)
+        return HostCheck.Result(parserSource.Contains("OS.Std.Ascii.IsLetterOrDigit(value)", StringComparison.Ordinal)
             && parserSource.Contains("OS.Std.Ascii.IsDigit(c)", StringComparison.Ordinal)
             && !parserSource.Contains("private static bool IsDigit(", StringComparison.Ordinal)
             && !parserSource.Contains("(value >= (byte)'a' && value <= (byte)'z')", StringComparison.Ordinal)
             && !parserSource.Contains("(value >= (byte)'A' && value <= (byte)'Z')", StringComparison.Ordinal)
-            && !parserSource.Contains("(value >= (byte)'0' && value <= (byte)'9')", StringComparison.Ordinal);
+            && !parserSource.Contains("(value >= (byte)'0' && value <= (byte)'9')", StringComparison.Ordinal));
     }
 
+    [HostTest("net.http.request uses shared ascii space-or-tab helper", HostLane.Fast, 12)]
     private static bool TestUsesSharedAsciiSpaceOrTabHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string parserSource = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Net", "HttpRequestParser.cs"));
 
-        return parserSource.Contains(
+        return HostCheck.Result(parserSource.Contains(
                 "OS.Std.Ascii.IsSpaceOrTab(request[valueOffset])",
                 StringComparison.Ordinal)
             && !parserSource.Contains(
                 "request[valueOffset] == (byte)' ' || request[valueOffset] == (byte)'\\t'",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 }

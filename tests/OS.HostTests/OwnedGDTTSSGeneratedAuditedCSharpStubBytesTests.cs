@@ -24,7 +24,7 @@ internal static unsafe class OwnedGDTTSSGeneratedAuditedCSharpStubBytesTests
     private const ulong StubAddress = 0x0030_0000;
     private const byte Sentinel = 0xa5;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START " + TestName);
@@ -54,23 +54,25 @@ internal static unsafe class OwnedGDTTSSGeneratedAuditedCSharpStubBytesTests
 
     private static void RunCase(string name, Func<bool> test, ref int failures)
     {
-        try
+        HostCheck.Run(TestName + " " + name, () =>
         {
-            if (test())
+            try
             {
-                return;
+                if (test())
+                {
+                    return true;
+                }
+                Console.WriteLine("M02_009_CASE_FAIL " + Normalize(name));
+                return false;
             }
-
-            failures++;
-            Console.WriteLine("M02_009_CASE_FAIL " + Normalize(name));
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine(
-                "M02_009_CASE_FAIL " + Normalize(name) + " " +
-                exception.GetType().Name + ": " + exception.Message);
-        }
+            catch (Exception exception)
+            {
+                Console.WriteLine(
+                    "M02_009_CASE_FAIL " + Normalize(name) + " " +
+                    exception.GetType().Name + ": " + exception.Message);
+                throw;
+            }
+        }, ref failures);
     }
 
     private static bool TestValueContracts()

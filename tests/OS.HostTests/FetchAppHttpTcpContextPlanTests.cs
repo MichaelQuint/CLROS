@@ -13,47 +13,7 @@ internal static class FetchAppHttpTcpContextPlanTests
     private const ushort Identification = 0x3344;
     private const int MaximumRequestPayloadBytes = 1200;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("fetch.http tcp context composes planner info", TestComposesPlannerInfo, ref failures);
-        Run("fetch.http tcp context rejects endpoint failure", TestRejectsEndpointFailure, ref failures);
-        Run("fetch.http tcp context rejects dns failure", TestRejectsDnsFailure, ref failures);
-        Run("fetch.http tcp context rejects dns host mismatch", TestRejectsDnsHostMismatch, ref failures);
-        Run("fetch.http tcp context rejects uncached route", TestRejectsUncachedRoute, ref failures);
-        Run("fetch.http tcp context rejects invalid local identity", TestRejectsInvalidLocalIdentity, ref failures);
-        Run("fetch.http tcp context default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("FetchApp HTTP TCP context plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("fetch.http tcp context composes planner info", HostLane.Fast, 0)]
     private static bool TestComposesPlannerInfo()
     {
         byte[] host = HostBytes("example.com");
@@ -71,7 +31,7 @@ internal static class FetchAppHttpTcpContextPlanTests
             out FetchAppHttpTcpContextPlanResult result);
         TcpIpv4FramePlannerInfo tcpInfo = result.PlannerInfo.TcpInfo;
 
-        return status == FetchAppHttpTcpContextPlanStatus.Success
+        return HostCheck.Result(status == FetchAppHttpTcpContextPlanStatus.Success
             && result.Succeeded
             && result.Status == FetchAppHttpTcpContextPlanStatus.Success
             && result.EndpointStatus == FetchAppHttpRequestEndpointStatus.Success
@@ -99,9 +59,10 @@ internal static class FetchAppHttpTcpContextPlanTests
             && tcpInfo.TimeToLive == TimeToLive
             && tcpInfo.Identification == Identification
             && result.PlannerInfo.MaximumRequestPayloadBytes == MaximumRequestPayloadBytes
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpTcpContextPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpTcpContextPlanResult>());
     }
 
+    [HostTest("fetch.http tcp context rejects endpoint failure", HostLane.Fast, 1)]
     private static bool TestRejectsEndpointFailure()
     {
         byte[] host = HostBytes("example.com");
@@ -127,15 +88,16 @@ internal static class FetchAppHttpTcpContextPlanTests
             ReadyInfo(),
             out FetchAppHttpTcpContextPlanResult result);
 
-        return status == FetchAppHttpTcpContextPlanStatus.EndpointFailed
+        return HostCheck.Result(status == FetchAppHttpTcpContextPlanStatus.EndpointFailed
             && result.IsInitialized
             && !result.Succeeded
             && result.Status == FetchAppHttpTcpContextPlanStatus.EndpointFailed
             && result.EndpointStatus == FetchAppHttpRequestEndpointStatus.InvalidPort
             && result.HostFingerprint == 0
-            && result.PlannerInfo.TcpInfo.LocalPort == 0;
+            && result.PlannerInfo.TcpInfo.LocalPort == 0);
     }
 
+    [HostTest("fetch.http tcp context rejects dns failure", HostLane.Fast, 2)]
     private static bool TestRejectsDnsFailure()
     {
         byte[] host = HostBytes("example.com");
@@ -162,16 +124,17 @@ internal static class FetchAppHttpTcpContextPlanTests
             ReadyInfo(),
             out FetchAppHttpTcpContextPlanResult result);
 
-        return status == FetchAppHttpTcpContextPlanStatus.DnsFailed
+        return HostCheck.Result(status == FetchAppHttpTcpContextPlanStatus.DnsFailed
             && result.IsInitialized
             && !result.Succeeded
             && result.Status == FetchAppHttpTcpContextPlanStatus.DnsFailed
             && result.DnsStatus == DnsResolverTransactionPlanStatus.Nxdomain
             && result.DnsQueryNameFingerprint == failedDns.QueryNameFingerprint
             && result.ResolvedAddress == default
-            && result.HostFingerprint == 0;
+            && result.HostFingerprint == 0);
     }
 
+    [HostTest("fetch.http tcp context rejects dns host mismatch", HostLane.Fast, 3)]
     private static bool TestRejectsDnsHostMismatch()
     {
         byte[] host = HostBytes("example.com");
@@ -188,16 +151,17 @@ internal static class FetchAppHttpTcpContextPlanTests
             out FetchAppHttpTcpContextPlanResult result);
 
         uint hostFingerprint = FetchAppHttpTcpContextPlan.ComputeHostFingerprint(host);
-        return status == FetchAppHttpTcpContextPlanStatus.DnsHostMismatch
+        return HostCheck.Result(status == FetchAppHttpTcpContextPlanStatus.DnsHostMismatch
             && result.IsInitialized
             && !result.Succeeded
             && result.Status == FetchAppHttpTcpContextPlanStatus.DnsHostMismatch
             && result.HostFingerprint == hostFingerprint
             && result.DnsQueryNameFingerprint == wrongHostDns.QueryNameFingerprint
             && result.DnsQueryNameLength == "example.net".Length
-            && result.ResolvedAddress == RemoteAddress();
+            && result.ResolvedAddress == RemoteAddress());
     }
 
+    [HostTest("fetch.http tcp context rejects uncached route", HostLane.Fast, 4)]
     private static bool TestRejectsUncachedRoute()
     {
         byte[] host = HostBytes("example.com");
@@ -217,16 +181,17 @@ internal static class FetchAppHttpTcpContextPlanTests
             ReadyInfo(),
             out FetchAppHttpTcpContextPlanResult result);
 
-        return status == FetchAppHttpTcpContextPlanStatus.RouteNotCached
+        return HostCheck.Result(status == FetchAppHttpTcpContextPlanStatus.RouteNotCached
             && result.IsInitialized
             && !result.Succeeded
             && result.Status == FetchAppHttpTcpContextPlanStatus.RouteNotCached
             && result.RouteStatus == Ipv4NeighborRoutePlanStatus.Success
             && result.RouteAction == Ipv4NeighborRoutePlanAction.SendArpRequest
             && result.RouteMac == default
-            && result.PlannerInfo.TcpInfo.RemotePort == 0;
+            && result.PlannerInfo.TcpInfo.RemotePort == 0);
     }
 
+    [HostTest("fetch.http tcp context rejects invalid local identity", HostLane.Fast, 5)]
     private static bool TestRejectsInvalidLocalIdentity()
     {
         byte[] host = HostBytes("example.com");
@@ -272,7 +237,7 @@ internal static class FetchAppHttpTcpContextPlanTests
             zeroPort,
             out FetchAppHttpTcpContextPlanResult zeroPortResult);
 
-        return zeroMacStatus == FetchAppHttpTcpContextPlanStatus.InvalidLocalIdentity
+        return HostCheck.Result(zeroMacStatus == FetchAppHttpTcpContextPlanStatus.InvalidLocalIdentity
             && zeroAddressStatus == FetchAppHttpTcpContextPlanStatus.InvalidLocalIdentity
             && zeroPortStatus == FetchAppHttpTcpContextPlanStatus.InvalidLocalIdentity
             && zeroMacResult.IsInitialized
@@ -283,15 +248,16 @@ internal static class FetchAppHttpTcpContextPlanTests
             && !zeroPortResult.Succeeded
             && zeroMacResult.HostFingerprint == FetchAppHttpTcpContextPlan.ComputeHostFingerprint(host)
             && zeroAddressResult.RouteMac == route.TargetMac
-            && zeroPortResult.PlannerInfo.TcpInfo.LocalPort == 0;
+            && zeroPortResult.PlannerInfo.TcpInfo.LocalPort == 0);
     }
 
+    [HostTest("fetch.http tcp context default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         FetchAppHttpTcpContextPlanResult defaultResult = default;
         FetchAppHttpTcpContextPlanInfo defaultInfo = default;
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == FetchAppHttpTcpContextPlanStatus.Success
             && defaultResult.EndpointStatus == FetchAppHttpRequestEndpointStatus.Success
@@ -311,7 +277,7 @@ internal static class FetchAppHttpTcpContextPlanTests
             && defaultInfo.LocalAddress == default
             && defaultInfo.LocalPort == 0
             && defaultInfo.InitialSequenceNumber == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpTcpContextPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpTcpContextPlanResult>());
     }
 
     private static FetchAppHttpRequestEndpointResult ReadyEndpoint(int hostLength)

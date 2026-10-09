@@ -5,46 +5,7 @@ internal static class VirtioDeviceInitializationProfileTests
 {
     private const ulong UnsupportedDeviceFeature = 1UL << 40;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.virtio.profile creates block initialization plan", TestCreatesBlockInitializationPlan, ref failures);
-        Run("drivers.virtio.profile creates network initialization plan", TestCreatesNetworkInitializationPlan, ref failures);
-        Run("drivers.virtio.profile rejects unknown device kind", TestRejectsUnknownDeviceKind, ref failures);
-        Run("drivers.virtio.profile reports insufficient queues", TestReportsInsufficientQueues, ref failures);
-        Run("drivers.virtio.profile reports features-ok rejection", TestReportsFeaturesOkRejection, ref failures);
-        Run("drivers.virtio.profile default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio device initialization profile host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtio.profile creates block initialization plan", HostLane.Fast, 0)]
     private static bool TestCreatesBlockInitializationPlan()
     {
         VirtioDeviceInitializationProfileResult result =
@@ -54,7 +15,7 @@ internal static class VirtioDeviceInitializationProfileTests
                 availableQueueCount: 1,
                 featuresOkAccepted: true);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioDeviceInitializationProfileStatus.Success
             && result.DeviceKind == VirtioPciDeviceKind.Block
             && result.RequiredQueueCount == VirtioDeviceInitializationProfile.BlockRequiredQueueCount
@@ -73,9 +34,10 @@ internal static class VirtioDeviceInitializationProfileTests
                 VirtioDeviceInitializationPlan.AcknowledgeStatus,
                 VirtioDeviceInitializationPlan.DriverStatus,
                 VirtioDeviceInitializationPlan.FeaturesOkStatus,
-                VirtioDeviceInitializationPlan.DriverOkStatus);
+                VirtioDeviceInitializationPlan.DriverOkStatus));
     }
 
+    [HostTest("drivers.virtio.profile creates network initialization plan", HostLane.Fast, 1)]
     private static bool TestCreatesNetworkInitializationPlan()
     {
         VirtioDeviceInitializationProfileResult result =
@@ -85,7 +47,7 @@ internal static class VirtioDeviceInitializationProfileTests
                 availableQueueCount: 2,
                 featuresOkAccepted: true);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioDeviceInitializationProfileStatus.Success
             && result.DeviceKind == VirtioPciDeviceKind.Network
             && result.RequiredQueueCount == VirtioDeviceInitializationProfile.NetworkRequiredQueueCount
@@ -103,9 +65,10 @@ internal static class VirtioDeviceInitializationProfileTests
                 VirtioDeviceInitializationPlan.AcknowledgeStatus,
                 VirtioDeviceInitializationPlan.DriverStatus,
                 VirtioDeviceInitializationPlan.FeaturesOkStatus,
-                VirtioDeviceInitializationPlan.DriverOkStatus);
+                VirtioDeviceInitializationPlan.DriverOkStatus));
     }
 
+    [HostTest("drivers.virtio.profile rejects unknown device kind", HostLane.Fast, 2)]
     private static bool TestRejectsUnknownDeviceKind()
     {
         VirtioDeviceInitializationProfileResult result =
@@ -115,15 +78,16 @@ internal static class VirtioDeviceInitializationProfileTests
                 availableQueueCount: 2,
                 featuresOkAccepted: true);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioDeviceInitializationProfileStatus.UnknownDeviceKind
             && result.DeviceKind == (VirtioPciDeviceKind)99
             && result.RequiredFeatures == 0
             && result.OptionalFeatures == 0
             && result.RequiredQueueCount == 0
-            && !result.HasInitializationPlan;
+            && !result.HasInitializationPlan);
     }
 
+    [HostTest("drivers.virtio.profile reports insufficient queues", HostLane.Fast, 3)]
     private static bool TestReportsInsufficientQueues()
     {
         VirtioDeviceInitializationProfileResult result =
@@ -133,7 +97,7 @@ internal static class VirtioDeviceInitializationProfileTests
                 availableQueueCount: 1,
                 featuresOkAccepted: true);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioDeviceInitializationProfileStatus.InitializationPlanFailed
             && result.HasInitializationPlan
             && result.RequiredQueueCount == VirtioDeviceInitializationProfile.NetworkRequiredQueueCount
@@ -146,9 +110,10 @@ internal static class VirtioDeviceInitializationProfileTests
                 VirtioDeviceInitializationPlan.AcknowledgeStatus,
                 VirtioDeviceInitializationPlan.DriverStatus,
                 VirtioDeviceInitializationPlan.FeaturesOkStatus,
-                VirtioDeviceInitializationPlan.FailedAfterFeaturesOkStatus);
+                VirtioDeviceInitializationPlan.FailedAfterFeaturesOkStatus));
     }
 
+    [HostTest("drivers.virtio.profile reports features-ok rejection", HostLane.Fast, 4)]
     private static bool TestReportsFeaturesOkRejection()
     {
         VirtioDeviceInitializationProfileResult result =
@@ -158,7 +123,7 @@ internal static class VirtioDeviceInitializationProfileTests
                 availableQueueCount: 1,
                 featuresOkAccepted: false);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioDeviceInitializationProfileStatus.InitializationPlanFailed
             && result.HasInitializationPlan
             && result.InitializationPlan.Status
@@ -171,14 +136,15 @@ internal static class VirtioDeviceInitializationProfileTests
                 VirtioDeviceInitializationPlan.AcknowledgeStatus,
                 VirtioDeviceInitializationPlan.DriverStatus,
                 VirtioDeviceInitializationPlan.FeaturesOkStatus,
-                VirtioDeviceInitializationPlan.FailedBeforeFeaturesOkStatus);
+                VirtioDeviceInitializationPlan.FailedBeforeFeaturesOkStatus));
     }
 
+    [HostTest("drivers.virtio.profile default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioDeviceInitializationProfileResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioDeviceInitializationProfileStatus.Success
             && result.DeviceKind == default
@@ -187,7 +153,7 @@ internal static class VirtioDeviceInitializationProfileTests
             && result.AvailableQueueCount == 0
             && result.RequiredQueueCount == 0
             && !result.HasInitializationPlan
-            && !result.InitializationPlan.Succeeded;
+            && !result.InitializationPlan.Succeeded);
     }
 
     private static bool SequenceEquals(

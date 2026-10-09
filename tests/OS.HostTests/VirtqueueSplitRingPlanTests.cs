@@ -3,55 +3,18 @@ using OS.Drivers;
 
 internal static class VirtqueueSplitRingPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.virtqueue split ring layout", TestSplitRingLayout, ref failures);
-        Run("drivers.virtqueue rejects invalid queue size", TestRejectsInvalidQueueSize, ref failures);
-        Run("drivers.virtqueue maps descriptor avail used offsets", TestMapsDescriptorAvailUsedOffsets, ref failures);
-        Run("drivers.virtqueue rejects overflow", TestRejectsOverflow, ref failures);
-        Run("drivers.virtqueue default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtqueue split-ring host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtqueue split ring layout", HostLane.Fast, 0)]
     private static bool TestSplitRingLayout()
     {
         VirtqueueSplitRingPlanResult result = VirtqueueSplitRingPlan.Create(queueSize: 8);
         if (!result.Succeeded || result.Status != VirtqueueSplitRingPlanStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtqueueSplitRingPlan plan = result.Plan;
-        return plan.QueueSize == 8
+        return HostCheck.Result(plan.QueueSize == 8
             && plan.QueueStartOffset == 0
             && plan.DescriptorTable.Offset == 0
             && plan.DescriptorTable.Length == 128
@@ -69,9 +32,10 @@ internal static class VirtqueueSplitRingPlanTests
             && plan.UsedRing.Alignment == VirtqueueSplitRingPlan.UsedRingAlignment
             && plan.UsedRing.IsAligned
             && plan.EndOffset == 216
-            && plan.RequiredByteLength == 216;
+            && plan.RequiredByteLength == 216);
     }
 
+    [HostTest("drivers.virtqueue rejects invalid queue size", HostLane.Fast, 1)]
     private static bool TestRejectsInvalidQueueSize()
     {
         VirtqueueSplitRingPlanResult zero = VirtqueueSplitRingPlan.Create(queueSize: 0);
@@ -80,16 +44,17 @@ internal static class VirtqueueSplitRingPlanTests
         VirtqueueSplitRingPlanResult maximum = VirtqueueSplitRingPlan.Create(
             VirtqueueSplitRingPlan.MaximumQueueSize);
 
-        return !zero.Succeeded
+        return HostCheck.Result(!zero.Succeeded
             && zero.Status == VirtqueueSplitRingPlanStatus.InvalidQueueSize
             && !notPowerOfTwo.Succeeded
             && notPowerOfTwo.Status == VirtqueueSplitRingPlanStatus.QueueSizeNotPowerOfTwo
             && !tooLarge.Succeeded
             && tooLarge.Status == VirtqueueSplitRingPlanStatus.QueueSizeTooLarge
             && maximum.Succeeded
-            && maximum.Plan.QueueSize == VirtqueueSplitRingPlan.MaximumQueueSize;
+            && maximum.Plan.QueueSize == VirtqueueSplitRingPlan.MaximumQueueSize);
     }
 
+    [HostTest("drivers.virtqueue maps descriptor avail used offsets", HostLane.Fast, 2)]
     private static bool TestMapsDescriptorAvailUsedOffsets()
     {
         VirtqueueSplitRingPlanResult result = VirtqueueSplitRingPlan.Create(
@@ -97,11 +62,11 @@ internal static class VirtqueueSplitRingPlanTests
             queueSize: 8);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtqueueSplitRingPlan plan = result.Plan;
-        return plan.QueueStartOffset == 3
+        return HostCheck.Result(plan.QueueStartOffset == 3
             && plan.DescriptorTable.Offset == 16
             && plan.DescriptorTable.Length == 128
             && plan.AvailableRing.Offset == 144
@@ -112,9 +77,10 @@ internal static class VirtqueueSplitRingPlanTests
             && plan.RequiredByteLength == 229
             && plan.DescriptorTable.IsAligned
             && plan.AvailableRing.IsAligned
-            && plan.UsedRing.IsAligned;
+            && plan.UsedRing.IsAligned);
     }
 
+    [HostTest("drivers.virtqueue rejects overflow", HostLane.Fast, 3)]
     private static bool TestRejectsOverflow()
     {
         VirtqueueSplitRingPlanResult descriptorEndOverflow = VirtqueueSplitRingPlan.Create(
@@ -124,12 +90,13 @@ internal static class VirtqueueSplitRingPlanTests
             queueStartOffset: uint.MaxValue - 1,
             queueSize: 1);
 
-        return !descriptorEndOverflow.Succeeded
+        return HostCheck.Result(!descriptorEndOverflow.Succeeded
             && descriptorEndOverflow.Status == VirtqueueSplitRingPlanStatus.LayoutOverflow
             && !descriptorAlignOverflow.Succeeded
-            && descriptorAlignOverflow.Status == VirtqueueSplitRingPlanStatus.LayoutOverflow;
+            && descriptorAlignOverflow.Status == VirtqueueSplitRingPlanStatus.LayoutOverflow);
     }
 
+    [HostTest("drivers.virtqueue default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtqueueSplitRingPlanResult result = default;
@@ -138,7 +105,7 @@ internal static class VirtqueueSplitRingPlanTests
                 VirtqueueSplitRingPlanStatus.InvalidQueueSize,
                 queueSize: 0);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtqueueSplitRingPlanStatus.Success
             && result.QueueSize == 0
@@ -148,6 +115,6 @@ internal static class VirtqueueSplitRingPlanTests
             && !failed.Succeeded
             && failed.Status == VirtqueueSplitRingPlanStatus.InvalidQueueSize
             && failed.QueueSize == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtqueueSplitRingPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtqueueSplitRingPlanResult>());
     }
 }

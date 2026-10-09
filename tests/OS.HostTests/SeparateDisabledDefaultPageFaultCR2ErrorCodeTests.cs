@@ -15,11 +15,10 @@ internal static class SeparateDisabledDefaultPageFaultCR2ErrorCodeTests
         "hardwareStateCaptured=false faultTriggered=false guestExecution=false " +
         "postExitBootServices=false";
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
-        Console.WriteLine("TEST_START m02.014");
-        try
+        HostCheck.Run("m02.014", () =>
         {
             TestDefaultsAndValueBoundary();
             TestPrerequisitesAndSafetyFlags();
@@ -29,14 +28,8 @@ internal static class SeparateDisabledDefaultPageFaultCR2ErrorCodeTests
             TestExactErrorAndCr2Bits();
             TestAllocationAndInputStability();
             TestSourceBoundary();
-        }
-        catch (Exception exception)
-        {
-            Console.WriteLine("TEST_FAIL m02.014 " + exception.Message);
-            throw;
-        }
-        Console.WriteLine(HostMarker);
-        Console.WriteLine("TEST_PASS m02.014");
+            Console.WriteLine(HostMarker);
+        });
     }
 
     private static void TestDefaultsAndValueBoundary()

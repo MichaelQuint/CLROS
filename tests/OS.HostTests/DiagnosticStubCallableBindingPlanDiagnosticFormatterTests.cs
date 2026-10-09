@@ -7,48 +7,7 @@ internal static class DiagnosticStubCallableBindingPlanDiagnosticFormatterTests
 {
     private const nuint RegionBaseAddress = 0x0010_0000;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("diagnostics.stub_callable formatter formats success marker", TestFormatsSuccessMarker, ref failures);
-        Run("diagnostics.stub_callable formatter formats failure marker", TestFormatsFailureMarker, ref failures);
-        Run("diagnostics.stub_callable formatter reports short destination", TestReportsShortDestination, ref failures);
-        Run("diagnostics.stub_callable formatter rejects default result", TestRejectsDefaultResult, ref failures);
-        Run("diagnostics.stub_callable formatter rejects invalid status", TestRejectsInvalidStatus, ref failures);
-        Run("diagnostics.stub_callable formatter uses shared ascii text builder", TestUsesSharedAsciiTextBuilder, ref failures);
-        Run("diagnostics.stub_callable formatter result contains no managed references", TestResultContainsNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Diagnostic stub callable binding plan diagnostic formatter tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("diagnostics.stub_callable formatter formats success marker", HostLane.Fast, 0)]
     private static bool TestFormatsSuccessMarker()
     {
         DiagnosticStubCallableBindingPlanResult plan = CreateReadyPlan();
@@ -62,7 +21,7 @@ internal static class DiagnosticStubCallableBindingPlanDiagnosticFormatterTests
         string marker = Encoding.ASCII.GetString(destination[..result.BytesWritten]);
         string expected = CreateExpectedMarker(plan);
 
-        return plan.Succeeded
+        return HostCheck.Result(plan.Succeeded
             && query.IsInitialized
             && !query.Succeeded
             && query.Status == DiagnosticStubCallableBindingPlanDiagnosticFormatStatus.Success
@@ -75,9 +34,10 @@ internal static class DiagnosticStubCallableBindingPlanDiagnosticFormatterTests
             && marker == expected
             && marker.StartsWith("DIAGNOSTIC_STUB_CALLABLE_BINDING status=Ready ", StringComparison.Ordinal)
             && marker.Contains("createsDelegate=false", StringComparison.Ordinal)
-            && marker.EndsWith("writesSerial=false", StringComparison.Ordinal);
+            && marker.EndsWith("writesSerial=false", StringComparison.Ordinal));
     }
 
+    [HostTest("diagnostics.stub_callable formatter formats failure marker", HostLane.Fast, 1)]
     private static bool TestFormatsFailureMarker()
     {
         DiagnosticStubCallableBindingPlanResult plan = CreateFailedPlan();
@@ -89,7 +49,7 @@ internal static class DiagnosticStubCallableBindingPlanDiagnosticFormatterTests
         string marker = Encoding.ASCII.GetString(destination[..result.BytesWritten]);
         string expected = CreateExpectedMarker(plan);
 
-        return !plan.Succeeded
+        return HostCheck.Result(!plan.Succeeded
             && plan.IsInitialized
             && result.Succeeded
             && result.BytesWritten == expected.Length
@@ -100,9 +60,10 @@ internal static class DiagnosticStubCallableBindingPlanDiagnosticFormatterTests
                 StringComparison.Ordinal)
             && marker.Contains("initialized=true", StringComparison.Ordinal)
             && marker.Contains("invocation=Ready", StringComparison.Ordinal)
-            && marker.Contains("out8Bytes=7 in8Bytes=5", StringComparison.Ordinal);
+            && marker.Contains("out8Bytes=7 in8Bytes=5", StringComparison.Ordinal));
     }
 
+    [HostTest("diagnostics.stub_callable formatter reports short destination", HostLane.Fast, 2)]
     private static bool TestReportsShortDestination()
     {
         DiagnosticStubCallableBindingPlanResult plan = CreateReadyPlan();
@@ -114,7 +75,7 @@ internal static class DiagnosticStubCallableBindingPlanDiagnosticFormatterTests
         DiagnosticStubCallableBindingPlanDiagnosticFormatResult result =
             DiagnosticStubCallableBindingPlanDiagnosticFormatter.FormatResult(plan, destination);
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && query.Status == DiagnosticStubCallableBindingPlanDiagnosticFormatStatus.Success
             && query.RequiredBytes > destination.Length
             && !query.Succeeded
@@ -125,9 +86,10 @@ internal static class DiagnosticStubCallableBindingPlanDiagnosticFormatterTests
             && result.RequiredBytes == query.RequiredBytes
             && result.AvailableBytes == destination.Length
             && destination[0] == 0xA5
-            && destination[^1] == 0xA5;
+            && destination[^1] == 0xA5);
     }
 
+    [HostTest("diagnostics.stub_callable formatter rejects default result", HostLane.Fast, 3)]
     private static bool TestRejectsDefaultResult()
     {
         DiagnosticStubCallableBindingPlanResult plan = default;
@@ -139,7 +101,7 @@ internal static class DiagnosticStubCallableBindingPlanDiagnosticFormatterTests
         DiagnosticStubCallableBindingPlanDiagnosticFormatResult result =
             DiagnosticStubCallableBindingPlanDiagnosticFormatter.FormatResult(plan, destination);
 
-        return !plan.IsInitialized
+        return HostCheck.Result(!plan.IsInitialized
             && !plan.Succeeded
             && query.IsInitialized
             && !query.Succeeded
@@ -153,9 +115,10 @@ internal static class DiagnosticStubCallableBindingPlanDiagnosticFormatterTests
             && result.RequiredBytes == 0
             && result.AvailableBytes == destination.Length
             && destination[0] == 0xCC
-            && destination[^1] == 0xCC;
+            && destination[^1] == 0xCC);
     }
 
+    [HostTest("diagnostics.stub_callable formatter rejects invalid status", HostLane.Fast, 4)]
     private static bool TestRejectsInvalidStatus()
     {
         DiagnosticStubCallableBindingPlanResult plan =
@@ -172,7 +135,7 @@ internal static class DiagnosticStubCallableBindingPlanDiagnosticFormatterTests
         DiagnosticStubCallableBindingPlanDiagnosticFormatResult query =
             DiagnosticStubCallableBindingPlanDiagnosticFormatter.QueryRequiredBytes(plan);
 
-        return plan.IsInitialized
+        return HostCheck.Result(plan.IsInitialized
             && !plan.Succeeded
             && result.IsInitialized
             && !result.Succeeded
@@ -182,9 +145,10 @@ internal static class DiagnosticStubCallableBindingPlanDiagnosticFormatterTests
             && query.Status == DiagnosticStubCallableBindingPlanDiagnosticFormatStatus.InvalidResult
             && query.RequiredBytes == 0
             && destination[0] == 0xDD
-            && destination[^1] == 0xDD;
+            && destination[^1] == 0xDD);
     }
 
+    [HostTest("diagnostics.stub_callable formatter uses shared ascii text builder", HostLane.Fast, 5)]
     private static bool TestUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -196,7 +160,7 @@ internal static class DiagnosticStubCallableBindingPlanDiagnosticFormatterTests
                 "Diagnostics",
                 "DiagnosticStubCallableBindingPlanDiagnosticFormatter.cs"));
 
-        return DiagnosticStubCallableBindingPlanDiagnosticFormatter.UsesSharedAsciiTextBuilder
+        return HostCheck.Result(DiagnosticStubCallableBindingPlanDiagnosticFormatter.UsesSharedAsciiTextBuilder
             && DiagnosticStubCallableBindingPlanDiagnosticFormatter.UsesCallerProvidedDestination
             && !DiagnosticStubCallableBindingPlanDiagnosticFormatter.AllocatesManagedStorage
             && !DiagnosticStubCallableBindingPlanDiagnosticFormatter.CreatesManagedDelegate
@@ -217,21 +181,22 @@ internal static class DiagnosticStubCallableBindingPlanDiagnosticFormatterTests
             && !source.Contains("private static bool WriteUnsigned(", StringComparison.Ordinal)
             && !source.Contains(".CopyTo(", StringComparison.Ordinal)
             && !source.Contains("destination.Slice(offset)", StringComparison.Ordinal)
-            && !source.Contains("destination[cursor] = (byte)('0' +", StringComparison.Ordinal);
+            && !source.Contains("destination[cursor] = (byte)('0' +", StringComparison.Ordinal));
     }
 
+    [HostTest("diagnostics.stub_callable formatter result contains no managed references", HostLane.Fast, 6)]
     private static bool TestResultContainsNoManagedReferences()
     {
         DiagnosticStubCallableBindingPlanDiagnosticFormatResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == DiagnosticStubCallableBindingPlanDiagnosticFormatStatus.Success
             && result.BytesWritten == 0
             && result.RequiredBytes == 0
             && result.AvailableBytes == 0
             && result.Flags == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<DiagnosticStubCallableBindingPlanDiagnosticFormatResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<DiagnosticStubCallableBindingPlanDiagnosticFormatResult>());
     }
 
     private static string CreateExpectedMarker(DiagnosticStubCallableBindingPlanResult plan)
