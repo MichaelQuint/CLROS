@@ -9,6 +9,11 @@ The assertion audit records every host C# file/method and reviews staleness risk
 Steps1116/1117 cover checkpoint provenance and build isolation; step1119 adds
 fast-phase gating and the remaining multiline source normalization repairs.
 
+[Step1121](../done/step1121.md) consolidates the remaining worktree histories
+after the accepted C# batch. Residual edits are committed, superseded branch
+histories are joined without changing the accepted implementation, and local
+native/guest/checkpoint evidence remains in its original worktrees.
+
 The C# tooling migration in [step1097](../done/step1097.md) completes the
 implementation begun in [step1096](../done/step1096.md). Explicit test discovery,
 isolated fast workers, exclusive native workers, bounded process cleanup and
@@ -28,15 +33,16 @@ restoration control; production tooling and guest source identities are unchange
 [Step1099](../done/step1099.md) records publication through
 [PR #602](http://192.168.4.35:3000/admin/CLROS/pulls/602) and migration of the
 matching Gitea command/path documentation. Custom issue context and runtime
-acceptance states are preserved. The older checkpoint/resume proposal in
-[issue #600](http://192.168.4.35:3000/admin/CLROS/issues/600) remains separate;
-the current runner always executes selected tests freshly.
+acceptance states are preserved. The checkpoint/resume work in
+[issue #600](http://192.168.4.35:3000/admin/CLROS/issues/600) is now accepted
+through steps1116-1120 and PRs #603/#604. Eligible unchanged groups retain their
+original evidence; failed, changed and unsupported groups execute again.
 
 The M03 tracker reconciliation in [step1095](../done/step1095.md) records all
 11 keyed children accepted, closes epic #57 and milestone 5, and refreshes the
-#68 dependency in #93/#94. #94 is the next ready platform leaf; #93 remains an
-open tracking epic. This uses the existing source-bound evidence and adds no
-new host/runtime/guest acceptance or numbered completion-gate pass.
+#68 dependency in #93/#94. Step1120 subsequently accepts #94; #95 is the next
+ready platform leaf and #93 remains an open tracking epic. Tracker reconciliation
+uses the recorded evidence and adds no numbered completion-gate pass.
 
 Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 
