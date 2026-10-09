@@ -449,8 +449,8 @@ internal static class M04CheckedReferenceBarrierEfiIntegrationTests
     {
         string root=HostToolProcess.FindRepositoryRoot(),directory=Scratch("profiles");var project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
         string[] flags=project.Descendants("Error").SelectMany(x=>System.Text.RegularExpressions.Regex.Matches(x.Attribute("Condition")?.Value??"",@"\$\((Enable[^)]+)\)").Select(m=>m.Groups[1].Value)).Distinct(StringComparer.Ordinal).ToArray();
-        Need(flags.Length==52&&Chain.Length==8,"exact all52 profile vector/eight prerequisites");
-        string[] conflicts=flags.Except(Chain.Append(Flag),StringComparer.Ordinal).ToArray();Need(conflicts.Length==43,"exact43 unrelated profiles");
+        Need(flags.Length==53&&Chain.Length==8,"exact all53 profile vector/eight prerequisites");
+        string[] conflicts=flags.Except(Chain.Append(Flag),StringComparer.Ordinal).ToArray();Need(conflicts.Length==44,"exact44 unrelated profiles");
         var conditions=project.Descendants("Error").Select(x=>x.Attribute("Condition")!.Value).ToHashSet(StringComparer.Ordinal);
         Need(conditions.Contains("'$(EnableM04SeededCollectorChurnProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'"),"churn inherits GC prerequisites and conflicts");
         Need(conditions.Contains("'$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'"),"constructors inherit GC prerequisites and conflicts");
@@ -570,9 +570,9 @@ internal static class M04CheckedReferenceBarrierEfiIntegrationTests
             Need(r.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal)&&r.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),"complete actual publication and verifier");
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"}.Concat(enabled?new[]{".references.obj"}:[]))File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(directory,file.Item2));
-            using var json=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=json.RootElement;var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==138,"exact138 raw inputs");
+            using var json=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=json.RootElement;var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==139,"exact139 raw inputs");
             foreach(var input in inputs){string path=input.GetProperty("path").GetString()!;byte[] bytes=File.ReadAllBytes(Path.Combine(root,path));Need(Hash(bytes).Equals(input.GetProperty("sha256").GetString(),StringComparison.OrdinalIgnoreCase),"actual source "+path);string copy=Path.Combine(directory,"source",path);Directory.CreateDirectory(Path.GetDirectoryName(copy)!);File.WriteAllBytes(copy,bytes);}
-            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==122,"exact122 Compile");var actual=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Need(actual.Length==52,"exact52 flags");
+            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==123,"exact123 Compile");var actual=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Need(actual.Length==53,"exact53 flags");
             foreach(var f in actual)Need(f.Value.GetString()==(flags.Contains(f.Name,StringComparer.Ordinal)?"true":"false"),"actual profile "+f.Name);
             using var pe=new System.Reflection.PortableExecutable.PEReader(File.OpenRead(Path.Combine(directory,"OS.dll")));var md=pe.GetMetadataReader();Need(md.AssemblyReferences.Count==0,"real no-stdlib zero AssemblyRefs");
             var methods=md.TypeDefinitions.SelectMany(h=>md.GetTypeDefinition(h).GetMethods()).Select(h=>md.GetMethodDefinition(h)).ToArray();

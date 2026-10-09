@@ -6,9 +6,11 @@ generated bridges. The explicit source list includes the guarded rethrow file
 for every profile (123 items, 139 authority inputs); its code remains excluded
 unless the probe is selected. Build, verifier and runner now carry the switch,
 both retained object sidecars and strict native/transcript checks.
-[Step1099](../done/step1099.md) records this development integration and its
-verification limits. Transfer admission remains false pending complete native
-callback/stack review. No guest rethrow or general EH acceptance is claimed.
+[Step1099](../done/step1099.md) records development integration.
+[Step1100](../done/step1100.md) enables the bounded transfer after linked native
+and callback stack/register review and records the first successful 88-record
+QEMU rethrow capture. Final batch validation remains pending; general EH is
+incomplete.
 
 ## Ordinary verified-exit policy
 

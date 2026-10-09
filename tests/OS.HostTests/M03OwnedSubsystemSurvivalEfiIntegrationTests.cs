@@ -47,8 +47,8 @@ internal static unsafe class M03OwnedSubsystemSurvivalEfiIntegrationTests
             e.Name.LocalName.EndsWith("Probe", StringComparison.Ordinal) && e.Attribute("Condition") != null).ToArray();
         int vectorCount = System.Text.RegularExpressions.Regex.Matches(project.ToString(), @"\$\((Enable\w+Probe)\)")
             .Select(m => m.Groups[1].Value).Distinct(StringComparer.Ordinal).Count();
-        Need(vectorCount == 52 && flags.Length == 49 && flags.All(e => e.Value == "false"), "actual 52-property / 49-literal-default profile");
-        Need(project.Descendants("Compile").Count() == 122, "actual explicit 122-file compile closure including the normal policy");
+        Need(vectorCount == 53 && flags.Length == 50 && flags.All(e => e.Value == "false"), "actual 53-property / 50-literal-default profile");
+        Need(project.Descendants("Compile").Count() == 123, "actual explicit 123-file compile closure including the normal policy");
         foreach (string flag in new[] { "EnableM03OwnedSubsystemSurvivalProbe", "EnableM03OwnedSubsystemPanicProbe" })
         {
             Need(flags.Single(e => e.Name.LocalName == flag).Value == "false", "literal child default " + flag);
@@ -57,12 +57,12 @@ internal static unsafe class M03OwnedSubsystemSurvivalEfiIntegrationTests
                     (Read(path).Contains("-" + flag, StringComparison.Ordinal) || Read(path).Contains("-p:" + flag + "=", StringComparison.Ordinal)),
                     "explicit propagated child " + path);
         }
-        Need(Read("scripts/test-efi-artifact.ps1").Contains("$expectedSourceClosureInputCount = 138", StringComparison.Ordinal), "raw source count includes allocator and normal-policy leaves");
+        Need(Read("scripts/test-efi-artifact.ps1").Contains("$expectedSourceClosureInputCount = 139", StringComparison.Ordinal), "raw source count includes allocator and normal-policy leaves");
         string publisher = Read("scripts/build-efi-shell.ps1");
-        Need(publisher.Contains("$sourceSnapshotBeforePublish.InputCount -ne 138", StringComparison.Ordinal) &&
-            publisher.Contains("$sourceSnapshotAfterLock.InputCount -ne 138", StringComparison.Ordinal) &&
-            publisher.Contains("EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138", StringComparison.Ordinal),
-            "original unlocked/locked publisher authority admits the actual 138 inputs");
+        Need(publisher.Contains("$sourceSnapshotBeforePublish.InputCount -ne 139", StringComparison.Ordinal) &&
+            publisher.Contains("$sourceSnapshotAfterLock.InputCount -ne 139", StringComparison.Ordinal) &&
+            publisher.Contains("EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=139", StringComparison.Ordinal),
+            "original unlocked/locked publisher authority admits the actual 139 inputs");
         string entry = Read("src/OS/Boot/EfiEntry.cs");
         int start = entry.IndexOf("private static bool ReportOwnedSubsystems", StringComparison.Ordinal);
         int end = entry.IndexOf("private static bool OwnedFailure", start, StringComparison.Ordinal);

@@ -92,9 +92,9 @@ internal static unsafe class RethrowAdmission
 #if NOSTDLIB_EFI && M04_RETHROW_PROBE
 internal static unsafe partial class RhpNewFastAllocation
 {
-    // Measured fixture constants are candidates only. Keep this false until
-    // actual linked source/native/frame/clause/stack review is complete.
-    private const bool RethrowTransferAdmitted = false;
+    // Step1100 reviews the linked bridges, compiler frames, clauses, callback
+    // stack and register preservation. Admit only this bounded probe fixture.
+    private const bool RethrowTransferAdmitted = true;
     private static X64UnwindContext s_rethrowOuter;
     private static EhControl s_rethrowOuterControl;
     private static ulong s_rethrowException, s_rethrowOuterTransfer, s_rethrowOuterHandler, s_rethrowOuterEntries;

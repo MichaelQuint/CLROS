@@ -8,9 +8,9 @@ switch to publication and expects 88 complete records, including 15 ordered
 rethrow stages. The validator joins both native frame transitions, the original
 exception receipt, cleanup side effect, two catches, active rethrow context,
 continuation and stack canaries to the same capture's validated ancestors.
-Unselected/disguised rethrow claims are rejected. [Step1099](../done/step1099.md)
-records focused synthetic checks and dry-run evidence only; no real rethrow
-guest capture exists and native transfer admission remains disabled.
+Unselected/disguised rethrow claims are rejected. [Step1100](../done/step1100.md)
+records the first successful actual rethrow capture after linked native review.
+The internal transfer is admitted; final batch validation remains pending.
 
 Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 
