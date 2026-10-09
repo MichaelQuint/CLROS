@@ -1998,7 +1998,9 @@ internal static class BuildEfiShellPreflightTests
             repositoryRoot,
             "scripts",
             "build-efi-shell.ps1");
-        string script = File.ReadAllText(scriptPath);
+        // Match ExtractPowerShellBlock's normalization for direct multiline
+        // checks too; the build authority is identical in CRLF and LF checkouts.
+        string script = File.ReadAllText(scriptPath).ReplaceLineEndings("\n");
 
         IReadOnlyList<IReadOnlyDictionary<string, string>> restoreArchives =
             ParsePowerShellLiteralRecords(
