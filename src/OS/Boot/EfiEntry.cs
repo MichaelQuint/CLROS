@@ -47,6 +47,9 @@ public static unsafe class EfiEntry
 #if M05_PHYSICAL_MAPPING_PROBE
             internal ulong MappingPhase, MappingCr0;
 #endif
+#if M05_OWNED_ACPI_SELECTION_PROBE
+            internal ulong AcpiSelectionPhase;
+#endif
 #if (M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
             internal OwnedAllocatorRoundTripState OwnedAllocator;
             internal ulong OwnedPhase; // 0 fresh, 1 consumed, 2 positive complete, 3 armed, 4 fault entered, 5 reported
@@ -479,6 +482,9 @@ public static unsafe class EfiEntry
 #if (M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
                 if (ReportOwnedSubsystems(state))
                 {
+#if M05_OWNED_ACPI_SELECTION_PROBE
+                    _ = BootSequence.RunOwnedAcpiSelection(state->OwnedPhase == 2, state, &RunOwnedAcpiSelection);
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
                     _ = BootSequence.RunPostFirmwarePhysicalMapping(state->OwnedPhase == 2, state, &RunPhysicalMapping);
 #endif
@@ -495,6 +501,85 @@ public static unsafe class EfiEntry
                 // All returns, including success, terminate in the native stub.
             }
         }
+
+#if M05_OWNED_ACPI_SELECTION_PROBE
+        private static bool RunOwnedAcpiSelection(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->AcpiSelectionPhase != 0 || state->OwnedPhase != 2 ||
+                state->Diagnostic.Status != FirstExitDiagnosticStatus.Completed) return false;
+            state->AcpiSelectionPhase = 1;
+            if (!WriteAcpiSelectionLiteral(state, 0)) return false;
+            if (!SelectOriginalOwnedAcpi(state))
+            {
+                _ = WriteAcpiSelectionLiteral(state, 3);
+                return false;
+            }
+            state->AcpiSelectionPhase = 2;
+            return WriteAcpiSelectionLiteral(state, 1) && WriteAcpiSelectionLiteral(state, 2);
+        }
+
+        private static bool SelectOriginalOwnedAcpi(Storage* state)
+        {
+            fixed (AcpiBootstrapWorkspace* workspace = &s_acpiBootstrap)
+            fixed (AcpiBootstrapOwnedBuffer* copied = &s_acpiBootstrapOwned)
+            {
+                if (!AdmitOwnedAcpiState(state) || workspace->Phase != 3 ||
+                    !ReadBackAcpiBootstrap(workspace, copied->Bytes, AcpiOwnedPayloadCapacity) ||
+                    !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+                ulong* originalDescriptors = stackalloc ulong[30];
+                for (int i = 0; i < 30; i++) originalDescriptors[i] = workspace->Descriptors[i];
+                var selected = OwnedACPIDirectorySelectMADTHPETMCFG.Select(
+                    copied->Bytes + 16, workspace->TotalBytes, workspace->Descriptors, 30);
+                if (!selected.Succeeded) return false;
+                // Change only the supplied scalar bound, never live retained bytes.
+                var rejected = OwnedACPIDirectorySelectMADTHPETMCFG.Select(
+                    copied->Bytes + 16, workspace->TotalBytes - 1, workspace->Descriptors, 30);
+                // ReadBackAcpiBootstrap refreshes compared-byte counters. Check
+                // every original descriptor first so it cannot hide a mutation.
+                for (int i = 0; i < 30; i++)
+                    if (originalDescriptors[i] != workspace->Descriptors[i]) return false;
+                if (rejected.Status != OwnedAcpiDirectorySelectionStatus.InvalidDirectory ||
+                    rejected.Mcfg.Length != 0 || rejected.Madt.Length != 0 || rejected.Hpet.Length != 0 ||
+                    !ReadBackAcpiBootstrap(workspace, copied->Bytes, AcpiOwnedPayloadCapacity) ||
+                    !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+                return WriteAcpiSelectionRow(state, 0, selected.Mcfg.PhysicalAddress, selected.Mcfg.Offset, selected.Mcfg.Length, selected.Mcfg.RootIndex) &&
+                    WriteAcpiSelectionRow(state, 1, selected.Madt.PhysicalAddress, selected.Madt.Offset, selected.Madt.Length, selected.Madt.RootIndex) &&
+                    WriteAcpiSelectionRow(state, 2, selected.Hpet.PhysicalAddress, selected.Hpet.Offset, selected.Hpet.Length, selected.Hpet.RootIndex) &&
+                    WriteAcpiSelectionRow(state, 3, (ulong)rejected.Status, workspace->TotalBytes - 1, workspace->TotalBytes, 1);
+            }
+        }
+
+        private static bool WriteAcpiSelectionLiteral(Storage* state, uint marker)
+        {
+            ulong* words = stackalloc ulong[4]; uint bytes;
+            if (marker == 0) { words[0] = 0x4154535f54534554UL; words[1] = 0x302e35306d205452UL; words[2] = 0xa0d3230UL; bytes = 20; }
+            else if (marker == 1) { words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3230305f35UL; words[2] = 0xa0d594441UL; bytes = 21; }
+            else if (marker == 2) { words[0] = 0x5341505f54534554UL; words[1] = 0x30302e35306d2053UL; words[2] = 0xa0d32UL; bytes = 19; }
+            else { words[0] = 0x4941465f54534554UL; words[1] = 0x30302e35306d204cUL; words[2] = 0x735f697063612032UL; words[3] = 0xa0d65746174UL; bytes = 30; }
+            return WriteOwnedBytes(state, (byte*)words, bytes);
+        }
+
+        private static bool WriteAcpiSelectionRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d)
+        {
+            if (stage > 3) return false;
+            byte* text = stackalloc byte[88];
+            *(ulong*)text = 0x495043415f35304dUL; text[8] = (byte)' ';
+            text[9] = (byte)('0' + stage); uint length = 10;
+            ulong* values = stackalloc ulong[4]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;
+            for (int i = 0; i < 4; i++)
+            {
+                text[length++] = (byte)' '; text[length++] = (byte)'0'; text[length++] = (byte)'x';
+                for (int shift = 60; shift >= 0; shift -= 4)
+                {
+                    uint digit = (uint)((values[i] >> shift) & 15);
+                    text[length++] = (byte)(digit < 10 ? '0' + digit : 'A' + digit - 10);
+                }
+            }
+            text[length++] = 13; text[length++] = 10;
+            return WriteOwnedBytes(state, text, length);
+        }
+#endif
 
 #if M05_PHYSICAL_MAPPING_PROBE
         // Reviewed mapping graph: 8,176 bytes below permanent continuation,

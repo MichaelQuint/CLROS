@@ -1,5 +1,21 @@
 # QEMU
 
+## Owned ACPI selection
+
+Issue #95/#606 adds a default-off 83-record post-exit selection diagnostic.
+The full transcript binds its selections to the original owned M03 records and
+requires a rejected shortened input bound. Host/native development checks pass;
+guest acceptance remains pending in [step1122](../done/step1122.md).
+
+```powershell
+dotnet run --project tools/OS.Tooling --no-build -- qemu smoke --BuildEfi --BootPolicy Diagnostic `
+  --EnableM01LoadedImageStackProbe --EnableM01LiveAllocatorProbe --EnableAcpiPhysicalDiscoveryProbe `
+  --EnableM03FirstRealExitBootServicesProbe --EnableM03OwnedSubsystemSurvivalProbe `
+  --EnableM05OwnedAcpiSelectionProbe `
+  --Qemu 'C:\Program Files\qemu\qemu-system-x86_64.exe' `
+  --OvmfCode 'C:\Program Files\qemu\share\edk2-x86_64-code.fd' --TimeoutSeconds 15
+```
+
 ## Rethrow and mapping captures
 
 Build the solution, then select one profile below and run the common command.

@@ -2,6 +2,12 @@
 
 ## Current Status
 
+The default-off `EnableM05OwnedAcpiSelectionProbe` revalidates the original
+retained RSDP/root/MCFG/MADT/HPET directory after owned subsystem survival. It
+selects offsets into retained bytes and rejects a shortened input bound without
+following firmware pointers. Focused host checks and native publication pass;
+full-host and guest acceptance are pending in [step1122](../done/step1122.md).
+
 The accepted bounded profiles add rethrow and a retained scratch-page
 UC/WC/WB transition after owned subsystem survival. Both are explicit diagnostic
 profiles; [step1120](../done/step1120.md) records native/guest continuity, the

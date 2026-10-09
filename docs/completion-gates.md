@@ -2,6 +2,12 @@
 
 ## Current Status
 
+Issue #95/shared integration #606 implements a post-exit selection of the
+original retained MADT, HPET and MCFG tables. [Step1122](../done/step1122.md)
+records focused host/native development evidence; full-host and guest acceptance
+remain pending. Gate 6 remains Fail: selection does not program timers, APIC,
+ECAM or other devices.
+
 The bounded C# profiles for #596 and #94/#598 are accepted in
 [step1120](../done/step1120.md). The frozen runtime source passes the resumed
 full host gate: 4,146 checks, 455 groups, 331 reused groups and unchanged inputs.

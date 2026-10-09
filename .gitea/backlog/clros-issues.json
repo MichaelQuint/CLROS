@@ -11549,7 +11549,7 @@
       ],
       "collisionLane": null,
       "summary": "Parse the owned ACPI directory and select MADT, HPET, and MCFG.",
-      "currentEvidence": "Dependency #94 (M05-001) is accepted in done/step1120.md. This leaf is ready for owned ACPI directory selection of MADT, HPET and MCFG. Existing ACPI contracts remain host-tested; this leaf has no new guest acceptance, and no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Dependency #94 (M05-001) is accepted in done/step1120.md. #95 and shared integration #606 implement owned ACPI directory selection after original subsystem survival. Focused host checks and strict no-stdlib publication pass; full-host and QEMU qualification remain pending in step1122. No timer programming, live PCI/MMIO/virtqueue transaction or Gate6 completion is proven.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Parse the owned ACPI directory and select MADT, HPET, and MCFG.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
