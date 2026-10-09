@@ -76,7 +76,7 @@ internal static class NoStdLibShimBoundaryTests
 
     private static bool StringAllocationDefaultIsSelfContained(string root)
     {
-        string source = File.ReadAllText(Path.Combine(root, "src/OS/Runtime/MinimalRuntime.cs"));
+        string source = File.ReadAllText(Path.Combine(root, "src/OS/Runtime/MinimalRuntime.cs")).ReplaceLineEndings("\n");
         const string attribute = "[RuntimeExport(\"RhNewString\")]";
         int start = source.IndexOf(attribute, StringComparison.Ordinal);
         if (start < 0 || source.IndexOf(attribute, start + 1, StringComparison.Ordinal) >= 0) return false;
