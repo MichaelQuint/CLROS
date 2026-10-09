@@ -299,7 +299,7 @@ internal static class M03TypedExitBootServicesCallEfiIntegrationTests
         "OS_BOOT_OK",
         "TEST_PASS boot.sequence",
         "OS_SMOKE_PASS"];
-    [HostTest("m03.004.efi profile options and actual complete marker streamer", HostLane.Native, 3)]
+    [HostTest("m03.004.efi profile options and actual complete marker streamer", HostLane.Fast, 3)]
     private static void TestProfile()
     {
         string root=Root(),directory=Scratch("profile"),script=Path.Combine(root,"tools/OS.Tooling/QemuProfiles.cs"),before=Hash(script);
@@ -325,7 +325,7 @@ internal static class M03TypedExitBootServicesCallEfiIntegrationTests
         }
         void Reject(string[] args,string reason){Result failure=Dry(args);Need(failure.Exit!=0&&!failure.Timeout&&(failure.Output+failure.Error).Contains(reason,StringComparison.Ordinal),"profile rejection "+reason);}
         string project=File.ReadAllText(Path.Combine(root,"src/OS/OS.csproj"));string[] flags=Regex.Matches(project,@"\$\((Enable\w+Probe)\)").Select(x=>x.Groups[1].Value).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();Need(flags.Length==OS.Tooling.EfiContracts.DiagnosticProbes.Count,"complete profile flags");
-        foreach(string other in flags.Where(x=>x!=Flag))Reject([..positive,"-"+other],other=="EnableM03OwnedSubsystemSurvivalProbe"?"m03_owned_requires_first_exit":other=="EnableM03OwnedSubsystemPanicProbe"?"m03_owned_panic_requires_survival":other=="EnableM04SimpleThrowCatchProbe"?"m04_simple_catch_requires_gc_profile":other=="EnableM04SingleFinallyCatchProbe"?"m04_single_finally_requires_gc_profile":other=="EnableM04X64UnwindMetadataProbe"?"m04_x64_unwind_metadata_requires_original_module":other=="EnableM03FirmwareAdapterRevocationProbe"?"m03_revocation_requires_first_exit":other=="EnableM04InterfaceDispatchProbe"?"m04_dispatch_requires_cctor_profile":other=="EnableM04ClassConstructorExecutionProbe"?"m04_cctor_requires_gc_profile":other=="EnableM04SeededCollectorChurnProbe"?"m04_churn_requires_gc_profile":other=="EnableM03FirstRealExitBootServicesProbe"?"m03_first_exit_requires property=EnableM01LoadedImageStackProbe":other=="EnableM04GcStaticRootMaterializationProbe"?"m04_gc_static_profile_invalid property=EnableM01LoadedImageStackProbe":"m03_typed_ebs_profile_conflict property="+other);
+        foreach(string other in flags.Where(x=>x!=Flag))Reject([..positive,"-"+other],EfiProfileTestControls.MissingParentReason([Flag, other]) ?? (other=="EnableM03FirstRealExitBootServicesProbe"?"m03_first_exit_requires property=EnableM01LoadedImageStackProbe":other=="EnableM04GcStaticRootMaterializationProbe"?"m04_gc_static_profile_invalid property=EnableM01LoadedImageStackProbe":"m03_typed_ebs_profile_conflict property="+other));
         Reject(["-"+Flag],"m03_typed_ebs_requires_build_and_original_capture");
         Reject([..positive,"-SkipImageBuild"],"m03_typed_ebs_requires_build_and_original_capture");
         Reject([..positive,"-M01RawObservationLog",""],"m03_typed_ebs_requires_build_and_original_capture");

@@ -8,7 +8,7 @@ internal static class DiagnosticsTests
     private const string M01016TestName = "m01.016";
     private const string M01016ReadyMarker = "CLROS_M01_016_READY";
 
-    [HostFixture(HostLane.Native)]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         int failures = 0;
@@ -90,7 +90,7 @@ internal static class DiagnosticsTests
                 nameof(Probes.EnableM01LiveAllocatorProbe)) ||
             !IsCompileTimeFalseProbe(
                 nameof(Probes.EnableM01OwnedPagingProbe)) ||
-            Probes.ProbeCatalogCount != 25 ||
+            Probes.ProbeCatalogCount != typeof(Probes).GetMethods(BindingFlags.Public | BindingFlags.Static).Count(method => method.ReturnType == typeof(ProbeDefinition) && method.GetParameters().Length == 0) ||
             !IsCompileTimeFalseProbe(nameof(Probes.EnableM03FirstRealExitBootServicesProbe)) ||
             !Probes.TryGetProbe(16, out ProbeDefinition firstExit) ||
             firstExit.Name != nameof(Probes.EnableM03FirstRealExitBootServicesProbe) ||
@@ -135,7 +135,17 @@ internal static class DiagnosticsTests
             !Probes.TryGetProbe(24, out ProbeDefinition singleFinally) ||
             singleFinally.Name != nameof(Probes.EnableM04SingleFinallyCatchProbe) ||
             singleFinally.EnabledByDefault || singleFinally.Risk != ProbeRisk.Destructive ||
-            singleFinally.Group != "runtime.exception")
+            singleFinally.Group != "runtime.exception" ||
+            !IsCompileTimeFalseProbe(nameof(Probes.EnableM04RethrowProbe)) ||
+            !Probes.TryGetProbe(25, out ProbeDefinition rethrow) ||
+            rethrow.Name != nameof(Probes.EnableM04RethrowProbe) ||
+            rethrow.EnabledByDefault || rethrow.Risk != ProbeRisk.Destructive ||
+            rethrow.Group != "runtime.exception" ||
+            !IsCompileTimeFalseProbe(nameof(Probes.EnableM05PhysicalMappingProbe)) ||
+            !Probes.TryGetProbe(26, out ProbeDefinition mapping) ||
+            mapping.Name != nameof(Probes.EnableM05PhysicalMappingProbe) ||
+            mapping.EnabledByDefault || mapping.Risk != ProbeRisk.Destructive ||
+            mapping.Group != "platform.mapping")
         {
             return false;
         }
