@@ -497,10 +497,10 @@ public static unsafe class EfiEntry
         }
 
 #if M05_PHYSICAL_MAPPING_PROBE
-        // Keep native execution closed until the linked callback graph and stack
-        // budget have been reviewed. The profile switch alone is insufficient.
+        // Reviewed mapping graph: 8,176 bytes below permanent continuation,
+        // within its 32 KiB reserve. The dangerous profile still defaults off.
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        private static bool MappingExecutionReady() => false;
+        private static bool MappingExecutionReady() => true;
 
         private static bool RunPhysicalMapping(void* context)
         {

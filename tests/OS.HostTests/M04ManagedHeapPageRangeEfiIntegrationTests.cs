@@ -42,7 +42,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
         string root = Root();
         XDocument project = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
         string[] keys = project.Descendants("Compile").Select(x => x.Attribute("Include")!.Value + "|" + (x.Attribute("Link")?.Value ?? "")).ToArray();
-        Require(keys.Length == 123 && Hash(string.Join('\n', keys) + "\n") == "f4c98ced20dd366be8b4fbebc670c95c185b1cd19c0abbd4b9b21207fac52c47", "ordered compile closure");
+        Require(keys.Length == 124 && Hash(string.Join('\n', keys) + "\n") == "901575b1a6c8a4a766ed47c60579c997596769aa8b5a51132349ae62eedc1fe0", "ordered compile closure");
         Require(Hash(File.ReadAllText(Path.Combine(root, Leaf)).Replace("\r\n", "\n", StringComparison.Ordinal)) == LeafHash, "frozen leaf");
         Require(Hash(File.ReadAllText(Path.Combine(root, "tests/OS.HostTests/ManagedHeapPageRangeLiveAllocatorTests.cs")).Replace("\r\n", "\n", StringComparison.Ordinal)) == "aed8f7c32f80c5e600ed837e37c5f6de477324e57a9f9aa1ac0aedf43adf4bf6", "frozen host tests");
         XElement flag = project.Descendants(Flag).Single();
@@ -370,7 +370,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
                 try {Assert-PostRestoreEvidenceMatchesSnapshot -Evidence $changed -Snapshot $snapshot} catch {$rejected=$true}
                 if(-not $rejected){throw $kind}
             }
-            Write-Output 'TEST_PASS m04.006.efi.authority flags=53 flipped=53 missing=1 embeddedNul=1'
+            Write-Output 'TEST_PASS m04.006.efi.authority flags=54 flipped=54 missing=1 embeddedNul=1'
             """);
         File.WriteAllText(Path.Combine(directory,"Authority.csproj"),"""
             <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
@@ -396,7 +396,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
             string[] enabled=["EnableM01LoadedImageStackProbe","EnableM01LiveAllocatorProbe","EnableM04IndependentEndianConformanceProbe","EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe","EnableM04ArithmeticConformanceProbe","EnableM04LayoutContractProbe","EnableM04ManagedHeapPageRangeProbe"];
             foreach(string flag in enabled)properties[flag]="true";
             string[] vector=properties.Select(x=>x.Key).Where(x=>x.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-            if(vector.Length!=53)throw new Exception("complete 53-probe vector");
+            if(vector.Length!=54)throw new Exception("complete 54-probe vector");
             string[] verifierArgs=enabled.Select(x=>"-"+x).ToArray();
             void Verify(bool success,string context) {
                 File.WriteAllText(evidencePath,evidence.ToJsonString());
@@ -420,7 +420,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
             """);
         Result r=Process(root,"dotnet","run","--project",Path.Combine(directory,"Authority.csproj"),"-c","Release");
         File.WriteAllText(Path.Combine(directory,"run.log"),r.Output);
-        Require(r.Code==0 && r.Output.Contains("flags=53 flipped=53",StringComparison.Ordinal),r.Output);
+        Require(r.Code==0 && r.Output.Contains("flags=54 flipped=54",StringComparison.Ordinal),r.Output);
     }
 
     private static void TestFirewall()

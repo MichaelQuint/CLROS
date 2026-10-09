@@ -144,7 +144,7 @@ internal static class M04SingleFinallyCatchEfiIntegrationTests
             .Select(x => x.Groups[1].Value).Distinct(StringComparer.Ordinal).Count();
         var literalDefaults = project.Descendants().Where(x => x.Name.LocalName.StartsWith("Enable", StringComparison.Ordinal) &&
             x.Attribute("Condition")?.Value == "'$(" + x.Name.LocalName + ")' == ''").ToArray();
-        Need(vectorCount == 53 && literalDefaults.Length == 50 && literalDefaults.All(x => x.Value == "false"),
+        Need(vectorCount == 54 && literalDefaults.Length == 51 && literalDefaults.All(x => x.Value == "false"),
             "complete expanded profile vector with all dangerous literal defaults false");
         var probe = Probes.GetM04SingleFinallyCatchProbe();
         Need(probe.Name == Flag && !probe.EnabledByDefault && probe.Risk == ProbeRisk.Destructive,

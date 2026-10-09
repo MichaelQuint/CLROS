@@ -2,11 +2,13 @@
 
 ## Current Status
 
-Platform mapping issues #94/#598 now have a linked, artifact-verified,
-default-off EFI scratch profile with emitted UC/WC/WB publication and PAT/MSR
-helpers. The native execution gate remains closed; linked stack review and
-guest transcript validation are outstanding. [Step1106](../done/step1106.md)
-does not advance Gate 6 or establish live device access.
+Platform mapping issues #94/#598 now have native-reviewed QEMU evidence for
+one exclusive 2 MiB scratch range: a 4 KiB split, UC/WC/WB transitions,
+neighbor preservation and original PAT restoration. The opt-in profile passes
+its strict 86-record transcript; ordinary verified exit also passes separately.
+[Step1107](../done/step1107.md) records this development result. The full host
+batch and final acceptance remain pending; Gate 6 and live device access are
+not established.
 
 The bounded M03 firmware-exit milestone satisfies its declared technical exit:
 all 11 keyed children have reviewed closure evidence, including ordinary

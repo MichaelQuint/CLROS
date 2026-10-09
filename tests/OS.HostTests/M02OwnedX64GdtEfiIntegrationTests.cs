@@ -16,9 +16,9 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
     private const string FailureMarker =
         "M02_OWNED_X64_GDT_ENCODING_FAILED";
     private const string CompileClosureSha256 =
-        "f4c98ced20dd366be8b4fbebc670c95c185b1cd19c0abbd4b9b21207fac52c47";
+        "901575b1a6c8a4a766ed47c60579c997596769aa8b5a51132349ae62eedc1fe0";
     private const string CanonicalProjectSha256 =
-        "b4678afa95bc8be45d6c659e32e763ccedba7b4427cfab0eb8fcb9a22e0020d8";
+        "840c077a6d406f948293f65ed82c8f0f31e83d9c8e2c9629554056a016e30636";
 
     private static readonly (string Path, string Sha256)[] ImmutableReviewedInputs =
     [
@@ -160,7 +160,7 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 123
+        return compileItems.Length == 124
             && compileHash == CompileClosureSha256
             && reporterIndex >= 0
             && gdtIndex == reporterIndex + 1
@@ -232,17 +232,17 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
                 "m02_owned_x64_gdt_encoding_requires_panic_safe_owned_com1",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=139",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=140",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 CanonicalProjectSha256,
                 StringComparison.Ordinal)
             && buildScript.Contains(GdtKey, StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 139",
+                "$expectedSourceClosureInputCount = 140",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 123",
+                "$compileItems.Count -ne 124",
                 StringComparison.Ordinal)
             && verifierScript.Contains(GdtKey, StringComparison.Ordinal)
             && verifierScript.Contains(

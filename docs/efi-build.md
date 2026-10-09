@@ -6,9 +6,12 @@ links under explicit `Diagnostic` policy. It requires
 `EnableM03OwnedSubsystemSurvivalProbe`, `EnableM01LoadedImageStackProbe`,
 `EnableM01LiveAllocatorProbe` and `EnableAcpiPhysicalDiscoveryProbe`.
 It retains the existing 55-page table bound and allocates one exclusive aligned
-2 MiB scratch span before firmware exit. `MappingExecutionReady` remains false;
-this build result does not authorize guest transitions. QEMU selection and
-transcript admission are still pending. Evidence: [step1106](../done/step1106.md).
+2 MiB scratch span before firmware exit. Linked native/ABI review and the
+8,176-byte diagnostic stack bound permitted opening `MappingExecutionReady`.
+Only that gate changed in the enabled native image. The profile's fresh QEMU
+capture passes all 86 records and PAT restoration, with a separate ordinary
+verified-exit regression. The compile-time probe remains false by default.
+Full host batch acceptance is pending. Evidence: [step1107](../done/step1107.md).
 
 The #596 rethrow branch has a default-off `EnableM04RethrowProbe` profile using
 the existing GC-static ancestry. It selects `Diagnostic` and links two pinned

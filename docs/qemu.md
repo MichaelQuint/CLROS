@@ -2,6 +2,28 @@
 
 ## Current Status
 
+The development `-EnableM05PhysicalMappingProbe` profile passes its first real
+QEMU/OVMF capture after native/stack review. It requires a fresh build and the
+original owned first-exit ancestry:
+
+```powershell
+.\scripts\run-qemu-smoke.ps1 -BuildEfi -EnableM05PhysicalMappingProbe `
+  -EnableM03FirstRealExitBootServicesProbe -EnableM03OwnedSubsystemSurvivalProbe `
+  -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe `
+  -EnableAcpiPhysicalDiscoveryProbe `
+  -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
+  -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
+```
+
+The validator requires exactly 86 complete records: the original 76 owned
+records, `TEST_START m05.001`, seven `M05_MAP` stages, `CLROS_M05_001_READY`
+and `TEST_PASS m05.001`. It joins root/table addresses, explicit cache policies,
+sentinel readback and restored PAT to the same capture. This proves one
+exclusive scratch range under the admitted single-CPU environment; it does not
+prove device access or a general mapping service. Ordinary verified exit also
+passes separately. Full host batch acceptance remains pending; see
+[step1107](../done/step1107.md).
+
 The development `-EnableM04RethrowProbe` profile requires `-BuildEfi` and the
 GC-static ancestry listed in [step1098](../done/step1098.md). It forwards the
 switch to publication and expects 88 complete records, including 15 ordered

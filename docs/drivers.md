@@ -54,11 +54,11 @@ existing strict x64 entry decoder defines the admitted inherited-map subset.
 Validation completes before any destination write. Focused development checks
 and limits are recorded in [step1102](../done/step1102.md).
 
-This is preparation for #94, not a live mapping service. Its `Prepared` result
+This preparation primitive for #94 is not a live mapping service. Its `Prepared` result
 does not establish ownership, effective MTRR/PAT compatibility, absence of cache
 aliases, publication or cache/TLB maintenance. The destination must be detached
-and exclusively owned by the caller. Those live requirements, including guest
-evidence, remain outstanding; no device access or new boot profile is enabled.
+and exclusively owned by the caller. The bounded EFI adapter described below
+provides those checks for its exclusive scratch range; it does not map devices.
 
 `PrepareIdentitySplit` additionally audits the caller's complete bounded image:
 all reachable tables must belong to its contiguous arena of at most 64 pages;
@@ -89,11 +89,15 @@ large-page coalescing/splitting, UC/WC/WB publication and restoration checks.
 The emitted publisher checks stale entries before making the mapping
 nonpresent, reloading CR3, installing its replacement and executing WBINVD.
 The PAT writer changes only the proven-unused slot 4 and checks readback.
-The profile builds, links and passes artifact verification, but its separate
-`MappingExecutionReady` gate remains false pending native graph/stack review
-and QEMU transcript integration. No guest cache transition is accepted. See
-[step1106](../done/step1106.md). The preparation helpers themselves never
-publish a hardware mapping.
+The native graph/ABI review bounds the diagnostic path at 8,176 bytes of its
+32 KiB reserve. After opening the internal execution gate, native comparison
+found only that gate changed. The default-off profile then passed a real QEMU
+capture with 86 exact records, including all seven mapping stages, unchanged
+neighbor values and original PAT restoration. A separate ordinary verified-exit
+regression passed. Full host batch acceptance is pending; see
+[step1107](../done/step1107.md). The preparation helpers themselves never
+publish a hardware mapping. This single-CPU diagnostic does not establish SMP
+shootdowns, general allocation/release ownership, MMIO or framebuffer access.
 
 - `EfiConfigurationTableScanner` recognizes UEFI ACPI 2.0 and ACPI 1.0 configuration table GUIDs, prefers ACPI 2.0 when both are present, supports ACPI 1.0 fallback, rejects zero RSDP pointers, and returns status-coded results.
 - `EfiMain` source-links the pointer scanner and emits `BOOT_ACPI_RSDP_HANDOFF_READY`, `UEFI_ACPI_RSDP_READY`, `UEFI_ACPI_RSDP_MISSING`, or `UEFI_ACPI_RSDP_INVALID <status-code>` on the default path without dereferencing the RSDP.

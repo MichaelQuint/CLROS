@@ -15,7 +15,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
         "guestPortIo=true guestIn8=true postExitBootServices=false";
     private const string FailureMarker = "M02_OWNED_COM1_READY_FAILED";
     private const string CompileClosureSha256 =
-        "f4c98ced20dd366be8b4fbebc670c95c185b1cd19c0abbd4b9b21207fac52c47";
+        "901575b1a6c8a4a766ed47c60579c997596769aa8b5a51132349ae62eedc1fe0";
 
     [ModuleInitializer]
     internal static void RunAll()
@@ -150,7 +150,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
         string verifierScript = File.ReadAllText(
             Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
 
-        return compileItems.Length == 123
+        return compileItems.Length == 124
             && compileHash == CompileClosureSha256
             && backendIndex >= 0
             && writerIndex == backendIndex + 1
@@ -224,7 +224,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 "m02_owned_com1_ready_requires_com1_owned_port_io",
                 StringComparison.Ordinal)
             && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=139",
+                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=140",
                 StringComparison.Ordinal)
             && buildScript.Contains(
                 "\"-EnableM02OwnedCom1ReadyProbe\",\n            \"true\"",
@@ -236,10 +236,10 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 "[switch]$EnableM02OwnedCom1ReadyProbe",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 139",
+                "$expectedSourceClosureInputCount = 140",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
-                "$compileItems.Count -ne 123",
+                "$compileItems.Count -ne 124",
                 StringComparison.Ordinal)
             && verifierScript.Contains(
                 "-p:EnableM02OwnedCom1ReadyProbe=true",

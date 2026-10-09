@@ -21,6 +21,12 @@
 
 ## Progress
 
+Development now has a native-reviewed QEMU capture for bounded post-firmware
+UC/WC/WB scratch-page transitions, including neighbor checks and original PAT
+restoration. Ordinary verified exit also passes separately. The mapping probe
+remains off by default, and full host batch acceptance is pending; see
+[step1107](done/step1107.md).
+
 **Status snapshot: October 8, 2026.** The preceding accepted runtime implementation is recorded through
 `master` commit `1e6a8dbd11e3220c1ca433b72d57e418cdc86b05`, including [step1075](done/step1075.md).
 Evidence records retain their original tested revisions; acceptance does not

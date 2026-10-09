@@ -106,7 +106,7 @@ internal static class DiagnosticsTests
                 nameof(Probes.EnableM01LiveAllocatorProbe)) ||
             !IsCompileTimeFalseProbe(
                 nameof(Probes.EnableM01OwnedPagingProbe)) ||
-            Probes.ProbeCatalogCount != 26 ||
+            Probes.ProbeCatalogCount != 27 ||
             !IsCompileTimeFalseProbe(nameof(Probes.EnableM03FirstRealExitBootServicesProbe)) ||
             !Probes.TryGetProbe(16, out ProbeDefinition firstExit) ||
             firstExit.Name != nameof(Probes.EnableM03FirstRealExitBootServicesProbe) ||
@@ -156,7 +156,12 @@ internal static class DiagnosticsTests
             !Probes.TryGetProbe(25, out ProbeDefinition rethrow) ||
             rethrow.Name != nameof(Probes.EnableM04RethrowProbe) ||
             rethrow.EnabledByDefault || rethrow.Risk != ProbeRisk.Destructive ||
-            rethrow.Group != "runtime.exception")
+            rethrow.Group != "runtime.exception" ||
+            !IsCompileTimeFalseProbe(nameof(Probes.EnableM05PhysicalMappingProbe)) ||
+            !Probes.TryGetProbe(26, out ProbeDefinition physicalMapping) ||
+            physicalMapping.Name != nameof(Probes.EnableM05PhysicalMappingProbe) ||
+            physicalMapping.EnabledByDefault || physicalMapping.Risk != ProbeRisk.Destructive ||
+            physicalMapping.Group != "platform.mapping")
         {
             return false;
         }
