@@ -1,5 +1,17 @@
 internal static class HostWorkerScheduler
 {
+    public static async Task<bool> RunPhasesAsync<T>(IReadOnlyList<T> items, Func<T, bool> native,
+        int jobs, Func<T, Task> run, Func<bool> fastPassed, CancellationToken cancellation = default)
+    {
+        await RunAsync(items.Where(item => !native(item)).ToArray(), _ => false,
+            jobs, (_, item) => run(item), cancellation);
+        if (cancellation.IsCancellationRequested) return false;
+        T[] remaining = items.Where(native).ToArray();
+        if (remaining.Length != 0 && !fastPassed()) return false;
+        await RunAsync(remaining, _ => true, jobs, (_, item) => run(item), cancellation);
+        return !cancellation.IsCancellationRequested;
+    }
+
     // Native fixtures mutate the canonical publish tree. They remain exclusive;
     // fast fixtures run in separate processes and own any scratch directories.
     public static async Task RunAsync<T>(IReadOnlyList<T> items, Func<T, bool> exclusive,

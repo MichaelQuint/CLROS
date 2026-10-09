@@ -104,6 +104,15 @@ internal static class HostCheck
 internal static class HostTestRunner
 {
     internal sealed record Fixture(string Id, HostLane Lane, MethodInfo Method, string? Name = null, int Order = 0);
+    internal sealed record FixtureGroup(string Id, HostLane Lane, Fixture[] Fixtures);
+
+    internal static FixtureGroup[] GroupByLane(Fixture[] fixtures) => fixtures
+        .GroupBy(fixture => fixture.Method.DeclaringType!.Name)
+        .SelectMany(owner => owner.GroupBy(fixture => fixture.Lane).Select(lane =>
+            new FixtureGroup(owner.Key + (owner.Select(fixture => fixture.Lane).Distinct().Count() > 1 ? "." + lane.Key : ""),
+                lane.Key, lane.ToArray())))
+        .ToArray();
+
     internal sealed record FixtureResult(string Id, string Lane, int ExitCode, bool TimedOut,
         double Seconds, string Log, int Started, int Passed, int Failed, string? Error)
     {
@@ -299,7 +308,7 @@ internal static class HostTestRunner
             var fingerprints = HostTestFingerprint.Create(root);
             string producer = HostRunCheckpoint.HashFile(typeof(HostTestRunner).Assembly.Location);
             List<FixtureResult> results = [];
-            var groups = selected.GroupBy(f => f.Method.DeclaringType!.Name).ToArray();
+            var groups = GroupByLane(selected);
             object receiptLock = new();
             Stopwatch elapsed = Stopwatch.StartNew();
             Console.WriteLine($"HOST_TEST_SELECTION lane={lane} fixtures={groups.Length} cases={selected.Length} inventory={all.Length} jobs={jobs} report={directory}");
@@ -318,31 +327,31 @@ internal static class HostTestRunner
             Console.CancelKeyPress += cancel;
             try
             {
-                await HostWorkerScheduler.RunAsync(groups, group => group.Any(f => f.Lane == HostLane.Native), jobs, async (_, group) =>
+                bool phasesComplete = await HostWorkerScheduler.RunPhasesAsync(groups, group => group.Lane == HostLane.Native, jobs, async group =>
                 {
-                    Fixture[] fixtures = group.ToArray();
+                    Fixture[] fixtures = group.Fixtures;
                     string fingerprint = fingerprints.For(fixtures, caseFilter);
                     FixtureResult result;
-                    if (checkpoint.TryReuse(group.Key, fingerprint, out var previous) &&
+                    if (checkpoint.TryReuse(group.Id, fingerprint, out var previous) &&
                         HostNativeResumePolicy.Outputs(root, fixtures, previous!.Result).All(previous.ArtifactSources.ContainsKey))
                     {
                         result = previous!.Result with { Reused = true, Origin = previous.Origin };
-                        Console.WriteLine($"HOST_FIXTURE_REUSED {group.Key} origin={previous.Origin}");
+                        Console.WriteLine($"HOST_FIXTURE_REUSED {group.Id} origin={previous.Origin}");
                     }
                     else
                     {
-                        string log = checkpoint.Start(group.Key);
-                        Console.WriteLine($"HOST_FIXTURE_START {group.Key}");
-                        result = (await RunFixture(fixtures, root, log, caseFilter, cancellation)) with { Origin = checkpoint.Run };
+                        string log = checkpoint.Start(group.Id);
+                        Console.WriteLine($"HOST_FIXTURE_START {group.Id}");
+                        result = (await RunFixture(fixtures, root, log, caseFilter, cancellation)) with { Id = group.Id, Origin = checkpoint.Run };
                         if (HostRunCheckpoint.Passed(result) && !fingerprint.StartsWith("fresh:", StringComparison.Ordinal) &&
                             !fingerprints.InputsUnchanged(root, fixtures))
                         {
                             result = result with { ExitCode = 1, Error = "inputs_changed_during_fixture" };
-                            Console.Error.WriteLine("TEST_FAIL host.tests.inputs changed_during_fixture " + group.Key);
+                            Console.Error.WriteLine("TEST_FAIL host.tests.inputs changed_during_fixture " + group.Id);
                             cancellation.Cancel();
                         }
-                        checkpoint.Finish(group.Key, fingerprint, result, HostNativeResumePolicy.Outputs(root, fixtures, result));
-                        Console.WriteLine($"HOST_FIXTURE_RESULT {group.Key} exit={result.ExitCode} failures={result.Failed} seconds={result.Seconds:F3}");
+                        checkpoint.Finish(group.Id, fingerprint, result, HostNativeResumePolicy.Outputs(root, fixtures, result));
+                        Console.WriteLine($"HOST_FIXTURE_RESULT {group.Id} exit={result.ExitCode} failures={result.Failed} seconds={result.Seconds:F3}");
                     }
                     // Persist progress after every fixture; only final input validation can complete a run.
                     lock (receiptLock)
@@ -350,15 +359,17 @@ internal static class HostTestRunner
                         results.Add(result);
                         SaveProgress();
                     }
-                }, cancellation.Token);
+                }, () => results.All(HostRunCheckpoint.Passed), cancellation.Token);
+                if (!phasesComplete && !cancellation.IsCancellationRequested)
+                    Console.WriteLine("HOST_NATIVE_BLOCKED reason=fast_failures");
             }
             finally { Console.CancelKeyPress -= cancel; }
             int failures = results.Count(r => r.ExitCode != 0 || r.TimedOut || r.Failed != 0 || r.Started == 0 || r.Passed < r.Started);
             List<string> changed = [.. HostBuildInputs.Validate()];
             var finalFingerprints = HostTestFingerprint.Create(root);
             foreach (var group in groups)
-                if (fingerprints.For(group.ToArray(), caseFilter) != finalFingerprints.For(group.ToArray(), caseFilter))
-                    changed.Add("checkpoint_inputs_changed " + group.Key);
+                if (fingerprints.For(group.Fixtures, caseFilter) != finalFingerprints.For(group.Fixtures, caseFilter))
+                    changed.Add("checkpoint_inputs_changed " + group.Id);
             if (changed.Count != 0) checkpoint.InvalidateRun();
             failures += checkpoint.ValidateResults(results);
             foreach (string failure in changed) Console.Error.WriteLine("TEST_FAIL host.tests.inputs " + failure);
