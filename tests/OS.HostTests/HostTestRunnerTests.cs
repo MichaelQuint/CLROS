@@ -412,6 +412,59 @@ internal static class HostTestRunnerTests
         HostCheck.True(paths.All(path => File.ReadAllText(Path.Combine(directory, path)).Contains("## Evidence boundary", StringComparison.Ordinal)));
     }
 
+    [HostTest("runner phase groups preserve every selected case exactly once")]
+    private static void PhaseGroups()
+    {
+        var fixtures = HostTestRunner.Discover();
+        var groups = HostTestRunner.GroupByLane(fixtures);
+        HostCheck.True(groups.SelectMany(group => group.Fixtures).Select(fixture => fixture.Id).Order(StringComparer.Ordinal)
+            .SequenceEqual(fixtures.Select(fixture => fixture.Id).Order(StringComparer.Ordinal)));
+        HostCheck.Equal(groups.Length, groups.Select(group => group.Id).Distinct(StringComparer.Ordinal).Count());
+        HostCheck.True(groups.All(group => group.Fixtures.All(fixture => fixture.Lane == group.Lane)));
+        var mixed = fixtures.GroupBy(fixture => fixture.Method.DeclaringType!.Name)
+            .Where(owner => owner.Select(fixture => fixture.Lane).Distinct().Count() == 2).ToArray();
+        HostCheck.True(mixed.Length > 0, "exercise actual mixed fixtures");
+        foreach (var owner in mixed)
+            foreach (HostLane lane in new[] { HostLane.Fast, HostLane.Native })
+                HostCheck.True(groups.Any(group => group.Id == owner.Key + "." + lane && group.Lane == lane));
+        var fast = HostTestRunner.GroupByLane(fixtures.Where(fixture => fixture.Lane == HostLane.Fast).ToArray());
+        HostCheck.True(fast.All(group => group.Id == group.Fixtures[0].Method.DeclaringType!.Name), "single-lane checkpoint identities stay stable");
+    }
+
+    [HostTest("runner phase gate collects all fast failures before allowing native work")]
+    private static void PhaseGate() => PhaseGateAsync().GetAwaiter().GetResult();
+
+    private static async Task PhaseGateAsync()
+    {
+        // Native items deliberately precede fast items in the input plan.
+        var items = new[] { (Id: 0, Native: true), (Id: 1, Native: false), (Id: 2, Native: true), (Id: 3, Native: false) };
+        foreach (bool failFast in new[] { true, false })
+        {
+            int fastCompleted = 0, failures = 0, nativeCompleted = 0, nativeActive = 0;
+            bool complete = await HostWorkerScheduler.RunPhasesAsync(items, item => item.Native, 2, async item =>
+            {
+                if (item.Native)
+                {
+                    HostCheck.Equal(2, Volatile.Read(ref fastCompleted), "all fast cases must finish before native entry");
+                    HostCheck.Equal(1, Interlocked.Increment(ref nativeActive), "native workers remain exclusive");
+                    await Task.Yield();
+                    Interlocked.Decrement(ref nativeActive);
+                    nativeCompleted++;
+                }
+                else
+                {
+                    await Task.Yield();
+                    if (failFast) Interlocked.Increment(ref failures);
+                    Interlocked.Increment(ref fastCompleted);
+                }
+            }, () => failures == 0);
+            HostCheck.Equal(2, fastCompleted, "one fast failure must not hide another");
+            HostCheck.Equal(failFast ? 2 : 0, failures);
+            HostCheck.Equal(failFast ? 0 : 2, nativeCompleted);
+            HostCheck.Equal(!failFast, complete);
+        }
+    }
+
     private static ProcessResult Control(string name, params string[] arguments) => Run(["--runner-control", name, .. arguments]);
 
     private static ProcessResult Run(string[] arguments, TimeSpan? timeout = null, int limit = 64 * 1024) =>

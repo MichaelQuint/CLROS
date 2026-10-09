@@ -220,9 +220,13 @@ is explicit with `--lane native` or `--lane full`. A filtered run only emits
 
 Fast fixtures run in isolated worker processes with bounded parallelism (up to
 four workers by default). Use `--jobs 1` for a serial comparison or `--jobs N`
-to set the bound. Native fixtures wait for active fast workers and execute
-exclusively because they share native build outputs. Ordinary failures do not
-stop subsequent cases; a crashed or timed-out fixture does not stop other fixtures
+to set the bound. A full run completes every selected fast case before starting
+native work, including fast cases in otherwise native fixtures. Fast failures
+are collected together and block the native phase; the receipt stays incomplete
+and can be resumed after repair. Mixed fixtures have separate `.Fast` and
+`.Native` checkpoint groups. Native fixtures execute exclusively because they
+share native build outputs. Ordinary failures do not stop subsequent cases in
+the active phase; a crashed or timed-out fixture does not stop other fixtures
 when process cleanup is confirmed. Unconfirmed cleanup cancels remaining work and
 drains already active workers before returning failure.
 Output is bounded and streamed to disk immediately. Ctrl+C cancels the active
