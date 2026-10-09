@@ -35,7 +35,7 @@ internal static unsafe class M05ClockMappingTests
         foreach (var range in new SeparatePageFaultMappingRange[]
         {
             new(Device, 2, Rw, PageCachePolicy.Uncached),
-            new(Device, 1, PageProtection.Read, PageCachePolicy.Uncached),
+            new(Device, 1025, PageProtection.Read, PageCachePolicy.Uncached),
             new(Device, 1, PageProtection.Read | PageProtection.Execute, PageCachePolicy.Uncached),
             new(Device, 1, Rw, PageCachePolicy.WriteCombining),
             new(Device, 1, Rw, PageCachePolicy.Uninitialized)

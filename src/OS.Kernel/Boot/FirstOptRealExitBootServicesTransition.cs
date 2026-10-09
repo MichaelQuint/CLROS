@@ -20,6 +20,9 @@ public struct FirstExitImageReferences
     // Original retained ACPI HPET GAS, admitted against the owned firmware map.
     public ulong HpetDevicePage;
 #endif
+#if M05_PCI_ENUMERATION_PROBE
+    public ulong EcamStart, EcamPages;
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
     // Original EFI allocation containing one exclusive aligned 2 MiB test span.
     public ulong MappingScratchBacking, MappingScratchBackingPages, MappingScratchStart;
@@ -223,7 +226,7 @@ public static unsafe class FirstExitRetainedMappings
 #if M05_PHYSICAL_MAPPING_PROBE
         + 1
 #endif
-#if M05_MONOTONIC_CLOCK_PROBE
+#if M05_MONOTONIC_CLOCK_PROBE || M05_PCI_ENUMERATION_PROBE
         + 1
 #endif
         ;
@@ -281,7 +284,7 @@ public static unsafe class FirstExitRetainedMappings
             if ((ulong)state < references.AdapterState || references.AdapterStateBytes < (ulong)sizeof(FirstExitOwnedArenaState) ||
                 (ulong)state - references.AdapterState > references.AdapterStateBytes - (ulong)sizeof(FirstExitOwnedArenaState)) return false;
 
-#if M05_PHYSICAL_MAPPING_PROBE || M05_MONOTONIC_CLOCK_PROBE
+#if M05_PHYSICAL_MAPPING_PROBE || M05_MONOTONIC_CLOCK_PROBE || M05_PCI_ENUMERATION_PROBE
         ulong* starts = stackalloc ulong[7];
         ulong* lengths = stackalloc ulong[7];
 #else
@@ -310,6 +313,12 @@ public static unsafe class FirstExitRetainedMappings
             references.HpetDevicePage > 0xfffff000 || (references.HpetDevicePage & 4095) != 0) return false;
         starts[6] = references.HpetDevicePage; lengths[6] = 4096; allocations = 7;
 #endif
+#if M05_PCI_ENUMERATION_PROBE
+        if (references.RuntimeSupportCode == 0 || references.EcamStart < 0x100000 ||
+            (references.EcamStart & 0xfffff) != 0 || references.EcamPages != 256 ||
+            references.EcamStart > 0x100000000UL - 0x100000) return false;
+        starts[6] = references.EcamStart; lengths[6] = 0x100000; allocations = 7;
+#endif
         for (int i = 0; i < allocations; i++) for (int j = 0; j < i; j++)
             if (FirstExitDescriptors.Overlaps(starts[i], lengths[i], starts[j], lengths[j])) return false;
 
@@ -324,6 +333,9 @@ public static unsafe class FirstExitRetainedMappings
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.HpetDevicePage, 1, Data, PageCachePolicy.Uncached);
+#endif
+#if M05_PCI_ENUMERATION_PROBE
+        pending[count++] = new SeparatePageFaultMappingRange(references.EcamStart, references.EcamPages, PageProtection.Read, PageCachePolicy.Uncached);
 #endif
         ulong totalPages = 0;
         for (ulong i = 0; i < count; i++) totalPages += pending[i].PageCount;
@@ -358,6 +370,9 @@ public static unsafe class FirstExitCodeBundle
 #if M05_MONOTONIC_CLOCK_PROBE
     public const uint ClockAccessOffset = 4608;
 #endif
+#if M05_PCI_ENUMERATION_PROBE
+    public const uint PciReadOffset = 4608;
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
     public const uint MappingPublishOffset = 4608;
     public const uint MappingReadMsrOffset = 4800;
@@ -383,6 +398,9 @@ public static unsafe class FirstExitCodeBundle
             FirstExitPermanentCr3Stub.Emit(code + PermanentOffset, Bytes - PermanentOffset, out _) &&
 #if M05_MONOTONIC_CLOCK_PROBE
             X64OwnedClockAccess.Emit(code + ClockAccessOffset, StackEntryOffset - ClockAccessOffset) &&
+#endif
+#if M05_PCI_ENUMERATION_PROBE
+            OS.Drivers.X64PciConfigurationRead.Emit(code + PciReadOffset, StackEntryOffset - PciReadOffset) &&
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
             X64PhysicalMappingPublication.Emit(code + MappingPublishOffset, MappingReadMsrOffset - MappingPublishOffset) &&
@@ -468,6 +486,9 @@ public static unsafe class FirstExitCodeBundle
 #if M05_MONOTONIC_CLOCK_PROBE
         if (!X64OwnedClockAccess.Validate(code + ClockAccessOffset, X64OwnedClockAccess.Bytes)) return false;
 #endif
+#if M05_PCI_ENUMERATION_PROBE
+        if (!OS.Drivers.X64PciConfigurationRead.Validate(code + PciReadOffset, OS.Drivers.X64PciConfigurationRead.Bytes)) return false;
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
         if (!X64PhysicalMappingPublication.ValidateReadBack(code + MappingPublishOffset, X64PhysicalMappingPublication.RequiredBytes) ||
             !X64PhysicalMappingPublication.EmitReadMsr(scratch, 1024) ||
@@ -481,6 +502,9 @@ public static unsafe class FirstExitCodeBundle
                 !Inside(index, In8Offset, PortIoStubPlan.In8RequiredByteLength) && !Inside(index, StackEntryOffset, entryBytes) &&
 #if M05_MONOTONIC_CLOCK_PROBE
                 !Inside(index, ClockAccessOffset, X64OwnedClockAccess.Bytes) &&
+#endif
+#if M05_PCI_ENUMERATION_PROBE
+                !Inside(index, PciReadOffset, OS.Drivers.X64PciConfigurationRead.Bytes) &&
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
                 !Inside(index, MappingPublishOffset, X64PhysicalMappingPublication.RequiredBytes) &&

@@ -395,7 +395,7 @@ public static unsafe class SeparateDisabledDefaultPageFaultPageTables
                     (!retainedImage || range.Protection != PageProtection.Read)) ||
                 (range.CachePolicy != PageCachePolicy.WriteBack &&
                     (!retainedImage || range.CachePolicy != PageCachePolicy.Uncached ||
-                        range.Protection != Data || range.PageCount != 1)) ||
+                        !((range.Protection == Data && range.PageCount == 1) || (range.Protection == PageProtection.Read && range.PageCount <= 1024)))) ||
                 !ValidInterval(range.Start, range.PageCount, request.Preconditions, maximumRangePages) ||
                 !EncodingValid(range.Start, X64PageTableLevel.Pte, range.Protection, request.Preconditions, range.CachePolicy))
                 return SeparatePageFaultPageTableStatus.InvalidRange;

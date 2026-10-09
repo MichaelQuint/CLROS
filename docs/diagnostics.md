@@ -2,6 +2,13 @@
 
 ## Current Status
 
+`EnableM05PciEnumerationProbe` is default off and exclusive with the other M05
+diagnostics, owned panic and revocation. Its 97-record stream appends nine
+`M05_PCI` rows plus start/ready/pass groups for `m05.004` through `m05.007`.
+Rows require bounded ECAM authority, a present header, repeatable complete window
+scan, explicit capacity rejection and malformed capability controls. Full-host,
+native and real guest acceptance is recorded in [step1127](../done/step1127.md).
+
 `EnableM05MonotonicClockProbe` defaults false and is exclusive with the other
 M05 diagnostics. Its 83-record stream adds four `M05_CLOCK` records and the
 `m05.003`/`CLROS_M05_003_READY` markers only after owned subsystem success and

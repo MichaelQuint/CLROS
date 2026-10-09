@@ -11394,7 +11394,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M05: Platform, PCI, and Common Virtio.",
-      "currentEvidence": "Dependency #68 is accepted in done/step1094.md. #94 (M05-001) is accepted in step1120 for bounded owned UC/WC/WB mapping; #95 (M05-002) is accepted in step1123 for retained ACPI selection; #96 (M05-003) is accepted in step1125 for a bounded post-exit HPET clock. The epic remains open/agent:blocked with 18 remaining children; #97 is the next ready leaf. No live PCI/virtqueue transaction or Gate6 completion is proven.",
+      "currentEvidence": "Dependencies #68, #94, #95 and #96 are accepted in steps1094, 1120, 1123 and 1125. The #97-#100 bounded read-only PCI ECAM batch is accepted in step1127 with full-host, native and real guest evidence. The epic remains open/agent:blocked with 14 remaining children; #101 is the next ready leaf. BAR sizing, device activation, interrupts, DMA, virtqueues and Gate6 completion remain unproven.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -11694,7 +11694,7 @@
         "M05-003"
       ],
       "labels": [
-        "agent:ready",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -11721,7 +11721,7 @@
       ],
       "collisionLane": null,
       "summary": "Define a bounded PCI configuration-space interface.",
-      "currentEvidence": "Dependency #96 (M05-003) is accepted in done/step1125.md for a bounded post-exit HPET clock. This PCI interface issue is ready and remains unimplemented; existing ACPI, PCI, BAR, virtio and DMA contracts are host-tested. No live PCI/virtqueue transaction is proven.",
+      "currentEvidence": "Accepted in done/step1127.md with #97-#100 and shared integration #610. Frozen source de221887566f01cb07bcde333369d2922620fe56 passes 4,190 full-host checks across 492 groups, strict native review, real 97-record PCI/79-record ordinary captures and independent disk association. QEMU demonstrates read-only ECAM access, seven functions in 39 visits, repeated scans, explicit truncation and capability-chain controls. Scope is one declared bus; no config writes, BAR sizing, device activation, DMA, interrupts, virtqueues or Gate6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Define a bounded PCI configuration-space interface.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -11769,7 +11769,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Define a bounded PCI configuration-space interface.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-005",
@@ -11780,7 +11780,7 @@
         "M05-004"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -11807,7 +11807,7 @@
       ],
       "collisionLane": null,
       "summary": "Map one ECAM page and read a vendor/device header.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Accepted in done/step1127.md with #97-#100 and shared integration #610. Frozen source de221887566f01cb07bcde333369d2922620fe56 passes 4,190 full-host checks across 492 groups, strict native review, real 97-record PCI/79-record ordinary captures and independent disk association. QEMU demonstrates read-only ECAM access, seven functions in 39 visits, repeated scans, explicit truncation and capability-chain controls. Scope is one declared bus; no config writes, BAR sizing, device activation, DMA, interrupts, virtqueues or Gate6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Map one ECAM page and read a vendor/device header.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -11855,7 +11855,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Map one ECAM page and read a vendor/device header.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-006",
@@ -11866,7 +11866,7 @@
         "M05-005"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -11893,7 +11893,7 @@
       ],
       "collisionLane": null,
       "summary": "Enumerate PCI buses/devices/functions with bounded diagnostics.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Accepted in done/step1127.md with #97-#100 and shared integration #610. Frozen source de221887566f01cb07bcde333369d2922620fe56 passes 4,190 full-host checks across 492 groups, strict native review, real 97-record PCI/79-record ordinary captures and independent disk association. QEMU demonstrates read-only ECAM access, seven functions in 39 visits, repeated scans, explicit truncation and capability-chain controls. Scope is one declared bus; no config writes, BAR sizing, device activation, DMA, interrupts, virtqueues or Gate6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Enumerate PCI buses/devices/functions with bounded diagnostics.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -11941,7 +11941,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Enumerate PCI buses/devices/functions with bounded diagnostics.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-007",
@@ -11952,7 +11952,7 @@
         "M05-006"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:test",
         "evidence:qemu",
@@ -11979,7 +11979,7 @@
       ],
       "collisionLane": null,
       "summary": "Add cyclic/out-of-range PCI capability-list tests.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Accepted in done/step1127.md with #97-#100 and shared integration #610. Frozen source de221887566f01cb07bcde333369d2922620fe56 passes 4,190 full-host checks across 492 groups, strict native review, real 97-record PCI/79-record ordinary captures and independent disk association. QEMU demonstrates read-only ECAM access, seven functions in 39 visits, repeated scans, explicit truncation and capability-chain controls. Scope is one declared bus; no config writes, BAR sizing, device activation, DMA, interrupts, virtqueues or Gate6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add cyclic/out-of-range PCI capability-list tests.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12027,7 +12027,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add cyclic/out-of-range PCI capability-list tests.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-008",
@@ -12038,7 +12038,7 @@
         "M05-007"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -12065,7 +12065,7 @@
       ],
       "collisionLane": null,
       "summary": "Size 32-bit and 64-bit BARs while always restoring original registers.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Dependency #100 (M05-007) is accepted in done/step1127.md with the bounded read-only PCI ECAM batch. This BAR sizing/restoration issue is ready and remains unimplemented. Existing BAR sizing contracts are host-tested; live config writes, BAR restore, DMA and virtqueue operation remain unproven.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Size 32-bit and 64-bit BARs while always restoring original registers.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
