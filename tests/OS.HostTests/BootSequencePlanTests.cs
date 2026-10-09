@@ -764,6 +764,8 @@ internal static class BootSequencePlanTests
              "public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunSimpleThrowCatchUnwind(",
              "public static bool IsSingleFinallyCatchEnabled() =>",
              "public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunSingleFinallyCatchUnwind(",
+             "public static bool IsRethrowEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04RethrowProbe;",
+             "public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunRethrowUnwind(",
              "public static unsafe OS.Kernel.Runtime.X64UnwindMetadataResult RunX64UnwindMetadata(",
              "public static unsafe OS.Boot.OwnedAllocatorRoundTripStatus RunOwnedSubsystemAllocatorRoundTrip(",
              "public static unsafe bool ReportVerifiedExitCompletion(void* context,",
@@ -789,7 +791,9 @@ internal static class BootSequencePlanTests
              "public const bool EnableM04SimpleThrowCatchProbe = true;",
              "public const bool EnableM04SimpleThrowCatchProbe = false;",
              "public const bool EnableM04SingleFinallyCatchProbe = true;",
-             "public const bool EnableM04SingleFinallyCatchProbe = false;"]);
+             "public const bool EnableM04SingleFinallyCatchProbe = false;",
+             "public const bool EnableM04RethrowProbe = true;",
+             "public const bool EnableM04RethrowProbe = false;"]);
 
         bool HasGuardedSurface(string relativePath, int expectedRegions, string[] declarations)
         {

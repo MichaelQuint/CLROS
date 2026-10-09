@@ -71,7 +71,7 @@ internal static unsafe class VerifiedExitPathOptDefaultRepeatedCleanQEMUTests
             .Select(node => node.Parent?.Attribute("Condition")?.Value ?? "")
             .SelectMany(condition => Regex.Matches(condition, @"\$\((Enable\w+Probe)\)").Select(match => match.Groups[1].Value))
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-        Need(probes.Length == 52, "review the complete diagnostic inventory before adding a new profile");
+        Need(probes.Length == 53, "review the complete diagnostic inventory before adding a new profile");
         using (JsonDocument ordinary = Evaluate(root, []))
         {
             JsonElement props = ordinary.RootElement.GetProperty("Properties");

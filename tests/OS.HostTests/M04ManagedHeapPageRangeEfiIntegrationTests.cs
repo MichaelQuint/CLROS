@@ -396,7 +396,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
             string[] enabled=["EnableM01LoadedImageStackProbe","EnableM01LiveAllocatorProbe","EnableM04IndependentEndianConformanceProbe","EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe","EnableM04ArithmeticConformanceProbe","EnableM04LayoutContractProbe","EnableM04ManagedHeapPageRangeProbe"];
             foreach(string flag in enabled)properties[flag]="true";
             string[] vector=properties.Select(x=>x.Key).Where(x=>x.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-            if(vector.Length!=52)throw new Exception("complete 52-probe vector");
+            if(vector.Length!=53)throw new Exception("complete 53-probe vector");
             string[] verifierArgs=enabled.Select(x=>"-"+x).ToArray();
             void Verify(bool success,string context) {
                 File.WriteAllText(evidencePath,evidence.ToJsonString());
