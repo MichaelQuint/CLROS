@@ -1,4 +1,9 @@
 # Boot Order
+The BAR/DMA batch #101-#104/#612 is implemented but unaccepted in
+[step1128](../done/step1128.md). Its separate default-off diagnostic extends the
+PCI profile with quiescent BAR sizing/restoration and an owned-page DMA address
+and buffer-lifetime exercise. Full-host, native and real guest qualification
+remain pending; no device DMA transfer or Gate 6 completion is established.
 
 `RunOwnedPciEnumeration` is an optional diagnostic substep after original owned
 subsystem survival, with no added ordinary boot phase. It uses retained ECAM

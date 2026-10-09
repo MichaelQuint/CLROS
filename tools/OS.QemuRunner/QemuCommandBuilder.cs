@@ -43,6 +43,9 @@ internal static class QemuCommandBuilder
             "virtio-net-pci,netdev=n0"
         ]);
 
+        if (options.PciBarTestDevice)
+            arguments.AddRange(["-device", "pci-testdev,addr=06.0,membar=2M"]);
+
         if (options.FirmwareRngSource is not null)
         {
             arguments.AddRange(["-cpu", "qemu64,-rdrand,-rdseed"]);

@@ -1898,6 +1898,8 @@ sealed class RunnerOptions
 
     public string? FirmwareRngSource { get; private set; }
 
+    public bool PciBarTestDevice { get; private set; }
+
     public string WorkloadProfile { get; private set; } = DefaultWorkloadProfile;
 
     public IReadOnlyList<string> RequiredMarkers => requiredMarkers;
@@ -1981,6 +1983,10 @@ sealed class RunnerOptions
                     break;
                 case "--summary-log":
                     options.SummaryLogPath = RequireNonEmpty(ReadValue(args, ref i, arg), arg);
+                    break;
+                case "--pci-bar-test-device":
+                    if (options.PciBarTestDevice) throw new ArgumentException("--pci-bar-test-device may be specified only once.");
+                    options.PciBarTestDevice = true;
                     break;
                 case "--firmware-rng-source":
                     if (options.FirmwareRngSource is not null)

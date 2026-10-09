@@ -1,4 +1,9 @@
 # EFI Build
+The BAR/DMA batch #101-#104/#612 is implemented but unaccepted in
+[step1128](../done/step1128.md). Its separate default-off diagnostic extends the
+PCI profile with quiescent BAR sizing/restoration and an owned-page DMA address
+and buffer-lifetime exercise. Full-host, native and real guest qualification
+remain pending; no device DMA transfer or Gate 6 completion is established.
 
 ## Bounded PCI profile
 
@@ -3149,3 +3154,11 @@ The step1068 verifier path-walk optimization is included in that accepted source
 Its approximately 8.74x measured gain applies to the helper benchmark only, with
 unchanged authority checks and deadline. Symlink creation and ACL-denial fixture
 coverage remain unavailable on this host, as recorded in the original results.
+
+The development BAR/DMA diagnostic adds `--EnableM05BarDmaProbe` to the explicit
+`--EnableM05PciEnumerationProbe` profile and requires `Diagnostic` plus the same
+original M01/ACPI/M03 ownership prerequisites. The wrapper must freshly build its
+EFI and disk. Its runner automatically adds `pci-testdev,addr=06.0,membar=2M`;
+this device is absent from ordinary runs. The 122-record stream includes the
+original 97 PCI records and four bounded issue suffixes through m05.011. This
+profile remains unaccepted until step1128's deferred gates have actual evidence.

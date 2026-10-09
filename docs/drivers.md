@@ -1,4 +1,37 @@
 # Drivers
+The BAR/DMA batch #101-#104/#612 is implemented but unaccepted in
+[step1128](../done/step1128.md). Its separate default-off diagnostic extends the
+PCI profile with quiescent BAR sizing/restoration and an owned-page DMA address
+and buffer-lifetime exercise. Full-host, native and real guest qualification
+remain pending; no device DMA transfer or Gate 6 completion is established.
+
+The new BAR probe snapshots all six type-0 BAR registers, rejects active bus
+mastering, disables decode using a 16-bit Command write, probes each 32/64-bit
+pair, and attempts every restore on failure. It verifies BARs before restoring
+Command; uncertain restoration is reported and decode is kept disabled where
+writes succeed. Callbacks require exclusive quiescent ownership and cannot
+promise recovery from CPU faults or hardware disappearance. Size/type/prefetch
+checks distinguish 64-bit upper slots and explicit unassigned/absent BARs.
+Only the dedicated QEMU test function at 00:06.0 has one writable UC/NX ECAM
+page; adjacent config pages remain read-only. No BAR payload is accessed.
+
+DMA windows explicitly preserve CPU virtual, physical and device addresses.
+A bounded caller-owned pool allocates contiguous page runs, tracks CPU/device
+ownership, and rejects stale generations, wrong pools and double release.
+These are metadata transitions, not hardware synchronization or DMA completion.
+The guest profile allocates one page from the original owned allocator, writes
+and restores its boundary words, exercises pool lifetime, then returns the exact
+backing allocation and checks accounting. Its identity address correspondence
+is explicit to the declared QEMU adapter; independent nonidentity vectors do not
+establish an IOMMU mapping.
+
+Independent MOSA-inspired BAR regression tests preserve the prefetch-bit and
+64-bit-pairing failure cases without source reuse. The inspected snapshot is
+`references/MOSA-Project-master/Source/Mosa.DeviceSystem/PCI/PCIDeviceConfiguration.cs`,
+SHA-256 `3f16fd0e38c9fb001c1b071a8bdda259b99a68292aabeeaa483e179b0b89d5713`.
+Direct reuse remains license/provenance-blocked. QEMU's
+[pci-testdev specification](https://www.qemu.org/docs/master/specs/pci-testdev.html)
+describes the optional 64-bit BAR used by this diagnostic fixture.
 
 ## Current Status
 

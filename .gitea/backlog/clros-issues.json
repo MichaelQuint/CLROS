@@ -11394,7 +11394,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M05: Platform, PCI, and Common Virtio.",
-      "currentEvidence": "Dependencies #68, #94, #95 and #96 are accepted in steps1094, 1120, 1123 and 1125. The #97-#100 bounded read-only PCI ECAM batch is accepted in step1127 with full-host, native and real guest evidence. The epic remains open/agent:blocked with 14 remaining children; #101 is the next ready leaf. BAR sizing, device activation, interrupts, DMA, virtqueues and Gate6 completion remain unproven.",
+      "currentEvidence": "Dependencies #68, #94, #95 and #96 are accepted in steps1094, 1120, 1123 and 1125; #97-#100 read-only PCI discovery is accepted in step1127. The epic remains open/agent:blocked with 14 remaining children. The #101-#104 BAR/DMA address and buffer-lifetime batch is claimed under shared integration #612 and unaccepted in step1128. Live device DMA, virtqueues and Gate6 completion remain unproven.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -12038,7 +12038,7 @@
         "M05-007"
       ],
       "labels": [
-        "agent:ready",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -12065,7 +12065,7 @@
       ],
       "collisionLane": null,
       "summary": "Size 32-bit and 64-bit BARs while always restoring original registers.",
-      "currentEvidence": "Dependency #100 (M05-007) is accepted in done/step1127.md with the bounded read-only PCI ECAM batch. This BAR sizing/restoration issue is ready and remains unimplemented. Existing BAR sizing contracts are host-tested; live config writes, BAR restore, DMA and virtqueue operation remain unproven.",
+      "currentEvidence": "Implemented in the dependency-compatible #101-#104 batch with shared integration #612; development evidence is in done/step1128.md. Fourteen focused contract checks, the bounded mapping and complete transcript checks, affected source/profile guards and managed/no-stdlib compilation pass. Full-host, native review, real diagnostic/ordinary QEMU and disk association remain pending. No live DMA transfer or later device capability is accepted.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Size 32-bit and 64-bit BARs while always restoring original registers.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12124,7 +12124,7 @@
         "M05-008"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:test",
         "evidence:qemu",
@@ -12151,7 +12151,7 @@
       ],
       "collisionLane": null,
       "summary": "Add BAR prefetch/type regression tests derived from MOSA failures.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Implemented in the dependency-compatible #101-#104 batch with shared integration #612; development evidence is in done/step1128.md. Fourteen focused contract checks, the bounded mapping and complete transcript checks, affected source/profile guards and managed/no-stdlib compilation pass. Full-host, native review, real diagnostic/ordinary QEMU and disk association remain pending. No live DMA transfer or later device capability is accepted.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add BAR prefetch/type regression tests derived from MOSA failures.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12210,7 +12210,7 @@
         "M05-009"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -12237,7 +12237,7 @@
       ],
       "collisionLane": null,
       "summary": "Define explicit CPU-virtual, physical, and device-address DMA mappings.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Implemented in the dependency-compatible #101-#104 batch with shared integration #612; development evidence is in done/step1128.md. Fourteen focused contract checks, the bounded mapping and complete transcript checks, affected source/profile guards and managed/no-stdlib compilation pass. Full-host, native review, real diagnostic/ordinary QEMU and disk association remain pending. No live DMA transfer or later device capability is accepted.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Define explicit CPU-virtual, physical, and device-address DMA mappings.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12296,7 +12296,7 @@
         "M05-010"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -12323,7 +12323,7 @@
       ],
       "collisionLane": null,
       "summary": "Allocate page-aligned DMA buffers with lifetime and ownership tracking.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Implemented in the dependency-compatible #101-#104 batch with shared integration #612; development evidence is in done/step1128.md. Fourteen focused contract checks, the bounded mapping and complete transcript checks, affected source/profile guards and managed/no-stdlib compilation pass. Full-host, native review, real diagnostic/ordinary QEMU and disk association remain pending. No live DMA transfer or later device capability is accepted.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Allocate page-aligned DMA buffers with lifetime and ownership tracking.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

@@ -696,6 +696,7 @@ internal static class BootSequencePlanTests
              "public static bool IsRethrowEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04RethrowProbe;",
              "public static unsafe bool RunOwnedAcpiSelection(",
              "public static unsafe bool RunOwnedPciEnumeration(",
+             "public static unsafe bool RunOwnedBarDma(",
              "public static unsafe bool RunOwnedMonotonicClock(",
              "public static unsafe bool RunPostFirmwarePhysicalMapping(",
              "public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunRethrowUnwind(",
@@ -734,7 +735,9 @@ internal static class BootSequencePlanTests
              "public const bool EnableM05MonotonicClockProbe = true;",
              "public const bool EnableM05MonotonicClockProbe = false;",
              "public const bool EnableM05PciEnumerationProbe = true;",
-             "public const bool EnableM05PciEnumerationProbe = false;"]);
+             "public const bool EnableM05PciEnumerationProbe = false;",
+             "public const bool EnableM05BarDmaProbe = true;",
+             "public const bool EnableM05BarDmaProbe = false;"]);
 
         bool HasGuardedSurface(string relativePath, int expectedRegions, string[] declarations)
         {

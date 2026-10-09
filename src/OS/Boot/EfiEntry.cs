@@ -56,6 +56,9 @@ public static unsafe class EfiEntry
 #if M05_PCI_ENUMERATION_PROBE
             internal ulong PciPhase;
             internal BoundedPciWindow PciWindow;
+#if M05_BAR_DMA_PROBE
+            internal uint BarDmaPhase;
+#endif
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE
             internal ulong ClockPhase;
@@ -516,7 +519,12 @@ public static unsafe class EfiEntry
                     _ = BootSequence.RunOwnedMonotonicClock(state->OwnedPhase == 2, state, &RunOwnedMonotonicClock);
 #endif
 #if M05_PCI_ENUMERATION_PROBE
-                    _ = BootSequence.RunOwnedPciEnumeration(state->OwnedPhase == 2, state, &RunOwnedPciEnumeration);
+                    if (BootSequence.RunOwnedPciEnumeration(state->OwnedPhase == 2, state, &RunOwnedPciEnumeration))
+                    {
+#if M05_BAR_DMA_PROBE
+                        _ = BootSequence.RunOwnedBarDma(state->PciPhase == 8, state, &RunOwnedBarDma);
+#endif
+                    }
 #endif
 #if M05_OWNED_ACPI_SELECTION_PROBE
                     _ = BootSequence.RunOwnedAcpiSelection(state->OwnedPhase == 2, state, &RunOwnedAcpiSelection);
@@ -677,6 +685,186 @@ public static unsafe class EfiEntry
             else if (kind == 2) { words[0] = 0x5341505f54534554UL; words[1] = 0x30302e35306d2053UL; words[2] = 0xa0d30UL; bytes = 19; digit = 16; }
             else { words[0] = 0x4941465f54534554UL; words[1] = 0x30302e35306d204cUL; words[2] = 0x74735f6963702030UL; words[3] = 0xa0d657461UL; bytes = 29; digit = 16; }
             ((byte*)words)[digit] = (byte)('0' + issue);
+            return WriteOwnedBytes(state, (byte*)words, bytes);
+        }
+#endif
+
+#if M05_BAR_DMA_PROBE
+        private static bool RunOwnedBarDma(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->BarDmaPhase != 0 || state->PciPhase != 8 || state->OwnedPhase != 2 ||
+                state->Diagnostic.Status != FirstExitDiagnosticStatus.Completed || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            state->BarDmaPhase = 8;
+            if (!RunBarCore(state) || !RunDmaCore(state))
+            { _ = WriteBarLiteral(state, state->BarDmaPhase, 3); return false; }
+            state->BarDmaPhase = 12;
+            return true;
+        }
+
+        private static bool RunBarCore(Storage* state)
+        {
+            byte* code = state->Memory.Code + FirstExitCodeBundle.PciBarOffset;
+            if (!X64PciBarAccess.Validate(code, X64PciBarAccess.Bytes) ||
+                state->PciWindow.FirstBus != 0 || state->PciWindow.LastBus != 0 ||
+                state->PciWindow.Start != state->Memory.References.EcamStart || state->Memory.References.EcamPages != 256 ||
+                !WriteBarLiteral(state, 8, 0)) return false;
+            var read = (delegate* unmanaged<void*, ulong, uint*, byte>)code;
+            var write32 = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 16);
+            var write16 = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 32);
+            ulong page = state->PciWindow.Start + 0x30000;
+            uint identity = 0, command = 0, after = 0;
+            // The runner installs exactly this non-DMA test function. Never probe
+            // an arbitrary firmware-owned storage/network function for this profile.
+            if (read(null, page, &identity) != 1 || identity != 0x00051b36 ||
+                read(null, page + 4, &command) != 1 || (command & 4) != 0) return false;
+            PciSizedBar* first = stackalloc PciSizedBar[6];
+            PciSizedBar* repeat = stackalloc PciSizedBar[6];
+            var result = N32BitN64BitBARsWhileAlwaysRestoring.Probe(state->PciWindow, 0, 6, 0, null, read, write32, write16, first, 6);
+            if (!result.Succeeded) return false;
+            var again = N32BitN64BitBARsWhileAlwaysRestoring.Probe(state->PciWindow, 0, 6, 0, null, read, write32, write16, repeat, 6);
+            if (!again.Succeeded || read(null, page + 4, &after) != 1 || (command & 0xffff) != (after & 0xffff)) return false;
+            for (uint i = 0; i < 6; i++)
+                if (first[i].Kind != repeat[i].Kind || first[i].Base != repeat[i].Base ||
+                    first[i].Bytes != repeat[i].Bytes || first[i].Prefetchable != repeat[i].Prefetchable) return false;
+            if (first[0].Kind != PciSizedBarKind.Memory32 || first[0].Bytes != 4096 || !first[0].IsAssigned || first[0].Prefetchable ||
+                first[2].Kind != PciSizedBarKind.Memory64 || first[2].Bytes != 0x200000 || !first[2].IsAssigned || !first[2].Prefetchable ||
+                first[3].Kind != PciSizedBarKind.UpperHalf ||
+                !WriteBarRow(state, 0, 0x600, identity, command & 0xffff, page) ||
+                !WriteBarRow(state, 1, first[0].Base, first[0].Bytes, (ulong)first[0].Kind, 0) ||
+                !WriteBarRow(state, 2, first[2].Base, first[2].Bytes, (ulong)first[2].Kind, 1) ||
+                !WriteBarRow(state, 3, command & 0xffff, after & 0xffff, result.Restored ? 1UL : 0, again.Restored ? 1UL : 0) ||
+                !WriteBarLiteral(state, 8, 1) || !WriteBarLiteral(state, 8, 2)) return false;
+            state->BarDmaPhase = 9;
+            var badType = BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(2, 0, 2, 0, 0, out _);
+            var badPair = BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(4, 1, 0xfffff004, 0xffffffff, 5, out _);
+            var badMask = BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(0x80000008, 0, 0xfffff000, 0, 0, out _);
+            var badExtent = BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(0x80000010, 0, 0xfffff000, 0, 0, out _);
+            return badType == PciBarProbeStatus.UnsupportedType && badPair == PciBarProbeStatus.UnsupportedType &&
+                badMask == PciBarProbeStatus.InvalidMask && badExtent == PciBarProbeStatus.InvalidExtent &&
+                WriteBarLiteral(state, 9, 0) && WriteBarRow(state, 4, 0, 1, (ulong)first[0].Kind, (ulong)first[2].Kind) &&
+                WriteBarRow(state, 5, (ulong)badType, (ulong)badPair, (ulong)badMask, (ulong)badExtent) &&
+                WriteBarLiteral(state, 9, 1) && WriteBarLiteral(state, 9, 2);
+        }
+
+        private static bool RunDmaCore(Storage* state)
+        {
+            state->BarDmaPhase = 10;
+            if (!WriteBarLiteral(state, 10, 0) || !FirstExitOwnedArena.ValidateCanaries(state->Arena) ||
+                !M01StageTwoAdapter.TryGetOriginalExitAllocator(out ulong address, out var backing) ||
+                address != state->Memory.References.AllocatorState || backing.Start != state->Memory.Allocator.Start ||
+                backing.PageCount != state->Memory.Allocator.PageCount || backing.PageCount == 0 ||
+                backing.PageCount > M01LiveAllocatorIntegration.MaximumArenaPageCount) return false;
+            M01LiveAllocatorStaticState* owner = (M01LiveAllocatorStaticState*)address;
+            if (!owner->IsCompleted) return false;
+            var before = owner->AllocatorStateValue; var node = owner->FreeNodeValue;
+            var allocation = BootPageAllocatorMutator.AllocateOnePage(before, &owner->FreeNodeValue, 1, 1, null, 0, 0, 1, 4096);
+            if (!allocation.Succeeded) return false;
+            owner->AllocatorStateValue = allocation.AfterState;
+            bool admitted = allocation.PhysicalStart.TryGetRawValueForHardwareRegisterBoundary(out ulong page) == AddressValueStatus.Success &&
+                allocation.PhysicalEndExclusive.TryGetRawValueForHardwareRegisterBoundary(out ulong end) == AddressValueStatus.Success &&
+                allocation.PageCount == 1 && allocation.ByteLength == 4096 && (page & 4095) == 0 &&
+                page >= backing.Start && page - backing.Start <= backing.PageCount * 4096 - 4096 && end == page + 4096;
+            // This declared x64 QEMU adapter has identity CPU/physical mapping and
+            // no IOMMU. Device address correspondence is explicit; no device uses it.
+            bool exercised = admitted && RunDmaPage(state, page, before.FreePageCount, owner->AllocatorStateValue.FreePageCount);
+            // No early return after allocation: return the exact receipt even if
+            // address admission, a contract check, or serial reporting failed.
+            var freed = BootPageAllocatorMutator.FreeOnePage(owner->AllocatorStateValue, &owner->FreeNodeValue, 1, 1, null, 0, 0, allocation);
+            if (!freed.Succeeded) return false;
+            owner->AllocatorStateValue = freed.AfterState;
+            var restored = owner->AllocatorStateValue; var finalNode = owner->FreeNodeValue;
+            bool equal = before.IsInitialized == restored.IsInitialized && before.PageSize == restored.PageSize &&
+                before.HeadNodeIndex == restored.HeadNodeIndex && before.FreeNodeCount == restored.FreeNodeCount &&
+                before.FreePageCount == restored.FreePageCount && before.FreeByteCount == restored.FreeByteCount &&
+                before.AllocatedPageCount == restored.AllocatedPageCount && before.AllocatedByteCount == restored.AllocatedByteCount &&
+                node.SourceFreeSegmentIndex == finalNode.SourceFreeSegmentIndex && node.SourceUsableRangeIndex == finalNode.SourceUsableRangeIndex &&
+                node.PhysicalStart == finalNode.PhysicalStart && node.PhysicalEndExclusive == finalNode.PhysicalEndExclusive &&
+                node.PageCount == finalNode.PageCount && node.ByteLength == finalNode.ByteLength && node.NextNodeIndex == finalNode.NextNodeIndex;
+            return exercised && equal && owner->IsCompleted && FirstExitOwnedArena.ValidateCanaries(state->Arena) &&
+                WriteBarRow(state, 12, before.FreePageCount, restored.FreePageCount, restored.AllocatedPageCount, 1) &&
+                WriteBarLiteral(state, 11, 1) && WriteBarLiteral(state, 11, 2);
+        }
+
+        private static bool RunDmaPage(Storage* state, ulong page, ulong freeBefore, ulong freeDuring)
+        {
+            if (DmaAddressWindow.TryCreate(page, page, page, 4096, 32, out var window) != DmaAddressStatus.Success ||
+                window.TrySlice(0, 4096, out var range) != DmaAddressStatus.Success ||
+                DmaAddressWindow.TryCreate(0x100000, 0x200000, 0x300000, 8192, 32, out var distinct) != DmaAddressStatus.Success ||
+                distinct.TrySlice(4096, 4096, out var slice) != DmaAddressStatus.Success) return false;
+            var empty = default(DmaAddressWindow).TrySlice(0, 4096, out _);
+            var width = DmaAddressWindow.TryCreate(page, page, 0x100000000, 4096, 32, out _);
+            var invalid = window.TrySlice(1, 4096, out _);
+            if (empty != DmaAddressStatus.Uninitialized || width != DmaAddressStatus.DeviceAddressLimit || invalid != DmaAddressStatus.InvalidAlignment ||
+                !WriteBarRow(state, 6, range.CpuVirtualAddress, range.PhysicalAddress, range.DeviceAddress, range.ByteLength) ||
+                !WriteBarRow(state, 7, slice.CpuVirtualAddress, slice.PhysicalAddress, slice.DeviceAddress, slice.ByteLength) ||
+                !WriteBarRow(state, 8, (ulong)empty, (ulong)width, (ulong)invalid, 0) ||
+                !WriteBarLiteral(state, 10, 1) || !WriteBarLiteral(state, 10, 2)) return false;
+            state->BarDmaPhase = 11;
+            if (!WriteBarLiteral(state, 11, 0)) return false;
+            DmaBufferPool pool = default; DmaBufferSlot slot = default;
+            if (PageAlignedDmaBuffers.TryInitialize(&pool, window, &slot, 1, 1) != DmaBufferStatus.Success ||
+                PageAlignedDmaBuffers.TryAllocate(&pool, 1, out var first) != DmaBufferStatus.Success ||
+                first.Range.CpuVirtualAddress != page || first.Range.PhysicalAddress != page || first.Range.DeviceAddress != page || first.Range.ByteLength != 4096) return false;
+            var exhausted = PageAlignedDmaBuffers.TryAllocate(&pool, 1, out _);
+            ulong* firstWord = (ulong*)page; ulong* lastWord = (ulong*)(page + 4088);
+            ulong savedFirst = ReadDmaWord(firstWord), savedLast = ReadDmaWord(lastWord);
+            ulong pattern = page ^ 0xe05ab41c7298d603UL;
+            WriteDmaWord(firstWord, pattern); WriteDmaWord(lastWord, ~pattern);
+            bool written = ReadDmaWord(firstWord) == pattern && ReadDmaWord(lastWord) == ~pattern;
+            WriteDmaWord(firstWord, savedFirst); WriteDmaWord(lastWord, savedLast);
+            bool bytesRestored = ReadDmaWord(firstWord) == savedFirst && ReadDmaWord(lastWord) == savedLast;
+            var gave = PageAlignedDmaBuffers.TryGiveToDevice(&pool, first.Token);
+            var busy = PageAlignedDmaBuffers.TryRelease(&pool, first.Token);
+            var returned = PageAlignedDmaBuffers.TryReturnToCpu(&pool, first.Token);
+            var released = PageAlignedDmaBuffers.TryRelease(&pool, first.Token);
+            var reused = PageAlignedDmaBuffers.TryAllocate(&pool, 1, out var second);
+            var stale = PageAlignedDmaBuffers.TryRelease(&pool, first.Token);
+            var secondRelease = PageAlignedDmaBuffers.TryRelease(&pool, second.Token);
+            var twice = PageAlignedDmaBuffers.TryRelease(&pool, second.Token);
+            return written && bytesRestored && exhausted == DmaBufferStatus.Exhausted && gave == DmaBufferStatus.Success &&
+                busy == DmaBufferStatus.InvalidOwnership && returned == DmaBufferStatus.Success && released == DmaBufferStatus.Success &&
+                reused == DmaBufferStatus.Success && second.Range.CpuVirtualAddress == page && stale == DmaBufferStatus.StaleToken &&
+                secondRelease == DmaBufferStatus.Success && twice == DmaBufferStatus.StaleToken && pool.AllocatedMask == 0 &&
+                WriteBarRow(state, 9, page, freeBefore, freeDuring, 1) &&
+                WriteBarRow(state, 10, 1, (ulong)gave, (ulong)busy, (ulong)returned) &&
+                WriteBarRow(state, 11, (ulong)stale, (ulong)twice, (ulong)exhausted, 1);
+        }
+
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static ulong ReadDmaWord(ulong* address) => *address;
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static void WriteDmaWord(ulong* address, ulong value) => *address = value;
+
+        private static bool WriteBarRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d)
+        {
+            if (stage > 12) return false;
+            byte* text = stackalloc byte[96];
+            *(ulong*)text = 0x5f5241425f35304dUL; *(uint*)(text + 8) = 0x20414d44; uint length = 12;
+            if (stage >= 10) text[length++] = (byte)'1'; text[length++] = (byte)('0' + stage % 10);
+            ulong* values = stackalloc ulong[4]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;
+            for (int i = 0; i < 4; i++)
+            {
+                text[length++] = (byte)' '; text[length++] = (byte)'0'; text[length++] = (byte)'x';
+                for (int shift = 60; shift >= 0; shift -= 4)
+                {
+                    uint digit = (uint)((values[i] >> shift) & 15);
+                    text[length++] = (byte)(digit < 10 ? '0' + digit : 'A' + digit - 10);
+                }
+            }
+            text[length++] = 13; text[length++] = 10;
+            return WriteOwnedBytes(state, text, length);
+        }
+
+        private static bool WriteBarLiteral(Storage* state, uint issue, uint kind)
+        {
+            if (issue < 8 || issue > 11 || kind > 3) return false;
+            ulong* words = stackalloc ulong[5]; uint bytes, digit;
+            if (kind == 0) { words[0] = 0x4154535f54534554UL; words[1] = 0x302e35306d205452UL; words[2] = 0xa0d3030UL; bytes = 20; digit = 17; }
+            else if (kind == 1) { words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3030305f35UL; words[2] = 0xa0d594441UL; bytes = 21; digit = 12; }
+            else if (kind == 2) { words[0] = 0x5341505f54534554UL; words[1] = 0x30302e35306d2053UL; words[2] = 0xa0d30UL; bytes = 19; digit = 16; }
+            else { words[0] = 0x4941465f54534554UL; words[1] = 0x30302e35306d204cUL; words[2] = 0x6d645f7261622030UL; words[3] = 0x0d65746174735f61UL; words[4] = 10; bytes = 33; digit = 16; }
+            ((byte*)words)[digit - 1] = (byte)('0' + issue / 10); ((byte*)words)[digit] = (byte)('0' + issue % 10);
             return WriteOwnedBytes(state, (byte*)words, bytes);
         }
 #endif
