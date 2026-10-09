@@ -5,19 +5,8 @@ using OS.Std.Text;
 
 internal static class StdAsciiDecimalFormatterTests
 {
-    [ModuleInitializer]
-    internal static void Run()
-    {
-        RunScenario("std.ascii.decimal.formatter formats uint32 values", TestFormatsUInt32Values);
-        RunScenario("std.ascii.decimal.formatter formats uint64 values", TestFormatsUInt64Values);
-        RunScenario("std.ascii.decimal.formatter formats int32 values", TestFormatsInt32Values);
-        RunScenario("std.ascii.decimal.formatter formats int64 values", TestFormatsInt64Values);
-        RunScenario("std.ascii.decimal.formatter reports capacity", TestReportsCapacity);
-        RunScenario("std.ascii.decimal.formatter reports signed capacity", TestReportsSignedCapacity);
-        RunScenario("std.ascii.decimal.formatter reports required byte counts", TestReportsRequiredByteCounts);
-        RunScenario("std.ascii.decimal.formatter default result is not success", TestDefaultResultContract);
-    }
 
+    [HostTest("std.ascii.decimal.formatter formats uint32 values", HostLane.Fast, 0)]
     private static void TestFormatsUInt32Values()
     {
         ExpectBool("status is partial", true, AsciiDecimalFormatter.Status == CompatibilityStatus.Partial);
@@ -40,6 +29,7 @@ internal static class StdAsciiDecimalFormatterTests
         ExpectByte("uint32 larger tail", 0xDD, larger[result.BytesWritten]);
     }
 
+    [HostTest("std.ascii.decimal.formatter formats uint64 values", HostLane.Fast, 1)]
     private static void TestFormatsUInt64Values()
     {
         byte[] zero = Filled(4, 0xCC);
@@ -60,6 +50,7 @@ internal static class StdAsciiDecimalFormatterTests
         ExpectByte("uint64 larger tail", 0xDD, larger[result.BytesWritten]);
     }
 
+    [HostTest("std.ascii.decimal.formatter formats int32 values", HostLane.Fast, 2)]
     private static void TestFormatsInt32Values()
     {
         byte[] zero = Filled(4, 0xCC);
@@ -85,6 +76,7 @@ internal static class StdAsciiDecimalFormatterTests
         ExpectText("int32 negative text", "-1234567", negative, result.BytesWritten);
     }
 
+    [HostTest("std.ascii.decimal.formatter formats int64 values", HostLane.Fast, 3)]
     private static void TestFormatsInt64Values()
     {
         byte[] zero = Filled(4, 0xCC);
@@ -111,6 +103,7 @@ internal static class StdAsciiDecimalFormatterTests
         ExpectByte("int64 negative tail", 0xDD, negative[result.BytesWritten]);
     }
 
+    [HostTest("std.ascii.decimal.formatter reports capacity", HostLane.Fast, 4)]
     private static void TestReportsCapacity()
     {
         byte[] shortUInt32 = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9 };
@@ -134,6 +127,7 @@ internal static class StdAsciiDecimalFormatterTests
         ExpectInt("empty destination required", 1, result.RequiredBytes);
     }
 
+    [HostTest("std.ascii.decimal.formatter reports signed capacity", HostLane.Fast, 5)]
     private static void TestReportsSignedCapacity()
     {
         byte[] shortInt32 = new byte[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
@@ -157,6 +151,7 @@ internal static class StdAsciiDecimalFormatterTests
         ExpectInt("empty destination negative required", 2, result.RequiredBytes);
     }
 
+    [HostTest("std.ascii.decimal.formatter reports required byte counts", HostLane.Fast, 6)]
     private static void TestReportsRequiredByteCounts()
     {
         ExpectInt("uint32 zero", 1, AsciiDecimalFormatter.CountUInt32Digits(0));
@@ -179,6 +174,7 @@ internal static class StdAsciiDecimalFormatterTests
         ExpectInt("int64 max", 19, AsciiDecimalFormatter.CountInt64Digits(long.MaxValue));
     }
 
+    [HostTest("std.ascii.decimal.formatter default result is not success", HostLane.Fast, 7)]
     private static void TestDefaultResultContract()
     {
         AsciiDecimalFormatResult result = default;
@@ -190,22 +186,6 @@ internal static class StdAsciiDecimalFormatterTests
             "result contains no managed references",
             false,
             RuntimeHelpers.IsReferenceOrContainsReferences<AsciiDecimalFormatResult>());
-    }
-
-    private static void RunScenario(string name, Action test)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            test();
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
     }
 
     private static byte[] Filled(int length, byte value)

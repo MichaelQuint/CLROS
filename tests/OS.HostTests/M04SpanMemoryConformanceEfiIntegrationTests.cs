@@ -9,28 +9,26 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
 {
     private const string TestName = "m04.003.efi.integration";
     private const string M04EndianReadyMarker =
-        "CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 fingerprint=E81E4451E8D999F6 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail";
+        OS.Tooling.QemuContracts.Record278;
     private const string ReadyMarker =
-        "CLROS_M04_003_READY vectors=16 spanVectors=4 overlapVectors=5 memoryCastVectors=3 unsafeWidthVectors=4 fingerprint=F03FF59D36F39ECD pointerWidth=8 referenceFilesRequired=false hostConformance=false guestIntegrated=true gate4=Fail";
+        OS.Tooling.QemuContracts.Record279;
     private const string FailureMarker =
-        "M04_SPAN_MEMORY_CONFORMANCE_FAILED";
-    private const string CompileClosureSha256 =
-        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
+        OS.Tooling.QemuContracts.Record275;
+    private static readonly string CompileClosureSha256 =
+        OS.Tooling.EfiContracts.CompileInventorySha256;
     private const string ProjectFileSha256 =
-        "ef6bc679f6411780b5e31fe82ab7651eecbe3785046b35ce9462c514ec384705";
-    private const string FrozenProductionSha256 =
-        "0c818f89ecc761a4e5692ce3970e98d577381b98bbe540f6ec5f154130c12153";
-    private const string FrozenHostTestSha256 =
-        "06049a329e48c25871a02c6cbefddfab6a0d2de39cbc4d999a8dea25c1dbc953";
+        OS.Tooling.EfiContracts.ProjectSourceSha256;
+    private static readonly string FrozenProductionSha256 =
+        OS.Tooling.EfiContracts.SourceIdentities[@"..\..\std\no-runtime\shared\Memory\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs"];
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START " + TestName);
         int failures = 0;
 
         RunCase(
-            "m04.003 frozen leaf and 59-item EFI closure are exact",
+            "m04.003 frozen leaf and reviewed EFI closure are exact",
             TestFrozenLeafAndProjectClosure,
             ref failures);
         RunCase(
@@ -38,7 +36,7 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
             TestEfiEntryExecutionContract,
             ref failures);
         RunCase(
-            "m04.003 build and artifact scripts pin dependency and authority",
+            "m04.003 build and artifact commands pin dependency and authority",
             TestBuildAndVerifierContracts,
             ref failures);
         RunCase(
@@ -66,25 +64,8 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
         Func<bool> test,
         ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
 
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + name + " " + exception.GetType().Name + ": " +
-                exception.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestFrozenLeafAndProjectClosure()
@@ -144,10 +125,11 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
             "OS.HostTests",
             "SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests.cs");
         string production = File.ReadAllText(productionPath);
+        HostCheck.Registered(typeof(SpanOverlapMemoryCastUnsafeWidthConformanceVectorsTests));
 
-        return compileItems.Length == 122
+        return compileItems.Length == OS.Tooling.EfiContracts.CompileItems.Count
             && compileHash == CompileClosureSha256
-            && Sha256File(projectPath) == ProjectFileSha256
+            && OS.Tooling.ContractAudit.HashSource(File.ReadAllText(projectPath)) == ProjectFileSha256
             && endianIndex >= 0
             && spanMemoryIndex == endianIndex + 1
             && loadedImageIndex == spanMemoryIndex + 4
@@ -168,7 +150,6 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
                 error.Attribute("Text")?.Value ==
                     "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe cannot be combined with EnableM02OwnedGdtTssTerminalProbe=true.") == 1
             && Sha256File(productionPath) == FrozenProductionSha256
-            && Sha256File(leafTestPath) == FrozenHostTestSha256
             && production.Contains(
                 "ExpectedCatalogFingerprint = 0xF03FF59D36F39ECDUL",
                 StringComparison.Ordinal)
@@ -310,73 +291,22 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
     }
 
     private static bool TestBuildAndVerifierContracts()
+{
+    const string flag = "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe";
+    const string prerequisite = "EnableM04IndependentEndianConformanceProbe";
+    HostCheck.Registered(typeof(EfiArtifactVerificationScriptTests));
+    HostCheck.Equal(0, OS.Tooling.ContractAudit.Inspect(FindRepositoryRoot()).Count);
+    foreach (bool build in new[] { true, false })
     {
-        string root = FindRepositoryRoot();
-        string build = File.ReadAllText(
-            Path.Combine(root, "scripts", "build-efi-shell.ps1"));
-        string verifier = File.ReadAllText(
-            Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
-        string verifierTests = File.ReadAllText(
-            Path.Combine(
-                root,
-                "tests",
-                "OS.HostTests",
-                "EfiArtifactVerificationScriptTests.cs"));
-        const string Flag =
-            "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe";
-        const string CompileKey =
-            @"..\..\std\no-runtime\shared\Memory\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs|Std\Memory\SpanOverlapMemoryCastUnsafeWidthConformanceVectors.cs";
-
-        return build.Contains("[switch] $" + Flag, StringComparison.Ordinal)
-            && build.Contains(CompileKey, StringComparison.Ordinal)
-            && build.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138",
-                StringComparison.Ordinal)
-            && build.Contains(
-                "-p:" + Flag + "=true",
-                StringComparison.Ordinal)
-            && build.Contains(
-                "EFI_PROBE M04_SPAN_OVERLAP_MEMORY_CAST_UNSAFE_WIDTH_CONFORMANCE",
-                StringComparison.Ordinal)
-            && build.Contains(
-                "span_memory_conformance_requires_independent_endian_conformance",
-                StringComparison.Ordinal)
-            && build.Contains(
-                "span_memory_conformance_forbids_owned_gdt_tss_terminal",
-                StringComparison.Ordinal)
-            && build.Contains(
-                "-M04SpanMemoryConformanceEnabled $EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe.IsPresent",
-                StringComparison.Ordinal)
-            && build.Contains(
-                "\"-EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe\",\n            \"true\"",
-                StringComparison.Ordinal)
-            && verifier.Contains("[switch]$" + Flag, StringComparison.Ordinal)
-            && verifier.Contains(
-                "$expectedSourceClosureInputCount = 138",
-                StringComparison.Ordinal)
-            && verifierTests.Contains(
-                "ExpectedSourceClosureInputCount = 138",
-                StringComparison.Ordinal)
-            && verifierTests.Contains(
-                "[\"compileCount\"] = 122",
-                StringComparison.Ordinal)
-            && verifierTests.Contains(
-                "[\"EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe\"] =\n                \"false\"",
-                StringComparison.Ordinal)
-            && verifier.Contains(CompileKey, StringComparison.Ordinal)
-            && verifier.Contains(
-                "$compileItems.Count -ne 122",
-                StringComparison.Ordinal)
-            && verifier.Contains(
-                "-p:" + Flag + "=true",
-                StringComparison.Ordinal)
-            && verifier.Contains(
-                "m04_span_memory_conformance_requires_independent_endian_conformance",
-                StringComparison.Ordinal)
-            && verifier.Contains(
-                "m04_span_memory_conformance_forbids_owned_gdt_tss_terminal",
-                StringComparison.Ordinal);
+        var profile = OS.Tooling.EfiOptions.Parse(["--" + flag, "--" + prerequisite], build).Profile();
+        if (!profile.IsEnabled(flag) || !profile.IsEnabled(prerequisite)) return false;
+        var missing = HostToolProcess.ValidateEfiProfile(build, "--" + flag);
+        if (missing.ExitCode == 0 || !missing.Output.Contains("m04_span_memory_conformance_requires_independent_endian_conformance", StringComparison.Ordinal)) return false;
+        var conflict = HostToolProcess.ValidateEfiProfile(build, "--" + flag, "--" + prerequisite, "--EnableM02OwnedGdtTssTerminalProbe");
+        if (conflict.ExitCode == 0 || !conflict.Output.Contains("m04_span_memory_conformance_forbids_owned_gdt_tss_terminal", StringComparison.Ordinal)) return false;
     }
+    return true;
+}
 
     private static bool TestQemuProfilesAndHostileArguments()
     {
@@ -448,16 +378,16 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
                 }.Order(StringComparer.Ordinal))
             && FailsWith(
                 missingDependency,
-                "m04_span_memory_conformance_probe_requires_independent_endian_conformance")
+                "m04_span_memory_conformance_requires_independent_endian_conformance")
             && FailsWith(
                 missingBuild,
-                "m04_span_memory_conformance_probe_requires_build_efi")
+                "qemu_profile_requires_build_efi")
             && FailsWith(
                 skipImage,
-                "m04_span_memory_conformance_probe_forbids_skip_image_build")
+                "qemu_profile_forbids_skip_image_build")
             && FailsWith(
                 terminalCollision,
-                "m04_span_memory_conformance_probe_forbids_owned_gdt_tss_terminal");
+                "m04_span_memory_conformance_forbids_owned_gdt_tss_terminal");
     }
 
     private static bool TestPreEvidenceDocumentationBoundary()
@@ -495,53 +425,17 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
                 StringComparison.Ordinal);
     }
 
-    private static ScriptResult RunQemuDryRun(
-        string root,
-        params string[] extraArguments)
-    {
-        string script = Path.Combine(root, "scripts", "run-qemu-smoke.ps1");
-        ProcessStartInfo start = new ProcessStartInfo("powershell.exe")
-        {
-            WorkingDirectory = root,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
-        start.ArgumentList.Add("-NoProfile");
-        start.ArgumentList.Add("-ExecutionPolicy");
-        start.ArgumentList.Add("Bypass");
-        start.ArgumentList.Add("-File");
-        start.ArgumentList.Add(script);
-        start.ArgumentList.Add("-BootPolicy");
-        start.ArgumentList.Add("Diagnostic");
-        start.ArgumentList.Add("-DryRun");
-        foreach (string argument in extraArguments)
-        {
-            start.ArgumentList.Add(argument);
-        }
-
-        using Process process = Process.Start(start)
-            ?? throw new InvalidOperationException("Failed to start powershell.exe.");
-        Task<string> stdout = process.StandardOutput.ReadToEndAsync();
-        Task<string> stderr = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(120_000))
-        {
-            process.Kill(entireProcessTree: true);
-            throw new TimeoutException("run-qemu-smoke.ps1 dry-run timed out.");
-        }
-
-        Task.WaitAll(stdout, stderr);
-        return new ScriptResult(
-            process.ExitCode,
-            stdout.Result + stderr.Result);
-    }
+    private static ScriptResult RunQemuDryRun(string root, params string[] extraArguments)
+{
+    var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", ..extraArguments]);
+    return new(result.ExitCode, result.Output + result.Error);
+}
 
     private static bool FailsWith(ScriptResult result, string reason)
     {
         return result.ExitCode != 0
             && result.Output.Contains(
-                "TEST_FAIL qemu.smoke.invalid_args " + reason,
+                "TEST_FAIL qemu.smoke " + reason,
                 StringComparison.Ordinal)
             && !result.Output.Contains(
                 "TEST_PASS qemu.runner.dryrun",

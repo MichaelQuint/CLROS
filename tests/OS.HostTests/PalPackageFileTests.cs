@@ -13,52 +13,7 @@ internal static class PalPackageFileTests
     private const int AppContentLength = 23;
     private const int ConfigContentLength = 31;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("pal.file opens package file", TestOpensPackageFile, ref failures);
-        Run("pal.file reads offset ranges", TestReadsOffsetRanges, ref failures);
-        Run("pal.file rejects unsafe paths", TestRejectsUnsafePaths, ref failures);
-        Run("pal.file rejects invalid handles", TestRejectsInvalidHandles, ref failures);
-        Run("pal.file reports deterministic exhaustion", TestReportsDeterministicExhaustion, ref failures);
-        Run("pal.file enumerates package files", TestEnumeratesPackageFiles, ref failures);
-        Run("pal.file enumeration reports buffer too small", TestEnumerationReportsBufferTooSmall, ref failures);
-        Run("pal.file default results are not success", TestDefaultResultsAreNotSuccess, ref failures);
-        Run(
-            "pal.package file table read uses shared buffer operations",
-            TestReadUsesSharedBufferOperations,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL package file host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.file opens package file", HostLane.Fast, 0)]
     private static bool TestOpensPackageFile()
     {
         byte[] package = CreateValidPackage();
@@ -73,21 +28,22 @@ internal static class PalPackageFileTests
             || open.Info.ByteLength != AppContentLength
             || table.ActiveCount != 1)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (table.GetInfo(open.File, out OSHostFileInfo info) != OSHostStatus.Ok
             || info.ByteLength != AppContentLength)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return table.Close(open.File) == OSHostStatus.Ok
+        return HostCheck.Result(table.Close(open.File) == OSHostStatus.Ok
             && table.ActiveCount == 0
             && table.GetInfo(open.File, out _) == OSHostStatus.InvalidArgument
-            && table.Close(open.File) == OSHostStatus.InvalidArgument;
+            && table.Close(open.File) == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.file reads offset ranges", HostLane.Fast, 1)]
     private static bool TestReadsOffsetRanges()
     {
         byte[] package = CreateValidPackage();
@@ -95,7 +51,7 @@ internal static class PalPackageFileTests
         OSHostPackageFileOpenResult open = table.Open(ConfigPathBytes);
         if (!open.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] destination = new byte[9];
@@ -124,7 +80,7 @@ internal static class PalPackageFileTests
             byteCount: 0,
             Span<byte>.Empty);
 
-        return read.Succeeded
+        return HostCheck.Result(read.Succeeded
             && read.IsInitialized
             && read.BytesRead == 9
             && read.RequiredBytes == 9
@@ -138,9 +94,10 @@ internal static class PalPackageFileTests
             && invalidRange.RequiredBytes == 3
             && zeroAtEnd.Status == OSHostStatus.Ok
             && zeroAtEnd.IsInitialized
-            && zeroAtEnd.BytesRead == 0;
+            && zeroAtEnd.BytesRead == 0);
     }
 
+    [HostTest("pal.file rejects unsafe paths", HostLane.Fast, 2)]
     private static bool TestRejectsUnsafePaths()
     {
         byte[] package = CreateValidPackage();
@@ -151,7 +108,7 @@ internal static class PalPackageFileTests
         OSHostPackageFileOpenResult drive = table.Open("C:/bin/app.dll"u8);
         OSHostPackageFileOpenResult missing = table.Open("bin/missing.dll"u8);
 
-        return absolute.Status == OSHostStatus.AccessDenied
+        return HostCheck.Result(absolute.Status == OSHostStatus.AccessDenied
             && absolute.IsInitialized
             && traversal.Status == OSHostStatus.AccessDenied
             && traversal.IsInitialized
@@ -159,9 +116,10 @@ internal static class PalPackageFileTests
             && drive.IsInitialized
             && missing.Status == OSHostStatus.NotFound
             && missing.IsInitialized
-            && table.ActiveCount == 0;
+            && table.ActiveCount == 0);
     }
 
+    [HostTest("pal.file rejects invalid handles", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidHandles()
     {
         byte[] package = CreateValidPackage();
@@ -171,7 +129,7 @@ internal static class PalPackageFileTests
         OSHostPackageFileOpenResult open = table.Open(AppPathBytes);
         if (!open.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostHandle zero = default;
@@ -183,7 +141,7 @@ internal static class PalPackageFileTests
             byteCount: 1,
             destination);
 
-        return table.ReadAt(zero, 0, 1, destination).Status == OSHostStatus.InvalidArgument
+        return HostCheck.Result(table.ReadAt(zero, 0, 1, destination).Status == OSHostStatus.InvalidArgument
             && table.ReadAt(unknown, 0, 1, destination).Status == OSHostStatus.InvalidArgument
             && table.GetInfo(zero, out _) == OSHostStatus.InvalidArgument
             && table.GetInfo(unknown, out _) == OSHostStatus.InvalidArgument
@@ -194,9 +152,10 @@ internal static class PalPackageFileTests
             && closedRead.IsInitialized
             && table.GetInfo(open.File, out _) == OSHostStatus.InvalidArgument
             && table.Close(open.File) == OSHostStatus.InvalidArgument
-            && table.ActiveCount == 0;
+            && table.ActiveCount == 0);
     }
 
+    [HostTest("pal.file reports deterministic exhaustion", HostLane.Fast, 4)]
     private static bool TestReportsDeterministicExhaustion()
     {
         byte[] package = CreateValidPackage();
@@ -216,12 +175,12 @@ internal static class PalPackageFileTests
             || third.File.IsValid
             || table.ActiveCount != 2)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (table.Close(first.File) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostPackageFileOpenResult reusedSlot = table.Open(AppPathBytes);
@@ -231,17 +190,18 @@ internal static class PalPackageFileTests
             || table.ActiveCount != 2
             || table.GetInfo(first.File, out _) != OSHostStatus.InvalidArgument)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostPackageFileTable emptyTable = new(package, capacity: 0);
         OSHostPackageFileOpenResult emptyOpen = emptyTable.Open(AppPathBytes);
-        return emptyTable.Capacity == 0
+        return HostCheck.Result(emptyTable.Capacity == 0
             && emptyOpen.Status == OSHostStatus.OutOfMemory
             && emptyOpen.IsInitialized
-            && !emptyOpen.File.IsValid;
+            && !emptyOpen.File.IsValid);
     }
 
+    [HostTest("pal.file enumerates package files", HostLane.Fast, 5)]
     private static bool TestEnumeratesPackageFiles()
     {
         byte[] package = CreateValidPackage();
@@ -253,7 +213,7 @@ internal static class PalPackageFileTests
         OSHostPackageFileEnumerationResult second = table.Enumerate(1, secondPath);
         OSHostPackageFileEnumerationResult outOfRange = table.Enumerate(2, secondPath);
 
-        return first.Succeeded
+        return HostCheck.Result(first.Succeeded
             && first.IsInitialized
             && first.Status == OSHostStatus.Ok
             && first.BytesWritten == (ulong)AppPath.Length
@@ -270,9 +230,10 @@ internal static class PalPackageFileTests
             && outOfRange.Status == OSHostStatus.InvalidArgument
             && outOfRange.IsInitialized
             && outOfRange.BytesWritten == 0
-            && outOfRange.RequiredBytes == 0;
+            && outOfRange.RequiredBytes == 0);
     }
 
+    [HostTest("pal.file enumeration reports buffer too small", HostLane.Fast, 6)]
     private static bool TestEnumerationReportsBufferTooSmall()
     {
         byte[] package = CreateValidPackage();
@@ -281,21 +242,22 @@ internal static class PalPackageFileTests
 
         OSHostPackageFileEnumerationResult result = table.Enumerate(1, destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == OSHostStatus.BufferTooSmall
             && result.BytesWritten == 0
             && result.RequiredBytes == (ulong)ConfigPath.Length
-            && result.Info.ByteLength == ConfigContentLength;
+            && result.Info.ByteLength == ConfigContentLength);
     }
 
+    [HostTest("pal.file default results are not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         OSHostPackageFileOpenResult open = default;
         OSHostPackageFileReadResult read = default;
         OSHostPackageFileEnumerationResult enumeration = default;
 
-        return !open.IsInitialized
+        return HostCheck.Result(!open.IsInitialized
             && !open.Succeeded
             && open.Status == OSHostStatus.Ok
             && open.File.Value == 0
@@ -313,9 +275,10 @@ internal static class PalPackageFileTests
             && enumeration.Info.ByteLength == 0
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostPackageFileOpenResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostPackageFileReadResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostPackageFileEnumerationResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostPackageFileEnumerationResult>());
     }
 
+    [HostTest("pal.package file table read uses shared buffer operations", HostLane.Fast, 8)]
     private static bool TestReadUsesSharedBufferOperations()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -326,11 +289,11 @@ internal static class PalPackageFileTests
             "Pal",
             "OSHostPackageFileTable.cs"));
 
-        return source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
             && source.Contains("BufferOperations.MemoryCopy(source, destination)", StringComparison.Ordinal)
             && source.Contains("if (!copy.Succeeded)", StringComparison.Ordinal)
             && source.Contains("OSHostStatus.BufferTooSmall", StringComparison.Ordinal)
-            && !source.Contains(".CopyTo(destination)", StringComparison.Ordinal);
+            && !source.Contains(".CopyTo(destination)", StringComparison.Ordinal));
     }
 
     private static byte[] CreateValidPackage()

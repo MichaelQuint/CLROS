@@ -6,60 +6,7 @@ internal static class Com1PortIoBackendContractTests
 {
     private const nuint PayloadBaseAddress = 0x0010_0000;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run(
-            "com1 port io backend contract resolves stub addresses",
-            TestResolvesStubAddresses,
-            ref failures);
-        Run(
-            "com1 port io backend contract rejects failed readiness",
-            TestRejectsFailedReadiness,
-            ref failures);
-        Run(
-            "com1 port io backend contract rejects missing stub slots",
-            TestRejectsMissingStubSlots,
-            ref failures);
-        Run(
-            "com1 port io backend contract rejects invalid payload base or overflow",
-            TestRejectsInvalidPayloadBaseOrOverflow,
-            ref failures);
-        Run(
-            "com1 port io backend contract default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("COM1 port I/O backend contract host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("com1 port io backend contract resolves stub addresses", HostLane.Fast, 0)]
     private static bool TestResolvesStubAddresses()
     {
         Com1PortIoBackendPlanResult backendReadiness = CreateReadyBackendReadiness();
@@ -70,7 +17,7 @@ internal static class Com1PortIoBackendContractTests
             stubBundlePlan,
             PayloadBaseAddress);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == Com1PortIoBackendContractStatus.Success
             && result.BackendPlanStatus == Com1PortIoBackendPlanStatus.Success
@@ -84,9 +31,10 @@ internal static class Com1PortIoBackendContractTests
             && Com1PortIoBackendContract.Out8PortParameterBits == 16
             && Com1PortIoBackendContract.Out8ValueParameterBits == 8
             && Com1PortIoBackendContract.In8PortParameterBits == 16
-            && Com1PortIoBackendContract.In8ReturnValueBits == 8;
+            && Com1PortIoBackendContract.In8ReturnValueBits == 8);
     }
 
+    [HostTest("com1 port io backend contract rejects failed readiness", HostLane.Fast, 1)]
     private static bool TestRejectsFailedReadiness()
     {
         Com1PortIoBackendPlan invalidPlan = new Com1PortIoBackendPlan(
@@ -108,16 +56,17 @@ internal static class Com1PortIoBackendContractTests
             stubBundlePlan,
             PayloadBaseAddress);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == Com1PortIoBackendContractStatus.BackendReadinessFailed
             && result.BackendPlanStatus == Com1PortIoBackendPlanStatus.InvalidSerialConfiguration
             && result.StubBundlePlanStatus == ExecutableStubBundlePlanStatus.Success
             && result.ConfiguredBasePort == SerialPortConfiguration.Com1BasePort
             && result.Out8StubAddress == 0
-            && result.In8StubAddress == 0;
+            && result.In8StubAddress == 0);
     }
 
+    [HostTest("com1 port io backend contract rejects missing stub slots", HostLane.Fast, 2)]
     private static bool TestRejectsMissingStubSlots()
     {
         Com1PortIoBackendPlanResult backendReadiness = CreateReadyBackendReadiness();
@@ -147,7 +96,7 @@ internal static class Com1PortIoBackendContractTests
             missingIn8Bundle,
             PayloadBaseAddress);
 
-        return missingOut8Bundle.Succeeded
+        return HostCheck.Result(missingOut8Bundle.Succeeded
             && missingIn8Bundle.Succeeded
             && !missingOut8Result.Succeeded
             && missingOut8Result.Status == Com1PortIoBackendContractStatus.MissingOut8StubSlot
@@ -156,9 +105,10 @@ internal static class Com1PortIoBackendContractTests
             && !missingIn8Result.Succeeded
             && missingIn8Result.Status == Com1PortIoBackendContractStatus.MissingIn8StubSlot
             && missingIn8Result.Out8StubOffset == 0
-            && missingIn8Result.In8StubOffset == ExecutableStubBundlePlan.MissingSlotOffset;
+            && missingIn8Result.In8StubOffset == ExecutableStubBundlePlan.MissingSlotOffset);
     }
 
+    [HostTest("com1 port io backend contract rejects invalid payload base or overflow", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidPayloadBaseOrOverflow()
     {
         Com1PortIoBackendPlanResult backendReadiness = CreateReadyBackendReadiness();
@@ -192,7 +142,7 @@ internal static class Com1PortIoBackendContractTests
             PayloadBaseAddress,
             configuredBasePort: 0x02f8);
 
-        return !zeroBaseResult.Succeeded
+        return HostCheck.Result(!zeroBaseResult.Succeeded
             && zeroBaseResult.Status == Com1PortIoBackendContractStatus.InvalidPayloadBaseAddress
             && zeroBaseResult.Out8StubAddress == 0
             && zeroBaseResult.In8StubAddress == 0
@@ -204,21 +154,22 @@ internal static class Com1PortIoBackendContractTests
             && overflowResult.In8StubAddress == 0
             && !invalidBasePortResult.Succeeded
             && invalidBasePortResult.Status == Com1PortIoBackendContractStatus.InvalidCom1BasePort
-            && invalidBasePortResult.ConfiguredBasePort == 0x02f8;
+            && invalidBasePortResult.ConfiguredBasePort == 0x02f8);
     }
 
+    [HostTest("com1 port io backend contract default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         Com1PortIoBackendContractResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == Com1PortIoBackendContractStatus.Success
             && result.BackendPlanStatus == Com1PortIoBackendPlanStatus.Success
             && result.StubBundlePlanStatus == ExecutableStubBundlePlanStatus.Success
             && result.ConfiguredBasePort == 0
             && result.Out8StubAddress == 0
-            && result.In8StubAddress == 0;
+            && result.In8StubAddress == 0);
     }
 
     private static Com1PortIoBackendPlanResult CreateReadyBackendReadiness()

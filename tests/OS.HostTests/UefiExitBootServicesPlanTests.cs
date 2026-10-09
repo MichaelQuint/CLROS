@@ -4,54 +4,8 @@ using OS.Kernel.Platform;
 
 internal static class UefiExitBootServicesPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("uefi.exitboot plan reports success", TestReportsSuccess, ref failures);
-        Run("uefi.exitboot plan requires fresh memory map", TestRequiresFreshMemoryMap, ref failures);
-        Run("uefi.exitboot plan retries stale map key", TestRetriesStaleMapKey, ref failures);
-        Run("uefi.exitboot plan reports retry exhaustion", TestReportsRetryExhaustion, ref failures);
-        Run("uefi.exitboot plan rejects missing owned map", TestRejectsMissingOwnedMap, ref failures);
-        Run("uefi.exitboot plan rejects invalid descriptor metadata", TestRejectsInvalidDescriptorMetadata, ref failures);
-        Run("uefi.exitboot fresh map plan accepts current key", TestFreshMapPlanAcceptsCurrentKey, ref failures);
-        Run("uefi.exitboot fresh map plan rejects stale key", TestFreshMapPlanRejectsStaleKey, ref failures);
-        Run("platform.firmware exitboot reports success", TestPlatformFirmwareExitReportsSuccess, ref failures);
-        Run("platform.firmware exitboot reports stale map key", TestPlatformFirmwareExitReportsStaleMapKey, ref failures);
-        Run(
-            "platform.firmware exitboot rejects unavailable services",
-            TestPlatformFirmwareExitRejectsUnavailableServices,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("UEFI ExitBootServices plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("uefi.exitboot plan reports success", HostLane.Fast, 0)]
     private static bool TestReportsSuccess()
     {
         UefiExitBootServicesPlanResult result = UefiExitBootServicesPlan.Evaluate(
@@ -61,14 +15,15 @@ internal static class UefiExitBootServicesPlanTests
             attemptIndex: 0,
             maximumRetryCount: 3);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == UefiExitBootServicesPlanStatus.Success
             && result.HandoffStatus == EfiBootHandoffStatus.Success
             && !result.ShouldRetry
             && result.AttemptIndex == 0
-            && result.MaximumRetryCount == 3;
+            && result.MaximumRetryCount == 3);
     }
 
+    [HostTest("uefi.exitboot plan requires fresh memory map", HostLane.Fast, 1)]
     private static bool TestRequiresFreshMemoryMap()
     {
         UefiExitBootServicesPlanResult result = UefiExitBootServicesPlan.Evaluate(
@@ -78,11 +33,12 @@ internal static class UefiExitBootServicesPlanTests
             attemptIndex: 0,
             maximumRetryCount: 3);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == UefiExitBootServicesPlanStatus.FreshMemoryMapRequired
-            && !result.ShouldRetry;
+            && !result.ShouldRetry);
     }
 
+    [HostTest("uefi.exitboot plan retries stale map key", HostLane.Fast, 2)]
     private static bool TestRetriesStaleMapKey()
     {
         UefiExitBootServicesPlanResult result = UefiExitBootServicesPlan.Evaluate(
@@ -92,13 +48,14 @@ internal static class UefiExitBootServicesPlanTests
             attemptIndex: 1,
             maximumRetryCount: 3);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == UefiExitBootServicesPlanStatus.RetryRequired
             && result.ShouldRetry
             && result.AttemptIndex == 1
-            && result.MaximumRetryCount == 3;
+            && result.MaximumRetryCount == 3);
     }
 
+    [HostTest("uefi.exitboot plan reports retry exhaustion", HostLane.Fast, 3)]
     private static bool TestReportsRetryExhaustion()
     {
         UefiExitBootServicesPlanResult result = UefiExitBootServicesPlan.Evaluate(
@@ -108,11 +65,12 @@ internal static class UefiExitBootServicesPlanTests
             attemptIndex: 3,
             maximumRetryCount: 3);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == UefiExitBootServicesPlanStatus.RetryExhausted
-            && !result.ShouldRetry;
+            && !result.ShouldRetry);
     }
 
+    [HostTest("uefi.exitboot plan rejects missing owned map", HostLane.Fast, 4)]
     private static bool TestRejectsMissingOwnedMap()
     {
         BootHandoffRecord record = CreateValidOwnedRecord();
@@ -125,11 +83,12 @@ internal static class UefiExitBootServicesPlanTests
             attemptIndex: 0,
             maximumRetryCount: 3);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == UefiExitBootServicesPlanStatus.MissingOwnedMemoryMap
-            && result.HandoffStatus == EfiBootHandoffStatus.MemoryMapNotOwned;
+            && result.HandoffStatus == EfiBootHandoffStatus.MemoryMapNotOwned);
     }
 
+    [HostTest("uefi.exitboot plan rejects invalid descriptor metadata", HostLane.Fast, 5)]
     private static bool TestRejectsInvalidDescriptorMetadata()
     {
         BootHandoffRecord record = CreateValidOwnedRecord();
@@ -142,11 +101,12 @@ internal static class UefiExitBootServicesPlanTests
             attemptIndex: 0,
             maximumRetryCount: 3);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == UefiExitBootServicesPlanStatus.InvalidDescriptorMetadata
-            && result.HandoffStatus == EfiBootHandoffStatus.InvalidDescriptorSize;
+            && result.HandoffStatus == EfiBootHandoffStatus.InvalidDescriptorSize);
     }
 
+    [HostTest("uefi.exitboot fresh map plan accepts current key", HostLane.Fast, 6)]
     private static bool TestFreshMapPlanAcceptsCurrentKey()
     {
         UefiExitBootServicesPlanResult result = UefiExitBootServicesPlan.Evaluate(
@@ -156,14 +116,15 @@ internal static class UefiExitBootServicesPlanTests
             attemptIndex: 0,
             maximumRetryCount: 3);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == UefiExitBootServicesPlanStatus.ExitCallSkipped
             && result.HandoffStatus == EfiBootHandoffStatus.Success
             && !result.ShouldRetry
             && result.AttemptIndex == 0
-            && result.MaximumRetryCount == 3;
+            && result.MaximumRetryCount == 3);
     }
 
+    [HostTest("uefi.exitboot fresh map plan rejects stale key", HostLane.Fast, 7)]
     private static bool TestFreshMapPlanRejectsStaleKey()
     {
         UefiExitBootServicesPlanResult result = UefiExitBootServicesPlan.Evaluate(
@@ -173,14 +134,15 @@ internal static class UefiExitBootServicesPlanTests
             attemptIndex: 1,
             maximumRetryCount: 3);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == UefiExitBootServicesPlanStatus.RetryRequired
             && result.HandoffStatus == EfiBootHandoffStatus.Success
             && result.ShouldRetry
             && result.AttemptIndex == 1
-            && result.MaximumRetryCount == 3;
+            && result.MaximumRetryCount == 3);
     }
 
+    [HostTest("platform.firmware exitboot reports success", HostLane.Fast, 8)]
     private static bool TestPlatformFirmwareExitReportsSuccess()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -193,15 +155,16 @@ internal static class UefiExitBootServicesPlanTests
                 exitBootServicesFunctionAvailable: true,
                 PlatformFirmwareExitBootServicesResult.EfiSuccess);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == PlatformFirmwareExitBootServicesStatus.Success
             && result.Mode == FirmwareServicesMode.BootServicesAvailable
             && result.Operation == PlatformFirmwareOperations.ExitBootServices
             && result.FirmwareStatus == PlatformFirmwareExitBootServicesResult.EfiSuccess
             && UefiExitBootServicesAttemptMapper.ToAttemptOutcome(result)
-                == UefiExitBootServicesAttemptOutcome.ExitSucceeded;
+                == UefiExitBootServicesAttemptOutcome.ExitSucceeded);
     }
 
+    [HostTest("platform.firmware exitboot reports stale map key", HostLane.Fast, 9)]
     private static bool TestPlatformFirmwareExitReportsStaleMapKey()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -221,15 +184,16 @@ internal static class UefiExitBootServicesPlanTests
             attemptIndex: 1,
             maximumRetryCount: 3);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformFirmwareExitBootServicesStatus.MapKeyRejected
             && result.FirmwareStatus == PlatformFirmwareExitBootServicesResult.EfiInvalidParameter
             && UefiExitBootServicesAttemptMapper.ToAttemptOutcome(result)
                 == UefiExitBootServicesAttemptOutcome.MapKeyRejected
             && plan.Status == UefiExitBootServicesPlanStatus.RetryRequired
-            && plan.ShouldRetry;
+            && plan.ShouldRetry);
     }
 
+    [HostTest("platform.firmware exitboot rejects unavailable services", HostLane.Fast, 10)]
     private static bool TestPlatformFirmwareExitRejectsUnavailableServices()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -250,7 +214,7 @@ internal static class UefiExitBootServicesPlanTests
                 exitBootServicesFunctionAvailable: true,
                 PlatformFirmwareExitBootServicesResult.EfiSuccess);
 
-        return !missingFunction.Succeeded
+        return HostCheck.Result(!missingFunction.Succeeded
             && missingFunction.Status == PlatformFirmwareExitBootServicesStatus.MissingFunctionPointer
             && missingFunction.Mode == FirmwareServicesMode.BootServicesAvailable
             && UefiExitBootServicesAttemptMapper.ToAttemptOutcome(missingFunction)
@@ -259,7 +223,7 @@ internal static class UefiExitBootServicesPlanTests
             && guardDenied.Status == PlatformFirmwareExitBootServicesStatus.GuardDenied
             && guardDenied.Mode == FirmwareServicesMode.BootServicesExited
             && UefiExitBootServicesAttemptMapper.ToAttemptOutcome(guardDenied)
-                == UefiExitBootServicesAttemptOutcome.FirmwareError;
+                == UefiExitBootServicesAttemptOutcome.FirmwareError);
     }
 
     private static BootHandoffRecord CreateValidOwnedRecord()

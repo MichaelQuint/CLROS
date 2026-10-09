@@ -3,46 +3,8 @@ using OS.Drivers;
 
 internal static class EnaPciCandidateTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.ena.pci.candidate recognizes ena vf devices", TestRecognizesEnaVfDevices, ref failures);
-        Run("drivers.ena.pci.candidate rejects unsupported vendor device", TestRejectsUnsupportedVendorDevice, ref failures);
-        Run("drivers.ena.pci.candidate rejects invalid pci shape", TestRejectsInvalidPciShape, ref failures);
-        Run("drivers.ena.pci.candidate preserves pci source metadata", TestPreservesPciSourceMetadata, ref failures);
-        Run("drivers.ena.pci.candidate reports destination exhaustion", TestReportsDestinationExhaustion, ref failures);
-        Run("drivers.ena.pci.candidate rejects default results", TestRejectsDefaultResults, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ENA PCI candidate host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.ena.pci.candidate recognizes ena vf devices", HostLane.Fast, 0)]
     private static bool TestRecognizesEnaVfDevices()
     {
         PciEcamScannedDevice[] devices =
@@ -79,7 +41,7 @@ internal static class EnaPciCandidateTests
             EnaPciCandidateSelector.Validate(devices[2]);
         EnaPciCandidateSelectionResult selection = EnaPciCandidateSelector.Select(devices, candidates);
 
-        return EnaPciCandidateSelector.AmazonVendorId == 0x1D0F
+        return HostCheck.Result(EnaPciCandidateSelector.AmazonVendorId == 0x1D0F
             && EnaPciCandidateSelector.VirtualFunctionDeviceId == 0xEC20
             && EnaPciCandidateSelector.LowLatencyQueueVirtualFunctionDeviceId == 0xEC21
             && EnaPciCandidateSelector.NetworkControllerClassCode == 0x02
@@ -100,15 +62,16 @@ internal static class EnaPciCandidateTests
             && candidates[0].DeviceKind == EnaPciDeviceKind.VirtualFunction
             && candidates[0].SourceIndex == 0
             && candidates[1].DeviceKind == EnaPciDeviceKind.LowLatencyQueueVirtualFunction
-            && candidates[1].SourceIndex == 1;
+            && candidates[1].SourceIndex == 1);
     }
 
+    [HostTest("drivers.ena.pci.candidate rejects default results", HostLane.Fast, 5)]
     private static bool TestRejectsDefaultResults()
     {
         EnaPciCandidateValidationResult validation = default;
         EnaPciCandidateSelectionResult selection = default;
 
-        return !validation.IsInitialized
+        return HostCheck.Result(!validation.IsInitialized
             && !validation.Succeeded
             && validation.Status == EnaPciCandidateValidationStatus.Success
             && !selection.IsInitialized
@@ -117,9 +80,10 @@ internal static class EnaPciCandidateTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
                 EnaPciCandidateValidationResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                EnaPciCandidateSelectionResult>();
+                EnaPciCandidateSelectionResult>());
     }
 
+    [HostTest("drivers.ena.pci.candidate rejects unsupported vendor device", HostLane.Fast, 1)]
     private static bool TestRejectsUnsupportedVendorDevice()
     {
         PciEcamScannedDevice nonAmazon = CreateDevice(
@@ -142,7 +106,7 @@ internal static class EnaPciCandidateTests
             EnaPciCandidateSelector.Validate(reservedAmazonDevice);
         EnaPciCandidateSelectionResult selection = EnaPciCandidateSelector.Select(devices, candidates);
 
-        return !nonAmazonResult.Succeeded
+        return HostCheck.Result(!nonAmazonResult.Succeeded
             && nonAmazonResult.Status == EnaPciCandidateValidationStatus.UnsupportedVendor
             && !unknownDeviceResult.Succeeded
             && unknownDeviceResult.Status == EnaPciCandidateValidationStatus.UnsupportedDeviceId
@@ -150,9 +114,10 @@ internal static class EnaPciCandidateTests
             && reservedDeviceResult.Status == EnaPciCandidateValidationStatus.UnsupportedDeviceId
             && selection.Succeeded
             && selection.CandidateCount == 0
-            && selection.RequiredCandidateCapacity == 0;
+            && selection.RequiredCandidateCapacity == 0);
     }
 
+    [HostTest("drivers.ena.pci.candidate rejects invalid pci shape", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidPciShape()
     {
         PciEcamScannedDevice badHeader = CreateDevice(
@@ -194,7 +159,7 @@ internal static class EnaPciCandidateTests
         EnaPciCandidate[] candidates = new EnaPciCandidate[1];
         EnaPciCandidateSelectionResult selection = EnaPciCandidateSelector.Select(devices, candidates);
 
-        return !badHeaderResult.Succeeded
+        return HostCheck.Result(!badHeaderResult.Succeeded
             && badHeaderResult.Status == EnaPciCandidateValidationStatus.UnsupportedHeaderType
             && !badClassResult.Succeeded
             && badClassResult.Status == EnaPciCandidateValidationStatus.UnsupportedClassCode
@@ -209,9 +174,10 @@ internal static class EnaPciCandidateTests
             && invalidCapabilityPointerResult.Status == EnaPciCandidateValidationStatus.InvalidCapabilityPointer
             && selection.Succeeded
             && selection.CandidateCount == 0
-            && selection.RequiredCandidateCapacity == 0;
+            && selection.RequiredCandidateCapacity == 0);
     }
 
+    [HostTest("drivers.ena.pci.candidate preserves pci source metadata", HostLane.Fast, 3)]
     private static bool TestPreservesPciSourceMetadata()
     {
         PciEcamScannedDevice[] devices =
@@ -236,7 +202,7 @@ internal static class EnaPciCandidateTests
         EnaPciCandidateSelectionResult result = EnaPciCandidateSelector.Select(devices, candidates);
         EnaPciCandidate candidate = candidates[0];
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.CandidateCount == 1
             && candidate.SourceIndex == 0
             && candidate.SegmentIndex == 4
@@ -255,9 +221,10 @@ internal static class EnaPciCandidateTests
             && candidate.ProgrammingInterface == EnaPciCandidateSelector.EthernetProgrammingInterface
             && candidate.HeaderType == PciConfigurationHeader.HeaderTypeMultifunctionBit
             && candidate.CapabilityPointer == 0x80
-            && candidate.DeviceKind == EnaPciDeviceKind.LowLatencyQueueVirtualFunction;
+            && candidate.DeviceKind == EnaPciDeviceKind.LowLatencyQueueVirtualFunction);
     }
 
+    [HostTest("drivers.ena.pci.candidate reports destination exhaustion", HostLane.Fast, 4)]
     private static bool TestReportsDestinationExhaustion()
     {
         PciEcamScannedDevice[] devices =
@@ -285,14 +252,14 @@ internal static class EnaPciCandidateTests
 
         EnaPciCandidateSelectionResult result = EnaPciCandidateSelector.Select(devices, candidates);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == EnaPciCandidateSelectionStatus.DestinationTooSmall
             && result.InspectedDeviceCount == devices.Length
             && result.CandidateCount == 1
             && result.RequiredCandidateCapacity == 2
             && result.FailingSourceIndex == 1
             && candidates[0].SourceIndex == 0
-            && candidates[0].DeviceKind == EnaPciDeviceKind.VirtualFunction;
+            && candidates[0].DeviceKind == EnaPciDeviceKind.VirtualFunction);
     }
 
     private static PciEcamScannedDevice CreateDevice(

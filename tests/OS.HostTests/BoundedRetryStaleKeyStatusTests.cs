@@ -12,7 +12,7 @@ internal static unsafe class BoundedRetryStaleKeyStatusTests
     private static bool malformedSecondMap, reenter;
     private static BoundedExitRetryState* active;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START m03.006");
@@ -25,9 +25,8 @@ internal static unsafe class BoundedRetryStaleKeyStatusTests
 
     private static void Run(string name, Action test)
     {
-        Console.WriteLine("TEST_START m03.006 " + name);
-        try { test(); Console.WriteLine("TEST_PASS m03.006 " + name); }
-        catch (Exception e) { Console.WriteLine("TEST_FAIL m03.006 " + name + " " + e.Message); throw; }
+
+        HostCheck.Run("m03.006 " + name, test);
     }
     private static void Need(bool condition, string reason)
     { if (!condition) throw new InvalidOperationException(reason); }

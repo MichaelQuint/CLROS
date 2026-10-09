@@ -4,7 +4,7 @@
 
 The repository currently builds on Windows with .NET 10. The normal solution build is managed-code host tooling, while the EFI shell publish also requires the Windows NativeAOT platform linker stack.
 
-The EFI publish requirement is a host toolchain requirement. It is not caused by Hyper-V. Hyper-V can affect later QEMU acceleration choices, but `scripts/build-efi-shell.ps1` fails or passes before any VM boot path is involved.
+The EFI publish requirement is a host toolchain requirement. It is not caused by Hyper-V. Hyper-V can affect later QEMU acceleration choices, but `OS.Tooling efi build` fails or passes before any VM boot path is involved.
 
 Open `CLROS.slnx` in Visual Studio 2026. The `OS` project retains its explicit
 no-stdlib NativeAOT configuration. Its imported serializer targets use path
@@ -15,20 +15,22 @@ Visual Studio 2026 Insiders 18.11.12224.323 project evaluation was checked using
 its MSBuild with `DesignTimeBuild=true` and `BuildingInsideVisualStudio=true`;
 the user also confirmed that all solution projects load after this fix.
 Publish EFI images through
-`scripts/build-efi-shell.ps1`, which also verifies the artifact.
+`dotnet run --project tools/OS.Tooling -- efi build`, which also verifies the artifact.
 
 ## Implemented Behavior
 
 Required for all current host builds:
 
 - Windows 10 or Windows 11 x64.
-- PowerShell 5.1 or newer.
 - A stable .NET SDK in the `10.0.400` feature band. `global.json` requests
   `10.0.401`, permits latest-patch roll-forward within that band, and rejects
   prerelease SDKs. The new Windows host selects `10.0.401`.
 - NuGet access to restore .NET 10 packages.
 
-Required for `scripts/build-efi-shell.ps1`:
+The commands below use PowerShell syntax. Maintained build and test automation
+runs in compiled .NET console tools and does not require a PowerShell subprocess.
+
+Required for `OS.Tooling efi build`:
 
 - Visual Studio Build Tools or Visual Studio with C++ build tools, including
   Visual Studio 2026 Insiders. Discovery includes prerelease installations.
@@ -58,12 +60,17 @@ For a user-local copy, retain the publisher/package checksum and tool identity,
 then set `CLROS_LLVM_OBJDUMP` to its absolute executable path. An explicit missing,
 relative or differently named path is rejected rather than silently falling back.
 Without an override, the existing Visual Studio x64 discovery is used.
-The native fixtures still record the selected executable and SHA-256.
+The native fixtures still record the selected executable and SHA-256. A process
+override takes precedence; on Windows the saved user setting is also read when
+the current terminal has not inherited it yet.
 
 Check discovery before a full host run:
 
 ```powershell
 $clrosLlvmObjdump = $env:CLROS_LLVM_OBJDUMP
+if ([string]::IsNullOrEmpty($clrosLlvmObjdump)) {
+    $clrosLlvmObjdump = [Environment]::GetEnvironmentVariable('CLROS_LLVM_OBJDUMP', 'User')
+}
 if ([string]::IsNullOrEmpty($clrosLlvmObjdump)) {
     $clrosLlvmObjdump = (Get-ChildItem "$env:ProgramFiles\Microsoft Visual Studio" -Filter llvm-objdump.exe -File -Recurse |
         Where-Object FullName -Match '\\x64\\' | Sort-Object FullName | Select-Object -First 1).FullName
@@ -93,6 +100,28 @@ Optional for cloud artifact tooling:
 - `qemu-img` for real qcow2 conversion through `tools/OS.ImageBuilder convert-qcow2`.
 - libvirt on a Linux host for later libvirt smoke tests.
 
+
+### C# evidence orchestration
+
+`OS.Tooling ci smoke` and `OS.Tooling baseline evidence` create typed command
+plans and execute compiled tools directly. Each execution builds the solution
+once; the old second host-test build is removed. Both commands explicitly run
+the complete host lane and require exactly one terminal `TEST_PASS host.tests`
+with no host failure terminal. Fast or filtered results cannot satisfy this gate.
+Independent steps continue after failures and record their own exit codes,
+start/end times, durations and log paths. A summary is written after every
+completed step and remains `incomplete` after cancellation. Planning does not
+build, run native tools or create intent images. Execution requires an empty
+log directory to prevent stale receipts from being reused.
+
+The default host lane and focused C# fixture calls are for implementation
+iteration. Full evidence remains explicit. The full-host orchestration timeout
+is bounded at two hours because the recorded legacy gate took approximately
+94 minutes; the CI job allows 150 minutes for that gate plus build and planning.
+Those limits are ceilings, not performance claims. Compare actual durations in
+new `results.json` and orchestration summaries before tightening them. CI marker
+preset plans share `EvidenceOrchestration.CiMarkerPresets`; independent byte,
+security and runtime assertions remain explicit tests.
 ## Setup
 
 Install .NET 10 SDK from the official .NET installer or existing Visual Studio layout.
@@ -118,22 +147,12 @@ C:\Program Files\qemu\qemu-system-x86_64.exe
 C:\Program Files\qemu\share\edk2-x86_64-code.fd
 ```
 
-### Invoke Windows PowerShell from a Core host
+### Compiled host commands
 
-When an orchestration host uses PowerShell Core, invoke receipt-bound EFI/QEMU
-commands through `powershell.exe`. On the new destination, one nested publish
-failed to resolve `Get-FileHash` with the inherited module search path; a retry
-using the Desktop module paths passed that restore stage. Use this process-local
-setup for that invocation (it does not change the machine environment):
-
-```powershell
-$env:PSModulePath = 'C:\Windows\system32\WindowsPowerShell\v1.0\Modules;C:\Program Files\WindowsPowerShell\Modules'
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File ./scripts/build-efi-shell.ps1
-```
-
-Retain the failed command when diagnosing a launch problem. A standalone
-`Get-Command Get-FileHash` success does not establish that a nested publish has
-the same effective module context. See [step1077](../done/step1077.md).
+EFI, QEMU, verifier, CI and evidence commands execute .NET console applications
+directly. They do not invoke Windows PowerShell or depend on `PSModulePath`.
+The earlier shell-module failure remains historical evidence in
+[step1077](../done/step1077.md).
 ### Restore the pinned EFI runtime pack
 
 The EFI project selects NativeAOT runtime pack `10.0.12` through
@@ -172,34 +191,94 @@ The new `10.0.12` compiler qualification is recorded in
 checkpoint is [step1077](../done/step1077.md). These are freestanding build
 inputs, not a hosted .NET runtime running inside CLROS.
 
-## Focused host fixture runs
+## C# host test runner
 
-During implementation, run selected existing fixture files with PowerShell:
+The .NET 10 console runner discovers `[HostTest]` cases and `[HostFixture]`
+groups without executing them. Module-initializer execution and the generated
+subset-project script have been removed. Build the complete project once;
+focused selection no longer needs companion source files.
 
-```powershell
-.\scripts\run-host-tests-focused.ps1 -TestFile DiagnosticsTests.cs
-.\scripts\run-host-tests-focused.ps1 -TestFile DiagnosticsTests.cs,BootInfoTests.cs
+```text
+dotnet run --project tests/OS.HostTests
+dotnet run --project tests/OS.HostTests -- --list
+dotnet run --project tests/OS.HostTests -- --filter StdArrayHelpersTests --case "sort unmanaged spans"
+dotnet run --project tests/OS.HostTests -- --lane full --filter DiagnosticsTests
+dotnet run --project tests/OS.HostTests -- --lane full --filter M02OwnedX64Gdt
+dotnet run --project tests/OS.HostTests -- --lane full
+dotnet run --project tools/OS.Tooling -- contracts check
+dotnet run --project tools/OS.Tooling -- repo check
+dotnet run --project tools/OS.Tooling -- done reserve
 ```
 
-Use basenames from `tests/OS.HostTests`; add any required helper or companion
-fixture files to the explicit list. `HostToolProcess.cs` is included automatically.
-The script builds a unique project under `artifacts/host-tests-focused`, retaining
-the original project references and settings. It compiles the selected original
-files directly, including their module initializers, without rewriting tests.
-`Program.cs` and paths outside the fixture directory are rejected.
+The default fast lane emits `TEST_PASS host.tests.fast`. Case names and fixture
+identifiers support case-insensitive substring filters; empty selections fail.
+`--case <marker substring>` narrows grouped fixtures further. Native execution
+is explicit with `--lane native` or `--lane full`. A filtered run only emits
+`host.tests.focused`; only unfiltered full host success emits `host.tests`.
 
-Each run retains the selected paths/hashes, native commands and exits, build/run
-logs and `result.json`. Success requires actual fixture markers, no failure
-markers, unchanged selected sources and `TEST_PASS host.tests.focused`.
-Fixtures without module initializers do not run automatically; selecting only
-helpers fails the marker check. Selected fixtures can still publish EFI images
-or invoke external tools, so choose the smallest relevant set and serialize
-fixtures that share outputs. `-Configuration Release` selects a release build.
+Fast fixtures run in isolated worker processes with bounded parallelism (up to
+four workers by default). Use `--jobs 1` for a serial comparison or `--jobs N`
+to set the bound. Native fixtures wait for active fast workers and execute
+exclusively because they share native build outputs. Ordinary failures do not
+stop subsequent cases; a crashed or timed-out fixture does not stop other fixtures
+when process cleanup is confirmed. Unconfirmed cleanup cancels remaining work and
+drains already active workers before returning failure.
+Output is bounded and streamed to disk immediately. Ctrl+C cancels the active
+worker and writes an incomplete, unsuccessful receipt. Terminal success requires
+paired case markers, a clean exit, and no failures. Logs and an updated `results.json`, including
+the selected inventory, live under `artifacts/logs/host-tests/<run>/`.
 
-Focused success is partial host evidence. It does not emit `TEST_PASS host.tests`
-or replace a required complete suite or guest capture. Use the unchanged
-`dotnet run --project tests/OS.HostTests/OS.HostTests.csproj --no-build` command
-for the complete harness after a coherent implementation batch.
+On the qualified Windows host, each child starts suspended, enters its owned
+job, and then begins execution. Only its three standard-stream handles are
+inherited. Root exit, cancellation, timeout, output overflow and capture failure
+all require the job to be empty before returning; stdout and stderr remain
+separate. Callback failures propagate after cleanup. This also prevents an early
+parent exit from leaving descendants holding files or pipes. The generic
+non-Windows process fallback cannot confirm the complete descendant tree and
+reports that limitation as an unsuccessful result; it does not qualify host
+acceptance evidence.
+
+The build embeds source/dependency hashes and CI configuration. `--no-build`
+runs reject changed, missing, or newly added source
+inputs and check them again before reporting success. Rebuild
+after changing inputs. `--list` only inspects metadata and does not run tests.
+
+`tools/OS.Tooling/EfiContracts.cs` owns shared reviewed EFI expectations. Compile
+counts and the inventory digest derive from its ordered inventory. Content
+checks normalize CRLF to LF; actual build/artifact provenance still uses raw
+bytes. A contract audit reports all mismatches and never updates expectations.
+
+EFI build and verification, QEMU/libvirt, CI/baseline evidence, backlog sync,
+package publishing and fixture controls now use compiled C# APIs. The maintained
+PowerShell scripts have been removed. Fast success does not qualify native paths
+or replace guest captures. Historical `done` commands remain records of the tools
+used at their original revisions. CI and baseline callers explicitly select
+`--lane full`. Per-fixture timings and the total wall time are saved in each
+run's `results.json`; compare those values on identical inputs before claiming
+a performance improvement.
+
+The completed migration in [step1097](../done/step1097.md) records a 38.548-second
+unfiltered fast run (3,071 checks) and a 1,412.723-second unfiltered full run
+(4,119 checks), both with unchanged compiled inputs. The historical full run in
+step1094 took 5,607.843 seconds. This observed reduction is approximately 4x;
+the new run retains original coverage and adds runner controls and leaf markers,
+so these are qualification measurements rather than a fixed-workload benchmark.
+The separate 39-entry real QEMU matrix passed in 742.803 seconds. Full and guest
+evidence remain separate from the daily fast command.
+
+[Step1098](../done/step1098.md) removes repeated source-tree copies from the
+single-file semantic rejection matrix. One isolated clone is reused, with exact
+raw bytes restored in `finally` after every vector. Every vector still invokes
+the producer and checks the original rejection; no validation result or native
+artifact is cached. Restoration controls cover failure and exception paths.
+The measured matrix fell from 20.178 to 15.783 seconds; the complete preflight
+fixture passed its unchanged 44 checks in 183.746 seconds, versus 194.754 seconds
+before the change. These are one before/after pair on this host, not a timing
+guarantee. Native process-timeout controls and exclusive execution remain intact.
+The final follow-up qualification passed 3,072 fast checks in 40.345 seconds and
+all 4,120 full checks across 450 fixture groups in 1,398.014 seconds (23 minutes
+18 seconds), with unchanged compiled inputs and no failures. The 582 guest
+source inputs and four tool assemblies still match the step1097 real-run receipt.
 
 ## Verification
 
@@ -233,7 +312,7 @@ Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\Lib" -Recurse -Filter kern
 Verify the EFI publish:
 
 ```powershell
-.\scripts\build-efi-shell.ps1
+dotnet run --project tools/OS.Tooling -- efi build
 ```
 
 Expected current success markers:
@@ -243,7 +322,7 @@ TEST_PASS efi.shell.publish
 EFI_ARTIFACT artifacts/efi/BOOTX64.EFI
 ```
 
-`scripts/build-efi-shell.ps1` now runs a host-toolchain preflight before
+`OS.Tooling efi build` runs a host-toolchain preflight before
 `dotnet publish`. The preflight resolves the MSVC x64 `link.exe`
 (`Hostx64\x64`) and the Windows SDK UM x64 `kernel32.lib` (`um\x64`) using
 `vswhere` plus well-known install roots, and it emits:
@@ -274,7 +353,7 @@ the contract with fakes instead of uninstalling toolchains.
 Verify the real QEMU smoke:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
+dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
 ```
 
 Expected current success markers:
@@ -306,7 +385,7 @@ proof still requires a real QEMU run with captured serial markers.
 Verify baseline `qemu-img` discovery diagnostics without requiring conversion:
 
 ```powershell
-.\scripts\run-baseline-evidence.ps1 -PlanOnly
+dotnet run --project tools/OS.Tooling -- baseline evidence --plan-only
 ```
 
 Expected host-prerequisite markers:
@@ -327,7 +406,7 @@ That blocker is a host prerequisite boundary, not an OS image-builder failure.
 Verify CI smoke `qemu-img` discovery diagnostics without requiring conversion:
 
 ```powershell
-.\scripts\run-ci-smoke.ps1 -DryRun
+dotnet run --project tools/OS.Tooling -- ci smoke --dry-run
 ```
 
 Expected host-prerequisite markers:
@@ -381,10 +460,10 @@ Minimum non-boot CI agent validation:
 ```powershell
 dotnet --info
 dotnet build .\CLROS.slnx --nologo -m:1
-.\scripts\build-efi-shell.ps1 -PreflightOnly
-.\scripts\run-qemu-smoke.ps1 -DryRun
-.\scripts\run-ci-smoke.ps1 -DryRun
-.\scripts\run-baseline-evidence.ps1 -PlanOnly
+dotnet run --project tools/OS.Tooling -- efi build -PreflightOnly
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun
+dotnet run --project tools/OS.Tooling -- ci smoke --dry-run
+dotnet run --project tools/OS.Tooling -- baseline evidence --plan-only
 git diff --check
 ```
 
@@ -397,7 +476,7 @@ policy; keep the default lane dry-run/preflight/plan-only until a separate
 issue captures real QEMU/qcow2 smoke evidence. Host tests guard this workflow
 contract so the default lane keeps the expected triggers, PowerShell shell,
 timeout, upload-on-failure behavior, commands, and absence of real-smoke flags.
-`scripts/run-ci-smoke.ps1` also plans and captures `git diff --check` as
+`OS.Tooling ci smoke` also plans and captures `git diff --check` as
 `ci.smoke.git.diffcheck`, so whitespace evidence is present in the CI smoke
 artifact plan and summary.
 
@@ -419,8 +498,8 @@ TEST_PASS baseline.artifact_summary
 Optional real smoke commands for a configured agent:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -Qemu $qemu -OvmfCode $ovmf -TimeoutSeconds 15
-.\scripts\run-ci-smoke.ps1 -RunQcow2RealSmoke -Qemu $qemu -QemuImg $qemuImg -OvmfCode $ovmf
+dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu $qemu -OvmfCode $ovmf -TimeoutSeconds 15
+dotnet run --project tools/OS.Tooling -- ci smoke --run-qcow2-real-smoke --qemu $qemu --qemu-img $qemuImg --ovmf-code $ovmf
 ```
 
 Real smoke requires the same serial marker evidence as local runs. CI dry-run,
@@ -441,9 +520,9 @@ Current host validation commands:
 ```powershell
 dotnet build .\CLROS.slnx --nologo -m:1
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
-.\scripts\check-naming.ps1
-.\scripts\run-qemu-smoke.ps1 -DryRun
-.\scripts\build-efi-shell.ps1
+dotnet run --project tools/OS.Tooling -- repo check
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun
+dotnet run --project tools/OS.Tooling -- efi build
 ```
 
 Historical baseline evidence from 2026-05-21:
@@ -464,7 +543,7 @@ Historical baseline evidence from 2026-05-21:
 
 ## Next Steps
 
-1. Keep `scripts/build-efi-shell.ps1` tool discovery and reported MSVC/Windows
+1. Keep `OS.Tooling efi build` tool discovery and reported MSVC/Windows
    SDK versions bound to the actual selected tools when the host changes.
 2. Validate the existing `.gitea/workflows/ci-smoke.yml` on a compatible Windows
    runner and retain its logs/artifacts. Workflow presence alone is not CI

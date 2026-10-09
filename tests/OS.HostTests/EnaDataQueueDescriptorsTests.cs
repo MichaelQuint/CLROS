@@ -7,46 +7,7 @@ internal static class EnaDataQueueDescriptorsTests
     private const ulong TxPhysicalAddress = 0x0000_1234_5678_9ABCUL;
     private const ulong RxPhysicalAddress = 0x0000_4321_8765_1000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.ena.data.desc writes tx descriptor", TestWritesTxDescriptor, ref failures);
-        Run("drivers.ena.data.desc writes rx descriptor", TestWritesRxDescriptor, ref failures);
-        Run("drivers.ena.data.desc parses completions", TestParsesCompletions, ref failures);
-        Run("drivers.ena.data.desc rejects malformed buffers", TestRejectsMalformedBuffers, ref failures);
-        Run("drivers.ena.data.desc rejects completion failures", TestRejectsCompletionFailures, ref failures);
-        Run("drivers.ena.data.desc rejects default tx completion", TestRejectsDefaultTxCompletion, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ENA data queue descriptor host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.ena.data.desc writes tx descriptor", HostLane.Fast, 0)]
     private static bool TestWritesTxDescriptor()
     {
         byte[] descriptorBytes =
@@ -81,7 +42,7 @@ internal static class EnaDataQueueDescriptorsTests
         uint addressLow = ReadUInt32(descriptorBytes, 8);
         uint addressHighHeaderLength = ReadUInt32(descriptorBytes, 12);
 
-        return writeStatus == EnaDataQueueDescriptorStatus.Success
+        return HostCheck.Result(writeStatus == EnaDataQueueDescriptorStatus.Success
             && readStatus == EnaDataQueueDescriptorStatus.Success
             && bytesWritten == EnaDataQueueDescriptors.TransmitDescriptorByteLength
             && (lengthControl & EnaDataQueueDescriptors.TxDescriptorLengthMask) == 1514
@@ -110,9 +71,10 @@ internal static class EnaDataQueueDescriptorsTests
             && !EnaDataQueueDescriptors.PerformsMmio
             && !EnaDataQueueDescriptors.RingsDoorbell
             && !EnaDataQueueDescriptors.ConfiguresInterrupts
-            && !EnaDataQueueDescriptors.PerformsPacketIo;
+            && !EnaDataQueueDescriptors.PerformsPacketIo);
     }
 
+    [HostTest("drivers.ena.data.desc writes rx descriptor", HostLane.Fast, 1)]
     private static bool TestWritesRxDescriptor()
     {
         byte[] descriptorBytes =
@@ -142,7 +104,7 @@ internal static class EnaDataQueueDescriptorsTests
                 out EnaDataQueueReceiveDescriptor parsed);
 
         byte control = descriptorBytes[3];
-        return writeStatus == EnaDataQueueDescriptorStatus.Success
+        return HostCheck.Result(writeStatus == EnaDataQueueDescriptorStatus.Success
             && readStatus == EnaDataQueueDescriptorStatus.Success
             && bytesWritten == EnaDataQueueDescriptors.ReceiveDescriptorByteLength
             && ReadUInt16(descriptorBytes, 0) == 0
@@ -165,9 +127,10 @@ internal static class EnaDataQueueDescriptorsTests
             && !parsed.Phase
             && parsed.First
             && parsed.Last
-            && parsed.CompletionRequested;
+            && parsed.CompletionRequested);
     }
 
+    [HostTest("drivers.ena.data.desc parses completions", HostLane.Fast, 2)]
     private static bool TestParsesCompletions()
     {
         byte[] txCompletion = CreateTxCompletion(
@@ -212,7 +175,7 @@ internal static class EnaDataQueueDescriptorsTests
                 expectedPhase: true,
                 expectedSubmissionQueueId: 4);
 
-        return txParse == EnaDataQueueDescriptorStatus.Success
+        return HostCheck.Result(txParse == EnaDataQueueDescriptorStatus.Success
             && txValidation == EnaDataQueueDescriptorStatus.Success
             && tx.IsInitialized
             && tx.RequestId == 0x1001
@@ -236,9 +199,10 @@ internal static class EnaDataQueueDescriptorsTests
             && rx.L4ChecksumChecked
             && !rx.HasL3ChecksumError
             && !rx.HasL4ChecksumError
-            && !rx.IsIpv4Fragment;
+            && !rx.IsIpv4Fragment);
     }
 
+    [HostTest("drivers.ena.data.desc rejects malformed buffers", HostLane.Fast, 3)]
     private static bool TestRejectsMalformedBuffers()
     {
         byte[] shortTx = new byte[EnaDataQueueDescriptors.TransmitDescriptorByteLength - 1];
@@ -300,15 +264,16 @@ internal static class EnaDataQueueDescriptorsTests
         EnaDataQueueDescriptorStatus missingMbo =
             EnaDataQueueDescriptors.TryReadReceiveDescriptor(rx, out _);
 
-        return shortTxWrite == EnaDataQueueDescriptorStatus.BufferTooSmall
+        return HostCheck.Result(shortTxWrite == EnaDataQueueDescriptorStatus.BufferTooSmall
             && shortTxBytesWritten == 0
             && shortRxRead == EnaDataQueueDescriptorStatus.BufferTooSmall
             && invalidTxLength == EnaDataQueueDescriptorStatus.InvalidLength
             && invalidRxLength == EnaDataQueueDescriptorStatus.InvalidLength
             && invalidAddress == EnaDataQueueDescriptorStatus.PhysicalAddressOutOfRange
-            && missingMbo == EnaDataQueueDescriptorStatus.MissingRequiredControlBit;
+            && missingMbo == EnaDataQueueDescriptorStatus.MissingRequiredControlBit);
     }
 
+    [HostTest("drivers.ena.data.desc rejects completion failures", HostLane.Fast, 4)]
     private static bool TestRejectsCompletionFailures()
     {
         byte[] txStatusFailure = CreateTxCompletion(
@@ -364,16 +329,17 @@ internal static class EnaDataQueueDescriptorsTests
                 expectedPhase: true,
                 expectedSubmissionQueueId: 6);
 
-        return txFailureStatus == EnaDataQueueDescriptorStatus.CompletionStatusNotSuccess
+        return HostCheck.Result(txFailureStatus == EnaDataQueueDescriptorStatus.CompletionStatusNotSuccess
             && EnaDataQueueDescriptors.TryReadTransmitCompletion(
                 txReservedFlags,
                 out _) == EnaDataQueueDescriptorStatus.ReservedBitsSet
             && rxFailureStatus == EnaDataQueueDescriptorStatus.CompletionNotBuffer
             && EnaDataQueueDescriptors.TryReadReceiveCompletion(
                 rxReservedStatus,
-                out _) == EnaDataQueueDescriptorStatus.ReservedBitsSet;
+                out _) == EnaDataQueueDescriptorStatus.ReservedBitsSet);
     }
 
+    [HostTest("drivers.ena.data.desc rejects default tx completion", HostLane.Fast, 5)]
     private static bool TestRejectsDefaultTxCompletion()
     {
         EnaDataQueueTransmitCompletion completion = default;
@@ -400,12 +366,12 @@ internal static class EnaDataQueueDescriptorsTests
                 expectedPhase: false,
                 expectedSubmissionQueueId: 0);
 
-        return !completion.IsInitialized
+        return HostCheck.Result(!completion.IsInitialized
             && status == EnaDataQueueDescriptorStatus.CompletionNotInitialized
             && parsedStatus == EnaDataQueueDescriptorStatus.Success
             && parsedValidationStatus == EnaDataQueueDescriptorStatus.Success
             && parsed.IsInitialized
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<EnaDataQueueTransmitCompletion>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<EnaDataQueueTransmitCompletion>());
     }
 
     private static EnaDataQueueTransmitDescriptor CreateTxDescriptor()

@@ -5,56 +5,13 @@ using OS.Kernel.Runtime;
 
 internal static class DiagnosticsChainReadinessTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("diagnostics.chain readiness accepts complete chain", TestAcceptsCompleteChain, ref failures);
-        Run("diagnostics.chain readiness rejects serial backend failure", TestRejectsSerialBackendFailure, ref failures);
-        Run("diagnostics.chain readiness rejects descriptor failure", TestRejectsDescriptorFailure, ref failures);
-        Run("diagnostics.chain readiness rejects fault probe failure", TestRejectsFaultProbeFailure, ref failures);
-        Run("diagnostics.chain readiness rejects panic failure", TestRejectsPanicFailure, ref failures);
-        Run("diagnostics.chain readiness rejects stub materialization failure", TestRejectsStubMaterializationFailure, ref failures);
-        Run("diagnostics.chain readiness default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("diagnostics.chain readiness result contains no managed references", TestResultContainsNoManagedReferences, ref failures);
-        Run("boot.sequence diagnostics chain emits ready marker", TestBootSequenceReadyMarker, ref failures);
-        Run("boot.sequence diagnostics chain emits blocked marker", TestBootSequenceBlockedMarker, ref failures);
-        Run("boot.sequence diagnostics chain leaves default markers unchanged", TestBootSequenceDefaultMarkersUnchanged, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Diagnostics chain readiness host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("diagnostics.chain readiness accepts complete chain", HostLane.Fast, 0)]
     private static bool TestAcceptsCompleteChain()
     {
         DiagnosticsChainReadinessResult result = CreateReadyChain();
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == DiagnosticsChainReadinessStatus.Ready
             && result.SerialBackendStatus == Com1PortIoBackendPlanStatus.Success
@@ -62,9 +19,10 @@ internal static class DiagnosticsChainReadinessTests
             && result.FaultProbeStatus == FaultProbeReadinessStatus.Ready
             && result.CpuFaultPanicStatus == CpuFaultPanicReadinessStatus.Ready
             && result.StubMaterializationStatus == ExecutableStubBundleMaterializerStatus.Success
-            && result.StubMaterializationBytesCopied > 0;
+            && result.StubMaterializationBytesCopied > 0);
     }
 
+    [HostTest("diagnostics.chain readiness rejects serial backend failure", HostLane.Fast, 1)]
     private static bool TestRejectsSerialBackendFailure()
     {
         DiagnosticsChainReadinessResult result = DiagnosticsChainReadiness.RequireReady(
@@ -77,12 +35,13 @@ internal static class DiagnosticsChainReadinessTests
             CreateReadyCpuFaultPanicResult(),
             ExecutableStubBundleMaterializerResult.Success());
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == DiagnosticsChainReadinessStatus.SerialBackendNotReady
-            && result.SerialBackendStatus == Com1PortIoBackendPlanStatus.InvalidSerialConfiguration;
+            && result.SerialBackendStatus == Com1PortIoBackendPlanStatus.InvalidSerialConfiguration);
     }
 
+    [HostTest("diagnostics.chain readiness rejects descriptor failure", HostLane.Fast, 2)]
     private static bool TestRejectsDescriptorFailure()
     {
         DiagnosticsChainReadinessResult result = DiagnosticsChainReadiness.RequireReady(
@@ -97,12 +56,13 @@ internal static class DiagnosticsChainReadinessTests
             CreateReadyCpuFaultPanicResult(),
             ExecutableStubBundleMaterializerResult.Success());
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == DiagnosticsChainReadinessStatus.DescriptorTablesNotReady
             && result.SerialBackendStatus == Com1PortIoBackendPlanStatus.Success
-            && result.DescriptorTableStatus == DescriptorTableInstallReadinessStatus.IdtTableNotReady;
+            && result.DescriptorTableStatus == DescriptorTableInstallReadinessStatus.IdtTableNotReady);
     }
 
+    [HostTest("diagnostics.chain readiness rejects fault probe failure", HostLane.Fast, 3)]
     private static bool TestRejectsFaultProbeFailure()
     {
         DiagnosticsChainReadinessResult result = DiagnosticsChainReadiness.RequireReady(
@@ -112,11 +72,12 @@ internal static class DiagnosticsChainReadinessTests
             CreateReadyCpuFaultPanicResult(),
             ExecutableStubBundleMaterializerResult.Success());
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == DiagnosticsChainReadinessStatus.FaultProbeNotReady
-            && result.FaultProbeStatus == FaultProbeReadinessStatus.MemoryPlanTooSmall;
+            && result.FaultProbeStatus == FaultProbeReadinessStatus.MemoryPlanTooSmall);
     }
 
+    [HostTest("diagnostics.chain readiness rejects panic failure", HostLane.Fast, 4)]
     private static bool TestRejectsPanicFailure()
     {
         DiagnosticsChainReadinessResult result = DiagnosticsChainReadiness.RequireReady(
@@ -126,11 +87,12 @@ internal static class DiagnosticsChainReadinessTests
             default,
             ExecutableStubBundleMaterializerResult.Success());
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == DiagnosticsChainReadinessStatus.CpuFaultPanicNotReady
-            && result.CpuFaultPanicStatus == CpuFaultPanicReadinessStatus.Ready;
+            && result.CpuFaultPanicStatus == CpuFaultPanicReadinessStatus.Ready);
     }
 
+    [HostTest("diagnostics.chain readiness rejects stub materialization failure", HostLane.Fast, 5)]
     private static bool TestRejectsStubMaterializationFailure()
     {
         ExecutableStubBundleMaterializerResult materializer =
@@ -146,17 +108,18 @@ internal static class DiagnosticsChainReadinessTests
             CreateReadyCpuFaultPanicResult(),
             materializer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == DiagnosticsChainReadinessStatus.StubMaterializationNotReady
             && result.StubMaterializationStatus == ExecutableStubBundleMaterializerStatus.InvalidBundlePlan
-            && result.StubMaterializationBytesCopied == 0;
+            && result.StubMaterializationBytesCopied == 0);
     }
 
+    [HostTest("diagnostics.chain readiness default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         DiagnosticsChainReadinessResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == DiagnosticsChainReadinessStatus.Ready
             && result.SerialBackendStatus == Com1PortIoBackendPlanStatus.Success
@@ -164,14 +127,16 @@ internal static class DiagnosticsChainReadinessTests
             && result.FaultProbeStatus == FaultProbeReadinessStatus.Ready
             && result.CpuFaultPanicStatus == CpuFaultPanicReadinessStatus.Ready
             && result.StubMaterializationStatus == ExecutableStubBundleMaterializerStatus.Success
-            && result.StubMaterializationBytesCopied == 0;
+            && result.StubMaterializationBytesCopied == 0);
     }
 
+    [HostTest("diagnostics.chain readiness result contains no managed references", HostLane.Fast, 7)]
     private static bool TestResultContainsNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<DiagnosticsChainReadinessResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<DiagnosticsChainReadinessResult>());
     }
 
+    [HostTest("boot.sequence diagnostics chain emits ready marker", HostLane.Fast, 8)]
     private static bool TestBootSequenceReadyMarker()
     {
         DiagnosticsChainReadinessResult readiness = CreateReadyChain();
@@ -180,12 +145,13 @@ internal static class DiagnosticsChainReadinessTests
 
         BootResult result = BootSequence.RunDiagnosticsChainReadiness(readiness, serial, events);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.DiagnosticsChainReady
-            && events.Snapshot()[0] == BootSequence.DiagnosticsChainReady;
+            && events.Snapshot()[0] == BootSequence.DiagnosticsChainReady);
     }
 
+    [HostTest("boot.sequence diagnostics chain emits blocked marker", HostLane.Fast, 9)]
     private static bool TestBootSequenceBlockedMarker()
     {
         DiagnosticsChainReadinessResult readiness = DiagnosticsChainReadiness.RequireReady(
@@ -200,13 +166,14 @@ internal static class DiagnosticsChainReadinessTests
 
         BootResult result = BootSequence.RunDiagnosticsChainReadiness(readiness, serial, events);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(nameof(DiagnosticsChainReadinessStatus.CpuFaultPanicNotReady), StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence diagnostics chain leaves default markers unchanged", HostLane.Fast, 10)]
     private static bool TestBootSequenceDefaultMarkersUnchanged()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -216,19 +183,19 @@ internal static class DiagnosticsChainReadinessTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.DiagnosticsChainReady)
-            && !serial.ContainsPrefix(BootSequence.DiagnosticsChainNotReadyPrefix);
+        return HostCheck.Result(!serial.Contains(BootSequence.DiagnosticsChainReady)
+            && !serial.ContainsPrefix(BootSequence.DiagnosticsChainNotReadyPrefix));
     }
 
     private static DiagnosticsChainReadinessResult CreateReadyChain()

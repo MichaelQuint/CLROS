@@ -4,47 +4,8 @@ using OS.Std.Binary;
 
 internal static class VirtioPciBarApertureValidatorTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.virtio.pci.bar validates required apertures", TestValidatesRequiredApertures, ref failures);
-        Run("drivers.virtio.pci.bar accepts 64bit memory bar", TestAccepts64BitMemoryBar, ref failures);
-        Run("drivers.virtio.pci.bar rejects io bar capability", TestRejectsIoBarCapability, ref failures);
-        Run("drivers.virtio.pci.bar rejects absent capability bar", TestRejectsAbsentCapabilityBar, ref failures);
-        Run("drivers.virtio.pci.bar rejects region beyond bar size", TestRejectsRegionBeyondBarSize, ref failures);
-        Run("drivers.virtio.pci.bar rejects failed discovery input", TestRejectsFailedDiscoveryInput, ref failures);
-        Run("drivers.virtio.pci.bar default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio PCI BAR aperture validator host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtio.pci.bar validates required apertures", HostLane.Fast, 0)]
     private static bool TestValidatesRequiredApertures()
     {
         PciBarDescriptorSet bars = DecodeBars(
@@ -62,7 +23,7 @@ internal static class VirtioPciBarApertureValidatorTests
         VirtioPciBarApertureValidationResult result =
             VirtioPciBarApertureValidator.Validate(discovery, bars, barSizes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioPciBarApertureValidationStatus.Success
             && result.FailingBarIndex == PciBarDecoder.NoBarIndex
@@ -77,9 +38,10 @@ internal static class VirtioPciBarApertureValidatorTests
             && result.Apertures.NotifyConfiguration.BarIndex == 1
             && result.Apertures.NotifyConfiguration.NotifyOffsetMultiplier == 4
             && result.Apertures.IsrStatus.BarIndex == 2
-            && result.Apertures.DeviceConfiguration.BarIndex == 3;
+            && result.Apertures.DeviceConfiguration.BarIndex == 3);
     }
 
+    [HostTest("drivers.virtio.pci.bar accepts 64bit memory bar", HostLane.Fast, 1)]
     private static bool TestAccepts64BitMemoryBar()
     {
         PciBarDescriptorSet bars = DecodeBars(
@@ -100,7 +62,7 @@ internal static class VirtioPciBarApertureValidatorTests
             result.Apertures.CommonConfiguration.BarBaseAddressBits != 0x0000000180000000UL ||
             result.Apertures.NotifyConfiguration.BarKind != PciBarKind.Memory64)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioPciDeviceDiscoveryResult consumedUpperHalfDiscovery = CreateBlockDiscovery(
@@ -111,14 +73,15 @@ internal static class VirtioPciBarApertureValidatorTests
         VirtioPciBarApertureValidationResult consumedUpperHalf =
             VirtioPciBarApertureValidator.Validate(consumedUpperHalfDiscovery, bars, barSizes);
 
-        return !consumedUpperHalf.Succeeded
+        return HostCheck.Result(!consumedUpperHalf.Succeeded
             && consumedUpperHalf.Status
                 == VirtioPciBarApertureValidationStatus.BarConsumedByPrevious64BitBar
             && consumedUpperHalf.FailingCapabilityType == VirtioPciCapabilityType.CommonConfiguration
             && consumedUpperHalf.FailingBarIndex == 1
-            && consumedUpperHalf.FailingBarKind == PciBarKind.ConsumedByPrevious64BitBar;
+            && consumedUpperHalf.FailingBarKind == PciBarKind.ConsumedByPrevious64BitBar);
     }
 
+    [HostTest("drivers.virtio.pci.bar rejects io bar capability", HostLane.Fast, 2)]
     private static bool TestRejectsIoBarCapability()
     {
         PciBarDescriptorSet bars = DecodeBars(bar0: 0x0000C001);
@@ -132,13 +95,14 @@ internal static class VirtioPciBarApertureValidatorTests
         VirtioPciBarApertureValidationResult result =
             VirtioPciBarApertureValidator.Validate(discovery, bars, barSizes);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioPciBarApertureValidationStatus.BarIsIo
             && result.FailingCapabilityType == VirtioPciCapabilityType.CommonConfiguration
             && result.FailingBarIndex == 0
-            && result.FailingBarKind == PciBarKind.Io;
+            && result.FailingBarKind == PciBarKind.Io);
     }
 
+    [HostTest("drivers.virtio.pci.bar rejects absent capability bar", HostLane.Fast, 3)]
     private static bool TestRejectsAbsentCapabilityBar()
     {
         PciBarDescriptorSet absentBars = DecodeBars();
@@ -157,7 +121,7 @@ internal static class VirtioPciBarApertureValidatorTests
             absent.FailingBarIndex != 0 ||
             absent.FailingBarKind != PciBarKind.Absent)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         PciBarDescriptorSet memoryBars = DecodeBars(bar0: 0x80000000);
@@ -172,17 +136,18 @@ internal static class VirtioPciBarApertureValidatorTests
             outOfRange.Status != VirtioPciBarApertureValidationStatus.BarIndexOutOfRange ||
             outOfRange.FailingBarIndex != 6)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioPciBarApertureValidationResult missingSize =
             VirtioPciBarApertureValidator.Validate(absentDiscovery, memoryBars, ReadOnlySpan<ulong>.Empty);
-        return !missingSize.Succeeded
+        return HostCheck.Result(!missingSize.Succeeded
             && missingSize.Status == VirtioPciBarApertureValidationStatus.BarSizeUnavailable
             && missingSize.FailingBarIndex == 0
-            && missingSize.FailingBarKind == PciBarKind.Memory32;
+            && missingSize.FailingBarKind == PciBarKind.Memory32);
     }
 
+    [HostTest("drivers.virtio.pci.bar rejects region beyond bar size", HostLane.Fast, 4)]
     private static bool TestRejectsRegionBeyondBarSize()
     {
         PciBarDescriptorSet bars = DecodeBars(bar0: 0x80000000);
@@ -202,7 +167,7 @@ internal static class VirtioPciBarApertureValidatorTests
             beyondSize.FailingRegionEndOffset
                 != 0x20 + VirtioPciDeviceDiscovery.CommonConfigurationMinimumLength)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioPciDeviceDiscoveryResult overflowDiscovery = CreateBlockDiscovery(
@@ -213,11 +178,12 @@ internal static class VirtioPciBarApertureValidatorTests
         VirtioPciBarApertureValidationResult overflow =
             VirtioPciBarApertureValidator.Validate(overflowDiscovery, bars, CreateBarSizes(ulong.MaxValue));
 
-        return !overflow.Succeeded
+        return HostCheck.Result(!overflow.Succeeded
             && overflow.Status == VirtioPciBarApertureValidationStatus.CapabilityRegionOverflow
-            && overflow.FailingCapabilityType == VirtioPciCapabilityType.CommonConfiguration;
+            && overflow.FailingCapabilityType == VirtioPciCapabilityType.CommonConfiguration);
     }
 
+    [HostTest("drivers.virtio.pci.bar rejects failed discovery input", HostLane.Fast, 5)]
     private static bool TestRejectsFailedDiscoveryInput()
     {
         VirtioPciDeviceDiscoveryResult failedDiscovery = VirtioPciDeviceDiscovery.Discover(
@@ -236,21 +202,22 @@ internal static class VirtioPciBarApertureValidatorTests
                 DecodeBars(bar0: 0x80000000),
                 CreateBarSizes(0x1000));
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioPciBarApertureValidationStatus.DiscoveryFailed
             && result.DiscoveryStatus == VirtioPciDeviceDiscoveryStatus.UnsupportedVendor
-            && result.FailingBarIndex == PciBarDecoder.NoBarIndex;
+            && result.FailingBarIndex == PciBarDecoder.NoBarIndex);
     }
 
+    [HostTest("drivers.virtio.pci.bar default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioPciBarApertureValidationResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioPciBarApertureValidationStatus.Success
-            && result.Apertures.CommonConfiguration.Length == 0;
+            && result.Apertures.CommonConfiguration.Length == 0);
     }
 
     private static VirtioPciDeviceDiscoveryResult CreateBlockDiscovery(

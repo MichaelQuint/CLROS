@@ -4,47 +4,8 @@ using OS.Std.Binary;
 
 internal static class AcpiSdtParserTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("acpi.sdt parses valid rsdt", TestParsesValidRsdt, ref failures);
-        Run("acpi.sdt parses valid xsdt", TestParsesValidXsdt, ref failures);
-        Run("acpi.sdt rejects checksum failure", TestRejectsChecksumFailure, ref failures);
-        Run("acpi.sdt rejects declared source length mismatch", TestRejectsDeclaredSourceLengthMismatch, ref failures);
-        Run("acpi.sdt rejects invalid pointer array length", TestRejectsInvalidPointerArrayLength, ref failures);
-        Run("acpi.sdt rejects zero table pointer", TestRejectsZeroTablePointer, ref failures);
-        Run("acpi.sdt rejects destination capacity exhaustion", TestRejectsDestinationCapacityExhaustion, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ACPI SDT parser host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("acpi.sdt parses valid rsdt", HostLane.Fast, 0)]
     private static bool TestParsesValidRsdt()
     {
         byte[] rsdt = CreateRsdt(0x00100000, 0x00102000);
@@ -52,7 +13,7 @@ internal static class AcpiSdtParserTests
 
         AcpiSdtParseResult result = AcpiSdtParser.TryParsePointerList(rsdt, pointers);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == AcpiSdtParseStatus.Success
             && result.TableKind == AcpiSdtTableKind.Rsdt
             && result.PointerCount == 2
@@ -65,9 +26,10 @@ internal static class AcpiSdtParserTests
                 (uint)rsdt.Length,
                 rsdt[AcpiSdtParser.ChecksumOffset])
             && pointers[0] == 0x00100000
-            && pointers[1] == 0x00102000;
+            && pointers[1] == 0x00102000);
     }
 
+    [HostTest("acpi.sdt parses valid xsdt", HostLane.Fast, 1)]
     private static bool TestParsesValidXsdt()
     {
         byte[] xsdt = CreateXsdt(0x0000000100000000, 0x00000000E0000000);
@@ -75,7 +37,7 @@ internal static class AcpiSdtParserTests
 
         AcpiSdtParseResult result = AcpiSdtParser.TryParsePointerList(xsdt, pointers);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == AcpiSdtParseStatus.Success
             && result.TableKind == AcpiSdtTableKind.Xsdt
             && result.PointerCount == 2
@@ -88,9 +50,10 @@ internal static class AcpiSdtParserTests
                 (uint)xsdt.Length,
                 xsdt[AcpiSdtParser.ChecksumOffset])
             && pointers[0] == 0x0000000100000000
-            && pointers[1] == 0x00000000E0000000;
+            && pointers[1] == 0x00000000E0000000);
     }
 
+    [HostTest("acpi.sdt rejects checksum failure", HostLane.Fast, 2)]
     private static bool TestRejectsChecksumFailure()
     {
         byte[] rsdt = CreateRsdt(0x00100000);
@@ -100,14 +63,15 @@ internal static class AcpiSdtParserTests
             rsdt,
             new ulong[1]);
 
-        return IsFailure(
+        return HostCheck.Result(IsFailure(
                 result,
                 AcpiSdtParseStatus.InvalidChecksum,
                 declaredLength: (uint)rsdt.Length,
                 requiredLength: (uint)rsdt.Length)
-            && result.TableKind == AcpiSdtTableKind.Rsdt;
+            && result.TableKind == AcpiSdtTableKind.Rsdt);
     }
 
+    [HostTest("acpi.sdt rejects declared source length mismatch", HostLane.Fast, 3)]
     private static bool TestRejectsDeclaredSourceLengthMismatch()
     {
         byte[] tooShort = new byte[AcpiSdtParser.HeaderLength - 1];
@@ -129,7 +93,7 @@ internal static class AcpiSdtParserTests
             sourceTooShort,
             new ulong[2]);
 
-        return IsFailure(
+        return HostCheck.Result(IsFailure(
                 tooShortResult,
                 AcpiSdtParseStatus.SourceTooShort,
                 requiredLength: AcpiSdtParser.HeaderLength)
@@ -142,9 +106,10 @@ internal static class AcpiSdtParserTests
                 sourceTooShortResult,
                 AcpiSdtParseStatus.SourceTooShortForDeclaredLength,
                 declaredLength: declaredLength,
-                requiredLength: declaredLength);
+                requiredLength: declaredLength));
     }
 
+    [HostTest("acpi.sdt rejects invalid pointer array length", HostLane.Fast, 4)]
     private static bool TestRejectsInvalidPointerArrayLength()
     {
         byte[] rsdt = CreateTableWithPayload(
@@ -166,7 +131,7 @@ internal static class AcpiSdtParserTests
             xsdt,
             new ulong[2]);
 
-        return IsFailure(
+        return HostCheck.Result(IsFailure(
                 rsdtResult,
                 AcpiSdtParseStatus.InvalidPointerArrayLength,
                 declaredLength: (uint)rsdt.Length,
@@ -177,9 +142,10 @@ internal static class AcpiSdtParserTests
                 AcpiSdtParseStatus.InvalidPointerArrayLength,
                 declaredLength: (uint)xsdt.Length,
                 requiredLength: AcpiSdtParser.HeaderLength + (2 * AcpiSdtParser.XsdtPointerSize),
-                entryIndex: 1);
+                entryIndex: 1));
     }
 
+    [HostTest("acpi.sdt rejects zero table pointer", HostLane.Fast, 5)]
     private static bool TestRejectsZeroTablePointer()
     {
         byte[] rsdt = CreateRsdt(0);
@@ -192,7 +158,7 @@ internal static class AcpiSdtParserTests
             xsdt,
             new ulong[2]);
 
-        return IsFailure(
+        return HostCheck.Result(IsFailure(
                 rsdtResult,
                 AcpiSdtParseStatus.ZeroTablePointer,
                 declaredLength: (uint)rsdt.Length,
@@ -203,9 +169,10 @@ internal static class AcpiSdtParserTests
                 AcpiSdtParseStatus.ZeroTablePointer,
                 declaredLength: (uint)xsdt.Length,
                 requiredLength: (uint)xsdt.Length,
-                entryIndex: 1);
+                entryIndex: 1));
     }
 
+    [HostTest("acpi.sdt rejects destination capacity exhaustion", HostLane.Fast, 6)]
     private static bool TestRejectsDestinationCapacityExhaustion()
     {
         byte[] xsdt = CreateXsdt(0x0000000100000000, 0x00000000E0000000);
@@ -213,12 +180,12 @@ internal static class AcpiSdtParserTests
 
         AcpiSdtParseResult result = AcpiSdtParser.TryParsePointerList(xsdt, pointers);
 
-        return IsFailure(
+        return HostCheck.Result(IsFailure(
             result,
             AcpiSdtParseStatus.DestinationTooSmall,
             declaredLength: (uint)xsdt.Length,
             requiredLength: (uint)xsdt.Length,
-            requiredPointerCapacity: 2);
+            requiredPointerCapacity: 2));
     }
 
     private static bool HeaderMatches(

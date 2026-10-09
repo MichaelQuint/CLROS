@@ -8,51 +8,7 @@ internal static class NativeAotHeapBootstrapPlanTests
 {
     private const ulong PageSize = 4096;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("runtime.nativeaot heap bootstrap plans page budget", TestPlansPageBudget, ref failures);
-        Run("runtime.nativeaot heap bootstrap rejects allocator state", TestRejectsAllocatorState, ref failures);
-        Run("runtime.nativeaot heap bootstrap rejects allocator byte metadata", TestRejectsAllocatorByteMetadata, ref failures);
-        Run("runtime.nativeaot heap bootstrap rejects page budget", TestRejectsPageBudget, ref failures);
-        Run("runtime.nativeaot heap bootstrap rejects object alignment", TestRejectsObjectAlignment, ref failures);
-        Run("runtime.nativeaot heap bootstrap layout contains no managed references", TestLayoutContainsNoManagedReferences, ref failures);
-        Run("runtime.nativeaot heap bootstrap default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("boot.sequence nativeaot heap bootstrap ready", TestBootSequenceNativeAotHeapBootstrapReady, ref failures);
-        Run("boot.sequence nativeaot heap bootstrap rejects failed plan", TestBootSequenceNativeAotHeapBootstrapRejectsFailedPlan, ref failures);
-        Run("boot.sequence nativeaot heap bootstrap blocks default result", TestBootSequenceNativeAotHeapBootstrapBlocksDefaultResult, ref failures);
-        Run("boot.sequence nativeaot heap bootstrap preserves default markers", TestBootSequenceNativeAotHeapBootstrapPreservesDefaultMarkers, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("NativeAOT heap bootstrap plan tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("runtime.nativeaot heap bootstrap plans page budget", HostLane.Fast, 0)]
     private static bool TestPlansPageBudget()
     {
         BootPageAllocatorState allocatorState = ReadyState(freePages: 16);
@@ -62,7 +18,7 @@ internal static class NativeAotHeapBootstrapPlanTests
             requestedHeapPages: 4,
             objectAlignment: 16);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAotHeapBootstrapPlanStatus.Success
             && result.PageSize == PageSize
@@ -77,9 +33,10 @@ internal static class NativeAotHeapBootstrapPlanTests
             && result.RequiresPageAllocatorMutation
             && result.RequiresGcRootScanning
             && result.RequiresWriteBarriers
-            && !result.SatisfiesObjectAllocationHelpers;
+            && !result.SatisfiesObjectAllocationHelpers);
     }
 
+    [HostTest("runtime.nativeaot heap bootstrap rejects allocator state", HostLane.Fast, 1)]
     private static bool TestRejectsAllocatorState()
     {
         NativeAotHeapBootstrapPlanResult uninitialized = NativeAotHeapBootstrapPlanner.Plan(
@@ -105,16 +62,17 @@ internal static class NativeAotHeapBootstrapPlanTests
             requestedHeapPages: 1,
             objectAlignment: 16);
 
-        return !uninitialized.Succeeded
+        return HostCheck.Result(!uninitialized.Succeeded
             && uninitialized.IsInitialized
             && uninitialized.Status == NativeAotHeapBootstrapPlanStatus.AllocatorStateNotInitialized
             && uninitialized.RequestedHeapPages == 1
             && !invalidPageSize.Succeeded
             && invalidPageSize.Status == NativeAotHeapBootstrapPlanStatus.InvalidPageSize
             && !noFreePages.Succeeded
-            && noFreePages.Status == NativeAotHeapBootstrapPlanStatus.NoFreePages;
+            && noFreePages.Status == NativeAotHeapBootstrapPlanStatus.NoFreePages);
     }
 
+    [HostTest("runtime.nativeaot heap bootstrap rejects allocator byte metadata", HostLane.Fast, 2)]
     private static bool TestRejectsAllocatorByteMetadata()
     {
         NativeAotHeapBootstrapPlanResult overflow = NativeAotHeapBootstrapPlanner.Plan(
@@ -143,15 +101,16 @@ internal static class NativeAotHeapBootstrapPlanTests
             requestedHeapPages: 1,
             objectAlignment: 16);
 
-        return !overflow.Succeeded
+        return HostCheck.Result(!overflow.Succeeded
             && overflow.Status == NativeAotHeapBootstrapPlanStatus.AllocatorFreeByteCountOverflow
             && overflow.ExpectedAllocatorFreeBytes == 0
             && !mismatch.Succeeded
             && mismatch.Status == NativeAotHeapBootstrapPlanStatus.AllocatorFreeByteCountMismatch
             && mismatch.ExpectedAllocatorFreeBytes == 4 * PageSize
-            && mismatch.AllocatorFreeBytes == (4 * PageSize) - 1;
+            && mismatch.AllocatorFreeBytes == (4 * PageSize) - 1);
     }
 
+    [HostTest("runtime.nativeaot heap bootstrap rejects page budget", HostLane.Fast, 3)]
     private static bool TestRejectsPageBudget()
     {
         BootPageAllocatorState allocatorState = ReadyState(freePages: 4);
@@ -166,15 +125,16 @@ internal static class NativeAotHeapBootstrapPlanTests
             requestedHeapPages: 5,
             objectAlignment: 16);
 
-        return !zeroPages.Succeeded
+        return HostCheck.Result(!zeroPages.Succeeded
             && zeroPages.Status == NativeAotHeapBootstrapPlanStatus.RequestedHeapPagesZero
             && !zeroPages.SatisfiesObjectAllocationHelpers
             && !tooManyPages.Succeeded
             && tooManyPages.Status == NativeAotHeapBootstrapPlanStatus.RequestedHeapPagesExceedFreePages
             && tooManyPages.RequestedHeapPages == 5
-            && tooManyPages.AllocatorFreePages == 4;
+            && tooManyPages.AllocatorFreePages == 4);
     }
 
+    [HostTest("runtime.nativeaot heap bootstrap rejects object alignment", HostLane.Fast, 4)]
     private static bool TestRejectsObjectAlignment()
     {
         BootPageAllocatorState allocatorState = ReadyState(freePages: 4);
@@ -199,34 +159,37 @@ internal static class NativeAotHeapBootstrapPlanTests
             requestedHeapPages: 1,
             objectAlignment: PageSize * 2);
 
-        return !zeroAlignment.Succeeded
+        return HostCheck.Result(!zeroAlignment.Succeeded
             && zeroAlignment.Status == NativeAotHeapBootstrapPlanStatus.InvalidObjectAlignment
             && !nonPowerOfTwo.Succeeded
             && nonPowerOfTwo.Status == NativeAotHeapBootstrapPlanStatus.InvalidObjectAlignment
             && !tooSmall.Succeeded
             && tooSmall.Status == NativeAotHeapBootstrapPlanStatus.ObjectAlignmentTooSmall
             && !tooLarge.Succeeded
-            && tooLarge.Status == NativeAotHeapBootstrapPlanStatus.ObjectAlignmentExceedsPageSize;
+            && tooLarge.Status == NativeAotHeapBootstrapPlanStatus.ObjectAlignmentExceedsPageSize);
     }
 
+    [HostTest("runtime.nativeaot heap bootstrap layout contains no managed references", HostLane.Fast, 5)]
     private static bool TestLayoutContainsNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAotHeapBootstrapPlanResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<NativeAotHeapBootstrapPlanResult>());
     }
 
+    [HostTest("runtime.nativeaot heap bootstrap default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAotHeapBootstrapPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAotHeapBootstrapPlanStatus.Success
             && !result.RequiresPageAllocatorMutation
             && !result.RequiresGcRootScanning
             && !result.RequiresWriteBarriers
-            && !result.SatisfiesObjectAllocationHelpers;
+            && !result.SatisfiesObjectAllocationHelpers);
     }
 
+    [HostTest("boot.sequence nativeaot heap bootstrap ready", HostLane.Fast, 7)]
     private static bool TestBootSequenceNativeAotHeapBootstrapReady()
     {
         NativeAotHeapBootstrapPlanResult plan = NativeAotHeapBootstrapPlanner.Plan(
@@ -239,14 +202,15 @@ internal static class NativeAotHeapBootstrapPlanTests
         BootResult result = BootSequence.RunNativeAotHeapBootstrapReadiness(plan, serial, events);
         string expectedMarker = BootSequence.CreateNativeAotHeapBootstrapReadyMarker(plan);
 
-        return plan.Succeeded
+        return HostCheck.Result(plan.Succeeded
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
-            && expectedMarker == "NATIVEAOT_HEAP_BOOTSTRAP_READY status=Ready initialized=true plan=Success pageSize=4096 allocatorFreePages=16 allocatorFreeBytes=65536 expectedAllocatorFreeBytes=65536 requestedHeapPages=4 requestedHeapBytes=16384 remainingFreePages=12 remainingFreeBytes=49152 objectAlignment=16 requiresPageAllocatorMutation=true requiresGcRootScanning=true requiresWriteBarriers=true satisfiesObjectAllocationHelpers=false";
+            && expectedMarker == "NATIVEAOT_HEAP_BOOTSTRAP_READY status=Ready initialized=true plan=Success pageSize=4096 allocatorFreePages=16 allocatorFreeBytes=65536 expectedAllocatorFreeBytes=65536 requestedHeapPages=4 requestedHeapBytes=16384 remainingFreePages=12 remainingFreeBytes=49152 objectAlignment=16 requiresPageAllocatorMutation=true requiresGcRootScanning=true requiresWriteBarriers=true satisfiesObjectAllocationHelpers=false");
     }
 
+    [HostTest("boot.sequence nativeaot heap bootstrap rejects failed plan", HostLane.Fast, 8)]
     private static bool TestBootSequenceNativeAotHeapBootstrapRejectsFailedPlan()
     {
         NativeAotHeapBootstrapPlanResult plan = NativeAotHeapBootstrapPlanner.Plan(
@@ -261,7 +225,7 @@ internal static class NativeAotHeapBootstrapPlanTests
             NativeAotHeapBootstrapReadinessStatus.PlanFailed,
             plan);
 
-        return !plan.Succeeded
+        return HostCheck.Result(!plan.Succeeded
             && plan.Status == NativeAotHeapBootstrapPlanStatus.RequestedHeapPagesZero
             && !result.Succeeded
             && result.Reason.Contains(
@@ -270,9 +234,10 @@ internal static class NativeAotHeapBootstrapPlanTests
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
-            && expectedMarker == "NATIVEAOT_HEAP_BOOTSTRAP_NOT_READY status=PlanFailed initialized=true plan=RequestedHeapPagesZero pageSize=4096 allocatorFreePages=4 allocatorFreeBytes=16384 expectedAllocatorFreeBytes=16384 requestedHeapPages=0 requestedHeapBytes=0 remainingFreePages=0 remainingFreeBytes=0 objectAlignment=16 requiresPageAllocatorMutation=false requiresGcRootScanning=false requiresWriteBarriers=false satisfiesObjectAllocationHelpers=false";
+            && expectedMarker == "NATIVEAOT_HEAP_BOOTSTRAP_NOT_READY status=PlanFailed initialized=true plan=RequestedHeapPagesZero pageSize=4096 allocatorFreePages=4 allocatorFreeBytes=16384 expectedAllocatorFreeBytes=16384 requestedHeapPages=0 requestedHeapBytes=0 remainingFreePages=0 remainingFreeBytes=0 objectAlignment=16 requiresPageAllocatorMutation=false requiresGcRootScanning=false requiresWriteBarriers=false satisfiesObjectAllocationHelpers=false");
     }
 
+    [HostTest("boot.sequence nativeaot heap bootstrap blocks default result", HostLane.Fast, 9)]
     private static bool TestBootSequenceNativeAotHeapBootstrapBlocksDefaultResult()
     {
         NativeAotHeapBootstrapPlanResult plan = default;
@@ -284,7 +249,7 @@ internal static class NativeAotHeapBootstrapPlanTests
             NativeAotHeapBootstrapReadinessStatus.NotInitialized,
             plan);
 
-        return !plan.IsInitialized
+        return HostCheck.Result(!plan.IsInitialized
             && !plan.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
@@ -293,9 +258,10 @@ internal static class NativeAotHeapBootstrapPlanTests
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
-            && expectedMarker == "NATIVEAOT_HEAP_BOOTSTRAP_NOT_READY status=NotInitialized initialized=false plan=Success pageSize=0 allocatorFreePages=0 allocatorFreeBytes=0 expectedAllocatorFreeBytes=0 requestedHeapPages=0 requestedHeapBytes=0 remainingFreePages=0 remainingFreeBytes=0 objectAlignment=0 requiresPageAllocatorMutation=false requiresGcRootScanning=false requiresWriteBarriers=false satisfiesObjectAllocationHelpers=false";
+            && expectedMarker == "NATIVEAOT_HEAP_BOOTSTRAP_NOT_READY status=NotInitialized initialized=false plan=Success pageSize=0 allocatorFreePages=0 allocatorFreeBytes=0 expectedAllocatorFreeBytes=0 requestedHeapPages=0 requestedHeapBytes=0 remainingFreePages=0 remainingFreeBytes=0 objectAlignment=0 requiresPageAllocatorMutation=false requiresGcRootScanning=false requiresWriteBarriers=false satisfiesObjectAllocationHelpers=false");
     }
 
+    [HostTest("boot.sequence nativeaot heap bootstrap preserves default markers", HostLane.Fast, 10)]
     private static bool TestBootSequenceNativeAotHeapBootstrapPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -304,7 +270,7 @@ internal static class NativeAotHeapBootstrapPlanTests
         BootResult result = BootSequence.Run(serial, events);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int index = 0; index < serial.Count; index++)
@@ -313,11 +279,11 @@ internal static class NativeAotHeapBootstrapPlanTests
             if (line.StartsWith(BootSequence.NativeAotHeapBootstrapReadyPrefix, StringComparison.Ordinal)
                 || line.StartsWith(BootSequence.NativeAotHeapBootstrapNotReadyPrefix, StringComparison.Ordinal))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return true;
+        return HostCheck.Result(true);
     }
 
     private static BootPageAllocatorState ReadyState(ulong freePages)

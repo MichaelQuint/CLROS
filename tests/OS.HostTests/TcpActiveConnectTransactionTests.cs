@@ -8,44 +8,7 @@ internal static class TcpActiveConnectTransactionTests
     private const uint ClientInitialSequence = 0x11223344;
     private const uint ServerInitialSequence = 0x55667788;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.tcp active connect establishes", TestActiveConnectEstablishes, ref failures);
-        Run("net.tcp active connect rejects bad synack", TestActiveConnectRejectsBadSynAck, ref failures);
-        Run("net.tcp active connect times out", TestActiveConnectTimesOut, ref failures);
-        Run("net.tcp active connect default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("TCP active-connect transaction host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.tcp active connect establishes", HostLane.Fast, 0)]
     private static bool TestActiveConnectEstablishes()
     {
         TcpActiveConnectTransaction transaction = TcpActiveConnectTransaction.Create(
@@ -58,7 +21,7 @@ internal static class TcpActiveConnectTransactionTests
             || transaction.ExpectedRemoteInitialSequenceNumber != ServerInitialSequence
             || transaction.State != TcpActiveConnectState.Closed)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> syn = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -74,7 +37,7 @@ internal static class TcpActiveConnectTransactionTests
             || transaction.State != TcpActiveConnectState.SynSent
             || transaction.LocalNextSequenceNumber != ClientInitialSequence + 1)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (!ParseHeader(syn, out TcpHeader synHeader)
@@ -86,7 +49,7 @@ internal static class TcpActiveConnectTransactionTests
             || synHeader.WindowSize != 0x4000
             || synHeader.Checksum != 0x1111)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> synAck = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -105,7 +68,7 @@ internal static class TcpActiveConnectTransactionTests
             || transaction.RemoteInitialSequenceNumber != ServerInitialSequence
             || transaction.RemoteNextSequenceNumber != ServerInitialSequence + 1)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> finalAck = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -120,7 +83,7 @@ internal static class TcpActiveConnectTransactionTests
             || ackResult.BytesWritten != TcpHeader.MinHeaderLength
             || transaction.State != TcpActiveConnectState.Established)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (!ParseHeader(finalAck, out TcpHeader ackHeader)
@@ -130,20 +93,21 @@ internal static class TcpActiveConnectTransactionTests
             || ackHeader.AcknowledgementNumber != ServerInitialSequence + 1
             || ackHeader.Flags != TcpActiveConnectTransaction.FlagAck)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         TcpActiveConnectStatus invalidStateStatus = transaction.Timeout(
             out TcpActiveConnectTransitionResult invalidStateResult);
-        return invalidStateStatus == TcpActiveConnectStatus.InvalidState
+        return HostCheck.Result(invalidStateStatus == TcpActiveConnectStatus.InvalidState
             && !invalidStateResult.Succeeded
             && invalidStateResult.State == TcpActiveConnectState.Established
-            && transaction.State == TcpActiveConnectState.Established;
+            && transaction.State == TcpActiveConnectState.Established);
     }
 
+    [HostTest("net.tcp active connect rejects bad synack", HostLane.Fast, 1)]
     private static bool TestActiveConnectRejectsBadSynAck()
     {
-        return RejectsSynAck(
+        return HostCheck.Result(RejectsSynAck(
                 ServerInitialSequence,
                 ClientInitialSequence + 2,
                 TcpActiveConnectTransaction.FlagSyn | TcpActiveConnectTransaction.FlagAck,
@@ -173,9 +137,10 @@ internal static class TcpActiveConnectTransactionTests
                 TcpActiveConnectStatus.UnexpectedPorts)
             && RejectsTruncatedSynAck()
             && RejectsFinalAckBeforeSynAck()
-            && RejectsTooSmallSynBuffer();
+            && RejectsTooSmallSynBuffer());
     }
 
+    [HostTest("net.tcp active connect times out", HostLane.Fast, 2)]
     private static bool TestActiveConnectTimesOut()
     {
         TcpActiveConnectTransaction transaction = TcpActiveConnectTransaction.Create(
@@ -189,7 +154,7 @@ internal static class TcpActiveConnectTransactionTests
                 checksum: 0,
                 out TcpActiveConnectTransitionResult _) != TcpActiveConnectStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         TcpActiveConnectStatus status = transaction.Timeout(
@@ -199,7 +164,7 @@ internal static class TcpActiveConnectTransactionTests
             || timeoutResult.State != TcpActiveConnectState.Failed
             || transaction.State != TcpActiveConnectState.Failed)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> synAck = stackalloc byte[TcpHeader.MinHeaderLength];
@@ -219,13 +184,14 @@ internal static class TcpActiveConnectTransactionTests
         TcpActiveConnectStatus closedTimeoutStatus = closedTransaction.Timeout(
             out TcpActiveConnectTransitionResult closedTimeoutResult);
 
-        return receiveAfterTimeoutStatus == TcpActiveConnectStatus.InvalidState
+        return HostCheck.Result(receiveAfterTimeoutStatus == TcpActiveConnectStatus.InvalidState
             && receiveAfterTimeoutResult.State == TcpActiveConnectState.Failed
             && closedTimeoutStatus == TcpActiveConnectStatus.InvalidState
             && closedTimeoutResult.State == TcpActiveConnectState.Closed
-            && closedTransaction.State == TcpActiveConnectState.Closed;
+            && closedTransaction.State == TcpActiveConnectState.Closed);
     }
 
+    [HostTest("net.tcp active connect default result is not success", HostLane.Fast, 3)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         TcpActiveConnectTransitionResult defaultResult = default;
@@ -237,7 +203,7 @@ internal static class TcpActiveConnectTransactionTests
                 localNextSequenceNumber: 11,
                 remoteNextSequenceNumber: 0);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == TcpActiveConnectStatus.Success
             && failedResult.IsInitialized
@@ -246,7 +212,7 @@ internal static class TcpActiveConnectTransactionTests
             && failedResult.State == TcpActiveConnectState.Closed
             && failedResult.LocalNextSequenceNumber == 11
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                TcpActiveConnectTransitionResult>();
+                TcpActiveConnectTransitionResult>());
     }
 
     private static bool RejectsSynAck(

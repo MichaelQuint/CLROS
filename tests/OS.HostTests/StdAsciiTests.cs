@@ -3,13 +3,11 @@ using OS.Std;
 
 internal static class StdAsciiTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void Run()
     {
         const string name = "std.ascii helpers";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             ExpectBool("IsDigit", '0', true, Ascii.IsDigit('0'));
             ExpectBool("IsDigit", '9', true, Ascii.IsDigit('9'));
@@ -52,19 +50,10 @@ internal static class StdAsciiTests
             ExpectChar("ToLowerInvariant", 'a', 'a', Ascii.ToLowerInvariant('a'));
             ExpectChar("ToLowerInvariant", '7', '7', Ascii.ToLowerInvariant('7'));
             ExpectChar("ToLowerInvariant", '\u00C9', '\u00C9', Ascii.ToLowerInvariant('\u00C9'));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
 
         const string upperLowerName = "std.ascii upper lower letter helpers";
-        Console.WriteLine("TEST_START " + upperLowerName);
-
-        try
+        HostCheck.Run(upperLowerName, () =>
         {
             ExpectBool("IsUpperLetter", 'A', true, Ascii.IsUpperLetter('A'));
             ExpectBool("IsUpperLetter", 'Z', true, Ascii.IsUpperLetter('Z'));
@@ -97,19 +86,10 @@ internal static class StdAsciiTests
             ExpectBool("IsLowerLetter", (byte)'A', false, Ascii.IsLowerLetter((byte)'A'));
             ExpectBool("IsLowerLetter", (byte)'0', false, Ascii.IsLowerLetter((byte)'0'));
             ExpectBool("IsLowerLetter", (byte)0x80, false, Ascii.IsLowerLetter((byte)0x80));
-
-            Console.WriteLine("TEST_PASS " + upperLowerName);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + upperLowerName + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
 
         const string spaceOrTabName = "std.ascii space-or-tab helper";
-        Console.WriteLine("TEST_START " + spaceOrTabName);
-
-        try
+        HostCheck.Run(spaceOrTabName, () =>
         {
             ExpectBool("IsSpaceOrTab", ' ', true, Ascii.IsSpaceOrTab(' '));
             ExpectBool("IsSpaceOrTab", '\t', true, Ascii.IsSpaceOrTab('\t'));
@@ -128,14 +108,7 @@ internal static class StdAsciiTests
             ExpectBool("IsSpaceOrTab", (byte)'\f', false, Ascii.IsSpaceOrTab((byte)'\f'));
             ExpectBool("IsSpaceOrTab", (byte)'x', false, Ascii.IsSpaceOrTab((byte)'x'));
             ExpectBool("IsSpaceOrTab", 0x80, false, Ascii.IsSpaceOrTab(0x80));
-
-            Console.WriteLine("TEST_PASS " + spaceOrTabName);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + spaceOrTabName + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void ExpectBool(string methodName, char input, bool expected, bool actual)

@@ -12,49 +12,7 @@ internal static class StoragePackageParserTests
     private const int AppContentLength = 17;
     private const int ConfigContentLength = 29;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("storage.package parses package header and file table", TestParsesPackageHeaderAndFileTable, ref failures);
-        Run("storage.package rejects malformed metadata", TestRejectsMalformedMetadata, ref failures);
-        Run("storage.package locates file content", TestLocatesFileContent, ref failures);
-        Run("storage.package enumerates file table", TestEnumeratesFileTable, ref failures);
-        Run("storage.package enumeration exposes file paths", TestEnumerationExposesFilePaths, ref failures);
-        Run("storage.package enumeration rejects out of range index", TestEnumerationRejectsOutOfRangeIndex, ref failures);
-        Run("storage.package parser uses shared memory equality helper", TestUsesSharedMemoryEqualityHelper, ref failures);
-        Run("storage.package parser path copy uses shared buffer operations", TestPathCopyUsesSharedBufferOperations, ref failures);
-        Run("storage.package parser result defaults are not success", TestDefaultResultsAreNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Storage package parser host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.package parses package header and file table", HostLane.Fast, 0)]
     private static bool TestParsesPackageHeaderAndFileTable()
     {
         byte[] package = CreateValidPackage();
@@ -63,7 +21,7 @@ internal static class StoragePackageParserTests
         OsPackageFileLookupResult app = OsPackageParser.FindFile(package, AppPathBytes);
         OsPackageFileLookupResult config = OsPackageParser.FindFile(package, ConfigPathBytes);
 
-        return parse.Succeeded
+        return HostCheck.Result(parse.Succeeded
             && parse.Status == OsPackageStatus.Success
             && parse.Header.Version == OsPackageParser.SupportedVersion
             && parse.Header.HeaderSize == OsPackageParser.HeaderSize
@@ -78,12 +36,13 @@ internal static class StoragePackageParserTests
             && config.Succeeded
             && config.Entry.Index == 1
             && config.Entry.PathLength == ConfigPath.Length
-            && config.Entry.ContentLength == ConfigContentLength;
+            && config.Entry.ContentLength == ConfigContentLength);
     }
 
+    [HostTest("storage.package rejects malformed metadata", HostLane.Fast, 1)]
     private static bool TestRejectsMalformedMetadata()
     {
-        return ParseStatusIs(Array.Empty<byte>(), OsPackageStatus.PackageTooSmall)
+        return HostCheck.Result(ParseStatusIs(Array.Empty<byte>(), OsPackageStatus.PackageTooSmall)
             && MutatedParseStatusIs(
                 static package => package[0] = 0,
                 OsPackageStatus.InvalidMagic)
@@ -135,9 +94,10 @@ internal static class StoragePackageParserTests
                     uint pathOffset = ReadUInt32(package, FirstEntryOffset);
                     package[pathOffset] = (byte)'/';
                 },
-                OsPackageStatus.InvalidPath);
+                OsPackageStatus.InvalidPath));
     }
 
+    [HostTest("storage.package locates file content", HostLane.Fast, 2)]
     private static bool TestLocatesFileContent()
     {
         byte[] package = CreateValidPackage();
@@ -146,7 +106,7 @@ internal static class StoragePackageParserTests
         OsPackageFileContentResult config = OsPackageParser.GetFileContent(package, ConfigPathBytes);
         OsPackageFileLookupResult missing = OsPackageParser.FindFile(package, "bin/missing.dll"u8);
 
-        return app.Succeeded
+        return HostCheck.Result(app.Succeeded
             && app.Status == OsPackageStatus.Success
             && app.Entry.ContentLength == AppContentLength
             && ContentMatches(app.Content, AppContentSeed)
@@ -154,9 +114,10 @@ internal static class StoragePackageParserTests
             && config.Entry.ContentLength == ConfigContentLength
             && ContentMatches(config.Content, ConfigContentSeed)
             && !missing.Succeeded
-            && missing.Status == OsPackageStatus.MissingFile;
+            && missing.Status == OsPackageStatus.MissingFile);
     }
 
+    [HostTest("storage.package enumerates file table", HostLane.Fast, 3)]
     private static bool TestEnumeratesFileTable()
     {
         byte[] package = CreateValidPackage();
@@ -164,7 +125,7 @@ internal static class StoragePackageParserTests
         OsPackageFileLookupResult first = OsPackageParser.GetFileByIndex(package, 0);
         OsPackageFileLookupResult second = OsPackageParser.GetFileByIndex(package, 1);
 
-        return first.Succeeded
+        return HostCheck.Result(first.Succeeded
             && first.Header.FileCount == FileCount
             && first.Entry.Index == 0
             && first.Entry.PathLength == AppPath.Length
@@ -172,9 +133,10 @@ internal static class StoragePackageParserTests
             && second.Succeeded
             && second.Entry.Index == 1
             && second.Entry.PathLength == ConfigPath.Length
-            && second.Entry.ContentLength == ConfigContentLength;
+            && second.Entry.ContentLength == ConfigContentLength);
     }
 
+    [HostTest("storage.package enumeration exposes file paths", HostLane.Fast, 4)]
     private static bool TestEnumerationExposesFilePaths()
     {
         byte[] package = CreateValidPackage();
@@ -190,16 +152,17 @@ internal static class StoragePackageParserTests
             1,
             configPath);
 
-        return first.Succeeded
+        return HostCheck.Result(first.Succeeded
             && first.BytesWritten == (ulong)AppPath.Length
             && first.RequiredBytes == (ulong)AppPath.Length
             && PathMatches(appPath, AppPath)
             && second.Succeeded
             && second.BytesWritten == (ulong)ConfigPath.Length
             && second.RequiredBytes == (ulong)ConfigPath.Length
-            && PathMatches(configPath, ConfigPath);
+            && PathMatches(configPath, ConfigPath));
     }
 
+    [HostTest("storage.package enumeration rejects out of range index", HostLane.Fast, 5)]
     private static bool TestEnumerationRejectsOutOfRangeIndex()
     {
         byte[] package = CreateValidPackage();
@@ -211,15 +174,16 @@ internal static class StoragePackageParserTests
             FileCount,
             destination);
 
-        return !lookup.Succeeded
+        return HostCheck.Result(!lookup.Succeeded
             && lookup.Status == OsPackageStatus.FileIndexOutOfRange
             && lookup.Header.FileCount == FileCount
             && !copy.Succeeded
             && copy.Status == OsPackageStatus.FileIndexOutOfRange
             && copy.BytesWritten == 0
-            && copy.RequiredBytes == 0;
+            && copy.RequiredBytes == 0);
     }
 
+    [HostTest("storage.package parser result defaults are not success", HostLane.Fast, 8)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         OsPackageParseResult parse = default;
@@ -235,7 +199,7 @@ internal static class StoragePackageParserTests
             requiredBytes: 9);
         OsPackageFileContentResult contentFailure = OsPackageFileContentResult.Fail(OsPackageStatus.InvalidPath);
 
-        return !parse.IsInitialized
+        return HostCheck.Result(!parse.IsInitialized
             && !parse.Succeeded
             && parse.Status == OsPackageStatus.Success
             && !lookup.IsInitialized
@@ -267,16 +231,17 @@ internal static class StoragePackageParserTests
             && contentFailure.Content.Length == 0
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OsPackageParseResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OsPackageFileLookupResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OsPackageFilePathCopyResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OsPackageFilePathCopyResult>());
     }
 
+    [HostTest("storage.package parser uses shared memory equality helper", HostLane.Fast, 6)]
     private static bool TestUsesSharedMemoryEqualityHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "OsPackageParser.cs"));
 
-        return source.Contains(
+        return HostCheck.Result(source.Contains(
                 "OS.Std.MemoryExtensions.SequenceEqual(value, \"OSPKGv0\\0\"u8)",
                 StringComparison.Ordinal)
             && source.Contains(
@@ -287,20 +252,21 @@ internal static class StoragePackageParserTests
                 StringComparison.Ordinal)
             && !source.Contains(
                 "private static bool PathsEqual",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("storage.package parser path copy uses shared buffer operations", HostLane.Fast, 7)]
     private static bool TestPathCopyUsesSharedBufferOperations()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "OsPackageParser.cs"));
 
-        return source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
             && source.Contains("BufferOperations.MemoryCopy(path, destination)", StringComparison.Ordinal)
             && source.Contains("if (!copy.Succeeded)", StringComparison.Ordinal)
             && source.Contains("OsPackageStatus.DestinationTooSmall", StringComparison.Ordinal)
-            && !source.Contains("path.CopyTo(destination)", StringComparison.Ordinal);
+            && !source.Contains("path.CopyTo(destination)", StringComparison.Ordinal));
     }
 
     private static bool ParseStatusIs(byte[] package, OsPackageStatus status)

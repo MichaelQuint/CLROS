@@ -7,54 +7,7 @@ internal static class BootPageAllocatorReadinessComposerTests
 {
     private const ulong PageSize = BootMemoryRegionRecord.PageSize;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("memory.boot allocator readiness composes", TestComposesReadiness, ref failures);
-        Run(
-            "memory.boot allocator readiness reports scratch capacity",
-            TestReportsScratchCapacity,
-            ref failures);
-        Run(
-            "memory.boot allocator readiness rejects invalid regions",
-            TestRejectsInvalidRegions,
-            ref failures);
-        Run(
-            "memory.boot allocator readiness emits boot marker metadata",
-            TestEmitsBootMarkerMetadata,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Boot page allocator readiness composer host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("memory.boot allocator readiness composes", HostLane.Fast, 0)]
     private static bool TestComposesReadiness()
     {
         Span<BootMemoryRegionRecord> source = stackalloc BootMemoryRegionRecord[4];
@@ -83,7 +36,7 @@ internal static class BootPageAllocatorReadinessComposerTests
         string expectedMarker = BootSequence.CreateBootPageAllocatorReadyMarker(result.AllocatorState);
         string[] snapshot = events.Snapshot();
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == BootPageAllocatorReadinessComposeStatus.Success
             && result.RegionPlan.Status == BootMemoryRegionPlanStatus.Success
             && result.RegionPlan.UsableRangeCount == 2
@@ -102,9 +55,10 @@ internal static class BootPageAllocatorReadinessComposerTests
             && serial.LineAt(0).StartsWith(BootSequence.BootPageAllocatorReadyPrefix, StringComparison.Ordinal)
             && snapshot.Length == 1
             && snapshot[0] == expectedMarker
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<BootPageAllocatorReadinessComposeResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<BootPageAllocatorReadinessComposeResult>());
     }
 
+    [HostTest("memory.boot allocator readiness reports scratch capacity", HostLane.Fast, 1)]
     private static bool TestReportsScratchCapacity()
     {
         Span<BootMemoryRegionRecord> source = stackalloc BootMemoryRegionRecord[3];
@@ -134,7 +88,7 @@ internal static class BootPageAllocatorReadinessComposerTests
                 serial,
                 events);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == BootPageAllocatorReadinessComposeStatus.MemoryRegionPlanFailed
             && result.RegionPlan.Status == BootMemoryRegionPlanStatus.UsableDestinationTooSmall
             && result.RegionPlan.RequiredUsableRangeCapacity == 2
@@ -145,9 +99,10 @@ internal static class BootPageAllocatorReadinessComposerTests
             && events.Snapshot().Length == 0
             && freeSegments[0].PhysicalStart == segmentSentinel.PhysicalStart
             && nodes[0].PhysicalStart == nodeSentinel.PhysicalStart
-            && nodes[0].NextNodeIndex == nodeSentinel.NextNodeIndex;
+            && nodes[0].NextNodeIndex == nodeSentinel.NextNodeIndex);
     }
 
+    [HostTest("memory.boot allocator readiness rejects invalid regions", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidRegions()
     {
         Span<BootMemoryRegionRecord> source = stackalloc BootMemoryRegionRecord[2];
@@ -172,15 +127,16 @@ internal static class BootPageAllocatorReadinessComposerTests
                 serial,
                 events);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == BootPageAllocatorReadinessComposeStatus.MemoryRegionPlanFailed
             && result.RegionPlan.Status == BootMemoryRegionPlanStatus.OverlappingRange
             && result.RegionPlan.InvalidRegionIndex == 1
             && !result.BootReadinessInvoked
             && serial.Count == 0
-            && events.Snapshot().Length == 0;
+            && events.Snapshot().Length == 0);
     }
 
+    [HostTest("memory.boot allocator readiness emits boot marker metadata", HostLane.Fast, 3)]
     private static bool TestEmitsBootMarkerMetadata()
     {
         Span<BootMemoryRegionRecord> source = stackalloc BootMemoryRegionRecord[1];
@@ -207,7 +163,7 @@ internal static class BootPageAllocatorReadinessComposerTests
             BootPageAllocatorReadinessStatus.StateInitializationFailed,
             result.AllocatorState);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == BootPageAllocatorReadinessComposeStatus.AllocatorPlanFailed
             && result.RegionPlan.Succeeded
             && result.AllocatorPlan.Status == BootPageAllocatorPlanStatus.InvalidPageSize
@@ -222,7 +178,7 @@ internal static class BootPageAllocatorReadinessComposerTests
                 "status=StateInitializationFailed state=FreeListPlanFailed freeList=AllocatorPlanFailed",
                 StringComparison.Ordinal)
             && events.Snapshot().Length == 1
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
     private static BootMemoryRegionRecord Region(

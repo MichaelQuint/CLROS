@@ -7,17 +7,14 @@ using System.Xml.Linq;
 internal static class M02OwnedCom1ReadyEfiIntegrationTests
 {
     private const string TestName = "m02.005.efi.integration";
-    private const string StandaloneMarker = "OWNED_COM1_READY";
+    private const string StandaloneMarker = OS.Tooling.QemuContracts.Record113;
     private const string ReadyMarker =
-        "CLROS_M02_005_READY marker=OWNED_COM1_READY markerBytes=16 lineEndingBytes=2 " +
-        "configurationWrites=7 lineStatusPolls=18 ownedWriter=true " +
-        "ownedMarkerTransport=com1PortIo evidenceMarkerTransport=uefiSerial " +
-        "guestPortIo=true guestIn8=true postExitBootServices=false";
-    private const string FailureMarker = "M02_OWNED_COM1_READY_FAILED";
-    private const string CompileClosureSha256 =
-        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
+        OS.Tooling.QemuContracts.Record114;
+    private const string FailureMarker = OS.Tooling.QemuContracts.Record108;
+    private static readonly string CompileClosureSha256 =
+        OS.Tooling.EfiContracts.CompileInventorySha256;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START " + TestName);
@@ -56,195 +53,40 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
         Func<bool> test,
         ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
 
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + name + " " + exception.GetType().Name + ": " +
-                exception.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestCompileClosureAndSwitch()
-    {
-        string root = HostToolProcess.FindRepositoryRoot();
-        XDocument project = XDocument.Load(
-            Path.Combine(root, "src", "OS", "OS.csproj"));
-        XElement[] compileItems = project.Descendants("Compile").ToArray();
-        string[] compileKeys = compileItems
-            .Select(item =>
-                (item.Attribute("Include")?.Value ?? string.Empty) + "|" +
-                (item.Attribute("Link")?.Value ?? string.Empty))
-            .ToArray();
-        string compileText = string.Join("\n", compileKeys) + "\n";
-        string compileHash = Convert.ToHexString(
-                SHA256.HashData(Encoding.UTF8.GetBytes(compileText)))
-            .ToLowerInvariant();
-
-        const string BackendKey =
-            @"..\OS.Kernel\Diagnostics\COM1OwnedPortIOBackend.cs|Diagnostics\COM1OwnedPortIOBackend.cs";
-        const string WriterKey =
-            @"..\OS.Kernel\Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs|Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs";
-        const string PanicReporterKey =
-            @"..\OS.Kernel\Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs|Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs";
-        const string GdtKey =
-            @"..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs";
-        const string GuardedIstKey =
-            @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
-        const string TerminalKey =
-            @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
-        const string NormalizedInterruptFrameKey =
-            @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
-        const string CatalogKey =
-            @"..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
-        int backendIndex = Array.IndexOf(compileKeys, BackendKey);
-        int writerIndex = Array.IndexOf(compileKeys, WriterKey);
-        int panicReporterIndex = Array.IndexOf(compileKeys, PanicReporterKey);
-        int gdtIndex = Array.IndexOf(compileKeys, GdtKey);
-        int guardedIstIndex = Array.IndexOf(compileKeys, GuardedIstKey);
-        int terminalIndex = Array.IndexOf(compileKeys, TerminalKey);
-        int normalizedInterruptFrameIndex =
-            Array.IndexOf(compileKeys, NormalizedInterruptFrameKey);
-        int catalogIndex = Array.IndexOf(compileKeys, CatalogKey);
-
-        XElement[] defaults = project
-            .Descendants("EnableM02OwnedCom1ReadyProbe")
-            .Where(element => element.Attribute("Condition")?.Value ==
-                "'$(EnableM02OwnedCom1ReadyProbe)' == ''")
-            .ToArray();
-        XElement[] ud2ProfileOverrides = project
-            .Descendants("PropertyGroup")
-            .Where(group => group.Attribute("Condition")?.Value ==
-                "'$(EnableM02Ud2VectorStateProbe)' == 'true'")
-            .SelectMany(group => group.Elements(
-                "EnableM02OwnedCom1ReadyProbe"))
-            .ToArray();
-        XElement[] symbolGroups = project
-            .Descendants("PropertyGroup")
-            .Where(element =>
-                element.Attribute("Condition")?.Value ==
-                    "'$(EnableM02OwnedCom1ReadyProbe)' == 'true'")
-            .ToArray();
-        string[] dependencyConditions = project
-            .Descendants("Error")
-            .Select(element => element.Attribute("Condition")?.Value ?? string.Empty)
-            .Where(value => value.StartsWith(
-                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true'",
-                StringComparison.Ordinal))
-            .ToArray();
-
-        string buildScript = File.ReadAllText(
-            Path.Combine(root, "scripts", "build-efi-shell.ps1"));
-        string verifierScript = File.ReadAllText(
-            Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
-
-        return compileItems.Length == 122
-            && compileHash == CompileClosureSha256
-            && backendIndex >= 0
-            && writerIndex == backendIndex + 1
-            && panicReporterIndex == writerIndex + 1
-            && gdtIndex == panicReporterIndex + 1
-            && guardedIstIndex == gdtIndex + 1
-            && terminalIndex == guardedIstIndex + 1
-            && normalizedInterruptFrameIndex == terminalIndex + 1
-            && catalogIndex == normalizedInterruptFrameIndex + 17
-            && compileKeys.Count(key => key == WriterKey) == 1
-            && compileKeys.Count(key => key == PanicReporterKey) == 1
-            && defaults.Length == 1
-            && defaults[0].Value == "false"
-            && defaults[0].Attribute("Condition")?.Value ==
-                "'$(EnableM02OwnedCom1ReadyProbe)' == ''"
-            && ud2ProfileOverrides.Length == 1
-            && ud2ProfileOverrides[0].Value == "true"
-            && symbolGroups.Length == 1
-            && symbolGroups[0].Elements("DefineConstants").Single().Value ==
-                "$(DefineConstants);M02_OWNED_COM1_READY_PROBE"
-            && dependencyConditions.Length == 14
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM02Com1OwnedPortIoProbe)' != 'true'",
-                StringComparer.Ordinal)
-            && buildScript.Contains(
-                "[switch] $EnableM02OwnedCom1ReadyProbe",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "$arguments += \"-p:EnableM02OwnedCom1ReadyProbe=true\"",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "m02_owned_com1_ready_requires_com1_owned_port_io",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "\"-EnableM02OwnedCom1ReadyProbe\",\n            \"true\"",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "$parameterName -ceq \"EnableM02OwnedCom1ReadyProbe\"",
-                StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "[switch]$EnableM02OwnedCom1ReadyProbe",
-                StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 138",
-                StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "$compileItems.Count -ne 122",
-                StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "-p:EnableM02OwnedCom1ReadyProbe=true",
-                StringComparison.Ordinal);
-    }
+{
+    string root = HostToolProcess.FindRepositoryRoot();
+    XDocument project = XDocument.Load(Path.Combine(root, "src", "OS", "OS.csproj"));
+    XElement[] compileItems = project.Descendants("Compile").ToArray();
+    string[] compileKeys = compileItems.Select(item => (item.Attribute("Include")?.Value ?? string.Empty) + "|" + (item.Attribute("Link")?.Value ?? string.Empty)).ToArray();
+    string compileText = string.Join("\n", compileKeys) + "\n";
+    string compileHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(compileText))).ToLowerInvariant();
+    const string BackendKey = @"..\OS.Kernel\Diagnostics\COM1OwnedPortIOBackend.cs|Diagnostics\COM1OwnedPortIOBackend.cs";
+    const string WriterKey = @"..\OS.Kernel\Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs|Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs";
+    const string PanicReporterKey = @"..\OS.Kernel\Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs|Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs";
+    const string GdtKey = @"..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs";
+    const string GuardedIstKey = @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
+    const string TerminalKey = @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
+    const string NormalizedInterruptFrameKey = @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
+    const string CatalogKey = @"..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
+    int backendIndex = Array.IndexOf(compileKeys, BackendKey);
+    int writerIndex = Array.IndexOf(compileKeys, WriterKey);
+    int panicReporterIndex = Array.IndexOf(compileKeys, PanicReporterKey);
+    int gdtIndex = Array.IndexOf(compileKeys, GdtKey);
+    int guardedIstIndex = Array.IndexOf(compileKeys, GuardedIstKey);
+    int terminalIndex = Array.IndexOf(compileKeys, TerminalKey);
+    int normalizedInterruptFrameIndex = Array.IndexOf(compileKeys, NormalizedInterruptFrameKey);
+    int catalogIndex = Array.IndexOf(compileKeys, CatalogKey);
+    XElement[] defaults = project.Descendants("EnableM02OwnedCom1ReadyProbe").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02OwnedCom1ReadyProbe)' == ''").ToArray();
+    XElement[] ud2ProfileOverrides = project.Descendants("PropertyGroup").Where(group => group.Attribute("Condition")?.Value == "'$(EnableM02Ud2VectorStateProbe)' == 'true'").SelectMany(group => group.Elements("EnableM02OwnedCom1ReadyProbe")).ToArray();
+    XElement[] symbolGroups = project.Descendants("PropertyGroup").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02OwnedCom1ReadyProbe)' == 'true'").ToArray();
+    string[] dependencyConditions = project.Descendants("Error").Select(element => element.Attribute("Condition")?.Value ?? string.Empty).Where(value => value.StartsWith("'$(EnableM02OwnedCom1ReadyProbe)' == 'true'", StringComparison.Ordinal)).ToArray();
+    return (compileItems.Length == OS.Tooling.EfiContracts.CompileItems.Count && compileHash == CompileClosureSha256 && backendIndex >= 0 && writerIndex == backendIndex + 1 && panicReporterIndex == writerIndex + 1 && gdtIndex == panicReporterIndex + 1 && guardedIstIndex == gdtIndex + 1 && terminalIndex == guardedIstIndex + 1 && normalizedInterruptFrameIndex == terminalIndex + 1 && catalogIndex == normalizedInterruptFrameIndex + 17 && compileKeys.Count(key => key == WriterKey) == 1 && compileKeys.Count(key => key == PanicReporterKey) == 1 && defaults.Length == 1 && defaults[0].Value == "false" && defaults[0].Attribute("Condition")?.Value == "'$(EnableM02OwnedCom1ReadyProbe)' == ''" && ud2ProfileOverrides.Length == 1 && ud2ProfileOverrides[0].Value == "true" && symbolGroups.Length == 1 && symbolGroups[0].Elements("DefineConstants").Single().Value == "$(DefineConstants);M02_OWNED_COM1_READY_PROBE" && dependencyConditions.Length == 14 && dependencyConditions.Contains("'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedCom1ReadyProbe)' == 'true' and '$(EnableM02Com1OwnedPortIoProbe)' != 'true'", StringComparer.Ordinal)) && OS.Tooling.ContractAudit.Inspect(root).Count == 0;
+}
 
     private static bool TestEntryCallOrderAndResultGate()
     {
@@ -398,59 +240,7 @@ internal static class M02OwnedCom1ReadyEfiIntegrationTests
                 StringComparison.Ordinal);
     }
 
-    private static bool TestQemuProfileSource()
-    {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(root, "scripts", "run-qemu-smoke.ps1"));
-
-        int ownedProfile = source.IndexOf(
-            "elseif ($EnableM02OwnedCom1ReadyProbe) {",
-            StringComparison.Ordinal);
-        int priorProfile = IndexOfAfter(
-            source,
-            "elseif ($EnableM02Com1OwnedPortIoProbe) {",
-            ownedProfile);
-
-        return source.Contains(
-                "[switch] $EnableM02OwnedCom1ReadyProbe",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$script:M02OwnedCom1ReadyStandaloneMarker = \"" +
-                    StandaloneMarker + "\"",
-                StringComparison.Ordinal)
-            && source.Contains(ReadyMarker, StringComparison.Ordinal)
-            && source.Contains(FailureMarker, StringComparison.Ordinal)
-            && source.Contains(
-                "$script:M02OwnedCom1ReadyRequiredMarkers",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$script:M02OwnedCom1ReadyForbiddenMarkers",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "m02_owned_com1_ready_probe_requires_com1_owned_port_io",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "m02_owned_com1_ready_probe_requires_build_efi",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "m02_owned_com1_ready_probe_forbids_skip_image_build",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$buildArguments += \"-EnableM02OwnedCom1ReadyProbe\"",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "QEMU_SCRIPT_M02_OWNED_COM1_READY_PREREQUISITES",
-                StringComparison.Ordinal)
-            && CountOccurrences(
-                source,
-                "[System.Management.Automation.SwitchParameter]::new($true)") == 35
-            && source.Contains(
-                "profileRequired=52 profileForbidden=37",
-                StringComparison.Ordinal)
-            && ownedProfile >= 0
-            && priorProfile > ownedProfile;
-    }
+    private static bool TestQemuProfileSource() => EfiProfileTestControls.Returning("M02OwnedCom1Ready", OS.Tooling.QemuContracts.M02OwnedCom1ReadyRequiredMarkers, OS.Tooling.QemuContracts.M02OwnedCom1ReadyForbiddenMarkers, ReadyMarker, FailureMarker);
 
     private static string ExtractAsciiMarker(string source, string methodToken)
     {

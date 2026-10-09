@@ -4,46 +4,8 @@ using OS.Storage;
 
 internal static class StorageVirtioBlockRequestPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("storage.virtioblk read request layout", TestReadRequestLayout, ref failures);
-        Run("storage.virtioblk readiness accepts read-only queue", TestReadinessAcceptsReadOnlyQueue, ref failures);
-        Run("storage.virtioblk readiness rejects missing features", TestReadinessRejectsMissingFeatures, ref failures);
-        Run("storage.virtioblk rejects write request in read-only mode", TestRejectsWriteRequestInReadOnlyMode, ref failures);
-        Run("storage.virtioblk request default result is not success", TestDefaultRequestResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk readiness default result is not success", TestDefaultReadinessResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio block request-plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.virtioblk read request layout", HostLane.Fast, 0)]
     private static bool TestReadRequestLayout()
     {
         VirtioBlockRequestPlanResult result = VirtioBlockRequestPlan.Create(
@@ -53,14 +15,14 @@ internal static class StorageVirtioBlockRequestPlanTests
             readOnlyMode: true);
         if (!result.Succeeded || result.Status != VirtioBlockRequestPlanStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioBlockRequestPlan plan = result.Plan;
         Span<byte> header = stackalloc byte[(int)VirtioBlockRequestPlan.RequestHeaderLength];
         VirtioBlockRequestPlanStatus headerStatus = plan.WriteHeader(header);
 
-        return plan.RequestType == VirtioBlockRequestType.Read
+        return HostCheck.Result(plan.RequestType == VirtioBlockRequestType.Read
             && plan.Sector == 42
             && plan.SectorCount == 4
             && plan.DataByteCount == 2048
@@ -85,9 +47,10 @@ internal static class StorageVirtioBlockRequestPlanTests
             && headerStatus == VirtioBlockRequestPlanStatus.Success
             && EndianPrimitives.ReadUInt32LittleEndian(header.Slice(0, 4)) == (uint)VirtioBlockRequestType.Read
             && EndianPrimitives.ReadUInt32LittleEndian(header.Slice(4, 4)) == 0
-            && EndianPrimitives.ReadUInt64LittleEndian(header.Slice(8, 8)) == 42;
+            && EndianPrimitives.ReadUInt64LittleEndian(header.Slice(8, 8)) == 42);
     }
 
+    [HostTest("storage.virtioblk readiness accepts read-only queue", HostLane.Fast, 1)]
     private static bool TestReadinessAcceptsReadOnlyQueue()
     {
         VirtioBlockRequestPlanResult plan = VirtioBlockRequestPlan.Create(
@@ -101,14 +64,15 @@ internal static class StorageVirtioBlockRequestPlanTests
             VirtioBlockRequestPlan.RequiredDescriptorCount,
             plan);
 
-        return readiness.Succeeded
+        return HostCheck.Result(readiness.Succeeded
             && readiness.Status == VirtioBlockQueueReadinessStatus.Ready
             && readiness.RequestPlanStatus == VirtioBlockRequestPlanStatus.Success
             && readiness.QueueSize == VirtioBlockRequestPlan.RequiredDescriptorCount
             && readiness.RequestPlan.Sector == 7
-            && readiness.RequestPlan.DataDescriptor.DeviceWrites;
+            && readiness.RequestPlan.DataDescriptor.DeviceWrites);
     }
 
+    [HostTest("storage.virtioblk readiness rejects missing features", HostLane.Fast, 2)]
     private static bool TestReadinessRejectsMissingFeatures()
     {
         VirtioBlockRequestPlanResult plan = VirtioBlockRequestPlan.Create(
@@ -122,11 +86,12 @@ internal static class StorageVirtioBlockRequestPlanTests
             queueSize: VirtioBlockRequestPlan.RequiredDescriptorCount,
             requestPlan: plan);
 
-        return !readiness.Succeeded
+        return HostCheck.Result(!readiness.Succeeded
             && readiness.Status == VirtioBlockQueueReadinessStatus.MissingReadOnlyFeature
-            && readiness.RequestPlanStatus == VirtioBlockRequestPlanStatus.Success;
+            && readiness.RequestPlanStatus == VirtioBlockRequestPlanStatus.Success);
     }
 
+    [HostTest("storage.virtioblk rejects write request in read-only mode", HostLane.Fast, 3)]
     private static bool TestRejectsWriteRequestInReadOnlyMode()
     {
         VirtioBlockRequestPlanResult rejectedPlan = VirtioBlockRequestPlan.Create(
@@ -137,7 +102,7 @@ internal static class StorageVirtioBlockRequestPlanTests
         if (rejectedPlan.Succeeded ||
             rejectedPlan.Status != VirtioBlockRequestPlanStatus.WriteRejectedReadOnlyMode)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioBlockRequestPlanResult writePlan = VirtioBlockRequestPlan.Create(
@@ -149,7 +114,7 @@ internal static class StorageVirtioBlockRequestPlanTests
             !writePlan.Plan.DataDescriptor.DeviceReads ||
             writePlan.Plan.DataDescriptor.DeviceWrites)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioBlockQueueReadinessResult readiness = VirtioBlockQueueReadiness.ValidateReadOnlyQueue(
@@ -157,18 +122,19 @@ internal static class StorageVirtioBlockRequestPlanTests
             VirtioBlockRequestPlan.RequiredDescriptorCount,
             writePlan);
 
-        return !readiness.Succeeded
+        return HostCheck.Result(!readiness.Succeeded
             && readiness.Status == VirtioBlockQueueReadinessStatus.WriteRejectedReadOnlyMode
-            && readiness.RequestPlanStatus == VirtioBlockRequestPlanStatus.WriteRejectedReadOnlyMode;
+            && readiness.RequestPlanStatus == VirtioBlockRequestPlanStatus.WriteRejectedReadOnlyMode);
     }
 
+    [HostTest("storage.virtioblk request default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultRequestResultIsNotSuccess()
     {
         VirtioBlockRequestPlanResult result = default;
         VirtioBlockRequestPlanResult failed =
             VirtioBlockRequestPlanResult.Fail(VirtioBlockRequestPlanStatus.InvalidSectorCount);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockRequestPlanStatus.Success
             && result.Plan.Sector == 0
@@ -177,9 +143,10 @@ internal static class StorageVirtioBlockRequestPlanTests
             && failed.IsInitialized
             && !failed.Succeeded
             && failed.Status == VirtioBlockRequestPlanStatus.InvalidSectorCount
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockRequestPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockRequestPlanResult>());
     }
 
+    [HostTest("storage.virtioblk readiness default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultReadinessResultIsNotSuccess()
     {
         VirtioBlockQueueReadinessResult result = default;
@@ -189,7 +156,7 @@ internal static class StorageVirtioBlockRequestPlanTests
                 VirtioBlockRequestPlanStatus.Success,
                 queueSize: 1);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockQueueReadinessStatus.Ready
             && result.RequestPlanStatus == VirtioBlockRequestPlanStatus.Success
@@ -200,6 +167,6 @@ internal static class StorageVirtioBlockRequestPlanTests
             && failed.Status == VirtioBlockQueueReadinessStatus.QueueTooSmall
             && failed.RequestPlanStatus == VirtioBlockRequestPlanStatus.Success
             && failed.QueueSize == 1
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueReadinessResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueReadinessResult>());
     }
 }

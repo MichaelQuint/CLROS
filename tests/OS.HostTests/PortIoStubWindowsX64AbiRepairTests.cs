@@ -9,23 +9,23 @@ internal static class PortIoStubWindowsX64AbiRepairTests
         "CLROS_M02_OUT8_ABI_REPAIR_READY " +
         "out8Bytes=88D06689CAEEC3 " +
         "fnv1a64=982E5B7E3EE58E56 " +
-        "sha256=B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2 " +
+        "sha256=" + OS.Tooling.EfiContracts.PortIoStubPageSha256 + " " +
         "valueBeforePort=true in8Unchanged=true";
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
-        Console.WriteLine("TEST_START " + TestName);
-
-        if (!TestExactWindowsX64ArgumentPreservationAndPageFingerprint())
+        HostCheck.Run(TestName, () =>
         {
-            Console.WriteLine("TEST_FAIL " + TestName + " contract_mismatch");
-            throw new InvalidOperationException(
-                "The Out8 Windows x64 ABI repair contract does not match.");
-        }
 
-        Console.WriteLine(ReadyMarker);
-        Console.WriteLine("TEST_PASS " + TestName);
+            if (!TestExactWindowsX64ArgumentPreservationAndPageFingerprint())
+            {
+                throw new InvalidOperationException(
+                    "The Out8 Windows x64 ABI repair contract does not match.");
+            }
+
+            Console.WriteLine(ReadyMarker);
+        });
     }
 
     private static bool TestExactWindowsX64ArgumentPreservationAndPageFingerprint()
@@ -69,7 +69,7 @@ internal static class PortIoStubWindowsX64AbiRepairTests
             fnv1a64 == ExistingIn8Out8StubBytesRWPagesFinalize.ExpectedFnv1a64 &&
             string.Equals(
                 sha256,
-                "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2",
+                OS.Tooling.EfiContracts.PortIoStubPageSha256,
                 StringComparison.Ordinal);
     }
 }

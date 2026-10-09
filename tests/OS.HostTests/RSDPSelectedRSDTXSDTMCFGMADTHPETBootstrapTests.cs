@@ -6,35 +6,6 @@ using Bootstrap = OS.Boot.RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrap;
 
 internal static class RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrapTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-        Run("m03.002", TestFiveCopies, ref failures);
-        Run("m03.002 ACPI1 and XSDT fallback", TestRootSelection, ref failures);
-        Run("m03.002 first matching root order", TestFirstMatch, ref failures);
-        Run("m03.002 independent retained bytes", TestRetention, ref failures);
-        Run("m03.002 rejects malformed envelopes", TestEnvelopes, ref failures);
-        Run("m03.002 rejects address and duplicate metadata", TestAddresses, ref failures);
-        Run("m03.002 requires all three selected children", TestMissing, ref failures);
-        Run("m03.002 exact capacities and untouched tails", TestCapacity, ref failures);
-        Run("m03.002 rejects aliases before scratch writes", TestAliases, ref failures);
-        Run("m03.002 ignores forged success metadata", TestDefaultAndForged, ref failures);
-        Run("m03.002 warmed zero allocation", TestNoAllocation, ref failures);
-        if (failures != 0)
-            throw new InvalidOperationException("M03-002 bootstrap-copy tests failed: " + failures);
-    }
-
-    private static void Run(string name, Action test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-        try { test(); Console.WriteLine("TEST_PASS " + name); }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
 
     private static void Check(bool condition, string reason)
     {
@@ -69,6 +40,7 @@ internal static class RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrapTests
         internal int Total => Rsdp.Length + Root.Length + Mcfg.Length + Madt.Length + Hpet.Length;
     }
 
+    [HostTest("m03.002", HostLane.Fast, 0)]
     private static void TestFiveCopies()
     {
         Fixture f = new();
@@ -95,6 +67,7 @@ internal static class RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrapTests
         Check(destination.AsSpan(offset, bytes.Length).SequenceEqual(bytes), "full owned bytes");
     }
 
+    [HostTest("m03.002 ACPI1 and XSDT fallback", HostLane.Fast, 1)]
     private static void TestRootSelection()
     {
         foreach (Fixture f in new[] { new Fixture(false), new Fixture(true, true) })
@@ -109,6 +82,7 @@ internal static class RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrapTests
         Reject(noFallbackOnFailure, AcpiBootstrapCopyStatus.InvalidRoot);
     }
 
+    [HostTest("m03.002 first matching root order", HostLane.Fast, 2)]
     private static void TestFirstMatch()
     {
         Fixture f = new(); byte[] first = Sdt(AcpiTableDirectory.McfgSignature, 47, 0xE1);
@@ -127,6 +101,7 @@ internal static class RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrapTests
         Check(later.Copy().Succeeded, "later unselected envelope policy");
     }
 
+    [HostTest("m03.002 independent retained bytes", HostLane.Fast, 3)]
     private static void TestRetention()
     {
         Fixture f = new(); AcpiBootstrapCopyResult r = f.Copy();
@@ -139,6 +114,7 @@ internal static class RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrapTests
             "embedded original pointers retained");
     }
 
+    [HostTest("m03.002 rejects malformed envelopes", HostLane.Fast, 4)]
     private static void TestEnvelopes()
     {
         foreach (int index in new[] { 0, 8, 32 })
@@ -171,6 +147,7 @@ internal static class RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrapTests
         Fixture oddRoot = new(); oddRoot.Root = Sdt(AcpiSdtParser.XsdtSignature, 61, 1); Reject(oddRoot, AcpiBootstrapCopyStatus.InvalidRoot);
     }
 
+    [HostTest("m03.002 rejects address and duplicate metadata", HostLane.Fast, 5)]
     private static void TestAddresses()
     {
         foreach (ulong address in new[] { 0UL, ulong.MaxValue, ulong.MaxValue - 38 })
@@ -199,6 +176,7 @@ internal static class RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrapTests
         Reject(unmatched, AcpiBootstrapCopyStatus.InvalidChild);
     }
 
+    [HostTest("m03.002 requires all three selected children", HostLane.Fast, 6)]
     private static void TestMissing()
     {
         for (int i = 0; i < 3; i++)
@@ -210,6 +188,7 @@ internal static class RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrapTests
         Fixture absent = new(); absent.Sources = []; Reject(absent, AcpiBootstrapCopyStatus.InvalidChild);
     }
 
+    [HostTest("m03.002 exact capacities and untouched tails", HostLane.Fast, 7)]
     private static void TestCapacity()
     {
         Fixture f = new(); int required = f.Total;
@@ -227,6 +206,7 @@ internal static class RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrapTests
         Check(f.Destination.AsSpan(f.Total).IndexOfAnyExcept((byte)0xAD) < 0, "all tail preserved");
     }
 
+    [HostTest("m03.002 rejects aliases before scratch writes", HostLane.Fast, 8)]
     private static void TestAliases()
     {
         for (int i = 0; i < 5; i++)
@@ -255,6 +235,7 @@ internal static class RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrapTests
             "unused destination capacity aliases source");
     }
 
+    [HostTest("m03.002 ignores forged success metadata", HostLane.Fast, 9)]
     private static void TestDefaultAndForged()
     {
         Check(!default(AcpiBootstrapCopyResult).Succeeded && default(AcpiBootstrapCopyResult).CopiedBytes == 0, "default failure");
@@ -267,6 +248,7 @@ internal static class RSDPSelectedRSDTXSDTMCFGMADTHPETBootstrapTests
         f = new(); f.Sources[0] = default; Reject(f, AcpiBootstrapCopyStatus.InvalidSourceRange);
     }
 
+    [HostTest("m03.002 warmed zero allocation", HostLane.Fast, 10)]
     private static void TestNoAllocation()
     {
         Fixture f = new();

@@ -34,49 +34,10 @@ internal static class PalAbiLayoutTests
         typeof(OSHostWaitResult)
     ];
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("pal abi status code values are stable", TestStatusCodeValues, ref failures);
-        Run("pal abi structs use sequential layout", TestSequentialLayout, ref failures);
-        Run("pal abi fields are public readonly", TestFieldsArePublicReadonly, ref failures);
-        Run("pal abi structs contain no managed references", TestNoManagedReferences, ref failures);
-        Run("pal abi struct sizes are stable", TestStableSizes, ref failures);
-        Run("pal abi field offsets are stable", TestStableOffsets, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL ABI layout tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal abi status code values are stable", HostLane.Fast, 0)]
     private static bool TestStatusCodeValues()
     {
-        return (int)OSHostStatus.Ok == 0
+        return HostCheck.Result((int)OSHostStatus.Ok == 0
             && (int)OSHostStatus.InvalidArgument == 1
             && (int)OSHostStatus.NotSupported == 2
             && (int)OSHostStatus.NotFound == 3
@@ -95,9 +56,10 @@ internal static class PalAbiLayoutTests
             && (int)OSHostStatus.TryAgain == 16
             && (int)OSHostStatus.IoError == 17
             && (int)OSHostStatus.InternalError == 18
-            && (int)OSHostStatus.Closed == 19;
+            && (int)OSHostStatus.Closed == 19);
     }
 
+    [HostTest("pal abi structs use sequential layout", HostLane.Fast, 1)]
     private static bool TestSequentialLayout()
     {
         foreach (Type type in AbiStructTypes)
@@ -106,16 +68,17 @@ internal static class PalAbiLayoutTests
             if (layout is null || layout.Value != LayoutKind.Sequential)
             {
                 Console.WriteLine("PAL ABI struct is not sequential: " + type.FullName);
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return true;
+        return HostCheck.Result(true);
     }
 
+    [HostTest("pal abi structs contain no managed references", HostLane.Fast, 3)]
     private static bool TestNoManagedReferences()
     {
-        return AssertUnmanaged<OSHostHandle>()
+        return HostCheck.Result(AssertUnmanaged<OSHostHandle>()
             && AssertUnmanaged<OSHostByteSpan>()
             && AssertUnmanaged<OSHostMemoryRequest>()
             && AssertUnmanaged<OSHostMemoryRange>()
@@ -139,12 +102,13 @@ internal static class PalAbiLayoutTests
             && AssertUnmanaged<OSHostThreadCreateOptions>()
             && AssertUnmanaged<OSHostWaitOneRequest>()
             && AssertUnmanaged<OSHostWaitManyRequest>()
-            && AssertUnmanaged<OSHostWaitResult>();
+            && AssertUnmanaged<OSHostWaitResult>());
     }
 
+    [HostTest("pal abi struct sizes are stable", HostLane.Fast, 4)]
     private static bool TestStableSizes()
     {
-        return Marshal.SizeOf<OSHostHandle>() == 8
+        return HostCheck.Result(Marshal.SizeOf<OSHostHandle>() == 8
             && Marshal.SizeOf<OSHostByteSpan>() == 16
             && Marshal.SizeOf<OSHostMemoryRequest>() == 24
             && Marshal.SizeOf<OSHostMemoryRange>() == 24
@@ -168,12 +132,13 @@ internal static class PalAbiLayoutTests
             && Marshal.SizeOf<OSHostThreadCreateOptions>() == 56
             && Marshal.SizeOf<OSHostWaitOneRequest>() == 40
             && Marshal.SizeOf<OSHostWaitManyRequest>() == 48
-            && Marshal.SizeOf<OSHostWaitResult>() == 24;
+            && Marshal.SizeOf<OSHostWaitResult>() == 24);
     }
 
+    [HostTest("pal abi field offsets are stable", HostLane.Fast, 5)]
     private static bool TestStableOffsets()
     {
-        return Offset<OSHostByteSpan>("Address") == 0
+        return HostCheck.Result(Offset<OSHostByteSpan>("Address") == 0
             && Offset<OSHostByteSpan>("Length") == 8
             && Offset<OSHostMemoryQueryResult>("Range") == 0
             && Offset<OSHostMemoryQueryResult>("PageSizeBytes") == 24
@@ -223,9 +188,10 @@ internal static class PalAbiLayoutTests
             && Offset<OSHostWaitManyRequest>("Waitables") == 0
             && Offset<OSHostWaitManyRequest>("Timeout") == 16
             && Offset<OSHostWaitResult>("StatusCode") == 8
-            && Offset<OSHostWaitResult>("SignaledHandle") == 16;
+            && Offset<OSHostWaitResult>("SignaledHandle") == 16);
     }
 
+    [HostTest("pal abi fields are public readonly", HostLane.Fast, 2)]
     private static bool TestFieldsArePublicReadonly()
     {
         foreach (Type type in AbiStructTypes)
@@ -235,12 +201,12 @@ internal static class PalAbiLayoutTests
                 if (!field.IsPublic || !field.IsInitOnly)
                 {
                     Console.WriteLine("PAL ABI field is not public readonly: " + type.FullName + "." + field.Name);
-                    return false;
+                    return HostCheck.Result(false);
                 }
             }
         }
 
-        return true;
+        return HostCheck.Result(true);
     }
 
     private static bool AssertUnmanaged<T>()

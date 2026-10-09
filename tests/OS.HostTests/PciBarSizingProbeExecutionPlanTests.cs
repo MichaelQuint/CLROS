@@ -4,48 +4,8 @@ using OS.Std.Binary;
 
 internal static class PciBarSizingProbeExecutionPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.pci.bar.sizeprobe.fakeexec captures 32bit readback", TestCaptures32BitReadback, ref failures);
-        Run("drivers.pci.bar.sizeprobe.fakeexec captures 64bit readbacks", TestCaptures64BitReadbacks, ref failures);
-        Run("drivers.pci.bar.sizeprobe.fakeexec rejects failed address plan", TestRejectsFailedAddressPlan, ref failures);
-        Run("drivers.pci.bar.sizeprobe.fakeexec rejects short command source", TestRejectsShortCommandSource, ref failures);
-        Run("drivers.pci.bar.sizeprobe.fakeexec propagates write failure", TestPropagatesWriteFailure, ref failures);
-        Run("drivers.pci.bar.sizeprobe.fakeexec propagates read failure", TestPropagatesReadFailure, ref failures);
-        Run("drivers.pci.bar.sizeprobe.fakeexec default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("drivers.pci.bar.sizeprobe.fakeexec preserves no-live-config-access boundary", TestPreservesNoLiveConfigAccessBoundary, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PCI BAR sizing probe execution host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.pci.bar.sizeprobe.fakeexec captures 32bit readback", HostLane.Fast, 0)]
     private static bool TestCaptures32BitReadback()
     {
         PciBarSizingProbeAddressPlanResult addressPlan = CreateAddressPlan(
@@ -60,7 +20,7 @@ internal static class PciBarSizingProbeExecutionPlanTests
         PciBarSizingProbeExecutionResult result =
             PciBarSizingProbeExecutor.Execute(addressPlan, commands, accessor, readbacks);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingProbeExecutionStatus.Success
             && result.AddressPlanStatus == PciBarSizingProbeAddressPlanStatus.Success
@@ -79,9 +39,10 @@ internal static class PciBarSizingProbeExecutionPlanTests
             && accessor.Operations[1].Value == 0xFFFFF008
             && accessor.Operations[2].Kind == PciBarSizingProbeCommandKind.RestoreOriginal
             && accessor.Operations[2].RegisterOffset == 0x10
-            && accessor.Operations[2].Value == 0xFE000008;
+            && accessor.Operations[2].Value == 0xFE000008);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.fakeexec captures 64bit readbacks", HostLane.Fast, 1)]
     private static bool TestCaptures64BitReadbacks()
     {
         PciBarSizingProbeAddressPlanResult addressPlan = CreateAddressPlan(
@@ -97,7 +58,7 @@ internal static class PciBarSizingProbeExecutionPlanTests
         PciBarSizingProbeExecutionResult result =
             PciBarSizingProbeExecutor.Execute(addressPlan, commands, accessor, readbacks);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.ExecutedCommandCount == 6
             && result.ReadbackCount == 2
@@ -111,9 +72,10 @@ internal static class PciBarSizingProbeExecutionPlanTests
             && IsOperation(accessor.Operations[2], PciBarSizingProbeCommandKind.ReadSizingReadback, registerOffset: 0x18, value: 0xFFFF000C)
             && IsOperation(accessor.Operations[3], PciBarSizingProbeCommandKind.ReadSizingReadback, registerOffset: 0x1C, value: 0xFFFFFFFF)
             && IsOperation(accessor.Operations[4], PciBarSizingProbeCommandKind.RestoreOriginal, registerOffset: 0x1C, value: 0x00000001)
-            && IsOperation(accessor.Operations[5], PciBarSizingProbeCommandKind.RestoreOriginal, registerOffset: 0x18, value: 0x8000000C);
+            && IsOperation(accessor.Operations[5], PciBarSizingProbeCommandKind.RestoreOriginal, registerOffset: 0x18, value: 0x8000000C));
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.fakeexec rejects failed address plan", HostLane.Fast, 2)]
     private static bool TestRejectsFailedAddressPlan()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -135,7 +97,7 @@ internal static class PciBarSizingProbeExecutionPlanTests
         PciBarSizingProbeExecutionResult result =
             PciBarSizingProbeExecutor.Execute(addressPlan, commands, accessor, readbacks);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingProbeExecutionStatus.AddressPlanFailed
             && result.AddressPlanStatus == PciBarSizingProbeAddressPlanStatus.AddressPlanningFailed
@@ -144,9 +106,10 @@ internal static class PciBarSizingProbeExecutionPlanTests
             && result.ExecutedCommandCount == 0
             && result.ReadbackCount == 0
             && result.FailingCommandIndex == PciBarSizingProbeExecutor.NoCommandIndex
-            && accessor.OperationCount == 0;
+            && accessor.OperationCount == 0);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.fakeexec rejects short command source", HostLane.Fast, 3)]
     private static bool TestRejectsShortCommandSource()
     {
         PciBarSizingProbeAddressPlanResult addressPlan = CreateAddressPlan(
@@ -164,16 +127,17 @@ internal static class PciBarSizingProbeExecutionPlanTests
                 accessor,
                 readbacks);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingProbeExecutionStatus.CommandSourceTooShort
             && result.RequiredCommandCount == 3
             && result.AvailableCommandCount == 2
             && result.ExecutedCommandCount == 0
             && result.ReadbackCount == 0
-            && accessor.OperationCount == 0;
+            && accessor.OperationCount == 0);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.fakeexec propagates write failure", HostLane.Fast, 4)]
     private static bool TestPropagatesWriteFailure()
     {
         PciBarSizingProbeAddressPlanResult addressPlan = CreateAddressPlan(
@@ -188,7 +152,7 @@ internal static class PciBarSizingProbeExecutionPlanTests
         PciBarSizingProbeExecutionResult result =
             PciBarSizingProbeExecutor.Execute(addressPlan, commands, accessor, readbacks);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingProbeExecutionStatus.WriteFailed
             && result.AccessStatus == PciConfigDwordAccessStatus.AccessFailed
@@ -200,9 +164,10 @@ internal static class PciBarSizingProbeExecutionPlanTests
             && result.FailingCommandKind == PciBarSizingProbeCommandKind.RestoreOriginal
             && result.Value == 0xFE000008
             && readbacks[0] == 0
-            && accessor.OperationCount == 3;
+            && accessor.OperationCount == 3);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.fakeexec propagates read failure", HostLane.Fast, 5)]
     private static bool TestPropagatesReadFailure()
     {
         PciBarSizingProbeAddressPlanResult addressPlan = CreateAddressPlan(
@@ -217,7 +182,7 @@ internal static class PciBarSizingProbeExecutionPlanTests
         PciBarSizingProbeExecutionResult result =
             PciBarSizingProbeExecutor.Execute(addressPlan, commands, accessor, readbacks);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingProbeExecutionStatus.ReadFailed
             && result.AccessStatus == PciConfigDwordAccessStatus.AccessFailed
@@ -228,15 +193,16 @@ internal static class PciBarSizingProbeExecutionPlanTests
             && result.FailingRegisterOffset == 0x10
             && result.FailingCommandKind == PciBarSizingProbeCommandKind.ReadSizingReadback
             && readbacks[0] == 0
-            && accessor.OperationCount == 2;
+            && accessor.OperationCount == 2);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.fakeexec default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         PciBarSizingProbeExecutionResult result = default;
         PciConfigDwordReadResult read = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == PciBarSizingProbeExecutionStatus.Success
             && result.AddressPlanStatus == PciBarSizingProbeAddressPlanStatus.Success
@@ -258,9 +224,10 @@ internal static class PciBarSizingProbeExecutionPlanTests
             && !read.IsInitialized
             && !read.Succeeded
             && read.Status == PciConfigDwordAccessStatus.Success
-            && read.Value == 0;
+            && read.Value == 0);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe.fakeexec preserves no-live-config-access boundary", HostLane.Fast, 7)]
     private static bool TestPreservesNoLiveConfigAccessBoundary()
     {
         PciBarSizingProbeAddressPlanResult addressPlan = CreateAddressPlan(
@@ -275,7 +242,7 @@ internal static class PciBarSizingProbeExecutionPlanTests
         PciBarSizingProbeExecutionResult result =
             PciBarSizingProbeExecutor.Execute(addressPlan, commands, accessor, readbacks);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && PciBarSizingProbeExecutor.RequiresAddressPlan
             && PciBarSizingProbeExecutor.RequiresInjectedConfigAccessor
@@ -295,7 +262,7 @@ internal static class PciBarSizingProbeExecutionPlanTests
             && !PciBarSizingProbeExecutor.PerformsPacketIo
             && !PciBarSizingProbeExecutor.PerformsBlockIo
             && !RuntimeHelpers.IsReferenceOrContainsReferences<PciConfigDwordReadResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciBarSizingProbeExecutionResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciBarSizingProbeExecutionResult>());
     }
 
     private static bool IsOperation(

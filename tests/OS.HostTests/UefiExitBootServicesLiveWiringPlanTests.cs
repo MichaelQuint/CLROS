@@ -5,48 +5,11 @@ using OS.Kernel.Platform;
 
 internal static class UefiExitBootServicesLiveWiringPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("uefi.exitboot live wiring exposes ordered steps", TestExposesOrderedSteps, ref failures);
-        Run("uefi.exitboot live wiring blocks missing diagnostics", TestBlocksMissingDiagnostics, ref failures);
-        Run("uefi.exitboot live wiring blocks non-success transition plan", TestBlocksNonSuccessTransitionPlan, ref failures);
-        Run("uefi.exitboot live wiring stops before firmware call when disabled", TestStopsBeforeFirmwareCallWhenDisabled, ref failures);
-        Run("uefi.exitboot live wiring can be explicitly enabled for future firmware call", TestCanBeExplicitlyEnabledForFutureFirmwareCall, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("UEFI ExitBootServices live wiring host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("uefi.exitboot live wiring exposes ordered steps", HostLane.Fast, 0)]
     private static bool TestExposesOrderedSteps()
     {
-        return UefiExitBootServicesLiveWiringPlan.StepCount == 7
+        return HostCheck.Result(UefiExitBootServicesLiveWiringPlan.StepCount == 7
             && UefiExitBootServicesLiveWiringPlan.GetStep(0)
                 == UefiExitBootServicesLiveWiringStep.CaptureFreshMemoryMap
             && UefiExitBootServicesLiveWiringPlan.GetStep(1)
@@ -61,9 +24,10 @@ internal static class UefiExitBootServicesLiveWiringPlanTests
                 == UefiExitBootServicesLiveWiringStep.MarkFirmwareServicesExited
             && UefiExitBootServicesLiveWiringPlan.GetStep(6)
                 == UefiExitBootServicesLiveWiringStep.RejectFirmwareBackedCalls
-            && UefiExitBootServicesLiveWiringPlan.GetStepName(4) == "CallFirmwareExitBootServices";
+            && UefiExitBootServicesLiveWiringPlan.GetStepName(4) == "CallFirmwareExitBootServices");
     }
 
+    [HostTest("uefi.exitboot live wiring blocks missing diagnostics", HostLane.Fast, 1)]
     private static bool TestBlocksMissingDiagnostics()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -78,14 +42,15 @@ internal static class UefiExitBootServicesLiveWiringPlanTests
                 CreateExitBootServicesPlan(UefiExitBootServicesPlanStatus.Success),
                 firmwareCallEnabled: false);
 
-        return result.Status == UefiExitBootServicesLiveWiringStatus.PostFirmwareDiagnosticsUnavailable
+        return HostCheck.Result(result.Status == UefiExitBootServicesLiveWiringStatus.PostFirmwareDiagnosticsUnavailable
             && result.NextStep == UefiExitBootServicesLiveWiringStep.ConfirmOwnedSerialDiagnostics
             && result.DiagnosticsStatus == SerialDiagnosticsGuardStatus.FirmwareConsoleOnly
             && result.ExitBootServicesPlanStatus == UefiExitBootServicesPlanStatus.Success
             && !result.ReadyToCallFirmware
-            && firmware.Mode == FirmwareServicesMode.BootServicesAvailable;
+            && firmware.Mode == FirmwareServicesMode.BootServicesAvailable);
     }
 
+    [HostTest("uefi.exitboot live wiring blocks non-success transition plan", HostLane.Fast, 2)]
     private static bool TestBlocksNonSuccessTransitionPlan()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -97,14 +62,15 @@ internal static class UefiExitBootServicesLiveWiringPlanTests
                 CreateExitBootServicesPlan(UefiExitBootServicesPlanStatus.RetryRequired),
                 firmwareCallEnabled: false);
 
-        return result.Status == UefiExitBootServicesLiveWiringStatus.ExitBootServicesPlanBlocked
+        return HostCheck.Result(result.Status == UefiExitBootServicesLiveWiringStatus.ExitBootServicesPlanBlocked
             && result.NextStep == UefiExitBootServicesLiveWiringStep.ValidateExitBootServicesPlan
             && result.DiagnosticsStatus == SerialDiagnosticsGuardStatus.OwnedSerialReady
             && result.ExitBootServicesPlanStatus == UefiExitBootServicesPlanStatus.RetryRequired
             && !result.ReadyToCallFirmware
-            && firmware.Mode == FirmwareServicesMode.BootServicesAvailable;
+            && firmware.Mode == FirmwareServicesMode.BootServicesAvailable);
     }
 
+    [HostTest("uefi.exitboot live wiring stops before firmware call when disabled", HostLane.Fast, 3)]
     private static bool TestStopsBeforeFirmwareCallWhenDisabled()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -116,15 +82,16 @@ internal static class UefiExitBootServicesLiveWiringPlanTests
                 CreateExitBootServicesPlan(UefiExitBootServicesPlanStatus.Success),
                 firmwareCallEnabled: false);
 
-        return result.Status == UefiExitBootServicesLiveWiringStatus.FirmwareCallDisabled
+        return HostCheck.Result(result.Status == UefiExitBootServicesLiveWiringStatus.FirmwareCallDisabled
             && result.NextStep == UefiExitBootServicesLiveWiringStep.CallFirmwareExitBootServices
             && result.DiagnosticsStatus == SerialDiagnosticsGuardStatus.OwnedSerialReady
             && result.ExitBootServicesPlanStatus == UefiExitBootServicesPlanStatus.Success
             && !result.FirmwareCallEnabled
             && !result.ReadyToCallFirmware
-            && firmware.Mode == FirmwareServicesMode.BootServicesAvailable;
+            && firmware.Mode == FirmwareServicesMode.BootServicesAvailable);
     }
 
+    [HostTest("uefi.exitboot live wiring can be explicitly enabled for future firmware call", HostLane.Fast, 4)]
     private static bool TestCanBeExplicitlyEnabledForFutureFirmwareCall()
     {
         UefiExitBootServicesLiveWiringPlanResult result =
@@ -134,12 +101,12 @@ internal static class UefiExitBootServicesLiveWiringPlanTests
                 CreateExitBootServicesPlan(UefiExitBootServicesPlanStatus.Success),
                 firmwareCallEnabled: true);
 
-        return result.Status == UefiExitBootServicesLiveWiringStatus.ReadyToCallFirmware
+        return HostCheck.Result(result.Status == UefiExitBootServicesLiveWiringStatus.ReadyToCallFirmware
             && result.NextStep == UefiExitBootServicesLiveWiringStep.CallFirmwareExitBootServices
             && result.DiagnosticsStatus == SerialDiagnosticsGuardStatus.OwnedSerialReady
             && result.ExitBootServicesPlanStatus == UefiExitBootServicesPlanStatus.Success
             && result.FirmwareCallEnabled
-            && result.ReadyToCallFirmware;
+            && result.ReadyToCallFirmware);
     }
 
     private static SerialDiagnosticsGuardResult CreateReadyPostFirmwareDiagnosticsResult()

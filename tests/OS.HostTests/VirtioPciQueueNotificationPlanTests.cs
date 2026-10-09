@@ -10,48 +10,7 @@ internal static class VirtioPciQueueNotificationPlanTests
     private const uint NotifyOffsetMultiplier = 4;
     private const uint NotifyLength = 0x80;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.virtiopci.queue.notify creates no data write plan", TestCreatesNoDataWritePlan, ref failures);
-        Run("drivers.virtiopci.queue.notify rejects queue preconditions", TestRejectsQueuePreconditions, ref failures);
-        Run("drivers.virtiopci.queue.notify rejects notification data features", TestRejectsNotificationDataFeatures, ref failures);
-        Run("drivers.virtiopci.queue.notify rejects notify offset overflow", TestRejectsNotifyOffsetOverflow, ref failures);
-        Run("drivers.virtiopci.queue.notify rejects notify range outside aperture", TestRejectsNotifyRangeOutsideAperture, ref failures);
-        Run("drivers.virtiopci.queue.notify rejects invalid notify aperture", TestRejectsInvalidNotifyAperture, ref failures);
-        Run("drivers.virtiopci.queue.notify default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio PCI queue notification plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtiopci.queue.notify creates no data write plan", HostLane.Fast, 0)]
     private static bool TestCreatesNoDataWritePlan()
     {
         VirtioPciBarApertureSet apertures = CreateApertures();
@@ -67,7 +26,7 @@ internal static class VirtioPciQueueNotificationPlanTests
                 hasNewlyPublishedDescriptors: true);
         VirtioPciQueueNotificationPlan plan = result.Plan;
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioPciQueueNotificationPlanStatus.Success
             && result.QueueIndex == TxQueueIndex
             && result.AvailableQueueCount == AvailableQueueCount
@@ -91,9 +50,10 @@ internal static class VirtioPciQueueNotificationPlanTests
             && !VirtioPciQueueNotificationPlanner.HandlesInterrupts
             && !VirtioPciQueueNotificationPlanner.PerformsPacketIo
             && !VirtioPciQueueNotificationPlanner.SupportsNotificationData
-            && !VirtioPciQueueNotificationPlanner.SupportsNotificationConfigData;
+            && !VirtioPciQueueNotificationPlanner.SupportsNotificationConfigData);
     }
 
+    [HostTest("drivers.virtiopci.queue.notify rejects queue preconditions", HostLane.Fast, 1)]
     private static bool TestRejectsQueuePreconditions()
     {
         VirtioPciBarApertureSet apertures = CreateApertures();
@@ -135,7 +95,7 @@ internal static class VirtioPciQueueNotificationPlanTests
                 queueEnabled: true,
                 hasNewlyPublishedDescriptors: false);
 
-        return !invalidQueue.Succeeded
+        return HostCheck.Result(!invalidQueue.Succeeded
             && invalidQueue.Status == VirtioPciQueueNotificationPlanStatus.InvalidQueueIndex
             && invalidQueue.QueueIndex == AvailableQueueCount
             && invalidQueue.Plan.Equals(default(VirtioPciQueueNotificationPlan))
@@ -145,9 +105,10 @@ internal static class VirtioPciQueueNotificationPlanTests
             && !disabledQueue.Succeeded
             && disabledQueue.Status == VirtioPciQueueNotificationPlanStatus.QueueNotEnabled
             && !noNewDescriptors.Succeeded
-            && noNewDescriptors.Status == VirtioPciQueueNotificationPlanStatus.NoNewlyPublishedDescriptors;
+            && noNewDescriptors.Status == VirtioPciQueueNotificationPlanStatus.NoNewlyPublishedDescriptors);
     }
 
+    [HostTest("drivers.virtiopci.queue.notify rejects notification data features", HostLane.Fast, 2)]
     private static bool TestRejectsNotificationDataFeatures()
     {
         VirtioPciBarApertureSet apertures = CreateApertures();
@@ -171,7 +132,7 @@ internal static class VirtioPciQueueNotificationPlanTests
                 queueEnabled: true,
                 hasNewlyPublishedDescriptors: true);
 
-        return VirtioPciQueueNotificationFeatureBits.NotificationDataBit == 38
+        return HostCheck.Result(VirtioPciQueueNotificationFeatureBits.NotificationDataBit == 38
             && VirtioPciQueueNotificationFeatureBits.NotificationConfigDataBit == 39
             && VirtioPciQueueNotificationFeatureBits.NotificationData == 1UL << 38
             && VirtioPciQueueNotificationFeatureBits.NotificationConfigData == 1UL << 39
@@ -184,9 +145,10 @@ internal static class VirtioPciQueueNotificationPlanTests
             && notificationConfigData.Status ==
                 VirtioPciQueueNotificationPlanStatus.UnsupportedNotificationConfigDataFeature
             && notificationConfigData.NegotiatedFeatures ==
-                VirtioPciQueueNotificationFeatureBits.NotificationConfigData;
+                VirtioPciQueueNotificationFeatureBits.NotificationConfigData);
     }
 
+    [HostTest("drivers.virtiopci.queue.notify rejects notify offset overflow", HostLane.Fast, 3)]
     private static bool TestRejectsNotifyOffsetOverflow()
     {
         VirtioPciBarApertureSet apertures = CreateApertures(
@@ -202,12 +164,13 @@ internal static class VirtioPciQueueNotificationPlanTests
                 queueEnabled: true,
                 hasNewlyPublishedDescriptors: true);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioPciQueueNotificationPlanStatus.NotifyOffsetOverflow
             && result.QueueNotifyOffset == ushort.MaxValue
-            && result.Aperture.NotifyOffsetMultiplier == 65_538;
+            && result.Aperture.NotifyOffsetMultiplier == 65_538);
     }
 
+    [HostTest("drivers.virtiopci.queue.notify rejects notify range outside aperture", HostLane.Fast, 4)]
     private static bool TestRejectsNotifyRangeOutsideAperture()
     {
         VirtioPciBarApertureSet boundaryApertures = CreateApertures(
@@ -236,13 +199,14 @@ internal static class VirtioPciQueueNotificationPlanTests
                 queueEnabled: true,
                 hasNewlyPublishedDescriptors: true);
 
-        return boundary.Succeeded
+        return HostCheck.Result(boundary.Succeeded
             && boundary.Plan.RelativeOffset == NotifyLength - boundary.Plan.WriteWidthBytes
             && !outside.Succeeded
             && outside.Status == VirtioPciQueueNotificationPlanStatus.NotifyRangeOutsideAperture
-            && outside.Aperture.Length == NotifyLength;
+            && outside.Aperture.Length == NotifyLength);
     }
 
+    [HostTest("drivers.virtiopci.queue.notify rejects invalid notify aperture", HostLane.Fast, 5)]
     private static bool TestRejectsInvalidNotifyAperture()
     {
         VirtioPciBarApertureSet apertures = CreateApertures();
@@ -257,16 +221,17 @@ internal static class VirtioPciQueueNotificationPlanTests
                 queueEnabled: true,
                 hasNewlyPublishedDescriptors: true);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioPciQueueNotificationPlanStatus.InvalidNotifyAperture
-            && result.Aperture.CapabilityType == VirtioPciCapabilityType.CommonConfiguration;
+            && result.Aperture.CapabilityType == VirtioPciCapabilityType.CommonConfiguration);
     }
 
+    [HostTest("drivers.virtiopci.queue.notify default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioPciQueueNotificationPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioPciQueueNotificationPlanStatus.Success
             && result.Aperture.CapabilityType == default
@@ -282,7 +247,7 @@ internal static class VirtioPciQueueNotificationPlanTests
             && result.Plan.WriteWidthBytes ==
                 VirtioPciModernRegisterMap.Notification.NoNotificationDataWriteWidthBytes
             && !result.Plan.PerformsMmio
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciQueueNotificationPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciQueueNotificationPlanResult>());
     }
 
     private static VirtioPciBarApertureSet CreateApertures(

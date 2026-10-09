@@ -12,49 +12,7 @@ internal static class PciVirtioDescriptorCatalogPlannerTests
     private const byte DeviceOffset = 0xA0;
     private const ulong UnsupportedDeviceFeature = 1UL << 42;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.pci virtio catalog composes block", TestComposesBlock, ref failures);
-        Run("drivers.pci virtio catalog composes network", TestComposesNetwork, ref failures);
-        Run("drivers.pci virtio catalog reports capacity", TestReportsDescriptorSourceCapacity, ref failures);
-        Run("drivers.pci virtio catalog preserves fake provenance", TestPreservesFakeProvenance, ref failures);
-        Run("drivers.pci virtio catalog skips unsupported candidate", TestSkipsUnsupportedCandidate, ref failures);
-        Run("drivers.pci virtio catalog propagates nested scan failure", TestPropagatesNestedScanFailure, ref failures);
-        Run("drivers.pci virtio catalog propagates binding failure", TestPropagatesBindingFailure, ref failures);
-        Run("drivers.pci virtio catalog default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "PCI virtio descriptor catalog planner host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.pci virtio catalog composes block", HostLane.Fast, 0)]
     private static bool TestComposesBlock()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -89,7 +47,7 @@ internal static class PciVirtioDescriptorCatalogPlannerTests
             out VirtioDeviceDescriptor[] descriptors);
 
         VirtioDeviceDescriptor descriptor = descriptors[0];
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == PciVirtioDescriptorCatalogPlanStatus.Success
             && result.EcamScan.DeviceCount == 1
             && result.CandidateSelection.CandidateCount == 1
@@ -107,9 +65,10 @@ internal static class PciVirtioDescriptorCatalogPlannerTests
             && !descriptor.HasNetworkConfiguration
             && descriptor.InitializationProfile.Succeeded
             && descriptor.InitializationProfile.InitializationPlan.SelectedFeatures
-                == VirtioDeviceInitializationProfile.BlockOptionalFeatureMask;
+                == VirtioDeviceInitializationProfile.BlockOptionalFeatureMask);
     }
 
+    [HostTest("drivers.pci virtio catalog composes network", HostLane.Fast, 1)]
     private static bool TestComposesNetwork()
     {
         MacAddress macAddress = new MacAddress(0x02, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE);
@@ -151,7 +110,7 @@ internal static class PciVirtioDescriptorCatalogPlannerTests
             out VirtioDeviceDescriptor[] descriptors);
 
         VirtioDeviceDescriptor descriptor = descriptors[0];
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && descriptor.SourceIndex == 0
             && descriptor.DeviceKind == VirtioPciDeviceKind.Network
             && descriptor.Binding.DeviceKind == VirtioPciDeviceKind.Network
@@ -164,9 +123,10 @@ internal static class PciVirtioDescriptorCatalogPlannerTests
             && !descriptor.HasBlockDeviceInfo
             && descriptor.InitializationProfile.Succeeded
             && descriptor.InitializationProfile.InitializationPlan.SelectedFeatures
-                == VirtioDeviceInitializationProfile.NetworkOptionalFeatureMask;
+                == VirtioDeviceInitializationProfile.NetworkOptionalFeatureMask);
     }
 
+    [HostTest("drivers.pci virtio catalog reports capacity", HostLane.Fast, 2)]
     private static bool TestReportsDescriptorSourceCapacity()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -216,7 +176,7 @@ internal static class PciVirtioDescriptorCatalogPlannerTests
             descriptorCapacity: 2,
             out _);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PciVirtioDescriptorCatalogPlanStatus.DescriptorSourceDestinationTooSmall
             && result.EcamScan.DeviceCount == 2
             && result.CandidateSelection.CandidateCount == 2
@@ -224,9 +184,10 @@ internal static class PciVirtioDescriptorCatalogPlannerTests
             && result.RequiredDescriptorSourceCapacity == 2
             && result.AvailableDescriptorSourceCapacity == 1
             && result.DescriptorSourceCount == 0
-            && result.DescriptorCatalog.Status == default;
+            && result.DescriptorCatalog.Status == default);
     }
 
+    [HostTest("drivers.pci virtio catalog preserves fake provenance", HostLane.Fast, 3)]
     private static bool TestPreservesFakeProvenance()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -269,7 +230,7 @@ internal static class PciVirtioDescriptorCatalogPlannerTests
             out VirtioDeviceDescriptor[] descriptors);
 
         VirtioDeviceDescriptor descriptor = descriptors[0];
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && descriptor.Binding.SegmentIndex == 0
             && descriptor.Binding.SegmentGroup == 0x1234
             && descriptor.Binding.EcamBasePhysicalAddress == 0x00000008_80000000UL
@@ -296,9 +257,10 @@ internal static class PciVirtioDescriptorCatalogPlannerTests
             && !PciVirtioDescriptorCatalogPlanner.PerformsPacketIo
             && !PciVirtioDescriptorCatalogPlanner.PerformsBlockIo
             && !RuntimeHelpers.IsReferenceOrContainsReferences<PciVirtioDescriptorCatalogPlanResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciVirtioDescriptorFeatureSource>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciVirtioDescriptorFeatureSource>());
     }
 
+    [HostTest("drivers.pci virtio catalog skips unsupported candidate", HostLane.Fast, 4)]
     private static bool TestSkipsUnsupportedCandidate()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -337,14 +299,15 @@ internal static class PciVirtioDescriptorCatalogPlannerTests
             descriptorCapacity: 1,
             out VirtioDeviceDescriptor[] descriptors);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.EcamScan.DeviceCount == 2
             && result.CandidateSelection.InspectedDeviceCount == 2
             && result.CandidateSelection.CandidateCount == 1
             && descriptors[0].SourceIndex == 1
-            && descriptors[0].DeviceKind == VirtioPciDeviceKind.Block;
+            && descriptors[0].DeviceKind == VirtioPciDeviceKind.Block);
     }
 
+    [HostTest("drivers.pci virtio catalog propagates nested scan failure", HostLane.Fast, 5)]
     private static bool TestPropagatesNestedScanFailure()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -368,16 +331,17 @@ internal static class PciVirtioDescriptorCatalogPlannerTests
             descriptorCapacity: 1,
             out _);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PciVirtioDescriptorCatalogPlanStatus.EcamScanFailed
             && result.EcamScan.Status == PciEcamSegmentScanStatus.NestedScannerFailed
             && result.EcamScan.NestedResult.Status == PciBusScanStatus.ReaderFailed
             && result.EcamScan.NestedResult.ReaderStatus == PciConfigurationSpaceReadStatus.ReadFailed
             && result.CandidateSelection.Status == default
             && result.BindingCatalog.Status == default
-            && result.DescriptorCatalog.Status == default;
+            && result.DescriptorCatalog.Status == default);
     }
 
+    [HostTest("drivers.pci virtio catalog propagates binding failure", HostLane.Fast, 6)]
     private static bool TestPropagatesBindingFailure()
     {
         FakeConfigSpace configSpace = new FakeConfigSpace();
@@ -419,7 +383,7 @@ internal static class PciVirtioDescriptorCatalogPlannerTests
             descriptorCapacity: 1,
             out _);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PciVirtioDescriptorCatalogPlanStatus.DerivedBindingCatalogFailed
             && result.CandidateSelection.CandidateCount == 1
             && result.BindingCatalog.Status == VirtioPciBindingDerivedBarSizeCatalogStatus.DerivedBindingFailed
@@ -427,14 +391,15 @@ internal static class PciVirtioDescriptorCatalogPlannerTests
             && result.BindingCatalog.FailingSourceIndex == 0
             && result.BindingCatalog.FailingPlan.Status == VirtioPciBindingDerivedBarSizePlanStatus.BindingFailed
             && result.BindingCatalog.FailingPlan.BindingStatus == VirtioPciBindingPlanStatus.CapabilityParseFailed
-            && result.DescriptorCatalog.Status == default;
+            && result.DescriptorCatalog.Status == default);
     }
 
+    [HostTest("drivers.pci virtio catalog default result is not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         PciVirtioDescriptorCatalogPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == PciVirtioDescriptorCatalogPlanStatus.Success
             && result.EcamScan.Status == default
@@ -446,7 +411,7 @@ internal static class PciVirtioDescriptorCatalogPlannerTests
             && result.AvailableDescriptorSourceCapacity == 0
             && result.FailingSourceIndex == 0
             && result.FailingInputIndex == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciVirtioDescriptorCatalogPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciVirtioDescriptorCatalogPlanResult>());
     }
 
     private static PciVirtioDescriptorCatalogPlanResult Plan(

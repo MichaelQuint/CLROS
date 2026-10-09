@@ -8,7 +8,7 @@ internal static class DiagnosticsTests
     private const string M01016TestName = "m01.016";
     private const string M01016ReadyMarker = "CLROS_M01_016_READY";
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         int failures = 0;
@@ -35,24 +35,8 @@ internal static class DiagnosticsTests
 
     private static void Run(string name, Func<bool> test, ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static int RunM01016()
@@ -280,6 +264,7 @@ internal static class DiagnosticsTests
 
     private static bool TestM01016HostOnlyMarker()
     {
+        HostCheck.SingleFixture(typeof(DiagnosticsTests), nameof(RunAll));
         string repositoryRoot =
             HostToolProcess.FindRepositoryRoot();
         string testPath = Path.GetFullPath(
@@ -287,8 +272,6 @@ internal static class DiagnosticsTests
                 repositoryRoot,
                 @"tests\OS.HostTests\DiagnosticsTests.cs"));
         string testSource = File.ReadAllText(testPath);
-        string initializer =
-            "[" + "ModuleInitializer]";
         string readyMarker =
             "CLROS_" + "M01_016_READY";
         string aggregateSignature =
@@ -301,8 +284,7 @@ internal static class DiagnosticsTests
         int aggregateEnd = testSource.IndexOf(
             nextMethodSignature,
             StringComparison.Ordinal);
-        if (CountOccurrences(testSource, initializer) != 1 ||
-            CountOccurrences(testSource, readyMarker) != 1 ||
+        if (CountOccurrences(testSource, readyMarker) != 1 ||
             aggregateStart < 0 ||
             aggregateEnd <= aggregateStart)
         {

@@ -11,33 +11,26 @@ using OS.Tools.QemuRunner;
 internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
 {
     private const string TestName = "m02.010.efi.integration";
-    private const string StartMarker = "TEST_START m02.010";
+    private const string StartMarker = OS.Tooling.QemuContracts.Record137;
     private const string ReadyMarker =
-        "CLROS_M02_010_READY vectors=256 hardwareErrorCodeVectors=9 " +
-        "syntheticErrorCodeVectors=247 slotBytes=16 pageBytes=4096 " +
-        "normalizedSlots=3 commonTargetDelta=4096 " +
-        "fnv1a64=428D0353A96B7ACE readBack=true " +
-        "guestMaterialization=true loaderData=true pageReleased=true " +
-        "stubExecution=false idtInstalled=false faultTriggered=false " +
-        "markerTransport=uefiSerial postExitBootServices=false";
-    private const string PassMarker = "TEST_PASS m02.010";
+        OS.Tooling.QemuContracts.Record136;
+    private const string PassMarker = OS.Tooling.QemuContracts.Record138;
     private const string FailureMarker =
-        "M02_NORMALIZED_INTERRUPT_FRAME_PAGE_FAILED";
+        OS.Tooling.QemuContracts.Record135;
     private const string FailureTestMarker =
         "TEST_FAIL m02.010 guest_materialization_readback_or_cleanup";
-    private const string CompileClosureSha256 =
-        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
+    private static readonly string CompileClosureSha256 =
+        OS.Tooling.EfiContracts.CompileInventorySha256;
     private const string CanonicalProjectShapeSha256 =
-        "70b5a8737c78658b7f702f3deaa881d224ef2a4ce04116a8ee92523568748f5a";
+        OS.Tooling.EfiContracts.CanonicalProjectSha256;
     private const string FrozenProductionSha256 =
         "B66CD19B45E8198897B837DF9EDA6934AFBE087DC141C468BD0DB44E62724DA1";
-    private const string FrozenHostLeafSha256 =
-        "DEEA918C5AB7DB971AA39682F595204465D9D75DE254E99C034A12440AC46FCC";
+
     private const string ExpectedPageSha256 =
         "71325A5633E1985BB22B4F8E1581399F63FEDEEB8CBFA1E3507A3F4ED73A71AF";
     private const ulong ExpectedFingerprint = 0x428D0353A96B7ACEUL;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START " + TestName);
@@ -80,167 +73,39 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
         Func<bool> test,
         ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
 
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + name + " " + exception.GetType().Name +
-                ": " + exception.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestProjectAndToolingContract()
     {
+        HostCheck.Registered(typeof(NormalizeErrorCodeNonErrorCodeInterruptFrameTests));
+        foreach (bool build in new[]
+        {
+        true,
+        false
+    }
+
+        )
+            HostCheck.True(OS.Tooling.EfiOptions.Parse(["--EnableM02NormalizedInterruptFramePageProbe"], build).Profile().IsEnabled("EnableM02NormalizedInterruptFramePageProbe"));
         string root = HostToolProcess.FindRepositoryRoot();
         string projectPath = Path.Combine(root, "src", "OS", "OS.csproj");
         XDocument project = XDocument.Load(projectPath);
         XElement[] compileItems = project.Descendants("Compile").ToArray();
-        string[] compileKeys = compileItems
-            .Select(item =>
-                (item.Attribute("Include")?.Value ?? string.Empty) + "|" +
-                (item.Attribute("Link")?.Value ?? string.Empty))
-            .ToArray();
-        string compileHash = Convert.ToHexString(
-                SHA256.HashData(
-                    Encoding.UTF8.GetBytes(
-                        string.Join("\n", compileKeys) + "\n")))
-            .ToLowerInvariant();
-
-        const string TerminalKey =
-            @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
-        const string NormalizedKey =
-            @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
-        const string EndianKey =
-            @"..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
+        string[] compileKeys = compileItems.Select(item => (item.Attribute("Include")?.Value ?? string.Empty) + "|" + (item.Attribute("Link")?.Value ?? string.Empty)).ToArray();
+        string compileHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n", compileKeys) + "\n"))).ToLowerInvariant();
+        const string TerminalKey = @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
+        const string NormalizedKey = @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
+        const string EndianKey = @"..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
         int terminalIndex = Array.IndexOf(compileKeys, TerminalKey);
         int normalizedIndex = Array.IndexOf(compileKeys, NormalizedKey);
         int endianIndex = Array.IndexOf(compileKeys, EndianKey);
-
-        XElement[] defaults = project
-            .Descendants("EnableM02NormalizedInterruptFramePageProbe")
-            .Where(element => element.Parent?.Name.LocalName == "PropertyGroup")
-            .ToArray();
-        XElement[] symbolGroups = project
-            .Descendants("PropertyGroup")
-            .Where(group => group.Attribute("Condition")?.Value ==
-                "'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'")
-            .ToArray();
-        XElement[] exclusionErrors = project
-            .Descendants("Error")
-            .Where(error => error.Attribute("Condition")?.Value ==
-                "'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' and " +
-                "'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'")
-            .ToArray();
-
-        string productionPath = Path.Combine(
-            root,
-            "src",
-            "OS.Kernel",
-            "Diagnostics",
-            "NormalizeErrorCodeNonErrorCodeInterruptFrame.cs");
-        string leafTestPath = Path.Combine(
-            root,
-            "tests",
-            "OS.HostTests",
-            "NormalizeErrorCodeNonErrorCodeInterruptFrameTests.cs");
-        string build = File.ReadAllText(
-            Path.Combine(root, "scripts", "build-efi-shell.ps1"));
-        string verifier = File.ReadAllText(
-            Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
-        string qemu = File.ReadAllText(
-            Path.Combine(root, "scripts", "run-qemu-smoke.ps1"));
-        string probes = File.ReadAllText(
-            Path.Combine(
-                root,
-                "src",
-                "OS.Kernel",
-                "Diagnostics",
-                "Probes.cs"));
-
-        return ReadyMarker.Length == 370
-            && compileItems.Length == 122
-            && compileHash == CompileClosureSha256
-            && terminalIndex >= 0
-            && normalizedIndex == terminalIndex + 1
-            && endianIndex == normalizedIndex + 17
-            && compileKeys.Count(key => key == NormalizedKey) == 1
-            && compileItems.All(item =>
-                !(item.Attribute("Include")?.Value ?? string.Empty)
-                    .Contains('*', StringComparison.Ordinal))
-            && defaults.Length == 1
-            && defaults[0].Value == "false"
-            && defaults[0].Attribute("Condition")?.Value ==
-                "'$(EnableM02NormalizedInterruptFramePageProbe)' == ''"
-            && symbolGroups.Length == 1
-            && symbolGroups[0].Elements("DefineConstants").Single().Value ==
-                "$(DefineConstants);M02_NORMALIZED_INTERRUPT_FRAME_PAGE_PROBE"
-            && exclusionErrors.Length == 1
-            && exclusionErrors[0].Attribute("Text")?.Value ==
-                "EnableM02NormalizedInterruptFramePageProbe cannot be combined " +
-                "with EnableM02OwnedGdtTssTerminalProbe=true."
-            && Sha256File(productionPath) == FrozenProductionSha256
-            && Sha256File(leafTestPath) == FrozenHostLeafSha256
-            && build.Contains(
-                "[switch] $EnableM02NormalizedInterruptFramePageProbe",
-                StringComparison.Ordinal)
-            && build.Contains(
-                "-M02NormalizedInterruptFramePageEnabled " +
-                "$EnableM02NormalizedInterruptFramePageProbe.IsPresent",
-                StringComparison.Ordinal)
-            && build.Contains(
-                CanonicalProjectShapeSha256,
-                StringComparison.Ordinal)
-            && build.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138",
-                StringComparison.Ordinal)
-            && build.Contains(NormalizedKey, StringComparison.Ordinal)
-            && build.Contains(
-                "m02_normalized_interrupt_frame_page_probe_forbids_owned_gdt_tss_terminal",
-                StringComparison.Ordinal)
-            && verifier.Contains(
-                "[switch]$EnableM02NormalizedInterruptFramePageProbe",
-                StringComparison.Ordinal)
-            && verifier.Contains(
-                "$expectedSourceClosureInputCount = 138",
-                StringComparison.Ordinal)
-            && verifier.Contains(
-                "$compileItems.Count -ne 122",
-                StringComparison.Ordinal)
-            && verifier.Contains(NormalizedKey, StringComparison.Ordinal)
-            && verifier.Contains(
-                "m02_normalized_interrupt_frame_page_probe_forbids_owned_gdt_tss_terminal",
-                StringComparison.Ordinal)
-            && qemu.Contains(
-                "[switch] $EnableM02NormalizedInterruptFramePageProbe",
-                StringComparison.Ordinal)
-            && qemu.Contains(ReadyMarker, StringComparison.Ordinal)
-            && qemu.Contains(
-                "m02_normalized_interrupt_frame_page_probe_requires_build_efi",
-                StringComparison.Ordinal)
-            && qemu.Contains(
-                "m02_normalized_interrupt_frame_page_probe_forbids_skip_image_build",
-                StringComparison.Ordinal)
-            && qemu.Contains(
-                "m02_normalized_interrupt_frame_page_probe_forbids_owned_gdt_tss_terminal",
-                StringComparison.Ordinal)
-            && !probes.Contains(
-                "EnableM02NormalizedInterruptFramePageProbe",
-                StringComparison.Ordinal)
-            && !probes.Contains(
-                "M02_NORMALIZED_INTERRUPT_FRAME_PAGE_PROBE",
-                StringComparison.Ordinal);
+        XElement[] defaults = project.Descendants("EnableM02NormalizedInterruptFramePageProbe").Where(element => element.Parent?.Name.LocalName == "PropertyGroup").ToArray();
+        XElement[] symbolGroups = project.Descendants("PropertyGroup").Where(group => group.Attribute("Condition")?.Value == "'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'").ToArray();
+        XElement[] exclusionErrors = project.Descendants("Error").Where(error => error.Attribute("Condition")?.Value == "'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true' and " + "'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'").ToArray();
+        string productionPath = Path.Combine(root, "src", "OS.Kernel", "Diagnostics", "NormalizeErrorCodeNonErrorCodeInterruptFrame.cs");
+        string probes = File.ReadAllText(Path.Combine(root, "src", "OS.Kernel", "Diagnostics", "Probes.cs"));
+        return HostCheck.Result((ReadyMarker.Length == 370 && compileItems.Length == OS.Tooling.EfiContracts.CompileItems.Count && compileHash == CompileClosureSha256 && terminalIndex >= 0 && normalizedIndex == terminalIndex + 1 && endianIndex == normalizedIndex + 17 && compileKeys.Count(key => key == NormalizedKey) == 1 && compileItems.All(item => !(item.Attribute("Include")?.Value ?? string.Empty).Contains('*', StringComparison.Ordinal)) && defaults.Length == 1 && defaults[0].Value == "false" && defaults[0].Attribute("Condition")?.Value == "'$(EnableM02NormalizedInterruptFramePageProbe)' == ''" && symbolGroups.Length == 1 && symbolGroups[0].Elements("DefineConstants").Single().Value == "$(DefineConstants);M02_NORMALIZED_INTERRUPT_FRAME_PAGE_PROBE" && exclusionErrors.Length == 1 && exclusionErrors[0].Attribute("Text")?.Value == "EnableM02NormalizedInterruptFramePageProbe cannot be combined " + "with EnableM02OwnedGdtTssTerminalProbe=true." && Sha256File(productionPath) == FrozenProductionSha256 && !probes.Contains("EnableM02NormalizedInterruptFramePageProbe", StringComparison.Ordinal) && !probes.Contains("M02_NORMALIZED_INTERRUPT_FRAME_PAGE_PROBE", StringComparison.Ordinal)) && OS.Tooling.ContractAudit.Inspect(root).Count == 0);
     }
 
     private static bool TestEfiEntryContract()
@@ -523,10 +388,10 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
                 StringComparer.Ordinal)
             && FailsWith(
                 missingBuild,
-                "m02_normalized_interrupt_frame_page_probe_requires_build_efi")
+                "qemu_profile_requires_build_efi")
             && FailsWith(
                 skipImage,
-                "m02_normalized_interrupt_frame_page_probe_forbids_skip_image_build")
+                "qemu_profile_forbids_skip_image_build")
             && FailsWith(
                 terminalCollision,
                 "m02_normalized_interrupt_frame_page_probe_forbids_owned_gdt_tss_terminal");
@@ -850,52 +715,10 @@ internal static unsafe class M02NormalizedInterruptFramePageEfiIntegrationTests
         return parser.Complete();
     }
 
-    private static ScriptResult RunQemuDryRun(
-        string root,
-        params string[] arguments)
+    private static ScriptResult RunQemuDryRun(string root, params string[] arguments)
     {
-        string script = Path.Combine(root, "scripts", "run-qemu-smoke.ps1");
-        string systemPowerShell = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.System),
-            "WindowsPowerShell",
-            "v1.0",
-            "powershell.exe");
-        ProcessStartInfo start = new(
-            File.Exists(systemPowerShell) ? systemPowerShell : "powershell.exe")
-        {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            WorkingDirectory = root
-        };
-        start.ArgumentList.Add("-NoProfile");
-        start.ArgumentList.Add("-NonInteractive");
-        start.ArgumentList.Add("-ExecutionPolicy");
-        start.ArgumentList.Add("Bypass");
-        start.ArgumentList.Add("-File");
-        start.ArgumentList.Add(script);
-        start.ArgumentList.Add("-DryRun");
-        start.ArgumentList.Add("-BootPolicy");
-        start.ArgumentList.Add("Diagnostic");
-        foreach (string argument in arguments)
-        {
-            start.ArgumentList.Add(argument);
-        }
-
-        using Process process = Process.Start(start) ??
-            throw new InvalidOperationException("Could not start PowerShell.");
-        Task<string> stdout = process.StandardOutput.ReadToEndAsync();
-        Task<string> stderr = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(30_000))
-        {
-            process.Kill(entireProcessTree: true);
-            throw new TimeoutException("M02-010 QEMU dry run timed out.");
-        }
-
-        return new ScriptResult(
-            process.ExitCode,
-            stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult());
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. arguments]);
+        return new(result.ExitCode, result.Output + result.Error);
     }
 
     private static bool FailsWith(ScriptResult result, string reason)

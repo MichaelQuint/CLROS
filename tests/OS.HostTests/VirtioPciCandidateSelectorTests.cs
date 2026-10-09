@@ -3,47 +3,8 @@ using OS.Drivers;
 
 internal static class VirtioPciCandidateSelectorTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.virtio.pci.candidate selects block and network devices", TestSelectsBlockAndNetworkDevices, ref failures);
-        Run("drivers.virtio.pci.candidate preserves pci location", TestPreservesPciLocation, ref failures);
-        Run("drivers.virtio.pci.candidate skips unsupported vendor", TestSkipsUnsupportedVendor, ref failures);
-        Run("drivers.virtio.pci.candidate skips unsupported virtio device id", TestSkipsUnsupportedVirtioDeviceId, ref failures);
-        Run("drivers.virtio.pci.candidate requires capability pointer", TestRequiresCapabilityPointer, ref failures);
-        Run("drivers.virtio.pci.candidate reports destination exhaustion", TestReportsDestinationExhaustion, ref failures);
-        Run("drivers.virtio.pci.candidate default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio PCI candidate selector host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtio.pci.candidate selects block and network devices", HostLane.Fast, 0)]
     private static bool TestSelectsBlockAndNetworkDevices()
     {
         PciEcamScannedDevice[] devices =
@@ -57,7 +18,7 @@ internal static class VirtioPciCandidateSelectorTests
 
         VirtioPciCandidateSelectionResult result = VirtioPciCandidateSelector.Select(devices, candidates);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioPciCandidateSelectionStatus.Success
             && result.InspectedDeviceCount == devices.Length
@@ -69,9 +30,10 @@ internal static class VirtioPciCandidateSelectorTests
             && candidates[0].SourceIndex == 1
             && candidates[1].DeviceKind == VirtioPciDeviceKind.Network
             && candidates[1].VirtioDeviceId == VirtioPciDeviceDiscovery.NetworkDeviceId
-            && candidates[1].SourceIndex == 2;
+            && candidates[1].SourceIndex == 2);
     }
 
+    [HostTest("drivers.virtio.pci.candidate preserves pci location", HostLane.Fast, 1)]
     private static bool TestPreservesPciLocation()
     {
         PciEcamScannedDevice[] devices =
@@ -95,7 +57,7 @@ internal static class VirtioPciCandidateSelectorTests
         VirtioPciCandidateSelectionResult result = VirtioPciCandidateSelector.Select(devices, candidates);
         VirtioPciCandidate candidate = candidates[0];
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.CandidateCount == 1
             && candidate.SourceIndex == 0
             && candidate.SegmentIndex == 3
@@ -109,9 +71,10 @@ internal static class VirtioPciCandidateSelectorTests
             && candidate.VendorId == VirtioPciDeviceDiscovery.VirtioVendorId
             && candidate.DeviceId == 0x1041
             && candidate.DeviceKind == VirtioPciDeviceKind.Network
-            && candidate.CapabilityPointer == 0x80;
+            && candidate.CapabilityPointer == 0x80);
     }
 
+    [HostTest("drivers.virtio.pci.candidate skips unsupported vendor", HostLane.Fast, 2)]
     private static bool TestSkipsUnsupportedVendor()
     {
         PciEcamScannedDevice[] devices =
@@ -122,11 +85,12 @@ internal static class VirtioPciCandidateSelectorTests
 
         VirtioPciCandidateSelectionResult result = VirtioPciCandidateSelector.Select(devices, candidates);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.CandidateCount == 0
-            && result.RequiredCandidateCapacity == 0;
+            && result.RequiredCandidateCapacity == 0);
     }
 
+    [HostTest("drivers.virtio.pci.candidate skips unsupported virtio device id", HostLane.Fast, 3)]
     private static bool TestSkipsUnsupportedVirtioDeviceId()
     {
         PciEcamScannedDevice[] devices =
@@ -139,11 +103,12 @@ internal static class VirtioPciCandidateSelectorTests
 
         VirtioPciCandidateSelectionResult result = VirtioPciCandidateSelector.Select(devices, candidates);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.CandidateCount == 0
-            && result.RequiredCandidateCapacity == 0;
+            && result.RequiredCandidateCapacity == 0);
     }
 
+    [HostTest("drivers.virtio.pci.candidate requires capability pointer", HostLane.Fast, 4)]
     private static bool TestRequiresCapabilityPointer()
     {
         PciEcamScannedDevice[] devices =
@@ -156,13 +121,14 @@ internal static class VirtioPciCandidateSelectorTests
 
         VirtioPciCandidateSelectionResult result = VirtioPciCandidateSelector.Select(devices, candidates);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.CandidateCount == 1
             && result.RequiredCandidateCapacity == 1
             && candidates[0].SourceIndex == 2
-            && candidates[0].CapabilityPointer == 0x40;
+            && candidates[0].CapabilityPointer == 0x40);
     }
 
+    [HostTest("drivers.virtio.pci.candidate reports destination exhaustion", HostLane.Fast, 5)]
     private static bool TestReportsDestinationExhaustion()
     {
         PciEcamScannedDevice[] devices =
@@ -175,7 +141,7 @@ internal static class VirtioPciCandidateSelectorTests
 
         VirtioPciCandidateSelectionResult result = VirtioPciCandidateSelector.Select(devices, candidates);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioPciCandidateSelectionStatus.DestinationTooSmall
             && result.InspectedDeviceCount == devices.Length
             && result.CandidateCount == 2
@@ -184,18 +150,19 @@ internal static class VirtioPciCandidateSelectorTests
             && candidates[0].SourceIndex == 0
             && candidates[0].DeviceKind == VirtioPciDeviceKind.Block
             && candidates[1].SourceIndex == 1
-            && candidates[1].DeviceKind == VirtioPciDeviceKind.Network;
+            && candidates[1].DeviceKind == VirtioPciDeviceKind.Network);
     }
 
+    [HostTest("drivers.virtio.pci.candidate default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioPciCandidateSelectionResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && result.Status == VirtioPciCandidateSelectionStatus.Success
             && !result.Succeeded
             && result.FailingSourceIndex == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciCandidateSelectionResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciCandidateSelectionResult>());
     }
 
     private static PciEcamScannedDevice CreateDevice(

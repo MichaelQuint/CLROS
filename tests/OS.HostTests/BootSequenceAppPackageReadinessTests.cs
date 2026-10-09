@@ -7,56 +7,8 @@ using OS.Storage;
 
 internal static class BootSequenceAppPackageReadinessTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run(
-            "boot.sequence app package readiness emits ready marker",
-            TestEmitsReadyMarker,
-            ref failures);
-        Run(
-            "boot.sequence app package readiness rejects manifest failure",
-            TestRejectsManifestFailure,
-            ref failures);
-        Run(
-            "boot.sequence app package readiness rejects package failure",
-            TestRejectsPackageFailure,
-            ref failures);
-        Run(
-            "boot.sequence app package readiness rejects launch-plan failure",
-            TestRejectsLaunchPlanFailure,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Boot sequence app package readiness host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("boot.sequence app package readiness emits ready marker", HostLane.Fast, 0)]
     private static bool TestEmitsReadyMarker()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -70,13 +22,14 @@ internal static class BootSequenceAppPackageReadinessTests
             events);
         string[] snapshot = events.Snapshot();
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.AppPackageReady
             && snapshot.Length == 1
-            && snapshot[0] == BootSequence.AppPackageReady;
+            && snapshot[0] == BootSequence.AppPackageReady);
     }
 
+    [HostTest("boot.sequence app package readiness rejects manifest failure", HostLane.Fast, 1)]
     private static bool TestRejectsManifestFailure()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -96,15 +49,16 @@ internal static class BootSequenceAppPackageReadinessTests
             OsPackageStatus.Success,
             NativeAppLaunchStatus.Success);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(
                 nameof(NativeManifestLoadStatus.ManifestParseFailed),
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence app package readiness rejects package failure", HostLane.Fast, 2)]
     private static bool TestRejectsPackageFailure()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -121,13 +75,14 @@ internal static class BootSequenceAppPackageReadinessTests
             OsPackageStatus.InvalidMagic,
             NativeAppLaunchStatus.Success);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(nameof(OsPackageStatus.InvalidMagic), StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence app package readiness rejects launch-plan failure", HostLane.Fast, 3)]
     private static bool TestRejectsLaunchPlanFailure()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -144,13 +99,13 @@ internal static class BootSequenceAppPackageReadinessTests
             OsPackageStatus.Success,
             NativeAppLaunchStatus.MissingRuntimeCapabilities);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(
                 nameof(NativeAppLaunchStatus.MissingRuntimeCapabilities),
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
     private static NativeManifestLoadResult CreateReadyManifestLoad()

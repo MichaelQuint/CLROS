@@ -13,80 +13,7 @@ internal static class VirtioNetDeviceConfigTests
     private const ulong DeviceBarPhysicalBase = 0x80003000UL;
     private const ulong DeviceBarVirtualBase = 0xFFFF800000003000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.virtionet.config parses mac address", TestParsesMacAddress, ref failures);
-        Run("drivers.virtionet.config parses optional status", TestParsesOptionalStatus, ref failures);
-        Run("drivers.virtionet.config accepts minimum config", TestAcceptsMinimumConfig, ref failures);
-        Run("drivers.virtionet.config rejects short config", TestRejectsShortConfig, ref failures);
-        Run("drivers.virtionet.config rejects zero mac", TestRejectsZeroMac, ref failures);
-        Run("drivers.virtionet.config rejects broadcast mac", TestRejectsBroadcastMac, ref failures);
-        Run("drivers.virtionet.config default results are not success", TestDefaultResultsAreNotSuccess, ref failures);
-        Run(
-            "drivers.net mac validation uses shared helpers",
-            TestMacValidationUsesSharedHelpers,
-            ref failures);
-        Run(
-            "drivers.virtionet.config.windowexec reads mac address",
-            TestRegisterWindowReadsMacAddress,
-            ref failures);
-        Run(
-            "drivers.virtionet.config.windowexec reads optional status",
-            TestRegisterWindowReadsOptionalStatus,
-            ref failures);
-        Run(
-            "drivers.virtionet.config.windowexec rejects short scratch buffer",
-            TestRegisterWindowRejectsShortScratchBuffer,
-            ref failures);
-        Run(
-            "drivers.virtionet.config.windowexec propagates register window failure",
-            TestRegisterWindowPropagatesRegisterWindowFailure,
-            ref failures);
-        Run(
-            "drivers.virtionet.config.windowexec propagates access failure",
-            TestRegisterWindowPropagatesAccessFailure,
-            ref failures);
-        Run(
-            "drivers.virtionet.config.windowexec propagates config parse failure",
-            TestRegisterWindowPropagatesConfigParseFailure,
-            ref failures);
-        Run(
-            "drivers.virtionet.config.windowexec preserves no-live-mmio boundary",
-            TestRegisterWindowPreservesNoLiveMmioBoundary,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio-net device config host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtionet.config parses mac address", HostLane.Fast, 0)]
     private static bool TestParsesMacAddress()
     {
         byte[] config = CreateMinimumConfig(TestMacAddress);
@@ -94,7 +21,7 @@ internal static class VirtioNetDeviceConfigTests
         VirtioNetDeviceConfigParseResult result =
             VirtioNetDeviceConfig.TryParse(config);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioNetDeviceConfigStatus.Success
             && result.Config.MacAddress == TestMacAddress
@@ -103,9 +30,10 @@ internal static class VirtioNetDeviceConfigTests
             && !result.Config.IsLinkUp
             && !result.Config.HasAnnounce
             && result.InputLength == VirtioNetDeviceConfig.MinimumLength
-            && result.BytesConsumed == VirtioNetDeviceConfig.MinimumLength;
+            && result.BytesConsumed == VirtioNetDeviceConfig.MinimumLength);
     }
 
+    [HostTest("drivers.virtionet.config parses optional status", HostLane.Fast, 1)]
     private static bool TestParsesOptionalStatus()
     {
         byte[] config = CreateMinimumConfig(TestMacAddress);
@@ -120,16 +48,17 @@ internal static class VirtioNetDeviceConfigTests
         VirtioNetDeviceConfigParseResult result =
             VirtioNetDeviceConfig.TryParse(config);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Config.MacAddress == TestMacAddress
             && result.Config.HasStatus
             && result.Config.StatusBits == statusBits
             && result.Config.IsLinkUp
             && result.Config.HasAnnounce
             && result.InputLength == VirtioNetDeviceConfig.StatusConfigLength
-            && result.BytesConsumed == VirtioNetDeviceConfig.StatusConfigLength;
+            && result.BytesConsumed == VirtioNetDeviceConfig.StatusConfigLength);
     }
 
+    [HostTest("drivers.virtionet.config accepts minimum config", HostLane.Fast, 2)]
     private static bool TestAcceptsMinimumConfig()
     {
         byte[] config = CreateMinimumConfig(
@@ -138,12 +67,13 @@ internal static class VirtioNetDeviceConfigTests
         VirtioNetDeviceConfigParseResult result =
             VirtioNetDeviceConfig.TryParse(config);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Config.MacAddress == new MacAddress(0x02, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE)
             && !result.Config.HasStatus
-            && result.BytesConsumed == VirtioNetDeviceConfig.MinimumLength;
+            && result.BytesConsumed == VirtioNetDeviceConfig.MinimumLength);
     }
 
+    [HostTest("drivers.virtionet.config rejects short config", HostLane.Fast, 3)]
     private static bool TestRejectsShortConfig()
     {
         byte[] tooShortForMac = new byte[VirtioNetDeviceConfig.MinimumLength - 1];
@@ -155,15 +85,16 @@ internal static class VirtioNetDeviceConfigTests
         VirtioNetDeviceConfigParseResult statusResult =
             VirtioNetDeviceConfig.TryParse(partialStatus);
 
-        return !macResult.Succeeded
+        return HostCheck.Result(!macResult.Succeeded
             && macResult.Status == VirtioNetDeviceConfigStatus.BufferTooSmall
             && macResult.InputLength == tooShortForMac.Length
             && macResult.BytesConsumed == 0
             && !statusResult.Succeeded
             && statusResult.Status == VirtioNetDeviceConfigStatus.BufferTooSmall
-            && statusResult.InputLength == partialStatus.Length;
+            && statusResult.InputLength == partialStatus.Length);
     }
 
+    [HostTest("drivers.virtionet.config rejects zero mac", HostLane.Fast, 4)]
     private static bool TestRejectsZeroMac()
     {
         byte[] config = CreateMinimumConfig(default);
@@ -171,13 +102,14 @@ internal static class VirtioNetDeviceConfigTests
         VirtioNetDeviceConfigParseResult result =
             VirtioNetDeviceConfig.TryParse(config);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioNetDeviceConfigStatus.ZeroMacAddress
             && result.InputLength == VirtioNetDeviceConfig.MinimumLength
-            && result.BytesConsumed == 0;
+            && result.BytesConsumed == 0);
     }
 
+    [HostTest("drivers.virtionet.config rejects broadcast mac", HostLane.Fast, 5)]
     private static bool TestRejectsBroadcastMac()
     {
         byte[] config = CreateMinimumConfig(
@@ -186,19 +118,20 @@ internal static class VirtioNetDeviceConfigTests
         VirtioNetDeviceConfigParseResult result =
             VirtioNetDeviceConfig.TryParse(config);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioNetDeviceConfigStatus.BroadcastMacAddress
             && result.InputLength == VirtioNetDeviceConfig.MinimumLength
-            && result.BytesConsumed == 0;
+            && result.BytesConsumed == 0);
     }
 
+    [HostTest("drivers.virtionet.config default results are not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         VirtioNetDeviceConfigParseResult parse = default;
         VirtioNetDeviceConfigRegisterWindowReadResult read = default;
 
-        return !parse.IsInitialized
+        return HostCheck.Result(!parse.IsInitialized
             && !parse.Succeeded
             && parse.Status == VirtioNetDeviceConfigStatus.Success
             && parse.BytesConsumed == 0
@@ -206,9 +139,10 @@ internal static class VirtioNetDeviceConfigTests
             && !read.Succeeded
             && read.Status == VirtioNetDeviceConfigRegisterWindowReadStatus.Success
             && read.ConfigStatus == VirtioNetDeviceConfigStatus.Success
-            && read.BytesRead == 0;
+            && read.BytesRead == 0);
     }
 
+    [HostTest("drivers.net mac validation uses shared helpers", HostLane.Fast, 7)]
     private static bool TestMacValidationUsesSharedHelpers()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -225,8 +159,8 @@ internal static class VirtioNetDeviceConfigTests
             "Drivers",
             "EnaDeviceAttributes.cs"));
 
-        return DriverSourceUsesSharedMacHelpers(virtioSource)
-            && DriverSourceUsesSharedMacHelpers(enaSource);
+        return HostCheck.Result(DriverSourceUsesSharedMacHelpers(virtioSource)
+            && DriverSourceUsesSharedMacHelpers(enaSource));
     }
 
     private static bool DriverSourceUsesSharedMacHelpers(string source)
@@ -237,6 +171,7 @@ internal static class VirtioNetDeviceConfigTests
             && !source.Contains("private static bool IsBroadcast(MacAddress", StringComparison.Ordinal);
     }
 
+    [HostTest("drivers.virtionet.config.windowexec reads mac address", HostLane.Fast, 8)]
     private static bool TestRegisterWindowReadsMacAddress()
     {
         VirtioPciBarRegisterWindowBindingResult windows =
@@ -250,7 +185,7 @@ internal static class VirtioNetDeviceConfigTests
                 deviceWindowBytes,
                 scratch);
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioNetDeviceConfigRegisterWindowReadStatus.Success
@@ -275,9 +210,10 @@ internal static class VirtioNetDeviceConfigTests
             && scratch[2] == TestMacAddress.Octet2
             && scratch[3] == TestMacAddress.Octet3
             && scratch[4] == TestMacAddress.Octet4
-            && scratch[5] == TestMacAddress.Octet5;
+            && scratch[5] == TestMacAddress.Octet5);
     }
 
+    [HostTest("drivers.virtionet.config.windowexec reads optional status", HostLane.Fast, 9)]
     private static bool TestRegisterWindowReadsOptionalStatus()
     {
         const ushort statusBits =
@@ -297,7 +233,7 @@ internal static class VirtioNetDeviceConfigTests
                 deviceWindowBytes,
                 scratch);
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && result.Succeeded
             && result.Config.MacAddress == TestMacAddress
             && result.Config.HasStatus
@@ -313,9 +249,10 @@ internal static class VirtioNetDeviceConfigTests
             && result.LastValue == statusBits
             && EndianPrimitives.ReadUInt16LittleEndian(
                 scratch.AsSpan(VirtioNetDeviceConfig.StatusOffset, VirtioNetDeviceConfig.StatusLength)) ==
-                    statusBits;
+                    statusBits);
     }
 
+    [HostTest("drivers.virtionet.config.windowexec rejects short scratch buffer", HostLane.Fast, 10)]
     private static bool TestRegisterWindowRejectsShortScratchBuffer()
     {
         VirtioPciBarRegisterWindowBindingResult windows =
@@ -329,7 +266,7 @@ internal static class VirtioNetDeviceConfigTests
                 deviceWindowBytes,
                 scratch);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioNetDeviceConfigRegisterWindowReadStatus.ScratchBufferTooSmall
             && result.ConfigStatus == VirtioNetDeviceConfigStatus.BufferTooSmall
@@ -339,9 +276,10 @@ internal static class VirtioNetDeviceConfigTests
             && result.BytesRead == 0
             && !result.StatusFieldAttempted
             && !result.StatusFieldRead
-            && AllBytesEqual(scratch, 0xCC);
+            && AllBytesEqual(scratch, 0xCC));
     }
 
+    [HostTest("drivers.virtionet.config.windowexec propagates register window failure", HostLane.Fast, 11)]
     private static bool TestRegisterWindowPropagatesRegisterWindowFailure()
     {
         byte[] deviceWindowBytes = CreateDeviceWindowBytes(TestMacAddress, hasStatus: false, statusBits: 0);
@@ -353,15 +291,16 @@ internal static class VirtioNetDeviceConfigTests
                 deviceWindowBytes,
                 scratch);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetDeviceConfigRegisterWindowReadStatus.RegisterWindowPlanFailed
             && result.RegisterWindowPlanStatus == VirtioPciBarRegisterWindowPlanStatus.MissingWindow
             && result.AccessExecutionStatus == VirtioPciBarRegisterWindowAccessExecutionStatus.Success
             && result.BytesRead == 0
             && !result.StatusFieldAttempted
-            && AllBytesEqual(scratch, 0xCC);
+            && AllBytesEqual(scratch, 0xCC));
     }
 
+    [HostTest("drivers.virtionet.config.windowexec propagates access failure", HostLane.Fast, 12)]
     private static bool TestRegisterWindowPropagatesAccessFailure()
     {
         VirtioPciBarRegisterWindowBindingResult windows =
@@ -379,7 +318,7 @@ internal static class VirtioNetDeviceConfigTests
                 deviceWindowBytes,
                 scratch);
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && !result.Succeeded
             && result.Status == VirtioNetDeviceConfigRegisterWindowReadStatus.AccessExecutionFailed
             && result.RegisterWindowPlanStatus == VirtioPciBarRegisterWindowPlanStatus.Success
@@ -387,9 +326,10 @@ internal static class VirtioNetDeviceConfigTests
                 VirtioPciBarRegisterWindowAccessExecutionStatus.WindowBufferTooSmall
             && result.BytesRead == sizeof(uint)
             && !result.StatusFieldAttempted
-            && !result.StatusFieldRead;
+            && !result.StatusFieldRead);
     }
 
+    [HostTest("drivers.virtionet.config.windowexec propagates config parse failure", HostLane.Fast, 13)]
     private static bool TestRegisterWindowPropagatesConfigParseFailure()
     {
         VirtioPciBarRegisterWindowBindingResult windows =
@@ -403,16 +343,17 @@ internal static class VirtioNetDeviceConfigTests
                 deviceWindowBytes,
                 scratch);
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && !result.Succeeded
             && result.Status == VirtioNetDeviceConfigRegisterWindowReadStatus.ConfigParseFailed
             && result.ConfigStatus == VirtioNetDeviceConfigStatus.ZeroMacAddress
             && result.RegisterWindowPlanStatus == VirtioPciBarRegisterWindowPlanStatus.Success
             && result.AccessExecutionStatus == VirtioPciBarRegisterWindowAccessExecutionStatus.Success
             && result.BytesRead == VirtioNetDeviceConfig.MinimumLength
-            && result.BytesConsumed == 0;
+            && result.BytesConsumed == 0);
     }
 
+    [HostTest("drivers.virtionet.config.windowexec preserves no-live-mmio boundary", HostLane.Fast, 14)]
     private static bool TestRegisterWindowPreservesNoLiveMmioBoundary()
     {
         VirtioPciBarRegisterWindowBindingResult windows =
@@ -429,7 +370,7 @@ internal static class VirtioNetDeviceConfigTests
                 deviceWindowBytes,
                 scratch);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioNetDeviceConfigRegisterWindowReader.RequiresRegisterWindowBinding
             && VirtioNetDeviceConfigRegisterWindowReader.UsesCallerOwnedWindowBuffer
             && VirtioNetDeviceConfigRegisterWindowReader.UsesCallerOwnedScratchBuffer
@@ -451,7 +392,7 @@ internal static class VirtioNetDeviceConfigTests
             && !VirtioNetDeviceConfigRegisterWindowReader.PerformsDmaMapping
             && !VirtioNetDeviceConfigRegisterWindowReader.PerformsPacketIo
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetDeviceConfigRegisterWindowReadResult>();
+                VirtioNetDeviceConfigRegisterWindowReadResult>());
     }
 
     private static byte[] CreateMinimumConfig(MacAddress macAddress)

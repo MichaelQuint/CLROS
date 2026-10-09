@@ -3,52 +3,15 @@ using OS.Kernel.Diagnostics;
 
 internal static class FaultProbeStubPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("fault probe stub plan encodes invalid opcode probe", TestEncodesInvalidOpcodeProbe, ref failures);
-        Run("fault probe stub plan encodes null write probe", TestEncodesNullWriteProbe, ref failures);
-        Run("fault probe stub plan keeps destructive probes disabled by default", TestKeepsDestructiveProbesDisabledByDefault, ref failures);
-        Run("fault probe stub plan rejects invalid inputs", TestRejectsInvalidInputs, ref failures);
-        Run("fault probe stub plan default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Fault probe stub plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("fault probe stub plan encodes invalid opcode probe", HostLane.Fast, 0)]
     private static bool TestEncodesInvalidOpcodeProbe()
     {
         byte[] bytes = CreatePoisonedBuffer(FaultProbeStubPlan.InvalidOpcodeRequiredByteLength + 1);
 
         FaultProbeStubPlanResult result = FaultProbeStubPlan.InvalidOpcode.Emit(bytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == FaultProbeStubPlanStatus.Success
             && result.Kind == FaultProbeStubKind.InvalidOpcode
@@ -61,16 +24,17 @@ internal static class FaultProbeStubPlanTests
             && bytes[0] == FaultProbeStubPlan.TwoByteOpcodePrefix
             && bytes[1] == FaultProbeStubPlan.Ud2Opcode
             && bytes[2] == FaultProbeStubPlan.RetOpcode
-            && bytes[3] == 0xcc;
+            && bytes[3] == 0xcc);
     }
 
+    [HostTest("fault probe stub plan encodes null write probe", HostLane.Fast, 1)]
     private static bool TestEncodesNullWriteProbe()
     {
         byte[] bytes = CreatePoisonedBuffer(FaultProbeStubPlan.NullWriteRequiredByteLength + 1);
 
         FaultProbeStubPlanResult result = FaultProbeStubPlan.NullWrite.Emit(bytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == FaultProbeStubPlanStatus.Success
             && result.Kind == FaultProbeStubKind.NullWrite
             && result.BytesWritten == FaultProbeStubPlan.NullWriteRequiredByteLength
@@ -86,15 +50,16 @@ internal static class FaultProbeStubPlanTests
             && bytes[6] == 0x00
             && bytes[7] == FaultProbeStubPlan.NullWriteValue
             && bytes[8] == FaultProbeStubPlan.RetOpcode
-            && bytes[9] == 0xcc;
+            && bytes[9] == 0xcc);
     }
 
+    [HostTest("fault probe stub plan keeps destructive probes disabled by default", HostLane.Fast, 2)]
     private static bool TestKeepsDestructiveProbesDisabledByDefault()
     {
         ProbeDefinition invalidOpcode = FaultProbeStubPlan.InvalidOpcode.ProbeDefinition;
         ProbeDefinition nullWrite = FaultProbeStubPlan.NullWrite.ProbeDefinition;
 
-        return invalidOpcode.Name == nameof(Probes.EnableInvalidOpcodePanicProbe)
+        return HostCheck.Result(invalidOpcode.Name == nameof(Probes.EnableInvalidOpcodePanicProbe)
             && invalidOpcode.Group == Probes.PanicSmokeGroup
             && !invalidOpcode.EnabledByDefault
             && invalidOpcode.Risk == ProbeRisk.Destructive
@@ -103,9 +68,10 @@ internal static class FaultProbeStubPlanTests
             && !nullWrite.EnabledByDefault
             && nullWrite.Risk == ProbeRisk.Destructive
             && !Probes.EnableInvalidOpcodePanicProbe
-            && !Probes.EnableNullPointerPanicProbe;
+            && !Probes.EnableNullPointerPanicProbe);
     }
 
+    [HostTest("fault probe stub plan rejects invalid inputs", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidInputs()
     {
         byte[] validBytes = CreatePoisonedBuffer(FaultProbeStubPlan.MaximumRequiredByteLength);
@@ -117,7 +83,7 @@ internal static class FaultProbeStubPlanTests
         FaultProbeStubPlanResult shortInvalidOpcode = FaultProbeStubPlan.InvalidOpcode.Emit(shortInvalidOpcodeBytes);
         FaultProbeStubPlanResult shortNullWrite = FaultProbeStubPlan.NullWrite.Emit(shortNullWriteBytes);
 
-        return !defaultKind.Succeeded
+        return HostCheck.Result(!defaultKind.Succeeded
             && defaultKind.IsInitialized
             && defaultKind.Status == FaultProbeStubPlanStatus.UnknownKind
             && defaultKind.Kind == FaultProbeStubKind.Unknown
@@ -144,19 +110,20 @@ internal static class FaultProbeStubPlanTests
             && FaultProbeStubPlan.Validate(FaultProbeStubKind.Unknown, FaultProbeStubPlan.MaximumRequiredByteLength)
                 == FaultProbeStubPlanStatus.UnknownKind
             && FaultProbeStubPlan.Validate(FaultProbeStubKind.NullWrite, FaultProbeStubPlan.NullWriteRequiredByteLength - 1)
-                == FaultProbeStubPlanStatus.OutputBufferTooSmall;
+                == FaultProbeStubPlanStatus.OutputBufferTooSmall);
     }
 
+    [HostTest("fault probe stub plan default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         FaultProbeStubPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == FaultProbeStubPlanStatus.Success
             && result.Kind == FaultProbeStubKind.Unknown
             && result.BytesWritten == 0
-            && result.RequiredBytes == 0;
+            && result.RequiredBytes == 0);
     }
 
     private static byte[] CreatePoisonedBuffer(int length)

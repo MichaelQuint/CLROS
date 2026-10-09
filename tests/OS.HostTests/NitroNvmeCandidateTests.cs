@@ -5,56 +5,19 @@ using OS.Std.Binary;
 
 internal static class NitroNvmeCandidateTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.nvme.nitro identifies controller", TestIdentifiesController, ref failures);
-        Run("drivers.nvme.nitro parses namespace identity", TestParsesNamespaceIdentity, ref failures);
-        Run("drivers.nvme.nitro rejects malformed identity", TestRejectsMalformedIdentity, ref failures);
-        Run("drivers.nvme.nitro rejects non nvme device", TestRejectsNonNvmeDevice, ref failures);
-        Run("drivers.nvme.nitro rejects missing mmio bar", TestRejectsMissingMmioBar, ref failures);
-        Run("drivers.nvme.nitro rejects default plan result", TestRejectsDefaultPlanResult, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Nitro NVMe candidate host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.nvme.nitro rejects default plan result", HostLane.Fast, 5)]
     private static bool TestRejectsDefaultPlanResult()
     {
         NitroNvmePlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NitroNvmePlanStatus.Success
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NitroNvmePlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NitroNvmePlanResult>());
     }
 
+    [HostTest("drivers.nvme.nitro identifies controller", HostLane.Fast, 0)]
     private static bool TestIdentifiesController()
     {
         byte[] controllerIdentify = CreateControllerIdentify(
@@ -77,7 +40,7 @@ internal static class NitroNvmeCandidateTests
             controllerIdentify,
             namespaceIdentify);
 
-        return NitroNvmePlanner.MassStorageClassCode == 0x01
+        return HostCheck.Result(NitroNvmePlanner.MassStorageClassCode == 0x01
             && NitroNvmePlanner.NonVolatileMemorySubclass == 0x08
             && NitroNvmePlanner.NvmeProgrammingInterface == 0x02
             && result.Succeeded
@@ -93,9 +56,10 @@ internal static class NitroNvmeCandidateTests
             && result.Plan.RegisterBar.BaseAddress == 0x90000000
             && result.Plan.RegisterBar.ApertureLength == 0x4000
             && result.Plan.NamespaceIdentity.NamespaceCount == 3
-            && result.Plan.NamespaceIdentity.NamespaceId == 1;
+            && result.Plan.NamespaceIdentity.NamespaceId == 1);
     }
 
+    [HostTest("drivers.nvme.nitro parses namespace identity", HostLane.Fast, 1)]
     private static bool TestParsesNamespaceIdentity()
     {
         byte[] controllerIdentify = CreateControllerIdentify(
@@ -115,7 +79,7 @@ internal static class NitroNvmeCandidateTests
             namespaceIdentify);
         NitroNvmeNamespaceIdentity identity = result.Plan.NamespaceIdentity;
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Plan.Msix.IsPresent
             && result.Plan.Msix.TableEntryCount == 8
             && identity.NamespaceCount == 4
@@ -129,9 +93,10 @@ internal static class NitroNvmeCandidateTests
             && identity.SerialNumber.MaximumLength == NitroNvmePlanner.ControllerSerialNumberLength
             && identity.ModelNumber.Length == 26
             && FieldEquals(identity.SerialNumber, controllerIdentify, "vol0abc123")
-            && FieldEquals(identity.ModelNumber, controllerIdentify, "Amazon Elastic Block Store");
+            && FieldEquals(identity.ModelNumber, controllerIdentify, "Amazon Elastic Block Store"));
     }
 
+    [HostTest("drivers.nvme.nitro rejects malformed identity", HostLane.Fast, 2)]
     private static bool TestRejectsMalformedIdentity()
     {
         byte[] validController = CreateControllerIdentify(namespaceCount: 2);
@@ -169,7 +134,7 @@ internal static class NitroNvmeCandidateTests
             validController,
             new byte[128]);
 
-        return !zeroCapacity.Succeeded
+        return HostCheck.Result(!zeroCapacity.Succeeded
             && zeroCapacity.Status == NitroNvmePlanStatus.ZeroCapacity
             && !impossibleLba.Succeeded
             && impossibleLba.Status == NitroNvmePlanStatus.ImpossibleLogicalBlockSize
@@ -180,9 +145,10 @@ internal static class NitroNvmeCandidateTests
             && !malformedSerial.Succeeded
             && malformedSerial.Status == NitroNvmePlanStatus.MalformedSerialNumber
             && !shortNamespaceIdentify.Succeeded
-            && shortNamespaceIdentify.Status == NitroNvmePlanStatus.NamespaceIdentifyBufferTooSmall;
+            && shortNamespaceIdentify.Status == NitroNvmePlanStatus.NamespaceIdentifyBufferTooSmall);
     }
 
+    [HostTest("drivers.nvme.nitro rejects non nvme device", HostLane.Fast, 3)]
     private static bool TestRejectsNonNvmeDevice()
     {
         byte[] controllerIdentify = CreateControllerIdentify(namespaceCount: 1);
@@ -212,14 +178,15 @@ internal static class NitroNvmeCandidateTests
             controllerIdentify,
             namespaceIdentify);
 
-        return !virtioBlock.Succeeded
+        return HostCheck.Result(!virtioBlock.Succeeded
             && virtioBlock.Status == NitroNvmePlanStatus.UnsupportedSubclass
             && !networkDevice.Succeeded
             && networkDevice.Status == NitroNvmePlanStatus.UnsupportedClassCode
             && !badProgrammingInterface.Succeeded
-            && badProgrammingInterface.Status == NitroNvmePlanStatus.UnsupportedProgrammingInterface;
+            && badProgrammingInterface.Status == NitroNvmePlanStatus.UnsupportedProgrammingInterface);
     }
 
+    [HostTest("drivers.nvme.nitro rejects missing mmio bar", HostLane.Fast, 4)]
     private static bool TestRejectsMissingMmioBar()
     {
         byte[] controllerIdentify = CreateControllerIdentify(namespaceCount: 1);
@@ -246,7 +213,7 @@ internal static class NitroNvmeCandidateTests
             controllerIdentify,
             namespaceIdentify);
 
-        return !absentBar.Succeeded
+        return HostCheck.Result(!absentBar.Succeeded
             && absentBar.Status == NitroNvmePlanStatus.RegisterBarUnavailable
             && absentBar.FailingBarIndex == 0
             && !ioBar.Succeeded
@@ -254,7 +221,7 @@ internal static class NitroNvmeCandidateTests
             && !tooSmallAperture.Succeeded
             && tooSmallAperture.Status == NitroNvmePlanStatus.RegisterBarApertureTooSmall
             && !misalignedAperture.Succeeded
-            && misalignedAperture.Status == NitroNvmePlanStatus.RegisterBarApertureMisaligned;
+            && misalignedAperture.Status == NitroNvmePlanStatus.RegisterBarApertureMisaligned);
     }
 
     private static NitroNvmePciSnapshot CreateSnapshot(

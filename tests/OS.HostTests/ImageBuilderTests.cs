@@ -11,7 +11,7 @@ internal static class ImageBuilderTests
     private const int SectorSize = 512;
     private const ulong PartitionStartLba = 2048;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         int failures = 0;
@@ -114,24 +114,8 @@ internal static class ImageBuilderTests
 
     private static void Run(string name, ref int failures, Func<bool> test)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestPlanRawDoesNotWrite(string tempRoot)
@@ -1746,7 +1730,7 @@ internal static class ImageBuilderTests
         string efiPath = Path.Combine(tempRoot, "BOOTX64-KESTREL-PUBLISHED.EFI");
         string imagePath = Path.Combine(tempRoot, "kestrel-published.raw");
 
-        ToolResult publish = RunKestrelPublishScript(outputRoot);
+        ToolResult publish = RunKestrelPublish(outputRoot);
         if (publish.ExitCode != 0)
         {
             return KestrelPublishedImageFixture.CreateFailed(
@@ -1810,57 +1794,12 @@ internal static class ImageBuilderTests
             packageLoad.PackageStatus.ToString());
     }
 
-    private static ToolResult RunKestrelPublishScript(string outputRoot)
-    {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string scriptPath = Path.Combine(
-            repositoryRoot,
-            "apps",
-            "MinimalApiSmoke",
-            "publish-kestrel-smoke-package.ps1");
-        if (!File.Exists(scriptPath))
-        {
-            return new ToolResult(-1, "kestrel publish script not found: " + scriptPath);
-        }
-
-        using Process process = new Process();
-        process.StartInfo.FileName = "powershell.exe";
-        process.StartInfo.WorkingDirectory = repositoryRoot;
-        process.StartInfo.UseShellExecute = false;
-        process.StartInfo.RedirectStandardOutput = true;
-        process.StartInfo.RedirectStandardError = true;
-        process.StartInfo.ArgumentList.Add("-NoProfile");
-        process.StartInfo.ArgumentList.Add("-ExecutionPolicy");
-        process.StartInfo.ArgumentList.Add("Bypass");
-        process.StartInfo.ArgumentList.Add("-File");
-        process.StartInfo.ArgumentList.Add(scriptPath);
-        process.StartInfo.ArgumentList.Add("-OutputRoot");
-        process.StartInfo.ArgumentList.Add(outputRoot);
-        process.StartInfo.ArgumentList.Add("-WorkloadProfile");
-        process.StartInfo.ArgumentList.Add("SingleMinimalApi");
-        process.StartInfo.ArgumentList.Add("-SkipNegativeValidation");
-
-        process.Start();
-        Task<string> stdout = process.StandardOutput.ReadToEndAsync();
-        Task<string> stderr = process.StandardError.ReadToEndAsync();
-
-        if (!process.WaitForExit(180000))
-        {
-            try
-            {
-                process.Kill(entireProcessTree: true);
-            }
-            catch
-            {
-                // Timeout is the actionable failure.
-            }
-
-            return new ToolResult(-1, "kestrel publish script timed out");
-        }
-
-        string output = stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult();
-        return new ToolResult(process.ExitCode, output);
-    }
+    private static ToolResult RunKestrelPublish(string outputRoot)
+{
+    var result = HostToolProcess.RunTool("kestrel", "package", "--output-root", outputRoot,
+        "--workload-profile", "SingleMinimalApi", "--skip-negative-validation");
+    return new(result.ExitCode, result.Output + result.Error);
+}
 
     private static bool PackageFileEqualsPublishedFile(byte[] packageBytes, string packageRoot, string packagePath)
     {

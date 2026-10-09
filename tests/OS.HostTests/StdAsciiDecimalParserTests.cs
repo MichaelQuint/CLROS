@@ -4,19 +4,8 @@ using OS.Std.Text;
 
 internal static class StdAsciiDecimalParserTests
 {
-    [ModuleInitializer]
-    internal static void Run()
-    {
-        RunScenario("std.ascii.decimal parses uint32 values", TestParseUInt32Values);
-        RunScenario("std.ascii.decimal parses uint64 values", TestParseUInt64Values);
-        RunScenario("std.ascii.decimal parses int32 values", TestParseInt32Values);
-        RunScenario("std.ascii.decimal parses int64 values", TestParseInt64Values);
-        RunScenario("std.ascii.decimal rejects invalid input", TestRejectsInvalidInput);
-        RunScenario("std.ascii.decimal rejects signed invalid input", TestRejectsSignedInvalidInput);
-        RunScenario("std.ascii.decimal default result is not success", TestDefaultResultContract);
-        RunScenario("std.ascii.decimal uses shared digit helper", TestUsesSharedDigitHelper);
-    }
 
+    [HostTest("std.ascii.decimal parses uint32 values", HostLane.Fast, 0)]
     private static void TestParseUInt32Values()
     {
         ExpectBool("status is partial", true, AsciiDecimalParser.Status == CompatibilityStatus.Partial);
@@ -46,6 +35,7 @@ internal static class StdAsciiDecimalParserTests
         ExpectUInt32("try parse value", 42, parsed);
     }
 
+    [HostTest("std.ascii.decimal parses uint64 values", HostLane.Fast, 1)]
     private static void TestParseUInt64Values()
     {
         ExpectUInt64Result(
@@ -74,6 +64,7 @@ internal static class StdAsciiDecimalParserTests
         ExpectUInt64("try parse value", 9001, parsed);
     }
 
+    [HostTest("std.ascii.decimal parses int32 values", HostLane.Fast, 2)]
     private static void TestParseInt32Values()
     {
         ExpectInt32Result(
@@ -123,6 +114,7 @@ internal static class StdAsciiDecimalParserTests
         ExpectInt32("try parse value", -42, parsed);
     }
 
+    [HostTest("std.ascii.decimal parses int64 values", HostLane.Fast, 3)]
     private static void TestParseInt64Values()
     {
         ExpectInt64Result(
@@ -172,6 +164,7 @@ internal static class StdAsciiDecimalParserTests
         ExpectInt64("try parse value", -9001, parsed);
     }
 
+    [HostTest("std.ascii.decimal rejects invalid input", HostLane.Fast, 4)]
     private static void TestRejectsInvalidInput()
     {
         ExpectUInt32Result(
@@ -235,6 +228,7 @@ internal static class StdAsciiDecimalParserTests
         ExpectUInt32("try parse invalid clears value", 0, parsed);
     }
 
+    [HostTest("std.ascii.decimal rejects signed invalid input", HostLane.Fast, 5)]
     private static void TestRejectsSignedInvalidInput()
     {
         ExpectInt32Result(
@@ -321,6 +315,7 @@ internal static class StdAsciiDecimalParserTests
         ExpectInt64("try parse int64 invalid clears value", 0, parsed64);
     }
 
+    [HostTest("std.ascii.decimal default result is not success", HostLane.Fast, 6)]
     private static void TestDefaultResultContract()
     {
         AsciiUInt32ParseResult uint32Result = default;
@@ -361,6 +356,7 @@ internal static class StdAsciiDecimalParserTests
             RuntimeHelpers.IsReferenceOrContainsReferences<AsciiInt64ParseResult>());
     }
 
+    [HostTest("std.ascii.decimal uses shared digit helper", HostLane.Fast, 7)]
     private static void TestUsesSharedDigitHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -375,22 +371,6 @@ internal static class StdAsciiDecimalParserTests
             "parser does not keep private digit helper",
             false,
             source.Contains("private static bool IsDigit(byte value)", StringComparison.Ordinal));
-    }
-
-    private static void RunScenario(string name, Action test)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            test();
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
     }
 
     private static void ExpectUInt32Result(

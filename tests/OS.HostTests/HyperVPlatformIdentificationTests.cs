@@ -3,75 +3,20 @@ using OS.Drivers;
 
 internal static class HyperVPlatformIdentificationTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run(
-            "drivers.hyperv identification rejects missing hypervisor bit",
-            TestRejectsMissingHypervisorBit,
-            ref failures);
-        Run(
-            "drivers.hyperv identification rejects unsupported vendor",
-            TestRejectsUnsupportedVendor,
-            ref failures);
-        Run(
-            "drivers.hyperv identification rejects insufficient max leaf",
-            TestRejectsInsufficientMaxLeaf,
-            ref failures);
-        Run(
-            "drivers.hyperv identification requires feature leaf snapshot",
-            TestRequiresFeatureLeafSnapshot,
-            ref failures);
-        Run(
-            "drivers.hyperv identification accepts compatible snapshot",
-            TestAcceptsCompatibleSnapshot,
-            ref failures);
-        Run(
-            "drivers.hyperv identification default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Hyper-V platform identification host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.hyperv identification rejects missing hypervisor bit", HostLane.Fast, 0)]
     private static bool TestRejectsMissingHypervisorBit()
     {
         HyperVPlatformIdentificationResult result = HyperVPlatformIdentification.Identify(
             CreateSnapshot(leaf1Ecx: 0));
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && !result.HypervisorPresent
             && result.Status == HyperVPlatformIdentificationStatus.NoHypervisorPresentBit
-            && result.MaxHypervisorLeaf == HyperVPlatformIdentification.FeatureIdentificationLeafNumber;
+            && result.MaxHypervisorLeaf == HyperVPlatformIdentification.FeatureIdentificationLeafNumber);
     }
 
+    [HostTest("drivers.hyperv identification rejects unsupported vendor", HostLane.Fast, 1)]
     private static bool TestRejectsUnsupportedVendor()
     {
         HyperVPlatformIdentificationResult result = HyperVPlatformIdentification.Identify(
@@ -80,37 +25,40 @@ internal static class HyperVPlatformIdentificationTests
                 vendorEcx: 0x564B4D56,
                 vendorEdx: 0x0000004D));
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.HypervisorPresent
             && result.Status == HyperVPlatformIdentificationStatus.UnsupportedVendor
-            && !result.VendorSignature.IsMicrosoftHyperV;
+            && !result.VendorSignature.IsMicrosoftHyperV);
     }
 
+    [HostTest("drivers.hyperv identification rejects insufficient max leaf", HostLane.Fast, 2)]
     private static bool TestRejectsInsufficientMaxLeaf()
     {
         HyperVPlatformIdentificationResult result = HyperVPlatformIdentification.Identify(
             CreateSnapshot(maxHypervisorLeaf: HyperVPlatformIdentification.FeatureIdentificationLeafNumber - 1));
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.HypervisorPresent
             && result.VendorSignature.IsMicrosoftHyperV
             && result.MaxHypervisorLeaf == HyperVPlatformIdentification.FeatureIdentificationLeafNumber - 1
-            && result.Status == HyperVPlatformIdentificationStatus.InsufficientMaxLeaf;
+            && result.Status == HyperVPlatformIdentificationStatus.InsufficientMaxLeaf);
     }
 
+    [HostTest("drivers.hyperv identification requires feature leaf snapshot", HostLane.Fast, 3)]
     private static bool TestRequiresFeatureLeafSnapshot()
     {
         HyperVPlatformIdentificationResult result = HyperVPlatformIdentification.Identify(
             CreateSnapshot(hasFeatureLeaf: false));
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.HypervisorPresent
             && result.VendorSignature.IsMicrosoftHyperV
             && result.MaxHypervisorLeaf >= HyperVPlatformIdentification.FeatureIdentificationLeafNumber
             && !result.HasFeatureIdentificationLeaf
-            && result.Status == HyperVPlatformIdentificationStatus.MissingFeatureIdentificationLeaf;
+            && result.Status == HyperVPlatformIdentificationStatus.MissingFeatureIdentificationLeaf);
     }
 
+    [HostTest("drivers.hyperv identification accepts compatible snapshot", HostLane.Fast, 4)]
     private static bool TestAcceptsCompatibleSnapshot()
     {
         CpuidRegisterSnapshot featureLeaf = new CpuidRegisterSnapshot(
@@ -124,7 +72,7 @@ internal static class HyperVPlatformIdentificationTests
                 hasFeatureLeaf: true,
                 featureLeaf: featureLeaf));
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsHyperVCompatible
             && result.IsInitialized
             && result.HypervisorPresent
@@ -139,18 +87,19 @@ internal static class HyperVPlatformIdentificationTests
             && result.FeatureIdentificationLeaf.Eax == 0x0000002F
             && result.FeatureIdentificationLeaf.Ebx == 0x00000001
             && result.FeatureIdentificationLeaf.Ecx == 0x00000002
-            && result.FeatureIdentificationLeaf.Edx == 0x00000004;
+            && result.FeatureIdentificationLeaf.Edx == 0x00000004);
     }
 
+    [HostTest("drivers.hyperv identification default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         HyperVPlatformIdentificationResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && !result.IsHyperVCompatible
             && result.Status == HyperVPlatformIdentificationStatus.Success
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<HyperVPlatformIdentificationResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<HyperVPlatformIdentificationResult>());
     }
 
     private static HyperVPlatformCpuidSnapshot CreateSnapshot(

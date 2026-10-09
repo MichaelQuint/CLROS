@@ -6,47 +6,8 @@ using OS.Pal;
 
 internal static class NativeAppSocketListenBridgeTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("appmodel.socket.listenbridge creates manifest listener", TestCreatesManifestListener, ref failures);
-        Run("appmodel.socket.listenbridge rejects policy mismatch", TestRejectsPolicyMismatch, ref failures);
-        Run("appmodel.socket.listenbridge propagates create failure", TestPropagatesCreateFailure, ref failures);
-        Run("appmodel.socket.listenbridge propagates bind failure", TestPropagatesBindFailure, ref failures);
-        Run("appmodel.socket.listenbridge propagates listen failure", TestPropagatesListenFailure, ref failures);
-        Run("appmodel.socket.listenbridge preserves mock-only boundary", TestPreservesMockOnlyBoundary, ref failures);
-        Run("appmodel.socket.listenbridge default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app socket listen bridge host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel.socket.listenbridge creates manifest listener", HostLane.Fast, 0)]
     private static bool TestCreatesManifestListener()
     {
         byte[] source = ManifestWithListen("0.0.0.0:8080");
@@ -62,7 +23,7 @@ internal static class NativeAppSocketListenBridgeTests
             backlog: 8,
             out NativeAppSocketListenBridgeResult result);
 
-        return status == NativeAppSocketListenBridgeStatus.Success
+        return HostCheck.Result(status == NativeAppSocketListenBridgeStatus.Success
             && result.Succeeded
             && result.IsInitialized
             && result.PolicyStatus == NativeAppSocketBindPolicyStatus.Success
@@ -82,9 +43,10 @@ internal static class NativeAppSocketListenBridgeTests
             && entry.LocalEndpoint.Address0 == 0
             && entry.LocalEndpoint.Address1 == 0
             && entry.LocalEndpoint.Address2 == 0
-            && entry.LocalEndpoint.Address3 == 0;
+            && entry.LocalEndpoint.Address3 == 0);
     }
 
+    [HostTest("appmodel.socket.listenbridge rejects policy mismatch", HostLane.Fast, 1)]
     private static bool TestRejectsPolicyMismatch()
     {
         byte[] source = ManifestWithListen("192.0.2.27:8080");
@@ -99,7 +61,7 @@ internal static class NativeAppSocketListenBridgeTests
             backlog: 8,
             out NativeAppSocketListenBridgeResult result);
 
-        return status == NativeAppSocketListenBridgeStatus.PolicyRejected
+        return HostCheck.Result(status == NativeAppSocketListenBridgeStatus.PolicyRejected
             && !result.Succeeded
             && result.IsInitialized
             && result.PolicyStatus == NativeAppSocketBindPolicyStatus.PortMismatch
@@ -107,9 +69,10 @@ internal static class NativeAppSocketListenBridgeTests
             && !result.BindAttempted
             && !result.ListenAttempted
             && result.CreateStatus == OSHostStatus.AccessDenied
-            && table.ActiveCount == 0;
+            && table.ActiveCount == 0);
     }
 
+    [HostTest("appmodel.socket.listenbridge propagates create failure", HostLane.Fast, 2)]
     private static bool TestPropagatesCreateFailure()
     {
         byte[] source = ManifestWithListen("0.0.0.0:8080");
@@ -124,7 +87,7 @@ internal static class NativeAppSocketListenBridgeTests
             backlog: 8,
             out NativeAppSocketListenBridgeResult result);
 
-        return status == NativeAppSocketListenBridgeStatus.SocketCreateFailed
+        return HostCheck.Result(status == NativeAppSocketListenBridgeStatus.SocketCreateFailed
             && !result.Succeeded
             && result.IsInitialized
             && result.PolicyStatus == NativeAppSocketBindPolicyStatus.Success
@@ -133,9 +96,10 @@ internal static class NativeAppSocketListenBridgeTests
             && !result.ListenAttempted
             && result.CreateStatus == OSHostStatus.OutOfMemory
             && !result.Socket.IsValid
-            && table.ActiveCount == 0;
+            && table.ActiveCount == 0);
     }
 
+    [HostTest("appmodel.socket.listenbridge propagates bind failure", HostLane.Fast, 3)]
     private static bool TestPropagatesBindFailure()
     {
         byte[] source = ManifestWithListen("0.0.0.0:8080");
@@ -145,7 +109,7 @@ internal static class NativeAppSocketListenBridgeTests
         OSHostSocketCreateResult existing = table.Create(TcpCreateOptions());
         if (!existing.Succeeded || table.Bind(existing.Socket, endpoint) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppSocketListenBridgeStatus status = NativeAppSocketListenBridge.CreateManifestApprovedListener(
@@ -156,7 +120,7 @@ internal static class NativeAppSocketListenBridgeTests
             backlog: 8,
             out NativeAppSocketListenBridgeResult result);
 
-        return status == NativeAppSocketListenBridgeStatus.SocketBindFailed
+        return HostCheck.Result(status == NativeAppSocketListenBridgeStatus.SocketBindFailed
             && !result.Succeeded
             && result.IsInitialized
             && result.PolicyStatus == NativeAppSocketBindPolicyStatus.Success
@@ -167,9 +131,10 @@ internal static class NativeAppSocketListenBridgeTests
             && result.BindStatus == OSHostStatus.AddressInUse
             && result.Socket.IsValid
             && table.TryGetEntry(result.Socket, out OSHostSocketTableEntry entry) == OSHostStatus.Ok
-            && entry.State == OSHostSocketLifecycleState.Created;
+            && entry.State == OSHostSocketLifecycleState.Created);
     }
 
+    [HostTest("appmodel.socket.listenbridge propagates listen failure", HostLane.Fast, 4)]
     private static bool TestPropagatesListenFailure()
     {
         byte[] source = ManifestWithListen("0.0.0.0:8080");
@@ -185,7 +150,7 @@ internal static class NativeAppSocketListenBridgeTests
             backlog: 0,
             out NativeAppSocketListenBridgeResult result);
 
-        return status == NativeAppSocketListenBridgeStatus.SocketListenFailed
+        return HostCheck.Result(status == NativeAppSocketListenBridgeStatus.SocketListenFailed
             && !result.Succeeded
             && result.IsInitialized
             && result.PolicyStatus == NativeAppSocketBindPolicyStatus.Success
@@ -197,9 +162,10 @@ internal static class NativeAppSocketListenBridgeTests
             && result.ListenStatus == OSHostStatus.InvalidArgument
             && table.TryGetEntry(result.Socket, out OSHostSocketTableEntry entry) == OSHostStatus.Ok
             && entry.State == OSHostSocketLifecycleState.Bound
-            && entry.LocalEndpoint.PortHostOrder == 8080;
+            && entry.LocalEndpoint.PortHostOrder == 8080);
     }
 
+    [HostTest("appmodel.socket.listenbridge preserves mock-only boundary", HostLane.Fast, 5)]
     private static bool TestPreservesMockOnlyBoundary()
     {
         byte[] source = ManifestWithListen("0.0.0.0:8080");
@@ -213,7 +179,7 @@ internal static class NativeAppSocketListenBridgeTests
             backlog: 8,
             out NativeAppSocketListenBridgeResult result);
 
-        return NativeAppSocketListenBridge.UsesMockSocketTable
+        return HostCheck.Result(NativeAppSocketListenBridge.UsesMockSocketTable
             && NativeAppSocketListenBridge.CallsPolicyFirst
             && NativeAppSocketListenBridge.CreatesSocket
             && !NativeAppSocketListenBridge.ExportsPalFunctions
@@ -227,14 +193,15 @@ internal static class NativeAppSocketListenBridgeTests
             && !result.CreateAttempted
             && !result.BindAttempted
             && !result.ListenAttempted
-            && result.CreateStatus == OSHostStatus.InvalidArgument;
+            && result.CreateStatus == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("appmodel.socket.listenbridge default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAppSocketListenBridgeResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppSocketListenBridgeStatus.Success
             && result.PolicyStatus == NativeAppSocketBindPolicyStatus.Success
@@ -247,7 +214,7 @@ internal static class NativeAppSocketListenBridgeTests
             && !result.ListenAttempted
             && result.ListenStatus == OSHostStatus.Ok
             && result.Socket.Value == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppSocketListenBridgeResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppSocketListenBridgeResult>());
     }
 
     private static NativeAppLaunchPlanResult CreateLaunchPlan(byte[] source)

@@ -29,57 +29,7 @@ internal static class OsPackageLoaderTests
     private static readonly Guid EspGuid = new Guid("c12a7328-f81f-11d2-ba4b-00a0c93ec93b");
     private static readonly Guid UniquePartitionGuid = new Guid("bbbbbbbb-1111-2222-3333-cccccccccccc");
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("storage.package loader reads package from gpt esp", TestReadsPackageFromGptEsp, ref failures);
-        Run("storage.package loader caller-buffer gpt reads package", TestCallerBufferGptReadsPackage, ref failures);
-        Run("storage.package loader caller-buffer reports primary gpt source", TestCallerBufferReportsPrimaryGptSource, ref failures);
-        Run("storage.package loader caller-buffer gpt falls back to backup", TestCallerBufferGptFallsBackToBackup, ref failures);
-        Run("storage.package loader caller-buffer reports backup gpt source", TestCallerBufferReportsBackupGptSource, ref failures);
-        Run("storage.package loader caller-buffer gpt rejects crc mismatch", TestCallerBufferGptRejectsCrcMismatch, ref failures);
-        Run("storage.package loader caller-buffer reports gpt header capacity", TestCallerBufferReportsGptHeaderCapacity, ref failures);
-        Run("storage.package loader caller-buffer reports gpt entry buffer capacity", TestCallerBufferReportsGptEntryBufferCapacity, ref failures);
-        Run("storage.package loader caller-buffer reports package buffer capacity", TestCallerBufferReportsPackageBufferCapacity, ref failures);
-        Run("storage.package loader caller-buffer uses gpt partition selector", TestCallerBufferUsesGptPartitionSelector, ref failures);
-        Run("storage.package loader default result is not success", TestDefaultLoadResultIsNotSuccess, ref failures);
-        Run(
-            "storage.package loader gpt esp readiness default result is not success",
-            TestDefaultGptEspReadinessResultIsNotSuccess,
-            ref failures);
-        Run("storage.package loader rejects missing package", TestRejectsMissingPackage, ref failures);
-        Run("storage.package loader rejects malformed package", TestRejectsMalformedPackage, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("OS package loader host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.package loader reads package from gpt esp", HostLane.Fast, 0)]
     private static bool TestReadsPackageFromGptEsp()
     {
         byte[] package = ValidPackage();
@@ -94,7 +44,7 @@ internal static class OsPackageLoaderTests
             buffer.AsSpan(0, checked((int)result.BytesRead)),
             "bin/app.dll"u8);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == OsPackageLoadStatus.Success
             && result.GptStatus == GptStatus.Success
             && result.Fat32Status == Fat32Status.Success
@@ -104,9 +54,10 @@ internal static class OsPackageLoaderTests
             && content.Succeeded
             && content.Content.Length == 4
             && content.Content[0] == 0xCA
-            && content.Content[3] == 0xBE;
+            && content.Content[3] == 0xBE);
     }
 
+    [HostTest("storage.package loader rejects missing package", HostLane.Fast, 12)]
     private static bool TestRejectsMissingPackage()
     {
         byte[] disk = CreateDiskImage(ValidPackage(), hasEsp: true, hasPackage: false);
@@ -116,11 +67,12 @@ internal static class OsPackageLoaderTests
             MemoryBlockDevice.FromImage(disk, SectorSize),
             buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == OsPackageLoadStatus.Fat32ReadFailed
-            && result.Fat32Status == Fat32Status.MissingFile;
+            && result.Fat32Status == Fat32Status.MissingFile);
     }
 
+    [HostTest("storage.package loader rejects malformed package", HostLane.Fast, 13)]
     private static bool TestRejectsMalformedPackage()
     {
         byte[] package = ValidPackage();
@@ -132,13 +84,14 @@ internal static class OsPackageLoaderTests
             MemoryBlockDevice.FromImage(disk, SectorSize),
             buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == OsPackageLoadStatus.PackageParseFailed
             && result.Fat32Status == Fat32Status.Success
             && result.PackageStatus == OsPackageStatus.InvalidMagic
-            && result.BytesRead == package.Length;
+            && result.BytesRead == package.Length);
     }
 
+    [HostTest("storage.package loader caller-buffer gpt reads package", HostLane.Fast, 1)]
     private static bool TestCallerBufferGptReadsPackage()
     {
         byte[] package = ValidPackage();
@@ -155,7 +108,7 @@ internal static class OsPackageLoaderTests
             descriptors,
             buffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == OsPackageLoadStatus.Success
             && result.GptStatus == GptStatus.Success
             && result.GptTableStatus == GptPartitionTableStatus.Success
@@ -166,9 +119,10 @@ internal static class OsPackageLoaderTests
             && result.ExpectedGptHeaderCrc32 == result.ComputedGptHeaderCrc32
             && result.ExpectedGptPartitionEntryArrayCrc32 == result.ComputedGptPartitionEntryArrayCrc32
             && result.PackageStatus == OsPackageStatus.Success
-            && result.BytesRead == package.Length;
+            && result.BytesRead == package.Length);
     }
 
+    [HostTest("storage.package loader caller-buffer reports primary gpt source", HostLane.Fast, 2)]
     private static bool TestCallerBufferReportsPrimaryGptSource()
     {
         byte[] package = ValidPackage();
@@ -185,11 +139,12 @@ internal static class OsPackageLoaderTests
             descriptors,
             buffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.GptTableSource == GptPartitionTableSource.Primary
-            && result.PackageStatus == OsPackageStatus.Success;
+            && result.PackageStatus == OsPackageStatus.Success);
     }
 
+    [HostTest("storage.package loader caller-buffer gpt rejects crc mismatch", HostLane.Fast, 5)]
     private static bool TestCallerBufferGptRejectsCrcMismatch()
     {
         byte[] disk = CreateDiskImage(ValidPackage(), hasEsp: true, hasPackage: true);
@@ -207,13 +162,14 @@ internal static class OsPackageLoaderTests
             descriptors,
             buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == OsPackageLoadStatus.GptFailed
             && result.GptTableStatus == GptPartitionTableStatus.HeaderCrcMismatch
             && result.GptCrcStatus == GptPartitionTableCrcStatus.HeaderMismatch
-            && result.ExpectedGptHeaderCrc32 != result.ComputedGptHeaderCrc32;
+            && result.ExpectedGptHeaderCrc32 != result.ComputedGptHeaderCrc32);
     }
 
+    [HostTest("storage.package loader caller-buffer gpt falls back to backup", HostLane.Fast, 3)]
     private static bool TestCallerBufferGptFallsBackToBackup()
     {
         byte[] package = ValidPackage();
@@ -231,7 +187,7 @@ internal static class OsPackageLoaderTests
             descriptors,
             buffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == OsPackageLoadStatus.Success
             && result.GptStatus == GptStatus.Success
             && result.GptTableStatus == GptPartitionTableStatus.Success
@@ -239,9 +195,10 @@ internal static class OsPackageLoaderTests
             && ReadUInt64(primaryHeader, 24) == BackupHeaderLba
             && ReadUInt64(primaryHeader, 72) == BackupPartitionEntryLba
             && result.PackageStatus == OsPackageStatus.Success
-            && result.BytesRead == package.Length;
+            && result.BytesRead == package.Length);
     }
 
+    [HostTest("storage.package loader caller-buffer reports backup gpt source", HostLane.Fast, 4)]
     private static bool TestCallerBufferReportsBackupGptSource()
     {
         byte[] package = ValidPackage();
@@ -259,11 +216,12 @@ internal static class OsPackageLoaderTests
             descriptors,
             buffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.GptTableSource == GptPartitionTableSource.Backup
-            && result.PackageStatus == OsPackageStatus.Success;
+            && result.PackageStatus == OsPackageStatus.Success);
     }
 
+    [HostTest("storage.package loader caller-buffer reports gpt header capacity", HostLane.Fast, 6)]
     private static bool TestCallerBufferReportsGptHeaderCapacity()
     {
         byte[] disk = CreateDiskImage(ValidPackage(), hasEsp: true, hasPackage: true);
@@ -279,15 +237,16 @@ internal static class OsPackageLoaderTests
             descriptors,
             buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == OsPackageLoadStatus.GptFailed
             && result.GptStatus == GptStatus.PrimaryHeaderShortRead
             && result.BlockStatus == BlockDeviceStatus.DestinationTooSmall
             && result.GptHeaderBytesRequired == SectorSize
             && result.GptHeaderBufferBytesAvailable == checked((ulong)primaryHeader.Length)
-            && result.GptPartitionEntryBufferBytesAvailable == checked((ulong)partitionEntries.Length);
+            && result.GptPartitionEntryBufferBytesAvailable == checked((ulong)partitionEntries.Length));
     }
 
+    [HostTest("storage.package loader caller-buffer reports gpt entry buffer capacity", HostLane.Fast, 7)]
     private static bool TestCallerBufferReportsGptEntryBufferCapacity()
     {
         byte[] disk = CreateDiskImage(ValidPackage(), hasEsp: true, hasPackage: true);
@@ -303,7 +262,7 @@ internal static class OsPackageLoaderTests
             descriptors,
             buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == OsPackageLoadStatus.GptFailed
             && result.GptStatus == GptStatus.PartitionEntryShortRead
             && result.GptTableStatus == GptPartitionTableStatus.PartitionEntryBufferTooSmall
@@ -312,9 +271,10 @@ internal static class OsPackageLoaderTests
             && result.GptHeaderBufferBytesAvailable == SectorSize
             && result.GptPartitionEntryBytesRequired == PartitionEntryCount * PartitionEntrySize
             && result.GptPartitionEntrySectorBytesRequired == PartitionEntryCount * PartitionEntrySize
-            && result.GptPartitionEntryBufferBytesAvailable == checked((ulong)partitionEntries.Length);
+            && result.GptPartitionEntryBufferBytesAvailable == checked((ulong)partitionEntries.Length));
     }
 
+    [HostTest("storage.package loader caller-buffer reports package buffer capacity", HostLane.Fast, 8)]
     private static bool TestCallerBufferReportsPackageBufferCapacity()
     {
         byte[] package = ValidPackage();
@@ -331,15 +291,16 @@ internal static class OsPackageLoaderTests
             descriptors,
             buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == OsPackageLoadStatus.Fat32ReadFailed
             && result.Fat32Status == Fat32Status.FileDestinationTooSmall
             && result.PackageBytesRequired == package.Length
             && result.PackageBufferBytesAvailable == buffer.Length
             && result.BytesRead == 0
-            && result.GptCrcStatus == GptPartitionTableCrcStatus.Validated;
+            && result.GptCrcStatus == GptPartitionTableCrcStatus.Validated);
     }
 
+    [HostTest("storage.package loader caller-buffer uses gpt partition selector", HostLane.Fast, 9)]
     private static bool TestCallerBufferUsesGptPartitionSelector()
     {
         string source = File.ReadAllText(Path.Combine(
@@ -349,12 +310,13 @@ internal static class OsPackageLoaderTests
             "Storage",
             "OsPackageLoader.cs"));
 
-        return source.Contains("GptPartitionSelector.SelectByPartitionTypeGuid(", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("GptPartitionSelector.SelectByPartitionTypeGuid(", StringComparison.Ordinal)
             && source.Contains("GptPartitionSelectorStatus.Success", StringComparison.Ordinal)
             && source.Contains("GptPartitionSelectorStatus.NotFound", StringComparison.Ordinal)
-            && source.Contains("GptParser.EfiSystemPartitionTypeGuid", StringComparison.Ordinal);
+            && source.Contains("GptParser.EfiSystemPartitionTypeGuid", StringComparison.Ordinal));
     }
 
+    [HostTest("storage.package loader default result is not success", HostLane.Fast, 10)]
     private static bool TestDefaultLoadResultIsNotSuccess()
     {
         OsPackageLoadResult result = default;
@@ -362,7 +324,7 @@ internal static class OsPackageLoaderTests
             GptStatus.InvalidBlockDevice,
             BlockDeviceStatus.InvalidBlockSize);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == OsPackageLoadStatus.Success
             && result.GptStatus == GptStatus.Success
@@ -379,9 +341,10 @@ internal static class OsPackageLoaderTests
             && !failed.Succeeded
             && failed.Status == OsPackageLoadStatus.GptFailed
             && failed.GptStatus == GptStatus.InvalidBlockDevice
-            && failed.BlockStatus == BlockDeviceStatus.InvalidBlockSize;
+            && failed.BlockStatus == BlockDeviceStatus.InvalidBlockSize);
     }
 
+    [HostTest("storage.package loader gpt esp readiness default result is not success", HostLane.Fast, 11)]
     private static bool TestDefaultGptEspReadinessResultIsNotSuccess()
     {
         GptEspLocationReadinessResult result = default;
@@ -394,7 +357,7 @@ internal static class OsPackageLoaderTests
             partitionEntryBufferBytesAvailable: 256,
             tableSource: GptPartitionTableSource.Primary);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == GptEspLocationReadinessStatus.Success
             && result.GptStatus == GptStatus.Success
@@ -414,7 +377,7 @@ internal static class OsPackageLoaderTests
             && failed.HeaderBytesRequired == SectorSize
             && failed.HeaderBufferBytesAvailable == 128
             && failed.PartitionEntryBufferBytesAvailable == 256
-            && failed.TableSource == GptPartitionTableSource.Primary;
+            && failed.TableSource == GptPartitionTableSource.Primary);
     }
 
     private static byte[] CreateDiskImage(byte[] package, bool hasEsp, bool hasPackage)

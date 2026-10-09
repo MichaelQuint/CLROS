@@ -8,30 +8,14 @@ using Unwind = OS.Kernel.Runtime.X64PERuntimeFunctionUnwindMetadataHostileInput;
 
 internal static unsafe class NativeAotEhClauseMetadataTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-        Run("runtime.nativeaot-eh-clause.wire-discovery", WireDiscovery, ref failures);
-        Run("runtime.nativeaot-eh-clause.compression-truncation", CompressionTruncation, ref failures);
-        Run("runtime.nativeaot-eh-clause.order-containment", OrderContainment, ref failures);
-        Run("runtime.nativeaot-eh-clause.original-authority", OriginalAuthority, ref failures);
-        Run("runtime.nativeaot-eh-clause.bounds-targets", BoundsTargets, ref failures);
-        Run("runtime.nativeaot-eh-clause.atomicity-allocation", AtomicityAllocation, ref failures);
-        if (failures != 0) throw new InvalidOperationException("NativeAotEhClauseMetadata failures=" + failures);
-    }
-    private static void Run(string name, Action test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-        try { test(); Console.WriteLine("TEST_PASS " + name); }
-        catch (Exception e) { failures++; Console.WriteLine("TEST_FAIL " + name + " " + e.Message); }
-    }
+
     private static void Check(bool value, string reason) { if (!value) throw new InvalidOperationException(reason); }
     private static void Failure(NativeAotEhClauseResult r, Status expected, string reason) => Check(
         r.Status == expected && !r.Succeeded && r.Index == 0 && r.Count == 0 && r.TryStartOffset == 0 &&
         r.TryEndOffset == 0 && r.HandlerAddress == 0 && r.FilterAddress == 0 && r.TypeAddress == 0 &&
         !r.IsTryGroupBoundary && !r.ContainsOffset(0), reason + ": " + r.Status + " expected " + expected);
 
+    [HostTest("runtime.nativeaot-eh-clause.wire-discovery", HostLane.Fast, 0)]
     private static void WireDiscovery()
     {
         foreach (bool associated in new[] { false, true })
@@ -67,6 +51,7 @@ internal static unsafe class NativeAotEhClauseMetadataTests
         Failure(empty.Read(), Status.IndexOutOfRange, "empty complete table");
     }
 
+    [HostTest("runtime.nativeaot-eh-clause.compression-truncation", HostLane.Fast, 1)]
     private static void CompressionTruncation()
     {
         // Deliberately nonminimal widths are legal to the pinned runtime reader; all values remain bounded.
@@ -93,6 +78,7 @@ internal static unsafe class NativeAotEhClauseMetadataTests
         Check(prefix.Read().Succeeded, "five-byte runtime prefix uses low four bits");
     }
 
+    [HostTest("runtime.nativeaot-eh-clause.order-containment", HostLane.Fast, 2)]
     private static void OrderContainment()
     {
         using Fixture f = new();
@@ -109,6 +95,7 @@ internal static unsafe class NativeAotEhClauseMetadataTests
         Check(!empty.IsTryGroupBoundary && empty.HandlerAddress == f.Address(0x6100) && !empty.ContainsOffset(7), "other empty nonmatching try remains legal");
     }
 
+    [HostTest("runtime.nativeaot-eh-clause.original-authority", HostLane.Fast, 3)]
     private static void OriginalAuthority()
     {
         using Fixture f = new(); f.Bind();
@@ -129,6 +116,7 @@ internal static unsafe class NativeAotEhClauseMetadataTests
         Failure(f.Read(), Status.ModuleRejected, "changed published module identity");
     }
 
+    [HostTest("runtime.nativeaot-eh-clause.bounds-targets", HostLane.Fast, 4)]
     private static void BoundsTargets()
     {
         // A legal try and funclet lie beyond the root row's 0x80 bytes, inside the exact whole method.
@@ -190,6 +178,7 @@ internal static unsafe class NativeAotEhClauseMetadataTests
         }
     }
 
+    [HostTest("runtime.nativeaot-eh-clause.atomicity-allocation", HostLane.Fast, 5)]
     private static void AtomicityAllocation()
     {
         using Fixture f = new(); f.Blob(Table(new Row(0, 4, 1, 0x100), new Row(4, 8, 0, 0x100, 0x1701))); f.Bind();

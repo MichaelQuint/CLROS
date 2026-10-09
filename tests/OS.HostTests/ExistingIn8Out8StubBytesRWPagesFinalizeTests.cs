@@ -15,16 +15,16 @@ internal static unsafe class ExistingIn8Out8StubBytesRWPagesFinalizeTests
     private const string ReadyMarker =
         "CLROS_M02_002_READY pageBytes=4096 safeOffset=0 out8Offset=16 " +
         "in8Offset=32 fnv1a64=982E5B7E3EE58E56 " +
-        "sha256=B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2 " +
+        "sha256=" + OS.Tooling.EfiContracts.PortIoStubPageSha256 + " " +
         "initial=RW+NX final=RO+X liveProtection=false liveExecution=false";
     private const string ExpectedSha256 =
-        "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
+        OS.Tooling.EfiContracts.PortIoStubPageSha256;
     private const ulong ModeledPageAddress = 0x0040_0000;
     private const ulong OtherModeledPageAddress = 0x0041_0000;
     private const ulong PublicationEpoch = 7;
     private const byte Sentinel = 0xa5;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START " + TestName);
@@ -96,28 +96,30 @@ internal static unsafe class ExistingIn8Out8StubBytesRWPagesFinalizeTests
         Func<bool> test,
         ref int failures)
     {
-        try
+        HostCheck.Run(TestName + " " + name, () =>
         {
-            if (test())
+            try
             {
-                return;
+                if (test())
+                {
+                    return true;
+                }
+                Console.WriteLine(
+                    "M02_002_CASE_FAIL " + Normalize(name));
+                return false;
             }
-
-            failures++;
-            Console.WriteLine(
-                "M02_002_CASE_FAIL " + Normalize(name));
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "M02_002_CASE_FAIL "
-                + Normalize(name)
-                + " "
-                + ex.GetType().Name
-                + ": "
-                + ex.Message);
-        }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    "M02_002_CASE_FAIL "
+                    + Normalize(name)
+                    + " "
+                    + ex.GetType().Name
+                    + ": "
+                    + ex.Message);
+                throw;
+            }
+        }, ref failures);
     }
 
     private static bool TestValueContractsAndConstants()

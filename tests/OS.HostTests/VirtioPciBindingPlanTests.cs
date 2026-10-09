@@ -9,47 +9,7 @@ internal static class VirtioPciBindingPlanTests
     private const byte IsrOffset = 0x80;
     private const byte DeviceOffset = 0xA0;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.virtio.pci.binding creates block binding plan", TestCreatesBlockBindingPlan, ref failures);
-        Run("drivers.virtio.pci.binding creates network binding plan", TestCreatesNetworkBindingPlan, ref failures);
-        Run("drivers.virtio.pci.binding reports capability parse failure", TestReportsCapabilityParseFailure, ref failures);
-        Run("drivers.virtio.pci.binding reports discovery failure", TestReportsDiscoveryFailure, ref failures);
-        Run("drivers.virtio.pci.binding reports bar decode failure", TestReportsBarDecodeFailure, ref failures);
-        Run("drivers.virtio.pci.binding reports aperture validation failure", TestReportsApertureValidationFailure, ref failures);
-        Run("drivers.virtio.pci.binding default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio PCI binding plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtio.pci.binding creates block binding plan", HostLane.Fast, 0)]
     private static bool TestCreatesBlockBindingPlan()
     {
         ushort deviceId = VirtioPciDeviceDiscovery.ModernDeviceIdStart +
@@ -60,7 +20,7 @@ internal static class VirtioPciBindingPlanTests
             config,
             CreateBarSizes());
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioPciBindingPlanStatus.Success
             && result.HeaderStatus == PciConfigurationHeaderStatus.Success
             && result.CapabilityParse.Status == VirtioPciCapabilityListParseStatus.Success
@@ -81,9 +41,10 @@ internal static class VirtioPciBindingPlanTests
             && result.Binding.Apertures.CommonConfiguration.BarIndex == 0
             && result.Binding.Apertures.NotifyConfiguration.NotifyOffsetMultiplier == 4
             && result.Binding.Apertures.DeviceConfiguration.Length
-                == VirtioPciDeviceDiscovery.BlockDeviceConfigurationMinimumLength;
+                == VirtioPciDeviceDiscovery.BlockDeviceConfigurationMinimumLength);
     }
 
+    [HostTest("drivers.virtio.pci.binding creates network binding plan", HostLane.Fast, 1)]
     private static bool TestCreatesNetworkBindingPlan()
     {
         ushort deviceId = VirtioPciDeviceDiscovery.ModernDeviceIdStart +
@@ -94,14 +55,15 @@ internal static class VirtioPciBindingPlanTests
             config,
             CreateBarSizes());
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Binding.DeviceKind == VirtioPciDeviceKind.Network
             && result.Binding.VirtioDeviceId == VirtioPciDeviceDiscovery.NetworkDeviceId
             && result.Discovery.DeviceKind == VirtioPciDeviceKind.Network
             && result.Binding.Apertures.DeviceConfiguration.Length
-                == VirtioPciDeviceDiscovery.NetworkDeviceConfigurationMinimumLength;
+                == VirtioPciDeviceDiscovery.NetworkDeviceConfigurationMinimumLength);
     }
 
+    [HostTest("drivers.virtio.pci.binding reports capability parse failure", HostLane.Fast, 2)]
     private static bool TestReportsCapabilityParseFailure()
     {
         ushort deviceId = VirtioPciDeviceDiscovery.ModernDeviceIdStart +
@@ -114,16 +76,17 @@ internal static class VirtioPciBindingPlanTests
             config,
             CreateBarSizes());
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioPciBindingPlanStatus.CapabilityParseFailed
             && result.HeaderStatus == PciConfigurationHeaderStatus.Success
             && result.CapabilityParse.Status == VirtioPciCapabilityListParseStatus.VendorCapabilityTooShort
             && result.CapabilityParse.FailingOffset == CommonOffset
             && result.Discovery.Status == default
             && result.BarDecode.Status == default
-            && result.ApertureValidation.Status == default;
+            && result.ApertureValidation.Status == default);
     }
 
+    [HostTest("drivers.virtio.pci.binding reports discovery failure", HostLane.Fast, 3)]
     private static bool TestReportsDiscoveryFailure()
     {
         ushort unsupportedDeviceId = VirtioPciDeviceDiscovery.ModernDeviceIdStart + 0x05;
@@ -135,15 +98,16 @@ internal static class VirtioPciBindingPlanTests
             config,
             CreateBarSizes());
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioPciBindingPlanStatus.DiscoveryFailed
             && result.CapabilityParse.Status == VirtioPciCapabilityListParseStatus.Success
             && result.Discovery.Status == VirtioPciDeviceDiscoveryStatus.UnsupportedDeviceKind
             && result.Discovery.Identity.DeviceId == unsupportedDeviceId
             && result.BarDecode.Status == default
-            && result.ApertureValidation.Status == default;
+            && result.ApertureValidation.Status == default);
     }
 
+    [HostTest("drivers.virtio.pci.binding reports bar decode failure", HostLane.Fast, 4)]
     private static bool TestReportsBarDecodeFailure()
     {
         ushort deviceId = VirtioPciDeviceDiscovery.ModernDeviceIdStart +
@@ -157,15 +121,16 @@ internal static class VirtioPciBindingPlanTests
             config,
             CreateBarSizes());
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioPciBindingPlanStatus.BarDecodeFailed
             && result.CapabilityParse.Status == VirtioPciCapabilityListParseStatus.Success
             && result.Discovery.Status == VirtioPciDeviceDiscoveryStatus.Success
             && result.BarDecode.Status == PciBarDecodeStatus.ReservedMemoryType
             && result.BarDecode.FailingBarIndex == 0
-            && result.ApertureValidation.Status == default;
+            && result.ApertureValidation.Status == default);
     }
 
+    [HostTest("drivers.virtio.pci.binding reports aperture validation failure", HostLane.Fast, 5)]
     private static bool TestReportsApertureValidationFailure()
     {
         ushort deviceId = VirtioPciDeviceDiscovery.ModernDeviceIdStart +
@@ -179,21 +144,22 @@ internal static class VirtioPciBindingPlanTests
             config,
             CreateBarSizes());
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioPciBindingPlanStatus.ApertureValidationFailed
             && result.CapabilityParse.Status == VirtioPciCapabilityListParseStatus.Success
             && result.Discovery.Status == VirtioPciDeviceDiscoveryStatus.Success
             && result.BarDecode.Status == PciBarDecodeStatus.Success
             && result.ApertureValidation.Status == VirtioPciBarApertureValidationStatus.BarIsIo
             && result.ApertureValidation.FailingCapabilityType == VirtioPciCapabilityType.CommonConfiguration
-            && result.ApertureValidation.FailingBarIndex == 0;
+            && result.ApertureValidation.FailingBarIndex == 0);
     }
 
+    [HostTest("drivers.virtio.pci.binding default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioPciBindingPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioPciBindingPlanStatus.Success
             && result.HeaderStatus == PciConfigurationHeaderStatus.Success
@@ -204,7 +170,7 @@ internal static class VirtioPciBindingPlanTests
             && result.Binding.Identity.VendorId == 0
             && result.Binding.DeviceKind == default
             && result.Binding.CapabilityPointer == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciBindingPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciBindingPlanResult>());
     }
 
     private static PciEcamScannedDevice CreateCandidate(ushort deviceId)

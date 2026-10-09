@@ -10,58 +10,13 @@ internal static class VirtioNetTransmitLifecycleTests
     private const ulong HeaderPhysicalAddress = 0x0040_0000UL;
     private const ulong FramePhysicalAddress = 0x0050_0000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.virtionet.tx.lifecycle writes header descriptors", TestWritesHeaderDescriptors, ref failures);
-        Run("drivers.virtionet.tx.lifecycle writes available ring head", TestWritesAvailableRingHead, ref failures);
-        Run("drivers.virtionet.tx.lifecycle preserves unrelated memory", TestPreservesUnrelatedMemory, ref failures);
-        Run("drivers.virtionet.tx.lifecycle rejects failed queue plan", TestRejectsFailedQueuePlan, ref failures);
-        Run("drivers.virtionet.tx.lifecycle rejects header buffer", TestRejectsHeaderBuffer, ref failures);
-        Run("drivers.virtionet.tx.lifecycle rejects frame bounds", TestRejectsFrameBounds, ref failures);
-        Run("drivers.virtionet.tx.lifecycle rejects descriptor range", TestRejectsDescriptorRange, ref failures);
-        Run("drivers.virtionet.tx.lifecycle rejects queue memory and overflow", TestRejectsQueueMemoryAndOverflow, ref failures);
-        Run(
-            "drivers.virtionet.tx.lifecycle default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio-net transmit lifecycle host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtionet.tx.lifecycle writes header descriptors", HostLane.Fast, 0)]
     private static bool TestWritesHeaderDescriptors()
     {
         VirtioNetQueuePlanResult queuePlan = CreateQueuePlan();
         if (!queuePlan.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] header = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers + 2];
@@ -86,11 +41,11 @@ internal static class VirtioNetTransmitLifecycleTests
             result.HeaderBytesWritten != VirtioNetHeader.HeaderLengthWithoutMergeableBuffers ||
             result.EthernetFrameBytes != frame.Length)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioNetTransmitLifecyclePlan plan = result.Plan;
-        return BytesAreZero(header.AsSpan(0, VirtioNetHeader.HeaderLengthWithoutMergeableBuffers))
+        return HostCheck.Result(BytesAreZero(header.AsSpan(0, VirtioNetHeader.HeaderLengthWithoutMergeableBuffers))
             && header[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers] == 0xcc
             && header[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers + 1] == 0xcc
             && DescriptorMatches(
@@ -119,15 +74,16 @@ internal static class VirtioNetTransmitLifecycleTests
             && !VirtioNetTransmitLifecycle.PerformsMmio
             && !VirtioNetTransmitLifecycle.NotifiesDevice
             && !VirtioNetTransmitLifecycle.WaitsForUsedRingCompletion
-            && !VirtioNetTransmitLifecycle.PerformsPacketTransmit;
+            && !VirtioNetTransmitLifecycle.PerformsPacketTransmit);
     }
 
+    [HostTest("drivers.virtionet.tx.lifecycle writes available ring head", HostLane.Fast, 1)]
     private static bool TestWritesAvailableRingHead()
     {
         VirtioNetQueuePlanResult queuePlan = CreateQueuePlan();
         if (!queuePlan.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] header = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers];
@@ -144,7 +100,7 @@ internal static class VirtioNetTransmitLifecycleTests
             queueMemory);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtqueueSplitRingPlan txQueue = queuePlan.Plan.TxQueue;
@@ -153,21 +109,22 @@ internal static class VirtioNetTransmitLifecycleTests
         int availableEntryOffset = (int)result.Plan.AvailableRingEntryOffset;
         int previousAvailableEntryOffset = availableEntryOffset - 2;
 
-        return ReadUInt16(queueMemory, availableIndexOffset) == 0
+        return HostCheck.Result(ReadUInt16(queueMemory, availableIndexOffset) == 0
             && ReadUInt16(queueMemory, availableEntryOffset) == result.Plan.HeadDescriptorIndex
             && result.Plan.AvailableRingSlot == (TxQueueSize - 1)
             && queueMemory[availableFlagsOffset] == 0x5a
             && queueMemory[availableFlagsOffset + 1] == 0x5a
             && queueMemory[previousAvailableEntryOffset] == 0x5a
-            && queueMemory[previousAvailableEntryOffset + 1] == 0x5a;
+            && queueMemory[previousAvailableEntryOffset + 1] == 0x5a);
     }
 
+    [HostTest("drivers.virtionet.tx.lifecycle preserves unrelated memory", HostLane.Fast, 2)]
     private static bool TestPreservesUnrelatedMemory()
     {
         VirtioNetQueuePlanResult queuePlan = CreateQueuePlan();
         if (!queuePlan.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] header = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers + 1];
@@ -190,11 +147,12 @@ internal static class VirtioNetTransmitLifecycleTests
             header,
             queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && MemoryOutsideWriterRangesUnchanged(queueMemory, originalQueue, result.Plan)
-            && header[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers] == 0x7c;
+            && header[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers] == 0x7c);
     }
 
+    [HostTest("drivers.virtionet.tx.lifecycle rejects failed queue plan", HostLane.Fast, 3)]
     private static bool TestRejectsFailedQueuePlan()
     {
         VirtioNetQueuePlanResult failedPlan = VirtioNetQueuePlan.Create(
@@ -216,19 +174,20 @@ internal static class VirtioNetTransmitLifecycleTests
             header,
             queueMemory);
 
-        return !failedPlan.Succeeded
+        return HostCheck.Result(!failedPlan.Succeeded
             && !result.Succeeded
             && result.Status == VirtioNetTransmitLifecycleStatus.QueuePlanFailed
             && result.QueuePlanStatus == VirtioNetQueuePlanStatus.InsufficientQueueCount
-            && AllBytesEqual(queueMemory, 0x66);
+            && AllBytesEqual(queueMemory, 0x66));
     }
 
+    [HostTest("drivers.virtionet.tx.lifecycle rejects header buffer", HostLane.Fast, 4)]
     private static bool TestRejectsHeaderBuffer()
     {
         VirtioNetQueuePlanResult queuePlan = CreateQueuePlan();
         if (!queuePlan.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] header = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers - 1];
@@ -245,19 +204,20 @@ internal static class VirtioNetTransmitLifecycleTests
             header,
             queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall
             && result.HeaderStatus == VirtioNetHeaderStatus.BufferTooSmall
             && AllBytesEqual(header, 0x91)
-            && AllBytesEqual(queueMemory, 0x91);
+            && AllBytesEqual(queueMemory, 0x91));
     }
 
+    [HostTest("drivers.virtionet.tx.lifecycle rejects frame bounds", HostLane.Fast, 5)]
     private static bool TestRejectsFrameBounds()
     {
         VirtioNetQueuePlanResult queuePlan = CreateQueuePlan();
         if (!queuePlan.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] header = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers];
@@ -282,20 +242,21 @@ internal static class VirtioNetTransmitLifecycleTests
             header,
             queueMemory);
 
-        return !tooSmall.Succeeded
+        return HostCheck.Result(!tooSmall.Succeeded
             && tooSmall.Status == VirtioNetTransmitLifecycleStatus.EthernetFrameTooSmall
             && !tooLarge.Succeeded
             && tooLarge.Status == VirtioNetTransmitLifecycleStatus.EthernetFrameTooLarge
             && AllBytesEqual(header, 0x44)
-            && AllBytesEqual(queueMemory, 0x44);
+            && AllBytesEqual(queueMemory, 0x44));
     }
 
+    [HostTest("drivers.virtionet.tx.lifecycle rejects descriptor range", HostLane.Fast, 6)]
     private static bool TestRejectsDescriptorRange()
     {
         VirtioNetQueuePlanResult queuePlan = CreateQueuePlan();
         if (!queuePlan.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] header = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers];
@@ -322,20 +283,21 @@ internal static class VirtioNetTransmitLifecycleTests
             header,
             queueMemory);
 
-        return !insufficientDescriptors.Succeeded
+        return HostCheck.Result(!insufficientDescriptors.Succeeded
             && insufficientDescriptors.Status ==
                 VirtioNetTransmitLifecycleStatus.InsufficientDescriptors
             && !indexOutOfRange.Succeeded
             && indexOutOfRange.Status == VirtioNetTransmitLifecycleStatus.DescriptorIndexOutOfRange
-            && AllBytesEqual(queueMemory, 0x21);
+            && AllBytesEqual(queueMemory, 0x21));
     }
 
+    [HostTest("drivers.virtionet.tx.lifecycle rejects queue memory and overflow", HostLane.Fast, 7)]
     private static bool TestRejectsQueueMemoryAndOverflow()
     {
         VirtioNetQueuePlanResult queuePlan = CreateQueuePlan();
         if (!queuePlan.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] header = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers];
@@ -365,12 +327,12 @@ internal static class VirtioNetTransmitLifecycleTests
             txHeader: header,
             queueMemory: queueMemory);
 
-        return !shortQueue.Succeeded
+        return HostCheck.Result(!shortQueue.Succeeded
             && shortQueue.Status == VirtioNetTransmitLifecycleStatus.QueueMemoryTooSmall
             && AllBytesEqual(shortQueueMemory, 0x17)
             && !physicalOverflow.Succeeded
             && physicalOverflow.Status == VirtioNetTransmitLifecycleStatus.PhysicalRangeOverflow
-            && AllBytesEqual(queueMemory, 0x18);
+            && AllBytesEqual(queueMemory, 0x18));
     }
 
     private static VirtioNetTransmitLifecycleResult Publish(
@@ -403,11 +365,12 @@ internal static class VirtioNetTransmitLifecycleTests
             frameBufferBytes: VirtioNetQueuePlan.MaximumFrameBufferBytes);
     }
 
+    [HostTest("drivers.virtionet.tx.lifecycle default result is not success", HostLane.Fast, 8)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioNetTransmitLifecycleResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioNetTransmitLifecycleStatus.Success
             && result.QueuePlanStatus == VirtioNetQueuePlanStatus.Success
@@ -419,7 +382,7 @@ internal static class VirtioNetTransmitLifecycleTests
             && result.EthernetFrameBytes == 0
             && result.Plan.AvailableDescriptorCount == 0
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetTransmitLifecycleResult>();
+                VirtioNetTransmitLifecycleResult>());
     }
 
     private static byte[] CreateQueueMemory(VirtioNetQueuePlanResult queuePlan)

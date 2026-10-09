@@ -20,125 +20,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
     private const ulong NotifyBarPhysicalBase = 0x80001000UL;
     private const ulong NotifyBarVirtualBase = 0xFFFF800000001000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("storage.virtioblk.readonly publishes sector read", TestPublishesSectorRead, ref failures);
-        Run("storage.virtioblk.readonly rejects invalid block geometry", TestRejectsInvalidBlockGeometry, ref failures);
-        Run("storage.virtioblk.readonly rejects out-of-range sector", TestRejectsOutOfRangeSector, ref failures);
-        Run("storage.virtioblk.readonly reports lifecycle publish failure", TestReportsLifecyclePublishFailure, ref failures);
-        Run("storage.virtioblk.readonly preserves request metadata", TestPreservesRequestMetadata, ref failures);
-        Run("storage.virtioblk.readonly default result is not success", TestReadOnlyDefaultResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk.readqueue publishes valid block range", TestReadQueuePublishesValidBlockRange, ref failures);
-        Run("storage.virtioblk.readqueue rejects out-of-range block request", TestReadQueueRejectsOutOfRangeBlockRequest, ref failures);
-        Run("storage.virtioblk.readqueue preserves cursor on publish failure", TestReadQueuePreservesCursorOnPublishFailure, ref failures);
-        Run("storage.virtioblk.readqueue publish default result is not success", TestReadQueuePublishDefaultResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk.readqueue preserves no-live-device boundary", TestReadQueuePreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.readqueue completes and advances used index", TestReadQueueCompletesAndAdvancesUsedIndex, ref failures);
-        Run("storage.virtioblk.readqueue completion rejects failed publication", TestReadQueueCompletionRejectsFailedPublication, ref failures);
-        Run("storage.virtioblk.readqueue completion rejects no completion", TestReadQueueCompletionRejectsNoCompletion, ref failures);
-        Run("storage.virtioblk.readqueue completion default result is not success", TestReadQueueCompletionDefaultResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk.readqueue completion preserves no-live-device boundary", TestReadQueueCompletionPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.readqueue block result reports completed read", TestReadQueueBlockResultReportsCompletedRead, ref failures);
-        Run("storage.virtioblk.readqueue block result maps publication failure", TestReadQueueBlockResultMapsPublicationFailure, ref failures);
-        Run("storage.virtioblk.readqueue block result maps completion failure", TestReadQueueBlockResultMapsCompletionFailure, ref failures);
-        Run("storage.virtioblk.readqueue block result default result is not success", TestReadQueueBlockResultDefaultResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk.readqueue block result preserves no-live-device boundary", TestReadQueueBlockResultPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.notify plans readqueue notification metadata", TestNotifyPlansReadQueueNotificationMetadata, ref failures);
-        Run("storage.virtioblk.notify rejects failed publication", TestNotifyRejectsFailedPublication, ref failures);
-        Run("storage.virtioblk.notify default result is not success", TestNotifyDefaultResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk.notify preserves no-live-device boundary", TestNotifyPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.notifyoffset derives relative offset", TestNotifyOffsetDerivesRelativeOffset, ref failures);
-        Run("storage.virtioblk.notifyoffset rejects failed notification metadata", TestNotifyOffsetRejectsFailedNotificationMetadata, ref failures);
-        Run("storage.virtioblk.notifyoffset rejects relative offset overflow", TestNotifyOffsetRejectsRelativeOffsetOverflow, ref failures);
-        Run("storage.virtioblk.notifyoffset default result is not success", TestNotifyOffsetDefaultResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk.notifyoffset preserves no-live-device boundary", TestNotifyOffsetPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.notifywindow plans access", TestNotifyWindowPlansAccess, ref failures);
-        Run("storage.virtioblk.notifywindow rejects failed offset plan", TestNotifyWindowRejectsFailedOffsetPlan, ref failures);
-        Run("storage.virtioblk.notifywindow propagates register window failure", TestNotifyWindowPropagatesRegisterWindowFailure, ref failures);
-        Run("storage.virtioblk.notifywindow default result is not success", TestNotifyWindowDefaultResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk.notifywindow preserves no-live-device boundary", TestNotifyWindowPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.notifywindowexec writes planned notify access", TestNotifyWindowExecWritesPlannedNotifyAccess, ref failures);
-        Run("storage.virtioblk.notifywindowexec rejects failed plan", TestNotifyWindowExecRejectsFailedPlan, ref failures);
-        Run("storage.virtioblk.notifywindowexec propagates access failure", TestNotifyWindowExecPropagatesAccessFailure, ref failures);
-        Run("storage.virtioblk.notifywindowexec default result is not success", TestNotifyWindowExecDefaultResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk.notifywindowexec preserves no-live-device boundary", TestNotifyWindowExecPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.notifywindowbarrier writes planned notify access", TestNotifyWindowBarrierWritesPlannedNotifyAccess, ref failures);
-        Run("storage.virtioblk.notifywindowbarrier rejects missing barrier", TestNotifyWindowBarrierRejectsMissingBarrier, ref failures);
-        Run("storage.virtioblk.notifywindowbarrier rejects failed plan", TestNotifyWindowBarrierRejectsFailedPlan, ref failures);
-        Run("storage.virtioblk.notifywindowbarrier propagates access failure", TestNotifyWindowBarrierPropagatesAccessFailure, ref failures);
-        Run("storage.virtioblk.notifywindowbarrier default result is not success", TestNotifyWindowBarrierDefaultResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk.notifywindowbarrier preserves no-live-device boundary", TestNotifyWindowBarrierPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.readnotify composes publication and barrier notify", TestReadNotifyComposesPublicationAndBarrierNotify, ref failures);
-        Run("storage.virtioblk.readnotify rejects failed publication", TestReadNotifyRejectsFailedPublication, ref failures);
-        Run("storage.virtioblk.readnotify rejects missing barrier", TestReadNotifyRejectsMissingBarrier, ref failures);
-        Run("storage.virtioblk.readnotify propagates notify execution failure", TestReadNotifyPropagatesNotifyExecutionFailure, ref failures);
-        Run("storage.virtioblk.readnotify default result is not success", TestReadNotifyDefaultResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk.readnotify preserves no-live-device boundary", TestReadNotifyPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.readnotifycompletion completes after notify readiness", TestReadNotifyCompletionCompletesAfterNotifyReadiness, ref failures);
-        Run("storage.virtioblk.readnotifycompletion rejects failed readiness", TestReadNotifyCompletionRejectsFailedReadiness, ref failures);
-        Run("storage.virtioblk.readnotifycompletion rejects no completion", TestReadNotifyCompletionRejectsNoCompletion, ref failures);
-        Run("storage.virtioblk.readnotifycompletion propagates ownership failure", TestReadNotifyCompletionPropagatesOwnershipFailure, ref failures);
-        Run("storage.virtioblk.readnotifycompletion default result is not success", TestReadNotifyCompletionDefaultResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk.readnotifycompletion preserves no-live-device boundary", TestReadNotifyCompletionPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.readnotifyblock projects completed read", TestReadNotifyBlockProjectsCompletedRead, ref failures);
-        Run("storage.virtioblk.readnotifyblock maps readiness failure", TestReadNotifyBlockMapsReadinessFailure, ref failures);
-        Run("storage.virtioblk.readnotifyblock maps completion failure", TestReadNotifyBlockMapsCompletionFailure, ref failures);
-        Run("storage.virtioblk.readnotifyblock default result is not success", TestReadNotifyBlockDefaultResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk.readnotifyblock preserves no-live-device boundary", TestReadNotifyBlockPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.readpipeline projects completed read", TestReadPipelineProjectsCompletedRead, ref failures);
-        Run("storage.virtioblk.readpipeline rejects publication failure", TestReadPipelineRejectsPublicationFailure, ref failures);
-        Run("storage.virtioblk.readpipeline rejects readiness failure", TestReadPipelineRejectsReadinessFailure, ref failures);
-        Run("storage.virtioblk.readpipeline maps completion failure", TestReadPipelineMapsCompletionFailure, ref failures);
-        Run("storage.virtioblk.readpipeline default result is not success", TestReadPipelineDefaultResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk.readpipeline preserves no-live-device boundary", TestReadPipelinePreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.readadapter executes pipeline read", TestReadAdapterExecutesPipelineRead, ref failures);
-        Run("storage.virtioblk.readadapter rejects short request buffer", TestReadAdapterRejectsShortRequestBuffer, ref failures);
-        Run("storage.virtioblk.readadapter rejects short notify window", TestReadAdapterRejectsShortNotifyWindow, ref failures);
-        Run("storage.virtioblk.readadapter propagates pipeline failure", TestReadAdapterPropagatesPipelineFailure, ref failures);
-        Run("storage.virtioblk.readadapter default result is not success", TestReadAdapterDefaultResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk.readadapter preserves no-live-device boundary", TestReadAdapterPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.readsession delegates adapter read", TestReadSessionDelegatesAdapterRead, ref failures);
-        Run("storage.virtioblk.readsession preserves cursor state", TestReadSessionPreservesCursorState, ref failures);
-        Run("storage.virtioblk.readsession rejects invalid setup", TestReadSessionRejectsInvalidSetup, ref failures);
-        Run("storage.virtioblk.readsession default result is not success", TestReadSessionDefaultResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk.readsession preserves no-live-device boundary", TestReadSessionPreservesNoLiveDeviceBoundary, ref failures);
-        Run("storage.virtioblk.readsession setup gate composes setup and read", TestReadSessionSetupGateComposesSetupAndRead, ref failures);
-        Run("storage.virtioblk.readsession setup gate rejects failed setup", TestReadSessionSetupGateRejectsFailedSetup, ref failures);
-        Run("storage.virtioblk.readsession setup gate rejects missing barrier", TestReadSessionSetupGateRejectsMissingBarrier, ref failures);
-        Run("storage.virtioblk.readsession setup gate propagates read failure", TestReadSessionSetupGatePropagatesReadFailure, ref failures);
-        Run("storage.virtioblk.readsession setup gate default result is not success", TestReadSessionSetupGateDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio block read-only device plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.virtioblk.readonly publishes sector read", HostLane.Fast, 0)]
     private static bool TestPublishesSectorRead()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -167,7 +49,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 status,
                 queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioBlockReadOnlyDevicePlanStatus.Success
             && result.BlockDeviceStatus == BlockDeviceStatus.Success
             && result.LifecycleInvoked
@@ -200,9 +82,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !VirtioBlockReadOnlyDevicePlan.PollsDevice
             && !VirtioBlockReadOnlyDevicePlan.HandlesInterrupts
             && !VirtioBlockReadOnlyDevicePlan.CopiesPayload
-            && !VirtioBlockReadOnlyDevicePlan.PerformsDiskRead;
+            && !VirtioBlockReadOnlyDevicePlan.PerformsDiskRead);
     }
 
+    [HostTest("storage.virtioblk.readonly rejects invalid block geometry", HostLane.Fast, 1)]
     private static bool TestRejectsInvalidBlockGeometry()
     {
         BlockDeviceInfo device = CreateDevice(blockSize: 1024, blockCount: 8);
@@ -230,16 +113,17 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 status,
                 queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockReadOnlyDevicePlanStatus.InvalidBlockGeometry
             && result.BlockDeviceStatus == BlockDeviceStatus.InvalidBlockSize
             && !result.LifecycleInvoked
             && result.SectorSizeBytes == 1024
             && result.DeviceSectorCount == 8
             && result.RequestedByteCount == 0
-            && AllBytesEqual(queueMemory, 0x47);
+            && AllBytesEqual(queueMemory, 0x47));
     }
 
+    [HostTest("storage.virtioblk.readonly rejects out-of-range sector", HostLane.Fast, 2)]
     private static bool TestRejectsOutOfRangeSector()
     {
         BlockDeviceInfo device = CreateDevice(8);
@@ -267,7 +151,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 status,
                 queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockReadOnlyDevicePlanStatus.InvalidSectorRange
             && result.BlockDeviceStatus == BlockDeviceStatus.InvalidBlockRange
             && !result.LifecycleInvoked
@@ -275,9 +159,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.SectorCount == 1
             && result.RequestedByteCount == 512
             && result.QueueSize == QueueSize
-            && AllBytesEqual(queueMemory, 0x58);
+            && AllBytesEqual(queueMemory, 0x58));
     }
 
+    [HostTest("storage.virtioblk.readonly reports lifecycle publish failure", HostLane.Fast, 3)]
     private static bool TestReportsLifecyclePublishFailure()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -306,7 +191,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 status,
                 queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockReadOnlyDevicePlanStatus.LifecyclePublishFailed
             && result.BlockDeviceStatus == BlockDeviceStatus.Success
             && result.LifecycleInvoked
@@ -319,9 +204,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.RequestedByteCount == 512
             && result.NextAvailableRingIndex == result.PreviousAvailableRingIndex
             && result.ExpectedNextUsedIndex == result.PreviousUsedIndex
-            && AllBytesEqual(queueMemory, 0x69);
+            && AllBytesEqual(queueMemory, 0x69));
     }
 
+    [HostTest("storage.virtioblk.readonly preserves request metadata", HostLane.Fast, 4)]
     private static bool TestPreservesRequestMetadata()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -349,7 +235,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 status,
                 queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.FirstSector == 7
             && result.SectorCount == 3
             && result.LastSectorInclusive == 9
@@ -364,9 +250,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.DescriptorsWritten == VirtioBlockDescriptorChainPlan.RequiredDescriptorCount
             && EndianPrimitives.ReadUInt64LittleEndian(requestHeader.AsSpan(8, sizeof(ulong))) == 7
             && ReadUInt16(queueMemory, (int)result.AvailableRingEntryOffset) == 2
-            && ReadUInt16(queueMemory, (int)queue.Plan.AvailableRing.Offset + 2) == 0;
+            && ReadUInt16(queueMemory, (int)queue.Plan.AvailableRing.Offset + 2) == 0);
     }
 
+    [HostTest("storage.virtioblk.readonly default result is not success", HostLane.Fast, 5)]
     private static bool TestReadOnlyDefaultResultIsNotSuccess()
     {
         VirtioBlockReadOnlyDevicePlanResult result = default;
@@ -394,7 +281,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 status,
                 queueMemory);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadOnlyDevicePlanStatus.Success
             && result.BlockDeviceStatus == BlockDeviceStatus.Success
@@ -404,9 +291,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && failed.Status == VirtioBlockReadOnlyDevicePlanStatus.InvalidBlockGeometry
             && failed.BlockDeviceStatus == BlockDeviceStatus.InvalidBlockSize
             && !failed.LifecycleInvoked
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadOnlyDevicePlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadOnlyDevicePlanResult>());
     }
 
+    [HostTest("storage.virtioblk.readqueue publishes valid block range", HostLane.Fast, 6)]
     private static bool TestReadQueuePublishesValidBlockRange()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -430,7 +318,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 out _,
                 out byte[] queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioBlockReadQueuePublishStatus.Success
             && result.BlockDeviceStatus == BlockDeviceStatus.Success
@@ -460,9 +348,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && states[2] == VirtioBlockDescriptorOwnershipState.InFlight
             && EndianPrimitives.ReadUInt64LittleEndian(requestHeader.AsSpan(8, sizeof(ulong))) == 4
             && ReadUInt16(queueMemory, (int)result.CursorPublish.Publish.LifecyclePublish.AvailableRingEntryOffset) == 0
-            && ReadUInt16(queueMemory, (int)queue.Plan.AvailableRing.Offset + 2) == 5;
+            && ReadUInt16(queueMemory, (int)queue.Plan.AvailableRing.Offset + 2) == 5);
     }
 
+    [HostTest("storage.virtioblk.readqueue rejects out-of-range block request", HostLane.Fast, 7)]
     private static bool TestReadQueueRejectsOutOfRangeBlockRequest()
     {
         BlockDeviceInfo device = CreateDevice(8);
@@ -495,7 +384,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 status,
                 queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioBlockReadQueuePublishStatus.InvalidSectorRange
             && result.BlockDeviceStatus == BlockDeviceStatus.InvalidBlockRange
@@ -511,9 +400,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && cursor.UsedRingIndex == 3
             && AllBytesEqual(requestHeader, 0)
             && AllBytesEqual(queueMemory, 0x58)
-            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free));
     }
 
+    [HostTest("storage.virtioblk.readqueue preserves cursor on publish failure", HostLane.Fast, 8)]
     private static bool TestReadQueuePreservesCursorOnPublishFailure()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -536,7 +426,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 out _,
                 out byte[] queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioBlockReadQueuePublishStatus.CursorPublishFailed
             && result.BlockDeviceStatus == BlockDeviceStatus.Success
@@ -555,9 +445,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && cursor.UsedRingIndex == 7
             && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free)
             && AllBytesEqual(requestHeader, 0)
-            && AllBytesEqual(queueMemory, 0);
+            && AllBytesEqual(queueMemory, 0));
     }
 
+    [HostTest("storage.virtioblk.readqueue publish default result is not success", HostLane.Fast, 9)]
     private static bool TestReadQueuePublishDefaultResultIsNotSuccess()
     {
         VirtioBlockReadQueuePublishResult publish = default;
@@ -576,7 +467,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 states,
                 ref cursor);
 
-        return !publish.IsInitialized
+        return HostCheck.Result(!publish.IsInitialized
             && !publish.Succeeded
             && publish.Status == VirtioBlockReadQueuePublishStatus.Success
             && !completion.Succeeded
@@ -585,9 +476,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !completion.CursorReclaimAttempted
             && cursor.AvailableRingIndex == 2
             && cursor.UsedRingIndex == 3
-            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free));
     }
 
+    [HostTest("storage.virtioblk.readqueue preserves no-live-device boundary", HostLane.Fast, 10)]
     private static bool TestReadQueuePreservesNoLiveDeviceBoundary()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -609,7 +501,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 out _,
                 out _);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockReadQueuePlanner.RequiresBlockDeviceInfo
             && VirtioBlockReadQueuePlanner.ValidatesBlockGeometryAndRange
             && VirtioBlockReadQueuePlanner.RequiresCallerOwnedCursorState
@@ -636,9 +528,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !VirtioBlockReadQueuePlanner.PerformsBlockIo
             && !VirtioBlockReadQueuePlanner.PerformsDiskRead
             && !VirtioBlockReadQueuePlanner.WaitsForUsedRingCompletion
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadQueuePublishResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadQueuePublishResult>());
     }
 
+    [HostTest("storage.virtioblk.readqueue completes and advances used index", HostLane.Fast, 11)]
     private static bool TestReadQueueCompletesAndAdvancesUsedIndex()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -669,7 +562,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 states,
                 ref cursor);
 
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioBlockReadQueueCompletionStatus.Success
@@ -688,9 +581,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && cursor.UsedRingIndex == 9
             && result.CursorReclaim.Reclaim.DescriptorsFreed ==
                 VirtioBlockDescriptorChainPlan.RequiredDescriptorCount
-            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free));
     }
 
+    [HostTest("storage.virtioblk.readqueue completion rejects failed publication", HostLane.Fast, 12)]
     private static bool TestReadQueueCompletionRejectsFailedPublication()
     {
         BlockDeviceInfo device = CreateDevice(8);
@@ -720,7 +614,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 states,
                 ref cursor);
 
-        return !publish.Succeeded
+        return HostCheck.Result(!publish.Succeeded
             && !result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioBlockReadQueueCompletionStatus.PublicationFailed
@@ -732,9 +626,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.CurrentUsedRingIndex == 3
             && cursor.AvailableRingIndex == 2
             && cursor.UsedRingIndex == 3
-            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free));
     }
 
+    [HostTest("storage.virtioblk.readqueue completion rejects no completion", HostLane.Fast, 13)]
     private static bool TestReadQueueCompletionRejectsNoCompletion()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -768,7 +663,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 states,
                 ref cursor);
 
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && !result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioBlockReadQueueCompletionStatus.CursorReclaimFailed
@@ -786,24 +681,26 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && cursor.UsedRingIndex == 6
             && states[0] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[1] == VirtioBlockDescriptorOwnershipState.InFlight
-            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight;
+            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("storage.virtioblk.readqueue completion default result is not success", HostLane.Fast, 14)]
     private static bool TestReadQueueCompletionDefaultResultIsNotSuccess()
     {
         VirtioBlockReadQueueCompletionResult completion = default;
         VirtioBlockReadQueueBlockReadProjectionResult projection =
             VirtioBlockReadQueueBlockReadProjector.Project(completion);
 
-        return !completion.IsInitialized
+        return HostCheck.Result(!completion.IsInitialized
             && !completion.Succeeded
             && completion.Status == VirtioBlockReadQueueCompletionStatus.Success
             && !projection.Succeeded
             && projection.Status == VirtioBlockReadQueueBlockReadProjectionStatus.CompletionFailed
             && projection.ReadQueueCompletionStatus == VirtioBlockReadQueueCompletionStatus.Success
-            && projection.BlockRead.Status == BlockDeviceStatus.IoError;
+            && projection.BlockRead.Status == BlockDeviceStatus.IoError);
     }
 
+    [HostTest("storage.virtioblk.readqueue completion preserves no-live-device boundary", HostLane.Fast, 15)]
     private static bool TestReadQueueCompletionPreservesNoLiveDeviceBoundary()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -833,7 +730,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 states,
                 ref cursor);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockReadQueueCompletionPlanner.RequiresSuccessfulReadQueuePublication
             && VirtioBlockReadQueueCompletionPlanner.RequiresCallerOwnedCursorState
             && VirtioBlockReadQueueCompletionPlanner.RequiresCallerOwnedQueueMemory
@@ -859,9 +756,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !VirtioBlockReadQueueCompletionPlanner.PerformsBlockIo
             && !VirtioBlockReadQueueCompletionPlanner.PerformsDiskRead
             && !VirtioBlockReadQueueCompletionPlanner.WaitsForUsedRingCompletion
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadQueueCompletionResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadQueueCompletionResult>());
     }
 
+    [HostTest("storage.virtioblk.readqueue block result reports completed read", HostLane.Fast, 16)]
     private static bool TestReadQueueBlockResultReportsCompletedRead()
     {
         VirtioBlockReadQueueCompletionResult completion =
@@ -873,7 +771,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
         VirtioBlockReadQueueBlockReadProjectionResult result =
             VirtioBlockReadQueueBlockReadProjector.Project(completion);
 
-        return completion.Succeeded
+        return HostCheck.Result(completion.Succeeded
             && result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioBlockReadQueueBlockReadProjectionStatus.Success
@@ -889,9 +787,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.CursorReclaimStatus == VirtioBlockQueueCursorReclaimStatus.Success
             && result.ReclaimPlanStatus == VirtioBlockDescriptorReclaimPlanStatus.Success
             && result.CompletionReaderStatus == VirtioBlockUsedRingCompletionReaderStatus.Success
-            && result.OwnershipStatus == VirtioBlockDescriptorOwnershipStatus.Success;
+            && result.OwnershipStatus == VirtioBlockDescriptorOwnershipStatus.Success);
     }
 
+    [HostTest("storage.virtioblk.readqueue block result maps publication failure", HostLane.Fast, 17)]
     private static bool TestReadQueueBlockResultMapsPublicationFailure()
     {
         BlockDeviceInfo device = CreateDevice(8);
@@ -923,7 +822,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
         VirtioBlockReadQueueBlockReadProjectionResult result =
             VirtioBlockReadQueueBlockReadProjector.Project(completion);
 
-        return !publish.Succeeded
+        return HostCheck.Result(!publish.Succeeded
             && !completion.Succeeded
             && !result.Succeeded
             && result.IsInitialized
@@ -935,9 +834,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.ReadQueuePublishStatus == VirtioBlockReadQueuePublishStatus.InvalidSectorRange
             && result.RequestedBlockCount == 1
             && result.RequestedByteCount == 512
-            && result.CompletedByteCount == 0;
+            && result.CompletedByteCount == 0);
     }
 
+    [HostTest("storage.virtioblk.readqueue block result maps completion failure", HostLane.Fast, 18)]
     private static bool TestReadQueueBlockResultMapsCompletionFailure()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -973,7 +873,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
         VirtioBlockReadQueueBlockReadProjectionResult result =
             VirtioBlockReadQueueBlockReadProjector.Project(completion);
 
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && !completion.Succeeded
             && !result.Succeeded
             && result.IsInitialized
@@ -988,22 +888,24 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.CompletionReaderStatus == VirtioBlockUsedRingCompletionReaderStatus.NoCompletion
             && result.RequestedBlockCount == 1
             && result.RequestedByteCount == 512
-            && result.CompletedByteCount == 0;
+            && result.CompletedByteCount == 0);
     }
 
+    [HostTest("storage.virtioblk.readqueue block result default result is not success", HostLane.Fast, 19)]
     private static bool TestReadQueueBlockResultDefaultResultIsNotSuccess()
     {
         VirtioBlockReadQueueBlockReadProjectionResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadQueueBlockReadProjectionStatus.Success
             && !result.BlockRead.Succeeded
             && result.RequestedBlockCount == 0
             && result.RequestedByteCount == 0
-            && result.CompletedByteCount == 0;
+            && result.CompletedByteCount == 0);
     }
 
+    [HostTest("storage.virtioblk.readqueue block result preserves no-live-device boundary", HostLane.Fast, 20)]
     private static bool TestReadQueueBlockResultPreservesNoLiveDeviceBoundary()
     {
         VirtioBlockReadQueueCompletionResult completion =
@@ -1015,7 +917,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
         VirtioBlockReadQueueBlockReadProjectionResult result =
             VirtioBlockReadQueueBlockReadProjector.Project(completion);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockReadQueueBlockReadProjector.ConsumesReadQueueCompletionResult
             && !VirtioBlockReadQueueBlockReadProjector.ReadsQueueMemory
             && !VirtioBlockReadQueueBlockReadProjector.ReadsStatusBuffer
@@ -1037,9 +939,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !VirtioBlockReadQueueBlockReadProjector.PerformsBlockIo
             && !VirtioBlockReadQueueBlockReadProjector.PerformsDiskRead
             && !VirtioBlockReadQueueBlockReadProjector.WaitsForUsedRingCompletion
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadQueueBlockReadProjectionResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadQueueBlockReadProjectionResult>());
     }
 
+    [HostTest("storage.virtioblk.notify plans readqueue notification metadata", HostLane.Fast, 21)]
     private static bool TestNotifyPlansReadQueueNotificationMetadata()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -1067,7 +970,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 queueIndex: 0,
                 queueNotifyOffset: 7);
 
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioBlockQueueNotificationMetadataStatus.Success
@@ -1083,9 +986,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.WriteValue == 0
             && result.WriteWidthBytes == sizeof(ushort)
             && cursor.AvailableRingIndex == 5
-            && cursor.UsedRingIndex == 8;
+            && cursor.UsedRingIndex == 8);
     }
 
+    [HostTest("storage.virtioblk.notify rejects failed publication", HostLane.Fast, 22)]
     private static bool TestNotifyRejectsFailedPublication()
     {
         BlockDeviceInfo device = CreateDevice(8);
@@ -1113,7 +1017,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 queueIndex: 0,
                 queueNotifyOffset: 9);
 
-        return !publish.Succeeded
+        return HostCheck.Result(!publish.Succeeded
             && !result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioBlockQueueNotificationMetadataStatus.PublicationFailed
@@ -1127,9 +1031,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.WriteValue == 0
             && result.WriteWidthBytes == sizeof(ushort)
             && cursor.AvailableRingIndex == 2
-            && cursor.UsedRingIndex == 3;
+            && cursor.UsedRingIndex == 3);
     }
 
+    [HostTest("storage.virtioblk.notify default result is not success", HostLane.Fast, 23)]
     private static bool TestNotifyDefaultResultIsNotSuccess()
     {
         VirtioBlockQueueNotificationMetadataResult notification = default;
@@ -1138,16 +1043,17 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 notification,
                 notifyOffsetMultiplier: 4);
 
-        return !notification.IsInitialized
+        return HostCheck.Result(!notification.IsInitialized
             && !notification.Succeeded
             && notification.Status == VirtioBlockQueueNotificationMetadataStatus.Success
             && !offset.Succeeded
             && offset.Status == VirtioBlockQueueNotifyOffsetPlanStatus.NotificationMetadataFailed
             && offset.NotificationMetadataStatus == VirtioBlockQueueNotificationMetadataStatus.Success
             && offset.NotifyRelativeOffset == 0
-            && offset.PublishedDescriptorCount == 0;
+            && offset.PublishedDescriptorCount == 0);
     }
 
+    [HostTest("storage.virtioblk.notify preserves no-live-device boundary", HostLane.Fast, 24)]
     private static bool TestNotifyPreservesNoLiveDeviceBoundary()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -1174,7 +1080,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 queueIndex: 0,
                 queueNotifyOffset: 4);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockQueueNotificationMetadataPlanner.ConsumesReadQueuePublication
             && VirtioBlockQueueNotificationMetadataPlanner.ProducesFutureNotifyWriteMetadata
             && !VirtioBlockQueueNotificationMetadataPlanner.ReadsQueueMemory
@@ -1197,9 +1103,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !VirtioBlockQueueNotificationMetadataPlanner.PerformsBlockIo
             && !VirtioBlockQueueNotificationMetadataPlanner.PerformsDiskRead
             && !VirtioBlockQueueNotificationMetadataPlanner.WaitsForUsedRingCompletion
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueNotificationMetadataResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueNotificationMetadataResult>());
     }
 
+    [HostTest("storage.virtioblk.notifyoffset derives relative offset", HostLane.Fast, 25)]
     private static bool TestNotifyOffsetDerivesRelativeOffset()
     {
         VirtioBlockQueueNotificationMetadataResult notification =
@@ -1210,7 +1117,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 notification,
                 notifyOffsetMultiplier: 4);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioBlockQueueNotifyOffsetPlanStatus.Success
             && result.NotificationMetadataStatus == VirtioBlockQueueNotificationMetadataStatus.Success
@@ -1223,9 +1130,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.NextAvailableRingIndex == 5
             && result.DescriptorHead == 0
             && result.WriteValue == 0
-            && result.WriteWidthBytes == sizeof(ushort);
+            && result.WriteWidthBytes == sizeof(ushort));
     }
 
+    [HostTest("storage.virtioblk.notifyoffset rejects failed notification metadata", HostLane.Fast, 26)]
     private static bool TestNotifyOffsetRejectsFailedNotificationMetadata()
     {
         BlockDeviceInfo device = CreateDevice(8);
@@ -1257,7 +1165,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 notification,
                 notifyOffsetMultiplier: 4);
 
-        return !notification.Succeeded
+        return HostCheck.Result(!notification.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockQueueNotifyOffsetPlanStatus.NotificationMetadataFailed
             && result.NotificationMetadataStatus == VirtioBlockQueueNotificationMetadataStatus.PublicationFailed
@@ -1265,9 +1173,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.QueueNotifyOffset == 9
             && result.NotifyOffsetMultiplier == 4
             && result.NotifyRelativeOffset == 0
-            && result.PublishedDescriptorCount == 0;
+            && result.PublishedDescriptorCount == 0);
     }
 
+    [HostTest("storage.virtioblk.notifyoffset rejects relative offset overflow", HostLane.Fast, 27)]
     private static bool TestNotifyOffsetRejectsRelativeOffsetOverflow()
     {
         VirtioBlockQueueNotificationMetadataResult notification =
@@ -1278,16 +1187,17 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 notification,
                 notifyOffsetMultiplier: uint.MaxValue);
 
-        return notification.Succeeded
+        return HostCheck.Result(notification.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockQueueNotifyOffsetPlanStatus.RelativeOffsetOverflow
             && result.NotificationMetadataStatus == VirtioBlockQueueNotificationMetadataStatus.Success
             && result.QueueNotifyOffset == ushort.MaxValue
             && result.NotifyOffsetMultiplier == uint.MaxValue
             && result.NotifyRelativeOffset == 0
-            && result.PublishedDescriptorCount == VirtioBlockDescriptorChainPlan.RequiredDescriptorCount;
+            && result.PublishedDescriptorCount == VirtioBlockDescriptorChainPlan.RequiredDescriptorCount);
     }
 
+    [HostTest("storage.virtioblk.notifyoffset default result is not success", HostLane.Fast, 28)]
     private static bool TestNotifyOffsetDefaultResultIsNotSuccess()
     {
         VirtioBlockQueueNotifyOffsetPlanResult notifyOffset = default;
@@ -1298,7 +1208,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 notifyOffset,
                 windows.Bindings.NotifyConfiguration);
 
-        return !notifyOffset.IsInitialized
+        return HostCheck.Result(!notifyOffset.IsInitialized
             && !notifyOffset.Succeeded
             && notifyOffset.Status == VirtioBlockQueueNotifyOffsetPlanStatus.Success
             && notifyOffset.NotificationMetadataStatus == VirtioBlockQueueNotificationMetadataStatus.Success
@@ -1307,9 +1217,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !window.Succeeded
             && window.Status == VirtioBlockQueueNotificationRegisterWindowPlanStatus.NotifyOffsetPlanFailed
             && window.NotifyOffsetPlanStatus == VirtioBlockQueueNotifyOffsetPlanStatus.Success
-            && window.NotificationMetadataStatus == VirtioBlockQueueNotificationMetadataStatus.Success;
+            && window.NotificationMetadataStatus == VirtioBlockQueueNotificationMetadataStatus.Success);
     }
 
+    [HostTest("storage.virtioblk.notifyoffset preserves no-live-device boundary", HostLane.Fast, 29)]
     private static bool TestNotifyOffsetPreservesNoLiveDeviceBoundary()
     {
         VirtioBlockQueueNotificationMetadataResult notification =
@@ -1319,7 +1230,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 notification,
                 notifyOffsetMultiplier: 8);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockQueueNotifyOffsetPlanner.ConsumesNotificationMetadata
             && VirtioBlockQueueNotifyOffsetPlanner.ComputesNotifyRelativeOffset
             && !VirtioBlockQueueNotifyOffsetPlanner.ReadsQueueMemory
@@ -1342,9 +1253,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !VirtioBlockQueueNotifyOffsetPlanner.PerformsBlockIo
             && !VirtioBlockQueueNotifyOffsetPlanner.PerformsDiskRead
             && !VirtioBlockQueueNotifyOffsetPlanner.WaitsForUsedRingCompletion
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueNotifyOffsetPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueNotifyOffsetPlanResult>());
     }
 
+    [HostTest("storage.virtioblk.notifywindow plans access", HostLane.Fast, 30)]
     private static bool TestNotifyWindowPlansAccess()
     {
         VirtioBlockQueueNotifyOffsetPlanResult notifyOffset =
@@ -1358,7 +1270,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
 
         uint notifyRelativeOffset = 7 * NotifyOffsetMultiplier;
         ulong barRelativeOffset = NotifyApertureBarOffset + notifyRelativeOffset;
-        return notifyOffset.Succeeded
+        return HostCheck.Result(notifyOffset.Succeeded
             && windows.Succeeded
             && result.Succeeded
             && result.IsInitialized
@@ -1383,9 +1295,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.AccessPlan.WidthBytes == sizeof(ushort)
             && result.AccessPlan.BarRelativeOffset == barRelativeOffset
             && result.AccessPlan.PhysicalAddress == NotifyBarPhysicalBase + barRelativeOffset
-            && result.AccessPlan.VirtualAddress == NotifyBarVirtualBase + barRelativeOffset;
+            && result.AccessPlan.VirtualAddress == NotifyBarVirtualBase + barRelativeOffset);
     }
 
+    [HostTest("storage.virtioblk.notifywindow rejects failed offset plan", HostLane.Fast, 31)]
     private static bool TestNotifyWindowRejectsFailedOffsetPlan()
     {
         VirtioBlockQueueNotificationMetadataResult notification =
@@ -1401,7 +1314,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 notifyOffset,
                 windows.Bindings.NotifyConfiguration);
 
-        return !notifyOffset.Succeeded
+        return HostCheck.Result(!notifyOffset.Succeeded
             && notifyOffset.Status == VirtioBlockQueueNotifyOffsetPlanStatus.RelativeOffsetOverflow
             && windows.Succeeded
             && !result.Succeeded
@@ -1413,9 +1326,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.NotifyOffsetMultiplier == uint.MaxValue
             && result.NotifyRelativeOffset == 0
             && result.WriteWidthBytes == sizeof(ushort)
-            && result.AccessPlan.WidthBytes == 0;
+            && result.AccessPlan.WidthBytes == 0);
     }
 
+    [HostTest("storage.virtioblk.notifywindow propagates register window failure", HostLane.Fast, 32)]
     private static bool TestNotifyWindowPropagatesRegisterWindowFailure()
     {
         VirtioBlockQueueNotifyOffsetPlanResult notifyOffset =
@@ -1426,7 +1340,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 notifyOffset,
                 notifyConfiguration: default);
 
-        return notifyOffset.Succeeded
+        return HostCheck.Result(notifyOffset.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockQueueNotificationRegisterWindowPlanStatus.RegisterWindowPlanFailed
             && result.NotifyOffsetPlanStatus == VirtioBlockQueueNotifyOffsetPlanStatus.Success
@@ -1437,14 +1351,15 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.NotifyOffsetMultiplier == NotifyOffsetMultiplier
             && result.NotifyRelativeOffset == 12
             && result.PublishedDescriptorCount == VirtioBlockDescriptorChainPlan.RequiredDescriptorCount
-            && result.AccessPlan.WidthBytes == 0;
+            && result.AccessPlan.WidthBytes == 0);
     }
 
+    [HostTest("storage.virtioblk.notifywindow default result is not success", HostLane.Fast, 33)]
     private static bool TestNotifyWindowDefaultResultIsNotSuccess()
     {
         VirtioBlockQueueNotificationRegisterWindowPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockQueueNotificationRegisterWindowPlanStatus.Success
             && result.NotifyOffsetPlanStatus == VirtioBlockQueueNotifyOffsetPlanStatus.Success
@@ -1452,9 +1367,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.RegisterWindowPlanStatus == VirtioPciBarRegisterWindowPlanStatus.Success
             && result.NotifyRelativeOffset == 0
             && result.WriteWidthBytes == 0
-            && result.AccessPlan.WidthBytes == 0;
+            && result.AccessPlan.WidthBytes == 0);
     }
 
+    [HostTest("storage.virtioblk.notifywindow preserves no-live-device boundary", HostLane.Fast, 34)]
     private static bool TestNotifyWindowPreservesNoLiveDeviceBoundary()
     {
         VirtioBlockQueueNotifyOffsetPlanResult notifyOffset =
@@ -1465,7 +1381,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 notifyOffset,
                 windows.Bindings.NotifyConfiguration);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockQueueNotificationRegisterWindowPlanner.ConsumesNotifyOffsetPlan
             && VirtioBlockQueueNotificationRegisterWindowPlanner.RequiresRegisterWindowBinding
             && VirtioBlockQueueNotificationRegisterWindowPlanner.PlansMappedRegisterAddresses
@@ -1495,9 +1411,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !VirtioPciBarRegisterWindowPlanner.WritesDeviceRegisters
             && !VirtioPciBarRegisterWindowPlanner.NotifiesLiveDevice
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockQueueNotificationRegisterWindowPlanResult>();
+                VirtioBlockQueueNotificationRegisterWindowPlanResult>());
     }
 
+    [HostTest("storage.virtioblk.notifywindowexec writes planned notify access", HostLane.Fast, 35)]
     private static bool TestNotifyWindowExecWritesPlannedNotifyAccess()
     {
         VirtioBlockQueueNotifyOffsetPlanResult notifyOffset =
@@ -1513,7 +1430,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
 
         ulong barRelativeOffset = NotifyApertureBarOffset + (7UL * NotifyOffsetMultiplier);
         int byteOffset = checked((int)barRelativeOffset);
-        return notifyOffset.Succeeded
+        return HostCheck.Result(notifyOffset.Succeeded
             && windows.Succeeded
             && result.IsInitialized
             && result.Succeeded
@@ -1545,9 +1462,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 notifyBytes,
                 byteOffset + sizeof(ushort),
                 notifyBytes.Length - byteOffset - sizeof(ushort),
-                0xCC);
+                0xCC));
     }
 
+    [HostTest("storage.virtioblk.notifywindowexec rejects failed plan", HostLane.Fast, 36)]
     private static bool TestNotifyWindowExecRejectsFailedPlan()
     {
         VirtioBlockQueueNotificationMetadataResult notification =
@@ -1565,7 +1483,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return !notifyOffset.Succeeded
+        return HostCheck.Result(!notifyOffset.Succeeded
             && windows.Succeeded
             && result.IsInitialized
             && !result.Succeeded
@@ -1579,9 +1497,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.NotifyOffsetMultiplier == uint.MaxValue
             && result.NotifyRelativeOffset == 0
             && result.AccessWidthBytes == 0
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.notifywindowexec propagates access failure", HostLane.Fast, 37)]
     private static bool TestNotifyWindowExecPropagatesAccessFailure()
     {
         VirtioBlockQueueNotifyOffsetPlanResult notifyOffset =
@@ -1596,7 +1515,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return notifyOffset.Succeeded
+        return HostCheck.Result(notifyOffset.Succeeded
             && windows.Succeeded
             && result.IsInitialized
             && !result.Succeeded
@@ -1609,14 +1528,15 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.NotifyRelativeOffset == 12
             && result.BarRelativeOffset == barRelativeOffset
             && result.WrittenValue == 0
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.notifywindowexec default result is not success", HostLane.Fast, 38)]
     private static bool TestNotifyWindowExecDefaultResultIsNotSuccess()
     {
         VirtioBlockQueueNotificationRegisterWindowExecutionResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockQueueNotificationRegisterWindowExecutionStatus.Success
             && result.PlanStatus == VirtioBlockQueueNotificationRegisterWindowPlanStatus.Success
@@ -1641,9 +1561,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.BarRelativeOffset == 0
             && result.WrittenValue == 0
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockQueueNotificationRegisterWindowExecutionResult>();
+                VirtioBlockQueueNotificationRegisterWindowExecutionResult>());
     }
 
+    [HostTest("storage.virtioblk.notifywindowexec preserves no-live-device boundary", HostLane.Fast, 39)]
     private static bool TestNotifyWindowExecPreservesNoLiveDeviceBoundary()
     {
         VirtioBlockQueueNotifyOffsetPlanResult notifyOffset =
@@ -1657,7 +1578,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockQueueNotificationRegisterWindowExecutor.InvokesRegisterWindowPlanner
             && VirtioBlockQueueNotificationRegisterWindowExecutor.RequiresRegisterWindowBinding
             && VirtioBlockQueueNotificationRegisterWindowExecutor.UsesCallerOwnedWindowBuffer
@@ -1687,9 +1608,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !VirtioPciBarRegisterWindowAccessExecutor.WritesLiveDeviceRegisters
             && !VirtioPciBarRegisterWindowAccessExecutor.NotifiesLiveDevice
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockQueueNotificationRegisterWindowExecutionResult>();
+                VirtioBlockQueueNotificationRegisterWindowExecutionResult>());
     }
 
+    [HostTest("storage.virtioblk.notifywindowbarrier writes planned notify access", HostLane.Fast, 40)]
     private static bool TestNotifyWindowBarrierWritesPlannedNotifyAccess()
     {
         VirtioBlockQueueNotifyOffsetPlanResult notifyOffset =
@@ -1706,7 +1628,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
 
         ulong barRelativeOffset = NotifyApertureBarOffset + (7UL * NotifyOffsetMultiplier);
         int byteOffset = checked((int)barRelativeOffset);
-        return notifyOffset.Succeeded
+        return HostCheck.Result(notifyOffset.Succeeded
             && windows.Succeeded
             && result.IsInitialized
             && result.Succeeded
@@ -1726,9 +1648,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 notifyBytes,
                 byteOffset + sizeof(ushort),
                 notifyBytes.Length - byteOffset - sizeof(ushort),
-                0xCC);
+                0xCC));
     }
 
+    [HostTest("storage.virtioblk.notifywindowbarrier rejects missing barrier", HostLane.Fast, 41)]
     private static bool TestNotifyWindowBarrierRejectsMissingBarrier()
     {
         VirtioBlockQueueNotifyOffsetPlanResult notifyOffset =
@@ -1749,7 +1672,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return notifyOffset.Succeeded
+        return HostCheck.Result(notifyOffset.Succeeded
             && windows.Succeeded
             && !barrier.Succeeded
             && result.IsInitialized
@@ -1763,9 +1686,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !result.BarrierSucceeded
             && result.BarrierSequence == 32
             && !result.RegisterWindowExecutionAttempted
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.notifywindowbarrier rejects failed plan", HostLane.Fast, 42)]
     private static bool TestNotifyWindowBarrierRejectsFailedPlan()
     {
         VirtioBlockQueueNotificationMetadataResult notification =
@@ -1784,7 +1708,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return !notifyOffset.Succeeded
+        return HostCheck.Result(!notifyOffset.Succeeded
             && windows.Succeeded
             && result.IsInitialized
             && !result.Succeeded
@@ -1795,9 +1719,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.BarrierSequence == 33
             && !result.RegisterWindowExecutionAttempted
             && result.AccessWidthBytes == 0
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.notifywindowbarrier propagates access failure", HostLane.Fast, 43)]
     private static bool TestNotifyWindowBarrierPropagatesAccessFailure()
     {
         VirtioBlockQueueNotifyOffsetPlanResult notifyOffset =
@@ -1813,7 +1738,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return notifyOffset.Succeeded
+        return HostCheck.Result(notifyOffset.Succeeded
             && windows.Succeeded
             && result.IsInitialized
             && !result.Succeeded
@@ -1824,14 +1749,15 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.BarrierSequence == 34
             && result.RegisterWindowExecutionAttempted
             && result.BarRelativeOffset == barRelativeOffset
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.notifywindowbarrier default result is not success", HostLane.Fast, 44)]
     private static bool TestNotifyWindowBarrierDefaultResultIsNotSuccess()
     {
         VirtioBlockQueueNotificationRegisterWindowBarrierExecutionResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockQueueNotificationRegisterWindowBarrierExecutionStatus.Success
             && result.PlanStatus == VirtioBlockQueueNotificationRegisterWindowPlanStatus.Success
@@ -1862,9 +1788,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.BarRelativeOffset == 0
             && result.WrittenValue == 0
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockQueueNotificationRegisterWindowBarrierExecutionResult>();
+                VirtioBlockQueueNotificationRegisterWindowBarrierExecutionResult>());
     }
 
+    [HostTest("storage.virtioblk.notifywindowbarrier preserves no-live-device boundary", HostLane.Fast, 45)]
     private static bool TestNotifyWindowBarrierPreservesNoLiveDeviceBoundary()
     {
         VirtioBlockQueueNotifyOffsetPlanResult notifyOffset =
@@ -1879,7 +1806,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockQueueNotificationRegisterWindowBarrierExecutor.RequiresBarrierReadiness
             && VirtioBlockQueueNotificationRegisterWindowBarrierExecutor.RequiresRegisterWindowBinding
             && VirtioBlockQueueNotificationRegisterWindowBarrierExecutor.UsesCallerOwnedWindowBuffer
@@ -1907,9 +1834,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !VirtioBlockQueueNotificationRegisterWindowBarrierExecutor.WaitsForUsedRingCompletion
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockQueueNotificationBarrierReadiness>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockQueueNotificationRegisterWindowBarrierExecutionResult>();
+                VirtioBlockQueueNotificationRegisterWindowBarrierExecutionResult>());
     }
 
+    [HostTest("storage.virtioblk.readnotify composes publication and barrier notify", HostLane.Fast, 46)]
     private static bool TestReadNotifyComposesPublicationAndBarrierNotify()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -1945,7 +1873,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
 
         ulong barRelativeOffset = NotifyApertureBarOffset + (7UL * NotifyOffsetMultiplier);
         int byteOffset = checked((int)barRelativeOffset);
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && windows.Succeeded
             && result.IsInitialized
             && result.Succeeded
@@ -1985,9 +1913,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 notifyBytes,
                 byteOffset + sizeof(ushort),
                 notifyBytes.Length - byteOffset - sizeof(ushort),
-                0xCC);
+                0xCC));
     }
 
+    [HostTest("storage.virtioblk.readnotify rejects failed publication", HostLane.Fast, 47)]
     private static bool TestReadNotifyRejectsFailedPublication()
     {
         BlockDeviceInfo device = CreateDevice(8);
@@ -2021,7 +1950,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return !publish.Succeeded
+        return HostCheck.Result(!publish.Succeeded
             && windows.Succeeded
             && result.IsInitialized
             && !result.Succeeded
@@ -2039,9 +1968,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.BarRelativeOffset == 0
             && AllBytesEqual(notifyBytes, 0xCC)
             && cursor.AvailableRingIndex == 2
-            && cursor.UsedRingIndex == 3;
+            && cursor.UsedRingIndex == 3);
     }
 
+    [HostTest("storage.virtioblk.readnotify rejects missing barrier", HostLane.Fast, 48)]
     private static bool TestReadNotifyRejectsMissingBarrier()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -2081,7 +2011,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && windows.Succeeded
             && !barrier.Succeeded
             && result.IsInitialized
@@ -2103,9 +2033,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.BarrierSequence == 43
             && result.QueueNotifyOffset == 2
             && result.NotifyRelativeOffset == 8
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.readnotify propagates notify execution failure", HostLane.Fast, 49)]
     private static bool TestReadNotifyPropagatesNotifyExecutionFailure()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -2140,7 +2071,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && windows.Succeeded
             && result.IsInitialized
             && !result.Succeeded
@@ -2160,14 +2091,15 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.QueueNotifyOffset == 3
             && result.NotifyRelativeOffset == 12
             && result.BarRelativeOffset == barRelativeOffset
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.readnotify default result is not success", HostLane.Fast, 50)]
     private static bool TestReadNotifyDefaultResultIsNotSuccess()
     {
         VirtioBlockReadQueueNotifyReadinessResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadQueueNotifyReadinessStatus.Success
             && result.ReadQueuePublishStatus == VirtioBlockReadQueuePublishStatus.Success
@@ -2203,9 +2135,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.BarRelativeOffset == 0
             && result.WrittenValue == 0
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockReadQueueNotifyReadinessResult>();
+                VirtioBlockReadQueueNotifyReadinessResult>());
     }
 
+    [HostTest("storage.virtioblk.readnotify preserves no-live-device boundary", HostLane.Fast, 51)]
     private static bool TestReadNotifyPreservesNoLiveDeviceBoundary()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -2239,7 +2172,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockReadQueueNotifyReadinessExecutor.ConsumesReadQueuePublication
             && VirtioBlockReadQueueNotifyReadinessExecutor.InvokesNotificationMetadataPlanner
             && VirtioBlockReadQueueNotifyReadinessExecutor.InvokesNotifyOffsetPlanner
@@ -2269,9 +2202,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !VirtioBlockReadQueueNotifyReadinessExecutor.PerformsDiskRead
             && !VirtioBlockReadQueueNotifyReadinessExecutor.WaitsForUsedRingCompletion
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockReadQueueNotifyReadinessResult>();
+                VirtioBlockReadQueueNotifyReadinessResult>());
     }
 
+    [HostTest("storage.virtioblk.readnotifycompletion completes after notify readiness", HostLane.Fast, 52)]
     private static bool TestReadNotifyCompletionCompletesAfterNotifyReadiness()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -2305,7 +2239,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 states,
                 ref cursor);
 
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && readiness.Succeeded
             && result.IsInitialized
             && result.Succeeded
@@ -2325,9 +2259,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.CurrentUsedRingIndex == 9
             && cursor.AvailableRingIndex == 5
             && cursor.UsedRingIndex == 9
-            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free));
     }
 
+    [HostTest("storage.virtioblk.readnotifycompletion rejects failed readiness", HostLane.Fast, 53)]
     private static bool TestReadNotifyCompletionRejectsFailedReadiness()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -2375,7 +2310,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 states,
                 ref cursor);
 
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && windows.Succeeded
             && !readiness.Succeeded
             && result.IsInitialized
@@ -2393,9 +2328,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && cursor.UsedRingIndex == 8
             && states[0] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[1] == VirtioBlockDescriptorOwnershipState.InFlight
-            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight;
+            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("storage.virtioblk.readnotifycompletion rejects no completion", HostLane.Fast, 54)]
     private static bool TestReadNotifyCompletionRejectsNoCompletion()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -2432,7 +2368,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 states,
                 ref cursor);
 
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && readiness.Succeeded
             && result.IsInitialized
             && !result.Succeeded
@@ -2451,9 +2387,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && cursor.UsedRingIndex == 6
             && states[0] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[1] == VirtioBlockDescriptorOwnershipState.InFlight
-            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight;
+            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("storage.virtioblk.readnotifycompletion propagates ownership failure", HostLane.Fast, 55)]
     private static bool TestReadNotifyCompletionPropagatesOwnershipFailure()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -2488,7 +2425,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 states,
                 ref cursor);
 
-        return publish.Succeeded
+        return HostCheck.Result(publish.Succeeded
             && readiness.Succeeded
             && result.IsInitialized
             && !result.Succeeded
@@ -2508,14 +2445,15 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && cursor.UsedRingIndex == 8
             && states[0] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[1] == VirtioBlockDescriptorOwnershipState.Free
-            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight;
+            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("storage.virtioblk.readnotifycompletion default result is not success", HostLane.Fast, 56)]
     private static bool TestReadNotifyCompletionDefaultResultIsNotSuccess()
     {
         VirtioBlockReadQueueNotifyCompletionResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadQueueNotifyCompletionStatus.Success
             && result.NotifyReadinessStatus == VirtioBlockReadQueueNotifyReadinessStatus.Success
@@ -2535,9 +2473,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.PreviousUsedRingIndex == 0
             && result.CurrentUsedRingIndex == 0
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockReadQueueNotifyCompletionResult>();
+                VirtioBlockReadQueueNotifyCompletionResult>());
     }
 
+    [HostTest("storage.virtioblk.readnotifycompletion preserves no-live-device boundary", HostLane.Fast, 57)]
     private static bool TestReadNotifyCompletionPreservesNoLiveDeviceBoundary()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -2571,7 +2510,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 states,
                 ref cursor);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockReadQueueNotifyCompletionPlanner.ConsumesReadNotifyReadiness
             && VirtioBlockReadQueueNotifyCompletionPlanner.RequiresSuccessfulReadNotifyReadiness
             && VirtioBlockReadQueueNotifyCompletionPlanner.DelegatesReadQueueCompletionPlanner
@@ -2600,9 +2539,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !VirtioBlockReadQueueNotifyCompletionPlanner.PerformsDiskRead
             && !VirtioBlockReadQueueNotifyCompletionPlanner.WaitsForUsedRingCompletion
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockReadQueueNotifyCompletionResult>();
+                VirtioBlockReadQueueNotifyCompletionResult>());
     }
 
+    [HostTest("storage.virtioblk.readnotifyblock projects completed read", HostLane.Fast, 58)]
     private static bool TestReadNotifyBlockProjectsCompletedRead()
     {
         VirtioBlockReadQueueNotifyCompletionResult completion =
@@ -2614,7 +2554,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
         VirtioBlockReadQueueNotifyBlockReadProjectionResult result =
             VirtioBlockReadQueueNotifyBlockReadProjector.Project(completion);
 
-        return completion.Succeeded
+        return HostCheck.Result(completion.Succeeded
             && result.IsInitialized
             && result.Succeeded
             && result.Status == VirtioBlockReadQueueNotifyBlockReadProjectionStatus.Success
@@ -2631,9 +2571,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.BlockRead.BytesRead == 1024
             && result.RequestedBlockCount == 2
             && result.RequestedByteCount == 1024
-            && result.CompletedByteCount == 1024;
+            && result.CompletedByteCount == 1024);
     }
 
+    [HostTest("storage.virtioblk.readnotifyblock maps readiness failure", HostLane.Fast, 59)]
     private static bool TestReadNotifyBlockMapsReadinessFailure()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -2683,7 +2624,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
         VirtioBlockReadQueueNotifyBlockReadProjectionResult result =
             VirtioBlockReadQueueNotifyBlockReadProjector.Project(completion);
 
-        return !readiness.Succeeded
+        return HostCheck.Result(!readiness.Succeeded
             && !completion.Succeeded
             && result.IsInitialized
             && !result.Succeeded
@@ -2696,9 +2637,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.BlockRead.BytesRead == 0
             && result.RequestedBlockCount == 0
             && result.RequestedByteCount == 0
-            && result.CompletedByteCount == 0;
+            && result.CompletedByteCount == 0);
     }
 
+    [HostTest("storage.virtioblk.readnotifyblock maps completion failure", HostLane.Fast, 60)]
     private static bool TestReadNotifyBlockMapsCompletionFailure()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -2737,7 +2679,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
         VirtioBlockReadQueueNotifyBlockReadProjectionResult result =
             VirtioBlockReadQueueNotifyBlockReadProjector.Project(completion);
 
-        return readiness.Succeeded
+        return HostCheck.Result(readiness.Succeeded
             && !completion.Succeeded
             && result.IsInitialized
             && !result.Succeeded
@@ -2749,14 +2691,15 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.BlockRead.Status == BlockDeviceStatus.IoError
             && result.RequestedBlockCount == 1
             && result.RequestedByteCount == 512
-            && result.CompletedByteCount == 0;
+            && result.CompletedByteCount == 0);
     }
 
+    [HostTest("storage.virtioblk.readnotifyblock default result is not success", HostLane.Fast, 61)]
     private static bool TestReadNotifyBlockDefaultResultIsNotSuccess()
     {
         VirtioBlockReadQueueNotifyBlockReadProjectionResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadQueueNotifyBlockReadProjectionStatus.Success
             && result.NotifyCompletionStatus == VirtioBlockReadQueueNotifyCompletionStatus.Success
@@ -2773,9 +2716,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.RequestedByteCount == 0
             && result.CompletedByteCount == 0
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockReadQueueNotifyBlockReadProjectionResult>();
+                VirtioBlockReadQueueNotifyBlockReadProjectionResult>());
     }
 
+    [HostTest("storage.virtioblk.readnotifyblock preserves no-live-device boundary", HostLane.Fast, 62)]
     private static bool TestReadNotifyBlockPreservesNoLiveDeviceBoundary()
     {
         VirtioBlockReadQueueNotifyCompletionResult completion =
@@ -2787,7 +2731,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
         VirtioBlockReadQueueNotifyBlockReadProjectionResult result =
             VirtioBlockReadQueueNotifyBlockReadProjector.Project(completion);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockReadQueueNotifyBlockReadProjector.ConsumesReadNotifyCompletionResult
             && VirtioBlockReadQueueNotifyBlockReadProjector.DelegatesReadQueueBlockReadProjector
             && !VirtioBlockReadQueueNotifyBlockReadProjector.ReadsQueueMemory
@@ -2811,9 +2755,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !VirtioBlockReadQueueNotifyBlockReadProjector.PerformsDiskRead
             && !VirtioBlockReadQueueNotifyBlockReadProjector.WaitsForUsedRingCompletion
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockReadQueueNotifyBlockReadProjectionResult>();
+                VirtioBlockReadQueueNotifyBlockReadProjectionResult>());
     }
 
+    [HostTest("storage.virtioblk.readpipeline projects completed read", HostLane.Fast, 63)]
     private static bool TestReadPipelineProjectsCompletedRead()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -2861,7 +2806,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && result.IsInitialized
             && result.Succeeded
             && result.Status == VirtioBlockReadQueuePipelineStatus.Success
@@ -2878,9 +2823,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.BlockProjection.CompletedByteCount == 1024
             && cursor.AvailableRingIndex == 5
             && cursor.UsedRingIndex == 9
-            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free));
     }
 
+    [HostTest("storage.virtioblk.readpipeline rejects publication failure", HostLane.Fast, 64)]
     private static bool TestReadPipelineRejectsPublicationFailure()
     {
         BlockDeviceInfo device = CreateDevice(8);
@@ -2921,7 +2867,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadQueuePipelineStatus.PublicationFailed
@@ -2933,9 +2879,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && cursor.AvailableRingIndex == 2
             && cursor.UsedRingIndex == 3
             && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free)
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.readpipeline rejects readiness failure", HostLane.Fast, 65)]
     private static bool TestReadPipelineRejectsReadinessFailure()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -2989,7 +2936,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && !barrier.Succeeded
             && result.IsInitialized
             && !result.Succeeded
@@ -3004,9 +2951,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && states[0] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[1] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[2] == VirtioBlockDescriptorOwnershipState.InFlight
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.readpipeline maps completion failure", HostLane.Fast, 66)]
     private static bool TestReadPipelineMapsCompletionFailure()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -3051,7 +2999,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadQueuePipelineStatus.NotifyCompletionFailed
@@ -3066,14 +3014,15 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && cursor.UsedRingIndex == 6
             && states[0] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[1] == VirtioBlockDescriptorOwnershipState.InFlight
-            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight;
+            && states[2] == VirtioBlockDescriptorOwnershipState.InFlight);
     }
 
+    [HostTest("storage.virtioblk.readpipeline default result is not success", HostLane.Fast, 67)]
     private static bool TestReadPipelineDefaultResultIsNotSuccess()
     {
         VirtioBlockReadQueuePipelineResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadQueuePipelineStatus.Success
             && result.PublishStatus == VirtioBlockReadQueuePublishStatus.Success
@@ -3085,9 +3034,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !result.BlockProjectionAttempted
             && !result.BlockRead.Succeeded
             && result.BlockRead.Status == BlockDeviceStatus.IoError
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadQueuePipelineResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadQueuePipelineResult>());
     }
 
+    [HostTest("storage.virtioblk.readpipeline preserves no-live-device boundary", HostLane.Fast, 68)]
     private static bool TestReadPipelinePreservesNoLiveDeviceBoundary()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -3135,7 +3085,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockReadQueuePipelineComposer.PublishesReadQueue
             && VirtioBlockReadQueuePipelineComposer.InvokesReadNotifyReadinessExecutor
             && VirtioBlockReadQueuePipelineComposer.InvokesReadNotifyCompletionPlanner
@@ -3166,9 +3116,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !VirtioBlockReadQueuePipelineComposer.PerformsBlockIo
             && !VirtioBlockReadQueuePipelineComposer.PerformsDiskRead
             && !VirtioBlockReadQueuePipelineComposer.WaitsForUsedRingCompletion
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadQueuePipelineResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadQueuePipelineResult>());
     }
 
+    [HostTest("storage.virtioblk.readadapter executes pipeline read", HostLane.Fast, 69)]
     private static bool TestReadAdapterExecutesPipelineRead()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -3217,7 +3168,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 notifyBytes);
 
         ulong barRelativeOffset = NotifyApertureBarOffset + (7UL * NotifyOffsetMultiplier);
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioBlockReadQueuePipelineAdapterStatus.Success
@@ -3232,9 +3183,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && cursor.AvailableRingIndex == 5
             && cursor.UsedRingIndex == 9
             && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free)
-            && ReadUInt16AtBarOffset(notifyBytes, barRelativeOffset) == 0;
+            && ReadUInt16AtBarOffset(notifyBytes, barRelativeOffset) == 0);
     }
 
+    [HostTest("storage.virtioblk.readadapter rejects short request buffer", HostLane.Fast, 70)]
     private static bool TestReadAdapterRejectsShortRequestBuffer()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -3280,7 +3232,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadQueuePipelineAdapterStatus.RequestHeaderTooSmall
@@ -3294,9 +3246,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && AllBytesEqual(destination, 0x22)
             && AllBytesEqual(status, 0x33)
             && AllBytesEqual(queueMemory, 0x44)
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.readadapter rejects short notify window", HostLane.Fast, 71)]
     private static bool TestReadAdapterRejectsShortNotifyWindow()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -3342,7 +3295,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadQueuePipelineAdapterStatus.NotifyWindowTooSmall
@@ -3357,9 +3310,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && AllBytesEqual(destination, 0x22)
             && AllBytesEqual(status, 0x33)
             && AllBytesEqual(queueMemory, 0x44)
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.readadapter propagates pipeline failure", HostLane.Fast, 72)]
     private static bool TestReadAdapterPropagatesPipelineFailure()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -3406,7 +3360,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && !barrier.Succeeded
             && result.IsInitialized
             && !result.Succeeded
@@ -3421,14 +3375,15 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && states[0] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[1] == VirtioBlockDescriptorOwnershipState.InFlight
             && states[2] == VirtioBlockDescriptorOwnershipState.InFlight
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.readadapter default result is not success", HostLane.Fast, 73)]
     private static bool TestReadAdapterDefaultResultIsNotSuccess()
     {
         VirtioBlockReadQueuePipelineAdapterResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadQueuePipelineAdapterStatus.Success
             && result.PipelineStatus == VirtioBlockReadQueuePipelineStatus.Success
@@ -3441,9 +3396,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.AvailableElementCount == 0
             && result.QueuePlanStatus == VirtqueueSplitRingPlanStatus.Success
             && result.NotifyWindowPlanStatus == VirtioPciBarRegisterWindowPlanStatus.Success
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadQueuePipelineAdapterResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadQueuePipelineAdapterResult>());
     }
 
+    [HostTest("storage.virtioblk.readadapter preserves no-live-device boundary", HostLane.Fast, 74)]
     private static bool TestReadAdapterPreservesNoLiveDeviceBoundary()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -3491,7 +3447,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 windows.Bindings.NotifyConfiguration,
                 notifyBytes);
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && result.Succeeded
             && result.IsInitialized
             && VirtioBlockReadQueuePipelineAdapter.ValidatesCallerOwnedBuffersBeforePipeline
@@ -3526,9 +3482,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !VirtioBlockReadQueuePipelineAdapter.PerformsBlockIo
             && !VirtioBlockReadQueuePipelineAdapter.PerformsDiskRead
             && !VirtioBlockReadQueuePipelineAdapter.WaitsForUsedRingCompletion
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadQueuePipelineAdapterResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadQueuePipelineAdapterResult>());
     }
 
+    [HostTest("storage.virtioblk.readsession delegates adapter read", HostLane.Fast, 75)]
     private static bool TestReadSessionDelegatesAdapterRead()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -3578,7 +3535,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 sectorCount: 2,
                 VirtioBlockQueueNotificationBarrierReadiness.Ready(81));
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioBlockReadOnlyReadSessionStatus.Success
@@ -3594,9 +3551,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.CursorAfter.UsedRingIndex == 9
             && session.Cursor.AvailableRingIndex == 5
             && session.Cursor.UsedRingIndex == 9
-            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free));
     }
 
+    [HostTest("storage.virtioblk.readsession preserves cursor state", HostLane.Fast, 76)]
     private static bool TestReadSessionPreservesCursorState()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -3658,7 +3616,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 sectorCount: 1,
                 VirtioBlockQueueNotificationBarrierReadiness.Ready(83));
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && first.Succeeded
             && first.IsInitialized
             && second.Succeeded
@@ -3677,9 +3635,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && first.BlockRead.BytesRead == 512
             && second.BlockRead.BlocksRead == 1
             && second.BlockRead.BytesRead == 512
-            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free);
+            && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free));
     }
 
+    [HostTest("storage.virtioblk.readsession rejects invalid setup", HostLane.Fast, 77)]
     private static bool TestReadSessionRejectsInvalidSetup()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -3727,7 +3686,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 sectorCount: 2,
                 VirtioBlockQueueNotificationBarrierReadiness.Ready(84));
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadOnlyReadSessionStatus.AdapterFailed
@@ -3744,14 +3703,15 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && AllBytesEqual(destination, 0x22)
             && AllBytesEqual(status, 0x33)
             && AllBytesEqual(queueMemory, 0x44)
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.readsession default result is not success", HostLane.Fast, 78)]
     private static bool TestReadSessionDefaultResultIsNotSuccess()
     {
         VirtioBlockReadOnlyReadSessionResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadOnlyReadSessionStatus.Success
             && !result.Adapter.IsInitialized
@@ -3762,12 +3722,13 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && result.CursorBefore.UsedRingIndex == 0
             && result.CursorAfter.AvailableRingIndex == 0
             && result.CursorAfter.UsedRingIndex == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadOnlyReadSessionResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadOnlyReadSessionResult>());
     }
 
+    [HostTest("storage.virtioblk.readsession preserves no-live-device boundary", HostLane.Fast, 79)]
     private static bool TestReadSessionPreservesNoLiveDeviceBoundary()
     {
-        return VirtioBlockReadOnlyReadSession.OwnsNoAllocations
+        return HostCheck.Result(VirtioBlockReadOnlyReadSession.OwnsNoAllocations
             && VirtioBlockReadOnlyReadSession.DelegatesReadQueuePipelineAdapter
             && VirtioBlockReadOnlyReadSession.CarriesCallerOwnedCursorState
             && VirtioBlockReadOnlyReadSession.CarriesCallerOwnedDescriptorStateTable
@@ -3791,9 +3752,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !VirtioBlockReadOnlyReadSession.PerformsBlockIo
             && !VirtioBlockReadOnlyReadSession.PerformsDiskRead
             && !VirtioBlockReadOnlyReadSession.WaitsForUsedRingCompletion
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadOnlyReadSessionResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadOnlyReadSessionResult>());
     }
 
+    [HostTest("storage.virtioblk.readsession setup gate composes setup and read", HostLane.Fast, 80)]
     private static bool TestReadSessionSetupGateComposesSetupAndRead()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -3851,7 +3813,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 VirtioBlockQueueNotificationBarrierReadiness.Ready(102));
 
         ulong barRelativeOffset = NotifyApertureBarOffset + ((ulong)QueueNotifyOffset * NotifyOffsetMultiplier);
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && setup.Succeeded
             && result.Succeeded
             && result.IsInitialized
@@ -3876,9 +3838,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && AllStatesAre(states, VirtioBlockDescriptorOwnershipState.Free)
             && ReadUInt16AtBarOffset(notifyBytes, barRelativeOffset) == 0
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockReadOnlyReadSessionSetupGateResult>();
+                VirtioBlockReadOnlyReadSessionSetupGateResult>());
     }
 
+    [HostTest("storage.virtioblk.readsession setup gate rejects failed setup", HostLane.Fast, 81)]
     private static bool TestReadSessionSetupGateRejectsFailedSetup()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -3932,7 +3895,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 sectorCount: 2,
                 VirtioBlockQueueNotificationBarrierReadiness.Ready(104));
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && setup.IsInitialized
             && !setup.Succeeded
             && setup.Status == VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutionStatus.SetupPlanFailed
@@ -3955,9 +3918,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && AllBytesEqual(destination, 0x22)
             && AllBytesEqual(status, 0x33)
             && AllBytesEqual(queueMemory, 0x44)
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.readsession setup gate rejects missing barrier", HostLane.Fast, 82)]
     private static bool TestReadSessionSetupGateRejectsMissingBarrier()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -4011,7 +3975,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 sectorCount: 2,
                 VirtioBlockQueueNotificationBarrierReadiness.Ready(106));
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && setup.IsInitialized
             && !setup.Succeeded
             && setup.Status == VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutionStatus.MemoryBarrierNotReady
@@ -4035,9 +3999,10 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && AllBytesEqual(destination, 0x22)
             && AllBytesEqual(status, 0x33)
             && AllBytesEqual(queueMemory, 0x44)
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.readsession setup gate propagates read failure", HostLane.Fast, 83)]
     private static bool TestReadSessionSetupGatePropagatesReadFailure()
     {
         BlockDeviceInfo device = CreateDevice(64);
@@ -4092,7 +4057,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
                 sectorCount: 2,
                 VirtioBlockQueueNotificationBarrierReadiness.Ready(108));
 
-        return windows.Succeeded
+        return HostCheck.Result(windows.Succeeded
             && setup.Succeeded
             && result.IsInitialized
             && !result.Succeeded
@@ -4113,14 +4078,15 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && AllBytesEqual(destination, 0x22)
             && AllBytesEqual(status, 0x33)
             && AllBytesEqual(queueMemory, 0x44)
-            && AllBytesEqual(notifyBytes, 0xCC);
+            && AllBytesEqual(notifyBytes, 0xCC));
     }
 
+    [HostTest("storage.virtioblk.readsession setup gate default result is not success", HostLane.Fast, 84)]
     private static bool TestReadSessionSetupGateDefaultResultIsNotSuccess()
     {
         VirtioBlockReadOnlyReadSessionSetupGateResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadOnlyReadSessionSetupGateStatus.Success
             && result.QueueSetupStatus == VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutionStatus.Success
@@ -4152,7 +4118,7 @@ internal static class StorageVirtioBlockReadOnlyDevicePlanTests
             && !VirtioBlockReadOnlyReadSessionSetupGate.PerformsDiskRead
             && !VirtioBlockReadOnlyReadSessionSetupGate.WaitsForUsedRingCompletion
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioBlockReadOnlyReadSessionSetupGateResult>();
+                VirtioBlockReadOnlyReadSessionSetupGateResult>());
     }
 
     private static BlockDeviceInfo CreateDevice(ulong blockCount)

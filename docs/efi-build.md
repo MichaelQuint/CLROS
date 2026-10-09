@@ -12,12 +12,13 @@ defaults themselves remain false; the normal policy has its own compile symbol.
 
 The publication and runner integration in [step1090](../done/step1090.md) adds
 `-BootPolicy VerifiedExit|Diagnostic` to the build, artifact-verification and smoke
-scripts. Omitting it selects normal exit unless an explicit diagnostic probe is
+commands. Omitting it selects normal exit unless an explicit diagnostic probe is
 requested. The ordinary smoke command automatically builds a fresh EFI and image;
 explicitly disabling that build or overriding its marker contract is rejected.
 The native evidence records the selected policy and verifies it again against
-MSBuild and the requested artifact profile. The normal image has 122 explicit
+MSBuild and the requested artifact profile. That checkpoint recorded 122 explicit
 compile items, 138 source-authority inputs and all 52 diagnostic properties false.
+Current source-authority counts are derived from the compiled/tooling inventory.
 
 Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 
@@ -26,6 +27,41 @@ The five diagnostic regressions are firmware-visible compatibility, first exit, 
 This is a bounded terminal boot path. It reuses the original retained allocator and copied ACPI, adopts owned descriptors/page tables and reports through owned COM1. It does not reclaim firmware pages or start a continuing workload. General EH, hosted .NET/Kestrel, live storage/networking, cloud and production readiness remain unproved; numbered gate statuses are unchanged.
 
 ## Current toolchain migration
+
+The host producer and verifier run as C# 14/.NET 10 commands:
+`dotnet run --project tools/OS.Tooling -- efi build` and
+`dotnet run --project tools/OS.Tooling -- efi verify`. Add `--preflight-only`
+to the build command for discovery and source admission without publication.
+Both GNU-style option names and the established PascalCase names are accepted.
+`EfiBuildPolicy` owns process timeout/output limits; `EfiContracts` owns reviewed
+source, native object, package, and evidence inventories. Source-authority counts
+come from the actual compile/tooling inventory, including newly added tool files.
+Closure counts in the milestone sections below describe their retained historical
+checkpoints. Use the current inventories and emitted provenance for a new build.
+
+Every compiled CLI entry checks an embedded raw-input manifest before dispatch.
+The source patterns live once in `OS.Tooling.csproj` and also drive runtime
+inventory discovery. Changed, missing, or newly added tool/dependency sources
+fail with `TEST_FAIL tooling.inputs ... rebuild_required`; rebuild the tool
+instead of running an older binary against new inputs. Exact source copies may
+relocate with the compiled runtime. Documentation and generated build outputs
+do not invalidate this check. Native provenance includes the same dependency
+inventory in addition to the admitted EFI compile inputs.
+
+Publication holds the canonical output mutex and raw source authorities through
+one fresh isolated restore, one NativeAOT publish, and a bounded compiled verifier
+process. Input identities and bytes are checked again before success. Generated
+restore files, package trees, import/task bindings, managed assembly, native
+objects, linker response/map, and copied EFI remain mandatory evidence. Output
+and log paths reject aliases, hard links and reparse points. Host fixtures test
+these services directly; a passing preflight is not native or guest acceptance.
+
+Compiler completion follows the original bounded build contract: retain the
+compiler's exit code, terminate any remaining descendants in its assigned job,
+prove the job is empty, and finish the bounded output drain. This prevents
+background compiler helpers from consuming the build timeout after native
+publication has finished. It does not change the QEMU runner's default process
+lifecycle or allow successful builds with unconfirmed child termination.
 
 Issue #590 moves the selected freestanding ILCompiler and NativeAOT runtime pack
 to `10.0.12`, with stable SDK `10.0.401`. All three compiler/runtime packages
@@ -136,7 +172,7 @@ all eight GC prerequisites: `EnableM01LoadedImageStackProbe`,
 `EnableM04ArithmeticConformanceProbe`, `EnableM04LayoutContractProbe`,
 `EnableM04ManagedHeapPageRangeProbe` and `EnableM04RhpNewFastProbe`.
 
-Use `run-qemu-smoke.ps1 -BuildEfi` with those ten switches and the QEMU/OVMF
+Use `dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi` with those ten switches and the QEMU/OVMF
 arguments below. The wrapper requires a fresh image and validates exactly 82
 application records, including eleven churn rows and `CLROS_M04_014_READY`.
 The three fixed seeds complete 192 rounds, 476 direct allocations/reclamations,
@@ -145,7 +181,7 @@ diagnostic of the original explicit-root collector before ExitBootServices.
 
 The project, publisher and verifier carry the same explicit switch; the verifier
 requires the linked adapter only when selected. The runner loads the shared
-`seeded-collector-churn-records.ps1` validator, first validates the original GC
+`QemuTranscripts.AssertM04SeededCollectorChurnRecords` validator, first validates the original GC
 records, then binds churn identities and counters to them. GC-only/default
 profiles reject churn output. The first-exit profile is incompatible with GC
 and therefore with churn. Combined integration evidence is in
@@ -192,8 +228,7 @@ it does not write into the sealed acceptance capture:
 $firstExitId = [Guid]::NewGuid().ToString('N')
 $firstExitRun = Join-Path (Get-Location).Path ('artifacts\first-exit-repro-' + $firstExitId)
 New-Item -ItemType Directory -Path $firstExitRun | Out-Null
-& "$env:WINDIR\System32\WindowsPowerShell\v1.0\powershell.exe" `
-  -NoProfile -ExecutionPolicy Bypass -File .\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -BuildEfi `
   -Qemu "C:/Program Files/qemu/qemu-system-x86_64.exe" `
   -OvmfCode "C:/Program Files/qemu/share/edk2-x86_64-code.fd" `
@@ -224,7 +259,7 @@ included in `CLROS.slnx`, but its directory-local rules keep the freestanding
 no-stdlib build explicit and separate from ordinary managed runtime policy.
 
 As of 2026-07-27, this host has the required Visual Studio C++ toolchain,
-Windows SDK, QEMU, and OVMF installed. `scripts/build-efi-shell.ps1` publishes a
+Windows SDK, QEMU, and OVMF installed. `dotnet run --project tools/OS.Tooling -- efi build` publishes a
 NativeAOT x64 PE with EFI application subsystem and stages it as
 `artifacts/efi/BOOTX64.EFI`.
 
@@ -316,7 +351,7 @@ boundary.
   minimal compiler-recognized `UnmanagedCallersOnlyAttribute` contract and the
   fail-closed `RhpStackProbe` dispatch bridge required by the M01-021 opt-in
   build.
-- `scripts/build-efi-shell.ps1` runs the explicit publish command and writes a
+- `dotnet run --project tools/OS.Tooling -- efi build` runs the explicit publish command and writes a
   log under `artifacts/logs/`. Before `dotnet publish`, its preflight resolves
   the MSVC x64 `link.exe`, Windows SDK UM x64 `kernel32.lib`, selected
   ILCompiler and NativeAOT runtime pack, QEMU x64 executable, `qemu-img`, and
@@ -335,10 +370,10 @@ boundary.
   `-OvmfSearchRoot`. An explicitly requested missing path does not fall back
   to a host default. `-PreflightOnly` stops after the checks without publishing
   or emitting `TEST_PASS efi.shell.publish`.
-- `scripts/build-efi-shell.ps1 -EnableUefiGoneSimulationProbe` defines `UEFI_GONE_SIMULATION_PROBE`, prints `EFI_PROBE UEFI_GONE_SIMULATION`, and publishes a variant that emits `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
-- `scripts/build-efi-shell.ps1 -EnableAcpiPhysicalDiscoveryProbe` defines `ACPI_PHYSICAL_DISCOVERY_PROBE`, prints `EFI_PROBE ACPI_PHYSICAL_DISCOVERY`, and publishes a variant that reads firmware-provided ACPI physical addresses before `ExitBootServices`, validates RSDP/root SDT/MCFG bytes into fixed scratch storage, and emits `ACPI_RSDP_SNAPSHOT_READY`, `ACPI_RSDP_VALIDATED`, `ACPI_ROOT_SDT_SNAPSHOT_READY`, `ACPI_ROOT_SDT_VALIDATED`, and `ACPI_MCFG_DISCOVERY_READY`.
+- `dotnet run --project tools/OS.Tooling -- efi build -EnableUefiGoneSimulationProbe` defines `UEFI_GONE_SIMULATION_PROBE`, prints `EFI_PROBE UEFI_GONE_SIMULATION`, and publishes a variant that emits `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
+- `dotnet run --project tools/OS.Tooling -- efi build -EnableAcpiPhysicalDiscoveryProbe` defines `ACPI_PHYSICAL_DISCOVERY_PROBE`, prints `EFI_PROBE ACPI_PHYSICAL_DISCOVERY`, and publishes a variant that reads firmware-provided ACPI physical addresses before `ExitBootServices`, validates RSDP/root SDT/MCFG bytes into fixed scratch storage, and emits `ACPI_RSDP_SNAPSHOT_READY`, `ACPI_RSDP_VALIDATED`, `ACPI_ROOT_SDT_SNAPSHOT_READY`, `ACPI_ROOT_SDT_VALIDATED`, and `ACPI_MCFG_DISCOVERY_READY`.
 - On success, the publish script copies `src/OS/bin/Release/net10.0/win-x64/publish/OS.exe` to `artifacts/efi/BOOTX64.EFI`.
-- `scripts/test-efi-artifact.ps1` parses the staged PE directly and rejects
+- `dotnet run --project tools/OS.Tooling -- efi verify` parses the staged PE directly and rejects
   missing, empty, truncated, malformed, non-AMD64, non-PE32+, non-EFI,
   zero-entrypoint, non-executable-entrypoint, virtual-only-entrypoint, import,
   bound-import, IAT, delay-import, and missing-`EfiMain`-contract cases. It
@@ -397,7 +432,7 @@ no-stdlib build pass. The project, preflight marker, issue evidence, and
 durable backlog record therefore preserve this discovered prerequisite rather
 than repeating the incomplete 28-file claim.
 
-`scripts/build-efi-shell.ps1` validates the direct XML and evaluated MSBuild
+`dotnet run --project tools/OS.Tooling -- efi build` validates the direct XML and evaluated MSBuild
 closure for both workload profiles and the caller-selected `Debug` or `Release`
 configuration before tool discovery. Canonicalized XML fingerprints bind the
 complete EFI project and root `Directory.Build.props`/`Directory.Build.targets`
@@ -449,7 +484,7 @@ execution, owned diagnostics, or `ExitBootServices`.
 
 ### M01 loaded-image and owned-stack EFI wiring (build evidence)
 
-`scripts/build-efi-shell.ps1 -EnableM01LoadedImageStackProbe` maps the explicit
+`dotnet run --project tools/OS.Tooling -- efi build -EnableM01LoadedImageStackProbe` maps the explicit
 build property to `M01_LOADED_IMAGE_STACK_PROBE`. In that configuration,
 `EfiEntry` uses the incoming EFI image handle to capture and validate the
 loader-owned image range, then performs exactly two `AllocateAnyPages` calls:
@@ -521,7 +556,7 @@ M01_STAGE1_FAIL status=<number> adapter=<number> checkpoint=<number> free_data=<
 ```
 
 The accepted opt-in build on 2026-07-27 produced a 131,584-byte PE32+ AMD64 EFI
-application. `scripts/test-efi-artifact.ps1` reported executable/file-backed
+application. The historical `scripts/test-efi-artifact.ps1` reported executable/file-backed
 `.managed` entrypoint RVA `0x00010BD0`, same-build `EfiMain` association,
 absent ordinary/bound/IAT/delay-import directories, and
 `TEST_PASS efi.artifact.verify`. Artifact SHA-256 is
@@ -553,7 +588,7 @@ build/source evidence does not change a completion-gate state.
 The dual-probe artifact is built explicitly with:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe
+dotnet run --project tools/OS.Tooling -- efi build -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe
 ```
 
 The allocator-only combination is invalid. Both the publish preflight and
@@ -610,7 +645,7 @@ serial evidence.
 The three-probe artifact is built explicitly with:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe
+dotnet run --project tools/OS.Tooling -- efi build -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe
 ```
 
 The owned-paging combination is valid only with both earlier probes. M01-025
@@ -693,9 +728,9 @@ M02-017.
 
 M02-017 adds `Boot/M02SafeStubPageIntegration.cs` plus the three reviewed
 diagnostics contracts required to materialize the fixed page. The explicit EFI
-compile closure is now 48 items, and the canonical build/verifier source
-snapshot is 61 inputs. `scripts/build-efi-shell.ps1` and
-`scripts/test-efi-artifact.ps1` both pin those exact ordered closures; missing,
+compile closure at that checkpoint contained 48 items, and its build/verifier source
+snapshot contained 61 inputs. `dotnet run --project tools/OS.Tooling -- efi build` and
+`dotnet run --project tools/OS.Tooling -- efi verify` pin the current reviewed inventories; missing,
 duplicate, reordered, substituted, wildcard-imported, or stale project-input
 variants fail closed. The default switch remains false. Enabling
 `M02_SAFE_STUB_PROBE` requires all three M01 probe symbols in the same fresh
@@ -721,22 +756,22 @@ or production readiness.
 
 ### Checked COM1 configuration EFI closure (M02-003/M02-004)
 
-The current serialized profile adds
+The M02-003/M02-004 checkpoint added
 `Diagnostics/InvokeIn8Out8CheckedUnmanagedFunctionPointers.cs`,
 `Diagnostics/COM1OwnedPortIOBackend.cs`,
 `Boot/M02CheckedPortIoFunctionPointerIntegration.cs`, and
 `Boot/M02Com1OwnedPortIoBackendIntegration.cs`. The explicit EFI compile
-closure is 52 items and the canonical build/verifier authority snapshot is 65
+closure contained 52 items and the canonical build/verifier authority snapshot contained 65
 inputs. `EnableM02Com1OwnedPortIoProbe` defaults false and requires
 `EnableM02CheckedPortIoBindingProbe`, which in turn requires the complete
 M02-017/M01 probe tuple.
 
-With every required switch enabled, preflight reports
+With every required switch enabled, that checkpoint's preflight reported
 `EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=65` and
 `EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=52`.
-The same-build verifier accepts PE32+ AMD64, EFI subsystem 10, no ordinary or
+The same-build verifier accepted PE32+ AMD64, EFI subsystem 10, no ordinary or
 delay imports, the exact `EfiMain` association, and the linked instruction
-serializer. The current 485,888-byte artifact SHA-256 is
+serializer. The retained 485,888-byte artifact SHA-256 is
 `61CA5D6879DA1AE7DC0A6938AA61AD64DCEFBD61AA937C0DF2D8C3BF0809820E`.
 
 This artifact evidence establishes the no-stdlib closure and PE/link contract.
@@ -752,7 +787,7 @@ explicit compile item,
 `Diagnostics/OWNEDCOM1READYExclusivelyOwnedWriter.cs`, immediately after the
 owned COM1 backend and before the independent endian catalog. Its accepted
 closure was 54 compile items and 67 build/verifier authority inputs. The active
-M02-006 development tree is now 55/68 after inserting its separately owned
+M02-006 development checkpoint was 55/68 after inserting its separately owned
 reporter immediately after the M02-005 writer; this does not alter the accepted
 M02-005 artifact evidence below. The M02-005 flag requires
 `EnableM02Com1OwnedPortIoProbe=true`; the QEMU wrapper additionally requires
@@ -773,7 +808,7 @@ Build and verification use the complete cumulative profile through the QEMU
 wrapper:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -804,8 +839,8 @@ CloudReady status, production readiness, or a numbered-gate advancement.
 The default-false `EnableM02PanicSafeOwnedCom1Probe` profile adds exactly one
 explicit compile item,
 `Diagnostics/PanicSafeFormattingSerialReportingOwnedCOM1.cs`, after the
-M02-005 writer and before the independent endian catalog. The current closure
-is 55 compile items and the canonical build/verifier authority snapshot is 68
+M02-005 writer and before the independent endian catalog. That checkpoint's closure
+contained 55 compile items and its build/verifier authority snapshot contained 68
 inputs. Under `NOSTDLIB_EFI`, the production source exposes only unsafe
 pointer/length formatting and its allocation-free readiness byte catalog; the
 host `Span` overloads are excluded. The flag requires
@@ -838,7 +873,7 @@ CLROS_M02_006_EVIDENCE markerBytes=125 serialBytes=127 configurationWrites=7 lin
 Build and verification use the complete cumulative profile:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -877,8 +912,8 @@ production readiness, or a numbered-gate advancement.
 The default-false `EnableM02OwnedX64GdtEncodingProbe` profile adds exactly one
 explicit compile item,
 `Diagnostics/OwnedX64GDTContainingNullN64BitCode.cs`, after the accepted
-M02-006 reporter and before the independent endian catalog. The current closure
-is 56 compile items and the canonical build/verifier authority snapshot is 69
+M02-006 reporter and before the independent endian catalog. That checkpoint's closure
+contained 56 compile items and its build/verifier authority snapshot contained 69
 inputs. The flag requires `EnableM02PanicSafeOwnedCom1Probe=true`; the QEMU
 wrapper additionally requires `-BuildEfi`, rejects `-SkipImageBuild`, rebuilds
 both EFI and image inputs, and composes the accepted M01 prerequisites.
@@ -904,7 +939,7 @@ Build, artifact verification, image creation, and QEMU use the complete
 cumulative profile:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -936,8 +971,8 @@ production readiness.
 
 The default-false `EnableM02GuardedIstStackAllocationProbe` profile links
 `Diagnostics/GuardedISTStacksDoubleFaultPageFaultNMI.cs` immediately after the
-accepted M02-007 encoder and before the independent endian catalog. The current
-development closure is exactly 62 compile items and 75 source-authority inputs
+accepted M02-007 encoder and before the independent endian catalog. The retained
+development closure contained exactly 62 compile items and 75 source-authority inputs
 after the default-off M02-009 terminal stub, M02-010 normalized interrupt-entry
 page, M02-011 owned-IDT materializer, M02-012 IDTR transition source, and
 M04-003 span/memory catalog sources were added after this historically accepted
@@ -969,7 +1004,7 @@ release, or free failure emits
 aborts the optional profile. The complete command is:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -1004,7 +1039,7 @@ requirement.
 The default-false `EnableM02OwnedGdtTssTerminalProbe` profile links the reviewed
 `Diagnostics/OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs` source immediately
 after the M02-008 guarded-IST dependency and before the independent endian
-catalog. The current explicit development closure is therefore 62 compile items
+catalog. That explicit development checkpoint therefore contained 62 compile items
 and 75 source-authority inputs after the later default-off M02-010 page,
 M02-011 owned-IDT materializer, M02-012 IDTR transition source, and M04-003
 catalog were inserted around the endian catalog.
@@ -1049,7 +1084,7 @@ terminal call unexpectedly returns, the caller attempts the direct-COM1
 The complete acceptance command is:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -1091,7 +1126,7 @@ enabled it defines exactly `M02_NORMALIZED_INTERRUPT_FRAME_PAGE_PROBE`. It does
 not silently enable an M01, M02, or M04 dependency, and it is mutually
 exclusive with the nonreturning M02-009 terminal profile.
 
-The explicit same-build closure is exactly 60 compile items with compile-key
+The retained same-build closure contained exactly 60 compile items with compile-key
 SHA-256
 `805E39822E162FD57BE8421D6D19282267D8B71222602BB359C81ACE9E7BA2E1`
 and 73 source-authority inputs with closure SHA-256
@@ -1141,7 +1176,7 @@ ready/pass records, and aborts the optional profile.
 The accepted real command was:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -1263,7 +1298,7 @@ capture.
 The direct NativeAOT build/verifier command is:
 
 ```powershell
-.\scripts\build-efi-shell.ps1 `
+dotnet run --project tools/OS.Tooling -- efi build `
   -EnableM02OwnedIdtGatePopulationProbe `
   -EfiOutputPath .\artifacts\efi\BOOTX64-M02-011.EFI `
   -LogPath .\artifacts\logs\m02-011-efi-build.log
@@ -1369,14 +1404,14 @@ are unsafe there.
 Default and enabled NativeAOT builds plus their same-build verifiers passed:
 
 ```powershell
-.\scripts\build-efi-shell.ps1 `
+dotnet run --project tools/OS.Tooling -- efi build `
   -EfiOutputPath .\artifacts\efi\BOOTX64-M02-012-DEFAULT.EFI `
   -LogPath .\artifacts\logs\m02-012-default-efi-build.log
-.\scripts\build-efi-shell.ps1 `
+dotnet run --project tools/OS.Tooling -- efi build `
   -EnableM02IdtrContinuedExecutionProbe `
   -EfiOutputPath .\artifacts\efi\BOOTX64-M02-012.EFI `
   -LogPath .\artifacts\logs\m02-012-efi-build.log
-.\scripts\test-efi-artifact.ps1 `
+dotnet run --project tools/OS.Tooling -- efi verify `
   -EfiArtifact .\artifacts\efi\BOOTX64-M02-012.EFI `
   -EnableM02IdtrContinuedExecutionProbe
 ```
@@ -1495,7 +1530,7 @@ rejects any marker-like bytes after `TEST_PASS m02.013`.
 The accepted build/QEMU command was:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 `
+dotnet run --project tools/OS.Tooling -- qemu smoke `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 45 `
@@ -1567,7 +1602,7 @@ after the later M02-005 writer, M02-006 reporter, M02-007 GDT encoder, and
 M02-008 guarded-IST arena contract plus the default-off M02-009 terminal stub,
 M02-010 normalized interrupt-entry page, M02-011 owned-IDT materializer,
 M02-012 IDTR transition source, and M04-003 span/memory catalog were added; this
-does not alter or reinterpret the M04-002 artifact evidence below. The scripts reject
+does not alter or reinterpret the M04-002 artifact evidence below. The commands reject
 compatibility counts, missing/reordered sources, stale hashes, wildcard imports,
 or a post-restore property mismatch.
 
@@ -1588,7 +1623,7 @@ CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 uint16Series=7 
 Build and verification use:
 
 ```powershell
-.\scripts\build-efi-shell.ps1 `
+dotnet run --project tools/OS.Tooling -- efi build `
   -EfiOutputPath .\artifacts\efi\BOOTX64-M04-002.EFI `
   -LogPath .\artifacts\logs\m04-002-efi-build.log `
   -EnableM04IndependentEndianConformanceProbe
@@ -1628,7 +1663,7 @@ catalog and before `M01LoadedImageStackIntegration.cs`:
 At the accepted M04-003 source head the build and artifact-verifier closure was
 59 compile items and 72 source-authority inputs. The then-current development closure
 was 62/75 after the later M02-010, M02-011, and M02-012 sources; the later historical
-68/81 closure is described in the M04-004 section below. Both scripts
+68/81 closure is described in the M04-004 section below. Both commands
 carry the exact property and
 `M04_SPAN_OVERLAP_MEMORY_CAST_UNSAFE_WIDTH_CONFORMANCE_PROBE` symbol without
 silently enabling the M04-002 dependency.
@@ -1759,8 +1794,8 @@ earlier M04 flags explicitly. Owned paging, all twelve M02 profiles and the
 three risky optional firmware/ACPI profiles are rejected. The smoke wrapper
 requires `BuildEfi` and rejects `SkipImageBuild` and `M01RawObservationLog`.
 
-The explicit closure is now 70 Compile items and 83 raw source-authority
-inputs. Schema-three post-restore evidence authenticates all 23 known probe
+That checkpoint's explicit closure contained 70 Compile items and 83 raw source-authority
+inputs. Its schema-three post-restore evidence authenticated all 23 then-known probe
 properties: three M01, twelve M02, five M04 and three existing risky optional
 properties. The project declares 20 false defaults. The default/layout/heap
 acceptance matrix evaluates respectively zero/four/seven true properties;
@@ -1858,8 +1893,9 @@ independent verifier. Consequently, stale or hostile
 override, or user/machine ImportBefore/ImportAfter file cannot influence an
 accepted evaluation.
 
-The build takes a 61-input source snapshot that also includes `global.json`
-plus the build and verifier scripts. It opens read/share-read handles that deny
+The build snapshots the exact source inventory returned by
+`EfiEvidence.SourceClosurePaths`, including `global.json`, explicit compile
+inputs, generator inputs and the compiled C# tooling sources. It opens read/share-read handles that deny
 writes and replacement before authoritative source validation, holds them for
 the entire restore/publish/evidence/verification interval, and confirms the
 same aggregate after locking and after publish. Every source path is checked
@@ -1872,10 +1908,10 @@ canonical leaf path is still reparse-checked before create-new publication.
 When any stale leaf exists, the build opens it under the output authority,
 requires every opened identity to be distinct and single-link, closes the
 records, and only then removes the exact five allowlisted leaves.
-Before restore, it authenticates five exact cached package
-archives by source-pinned SHA-256, copies them into a freshly created local
-source beside an allowlisted `NuGet.Config`, and read-locks both the five
-original archives and all six local-source files. The configuration clears
+Before restore, it authenticates every archive in `EfiContracts.RestoreArchives`
+by reviewed SHA-256, copies them into a freshly created local source beside an
+allowlisted `NuGet.Config`, and read-locks the original archives and local files.
+The configuration clears
 ordinary package, fallback-package, and audit sources, so restore has one
 explicit local package source and one fresh isolated package root.
 
@@ -1891,22 +1927,23 @@ remain restore data only: both restore and publish set
 `ImportProjectExtensionTargets=false`, and
 `ExcludeRestorePackageImports=true`.
 
-After restore, the build enumerates the exact five isolated package/version
-trees plus the selected external NativeAOT 10.0.8 runtime-pack tree. It
-validates source-pinned package content identities, rejects any extra package
-version or reparse point, hashes 900 stable package files with ordinal relative
-paths, validates and locks all six metadata records separately, and holds the
-resulting 906 file handles through verification. A narrower nine-file package
-build closure pins the five active target files, two task assemblies, and both
-task dependency manifests. Publish receives explicit canonical paths for
-ILCompiler, ILLink, their tasks, the isolated 10.0.8 host compiler, and the
-10.0.8 runtime pack. `OS.csproj` makes the SingleEntry target consume those
+After restore, the build enumerates the exact trees in
+`EfiContracts.ConsumedPackageTrees`, including the separately selected NativeAOT
+runtime root. It validates reviewed package content identities, rejects any extra
+package version or reparse point, hashes every stable file with ordinal relative
+paths, and separately validates and locks package metadata. Those file handles
+remain held through verification. `EfiContracts.PackageBuildClosure` binds the
+active targets, task assemblies and task dependency manifests. The shared
+`NativePackageVersion` supplies expected package versions and paths; changing it
+does not approve different archive or tree hashes. Publish receives explicit
+canonical ILCompiler, ILLink, task, host compiler and runtime-pack paths.
+`OS.csproj` makes the SingleEntry target consume those
 same CLROS roots and fails the build if that target rewrites either root.
 The nested host generator removes inherited AOT/package globals and explicitly
 replaces the restore/project-extension globals it needs with canonical child
 values before its package-free build.
 
-A locked post-restore evaluation requires exactly 44 compile items, zero
+A locked post-restore evaluation requires the exact `EfiContracts.CompileItems` inventory, zero
 project references, zero explicit references, and the two SDK analyzers.
 Publish then runs with `--no-restore`, `NoIncremental=true`, and the same
 explicit paths. The build repeats the source, restore-source, generated
@@ -1927,7 +1964,7 @@ into the output. The installed SDK directory remains a trusted host
 prerequisite; its selected SDK/import paths are pinned and wildcard extension
 hooks are disabled, but the complete SDK tree is not content-hashed.
 
-`scripts/test-efi-artifact.ps1` treats that evidence as untrusted input. It
+`dotnet run --project tools/OS.Tooling -- efi verify` treats that evidence as untrusted input. It
 independently recomputes every source, restore, package, tool, and artifact
 association, revalidates the generated restore semantics and post-restore item
 closure, bounds PE parsing, requires PE32+ AMD64 EFI-application shape, rejects
@@ -1943,7 +1980,7 @@ records and response tokens have explicit capacity ceilings.
 The verifier pins `ProjectPath` and `EntrySourcePath` to the exact
 `src/OS/OS.csproj` and `src/OS/Boot/EfiEntry.cs` below its own repository
 root. It rejects lexical traversal and alternate or sibling source contracts,
-requires exactly 57 mutually distinct single-link source inputs, and still
+requires the complete source inventory to have mutually distinct single-link identities, and still
 allows the artifact/map/response/evidence bundle itself to be copied to a
 different directory for independent inspection. Its independent post-restore
 MSBuild evaluation also runs in a verifier-local kill-on-close Job Object: the
@@ -1953,26 +1990,21 @@ nonzero exit, or inability to confirm that the complete descendant tree
 terminated fails with a distinct stable reason. Node reuse, build-server reuse,
 shared compilation, telemetry, and decorative CLI output remain disabled.
 
-The parent creates a startup-gated Windows PowerShell wrapper, assigns that
-wrapper to a kill-on-close Windows Job Object, starts bounded asynchronous
-stdout/stderr capture, and only then releases the gate that permits direct
-invocation of the artifact verifier. This closes the pre-assignment descendant
-race: verifier code cannot run or create a child before the job owns its
-wrapper. A fixed 60-second verifier timeout has no retry, bounds both output
-drains, and treats verified whole-job termination separately from normal
-nonzero verifier exit. The host timeout fixture also exercises an explicitly
-unkillable test override and requires the build to refuse a false
-`terminationConfirmed` result.
+The parent starts the compiled verifier suspended, assigns it to a kill-on-close
+Windows Job Object, starts bounded asynchronous stdout/stderr capture, and only
+then resumes it. Verifier code cannot run or create a child before the job owns
+the process. `EfiBuildPolicy` owns the default 60-second verifier timeout, allowed
+bounds and output capacity. There is no retry. Both output drains are bounded;
+verified whole-job termination is checked separately from a normal nonzero exit.
+Controlled process-result tests require the build to reject a false
+`terminationConfirmed` value for every relevant result status.
 
-That hostile host fixture uses a five-second verifier deadline, which is the
-minimum accepted by the production command surface, so startup-gated nested
-PowerShell has time to publish both verifier and descendant process identities
-before the deliberately sleeping verifier times out. Its separate 45-second
-outer harness bound leaves room for the verifier's own termination and
-output-drain diagnostics to remain authoritative under host contention. These
-are test-only timing bounds: the production verifier remains fixed at 60
-seconds with no retry, and neither Job Object ownership nor any drain or
-termination check is weakened.
+The hostile process fixtures use the five-second minimum verifier deadline.
+Compiled child controls publish the parent and descendant process identities,
+hold a sentinel file, and deliberately wait. The fixture requires confirmed
+termination of both processes and release of the sentinel, including when the
+parent exits while its descendant remains. These are controlled host checks;
+they preserve Job Object ownership and the output-drain and termination checks.
 
 The broader PE/link-evidence negative-fixture wrapper likewise allows 45
 seconds for a verifier process to return its precise stable diagnostic. The
@@ -2003,19 +2035,17 @@ objects, linked map, and managed assembly must have distinct Windows file
 identities and expected link counts. The producer and verifier hold read
 handles that deny mutation/replacement through the entire verification pass,
 then independently rehash the held files immediately before reporting success.
-The canonical 57-source closure receives the same single-link and
+The complete source closure receives the same single-link and
 distinct-identity requirement. Package and tool inputs are reparse-checked and
 mutation-locked; they are not claimed to be globally unique file identities.
 
-The verifier's component walk uses `Path.Combine` and `File.GetAttributes`
-on successful paths, retaining the original literal PowerShell provider lookup
-and failure handling when the attribute lookup fails. It still visits every
-component at every existing authority checkpoint; it does not cache ancestry,
-skip reparse checks, reduce hashing or extend the verifier timeout. The focused
-Windows PowerShell 5.1 comparison in [step1068](../done/step1068.md) preserves
-strict-mode behavior and measured about 88.6% less helper wall time across the
-same 1,030 paths. This measures only the component walk; full current-source
-artifact acceptance and whole-verifier timing remain separate evidence.
+The C# verifier walks every path component using `Path.Combine` and
+`File.GetAttributes`, rejects reparse points, and retains native file identity
+handles through verification. It does not cache ancestry or skip hashing.
+The historical Windows PowerShell 5.1 comparison in
+[step1068](../done/step1068.md) measured about 88.6% less helper wall time over
+1,030 paths in the old implementation. That measurement is retained as historical
+component-walk evidence; it is not a measurement of the current C# verifier.
 
 The final frozen-source artifact counts, scan timings, source and restore
 closure hashes, and two-copy wall-clock-separated reproducibility results are
@@ -2094,13 +2124,15 @@ closures, feature defaults, generator inputs, native object sizes and transcript
 grammar. A hash/count-only search does not cover semantic catalog requirements.
 Keep raw source hashes separate from documented canonical-text hashes.
 
-Run the affected original checks before the expensive full harness. Record the
-explicit method selection and exclusions. An artifact-only diagnostic may invoke
-unchanged methods from reviewed source copies with only ModuleInitializer
-attributes removed; bind the source copies, executed assembly, references and
-current inputs. Such a diagnostic never replaces the unfiltered harness.
+Run the affected registered checks before the full harness. Use
+`dotnet run --project tests/OS.HostTests -- --list` to inspect discovery and
+`--filter <fixture-or-case>` to select existing checks. Native fixtures require
+`--lane native` or `--lane full`; `--case <marker substring>` narrows grouped
+fixtures. Record the selection and exclusions. Use these compiled fixture paths
+directly; do not copy test sources or generate subset projects. Focused success
+never replaces the unfiltered `--lane full` gate.
 
-Build and run that original harness against a clean frozen commit. Keep edits,
+Build and run the complete harness against frozen inputs. Keep edits,
 competing builds and native publications out of its checkout until its terminal
 result and unchanged source/binary inventories are reviewed. After a failure,
 preserve the failed attempt, identify the exact predicate, check related omitted
@@ -2117,28 +2149,28 @@ Expected commands:
 ```powershell
 dotnet build .\CLROS.slnx --nologo -m:1
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
-.\scripts\build-efi-shell.ps1 -PreflightOnly
-.\scripts\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe
-.\scripts\build-efi-shell.ps1 -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe
-.\scripts\build-efi-shell.ps1 -EnableM02NormalizedInterruptFramePageProbe -EfiOutputPath .\artifacts\efi\BOOTX64-M02-010.EFI -LogPath .\artifacts\logs\m02-010-efi-build.log
-.\scripts\build-efi-shell.ps1 -EnableM02OwnedIdtGatePopulationProbe -EfiOutputPath .\artifacts\efi\BOOTX64-M02-011.EFI -LogPath .\artifacts\logs\m02-011-efi-build.log
-.\scripts\build-efi-shell.ps1 -EnableM02IdtrContinuedExecutionProbe -EfiOutputPath .\artifacts\efi\BOOTX64-M02-012.EFI -LogPath .\artifacts\logs\m02-012-efi-build.log
-.\scripts\test-efi-artifact.ps1 -EfiArtifact .\artifacts\efi\BOOTX64-M02-012.EFI -EnableM02IdtrContinuedExecutionProbe
-.\scripts\build-efi-shell.ps1 -EnableM02Ud2VectorStateProbe -EfiOutputPath .\artifacts\efi\BOOTX64-M02-013.EFI -LogPath .\artifacts\logs\m02-013-efi-build.log
-.\scripts\test-efi-artifact.ps1 -EfiArtifact .\artifacts\efi\BOOTX64-M02-013.EFI -EnableM02Ud2VectorStateProbe
-.\scripts\build-efi-shell.ps1
-.\scripts\test-efi-artifact.ps1
-.\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM02NormalizedInterruptFramePageProbe
-.\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM02OwnedIdtGatePopulationProbe
-.\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM02IdtrContinuedExecutionProbe
-.\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM02Ud2VectorStateProbe
-.\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -RequireMarker OS_SMOKE_PASS,UEFI_MEMORY_MAP_OWNED,BOOT_HANDOFF_READY,UEFI_MEMORY_MAP_NORMALIZED,BOOT_MEMORY_MAP_ACCEPTED,BOOT_MEMORY_REGIONS_READY,BOOT_MEMORY_REGION_COUNT
-.\scripts\build-efi-shell.ps1 -EnableUefiGoneSimulationProbe -EfiOutputPath artifacts/efi/BOOTX64-SIM.EFI -LogPath artifacts/logs/efi-shell-publish-sim.log
-.\scripts\run-qemu-smoke.ps1 -EfiArtifact artifacts/efi/BOOTX64-SIM.EFI -Image artifacts/images/os-sim.raw -SerialLog artifacts/logs/qemu-smoke-sim.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset uefi-gone
-.\scripts\run-qemu-smoke.ps1 -BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
+dotnet run --project tools/OS.Tooling -- efi build -PreflightOnly
+dotnet run --project tools/OS.Tooling -- efi build -EnableM01LoadedImageStackProbe
+dotnet run --project tools/OS.Tooling -- efi build -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableM01OwnedPagingProbe
+dotnet run --project tools/OS.Tooling -- efi build -EnableM02NormalizedInterruptFramePageProbe -EfiOutputPath .\artifacts\efi\BOOTX64-M02-010.EFI -LogPath .\artifacts\logs\m02-010-efi-build.log
+dotnet run --project tools/OS.Tooling -- efi build -EnableM02OwnedIdtGatePopulationProbe -EfiOutputPath .\artifacts\efi\BOOTX64-M02-011.EFI -LogPath .\artifacts\logs\m02-011-efi-build.log
+dotnet run --project tools/OS.Tooling -- efi build -EnableM02IdtrContinuedExecutionProbe -EfiOutputPath .\artifacts\efi\BOOTX64-M02-012.EFI -LogPath .\artifacts\logs\m02-012-efi-build.log
+dotnet run --project tools/OS.Tooling -- efi verify -EfiArtifact .\artifacts\efi\BOOTX64-M02-012.EFI -EnableM02IdtrContinuedExecutionProbe
+dotnet run --project tools/OS.Tooling -- efi build -EnableM02Ud2VectorStateProbe -EfiOutputPath .\artifacts\efi\BOOTX64-M02-013.EFI -LogPath .\artifacts\logs\m02-013-efi-build.log
+dotnet run --project tools/OS.Tooling -- efi verify -EfiArtifact .\artifacts\efi\BOOTX64-M02-013.EFI -EnableM02Ud2VectorStateProbe
+dotnet run --project tools/OS.Tooling -- efi build
+dotnet run --project tools/OS.Tooling -- efi verify
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun -BuildEfi -EnableM02NormalizedInterruptFramePageProbe
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun -BuildEfi -EnableM02OwnedIdtGatePopulationProbe
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun -BuildEfi -EnableM02IdtrContinuedExecutionProbe
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun -BuildEfi -EnableM02Ud2VectorStateProbe
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -RequireMarker OS_SMOKE_PASS,UEFI_MEMORY_MAP_OWNED,BOOT_HANDOFF_READY,UEFI_MEMORY_MAP_NORMALIZED,BOOT_MEMORY_MAP_ACCEPTED,BOOT_MEMORY_REGIONS_READY,BOOT_MEMORY_REGION_COUNT
+dotnet run --project tools/OS.Tooling -- efi build -EnableUefiGoneSimulationProbe -EfiOutputPath artifacts/efi/BOOTX64-SIM.EFI -LogPath artifacts/logs/efi-shell-publish-sim.log
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -EfiArtifact artifacts/efi/BOOTX64-SIM.EFI -Image artifacts/images/os-sim.raw -SerialLog artifacts/logs/qemu-smoke-sim.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset uefi-gone
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
 ```
 
-Current evidence from 2026-05-21:
+Historical evidence from 2026-05-21:
 
 - `.\scripts\build-efi-shell.ps1` emitted `TEST_PASS efi.shell.publish`.
 - The script emitted `EFI_ARTIFACT artifacts/efi/BOOTX64.EFI`.
@@ -2149,7 +2181,7 @@ Current evidence from 2026-05-21:
 - After the no-stdlib console adapter was added, `scripts/build-efi-shell.ps1` emitted `TEST_PASS efi.shell.publish`, and real QEMU smoke requiring `OS_SMOKE_PASS,EFI_CONSOLE_READY` emitted `TEST_PASS qemu.smoke`.
 - `artifacts/logs/qemu-smoke-sim.log` additionally contains `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
 
-Current evidence from 2026-05-22:
+Historical evidence from 2026-05-22:
 
 - `.\scripts\build-efi-shell.ps1` emitted `TEST_PASS efi.shell.publish`.
 - `.\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -RequireMarker OS_SMOKE_PASS,UEFI_MEMORY_MAP_OWNED` emitted `TEST_PASS qemu.smoke`.
@@ -2175,7 +2207,7 @@ Current evidence from 2026-05-22:
 - `artifacts/logs/qemu-smoke-acpi.log` contains `ACPI_RSDP_SNAPSHOT_READY`, `ACPI_RSDP_VALIDATED`, `ACPI_ROOT_SDT_SNAPSHOT_READY`, `ACPI_ROOT_SDT_VALIDATED`, and `ACPI_MCFG_DISCOVERY_READY` before `OS_SMOKE_PASS`.
 - `artifacts/logs/qemu-smoke-acpi.summary.log` records `MISSING_MARKERS none` for the default boot markers plus the five ACPI discovery markers.
 
-Current evidence from 2026-07-25:
+Historical evidence from 2026-07-25:
 
 - .NET SDK `10.0.302` selected ILCompiler `10.0.8`; the resolved x64 MSVC
   linker reports file version `14.51.36252.0`.
@@ -2305,8 +2337,8 @@ loaded-image/live-allocator flags and all five prior M04 flags explicitly.
 Negative selectors require main and exclude each other. Owned paging, every
 M02 probe and the simulation/fresh-ExitBootServices/physical-ACPI flags conflict.
 
-The step949 closure has77 ordered Compile items,90 raw source-authority inputs,
-27 evaluated flags and24 XML false defaults. The two appended sources are the
+The step949 closure recorded 77 ordered Compile items, 90 raw source-authority inputs,
+27 evaluated flags and 24 XML false defaults. The two appended sources are the
 unchanged `GuestTestRhpNewFast.cs` leaf and new `RhpNewFastAllocation.cs` adapter;
 all75 previous Compile indices remain stable. Scanner admission is limited to
 the exact leaf path and LF-normalized whole-source SHA256
@@ -2346,7 +2378,7 @@ simulation, fresh-ExitBootServices and physical-ACPI probes are rejected.
 The two exact Compile items are the narrow false authority followed by the
 unchanged double-fault leaf, after `SeparateDisabledDefaultPageFaultTransition`
 and before `InvalidOpcodeVectorAuthority`. All 77 previous items retain their
-relative order. The resulting explicit closure has 79 Compile items, 92 raw
+relative order. That checkpoint's explicit closure contained 79 Compile items, 92 raw
 authority inputs, 28 evaluated profile flags and 25 XML false defaults. Default
 has zero true flags; PF and DF each have their own nine-true vector. Ordinary
 source admission accepts the leaf without a new scanner exception. The retained
@@ -2443,7 +2475,7 @@ M01 loaded-image/live-allocator switches and all eight M04 switches shown below.
 Each negative requires main and excludes its siblings, the fixed/array
 negative modes, M02/owned-paging modes and the three risky firmware/ACPI modes.
 
-The source now has84 ordered Compile items,97 raw publication inputs and36
+That source checkpoint recorded 84 ordered Compile items, 97 raw publication inputs and 36
 evaluated properties (33 XML false defaults plus three risky inputs). The
 String wrapper and authority enter the explicit closure. The generic scanner
 is unchanged; exact source pins and finite selector rules are refreshed.
@@ -2466,7 +2498,7 @@ regressions; general runtime gates remain incomplete.
 The positive smoke command is:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BuildEfi `
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 `
@@ -2490,7 +2522,7 @@ before accepting an expected rejection. See `docs/qemu.md` for that boundary.
 [Step968](../done/step968.md) adds the false-default
 `EnableM03MemoryMapCaptureProbe` / `M03_MEMORY_MAP_CAPTURE_PROBE` profile. It
 requires all other 36 probe properties false; reciprocal project and script
-checks preserve the existing profiles. The explicit closure now has 85 ordered
+checks preserve the existing profiles. That checkpoint's explicit closure contained 85 ordered
 Compile items, 98 raw publication inputs and 37 requested/evaluated probe
 properties, including 34 XML false defaults. The appended authority is
 `MemoryMapCaptureProbeAuthority.cs`; the generic source firewall and QEMU
@@ -2540,7 +2572,7 @@ actual capture and lifecycle boundary.
 The enabled ordinary smoke command is:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BuildEfi `
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi `
   -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" `
   -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" `
   -TimeoutSeconds 30 -EnableM03MemoryMapCaptureProbe
@@ -2556,7 +2588,7 @@ map-key freshness or general ownership claim is added.
 ### M03-002 and M04-010 source and publication checkpoint
 
 [Step973](../done/step973.md) integrates the separately reviewed #539 ACPI and
-#537 reference-barrier adapters. The combined explicit closure has 88 ordered
+#537 reference-barrier adapters. That combined explicit closure contained 88 ordered
 Compile items, 102 raw publication inputs and 38 requested probe properties.
 Existing profile/source equality guards remain; three older expected-source
 lists gain the newly admitted generator, and all derived pins are refreshed.
@@ -2648,12 +2680,12 @@ open; no seed-bearing diagnostics, entropy quality, PRNG, TLS or real
 ### M03-003 opt-in EFI entropy capture
 
 `EnableM03FirmwareEntropySeedProbe` adds one mutually exclusive, default-false
-profile. The explicit closure now has 89 ordered Compile entries, 103 raw
+profile. That checkpoint's explicit closure contained 89 ordered Compile entries, 103 raw
 inputs and 39 requested flags. The normal managed retention contract remains
 outside that no-stdlib closure; the EFI adapter uses numeric state and
 explicit pointers.
 
-The smoke script requires `-FirmwareRngSource` with this profile and
+The smoke command requires `-FirmwareRngSource` with this profile and
 `-BuildEfi`. The values `virtio` and `missing` both mask RDRAND and RDSEED
 on the `qemu64` CPU. Only `virtio` appends `rng-builtin` and `virtio-rng-pci`;
 those arguments follow the existing devices to preserve their ordering.
@@ -2661,7 +2693,7 @@ Unknown, duplicate, empty and out-of-profile values are rejected before
 side effects. For command inspection without a guest:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM03FirmwareEntropySeedProbe -FirmwareRngSource virtio
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun -BuildEfi -EnableM03FirmwareEntropySeedProbe -FirmwareRngSource virtio
 ```
 
 The positive protocol has 27 records. The expected missing-provider protocol
@@ -2761,7 +2793,7 @@ key, retry, global mode transition or M01 stack capacity is supplied here.
 `EnableM04TypeManagerModuleRegistrationProbe` adds a mutually exclusive,
 default-false profile requiring the original M01 loaded-image/stack profile.
 Its adapter calls the shared one-module metadata core with the captured image
-and a fixed, aligned 4096-byte owner buffer. The explicit closure has 92 Compile
+and a fixed, aligned 4096-byte owner buffer. That checkpoint's explicit closure contained 92 Compile
 entries, 106 raw publication inputs and 40 requested flags. The core is admitted
 by its exact canonical path and complete reviewed source hash; altered bytes
 and the same source at another path remain rejected.
@@ -2769,7 +2801,7 @@ and the same source at another path remain rejected.
 For command inspection without a guest:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM04TypeManagerModuleRegistrationProbe
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun -BuildEfi -EnableM04TypeManagerModuleRegistrationProbe -EnableM01LoadedImageStackProbe
 ```
 
 The 45-record protocol covers undersized-storage rejection, one registration,
@@ -2810,7 +2842,7 @@ enabled command additionally used both switches below; the default command
 used neither:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BuildEfi -EnableM04TypeManagerModuleRegistrationProbe -EnableM01LoadedImageStackProbe -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM04TypeManagerModuleRegistrationProbe -EnableM01LoadedImageStackProbe -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
 ```
 
 Both wrappers returned zero; QEMU was runner-terminated with signed exit -1.
@@ -2929,7 +2961,7 @@ stale-key retry into `EnableM03TypedExitBootServicesCallProbe`. The diagnostic
 uses authentic GetMemoryMap captures into a private retained 128 KiB buffer,
 with one controlled successful exit, stale-then-success, and two stale returns.
 Five captures precede five controlled exits; all reporting occurs afterwards.
-It never reads the original firmware exit slot. The source closure is now
+It never reads the original firmware exit slot. That source checkpoint contained
 100 Compile items/114 raw inputs, with the same 42 profile flags. The complete
 focused EFI fixture passes, including default/enabled publication and strict
 45-record transcript checks. The default image retains step1003's exact bytes.
@@ -2942,7 +2974,7 @@ adoption. Its later scoped acceptance is recorded in
 [step1051](../done/step1051.md).
 
 [Step1011](../done/step1011.md) admits the bounded collector through the existing
-GC-static profile. The explicit closure is 101 Compile items and 115 raw inputs;
+GC-static profile. That checkpoint's explicit closure contained 101 Compile items and 115 raw inputs;
 the same 42 flags and nine enabled GC prerequisites remain. Exact reviewed
 allocator/collector text identities and the canonical project check are retained.
 The normal runner now requires 70 records and 59 ordered, unique anchors,

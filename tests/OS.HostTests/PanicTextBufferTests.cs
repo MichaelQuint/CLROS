@@ -4,47 +4,8 @@ using OS.Kernel.Diagnostics;
 
 internal static class PanicTextBufferTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("panic text buffer writes ascii lines", TestAsciiLines, ref failures);
-        Run("panic text buffer writes decimal and hex", TestDecimalAndHex, ref failures);
-        Run("panic text buffer reports overflow", TestOverflow, ref failures);
-        Run("panic text buffer formats fault summary", TestFaultSummary, ref failures);
-        Run("panic text buffer default buffer is not success", TestDefaultBufferIsNotSuccess, ref failures);
-        Run("panic text buffer uses shared ascii whitespace helper", TestUsesSharedAsciiWhitespaceHelper, ref failures);
-        Run("panic text buffer uses shared ascii text builder", TestUsesSharedAsciiTextBuilder, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Panic text buffer host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("panic text buffer writes ascii lines", HostLane.Fast, 0)]
     private static bool TestAsciiLines()
     {
         byte[] storage = new byte[64];
@@ -53,14 +14,15 @@ internal static class PanicTextBufferTests
         PanicTextBufferStatus first = buffer.WriteAsciiLine("OS_SMOKE_FAIL");
         PanicTextBufferStatus second = buffer.WriteAsciiLine("reason=manual-probe");
 
-        return first == PanicTextBufferStatus.Ok
+        return HostCheck.Result(first == PanicTextBufferStatus.Ok
             && second == PanicTextBufferStatus.Ok
             && buffer.IsInitialized
             && buffer.Succeeded
             && buffer.Status == PanicTextBufferStatus.Ok
-            && ToText(buffer.WrittenSpan) == "OS_SMOKE_FAIL\r\nreason=manual-probe\r\n";
+            && ToText(buffer.WrittenSpan) == "OS_SMOKE_FAIL\r\nreason=manual-probe\r\n");
     }
 
+    [HostTest("panic text buffer writes decimal and hex", HostLane.Fast, 1)]
     private static bool TestDecimalAndHex()
     {
         byte[] storage = new byte[64];
@@ -72,13 +34,14 @@ internal static class PanicTextBufferTests
         buffer.WriteHex64(0x0123456789ABCDEF);
         PanicTextBufferStatus status = buffer.WriteCrLf();
 
-        return status == PanicTextBufferStatus.Ok
+        return HostCheck.Result(status == PanicTextBufferStatus.Ok
             && buffer.IsInitialized
             && buffer.Succeeded
             && buffer.Status == PanicTextBufferStatus.Ok
-            && ToText(buffer.WrittenSpan) == "vector=14 rip=0x0123456789ABCDEF\r\n";
+            && ToText(buffer.WrittenSpan) == "vector=14 rip=0x0123456789ABCDEF\r\n");
     }
 
+    [HostTest("panic text buffer reports overflow", HostLane.Fast, 2)]
     private static bool TestOverflow()
     {
         byte[] storage = new byte[8];
@@ -90,7 +53,7 @@ internal static class PanicTextBufferTests
         PanicTextBuffer buffer = new PanicTextBuffer(storage.AsSpan(0, 5));
         PanicTextBufferStatus status = buffer.WriteAsciiLine("abcdef");
 
-        return status == PanicTextBufferStatus.Overflow
+        return HostCheck.Result(status == PanicTextBufferStatus.Overflow
             && buffer.IsInitialized
             && !buffer.Succeeded
             && buffer.Status == PanicTextBufferStatus.Overflow
@@ -100,9 +63,10 @@ internal static class PanicTextBufferTests
             && ToText(buffer.WrittenSpan) == "abcde"
             && storage[5] == 0xcc
             && storage[6] == 0xcc
-            && storage[7] == 0xcc;
+            && storage[7] == 0xcc);
     }
 
+    [HostTest("panic text buffer formats fault summary", HostLane.Fast, 3)]
     private static bool TestFaultSummary()
     {
         byte[] storage = new byte[1024];
@@ -128,46 +92,49 @@ internal static class PanicTextBufferTests
             + " r11=0xBBBBBBBBBBBBBBBB r12=0xCCCCCCCCCCCCCCCC r13=0xDDDDDDDDDDDDDDDD"
             + " r14=0xEEEEEEEEEEEEEEEE r15=0xFFFFFFFFFFFFFFFF\r\n";
 
-        return status == PanicTextBufferStatus.Ok
+        return HostCheck.Result(status == PanicTextBufferStatus.Ok
             && buffer.IsInitialized
             && buffer.Succeeded
             && buffer.Status == PanicTextBufferStatus.Ok
-            && ToText(buffer.WrittenSpan) == expected;
+            && ToText(buffer.WrittenSpan) == expected);
     }
 
+    [HostTest("panic text buffer default buffer is not success", HostLane.Fast, 4)]
     private static bool TestDefaultBufferIsNotSuccess()
     {
         PanicTextBuffer buffer = default;
 
-        return !buffer.IsInitialized
+        return HostCheck.Result(!buffer.IsInitialized
             && !buffer.Succeeded
             && buffer.Status == PanicTextBufferStatus.Ok
             && buffer.Capacity == 0
             && buffer.Written == 0
             && buffer.Remaining == 0
-            && buffer.WrittenSpan.Length == 0;
+            && buffer.WrittenSpan.Length == 0);
     }
 
+    [HostTest("panic text buffer uses shared ascii whitespace helper", HostLane.Fast, 5)]
     private static bool TestUsesSharedAsciiWhitespaceHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Diagnostics", "PanicTextBuffer.cs"));
 
-        return source.Contains("OS.Std.Ascii.IsWhiteSpace(value[index])", StringComparison.Ordinal)
-            && !source.Contains("private static bool IsAsciiWhiteSpace", StringComparison.Ordinal);
+        return HostCheck.Result(source.Contains("OS.Std.Ascii.IsWhiteSpace(value[index])", StringComparison.Ordinal)
+            && !source.Contains("private static bool IsAsciiWhiteSpace", StringComparison.Ordinal));
     }
 
+    [HostTest("panic text buffer uses shared ascii text builder", HostLane.Fast, 6)]
     private static bool TestUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Diagnostics", "PanicTextBuffer.cs"));
 
-        return source.Contains("AsciiTextBuilder.AppendUInt64Decimal", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("AsciiTextBuilder.AppendUInt64Decimal", StringComparison.Ordinal)
             && source.Contains("AsciiTextBuilder.AppendUInt64Hex", StringComparison.Ordinal)
             && !source.Contains("private static byte GetUpperHexDigit", StringComparison.Ordinal)
-            && !source.Contains("for (int shift = 60", StringComparison.Ordinal);
+            && !source.Contains("for (int shift = 60", StringComparison.Ordinal));
     }
 
     private static CpuFaultFrame CreateFrame(int vector, bool hasErrorCode, ulong errorCode, ulong cr2)

@@ -65,26 +65,28 @@ internal static unsafe class X64InvlpgStubPlanTests
         Func<bool> test,
         ref int failures)
     {
-        try
+        HostCheck.Run(TestName + " " + name, () =>
         {
-            if (test())
-                return;
-
-            failures++;
-            Console.WriteLine(
-                "M01_014_INVLPG_CASE_FAIL " + Normalize(name));
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "M01_014_INVLPG_CASE_FAIL "
-                + Normalize(name)
-                + " "
-                + ex.GetType().Name
-                + ": "
-                + ex.Message);
-        }
+            try
+            {
+                if (test())
+                    return true;
+                Console.WriteLine(
+                    "M01_014_INVLPG_CASE_FAIL " + Normalize(name));
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    "M01_014_INVLPG_CASE_FAIL "
+                    + Normalize(name)
+                    + " "
+                    + ex.GetType().Name
+                    + ": "
+                    + ex.Message);
+                throw;
+            }
+        }, ref failures);
     }
 
     private static bool TestTypeContractsAndDefaults()

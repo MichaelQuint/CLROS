@@ -4,52 +4,8 @@ using OS.Net;
 
 internal static class HttpStaticResponseTransactionTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.http.static serves matched get", TestServesMatchedGet, ref failures);
-        Run("net.http.static writes not found response", TestWritesNotFoundResponse, ref failures);
-        Run("net.http.static writes method not allowed response", TestWritesMethodNotAllowedResponse, ref failures);
-        Run("net.http.static rejects malformed request and route", TestRejectsMalformedRequestAndRoute, ref failures);
-        Run("net.http.static reports short response buffer", TestReportsShortResponseBuffer, ref failures);
-        Run("net.http.static default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("net.http.static.formatter formats 200 marker", TestFormatterFormats200Marker, ref failures);
-        Run("net.http.static.formatter formats 404 and 405 metadata", TestFormatterFormats404And405Metadata, ref failures);
-        Run("net.http.static.formatter reports destination capacity", TestFormatterReportsDestinationCapacity, ref failures);
-        Run("net.http.static.formatter rejects default and invalid results", TestFormatterRejectsDefaultAndInvalidResults, ref failures);
-        Run("net.http.static.formatter uses shared ascii text builder", TestFormatterUsesSharedAsciiTextBuilder, ref failures);
-        Run("net.http.static uses shared memory equality helper", TestUsesSharedMemoryEqualityHelper, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("HTTP static response transaction host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.http.static serves matched get", HostLane.Fast, 0)]
     private static bool TestServesMatchedGet()
     {
         byte[] request = Encoding.ASCII.GetBytes(
@@ -68,7 +24,7 @@ internal static class HttpStaticResponseTransactionTests
 
         string text = Encoding.ASCII.GetString(response, 0, result.BytesWritten);
 
-        return status == HttpStaticResponseTransactionStatus.Success
+        return HostCheck.Result(status == HttpStaticResponseTransactionStatus.Success
             && result.Succeeded
             && result.RequestStatus == HttpRequestParseStatus.Success
             && result.ResponseStatus == HttpResponseWriterStatus.Success
@@ -84,9 +40,10 @@ internal static class HttpStaticResponseTransactionTests
                 "Content-Type: text/plain\r\n" +
                 "Connection: close\r\n" +
                 "\r\n" +
-                "OS_MINIMAL_API_OK";
+                "OS_MINIMAL_API_OK");
     }
 
+    [HostTest("net.http.static writes not found response", HostLane.Fast, 1)]
     private static bool TestWritesNotFoundResponse()
     {
         byte[] request = Encoding.ASCII.GetBytes(
@@ -105,7 +62,7 @@ internal static class HttpStaticResponseTransactionTests
 
         string text = Encoding.ASCII.GetString(response, 0, result.BytesWritten);
 
-        return status == HttpStaticResponseTransactionStatus.Success
+        return HostCheck.Result(status == HttpStaticResponseTransactionStatus.Success
             && result.Succeeded
             && result.StatusCode == 404
             && !result.TargetMatched
@@ -113,9 +70,10 @@ internal static class HttpStaticResponseTransactionTests
             && result.ConnectionClose
             && result.BodyLength == "not found".Length
             && text.Contains("HTTP/1.1 404 Not Found\r\n", StringComparison.Ordinal)
-            && text.EndsWith("not found", StringComparison.Ordinal);
+            && text.EndsWith("not found", StringComparison.Ordinal));
     }
 
+    [HostTest("net.http.static writes method not allowed response", HostLane.Fast, 2)]
     private static bool TestWritesMethodNotAllowedResponse()
     {
         byte[] request = Encoding.ASCII.GetBytes(
@@ -134,7 +92,7 @@ internal static class HttpStaticResponseTransactionTests
 
         string text = Encoding.ASCII.GetString(response, 0, result.BytesWritten);
 
-        return status == HttpStaticResponseTransactionStatus.Success
+        return HostCheck.Result(status == HttpStaticResponseTransactionStatus.Success
             && result.Succeeded
             && result.Method == HttpRequestMethod.Post
             && result.StatusCode == 405
@@ -143,9 +101,10 @@ internal static class HttpStaticResponseTransactionTests
             && result.ConnectionClose
             && result.BodyLength == "bad method".Length
             && text.Contains("HTTP/1.1 405 Method Not Allowed\r\n", StringComparison.Ordinal)
-            && text.EndsWith("bad method", StringComparison.Ordinal);
+            && text.EndsWith("bad method", StringComparison.Ordinal));
     }
 
+    [HostTest("net.http.static rejects malformed request and route", HostLane.Fast, 3)]
     private static bool TestRejectsMalformedRequestAndRoute()
     {
         byte[] malformedRequest = Encoding.ASCII.GetBytes("GET /healthz HTTP/1.1");
@@ -174,7 +133,7 @@ internal static class HttpStaticResponseTransactionTests
             response,
             out HttpStaticResponseTransactionResult routeResult);
 
-        return requestStatus == HttpStaticResponseTransactionStatus.RequestParseFailed
+        return HostCheck.Result(requestStatus == HttpStaticResponseTransactionStatus.RequestParseFailed
             && !requestResult.Succeeded
             && requestResult.RequestStatus == HttpRequestParseStatus.MissingRequestLineTerminator
             && requestResult.BytesWritten == 0
@@ -182,9 +141,10 @@ internal static class HttpStaticResponseTransactionTests
             && routeStatus == HttpStaticResponseTransactionStatus.InvalidRoute
             && !routeResult.Succeeded
             && routeResult.BytesWritten == 0
-            && routeResult.StatusCode == 0;
+            && routeResult.StatusCode == 0);
     }
 
+    [HostTest("net.http.static reports short response buffer", HostLane.Fast, 4)]
     private static bool TestReportsShortResponseBuffer()
     {
         byte[] request = Encoding.ASCII.GetBytes(
@@ -202,7 +162,7 @@ internal static class HttpStaticResponseTransactionTests
             response,
             out HttpStaticResponseTransactionResult result);
 
-        return status == HttpStaticResponseTransactionStatus.ResponseWriteFailed
+        return HostCheck.Result(status == HttpStaticResponseTransactionStatus.ResponseWriteFailed
             && !result.Succeeded
             && result.RequestStatus == HttpRequestParseStatus.Success
             && result.ResponseStatus == HttpResponseWriterStatus.DestinationTooSmall
@@ -211,9 +171,10 @@ internal static class HttpStaticResponseTransactionTests
             && result.MethodAllowed
             && result.BytesWritten == 0
             && result.BytesRequired > response.Length
-            && AllBytesEqual(response, 0xcc);
+            && AllBytesEqual(response, 0xcc));
     }
 
+    [HostTest("net.http.static default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         HttpStaticResponseTransactionResult defaultResult = default;
@@ -231,7 +192,7 @@ internal static class HttpStaticResponseTransactionTests
                 requestTargetLength: 8,
                 bytesRequired: 64);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == HttpStaticResponseTransactionStatus.Success
             && defaultResult.StatusCode == 0
@@ -240,9 +201,10 @@ internal static class HttpStaticResponseTransactionTests
             && failedResult.Status == HttpStaticResponseTransactionStatus.ResponseWriteFailed
             && failedResult.ResponseStatus == HttpResponseWriterStatus.DestinationTooSmall
             && failedResult.BytesRequired == 64
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<HttpStaticResponseTransactionResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<HttpStaticResponseTransactionResult>());
     }
 
+    [HostTest("net.http.static.formatter formats 200 marker", HostLane.Fast, 6)]
     private static bool TestFormatterFormats200Marker()
     {
         HttpStaticResponseTransactionResult transaction = CreateTransaction(
@@ -277,7 +239,7 @@ internal static class HttpStaticResponseTransactionTests
             " liveSocket=false" +
             " startsKestrel=false";
 
-        return query.Status == HttpStaticResponseTransactionDiagnosticFormatStatus.Success
+        return HostCheck.Result(query.Status == HttpStaticResponseTransactionDiagnosticFormatStatus.Success
             && query.BytesWritten == 0
             && query.RequiredBytes > 0
             && format.Succeeded
@@ -286,9 +248,10 @@ internal static class HttpStaticResponseTransactionTests
             && format.TransactionStatus == HttpStaticResponseTransactionStatus.Success
             && marker == expected
             && !marker.Contains("OS_MINIMAL_API_OK", StringComparison.Ordinal)
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<HttpStaticResponseTransactionDiagnosticFormatResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<HttpStaticResponseTransactionDiagnosticFormatResult>());
     }
 
+    [HostTest("net.http.static.formatter formats 404 and 405 metadata", HostLane.Fast, 7)]
     private static bool TestFormatterFormats404And405Metadata()
     {
         HttpStaticResponseTransactionResult notFound = CreateTransaction(
@@ -307,7 +270,7 @@ internal static class HttpStaticResponseTransactionTests
             out _);
         string methodMarker = FormatTransactionMarker(methodNotAllowed);
 
-        return notFound.StatusCode == 404
+        return HostCheck.Result(notFound.StatusCode == 404
             && methodNotAllowed.StatusCode == 405
             && notFoundMarker.Contains("httpStatus=404", StringComparison.Ordinal)
             && notFoundMarker.Contains("method=Get", StringComparison.Ordinal)
@@ -324,9 +287,10 @@ internal static class HttpStaticResponseTransactionTests
             && methodMarker.Contains("liveSocket=false", StringComparison.Ordinal)
             && methodMarker.Contains("startsKestrel=false", StringComparison.Ordinal)
             && !notFoundMarker.Contains("not found", StringComparison.Ordinal)
-            && !methodMarker.Contains("bad method", StringComparison.Ordinal);
+            && !methodMarker.Contains("bad method", StringComparison.Ordinal));
     }
 
+    [HostTest("net.http.static.formatter reports destination capacity", HostLane.Fast, 8)]
     private static bool TestFormatterReportsDestinationCapacity()
     {
         HttpStaticResponseTransactionResult transaction = CreateTransaction(
@@ -343,16 +307,17 @@ internal static class HttpStaticResponseTransactionTests
         HttpStaticResponseTransactionDiagnosticFormatResult format =
             HttpStaticResponseTransactionDiagnosticFormatter.FormatResult(transaction, destination);
 
-        return query.Status == HttpStaticResponseTransactionDiagnosticFormatStatus.Success
+        return HostCheck.Result(query.Status == HttpStaticResponseTransactionDiagnosticFormatStatus.Success
             && query.RequiredBytes > 0
             && format.Status == HttpStaticResponseTransactionDiagnosticFormatStatus.DestinationTooSmall
             && !format.Succeeded
             && format.BytesWritten == 0
             && format.RequiredBytes == query.RequiredBytes
             && format.AvailableBytes == destination.Length
-            && AllBytesEqual(destination, 0xcc);
+            && AllBytesEqual(destination, 0xcc));
     }
 
+    [HostTest("net.http.static.formatter rejects default and invalid results", HostLane.Fast, 9)]
     private static bool TestFormatterRejectsDefaultAndInvalidResults()
     {
         HttpStaticResponseTransactionResult defaultResult = default;
@@ -393,7 +358,7 @@ internal static class HttpStaticResponseTransactionTests
         HttpStaticResponseTransactionDiagnosticFormatResult invalidNestedFormat =
             HttpStaticResponseTransactionDiagnosticFormatter.FormatResult(invalidNested, stackalloc byte[128]);
 
-        return defaultFormat.Status == HttpStaticResponseTransactionDiagnosticFormatStatus.InvalidResult
+        return HostCheck.Result(defaultFormat.Status == HttpStaticResponseTransactionDiagnosticFormatStatus.InvalidResult
             && defaultFormat.RequiredBytes == 0
             && defaultQuery.Status == HttpStaticResponseTransactionDiagnosticFormatStatus.InvalidResult
             && invalidFormat.Status == HttpStaticResponseTransactionDiagnosticFormatStatus.InvalidResult
@@ -401,9 +366,10 @@ internal static class HttpStaticResponseTransactionTests
             && invalidNestedFormat.Status == HttpStaticResponseTransactionDiagnosticFormatStatus.InvalidResult
             && !defaultFormat.Succeeded
             && !invalidFormat.Succeeded
-            && !invalidNestedFormat.Succeeded;
+            && !invalidNestedFormat.Succeeded);
     }
 
+    [HostTest("net.http.static.formatter uses shared ascii text builder", HostLane.Fast, 10)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -415,7 +381,7 @@ internal static class HttpStaticResponseTransactionTests
                 "Net",
                 "HttpStaticResponseTransactionDiagnosticFormatter.cs"));
 
-        return source.Contains("AsciiTextBuilder.AppendBytes(", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("AsciiTextBuilder.AppendBytes(", StringComparison.Ordinal)
             && source.Contains("AsciiTextBuilder.AppendInt64Decimal(", StringComparison.Ordinal)
             && source.Contains("AsciiTextBuilder.AppendUInt64Decimal(", StringComparison.Ordinal)
             && source.Contains("AsciiDecimalFormatter.CountInt32Digits(", StringComparison.Ordinal)
@@ -424,21 +390,22 @@ internal static class HttpStaticResponseTransactionTests
             && !source.Contains("private static int GetUInt64DecimalByteCount", StringComparison.Ordinal)
             && !source.Contains("while (value >= 10", StringComparison.Ordinal)
             && !source.Contains("value /= 10", StringComparison.Ordinal)
-            && !source.Contains("value % 10", StringComparison.Ordinal);
+            && !source.Contains("value % 10", StringComparison.Ordinal));
     }
 
+    [HostTest("net.http.static uses shared memory equality helper", HostLane.Fast, 11)]
     private static bool TestUsesSharedMemoryEqualityHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Net", "HttpStaticResponseTransaction.cs"));
 
-        return source.Contains(
+        return HostCheck.Result(source.Contains(
                 "OS.Std.MemoryExtensions.SequenceEqual(",
                 StringComparison.Ordinal)
             && !source.Contains(
                 "private static bool SequenceEqual(",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
     private static HttpStaticResponseTransactionResult CreateTransaction(

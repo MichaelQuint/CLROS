@@ -3,48 +3,8 @@ using OS.Net;
 
 internal static class ArpNeighborCacheTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.arp.cache insert lookup", TestInsertLookup, ref failures);
-        Run("net.arp.cache update existing", TestUpdateExisting, ref failures);
-        Run("net.arp.cache remove clear", TestRemoveClear, ref failures);
-        Run("net.arp.cache capacity exhaustion", TestCapacityExhaustion, ref failures);
-        Run("net.arp.cache purge stale", TestPurgeStale, ref failures);
-        Run("net.arp.cache rejects invalid inputs", TestRejectsInvalidInputs, ref failures);
-        Run("net.arp.cache default results are not success", TestDefaultResultsAreNotSuccess, ref failures);
-        Run("net.mac validation uses shared helpers", TestMacValidationUsesSharedHelpers, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ARP neighbor cache host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.arp.cache insert lookup", HostLane.Fast, 0)]
     private static bool TestInsertLookup()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[2];
@@ -59,7 +19,7 @@ internal static class ArpNeighborCacheTests
             PeerAddress1(),
             out ArpNeighborCacheLookupResult lookupResult);
 
-        return insertStatus == ArpNeighborCacheStatus.Success
+        return HostCheck.Result(insertStatus == ArpNeighborCacheStatus.Success
             && insertResult.Succeeded
             && insertResult.Count == 1
             && insertResult.Capacity == 2
@@ -71,9 +31,10 @@ internal static class ArpNeighborCacheTests
             && lookupResult.Entry.MacAddress == PeerMac1()
             && lookupResult.Entry.LastUpdatedTick == 100
             && cache.Count == 1
-            && cache.Capacity == 2;
+            && cache.Capacity == 2);
     }
 
+    [HostTest("net.arp.cache update existing", HostLane.Fast, 1)]
     private static bool TestUpdateExisting()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[1];
@@ -93,7 +54,7 @@ internal static class ArpNeighborCacheTests
             PeerAddress1(),
             out ArpNeighborCacheLookupResult lookupResult);
 
-        return firstStatus == ArpNeighborCacheStatus.Success
+        return HostCheck.Result(firstStatus == ArpNeighborCacheStatus.Success
             && firstResult.Count == 1
             && updateStatus == ArpNeighborCacheStatus.Success
             && updateResult.Succeeded
@@ -102,9 +63,10 @@ internal static class ArpNeighborCacheTests
             && lookupStatus == ArpNeighborCacheStatus.Success
             && lookupResult.Entry.MacAddress == PeerMac2()
             && lookupResult.Entry.LastUpdatedTick == 20
-            && cache.Count == 1;
+            && cache.Count == 1);
     }
 
+    [HostTest("net.arp.cache remove clear", HostLane.Fast, 2)]
     private static bool TestRemoveClear()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[3];
@@ -130,7 +92,7 @@ internal static class ArpNeighborCacheTests
             PeerAddress2(),
             out ArpNeighborCacheLookupResult afterClearResult);
 
-        return removeStatus == ArpNeighborCacheStatus.Success
+        return HostCheck.Result(removeStatus == ArpNeighborCacheStatus.Success
             && removeResult.RemovedCount == 1
             && removeResult.Count == 1
             && missingStatus == ArpNeighborCacheStatus.NotFound
@@ -146,9 +108,10 @@ internal static class ArpNeighborCacheTests
             && afterClearStatus == ArpNeighborCacheStatus.NotFound
             && !afterClearResult.Succeeded
             && cache.Count == 0
-            && storage[0].State == ArpNeighborCacheEntryState.Empty;
+            && storage[0].State == ArpNeighborCacheEntryState.Empty);
     }
 
+    [HostTest("net.arp.cache capacity exhaustion", HostLane.Fast, 3)]
     private static bool TestCapacityExhaustion()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[1];
@@ -179,7 +142,7 @@ internal static class ArpNeighborCacheTests
             currentTick: 30,
             out ArpNeighborCacheMutationResult emptyResult);
 
-        return firstStatus == ArpNeighborCacheStatus.Success
+        return HostCheck.Result(firstStatus == ArpNeighborCacheStatus.Success
             && firstResult.Count == 1
             && overflowStatus == ArpNeighborCacheStatus.CapacityExceeded
             && !overflowResult.Succeeded
@@ -191,9 +154,10 @@ internal static class ArpNeighborCacheTests
             && emptyStatus == ArpNeighborCacheStatus.CapacityExceeded
             && !emptyResult.Succeeded
             && emptyResult.Count == 0
-            && emptyResult.Capacity == 0;
+            && emptyResult.Capacity == 0);
     }
 
+    [HostTest("net.arp.cache purge stale", HostLane.Fast, 4)]
     private static bool TestPurgeStale()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[3];
@@ -220,7 +184,7 @@ internal static class ArpNeighborCacheTests
             ttlTicks: 10,
             out ArpNeighborCacheMutationResult finalPurgeResult);
 
-        return purgeStatus == ArpNeighborCacheStatus.Success
+        return HostCheck.Result(purgeStatus == ArpNeighborCacheStatus.Success
             && purgeResult.RemovedCount == 2
             && purgeResult.Count == 1
             && firstLookupStatus == ArpNeighborCacheStatus.NotFound
@@ -233,9 +197,10 @@ internal static class ArpNeighborCacheTests
             && finalPurgeStatus == ArpNeighborCacheStatus.Success
             && finalPurgeResult.RemovedCount == 1
             && finalPurgeResult.Count == 0
-            && cache.Count == 0;
+            && cache.Count == 0);
     }
 
+    [HostTest("net.arp.cache rejects invalid inputs", HostLane.Fast, 5)]
     private static bool TestRejectsInvalidInputs()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[2];
@@ -276,7 +241,7 @@ internal static class ArpNeighborCacheTests
             PeerAddress1(),
             out ArpNeighborCacheLookupResult lookupAfterInvalidTickResult);
 
-        return invalidAddressInsert == ArpNeighborCacheStatus.InvalidAddress
+        return HostCheck.Result(invalidAddressInsert == ArpNeighborCacheStatus.InvalidAddress
             && !invalidAddressResult.Succeeded
             && zeroMacInsert == ArpNeighborCacheStatus.InvalidMacAddress
             && !zeroMacResult.Succeeded
@@ -293,9 +258,10 @@ internal static class ArpNeighborCacheTests
             && invalidTickResult.Count == 1
             && lookupAfterInvalidTick == ArpNeighborCacheStatus.Success
             && lookupAfterInvalidTickResult.Entry.LastUpdatedTick == 100
-            && cache.Count == 1;
+            && cache.Count == 1);
     }
 
+    [HostTest("net.arp.cache default results are not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         ArpNeighborCacheLookupResult lookup = default;
@@ -305,7 +271,7 @@ internal static class ArpNeighborCacheTests
         ArpNeighborCacheMutationResult mutationFailure =
             ArpNeighborCacheMutationResult.Fail(ArpNeighborCacheStatus.InvalidTtl, count: 1, capacity: 3);
 
-        return !lookup.IsInitialized
+        return HostCheck.Result(!lookup.IsInitialized
             && !lookup.Succeeded
             && lookup.Status == ArpNeighborCacheStatus.Success
             && lookup.Count == 0
@@ -330,15 +296,16 @@ internal static class ArpNeighborCacheTests
             && mutationFailure.RemovedCount == 0
             && !mutationFailure.UpdatedExisting
             && !RuntimeHelpers.IsReferenceOrContainsReferences<ArpNeighborCacheLookupResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<ArpNeighborCacheMutationResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<ArpNeighborCacheMutationResult>());
     }
 
+    [HostTest("net.mac validation uses shared helpers", HostLane.Fast, 7)]
     private static bool TestMacValidationUsesSharedHelpers()
     {
-        return NetworkSourceUsesSharedMacHelpers("ArpNeighborCache.cs")
+        return HostCheck.Result(NetworkSourceUsesSharedMacHelpers("ArpNeighborCache.cs")
             && NetworkSourceUsesSharedMacHelpers("Ipv4NeighborRoutePlanner.cs")
             && NetworkSourceUsesSharedMacHelpers("UdpTransmitPlanner.cs")
-            && NetworkSourceUsesSharedMacHelpers("DnsResolverTransactionPlanner.cs");
+            && NetworkSourceUsesSharedMacHelpers("DnsResolverTransactionPlanner.cs"));
     }
 
     private static bool NetworkSourceUsesSharedMacHelpers(string fileName)

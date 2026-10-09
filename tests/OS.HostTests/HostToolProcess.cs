@@ -4,10 +4,51 @@ internal static class HostToolProcess
 {
     public const string RepositorySolutionFileName = "CLROS.slnx";
 
+    internal readonly record struct ToolResult(int ExitCode, string Output, string Error);
+
+    // Build provenance follows the current ordered input inventory and exact raw
+    // bytes. It must not pin the changing host-tool implementation to an old run.
+    public static string SourceClosureSha256(string root) => OS.Tooling.EfiEvidence.Aggregate(
+        OS.Tooling.EfiEvidence.SourceClosurePaths(root).Select(path => new OS.Tooling.EfiInput(path,
+            OS.Tooling.ContractAudit.Hash(File.ReadAllBytes(Path.Combine(root, path))))));
+
+    // Each fixture is isolated in its own process; pure argument/profile controls
+    // can call the same production command without spawning another runtime.
+    public static ToolResult RunTool(params string[] arguments)
+    {
+        TextWriter priorOutput = Console.Out, priorError = Console.Error;
+        using StringWriter output = new(System.Globalization.CultureInfo.InvariantCulture);
+        using StringWriter error = new(System.Globalization.CultureInfo.InvariantCulture);
+        try
+        {
+            Console.SetOut(output);
+            Console.SetError(error);
+            int exitCode = OS.Tooling.ToolCommand.Run(arguments);
+            return new(exitCode, output.ToString(), error.ToString());
+        }
+        finally
+        {
+            Console.SetOut(priorOutput);
+            Console.SetError(priorError);
+        }
+    }
+
+    public static ToolResult ValidateEfiProfile(bool build, params string[] arguments)
+    {
+        try
+        {
+            var options = OS.Tooling.EfiOptions.Parse(arguments, build);
+            options.Profile();
+            return new(0, "", "");
+        }
+        catch (OS.Tooling.ToolFailure error) { return new(1, error.Reason + " " + error.Message, ""); }
+    }
+
     public static string FindLlvmObjdump()
     {
         const string variable = "CLROS_LLVM_OBJDUMP";
-        string? configured = Environment.GetEnvironmentVariable(variable);
+        string? configured = Environment.GetEnvironmentVariable(variable)
+            ?? (OperatingSystem.IsWindows() ? Environment.GetEnvironmentVariable(variable, EnvironmentVariableTarget.User) : null);
         if (!string.IsNullOrEmpty(configured))
         {
             if (!Path.IsPathFullyQualified(configured) ||

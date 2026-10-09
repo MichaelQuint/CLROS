@@ -21,6 +21,20 @@
 
 ## Progress
 
+Host tests now use explicit C# discovery and a fast default lane:
+`dotnet run --project tests/OS.HostTests`. Use `-- --list` or
+`-- --filter <fixture-or-case>` for selection; full host execution requires
+`-- --lane full`. See [runner commands and migration status](docs/host-requirements.md#c-host-test-runner).
+Build, verification, smoke, CI, and evidence commands now use the .NET 10
+`OS.Tooling` console application. A fast pass is not full host or guest acceptance.
+The completed migration and [latest qualification](done/step1098.md) passed
+3,072 fast checks in 40.3 seconds and all 4,120 host checks in 23 minutes
+18 seconds (previously 93 minutes 28 seconds). All 39 declared real guest
+captures passed in [step1097](done/step1097.md); their production inputs remain
+unchanged after the test-only setup optimization.
+Shared reviewed expectations live in `tools/OS.Tooling/EfiContracts` partials;
+stale compiled inputs are rejected before execution and checked again afterward.
+
 **Status snapshot: October 8, 2026.** The preceding accepted runtime implementation is recorded through
 `master` commit `1e6a8dbd11e3220c1ca433b72d57e418cdc86b05`, including [step1075](done/step1075.md).
 Evidence records retain their original tested revisions; acceptance does not
@@ -99,7 +113,7 @@ The [completion gates](docs/completion-gates.md) are the source of truth. Only G
   the reviewed native image and fresh ordinary guest capture. General EH and
   rethrow remain incomplete.
 
-The latest accepted full host suite passed at implementation `3bfa349`, with
+The bounded compiler-finally acceptance full host suite passed at implementation `3bfa349`, with
 **3,898 `TEST_START`, 3,899 `TEST_PASS` including `host.tests`, and zero failures**.
 The clean solution build and four fresh ordinary captures passed: default,
 collecting GC, bounded throw/catch, and bounded finally/catch, with 21/70/82/84
@@ -121,7 +135,7 @@ disabled by default and are not all combined into one continuing kernel boot.
 | Area | Current evidence |
 | --- | --- |
 | Build and EFI image | .NET 10/C# 14 host builds and an explicit no-stdlib NativeAOT EFI artifact; host tools produce the GPT/FAT32 boot image. |
-| Default boot | QEMU/OVMF reaches the ordered `OS_BOOT_OK` and `OS_SMOKE_PASS` markers while firmware remains available. `BootSequence.cs` owns phase ordering and `Probes.cs` owns diagnostic toggles. |
+| Default boot | Ordinary `VerifiedExit` completes the accepted bounded firmware-exit and owned-subsystem checks before terminal success; explicit `Diagnostic` retains firmware-visible profiles. `BootSequence.cs` owns phase ordering and `Probes.cs` owns diagnostic toggles. |
 | Owned memory and firmware handoff | Separate bounded profiles exercise an owned stack, allocator arena, paging transitions, retained memory-map/ACPI data, real firmware exit, and typed capability revocation. Bounded post-exit allocator use, copied-ACPI readback and installed descriptor/canary checks are accepted; general page reclamation and continuing platform services remain incomplete. |
 | Fault and serial diagnostics | Accepted bounded profiles cover owned descriptor/IST state, UD2, page fault, double fault, unexpected-vector panic, and direct COM1 output. Post-exit readiness reporting is accepted; general fault recovery is not. |
 | NativeAOT runtime subset | Guest evidence covers bounded fixed-object, byte/long-array and String allocation, checked reference helpers, one-module registration, static roots, nonmoving collection, compiler-generated constructors, and ordinary-instance interface dispatch. Current-image unwind metadata is accepted; one-frame restoration and EH-clause helpers retain their bounded host contracts, and one separate profile executes a real throw, typed catch and compiled continuation. This is a limited runtime subset, not the full .NET libraries, GC or exception runtime. |
@@ -185,24 +199,24 @@ Run from the repository root:
 dotnet build .\CLROS.slnx --nologo -m:1
 dotnet build .\tests\OS.HostTests\OS.HostTests.csproj --nologo
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
-.\scripts\check-naming.ps1
-.\scripts\run-qemu-smoke.ps1 -DryRun
-.\scripts\run-ci-smoke.ps1 -DryRun
-.\scripts\build-efi-shell.ps1
+dotnet run --project tools/OS.Tooling -- repo check
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun
+dotnet run --project tools/OS.Tooling -- ci smoke -DryRun
+dotnet run --project tools/OS.Tooling -- efi build
 git diff --check
 ```
 
 Real QEMU smoke on the current Windows host:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
+dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
 ```
 
 Optional cumulative pre-`ExitBootServices` owned-COM1, GDT-encoding, and guarded
 IST arena profile:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30 -BuildEfi -EnableM02SafeStubProbe -EnableM02CheckedPortIoBindingProbe -EnableM02Com1OwnedPortIoProbe -EnableM02OwnedCom1ReadyProbe -EnableM02PanicSafeOwnedCom1Probe -EnableM02OwnedX64GdtEncodingProbe -EnableM02GuardedIstStackAllocationProbe
+dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30 -BuildEfi -EnableM02SafeStubProbe -EnableM02CheckedPortIoBindingProbe -EnableM02Com1OwnedPortIoProbe -EnableM02OwnedCom1ReadyProbe -EnableM02PanicSafeOwnedCom1Probe -EnableM02OwnedX64GdtEncodingProbe -EnableM02GuardedIstStackAllocationProbe
 ```
 
 That optional profile rebuilds the EFI/image inputs, preserves the accepted
@@ -220,7 +234,7 @@ CloudReady, or production evidence.
 Optional cumulative M02-009 terminal GDT/TSS development profile:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30 -BuildEfi -EnableM02SafeStubProbe -EnableM02CheckedPortIoBindingProbe -EnableM02Com1OwnedPortIoProbe -EnableM02OwnedCom1ReadyProbe -EnableM02PanicSafeOwnedCom1Probe -EnableM02OwnedX64GdtEncodingProbe -EnableM02GuardedIstStackAllocationProbe -EnableM02OwnedGdtTssTerminalProbe
+dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30 -BuildEfi -EnableM02SafeStubProbe -EnableM02CheckedPortIoBindingProbe -EnableM02Com1OwnedPortIoProbe -EnableM02OwnedCom1ReadyProbe -EnableM02PanicSafeOwnedCom1Probe -EnableM02OwnedX64GdtEncodingProbe -EnableM02GuardedIstStackAllocationProbe -EnableM02OwnedGdtTssTerminalProbe
 ```
 
 That profile adds `TEST_START m02.009`, the exact `CLROS_M02_009_READY`
@@ -238,7 +252,7 @@ Kestrel, cloud readiness, or production readiness.
 Optional M04-003 span/memory conformance profile:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -DryRun -BuildEfi -EnableM04IndependentEndianConformanceProbe -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun -BuildEfi -EnableM04IndependentEndianConformanceProbe -EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe
 ```
 
 The default-false M04-003 switch requires the M04-002 endian switch and cannot
@@ -257,7 +271,7 @@ memory runtime surface, and Gate 4 remains `Fail`.
 Optional ACPI physical discovery probe:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
 ```
 
 Dry-run QEMU output is not boot proof. Boot proof requires a generated image,
@@ -273,7 +287,7 @@ OVMF/QEMU execution, captured serial logs, and expected markers.
 | `apps` | App fixtures and workload placeholders. |
 | `tools` | Host-side image/package/build tooling. |
 | `tests/OS.HostTests` | Host test harness with stable machine-readable markers. |
-| `scripts` | PowerShell build, smoke, evidence, and helper scripts. |
+| `tools/OS.Tooling` | C# build, verification, smoke, evidence, and repository commands. |
 | `docs` | Canonical architecture, operation, gate, and subsystem documentation. |
 | `done` | Immutable step evidence history. Do not delete step files. |
 | `work` | Design work in progress, including PAL design notes. |

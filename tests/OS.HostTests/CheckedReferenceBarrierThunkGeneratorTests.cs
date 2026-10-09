@@ -80,7 +80,7 @@ internal static class ThunkControls
         }
         return b[60..1450];
     }
-    internal static object Run(string output)
+    internal static object Run(string output, string expectedSerializerHash, int expectedSerializerSize)
     {
         Directory.CreateDirectory(output);
         var definition=CheckedReferenceBarrierThunkGenerator.Define();
@@ -97,7 +97,7 @@ internal static class ThunkControls
         }
         byte[] rejected=Enumerable.Repeat((byte)0xA7,1645).ToArray();
         Need(!Amd64CoffWriter.TryWrite(in definition,rejected,out written,out _) && written==0 && rejected.All(x=>x==0xA7),"default-reject-atomic");
-        byte[] serializer=new byte[336]; Need(InstructionPublicationSerializerGenerator.TryGenerate(serializer,out written,out error) && written==336 && Convert.ToHexString(SHA256.HashData(serializer))=="DA97E50C95E479541B65EB3F96D9C6DED163735857650BEE9416324086D55C7B","serializer-unchanged");
+        byte[] serializer=new byte[expectedSerializerSize]; Need(InstructionPublicationSerializerGenerator.TryGenerate(serializer,out written,out error) && written==expectedSerializerSize && Convert.ToHexString(SHA256.HashData(serializer))==expectedSerializerHash,"serializer-unchanged");
         File.WriteAllBytes(Path.Combine(output,"serializer.obj"),serializer);
         List<object> states=[];
         uint[] statuses=[0,2,0x101,0x80000001,uint.MaxValue];
@@ -243,8 +243,8 @@ internal static class Program
         Console.WriteLine("TEST_START "+group);
         try
         {
-            ThunkControls.Need(args.Length==1,"output-argument");
-            object result=ThunkControls.Run(args[0]);
+            ThunkControls.Need(args.Length==3,"output and reviewed serializer hash and size arguments");
+            object result=ThunkControls.Run(args[0],args[1],int.Parse(args[2],System.Globalization.CultureInfo.InvariantCulture));
             File.WriteAllText(Path.Combine(args[0],"controls.json"),JsonSerializer.Serialize(result,new JsonSerializerOptions{WriteIndented=true})+"\n",new UTF8Encoding(false));
             Console.WriteLine("TEST_PASS "+group);Console.WriteLine("TEST_PASS host.tests");return 0;
         }
@@ -259,12 +259,11 @@ using System.Text.Json;
 
 internal static class CheckedReferenceBarrierThunkGeneratorTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         const string name = "m04.010.thunks";
-        Console.WriteLine("TEST_START " + name);
-        try
+        HostCheck.Run(name, () =>
         {
             string root = HostToolProcess.FindRepositoryRoot();
             string folder = Path.Combine(root, "artifacts", "issue537-thunk-tests", Guid.NewGuid().ToString("N"));
@@ -289,17 +288,11 @@ internal static class CheckedReferenceBarrierThunkGeneratorTests
             Run(folder, "build", 120000, ["build", "Probe.csproj", "--nologo", "--disable-build-servers", "-m:1",
                 "-nodeReuse:false", "-p:ImportDirectoryBuildProps=false", "-p:ImportDirectoryBuildTargets=false"]);
             string output = Run(folder, "run", 30000,
-                [Path.Combine(folder, "bin", "Debug", "net10.0", "Probe.dll"), Path.Combine(folder, "output")]);
+                [Path.Combine(folder, "bin", "Debug", "net10.0", "Probe.dll"), Path.Combine(folder, "output"), OS.Tooling.EfiContracts.SerializerObjectSha256.ToUpperInvariant(), OS.Tooling.EfiContracts.SerializerObjectBytes.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
             if (output != "TEST_START m04.010.thunk.offline" + Environment.NewLine +
                 "TEST_PASS m04.010.thunk.offline" + Environment.NewLine + "TEST_PASS host.tests" + Environment.NewLine)
                 throw new InvalidOperationException("complete thunk child output");
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch
-        {
-            Console.WriteLine("TEST_FAIL " + name + " assertion_failed");
-            throw;
-        }
+        });
     }
 
     private static string Run(string folder, string label, int timeout, string[] arguments)

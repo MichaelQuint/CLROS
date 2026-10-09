@@ -4,47 +4,8 @@ using OS.Kernel.Platform;
 
 internal static class Com1PlatformSerialTransportTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("diagnostics.com1_transport writes through fake com1 backend", TestWritesThroughFakeCom1Backend, ref failures);
-        Run("diagnostics.com1_transport writes owned serial after uefi gone", TestWritesOwnedSerialAfterUefiGone, ref failures);
-        Run("diagnostics.com1_transport reports unavailable readiness", TestReportsUnavailableReadiness, ref failures);
-        Run("diagnostics.com1_transport maps initialization failure", TestMapsInitializationFailure, ref failures);
-        Run("diagnostics.com1_transport maps transmit timeout", TestMapsTransmitTimeout, ref failures);
-        Run("diagnostics.com1_transport reports short write", TestReportsShortWrite, ref failures);
-        Run("diagnostics.com1_transport results contain no managed references", TestResultStructsContainNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("COM1 platform serial transport host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("diagnostics.com1_transport writes through fake com1 backend", HostLane.Fast, 0)]
     private static bool TestWritesThroughFakeCom1Backend()
     {
         FakeBytePortBackend backend = new FakeBytePortBackend();
@@ -54,7 +15,7 @@ internal static class Com1PlatformSerialTransportTests
         PlatformSerialTransportResult first = transport.Write("OS"u8);
         PlatformSerialTransportResult second = transport.Write("!"u8);
 
-        return first.Succeeded
+        return HostCheck.Result(first.Succeeded
             && first.Status == PlatformSerialTransportStatus.Success
             && first.BytesWritten == 2
             && first.BackendStatus == Com1PlatformSerialTransport.EncodeBackendStatus(
@@ -66,9 +27,10 @@ internal static class Com1PlatformSerialTransportTests
             && backend.ReadCount == 3
             && backend.DataByteAt(0) == (byte)'O'
             && backend.DataByteAt(1) == (byte)'S'
-            && backend.DataByteAt(2) == (byte)'!';
+            && backend.DataByteAt(2) == (byte)'!');
     }
 
+    [HostTest("diagnostics.com1_transport writes owned serial after uefi gone", HostLane.Fast, 1)]
     private static bool TestWritesOwnedSerialAfterUefiGone()
     {
         FakeBytePortBackend backend = new FakeBytePortBackend();
@@ -83,7 +45,7 @@ internal static class Com1PlatformSerialTransportTests
             serial,
             "TEST_PASS diagnostics.com1_transport owned_after_uefi_gone"u8);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.SerialStatus == PlatformSerialWriteStatus.Success
             && result.Mode == FirmwareServicesMode.UefiGoneSimulated
             && result.TransportKind == PlatformSerialTransportKind.Owned
@@ -92,9 +54,10 @@ internal static class Com1PlatformSerialTransportTests
             && backend.DataWriteCount == result.RequiredBytes
             && backend.ReadCount == result.RequiredBytes
             && backend.DataStartsWith("TEST_PASS diagnostics.com1_transport"u8)
-            && backend.DataEndsWithCrLf();
+            && backend.DataEndsWithCrLf());
     }
 
+    [HostTest("diagnostics.com1_transport reports unavailable readiness", HostLane.Fast, 2)]
     private static bool TestReportsUnavailableReadiness()
     {
         FakeBytePortBackend backend = new FakeBytePortBackend();
@@ -105,14 +68,15 @@ internal static class Com1PlatformSerialTransportTests
 
         PlatformSerialTransportResult result = transport.Write("OS"u8);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformSerialTransportStatus.Unavailable
             && result.BytesWritten == 0
             && result.BackendStatus == 0
             && backend.WriteCount == 0
-            && backend.ReadCount == 0;
+            && backend.ReadCount == 0);
     }
 
+    [HostTest("diagnostics.com1_transport maps initialization failure", HostLane.Fast, 3)]
     private static bool TestMapsInitializationFailure()
     {
         FakeBytePortBackend backend = new FakeBytePortBackend();
@@ -121,15 +85,16 @@ internal static class Com1PlatformSerialTransportTests
 
         PlatformSerialTransportResult result = transport.Write("A"u8);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformSerialTransportStatus.BackendFailure
             && result.BytesWritten == 0
             && DecodeWriterStatus(result.BackendStatus) == Com1SerialWriterStatus.BackendFailure
             && DecodePortWrites(result.BackendStatus) == 2
             && backend.WriteCount == 2
-            && backend.ReadCount == 0;
+            && backend.ReadCount == 0);
     }
 
+    [HostTest("diagnostics.com1_transport maps transmit timeout", HostLane.Fast, 4)]
     private static bool TestMapsTransmitTimeout()
     {
         FakeBytePortBackend backend = new FakeBytePortBackend();
@@ -141,15 +106,16 @@ internal static class Com1PlatformSerialTransportTests
 
         PlatformSerialTransportResult result = transport.Write("A"u8);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformSerialTransportStatus.BackendFailure
             && result.BytesWritten == 0
             && DecodeWriterStatus(result.BackendStatus) == Com1SerialWriterStatus.TransmitTimeout
             && DecodeLinePolls(result.BackendStatus) == 2
             && backend.InitializationWriteCount == SerialPortConfiguration.RequiredInitializationWriteCount
-            && backend.ReadCount == 2;
+            && backend.ReadCount == 2);
     }
 
+    [HostTest("diagnostics.com1_transport reports short write", HostLane.Fast, 5)]
     private static bool TestReportsShortWrite()
     {
         FakeBytePortBackend backend = new FakeBytePortBackend();
@@ -166,20 +132,21 @@ internal static class Com1PlatformSerialTransportTests
 
         PlatformSerialWriteResult result = serial.Write("AB"u8);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformSerialWriteStatus.ShortWrite
             && result.BytesWritten == 1
             && result.RequestedBytes == 2
             && DecodeWriterStatus(result.BackendStatus) == Com1SerialWriterStatus.TransmitTimeout
             && DecodeBytesWritten(result.BackendStatus) == 1
             && backend.DataWriteCount == 1
-            && backend.DataByteAt(0) == (byte)'A';
+            && backend.DataByteAt(0) == (byte)'A');
     }
 
+    [HostTest("diagnostics.com1_transport results contain no managed references", HostLane.Fast, 6)]
     private static bool TestResultStructsContainNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<PlatformSerialTransportResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<PlatformSerialWriteResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<PlatformSerialTransportResult>()
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<PlatformSerialWriteResult>());
     }
 
     private static Com1SerialWriterStatus DecodeWriterStatus(ulong value)

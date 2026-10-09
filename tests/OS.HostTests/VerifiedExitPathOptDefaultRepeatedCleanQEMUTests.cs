@@ -15,19 +15,10 @@ internal static unsafe class VerifiedExitPathOptDefaultRepeatedCleanQEMUTests
         public int Count, Limit, Calls;
     }
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        Run("completion preserves the exact owned success tail", Completion);
-        Run("every partial write stops before later success records", PartialWrites);
-        Run("missing writer and host policy cannot emit success", MissingWriter);
-        Run("ordinary project policy is independent of diagnostic switches", ProjectPolicy);
-        Run("entry scripts reject policy conflicts and preserve complete default markers", ScriptPolicy);
-    }
-
     private static string Expected => "TEST_START m03.011\r\nCLROS_M03_011_READY\r\nTEST_PASS m03.011\r\n" +
         SerialSmokeMarkers.BootOk + "\r\nTEST_PASS boot.sequence\r\n" + SerialSmokeMarkers.OsSmokePass + "\r\n";
 
+    [HostTest("m03.011 completion preserves the exact owned success tail", HostLane.Fast, 0)]
     private static void Completion()
     {
         Capture capture = default;
@@ -36,6 +27,7 @@ internal static unsafe class VerifiedExitPathOptDefaultRepeatedCleanQEMUTests
         Need(Text(&capture) == Expected && capture.Calls == 6, "ordered exact CRLF records");
     }
 
+    [HostTest("m03.011 every partial write stops before later success records", HostLane.Fast, 1)]
     private static void PartialWrites()
     {
         string expected = Expected;
@@ -50,6 +42,7 @@ internal static unsafe class VerifiedExitPathOptDefaultRepeatedCleanQEMUTests
         }
     }
 
+    [HostTest("m03.011 missing writer and host policy cannot emit success", HostLane.Fast, 2)]
     private static void MissingWriter()
     {
         Capture capture = default;
@@ -62,6 +55,7 @@ internal static unsafe class VerifiedExitPathOptDefaultRepeatedCleanQEMUTests
             !Probes.EnableM03OwnedSubsystemPanicProbe, "dangerous probes remain default-off");
     }
 
+    [HostTest("m03.011 ordinary project policy is independent of diagnostic switches", HostLane.Native, 3)]
     private static void ProjectPolicy()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -71,7 +65,7 @@ internal static unsafe class VerifiedExitPathOptDefaultRepeatedCleanQEMUTests
             .Select(node => node.Parent?.Attribute("Condition")?.Value ?? "")
             .SelectMany(condition => Regex.Matches(condition, @"\$\((Enable\w+Probe)\)").Select(match => match.Groups[1].Value))
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-        Need(probes.Length == 52, "review the complete diagnostic inventory before adding a new profile");
+        Need(probes.Length == OS.Tooling.EfiContracts.DiagnosticProbes.Count, "review the complete diagnostic inventory before adding a new profile");
         using (JsonDocument ordinary = Evaluate(root, []))
         {
             JsonElement props = ordinary.RootElement.GetProperty("Properties");
@@ -105,52 +99,42 @@ internal static unsafe class VerifiedExitPathOptDefaultRepeatedCleanQEMUTests
         return JsonDocument.Parse(result.Output);
     }
 
+    [HostTest("m03.011 CSharp commands reject policy conflicts and preserve complete default markers", HostLane.Native, 4)]
     private static void ScriptPolicy()
     {
         string root = HostToolProcess.FindRepositoryRoot();
-        foreach (string script in new[] { "build-efi-shell.ps1", "test-efi-artifact.ps1", "run-qemu-smoke.ps1" })
+        foreach (string[] command in new string[][] { ["efi", "build"], ["efi", "verify"], ["qemu", "smoke"] })
         {
-            var invalid = PowerShell(root, script, ["-BootPolicy", "Unknown"]);
-            Need(invalid.Exit == 1 && invalid.Output.Contains("clros_boot_policy_invalid", StringComparison.Ordinal), script + " invalid policy");
-            var conflict = PowerShell(root, script, ["-BootPolicy", "VerifiedExit", "-EnableM03FirstRealExitBootServicesProbe"]);
-            Need(conflict.Exit == 1 && conflict.Output.Contains("clros_boot_policy_probe_conflict", StringComparison.Ordinal), script + " mixed policy");
+            var invalid = InvokeTool(root, command, ["-BootPolicy", "Unknown"]);
+            Need(invalid.Exit == 1 && invalid.Output.Contains("clros_boot_policy_invalid", StringComparison.Ordinal), string.Join(' ', command) + " invalid policy");
+            var conflict = InvokeTool(root, command, ["-BootPolicy", "VerifiedExit", "-EnableM03FirstRealExitBootServicesProbe"]);
+            Need(conflict.Exit == 1 && conflict.Output.Contains("clros_boot_policy_probe_conflict", StringComparison.Ordinal), string.Join(' ', command) + " mixed policy");
         }
-        var ordinary = PowerShell(root, "run-qemu-smoke.ps1", ["-DryRun"]);
+        var ordinary = InvokeTool(root, ["qemu", "smoke"], ["-DryRun"]);
         Need(ordinary.Exit == 0 && ordinary.Output.Contains("QEMU_SCRIPT_BOOT_POLICY policy=VerifiedExit", StringComparison.Ordinal),
             "unqualified ordinary dry-run: " + ordinary.Output);
         string[] ordered = ordinary.Output.Split('\n').Single(line => line.StartsWith("ORDERED_MARKERS ", StringComparison.Ordinal))
             .TrimEnd('\r')["ORDERED_MARKERS ".Length..].Split(';');
         string[] expectedTail = Expected.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
-        Need(ordered.Length == 79 && ordered.TakeLast(6).SequenceEqual(expectedTail) && ordered.Distinct(StringComparer.Ordinal).Count() == 79,
+        Need(ordered.SequenceEqual(OS.Tooling.QemuContracts.M03NormalVerifiedExitMarkers) && ordered.TakeLast(expectedTail.Length).SequenceEqual(expectedTail) && ordered.Distinct(StringComparer.Ordinal).Count() == ordered.Length,
             "complete unique post-exit marker ordering");
         foreach (string option in new[] { "-RequireMarker", "-RequireOrderedMarker", "-RequireUniqueMarker", "-ForbidMarker" })
         {
-            var rejected = PowerShell(root, "run-qemu-smoke.ps1", ["-DryRun", option, "OS_SMOKE_PASS"]);
+            var rejected = InvokeTool(root, ["qemu", "smoke"], ["-DryRun", option, "OS_SMOKE_PASS"]);
             Need(rejected.Exit == 1 && rejected.Output.Contains("m03_normal_forbids_override", StringComparison.Ordinal), "closed marker contract " + option);
         }
-        var reused = PowerShell(root, "run-qemu-smoke.ps1", ["-DryRun", "-SkipImageBuild"]);
+        var reused = InvokeTool(root, ["qemu", "smoke"], ["-DryRun", "-SkipImageBuild"]);
         Need(reused.Exit == 1 && reused.Output.Contains("m03_normal_requires_original_capture", StringComparison.Ordinal), "normal image reuse rejected");
-        var legacy = PowerShell(root, "run-qemu-smoke.ps1", ["-DryRun", "-BootPolicy", "Diagnostic"]);
+        var legacy = InvokeTool(root, ["qemu", "smoke"], ["-DryRun", "-BootPolicy", "Diagnostic"]);
         Need(legacy.Exit == 0 && legacy.Output.Contains("QEMU_SCRIPT_BOOT_POLICY policy=Diagnostic", StringComparison.Ordinal) &&
             !legacy.Output.Contains("CLROS_M03_011_READY", StringComparison.Ordinal), "explicit diagnostic compatibility: " + legacy.Output);
     }
 
-    private static (int Exit, string Output) PowerShell(string root, string script, string[] arguments)
-    {
-        var start = new ProcessStartInfo("powershell.exe")
-        {
-            WorkingDirectory = root, UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true
-        };
-        foreach (string argument in new[] { "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/" + script }.Concat(arguments))
-            start.ArgumentList.Add(argument);
-        using Process process = Process.Start(start)!;
-        var stdout = process.StandardOutput.ReadToEndAsync();
-        var stderr = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(90_000)) { process.Kill(entireProcessTree: true); throw new Exception("script policy timeout: " + script); }
-        string error = stderr.GetAwaiter().GetResult();
-        Need(error.Length == 0, "script policy stderr: " + error);
-        return (process.ExitCode, stdout.GetAwaiter().GetResult());
-    }
+    private static (int Exit, string Output) InvokeTool(string root, string[] command, string[] arguments)
+{
+    var result = HostToolProcess.RunTool([..command, ..arguments]);
+    return (result.ExitCode, result.Output + result.Error);
+}
 
     private static (int Exit, string Output) MsBuild(string root, string[] arguments)
     {
@@ -184,11 +168,5 @@ internal static unsafe class VerifiedExitPathOptDefaultRepeatedCleanQEMUTests
 
     private static string Text(Capture* capture) => Encoding.ASCII.GetString(capture->Bytes, capture->Count);
     private static void Need(bool condition, string message) { if (!condition) throw new Exception(message); }
-    private static void Run(string name, Action test)
-    {
-        string group = "m03.011 " + name;
-        Console.WriteLine("TEST_START " + group);
-        try { test(); Console.WriteLine("TEST_PASS " + group); }
-        catch (Exception error) { Console.WriteLine("TEST_FAIL " + group + " " + error.Message); throw; }
-    }
+
 }

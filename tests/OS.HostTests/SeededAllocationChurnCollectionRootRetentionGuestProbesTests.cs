@@ -8,75 +8,76 @@ using Probe = OS.Kernel.Runtime.SeededAllocationChurnCollectionRootRetentionGues
 
 internal static unsafe class SeededAllocationChurnCollectionRootRetentionGuestProbesTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void Run()
     {
-        Console.WriteLine("TEST_START m04.014");
-        try
+        HostCheck.Run("m04.014", () =>
         {
-            uint random = 1;
-            foreach (uint expected in new uint[] { 270369, 67634689, 2647435461, 307599695 })
-                Require(DeterministicRandom32.Next(ref random) == expected, "xorshift32 known sequence");
-            uint zero = 0, normalized = DeterministicRandom32.DefaultSeed;
-            Require(DeterministicRandom32.Next(ref zero) == DeterministicRandom32.Next(ref normalized), "zero seed normalization");
-            Require(!default(SeededChurnResult).Succeeded, "default is not success");
-            foreach (uint seed in new uint[] { 0, 1, 0xDEADBEEF })
+            try
             {
-                using Fixture image = new(); using HeapFixture heap = new();
-                image.Type(0x50000000, 24, 0);
-                RhpNewFastResult permanent = heap.Allocate(image);
-                const ulong cookie = 0xFEED1234ABCDEF;
-                *(ulong*)(permanent.ObjectReference + 8) = cookie;
-                SeededChurnResult first = Execute(image, heap, seed, 64, permanent);
-                Require(first.Succeeded && first.CompletedRounds == 64 && first.Collections == 66 &&
-                    first.Allocations == first.Reclaimed && first.ReusedAddresses > 0 && first.Fingerprint != 0,
-                    "bounded churn completes, reuses and cleans up: " + first.Status);
-                long before = GC.GetAllocatedBytesForCurrentThread();
-                SeededChurnResult second = Execute(image, heap, seed, 64, permanent);
-                long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-                Require(second.Succeeded && second.Fingerprint == first.Fingerprint &&
-                    second.Allocations == first.Allocations && second.Reclaimed == first.Reclaimed && allocated == 0,
-                    "repeat schedule is address/identity independent and allocates no host scratch");
-                Require(heap.Valid(permanent) && *(ulong*)(permanent.ObjectReference + 8) == cookie,
-                    "external retained root and payload survive both runs");
-                var one = Execute(image, heap, seed, 1, permanent);
-                Require(one.Succeeded && one.CompletedRounds == 1 && one.Allocations == one.Reclaimed, "minimum round count");
-                heap.Guards(); image.Guards();
+                uint random = 1;
+                foreach (uint expected in new uint[] { 270369, 67634689, 2647435461, 307599695 })
+                    Require(DeterministicRandom32.Next(ref random) == expected, "xorshift32 known sequence");
+                uint zero = 0, normalized = DeterministicRandom32.DefaultSeed;
+                Require(DeterministicRandom32.Next(ref zero) == DeterministicRandom32.Next(ref normalized), "zero seed normalization");
+                Require(!default(SeededChurnResult).Succeeded, "default is not success");
+                foreach (uint seed in new uint[] { 0, 1, 0xDEADBEEF })
+                {
+                    using Fixture image = new(); using HeapFixture heap = new();
+                    image.Type(0x50000000, 24, 0);
+                    RhpNewFastResult permanent = heap.Allocate(image);
+                    const ulong cookie = 0xFEED1234ABCDEF;
+                    *(ulong*)(permanent.ObjectReference + 8) = cookie;
+                    SeededChurnResult first = Execute(image, heap, seed, 64, permanent);
+                    Require(first.Succeeded && first.CompletedRounds == 64 && first.Collections == 66 &&
+                        first.Allocations == first.Reclaimed && first.ReusedAddresses > 0 && first.Fingerprint != 0,
+                        "bounded churn completes, reuses and cleans up: " + first.Status);
+                    long before = GC.GetAllocatedBytesForCurrentThread();
+                    SeededChurnResult second = Execute(image, heap, seed, 64, permanent);
+                    long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+                    Require(second.Succeeded && second.Fingerprint == first.Fingerprint &&
+                        second.Allocations == first.Allocations && second.Reclaimed == first.Reclaimed && allocated == 0,
+                        "repeat schedule is address/identity independent and allocates no host scratch");
+                    Require(heap.Valid(permanent) && *(ulong*)(permanent.ObjectReference + 8) == cookie,
+                        "external retained root and payload survive both runs");
+                    var one = Execute(image, heap, seed, 1, permanent);
+                    Require(one.Succeeded && one.CompletedRounds == 1 && one.Allocations == one.Reclaimed, "minimum round count");
+                    heap.Guards(); image.Guards();
+                }
+                using (Fixture image = new())
+                using (HeapFixture heap = new())
+                {
+                    image.Type(0x50000000, 24, 0);
+                    byte[] before = heap.Snapshot();
+                    foreach (uint rounds in new uint[] { 0, 65, uint.MaxValue })
+                        Require(Execute(image, heap, 1, rounds).Status == SeededChurnStatus.InvalidRounds, "invalid round bound");
+                    image.Type(0x50000000, 32, 0);
+                    Require(Execute(image, heap, 1, 2).Status == SeededChurnStatus.TypeRejected, "non-probe layout denied");
+                    heap.Unchanged(before);
+                    image.Type(0x50000000, 24, 0);
+                    var stale = heap.Allocate(image);
+                    var cleanup = Execute(image, heap, 1, 2);
+                    Require(cleanup.Succeeded && cleanup.InitialReclaimed == 1 && cleanup.InitialReclaimedBytes == 24 &&
+                        !heap.Valid(stale), "unrooted initial objects retired and separately counted");
+                    before = heap.Snapshot();
+                    var rejected = Execute(image, heap, 1, 2, stale);
+                    Require(rejected.Status == SeededChurnStatus.CollectionRejected &&
+                        rejected.CollectionStatus == BoundedCollectionStatus.InvalidReference, "stale permanent root denied");
+                    heap.Unchanged(before);
+                }
+                using (Fixture image = new())
+                using (HeapFixture heap = new(false))
+                {
+                    image.Type(0x50000000, 24, 0);
+                    byte[] before = heap.Snapshot();
+                    Require(Execute(image, heap, 1, 2).Status == SeededChurnStatus.CollectionRejected, "noncollecting owner denied");
+                    heap.Unchanged(before);
+                }
+                StaticRoot();
             }
-            using (Fixture image = new())
-            using (HeapFixture heap = new())
-            {
-                image.Type(0x50000000, 24, 0);
-                byte[] before = heap.Snapshot();
-                foreach (uint rounds in new uint[] { 0, 65, uint.MaxValue })
-                    Require(Execute(image, heap, 1, rounds).Status == SeededChurnStatus.InvalidRounds, "invalid round bound");
-                image.Type(0x50000000, 32, 0);
-                Require(Execute(image, heap, 1, 2).Status == SeededChurnStatus.TypeRejected, "non-probe layout denied");
-                heap.Unchanged(before);
-                image.Type(0x50000000, 24, 0);
-                var stale = heap.Allocate(image);
-                var cleanup = Execute(image, heap, 1, 2);
-                Require(cleanup.Succeeded && cleanup.InitialReclaimed == 1 && cleanup.InitialReclaimedBytes == 24 &&
-                    !heap.Valid(stale), "unrooted initial objects retired and separately counted");
-                before = heap.Snapshot();
-                var rejected = Execute(image, heap, 1, 2, stale);
-                Require(rejected.Status == SeededChurnStatus.CollectionRejected &&
-                    rejected.CollectionStatus == BoundedCollectionStatus.InvalidReference, "stale permanent root denied");
-                heap.Unchanged(before);
-            }
-            using (Fixture image = new())
-            using (HeapFixture heap = new(false))
-            {
-                image.Type(0x50000000, 24, 0);
-                byte[] before = heap.Snapshot();
-                Require(Execute(image, heap, 1, 2).Status == SeededChurnStatus.CollectionRejected, "noncollecting owner denied");
-                heap.Unchanged(before);
-            }
-            StaticRoot();
-            Console.WriteLine("TEST_PASS m04.014");
-        }
-        catch (Exception error)
-        { Console.WriteLine("TEST_FAIL m04.014 " + error.Message); throw; }
+            catch (Exception error)
+            { Console.WriteLine("TEST_FAIL m04.014 " + error.Message); throw; }
+        });
     }
 
     private static SeededChurnResult Execute(Fixture image, HeapFixture heap, uint seed, uint rounds,

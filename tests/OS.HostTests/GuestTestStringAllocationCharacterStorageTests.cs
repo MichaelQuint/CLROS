@@ -19,7 +19,7 @@ internal static unsafe class GuestTestStringAllocationCharacterStorageTests
     private const ulong Token = 0x1234567800000008;
     private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void Run()
     {
         Console.WriteLine("TEST_START m04.009");
@@ -49,9 +49,8 @@ internal static unsafe class GuestTestStringAllocationCharacterStorageTests
 
     private static void Group(string name, Action test)
     {
-        Console.WriteLine("TEST_START m04.009." + name);
-        try { test(); Console.WriteLine("TEST_PASS m04.009." + name); }
-        catch (Exception error) { Console.WriteLine("TEST_FAIL m04.009." + name + " " + error.GetType().Name); throw; }
+
+        HostCheck.Run("m04.009." + name, test);
     }
 
     private static void CheckContract()

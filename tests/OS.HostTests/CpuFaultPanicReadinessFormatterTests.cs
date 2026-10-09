@@ -5,46 +5,8 @@ using OS.Kernel.Diagnostics;
 
 internal static class CpuFaultPanicReadinessFormatterTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("diagnostics.cpu_fault_panic formatter formats ready marker", TestFormatsReadyMarker, ref failures);
-        Run("diagnostics.cpu_fault_panic formatter formats not-ready marker", TestFormatsNotReadyMarker, ref failures);
-        Run("diagnostics.cpu_fault_panic formatter reports short destination", TestReportsShortDestination, ref failures);
-        Run("diagnostics.cpu_fault_panic formatter rejects invalid status", TestRejectsInvalidStatus, ref failures);
-        Run("diagnostics.cpu_fault_panic formatter uses shared ascii text builder", TestUsesSharedAsciiTextBuilder, ref failures);
-        Run("diagnostics.cpu_fault_panic formatter default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("CPU fault panic readiness formatter tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("diagnostics.cpu_fault_panic formatter formats ready marker", HostLane.Fast, 0)]
     private static bool TestFormatsReadyMarker()
     {
         Span<byte> destination = stackalloc byte[CpuFaultPanicReadinessFormatter.MaximumMarkerBytes];
@@ -54,14 +16,15 @@ internal static class CpuFaultPanicReadinessFormatterTests
 
         string marker = Encoding.ASCII.GetString(destination[..result.BytesWritten]);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == CpuFaultPanicReadinessMarkerFormatStatus.Success
             && result.BytesWritten == BootSequence.CpuFaultPanicReady.Length
             && result.RequiredBytes == BootSequence.CpuFaultPanicReady.Length
-            && marker == BootSequence.CpuFaultPanicReady;
+            && marker == BootSequence.CpuFaultPanicReady);
     }
 
+    [HostTest("diagnostics.cpu_fault_panic formatter formats not-ready marker", HostLane.Fast, 1)]
     private static bool TestFormatsNotReadyMarker()
     {
         CpuFaultPanicReadinessResult readiness = default;
@@ -75,7 +38,7 @@ internal static class CpuFaultPanicReadinessFormatterTests
             CpuFaultPanicBootReadinessStatus.PanicReadinessFailed,
             readiness);
 
-        return !readiness.IsInitialized
+        return HostCheck.Result(!readiness.IsInitialized
             && !readiness.Succeeded
             && result.Succeeded
             && result.BytesWritten == expected.Length
@@ -83,9 +46,10 @@ internal static class CpuFaultPanicReadinessFormatterTests
             && marker == expected
             && marker.StartsWith(BootSequence.CpuFaultPanicNotReadyPrefix, StringComparison.Ordinal)
             && marker.Contains("initialized=false", StringComparison.Ordinal)
-            && marker.EndsWith("flushed=0", StringComparison.Ordinal);
+            && marker.EndsWith("flushed=0", StringComparison.Ordinal));
     }
 
+    [HostTest("diagnostics.cpu_fault_panic formatter reports short destination", HostLane.Fast, 2)]
     private static bool TestReportsShortDestination()
     {
         CpuFaultPanicReadinessResult readiness = default;
@@ -97,7 +61,7 @@ internal static class CpuFaultPanicReadinessFormatterTests
         CpuFaultPanicReadinessMarkerFormatResult result =
             CpuFaultPanicReadinessFormatter.TryFormatNotReadyMarker(readiness, destination);
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && query.Status == CpuFaultPanicReadinessMarkerFormatStatus.Success
             && query.RequiredBytes > destination.Length
             && !query.Succeeded
@@ -107,9 +71,10 @@ internal static class CpuFaultPanicReadinessFormatterTests
             && result.BytesWritten == 0
             && result.RequiredBytes == query.RequiredBytes
             && destination[0] == 0xA5
-            && destination[^1] == 0xA5;
+            && destination[^1] == 0xA5);
     }
 
+    [HostTest("diagnostics.cpu_fault_panic formatter rejects invalid status", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidStatus()
     {
         CpuFaultEntryFrameLayoutResult frame =
@@ -126,15 +91,16 @@ internal static class CpuFaultPanicReadinessFormatterTests
         CpuFaultPanicReadinessMarkerFormatResult result =
             CpuFaultPanicReadinessFormatter.TryFormatNotReadyMarker(readiness, destination);
 
-        return result.IsInitialized
+        return HostCheck.Result(result.IsInitialized
             && !result.Succeeded
             && result.Status == CpuFaultPanicReadinessMarkerFormatStatus.InvalidStatus
             && result.BytesWritten == 0
             && result.RequiredBytes == 0
             && destination[0] == 0xCC
-            && destination[^1] == 0xCC;
+            && destination[^1] == 0xCC);
     }
 
+    [HostTest("diagnostics.cpu_fault_panic formatter uses shared ascii text builder", HostLane.Fast, 4)]
     private static bool TestUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -146,7 +112,7 @@ internal static class CpuFaultPanicReadinessFormatterTests
                 "Diagnostics",
                 "CpuFaultPanicReadinessFormatter.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains("AsciiDecimalFormatter.CountInt32Digits(readiness.Vector)", StringComparison.Ordinal)
             && source.Contains("AsciiDecimalFormatter.CountInt32Digits(readiness.RequiredFrameBytes)", StringComparison.Ordinal)
             && source.Contains("AsciiDecimalFormatter.CountInt32Digits(readiness.BytesFormatted)", StringComparison.Ordinal)
@@ -161,19 +127,20 @@ internal static class CpuFaultPanicReadinessFormatterTests
             && !source.Contains("private static int CountSignedDigits(", StringComparison.Ordinal)
             && !source.Contains("private static int CountUnsignedDigits(", StringComparison.Ordinal)
             && !source.Contains("destination[offset] = (byte)'-';", StringComparison.Ordinal)
-            && !source.Contains("destination[cursor] = (byte)('0' +", StringComparison.Ordinal);
+            && !source.Contains("destination[cursor] = (byte)('0' +", StringComparison.Ordinal));
     }
 
+    [HostTest("diagnostics.cpu_fault_panic formatter default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         CpuFaultPanicReadinessMarkerFormatResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == CpuFaultPanicReadinessMarkerFormatStatus.Success
             && result.BytesWritten == 0
             && result.RequiredBytes == 0
             && result.Flags == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<CpuFaultPanicReadinessMarkerFormatResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<CpuFaultPanicReadinessMarkerFormatResult>());
     }
 }

@@ -4,39 +4,8 @@ using OS.Kernel.Runtime;
 
 internal static class NativeAotHelperLedgerTests
 {
-    [ModuleInitializer]
-    internal static void Run()
-    {
-        int failures = 0;
 
-        Run("runtime.nativeaot helper ledger", TestLedger, ref failures);
-        Run("runtime.nativeaot helper ledger structured columns", TestStructuredColumns, ref failures);
-        Run("runtime.nativeaot helper ledger append-only values", TestAppendOnlyValues, ref failures);
-        Run("runtime.nativeaot helper ledger allocator mutation boundary", TestAllocatorMutationBoundary, ref failures);
-        Run("runtime.nativeaot helper ledger symbols", TestLedgerSymbols, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("NativeAOT helper ledger tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Action test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            test();
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("runtime.nativeaot helper ledger", HostLane.Fast, 0)]
     private static void TestLedger()
     {
         TestRequiredAreasPresent();
@@ -197,6 +166,7 @@ internal static class NativeAotHelperLedgerTests
         }
     }
 
+    [HostTest("runtime.nativeaot helper ledger structured columns", HostLane.Fast, 1)]
     private static void TestStructuredColumns()
     {
         NativeAotHelperLedgerEntry objectAllocation = GetEntry(NativeAotHelperArea.ObjectAllocation);
@@ -255,6 +225,7 @@ internal static class NativeAotHelperLedgerTests
         ExpectContains("EFI stack-probe next step", stackProbe.NextStep, "M01-022");
     }
 
+    [HostTest("runtime.nativeaot helper ledger append-only values", HostLane.Fast, 2)]
     private static void TestAppendOnlyValues()
     {
         ExpectEqual("EFI reverse P/Invoke area value", 12, (int)NativeAotHelperArea.EfiReversePInvoke);
@@ -299,6 +270,7 @@ internal static class NativeAotHelperLedgerTests
         ExpectDeferredRuntimeHelper(GetEntry(NativeAotHelperArea.WriteBarriers));
     }
 
+    [HostTest("runtime.nativeaot helper ledger allocator mutation boundary", HostLane.Fast, 3)]
     private static void TestAllocatorMutationBoundary()
     {
         NativeAotHelperLedgerEntry objectAllocation = GetEntry(NativeAotHelperArea.ObjectAllocation);
@@ -369,6 +341,7 @@ internal static class NativeAotHelperLedgerTests
         }
     }
 
+    [HostTest("runtime.nativeaot helper ledger symbols", HostLane.Fast, 4)]
     private static void TestLedgerSymbols()
     {
         string[] sourceSymbols = ExtractRuntimeExportSymbols();

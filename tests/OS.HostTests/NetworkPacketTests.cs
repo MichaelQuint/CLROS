@@ -3,54 +3,8 @@ using OS.Net;
 
 internal static class NetworkPacketTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("network packets round-trip ethernet ipv4 udp bytes", TestRoundTripEthernetIpv4UdpBytes, ref failures);
-        Run("network packets round-trip ethernet ipv4 udp checksum", TestRoundTripEthernetIpv4UdpChecksum, ref failures);
-        Run("network packets reject invalid ethernet frame length", TestInvalidEthernetFrameLength, ref failures);
-        Run("network packets reject unsupported ethertype", TestUnsupportedEtherType, ref failures);
-        Run("network packets reject unsupported ipv4 protocol", TestUnsupportedIpv4Protocol, ref failures);
-        Run("network packets reject ipv4 options", TestUnsupportedIpv4Options, ref failures);
-        Run("network packets reject bad ipv4 checksum", TestBadIpv4Checksum, ref failures);
-        Run("network packets reject truncated ipv4 payload", TestTruncatedIpv4Payload, ref failures);
-        Run("network packets reject truncated udp payload", TestTruncatedUdpPayload, ref failures);
-        Run("net.macaddress exposes zero broadcast helpers", TestMacAddressZeroBroadcastHelpers, ref failures);
-        Run(
-            "net.packet udp icmp payloads use shared buffer operations",
-            TestUdpAndIcmpPayloadCopiesUseSharedBufferOperations,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Network packet host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("network packets round-trip ethernet ipv4 udp bytes", HostLane.Fast, 0)]
     private static bool TestRoundTripEthernetIpv4UdpBytes()
     {
         EthernetIpv4UdpPacketInfo info = CreateInfo();
@@ -77,7 +31,7 @@ internal static class NetworkPacketTests
             || bytesWritten != expected.Length
             || !frame.AsSpan(0, bytesWritten).SequenceEqual(expected))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         PacketParseStatus parseStatus = EthernetIpv4UdpPacket.TryParse(
@@ -85,7 +39,7 @@ internal static class NetworkPacketTests
             out EthernetIpv4UdpPacketInfo parsedInfo,
             out ReadOnlySpan<byte> parsedPayload);
 
-        return parseStatus == PacketParseStatus.Success
+        return HostCheck.Result(parseStatus == PacketParseStatus.Success
             && parsedInfo.DestinationMac == info.DestinationMac
             && parsedInfo.SourceMac == info.SourceMac
             && parsedInfo.SourceAddress == info.SourceAddress
@@ -95,9 +49,10 @@ internal static class NetworkPacketTests
             && parsedInfo.TimeToLive == info.TimeToLive
             && parsedInfo.Identification == info.Identification
             && parsedInfo.FlagsAndFragmentOffset == info.FlagsAndFragmentOffset
-            && parsedPayload.SequenceEqual(payload);
+            && parsedPayload.SequenceEqual(payload));
     }
 
+    [HostTest("network packets round-trip ethernet ipv4 udp checksum", HostLane.Fast, 1)]
     private static bool TestRoundTripEthernetIpv4UdpChecksum()
     {
         EthernetIpv4UdpPacketInfo info = CreateInfo();
@@ -128,16 +83,17 @@ internal static class NetworkPacketTests
             udpDatagram,
             out Ipv4TransportChecksumResult checksumResult);
 
-        return writeStatus == PacketParseStatus.Success
+        return HostCheck.Result(writeStatus == PacketParseStatus.Success
             && bytesWritten == frame.Length
             && ipv4Status == PacketParseStatus.Success
             && udpStatus == PacketParseStatus.Success
             && udp.Checksum == 0xE4E9
             && checksumStatus == Ipv4TransportChecksumStatus.Success
             && checksumResult.IsValid
-            && parsedPayload.SequenceEqual(payload);
+            && parsedPayload.SequenceEqual(payload));
     }
 
+    [HostTest("network packets reject invalid ethernet frame length", HostLane.Fast, 2)]
     private static bool TestInvalidEthernetFrameLength()
     {
         byte[] frame = new byte[EthernetHeader.HeaderLength - 1];
@@ -147,9 +103,10 @@ internal static class NetworkPacketTests
             out EthernetIpv4UdpPacketInfo _,
             out ReadOnlySpan<byte> _);
 
-        return status == PacketParseStatus.BufferTooSmall;
+        return HostCheck.Result(status == PacketParseStatus.BufferTooSmall);
     }
 
+    [HostTest("network packets reject unsupported ethertype", HostLane.Fast, 3)]
     private static bool TestUnsupportedEtherType()
     {
         byte[] frame = CreateFrame();
@@ -161,9 +118,10 @@ internal static class NetworkPacketTests
             out EthernetIpv4UdpPacketInfo _,
             out ReadOnlySpan<byte> _);
 
-        return status == PacketParseStatus.UnsupportedEtherType;
+        return HostCheck.Result(status == PacketParseStatus.UnsupportedEtherType);
     }
 
+    [HostTest("network packets reject unsupported ipv4 protocol", HostLane.Fast, 4)]
     private static bool TestUnsupportedIpv4Protocol()
     {
         byte[] frame = CreateFrame();
@@ -175,9 +133,10 @@ internal static class NetworkPacketTests
             out EthernetIpv4UdpPacketInfo _,
             out ReadOnlySpan<byte> _);
 
-        return status == PacketParseStatus.UnsupportedIpProtocol;
+        return HostCheck.Result(status == PacketParseStatus.UnsupportedIpProtocol);
     }
 
+    [HostTest("network packets reject ipv4 options", HostLane.Fast, 5)]
     private static bool TestUnsupportedIpv4Options()
     {
         byte[] frame = CreateFrame();
@@ -192,9 +151,10 @@ internal static class NetworkPacketTests
             out EthernetIpv4UdpPacketInfo _,
             out ReadOnlySpan<byte> _);
 
-        return status == PacketParseStatus.UnsupportedIpHeaderLength;
+        return HostCheck.Result(status == PacketParseStatus.UnsupportedIpHeaderLength);
     }
 
+    [HostTest("network packets reject bad ipv4 checksum", HostLane.Fast, 6)]
     private static bool TestBadIpv4Checksum()
     {
         byte[] frame = CreateFrame();
@@ -205,9 +165,10 @@ internal static class NetworkPacketTests
             out EthernetIpv4UdpPacketInfo _,
             out ReadOnlySpan<byte> _);
 
-        return status == PacketParseStatus.BadChecksum;
+        return HostCheck.Result(status == PacketParseStatus.BadChecksum);
     }
 
+    [HostTest("network packets reject truncated ipv4 payload", HostLane.Fast, 7)]
     private static bool TestTruncatedIpv4Payload()
     {
         byte[] frame = CreateFrame();
@@ -217,9 +178,10 @@ internal static class NetworkPacketTests
             out EthernetIpv4UdpPacketInfo _,
             out ReadOnlySpan<byte> _);
 
-        return status == PacketParseStatus.TruncatedPayload;
+        return HostCheck.Result(status == PacketParseStatus.TruncatedPayload);
     }
 
+    [HostTest("network packets reject truncated udp payload", HostLane.Fast, 8)]
     private static bool TestTruncatedUdpPayload()
     {
         byte[] frame = CreateFrame();
@@ -232,9 +194,10 @@ internal static class NetworkPacketTests
             out EthernetIpv4UdpPacketInfo _,
             out ReadOnlySpan<byte> _);
 
-        return status == PacketParseStatus.TruncatedPayload;
+        return HostCheck.Result(status == PacketParseStatus.TruncatedPayload);
     }
 
+    [HostTest("net.macaddress exposes zero broadcast helpers", HostLane.Fast, 9)]
     private static bool TestMacAddressZeroBroadcastHelpers()
     {
         MacAddress zero = default;
@@ -244,7 +207,7 @@ internal static class NetworkPacketTests
         MacAddress multicast = new MacAddress(0x01, 0x00, 0x5E, 0x00, 0x00, 0x01);
         MacAddress partialBroadcast = new MacAddress(0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFE);
 
-        return zero.IsZero
+        return HostCheck.Result(zero.IsZero
             && allZero.IsZero
             && !zero.IsBroadcast
             && broadcast.IsBroadcast
@@ -254,9 +217,10 @@ internal static class NetworkPacketTests
             && !multicast.IsZero
             && !multicast.IsBroadcast
             && !partialBroadcast.IsZero
-            && !partialBroadcast.IsBroadcast;
+            && !partialBroadcast.IsBroadcast);
     }
 
+    [HostTest("net.packet udp icmp payloads use shared buffer operations", HostLane.Fast, 10)]
     private static bool TestUdpAndIcmpPayloadCopiesUseSharedBufferOperations()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -273,7 +237,7 @@ internal static class NetworkPacketTests
             "Net",
             "IcmpEchoPacket.cs"));
 
-        return udpSource.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
+        return HostCheck.Result(udpSource.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
             && udpSource.Contains(
                 "BufferOperations.MemoryCopy(payload, datagram.Slice(HeaderLength, payload.Length))",
                 StringComparison.Ordinal)
@@ -286,7 +250,7 @@ internal static class NetworkPacketTests
                 StringComparison.Ordinal)
             && !icmpSource.Contains(
                 "payload.CopyTo(packet.Slice(HeaderLength, payload.Length))",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
     private static EthernetIpv4UdpPacketInfo CreateInfo()

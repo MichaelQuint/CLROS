@@ -3,52 +3,16 @@ using OS.Boot;
 
 internal static class EfiBootHandoffValidatorTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("efi.handoff.validator accepts owned memory-map handoff", TestAcceptsOwnedMemoryMapHandoff, ref failures);
-        Run("efi.handoff.validator rejects invalid boot source and capabilities", TestRejectsSourceAndCapabilities, ref failures);
-        Run("efi.handoff.validator rejects memory-map ownership issues", TestRejectsMemoryMapOwnership, ref failures);
-        Run("efi.handoff.validator rejects descriptor metadata issues", TestRejectsDescriptorMetadata, ref failures);
-        Run("efi.handoff.validator validates ACPI RSDP metadata", TestValidatesAcpiRsdpMetadata, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("EFI boot handoff validator host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("efi.handoff.validator accepts owned memory-map handoff", HostLane.Fast, 0)]
     private static bool TestAcceptsOwnedMemoryMapHandoff()
     {
         BootHandoffRecord record = CreateValidOwnedRecord();
 
-        return EfiBootHandoffValidator.Validate(record) == EfiBootHandoffStatus.Success;
+        return HostCheck.Result(EfiBootHandoffValidator.Validate(record) == EfiBootHandoffStatus.Success);
     }
 
+    [HostTest("efi.handoff.validator rejects invalid boot source and capabilities", HostLane.Fast, 1)]
     private static bool TestRejectsSourceAndCapabilities()
     {
         BootHandoffRecord invalidBootMode = CreateValidOwnedRecord();
@@ -63,12 +27,13 @@ internal static class EfiBootHandoffValidatorTests
         BootHandoffRecord invalidFirmwareMode = CreateValidOwnedRecord();
         invalidFirmwareMode.FirmwareServicesMode = 99;
 
-        return EfiBootHandoffValidator.Validate(invalidBootMode) == EfiBootHandoffStatus.InvalidBootMode
+        return HostCheck.Result(EfiBootHandoffValidator.Validate(invalidBootMode) == EfiBootHandoffStatus.InvalidBootMode
             && EfiBootHandoffValidator.Validate(unknownCapability) == EfiBootHandoffStatus.UnknownCapability
             && EfiBootHandoffValidator.Validate(missingCapability) == EfiBootHandoffStatus.MissingRequiredCapability
-            && EfiBootHandoffValidator.Validate(invalidFirmwareMode) == EfiBootHandoffStatus.InvalidFirmwareServicesMode;
+            && EfiBootHandoffValidator.Validate(invalidFirmwareMode) == EfiBootHandoffStatus.InvalidFirmwareServicesMode);
     }
 
+    [HostTest("efi.handoff.validator rejects memory-map ownership issues", HostLane.Fast, 2)]
     private static bool TestRejectsMemoryMapOwnership()
     {
         BootHandoffRecord missingMap = CreateValidOwnedRecord();
@@ -86,13 +51,14 @@ internal static class EfiBootHandoffValidatorTests
         BootHandoffRecord invalidMapSize = CreateValidOwnedRecord();
         invalidMapSize.MemoryMap.BufferSize = invalidMapSize.MemoryMap.MapSize - 1;
 
-        return EfiBootHandoffValidator.Validate(missingMap) == EfiBootHandoffStatus.MissingMemoryMap
+        return HostCheck.Result(EfiBootHandoffValidator.Validate(missingMap) == EfiBootHandoffStatus.MissingMemoryMap
             && EfiBootHandoffValidator.Validate(notOwned) == EfiBootHandoffStatus.MemoryMapNotOwned
             && EfiBootHandoffValidator.Validate(missingSource) == EfiBootHandoffStatus.MissingSourceMemoryMap
             && EfiBootHandoffValidator.Validate(sourceAlias) == EfiBootHandoffStatus.SourceMatchesOwnedBuffer
-            && EfiBootHandoffValidator.Validate(invalidMapSize) == EfiBootHandoffStatus.InvalidMapSize;
+            && EfiBootHandoffValidator.Validate(invalidMapSize) == EfiBootHandoffStatus.InvalidMapSize);
     }
 
+    [HostTest("efi.handoff.validator rejects descriptor metadata issues", HostLane.Fast, 3)]
     private static bool TestRejectsDescriptorMetadata()
     {
         BootHandoffRecord invalidSize = CreateValidOwnedRecord();
@@ -115,14 +81,15 @@ internal static class EfiBootHandoffValidatorTests
         BootHandoffRecord mismatchedCount = CreateValidOwnedRecord();
         mismatchedCount.MemoryMap.DescriptorCount = 2;
 
-        return EfiBootHandoffValidator.Validate(invalidSize) == EfiBootHandoffStatus.InvalidDescriptorSize
+        return HostCheck.Result(EfiBootHandoffValidator.Validate(invalidSize) == EfiBootHandoffStatus.InvalidDescriptorSize
             && EfiBootHandoffValidator.Validate(invalidVersion) == EfiBootHandoffStatus.InvalidDescriptorVersion
             && EfiBootHandoffValidator.Validate(zeroCount) == EfiBootHandoffStatus.InvalidDescriptorCount
             && EfiBootHandoffValidator.Validate(excessiveCount) == EfiBootHandoffStatus.InvalidDescriptorCount
             && EfiBootHandoffValidator.Validate(overflow) == EfiBootHandoffStatus.InvalidDescriptorCount
-            && EfiBootHandoffValidator.Validate(mismatchedCount) == EfiBootHandoffStatus.InvalidDescriptorCount;
+            && EfiBootHandoffValidator.Validate(mismatchedCount) == EfiBootHandoffStatus.InvalidDescriptorCount);
     }
 
+    [HostTest("efi.handoff.validator validates ACPI RSDP metadata", HostLane.Fast, 4)]
     private static bool TestValidatesAcpiRsdpMetadata()
     {
         BootHandoffRecord validAcpi = CreateValidOwnedRecord();
@@ -149,10 +116,10 @@ internal static class EfiBootHandoffValidatorTests
         pointerWithoutCapability.AcpiRsdp.ScanStatus = FirmwareAcpiRsdpRecord.ScanStatusOk;
         pointerWithoutCapability.AcpiRsdp.Flags = FirmwareAcpiRsdpRecord.FlagPresent;
 
-        return EfiBootHandoffValidator.Validate(validAcpi) == EfiBootHandoffStatus.Success
+        return HostCheck.Result(EfiBootHandoffValidator.Validate(validAcpi) == EfiBootHandoffStatus.Success
             && EfiBootHandoffValidator.Validate(zeroPointer) == EfiBootHandoffStatus.InvalidAcpiRsdp
             && EfiBootHandoffValidator.Validate(invalidKind) == EfiBootHandoffStatus.InvalidAcpiRsdp
-            && EfiBootHandoffValidator.Validate(pointerWithoutCapability) == EfiBootHandoffStatus.InvalidAcpiRsdp;
+            && EfiBootHandoffValidator.Validate(pointerWithoutCapability) == EfiBootHandoffStatus.InvalidAcpiRsdp);
     }
 
     private static BootHandoffRecord CreateValidOwnedRecord()

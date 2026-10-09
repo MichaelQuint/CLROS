@@ -12,54 +12,7 @@ internal static class TcpReceiveDispatcherTests
     private const uint LocalNextSequence = 0x01020304;
     private const uint RemoteNextSequence = 0x10203040;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.tcp.rx dispatch accepts established payload", TestAcceptsEstablishedPayload, ref failures);
-        Run("net.tcp.rx dispatch acknowledges fin", TestAcknowledgesFin, ref failures);
-        Run("net.tcp.rx dispatch handles reset", TestHandlesReset, ref failures);
-        Run("net.tcp.rx dispatch accepts empty ack", TestAcceptsEmptyAck, ref failures);
-        Run("net.tcp.rx dispatch rejects out-of-window control", TestRejectsOutOfWindowControl, ref failures);
-        Run("net.tcp.rx dispatch rejects bad checksum", TestRejectsBadChecksum, ref failures);
-        Run("net.tcp.rx dispatch reports stream failure", TestReportsStreamFailure, ref failures);
-        Run("net.tcp.rx dispatch rejects non tcp", TestRejectsNonTcp, ref failures);
-        Run("net.tcp.rx dispatch default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("net.tcp.rx.dispatch diagnostic formats payload result", TestDiagnosticFormatsPayloadResult, ref failures);
-        Run("net.tcp.rx.dispatch diagnostic formats failure result", TestDiagnosticFormatsFailureResult, ref failures);
-        Run("net.tcp.rx.dispatch diagnostic reports short destination", TestDiagnosticReportsShortDestination, ref failures);
-        Run("net.tcp.rx.dispatch diagnostic rejects default result", TestDiagnosticRejectsDefaultResult, ref failures);
-        Run("net.tcp.rx.dispatch diagnostic formatter uses shared ascii text builder", TestDiagnosticFormatterUsesSharedAsciiTextBuilder, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("TCP receive dispatcher host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.tcp.rx dispatch accepts established payload", HostLane.Fast, 0)]
     private static bool TestAcceptsEstablishedPayload()
     {
         Span<byte> receiveStorage = stackalloc byte[16];
@@ -100,16 +53,17 @@ internal static class TcpReceiveDispatcherTests
             || stream.AcknowledgementNumber != RemoteNextSequence + (uint)payload.Length
             || close.State != TcpConnectionCloseState.Established)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> read = stackalloc byte[4];
-        return stream.Read(read, out TcpEstablishedStreamReadResult readResult)
+        return HostCheck.Result(stream.Read(read, out TcpEstablishedStreamReadResult readResult)
                 == TcpEstablishedStreamStatus.Success
             && readResult.BytesRead == payload.Length
-            && BytesEqual(read, payload);
+            && BytesEqual(read, payload));
     }
 
+    [HostTest("net.tcp.rx dispatch acknowledges fin", HostLane.Fast, 1)]
     private static bool TestAcknowledgesFin()
     {
         Span<byte> receiveStorage = stackalloc byte[16];
@@ -132,7 +86,7 @@ internal static class TcpReceiveDispatcherTests
                 out TcpReceiveDispatchResult payloadResult) != TcpReceiveDispatchStatus.Success
             || payloadResult.Action != TcpReceiveDispatchAction.PayloadAccepted)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] finBuffer = CreateTcpReceiveBuffer(
@@ -160,7 +114,7 @@ internal static class TcpReceiveDispatcherTests
             || close.State != TcpConnectionCloseState.CloseWait
             || close.RemoteNextSequenceNumber != RemoteNextSequence + (uint)payload.Length + 1)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         ReadOnlySpan<byte> writtenAck = ackSegment.Slice(0, finResult.AckBytesWritten);
@@ -170,7 +124,7 @@ internal static class TcpReceiveDispatcherTests
                 out ReadOnlySpan<byte> _,
                 out ReadOnlySpan<byte> ackPayload) != PacketParseStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Ipv4TransportChecksumStatus checksumStatus = Ipv4TransportChecksum.Validate(
@@ -180,7 +134,7 @@ internal static class TcpReceiveDispatcherTests
             writtenAck,
             out Ipv4TransportChecksumResult checksum);
 
-        return ackHeader.SourcePort == LocalPort
+        return HostCheck.Result(ackHeader.SourcePort == LocalPort
             && ackHeader.DestinationPort == RemotePort
             && ackHeader.SequenceNumber == LocalNextSequence
             && ackHeader.AcknowledgementNumber == RemoteNextSequence + (uint)payload.Length + 1
@@ -188,9 +142,10 @@ internal static class TcpReceiveDispatcherTests
             && ackHeader.Checksum != 0
             && ackPayload.Length == 0
             && checksumStatus == Ipv4TransportChecksumStatus.Success
-            && checksum.IsValid;
+            && checksum.IsValid);
     }
 
+    [HostTest("net.tcp.rx dispatch handles reset", HostLane.Fast, 2)]
     private static bool TestHandlesReset()
     {
         Span<byte> receiveStorage = stackalloc byte[16];
@@ -211,16 +166,17 @@ internal static class TcpReceiveDispatcherTests
             Span<byte>.Empty,
             out TcpReceiveDispatchResult result);
 
-        return status == TcpReceiveDispatchStatus.Success
+        return HostCheck.Result(status == TcpReceiveDispatchStatus.Success
             && result.Succeeded
             && result.Action == TcpReceiveDispatchAction.ResetReceived
             && result.CloseState == TcpConnectionCloseState.Reset
             && close.State == TcpConnectionCloseState.Reset
             && stream.UnreadBytes == 0
             && result.PayloadBytes == 0
-            && result.AckBytesWritten == 0;
+            && result.AckBytesWritten == 0);
     }
 
+    [HostTest("net.tcp.rx dispatch accepts empty ack", HostLane.Fast, 3)]
     private static bool TestAcceptsEmptyAck()
     {
         Span<byte> receiveStorage = stackalloc byte[16];
@@ -241,7 +197,7 @@ internal static class TcpReceiveDispatcherTests
             Span<byte>.Empty,
             out TcpReceiveDispatchResult result);
 
-        return status == TcpReceiveDispatchStatus.Success
+        return HostCheck.Result(status == TcpReceiveDispatchStatus.Success
             && result.Succeeded
             && result.Action == TcpReceiveDispatchAction.None
             && result.TcpPacketStatus == PacketParseStatus.Success
@@ -260,12 +216,13 @@ internal static class TcpReceiveDispatcherTests
             && stream.LocalNextSequenceNumber == LocalNextSequence
             && stream.RemoteNextSequenceNumber == RemoteNextSequence
             && stream.UnreadBytes == 0
-            && close.State == TcpConnectionCloseState.Established;
+            && close.State == TcpConnectionCloseState.Established);
     }
 
+    [HostTest("net.tcp.rx dispatch rejects out-of-window control", HostLane.Fast, 4)]
     private static bool TestRejectsOutOfWindowControl()
     {
-        return RejectsControlFrame(
+        return HostCheck.Result(RejectsControlFrame(
                 TcpConnectionClose.FlagAck,
                 RemoteNextSequence,
                 LocalNextSequence + 1,
@@ -282,9 +239,10 @@ internal static class TcpReceiveDispatcherTests
                 RemoteNextSequence,
                 LocalNextSequence,
                 new byte[] { 0x21 },
-                TcpConnectionCloseStatus.UnexpectedPayload);
+                TcpConnectionCloseStatus.UnexpectedPayload));
     }
 
+    [HostTest("net.tcp.rx dispatch rejects bad checksum", HostLane.Fast, 5)]
     private static bool TestRejectsBadChecksum()
     {
         Span<byte> receiveStorage = stackalloc byte[16];
@@ -305,7 +263,7 @@ internal static class TcpReceiveDispatcherTests
             Span<byte>.Empty,
             out TcpReceiveDispatchResult result);
 
-        return status == TcpReceiveDispatchStatus.BadTcpChecksum
+        return HostCheck.Result(status == TcpReceiveDispatchStatus.BadTcpChecksum
             && !result.Succeeded
             && result.TcpPacketStatus == PacketParseStatus.BadChecksum
             && result.ChecksumStatus == Ipv4TransportChecksumStatus.Success
@@ -314,9 +272,10 @@ internal static class TcpReceiveDispatcherTests
             && result.TcpSegmentOffset == ExpectedTcpSegmentOffset
             && stream.RemoteNextSequenceNumber == RemoteNextSequence
             && stream.UnreadBytes == 0
-            && close.State == TcpConnectionCloseState.Established;
+            && close.State == TcpConnectionCloseState.Established);
     }
 
+    [HostTest("net.tcp.rx dispatch reports stream failure", HostLane.Fast, 6)]
     private static bool TestReportsStreamFailure()
     {
         Span<byte> receiveStorage = stackalloc byte[16];
@@ -337,16 +296,17 @@ internal static class TcpReceiveDispatcherTests
             Span<byte>.Empty,
             out TcpReceiveDispatchResult result);
 
-        return status == TcpReceiveDispatchStatus.TcpStreamFailed
+        return HostCheck.Result(status == TcpReceiveDispatchStatus.TcpStreamFailed
             && !result.Succeeded
             && result.StreamStatus == TcpEstablishedStreamStatus.OutOfOrderSegment
             && result.TcpPacketStatus == PacketParseStatus.Success
             && result.PayloadBytes == 0
             && stream.RemoteNextSequenceNumber == RemoteNextSequence
             && stream.UnreadBytes == 0
-            && close.State == TcpConnectionCloseState.Established;
+            && close.State == TcpConnectionCloseState.Established);
     }
 
+    [HostTest("net.tcp.rx dispatch rejects non tcp", HostLane.Fast, 7)]
     private static bool TestRejectsNonTcp()
     {
         Span<byte> receiveStorage = stackalloc byte[16];
@@ -362,7 +322,7 @@ internal static class TcpReceiveDispatcherTests
             Span<byte>.Empty,
             out TcpReceiveDispatchResult result);
 
-        return status == TcpReceiveDispatchStatus.UnsupportedIpProtocol
+        return HostCheck.Result(status == TcpReceiveDispatchStatus.UnsupportedIpProtocol
             && !result.Succeeded
             && result.NetworkStatus == NetworkReceiveDispatchStatus.Success
             && result.PayloadKind == EthernetPayloadKind.Ipv4
@@ -370,9 +330,10 @@ internal static class TcpReceiveDispatcherTests
             && result.TcpSegmentOffset == 0
             && result.TcpSegmentLength == 0
             && stream.RemoteNextSequenceNumber == RemoteNextSequence
-            && close.State == TcpConnectionCloseState.Established;
+            && close.State == TcpConnectionCloseState.Established);
     }
 
+    [HostTest("net.tcp.rx dispatch default result is not success", HostLane.Fast, 8)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         TcpReceiveDispatchResult defaultResult = default;
@@ -392,7 +353,7 @@ internal static class TcpReceiveDispatcherTests
             LocalNextSequence,
             RemoteNextSequence);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == TcpReceiveDispatchStatus.Success
             && defaultResult.Action == TcpReceiveDispatchAction.None
@@ -419,9 +380,10 @@ internal static class TcpReceiveDispatcherTests
             && !TcpReceiveDispatcher.ImplementsTls
             && !TcpReceiveDispatcher.ImplementsFullTcp
             && !TcpReceiveDispatcher.StartsKestrel
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpReceiveDispatchResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpReceiveDispatchResult>());
     }
 
+    [HostTest("net.tcp.rx.dispatch diagnostic formats payload result", HostLane.Fast, 9)]
     private static bool TestDiagnosticFormatsPayloadResult()
     {
         Span<byte> receiveStorage = stackalloc byte[16];
@@ -445,7 +407,7 @@ internal static class TcpReceiveDispatcherTests
                 Span<byte>.Empty,
                 out TcpReceiveDispatchResult dispatch) != TcpReceiveDispatchStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         TcpReceiveDispatchDiagnosticFormatResult query =
@@ -466,7 +428,7 @@ internal static class TcpReceiveDispatcherTests
             " remoteSeq=" +
             (RemoteNextSequence + (uint)payload.Length);
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && !query.Succeeded
             && query.Status == TcpReceiveDispatchDiagnosticFormatStatus.Success
             && query.DispatchStatus == TcpReceiveDispatchStatus.Success
@@ -478,9 +440,10 @@ internal static class TcpReceiveDispatcherTests
             && format.BytesWritten == expected.Length
             && format.RequiredBytes == expected.Length
             && format.AvailableBytes == destination.Length
-            && text == expected;
+            && text == expected);
     }
 
+    [HostTest("net.tcp.rx.dispatch diagnostic formats failure result", HostLane.Fast, 10)]
     private static bool TestDiagnosticFormatsFailureResult()
     {
         Span<byte> receiveStorage = stackalloc byte[16];
@@ -505,7 +468,7 @@ internal static class TcpReceiveDispatcherTests
             out TcpReceiveDispatchResult dispatch);
         if (status != TcpReceiveDispatchStatus.BadTcpChecksum)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         TcpReceiveDispatchDiagnosticFormatResult query =
@@ -525,7 +488,7 @@ internal static class TcpReceiveDispatcherTests
             " remoteSeq=" +
             RemoteNextSequence;
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && !query.Succeeded
             && query.Status == TcpReceiveDispatchDiagnosticFormatStatus.Success
             && query.DispatchStatus == TcpReceiveDispatchStatus.BadTcpChecksum
@@ -533,9 +496,10 @@ internal static class TcpReceiveDispatcherTests
             && format.Succeeded
             && format.DispatchStatus == TcpReceiveDispatchStatus.BadTcpChecksum
             && format.BytesWritten == expected.Length
-            && text == expected;
+            && text == expected);
     }
 
+    [HostTest("net.tcp.rx.dispatch diagnostic reports short destination", HostLane.Fast, 11)]
     private static bool TestDiagnosticReportsShortDestination()
     {
         Span<byte> receiveStorage = stackalloc byte[16];
@@ -559,7 +523,7 @@ internal static class TcpReceiveDispatcherTests
                 Span<byte>.Empty,
                 out TcpReceiveDispatchResult dispatch) != TcpReceiveDispatchStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         TcpReceiveDispatchDiagnosticFormatResult query =
@@ -567,7 +531,7 @@ internal static class TcpReceiveDispatcherTests
         TcpReceiveDispatchDiagnosticFormatResult shortResult =
             TcpReceiveDispatchDiagnosticFormatter.FormatResult(dispatch, destination);
 
-        return shortResult.IsInitialized
+        return HostCheck.Result(shortResult.IsInitialized
             && !shortResult.Succeeded
             && shortResult.Status == TcpReceiveDispatchDiagnosticFormatStatus.DestinationTooSmall
             && shortResult.DispatchStatus == TcpReceiveDispatchStatus.Success
@@ -576,9 +540,10 @@ internal static class TcpReceiveDispatcherTests
             && shortResult.AvailableBytes == destination.Length
             && query.RequiredBytes > destination.Length
             && destination[0] == 0xA5
-            && destination[11] == 0xA5;
+            && destination[11] == 0xA5);
     }
 
+    [HostTest("net.tcp.rx.dispatch diagnostic rejects default result", HostLane.Fast, 12)]
     private static bool TestDiagnosticRejectsDefaultResult()
     {
         Span<byte> destination = stackalloc byte[64];
@@ -591,7 +556,7 @@ internal static class TcpReceiveDispatcherTests
             TcpReceiveDispatchDiagnosticFormatter.QueryRequiredBytes(defaultDispatch);
         TcpReceiveDispatchDiagnosticFormatResult defaultFormat = default;
 
-        return invalidFormat.IsInitialized
+        return HostCheck.Result(invalidFormat.IsInitialized
             && !invalidFormat.Succeeded
             && invalidFormat.Status == TcpReceiveDispatchDiagnosticFormatStatus.InvalidResult
             && invalidFormat.DispatchStatus == TcpReceiveDispatchStatus.Success
@@ -609,9 +574,10 @@ internal static class TcpReceiveDispatcherTests
             && destination[0] == 0xCC
             && destination[63] == 0xCC
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                TcpReceiveDispatchDiagnosticFormatResult>();
+                TcpReceiveDispatchDiagnosticFormatResult>());
     }
 
+    [HostTest("net.tcp.rx.dispatch diagnostic formatter uses shared ascii text builder", HostLane.Fast, 13)]
     private static bool TestDiagnosticFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -622,7 +588,7 @@ internal static class TcpReceiveDispatcherTests
             "Net",
             "TcpReceiveDispatchDiagnosticFormatter.cs"));
 
-        return source.Contains("AsciiTextBuilder.AppendBytes(destination, offset, value)", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("AsciiTextBuilder.AppendBytes(destination, offset, value)", StringComparison.Ordinal)
             && source.Contains("AsciiTextBuilder.AppendInt64Decimal(destination, offset, value)", StringComparison.Ordinal)
             && source.Contains("AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value)", StringComparison.Ordinal)
             && source.Contains("AsciiDecimalFormatter.CountInt32Digits", StringComparison.Ordinal)
@@ -632,7 +598,7 @@ internal static class TcpReceiveDispatcherTests
             && !source.Contains("AsciiDecimalFormatter.FormatUInt32(destination[offset..], value)", StringComparison.Ordinal)
             && !source.Contains("private static void AppendInt32", StringComparison.Ordinal)
             && !source.Contains("private static void AppendUInt32", StringComparison.Ordinal)
-            && !source.Contains("private static void Append(ReadOnlySpan<byte>", StringComparison.Ordinal);
+            && !source.Contains("private static void Append(ReadOnlySpan<byte>", StringComparison.Ordinal));
     }
 
     private static bool RejectsControlFrame(

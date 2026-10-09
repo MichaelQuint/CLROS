@@ -4,49 +4,8 @@ using OS.Net;
 
 internal static class ArpReceiveDispatchCacheUpdaterTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.arp.rxdispatch updates cache from dispatched reply", TestUpdatesCacheFromDispatchedReply, ref failures);
-        Run("net.arp.rxdispatch refreshes existing cache entry", TestRefreshesExistingCacheEntry, ref failures);
-        Run("net.arp.rxdispatch rejects non-arp dispatch", TestRejectsNonArpDispatch, ref failures);
-        Run("net.arp.rxdispatch rejects wrong local target", TestRejectsWrongLocalTarget, ref failures);
-        Run("net.arp.rxdispatch preserves cache on validation failure", TestPreservesCacheOnValidationFailure, ref failures);
-        Run("net.arp.rxdispatch rejects truncated payload range", TestRejectsTruncatedPayloadRange, ref failures);
-        Run("net.arp.rxdispatch preserves no-nic-io boundary", TestPreservesNoNicIoBoundary, ref failures);
-        Run("net.arp.rxdispatch default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "ARP receive dispatch cache updater host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.arp.rxdispatch updates cache from dispatched reply", HostLane.Fast, 0)]
     private static bool TestUpdatesCacheFromDispatchedReply()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[2];
@@ -74,7 +33,7 @@ internal static class ArpReceiveDispatchCacheUpdaterTests
             TargetAddress(),
             out ArpNeighborCacheLookupResult lookup);
 
-        return status == ArpReceiveDispatchCacheUpdateStatus.Success
+        return HostCheck.Result(status == ArpReceiveDispatchCacheUpdateStatus.Success
             && result.Succeeded
             && result.DispatchStatus == NetworkReceiveDispatchStatus.Success
             && result.ArpStatus == ArpNeighborResolutionStatus.Success
@@ -88,9 +47,10 @@ internal static class ArpReceiveDispatchCacheUpdaterTests
             && lookupStatus == ArpNeighborCacheStatus.Success
             && lookup.Entry.Address == TargetAddress()
             && lookup.Entry.MacAddress == RemoteMac()
-            && lookup.Entry.LastUpdatedTick == 100;
+            && lookup.Entry.LastUpdatedTick == 100);
     }
 
+    [HostTest("net.arp.rxdispatch refreshes existing cache entry", HostLane.Fast, 1)]
     private static bool TestRefreshesExistingCacheEntry()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[1];
@@ -119,16 +79,17 @@ internal static class ArpReceiveDispatchCacheUpdaterTests
             TargetAddress(),
             out ArpNeighborCacheLookupResult lookup);
 
-        return status == ArpReceiveDispatchCacheUpdateStatus.Success
+        return HostCheck.Result(status == ArpReceiveDispatchCacheUpdateStatus.Success
             && result.UpdatedExisting
             && result.CacheCount == 1
             && result.CacheCapacity == 1
             && lookupStatus == ArpNeighborCacheStatus.Success
             && lookup.Entry.MacAddress == RemoteMac()
             && lookup.Entry.LastUpdatedTick == 200
-            && cache.Count == 1;
+            && cache.Count == 1);
     }
 
+    [HostTest("net.arp.rxdispatch rejects non-arp dispatch", HostLane.Fast, 2)]
     private static bool TestRejectsNonArpDispatch()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[1];
@@ -151,7 +112,7 @@ internal static class ArpReceiveDispatchCacheUpdaterTests
             TargetAddress(),
             out ArpNeighborCacheLookupResult lookup);
 
-        return status == ArpReceiveDispatchCacheUpdateStatus.NonArpDispatch
+        return HostCheck.Result(status == ArpReceiveDispatchCacheUpdateStatus.NonArpDispatch
             && !result.Succeeded
             && result.DispatchStatus == NetworkReceiveDispatchStatus.Success
             && result.ArpStatus == ArpNeighborResolutionStatus.UnsupportedEtherType
@@ -160,9 +121,10 @@ internal static class ArpReceiveDispatchCacheUpdaterTests
             && lookupStatus == ArpNeighborCacheStatus.Success
             && lookup.Entry.MacAddress == OldRemoteMac()
             && lookup.Entry.LastUpdatedTick == 10
-            && cache.Count == 1;
+            && cache.Count == 1);
     }
 
+    [HostTest("net.arp.rxdispatch rejects wrong local target", HostLane.Fast, 3)]
     private static bool TestRejectsWrongLocalTarget()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[1];
@@ -187,15 +149,16 @@ internal static class ArpReceiveDispatchCacheUpdaterTests
                 currentTick: 100,
                 out ArpReceiveDispatchCacheUpdateResult result);
 
-        return status == ArpReceiveDispatchCacheUpdateStatus.ArpValidationFailed
+        return HostCheck.Result(status == ArpReceiveDispatchCacheUpdateStatus.ArpValidationFailed
             && !result.Succeeded
             && result.ArpStatus == ArpNeighborResolutionStatus.TargetAddressMismatch
             && result.CacheStatus == ArpNeighborCacheStatus.Success
             && result.CacheCount == 0
             && result.CacheCapacity == 1
-            && cache.Count == 0;
+            && cache.Count == 0);
     }
 
+    [HostTest("net.arp.rxdispatch preserves cache on validation failure", HostLane.Fast, 4)]
     private static bool TestPreservesCacheOnValidationFailure()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[1];
@@ -224,7 +187,7 @@ internal static class ArpReceiveDispatchCacheUpdaterTests
             TargetAddress(),
             out ArpNeighborCacheLookupResult lookup);
 
-        return status == ArpReceiveDispatchCacheUpdateStatus.ArpValidationFailed
+        return HostCheck.Result(status == ArpReceiveDispatchCacheUpdateStatus.ArpValidationFailed
             && !result.Succeeded
             && result.ArpStatus == ArpNeighborResolutionStatus.EthernetSourceMismatch
             && result.CacheCount == 1
@@ -232,9 +195,10 @@ internal static class ArpReceiveDispatchCacheUpdaterTests
             && lookupStatus == ArpNeighborCacheStatus.Success
             && lookup.Entry.MacAddress == OldRemoteMac()
             && lookup.Entry.LastUpdatedTick == 10
-            && cache.Count == 1;
+            && cache.Count == 1);
     }
 
+    [HostTest("net.arp.rxdispatch rejects truncated payload range", HostLane.Fast, 5)]
     private static bool TestRejectsTruncatedPayloadRange()
     {
         Span<ArpNeighborCacheEntry> storage = stackalloc ArpNeighborCacheEntry[1];
@@ -259,27 +223,29 @@ internal static class ArpReceiveDispatchCacheUpdaterTests
             TargetAddress(),
             out ArpNeighborCacheLookupResult lookup);
 
-        return status == ArpReceiveDispatchCacheUpdateStatus.PayloadRangeInvalid
+        return HostCheck.Result(status == ArpReceiveDispatchCacheUpdateStatus.PayloadRangeInvalid
             && !result.Succeeded
             && result.ArpStatus == ArpNeighborResolutionStatus.FrameParseFailed
             && result.PacketStatus == PacketParseStatus.BufferTooSmall
             && lookupStatus == ArpNeighborCacheStatus.Success
             && lookup.Entry.MacAddress == OldRemoteMac()
             && lookup.Entry.LastUpdatedTick == 10
-            && cache.Count == 1;
+            && cache.Count == 1);
     }
 
+    [HostTest("net.arp.rxdispatch preserves no-nic-io boundary", HostLane.Fast, 6)]
     private static bool TestPreservesNoNicIoBoundary()
     {
-        return ArpReceiveDispatchCacheUpdater.RequiresCallerOwnedCacheStorage
+        return HostCheck.Result(ArpReceiveDispatchCacheUpdater.RequiresCallerOwnedCacheStorage
             && !ArpReceiveDispatchCacheUpdater.ReadsNic
             && !ArpReceiveDispatchCacheUpdater.PollsNic
             && !ArpReceiveDispatchCacheUpdater.AllocatesCacheStorage
             && !ArpReceiveDispatchCacheUpdater.DispatchesSockets
             && !ArpReceiveDispatchCacheUpdater.RoutesPackets
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<ArpReceiveDispatchCacheUpdateResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<ArpReceiveDispatchCacheUpdateResult>());
     }
 
+    [HostTest("net.arp.rxdispatch default result is not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         ArpReceiveDispatchCacheUpdateResult defaultResult = default;
@@ -304,7 +270,7 @@ internal static class ArpReceiveDispatchCacheUpdaterTests
             cacheCount: 3,
             cacheCapacity: 4);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == ArpReceiveDispatchCacheUpdateStatus.Success
             && defaultResult.DispatchStatus == NetworkReceiveDispatchStatus.Success
@@ -334,7 +300,7 @@ internal static class ArpReceiveDispatchCacheUpdaterTests
             && failure.CacheCount == 3
             && failure.CacheCapacity == 4
             && !failure.UpdatedExisting
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<ArpReceiveDispatchCacheUpdateResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<ArpReceiveDispatchCacheUpdateResult>());
     }
 
     private static NetworkReceiveDispatchResult CreateSyntheticArpDispatch(

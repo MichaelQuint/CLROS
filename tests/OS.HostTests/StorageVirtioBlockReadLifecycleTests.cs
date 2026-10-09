@@ -10,48 +10,7 @@ internal static class StorageVirtioBlockReadLifecycleTests
     private const ulong DataPhysicalAddress = 0x0020_0000UL;
     private const ulong StatusPhysicalAddress = 0x0030_0000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("storage.virtioblk lifecycle publishes read request", TestPublishesReadRequest, ref failures);
-        Run("storage.virtioblk lifecycle completes read request", TestCompletesReadRequest, ref failures);
-        Run("storage.virtioblk lifecycle carries next ring indexes", TestCarriesNextRingIndexes, ref failures);
-        Run("storage.virtioblk lifecycle reports read plan failure", TestReportsReadPlanFailure, ref failures);
-        Run("storage.virtioblk lifecycle reports descriptor write failure", TestReportsDescriptorWriteFailure, ref failures);
-        Run("storage.virtioblk lifecycle reports completion failure", TestReportsCompletionFailure, ref failures);
-        Run("storage.virtioblk lifecycle publish default result is not success", TestDefaultPublishResultIsNotSuccess, ref failures);
-        Run("storage.virtioblk lifecycle completion default result is not success", TestDefaultCompletionResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio block read lifecycle host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.virtioblk lifecycle publishes read request", HostLane.Fast, 0)]
     private static bool TestPublishesReadRequest()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -80,7 +39,7 @@ internal static class StorageVirtioBlockReadLifecycleTests
                 status,
                 queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioBlockReadLifecyclePublishStatus.Success
             && result.ReadPlanStatus == VirtioBlockReadTransactionPlanStatus.Success
             && result.RequestPlanStatus == VirtioBlockRequestPlanStatus.Success
@@ -109,9 +68,10 @@ internal static class StorageVirtioBlockReadLifecycleTests
             && !VirtioBlockReadLifecycle.PollsDevice
             && !VirtioBlockReadLifecycle.HandlesInterrupts
             && !VirtioBlockReadLifecycle.CopiesPayload
-            && !VirtioBlockReadLifecycle.PerformsDiskRead;
+            && !VirtioBlockReadLifecycle.PerformsDiskRead);
     }
 
+    [HostTest("storage.virtioblk lifecycle completes read request", HostLane.Fast, 1)]
     private static bool TestCompletesReadRequest()
     {
         VirtioBlockReadLifecyclePublishResult publish = CreateSuccessfulPublish(
@@ -122,7 +82,7 @@ internal static class StorageVirtioBlockReadLifecycleTests
             out byte[] status);
         if (!publish.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         status[0] = (byte)VirtioBlockDeviceStatus.Ok;
@@ -140,7 +100,7 @@ internal static class StorageVirtioBlockReadLifecycleTests
                 queueMemory,
                 status);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioBlockReadLifecycleCompletionStatus.Success
             && result.PublishStatus == VirtioBlockReadLifecyclePublishStatus.Success
             && result.CompletionReaderStatus == VirtioBlockUsedRingCompletionReaderStatus.Success
@@ -158,9 +118,10 @@ internal static class StorageVirtioBlockReadLifecycleTests
             && result.UsedRingElementOffset == 12
             && result.CompletedDescriptorHead == 3
             && result.CompletedByteCount == 1024
-            && result.StatusByte == (byte)VirtioBlockDeviceStatus.Ok;
+            && result.StatusByte == (byte)VirtioBlockDeviceStatus.Ok);
     }
 
+    [HostTest("storage.virtioblk lifecycle carries next ring indexes", HostLane.Fast, 2)]
     private static bool TestCarriesNextRingIndexes()
     {
         VirtioBlockReadLifecyclePublishResult publish = CreateSuccessfulPublish(
@@ -171,7 +132,7 @@ internal static class StorageVirtioBlockReadLifecycleTests
             out byte[] status);
         if (!publish.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         status[0] = (byte)VirtioBlockDeviceStatus.Ok;
@@ -189,16 +150,17 @@ internal static class StorageVirtioBlockReadLifecycleTests
                 queueMemory,
                 status);
 
-        return completion.Succeeded
+        return HostCheck.Result(completion.Succeeded
             && publish.PreviousAvailableRingIndex == ushort.MaxValue
             && publish.NextAvailableRingIndex == 0
             && publish.PreviousUsedIndex == ushort.MaxValue
             && publish.ExpectedNextUsedIndex == 0
             && completion.PreviousUsedIndex == ushort.MaxValue
             && completion.CurrentUsedIndex == 0
-            && completion.NextUsedIndex == 0;
+            && completion.NextUsedIndex == 0);
     }
 
+    [HostTest("storage.virtioblk lifecycle reports read plan failure", HostLane.Fast, 3)]
     private static bool TestReportsReadPlanFailure()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -227,15 +189,16 @@ internal static class StorageVirtioBlockReadLifecycleTests
                 status,
                 queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockReadLifecyclePublishStatus.ReadPlanFailed
             && result.ReadPlanStatus == VirtioBlockReadTransactionPlanStatus.DestinationTooSmall
             && result.RequestPlanStatus == VirtioBlockRequestPlanStatus.Success
             && result.NextAvailableRingIndex == result.PreviousAvailableRingIndex
             && result.ExpectedNextUsedIndex == result.PreviousUsedIndex
-            && AllBytesEqual(queueMemory, 0x44);
+            && AllBytesEqual(queueMemory, 0x44));
     }
 
+    [HostTest("storage.virtioblk lifecycle reports descriptor write failure", HostLane.Fast, 4)]
     private static bool TestReportsDescriptorWriteFailure()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -264,14 +227,15 @@ internal static class StorageVirtioBlockReadLifecycleTests
                 status,
                 queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockReadLifecyclePublishStatus.DescriptorWriteFailed
             && result.ReadPlanStatus == VirtioBlockReadTransactionPlanStatus.Success
             && result.DescriptorPlanStatus == VirtioBlockDescriptorChainPlanStatus.Success
             && result.DescriptorWriterStatus == VirtioBlockDescriptorChainWriterStatus.QueueMemoryTooSmall
-            && AllBytesEqual(queueMemory, 0x5a);
+            && AllBytesEqual(queueMemory, 0x5a));
     }
 
+    [HostTest("storage.virtioblk lifecycle reports completion failure", HostLane.Fast, 5)]
     private static bool TestReportsCompletionFailure()
     {
         VirtioBlockReadLifecyclePublishResult publish = CreateSuccessfulPublish(
@@ -282,7 +246,7 @@ internal static class StorageVirtioBlockReadLifecycleTests
             out byte[] status);
         if (!publish.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         status[0] = (byte)VirtioBlockDeviceStatus.Ok;
@@ -300,16 +264,17 @@ internal static class StorageVirtioBlockReadLifecycleTests
                 queueMemory,
                 status);
 
-        return !completion.Succeeded
+        return HostCheck.Result(!completion.Succeeded
             && completion.Status == VirtioBlockReadLifecycleCompletionStatus.CompletionFailed
             && completion.PublishStatus == VirtioBlockReadLifecyclePublishStatus.Success
             && completion.CompletionReaderStatus == VirtioBlockUsedRingCompletionReaderStatus.UnexpectedDescriptorHead
             && completion.DescriptorHead == publish.DescriptorHead
             && completion.CompletedDescriptorHead == publish.DescriptorHead + 1u
             && completion.CompletedByteCount == publish.DataByteCount
-            && completion.StatusByte == (byte)VirtioBlockDeviceStatus.Ok;
+            && completion.StatusByte == (byte)VirtioBlockDeviceStatus.Ok);
     }
 
+    [HostTest("storage.virtioblk lifecycle publish default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultPublishResultIsNotSuccess()
     {
         VirtioBlockReadLifecyclePublishResult result = default;
@@ -337,7 +302,7 @@ internal static class StorageVirtioBlockReadLifecycleTests
                 status,
                 queueMemory);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadLifecyclePublishStatus.Success
             && result.ReadPlanStatus == VirtioBlockReadTransactionPlanStatus.Success
@@ -350,9 +315,10 @@ internal static class StorageVirtioBlockReadLifecycleTests
             && failed.IsInitialized
             && !failed.Succeeded
             && failed.Status == VirtioBlockReadLifecyclePublishStatus.ReadPlanFailed
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadLifecyclePublishResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadLifecyclePublishResult>());
     }
 
+    [HostTest("storage.virtioblk lifecycle completion default result is not success", HostLane.Fast, 7)]
     private static bool TestDefaultCompletionResultIsNotSuccess()
     {
         VirtioBlockReadLifecycleCompletionResult result = default;
@@ -362,7 +328,7 @@ internal static class StorageVirtioBlockReadLifecycleTests
                 ReadOnlySpan<byte>.Empty,
                 ReadOnlySpan<byte>.Empty);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadLifecycleCompletionStatus.Success
             && result.PublishStatus == VirtioBlockReadLifecyclePublishStatus.Success
@@ -377,7 +343,7 @@ internal static class StorageVirtioBlockReadLifecycleTests
             && failed.IsInitialized
             && !failed.Succeeded
             && failed.Status == VirtioBlockReadLifecycleCompletionStatus.PublishFailed
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadLifecycleCompletionResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadLifecycleCompletionResult>());
     }
 
     private static VirtioBlockReadLifecyclePublishResult CreateSuccessfulPublish(

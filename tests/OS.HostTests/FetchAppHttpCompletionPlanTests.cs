@@ -7,112 +7,8 @@ using OS.Net;
 
 internal static class FetchAppHttpCompletionPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("fetch.http completion accepts expected body marker", TestAcceptsExpectedBodyMarker, ref failures);
-        Run("fetch.http completion rejects failed http plan", TestRejectsFailedHttpPlan, ref failures);
-        Run("fetch.http completion rejects missing body marker", TestRejectsMissingBodyMarker, ref failures);
-        Run("fetch.http completion rejects invalid body range", TestRejectsInvalidBodyRange, ref failures);
-        Run("fetch.http completion rejects empty expected marker", TestRejectsEmptyExpectedMarker, ref failures);
-        Run("fetch.http completion rejects short response buffer", TestRejectsShortResponseBuffer, ref failures);
-        Run("fetch.http completion default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("fetch.http completion uses shared memory helper", TestUsesSharedMemoryHelper, ref failures);
-        Run("fetch.http completion config uses deterministic defaults", TestConfigUsesDeterministicDefaults, ref failures);
-        Run("fetch.http completion config flows from manifest", TestConfigFlowsFromManifest, ref failures);
-        Run("fetch.http completion config rejects invalid status", TestConfigRejectsInvalidStatus, ref failures);
-        Run("fetch.http completion config rejects empty marker", TestConfigRejectsEmptyMarker, ref failures);
-        Run("fetch.http completion config rejects oversized marker", TestConfigRejectsOversizedMarker, ref failures);
-        Run("fetch.http completion config requires marker when requested", TestConfigRequiresMarkerWhenRequested, ref failures);
-        Run(
-            "fetch.http expectation uses shared ascii equality helper",
-            TestExpectationUsesSharedAsciiEqualityHelper,
-            ref failures);
-        Run(
-            "fetch.http expectation marker copy uses shared buffer operations",
-            TestExpectationMarkerCopyUsesSharedBufferOperations,
-            ref failures);
-        Run("fetch.http request endpoint defaults", TestRequestEndpointDefaults, ref failures);
-        Run("fetch.http request endpoint explicit config", TestRequestEndpointExplicitConfig, ref failures);
-        Run("fetch.http request endpoint invalid scheme", TestRequestEndpointInvalidScheme, ref failures);
-        Run("fetch.http request endpoint invalid port", TestRequestEndpointInvalidPort, ref failures);
-        Run("fetch.http request endpoint missing host", TestRequestEndpointMissingHost, ref failures);
-        Run("fetch.http request endpoint oversized fields", TestRequestEndpointOversizedFields, ref failures);
-        Run(
-            "fetch.http request endpoint copy uses shared buffer operations",
-            TestRequestEndpointCopyUsesSharedBufferOperations,
-            ref failures);
-        Run(
-            "fetch.http request endpoint formatter formats success marker",
-            TestRequestEndpointFormatterFormatsSuccessMarker,
-            ref failures);
-        Run(
-            "fetch.http request endpoint formatter reports short destination",
-            TestRequestEndpointFormatterReportsShortDestination,
-            ref failures);
-        Run(
-            "fetch.http request endpoint formatter rejects default result",
-            TestRequestEndpointFormatterRejectsDefaultResult,
-            ref failures);
-        Run(
-            "fetch.http completion expectation formatter formats success marker",
-            TestExpectationFormatterFormatsSuccessMarker,
-            ref failures);
-        Run(
-            "fetch.http completion expectation formatter reports short destination",
-            TestExpectationFormatterReportsShortDestination,
-            ref failures);
-        Run(
-            "fetch.http completion expectation formatter rejects default result",
-            TestExpectationFormatterRejectsDefaultResult,
-            ref failures);
-        Run(
-            "fetch.http completion formatters use shared ascii text builder",
-            TestCompletionFormattersUseSharedAsciiTextBuilder,
-            ref failures);
-        Run("fetch.http completion formatter formats success marker", TestFormatterFormatsSuccessMarker, ref failures);
-        Run("fetch.http completion formatter reports short destination", TestFormatterReportsShortDestination, ref failures);
-        Run("fetch.http completion formatter rejects default result", TestFormatterRejectsDefaultResult, ref failures);
-        Run("boot.sequence fetch http completion ready", TestBootSequenceFetchHttpCompletionReady, ref failures);
-        Run(
-            "boot.sequence fetch http completion rejects failed result",
-            TestBootSequenceFetchHttpCompletionRejectsFailedResult,
-            ref failures);
-        Run(
-            "boot.sequence fetch http completion preserves default markers",
-            TestBootSequenceFetchHttpCompletionPreservesDefaultMarkers,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("FetchApp HTTP completion plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("fetch.http completion accepts expected body marker", HostLane.Fast, 0)]
     private static bool TestAcceptsExpectedBodyMarker()
     {
         byte[] response = Encoding.ASCII.GetBytes(
@@ -127,7 +23,7 @@ internal static class FetchAppHttpCompletionPlanTests
             expectedMarker);
 
         int expectedMatchOffset = httpPlan.HttpBodyOffset + "prefix ".Length;
-        return result.IsInitialized
+        return HostCheck.Result(result.IsInitialized
             && result.Succeeded
             && result.Status == FetchAppHttpCompletionPlanStatus.Success
             && result.HttpPlanStatus == HttpTcpClientGetPlanStatus.Success
@@ -139,9 +35,10 @@ internal static class FetchAppHttpCompletionPlanTests
             && result.ExpectedMarkerLength == expectedMarker.Length
             && result.MatchOffset == expectedMatchOffset
             && response[result.MatchOffset] == (byte)'F'
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpCompletionPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpCompletionPlanResult>());
     }
 
+    [HostTest("fetch.http completion rejects failed http plan", HostLane.Fast, 1)]
     private static bool TestRejectsFailedHttpPlan()
     {
         HttpTcpClientGetPlanResult failedHttpPlan = CreateFailedHttpPlan();
@@ -154,16 +51,17 @@ internal static class FetchAppHttpCompletionPlanTests
             expectedHttpStatusCode: 200,
             expectedMarker);
 
-        return result.IsInitialized
+        return HostCheck.Result(result.IsInitialized
             && !result.Succeeded
             && result.Status == FetchAppHttpCompletionPlanStatus.HttpPlanFailed
             && result.HttpPlanStatus == HttpTcpClientGetPlanStatus.HttpResponseFailed
             && result.HttpStatusCode == 0
             && result.ExpectedHttpStatusCode == 200
             && result.ExpectedMarkerLength == expectedMarker.Length
-            && result.MatchOffset == FetchAppHttpCompletionPlanResult.NoMatchOffset;
+            && result.MatchOffset == FetchAppHttpCompletionPlanResult.NoMatchOffset);
     }
 
+    [HostTest("fetch.http completion rejects missing body marker", HostLane.Fast, 2)]
     private static bool TestRejectsMissingBodyMarker()
     {
         byte[] response = Encoding.ASCII.GetBytes(
@@ -177,7 +75,7 @@ internal static class FetchAppHttpCompletionPlanTests
             expectedHttpStatusCode: 200,
             expectedMarker);
 
-        return result.IsInitialized
+        return HostCheck.Result(result.IsInitialized
             && !result.Succeeded
             && result.Status == FetchAppHttpCompletionPlanStatus.MissingExpectedMarker
             && result.HttpPlanStatus == HttpTcpClientGetPlanStatus.Success
@@ -185,9 +83,10 @@ internal static class FetchAppHttpCompletionPlanTests
             && result.BodyOffset == httpPlan.HttpBodyOffset
             && result.BodyLength == httpPlan.HttpBodyLength
             && result.ExpectedMarkerLength == expectedMarker.Length
-            && result.MatchOffset == FetchAppHttpCompletionPlanResult.NoMatchOffset;
+            && result.MatchOffset == FetchAppHttpCompletionPlanResult.NoMatchOffset);
     }
 
+    [HostTest("fetch.http completion rejects invalid body range", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidBodyRange()
     {
         byte[] response = Encoding.ASCII.GetBytes("0123456789abcdef");
@@ -204,7 +103,7 @@ internal static class FetchAppHttpCompletionPlanTests
             expectedHttpStatusCode: 200,
             expectedMarker);
 
-        return result.IsInitialized
+        return HostCheck.Result(result.IsInitialized
             && !result.Succeeded
             && result.Status == FetchAppHttpCompletionPlanStatus.InvalidBodyRange
             && result.HttpPlanStatus == HttpTcpClientGetPlanStatus.Success
@@ -212,9 +111,10 @@ internal static class FetchAppHttpCompletionPlanTests
             && result.BodyOffset == 5
             && result.BodyLength == 10
             && result.ExpectedMarkerLength == expectedMarker.Length
-            && result.MatchOffset == FetchAppHttpCompletionPlanResult.NoMatchOffset;
+            && result.MatchOffset == FetchAppHttpCompletionPlanResult.NoMatchOffset);
     }
 
+    [HostTest("fetch.http completion rejects empty expected marker", HostLane.Fast, 4)]
     private static bool TestRejectsEmptyExpectedMarker()
     {
         byte[] response = Encoding.ASCII.GetBytes(
@@ -227,15 +127,16 @@ internal static class FetchAppHttpCompletionPlanTests
             expectedHttpStatusCode: 200,
             ReadOnlySpan<byte>.Empty);
 
-        return result.IsInitialized
+        return HostCheck.Result(result.IsInitialized
             && !result.Succeeded
             && result.Status == FetchAppHttpCompletionPlanStatus.InvalidExpectedMarker
             && result.HttpPlanStatus == HttpTcpClientGetPlanStatus.Success
             && result.HttpStatusCode == 200
             && result.ExpectedMarkerLength == 0
-            && result.MatchOffset == FetchAppHttpCompletionPlanResult.NoMatchOffset;
+            && result.MatchOffset == FetchAppHttpCompletionPlanResult.NoMatchOffset);
     }
 
+    [HostTest("fetch.http completion rejects short response buffer", HostLane.Fast, 5)]
     private static bool TestRejectsShortResponseBuffer()
     {
         byte[] response = Encoding.ASCII.GetBytes(
@@ -249,15 +150,16 @@ internal static class FetchAppHttpCompletionPlanTests
             expectedHttpStatusCode: 200,
             expectedMarker);
 
-        return result.IsInitialized
+        return HostCheck.Result(result.IsInitialized
             && !result.Succeeded
             && result.Status == FetchAppHttpCompletionPlanStatus.ResponseBufferTooSmall
             && result.HttpPlanStatus == HttpTcpClientGetPlanStatus.Success
             && result.ResponseBytesRead == response.Length
             && result.ExpectedMarkerLength == expectedMarker.Length
-            && result.MatchOffset == FetchAppHttpCompletionPlanResult.NoMatchOffset;
+            && result.MatchOffset == FetchAppHttpCompletionPlanResult.NoMatchOffset);
     }
 
+    [HostTest("fetch.http completion default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         FetchAppHttpCompletionPlanResult defaultResult = default;
@@ -271,7 +173,7 @@ internal static class FetchAppHttpCompletionPlanTests
             expectedHttpStatusCode: 200,
             expectedMarker);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == FetchAppHttpCompletionPlanStatus.Success
             && defaultResult.HttpPlanStatus == HttpTcpClientGetPlanStatus.Success
@@ -288,9 +190,10 @@ internal static class FetchAppHttpCompletionPlanTests
             && defaultInputResult.HttpPlanStatus == HttpTcpClientGetPlanStatus.Success
             && defaultInputResult.ExpectedMarkerLength == expectedMarker.Length
             && defaultInputResult.MatchOffset == FetchAppHttpCompletionPlanResult.NoMatchOffset
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpCompletionPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpCompletionPlanResult>());
     }
 
+    [HostTest("fetch.http completion uses shared memory helper", HostLane.Fast, 7)]
     private static bool TestUsesSharedMemoryHelper()
     {
         string source = File.ReadAllText(Path.Combine(
@@ -300,14 +203,15 @@ internal static class FetchAppHttpCompletionPlanTests
             "Net",
             "FetchAppHttpCompletionPlan.cs"));
 
-        return source.Contains(
+        return HostCheck.Result(source.Contains(
                 "OS.Std.MemoryExtensions.IndexOf(body, expectedBodyMarker)",
                 StringComparison.Ordinal)
             && !source.Contains(
                 "private static int IndexOf(ReadOnlySpan<byte>",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("fetch.http completion config uses deterministic defaults", HostLane.Fast, 8)]
     private static bool TestConfigUsesDeterministicDefaults()
     {
         byte[] manifestBytes = NativeManifest();
@@ -322,7 +226,7 @@ internal static class FetchAppHttpCompletionPlanTests
                 manifestBytes,
                 markerScratch);
 
-        return expectation.Succeeded
+        return HostCheck.Result(expectation.Succeeded
             && expectation.Status == FetchAppHttpCompletionExpectationStatus.Success
             && expectation.ExpectedHttpStatusCode == 200
             && expectation.ExpectedMarkerLength == "FETCH_OK".Length
@@ -332,9 +236,10 @@ internal static class FetchAppHttpCompletionPlanTests
             && markerCopy.Succeeded
             && MarkerEquals(markerScratch[..markerCopy.BytesWritten], "FETCH_OK")
             && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpCompletionExpectationResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpCompletionExpectedMarkerCopyResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpCompletionExpectedMarkerCopyResult>());
     }
 
+    [HostTest("fetch.http completion config flows from manifest", HostLane.Fast, 9)]
     private static bool TestConfigFlowsFromManifest()
     {
         byte[] manifestBytes = NativeManifest(
@@ -359,7 +264,7 @@ internal static class FetchAppHttpCompletionPlanTests
             expectation.ExpectedHttpStatusCode,
             markerScratch[..markerCopy.BytesWritten]);
 
-        return manifest.Succeeded
+        return HostCheck.Result(manifest.Succeeded
             && expectation.Succeeded
             && expectation.ExpectedHttpStatusCode == 202
             && expectation.ExpectedMarkerLength == "CONFIG_OK".Length
@@ -372,16 +277,18 @@ internal static class FetchAppHttpCompletionPlanTests
             && completion.Status == FetchAppHttpCompletionPlanStatus.Success
             && completion.ExpectedHttpStatusCode == 202
             && completion.ExpectedMarkerLength == "CONFIG_OK".Length
-            && completion.HttpStatusCode == 202;
+            && completion.HttpStatusCode == 202);
     }
 
+    [HostTest("fetch.http completion config rejects invalid status", HostLane.Fast, 10)]
     private static bool TestConfigRejectsInvalidStatus()
     {
-        return ConfigStatusIs("env.FETCH_HTTP_EXPECTED_STATUS=99\n", FetchAppHttpCompletionExpectationStatus.InvalidStatusCode)
+        return HostCheck.Result(ConfigStatusIs("env.FETCH_HTTP_EXPECTED_STATUS=99\n", FetchAppHttpCompletionExpectationStatus.InvalidStatusCode)
             && ConfigStatusIs("env.FETCH_HTTP_EXPECTED_STATUS=600\n", FetchAppHttpCompletionExpectationStatus.InvalidStatusCode)
-            && ConfigStatusIs("env.FETCH_HTTP_EXPECTED_STATUS=OK\n", FetchAppHttpCompletionExpectationStatus.InvalidStatusCode);
+            && ConfigStatusIs("env.FETCH_HTTP_EXPECTED_STATUS=OK\n", FetchAppHttpCompletionExpectationStatus.InvalidStatusCode));
     }
 
+    [HostTest("fetch.http completion config rejects empty marker", HostLane.Fast, 11)]
     private static bool TestConfigRejectsEmptyMarker()
     {
         byte[] manifestBytes = NativeManifest("env.FETCH_HTTP_EXPECTED_BODY=\n");
@@ -389,15 +296,16 @@ internal static class FetchAppHttpCompletionPlanTests
         FetchAppHttpCompletionExpectationResult expectation =
             FetchAppHttpCompletionExpectation.FromManifest(manifest, manifestBytes);
 
-        return manifest.Succeeded
+        return HostCheck.Result(manifest.Succeeded
             && expectation.IsInitialized
             && !expectation.Succeeded
             && expectation.Status == FetchAppHttpCompletionExpectationStatus.EmptyMarker
             && expectation.ExpectedMarkerLength == 0
             && expectation.HasConfiguredMarker
-            && !expectation.UsesDefaultMarker;
+            && !expectation.UsesDefaultMarker);
     }
 
+    [HostTest("fetch.http completion config rejects oversized marker", HostLane.Fast, 12)]
     private static bool TestConfigRejectsOversizedMarker()
     {
         string marker = new string('A', FetchAppHttpCompletionExpectation.MaximumExpectedMarkerLength + 1);
@@ -406,15 +314,16 @@ internal static class FetchAppHttpCompletionPlanTests
         FetchAppHttpCompletionExpectationResult expectation =
             FetchAppHttpCompletionExpectation.FromManifest(manifest, manifestBytes);
 
-        return manifest.Succeeded
+        return HostCheck.Result(manifest.Succeeded
             && expectation.IsInitialized
             && !expectation.Succeeded
             && expectation.Status == FetchAppHttpCompletionExpectationStatus.MarkerTooLarge
             && expectation.ExpectedMarkerLength == marker.Length
             && expectation.HasConfiguredMarker
-            && !expectation.UsesDefaultMarker;
+            && !expectation.UsesDefaultMarker);
     }
 
+    [HostTest("fetch.http completion config requires marker when requested", HostLane.Fast, 13)]
     private static bool TestConfigRequiresMarkerWhenRequested()
     {
         byte[] manifestBytes = NativeManifest("env.FETCH_HTTP_EXPECTED_STATUS=204\n");
@@ -422,16 +331,17 @@ internal static class FetchAppHttpCompletionPlanTests
         FetchAppHttpCompletionExpectationResult expectation =
             FetchAppHttpCompletionExpectation.FromManifest(manifest, manifestBytes, requireConfiguredMarker: true);
 
-        return manifest.Succeeded
+        return HostCheck.Result(manifest.Succeeded
             && expectation.IsInitialized
             && !expectation.Succeeded
             && expectation.Status == FetchAppHttpCompletionExpectationStatus.MissingRequiredConfig
             && expectation.ExpectedHttpStatusCode == 204
             && expectation.ExpectedMarkerLength == 0
             && expectation.HasConfiguredStatus
-            && !expectation.HasConfiguredMarker;
+            && !expectation.HasConfiguredMarker);
     }
 
+    [HostTest("fetch.http expectation uses shared ascii equality helper", HostLane.Fast, 14)]
     private static bool TestExpectationUsesSharedAsciiEqualityHelper()
     {
         string source = File.ReadAllText(Path.Combine(
@@ -441,7 +351,7 @@ internal static class FetchAppHttpCompletionPlanTests
             "Net",
             "FetchAppHttpCompletionExpectation.cs"));
 
-        return source.Contains(
+        return HostCheck.Result(source.Contains(
                 "AsciiString.Equals(key, \"FETCH_HTTP_EXPECTED_STATUS\"u8)",
                 StringComparison.Ordinal)
             && source.Contains(
@@ -455,9 +365,10 @@ internal static class FetchAppHttpCompletionPlanTests
                 StringComparison.Ordinal)
             && !source.Contains(
                 "private static bool AsciiEquals(ReadOnlySpan<byte>",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("fetch.http expectation marker copy uses shared buffer operations", HostLane.Fast, 15)]
     private static bool TestExpectationMarkerCopyUsesSharedBufferOperations()
     {
         string source = File.ReadAllText(Path.Combine(
@@ -467,11 +378,12 @@ internal static class FetchAppHttpCompletionPlanTests
             "Net",
             "FetchAppHttpCompletionExpectation.cs"));
 
-        return source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
             && source.Contains("BufferOperations.MemoryCopy(marker, destination)", StringComparison.Ordinal)
-            && !source.Contains("marker.CopyTo(destination)", StringComparison.Ordinal);
+            && !source.Contains("marker.CopyTo(destination)", StringComparison.Ordinal));
     }
 
+    [HostTest("fetch.http request endpoint defaults", HostLane.Fast, 16)]
     private static bool TestRequestEndpointDefaults()
     {
         byte[] manifestBytes = NativeManifest();
@@ -482,7 +394,7 @@ internal static class FetchAppHttpCompletionPlanTests
         FetchAppHttpRequestEndpointResult result =
             FetchAppHttpRequestEndpoint.FromManifest(manifest, manifestBytes, host, path);
 
-        return manifest.Succeeded
+        return HostCheck.Result(manifest.Succeeded
             && result.Succeeded
             && result.Status == FetchAppHttpRequestEndpointStatus.Success
             && result.Port == 80
@@ -494,9 +406,10 @@ internal static class FetchAppHttpCompletionPlanTests
             && !result.HasConfiguredPath
             && MarkerEquals(host[..result.HostBytesWritten], "example.com")
             && MarkerEquals(path[..result.PathBytesWritten], "/")
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpRequestEndpointResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpRequestEndpointResult>());
     }
 
+    [HostTest("fetch.http request endpoint explicit config", HostLane.Fast, 17)]
     private static bool TestRequestEndpointExplicitConfig()
     {
         byte[] manifestBytes = NativeManifest(
@@ -522,7 +435,7 @@ internal static class FetchAppHttpCompletionPlanTests
         FetchAppHttpRequestEndpointResult urlResult =
             FetchAppHttpRequestEndpoint.FromManifest(urlManifest, urlManifestBytes, urlHost, urlPath);
 
-        return manifest.Succeeded
+        return HostCheck.Result(manifest.Succeeded
             && explicitResult.Succeeded
             && explicitResult.Port == 8080
             && explicitResult.HasConfiguredHost
@@ -537,22 +450,24 @@ internal static class FetchAppHttpCompletionPlanTests
             && urlResult.HasConfiguredPort
             && urlResult.HasConfiguredPath
             && MarkerEquals(urlHost[..urlResult.HostBytesWritten], "url.example")
-            && MarkerEquals(urlPath[..urlResult.PathBytesWritten], "/status");
+            && MarkerEquals(urlPath[..urlResult.PathBytesWritten], "/status"));
     }
 
+    [HostTest("fetch.http request endpoint invalid scheme", HostLane.Fast, 18)]
     private static bool TestRequestEndpointInvalidScheme()
     {
-        return EndpointStatusIs(
+        return HostCheck.Result(EndpointStatusIs(
                 "env.FETCH_HTTP_URL=https://example.com/healthz\n",
                 FetchAppHttpRequestEndpointStatus.UnsupportedScheme)
             && EndpointStatusIs(
                 "env.FETCH_HTTP_URL=ftp://example.com/healthz\n",
-                FetchAppHttpRequestEndpointStatus.UnsupportedScheme);
+                FetchAppHttpRequestEndpointStatus.UnsupportedScheme));
     }
 
+    [HostTest("fetch.http request endpoint invalid port", HostLane.Fast, 19)]
     private static bool TestRequestEndpointInvalidPort()
     {
-        return EndpointStatusIs(
+        return HostCheck.Result(EndpointStatusIs(
                 "env.FETCH_HTTP_PORT=0\n",
                 FetchAppHttpRequestEndpointStatus.InvalidPort)
             && EndpointStatusIs(
@@ -560,32 +475,35 @@ internal static class FetchAppHttpCompletionPlanTests
                 FetchAppHttpRequestEndpointStatus.InvalidPort)
             && EndpointStatusIs(
                 "env.FETCH_HTTP_URL=http://example.com:bad/healthz\n",
-                FetchAppHttpRequestEndpointStatus.InvalidPort);
+                FetchAppHttpRequestEndpointStatus.InvalidPort));
     }
 
+    [HostTest("fetch.http request endpoint missing host", HostLane.Fast, 20)]
     private static bool TestRequestEndpointMissingHost()
     {
-        return EndpointStatusIs(
+        return HostCheck.Result(EndpointStatusIs(
                 "env.FETCH_HTTP_HOST=\n",
                 FetchAppHttpRequestEndpointStatus.MissingHost)
             && EndpointStatusIs(
                 "env.FETCH_HTTP_URL=http:///healthz\n",
-                FetchAppHttpRequestEndpointStatus.MissingHost);
+                FetchAppHttpRequestEndpointStatus.MissingHost));
     }
 
+    [HostTest("fetch.http request endpoint oversized fields", HostLane.Fast, 21)]
     private static bool TestRequestEndpointOversizedFields()
     {
         string oversizedHost = new string('a', FetchAppHttpRequestEndpoint.MaximumHostLength + 1);
         string oversizedPath = "/" + new string('b', FetchAppHttpRequestEndpoint.MaximumPathLength);
 
-        return EndpointStatusIs(
+        return HostCheck.Result(EndpointStatusIs(
                 "env.FETCH_HTTP_HOST=" + oversizedHost + "\n",
                 FetchAppHttpRequestEndpointStatus.FieldTooLarge)
             && EndpointStatusIs(
                 "env.FETCH_HTTP_PATH=" + oversizedPath + "\n",
-                FetchAppHttpRequestEndpointStatus.FieldTooLarge);
+                FetchAppHttpRequestEndpointStatus.FieldTooLarge));
     }
 
+    [HostTest("fetch.http request endpoint copy uses shared buffer operations", HostLane.Fast, 22)]
     private static bool TestRequestEndpointCopyUsesSharedBufferOperations()
     {
         string source = File.ReadAllText(Path.Combine(
@@ -595,13 +513,14 @@ internal static class FetchAppHttpCompletionPlanTests
             "Net",
             "FetchAppHttpRequestEndpoint.cs"));
 
-        return source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
             && source.Contains("BufferOperations.MemoryCopy(host, hostDestination)", StringComparison.Ordinal)
             && source.Contains("BufferOperations.MemoryCopy(path, pathDestination)", StringComparison.Ordinal)
             && !source.Contains("host.CopyTo(hostDestination)", StringComparison.Ordinal)
-            && !source.Contains("path.CopyTo(pathDestination)", StringComparison.Ordinal);
+            && !source.Contains("path.CopyTo(pathDestination)", StringComparison.Ordinal));
     }
 
+    [HostTest("fetch.http request endpoint formatter formats success marker", HostLane.Fast, 23)]
     private static bool TestRequestEndpointFormatterFormatsSuccessMarker()
     {
         byte[] manifestBytes = NativeManifest(
@@ -623,7 +542,7 @@ internal static class FetchAppHttpCompletionPlanTests
         const string expected =
             "FETCH_HTTP_ENDPOINT status=Success initialized=true port=8080 hostBytes=14 pathBytes=8 requiredHostBytes=14 requiredPathBytes=8 source=manifest urlConfigured=false hostConfigured=true portConfigured=true pathConfigured=true";
 
-        return manifest.Succeeded
+        return HostCheck.Result(manifest.Succeeded
             && endpoint.Succeeded
             && query.IsInitialized
             && query.Status == FetchAppHttpRequestEndpointDiagnosticFormatStatus.Success
@@ -634,9 +553,10 @@ internal static class FetchAppHttpCompletionPlanTests
             && format.RequiredBytes == expected.Length
             && format.AvailableBytes == destination.Length
             && Encoding.ASCII.GetString(destination) == expected
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpRequestEndpointDiagnosticFormatResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpRequestEndpointDiagnosticFormatResult>());
     }
 
+    [HostTest("fetch.http request endpoint formatter reports short destination", HostLane.Fast, 24)]
     private static bool TestRequestEndpointFormatterReportsShortDestination()
     {
         byte[] manifestBytes = NativeManifest("env.FETCH_HTTP_URL=http://url.example:9090/status\n");
@@ -654,7 +574,7 @@ internal static class FetchAppHttpCompletionPlanTests
         FetchAppHttpRequestEndpointDiagnosticFormatResult format =
             FetchAppHttpRequestEndpointDiagnosticFormatter.FormatResult(endpoint, destination);
 
-        return manifest.Succeeded
+        return HostCheck.Result(manifest.Succeeded
             && endpoint.Succeeded
             && query.IsInitialized
             && query.Status == FetchAppHttpRequestEndpointDiagnosticFormatStatus.Success
@@ -665,9 +585,10 @@ internal static class FetchAppHttpCompletionPlanTests
             && format.BytesWritten == 0
             && format.RequiredBytes == query.RequiredBytes
             && format.AvailableBytes == destination.Length
-            && AllBytesEqual(destination, 0xCC);
+            && AllBytesEqual(destination, 0xCC));
     }
 
+    [HostTest("fetch.http request endpoint formatter rejects default result", HostLane.Fast, 25)]
     private static bool TestRequestEndpointFormatterRejectsDefaultResult()
     {
         FetchAppHttpRequestEndpointResult defaultResult = default;
@@ -679,7 +600,7 @@ internal static class FetchAppHttpCompletionPlanTests
             FetchAppHttpRequestEndpointDiagnosticFormatter.QueryRequiredBytes(defaultResult);
         FetchAppHttpRequestEndpointDiagnosticFormatResult defaultFormat = default;
 
-        return format.IsInitialized
+        return HostCheck.Result(format.IsInitialized
             && !format.Succeeded
             && format.Status == FetchAppHttpRequestEndpointDiagnosticFormatStatus.InvalidResult
             && format.EndpointStatus == FetchAppHttpRequestEndpointStatus.Success
@@ -692,9 +613,10 @@ internal static class FetchAppHttpCompletionPlanTests
             && query.RequiredBytes == 0
             && query.AvailableBytes == 0
             && !defaultFormat.IsInitialized
-            && !defaultFormat.Succeeded;
+            && !defaultFormat.Succeeded);
     }
 
+    [HostTest("fetch.http completion expectation formatter formats success marker", HostLane.Fast, 26)]
     private static bool TestExpectationFormatterFormatsSuccessMarker()
     {
         byte[] manifestBytes = NativeManifest(
@@ -713,7 +635,7 @@ internal static class FetchAppHttpCompletionPlanTests
         const string expected =
             "FETCH_HTTP_EXPECTATION status=Success initialized=true expectedHttpStatus=202 expectedMarkerBytes=9 source=manifest statusConfigured=true markerConfigured=true defaultMarker=false";
 
-        return manifest.Succeeded
+        return HostCheck.Result(manifest.Succeeded
             && expectation.Succeeded
             && query.IsInitialized
             && query.Status == FetchAppHttpCompletionExpectationDiagnosticFormatStatus.Success
@@ -724,9 +646,10 @@ internal static class FetchAppHttpCompletionPlanTests
             && format.RequiredBytes == expected.Length
             && format.AvailableBytes == destination.Length
             && Encoding.ASCII.GetString(destination) == expected
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpCompletionExpectationDiagnosticFormatResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpCompletionExpectationDiagnosticFormatResult>());
     }
 
+    [HostTest("fetch.http completion expectation formatter reports short destination", HostLane.Fast, 27)]
     private static bool TestExpectationFormatterReportsShortDestination()
     {
         byte[] manifestBytes = NativeManifest();
@@ -742,7 +665,7 @@ internal static class FetchAppHttpCompletionPlanTests
         FetchAppHttpCompletionExpectationDiagnosticFormatResult format =
             FetchAppHttpCompletionExpectationDiagnosticFormatter.FormatResult(expectation, destination);
 
-        return manifest.Succeeded
+        return HostCheck.Result(manifest.Succeeded
             && expectation.Succeeded
             && query.IsInitialized
             && query.Status == FetchAppHttpCompletionExpectationDiagnosticFormatStatus.Success
@@ -753,9 +676,10 @@ internal static class FetchAppHttpCompletionPlanTests
             && format.BytesWritten == 0
             && format.RequiredBytes == query.RequiredBytes
             && format.AvailableBytes == destination.Length
-            && AllBytesEqual(destination, 0xCC);
+            && AllBytesEqual(destination, 0xCC));
     }
 
+    [HostTest("fetch.http completion expectation formatter rejects default result", HostLane.Fast, 28)]
     private static bool TestExpectationFormatterRejectsDefaultResult()
     {
         FetchAppHttpCompletionExpectationResult defaultResult = default;
@@ -767,7 +691,7 @@ internal static class FetchAppHttpCompletionPlanTests
             FetchAppHttpCompletionExpectationDiagnosticFormatter.QueryRequiredBytes(defaultResult);
         FetchAppHttpCompletionExpectationDiagnosticFormatResult defaultFormat = default;
 
-        return format.IsInitialized
+        return HostCheck.Result(format.IsInitialized
             && !format.Succeeded
             && format.Status == FetchAppHttpCompletionExpectationDiagnosticFormatStatus.InvalidResult
             && format.ExpectationStatus == FetchAppHttpCompletionExpectationStatus.Success
@@ -780,17 +704,19 @@ internal static class FetchAppHttpCompletionPlanTests
             && query.RequiredBytes == 0
             && query.AvailableBytes == 0
             && !defaultFormat.IsInitialized
-            && !defaultFormat.Succeeded;
+            && !defaultFormat.Succeeded);
     }
 
+    [HostTest("fetch.http completion formatters use shared ascii text builder", HostLane.Fast, 29)]
     private static bool TestCompletionFormattersUseSharedAsciiTextBuilder()
     {
-        return FormatterSourceUsesSharedAsciiTextBuilder(
+        return HostCheck.Result(FormatterSourceUsesSharedAsciiTextBuilder(
                 "FetchAppHttpCompletionPlanDiagnosticFormatter.cs")
             && FormatterSourceUsesSharedAsciiTextBuilder(
-                "FetchAppHttpCompletionExpectationDiagnosticFormatter.cs");
+                "FetchAppHttpCompletionExpectationDiagnosticFormatter.cs"));
     }
 
+    [HostTest("fetch.http completion formatter formats success marker", HostLane.Fast, 30)]
     private static bool TestFormatterFormatsSuccessMarker()
     {
         byte[] response = Encoding.ASCII.GetBytes(
@@ -820,7 +746,7 @@ internal static class FetchAppHttpCompletionPlanTests
             " matchOffset=" +
             result.MatchOffset;
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && query.IsInitialized
             && query.Status == FetchAppHttpCompletionPlanDiagnosticFormatStatus.Success
             && query.CompletionStatus == FetchAppHttpCompletionPlanStatus.Success
@@ -831,9 +757,10 @@ internal static class FetchAppHttpCompletionPlanTests
             && format.RequiredBytes == expected.Length
             && format.AvailableBytes == destination.Length
             && Encoding.ASCII.GetString(destination) == expected
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpCompletionPlanDiagnosticFormatResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpCompletionPlanDiagnosticFormatResult>());
     }
 
+    [HostTest("fetch.http completion formatter reports short destination", HostLane.Fast, 31)]
     private static bool TestFormatterReportsShortDestination()
     {
         byte[] response = Encoding.ASCII.GetBytes(
@@ -854,7 +781,7 @@ internal static class FetchAppHttpCompletionPlanTests
         FetchAppHttpCompletionPlanDiagnosticFormatResult format =
             FetchAppHttpCompletionPlanDiagnosticFormatter.FormatResult(result, destination);
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && query.Status == FetchAppHttpCompletionPlanDiagnosticFormatStatus.Success
             && format.IsInitialized
             && !format.Succeeded
@@ -864,9 +791,10 @@ internal static class FetchAppHttpCompletionPlanTests
             && format.BytesWritten == 0
             && format.RequiredBytes == query.RequiredBytes
             && format.AvailableBytes == destination.Length
-            && AllBytesEqual(destination, 0xCC);
+            && AllBytesEqual(destination, 0xCC));
     }
 
+    [HostTest("fetch.http completion formatter rejects default result", HostLane.Fast, 32)]
     private static bool TestFormatterRejectsDefaultResult()
     {
         FetchAppHttpCompletionPlanResult defaultResult = default;
@@ -878,7 +806,7 @@ internal static class FetchAppHttpCompletionPlanTests
             FetchAppHttpCompletionPlanDiagnosticFormatter.QueryRequiredBytes(defaultResult);
         FetchAppHttpCompletionPlanDiagnosticFormatResult defaultFormat = default;
 
-        return format.IsInitialized
+        return HostCheck.Result(format.IsInitialized
             && !format.Succeeded
             && format.Status == FetchAppHttpCompletionPlanDiagnosticFormatStatus.InvalidResult
             && format.CompletionStatus == FetchAppHttpCompletionPlanStatus.Success
@@ -892,9 +820,10 @@ internal static class FetchAppHttpCompletionPlanTests
             && query.RequiredBytes == 0
             && query.AvailableBytes == 0
             && !defaultFormat.IsInitialized
-            && !defaultFormat.Succeeded;
+            && !defaultFormat.Succeeded);
     }
 
+    [HostTest("boot.sequence fetch http completion ready", HostLane.Fast, 33)]
     private static bool TestBootSequenceFetchHttpCompletionReady()
     {
         byte[] response = Encoding.ASCII.GetBytes(
@@ -914,14 +843,15 @@ internal static class FetchAppHttpCompletionPlanTests
             events);
         string expectedMarker = BootSequence.CreateFetchAppHttpCompletionReadyMarker(completion);
 
-        return completion.Succeeded
+        return HostCheck.Result(completion.Succeeded
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
-            && expectedMarker == "FETCH_APP_HTTP_COMPLETION_READY status=Ready initialized=true succeeded=true completion=Success httpPlan=Success httpStatus=200 expectedStatus=200 responseBytes=85 bodyOffset=58 bodyLength=27 markerLength=8 matchOffset=65";
+            && expectedMarker == "FETCH_APP_HTTP_COMPLETION_READY status=Ready initialized=true succeeded=true completion=Success httpPlan=Success httpStatus=200 expectedStatus=200 responseBytes=85 bodyOffset=58 bodyLength=27 markerLength=8 matchOffset=65");
     }
 
+    [HostTest("boot.sequence fetch http completion rejects failed result", HostLane.Fast, 34)]
     private static bool TestBootSequenceFetchHttpCompletionRejectsFailedResult()
     {
         byte[] response = Encoding.ASCII.GetBytes(
@@ -943,7 +873,7 @@ internal static class FetchAppHttpCompletionPlanTests
             FetchAppHttpCompletionReadinessStatus.CompletionFailed,
             completion);
 
-        return completion.IsInitialized
+        return HostCheck.Result(completion.IsInitialized
             && !completion.Succeeded
             && completion.Status == FetchAppHttpCompletionPlanStatus.MissingExpectedMarker
             && !result.Succeeded
@@ -953,9 +883,10 @@ internal static class FetchAppHttpCompletionPlanTests
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
-            && expectedMarker == "FETCH_APP_HTTP_COMPLETION_NOT_READY status=CompletionFailed initialized=true succeeded=false completion=MissingExpectedMarker httpPlan=Success httpStatus=200 expectedStatus=200 responseBytes=69 bodyOffset=58 bodyLength=11 markerLength=8 matchOffset=-1";
+            && expectedMarker == "FETCH_APP_HTTP_COMPLETION_NOT_READY status=CompletionFailed initialized=true succeeded=false completion=MissingExpectedMarker httpPlan=Success httpStatus=200 expectedStatus=200 responseBytes=69 bodyOffset=58 bodyLength=11 markerLength=8 matchOffset=-1");
     }
 
+    [HostTest("boot.sequence fetch http completion preserves default markers", HostLane.Fast, 35)]
     private static bool TestBootSequenceFetchHttpCompletionPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -964,7 +895,7 @@ internal static class FetchAppHttpCompletionPlanTests
         BootResult result = BootSequence.Run(serial, events);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int index = 0; index < serial.Count; index++)
@@ -973,11 +904,11 @@ internal static class FetchAppHttpCompletionPlanTests
             if (line.StartsWith(BootSequence.FetchAppHttpCompletionReadyPrefix, StringComparison.Ordinal) ||
                 line.StartsWith(BootSequence.FetchAppHttpCompletionNotReadyPrefix, StringComparison.Ordinal))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return true;
+        return HostCheck.Result(true);
     }
 
     private static HttpTcpClientGetPlanResult CreateSuccessfulPlan(byte[] response)

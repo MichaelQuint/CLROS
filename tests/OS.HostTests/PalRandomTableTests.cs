@@ -3,45 +3,8 @@ using OS.Pal;
 
 internal static class PalRandomTableTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("pal.random table fills caller buffer", TestFillsCallerBuffer, ref failures);
-        Run("pal.random table advances deterministic stream", TestAdvancesDeterministicStream, ref failures);
-        Run("pal.random table rejects invalid requests", TestRejectsInvalidRequests, ref failures);
-        Run("pal.random table reports unavailable entropy", TestReportsUnavailableEntropy, ref failures);
-        Run("pal.random table default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL random table host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.random table fills caller buffer", HostLane.Fast, 0)]
     private static bool TestFillsCallerBuffer()
     {
         OSHostRandomTable table = NewTable(maxRequestBytes: 32);
@@ -49,15 +12,16 @@ internal static class PalRandomTableTests
 
         OSHostRandomBytesResult result = table.FillRandomBytes(destination, OSHostRandomConstants.FlagNone);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == OSHostStatus.Ok
             && result.BytesWritten == 16
             && result.RequestSequence == 0
             && table.RequestCount == 1
-            && !AllEqual(destination, 0);
+            && !AllEqual(destination, 0));
     }
 
+    [HostTest("pal.random table advances deterministic stream", HostLane.Fast, 1)]
     private static bool TestAdvancesDeterministicStream()
     {
         OSHostRandomTable first = NewTable(maxRequestBytes: 32);
@@ -72,16 +36,17 @@ internal static class PalRandomTableTests
         OSHostRandomBytesResult c = second.FillRandomBytes(secondA, OSHostRandomConstants.FlagNone);
         OSHostRandomBytesResult d = second.FillRandomBytes(secondB, OSHostRandomConstants.FlagNone);
 
-        return a.Succeeded
+        return HostCheck.Result(a.Succeeded
             && b.Succeeded
             && c.Succeeded
             && d.Succeeded
             && b.RequestSequence == 1
             && firstA.SequenceEqual(secondA)
             && firstB.SequenceEqual(secondB)
-            && !firstA.SequenceEqual(firstB);
+            && !firstA.SequenceEqual(firstB));
     }
 
+    [HostTest("pal.random table rejects invalid requests", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidRequests()
     {
         OSHostRandomTable table = NewTable(maxRequestBytes: 4);
@@ -94,15 +59,16 @@ internal static class PalRandomTableTests
         OSHostRandomBytesResult flags = table.FillRandomBytes(valid, flags: 1);
         OSHostRandomBytesResult large = table.FillRandomBytes(oversized, OSHostRandomConstants.FlagNone);
 
-        return zero.Status == OSHostStatus.InvalidArgument
+        return HostCheck.Result(zero.Status == OSHostStatus.InvalidArgument
             && zero.BytesWritten == 0
             && flags.Status == OSHostStatus.InvalidArgument
             && valid[0] == 0xCC
             && large.Status == OSHostStatus.BufferTooSmall
             && large.BytesWritten == 0
-            && table.RequestCount == 0;
+            && table.RequestCount == 0);
     }
 
+    [HostTest("pal.random table reports unavailable entropy", HostLane.Fast, 3)]
     private static bool TestReportsUnavailableEntropy()
     {
         OSHostRandomTable table = new(ReadOnlySpan<byte>.Empty, maxRequestBytes: 16);
@@ -111,23 +77,24 @@ internal static class PalRandomTableTests
 
         OSHostRandomBytesResult result = table.FillRandomBytes(destination, OSHostRandomConstants.FlagNone);
 
-        return result.Status == OSHostStatus.TryAgain
+        return HostCheck.Result(result.Status == OSHostStatus.TryAgain
             && result.BytesWritten == 0
             && result.RequestSequence == uint.MaxValue
             && destination[0] == 0xAA
-            && table.RequestCount == 0;
+            && table.RequestCount == 0);
     }
 
+    [HostTest("pal.random table default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         OSHostRandomBytesResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == OSHostStatus.Ok
             && result.BytesWritten == 0
             && result.RequestSequence == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostRandomBytesResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostRandomBytesResult>());
     }
 
     private static OSHostRandomTable NewTable(int maxRequestBytes)

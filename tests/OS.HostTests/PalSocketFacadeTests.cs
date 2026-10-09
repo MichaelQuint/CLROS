@@ -3,47 +3,8 @@ using OS.Pal;
 
 internal static class PalSocketFacadeTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("pal.socket facade creates binds and listens", TestCreatesBindsAndListens, ref failures);
-        Run("pal.socket facade accepts with endpoint output", TestAcceptsWithEndpointOutput, ref failures);
-        Run("pal.socket facade connects with remote endpoint", TestConnectsWithRemoteEndpoint, ref failures);
-        Run("pal.socket facade preserves partial io", TestPreservesPartialIo, ref failures);
-        Run("pal.socket facade polls close and reset states", TestPollsCloseAndResetStates, ref failures);
-        Run("pal.socket facade translates invalid handles", TestTranslatesInvalidHandles, ref failures);
-        Run("pal.socket facade close invalidates handle", TestCloseInvalidatesHandle, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL socket facade host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.socket facade creates binds and listens", HostLane.Fast, 0)]
     private static bool TestCreatesBindsAndListens()
     {
         OSHostSocketTable table = new(capacity: 2);
@@ -51,7 +12,7 @@ internal static class PalSocketFacadeTests
         OSHostSocketCreateResult create = facade.Create(TcpCreateOptions());
         if (!create.Succeeded || create.Socket.Value != 1)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostSocketBindRequest bind = new(
@@ -65,13 +26,14 @@ internal static class PalSocketFacadeTests
             flags: 0,
             reserved: 0);
 
-        return facade.Bind(bind) == OSHostStatus.Ok
+        return HostCheck.Result(facade.Bind(bind) == OSHostStatus.Ok
             && facade.Listen(listen) == OSHostStatus.Ok
             && table.TryGetEntry(create.Socket, out OSHostSocketTableEntry entry) == OSHostStatus.Ok
             && entry.State == OSHostSocketLifecycleState.Listening
-            && entry.ListenBacklog == 4;
+            && entry.ListenBacklog == 4);
     }
 
+    [HostTest("pal.socket facade accepts with endpoint output", HostLane.Fast, 1)]
     private static bool TestAcceptsWithEndpointOutput()
     {
         OSHostSocketTable table = new(capacity: 3);
@@ -82,7 +44,7 @@ internal static class PalSocketFacadeTests
 
         if (table.EnqueueAcceptedConnection(listener, local, remote) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostSocketAcceptRequest acceptRequest = new(
@@ -92,15 +54,16 @@ internal static class PalSocketFacadeTests
             reserved: 0);
         OSHostStatus acceptStatus = facade.Accept(acceptRequest, out OSHostSocketAcceptOutput output);
 
-        return acceptStatus == OSHostStatus.Ok
+        return HostCheck.Result(acceptStatus == OSHostStatus.Ok
             && output.AcceptedSocket.IsValid
             && output.LocalAddress.Family == OSHostSocketConstants.AddressFamilyIpv4
             && output.LocalAddress.PortNetworkOrder == local.PortNetworkOrder
             && output.LocalAddress.AddressLow == local.ToAddressNetworkOrder()
             && output.RemoteAddress.PortNetworkOrder == remote.PortNetworkOrder
-            && output.RemoteAddress.AddressLow == remote.ToAddressNetworkOrder();
+            && output.RemoteAddress.AddressLow == remote.ToAddressNetworkOrder());
     }
 
+    [HostTest("pal.socket facade connects with remote endpoint", HostLane.Fast, 2)]
     private static bool TestConnectsWithRemoteEndpoint()
     {
         OSHostSocketTable table = new(capacity: 1);
@@ -110,7 +73,7 @@ internal static class PalSocketFacadeTests
         OSHostIpv4Endpoint remote = Endpoint(198, 51, 100, 22, 443);
         if (!create.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostSocketBindRequest bind = new(
@@ -141,15 +104,16 @@ internal static class PalSocketFacadeTests
             flags: 0,
             reserved: 0);
 
-        return connectStatus == OSHostStatus.Ok
+        return HostCheck.Result(connectStatus == OSHostStatus.Ok
             && remoteStatus == OSHostStatus.Ok
             && remoteAddress.AddressLow == remote.ToAddressNetworkOrder()
             && remoteAddress.PortNetworkOrder == remote.PortNetworkOrder
             && table.TryGetEntry(create.Socket, out OSHostSocketTableEntry entry) == OSHostStatus.Ok
             && entry.State == OSHostSocketLifecycleState.Connected
-            && facade.Connect(invalidTimeout) == OSHostStatus.InvalidArgument;
+            && facade.Connect(invalidTimeout) == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.socket facade preserves partial io", HostLane.Fast, 3)]
     private static bool TestPreservesPartialIo()
     {
         OSHostSocketTable table = new(capacity: 2);
@@ -160,7 +124,7 @@ internal static class PalSocketFacadeTests
         byte[] receiveSecond = new byte[2];
         if (table.QueueInboundData(socket, [0x41, 0x42, 0x43]) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostSocketIoRequest receiveRequest = new(
@@ -180,7 +144,7 @@ internal static class PalSocketFacadeTests
         OSHostSocketOperationResult send = facade.Send(sendRequest, sendPayload);
         OSHostSocketOperationResult sendAgain = facade.Send(sendRequest, sendPayload);
 
-        return firstReceive.Succeeded
+        return HostCheck.Result(firstReceive.Succeeded
             && firstReceive.BytesTransferred == 2
             && receiveFirst[0] == 0x41
             && receiveFirst[1] == 0x42
@@ -191,9 +155,10 @@ internal static class PalSocketFacadeTests
             && send.Succeeded
             && send.BytesTransferred == OSHostSocketTable.ConnectedBufferCapacity
             && sendAgain.StatusCode == (int)OSHostStatus.WouldBlock
-            && sendAgain.BytesTransferred == 0;
+            && sendAgain.BytesTransferred == 0);
     }
 
+    [HostTest("pal.socket facade polls close and reset states", HostLane.Fast, 4)]
     private static bool TestPollsCloseAndResetStates()
     {
         OSHostSocketTable closeTable = new(capacity: 2);
@@ -201,7 +166,7 @@ internal static class PalSocketFacadeTests
         OSHostSocketHandle closeSocket = CreateAcceptedSocket(closeTable);
         if (closeTable.MarkPeerClosed(closeSocket) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostSocketPollEntry closePoll = closeFacade.Poll(new OSHostSocketPollEntry(
@@ -216,7 +181,7 @@ internal static class PalSocketFacadeTests
         OSHostSocketHandle resetSocket = CreateAcceptedSocket(resetTable);
         if (resetTable.MarkPeerReset(resetSocket) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostSocketPollEntry resetPoll = resetFacade.Poll(new OSHostSocketPollEntry(
@@ -229,12 +194,13 @@ internal static class PalSocketFacadeTests
             statusCode: 0,
             flags: 0));
 
-        return closePoll.StatusCode == (int)OSHostStatus.Ok
+        return HostCheck.Result(closePoll.StatusCode == (int)OSHostStatus.Ok
             && closePoll.ObservedEvents == (OSHostSocketConstants.PollReadable | OSHostSocketConstants.PollHangup)
             && resetPoll.StatusCode == (int)OSHostStatus.ConnectionReset
-            && resetPoll.ObservedEvents == (OSHostSocketConstants.PollError | OSHostSocketConstants.PollHangup);
+            && resetPoll.ObservedEvents == (OSHostSocketConstants.PollError | OSHostSocketConstants.PollHangup));
     }
 
+    [HostTest("pal.socket facade translates invalid handles", HostLane.Fast, 5)]
     private static bool TestTranslatesInvalidHandles()
     {
         OSHostSocketTable table = new(capacity: 1);
@@ -255,13 +221,14 @@ internal static class PalSocketFacadeTests
             statusCode: 0,
             flags: 0));
 
-        return facade.Listen(new OSHostSocketListenRequest(invalid, backlog: 1, flags: 0, reserved: 0))
+        return HostCheck.Result(facade.Listen(new OSHostSocketListenRequest(invalid, backlog: 1, flags: 0, reserved: 0))
                 == OSHostStatus.InvalidArgument
             && receive.StatusCode == (int)OSHostStatus.InvalidArgument
             && poll.StatusCode == (int)OSHostStatus.InvalidArgument
-            && poll.ObservedEvents == OSHostSocketConstants.PollError;
+            && poll.ObservedEvents == OSHostSocketConstants.PollError);
     }
 
+    [HostTest("pal.socket facade close invalidates handle", HostLane.Fast, 6)]
     private static bool TestCloseInvalidatesHandle()
     {
         OSHostSocketTable table = new(capacity: 1);
@@ -269,13 +236,13 @@ internal static class PalSocketFacadeTests
         OSHostSocketCreateResult create = facade.Create(TcpCreateOptions());
         if (!create.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostHandle handle = create.Socket.AsHandle();
-        return facade.Close(handle) == OSHostStatus.Ok
+        return HostCheck.Result(facade.Close(handle) == OSHostStatus.Ok
             && facade.Close(handle) == OSHostStatus.InvalidArgument
-            && table.TryGetEntry(create.Socket, out _) == OSHostStatus.InvalidArgument;
+            && table.TryGetEntry(create.Socket, out _) == OSHostStatus.InvalidArgument);
     }
 
     private static OSHostSocketCreateOptions TcpCreateOptions()

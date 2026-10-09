@@ -3,59 +3,15 @@ using OS.Kernel.Diagnostics;
 
 internal static class FaultEntryStubPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run(
-            "fault entry stub plan encodes invalid opcode frame handoff",
-            TestEncodesInvalidOpcodeFrameHandoff,
-            ref failures);
-        Run(
-            "fault entry stub plan encodes page fault frame handoff",
-            TestEncodesPageFaultFrameHandoff,
-            ref failures);
-        Run(
-            "fault entry stub plan rejects unsupported vector metadata",
-            TestRejectsUnsupportedMetadataAndSmallBuffers,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Fault entry stub plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("fault entry stub plan encodes invalid opcode frame handoff", HostLane.Fast, 0)]
     private static bool TestEncodesInvalidOpcodeFrameHandoff()
     {
         byte[] bytes = CreatePoisonedBuffer(FaultEntryStubPlan.InvalidOpcodeRequiredByteLength + 1);
 
         FaultEntryStubPlanResult result = FaultEntryStubPlan.EmitInvalidOpcode(bytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == FaultEntryStubPlanStatus.Ok
             && result.Vector == FaultVectorCatalog.InvalidOpcode
             && !result.PushesErrorCode
@@ -81,9 +37,10 @@ internal static class FaultEntryStubPlanTests
                 FaultEntryStubPlan.InvalidOpcodeVectorPushOffset,
                 FaultVectorCatalog.InvalidOpcode)
             && TerminalMatches(bytes, FaultEntryStubPlan.InvalidOpcodeTerminalOffset)
-            && bytes[FaultEntryStubPlan.InvalidOpcodeRequiredByteLength] == 0xcc;
+            && bytes[FaultEntryStubPlan.InvalidOpcodeRequiredByteLength] == 0xcc);
     }
 
+    [HostTest("fault entry stub plan encodes page fault frame handoff", HostLane.Fast, 1)]
     private static bool TestEncodesPageFaultFrameHandoff()
     {
         byte[] bytes = CreatePoisonedBuffer(FaultEntryStubPlan.PageFaultRequiredByteLength + 1);
@@ -91,7 +48,7 @@ internal static class FaultEntryStubPlanTests
 
         FaultEntryStubPlanResult result = FaultEntryStubPlan.Emit(pageFault, bytes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == FaultEntryStubPlanStatus.Ok
             && result.Vector == FaultVectorCatalog.PageFault
             && result.PushesErrorCode
@@ -110,9 +67,10 @@ internal static class FaultEntryStubPlanTests
                 FaultEntryStubPlan.PageFaultVectorPushOffset,
                 FaultVectorCatalog.PageFault)
             && TerminalMatches(bytes, FaultEntryStubPlan.PageFaultTerminalOffset)
-            && bytes[FaultEntryStubPlan.PageFaultRequiredByteLength] == 0xcc;
+            && bytes[FaultEntryStubPlan.PageFaultRequiredByteLength] == 0xcc);
     }
 
+    [HostTest("fault entry stub plan rejects unsupported vector metadata", HostLane.Fast, 2)]
     private static bool TestRejectsUnsupportedMetadataAndSmallBuffers()
     {
         byte[] validBytes = CreatePoisonedBuffer(FaultEntryStubPlan.MaximumRequiredByteLength);
@@ -138,7 +96,7 @@ internal static class FaultEntryStubPlanTests
         FaultEntryStubPlanResult shortPageFaultResult =
             FaultEntryStubPlan.EmitPageFault(shortPageFaultBytes);
 
-        return !unsupportedVectorResult.Succeeded
+        return HostCheck.Result(!unsupportedVectorResult.Succeeded
             && unsupportedVectorResult.Status == FaultEntryStubPlanStatus.UnsupportedVectorMetadata
             && unsupportedVectorResult.BytesWritten == 0
             && unsupportedVectorResult.RequiredBytes == 0
@@ -169,7 +127,7 @@ internal static class FaultEntryStubPlanTests
                 FaultVectorCatalog.PageFault,
                 pushesErrorCode: true,
                 FaultEntryStubPlan.PageFaultRequiredByteLength - 1)
-                == FaultEntryStubPlanStatus.OutputBufferTooSmall;
+                == FaultEntryStubPlanStatus.OutputBufferTooSmall);
     }
 
     private static bool PushMatches(ReadOnlySpan<byte> bytes, int offset, byte immediate)

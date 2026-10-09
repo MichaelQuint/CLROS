@@ -19,64 +19,7 @@ internal static class GptPartitionTableParserTests
     private static readonly Guid FirstUniquePartitionGuid = new("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee");
     private static readonly Guid SecondUniquePartitionGuid = new("bbbbbbbb-cccc-dddd-eeee-ffffffffffff");
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("storage.gpt.parser parses caller buffers", TestParsesCallerBuffers, ref failures);
-        Run("storage.gpt.parser parses backup caller buffers", TestParsesBackupCallerBuffers, ref failures);
-        Run("storage.gpt.parser.crc validates good buffers", TestValidatesCrc32, ref failures);
-        Run("storage.gpt.parser default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("storage.gpt.parser uses shared memory helpers", TestUsesSharedMemoryHelpers, ref failures);
-        Run(
-            "storage.gpt.partition parser header copy uses shared buffer operations",
-            TestHeaderCopyUsesSharedBufferOperations,
-            ref failures);
-        Run("storage.gpt.parser.crc rejects header mismatch", TestRejectsHeaderCrcMismatch, ref failures);
-        Run("storage.gpt.parser.crc rejects partition array mismatch", TestRejectsPartitionEntryArrayCrcMismatch, ref failures);
-        Run("storage.gpt.parser rejects bad signature", TestRejectsBadSignature, ref failures);
-        Run("storage.gpt.parser rejects unsupported revision", TestRejectsUnsupportedRevision, ref failures);
-        Run("storage.gpt.parser rejects invalid header size", TestRejectsInvalidHeaderSize, ref failures);
-        Run("storage.gpt.parser rejects invalid current lba", TestRejectsInvalidCurrentLba, ref failures);
-        Run("storage.gpt.parser rejects invalid usable bounds", TestRejectsInvalidUsableBounds, ref failures);
-        Run("storage.gpt.parser backup rejects invalid lba metadata", TestBackupRejectsInvalidLbaMetadata, ref failures);
-        Run("storage.gpt.parser rejects invalid entry count", TestRejectsInvalidEntryCount, ref failures);
-        Run("storage.gpt.parser rejects invalid entry size", TestRejectsInvalidEntrySize, ref failures);
-        Run("storage.gpt.parser rejects entry array out of range", TestRejectsEntryArrayOutOfRange, ref failures);
-        Run("storage.gpt.parser rejects short entry buffer", TestRejectsShortEntryBuffer, ref failures);
-        Run("storage.gpt.parser reports destination too small", TestReportsDestinationTooSmall, ref failures);
-        Run("storage.gpt.parser rejects invalid partition lba range", TestRejectsInvalidPartitionLbaRange, ref failures);
-        Run("storage.gpt.parser records unterminated name metadata", TestRecordsUnterminatedNameMetadata, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("GPT partition table parser host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.gpt.parser parses caller buffers", HostLane.Fast, 0)]
     private static bool TestParsesCallerBuffers()
     {
         byte[] entries = CreateValidPartitionEntries();
@@ -90,7 +33,7 @@ internal static class GptPartitionTableParserTests
             SectorSize,
             descriptors);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == GptPartitionTableStatus.Success
             && result.Header.Revision == GptPartitionTableParser.SupportedRevision
             && result.Header.HeaderSize == GptPartitionTableParser.MinimumHeaderSize
@@ -124,9 +67,10 @@ internal static class GptPartitionTableParserTests
             && descriptors[1].LastLba == 80
             && descriptors[1].NameByteOffset == 256 + GptPartitionDescriptor.NameOffsetWithinEntryBytes
             && descriptors[1].NameUtf16CodeUnitLength == 3
-            && descriptors[1].NameByteLength == GptPartitionDescriptor.NameFieldLengthBytes;
+            && descriptors[1].NameByteLength == GptPartitionDescriptor.NameFieldLengthBytes);
     }
 
+    [HostTest("storage.gpt.parser.crc validates good buffers", HostLane.Fast, 2)]
     private static bool TestValidatesCrc32()
     {
         byte[] entries = CreateValidPartitionEntries();
@@ -140,7 +84,7 @@ internal static class GptPartitionTableParserTests
             SectorSize,
             descriptors);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.CrcStatus == GptPartitionTableCrcStatus.Validated
             && GptPartitionTableParser.ValidatesHeaderCrc32
             && GptPartitionTableParser.ValidatesPartitionEntryArrayCrc32
@@ -148,9 +92,10 @@ internal static class GptPartitionTableParserTests
             && result.ExpectedHeaderCrc32 != 0
             && result.ExpectedPartitionEntryArrayCrc32 == result.ComputedPartitionEntryArrayCrc32
             && result.ExpectedPartitionEntryArrayCrc32 == result.Header.PartitionEntryArrayCrc32
-            && result.ExpectedPartitionEntryArrayCrc32 != 0;
+            && result.ExpectedPartitionEntryArrayCrc32 != 0);
     }
 
+    [HostTest("storage.gpt.parser default result is not success", HostLane.Fast, 3)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         GptPartitionTableParseResult result = default;
@@ -167,7 +112,7 @@ internal static class GptPartitionTableParserTests
             expectedPartitionEntryArrayCrc32: 6,
             computedPartitionEntryArrayCrc32: 7);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == GptPartitionTableStatus.Success
             && result.CrcStatus == GptPartitionTableCrcStatus.NotValidated
@@ -193,16 +138,17 @@ internal static class GptPartitionTableParserTests
             && failed.ComputedHeaderCrc32 == 5
             && failed.ExpectedPartitionEntryArrayCrc32 == 6
             && failed.ComputedPartitionEntryArrayCrc32 == 7
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<GptPartitionTableParseResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<GptPartitionTableParseResult>());
     }
 
+    [HostTest("storage.gpt.parser uses shared memory helpers", HostLane.Fast, 4)]
     private static bool TestUsesSharedMemoryHelpers()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "GptPartitionTableParser.cs"));
 
-        return source.Contains("\"EFI PART\"u8", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("\"EFI PART\"u8", StringComparison.Ordinal)
             && source.Contains(
                 "OS.Std.MemoryExtensions.SequenceEqual(bytes.Slice(0, signature.Length), signature)",
                 StringComparison.Ordinal)
@@ -219,16 +165,17 @@ internal static class GptPartitionTableParserTests
             && !source.Contains("bytes[6] == (byte)'R'", StringComparison.Ordinal)
             && !source.Contains("bytes[7] == (byte)'T'", StringComparison.Ordinal)
             && !source.Contains("for (int i = 0; i < 16; i++)", StringComparison.Ordinal)
-            && !source.Contains("bytes[i] != 0", StringComparison.Ordinal);
+            && !source.Contains("bytes[i] != 0", StringComparison.Ordinal));
     }
 
+    [HostTest("storage.gpt.partition parser header copy uses shared buffer operations", HostLane.Fast, 5)]
     private static bool TestHeaderCopyUsesSharedBufferOperations()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "GptPartitionTableParser.cs"));
 
-        return source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
             && source.Contains("private static bool TryComputeHeaderCrc32(", StringComparison.Ordinal)
             && source.Contains("BufferOperationResult copy = BufferOperations.MemoryCopy(", StringComparison.Ordinal)
             && source.Contains("primaryHeaderSector.Slice(0, headerBytes.Length)", StringComparison.Ordinal)
@@ -236,9 +183,10 @@ internal static class GptPartitionTableParserTests
             && source.Contains("GptPartitionTableStatus.HeaderSectorTooSmall", StringComparison.Ordinal)
             && !source.Contains(
                 "primaryHeaderSector.Slice(0, headerBytes.Length).CopyTo(headerBytes)",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("storage.gpt.parser parses backup caller buffers", HostLane.Fast, 1)]
     private static bool TestParsesBackupCallerBuffers()
     {
         byte[] entries = CreateValidPartitionEntries();
@@ -252,7 +200,7 @@ internal static class GptPartitionTableParserTests
             SectorSize,
             descriptors);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == GptPartitionTableStatus.Success
             && result.CrcStatus == GptPartitionTableCrcStatus.Validated
             && result.Header.CurrentLba == BlockCount - 1
@@ -267,9 +215,10 @@ internal static class GptPartitionTableParserTests
             && result.ExpectedHeaderCrc32 == result.ComputedHeaderCrc32
             && result.ExpectedPartitionEntryArrayCrc32 == result.ComputedPartitionEntryArrayCrc32
             && descriptors[0].PartitionTypeGuid == BasicDataPartitionGuid
-            && descriptors[1].PartitionTypeGuid == EfiSystemPartitionGuid;
+            && descriptors[1].PartitionTypeGuid == EfiSystemPartitionGuid);
     }
 
+    [HostTest("storage.gpt.parser.crc rejects header mismatch", HostLane.Fast, 6)]
     private static bool TestRejectsHeaderCrcMismatch()
     {
         byte[] entries = CreateValidPartitionEntries();
@@ -278,13 +227,14 @@ internal static class GptPartitionTableParserTests
 
         GptPartitionTableParseResult result = ParseWithOneDescriptor(header, entries);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == GptPartitionTableStatus.HeaderCrcMismatch
             && result.CrcStatus == GptPartitionTableCrcStatus.HeaderMismatch
             && result.ExpectedHeaderCrc32 != result.ComputedHeaderCrc32
-            && result.ExpectedPartitionEntryArrayCrc32 == result.Header.PartitionEntryArrayCrc32;
+            && result.ExpectedPartitionEntryArrayCrc32 == result.Header.PartitionEntryArrayCrc32);
     }
 
+    [HostTest("storage.gpt.parser.crc rejects partition array mismatch", HostLane.Fast, 7)]
     private static bool TestRejectsPartitionEntryArrayCrcMismatch()
     {
         byte[] entries = CreateValidPartitionEntries();
@@ -293,13 +243,14 @@ internal static class GptPartitionTableParserTests
 
         GptPartitionTableParseResult result = ParseWithOneDescriptor(header, entries);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == GptPartitionTableStatus.PartitionEntryArrayCrcMismatch
             && result.CrcStatus == GptPartitionTableCrcStatus.PartitionEntryArrayMismatch
             && result.ExpectedHeaderCrc32 == result.ComputedHeaderCrc32
-            && result.ExpectedPartitionEntryArrayCrc32 != result.ComputedPartitionEntryArrayCrc32;
+            && result.ExpectedPartitionEntryArrayCrc32 != result.ComputedPartitionEntryArrayCrc32);
     }
 
+    [HostTest("storage.gpt.parser rejects bad signature", HostLane.Fast, 8)]
     private static bool TestRejectsBadSignature()
     {
         byte[] header = CreateValidHeaderSector();
@@ -307,10 +258,11 @@ internal static class GptPartitionTableParserTests
 
         GptPartitionTableParseResult result = ParseWithOneDescriptor(header, CreateValidPartitionEntries());
 
-        return !result.Succeeded
-            && result.Status == GptPartitionTableStatus.InvalidHeaderSignature;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == GptPartitionTableStatus.InvalidHeaderSignature);
     }
 
+    [HostTest("storage.gpt.parser rejects unsupported revision", HostLane.Fast, 9)]
     private static bool TestRejectsUnsupportedRevision()
     {
         byte[] header = CreateValidHeaderSector();
@@ -318,11 +270,12 @@ internal static class GptPartitionTableParserTests
 
         GptPartitionTableParseResult result = ParseWithOneDescriptor(header, CreateValidPartitionEntries());
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == GptPartitionTableStatus.UnsupportedRevision
-            && result.Header.Revision == 0x00020000;
+            && result.Header.Revision == 0x00020000);
     }
 
+    [HostTest("storage.gpt.parser rejects invalid header size", HostLane.Fast, 10)]
     private static bool TestRejectsInvalidHeaderSize()
     {
         byte[] header = CreateValidHeaderSector();
@@ -330,10 +283,11 @@ internal static class GptPartitionTableParserTests
 
         GptPartitionTableParseResult result = ParseWithOneDescriptor(header, CreateValidPartitionEntries());
 
-        return !result.Succeeded
-            && result.Status == GptPartitionTableStatus.InvalidHeaderSize;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == GptPartitionTableStatus.InvalidHeaderSize);
     }
 
+    [HostTest("storage.gpt.parser rejects invalid current lba", HostLane.Fast, 11)]
     private static bool TestRejectsInvalidCurrentLba()
     {
         byte[] header = CreateValidHeaderSector();
@@ -341,10 +295,11 @@ internal static class GptPartitionTableParserTests
 
         GptPartitionTableParseResult result = ParseWithOneDescriptor(header, CreateValidPartitionEntries());
 
-        return !result.Succeeded
-            && result.Status == GptPartitionTableStatus.InvalidCurrentLba;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == GptPartitionTableStatus.InvalidCurrentLba);
     }
 
+    [HostTest("storage.gpt.parser rejects invalid usable bounds", HostLane.Fast, 12)]
     private static bool TestRejectsInvalidUsableBounds()
     {
         byte[] header = CreateValidHeaderSector();
@@ -353,10 +308,11 @@ internal static class GptPartitionTableParserTests
 
         GptPartitionTableParseResult result = ParseWithOneDescriptor(header, CreateValidPartitionEntries());
 
-        return !result.Succeeded
-            && result.Status == GptPartitionTableStatus.InvalidUsableLbaRange;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == GptPartitionTableStatus.InvalidUsableLbaRange);
     }
 
+    [HostTest("storage.gpt.parser backup rejects invalid lba metadata", HostLane.Fast, 13)]
     private static bool TestBackupRejectsInvalidLbaMetadata()
     {
         byte[] entries = CreateValidPartitionEntries();
@@ -402,7 +358,7 @@ internal static class GptPartitionTableParserTests
             SectorSize,
             descriptors);
 
-        return !currentResult.Succeeded
+        return HostCheck.Result(!currentResult.Succeeded
             && currentResult.Status == GptPartitionTableStatus.InvalidCurrentLba
             && !backupResult.Succeeded
             && backupResult.Status == GptPartitionTableStatus.InvalidBackupLba
@@ -410,9 +366,10 @@ internal static class GptPartitionTableParserTests
             && entryResult.Status == GptPartitionTableStatus.InvalidPartitionEntryArrayRange
             && !earlyEntryResult.Succeeded
             && earlyEntryResult.Status == GptPartitionTableStatus.InvalidPartitionEntryArrayRange
-            && earlyEntryResult.PartitionEntrySectorsRequired == 1;
+            && earlyEntryResult.PartitionEntrySectorsRequired == 1);
     }
 
+    [HostTest("storage.gpt.parser rejects invalid entry count", HostLane.Fast, 14)]
     private static bool TestRejectsInvalidEntryCount()
     {
         byte[] header = CreateValidHeaderSector();
@@ -420,10 +377,11 @@ internal static class GptPartitionTableParserTests
 
         GptPartitionTableParseResult result = ParseWithOneDescriptor(header, CreateValidPartitionEntries());
 
-        return !result.Succeeded
-            && result.Status == GptPartitionTableStatus.InvalidPartitionEntryCount;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == GptPartitionTableStatus.InvalidPartitionEntryCount);
     }
 
+    [HostTest("storage.gpt.parser rejects invalid entry size", HostLane.Fast, 15)]
     private static bool TestRejectsInvalidEntrySize()
     {
         byte[] header = CreateValidHeaderSector();
@@ -431,10 +389,11 @@ internal static class GptPartitionTableParserTests
 
         GptPartitionTableParseResult result = ParseWithOneDescriptor(header, CreateValidPartitionEntries());
 
-        return !result.Succeeded
-            && result.Status == GptPartitionTableStatus.InvalidPartitionEntrySize;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == GptPartitionTableStatus.InvalidPartitionEntrySize);
     }
 
+    [HostTest("storage.gpt.parser rejects entry array out of range", HostLane.Fast, 16)]
     private static bool TestRejectsEntryArrayOutOfRange()
     {
         byte[] header = CreateValidHeaderSector();
@@ -443,10 +402,11 @@ internal static class GptPartitionTableParserTests
 
         GptPartitionTableParseResult result = ParseWithOneDescriptor(header, CreateValidPartitionEntries());
 
-        return !result.Succeeded
-            && result.Status == GptPartitionTableStatus.InvalidPartitionEntryArrayRange;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == GptPartitionTableStatus.InvalidPartitionEntryArrayRange);
     }
 
+    [HostTest("storage.gpt.parser rejects short entry buffer", HostLane.Fast, 17)]
     private static bool TestRejectsShortEntryBuffer()
     {
         byte[] entries = CreateValidPartitionEntries();
@@ -459,12 +419,13 @@ internal static class GptPartitionTableParserTests
             SectorSize,
             descriptors);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == GptPartitionTableStatus.PartitionEntryBufferTooSmall
             && result.PartitionEntryBytesRequired == PartitionEntryCount * PartitionEntrySize
-            && result.PartitionEntrySectorsRequired == 1;
+            && result.PartitionEntrySectorsRequired == 1);
     }
 
+    [HostTest("storage.gpt.parser reports destination too small", HostLane.Fast, 18)]
     private static bool TestReportsDestinationTooSmall()
     {
         byte[] header = CreateValidHeaderSector();
@@ -478,13 +439,14 @@ internal static class GptPartitionTableParserTests
             SectorSize,
             descriptors);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == GptPartitionTableStatus.DestinationTooSmall
             && result.PartitionsWritten == 1
             && result.FailingEntryIndex == 2
-            && descriptors[0].PartitionTypeGuid == BasicDataPartitionGuid;
+            && descriptors[0].PartitionTypeGuid == BasicDataPartitionGuid);
     }
 
+    [HostTest("storage.gpt.parser rejects invalid partition lba range", HostLane.Fast, 19)]
     private static bool TestRejectsInvalidPartitionLbaRange()
     {
         byte[] entries = CreateEmptyPartitionEntries();
@@ -501,11 +463,12 @@ internal static class GptPartitionTableParserTests
 
         GptPartitionTableParseResult result = ParseWithOneDescriptor(header, entries);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == GptPartitionTableStatus.InvalidPartitionEntryRange
-            && result.FailingEntryIndex == 0;
+            && result.FailingEntryIndex == 0);
     }
 
+    [HostTest("storage.gpt.parser records unterminated name metadata", HostLane.Fast, 20)]
     private static bool TestRecordsUnterminatedNameMetadata()
     {
         byte[] entries = CreateEmptyPartitionEntries();
@@ -529,10 +492,10 @@ internal static class GptPartitionTableParserTests
             SectorSize,
             descriptors);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.PartitionsWritten == 1
             && descriptors[0].NameUtf16CodeUnitLength == GptPartitionDescriptor.MaximumNameUtf16CodeUnits
-            && !descriptors[0].NameIsNullTerminated;
+            && !descriptors[0].NameIsNullTerminated);
     }
 
     private static GptPartitionTableParseResult ParseWithOneDescriptor(byte[] header, byte[] entries)

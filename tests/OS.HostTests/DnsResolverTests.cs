@@ -5,44 +5,7 @@ internal static class DnsResolverTests
 {
     private const ushort TransactionId = 0x2345;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.dns resolver writes query and resolves response", TestWritesQueryAndResolvesResponse, ref failures);
-        Run("net.dns resolver rejects mismatched transaction id", TestRejectsMismatchedTransactionId, ref failures);
-        Run("net.dns resolver times out query", TestTimesOutQuery, ref failures);
-        Run("net.dns resolver default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("DNS resolver host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.dns resolver writes query and resolves response", HostLane.Fast, 0)]
     private static bool TestWritesQueryAndResolvesResponse()
     {
         DnsResolverTransaction transaction = DnsResolverTransaction.Create(TransactionId);
@@ -68,7 +31,7 @@ internal static class DnsResolverTests
             || query[queryResult.BytesWritten - 2] != 0x00
             || query[queryResult.BytesWritten - 1] != 0x01)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] response = CreateCompressedResponse(
@@ -81,14 +44,15 @@ internal static class DnsResolverTests
             response,
             out DnsResolverTransitionResult responseResult);
 
-        return responseStatus == DnsResolverStatus.Success
+        return HostCheck.Result(responseStatus == DnsResolverStatus.Success
             && responseResult.Succeeded
             && responseResult.State == DnsResolverState.Resolved
             && responseResult.Address == ResolvedAddress()
             && transaction.State == DnsResolverState.Resolved
-            && transaction.ResolvedAddress == ResolvedAddress();
+            && transaction.ResolvedAddress == ResolvedAddress());
     }
 
+    [HostTest("net.dns resolver rejects mismatched transaction id", HostLane.Fast, 1)]
     private static bool TestRejectsMismatchedTransactionId()
     {
         DnsResolverTransaction transaction = DnsResolverTransaction.Create(TransactionId);
@@ -99,7 +63,7 @@ internal static class DnsResolverTests
             out DnsResolverTransitionResult _);
         if (queryStatus != DnsResolverStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] response = CreateCompressedResponse(
@@ -112,7 +76,7 @@ internal static class DnsResolverTests
             response,
             out DnsResolverTransitionResult responseResult);
 
-        return responseStatus == DnsResolverStatus.TransactionIdMismatch
+        return HostCheck.Result(responseStatus == DnsResolverStatus.TransactionIdMismatch
             && !responseResult.Succeeded
             && responseResult.State == DnsResolverState.Failed
             && responseResult.MessageStatus == DnsMessageStatus.TransactionIdMismatch
@@ -120,9 +84,10 @@ internal static class DnsResolverTests
             && RejectsQuestionMismatch()
             && RejectsAnswerNameMismatch()
             && RejectsUnsupportedResponse()
-            && RejectsMalformedResponse();
+            && RejectsMalformedResponse());
     }
 
+    [HostTest("net.dns resolver times out query", HostLane.Fast, 2)]
     private static bool TestTimesOutQuery()
     {
         DnsResolverTransaction transaction = DnsResolverTransaction.Create(TransactionId);
@@ -133,17 +98,18 @@ internal static class DnsResolverTests
             out DnsResolverTransitionResult _);
         if (queryStatus != DnsResolverStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         DnsResolverStatus timeoutStatus = transaction.Timeout(out DnsResolverTransitionResult timeoutResult);
 
-        return timeoutStatus == DnsResolverStatus.Timeout
+        return HostCheck.Result(timeoutStatus == DnsResolverStatus.Timeout
             && !timeoutResult.Succeeded
             && timeoutResult.State == DnsResolverState.Failed
-            && transaction.State == DnsResolverState.Failed;
+            && transaction.State == DnsResolverState.Failed);
     }
 
+    [HostTest("net.dns resolver default result is not success", HostLane.Fast, 3)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         DnsResolverTransitionResult defaultResult = default;
@@ -153,7 +119,7 @@ internal static class DnsResolverTests
                 DnsResolverState.Initial,
                 DnsMessageStatus.Success);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == DnsResolverStatus.Success
             && failedResult.IsInitialized
@@ -162,7 +128,7 @@ internal static class DnsResolverTests
             && failedResult.State == DnsResolverState.Initial
             && failedResult.MessageStatus == DnsMessageStatus.Success
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                DnsResolverTransitionResult>();
+                DnsResolverTransitionResult>());
     }
 
     private static bool RejectsUnsupportedResponse()

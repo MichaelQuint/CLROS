@@ -10,25 +10,11 @@ using Status = OS.Boot.OwnedAllocatorRoundTripStatus;
 
 internal static unsafe class OwnedAllocatorDescriptorTablesACPISnapshotPanicOutputTests
 {
-    [ModuleInitializer]
-    internal static void Run()
-    {
-        Group("restoration", Restoration);
-        Group("owner_backing_aliases", OwnerBackingAliases);
-        Group("stale_owner", StaleOwner);
-        Group("consumed_and_diagnostic_failure", ConsumedAndDiagnosticFailure);
-    }
 
-    private static void Group(string name, Action test)
-    {
-        string marker = "m03.010.allocator." + name;
-        Console.WriteLine("TEST_START " + marker);
-        try { test(); Console.WriteLine("TEST_PASS " + marker); }
-        catch (Exception error) { Console.WriteLine("TEST_FAIL " + marker + " " + error.Message); throw; }
-    }
     private static void Need(bool condition, string message)
     { if (!condition) throw new InvalidOperationException(message); }
 
+    [HostTest("m03.010.allocator.restoration", HostLane.Fast, 0)]
     private static void Restoration()
     {
         // Warm the actual operation before measuring only that operation. Fixture
@@ -58,6 +44,7 @@ internal static unsafe class OwnedAllocatorDescriptorTablesACPISnapshotPanicOutp
         }
     }
 
+    [HostTest("m03.010.allocator.owner_backing_aliases", HostLane.Fast, 1)]
     private static void OwnerBackingAliases()
     {
         for (int scenario = 0; scenario < 7; scenario++)
@@ -83,6 +70,7 @@ internal static unsafe class OwnedAllocatorDescriptorTablesACPISnapshotPanicOutp
         }
     }
 
+    [HostTest("m03.010.allocator.stale_owner", HostLane.Fast, 2)]
     private static void StaleOwner()
     {
         for (int scenario = 0; scenario < 3; scenario++)
@@ -103,6 +91,7 @@ internal static unsafe class OwnedAllocatorDescriptorTablesACPISnapshotPanicOutp
         // NoSuitableRange result from this operation.
     }
 
+    [HostTest("m03.010.allocator.consumed_and_diagnostic_failure", HostLane.Fast, 3)]
     private static void ConsumedAndDiagnosticFailure()
     {
         for (int scenario = 0; scenario < 4; scenario++)

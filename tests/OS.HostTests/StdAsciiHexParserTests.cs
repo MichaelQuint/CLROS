@@ -4,18 +4,8 @@ using OS.Std.Text;
 
 internal static class StdAsciiHexParserTests
 {
-    [ModuleInitializer]
-    internal static void Run()
-    {
-        RunScenario("std.ascii.hex parses uint32 values", TestParseUInt32Values);
-        RunScenario("std.ascii.hex parses uint64 values", TestParseUInt64Values);
-        RunScenario("std.ascii.hex accepts optional 0x prefix", TestAcceptsOptionalPrefix);
-        RunScenario("std.ascii.hex rejects invalid input", TestRejectsInvalidInput);
-        RunScenario("std.ascii.hex rejects overflow", TestRejectsOverflow);
-        RunScenario("std.ascii.hex default result is not success", TestDefaultResultContract);
-        RunScenario("std.ascii.hex layouts contain no managed references", TestLayoutContract);
-    }
 
+    [HostTest("std.ascii.hex parses uint32 values", HostLane.Fast, 0)]
     private static void TestParseUInt32Values()
     {
         ExpectBool("status is partial", true, AsciiHexParser.Status == CompatibilityStatus.Partial);
@@ -52,6 +42,7 @@ internal static class StdAsciiHexParserTests
         ExpectUInt32("try parse value", 0x2A, parsed);
     }
 
+    [HostTest("std.ascii.hex parses uint64 values", HostLane.Fast, 1)]
     private static void TestParseUInt64Values()
     {
         ExpectUInt64Result(
@@ -80,6 +71,7 @@ internal static class StdAsciiHexParserTests
         ExpectUInt64("try parse value", 0x100000000UL, parsed);
     }
 
+    [HostTest("std.ascii.hex accepts optional 0x prefix", HostLane.Fast, 2)]
     private static void TestAcceptsOptionalPrefix()
     {
         ExpectUInt32Result(
@@ -112,6 +104,7 @@ internal static class StdAsciiHexParserTests
             AsciiHexParser.ParseUInt64("0XABCDEF0123456789"u8));
     }
 
+    [HostTest("std.ascii.hex rejects invalid input", HostLane.Fast, 3)]
     private static void TestRejectsInvalidInput()
     {
         ExpectUInt32Result(
@@ -168,6 +161,7 @@ internal static class StdAsciiHexParserTests
         ExpectUInt32("try parse invalid clears value", 0, parsed);
     }
 
+    [HostTest("std.ascii.hex rejects overflow", HostLane.Fast, 4)]
     private static void TestRejectsOverflow()
     {
         ExpectUInt32Result(
@@ -203,6 +197,7 @@ internal static class StdAsciiHexParserTests
         ExpectUInt64("try parse overflow clears value", 0, parsed);
     }
 
+    [HostTest("std.ascii.hex default result is not success", HostLane.Fast, 5)]
     private static void TestDefaultResultContract()
     {
         AsciiHexUInt32ParseResult uint32Result = default;
@@ -217,6 +212,7 @@ internal static class StdAsciiHexParserTests
         ExpectBool("uint64 default is not success", false, uint64Result.Succeeded);
     }
 
+    [HostTest("std.ascii.hex layouts contain no managed references", HostLane.Fast, 6)]
     private static void TestLayoutContract()
     {
         ExpectBool(
@@ -227,22 +223,6 @@ internal static class StdAsciiHexParserTests
             "uint64 result contains no managed references",
             false,
             RuntimeHelpers.IsReferenceOrContainsReferences<AsciiHexUInt64ParseResult>());
-    }
-
-    private static void RunScenario(string name, Action test)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            test();
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
     }
 
     private static void ExpectUInt32Result(

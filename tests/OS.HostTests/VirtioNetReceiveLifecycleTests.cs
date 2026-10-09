@@ -8,49 +8,7 @@ internal static class VirtioNetReceiveLifecycleTests
     private const ushort QueueSize = 8;
     private const ulong FirstBufferPhysicalAddress = 0x0040_0000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.virtionet.rx.lifecycle publishes receive buffers", TestPublishesReceiveBuffers, ref failures);
-        Run("drivers.virtionet.rx.lifecycle wraps available ring slots", TestWrapsAvailableRingSlots, ref failures);
-        Run("drivers.virtionet.rx.lifecycle completes and classifies buffer", TestCompletesAndClassifiesBuffer, ref failures);
-        Run("drivers.virtionet.rx.lifecycle rejects short queue memory", TestRejectsShortQueueMemory, ref failures);
-        Run("drivers.virtionet.rx.lifecycle rejects descriptor exhaustion", TestRejectsDescriptorExhaustion, ref failures);
-        Run("drivers.virtionet.rx.lifecycle reports completion failures", TestReportsCompletionFailures, ref failures);
-        Run("drivers.virtionet.rx.lifecycle publish default result is not success", TestPublishDefaultResultIsNotSuccess, ref failures);
-        Run("drivers.virtionet.rx.lifecycle completion default result is not success", TestCompletionDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio-net RX lifecycle host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtionet.rx.lifecycle publishes receive buffers", HostLane.Fast, 0)]
     private static bool TestPublishesReceiveBuffers()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -70,7 +28,7 @@ internal static class VirtioNetReceiveLifecycleTests
                 frameBufferBytes: VirtioNetReceiveLifecycle.MaximumReceiveBufferBytes,
                 queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioNetReceiveLifecyclePublishStatus.Success
             && result.QueuePlanStatus == VirtqueueSplitRingPlanStatus.Success
             && result.QueueSize == QueueSize
@@ -101,9 +59,10 @@ internal static class VirtioNetReceiveLifecycleTests
             && !VirtioNetReceiveLifecycle.PollsDevice
             && !VirtioNetReceiveLifecycle.HandlesInterrupts
             && !VirtioNetReceiveLifecycle.CopiesPayload
-            && !VirtioNetReceiveLifecycle.PerformsPacketIo;
+            && !VirtioNetReceiveLifecycle.PerformsPacketIo);
     }
 
+    [HostTest("drivers.virtionet.rx.lifecycle wraps available ring slots", HostLane.Fast, 1)]
     private static bool TestWrapsAvailableRingSlots()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -122,16 +81,17 @@ internal static class VirtioNetReceiveLifecycleTests
                 frameBufferBytes: VirtioNetReceiveLifecycle.MaximumReceiveBufferBytes,
                 queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.FirstAvailableRingSlot == 7
             && result.LastAvailableRingSlot == 0
             && result.NextAvailableRingIndex == 1
             && result.ExpectedNextUsedIndex == 0
             && ReadUInt16(queueMemory, GetAvailableEntryOffset(queue.Plan, 7)) == 0
             && ReadUInt16(queueMemory, GetAvailableEntryOffset(queue.Plan, 0)) == 1
-            && ReadUInt16(queueMemory, (int)queue.Plan.AvailableRing.Offset + 2) == 1;
+            && ReadUInt16(queueMemory, (int)queue.Plan.AvailableRing.Offset + 2) == 1);
     }
 
+    [HostTest("drivers.virtionet.rx.lifecycle completes and classifies buffer", HostLane.Fast, 2)]
     private static bool TestCompletesAndClassifiesBuffer()
     {
         VirtioNetReceiveLifecyclePublishResult publish = CreatePublish(
@@ -142,7 +102,7 @@ internal static class VirtioNetReceiveLifecycleTests
             out byte[] queueMemory);
         if (!publish.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] receiveBuffer = CreateReceiveBuffer(
@@ -162,7 +122,7 @@ internal static class VirtioNetReceiveLifecycleTests
                 queueMemory,
                 receiveBuffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioNetReceiveLifecycleCompletionStatus.Success
             && result.PublishStatus == VirtioNetReceiveLifecyclePublishStatus.Success
             && result.QueuePlanStatus == VirtqueueSplitRingPlanStatus.Success
@@ -180,9 +140,10 @@ internal static class VirtioNetReceiveLifecycleTests
             && result.Classification.PayloadKind == EthernetPayloadKind.Ipv4
             && result.Classification.PayloadOffset ==
                 VirtioNetHeader.HeaderLengthWithoutMergeableBuffers + EthernetHeader.HeaderLength
-            && result.Classification.PayloadLength == 20;
+            && result.Classification.PayloadLength == 20);
     }
 
+    [HostTest("drivers.virtionet.rx.lifecycle rejects short queue memory", HostLane.Fast, 3)]
     private static bool TestRejectsShortQueueMemory()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -202,13 +163,14 @@ internal static class VirtioNetReceiveLifecycleTests
                 frameBufferBytes: VirtioNetReceiveLifecycle.MaximumReceiveBufferBytes,
                 queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetReceiveLifecyclePublishStatus.QueueMemoryTooSmall
             && result.NextAvailableRingIndex == result.PreviousAvailableRingIndex
             && result.ExpectedNextUsedIndex == result.PreviousUsedIndex
-            && AllBytesEqual(queueMemory, 0x5a);
+            && AllBytesEqual(queueMemory, 0x5a));
     }
 
+    [HostTest("drivers.virtionet.rx.lifecycle rejects descriptor exhaustion", HostLane.Fast, 4)]
     private static bool TestRejectsDescriptorExhaustion()
     {
         VirtqueueSplitRingPlanResult queue = VirtqueueSplitRingPlan.Create(QueueSize);
@@ -239,12 +201,13 @@ internal static class VirtioNetReceiveLifecycleTests
                 frameBufferBytes: VirtioNetReceiveLifecycle.MaximumReceiveBufferBytes,
                 queueMemory);
 
-        return !insufficient.Succeeded
+        return HostCheck.Result(!insufficient.Succeeded
             && insufficient.Status == VirtioNetReceiveLifecyclePublishStatus.InsufficientDescriptors
             && !outOfRange.Succeeded
-            && outOfRange.Status == VirtioNetReceiveLifecyclePublishStatus.DescriptorRangeOutOfRange;
+            && outOfRange.Status == VirtioNetReceiveLifecyclePublishStatus.DescriptorRangeOutOfRange);
     }
 
+    [HostTest("drivers.virtionet.rx.lifecycle reports completion failures", HostLane.Fast, 5)]
     private static bool TestReportsCompletionFailures()
     {
         VirtioNetReceiveLifecyclePublishResult publish = CreatePublish(
@@ -255,7 +218,7 @@ internal static class VirtioNetReceiveLifecycleTests
             out byte[] queueMemory);
         if (!publish.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] receiveBuffer = CreateReceiveBuffer(
@@ -307,7 +270,7 @@ internal static class VirtioNetReceiveLifecycleTests
                 queueMemory,
                 receiveBuffer);
 
-        return !noCompletion.Succeeded
+        return HostCheck.Result(!noCompletion.Succeeded
             && noCompletion.Status == VirtioNetReceiveLifecycleCompletionStatus.NoCompletion
             && !wrongHead.Succeeded
             && wrongHead.Status == VirtioNetReceiveLifecycleCompletionStatus.UnexpectedDescriptorHead
@@ -317,9 +280,10 @@ internal static class VirtioNetReceiveLifecycleTests
             && wrongLength.UsedByteCount == publish.FrameBufferBytes + 1u
             && !classifierFailure.Succeeded
             && classifierFailure.Status == VirtioNetReceiveLifecycleCompletionStatus.FrameClassificationFailed
-            && classifierFailure.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.BufferTooSmall;
+            && classifierFailure.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.BufferTooSmall);
     }
 
+    [HostTest("drivers.virtionet.rx.lifecycle publish default result is not success", HostLane.Fast, 6)]
     private static bool TestPublishDefaultResultIsNotSuccess()
     {
         VirtioNetReceiveLifecyclePublishResult result = default;
@@ -339,16 +303,17 @@ internal static class VirtioNetReceiveLifecycleTests
                 frameBufferBytes: VirtioNetReceiveLifecycle.MaximumReceiveBufferBytes,
                 queueMemory);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioNetReceiveLifecyclePublishStatus.Success
             && result.QueuePlanStatus == VirtqueueSplitRingPlanStatus.Success
             && failed.IsInitialized
             && !failed.Succeeded
             && failed.Status == VirtioNetReceiveLifecyclePublishStatus.InsufficientDescriptors
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetReceiveLifecyclePublishResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetReceiveLifecyclePublishResult>());
     }
 
+    [HostTest("drivers.virtionet.rx.lifecycle completion default result is not success", HostLane.Fast, 7)]
     private static bool TestCompletionDefaultResultIsNotSuccess()
     {
         VirtioNetReceiveLifecycleCompletionResult result = default;
@@ -374,7 +339,7 @@ internal static class VirtioNetReceiveLifecycleTests
                 queueMemory,
                 receiveBuffer);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioNetReceiveLifecycleCompletionStatus.Success
             && result.PublishStatus == VirtioNetReceiveLifecyclePublishStatus.Success
@@ -382,7 +347,7 @@ internal static class VirtioNetReceiveLifecycleTests
             && !failed.Succeeded
             && failed.Status == VirtioNetReceiveLifecycleCompletionStatus.PublishFailed
             && failed.PublishStatus == VirtioNetReceiveLifecyclePublishStatus.InsufficientDescriptors
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetReceiveLifecycleCompletionResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetReceiveLifecycleCompletionResult>());
     }
 
     private static VirtioNetReceiveLifecyclePublishResult CreatePublish(

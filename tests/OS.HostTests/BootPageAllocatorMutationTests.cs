@@ -6,47 +6,7 @@ internal static class BootPageAllocatorMutationTests
 {
     private const ulong PageSize = BootMemoryRegionRecord.PageSize;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("memory.boot allocator mutates allocation", TestAllocatesFromHead, ref failures);
-        Run("memory.boot allocator splits aligned range", TestSplitsAlignedRange, ref failures);
-        Run("memory.boot allocator frees and coalesces", TestFreesAndCoalesces, ref failures);
-        Run("memory.boot allocator frees empty list", TestFreesIntoEmptyList, ref failures);
-        Run("memory.boot allocator rejects invalid mutation", TestRejectsInvalidMutation, ref failures);
-        Run("memory.boot allocator mutation default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("memory.boot allocator mutation layouts contain no managed references", TestLayoutsContainNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Boot page allocator mutation host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("memory.boot allocator mutates allocation", HostLane.Fast, 0)]
     private static bool TestAllocatesFromHead()
     {
         Span<BootPageFreeListNode> nodes = stackalloc BootPageFreeListNode[2];
@@ -55,7 +15,7 @@ internal static class BootPageAllocatorMutationTests
         BootPageAllocatorMutationResult result =
             BootPageAllocatorMutator.Allocate(state, nodes, pageCount: 2, alignment: PageSize);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == BootPageAllocatorMutationStatus.Success
             && result.PhysicalStart == 0x100000
             && result.PhysicalEndExclusive == 0x102000
@@ -72,9 +32,10 @@ internal static class BootPageAllocatorMutationTests
             && nodes[0].PhysicalStart == 0x102000
             && nodes[0].PhysicalEndExclusive == 0x104000
             && nodes[0].PageCount == 2
-            && nodes[0].NextNodeIndex == 1;
+            && nodes[0].NextNodeIndex == 1);
     }
 
+    [HostTest("memory.boot allocator splits aligned range", HostLane.Fast, 1)]
     private static bool TestSplitsAlignedRange()
     {
         Span<BootPageFreeListNode> nodes = stackalloc BootPageFreeListNode[2];
@@ -86,7 +47,7 @@ internal static class BootPageAllocatorMutationTests
         BootPageAllocatorMutationResult result =
             BootPageAllocatorMutator.Allocate(state, nodes, pageCount: 1, alignment: 4 * PageSize);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.PhysicalStart == 0x104000
             && result.PhysicalEndExclusive == 0x105000
             && result.InsertedNodeIndex == 1
@@ -99,9 +60,10 @@ internal static class BootPageAllocatorMutationTests
             && nodes[1].PhysicalStart == 0x105000
             && nodes[1].PhysicalEndExclusive == 0x109000
             && nodes[1].PageCount == 4
-            && nodes[1].NextNodeIndex == -1;
+            && nodes[1].NextNodeIndex == -1);
     }
 
+    [HostTest("memory.boot allocator frees and coalesces", HostLane.Fast, 2)]
     private static bool TestFreesAndCoalesces()
     {
         Span<BootPageFreeListNode> nodes = stackalloc BootPageFreeListNode[2];
@@ -112,7 +74,7 @@ internal static class BootPageAllocatorMutationTests
         BootPageAllocatorMutationResult free =
             BootPageAllocatorMutator.Free(allocation.State, nodes, allocation.PhysicalStart, allocation.PageCount);
 
-        return allocation.Succeeded
+        return HostCheck.Result(allocation.Succeeded
             && free.Succeeded
             && free.State.FreeNodeCount == 2
             && free.State.FreePageCount == 10
@@ -120,9 +82,10 @@ internal static class BootPageAllocatorMutationTests
             && nodes[0].PhysicalStart == 0x100000
             && nodes[0].PhysicalEndExclusive == 0x104000
             && nodes[0].PageCount == 4
-            && nodes[0].NextNodeIndex == 1;
+            && nodes[0].NextNodeIndex == 1);
     }
 
+    [HostTest("memory.boot allocator frees empty list", HostLane.Fast, 3)]
     private static bool TestFreesIntoEmptyList()
     {
         Span<BootPageFreeListNode> nodes = stackalloc BootPageFreeListNode[1];
@@ -136,7 +99,7 @@ internal static class BootPageAllocatorMutationTests
         BootPageAllocatorMutationResult free =
             BootPageAllocatorMutator.Free(allocation.State, nodes, allocation.PhysicalStart, allocation.PageCount);
 
-        return allocation.Succeeded
+        return HostCheck.Result(allocation.Succeeded
             && allocation.State.HeadNodeIndex == -1
             && allocation.State.FreeNodeCount == 0
             && free.Succeeded
@@ -147,9 +110,10 @@ internal static class BootPageAllocatorMutationTests
             && free.State.AllocatedPageCount == 0
             && nodes[0].PhysicalStart == 0x500000
             && nodes[0].PhysicalEndExclusive == 0x501000
-            && nodes[0].NextNodeIndex == -1;
+            && nodes[0].NextNodeIndex == -1);
     }
 
+    [HostTest("memory.boot allocator rejects invalid mutation", HostLane.Fast, 4)]
     private static bool TestRejectsInvalidMutation()
     {
         Span<BootPageFreeListNode> nodes = stackalloc BootPageFreeListNode[2];
@@ -181,7 +145,7 @@ internal static class BootPageAllocatorMutationTests
         BootPageAllocatorMutationResult notAllocated =
             BootPageAllocatorMutator.Free(state, nodes, physicalStart: 0x800000, pageCount: 1);
 
-        return !zeroPages.Succeeded
+        return HostCheck.Result(!zeroPages.Succeeded
             && zeroPages.Status == BootPageAllocatorMutationStatus.InvalidPageCount
             && !invalidAlignment.Succeeded
             && invalidAlignment.Status == BootPageAllocatorMutationStatus.InvalidAlignment
@@ -192,18 +156,20 @@ internal static class BootPageAllocatorMutationTests
             && !overlap.Succeeded
             && overlap.Status == BootPageAllocatorMutationStatus.FreeRangeOverlaps
             && !notAllocated.Succeeded
-            && notAllocated.Status == BootPageAllocatorMutationStatus.FreeRangeNotAllocated;
+            && notAllocated.Status == BootPageAllocatorMutationStatus.FreeRangeNotAllocated);
     }
 
+    [HostTest("memory.boot allocator mutation default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         BootPageAllocatorMutationResult result = default;
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && !result.IsInitialized
-            && result.Status == BootPageAllocatorMutationStatus.Success;
+            && result.Status == BootPageAllocatorMutationStatus.Success);
     }
 
+    [HostTest("memory.boot allocator mutation layouts contain no managed references", HostLane.Fast, 6)]
     private static bool TestLayoutsContainNoManagedReferences()
     {
         Span<BootPageFreeListNode> nodes = stackalloc BootPageFreeListNode[2];
@@ -211,12 +177,12 @@ internal static class BootPageAllocatorMutationTests
         BootPageAllocatorMutationResult result =
             BootPageAllocatorMutator.Allocate(state, nodes, pageCount: 1, alignment: PageSize);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && BootPageAllocatorMutator.MutatesCallerOwnedFreeList
             && !BootPageAllocatorMutator.PerformsLiveAllocation
             && !BootPageAllocatorMutator.ConfiguresPaging
             && !BootPageAllocatorMutator.EnforcesNxOrWx
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<BootPageAllocatorMutationResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<BootPageAllocatorMutationResult>());
     }
 
     private static BootPageAllocatorState CreateReadyState(Span<BootPageFreeListNode> nodes)

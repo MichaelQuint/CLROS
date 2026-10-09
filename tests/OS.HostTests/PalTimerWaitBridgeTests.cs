@@ -3,46 +3,8 @@ using OS.Pal;
 
 internal static class PalTimerWaitBridgeTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("pal.timer.waitbridge signals completion event", TestSignalsCompletionEvent, ref failures);
-        Run("pal.timer.waitbridge leaves pending timer unsignaled", TestLeavesPendingTimerUnsignaled, ref failures);
-        Run("pal.timer.waitbridge rejects missing completion handle", TestRejectsMissingCompletionHandle, ref failures);
-        Run("pal.timer.waitbridge propagates wait set failure", TestPropagatesWaitSetFailure, ref failures);
-        Run("pal.timer.waitbridge preserves mock-only boundary", TestPreservesMockOnlyBoundary, ref failures);
-        Run("pal.timer.waitbridge default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL timer wait bridge host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.timer.waitbridge signals completion event", HostLane.Fast, 0)]
     private static bool TestSignalsCompletionEvent()
     {
         OSHostTimerTable timerTable = new(tickFrequency: 1_000, capacity: 1);
@@ -67,7 +29,7 @@ internal static class PalTimerWaitBridgeTests
                 out OSHostTimerWaitBridgeResult fired);
         OSHostWaitResult afterDue = waitTable.WaitOne(waitable);
 
-        return timer.Succeeded
+        return HostCheck.Result(timer.Succeeded
             && status == OSHostTimerWaitBridgeStatus.TimerNotSignaled
             && beforeDue.StatusCode == (int)OSHostStatus.WouldBlock
             && firedStatus == OSHostTimerWaitBridgeStatus.Success
@@ -81,9 +43,10 @@ internal static class PalTimerWaitBridgeTests
             && fired.EventSet
             && afterDue.StatusCode == (int)OSHostStatus.Ok
             && afterDue.Kind == OSHostWaitConstants.ResultKindSignaled
-            && afterDue.SignaledHandle.Value == waitable.Value;
+            && afterDue.SignaledHandle.Value == waitable.Value);
     }
 
+    [HostTest("pal.timer.waitbridge leaves pending timer unsignaled", HostLane.Fast, 1)]
     private static bool TestLeavesPendingTimerUnsignaled()
     {
         OSHostTimerTable timerTable = new(tickFrequency: 1_000, capacity: 1);
@@ -100,7 +63,7 @@ internal static class PalTimerWaitBridgeTests
                 out OSHostTimerWaitBridgeResult result);
         OSHostWaitResult wait = waitTable.WaitOne(waitable);
 
-        return timer.Succeeded
+        return HostCheck.Result(timer.Succeeded
             && status == OSHostTimerWaitBridgeStatus.TimerNotSignaled
             && !result.Succeeded
             && result.IsInitialized
@@ -113,9 +76,10 @@ internal static class PalTimerWaitBridgeTests
             && wait.StatusCode == (int)OSHostStatus.WouldBlock
             && timerTable.TryGetEntry(timer.Timer, out OSHostTimerTableEntry entry) == OSHostStatus.Ok
             && entry.State == OSHostTimerLifecycleState.Armed
-            && entry.CompletionWaitHandle.Value == waitable.Value;
+            && entry.CompletionWaitHandle.Value == waitable.Value);
     }
 
+    [HostTest("pal.timer.waitbridge rejects missing completion handle", HostLane.Fast, 2)]
     private static bool TestRejectsMissingCompletionHandle()
     {
         OSHostTimerTable timerTable = new(tickFrequency: 1_000, capacity: 1);
@@ -130,7 +94,7 @@ internal static class PalTimerWaitBridgeTests
                 timer.Timer,
                 out OSHostTimerWaitBridgeResult result);
 
-        return timer.Succeeded
+        return HostCheck.Result(timer.Succeeded
             && status == OSHostTimerWaitBridgeStatus.MissingCompletionWaitHandle
             && !result.Succeeded
             && result.IsInitialized
@@ -139,9 +103,10 @@ internal static class PalTimerWaitBridgeTests
             && result.FiredCount == 0
             && !result.EventSet
             && timerTable.TryGetEntry(timer.Timer, out OSHostTimerTableEntry entry) == OSHostStatus.Ok
-            && entry.State == OSHostTimerLifecycleState.Armed;
+            && entry.State == OSHostTimerLifecycleState.Armed);
     }
 
+    [HostTest("pal.timer.waitbridge propagates wait set failure", HostLane.Fast, 3)]
     private static bool TestPropagatesWaitSetFailure()
     {
         OSHostTimerTable timerTable = new(tickFrequency: 1_000, capacity: 1);
@@ -158,7 +123,7 @@ internal static class PalTimerWaitBridgeTests
                 timer.Timer,
                 out OSHostTimerWaitBridgeResult result);
 
-        return timer.Succeeded
+        return HostCheck.Result(timer.Succeeded
             && status == OSHostTimerWaitBridgeStatus.WaitSetFailed
             && !result.Succeeded
             && result.IsInitialized
@@ -169,9 +134,10 @@ internal static class PalTimerWaitBridgeTests
             && !result.EventSet
             && result.CompletionWaitHandle.Value == waitable.Value
             && timerTable.TryGetEntry(timer.Timer, out OSHostTimerTableEntry entry) == OSHostStatus.Ok
-            && entry.State == OSHostTimerLifecycleState.Armed;
+            && entry.State == OSHostTimerLifecycleState.Armed);
     }
 
+    [HostTest("pal.timer.waitbridge preserves mock-only boundary", HostLane.Fast, 4)]
     private static bool TestPreservesMockOnlyBoundary()
     {
         OSHostWaitTable waitTable = new(capacity: 1);
@@ -182,7 +148,7 @@ internal static class PalTimerWaitBridgeTests
                 new OSHostHandle(1),
                 out OSHostTimerWaitBridgeResult result);
 
-        return OSHostTimerWaitBridge.UsesMockTimerTable
+        return HostCheck.Result(OSHostTimerWaitBridge.UsesMockTimerTable
             && OSHostTimerWaitBridge.UsesMockWaitTable
             && OSHostTimerWaitBridge.SignalsCompletionWaitHandle
             && !OSHostTimerWaitBridge.ExportsPalFunctions
@@ -195,14 +161,15 @@ internal static class PalTimerWaitBridgeTests
             && missingTimer == OSHostTimerWaitBridgeStatus.MissingTimerTable
             && result.IsInitialized
             && result.TimerStatus == OSHostStatus.InvalidArgument
-            && result.WaitStatus == OSHostStatus.InvalidArgument;
+            && result.WaitStatus == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.timer.waitbridge default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         OSHostTimerWaitBridgeResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == OSHostTimerWaitBridgeStatus.Success
             && result.TimerStatus == OSHostStatus.Ok
@@ -213,7 +180,7 @@ internal static class PalTimerWaitBridgeTests
             && result.NextDueTicks == 0
             && !result.TimerSignaled
             && !result.EventSet
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostTimerWaitBridgeResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostTimerWaitBridgeResult>());
     }
 
     private static OSHostHandle CreateEvent(OSHostWaitTable waitTable)

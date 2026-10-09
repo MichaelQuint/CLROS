@@ -28,7 +28,7 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
     private const ulong MapCaptureOrdinal = 3;
     private const ulong LedgerBuildOrdinal = 4;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         int failures = 0;
@@ -147,30 +147,8 @@ internal static unsafe class M01LoadedImageStackIntegrationTests
 
     private static void Run(string name, Func<bool> test, ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL "
-                + name
-                + " "
-                + ex.GetType().Name
-                + ": "
-                + ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestStableSurfaceAndDefaults()

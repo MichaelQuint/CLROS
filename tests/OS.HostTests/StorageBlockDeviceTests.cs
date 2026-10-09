@@ -3,51 +3,8 @@ using OS.Storage;
 
 internal static class StorageBlockDeviceTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("storage block device reads exact byte range", TestExactRead, ref failures);
-        Run("storage block device reads final block boundary", TestLastBlockRead, ref failures);
-        Run("storage block device rejects out-of-range reads", TestOutOfRangeRead, ref failures);
-        Run("storage block device rejects destination too small", TestDestinationTooSmall, ref failures);
-        Run("storage block device rejects invalid block sizes", TestInvalidBlockSizes, ref failures);
-        Run("storage block device detects oversized read overflow", TestReadOverflow, ref failures);
-        Run("storage block device accepts zero-block read", TestZeroBlockRead, ref failures);
-        Run(
-            "storage block device result defaults are not success",
-            TestDefaultResultsAreNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Storage block device host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage block device reads exact byte range", HostLane.Fast, 0)]
     private static bool TestExactRead()
     {
         MemoryBlockDevice device = MemoryBlockDevice.Create(512, 4);
@@ -55,13 +12,14 @@ internal static class StorageBlockDeviceTests
 
         BlockReadResult result = device.ReadBlocks(1, 2, destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == BlockDeviceStatus.Success
             && result.BlocksRead == 2
             && result.BytesRead == 1024
-            && MatchesRange(destination, device.Bytes, 512);
+            && MatchesRange(destination, device.Bytes, 512));
     }
 
+    [HostTest("storage block device reads final block boundary", HostLane.Fast, 1)]
     private static bool TestLastBlockRead()
     {
         MemoryBlockDevice device = MemoryBlockDevice.Create(512, 4);
@@ -69,12 +27,13 @@ internal static class StorageBlockDeviceTests
 
         BlockReadResult result = device.ReadBlocks(3, 1, destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.BlocksRead == 1
             && result.BytesRead == 512
-            && MatchesRange(destination, device.Bytes, 1536);
+            && MatchesRange(destination, device.Bytes, 1536));
     }
 
+    [HostTest("storage block device rejects out-of-range reads", HostLane.Fast, 2)]
     private static bool TestOutOfRangeRead()
     {
         MemoryBlockDevice device = MemoryBlockDevice.Create(512, 4);
@@ -83,14 +42,15 @@ internal static class StorageBlockDeviceTests
         BlockReadResult atEnd = device.ReadBlocks(4, 1, destination);
         BlockReadResult crossesEnd = device.ReadBlocks(3, 2, destination);
 
-        return atEnd.Status == BlockDeviceStatus.InvalidBlockRange
+        return HostCheck.Result(atEnd.Status == BlockDeviceStatus.InvalidBlockRange
             && !atEnd.Succeeded
             && atEnd.BytesRead == 0
             && crossesEnd.Status == BlockDeviceStatus.InvalidBlockRange
             && !crossesEnd.Succeeded
-            && crossesEnd.BlocksRead == 0;
+            && crossesEnd.BlocksRead == 0);
     }
 
+    [HostTest("storage block device rejects destination too small", HostLane.Fast, 3)]
     private static bool TestDestinationTooSmall()
     {
         MemoryBlockDevice device = MemoryBlockDevice.Create(512, 2);
@@ -99,41 +59,44 @@ internal static class StorageBlockDeviceTests
 
         BlockReadResult result = device.ReadBlocks(0, 1, destination);
 
-        return result.Status == BlockDeviceStatus.DestinationTooSmall
+        return HostCheck.Result(result.Status == BlockDeviceStatus.DestinationTooSmall
             && !result.Succeeded
             && result.BytesRead == 0
-            && destination[0] == 0xA5;
+            && destination[0] == 0xA5);
     }
 
+    [HostTest("storage block device rejects invalid block sizes", HostLane.Fast, 4)]
     private static bool TestInvalidBlockSizes()
     {
         BlockDeviceInfoResult zero = BlockDeviceInfo.Create(0, 1);
         BlockDeviceInfoResult unaligned = BlockDeviceInfo.Create(513, 1);
         BlockDeviceInfoResult zeroCount = BlockDeviceInfo.Create(512, 0);
 
-        return zero.Status == BlockDeviceStatus.InvalidBlockSize
+        return HostCheck.Result(zero.Status == BlockDeviceStatus.InvalidBlockSize
             && !zero.Succeeded
             && unaligned.Status == BlockDeviceStatus.UnalignedBlockSize
             && !unaligned.Succeeded
             && zeroCount.Status == BlockDeviceStatus.InvalidBlockCount
-            && !zeroCount.Succeeded;
+            && !zeroCount.Succeeded);
     }
 
+    [HostTest("storage block device detects oversized read overflow", HostLane.Fast, 5)]
     private static bool TestReadOverflow()
     {
         BlockDeviceInfoResult info = BlockDeviceInfo.Create(512, (ulong)uint.MaxValue + 10UL);
         if (!info.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         BlockReadResult result = BlockDeviceRead.Validate(info.Info, 0, uint.MaxValue, Span<byte>.Empty);
 
-        return result.Status == BlockDeviceStatus.Overflow
+        return HostCheck.Result(result.Status == BlockDeviceStatus.Overflow
             && !result.Succeeded
-            && result.BytesRead == 0;
+            && result.BytesRead == 0);
     }
 
+    [HostTest("storage block device accepts zero-block read", HostLane.Fast, 6)]
     private static bool TestZeroBlockRead()
     {
         MemoryBlockDevice device = MemoryBlockDevice.Create(512, 4);
@@ -141,20 +104,21 @@ internal static class StorageBlockDeviceTests
         BlockReadResult atEnd = device.ReadBlocks(4, 0, Span<byte>.Empty);
         BlockReadResult pastEnd = device.ReadBlocks(5, 0, Span<byte>.Empty);
 
-        return atEnd.Succeeded
+        return HostCheck.Result(atEnd.Succeeded
             && atEnd.BlocksRead == 0
             && atEnd.BytesRead == 0
             && pastEnd.Status == BlockDeviceStatus.InvalidBlockRange
-            && !pastEnd.Succeeded;
+            && !pastEnd.Succeeded);
     }
 
+    [HostTest("storage block device result defaults are not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         BlockReadResult read = default;
         BlockDeviceInfoResult info = default;
         PartitionBlockDeviceCreateResult partition = default;
 
-        return !read.IsInitialized
+        return HostCheck.Result(!read.IsInitialized
             && !read.Succeeded
             && read.Status == BlockDeviceStatus.Success
             && read.BlocksRead == 0
@@ -170,7 +134,7 @@ internal static class StorageBlockDeviceTests
             && partition.Status == BlockDeviceStatus.Success
             && partition.Device is null
             && !RuntimeHelpers.IsReferenceOrContainsReferences<BlockReadResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<BlockDeviceInfoResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<BlockDeviceInfoResult>());
     }
 
     private static bool MatchesRange(byte[] actual, byte[] expected, int expectedOffset)

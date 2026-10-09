@@ -3,46 +3,8 @@ using OS.Net;
 
 internal static class TcpListenerBacklogTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.tcp.listener enqueues passive connection", TestEnqueuesPassiveConnection, ref failures);
-        Run("net.tcp.listener dequeues accepted connection", TestDequeuesAcceptedConnection, ref failures);
-        Run("net.tcp.listener rejects duplicate endpoint", TestRejectsDuplicateEndpoint, ref failures);
-        Run("net.tcp.listener reports backlog capacity", TestReportsBacklogCapacity, ref failures);
-        Run("net.tcp.listener result contains no managed references", TestResultContainsNoManagedReferences, ref failures);
-        Run("net.tcp.listener default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("TCP listener backlog host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.tcp.listener enqueues passive connection", HostLane.Fast, 0)]
     private static bool TestEnqueuesPassiveConnection()
     {
         TcpListenerBacklogEntry[] entries = new TcpListenerBacklogEntry[2];
@@ -50,7 +12,7 @@ internal static class TcpListenerBacklogTests
 
         TcpListenerBacklogResult result = TcpListenerBacklog.Enqueue(entries, connection);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == TcpListenerBacklogStatus.Success
             && result.Count == 1
             && result.Capacity == entries.Length
@@ -62,9 +24,10 @@ internal static class TcpListenerBacklogTests
             && entries[0].State == TcpListenerBacklogEntryState.PendingAccept
             && entries[0].Connection.HasSameEndpoint(connection)
             && entries[0].EnqueueOrder == 1
-            && entries[1].State == TcpListenerBacklogEntryState.Free;
+            && entries[1].State == TcpListenerBacklogEntryState.Free);
     }
 
+    [HostTest("net.tcp.listener dequeues accepted connection", HostLane.Fast, 1)]
     private static bool TestDequeuesAcceptedConnection()
     {
         TcpListenerBacklogEntry[] entries = new TcpListenerBacklogEntry[2];
@@ -78,7 +41,7 @@ internal static class TcpListenerBacklogTests
         TcpListenerBacklogResult enqueueThird = TcpListenerBacklog.Enqueue(entries, third);
         TcpListenerBacklogResult acceptedSecond = TcpListenerBacklog.Accept(entries);
 
-        return acceptedFirst.Succeeded
+        return HostCheck.Result(acceptedFirst.Succeeded
             && acceptedFirst.Connection.HasSameEndpoint(first)
             && acceptedFirst.Connection.RemoteNextSequenceNumber == first.RemoteNextSequenceNumber
             && acceptedFirst.Count == 1
@@ -91,9 +54,10 @@ internal static class TcpListenerBacklogTests
             && acceptedSecond.Connection.RemoteNextSequenceNumber == second.RemoteNextSequenceNumber
             && acceptedSecond.EntryIndex == 1
             && acceptedSecond.Count == 1
-            && entries[1].State == TcpListenerBacklogEntryState.Free;
+            && entries[1].State == TcpListenerBacklogEntryState.Free);
     }
 
+    [HostTest("net.tcp.listener rejects duplicate endpoint", HostLane.Fast, 2)]
     private static bool TestRejectsDuplicateEndpoint()
     {
         TcpListenerBacklogEntry[] entries = new TcpListenerBacklogEntry[2];
@@ -102,16 +66,17 @@ internal static class TcpListenerBacklogTests
         TcpListenerBacklogResult first = TcpListenerBacklog.Enqueue(entries, connection);
         TcpListenerBacklogResult duplicate = TcpListenerBacklog.Enqueue(entries, connection);
 
-        return first.Succeeded
+        return HostCheck.Result(first.Succeeded
             && !duplicate.Succeeded
             && duplicate.Status == TcpListenerBacklogStatus.DuplicateEndpoint
             && duplicate.EntryIndex == first.EntryIndex
             && duplicate.Count == 1
             && duplicate.Capacity == entries.Length
             && entries[0].Connection.HasSameEndpoint(connection)
-            && entries[1].State == TcpListenerBacklogEntryState.Free;
+            && entries[1].State == TcpListenerBacklogEntryState.Free);
     }
 
+    [HostTest("net.tcp.listener reports backlog capacity", HostLane.Fast, 3)]
     private static bool TestReportsBacklogCapacity()
     {
         TcpListenerBacklogEntry[] entries = new TcpListenerBacklogEntry[1];
@@ -122,7 +87,7 @@ internal static class TcpListenerBacklogTests
         TcpListenerBacklogResult full = TcpListenerBacklog.Enqueue(entries, second);
         TcpListenerBacklogResult inspect = TcpListenerBacklog.Inspect(entries);
 
-        return enqueue.Succeeded
+        return HostCheck.Result(enqueue.Succeeded
             && !full.Succeeded
             && full.Status == TcpListenerBacklogStatus.BacklogFull
             && full.Count == 1
@@ -133,16 +98,17 @@ internal static class TcpListenerBacklogTests
             && inspect.Count == 1
             && inspect.Capacity == 1
             && inspect.RequiredCapacity == 1
-            && inspect.Connection.HasSameEndpoint(first);
+            && inspect.Connection.HasSameEndpoint(first));
     }
 
+    [HostTest("net.tcp.listener result contains no managed references", HostLane.Fast, 4)]
     private static bool TestResultContainsNoManagedReferences()
     {
         TcpListenerBacklogEntry[] entries = new TcpListenerBacklogEntry[1];
         TcpListenerBacklogResult empty = TcpListenerBacklog.Accept(entries);
         TcpListenerBacklogResult invalid = TcpListenerBacklog.Enqueue(entries, default);
 
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<TcpListenerBacklogConnection>()
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<TcpListenerBacklogConnection>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpListenerBacklogEntry>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpListenerBacklogResult>()
             && !TcpListenerBacklog.ParsesPackets
@@ -153,9 +119,10 @@ internal static class TcpListenerBacklogTests
             && empty.Count == 0
             && empty.Capacity == 1
             && invalid.Status == TcpListenerBacklogStatus.InvalidEndpoint
-            && entries[0].State == TcpListenerBacklogEntryState.Free;
+            && entries[0].State == TcpListenerBacklogEntryState.Free);
     }
 
+    [HostTest("net.tcp.listener default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         TcpListenerBacklogResult defaultResult = default;
@@ -168,7 +135,7 @@ internal static class TcpListenerBacklogTests
             TcpListenerBacklog.NoEntryIndex,
             connection);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == TcpListenerBacklogStatus.Success
             && failureResult.IsInitialized
@@ -179,7 +146,7 @@ internal static class TcpListenerBacklogTests
             && failureResult.RequiredCapacity == 1
             && failureResult.EntryIndex == TcpListenerBacklog.NoEntryIndex
             && failureResult.Connection.HasSameEndpoint(connection)
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpListenerBacklogResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpListenerBacklogResult>());
     }
 
     private static TcpListenerBacklogConnection Connection(

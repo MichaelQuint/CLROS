@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 internal static class StdNativeIntTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void Run()
     {
         RunCheckedArithmetic();
@@ -14,9 +14,7 @@ internal static class StdNativeIntTests
     private static void RunCheckedArithmetic()
     {
         const string name = "std.nativeint checked arithmetic";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             NativeUIntOperationResult add = NativeInt.Add((nuint)0x1000, (nuint)0x20);
             NativeUIntOperationResult overflow = NativeInt.Add(nuint.MaxValue, 1);
@@ -28,22 +26,13 @@ internal static class StdNativeIntTests
             ExpectResult("overflow", NativeUIntOperationStatus.Overflow, 0, overflow);
             ExpectResult("subtract", NativeUIntOperationStatus.Success, (nuint)0x0FE0, subtract);
             ExpectResult("underflow", NativeUIntOperationStatus.Underflow, 0, underflow);
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunAlignmentHelpers()
     {
         const string name = "std.nativeint alignment helpers";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             ExpectBool("power of two", true, NativeInt.IsPowerOfTwo((nuint)4096));
             ExpectBool("zero power of two", false, NativeInt.IsPowerOfTwo(0));
@@ -82,22 +71,13 @@ internal static class StdNativeIntTests
                 NativeUIntOperationStatus.Overflow,
                 0,
                 NativeInt.AlignUp(nuint.MaxValue, (nuint)2));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunDefaultResultContract()
     {
         const string name = "std.nativeint default result is not success";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             NativeUIntOperationResult result = default;
 
@@ -108,14 +88,7 @@ internal static class StdNativeIntTests
                 "result contains no references",
                 false,
                 RuntimeHelpers.IsReferenceOrContainsReferences<NativeUIntOperationResult>());
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void ExpectResult(

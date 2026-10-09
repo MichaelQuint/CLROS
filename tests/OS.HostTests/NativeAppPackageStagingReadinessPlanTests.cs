@@ -16,47 +16,7 @@ internal static class NativeAppPackageStagingReadinessPlanTests
     private const ulong PayloadLength = HeaderLength + ExecutableLength;
     private const ulong EntryOffsetInExecutable = 8;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("appmodel package staging readiness composes", TestComposesReadiness, ref failures);
-        Run("appmodel package staging readiness rejects selection failures", TestRejectsSelectionFailures, ref failures);
-        Run("appmodel package staging readiness rejects staging failures", TestRejectsStagingFailures, ref failures);
-        Run("appmodel package staging readiness rejects memory invocation failures", TestRejectsMemoryInvocationFailures, ref failures);
-        Run("appmodel package staging readiness rejects byte mismatches", TestRejectsByteMismatches, ref failures);
-        Run("appmodel package staging readiness preserves no-launch boundary", TestPreservesNoLaunchBoundary, ref failures);
-        Run("appmodel package staging readiness default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app package staging readiness host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel package staging readiness composes", HostLane.Fast, 0)]
     private static bool TestComposesReadiness()
     {
         ReadinessInputs inputs = CreateInputs();
@@ -73,7 +33,7 @@ internal static class NativeAppPackageStagingReadinessPlanTests
                 inputs.ExecutableMemory,
                 inputs.Invocation);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppPackageStagingReadinessStatus.Success
             && result.ManifestStatus == NativeManifestLoadStatus.Success
@@ -92,9 +52,10 @@ internal static class NativeAppPackageStagingReadinessPlanTests
             && result.PayloadExecutableBytesStaged == ExecutableLength
             && result.RequiredWritableStagingBytes == 4096
             && result.RequiredStackBytes == NativeAppInvocationPlanner.DefaultStackBytes
-            && result.EntryOffsetInPackage == PayloadOffsetInPackage + HeaderLength + EntryOffsetInExecutable;
+            && result.EntryOffsetInPackage == PayloadOffsetInPackage + HeaderLength + EntryOffsetInExecutable);
     }
 
+    [HostTest("appmodel package staging readiness rejects selection failures", HostLane.Fast, 1)]
     private static bool TestRejectsSelectionFailures()
     {
         ReadinessInputs manifestFailed = CreateInputs(
@@ -130,7 +91,7 @@ internal static class NativeAppPackageStagingReadinessPlanTests
         NativeAppPackageStagingReadinessResult descriptorResult =
             Compose(descriptorFailed);
 
-        return !manifestResult.Succeeded
+        return HostCheck.Result(!manifestResult.Succeeded
             && manifestResult.Status == NativeAppPackageStagingReadinessStatus.ManifestLoadFailed
             && manifestResult.ManifestStatus == NativeManifestLoadStatus.ManifestParseFailed
             && !packageResult.Succeeded
@@ -141,9 +102,10 @@ internal static class NativeAppPackageStagingReadinessPlanTests
             && launchResult.LaunchStatus == NativeAppLaunchStatus.MissingRuntimeCapabilities
             && !descriptorResult.Succeeded
             && descriptorResult.Status == NativeAppPackageStagingReadinessStatus.LaunchDescriptorFailed
-            && descriptorResult.DescriptorStatus == NativeAppLaunchDescriptorStatus.PackageFileMissing;
+            && descriptorResult.DescriptorStatus == NativeAppLaunchDescriptorStatus.PackageFileMissing);
     }
 
+    [HostTest("appmodel package staging readiness rejects staging failures", HostLane.Fast, 2)]
     private static bool TestRejectsStagingFailures()
     {
         ReadinessInputs packageStagingFailed = CreateInputs(
@@ -173,14 +135,15 @@ internal static class NativeAppPackageStagingReadinessPlanTests
         NativeAppPackageStagingReadinessResult payloadStagingResult =
             Compose(payloadStagingFailed);
 
-        return !packageStagingResult.Succeeded
+        return HostCheck.Result(!packageStagingResult.Succeeded
             && packageStagingResult.Status == NativeAppPackageStagingReadinessStatus.PackageFileStagingFailed
             && packageStagingResult.PackageFileStagingStatus == OsPackageFileStagingStatus.DestinationTooSmall
             && !payloadStagingResult.Succeeded
             && payloadStagingResult.Status == NativeAppPackageStagingReadinessStatus.PayloadStagingFailed
-            && payloadStagingResult.PayloadStagingStatus == NativeAppPayloadStagingStatus.DestinationTooSmall;
+            && payloadStagingResult.PayloadStagingStatus == NativeAppPayloadStagingStatus.DestinationTooSmall);
     }
 
+    [HostTest("appmodel package staging readiness rejects memory invocation failures", HostLane.Fast, 3)]
     private static bool TestRejectsMemoryInvocationFailures()
     {
         ReadinessInputs mappingFailed = CreateInputs(
@@ -216,7 +179,7 @@ internal static class NativeAppPackageStagingReadinessPlanTests
         NativeAppPackageStagingReadinessResult invocationResult =
             Compose(invocationFailed);
 
-        return !mappingResult.Succeeded
+        return HostCheck.Result(!mappingResult.Succeeded
             && mappingResult.Status == NativeAppPackageStagingReadinessStatus.PayloadMappingFailed
             && mappingResult.PayloadMappingStatus == NativeAppPayloadMappingPlanStatus.DescriptorFailed
             && !memoryResult.Succeeded
@@ -224,9 +187,10 @@ internal static class NativeAppPackageStagingReadinessPlanTests
             && memoryResult.ExecutableMemoryStatus == NativeAppExecutableMemoryPlanStatus.InvalidPageSize
             && !invocationResult.Succeeded
             && invocationResult.Status == NativeAppPackageStagingReadinessStatus.InvocationPlanFailed
-            && invocationResult.InvocationStatus == NativeAppInvocationPlanStatus.InvalidStackSize;
+            && invocationResult.InvocationStatus == NativeAppInvocationPlanStatus.InvalidStackSize);
     }
 
+    [HostTest("appmodel package staging readiness rejects byte mismatches", HostLane.Fast, 4)]
     private static bool TestRejectsByteMismatches()
     {
         ReadinessInputs packageMismatch = CreateInputs(
@@ -272,19 +236,20 @@ internal static class NativeAppPackageStagingReadinessPlanTests
         NativeAppPackageStagingReadinessResult entryResult =
             Compose(entryMismatch);
 
-        return !packageResult.Succeeded
+        return HostCheck.Result(!packageResult.Succeeded
             && packageResult.Status == NativeAppPackageStagingReadinessStatus.PackageStagingByteMismatch
             && !payloadResult.Succeeded
             && payloadResult.Status == NativeAppPackageStagingReadinessStatus.PayloadStagingByteMismatch
             && !writableResult.Succeeded
             && writableResult.Status == NativeAppPackageStagingReadinessStatus.WritableStagingByteMismatch
             && !entryResult.Succeeded
-            && entryResult.Status == NativeAppPackageStagingReadinessStatus.EntryOffsetMismatch;
+            && entryResult.Status == NativeAppPackageStagingReadinessStatus.EntryOffsetMismatch);
     }
 
+    [HostTest("appmodel package staging readiness preserves no-launch boundary", HostLane.Fast, 5)]
     private static bool TestPreservesNoLaunchBoundary()
     {
-        return NativeAppPackageStagingReadinessPlanner.RequiresManifestPackageAndPayloadResults
+        return HostCheck.Result(NativeAppPackageStagingReadinessPlanner.RequiresManifestPackageAndPayloadResults
             && NativeAppPackageStagingReadinessPlanner.RequiresCallerOwnedPackageFileStaging
             && NativeAppPackageStagingReadinessPlanner.RequiresCallerOwnedPayloadStaging
             && !NativeAppPackageStagingReadinessPlanner.ReadsLiveStorage
@@ -293,14 +258,15 @@ internal static class NativeAppPackageStagingReadinessPlanTests
             && !NativeAppPackageStagingReadinessPlanner.ChangesPagePermissions
             && !NativeAppPackageStagingReadinessPlanner.RelocatesExecutable
             && !NativeAppPackageStagingReadinessPlanner.ExecutesAppCode
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppPackageStagingReadinessResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppPackageStagingReadinessResult>());
     }
 
+    [HostTest("appmodel package staging readiness default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAppPackageStagingReadinessResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppPackageStagingReadinessStatus.Success
             && result.ManifestStatus == NativeManifestLoadStatus.Success
@@ -316,7 +282,7 @@ internal static class NativeAppPackageStagingReadinessPlanTests
             && result.PayloadExecutableBytesStaged == 0
             && result.RequiredWritableStagingBytes == 0
             && result.RequiredStackBytes == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppPackageStagingReadinessResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppPackageStagingReadinessResult>());
     }
 
     private static NativeAppPackageStagingReadinessResult Compose(ReadinessInputs inputs)

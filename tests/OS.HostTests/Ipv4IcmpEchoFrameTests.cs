@@ -3,44 +3,8 @@ using OS.Net;
 
 internal static class Ipv4IcmpEchoFrameTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.icmp.ipv4 frame writes echo request", TestWritesEchoRequest, ref failures);
-        Run("net.icmp.ipv4 frame parses echo reply", TestParsesEchoReply, ref failures);
-        Run("net.icmp.ipv4 frame rejects bad ip checksum", TestRejectsBadIpChecksum, ref failures);
-        Run("net.icmp.ipv4 frame rejects truncated payload", TestRejectsTruncatedPayload, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("IPv4 ICMP echo frame host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.icmp.ipv4 frame writes echo request", HostLane.Fast, 0)]
     private static bool TestWritesEchoRequest()
     {
         Ipv4IcmpEchoFrameInfo info = CreateRequestInfo();
@@ -70,11 +34,12 @@ internal static class Ipv4IcmpEchoFrameTests
             0x70, 0x69, 0x6E, 0x67, 0x21
         };
 
-        return status == PacketParseStatus.Success
+        return HostCheck.Result(status == PacketParseStatus.Success
             && bytesWritten == expected.Length
-            && frame.AsSpan(0, bytesWritten).SequenceEqual(expected);
+            && frame.AsSpan(0, bytesWritten).SequenceEqual(expected));
     }
 
+    [HostTest("net.icmp.ipv4 frame parses echo reply", HostLane.Fast, 1)]
     private static bool TestParsesEchoReply()
     {
         Ipv4IcmpEchoFrameInfo info = CreateReplyInfo();
@@ -95,7 +60,7 @@ internal static class Ipv4IcmpEchoFrameTests
             out IcmpEchoPacket echo,
             out ReadOnlySpan<byte> parsedPayload);
 
-        return writeStatus == PacketParseStatus.Success
+        return HostCheck.Result(writeStatus == PacketParseStatus.Success
             && bytesWritten == frame.Length
             && parseStatus == PacketParseStatus.Success
             && parsedInfo.DestinationMac == info.DestinationMac
@@ -109,9 +74,10 @@ internal static class Ipv4IcmpEchoFrameTests
             && !echo.IsEchoRequest
             && echo.Identifier == 0xBEEF
             && echo.SequenceNumber == 0x0102
-            && parsedPayload.SequenceEqual(payload);
+            && parsedPayload.SequenceEqual(payload));
     }
 
+    [HostTest("net.icmp.ipv4 frame rejects bad ip checksum", HostLane.Fast, 2)]
     private static bool TestRejectsBadIpChecksum()
     {
         byte[] frame = CreateReplyFrame();
@@ -123,12 +89,13 @@ internal static class Ipv4IcmpEchoFrameTests
             out IcmpEchoPacket echo,
             out ReadOnlySpan<byte> payload);
 
-        return status == PacketParseStatus.BadChecksum
+        return HostCheck.Result(status == PacketParseStatus.BadChecksum
             && info.TimeToLive == 0
             && echo.Type == 0
-            && payload.Length == 0;
+            && payload.Length == 0);
     }
 
+    [HostTest("net.icmp.ipv4 frame rejects truncated payload", HostLane.Fast, 3)]
     private static bool TestRejectsTruncatedPayload()
     {
         byte[] frame = CreateReplyFrame();
@@ -139,10 +106,10 @@ internal static class Ipv4IcmpEchoFrameTests
             out IcmpEchoPacket echo,
             out ReadOnlySpan<byte> payload);
 
-        return status == PacketParseStatus.TruncatedPayload
+        return HostCheck.Result(status == PacketParseStatus.TruncatedPayload
             && info.TimeToLive == 0
             && echo.Type == 0
-            && payload.Length == 0;
+            && payload.Length == 0);
     }
 
     private static Ipv4IcmpEchoFrameInfo CreateRequestInfo()

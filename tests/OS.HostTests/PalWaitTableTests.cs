@@ -3,48 +3,8 @@ using OS.Pal;
 
 internal static class PalWaitTableTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("pal.wait manual reset event stays signaled", TestManualResetEventStaysSignaled, ref failures);
-        Run("pal.wait auto reset consumes signal", TestAutoResetConsumesSignal, ref failures);
-        Run("pal.wait many reports first signaled", TestWaitManyReportsFirstSignaled, ref failures);
-        Run("pal.wait reset and close reject invalid", TestResetAndCloseRejectInvalid, ref failures);
-        Run("pal.wait reports early mode capabilities", TestReportsEarlyModeCapabilities, ref failures);
-        Run("pal.wait rejects invalid timeout and unsupported waits", TestRejectsInvalidTimeoutAndUnsupportedWaits, ref failures);
-        Run("pal.wait invalid options are rejected", TestInvalidOptionsAreRejected, ref failures);
-        Run("pal.wait default results are not success", TestDefaultResultsAreNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL wait table host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.wait manual reset event stays signaled", HostLane.Fast, 0)]
     private static bool TestManualResetEventStaysSignaled()
     {
         OSHostWaitTable table = new(capacity: 2);
@@ -54,19 +14,20 @@ internal static class PalWaitTableTests
             table.WaitOne(create.Waitable).StatusCode != (int)OSHostStatus.WouldBlock ||
             table.Set(create.Waitable) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostWaitResult first = table.WaitOne(create.Waitable);
         OSHostWaitResult second = table.WaitOne(create.Waitable);
 
-        return IsSignaled(first, create.Waitable, expectedIndex: 0)
+        return HostCheck.Result(IsSignaled(first, create.Waitable, expectedIndex: 0)
             && IsSignaled(second, create.Waitable, expectedIndex: 0)
             && table.TryGetEntry(create.Waitable, out OSHostWaitTableEntry entry) == OSHostStatus.Ok
             && entry.Kind == OSHostWaitableKind.ManualResetEvent
-            && entry.Signaled;
+            && entry.Signaled);
     }
 
+    [HostTest("pal.wait auto reset consumes signal", HostLane.Fast, 1)]
     private static bool TestAutoResetConsumesSignal()
     {
         OSHostWaitTable table = new(capacity: 1);
@@ -74,7 +35,7 @@ internal static class PalWaitTableTests
             table.CreateEvent(OSHostWaitableKind.AutoResetEvent, initiallySignaled: true);
         if (!create.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostWaitResult first = table.WaitOne(create.Waitable);
@@ -83,19 +44,20 @@ internal static class PalWaitTableTests
             second.StatusCode != (int)OSHostStatus.WouldBlock ||
             second.Kind != OSHostWaitConstants.ResultKindWouldBlock)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (table.Set(create.Waitable) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostWaitResult afterSet = table.WaitOne(create.Waitable);
-        return IsSignaled(afterSet, create.Waitable, expectedIndex: 0)
-            && table.WaitOne(create.Waitable).StatusCode == (int)OSHostStatus.WouldBlock;
+        return HostCheck.Result(IsSignaled(afterSet, create.Waitable, expectedIndex: 0)
+            && table.WaitOne(create.Waitable).StatusCode == (int)OSHostStatus.WouldBlock);
     }
 
+    [HostTest("pal.wait many reports first signaled", HostLane.Fast, 2)]
     private static bool TestWaitManyReportsFirstSignaled()
     {
         OSHostWaitTable table = new(capacity: 3);
@@ -107,17 +69,18 @@ internal static class PalWaitTableTests
             table.CreateEvent(OSHostWaitableKind.ManualResetEvent, initiallySignaled: true);
         if (!first.Succeeded || !second.Succeeded || !third.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostHandle[] waitables = [first.Waitable, second.Waitable, third.Waitable];
         OSHostWaitResult firstMany = table.WaitMany(waitables, OSHostWaitTable.ImmediateTimeout());
         OSHostWaitResult secondMany = table.WaitMany(waitables, OSHostWaitTable.ImmediateTimeout());
 
-        return IsSignaled(firstMany, second.Waitable, expectedIndex: 1)
-            && IsSignaled(secondMany, third.Waitable, expectedIndex: 2);
+        return HostCheck.Result(IsSignaled(firstMany, second.Waitable, expectedIndex: 1)
+            && IsSignaled(secondMany, third.Waitable, expectedIndex: 2));
     }
 
+    [HostTest("pal.wait reset and close reject invalid", HostLane.Fast, 3)]
     private static bool TestResetAndCloseRejectInvalid()
     {
         OSHostWaitTable table = new(capacity: 1);
@@ -127,7 +90,7 @@ internal static class PalWaitTableTests
             table.Reset(create.Waitable) != OSHostStatus.Ok ||
             table.WaitOne(create.Waitable).StatusCode != (int)OSHostStatus.WouldBlock)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (table.Close(create.Waitable) != OSHostStatus.Ok ||
@@ -136,7 +99,7 @@ internal static class PalWaitTableTests
             table.Reset(create.Waitable) != OSHostStatus.InvalidArgument ||
             table.Close(create.Waitable) != OSHostStatus.InvalidArgument)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostEventCreateResult reused =
@@ -145,7 +108,7 @@ internal static class PalWaitTableTests
             || reused.Waitable.Value == create.Waitable.Value
             || table.WaitOne(reused.Waitable).StatusCode != (int)OSHostStatus.WouldBlock)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostWaitTable cancelTable = new(capacity: 2);
@@ -157,7 +120,7 @@ internal static class PalWaitTableTests
             || !afterCancel.Succeeded
             || cancelTable.Cancel(cancel.Waitable) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostWaitResult canceledOne = cancelTable.WaitOne(cancel.Waitable);
@@ -165,7 +128,7 @@ internal static class PalWaitTableTests
             [cancel.Waitable, afterCancel.Waitable],
             OSHostWaitTable.ImmediateTimeout());
 
-        return canceledOne.StatusCode == (int)OSHostStatus.Interrupted
+        return HostCheck.Result(canceledOne.StatusCode == (int)OSHostStatus.Interrupted
             && canceledOne.Kind == OSHostWaitConstants.ResultKindInterrupted
             && canceledMany.StatusCode == (int)OSHostStatus.Interrupted
             && canceledMany.Kind == OSHostWaitConstants.ResultKindInterrupted
@@ -174,9 +137,10 @@ internal static class PalWaitTableTests
             && cancelTable.Close(cancel.Waitable) == OSHostStatus.Ok
             && cancelTable.Cancel(cancel.Waitable) == OSHostStatus.InvalidArgument
             && reused.Waitable.Value != create.Waitable.Value
-            && table.WaitOne(reused.Waitable).StatusCode == (int)OSHostStatus.WouldBlock;
+            && table.WaitOne(reused.Waitable).StatusCode == (int)OSHostStatus.WouldBlock);
     }
 
+    [HostTest("pal.wait reports early mode capabilities", HostLane.Fast, 4)]
     private static bool TestReportsEarlyModeCapabilities()
     {
         OSHostWaitTable table = new(capacity: 2);
@@ -185,7 +149,7 @@ internal static class PalWaitTableTests
             table.CreateEvent(OSHostWaitableKind.ManualResetEvent, initiallySignaled: false);
         OSHostWaitCapabilityResult afterCreate = table.GetCapabilities();
 
-        return initial.Succeeded
+        return HostCheck.Result(initial.Succeeded
             && !initial.ReadyForHostedRuntime
             && initial.MaxWaitableCount == 2
             && initial.ActiveWaitableCount == 0
@@ -199,9 +163,10 @@ internal static class PalWaitTableTests
             && afterCreate.Succeeded
             && afterCreate.ActiveWaitableCount == 1
             && afterCreate.MaxWaitableCount == 2
-            && !afterCreate.ReadyForHostedRuntime;
+            && !afterCreate.ReadyForHostedRuntime);
     }
 
+    [HostTest("pal.wait rejects invalid timeout and unsupported waits", HostLane.Fast, 5)]
     private static bool TestRejectsInvalidTimeoutAndUnsupportedWaits()
     {
         OSHostWaitTable table = new(capacity: 1);
@@ -209,7 +174,7 @@ internal static class PalWaitTableTests
             table.CreateEvent(OSHostWaitableKind.ManualResetEvent, initiallySignaled: false);
         if (!create.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostWaitResult immediate = table.WaitOne(new OSHostWaitOneRequest(
@@ -270,7 +235,7 @@ internal static class PalWaitTableTests
         OSHostWaitResult waitManyInfinite =
             table.WaitMany([create.Waitable], OSHostSocketTimeouts.Infinite);
 
-        return immediate.StatusCode == (int)OSHostStatus.WouldBlock
+        return HostCheck.Result(immediate.StatusCode == (int)OSHostStatus.WouldBlock
             && immediate.Kind == OSHostWaitConstants.ResultKindWouldBlock
             && infinite.StatusCode == (int)OSHostStatus.NotSupported
             && infinite.Kind == OSHostWaitConstants.ResultKindNone
@@ -279,9 +244,10 @@ internal static class PalWaitTableTests
             && invalidKind.StatusCode == (int)OSHostStatus.InvalidArgument
             && invalidImmediatePayload.StatusCode == (int)OSHostStatus.InvalidArgument
             && invalidFlags.StatusCode == (int)OSHostStatus.InvalidArgument
-            && waitManyInfinite.StatusCode == (int)OSHostStatus.NotSupported;
+            && waitManyInfinite.StatusCode == (int)OSHostStatus.NotSupported);
     }
 
+    [HostTest("pal.wait invalid options are rejected", HostLane.Fast, 6)]
     private static bool TestInvalidOptionsAreRejected()
     {
         OSHostWaitTable table = new(capacity: 1);
@@ -296,10 +262,10 @@ internal static class PalWaitTableTests
             table.CreateEvent(OSHostWaitableKind.AutoResetEvent, initiallySignaled: false);
         if (!valid.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return OSHostWaitTable.ImmediateTimeout().Kind == OSHostSocketConstants.TimeoutKindImmediate
+        return HostCheck.Result(OSHostWaitTable.ImmediateTimeout().Kind == OSHostSocketConstants.TimeoutKindImmediate
             && table.CreateEvent(OSHostWaitableKind.None, initiallySignaled: false).Status == OSHostStatus.InvalidArgument
             && table.CreateEvent(OSHostWaitableKind.ManualResetEvent, initiallySignaled: false).Status == OSHostStatus.OutOfMemory
             && table.WaitOne(zero).StatusCode == (int)OSHostStatus.InvalidArgument
@@ -319,9 +285,10 @@ internal static class PalWaitTableTests
             && table.WaitMany(
                 [valid.Waitable],
                 OSHostWaitTable.ImmediateTimeout(),
-                OSHostWaitConstants.WaitFlagWaitAll).StatusCode == (int)OSHostStatus.NotSupported;
+                OSHostWaitConstants.WaitFlagWaitAll).StatusCode == (int)OSHostStatus.NotSupported);
     }
 
+    [HostTest("pal.wait default results are not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         OSHostEventCreateResult create = default;
@@ -329,7 +296,7 @@ internal static class PalWaitTableTests
         OSHostWaitCapabilityResult capabilities = default;
         OSHostWaitCapabilityResult emptyTableCapabilities = new OSHostWaitTable(capacity: 0).GetCapabilities();
 
-        return create.Status == OSHostStatus.Ok
+        return HostCheck.Result(create.Status == OSHostStatus.Ok
             && !create.Succeeded
             && create.Waitable.Value == 0
             && wait.StatusCode == (int)OSHostStatus.Ok
@@ -343,7 +310,7 @@ internal static class PalWaitTableTests
             && !emptyTableCapabilities.ReadyForHostedRuntime
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostEventCreateResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostWaitCapabilityResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostWaitResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostWaitResult>());
     }
 
     private static bool IsSignaled(

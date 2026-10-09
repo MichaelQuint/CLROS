@@ -903,8 +903,8 @@ COM1/serial invocation.
   catalog entry for future boot wiring of
   `BootSequence.RunFetchAppHttpTcpExchangeReadiness`. It does not enable live
   DNS, ARP, TCP, HTTP, virtio-net, PAL socket, or FetchApp execution.
-- `scripts/build-efi-shell.ps1 -EnableUefiGoneSimulationProbe` builds a firmware-visible QEMU simulation variant that emits `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
-- `scripts/build-efi-shell.ps1 -EnableAcpiPhysicalDiscoveryProbe` builds a firmware-visible ACPI physical discovery probe variant. The probe is disabled by default, runs before `ExitBootServices`, and emits ACPI table-discovery markers only after live RSDP/root SDT/MCFG byte validation succeeds.
+- `dotnet run --project tools/OS.Tooling -- efi build -BootPolicy Diagnostic -EnableUefiGoneSimulationProbe` builds a firmware-visible QEMU simulation variant that emits `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
+- `dotnet run --project tools/OS.Tooling -- efi build -BootPolicy Diagnostic -EnableAcpiPhysicalDiscoveryProbe` builds a firmware-visible ACPI physical discovery probe variant. The probe is disabled by default, runs before `ExitBootServices`, and emits ACPI table-discovery markers only after live RSDP/root SDT/MCFG byte validation succeeds.
 
 ## Unsupported Behavior
 

@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 internal static class DoneStepAllocatorScriptTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void Run()
     {
         int failures = 0;
@@ -39,24 +39,8 @@ internal static class DoneStepAllocatorScriptTests
 
     private static void Run(string name, Func<bool> test, ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestDryRunComputesNextStep(string tempRoot)
@@ -129,37 +113,21 @@ internal static class DoneStepAllocatorScriptTests
 
     private static ProcessResult RunAllocator(string root, params string[] extraArguments)
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string scriptPath = Path.Combine(repositoryRoot, "scripts", "new-done-step.ps1");
-
-        ProcessStartInfo start = new ProcessStartInfo
-        {
-            FileName = "powershell.exe",
-            RedirectStandardError = true,
-            RedirectStandardOutput = true,
-            UseShellExecute = false
-        };
-
-        start.ArgumentList.Add("-NoProfile");
-        start.ArgumentList.Add("-ExecutionPolicy");
-        start.ArgumentList.Add("Bypass");
-        start.ArgumentList.Add("-File");
-        start.ArgumentList.Add(scriptPath);
-        start.ArgumentList.Add("-Root");
-        start.ArgumentList.Add(root);
-
-        foreach (string argument in extraArguments)
-        {
-            start.ArgumentList.Add(argument);
-        }
-
-        using Process process = Process.Start(start) ?? throw new InvalidOperationException("Failed to start PowerShell.");
-        string standardOutput = process.StandardOutput.ReadToEnd();
-        string standardError = process.StandardError.ReadToEnd();
-        process.WaitForExit();
-
-        return new ProcessResult(process.ExitCode, standardOutput + standardError);
+    using StringWriter output = new();
+    output.WriteLine("TEST_START done.step.allocate");
+    try
+    {
+        string path = OS.Tooling.DoneSteps.Allocate(root, extraArguments.Contains("-Reserve"));
+        output.WriteLine("NEXT_DONE_STEP " + path);
+        output.WriteLine("TEST_PASS done.step.allocate");
+        return new ProcessResult(0, output.ToString());
     }
+    catch (Exception error)
+    {
+        output.WriteLine("TEST_FAIL done.step.allocate " + error.Message);
+        return new ProcessResult(1, output.ToString());
+    }
+}
 
     private readonly struct ProcessResult(int exitCode, string output)
     {

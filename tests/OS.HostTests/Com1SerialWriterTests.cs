@@ -3,46 +3,8 @@ using OS.Kernel.Diagnostics;
 
 internal static class Com1SerialWriterTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("com1 writer initializes through port backend", TestInitializesThroughPortBackend, ref failures);
-        Run("com1 writer writes ascii bytes when ready", TestWritesAsciiBytesWhenReady, ref failures);
-        Run("com1 writer rejects writes before initialization", TestRejectsWritesBeforeInitialization, ref failures);
-        Run("com1 writer reports transmit timeout", TestReportsTransmitTimeout, ref failures);
-        Run("com1 writer reports backend failure", TestReportsBackendFailure, ref failures);
-        Run("com1 writer default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("COM1 serial writer host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("com1 writer initializes through port backend", HostLane.Fast, 0)]
     private static bool TestInitializesThroughPortBackend()
     {
         FakeBytePortBackend backend = new FakeBytePortBackend();
@@ -50,7 +12,7 @@ internal static class Com1SerialWriterTests
 
         Com1SerialWriterResult result = writer.Initialize();
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == Com1SerialWriterStatus.Success
             && result.PortWritesEmitted == SerialPortConfiguration.RequiredInitializationWriteCount
@@ -65,9 +27,10 @@ internal static class Com1SerialWriterTests
             && IsWrite(backend.GetWrite(3), 0x03f9, 0x00)
             && IsWrite(backend.GetWrite(4), 0x03fb, 0x03)
             && IsWrite(backend.GetWrite(5), 0x03fa, 0xc7)
-            && IsWrite(backend.GetWrite(6), 0x03fc, 0x0b);
+            && IsWrite(backend.GetWrite(6), 0x03fc, 0x0b));
     }
 
+    [HostTest("com1 writer writes ascii bytes when ready", HostLane.Fast, 1)]
     private static bool TestWritesAsciiBytesWhenReady()
     {
         FakeBytePortBackend backend = new FakeBytePortBackend();
@@ -80,7 +43,7 @@ internal static class Com1SerialWriterTests
         ReadOnlySpan<byte> payload = "OS"u8;
         Com1SerialWriterResult writeResult = writer.WriteAscii(payload);
 
-        return initializeResult.Succeeded
+        return HostCheck.Result(initializeResult.Succeeded
             && initializeResult.IsInitialized
             && writeResult.Succeeded
             && writeResult.IsInitialized
@@ -93,9 +56,10 @@ internal static class Com1SerialWriterTests
             && backend.GetReadPort(0) == 0x03fd
             && backend.GetReadPort(1) == 0x03fd
             && IsWrite(backend.GetWrite(0), 0x03f8, (byte)'O')
-            && IsWrite(backend.GetWrite(1), 0x03f8, (byte)'S');
+            && IsWrite(backend.GetWrite(1), 0x03f8, (byte)'S'));
     }
 
+    [HostTest("com1 writer rejects writes before initialization", HostLane.Fast, 2)]
     private static bool TestRejectsWritesBeforeInitialization()
     {
         FakeBytePortBackend backend = new FakeBytePortBackend();
@@ -104,16 +68,17 @@ internal static class Com1SerialWriterTests
 
         Com1SerialWriterResult result = writer.WriteAscii("X"u8);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == Com1SerialWriterStatus.NotInitialized
             && result.BytesWritten == 0
             && result.PortWritesEmitted == 0
             && result.LineStatusPolls == 0
             && backend.ReadCount == 0
-            && backend.WriteCount == 0;
+            && backend.WriteCount == 0);
     }
 
+    [HostTest("com1 writer reports transmit timeout", HostLane.Fast, 3)]
     private static bool TestReportsTransmitTimeout()
     {
         FakeBytePortBackend backend = new FakeBytePortBackend();
@@ -128,7 +93,7 @@ internal static class Com1SerialWriterTests
 
         Com1SerialWriterResult writeResult = writer.WriteAscii("A"u8);
 
-        return initializeResult.Succeeded
+        return HostCheck.Result(initializeResult.Succeeded
             && initializeResult.IsInitialized
             && !writeResult.Succeeded
             && writeResult.IsInitialized
@@ -140,9 +105,10 @@ internal static class Com1SerialWriterTests
             && backend.WriteCount == 0
             && backend.GetReadPort(0) == 0x03fd
             && backend.GetReadPort(1) == 0x03fd
-            && backend.GetReadPort(2) == 0x03fd;
+            && backend.GetReadPort(2) == 0x03fd);
     }
 
+    [HostTest("com1 writer reports backend failure", HostLane.Fast, 4)]
     private static bool TestReportsBackendFailure()
     {
         FakeBytePortBackend failingInitializeBackend = new FakeBytePortBackend();
@@ -177,7 +143,7 @@ internal static class Com1SerialWriterTests
 
         Com1SerialWriterResult asciiResult = asciiWriter.WriteAscii(new byte[] { 0x80 });
 
-        return !initResult.Succeeded
+        return HostCheck.Result(!initResult.Succeeded
             && initResult.IsInitialized
             && initResult.Status == Com1SerialWriterStatus.BackendFailure
             && initResult.PortWritesEmitted == 2
@@ -201,20 +167,21 @@ internal static class Com1SerialWriterTests
             && asciiResult.IsInitialized
             && asciiResult.Status == Com1SerialWriterStatus.InvalidAscii
             && asciiBackend.ReadCount == 0
-            && asciiBackend.WriteCount == 0;
+            && asciiBackend.WriteCount == 0);
     }
 
+    [HostTest("com1 writer default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         Com1SerialWriterResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == Com1SerialWriterStatus.Success
             && result.ConfigurationStatus == SerialPortConfigurationStatus.Success
             && result.BytesWritten == 0
             && result.PortWritesEmitted == 0
-            && result.LineStatusPolls == 0;
+            && result.LineStatusPolls == 0);
     }
 
     private static bool IsWrite(SerialPortWrite write, ushort port, byte value)

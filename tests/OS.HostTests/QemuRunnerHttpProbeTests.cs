@@ -7,7 +7,7 @@ using System.Text;
 
 internal static class QemuRunnerHttpProbeTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     public static void Initialize()
     {
         int failures = 0;
@@ -42,24 +42,8 @@ internal static class QemuRunnerHttpProbeTests
 
     private static void Run(string name, Func<bool> test, ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestAcceptsExpectedResponse(string tempRoot)
@@ -280,10 +264,8 @@ internal static class QemuRunnerHttpProbeTests
         bool hangBeforeResponse)
     {
         int port = ReserveFreeLoopbackPort();
-        string serverScript = Path.Combine(tempRoot, "fake-qemu-http-" + Guid.NewGuid().ToString("N") + ".ps1");
         string qemuScript = Path.Combine(tempRoot, "fake-qemu-" + Guid.NewGuid().ToString("N") + ".cmd");
 
-        File.WriteAllText(serverScript, CreateFakeHttpServerScript(), Encoding.ASCII);
         List<string> script =
         [
             "@echo off",
@@ -299,10 +281,7 @@ internal static class QemuRunnerHttpProbeTests
             ":serve",
             "if \"%serial:~0,5%\"==\"file:\" set \"serial=%serial:~5%\"",
             "if \"%serial%\"==\"\" exit /b 12",
-            "powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"" + serverScript + "\" -Port " +
-                port.ToString() + " -StatusCode " + statusCode.ToString() + " -Body \"" +
-                EscapeCmdArgument(body) + "\" -SerialPath \"%serial%\" -HangBeforeResponse " +
-                (hangBeforeResponse ? "1" : "0"),
+            QemuTestControl.Command("http", "%serial%", port.ToString(), statusCode.ToString(), Convert.ToBase64String(Encoding.UTF8.GetBytes(body)), hangBeforeResponse ? "1" : "0"),
             "exit /b %ERRORLEVEL%"
         ];
 
@@ -315,96 +294,6 @@ internal static class QemuRunnerHttpProbeTests
         using TcpListener listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         return ((IPEndPoint)listener.LocalEndpoint).Port;
-    }
-
-    private static string CreateFakeHttpServerScript()
-    {
-        return """
-param(
-    [int]$Port,
-    [int]$StatusCode,
-    [string]$Body,
-    [string]$SerialPath,
-    [string]$HangBeforeResponse
-)
-
-function Get-ReasonPhrase {
-    param([int]$StatusCode)
-    switch ($StatusCode) {
-        200 { return "OK" }
-        204 { return "No Content" }
-        503 { return "Service Unavailable" }
-        default { return "Probe" }
-    }
-}
-
-function Write-SerialMarkers {
-    param([string]$SerialPath)
-
-    $share = [System.IO.FileShare]::ReadWrite -bor [System.IO.FileShare]::Delete
-    $stream = [System.IO.FileStream]::new(
-        $SerialPath,
-        [System.IO.FileMode]::Create,
-        [System.IO.FileAccess]::Write,
-        $share)
-    try {
-        $writer = [System.IO.StreamWriter]::new($stream, [System.Text.Encoding]::ASCII)
-        try {
-            $writer.WriteLine("TEST_START fake.qemu")
-            $writer.WriteLine("OS_BOOT_OK")
-            $writer.WriteLine("TEST_PASS boot.sequence")
-            $writer.WriteLine("OS_SMOKE_PASS")
-        }
-        finally {
-            $writer.Dispose()
-        }
-    }
-    finally {
-        $stream.Dispose()
-    }
-}
-
-$listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Parse("127.0.0.1"), $Port)
-$listener.Start()
-Write-SerialMarkers -SerialPath $SerialPath
-
-try {
-    $client = $listener.AcceptTcpClient()
-    $stream = $client.GetStream()
-    try {
-        if ($HangBeforeResponse -eq "1" -or $HangBeforeResponse -ieq "true") {
-            Start-Sleep -Seconds 20
-            exit 0
-        }
-
-        $buffer = New-Object byte[] 512
-        try {
-            [void]$stream.Read($buffer, 0, $buffer.Length)
-        }
-        catch {
-        }
-
-        $bodyBytes = [System.Text.Encoding]::UTF8.GetBytes($Body)
-        $reason = Get-ReasonPhrase -StatusCode $StatusCode
-        $header = "HTTP/1.1 $StatusCode $reason`r`nContent-Type: text/plain`r`nContent-Length: $($bodyBytes.Length)`r`nConnection: close`r`n`r`n"
-        $headerBytes = [System.Text.Encoding]::ASCII.GetBytes($header)
-        $stream.Write($headerBytes, 0, $headerBytes.Length)
-        $stream.Write($bodyBytes, 0, $bodyBytes.Length)
-    }
-    finally {
-        if ($null -ne $stream) { $stream.Dispose() }
-        if ($null -ne $client) { $client.Dispose() }
-    }
-}
-finally {
-    $listener.Stop()
-}
-""";
-    }
-
-    private static string EscapeCmdArgument(string value)
-    {
-        return value.Replace("\"", "\\\"", StringComparison.Ordinal);
     }
 
     private static string CreateEmptyFile(string tempRoot, string fileName)

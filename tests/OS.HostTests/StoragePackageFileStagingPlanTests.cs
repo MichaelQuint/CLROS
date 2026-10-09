@@ -9,48 +9,7 @@ internal static class StoragePackageFileStagingPlanTests
     private const byte AppContentSeed = 0x2D;
     private const int AppContentLength = 37;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("storage.package staging copies opened file", TestCopiesOpenedFile, ref failures);
-        Run("storage.package staging rejects short destination", TestRejectsShortDestination, ref failures);
-        Run("storage.package staging rejects invalid package range", TestRejectsInvalidPackageRange, ref failures);
-        Run("storage.package staging rejects source range overflow", TestRejectsSourceRangeOverflow, ref failures);
-        Run("storage.package staging rejects open failure", TestRejectsOpenFailure, ref failures);
-        Run("storage.package staging preserves no-live-storage boundary", TestPreservesNoLiveStorageBoundary, ref failures);
-        Run("storage.package staging uses shared buffer operations", TestUsesSharedBufferOperations, ref failures);
-        Run("storage.package staging default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Storage package file staging plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.package staging copies opened file", HostLane.Fast, 0)]
     private static bool TestCopiesOpenedFile()
     {
         byte[] package = CreateValidPackage();
@@ -62,7 +21,7 @@ internal static class StoragePackageFileStagingPlanTests
             open,
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == OsPackageFileStagingStatus.Success
             && result.OpenStatus == OsPackageFileSystemStatus.Success
@@ -74,9 +33,10 @@ internal static class StoragePackageFileStagingPlanTests
             && result.RequiredBytes == AppContentLength
             && result.CopyAttempted
             && !result.SourceRangeOverflow
-            && ContentMatches(destination, AppContentSeed);
+            && ContentMatches(destination, AppContentSeed));
     }
 
+    [HostTest("storage.package staging rejects short destination", HostLane.Fast, 1)]
     private static bool TestRejectsShortDestination()
     {
         byte[] package = CreateValidPackage();
@@ -89,15 +49,16 @@ internal static class StoragePackageFileStagingPlanTests
             open,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == OsPackageFileStagingStatus.DestinationTooSmall
             && result.RequiredBytes == AppContentLength
             && result.BytesWritten == 0
             && !result.CopyAttempted
-            && AllBytesEqual(destination, 0xA5);
+            && AllBytesEqual(destination, 0xA5));
     }
 
+    [HostTest("storage.package staging rejects invalid package range", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidPackageRange()
     {
         byte[] package = CreateValidPackage();
@@ -111,16 +72,17 @@ internal static class StoragePackageFileStagingPlanTests
             open,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == OsPackageFileStagingStatus.PackageRangeInvalid
             && result.FileLength == AppContentLength
             && result.BytesWritten == 0
             && !result.CopyAttempted
             && !result.SourceRangeOverflow
-            && AllBytesEqual(destination, 0xCC);
+            && AllBytesEqual(destination, 0xCC));
     }
 
+    [HostTest("storage.package staging rejects source range overflow", HostLane.Fast, 3)]
     private static bool TestRejectsSourceRangeOverflow()
     {
         byte[] package = CreateValidPackage();
@@ -140,7 +102,7 @@ internal static class StoragePackageFileStagingPlanTests
             open,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == OsPackageFileStagingStatus.PackageRangeInvalid
             && result.OpenStatus == OsPackageFileSystemStatus.Success
@@ -151,9 +113,10 @@ internal static class StoragePackageFileStagingPlanTests
             && result.BytesWritten == 0
             && !result.CopyAttempted
             && result.SourceRangeOverflow
-            && AllBytesEqual(destination, 0x7B);
+            && AllBytesEqual(destination, 0x7B));
     }
 
+    [HostTest("storage.package staging rejects open failure", HostLane.Fast, 4)]
     private static bool TestRejectsOpenFailure()
     {
         byte[] package = CreateValidPackage();
@@ -166,16 +129,17 @@ internal static class StoragePackageFileStagingPlanTests
             open,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == OsPackageFileStagingStatus.OpenFileFailed
             && result.OpenStatus == OsPackageFileSystemStatus.MissingFile
             && result.PackageStatus == OsPackageStatus.MissingFile
             && result.BytesWritten == 0
             && !result.CopyAttempted
-            && AllBytesEqual(destination, 0x55);
+            && AllBytesEqual(destination, 0x55));
     }
 
+    [HostTest("storage.package staging preserves no-live-storage boundary", HostLane.Fast, 5)]
     private static bool TestPreservesNoLiveStorageBoundary()
     {
         byte[] package = CreateValidPackage();
@@ -188,7 +152,7 @@ internal static class StoragePackageFileStagingPlanTests
             open,
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && OsPackageFileStagingPlanner.RequiresCallerOwnedPackageBytes
             && OsPackageFileStagingPlanner.RequiresOpenedPackageFile
             && OsPackageFileStagingPlanner.WritesCallerOwnedDestinationOnly
@@ -199,9 +163,10 @@ internal static class StoragePackageFileStagingPlanTests
             && !OsPackageFileStagingPlanner.ExecutesAppCode
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OsPackageFileStagingResult>()
             && package.AsSpan().SequenceEqual(before)
-            && ContentMatches(destination, AppContentSeed);
+            && ContentMatches(destination, AppContentSeed));
     }
 
+    [HostTest("storage.package staging default result is not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         OsPackageFileStagingResult result = default;
@@ -236,7 +201,7 @@ internal static class StoragePackageFileStagingPlanTests
             open,
             Span<byte>.Empty);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == OsPackageFileStagingStatus.Success
             && result.OpenStatus == OsPackageFileSystemStatus.Success
@@ -255,9 +220,10 @@ internal static class StoragePackageFileStagingPlanTests
             && !empty.SourceRangeOverflow
             && !overflowSuccess.Succeeded
             && overflowSuccess.SourceRangeOverflow
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OsPackageFileStagingResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OsPackageFileStagingResult>());
     }
 
+    [HostTest("storage.package staging uses shared buffer operations", HostLane.Fast, 6)]
     private static bool TestUsesSharedBufferOperations()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -268,11 +234,11 @@ internal static class StoragePackageFileStagingPlanTests
             "Storage",
             "OsPackageFileStagingPlan.cs"));
 
-        return source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
             && source.Contains("BufferOperations.MemoryCopy(source, destination)", StringComparison.Ordinal)
             && source.Contains("if (!copy.Succeeded)", StringComparison.Ordinal)
             && source.Contains("OsPackageFileStagingStatus.DestinationTooSmall", StringComparison.Ordinal)
-            && !source.Contains(".CopyTo(destination)", StringComparison.Ordinal);
+            && !source.Contains(".CopyTo(destination)", StringComparison.Ordinal));
     }
 
     private static byte[] CreateValidPackage()

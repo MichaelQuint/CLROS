@@ -15,77 +15,7 @@ internal static class FetchAppHttpTcpExchangePlanTests
     private const ushort Identification = 0x411;
     private const int TcpChecksumOffset = 16;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("fetch.http tcp exchange completes completion and close", TestCompletesCompletionAndClose, ref failures);
-        Run("fetch.http tcp exchange rejects context failure", TestRejectsContextFailure, ref failures);
-        Run("fetch.http tcp exchange rejects short endpoint buffers", TestRejectsShortEndpointBuffers, ref failures);
-        Run("fetch.http tcp exchange rejects bad synack checksum", TestRejectsBadSynAckChecksum, ref failures);
-        Run("fetch.http tcp exchange rejects request frame too small", TestRejectsRequestFrameTooSmall, ref failures);
-        Run("fetch.http tcp exchange rejects missing expected marker", TestRejectsMissingExpectedMarker, ref failures);
-        Run("fetch.http tcp exchange rejects close frame too small", TestRejectsCloseFrameTooSmall, ref failures);
-        Run("fetch.http tcp exchange default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run(
-            "fetch.http tcp exchange formatter formats success marker",
-            TestFormatterFormatsSuccessMarker,
-            ref failures);
-        Run(
-            "fetch.http tcp exchange formatter reports short destination",
-            TestFormatterReportsShortDestination,
-            ref failures);
-        Run(
-            "fetch.http tcp exchange formatter rejects default result",
-            TestFormatterRejectsDefaultResult,
-            ref failures);
-        Run(
-            "fetch.http tcp exchange formatter uses shared ascii text builder",
-            TestFormatterUsesSharedAsciiTextBuilder,
-            ref failures);
-        Run("boot.sequence fetch http tcp exchange ready", TestBootSequenceReady, ref failures);
-        Run(
-            "boot.sequence fetch http tcp exchange rejects failed result",
-            TestBootSequenceRejectsFailedResult,
-            ref failures);
-        Run(
-            "boot.sequence fetch http tcp exchange rejects default result",
-            TestBootSequenceRejectsDefaultResult,
-            ref failures);
-        Run(
-            "boot.sequence fetch http tcp exchange preserves default markers",
-            TestBootSequencePreservesDefaultMarkers,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("FetchApp HTTP TCP exchange plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("fetch.http tcp exchange completes completion and close", HostLane.Fast, 0)]
     private static bool TestCompletesCompletionAndClose()
     {
         byte[] responsePayload = CreateHttpResponseBody("prefix FETCH_OK suffix");
@@ -123,10 +53,10 @@ internal static class FetchAppHttpTcpExchangePlanTests
             result.Close.LocalNextSequenceNumber != result.Response.LocalNextSequenceNumber + 1 ||
             result.Close.RemoteNextSequenceNumber != result.Response.RemoteNextSequenceNumber)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return TryParseTcpFrame(
+        return HostCheck.Result(TryParseTcpFrame(
                 buffers.CloseFrame.AsSpan(0, result.CloseFrameBytes),
                 out EthernetHeader closeEthernet,
                 out Ipv4Header closeIpv4,
@@ -148,9 +78,10 @@ internal static class FetchAppHttpTcpExchangePlanTests
             && !FetchAppHttpTcpExchangePlan.OpensSockets
             && !FetchAppHttpTcpExchangePlan.PerformsDnsOrArp
             && !FetchAppHttpTcpExchangePlan.PerformsTls
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpTcpExchangePlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<FetchAppHttpTcpExchangePlanResult>());
     }
 
+    [HostTest("fetch.http tcp exchange rejects context failure", HostLane.Fast, 1)]
     private static bool TestRejectsContextFailure()
     {
         byte[] responsePayload = CreateHttpResponseBody("prefix FETCH_OK suffix");
@@ -173,14 +104,15 @@ internal static class FetchAppHttpTcpExchangePlanTests
             "FETCH_OK"u8,
             out FetchAppHttpTcpExchangePlanResult result);
 
-        return status == FetchAppHttpTcpExchangePlanStatus.ContextFailed
+        return HostCheck.Result(status == FetchAppHttpTcpExchangePlanStatus.ContextFailed
             && result.IsInitialized
             && !result.Succeeded
             && !result.Context.IsInitialized
             && !result.Syn.IsInitialized
-            && result.ExpectedMarkerLength == "FETCH_OK".Length;
+            && result.ExpectedMarkerLength == "FETCH_OK".Length);
     }
 
+    [HostTest("fetch.http tcp exchange rejects short endpoint buffers", HostLane.Fast, 2)]
     private static bool TestRejectsShortEndpointBuffers()
     {
         byte[] responsePayload = CreateHttpResponseBody("prefix FETCH_OK suffix");
@@ -203,15 +135,16 @@ internal static class FetchAppHttpTcpExchangePlanTests
             "FETCH_OK"u8,
             out FetchAppHttpTcpExchangePlanResult result);
 
-        return status == FetchAppHttpTcpExchangePlanStatus.EndpointBufferTooSmall
+        return HostCheck.Result(status == FetchAppHttpTcpExchangePlanStatus.EndpointBufferTooSmall
             && result.IsInitialized
             && !result.Succeeded
             && result.Context.Succeeded
             && !result.Syn.IsInitialized
             && result.HostBytes == buffers.Host.Length
-            && result.PathBytes == buffers.Path.Length;
+            && result.PathBytes == buffers.Path.Length);
     }
 
+    [HostTest("fetch.http tcp exchange rejects bad synack checksum", HostLane.Fast, 3)]
     private static bool TestRejectsBadSynAckChecksum()
     {
         byte[] responsePayload = CreateHttpResponseBody("prefix FETCH_OK suffix");
@@ -235,15 +168,16 @@ internal static class FetchAppHttpTcpExchangePlanTests
             "FETCH_OK"u8,
             out FetchAppHttpTcpExchangePlanResult result);
 
-        return status == FetchAppHttpTcpExchangePlanStatus.SynAckFrameFailed
+        return HostCheck.Result(status == FetchAppHttpTcpExchangePlanStatus.SynAckFrameFailed
             && result.IsInitialized
             && !result.Succeeded
             && result.Syn.Succeeded
             && !result.SynAck.Succeeded
             && result.SynAck.TcpFrameStatus == TcpIpv4FramePlanStatus.BadTcpChecksum
-            && !result.FinalAck.IsInitialized;
+            && !result.FinalAck.IsInitialized);
     }
 
+    [HostTest("fetch.http tcp exchange rejects request frame too small", HostLane.Fast, 4)]
     private static bool TestRejectsRequestFrameTooSmall()
     {
         byte[] responsePayload = CreateHttpResponseBody("prefix FETCH_OK suffix");
@@ -267,15 +201,16 @@ internal static class FetchAppHttpTcpExchangePlanTests
             "FETCH_OK"u8,
             out FetchAppHttpTcpExchangePlanResult result);
 
-        return status == FetchAppHttpTcpExchangePlanStatus.RequestFrameFailed
+        return HostCheck.Result(status == FetchAppHttpTcpExchangePlanStatus.RequestFrameFailed
             && result.IsInitialized
             && !result.Succeeded
             && result.FinalAck.Succeeded
             && !result.Request.Succeeded
             && result.Request.Status == HttpTcpClientGetPlanStatus.FrameBufferTooSmall
-            && !result.Response.IsInitialized;
+            && !result.Response.IsInitialized);
     }
 
+    [HostTest("fetch.http tcp exchange rejects missing expected marker", HostLane.Fast, 5)]
     private static bool TestRejectsMissingExpectedMarker()
     {
         byte[] responsePayload = CreateHttpResponseBody("prefix NO_MATCH suffix");
@@ -298,14 +233,15 @@ internal static class FetchAppHttpTcpExchangePlanTests
             "FETCH_OK"u8,
             out FetchAppHttpTcpExchangePlanResult result);
 
-        return status == FetchAppHttpTcpExchangePlanStatus.CompletionFailed
+        return HostCheck.Result(status == FetchAppHttpTcpExchangePlanStatus.CompletionFailed
             && result.IsInitialized
             && !result.Succeeded
             && result.Response.Succeeded
             && result.Completion.Status == FetchAppHttpCompletionPlanStatus.MissingExpectedMarker
-            && !result.Close.IsInitialized;
+            && !result.Close.IsInitialized);
     }
 
+    [HostTest("fetch.http tcp exchange rejects close frame too small", HostLane.Fast, 6)]
     private static bool TestRejectsCloseFrameTooSmall()
     {
         byte[] responsePayload = CreateHttpResponseBody("prefix FETCH_OK suffix");
@@ -329,19 +265,20 @@ internal static class FetchAppHttpTcpExchangePlanTests
             "FETCH_OK"u8,
             out FetchAppHttpTcpExchangePlanResult result);
 
-        return status == FetchAppHttpTcpExchangePlanStatus.CloseFrameFailed
+        return HostCheck.Result(status == FetchAppHttpTcpExchangePlanStatus.CloseFrameFailed
             && result.IsInitialized
             && !result.Succeeded
             && result.Completion.Succeeded
             && !result.Close.Succeeded
-            && result.Close.Status == TcpConnectionCloseIpv4FramePlanStatus.FrameBufferTooSmall;
+            && result.Close.Status == TcpConnectionCloseIpv4FramePlanStatus.FrameBufferTooSmall);
     }
 
+    [HostTest("fetch.http tcp exchange default result is not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         FetchAppHttpTcpExchangePlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == FetchAppHttpTcpExchangePlanStatus.Success
             && result.Context.Status == FetchAppHttpTcpContextPlanStatus.Success
@@ -351,9 +288,10 @@ internal static class FetchAppHttpTcpExchangePlanTests
             && result.HostBytes == 0
             && result.PathBytes == 0
             && result.ExpectedHttpStatusCode == 0
-            && result.ExpectedMarkerLength == 0;
+            && result.ExpectedMarkerLength == 0);
     }
 
+    [HostTest("fetch.http tcp exchange formatter formats success marker", HostLane.Fast, 8)]
     private static bool TestFormatterFormatsSuccessMarker()
     {
         FetchAppHttpTcpExchangePlanResult result = ExecuteSuccessfulExchange(out ExchangeBuffers _);
@@ -377,7 +315,7 @@ internal static class FetchAppHttpTcpExchangePlanTests
             " localSeq=" + result.Close.LocalNextSequenceNumber +
             " remoteSeq=" + result.Close.RemoteNextSequenceNumber;
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && !query.Succeeded
             && query.Status == FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.Success
             && query.ExchangeStatus == FetchAppHttpTcpExchangePlanStatus.Success
@@ -391,9 +329,10 @@ internal static class FetchAppHttpTcpExchangePlanTests
             && format.AvailableBytes == destination.Length
             && text == expected
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                FetchAppHttpTcpExchangePlanDiagnosticFormatResult>();
+                FetchAppHttpTcpExchangePlanDiagnosticFormatResult>());
     }
 
+    [HostTest("fetch.http tcp exchange formatter reports short destination", HostLane.Fast, 9)]
     private static bool TestFormatterReportsShortDestination()
     {
         FetchAppHttpTcpExchangePlanResult result = ExecuteSuccessfulExchange(out ExchangeBuffers _);
@@ -405,7 +344,7 @@ internal static class FetchAppHttpTcpExchangePlanTests
         FetchAppHttpTcpExchangePlanDiagnosticFormatResult shortResult =
             FetchAppHttpTcpExchangePlanDiagnosticFormatter.FormatResult(result, destination);
 
-        return shortResult.IsInitialized
+        return HostCheck.Result(shortResult.IsInitialized
             && !shortResult.Succeeded
             && shortResult.Status == FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.DestinationTooSmall
             && shortResult.ExchangeStatus == FetchAppHttpTcpExchangePlanStatus.Success
@@ -414,9 +353,10 @@ internal static class FetchAppHttpTcpExchangePlanTests
             && shortResult.AvailableBytes == destination.Length
             && query.RequiredBytes > destination.Length
             && destination[0] == 0xCC
-            && destination[23] == 0xCC;
+            && destination[23] == 0xCC);
     }
 
+    [HostTest("fetch.http tcp exchange formatter rejects default result", HostLane.Fast, 10)]
     private static bool TestFormatterRejectsDefaultResult()
     {
         Span<byte> destination = stackalloc byte[64];
@@ -429,7 +369,7 @@ internal static class FetchAppHttpTcpExchangePlanTests
             FetchAppHttpTcpExchangePlanDiagnosticFormatter.QueryRequiredBytes(defaultResult);
         FetchAppHttpTcpExchangePlanDiagnosticFormatResult defaultFormat = default;
 
-        return format.IsInitialized
+        return HostCheck.Result(format.IsInitialized
             && !format.Succeeded
             && format.Status == FetchAppHttpTcpExchangePlanDiagnosticFormatStatus.InvalidResult
             && format.ExchangeStatus == FetchAppHttpTcpExchangePlanStatus.Success
@@ -447,9 +387,10 @@ internal static class FetchAppHttpTcpExchangePlanTests
             && defaultFormat.RequiredBytes == 0
             && defaultFormat.AvailableBytes == 0
             && destination[0] == 0xAA
-            && destination[63] == 0xAA;
+            && destination[63] == 0xAA);
     }
 
+    [HostTest("fetch.http tcp exchange formatter uses shared ascii text builder", HostLane.Fast, 11)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string source = File.ReadAllText(Path.Combine(
@@ -459,13 +400,14 @@ internal static class FetchAppHttpTcpExchangePlanTests
             "Net",
             "FetchAppHttpTcpExchangePlanDiagnosticFormatter.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains("AsciiTextBuilder.AppendBytes(destination, offset, value)", StringComparison.Ordinal)
             && source.Contains("AsciiTextBuilder.AppendInt64Decimal(destination, offset, value)", StringComparison.Ordinal)
             && source.Contains("AsciiTextBuilder.AppendUInt64Decimal(destination, offset, value)", StringComparison.Ordinal)
-            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal);
+            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence fetch http tcp exchange ready", HostLane.Fast, 12)]
     private static bool TestBootSequenceReady()
     {
         FetchAppHttpTcpExchangePlanResult exchange = ExecuteSuccessfulExchange(out ExchangeBuffers _);
@@ -478,7 +420,7 @@ internal static class FetchAppHttpTcpExchangePlanTests
             events);
         string expectedMarker = BootSequence.CreateFetchAppHttpTcpExchangeReadyMarker(exchange);
 
-        return exchange.Succeeded
+        return HostCheck.Result(exchange.Succeeded
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
@@ -500,9 +442,10 @@ internal static class FetchAppHttpTcpExchangePlanTests
                 StringComparison.Ordinal)
             && !expectedMarker.Contains("example.com", StringComparison.Ordinal)
             && !expectedMarker.Contains("/healthz", StringComparison.Ordinal)
-            && !expectedMarker.Contains("FETCH_OK", StringComparison.Ordinal);
+            && !expectedMarker.Contains("FETCH_OK", StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence fetch http tcp exchange rejects failed result", HostLane.Fast, 13)]
     private static bool TestBootSequenceRejectsFailedResult()
     {
         FetchAppHttpTcpExchangePlanResult exchange = ExecuteExchangeWithMissingMarker();
@@ -517,7 +460,7 @@ internal static class FetchAppHttpTcpExchangePlanTests
             FetchAppHttpTcpExchangeReadinessStatus.ExchangeFailed,
             exchange);
 
-        return exchange.IsInitialized
+        return HostCheck.Result(exchange.IsInitialized
             && !exchange.Succeeded
             && exchange.Status == FetchAppHttpTcpExchangePlanStatus.CompletionFailed
             && !result.Succeeded
@@ -531,9 +474,10 @@ internal static class FetchAppHttpTcpExchangePlanTests
             && expectedMarker.Contains("status=ExchangeFailed", StringComparison.Ordinal)
             && expectedMarker.Contains("exchange=CompletionFailed", StringComparison.Ordinal)
             && expectedMarker.Contains("completion=MissingExpectedMarker", StringComparison.Ordinal)
-            && expectedMarker.Contains("format=Success", StringComparison.Ordinal);
+            && expectedMarker.Contains("format=Success", StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence fetch http tcp exchange rejects default result", HostLane.Fast, 14)]
     private static bool TestBootSequenceRejectsDefaultResult()
     {
         FetchAppHttpTcpExchangePlanResult exchange = default;
@@ -548,7 +492,7 @@ internal static class FetchAppHttpTcpExchangePlanTests
             FetchAppHttpTcpExchangeReadinessStatus.NotInitialized,
             exchange);
 
-        return !exchange.IsInitialized
+        return HostCheck.Result(!exchange.IsInitialized
             && !exchange.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
@@ -562,9 +506,10 @@ internal static class FetchAppHttpTcpExchangePlanTests
                 "exchange=Success format=InvalidResult bytesWritten=0 requiredBytes=0 availableBytes=0 " +
                 "context=Success syn=Success synAck=Success finalAck=Success request=Success response=Success " +
                 "completion=Success close=Success hostBytes=0 pathBytes=0 expectedHttpStatus=0 " +
-                "expectedMarkerBytes=0 responseBytes=0 closeBytes=0";
+                "expectedMarkerBytes=0 responseBytes=0 closeBytes=0");
     }
 
+    [HostTest("boot.sequence fetch http tcp exchange preserves default markers", HostLane.Fast, 15)]
     private static bool TestBootSequencePreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -573,11 +518,11 @@ internal static class FetchAppHttpTcpExchangePlanTests
         BootResult result = BootSequence.Run(serial, events);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return !serial.ContainsPrefix(BootSequence.FetchAppHttpTcpExchangeReadyPrefix)
-            && !serial.ContainsPrefix(BootSequence.FetchAppHttpTcpExchangeNotReadyPrefix);
+        return HostCheck.Result(!serial.ContainsPrefix(BootSequence.FetchAppHttpTcpExchangeReadyPrefix)
+            && !serial.ContainsPrefix(BootSequence.FetchAppHttpTcpExchangeNotReadyPrefix));
     }
 
     private static FetchAppHttpTcpExchangePlanResult ExecuteSuccessfulExchange(out ExchangeBuffers buffers)

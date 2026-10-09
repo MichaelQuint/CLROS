@@ -23,7 +23,7 @@ internal static class M01LiveAllocatorEfiEntryTests
     private const string StageOneCondition = "(" + StageOneSymbol + " || CLROS_NORMAL_VERIFIED_EXIT)";
     private const string StageTwoCondition = "(" + StageTwoSymbol + " || CLROS_NORMAL_VERIFIED_EXIT)";
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         int failures = 0;
@@ -91,29 +91,8 @@ internal static class M01LiveAllocatorEfiEntryTests
         Func<bool> test,
         ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
 
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL "
-                + name
-                + " "
-                + ex.GetType().Name
-                + ": "
-                + ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestProbeProfilesAndStageOneGate()

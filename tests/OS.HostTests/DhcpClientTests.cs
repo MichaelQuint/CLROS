@@ -6,44 +6,7 @@ internal static class DhcpClientTests
 {
     private const uint TransactionId = 0x10203040;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.dhcp client transitions discover-offer-request-ack", TestDiscoverOfferRequestAck, ref failures);
-        Run("net.dhcp client rejects mismatched xid", TestRejectsMismatchedTransactionId, ref failures);
-        Run("net.dhcp client times out discover", TestTimesOutDiscover, ref failures);
-        Run("net.dhcp client default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("DHCP client host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.dhcp client transitions discover-offer-request-ack", HostLane.Fast, 0)]
     private static bool TestDiscoverOfferRequestAck()
     {
         DhcpClientTransaction transaction = DhcpClientTransaction.Create(
@@ -61,7 +24,7 @@ internal static class DhcpClientTests
             || discoverResult.BytesWritten != 251
             || discover[DhcpMessage.OptionsOffset + 2] != DhcpMessage.MessageTypeDiscover)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> offer = stackalloc byte[320];
@@ -84,7 +47,7 @@ internal static class DhcpClientTests
             || transaction.OfferedAddress != OfferedAddress()
             || transaction.ServerIdentifier != ServerAddress())
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> request = stackalloc byte[300];
@@ -100,7 +63,7 @@ internal static class DhcpClientTests
             || Ipv4At(request, DhcpMessage.OptionsOffset + 5) != OfferedAddress()
             || Ipv4At(request, DhcpMessage.OptionsOffset + 11) != ServerAddress())
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> ack = stackalloc byte[320];
@@ -117,7 +80,7 @@ internal static class DhcpClientTests
             ack.Slice(0, ackBytes),
             out DhcpClientTransitionResult ackResult);
 
-        return ackStatus == DhcpClientStatus.Success
+        return HostCheck.Result(ackStatus == DhcpClientStatus.Success
             && ackResult.Succeeded
             && ackResult.State == DhcpClientState.Bound
             && transaction.State == DhcpClientState.Bound
@@ -129,9 +92,10 @@ internal static class DhcpClientTests
             && transaction.Lease.HasRouter
             && transaction.Lease.Router == ServerAddress()
             && transaction.Lease.HasDnsServer
-            && transaction.Lease.DnsServer == new Ipv4Address(198, 51, 100, 53);
+            && transaction.Lease.DnsServer == new Ipv4Address(198, 51, 100, 53));
     }
 
+    [HostTest("net.dhcp client rejects mismatched xid", HostLane.Fast, 1)]
     private static bool TestRejectsMismatchedTransactionId()
     {
         DhcpClientTransaction transaction = DhcpClientTransaction.Create(
@@ -143,7 +107,7 @@ internal static class DhcpClientTests
             out DhcpClientTransitionResult _);
         if (discoverStatus != DhcpClientStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> offer = stackalloc byte[320];
@@ -160,13 +124,14 @@ internal static class DhcpClientTests
             offer.Slice(0, offerBytes),
             out DhcpClientTransitionResult offerResult);
 
-        return offerStatus == DhcpClientStatus.TransactionIdMismatch
+        return HostCheck.Result(offerStatus == DhcpClientStatus.TransactionIdMismatch
             && !offerResult.Succeeded
             && offerResult.State == DhcpClientState.Failed
             && offerResult.MessageStatus == DhcpMessageStatus.Success
-            && transaction.State == DhcpClientState.Failed;
+            && transaction.State == DhcpClientState.Failed);
     }
 
+    [HostTest("net.dhcp client times out discover", HostLane.Fast, 2)]
     private static bool TestTimesOutDiscover()
     {
         DhcpClientTransaction transaction = DhcpClientTransaction.Create(
@@ -178,17 +143,18 @@ internal static class DhcpClientTests
             out DhcpClientTransitionResult _);
         if (discoverStatus != DhcpClientStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         DhcpClientStatus timeoutStatus = transaction.Timeout(out DhcpClientTransitionResult timeoutResult);
 
-        return timeoutStatus == DhcpClientStatus.Timeout
+        return HostCheck.Result(timeoutStatus == DhcpClientStatus.Timeout
             && !timeoutResult.Succeeded
             && timeoutResult.State == DhcpClientState.Failed
-            && transaction.State == DhcpClientState.Failed;
+            && transaction.State == DhcpClientState.Failed);
     }
 
+    [HostTest("net.dhcp client default result is not success", HostLane.Fast, 3)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         DhcpClientTransitionResult defaultResult = default;
@@ -198,7 +164,7 @@ internal static class DhcpClientTests
                 DhcpClientState.Initial,
                 DhcpMessageStatus.Success);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == DhcpClientStatus.Success
             && failedResult.IsInitialized
@@ -208,7 +174,7 @@ internal static class DhcpClientTests
             && failedResult.MessageStatus == DhcpMessageStatus.Success
             && failedResult.BytesWritten == 0
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                DhcpClientTransitionResult>();
+                DhcpClientTransitionResult>());
     }
 
     private static int WriteServerMessage(

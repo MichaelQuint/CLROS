@@ -50,67 +50,7 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
     private static readonly Guid EspGuid = new("c12a7328-f81f-11d2-ba4b-00a0c93ec93b");
     private static readonly Guid UniquePartitionGuid = new("eeeeeeee-1111-2222-3333-ffffffffffff");
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("appmodel.virtio selection preflight validates scratch", TestValidatesScratch, ref failures);
-        Run("appmodel.virtio selection preflight rejects incomplete session", TestRejectsIncompleteSession, ref failures);
-        Run("appmodel.virtio selection preflight preserves selection provenance", TestPreservesSelectionProvenance, ref failures);
-        Run(
-            "appmodel.virtio selection preflight reads app from session destination",
-            TestReadsAppSelectionFromReadSessionDestination,
-            ref failures);
-        Run(
-            "appmodel.virtio selection preflight adapts completed read session block device",
-            TestAdaptsCompletedReadSessionBlockDevice,
-            ref failures);
-        Run(
-            "appmodel.virtio selection preflight reports adapter creation failure",
-            TestReportsAdapterCreationFailure,
-            ref failures);
-        Run("appmodel.virtio selection preflight preserves no-launch boundary", TestPreservesNoLaunchBoundary, ref failures);
-        Run("appmodel.virtio selection preflight default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("boot.sequence virtio app selection preflight ready", TestBootSequencePreflightReady, ref failures);
-        Run(
-            "boot.sequence virtio app selection preflight blocks default result",
-            TestBootSequencePreflightBlocksDefaultResult,
-            ref failures);
-        Run(
-            "boot.sequence virtio app selection preflight reports selection failure",
-            TestBootSequencePreflightReportsSelectionFailure,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio block native app selection preflight host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel.virtio selection preflight validates scratch", HostLane.Fast, 0)]
     private static bool TestValidatesScratch()
     {
         VirtioBlockReadOnlyReadSessionResult session = ExecuteReadSession(validRequestHeader: true);
@@ -131,7 +71,7 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
             shortScratch,
             NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return success.Succeeded
+        return HostCheck.Result(success.Succeeded
             && success.ScratchPlanAttempted
             && success.ScratchPlan.Succeeded
             && success.ScratchPlan.ManifestBytesRequired == NativeAppSelectionBootScratchPlan.DefaultManifestBufferBytes
@@ -143,9 +83,10 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
             && shortManifest.ScratchPlan.Status == NativeAppSelectionBootScratchPlanStatus.ManifestBufferTooSmall
             && shortManifest.ScratchPlan.ManifestBytesRequired == NativeAppSelectionBootScratchPlan.DefaultManifestBufferBytes
             && shortManifest.ScratchPlan.ManifestBytesAvailable == NativeAppSelectionBootScratchPlan.DefaultManifestBufferBytes - 1
-            && !shortManifest.SelectionLoadAttempted;
+            && !shortManifest.SelectionLoadAttempted);
     }
 
+    [HostTest("appmodel.virtio selection preflight rejects incomplete session", HostLane.Fast, 1)]
     private static bool TestRejectsIncompleteSession()
     {
         VirtioBlockReadOnlyReadSessionResult session = ExecuteReadSession(validRequestHeader: false);
@@ -158,7 +99,7 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
             scratch,
             NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return !session.Succeeded
+        return HostCheck.Result(!session.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockNativeAppSelectionPreflightStatus.IncompleteReadSession
             && !result.ReadSessionComplete
@@ -169,9 +110,10 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
             && result.CursorBefore.AvailableRingIndex == 4
             && result.CursorBefore.UsedRingIndex == 8
             && result.CursorAfter.AvailableRingIndex == 4
-            && result.CursorAfter.UsedRingIndex == 8;
+            && result.CursorAfter.UsedRingIndex == 8);
     }
 
+    [HostTest("appmodel.virtio selection preflight preserves selection provenance", HostLane.Fast, 2)]
     private static bool TestPreservesSelectionProvenance()
     {
         VirtioBlockReadOnlyReadSessionResult session = ExecuteReadSession(validRequestHeader: true);
@@ -184,7 +126,7 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
             scratch,
             NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioBlockNativeAppSelectionPreflightStatus.Success
             && result.ReadSessionComplete
             && result.ReadSessionStatus == VirtioBlockReadOnlyReadSessionStatus.Success
@@ -206,9 +148,10 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
             && result.SelectionLoad.Descriptor.Descriptor.PayloadHeader.EntryOffset == NativeAppPayloadHeader.HeaderSize
             && result.SelectionLoad.Descriptor.Descriptor.NetworkMode == NativeManifestNetworkMode.Dhcp
             && result.SelectionLoad.Descriptor.Descriptor.LogMode == NativeManifestLogMode.Serial
-            && FieldEquals(scratch.ManifestBuffer, result.SelectionLoad.ManifestLoad.Manifest.AppPath, AppPath);
+            && FieldEquals(scratch.ManifestBuffer, result.SelectionLoad.ManifestLoad.Manifest.AppPath, AppPath));
     }
 
+    [HostTest("appmodel.virtio selection preflight reads app from session destination", HostLane.Fast, 3)]
     private static bool TestReadsAppSelectionFromReadSessionDestination()
     {
         byte[] disk = CreateDiskImage(ValidManifest(AppPath), ValidPackage(AppPath));
@@ -229,7 +172,7 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
                 NativeAppLaunchRuntimeCapabilities.PackageStorage |
                 NativeAppLaunchRuntimeCapabilities.Network);
 
-        return session.Succeeded
+        return HostCheck.Result(session.Succeeded
             && session.BlockRead.Succeeded
             && session.BlockRead.BlocksRead == DiskBlockCount
             && session.BlockRead.BytesRead == (ulong)disk.Length
@@ -244,9 +187,10 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
             && result.SelectionLoad.LaunchPlan.Succeeded
             && result.SelectionLoad.Descriptor.Succeeded
             && result.SelectionLoad.Descriptor.Descriptor.AppBinaryLength == AppContentLength
-            && FieldEquals(scratch.ManifestBuffer, result.SelectionLoad.ManifestLoad.Manifest.AppPath, AppPath);
+            && FieldEquals(scratch.ManifestBuffer, result.SelectionLoad.ManifestLoad.Manifest.AppPath, AppPath));
     }
 
+    [HostTest("appmodel.virtio selection preflight adapts completed read session block device", HostLane.Fast, 4)]
     private static bool TestAdaptsCompletedReadSessionBlockDevice()
     {
         byte[] disk = CreateDiskImage(ValidManifest(AppPath), ValidPackage(AppPath));
@@ -269,7 +213,7 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
                 NativeAppLaunchRuntimeCapabilities.PackageStorage |
                 NativeAppLaunchRuntimeCapabilities.Network);
 
-        return session.Succeeded
+        return HostCheck.Result(session.Succeeded
             && readDestination.AsSpan().SequenceEqual(disk)
             && result.Succeeded
             && result.Status == VirtioBlockNativeAppSelectionPreflightStatus.Success
@@ -290,9 +234,10 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
             && result.SelectionLoad.Descriptor.Descriptor.AppBinaryLength == AppContentLength
             && FieldEquals(scratch.ManifestBuffer, result.SelectionLoad.ManifestLoad.Manifest.AppPath, AppPath)
             && VirtioBlockNativeAppSelectionPreflight.UsesCompletedReadSessionBlockDeviceAdapter
-            && VirtioBlockNativeAppSelectionPreflight.PreservesAdapterCreateProvenance;
+            && VirtioBlockNativeAppSelectionPreflight.PreservesAdapterCreateProvenance);
     }
 
+    [HostTest("appmodel.virtio selection preflight reports adapter creation failure", HostLane.Fast, 5)]
     private static bool TestReportsAdapterCreationFailure()
     {
         byte[] disk = CreateDiskImage(ValidManifest(AppPath), ValidPackage(AppPath));
@@ -315,7 +260,7 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
                 NativeAppLaunchRuntimeCapabilities.PackageStorage |
                 NativeAppLaunchRuntimeCapabilities.Network);
 
-        return session.Succeeded
+        return HostCheck.Result(session.Succeeded
             && !result.Succeeded
             && result.Status == VirtioBlockNativeAppSelectionPreflightStatus.InvalidBlockDevice
             && result.BlockDeviceStatus == BlockDeviceStatus.DestinationTooSmall
@@ -329,9 +274,10 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
             && !result.ScratchPlanAttempted
             && !result.SelectionLoadAttempted
             && result.ScratchPlan.Status == NativeAppSelectionBootScratchPlanStatus.Success
-            && result.SelectionLoad.Status == NativeAppSelectionLoadStatus.Success;
+            && result.SelectionLoad.Status == NativeAppSelectionLoadStatus.Success);
     }
 
+    [HostTest("appmodel.virtio selection preflight preserves no-launch boundary", HostLane.Fast, 6)]
     private static bool TestPreservesNoLaunchBoundary()
     {
         VirtioBlockReadOnlyReadSessionResult session = ExecuteReadSession(validRequestHeader: true);
@@ -344,7 +290,7 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
             scratch,
             NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioBlockNativeAppSelectionPreflight.ValidatesCallerOwnedReadSession
             && VirtioBlockNativeAppSelectionPreflight.RejectsIncompleteReadSessionBeforeScratchValidation
             && VirtioBlockNativeAppSelectionPreflight.ValidatesCallerOwnedBlockDeviceGeometry
@@ -365,23 +311,25 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
             && !VirtioBlockNativeAppSelectionPreflight.ExecutesAppCode
             && !VirtioBlockNativeAppSelectionPreflight.StartsHostedDotNet
             && !VirtioBlockNativeAppSelectionPreflight.StartsKestrel
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockNativeAppSelectionPreflightResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockNativeAppSelectionPreflightResult>());
     }
 
+    [HostTest("appmodel.virtio selection preflight default result is not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioBlockNativeAppSelectionPreflightResult result = default;
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockNativeAppSelectionPreflightStatus.Success
             && !result.IsInitialized
             && !result.ReadSessionComplete
             && !result.AdapterCreateAttempted
             && !result.AdapterCreate.Succeeded
             && !result.ScratchPlanAttempted
-            && !result.SelectionLoadAttempted;
+            && !result.SelectionLoadAttempted);
     }
 
+    [HostTest("boot.sequence virtio app selection preflight ready", HostLane.Fast, 8)]
     private static bool TestBootSequencePreflightReady()
     {
         VirtioBlockReadOnlyReadSessionResult session = ExecuteReadSession(validRequestHeader: true);
@@ -397,14 +345,15 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
 
         BootResult result = BootSequence.RunAppSelectionPreflightReadiness(preflight, serial, events);
 
-        return preflight.Succeeded
+        return HostCheck.Result(preflight.Succeeded
             && preflight.IsInitialized
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.AppSelectionPreflightReady
-            && events.Snapshot()[0] == BootSequence.AppSelectionPreflightReady;
+            && events.Snapshot()[0] == BootSequence.AppSelectionPreflightReady);
     }
 
+    [HostTest("boot.sequence virtio app selection preflight blocks default result", HostLane.Fast, 9)]
     private static bool TestBootSequencePreflightBlocksDefaultResult()
     {
         VirtioBlockNativeAppSelectionPreflightResult preflight = default;
@@ -416,7 +365,7 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
             AppSelectionPreflightReadinessStatus.NotInitialized,
             preflight);
 
-        return !preflight.Succeeded
+        return HostCheck.Result(!preflight.Succeeded
             && !preflight.IsInitialized
             && !result.Succeeded
             && result.Reason.Contains(
@@ -425,9 +374,10 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
-            && expectedMarker.Contains("initialized=false", StringComparison.Ordinal);
+            && expectedMarker.Contains("initialized=false", StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence virtio app selection preflight reports selection failure", HostLane.Fast, 10)]
     private static bool TestBootSequencePreflightReportsSelectionFailure()
     {
         VirtioBlockReadOnlyReadSessionResult session = ExecuteReadSession(validRequestHeader: true);
@@ -446,7 +396,7 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
             AppSelectionPreflightReadinessStatus.SelectionLoadFailed,
             preflight);
 
-        return !preflight.Succeeded
+        return HostCheck.Result(!preflight.Succeeded
             && preflight.IsInitialized
             && preflight.Status == VirtioBlockNativeAppSelectionPreflightStatus.SelectionLoadFailed
             && preflight.SelectionLoad.Status == NativeAppSelectionLoadStatus.LaunchPlanFailed
@@ -458,7 +408,7 @@ internal static class VirtioBlockNativeAppSelectionPreflightTests
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
             && expectedMarker.Contains("selection=LaunchPlanFailed", StringComparison.Ordinal)
-            && expectedMarker.Contains("launch=MissingRuntimeCapabilities", StringComparison.Ordinal);
+            && expectedMarker.Contains("launch=MissingRuntimeCapabilities", StringComparison.Ordinal));
     }
 
     private static VirtioBlockNativeAppSelectionPreflightResult Load(

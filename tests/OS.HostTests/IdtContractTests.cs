@@ -3,45 +3,8 @@ using OS.Kernel.Diagnostics;
 
 internal static class IdtContractTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("idt descriptor encodes interrupt gate", TestInterruptGateEncoding, ref failures);
-        Run("idt descriptor rejects invalid ist index", TestRejectsInvalidIstIndex, ref failures);
-        Run("idt descriptor rejects null handler address", TestRejectsNullHandlerAddress, ref failures);
-        Run("fault vectors expose error code policy", TestFaultVectorErrorCodePolicy, ref failures);
-        Run("fault vectors include page fault metadata", TestPageFaultMetadata, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("IDT contract host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("idt descriptor encodes interrupt gate", HostLane.Fast, 0)]
     private static bool TestInterruptGateEncoding()
     {
         const ulong handler = 0xffff800012345678;
@@ -57,13 +20,13 @@ internal static class IdtContractTests
 
         if (!result.Succeeded || result.Status != IdtGateDescriptorStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         IdtGateDescriptor descriptor = result.Descriptor;
         byte[] encoded = new byte[IdtGateDescriptor.EncodedLength];
 
-        return descriptor.TryWrite(encoded)
+        return HostCheck.Result(descriptor.TryWrite(encoded)
             && descriptor.Vector == FaultVectorCatalog.PageFault
             && descriptor.HandlerAddress == handler
             && descriptor.OffsetLow == 0x5678
@@ -90,9 +53,10 @@ internal static class IdtContractTests
             && encoded[12] == 0x00
             && encoded[13] == 0x00
             && encoded[14] == 0x00
-            && encoded[15] == 0x00;
+            && encoded[15] == 0x00);
     }
 
+    [HostTest("idt descriptor rejects invalid ist index", HostLane.Fast, 1)]
     private static bool TestRejectsInvalidIstIndex()
     {
         IdtGateDescriptorResult result = IdtGateDescriptor.Create(
@@ -104,10 +68,11 @@ internal static class IdtContractTests
             descriptorPrivilegeLevel: 0,
             present: true);
 
-        return !result.Succeeded
-            && result.Status == IdtGateDescriptorStatus.InvalidIstIndex;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == IdtGateDescriptorStatus.InvalidIstIndex);
     }
 
+    [HostTest("idt descriptor rejects null handler address", HostLane.Fast, 2)]
     private static bool TestRejectsNullHandlerAddress()
     {
         IdtGateDescriptorResult result = IdtGateDescriptor.Create(
@@ -119,13 +84,14 @@ internal static class IdtContractTests
             descriptorPrivilegeLevel: 0,
             present: true);
 
-        return !result.Succeeded
-            && result.Status == IdtGateDescriptorStatus.NullHandlerAddress;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == IdtGateDescriptorStatus.NullHandlerAddress);
     }
 
+    [HostTest("fault vectors expose error code policy", HostLane.Fast, 3)]
     private static bool TestFaultVectorErrorCodePolicy()
     {
-        return HasErrorCode(FaultVectorCatalog.DoubleFault, "#DF")
+        return HostCheck.Result(HasErrorCode(FaultVectorCatalog.DoubleFault, "#DF")
             && HasErrorCode(FaultVectorCatalog.InvalidTss, "#TS")
             && HasErrorCode(FaultVectorCatalog.SegmentNotPresent, "#NP")
             && HasErrorCode(FaultVectorCatalog.StackSegmentFault, "#SS")
@@ -133,19 +99,20 @@ internal static class IdtContractTests
             && HasErrorCode(FaultVectorCatalog.PageFault, "#PF")
             && DoesNotHaveErrorCode(FaultVectorCatalog.DivideError, "#DE")
             && DoesNotHaveErrorCode(FaultVectorCatalog.InvalidOpcode, "#UD")
-            && DoesNotHaveErrorCode(FaultVectorCatalog.DeviceNotAvailable, "#NM");
+            && DoesNotHaveErrorCode(FaultVectorCatalog.DeviceNotAvailable, "#NM"));
     }
 
+    [HostTest("fault vectors include page fault metadata", HostLane.Fast, 4)]
     private static bool TestPageFaultMetadata()
     {
-        return FaultVectorCatalog.TryGet(FaultVectorCatalog.PageFault, out FaultVectorInfo pageFault)
+        return HostCheck.Result(FaultVectorCatalog.TryGet(FaultVectorCatalog.PageFault, out FaultVectorInfo pageFault)
             && pageFault.Vector == 14
             && pageFault.Mnemonic == "#PF"
             && pageFault.Name == "Page Fault"
             && pageFault.PushesErrorCode
             && pageFault.ErrorCodeMeaning == "page-fault"
             && pageFault.HasFaultAddressRegister
-            && pageFault.FaultAddressRegister == "CR2";
+            && pageFault.FaultAddressRegister == "CR2");
     }
 
     private static bool HasErrorCode(byte vector, string mnemonic)

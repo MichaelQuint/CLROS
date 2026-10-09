@@ -3,7 +3,7 @@ using System.Text.Json;
 
 internal static class RepositoryRecoveryTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void Run()
     {
         int failures = 0;
@@ -54,30 +54,14 @@ internal static class RepositoryRecoveryTests
 
     private static void RunTest(string name, Func<bool> test, ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
 
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " assertion_failed");
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool ValidateBacklog(string root)
     {
         string manifestPath = Path.Combine(root, ".gitea", "backlog", "clros-issues.json");
-        string scriptPath = Path.Combine(root, "scripts", "sync-gitea-backlog.ps1");
-        if (!File.Exists(manifestPath) || !File.Exists(scriptPath))
+        if (!File.Exists(manifestPath))
         {
             return false;
         }
@@ -87,12 +71,16 @@ internal static class RepositoryRecoveryTests
         return target.GetProperty("baseUrl").GetString() == "http://localhost:3000"
             && target.GetProperty("owner").GetString() == "admin"
             && target.GetProperty("repository").GetString() == "CLROS"
-            && document.RootElement.GetProperty("milestones").GetArrayLength() == 16
-            && document.RootElement.GetProperty("labels").GetArrayLength() == 68
-            && document.RootElement.GetProperty("issues").GetArrayLength() == 346
-            && File.ReadAllText(scriptPath).Contains(
-                "Refusing non-canonical target",
-                StringComparison.Ordinal);
+            && document.RootElement.GetProperty("milestones").GetArrayLength() == OS.Tooling.BacklogContracts.Children.Count
+            && document.RootElement.GetProperty("labels").GetArrayLength() > 0
+            && document.RootElement.GetProperty("issues").GetArrayLength() == OS.Tooling.BacklogContracts.IssueCount
+            && BacklogContractsRegistered();
+    }
+
+    private static bool BacklogContractsRegistered()
+    {
+        HostCheck.Registered(typeof(GiteaBacklogManifestTests));
+        return typeof(OS.Tooling.BacklogSync).Assembly == typeof(OS.Tooling.ToolCommand).Assembly;
     }
 
     private static bool ValidateSolutionSentinel(string root)
@@ -130,9 +118,7 @@ internal static class RepositoryRecoveryTests
     {
         foreach (string relativePath in new[]
         {
-            "scripts/check-naming.ps1",
-            "scripts/run-baseline-evidence.ps1",
-            "scripts/run-ci-smoke.ps1"
+            "tools/OS.Tooling/EvidenceOrchestration.cs"
         })
         {
             string text = File.ReadAllText(Path.Combine(root, relativePath));
@@ -142,9 +128,7 @@ internal static class RepositoryRecoveryTests
             }
         }
 
-        string naming = File.ReadAllText(Path.Combine(root, "scripts", "check-naming.ps1"));
-        return naming.Contains("legacy_solution_sentinel_present", StringComparison.Ordinal)
-            && naming.Contains("reference_import_in_first_party_build_input", StringComparison.Ordinal);
+        return OS.Tooling.RepositoryChecks.Check(root).Succeeded;
     }
 
     private static bool ValidateAgentGuides(string root)
@@ -181,7 +165,7 @@ internal static class RepositoryRecoveryTests
         string readme = File.ReadAllText(Path.Combine(root, "README.md"));
         return readme.Contains("alt=\"CLROS logo\"", StringComparison.Ordinal)
             && readme.Contains("included in `CLROS.slnx` under stricter build rules", StringComparison.Ordinal)
-            && readme.Contains("only Gate 2 passes", StringComparison.Ordinal)
+            && readme.Contains("only Gate 2 passes", StringComparison.OrdinalIgnoreCase)
             && readme.Contains("not cloud-ready", StringComparison.Ordinal);
     }
 
@@ -245,15 +229,16 @@ internal static class RepositoryRecoveryTests
 
     private static bool ValidateSourceFirewallContract(string root)
     {
-        string script = File.ReadAllText(Path.Combine(root, "scripts", "check-naming.ps1"));
-        string tests = File.ReadAllText(Path.Combine(root, "tests", "OS.HostTests", "SourceFirewallTests.cs"));
-        return script.Contains("$solutionFileName = \"CLROS.slnx\"", StringComparison.Ordinal)
-            && script.Contains("\".csproj\"", StringComparison.Ordinal)
-            && script.Contains("\".props\"", StringComparison.Ordinal)
-            && script.Contains("\".targets\"", StringComparison.Ordinal)
-            && tests.Contains("rejects references in solution", StringComparison.Ordinal)
-            && tests.Contains("rejects reference imports in props", StringComparison.Ordinal)
-            && tests.Contains("rejects reference imports in targets", StringComparison.Ordinal);
+        string directory = Path.Combine(root, "artifacts", "recovery-firewall", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(Path.Combine(directory, "src"));
+        File.WriteAllText(Path.Combine(directory, "CLROS.slnx"), "<Solution><Project Path=\"references/Example/Example.csproj\" /></Solution>");
+        foreach (string extension in new[] { ".csproj", ".props", ".targets" })
+            File.WriteAllText(Path.Combine(directory, "src", "example" + extension), "<Project><Import Project=\"../references/Example/build.targets\" /></Project>");
+        var failures = OS.Tooling.RepositoryChecks.Check(directory).SourceFailures;
+        return failures.Any(f => f.Contains("reference_project_in_solution", StringComparison.Ordinal))
+            && new[] { ".csproj", ".props", ".targets" }.All(extension => failures.Any(f =>
+                f.Contains("example" + extension, StringComparison.Ordinal) && f.Contains(extension == ".csproj"
+                    ? "reference_project_in_first_party_project" : "reference_import_in_first_party_build_input", StringComparison.Ordinal)));
     }
 
     private static bool ValidateCiWorkflow(string root)

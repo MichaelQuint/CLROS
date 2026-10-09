@@ -5,15 +5,8 @@ using OS.Std.Text;
 
 internal static class StdAsciiTextBuilderTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        Run("std.ascii.builder appends bytes and chars", TestAppendsBytesAndChars);
-        Run("std.ascii.builder appends decimal and hex", TestAppendsDecimalAndHex);
-        Run("std.ascii.builder rejects capacity and input", TestRejectsCapacityAndInput);
-        Run("std.ascii.builder default result is not success", TestDefaultResultIsNotSuccess);
-    }
 
+    [HostTest("std.ascii.builder appends bytes and chars", HostLane.Fast, 0)]
     private static void TestAppendsBytesAndChars()
     {
         byte[] destination = Filled(64, 0xCC);
@@ -37,6 +30,7 @@ internal static class StdAsciiTextBuilderTests
         ExpectText("overlap text", "AABCD", overlap, overlap.Length);
     }
 
+    [HostTest("std.ascii.builder appends decimal and hex", HostLane.Fast, 1)]
     private static void TestAppendsDecimalAndHex()
     {
         byte[] destination = Filled(96, 0xEE);
@@ -65,6 +59,7 @@ internal static class StdAsciiTextBuilderTests
             result.NextOffset);
     }
 
+    [HostTest("std.ascii.builder rejects capacity and input", HostLane.Fast, 2)]
     private static void TestRejectsCapacityAndInput()
     {
         byte[] shortDestination = new byte[] { 1, 2, 3 };
@@ -90,6 +85,7 @@ internal static class StdAsciiTextBuilderTests
         ExpectBytes("invalid minimum unchanged", new byte[] { 9, 9, 9 }, nonAsciiDestination);
     }
 
+    [HostTest("std.ascii.builder default result is not success", HostLane.Fast, 3)]
     private static void TestDefaultResultIsNotSuccess()
     {
         AsciiTextBuilderResult result = default;
@@ -101,22 +97,6 @@ internal static class StdAsciiTextBuilderTests
             "result contains no managed references",
             false,
             RuntimeHelpers.IsReferenceOrContainsReferences<AsciiTextBuilderResult>());
-    }
-
-    private static void Run(string name, Action test)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            test();
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
     }
 
     private static byte[] Filled(int length, byte value)

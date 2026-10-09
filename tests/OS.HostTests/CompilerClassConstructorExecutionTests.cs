@@ -8,27 +8,6 @@ using Module = OS.Kernel.Runtime.TypeManagerModuleMetadataLiveNativeAOTImage;
 
 internal static unsafe class CompilerClassConstructorExecutionTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-        Run("m04.024 caller-owned bounds and prebind calls reject", Prebind, ref failures);
-        Run("m04.024 empty and absent eager tables retain explicit once state", Empty, ref failures);
-        Run("m04.024 signed eager entries snapshot both displacement directions", SignedEntries, ref failures);
-        Run("m04.024 entire eager table rejects before binding writes", Malformed, ref failures);
-        Run("m04.024 runner storage rejects protected aliases", Storage, ref failures);
-        Run("m04.024 eager snapshot and retained owner reject stale use", Stale, ref failures);
-        Run("m04.024 lazy contexts and targets reject before invocation", LazyAdmission, ref failures);
-        Run("m04.024 lazy capacity rejects without clearing context", LazyCapacity, ref failures);
-        if (failures != 0) throw new InvalidOperationException("m04.024 failures=" + failures);
-    }
-
-    private static void Run(string name, Action test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-        try { test(); Console.WriteLine("TEST_PASS " + name); }
-        catch (Exception error) { failures++; Console.WriteLine("TEST_FAIL " + name + " " + error.Message); }
-    }
 
     private static void Check(bool value, string reason)
     {
@@ -37,6 +16,7 @@ internal static unsafe class CompilerClassConstructorExecutionTests
 
     private static void Expect(Status actual, Status expected) => Check(actual == expected, "expected=" + expected + " actual=" + actual);
 
+    [HostTest("m04.024 caller-owned bounds and prebind calls reject", HostLane.Fast, 0)]
     private static void Prebind()
     {
         Check(Core.RequiredStorage(0, 0) == 0 && Core.RequiredStorage(65, 1) == 0 &&
@@ -54,6 +34,7 @@ internal static unsafe class CompilerClassConstructorExecutionTests
         f.Guards();
     }
 
+    [HostTest("m04.024 empty and absent eager tables retain explicit once state", HostLane.Fast, 1)]
     private static void Empty()
     {
         foreach (bool absent in new[] { false, true })
@@ -74,6 +55,7 @@ internal static unsafe class CompilerClassConstructorExecutionTests
         // Empty-table bookkeeping is not evidence that a real cctor executed.
     }
 
+    [HostTest("m04.024 signed eager entries snapshot both displacement directions", HostLane.Fast, 2)]
     private static void SignedEntries()
     {
         foreach (int table in new[] { 0x1800, 0xA800 })
@@ -93,6 +75,7 @@ internal static unsafe class CompilerClassConstructorExecutionTests
         }
     }
 
+    [HostTest("m04.024 entire eager table rejects before binding writes", HostLane.Fast, 3)]
     private static void Malformed()
     {
         using (var f = new Fixture(eagerCount: 2))
@@ -116,6 +99,7 @@ internal static unsafe class CompilerClassConstructorExecutionTests
         }
     }
 
+    [HostTest("m04.024 runner storage rejects protected aliases", HostLane.Fast, 4)]
     private static void Storage()
     {
         using var f = new Fixture();
@@ -133,6 +117,7 @@ internal static unsafe class CompilerClassConstructorExecutionTests
         f.Guards();
     }
 
+    [HostTest("m04.024 eager snapshot and retained owner reject stale use", HostLane.Fast, 5)]
     private static void Stale()
     {
         using var f = new Fixture(eagerCount: 1);
@@ -147,6 +132,7 @@ internal static unsafe class CompilerClassConstructorExecutionTests
         f.Guards();
     }
 
+    [HostTest("m04.024 lazy contexts and targets reject before invocation", HostLane.Fast, 6)]
     private static void LazyAdmission()
     {
         using var f = new Fixture();
@@ -164,6 +150,7 @@ internal static unsafe class CompilerClassConstructorExecutionTests
         f.Guards();
     }
 
+    [HostTest("m04.024 lazy capacity rejects without clearing context", HostLane.Fast, 7)]
     private static void LazyCapacity()
     {
         using var f = new Fixture(inline: true);

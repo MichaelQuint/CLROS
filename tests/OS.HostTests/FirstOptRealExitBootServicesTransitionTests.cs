@@ -16,7 +16,7 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
     private static FirstExitTransitionState* active;
     private static FirstExitDescriptorContext* descriptors;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         Run("default boot boundary refuses before reading unprepared storage", () =>
@@ -42,9 +42,8 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
 
     private static void Run(string name, Action action)
     {
-        Console.WriteLine("TEST_START m03.007.coordinator " + name);
-        try { action(); Console.WriteLine("TEST_PASS m03.007.coordinator " + name); }
-        catch (Exception e) { Console.WriteLine("TEST_FAIL m03.007.coordinator " + name + " " + e.Message); throw; }
+
+        HostCheck.Run("m03.007.coordinator " + name, action);
     }
     private static void Need(bool value, string reason)
     { if (!value) throw new InvalidOperationException(reason); }

@@ -762,7 +762,7 @@ static int RunExpectedUnexpectedVectorPanic(RunnerOptions options, string qemu, 
         bool accepted = failure is null;
         Console.WriteLine("SERIAL_MARKER_STREAM status=" + (accepted ? "ExpectedPanic" : "Rejected") +
             " terminal=" + (accepted ? "ExpectedPanic" : "Rejected") + " bytes=" + Encoding.UTF8.GetByteCount(serial) +
-            " lines=" + (accepted ? owned ? 79 : 76 : 0) + " invalidBytes=" + (accepted ? owned ? OwnedSubsystemPanicCapture.InvalidBytes(serial).ToString(System.Globalization.CultureInfo.InvariantCulture) : "0" : "unknown") +
+            " lines=" + (accepted ? owned ? 79 : OS.Tooling.QemuContracts.M02UnexpectedCaptureRecordCount : 0) + " invalidBytes=" + (accepted ? owned ? OwnedSubsystemPanicCapture.InvalidBytes(serial).ToString(System.Globalization.CultureInfo.InvariantCulture) : "0" : "unknown") +
             " invalidLines=" + (accepted ? owned ? "1" : "0" : "unknown") + " orderedSeen=" + prefixResult.OrderedSeenCount +
             " outOfOrder=" + prefixResult.OutOfOrderOccurrenceCount + " uniqueSeen=" + prefixResult.UniqueSeenCount +
             " duplicateUnique=" + prefixResult.DuplicateUniqueOccurrenceCount);
@@ -1869,7 +1869,7 @@ readonly struct DiscoveryResult
 
 sealed class RunnerOptions
 {
-    private static readonly string[] DefaultRequiredMarkers = { "OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS" };
+    private static readonly string[] DefaultRequiredMarkers = OS.Tooling.QemuContracts.RunnerDefaultRequiredMarkers.ToArray();
     private static readonly string[] DefaultForbiddenMarkers =
         { "OS_SMOKE_FAIL", "TEST_FAIL" };
     private const string DefaultWorkloadProfile = OS.Kernel.Build.WorkloadProfile.SingleMinimalApiName;
@@ -2415,87 +2415,11 @@ sealed class MalformedHttpResponseException : Exception
 
 // This finite parser belongs only to the explicit expected-panic experiment.
 // Generic serial marker completion/failure behavior remains unchanged.
-static class UnexpectedVectorPanicCapture
+public static class UnexpectedVectorPanicCapture
 {
     private const string PreambleBase64 = "G1syShtbMDE7MDFIG1s9M2gbWzJKG1swMTswMUgbWzJKG1swMTswMUgbWz0zaBtbMkobWzAxOzAxSBtbMkobWzAxOzAxSBtbPTNoG1syShtbMDE7MDFIQmRzRHhlOiBsb2FkaW5nIEJvb3QwMDAxICJVRUZJIFFFTVUgSEFSRERJU0sgUU0wMDAxMyAiIGZyb20gUGNpUm9vdCgweDApL1BjaSgweDIsMHgwKS9TYXRhKDB4MCwweEZGRkYsMHgwKQ0KQmRzRHhlOiBzdGFydGluZyBCb290MDAwMSAiVUVGSSBRRU1VIEhBUkRESVNLIFFNMDAwMTMgIiBmcm9tIFBjaVJvb3QoMHgwKS9QY2koMHgyLDB4MCkvU2F0YSgweDAsMHhGRkZGLDB4MCkNCg==";
     private static readonly string Preamble = Encoding.ASCII.GetString(Convert.FromBase64String(PreambleBase64));
-    private static readonly string[] Prefix =
-    [
-        "TEST_START efi.main",
-        "EFI_CONSOLE_READY",
-        "UEFI_MEMORY_MAP_READY",
-        "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT",
-        "UEFI_MEMORY_MAP_OWNED",
-        "BOOT_HANDOFF_READY",
-        "UEFI_MEMORY_MAP_NORMALIZED",
-        "BOOT_MEMORY_MAP_ACCEPTED",
-        "BOOT_MEMORY_REGIONS_READY",
-        "BOOT_MEMORY_REGION_COUNT",
-        "BOOT_PAGE_ALLOCATOR_READY",
-        "BOOT_ACPI_RSDP_HANDOFF_READY",
-        "UEFI_ACPI_RSDP_READY",
-        "TEST_START m01.stage1",
-        "M01_LOADED_IMAGE_CAPTURED",
-        "M01_STACK_SWITCH_STUB_READY",
-        "M01_STACK_ARENA_ALLOCATED",
-        "M01_STACK_GUARD_RESERVED",
-        "M01_STAGE1_MAP_RECAPTURED",
-        "M01_STAGE1_RESERVATIONS_VALIDATED",
-        "M01_OWNED_STACK_READY",
-        "M01_OWNED_STACK_SWITCHED",
-        "M01_RSP_CONTAINED",
-        "TEST_PASS m01.stage1",
-        "TEST_START m01.stage2",
-        "M01_ALLOCATOR_ARENA_ALLOCATED",
-        "M01_STAGE2_MAP_RECAPTURED",
-        "M01_RESERVATIONS_APPLIED",
-        "M01_LIVE_ALLOCATED_4K",
-        "M01_LIVE_PAGE_WITHIN_ARENA",
-        "M01_LIVE_FREED_4K",
-        "M01_DOUBLE_FREE_REJECTED",
-        "TEST_PASS m01.stage2",
-        "TEST_START m01.stage3",
-        "M01_CR3_STUB_PAGE_ALLOCATED",
-        "M01_PROTECTION_PROBE_PAGE_ALLOCATED",
-        "M01_PAGE_TABLE_STATE_ARENA_ALLOCATED",
-        "M01_STAGE3_MAP_RECAPTURED",
-        "TEST_START m02.017",
-        "M02_STUB_PAGE_MATERIALIZED pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56",
-        "M02_STUB_PAGE_READBACK_VERIFIED fnv1a64=982E5B7E3EE58E56",
-        "M01_CR3_STUB_MATERIALIZED",
-        "M01_PAGE_TABLES_BUILT",
-        "M01_PAGING_MODE_VALIDATED",
-        "M01_PRE_CR3",
-        "M01_FIRMWARE_CR3_RESTORED",
-        "M01_RFLAGS_RESTORED",
-        "M01_PGE_CYCLE_VERIFIED",
-        "M01_OWNED_CR3_CANARY_VERIFIED",
-        "M01_INSTRUCTION_PUBLICATION_EPOCHS_VERIFIED",
-        "M01_POST_CR3",
-        "M01_RW_TO_RX_VERIFIED",
-        "M01_TLB_INVALIDATION_COMPLETE",
-        "M01_RX_PROBE_EXECUTED",
-        "M01_PAGE_ZERO_ABSENT",
-        "M02_SAFE_PROBE_EXECUTED offset=0 return=0x4F534F4B",
-        "CLROS_M02_017_READY pageBytes=4096 safeOffset=0 out8Offset=16 in8Offset=32 fnv1a64=982E5B7E3EE58E56 temporaryOwnedRootRx=true portIoExecuted=false",
-        "TEST_PASS m02.017",
-        "CLROS_M02_003_READY bindingReady=true out8AddressChecked=true in8AddressChecked=true guestInvocation=false portIoExecuted=false",
-        "CLROS_M02_004_READY configurationWrites=7 bindingReady=true guestPortIo=true guestIn8=false markerTransport=uefiSerial postExitBootServices=false",
-        "OWNED_COM1_READY",
-        "CLROS_M02_005_READY marker=OWNED_COM1_READY markerBytes=16 lineEndingBytes=2 configurationWrites=7 lineStatusPolls=18 ownedWriter=true ownedMarkerTransport=com1PortIo evidenceMarkerTransport=uefiSerial guestPortIo=true guestIn8=true postExitBootServices=false",
-        "CLROS_M02_006_READY panicFormatter=bounded ownedCom1Transport=true callerScratch=true statusCoded=true firmwareFallback=false",
-        "CLROS_M02_006_EVIDENCE markerBytes=125 serialBytes=127 configurationWrites=7 lineStatusPolls=127 markerTransport=com1PortIo evidenceTransport=uefiSerial guestPortIo=true guestIn8=true panicFormatter=linked panicReporter=ownedCom1 callerScratch=true statusCoded=true firmwareFallback=false postExitBootServices=false",
-        "TEST_PASS m01.stage3",
-        "CLROS_M01_LIVE_BOOT_MEMORY_READY",
-        "TEST_START boot.sequence",
-        "BOOT_PHASE PhaseA.Audit START",
-        "BOOT_PHASE PhaseA.Audit PASS",
-        "BOOT_PHASE PhaseA.Diagnostics START",
-        "BOOT_PHASE PhaseA.Diagnostics PASS",
-        "OS_BOOT_OK",
-        "TEST_PASS boot.sequence",
-        "OS_SMOKE_PASS",
-    ];
+    private static readonly string[] Prefix = OS.Tooling.QemuContracts.M02TerminalPrefix.ToArray();
     private static readonly string[] MetadataNames =
     ["c","d","context","callback","captureRsp","firmwareCs","cs","ss","ds","es","tr","gdtrBase","gdtrLimit","idtrBase","idtrLimit","tssAccess","gateLow","gateHigh","normalizer0","normalizer1","trigger","cr3","entryCr3","lar"];
     private static readonly string[] FaultNames =
@@ -2503,7 +2427,7 @@ static class UnexpectedVectorPanicCapture
     private const string FaultHeading = "OS_SMOKE_FAIL subsystem=idt reason=unexpected-vector vector=32 errorCodePresent=false errorCode=0x0000000000000000";
 
     // -1 rejected, 0 a possible unfinished capture, 1 exact complete 76-record capture.
-    internal static int Evaluate(string text, out string prerequisiteText)
+    public static int Evaluate(string text, out string prerequisiteText)
     {
         prerequisiteText = string.Empty;
         if (text.Length > SerialMarkerStateMachine.DefaultByteCapacity) return -1;
@@ -2522,23 +2446,24 @@ static class UnexpectedVectorPanicCapture
         }
         string[] lines = body.Split("\r\n", StringSplitOptions.None);
         int completed = lines.Length - 1;
-        if (completed > 76 || (completed == 76 && lines[76].Length != 0)) return -1;
-        for (int i = 0; i < Math.Min(completed, 74); i++)
+        int expectedCount = OS.Tooling.QemuContracts.M02UnexpectedCaptureRecordCount;
+        if (completed > expectedCount || (completed == expectedCount && lines[expectedCount].Length != 0)) return -1;
+        for (int i = 0; i < Math.Min(completed, Prefix.Length); i++)
         {
             if (i == 3) { if (!DecimalRecord(lines[i], "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT ", out _)) return -1; }
             else if (i == 9) { if (!DecimalRecord(lines[i], "BOOT_MEMORY_REGION_COUNT ", out _)) return -1; }
             else if (i != 10 && !string.Equals(lines[i], Prefix[i], StringComparison.Ordinal)) return -1;
         }
         if (completed > 10 && !Map(lines)) return -1;
-        if (completed < 75) return 0;
-        if (lines[74].Length != 648 || !HexFields(lines[74], "M02_UNEXPECTED_STATE", MetadataNames, out ulong[] m) || !Metadata(m)) return -1;
-        if (completed < 76) return 0;
-        if (!HexFields(lines[75], FaultHeading, FaultNames, out ulong[] f)) return -1;
+        if (completed < Prefix.Length + 1) return 0;
+        if (lines[Prefix.Length].Length != 648 || !HexFields(lines[Prefix.Length], "M02_UNEXPECTED_STATE", MetadataNames, out ulong[] m) || !Metadata(m)) return -1;
+        if (completed < expectedCount) return 0;
+        if (!HexFields(lines[Prefix.Length + 1], FaultHeading, FaultNames, out ulong[] f)) return -1;
         // RAX, RCX, RDX and R8 follow the closed entry bytes. Remaining GPRs and CR2
         // are observations, not fabricated constants or metadata authority.
         if (f[0] != m[20] + 2 || f[1] != m[1] + 28672 || (f[3] & 0x24702) != 2 || (f[3] & 0x8d5) != 0x44 ||
             f[5] != m[21] || f[6] != 24 || f[8] != m[23] || f[9] != m[2] || f[12] != m[21]) return -1;
-        prerequisiteText = string.Join("\r\n", lines.AsSpan(0, 75).ToArray()) + "\r\n";
+        prerequisiteText = string.Join("\r\n", lines.AsSpan(0, Prefix.Length + 1).ToArray()) + "\r\n";
         return 1;
     }
 
@@ -2606,75 +2531,7 @@ static class UnexpectedVectorPanicCapture
 // The script separately validates the complete first-exit/ACPI numeric grammar.
 public static class OwnedSubsystemPanicCapture
 {
-    private static readonly string[] Prefix =
-    [
-        "TEST_START efi.main",
-        "EFI_CONSOLE_READY",
-        "UEFI_MEMORY_MAP_READY",
-        "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT",
-        "UEFI_MEMORY_MAP_OWNED",
-        "BOOT_HANDOFF_READY",
-        "UEFI_MEMORY_MAP_NORMALIZED",
-        "BOOT_MEMORY_MAP_ACCEPTED",
-        "BOOT_MEMORY_REGIONS_READY",
-        "BOOT_MEMORY_REGION_COUNT",
-        "BOOT_PAGE_ALLOCATOR_READY",
-        "BOOT_ACPI_RSDP_HANDOFF_READY",
-        "UEFI_ACPI_RSDP_READY",
-        "ACPI_RSDP_SNAPSHOT_READY",
-        "ACPI_RSDP_VALIDATED",
-        "ACPI_ROOT_SDT_SNAPSHOT_READY",
-        "ACPI_ROOT_SDT_VALIDATED",
-        "ACPI_MCFG_DISCOVERY_READY",
-        "TEST_START m03.002",
-        "CLROS_M03_002_TABLE role=rsdp",
-        "CLROS_M03_002_TABLE role=root",
-        "CLROS_M03_002_TABLE role=mcfg",
-        "CLROS_M03_002_TABLE role=apic",
-        "CLROS_M03_002_TABLE role=hpet",
-        "CLROS_M03_002_RETAIN",
-        "CLROS_M03_002_READY firmwareAvailable=true exitBootServices=false",
-        "TEST_PASS m03.002",
-        "TEST_START m01.stage1",
-        "M01_LOADED_IMAGE_CAPTURED",
-        "M01_STACK_SWITCH_STUB_READY",
-        "M01_STACK_ARENA_ALLOCATED",
-        "M01_STACK_GUARD_RESERVED",
-        "M01_STAGE1_MAP_RECAPTURED",
-        "M01_STAGE1_RESERVATIONS_VALIDATED",
-        "M01_OWNED_STACK_READY",
-        "M01_OWNED_STACK_SWITCHED",
-        "M01_RSP_CONTAINED",
-        "TEST_PASS m01.stage1",
-        "TEST_START m01.stage2",
-        "M01_ALLOCATOR_ARENA_ALLOCATED",
-        "M01_STAGE2_MAP_RECAPTURED",
-        "M01_RESERVATIONS_APPLIED",
-        "M01_LIVE_ALLOCATED_4K",
-        "M01_LIVE_PAGE_WITHIN_ARENA",
-        "M01_LIVE_FREED_4K",
-        "M01_DOUBLE_FREE_REJECTED",
-        "TEST_PASS m01.stage2",
-        "TEST_START boot.sequence",
-        "BOOT_PHASE PhaseA.Audit START",
-        "BOOT_PHASE PhaseA.Audit PASS",
-        "BOOT_PHASE PhaseA.Diagnostics START",
-        "BOOT_PHASE PhaseA.Diagnostics PASS",
-        "OS_BOOT_OK",
-        "TEST_PASS boot.sequence",
-        "OS_SMOKE_PASS",
-        "TEST_START m03.007",
-        "M03_EBS_RETURNED_SUCCESS",
-        "M03_PERMANENT_CR3_ADOPTED",
-        "M03_POST_EBS_OWNED_DIAGNOSTIC",
-        "CLROS_M03_007_READY",
-        "TEST_PASS m03.007",
-        "TEST_START m03.009",
-        "UEFI_EBS_SUCCESS",
-        "POST_FIRMWARE_DIAGNOSTICS_READY",
-        "CLROS_M03_009_READY",
-        "TEST_PASS m03.009",
-    ];
+    private static readonly string[] Prefix = OS.Tooling.QemuContracts.M03FirstExitRequiredMarkers.ToArray();
     private static readonly string[] FaultNames =
         ["rip","rsp","rbp","rflags","cr2","cr3","rax","rbx","rcx","rdx","rsi","rdi","r8","r9","r10","r11","r12","r13","r14","r15"];
     private const string FaultHeading = "OS_SMOKE_FAIL subsystem=boot reason=exit-fault vector=14 errorCodePresent=true errorCode=0x0000000000000000";
@@ -2695,7 +2552,7 @@ public static class OwnedSubsystemPanicCapture
         if (text.Length > 32768) return -1;
         if (text.Length < 304) return 0;
         byte[] preamble = Encoding.UTF8.GetBytes(text[..304]);
-        if (preamble.Length != 304 || Convert.ToHexString(SHA256.HashData(preamble)) != "BB50E913C752428AE49AE6C20879196F507926CC685CAD83986494244299D124") return -1;
+        if (preamble.Length != 304 || Convert.ToHexString(SHA256.HashData(preamble)) != OS.Tooling.QemuContracts.FirmwarePrefixSha256) return -1;
         string body = text[304..];
         for (int i = 0; i < body.Length; i++)
         {

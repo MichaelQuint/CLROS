@@ -3,58 +3,8 @@ using OS.Kernel.Platform;
 
 internal static class PlatformFileSystemGuardTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("platform.filesystem allows read before UEFI gone", TestReadBeforeUefiGone, ref failures);
-        Run(
-            "platform.filesystem rejects read in UEFI-gone simulation",
-            TestReadRejectedInUefiGoneSimulation,
-            ref failures);
-        Run(
-            "platform.filesystem rejects read after ExitBootServices",
-            TestReadRejectedAfterExitBootServices,
-            ref failures);
-        Run("platform.filesystem rejects unsafe paths", TestRejectsUnsafePaths, ref failures);
-        Run(
-            "platform.filesystem reports destination capacity",
-            TestReportsDestinationCapacity,
-            ref failures);
-        Run(
-            "platform.filesystem result contains no managed references",
-            TestResultContainsNoManagedReferences,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Platform filesystem guard host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("platform.filesystem allows read before UEFI gone", HostLane.Fast, 0)]
     private static bool TestReadBeforeUefiGone()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -66,7 +16,7 @@ internal static class PlatformFileSystemGuardTests
             "EFI/BOOT/BOOTX64.EFI"u8,
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == PlatformFileSystemStatus.Success
             && result.Mode == FirmwareServicesMode.BootServicesAvailable
             && result.Operation == PlatformFileSystemOperations.ReadFile
@@ -78,9 +28,10 @@ internal static class PlatformFileSystemGuardTests
             && destination[1] == (byte)'S'
             && destination[2] == (byte)'F'
             && destination[3] == (byte)'S'
-            && source.ReadCount == 1;
+            && source.ReadCount == 1);
     }
 
+    [HostTest("platform.filesystem rejects read in UEFI-gone simulation", HostLane.Fast, 1)]
     private static bool TestReadRejectedInUefiGoneSimulation()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -93,14 +44,15 @@ internal static class PlatformFileSystemGuardTests
             "EFI/BOOT/BOOTX64.EFI"u8,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformFileSystemStatus.FirmwareServicesUnavailable
             && result.Mode == FirmwareServicesMode.UefiGoneSimulated
             && result.Operation == PlatformFileSystemOperations.ReadFile
             && result.BytesRead == 0
-            && source.ReadCount == 0;
+            && source.ReadCount == 0);
     }
 
+    [HostTest("platform.filesystem rejects read after ExitBootServices", HostLane.Fast, 2)]
     private static bool TestReadRejectedAfterExitBootServices()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -113,14 +65,15 @@ internal static class PlatformFileSystemGuardTests
             "EFI/BOOT/BOOTX64.EFI"u8,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformFileSystemStatus.FirmwareServicesUnavailable
             && result.Mode == FirmwareServicesMode.BootServicesExited
             && result.Operation == PlatformFileSystemOperations.ReadFile
             && result.BytesRead == 0
-            && source.ReadCount == 0;
+            && source.ReadCount == 0);
     }
 
+    [HostTest("platform.filesystem rejects unsafe paths", HostLane.Fast, 3)]
     private static bool TestRejectsUnsafePaths()
     {
         byte[][] unsafePaths =
@@ -153,13 +106,14 @@ internal static class PlatformFileSystemGuardTests
                 || result.Mode != FirmwareServicesMode.BootServicesAvailable
                 || source.ReadCount != 0)
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return true;
+        return HostCheck.Result(true);
     }
 
+    [HostTest("platform.filesystem reports destination capacity", HostLane.Fast, 4)]
     private static bool TestReportsDestinationCapacity()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -171,19 +125,20 @@ internal static class PlatformFileSystemGuardTests
             "EFI/BOOT/BOOTX64.EFI"u8,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformFileSystemStatus.DestinationTooSmall
             && result.Mode == FirmwareServicesMode.BootServicesAvailable
             && result.BytesRead == 0
             && result.RequiredBytes == 4
             && result.AvailableBytes == 2
-            && source.ReadCount == 1;
+            && source.ReadCount == 1);
     }
 
+    [HostTest("platform.filesystem result contains no managed references", HostLane.Fast, 5)]
     private static bool TestResultContainsNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<PlatformFileSystemReadResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<PlatformFileSystemSourceReadResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<PlatformFileSystemReadResult>()
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<PlatformFileSystemSourceReadResult>());
     }
 
     private sealed class FileSystemSourceDouble : IPlatformFileSystemSource

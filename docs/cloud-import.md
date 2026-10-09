@@ -2,13 +2,13 @@
 
 ## Current Status
 
-Cloud import is documentation-only and unvalidated. A local raw GPT/FAT32 image artifact exists at `artifacts/images/os.raw`, `tools/OS.ImageBuilder convert-qcow2` can wrap `qemu-img` to create `artifacts/images/os.qcow2` when the host has `qemu-img`, `scripts/run-qemu-qcow2-smoke.ps1` can prove that converted local qcow2 image boots through QEMU/OVMF, `convert-azure-vhd` can plan or run a fixed VHD conversion, and `plan-aws-ami` can validate first-target AWS AMI import metadata in dry-run mode. No provider import flow has been tested.
+Cloud import is documentation-only and unvalidated. A local raw GPT/FAT32 image artifact exists at `artifacts/images/os.raw`, `tools/OS.ImageBuilder convert-qcow2` can wrap `qemu-img` to create `artifacts/images/os.qcow2` when the host has `qemu-img`, `dotnet run --project tools/OS.Tooling -- qemu qcow2` runs local QEMU/OVMF smoke for the converted image, `convert-azure-vhd` can plan or run a fixed VHD conversion, and `plan-aws-ami` can validate first-target AWS AMI import metadata in dry-run mode. No provider import flow has been tested.
 
 ## Implemented Behavior
 
 - `tools/OS.ImageBuilder` creates a local raw image for QEMU/libvirt-oriented smoke paths.
 - `tools/OS.ImageBuilder convert-qcow2 --input artifacts/images/os.raw --output artifacts/images/os.qcow2 [--qemu-img <path>] [--dry-run]` validates raw input, discovers `qemu-img` from an explicit path or PATH, and emits deterministic dry-run markers without requiring `qemu-img`.
-- `scripts/run-qemu-qcow2-smoke.ps1` wraps raw-image creation, qcow2 conversion, and local QEMU/OVMF smoke for the converted qcow2 artifact. This is local emulator evidence only, not cloud provider import evidence.
+- `dotnet run --project tools/OS.Tooling -- qemu qcow2` coordinates raw-image creation, qcow2 conversion, and local QEMU/OVMF smoke for the converted qcow2 artifact. `--dry-run` plans the conversion and runner; only real execution with captured guest markers is local boot evidence. Neither mode proves cloud provider import.
 - `tools/OS.ImageBuilder convert-azure-vhd --input artifacts/images/os.raw --output artifacts/images/os.vhd [--qemu-img <path>] [--dry-run]` validates raw input, enforces Azure's 1 MiB virtual-size alignment requirement, and emits a fixed VHD `qemu-img` command shape using `-O vpc -o subformat=fixed,force_size`.
 - `OS.Cloud.AzureWireServerGoalStateParser`,
   `AzureWireServerHealthFormatter`, and `AzureWireServerRequestPlanner`
@@ -23,7 +23,7 @@ Cloud import is documentation-only and unvalidated. A local raw GPT/FAT32 image 
   supervisor-mediated app metadata policy.
 - `tools/OS.ImageBuilder plan-aws-ami --input artifacts/images/os.raw --format raw --architecture x86_64 --virtualization hvm --root-device ebs --boot-mode uefi --ena-support true [--dry-run]` validates the first AWS Nitro metadata target and rejects non-HVM, ARM64, missing ENA support, or legacy BIOS metadata for the current UEFI raw image layout.
 - `tools/OS.LibvirtRunner` can generate deterministic libvirt domain XML for raw or qcow2 images, emit optional dry-run path diagnostics, emit a plan-only future real-libvirt lifecycle contract, and validate an already-captured serial log with `check-serial`, but it does not call libvirt or a cloud provider.
-- `scripts/run-libvirt-smoke.ps1` records raw/qcow2 libvirt smoke intent, writes a domain XML artifact, can write a lifecycle-plan artifact through `-PlanLifecycle`, can validate an existing serial log through `-CheckSerialOnly`, and emits deterministic dry-run, lifecycle-plan, check-serial, or missing-`virsh` markers without claiming a boot.
+- `dotnet run --project tools/OS.Tooling -- libvirt smoke` records raw/qcow2 libvirt smoke intent, writes a domain XML artifact, can write a lifecycle-plan artifact through `--plan-lifecycle`, can validate an existing serial log through `--check-serial-only`, and emits deterministic dry-run, lifecycle-plan, check-serial, or missing-`virsh` markers without claiming a boot.
 
 ## Unsupported Behavior
 

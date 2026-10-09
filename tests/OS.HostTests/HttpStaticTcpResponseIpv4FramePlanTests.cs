@@ -10,49 +10,7 @@ internal static class HttpStaticTcpResponseIpv4FramePlanTests
     private const uint LocalNextSequence = 0x10203040;
     private const uint RemoteNextSequence = 0x50607080;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.http.static.tcp.ipv4 writes 200 response frame", TestWrites200ResponseFrame, ref failures);
-        Run("net.http.static.tcp.ipv4 writes 404 and 405 frames", TestWrites404And405Frames, ref failures);
-        Run("net.http.static.tcp.ipv4 rejects response buffer failure", TestRejectsResponseBufferFailure, ref failures);
-        Run(
-            "net.http.static.tcp.ipv4 rejects response larger than maximum payload",
-            TestRejectsResponseLargerThanMaximumPayload,
-            ref failures);
-        Run("net.http.static.tcp.ipv4 rejects frame write failure", TestRejectsFrameWriteFailure, ref failures);
-        Run("net.http.static.tcp.ipv4 default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("HTTP static TCP IPv4 response frame plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.http.static.tcp.ipv4 writes 200 response frame", HostLane.Fast, 0)]
     private static bool TestWrites200ResponseFrame()
     {
         byte[] request = Encoding.ASCII.GetBytes(
@@ -88,18 +46,19 @@ internal static class HttpStaticTcpResponseIpv4FramePlanTests
             result.LocalNextSequenceNumber != LocalNextSequence + (uint)result.ResponseBytesWritten ||
             result.RemoteNextSequenceNumber != RemoteNextSequence + (uint)request.Length)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return ValidateResponseFrame(
+        return HostCheck.Result(ValidateResponseFrame(
             frame.AsSpan(0, result.FrameBytesWritten),
             result.ResponseBytesWritten,
             LocalNextSequence,
             RemoteNextSequence + (uint)request.Length,
             "HTTP/1.1 200 OK\r\n",
-            "OS_MINIMAL_API_OK");
+            "OS_MINIMAL_API_OK"));
     }
 
+    [HostTest("net.http.static.tcp.ipv4 writes 404 and 405 frames", HostLane.Fast, 1)]
     private static bool TestWrites404And405Frames()
     {
         byte[] missingRequest = Encoding.ASCII.GetBytes("GET /missing HTTP/1.1\r\nHost: os.test\r\n\r\n");
@@ -143,7 +102,7 @@ internal static class HttpStaticTcpResponseIpv4FramePlanTests
                 postFrame,
                 out HttpStaticTcpResponseIpv4FramePlanResult post);
 
-        return missingStatus == HttpStaticTcpResponseIpv4FramePlanStatus.Success
+        return HostCheck.Result(missingStatus == HttpStaticTcpResponseIpv4FramePlanStatus.Success
             && postStatus == HttpStaticTcpResponseIpv4FramePlanStatus.Success
             && missing.Response.HttpStatusCode == 404
             && post.Response.HttpStatusCode == 405
@@ -160,9 +119,10 @@ internal static class HttpStaticTcpResponseIpv4FramePlanTests
                 LocalNextSequence,
                 RemoteNextSequence + (uint)postRequest.Length,
                 "HTTP/1.1 405 Method Not Allowed\r\n",
-                "bad method");
+                "bad method"));
     }
 
+    [HostTest("net.http.static.tcp.ipv4 rejects response buffer failure", HostLane.Fast, 2)]
     private static bool TestRejectsResponseBufferFailure()
     {
         byte[] request = Encoding.ASCII.GetBytes("GET /healthz HTTP/1.1\r\nHost: os.test\r\n\r\n");
@@ -188,15 +148,16 @@ internal static class HttpStaticTcpResponseIpv4FramePlanTests
                 frame,
                 out HttpStaticTcpResponseIpv4FramePlanResult result);
 
-        return status == HttpStaticTcpResponseIpv4FramePlanStatus.ResponsePlanFailed
+        return HostCheck.Result(status == HttpStaticTcpResponseIpv4FramePlanStatus.ResponsePlanFailed
             && !result.Succeeded
             && result.Response.Status == HttpStaticTcpResponsePlanStatus.HttpTransactionFailed
             && result.Response.HttpStatus == HttpStaticResponseTransactionStatus.ResponseWriteFailed
             && !result.Frame.IsInitialized
             && AllBytesEqual(responseScratch, 0xcc)
-            && AllBytesEqual(frame, 0xcc);
+            && AllBytesEqual(frame, 0xcc));
     }
 
+    [HostTest("net.http.static.tcp.ipv4 rejects response larger than maximum payload", HostLane.Fast, 3)]
     private static bool TestRejectsResponseLargerThanMaximumPayload()
     {
         byte[] request = Encoding.ASCII.GetBytes("GET /healthz HTTP/1.1\r\nHost: os.test\r\n\r\n");
@@ -221,14 +182,15 @@ internal static class HttpStaticTcpResponseIpv4FramePlanTests
                 frame,
                 out HttpStaticTcpResponseIpv4FramePlanResult result);
 
-        return status == HttpStaticTcpResponseIpv4FramePlanStatus.ResponseExceedsMaximumPayload
+        return HostCheck.Result(status == HttpStaticTcpResponseIpv4FramePlanStatus.ResponseExceedsMaximumPayload
             && !result.Succeeded
             && result.Response.Succeeded
             && result.Response.ResponseBytesWritten > 8
             && !result.Frame.IsInitialized
-            && AllBytesEqual(frame, 0xcc);
+            && AllBytesEqual(frame, 0xcc));
     }
 
+    [HostTest("net.http.static.tcp.ipv4 rejects frame write failure", HostLane.Fast, 4)]
     private static bool TestRejectsFrameWriteFailure()
     {
         byte[] request = Encoding.ASCII.GetBytes("GET /healthz HTTP/1.1\r\nHost: os.test\r\n\r\n");
@@ -253,14 +215,15 @@ internal static class HttpStaticTcpResponseIpv4FramePlanTests
                 frame,
                 out HttpStaticTcpResponseIpv4FramePlanResult result);
 
-        return status == HttpStaticTcpResponseIpv4FramePlanStatus.FramePlanFailed
+        return HostCheck.Result(status == HttpStaticTcpResponseIpv4FramePlanStatus.FramePlanFailed
             && !result.Succeeded
             && result.Response.Succeeded
             && result.Frame.Status == TcpEstablishedStreamIpv4FramePlanStatus.FrameBufferTooSmall
             && result.Frame.StreamStatus == TcpEstablishedStreamStatus.DestinationTooSmall
-            && AllBytesEqual(frame, 0xcc);
+            && AllBytesEqual(frame, 0xcc));
     }
 
+    [HostTest("net.http.static.tcp.ipv4 default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         HttpStaticTcpResponseIpv4FramePlanResult defaultResult = default;
@@ -270,7 +233,7 @@ internal static class HttpStaticTcpResponseIpv4FramePlanTests
                 default,
                 default);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == HttpStaticTcpResponseIpv4FramePlanStatus.Success
             && failure.IsInitialized
@@ -287,7 +250,7 @@ internal static class HttpStaticTcpResponseIpv4FramePlanTests
             && !HttpStaticTcpResponseIpv4FramePlan.PerformsTls
             && !HttpStaticTcpResponseIpv4FramePlan.StartsHostedDotNet
             && !HttpStaticTcpResponseIpv4FramePlan.StartsKestrel
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<HttpStaticTcpResponseIpv4FramePlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<HttpStaticTcpResponseIpv4FramePlanResult>());
     }
 
     private static bool ValidateResponseFrame(

@@ -9,61 +9,12 @@ internal static class DescriptorTableInstallReadinessTests
     private const ulong DoubleFaultStackTop = 0xffff800000400000UL;
     private const byte DoubleFaultIstIndex = 1;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run(
-            "descriptor install readiness accepts complete prerequisites",
-            TestAcceptsCompletePrerequisites,
-            ref failures);
-        Run(
-            "descriptor install readiness rejects missing idt readiness",
-            TestRejectsMissingIdtReadiness,
-            ref failures);
-        Run(
-            "descriptor install readiness rejects missing tss ist readiness",
-            TestRejectsMissingTssIstReadiness,
-            ref failures);
-        Run(
-            "descriptor install readiness rejects insufficient stub buffers",
-            TestRejectsInsufficientStubBuffers,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Descriptor table install readiness host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("descriptor install readiness accepts complete prerequisites", HostLane.Fast, 0)]
     private static bool TestAcceptsCompletePrerequisites()
     {
         DescriptorTableInstallReadinessResult result = CreateReadyResult();
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == DescriptorTableInstallReadinessStatus.Ready
             && result.Operation == DescriptorTableInstallReadiness.OperationName
             && result.IdtTableStatus == IdtTablePlanStatus.Ok
@@ -72,9 +23,10 @@ internal static class DescriptorTableInstallReadinessTests
             && result.TssIstStatus == TssIstPlanStatus.Ok
             && result.StubPlanStatus == DescriptorTableInstallStubPlanStatus.Ok
             && result.OperationKind == DescriptorTableInstructionKind.Unknown
-            && result.RequiredBytes == 0;
+            && result.RequiredBytes == 0);
     }
 
+    [HostTest("descriptor install readiness rejects missing idt readiness", HostLane.Fast, 1)]
     private static bool TestRejectsMissingIdtReadiness()
     {
         DescriptorTableInstallReadinessResult result =
@@ -89,15 +41,16 @@ internal static class DescriptorTableInstallReadinessTests
                 DescriptorTableInstallStubPlan.DescriptorStubRequiredByteLength,
                 DescriptorTableInstallStubPlan.LtrStubRequiredByteLength);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == DescriptorTableInstallReadinessStatus.IdtTableNotReady
             && result.IdtTableStatus == IdtTablePlanStatus.MissingRequiredVector
             && result.IdtrStatus == IdtrDescriptorStatus.Ok
             && result.GdtStatus == GdtDescriptorPlanStatus.Ok
             && result.TssIstStatus == TssIstPlanStatus.Ok
-            && result.StubPlanStatus == DescriptorTableInstallStubPlanStatus.Ok;
+            && result.StubPlanStatus == DescriptorTableInstallStubPlanStatus.Ok);
     }
 
+    [HostTest("descriptor install readiness rejects missing tss ist readiness", HostLane.Fast, 2)]
     private static bool TestRejectsMissingTssIstReadiness()
     {
         DescriptorTableInstallReadinessResult missingTss =
@@ -127,14 +80,15 @@ internal static class DescriptorTableInstallReadinessTests
                 DescriptorTableInstallStubPlan.DescriptorStubRequiredByteLength,
                 DescriptorTableInstallStubPlan.LtrStubRequiredByteLength);
 
-        return !missingTss.Succeeded
+        return HostCheck.Result(!missingTss.Succeeded
             && missingTss.Status == DescriptorTableInstallReadinessStatus.TssIstNotReady
             && missingTss.TssIstStatus == TssIstPlanStatus.InvalidIstIndex
             && !missingDoubleFaultIst.Succeeded
             && missingDoubleFaultIst.Status == DescriptorTableInstallReadinessStatus.DoubleFaultIstNotReady
-            && missingDoubleFaultIst.TssIstStatus == TssIstPlanStatus.Ok;
+            && missingDoubleFaultIst.TssIstStatus == TssIstPlanStatus.Ok);
     }
 
+    [HostTest("descriptor install readiness rejects insufficient stub buffers", HostLane.Fast, 3)]
     private static bool TestRejectsInsufficientStubBuffers()
     {
         DescriptorTableInstallReadinessResult shortLgdt =
@@ -161,7 +115,7 @@ internal static class DescriptorTableInstallReadinessTests
                 DescriptorTableInstallStubPlan.DescriptorStubRequiredByteLength,
                 DescriptorTableInstallStubPlan.LtrStubRequiredByteLength);
 
-        return !shortLgdt.Succeeded
+        return HostCheck.Result(!shortLgdt.Succeeded
             && shortLgdt.Status == DescriptorTableInstallReadinessStatus.OutputBufferTooSmall
             && shortLgdt.StubPlanStatus == DescriptorTableInstallStubPlanStatus.OutputBufferTooSmall
             && shortLgdt.OperationKind == DescriptorTableInstructionKind.Lgdt
@@ -170,7 +124,7 @@ internal static class DescriptorTableInstallReadinessTests
             && invalidSelector.Status == DescriptorTableInstallReadinessStatus.StubPlanNotReady
             && invalidSelector.StubPlanStatus == DescriptorTableInstallStubPlanStatus.InvalidSelector
             && invalidSelector.OperationKind == DescriptorTableInstructionKind.Ltr
-            && invalidSelector.RequiredBytes == DescriptorTableInstallStubPlan.LtrStubRequiredByteLength;
+            && invalidSelector.RequiredBytes == DescriptorTableInstallStubPlan.LtrStubRequiredByteLength);
     }
 
     private static DescriptorTableInstallReadinessResult CreateReadyResult()

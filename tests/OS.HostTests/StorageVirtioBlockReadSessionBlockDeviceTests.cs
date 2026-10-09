@@ -18,77 +18,7 @@ internal static class StorageVirtioBlockReadSessionBlockDeviceTests
     private const ulong NotifyBarPhysicalBase = 0x80001000UL;
     private const ulong NotifyBarVirtualBase = 0xFFFF800000001000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run(
-            "storage.virtioblk.readsession block device reads completed destination",
-            TestReadsCompletedDestination,
-            ref failures);
-        Run(
-            "storage.virtioblk.readsession block device rejects default session",
-            TestRejectsDefaultSession,
-            ref failures);
-        Run(
-            "storage.virtioblk.readsession block device rejects incomplete session",
-            TestRejectsIncompleteSession,
-            ref failures);
-        Run(
-            "storage.virtioblk.readsession block device rejects invalid geometry",
-            TestRejectsInvalidGeometry,
-            ref failures);
-        Run(
-            "storage.virtioblk.readsession block device rejects mismatched completed byte counts",
-            TestRejectsMismatchedCompletedByteCounts,
-            ref failures);
-        Run(
-            "storage.virtioblk.readsession block device rejects backing bytes too small",
-            TestRejectsBackingBytesTooSmall,
-            ref failures);
-        Run(
-            "storage.virtioblk.readsession block device reports short read destination",
-            TestReportsShortReadDestination,
-            ref failures);
-        Run(
-            "storage.virtioblk.readsession block device reports out-of-range reads",
-            TestReportsOutOfRangeReads,
-            ref failures);
-        Run(
-            "storage.virtioblk.readsession block device default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio block read-session block-device host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.virtioblk.readsession block device reads completed destination", HostLane.Fast, 0)]
     private static bool TestReadsCompletedDestination()
     {
         BlockDeviceInfo info = CreateDevice(blockCount: 4);
@@ -108,14 +38,14 @@ internal static class StorageVirtioBlockReadSessionBlockDeviceTests
                 out VirtioBlockReadSessionBlockDevice? device);
         if (!create.Succeeded || device is null)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] destination = new byte[1024];
         Array.Fill(destination, (byte)0xCC);
         BlockReadResult read = device.ReadBlocks(1, 2, destination);
 
-        return read.Succeeded
+        return HostCheck.Result(read.Succeeded
             && read.BlocksRead == 2
             && read.BytesRead == 1024
             && BytesEqual(completedDestination.AsSpan(512, 1024), destination)
@@ -142,9 +72,10 @@ internal static class StorageVirtioBlockReadSessionBlockDeviceTests
             && !VirtioBlockReadSessionBlockDevice.HandlesInterrupts
             && !VirtioBlockReadSessionBlockDevice.CallsPal
             && !VirtioBlockReadSessionBlockDevice.PerformsDiskRead
-            && !VirtioBlockReadSessionBlockDevice.ReadsRealDisk;
+            && !VirtioBlockReadSessionBlockDevice.ReadsRealDisk);
     }
 
+    [HostTest("storage.virtioblk.readsession block device rejects default session", HostLane.Fast, 1)]
     private static bool TestRejectsDefaultSession()
     {
         BlockDeviceInfo info = CreateDevice(blockCount: 4);
@@ -155,16 +86,17 @@ internal static class StorageVirtioBlockReadSessionBlockDeviceTests
                 new byte[(int)info.CapacityBytes],
                 out VirtioBlockReadSessionBlockDevice? device);
 
-        return !create.Succeeded
+        return HostCheck.Result(!create.Succeeded
             && create.Status == VirtioBlockReadSessionBlockDeviceCreateStatus.IncompleteReadSession
             && create.BlockDeviceStatus == BlockDeviceStatus.IoError
             && create.ReadSessionStatus == VirtioBlockReadOnlyReadSessionStatus.Success
             && create.ReadSessionPipelineStatus == VirtioBlockReadQueuePipelineStatus.Success
             && create.CompletedByteCount == 0
             && create.ExpectedByteCount == info.CapacityBytes
-            && device is null;
+            && device is null);
     }
 
+    [HostTest("storage.virtioblk.readsession block device rejects incomplete session", HostLane.Fast, 2)]
     private static bool TestRejectsIncompleteSession()
     {
         BlockDeviceInfo info = CreateDevice(blockCount: 4);
@@ -181,13 +113,14 @@ internal static class StorageVirtioBlockReadSessionBlockDeviceTests
                 new byte[(int)info.CapacityBytes],
                 out VirtioBlockReadSessionBlockDevice? device);
 
-        return !session.Succeeded
+        return HostCheck.Result(!session.Succeeded
             && !create.Succeeded
             && create.Status == VirtioBlockReadSessionBlockDeviceCreateStatus.IncompleteReadSession
             && create.ReadSessionStatus == VirtioBlockReadOnlyReadSessionStatus.AdapterFailed
-            && device is null;
+            && device is null);
     }
 
+    [HostTest("storage.virtioblk.readsession block device rejects invalid geometry", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidGeometry()
     {
         VirtioBlockReadOnlyReadSessionResult session = ExecuteReadSession(
@@ -203,12 +136,13 @@ internal static class StorageVirtioBlockReadSessionBlockDeviceTests
                 new byte[2048],
                 out VirtioBlockReadSessionBlockDevice? device);
 
-        return !create.Succeeded
+        return HostCheck.Result(!create.Succeeded
             && create.Status == VirtioBlockReadSessionBlockDeviceCreateStatus.InvalidBlockGeometry
             && create.BlockDeviceStatus == BlockDeviceStatus.InvalidBlockSize
-            && device is null;
+            && device is null);
     }
 
+    [HostTest("storage.virtioblk.readsession block device rejects mismatched completed byte counts", HostLane.Fast, 4)]
     private static bool TestRejectsMismatchedCompletedByteCounts()
     {
         BlockDeviceInfo info = CreateDevice(blockCount: 4);
@@ -225,15 +159,16 @@ internal static class StorageVirtioBlockReadSessionBlockDeviceTests
                 new byte[(int)info.CapacityBytes],
                 out VirtioBlockReadSessionBlockDevice? device);
 
-        return session.Succeeded
+        return HostCheck.Result(session.Succeeded
             && !create.Succeeded
             && create.Status == VirtioBlockReadSessionBlockDeviceCreateStatus.MismatchedCompletedByteCount
             && create.BlockDeviceStatus == BlockDeviceStatus.InvalidBlockRange
             && create.CompletedByteCount == 1536
             && create.ExpectedByteCount == info.CapacityBytes
-            && device is null;
+            && device is null);
     }
 
+    [HostTest("storage.virtioblk.readsession block device rejects backing bytes too small", HostLane.Fast, 5)]
     private static bool TestRejectsBackingBytesTooSmall()
     {
         BlockDeviceInfo info = CreateDevice(blockCount: 4);
@@ -250,26 +185,28 @@ internal static class StorageVirtioBlockReadSessionBlockDeviceTests
                 new byte[(int)info.CapacityBytes - 1],
                 out VirtioBlockReadSessionBlockDevice? device);
 
-        return session.Succeeded
+        return HostCheck.Result(session.Succeeded
             && !create.Succeeded
             && create.Status == VirtioBlockReadSessionBlockDeviceCreateStatus.BackingBytesTooSmall
             && create.BlockDeviceStatus == BlockDeviceStatus.DestinationTooSmall
             && create.BackingByteCount == info.CapacityBytes - 1
-            && device is null;
+            && device is null);
     }
 
+    [HostTest("storage.virtioblk.readsession block device reports short read destination", HostLane.Fast, 6)]
     private static bool TestReportsShortReadDestination()
     {
         VirtioBlockReadSessionBlockDevice device = CreateAdapter();
         Span<byte> destination = stackalloc byte[511];
         BlockReadResult read = device.ReadBlocks(0, 1, destination);
 
-        return !read.Succeeded
+        return HostCheck.Result(!read.Succeeded
             && read.Status == BlockDeviceStatus.DestinationTooSmall
             && read.BlocksRead == 0
-            && read.BytesRead == 0;
+            && read.BytesRead == 0);
     }
 
+    [HostTest("storage.virtioblk.readsession block device reports out-of-range reads", HostLane.Fast, 7)]
     private static bool TestReportsOutOfRangeReads()
     {
         VirtioBlockReadSessionBlockDevice device = CreateAdapter();
@@ -277,12 +214,13 @@ internal static class StorageVirtioBlockReadSessionBlockDeviceTests
         BlockReadResult atEnd = device.ReadBlocks(4, 1, destination);
         BlockReadResult crossesEnd = device.ReadBlocks(3, 2, new byte[1024]);
 
-        return !atEnd.Succeeded
+        return HostCheck.Result(!atEnd.Succeeded
             && atEnd.Status == BlockDeviceStatus.InvalidBlockRange
             && !crossesEnd.Succeeded
-            && crossesEnd.Status == BlockDeviceStatus.InvalidBlockRange;
+            && crossesEnd.Status == BlockDeviceStatus.InvalidBlockRange);
     }
 
+    [HostTest("storage.virtioblk.readsession block device default result is not success", HostLane.Fast, 8)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioBlockReadSessionBlockDeviceCreateResult result = default;
@@ -293,7 +231,7 @@ internal static class StorageVirtioBlockReadSessionBlockDeviceTests
                 ReadOnlyMemory<byte>.Empty,
                 out VirtioBlockReadSessionBlockDevice? device);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadSessionBlockDeviceCreateStatus.Success
             && result.BlockDeviceStatus == BlockDeviceStatus.Success
@@ -301,7 +239,7 @@ internal static class StorageVirtioBlockReadSessionBlockDeviceTests
             && failed.IsInitialized
             && !failed.Succeeded
             && failed.Status == VirtioBlockReadSessionBlockDeviceCreateStatus.InvalidBlockGeometry
-            && device is null;
+            && device is null);
     }
 
     private static VirtioBlockReadSessionBlockDevice CreateAdapter()

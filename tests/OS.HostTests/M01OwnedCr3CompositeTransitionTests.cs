@@ -84,7 +84,7 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
     private const ulong ExpectedCanary = 0x434c_524f_535f_494eUL;
     private const ulong ReplacementCanary = 0x434c_524f_535f_4f4bUL;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         int failures = 0;
@@ -2184,6 +2184,7 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
 
     private static bool TestM01032MarkerSourceAndNoStdLibBoundary()
     {
+        HostCheck.SingleFixture(typeof(M01OwnedCr3CompositeTransitionTests), nameof(RunAll));
         string root = HostToolProcess.FindRepositoryRoot();
         string ownerPath = Path.Combine(
             root,
@@ -2246,9 +2247,6 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
             || CountOccurrences(
                 owner,
                 "\"TEST_PASS \" + CallGateIssueTestName") != 1
-            || CountOccurrences(
-                owner,
-                "[" + "ModuleInitializer]") != 1
             || production.Contains(
                 CallGateReadyMarker,
                 StringComparison.Ordinal)
@@ -9841,34 +9839,13 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
         Func<bool> test,
         ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL "
-                + name
-                + " "
-                + ex.GetType().Name
-                + ": "
-                + ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestM01030MarkerAndEvidenceBoundary()
     {
+        HostCheck.SingleFixture(typeof(M01OwnedCr3CompositeTransitionTests), nameof(RunAll));
         string root = HostToolProcess.FindRepositoryRoot();
         string ownerPath = Path.Combine(
             root,
@@ -9933,9 +9910,6 @@ internal static unsafe class M01OwnedCr3CompositeTransitionTests
             || CountOccurrences(
                 owner,
                 "\"TEST_PASS \" + LiveIntervalIssueTestName") != 1
-            || CountOccurrences(
-                owner,
-                "[" + "ModuleInitializer]") != 1
             || CountOccurrences(
                 owner,
                 "CLROS_" + "M01_027_READY") != 1

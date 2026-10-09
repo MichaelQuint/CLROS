@@ -10,47 +10,7 @@ internal static class TcpEstablishedStreamSocketBridgeTests
     private const uint LocalNextSequence = 0x01020304;
     private const uint RemoteNextSequence = 0x10203040;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.tcp.stream.socketbridge queues inbound payload", TestQueuesInboundPayload, ref failures);
-        Run("net.tcp.stream.socketbridge rejects failed receive result", TestRejectsFailedReceiveResult, ref failures);
-        Run("net.tcp.stream.socketbridge rejects default receive result", TestRejectsDefaultReceiveResult, ref failures);
-        Run("net.tcp.stream.socketbridge rejects payload length mismatch", TestRejectsPayloadLengthMismatch, ref failures);
-        Run("net.tcp.stream.socketbridge propagates mock socket failure", TestPropagatesMockSocketFailure, ref failures);
-        Run("net.tcp.stream.socketbridge preserves mock-only boundary", TestPreservesMockOnlyBoundary, ref failures);
-        Run("net.tcp.stream.socketbridge default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("TCP established stream socket bridge host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.tcp.stream.socketbridge rejects default receive result", HostLane.Fast, 2)]
     private static bool TestRejectsDefaultReceiveResult()
     {
         OSHostSocketTable table = new(capacity: 2);
@@ -68,15 +28,16 @@ internal static class TcpEstablishedStreamSocketBridgeTests
         Span<byte> destination = stackalloc byte[1];
         OSHostSocketOperationResult read = table.Receive(socket, destination);
 
-        return status == TcpEstablishedStreamSocketBridgeStatus.ReceiveNotSuccessful
+        return HostCheck.Result(status == TcpEstablishedStreamSocketBridgeStatus.ReceiveNotSuccessful
             && !result.Succeeded
             && result.ReceiveStatus == TcpEstablishedStreamStatus.Success
             && result.SocketStatus == OSHostStatus.InvalidArgument
             && result.PayloadBytesAccepted == 0
             && result.PayloadBytesQueued == 0
-            && read.StatusCode == (int)OSHostStatus.WouldBlock;
+            && read.StatusCode == (int)OSHostStatus.WouldBlock);
     }
 
+    [HostTest("net.tcp.stream.socketbridge queues inbound payload", HostLane.Fast, 0)]
     private static bool TestQueuesInboundPayload()
     {
         byte[] payload = Encoding.ASCII.GetBytes("hello");
@@ -95,7 +56,7 @@ internal static class TcpEstablishedStreamSocketBridgeTests
         Span<byte> destination = stackalloc byte[5];
         OSHostSocketOperationResult read = table.Receive(socket, destination);
 
-        return status == TcpEstablishedStreamSocketBridgeStatus.Success
+        return HostCheck.Result(status == TcpEstablishedStreamSocketBridgeStatus.Success
             && result.Succeeded
             && result.ReceiveStatus == TcpEstablishedStreamStatus.Success
             && result.SocketStatus == OSHostStatus.Ok
@@ -107,9 +68,10 @@ internal static class TcpEstablishedStreamSocketBridgeTests
             && result.RemoteNextSequenceNumber == RemoteNextSequence + (uint)payload.Length
             && read.StatusCode == (int)OSHostStatus.Ok
             && read.BytesTransferred == (ulong)payload.Length
-            && BytesEqual(destination, payload);
+            && BytesEqual(destination, payload));
     }
 
+    [HostTest("net.tcp.stream.socketbridge rejects failed receive result", HostLane.Fast, 1)]
     private static bool TestRejectsFailedReceiveResult()
     {
         OSHostSocketTable table = new(capacity: 2);
@@ -133,15 +95,16 @@ internal static class TcpEstablishedStreamSocketBridgeTests
         Span<byte> destination = stackalloc byte[3];
         OSHostSocketOperationResult read = table.Receive(socket, destination);
 
-        return status == TcpEstablishedStreamSocketBridgeStatus.ReceiveNotSuccessful
+        return HostCheck.Result(status == TcpEstablishedStreamSocketBridgeStatus.ReceiveNotSuccessful
             && !result.Succeeded
             && result.ReceiveStatus == TcpEstablishedStreamStatus.OutOfOrderSegment
             && result.SocketStatus == OSHostStatus.InvalidArgument
             && result.PayloadBytesAccepted == 0
             && result.PayloadBytesQueued == 0
-            && read.StatusCode == (int)OSHostStatus.WouldBlock;
+            && read.StatusCode == (int)OSHostStatus.WouldBlock);
     }
 
+    [HostTest("net.tcp.stream.socketbridge rejects payload length mismatch", HostLane.Fast, 3)]
     private static bool TestRejectsPayloadLengthMismatch()
     {
         byte[] payload = Encoding.ASCII.GetBytes("hello");
@@ -160,15 +123,16 @@ internal static class TcpEstablishedStreamSocketBridgeTests
         Span<byte> destination = stackalloc byte[5];
         OSHostSocketOperationResult read = table.Receive(socket, destination);
 
-        return status == TcpEstablishedStreamSocketBridgeStatus.PayloadLengthMismatch
+        return HostCheck.Result(status == TcpEstablishedStreamSocketBridgeStatus.PayloadLengthMismatch
             && !result.Succeeded
             && result.ReceiveStatus == TcpEstablishedStreamStatus.Success
             && result.SocketStatus == OSHostStatus.InvalidArgument
             && result.PayloadBytesAccepted == payload.Length
             && result.PayloadBytesQueued == 0
-            && read.StatusCode == (int)OSHostStatus.WouldBlock;
+            && read.StatusCode == (int)OSHostStatus.WouldBlock);
     }
 
+    [HostTest("net.tcp.stream.socketbridge propagates mock socket failure", HostLane.Fast, 4)]
     private static bool TestPropagatesMockSocketFailure()
     {
         byte[] payload = Encoding.ASCII.GetBytes("hello");
@@ -184,14 +148,15 @@ internal static class TcpEstablishedStreamSocketBridgeTests
                 payload,
                 out TcpEstablishedStreamSocketBridgeResult result);
 
-        return created.Succeeded
+        return HostCheck.Result(created.Succeeded
             && status == TcpEstablishedStreamSocketBridgeStatus.SocketQueueFailed
             && !result.Succeeded
             && result.SocketStatus == OSHostStatus.InvalidArgument
             && result.PayloadBytesAccepted == payload.Length
-            && result.PayloadBytesQueued == 0;
+            && result.PayloadBytesQueued == 0);
     }
 
+    [HostTest("net.tcp.stream.socketbridge preserves mock-only boundary", HostLane.Fast, 5)]
     private static bool TestPreservesMockOnlyBoundary()
     {
         byte[] payload = Encoding.ASCII.GetBytes("hello");
@@ -204,7 +169,7 @@ internal static class TcpEstablishedStreamSocketBridgeTests
                 payload,
                 out TcpEstablishedStreamSocketBridgeResult result);
 
-        return TcpEstablishedStreamSocketBridge.UsesTcpReceiveResult
+        return HostCheck.Result(TcpEstablishedStreamSocketBridge.UsesTcpReceiveResult
             && TcpEstablishedStreamSocketBridge.UsesCallerOwnedPayload
             && TcpEstablishedStreamSocketBridge.UsesMockSocketTable
             && TcpEstablishedStreamSocketBridge.QueuesInboundSocketData
@@ -216,9 +181,10 @@ internal static class TcpEstablishedStreamSocketBridgeTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpEstablishedStreamSocketBridgeResult>()
             && missingTable == TcpEstablishedStreamSocketBridgeStatus.MissingSocketTable
             && result.SocketStatus == OSHostStatus.InvalidArgument
-            && result.PayloadBytesQueued == 0;
+            && result.PayloadBytesQueued == 0);
     }
 
+    [HostTest("net.tcp.stream.socketbridge default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         TcpEstablishedStreamSocketBridgeResult defaultResult = default;
@@ -235,7 +201,7 @@ internal static class TcpEstablishedStreamSocketBridgeTests
                 LocalNextSequence,
                 RemoteNextSequence);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == TcpEstablishedStreamSocketBridgeStatus.Success
             && failureResult.IsInitialized
@@ -250,7 +216,7 @@ internal static class TcpEstablishedStreamSocketBridgeTests
             && failureResult.LocalNextSequenceNumber == LocalNextSequence
             && failureResult.RemoteNextSequenceNumber == RemoteNextSequence
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                TcpEstablishedStreamSocketBridgeResult>();
+                TcpEstablishedStreamSocketBridgeResult>());
     }
 
     private static TcpEstablishedStreamReceiveResult ReceivePayload(ReadOnlySpan<byte> payload)

@@ -6,53 +6,8 @@ using OS.Manifest;
 
 internal static class BootSequenceAppExecutableMemoryTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run(
-            "boot.sequence app executable memory ready",
-            TestExecutableMemoryReady,
-            ref failures);
-        Run(
-            "boot.sequence app executable memory rejects plan failure",
-            TestExecutableMemoryRejectsPlanFailure,
-            ref failures);
-        Run(
-            "boot.sequence app executable memory preserves default markers",
-            TestExecutableMemoryPreservesDefaultMarkers,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Boot sequence app executable memory host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("boot.sequence app executable memory ready", HostLane.Fast, 0)]
     private static bool TestExecutableMemoryReady()
     {
         NativeAppExecutableMemoryPlanResult memoryPlan =
@@ -62,16 +17,17 @@ internal static class BootSequenceAppExecutableMemoryTests
 
         BootResult result = BootSequence.RunAppExecutableMemoryReadiness(memoryPlan, serial, events);
 
-        return memoryPlan.Succeeded
+        return HostCheck.Result(memoryPlan.Succeeded
             && memoryPlan.PayloadMappingStatus == NativeAppPayloadMappingPlanStatus.Success
             && memoryPlan.DescriptorStatus == NativeAppLaunchDescriptorStatus.Success
             && memoryPlan.PayloadHeaderStatus == NativeAppPayloadHeaderStatus.Success
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.AppExecutableMemoryReady
-            && events.Snapshot()[0] == BootSequence.AppExecutableMemoryReady;
+            && events.Snapshot()[0] == BootSequence.AppExecutableMemoryReady);
     }
 
+    [HostTest("boot.sequence app executable memory rejects plan failure", HostLane.Fast, 1)]
     private static bool TestExecutableMemoryRejectsPlanFailure()
     {
         NativeAppPayloadMappingPlanResult mappingPlan = NativeAppPayloadMappingPlanResult.Fail(
@@ -90,7 +46,7 @@ internal static class BootSequenceAppExecutableMemoryTests
 
         BootResult result = BootSequence.RunAppExecutableMemoryReadiness(memoryPlan, serial, events);
 
-        return !memoryPlan.Succeeded
+        return HostCheck.Result(!memoryPlan.Succeeded
             && memoryPlan.Status == NativeAppExecutableMemoryPlanStatus.MappingPlanFailed
             && memoryPlan.PayloadMappingStatus == NativeAppPayloadMappingPlanStatus.DescriptorFailed
             && memoryPlan.DescriptorStatus == NativeAppLaunchDescriptorStatus.InvalidPayloadHeader
@@ -104,9 +60,10 @@ internal static class BootSequenceAppExecutableMemoryTests
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence app executable memory preserves default markers", HostLane.Fast, 2)]
     private static bool TestExecutableMemoryPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -115,19 +72,19 @@ internal static class BootSequenceAppExecutableMemoryTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.AppExecutableMemoryReady)
-            && !serial.ContainsPrefix(BootSequence.AppExecutableMemoryNotReadyPrefix);
+        return HostCheck.Result(!serial.Contains(BootSequence.AppExecutableMemoryReady)
+            && !serial.ContainsPrefix(BootSequence.AppExecutableMemoryNotReadyPrefix));
     }
 
     private static NativeAppPayloadMappingPlanResult CreateMappingPlanResult()

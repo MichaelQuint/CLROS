@@ -4,45 +4,8 @@ using OS.Storage;
 
 internal static class StorageVirtioBlockReadTransactionPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("storage.virtioblk read transaction plans sector range", TestPlansSectorRange, ref failures);
-        Run("storage.virtioblk read transaction rejects destination too small", TestRejectsDestinationTooSmall, ref failures);
-        Run("storage.virtioblk read transaction rejects invalid sector geometry", TestRejectsInvalidSectorGeometry, ref failures);
-        Run("storage.virtioblk read transaction rejects queue too small", TestRejectsQueueTooSmall, ref failures);
-        Run("storage.virtioblk read transaction default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio block read transaction-plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.virtioblk read transaction plans sector range", HostLane.Fast, 0)]
     private static bool TestPlansSectorRange()
     {
         Span<byte> requestHeader = stackalloc byte[(int)VirtioBlockRequestPlan.RequestHeaderLength];
@@ -60,11 +23,11 @@ internal static class StorageVirtioBlockReadTransactionPlanTests
             status: status);
         if (!result.Succeeded || result.Status != VirtioBlockReadTransactionPlanStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioBlockReadTransactionPlan plan = result.Plan;
-        return plan.SectorSizeBytes == VirtioBlockReadTransactionPlan.RequiredSectorSizeBytes
+        return HostCheck.Result(plan.SectorSizeBytes == VirtioBlockReadTransactionPlan.RequiredSectorSizeBytes
             && plan.DeviceSectorCount == 128
             && plan.FirstSector == 5
             && plan.SectorCount == 2
@@ -80,9 +43,10 @@ internal static class StorageVirtioBlockReadTransactionPlanTests
             && plan.RequestPlan.StatusDescriptor.DeviceWrites
             && EndianPrimitives.ReadUInt32LittleEndian(requestHeader.Slice(0, 4)) == (uint)VirtioBlockRequestType.Read
             && EndianPrimitives.ReadUInt32LittleEndian(requestHeader.Slice(4, 4)) == 0
-            && EndianPrimitives.ReadUInt64LittleEndian(requestHeader.Slice(8, 8)) == 5;
+            && EndianPrimitives.ReadUInt64LittleEndian(requestHeader.Slice(8, 8)) == 5);
     }
 
+    [HostTest("storage.virtioblk read transaction rejects destination too small", HostLane.Fast, 1)]
     private static bool TestRejectsDestinationTooSmall()
     {
         Span<byte> requestHeader = stackalloc byte[(int)VirtioBlockRequestPlan.RequestHeaderLength];
@@ -100,11 +64,12 @@ internal static class StorageVirtioBlockReadTransactionPlanTests
             destination: destination,
             status: status);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockReadTransactionPlanStatus.DestinationTooSmall
-            && requestHeader[0] == 0xA5;
+            && requestHeader[0] == 0xA5);
     }
 
+    [HostTest("storage.virtioblk read transaction rejects invalid sector geometry", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidSectorGeometry()
     {
         Span<byte> requestHeader = stackalloc byte[(int)VirtioBlockRequestPlan.RequestHeaderLength];
@@ -130,12 +95,13 @@ internal static class StorageVirtioBlockReadTransactionPlanTests
             destination: destination,
             status: status);
 
-        return !invalidSize.Succeeded
+        return HostCheck.Result(!invalidSize.Succeeded
             && invalidSize.Status == VirtioBlockReadTransactionPlanStatus.InvalidSectorGeometry
             && !zeroSectors.Succeeded
-            && zeroSectors.Status == VirtioBlockReadTransactionPlanStatus.InvalidSectorGeometry;
+            && zeroSectors.Status == VirtioBlockReadTransactionPlanStatus.InvalidSectorGeometry);
     }
 
+    [HostTest("storage.virtioblk read transaction rejects queue too small", HostLane.Fast, 3)]
     private static bool TestRejectsQueueTooSmall()
     {
         Span<byte> requestHeader = stackalloc byte[(int)VirtioBlockRequestPlan.RequestHeaderLength];
@@ -153,11 +119,12 @@ internal static class StorageVirtioBlockReadTransactionPlanTests
             destination: destination,
             status: status);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioBlockReadTransactionPlanStatus.QueueTooSmall
-            && requestHeader[0] == 0xA5;
+            && requestHeader[0] == 0xA5);
     }
 
+    [HostTest("storage.virtioblk read transaction default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioBlockReadTransactionPlanResult result = default;
@@ -165,7 +132,7 @@ internal static class StorageVirtioBlockReadTransactionPlanTests
             VirtioBlockReadTransactionPlanResult.Fail(
                 VirtioBlockReadTransactionPlanStatus.InvalidSectorRange);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioBlockReadTransactionPlanStatus.Success
             && result.RequestPlanStatus == VirtioBlockRequestPlanStatus.Success
@@ -179,7 +146,7 @@ internal static class StorageVirtioBlockReadTransactionPlanTests
             && !failed.Succeeded
             && failed.Status == VirtioBlockReadTransactionPlanStatus.InvalidSectorRange
             && failed.RequestPlanStatus == VirtioBlockRequestPlanStatus.Success
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadTransactionPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioBlockReadTransactionPlanResult>());
     }
 
     private static void Fill(Span<byte> destination, byte value)

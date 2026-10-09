@@ -9,68 +9,7 @@ internal static class VirtioPciBarRegisterWindowPlanTests
     private const byte IsrOffset = 0x80;
     private const byte DeviceOffset = 0xA0;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.virtiopci.registerwindow binds common notify isr device apertures", TestBindsRequiredApertures, ref failures);
-        Run("drivers.virtiopci.registerwindow plans aligned register access", TestPlansAlignedRegisterAccess, ref failures);
-        Run("drivers.virtiopci.registerwindow rejects missing mapping", TestRejectsMissingMapping, ref failures);
-        Run("drivers.virtiopci.registerwindow rejects base mismatch", TestRejectsBaseMismatch, ref failures);
-        Run("drivers.virtiopci.registerwindow rejects range overflow", TestRejectsRangeOverflow, ref failures);
-        Run("drivers.virtiopci.registerwindow rejects unaligned access", TestRejectsUnalignedAccess, ref failures);
-        Run("drivers.virtiopci.registerwindow preserves no-live-mmio boundary", TestPreservesNoLiveMmioBoundary, ref failures);
-        Run("drivers.virtiopci.registerwindow default results are not success", TestDefaultResultsAreNotSuccess, ref failures);
-        Run(
-            "drivers.virtiopci.registerwindow.fakeexec writes planned word access",
-            TestFakeExecutorWritesPlannedWordAccess,
-            ref failures);
-        Run(
-            "drivers.virtiopci.registerwindow.fakeexec reads planned dword access",
-            TestFakeExecutorReadsPlannedDwordAccess,
-            ref failures);
-        Run(
-            "drivers.virtiopci.registerwindow.fakeexec rejects missing access plan",
-            TestFakeExecutorRejectsMissingAccessPlan,
-            ref failures);
-        Run(
-            "drivers.virtiopci.registerwindow.fakeexec rejects short window buffer",
-            TestFakeExecutorRejectsShortWindowBuffer,
-            ref failures);
-        Run(
-            "drivers.virtiopci.registerwindow.fakeexec preserves no-live-mmio boundary",
-            TestFakeExecutorPreservesNoLiveMmioBoundary,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio PCI BAR register-window plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtiopci.registerwindow binds common notify isr device apertures", HostLane.Fast, 0)]
     private static bool TestBindsRequiredApertures()
     {
         VirtioPciBindingPlanResult bindingPlan = CreateBindingPlan();
@@ -79,7 +18,7 @@ internal static class VirtioPciBarRegisterWindowPlanTests
                 bindingPlan,
                 CreateWindows());
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioPciBarRegisterWindowPlanStatus.Success
             && result.BindingPlanStatus == VirtioPciBindingPlanStatus.Success
             && result.ApertureValidationStatus == VirtioPciBarApertureValidationStatus.Success
@@ -94,15 +33,16 @@ internal static class VirtioPciBarRegisterWindowPlanTests
             && result.Bindings.DeviceConfiguration.CapabilityType == VirtioPciCapabilityType.DeviceConfiguration
             && result.Bindings.DeviceConfiguration.AperturePhysicalBaseAddress == 0x80003040UL
             && result.Bindings.DeviceConfiguration.IsDeviceMemory
-            && result.Bindings.DeviceConfiguration.IsUncached;
+            && result.Bindings.DeviceConfiguration.IsUncached);
     }
 
+    [HostTest("drivers.virtiopci.registerwindow plans aligned register access", HostLane.Fast, 1)]
     private static bool TestPlansAlignedRegisterAccess()
     {
         VirtioPciBarRegisterWindowBindingResult binding = CreateBoundWindows();
         if (!binding.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioPciBarRegisterWindowAccessPlanResult read16 =
@@ -116,7 +56,7 @@ internal static class VirtioPciBarRegisterWindowPlanTests
                 VirtioPciModernRegisterMap.CommonConfiguration.QueueDescOffset,
                 VirtioPciRegisterAccessWidth.QWord);
 
-        return read16.Succeeded
+        return HostCheck.Result(read16.Succeeded
             && read16.Plan.WidthBytes == 2
             && read16.Plan.BarRelativeOffset
                 == 0x20UL + VirtioPciModernRegisterMap.CommonConfiguration.QueueSelectOffset
@@ -131,9 +71,10 @@ internal static class VirtioPciBarRegisterWindowPlanTests
             && write64.Plan.PhysicalAddress
                 == 0x80000000UL + 0x20UL + VirtioPciModernRegisterMap.CommonConfiguration.QueueDescOffset
             && write64.Plan.VirtualAddress
-                == 0xFFFF800000000000UL + 0x20UL + VirtioPciModernRegisterMap.CommonConfiguration.QueueDescOffset;
+                == 0xFFFF800000000000UL + 0x20UL + VirtioPciModernRegisterMap.CommonConfiguration.QueueDescOffset);
     }
 
+    [HostTest("drivers.virtiopci.registerwindow rejects missing mapping", HostLane.Fast, 2)]
     private static bool TestRejectsMissingMapping()
     {
         VirtioPciMappedBarWindow[] windows = CreateWindows();
@@ -152,12 +93,13 @@ internal static class VirtioPciBarRegisterWindowPlanTests
                 CreateBindingPlan(),
                 windows);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioPciBarRegisterWindowPlanStatus.WindowNotMapped
             && result.FailingCapabilityType == VirtioPciCapabilityType.NotifyConfiguration
-            && result.FailingBarIndex == 1;
+            && result.FailingBarIndex == 1);
     }
 
+    [HostTest("drivers.virtiopci.registerwindow rejects base mismatch", HostLane.Fast, 3)]
     private static bool TestRejectsBaseMismatch()
     {
         VirtioPciMappedBarWindow[] windows = CreateWindows();
@@ -176,18 +118,19 @@ internal static class VirtioPciBarRegisterWindowPlanTests
                 CreateBindingPlan(),
                 windows);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioPciBarRegisterWindowPlanStatus.PhysicalBaseMismatch
             && result.FailingCapabilityType == VirtioPciCapabilityType.CommonConfiguration
-            && result.FailingBarIndex == 0;
+            && result.FailingBarIndex == 0);
     }
 
+    [HostTest("drivers.virtiopci.registerwindow rejects range overflow", HostLane.Fast, 4)]
     private static bool TestRejectsRangeOverflow()
     {
         VirtioPciBarRegisterWindowBindingResult binding = CreateBoundWindows();
         if (!binding.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioPciBarRegisterWindowAccessPlanResult result =
@@ -196,19 +139,20 @@ internal static class VirtioPciBarRegisterWindowPlanTests
                 relativeOffset: 0xFF,
                 VirtioPciRegisterAccessWidth.Word);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioPciBarRegisterWindowPlanStatus.AccessRangeOutsideAperture
             && result.CapabilityType == VirtioPciCapabilityType.NotifyConfiguration
             && result.BarIndex == 1
-            && result.RelativeOffset == 0xFF;
+            && result.RelativeOffset == 0xFF);
     }
 
+    [HostTest("drivers.virtiopci.registerwindow rejects unaligned access", HostLane.Fast, 5)]
     private static bool TestRejectsUnalignedAccess()
     {
         VirtioPciBarRegisterWindowBindingResult binding = CreateBoundWindows();
         if (!binding.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioPciBarRegisterWindowAccessPlanResult result =
@@ -217,13 +161,14 @@ internal static class VirtioPciBarRegisterWindowPlanTests
                 relativeOffset: 1,
                 VirtioPciRegisterAccessWidth.Word);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioPciBarRegisterWindowPlanStatus.AccessUnaligned
             && result.CapabilityType == VirtioPciCapabilityType.CommonConfiguration
             && result.BarIndex == 0
-            && result.RelativeOffset == 1;
+            && result.RelativeOffset == 1);
     }
 
+    [HostTest("drivers.virtiopci.registerwindow preserves no-live-mmio boundary", HostLane.Fast, 6)]
     private static bool TestPreservesNoLiveMmioBoundary()
     {
         VirtioPciBarRegisterWindowBindingResult failedBinding =
@@ -247,7 +192,7 @@ internal static class VirtioPciBarRegisterWindowPlanTests
                 CreateBindingPlan(),
                 nonMmioWindows);
 
-        return !failedBinding.Succeeded
+        return HostCheck.Result(!failedBinding.Succeeded
             && failedBinding.Status == VirtioPciBarRegisterWindowPlanStatus.BindingPlanFailed
             && !nonMmio.Succeeded
             && nonMmio.Status == VirtioPciBarRegisterWindowPlanStatus.WindowNotMmio
@@ -270,16 +215,17 @@ internal static class VirtioPciBarRegisterWindowPlanTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciBarRegisterWindowBindingSet>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciBarRegisterWindowAccessPlan>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciBarRegisterWindowBindingResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciBarRegisterWindowAccessPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciBarRegisterWindowAccessPlanResult>());
     }
 
+    [HostTest("drivers.virtiopci.registerwindow default results are not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         VirtioPciBarRegisterWindowBindingResult binding = default;
         VirtioPciBarRegisterWindowAccessPlanResult access = default;
         VirtioPciBarRegisterWindowAccessExecutionResult execution = default;
 
-        return !binding.IsInitialized
+        return HostCheck.Result(!binding.IsInitialized
             && !binding.Succeeded
             && binding.Status == VirtioPciBarRegisterWindowPlanStatus.Success
             && binding.BindingPlanStatus == VirtioPciBindingPlanStatus.Success
@@ -308,9 +254,10 @@ internal static class VirtioPciBarRegisterWindowPlanTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciBarRegisterWindowBindingResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciBarRegisterWindowAccessPlanResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioPciBarRegisterWindowAccessExecutionResult>();
+                VirtioPciBarRegisterWindowAccessExecutionResult>());
     }
 
+    [HostTest("drivers.virtiopci.registerwindow.fakeexec writes planned word access", HostLane.Fast, 8)]
     private static bool TestFakeExecutorWritesPlannedWordAccess()
     {
         VirtioPciBarRegisterWindowBindingResult binding = CreateBoundWindows();
@@ -328,7 +275,7 @@ internal static class VirtioPciBarRegisterWindowPlanTests
                 windowBytes);
 
         int offset = checked((int)access.Plan.BarRelativeOffset);
-        return binding.Succeeded
+        return HostCheck.Result(binding.Succeeded
             && access.Succeeded
             && result.Succeeded
             && result.Status == VirtioPciBarRegisterWindowAccessExecutionStatus.Success
@@ -346,9 +293,10 @@ internal static class VirtioPciBarRegisterWindowPlanTests
                 windowBytes,
                 offset + sizeof(ushort),
                 windowBytes.Length - offset - sizeof(ushort),
-                0xCC);
+                0xCC));
     }
 
+    [HostTest("drivers.virtiopci.registerwindow.fakeexec reads planned dword access", HostLane.Fast, 9)]
     private static bool TestFakeExecutorReadsPlannedDwordAccess()
     {
         VirtioPciBarRegisterWindowBindingResult binding = CreateBoundWindows();
@@ -366,7 +314,7 @@ internal static class VirtioPciBarRegisterWindowPlanTests
         VirtioPciBarRegisterWindowAccessExecutionResult result =
             VirtioPciBarRegisterWindowAccessExecutor.Read(access.Plan, windowBytes);
 
-        return binding.Succeeded
+        return HostCheck.Result(binding.Succeeded
             && access.Succeeded
             && result.Succeeded
             && result.Status == VirtioPciBarRegisterWindowAccessExecutionStatus.Success
@@ -381,9 +329,10 @@ internal static class VirtioPciBarRegisterWindowPlanTests
                 windowBytes,
                 offset + sizeof(uint),
                 windowBytes.Length - offset - sizeof(uint),
-                0xCC);
+                0xCC));
     }
 
+    [HostTest("drivers.virtiopci.registerwindow.fakeexec rejects missing access plan", HostLane.Fast, 10)]
     private static bool TestFakeExecutorRejectsMissingAccessPlan()
     {
         byte[] windowBytes = CreateWindowBytes();
@@ -396,7 +345,7 @@ internal static class VirtioPciBarRegisterWindowPlanTests
                 value: 0x55,
                 windowBytes);
 
-        return !read.Succeeded
+        return HostCheck.Result(!read.Succeeded
             && read.Status == VirtioPciBarRegisterWindowAccessExecutionStatus.MissingAccessPlan
             && read.WidthBytes == 0
             && read.Value == 0
@@ -404,9 +353,10 @@ internal static class VirtioPciBarRegisterWindowPlanTests
             && write.Status == VirtioPciBarRegisterWindowAccessExecutionStatus.MissingAccessPlan
             && write.WidthBytes == 0
             && write.Value == 0
-            && AllBytesEqual(windowBytes, 0xCC);
+            && AllBytesEqual(windowBytes, 0xCC));
     }
 
+    [HostTest("drivers.virtiopci.registerwindow.fakeexec rejects short window buffer", HostLane.Fast, 11)]
     private static bool TestFakeExecutorRejectsShortWindowBuffer()
     {
         VirtioPciBarRegisterWindowBindingResult binding = CreateBoundWindows();
@@ -423,7 +373,7 @@ internal static class VirtioPciBarRegisterWindowPlanTests
                 value: 0xABCD,
                 windowBytes);
 
-        return binding.Succeeded
+        return HostCheck.Result(binding.Succeeded
             && access.Succeeded
             && !result.Succeeded
             && result.Status == VirtioPciBarRegisterWindowAccessExecutionStatus.WindowBufferTooSmall
@@ -431,9 +381,10 @@ internal static class VirtioPciBarRegisterWindowPlanTests
             && result.Width == VirtioPciRegisterAccessWidth.Word
             && result.WidthBytes == sizeof(ushort)
             && result.Value == 0
-            && AllBytesEqual(windowBytes, 0xCC);
+            && AllBytesEqual(windowBytes, 0xCC));
     }
 
+    [HostTest("drivers.virtiopci.registerwindow.fakeexec preserves no-live-mmio boundary", HostLane.Fast, 12)]
     private static bool TestFakeExecutorPreservesNoLiveMmioBoundary()
     {
         VirtioPciBarRegisterWindowBindingResult binding = CreateBoundWindows();
@@ -450,7 +401,7 @@ internal static class VirtioPciBarRegisterWindowPlanTests
                 value: 0x1122334455667788UL,
                 windowBytes);
 
-        return binding.Succeeded
+        return HostCheck.Result(binding.Succeeded
             && access.Succeeded
             && result.Succeeded
             && VirtioPciBarRegisterWindowAccessExecutor.RequiresAccessPlan
@@ -470,7 +421,7 @@ internal static class VirtioPciBarRegisterWindowPlanTests
             && !VirtioPciBarRegisterWindowAccessExecutor.PerformsDmaMapping
             && !VirtioPciBarRegisterWindowAccessExecutor.PerformsPacketIo
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioPciBarRegisterWindowAccessExecutionResult>();
+                VirtioPciBarRegisterWindowAccessExecutionResult>());
     }
 
     private static VirtioPciBarRegisterWindowBindingResult CreateBoundWindows()

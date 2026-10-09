@@ -4,45 +4,8 @@ using OS.Pal;
 
 internal static class PalConfigEnvironmentFacadeTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("pal.config facade returns config and env values", TestReturnsConfigAndEnvironmentValues, ref failures);
-        Run("pal.config facade enumerates config and env", TestEnumeratesConfigAndEnvironment, ref failures);
-        Run("pal.config facade reports buffer and missing keys", TestReportsBufferAndMissingKeys, ref failures);
-        Run("pal.config facade rejects malformed request shapes", TestRejectsMalformedRequestShapes, ref failures);
-        Run("pal.config facade result layouts contain no managed references", TestResultLayoutsContainNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL config facade host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.config facade returns config and env values", HostLane.Fast, 0)]
     private static bool TestReturnsConfigAndEnvironmentValues()
     {
         OSHostConfigEnvironmentFacade facade = CreateFacade();
@@ -63,11 +26,12 @@ internal static class PalConfigEnvironmentFacadeTests
             envKey,
             destination);
 
-        return configOk
+        return HostCheck.Result(configOk
             && env.Succeeded
-            && BytesEqual(destination, (int)env.BytesWritten, "Production");
+            && BytesEqual(destination, (int)env.BytesWritten, "Production"));
     }
 
+    [HostTest("pal.config facade enumerates config and env", HostLane.Fast, 1)]
     private static bool TestEnumeratesConfigAndEnvironment()
     {
         OSHostConfigEnvironmentFacade facade = CreateFacade();
@@ -85,14 +49,15 @@ internal static class PalConfigEnvironmentFacadeTests
             envKeyDestination,
             envValueDestination);
 
-        return config.Succeeded
+        return HostCheck.Result(config.Succeeded
             && BytesEqual(configKeyDestination, (int)config.KeyBytesWritten, "kestrel.listen.0")
             && BytesEqual(configValueDestination, (int)config.ValueBytesWritten, "http://0.0.0.0:8080")
             && env.Succeeded
             && BytesEqual(envKeyDestination, (int)env.KeyBytesWritten, "PORT")
-            && BytesEqual(envValueDestination, (int)env.ValueBytesWritten, "8080");
+            && BytesEqual(envValueDestination, (int)env.ValueBytesWritten, "8080"));
     }
 
+    [HostTest("pal.config facade reports buffer and missing keys", HostLane.Fast, 2)]
     private static bool TestReportsBufferAndMissingKeys()
     {
         OSHostConfigEnvironmentFacade facade = CreateFacade();
@@ -110,11 +75,12 @@ internal static class PalConfigEnvironmentFacadeTests
             missingKey,
             destination);
 
-        return small.Status == OSHostStatus.BufferTooSmall
+        return HostCheck.Result(small.Status == OSHostStatus.BufferTooSmall
             && small.RequiredBytes == (ulong)"apps/api/MinimalApi.dll".Length
-            && missing.Status == OSHostStatus.NotFound;
+            && missing.Status == OSHostStatus.NotFound);
     }
 
+    [HostTest("pal.config facade rejects malformed request shapes", HostLane.Fast, 3)]
     private static bool TestRejectsMalformedRequestShapes()
     {
         OSHostConfigEnvironmentFacade facade = CreateFacade();
@@ -153,17 +119,18 @@ internal static class PalConfigEnvironmentFacadeTests
             keyDestination,
             valueDestination);
 
-        return nullQuery.Status == OSHostStatus.InvalidArgument
+        return HostCheck.Result(nullQuery.Status == OSHostStatus.InvalidArgument
             && keyMismatch.Status == OSHostStatus.InvalidArgument
             && destinationMismatch.Status == OSHostStatus.InvalidArgument
             && reserved.Status == OSHostStatus.InvalidArgument
-            && destinationShape.Status == OSHostStatus.InvalidArgument;
+            && destinationShape.Status == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.config facade result layouts contain no managed references", HostLane.Fast, 4)]
     private static bool TestResultLayoutsContainNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostConfigQueryResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostEnvironmentEnumerationResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<OSHostConfigQueryResult>()
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostEnvironmentEnumerationResult>());
     }
 
     private static OSHostConfigEnvironmentFacade CreateFacade()

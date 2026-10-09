@@ -94,7 +94,7 @@ differ from this root guide.
 - `apps`: app fixtures and placeholders.
 - `tools`: host-side tools.
 - `tests/OS.HostTests`: host test harness with machine-readable markers.
-- `scripts`: PowerShell build, smoke, evidence, and helper scripts.
+- `tools/OS.Tooling`: C# build, verification, smoke, evidence, and repository commands.
 - `docs`: canonical architecture, operation, gate, and subsystem docs.
 - `done`: immutable step evidence history. Do not delete step files.
 - `work`: design work in progress, including PAL design.
@@ -138,16 +138,19 @@ Run from `C:\Projects\CLROS`.
 dotnet build .\CLROS.slnx --nologo -m:1
 dotnet build .\tests\OS.HostTests\OS.HostTests.csproj --nologo
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
-.\scripts\check-naming.ps1
-.\scripts\run-qemu-smoke.ps1 -DryRun
-.\scripts\build-efi-shell.ps1
+dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build -- --lane full
+dotnet run --project .\tools\OS.Tooling -- repo check
+dotnet run --project .\tools\OS.Tooling -- contracts check
+dotnet run --project tools/OS.Tooling -- repo check
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun
+dotnet run --project tools/OS.Tooling -- efi build
 git diff --check
 ```
 
 Real QEMU smoke on the current Windows host:
 
 ```powershell
-.\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
+dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
 ```
 
 Dry-run QEMU output is not boot proof. Boot proof requires a generated image,
@@ -190,8 +193,19 @@ Every meaningful milestone needs a new or updated `done/stepNN.md` with:
 - Deferred work.
 - Evidence boundary.
 
-Run `scripts/new-done-step.ps1` or `scripts/new-done-step.ps1 -Reserve` before
-creating a new step file.
+Run `dotnet run --project tools/OS.Tooling -- done next` or
+`dotnet run --project tools/OS.Tooling -- done reserve` before creating a new
+step file. Reservations use atomic file creation.
+
+Host tests use explicit C# discovery, never module initializers. The default
+command runs the fast lane and emits `TEST_PASS host.tests.fast`; only an
+unfiltered `--lane full` run can emit `TEST_PASS host.tests`. Use `--list` and
+`--filter <fixture-or-case>` for focused work; do not generate subset projects.
+`tools/OS.Tooling/EfiContracts.cs` owns shared reviewed test/tool expectations.
+Derive counts from inventories, normalize source text for semantic checks, and
+retain exact raw bytes for build provenance. Do not freeze test-runner source
+hashes in other tests. Native orchestration and transcript checks use compiled
+C# APIs; fast success is not native, guest, or full acceptance evidence.
 
 ## Gitea Issue Workflow
 

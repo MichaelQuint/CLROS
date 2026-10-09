@@ -3,45 +3,8 @@ using OS.Drivers;
 
 internal static class VirtioPciDeviceDiscoveryTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.virtiopci identifies virtio block device", TestIdentifiesVirtioBlockDevice, ref failures);
-        Run("drivers.virtiopci identifies virtio net device", TestIdentifiesVirtioNetDevice, ref failures);
-        Run("drivers.virtiopci rejects unsupported device", TestRejectsUnsupportedDevice, ref failures);
-        Run("drivers.virtiopci records required capabilities", TestRecordsRequiredCapabilities, ref failures);
-        Run("drivers.virtiopci default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio PCI discovery host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtiopci identifies virtio block device", HostLane.Fast, 0)]
     private static bool TestIdentifiesVirtioBlockDevice()
     {
         VirtioPciDeviceDiscoveryResult result = VirtioPciDeviceDiscovery.Discover(
@@ -50,7 +13,7 @@ internal static class VirtioPciDeviceDiscoveryTests
                 VirtioPciDeviceDiscovery.ModernDeviceIdStart + VirtioPciDeviceDiscovery.BlockDeviceId),
             CreateBlockCapabilities());
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioPciDeviceDiscoveryStatus.Success
             && result.Identity.VendorId == VirtioPciDeviceDiscovery.VirtioVendorId
@@ -62,9 +25,10 @@ internal static class VirtioPciDeviceDiscoveryTests
             && result.Capabilities.HasIsrStatus
             && result.Capabilities.HasDeviceConfiguration
             && result.Capabilities.DeviceConfiguration.Length
-                == VirtioPciDeviceDiscovery.BlockDeviceConfigurationMinimumLength;
+                == VirtioPciDeviceDiscovery.BlockDeviceConfigurationMinimumLength);
     }
 
+    [HostTest("drivers.virtiopci identifies virtio net device", HostLane.Fast, 1)]
     private static bool TestIdentifiesVirtioNetDevice()
     {
         VirtioPciDeviceDiscoveryResult result = VirtioPciDeviceDiscovery.Discover(
@@ -73,16 +37,17 @@ internal static class VirtioPciDeviceDiscoveryTests
                 VirtioPciDeviceDiscovery.ModernDeviceIdStart + VirtioPciDeviceDiscovery.NetworkDeviceId),
             CreateNetworkCapabilities());
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioPciDeviceDiscoveryStatus.Success
             && result.Identity.DeviceId == 0x1041
             && result.VirtioDeviceId == VirtioPciDeviceDiscovery.NetworkDeviceId
             && result.DeviceKind == VirtioPciDeviceKind.Network
             && result.Capabilities.DeviceConfiguration.Length
-                == VirtioPciDeviceDiscovery.NetworkDeviceConfigurationMinimumLength;
+                == VirtioPciDeviceDiscovery.NetworkDeviceConfigurationMinimumLength);
     }
 
+    [HostTest("drivers.virtiopci rejects unsupported device", HostLane.Fast, 2)]
     private static bool TestRejectsUnsupportedDevice()
     {
         VirtioPciDeviceDiscoveryResult wrongVendor = VirtioPciDeviceDiscovery.Discover(
@@ -92,7 +57,7 @@ internal static class VirtioPciDeviceDiscoveryTests
             !wrongVendor.IsInitialized ||
             wrongVendor.Status != VirtioPciDeviceDiscoveryStatus.UnsupportedVendor)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioPciDeviceDiscoveryResult legacyDevice = VirtioPciDeviceDiscovery.Discover(
@@ -102,20 +67,21 @@ internal static class VirtioPciDeviceDiscoveryTests
             !legacyDevice.IsInitialized ||
             legacyDevice.Status != VirtioPciDeviceDiscoveryStatus.UnsupportedDeviceId)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioPciDeviceDiscoveryResult unsupportedModernDevice = VirtioPciDeviceDiscovery.Discover(
             new PciDeviceIdentity(VirtioPciDeviceDiscovery.VirtioVendorId, 0x1045),
             CreateBlockCapabilities());
 
-        return !unsupportedModernDevice.Succeeded
+        return HostCheck.Result(!unsupportedModernDevice.Succeeded
             && unsupportedModernDevice.IsInitialized
             && unsupportedModernDevice.Status == VirtioPciDeviceDiscoveryStatus.UnsupportedDeviceKind
             && unsupportedModernDevice.VirtioDeviceId == 5
-            && unsupportedModernDevice.DeviceKind == VirtioPciDeviceKind.Unknown;
+            && unsupportedModernDevice.DeviceKind == VirtioPciDeviceKind.Unknown);
     }
 
+    [HostTest("drivers.virtiopci records required capabilities", HostLane.Fast, 3)]
     private static bool TestRecordsRequiredCapabilities()
     {
         VirtioPciDeviceDiscoveryResult result = VirtioPciDeviceDiscovery.Discover(
@@ -125,7 +91,7 @@ internal static class VirtioPciDeviceDiscoveryTests
             CreateBlockCapabilities());
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioPciCapabilitySet capabilities = result.Capabilities;
@@ -147,7 +113,7 @@ internal static class VirtioPciDeviceDiscoveryTests
             capabilities.DeviceConfiguration.Offset != 0x4000 ||
             capabilities.DeviceConfiguration.Length != VirtioPciDeviceDiscovery.BlockDeviceConfigurationMinimumLength)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioPciDeviceDiscoveryResult missingDeviceConfiguration = VirtioPciDeviceDiscovery.Discover(
@@ -157,23 +123,24 @@ internal static class VirtioPciDeviceDiscoveryTests
             missingDeviceConfiguration.Status
                 != VirtioPciDeviceDiscoveryStatus.MissingDeviceConfigurationCapability)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioPciDeviceDiscoveryResult invalidNotify = VirtioPciDeviceDiscovery.Discover(
             new PciDeviceIdentity(VirtioPciDeviceDiscovery.VirtioVendorId, 0x1042),
             CreateCapabilitiesWithInvalidNotifyLength());
 
-        return !invalidNotify.Succeeded
+        return HostCheck.Result(!invalidNotify.Succeeded
             && invalidNotify.IsInitialized
-            && invalidNotify.Status == VirtioPciDeviceDiscoveryStatus.InvalidNotifyCapability;
+            && invalidNotify.Status == VirtioPciDeviceDiscoveryStatus.InvalidNotifyCapability);
     }
 
+    [HostTest("drivers.virtiopci default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioPciDeviceDiscoveryResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioPciDeviceDiscoveryStatus.Success
             && result.DeviceKind == VirtioPciDeviceKind.Unknown
@@ -182,7 +149,7 @@ internal static class VirtioPciDeviceDiscoveryTests
             && !result.Capabilities.HasIsrStatus
             && !result.Capabilities.HasDeviceConfiguration
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioPciDeviceDiscoveryResult>();
+                VirtioPciDeviceDiscoveryResult>());
     }
 
     private static VirtioPciCapabilityMetadata[] CreateBlockCapabilities()

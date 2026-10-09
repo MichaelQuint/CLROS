@@ -5,51 +5,8 @@ using OS.Std.Binary;
 
 internal static class UdpReceiveDispatcherTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.udp.rx parses udp payload", TestParsesUdpPayload, ref failures);
-        Run("net.udp.rx accepts zero checksum", TestAcceptsZeroChecksum, ref failures);
-        Run("net.udp.rx validates nonzero checksum", TestValidatesNonZeroChecksum, ref failures);
-        Run("net.udp.rx rejects bad checksum", TestRejectsBadChecksum, ref failures);
-        Run("net.udp.rx reports classifier failure", TestReportsClassifierFailure, ref failures);
-        Run("net.udp.rx rejects non-ipv4 payload", TestRejectsNonIpv4Payload, ref failures);
-        Run("net.udp.rx rejects non-udp protocol", TestRejectsNonUdpProtocol, ref failures);
-        Run("net.udp.rx reports truncated udp header", TestReportsTruncatedUdpHeader, ref failures);
-        Run("net.udp.rx reports truncated udp payload", TestReportsTruncatedUdpPayload, ref failures);
-        Run("net.udp.rx default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "UDP receive dispatcher host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.udp.rx parses udp payload", HostLane.Fast, 0)]
     private static bool TestParsesUdpPayload()
     {
         byte[] payload = { 0x64, 0x61, 0x74, 0x61 };
@@ -57,7 +14,7 @@ internal static class UdpReceiveDispatcherTests
 
         UdpReceiveDispatchResult result = UdpReceiveDispatcher.Dispatch(buffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == UdpReceiveDispatchStatus.Success
             && result.NetworkStatus == NetworkReceiveDispatchStatus.Success
             && result.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.Success
@@ -74,9 +31,10 @@ internal static class UdpReceiveDispatcherTests
             && result.UdpPayloadOffset == ExpectedUdpPayloadOffset
             && result.UdpPayloadLength == payload.Length
             && buffer[result.UdpPayloadOffset] == payload[0]
-            && buffer[result.UdpPayloadOffset + 3] == payload[3];
+            && buffer[result.UdpPayloadOffset + 3] == payload[3]);
     }
 
+    [HostTest("net.udp.rx accepts zero checksum", HostLane.Fast, 1)]
     private static bool TestAcceptsZeroChecksum()
     {
         byte[] payload = { 0x7A, 0x65, 0x72, 0x6F };
@@ -84,15 +42,16 @@ internal static class UdpReceiveDispatcherTests
 
         UdpReceiveDispatchResult result = UdpReceiveDispatcher.Dispatch(buffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == UdpReceiveDispatchStatus.Success
             && result.UdpPacketStatus == PacketParseStatus.Success
             && result.UdpHeader.Checksum == 0
             && result.UdpPayloadLength == payload.Length
             && buffer[result.UdpPayloadOffset] == payload[0]
-            && buffer[result.UdpPayloadOffset + 3] == payload[3];
+            && buffer[result.UdpPayloadOffset + 3] == payload[3]);
     }
 
+    [HostTest("net.udp.rx validates nonzero checksum", HostLane.Fast, 2)]
     private static bool TestValidatesNonZeroChecksum()
     {
         byte[] payload = { 0x76, 0x61, 0x6C, 0x69, 0x64 };
@@ -100,15 +59,16 @@ internal static class UdpReceiveDispatcherTests
 
         UdpReceiveDispatchResult result = UdpReceiveDispatcher.Dispatch(buffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == UdpReceiveDispatchStatus.Success
             && result.UdpPacketStatus == PacketParseStatus.Success
             && result.UdpHeader.Checksum != 0
             && result.UdpPayloadLength == payload.Length
             && buffer[result.UdpPayloadOffset] == payload[0]
-            && buffer[result.UdpPayloadOffset + 4] == payload[4];
+            && buffer[result.UdpPayloadOffset + 4] == payload[4]);
     }
 
+    [HostTest("net.udp.rx rejects bad checksum", HostLane.Fast, 3)]
     private static bool TestRejectsBadChecksum()
     {
         byte[] payload = { 0x62, 0x61, 0x64, 0x21 };
@@ -117,23 +77,24 @@ internal static class UdpReceiveDispatcherTests
 
         UdpReceiveDispatchResult result = UdpReceiveDispatcher.Dispatch(buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == UdpReceiveDispatchStatus.BadUdpChecksum
             && result.NetworkStatus == NetworkReceiveDispatchStatus.Success
             && result.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.Success
             && result.NetworkPacketStatus == PacketParseStatus.Success
             && result.UdpPacketStatus == PacketParseStatus.BadChecksum
             && result.UdpPayloadOffset == 0
-            && result.UdpPayloadLength == 0;
+            && result.UdpPayloadLength == 0);
     }
 
+    [HostTest("net.udp.rx reports classifier failure", HostLane.Fast, 4)]
     private static bool TestReportsClassifierFailure()
     {
         byte[] buffer = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers - 1];
 
         UdpReceiveDispatchResult result = UdpReceiveDispatcher.Dispatch(buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == UdpReceiveDispatchStatus.ClassifierFailed
             && result.NetworkStatus == NetworkReceiveDispatchStatus.ClassifierFailed
             && result.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.BufferTooSmall
@@ -141,40 +102,43 @@ internal static class UdpReceiveDispatcherTests
             && result.NetworkPacketStatus == PacketParseStatus.BufferTooSmall
             && result.UdpPacketStatus == PacketParseStatus.BufferTooSmall
             && result.UdpPayloadOffset == 0
-            && result.UdpPayloadLength == 0;
+            && result.UdpPayloadLength == 0);
     }
 
+    [HostTest("net.udp.rx rejects non-ipv4 payload", HostLane.Fast, 5)]
     private static bool TestRejectsNonIpv4Payload()
     {
         byte[] buffer = CreateArpReceiveBuffer();
 
         UdpReceiveDispatchResult result = UdpReceiveDispatcher.Dispatch(buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == UdpReceiveDispatchStatus.NonIpv4Payload
             && result.NetworkStatus == NetworkReceiveDispatchStatus.Success
             && result.PayloadKind == EthernetPayloadKind.Arp
             && result.UdpPacketStatus == PacketParseStatus.UnsupportedEtherType
             && result.UdpPayloadOffset == 0
-            && result.UdpPayloadLength == 0;
+            && result.UdpPayloadLength == 0);
     }
 
+    [HostTest("net.udp.rx rejects non-udp protocol", HostLane.Fast, 6)]
     private static bool TestRejectsNonUdpProtocol()
     {
         byte[] buffer = CreateIpv4ReceiveBuffer(protocol: 1, ipv4PayloadLength: 0);
 
         UdpReceiveDispatchResult result = UdpReceiveDispatcher.Dispatch(buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == UdpReceiveDispatchStatus.UnsupportedIpProtocol
             && result.NetworkStatus == NetworkReceiveDispatchStatus.Success
             && result.PayloadKind == EthernetPayloadKind.Ipv4
             && result.Ipv4Header.Protocol == 1
             && result.UdpPacketStatus == PacketParseStatus.UnsupportedIpProtocol
             && result.UdpPayloadOffset == 0
-            && result.UdpPayloadLength == 0;
+            && result.UdpPayloadLength == 0);
     }
 
+    [HostTest("net.udp.rx reports truncated udp header", HostLane.Fast, 7)]
     private static bool TestReportsTruncatedUdpHeader()
     {
         byte[] buffer = CreateIpv4ReceiveBuffer(
@@ -183,15 +147,16 @@ internal static class UdpReceiveDispatcherTests
 
         UdpReceiveDispatchResult result = UdpReceiveDispatcher.Dispatch(buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == UdpReceiveDispatchStatus.UdpParseFailed
             && result.NetworkStatus == NetworkReceiveDispatchStatus.Success
             && result.Ipv4Header.Protocol == Ipv4Header.ProtocolUdp
             && result.UdpPacketStatus == PacketParseStatus.BufferTooSmall
             && result.UdpPayloadOffset == 0
-            && result.UdpPayloadLength == 0;
+            && result.UdpPayloadLength == 0);
     }
 
+    [HostTest("net.udp.rx reports truncated udp payload", HostLane.Fast, 8)]
     private static bool TestReportsTruncatedUdpPayload()
     {
         const int ActualUdpBytes = UdpHeader.HeaderLength + 2;
@@ -211,16 +176,17 @@ internal static class UdpReceiveDispatcherTests
 
         UdpReceiveDispatchResult result = UdpReceiveDispatcher.Dispatch(buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == UdpReceiveDispatchStatus.UdpParseFailed
             && result.NetworkStatus == NetworkReceiveDispatchStatus.Success
             && result.Ipv4Header.Protocol == Ipv4Header.ProtocolUdp
             && result.Ipv4Header.TotalLength == Ipv4Header.MinHeaderLength + ActualUdpBytes
             && result.UdpPacketStatus == PacketParseStatus.TruncatedPayload
             && result.UdpPayloadOffset == 0
-            && result.UdpPayloadLength == 0;
+            && result.UdpPayloadLength == 0);
     }
 
+    [HostTest("net.udp.rx default result is not success", HostLane.Fast, 9)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         byte[] payload = { 0x64, 0x61, 0x74, 0x61 };
@@ -230,7 +196,7 @@ internal static class UdpReceiveDispatcherTests
         UdpReceiveDispatchResult failure =
             UdpReceiveDispatcher.Dispatch(CreateArpReceiveBuffer());
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == UdpReceiveDispatchStatus.Success
             && !defaultResult.NetworkResult.IsInitialized
@@ -256,7 +222,7 @@ internal static class UdpReceiveDispatcherTests
             && failure.UdpPacketStatus == PacketParseStatus.UnsupportedEtherType
             && failure.UdpPayloadOffset == 0
             && failure.UdpPayloadLength == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<UdpReceiveDispatchResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<UdpReceiveDispatchResult>());
     }
 
     private static byte[] CreateUdpReceiveBuffer(ReadOnlySpan<byte> payload, bool writeChecksum = false)

@@ -3,51 +3,11 @@ using OS.Drivers;
 
 internal static class VirtioPciModernRegisterMapTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.virtiopci.registermap common offsets", TestCommonOffsets, ref failures);
-        Run("drivers.virtiopci.registermap status bits", TestStatusBits, ref failures);
-        Run("drivers.virtiopci.registermap isr and notify bits", TestIsrAndNotifyBits, ref failures);
-        Run(
-            "drivers.virtiopci.registermap validates first live common length",
-            TestValidatesFirstLiveCommonLength,
-            ref failures);
-        Run("drivers.virtiopci.registermap net config offsets", TestNetConfigOffsets, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio PCI modern register map host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtiopci.registermap common offsets", HostLane.Fast, 0)]
     private static bool TestCommonOffsets()
     {
-        return VirtioPciModernRegisterMap.CommonConfiguration.DeviceFeatureSelectOffset == 0x00
+        return HostCheck.Result(VirtioPciModernRegisterMap.CommonConfiguration.DeviceFeatureSelectOffset == 0x00
             && VirtioPciModernRegisterMap.CommonConfiguration.DeviceFeatureSelectWidth == 4
             && VirtioPciModernRegisterMap.CommonConfiguration.DeviceFeatureOffset == 0x04
             && VirtioPciModernRegisterMap.CommonConfiguration.DeviceFeatureWidth == 4
@@ -79,38 +39,41 @@ internal static class VirtioPciModernRegisterMapTests
             && VirtioPciModernRegisterMap.CommonConfiguration.QueueDriverWidth == 8
             && VirtioPciModernRegisterMap.CommonConfiguration.QueueDeviceOffset == 0x30
             && VirtioPciModernRegisterMap.CommonConfiguration.QueueDeviceWidth == 8
-            && VirtioPciModernRegisterMap.CommonConfiguration.FirstLiveQueueSetupLength == 0x38;
+            && VirtioPciModernRegisterMap.CommonConfiguration.FirstLiveQueueSetupLength == 0x38);
     }
 
+    [HostTest("drivers.virtiopci.registermap status bits", HostLane.Fast, 1)]
     private static bool TestStatusBits()
     {
-        return VirtioPciModernRegisterMap.DeviceStatus.Acknowledge == 0x01
+        return HostCheck.Result(VirtioPciModernRegisterMap.DeviceStatus.Acknowledge == 0x01
             && VirtioPciModernRegisterMap.DeviceStatus.Driver == 0x02
             && VirtioPciModernRegisterMap.DeviceStatus.DriverOk == 0x04
             && VirtioPciModernRegisterMap.DeviceStatus.FeaturesOk == 0x08
             && VirtioPciModernRegisterMap.DeviceStatus.DeviceNeedsReset == 0x40
-            && VirtioPciModernRegisterMap.DeviceStatus.Failed == 0x80;
+            && VirtioPciModernRegisterMap.DeviceStatus.Failed == 0x80);
     }
 
+    [HostTest("drivers.virtiopci.registermap isr and notify bits", HostLane.Fast, 2)]
     private static bool TestIsrAndNotifyBits()
     {
-        return VirtioPciModernRegisterMap.IsrStatus.Offset == 0x00
+        return HostCheck.Result(VirtioPciModernRegisterMap.IsrStatus.Offset == 0x00
             && VirtioPciModernRegisterMap.IsrStatus.Width == 1
             && VirtioPciModernRegisterMap.IsrStatus.QueueInterruptBit == 0
             && VirtioPciModernRegisterMap.IsrStatus.QueueInterrupt == 0x01
             && VirtioPciModernRegisterMap.IsrStatus.DeviceConfigurationChangeBit == 1
             && VirtioPciModernRegisterMap.IsrStatus.DeviceConfigurationChange == 0x02
             && VirtioPciModernRegisterMap.Notification.NoNotificationDataWriteWidthBits == 16
-            && VirtioPciModernRegisterMap.Notification.NoNotificationDataWriteWidthBytes == 2;
+            && VirtioPciModernRegisterMap.Notification.NoNotificationDataWriteWidthBytes == 2);
     }
 
+    [HostTest("drivers.virtiopci.registermap validates first live common length", HostLane.Fast, 3)]
     private static bool TestValidatesFirstLiveCommonLength()
     {
         uint requiredLength = VirtioPciModernRegisterMap.CommonConfiguration.FirstLiveQueueSetupLength;
         if (VirtioPciDeviceDiscovery.CommonConfigurationMinimumLength != requiredLength ||
             requiredLength != 0x38)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioPciDeviceDiscoveryResult tooShort = VirtioPciDeviceDiscovery.Discover(
@@ -121,7 +84,7 @@ internal static class VirtioPciModernRegisterMapTests
         if (tooShort.Succeeded ||
             tooShort.Status != VirtioPciDeviceDiscoveryStatus.InvalidCommonConfigurationCapability)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioPciDeviceDiscoveryResult exactLength = VirtioPciDeviceDiscovery.Discover(
@@ -130,14 +93,15 @@ internal static class VirtioPciModernRegisterMapTests
                 VirtioPciDeviceDiscovery.ModernDeviceIdStart + VirtioPciDeviceDiscovery.NetworkDeviceId),
             CreateNetworkCapabilities(requiredLength));
 
-        return exactLength.Succeeded
+        return HostCheck.Result(exactLength.Succeeded
             && exactLength.Status == VirtioPciDeviceDiscoveryStatus.Success
-            && exactLength.Capabilities.CommonConfiguration.Length == requiredLength;
+            && exactLength.Capabilities.CommonConfiguration.Length == requiredLength);
     }
 
+    [HostTest("drivers.virtiopci.registermap net config offsets", HostLane.Fast, 4)]
     private static bool TestNetConfigOffsets()
     {
-        return VirtioPciModernRegisterMap.NetDeviceConfiguration.MacAddressOffset == 0x00
+        return HostCheck.Result(VirtioPciModernRegisterMap.NetDeviceConfiguration.MacAddressOffset == 0x00
             && VirtioPciModernRegisterMap.NetDeviceConfiguration.MacAddressLength == 6
             && VirtioPciModernRegisterMap.NetDeviceConfiguration.StatusOffset == 0x06
             && VirtioPciModernRegisterMap.NetDeviceConfiguration.StatusWidth == 2
@@ -151,7 +115,7 @@ internal static class VirtioPciModernRegisterMapTests
             && VirtioPciModernRegisterMap.NetDeviceConfiguration.StatusWidth
                 == VirtioNetDeviceConfig.StatusLength
             && VirtioPciModernRegisterMap.NetDeviceConfiguration.StatusConfigLength
-                == VirtioNetDeviceConfig.StatusConfigLength;
+                == VirtioNetDeviceConfig.StatusConfigLength);
     }
 
     private static VirtioPciCapabilityMetadata[] CreateNetworkCapabilities(uint commonConfigurationLength)

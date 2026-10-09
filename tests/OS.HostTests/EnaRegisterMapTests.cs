@@ -3,55 +3,14 @@ using OS.Drivers;
 
 internal static class EnaRegisterMapTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.ena.registermap register offsets", TestRegisterOffsets, ref failures);
-        Run("drivers.ena.registermap capability and status bits", TestCapabilityAndStatusBits, ref failures);
-        Run("drivers.ena.registermap validates admin aperture", TestValidatesAdminAperture, ref failures);
-        Run("drivers.ena.registermap readiness accepts ready metadata", TestReadinessAcceptsReadyMetadata, ref failures);
-        Run("drivers.ena.registermap rejects default results", TestRejectsDefaultResults, ref failures);
-        Run(
-            "drivers.ena.registermap readiness rejects unsupported reset busy states",
-            TestReadinessRejectsUnsupportedResetBusyStates,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ENA register map host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.ena.registermap rejects default results", HostLane.Fast, 4)]
     private static bool TestRejectsDefaultResults()
     {
         EnaRegisterApertureValidationResult aperture = default;
         EnaAdminReadinessResult readiness = default;
 
-        return !aperture.IsInitialized
+        return HostCheck.Result(!aperture.IsInitialized
             && !aperture.Succeeded
             && aperture.Status == EnaRegisterApertureValidationStatus.Success
             && !readiness.IsInitialized
@@ -59,12 +18,13 @@ internal static class EnaRegisterMapTests
             && readiness.Status == EnaAdminReadinessStatus.Success
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
                 EnaRegisterApertureValidationResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<EnaAdminReadinessResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<EnaAdminReadinessResult>());
     }
 
+    [HostTest("drivers.ena.registermap register offsets", HostLane.Fast, 0)]
     private static bool TestRegisterOffsets()
     {
-        return EnaRegisterMap.RegisterBaseOffset == 0x0000
+        return HostCheck.Result(EnaRegisterMap.RegisterBaseOffset == 0x0000
             && EnaRegisterMap.RegisterWidth == 4
             && EnaRegisterMap.Version.Offset == 0x0000
             && EnaRegisterMap.Version.Width == 4
@@ -95,9 +55,10 @@ internal static class EnaRegisterMapTests
             && EnaRegisterMap.MmioResponse.LowOffset == 0x0060
             && EnaRegisterMap.MmioResponse.HighOffset == 0x0064
             && EnaRegisterMap.RssIndirectionEntryUpdate.Offset == 0x0068
-            && EnaRegisterMap.PhcDoorbell.Offset == 0x0100;
+            && EnaRegisterMap.PhcDoorbell.Offset == 0x0100);
     }
 
+    [HostTest("drivers.ena.registermap capability and status bits", HostLane.Fast, 1)]
     private static bool TestCapabilityAndStatusBits()
     {
         uint capabilities =
@@ -109,7 +70,7 @@ internal static class EnaRegisterMapTests
         uint adminCompletionQueueCaps =
             256u | (16u << EnaRegisterMap.AdminCompletionQueueCapabilities.EntrySizeShift);
 
-        return EnaRegisterMap.Version.MinorVersionMask == 0x000000FF
+        return HostCheck.Result(EnaRegisterMap.Version.MinorVersionMask == 0x000000FF
             && EnaRegisterMap.Version.MajorVersionShift == 8
             && EnaRegisterMap.Version.MajorVersionMask == 0x0000FF00
             && EnaRegisterMap.ControllerVersion.SubminorVersionMask == 0x000000FF
@@ -144,9 +105,10 @@ internal static class EnaRegisterMapTests
             && EnaRegisterMap.DeviceStatus.ResetFinished == 0x00000010
             && EnaRegisterMap.DeviceStatus.FatalError == 0x00000020
             && EnaRegisterMap.DeviceStatus.QuiescentStateInProgress == 0x00000040
-            && EnaRegisterMap.DeviceStatus.QuiescentStateAchieved == 0x00000080;
+            && EnaRegisterMap.DeviceStatus.QuiescentStateAchieved == 0x00000080);
     }
 
+    [HostTest("drivers.ena.registermap validates admin aperture", HostLane.Fast, 2)]
     private static bool TestValidatesAdminAperture()
     {
         EnaRegisterApertureValidationResult adminTooShort =
@@ -158,7 +120,7 @@ internal static class EnaRegisterMapTests
         EnaRegisterApertureValidationResult readinessExact =
             EnaRegisterMap.ValidateAdminReadinessRegisterAperture(0x005C);
 
-        return EnaRegisterMap.RequiredAdminQueueRegisterApertureLength == 0x0034
+        return HostCheck.Result(EnaRegisterMap.RequiredAdminQueueRegisterApertureLength == 0x0034
             && EnaRegisterMap.RequiredAdminReadinessRegisterApertureLength == 0x005C
             && !adminTooShort.Succeeded
             && adminTooShort.Status == EnaRegisterApertureValidationStatus.AdminQueueRegistersTruncated
@@ -172,9 +134,10 @@ internal static class EnaRegisterMapTests
             && readinessTooShort.Status == EnaRegisterApertureValidationStatus.ReadinessRegistersTruncated
             && readinessTooShort.RequiredLength == 0x005C
             && readinessExact.Succeeded
-            && readinessExact.ApertureLength == 0x005C;
+            && readinessExact.ApertureLength == 0x005C);
     }
 
+    [HostTest("drivers.ena.registermap readiness accepts ready metadata", HostLane.Fast, 3)]
     private static bool TestReadinessAcceptsReadyMetadata()
     {
         uint capabilities =
@@ -188,7 +151,7 @@ internal static class EnaRegisterMapTests
             capabilities,
             deviceStatus);
 
-        return readiness.Succeeded
+        return HostCheck.Result(readiness.Succeeded
             && readiness.Status == EnaAdminReadinessStatus.Success
             && readiness.ApertureValidation.Succeeded
             && readiness.Capabilities == capabilities
@@ -201,9 +164,10 @@ internal static class EnaRegisterMapTests
             && !readiness.DeviceFatalError
             && !readiness.DeviceResetInProgress
             && !readiness.AdminQueueRestartInProgress
-            && !readiness.DeviceQuiescentStateInProgress;
+            && !readiness.DeviceQuiescentStateInProgress);
     }
 
+    [HostTest("drivers.ena.registermap readiness rejects unsupported reset busy states", HostLane.Fast, 5)]
     private static bool TestReadinessRejectsUnsupportedResetBusyStates()
     {
         uint ready = EnaRegisterMap.DeviceStatus.Ready;
@@ -238,7 +202,7 @@ internal static class EnaRegisterMapTests
             capabilities: 0,
             deviceStatus: 0);
 
-        return !tooSmall.Succeeded
+        return HostCheck.Result(!tooSmall.Succeeded
             && tooSmall.Status == EnaAdminReadinessStatus.RegisterApertureTooSmall
             && tooSmall.ApertureValidation.Status
                 == EnaRegisterApertureValidationStatus.ReadinessRegistersTruncated
@@ -259,6 +223,6 @@ internal static class EnaRegisterMapTests
             && quiescent.DeviceQuiescentStateInProgress
             && !notReady.Succeeded
             && notReady.Status == EnaAdminReadinessStatus.DeviceNotReady
-            && !notReady.DeviceReady;
+            && !notReady.DeviceReady);
     }
 }

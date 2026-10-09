@@ -6,46 +6,8 @@ using OS.Pal;
 
 internal static class NativeAppSocketBindBridgeTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("appmodel.socket.bindbridge binds manifest-approved endpoint", TestBindsManifestApprovedEndpoint, ref failures);
-        Run("appmodel.socket.bindbridge rejects policy mismatch", TestRejectsPolicyMismatch, ref failures);
-        Run("appmodel.socket.bindbridge propagates mock bind conflict", TestPropagatesMockBindConflict, ref failures);
-        Run("appmodel.socket.bindbridge rejects missing table", TestRejectsMissingTable, ref failures);
-        Run("appmodel.socket.bindbridge preserves mock-only boundary", TestPreservesMockOnlyBoundary, ref failures);
-        Run("appmodel.socket.bindbridge default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app socket bind bridge host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel.socket.bindbridge binds manifest-approved endpoint", HostLane.Fast, 0)]
     private static bool TestBindsManifestApprovedEndpoint()
     {
         byte[] source = ManifestWithListen("0.0.0.0:8080");
@@ -62,7 +24,7 @@ internal static class NativeAppSocketBindBridgeTests
             endpoint,
             out NativeAppSocketBindBridgeResult result);
 
-        return status == NativeAppSocketBindBridgeStatus.Success
+        return HostCheck.Result(status == NativeAppSocketBindBridgeStatus.Success
             && result.Succeeded
             && result.IsInitialized
             && result.PolicyStatus == NativeAppSocketBindPolicyStatus.Success
@@ -74,9 +36,10 @@ internal static class NativeAppSocketBindBridgeTests
             && entry.LocalEndpoint.Address0 == 0
             && entry.LocalEndpoint.Address1 == 0
             && entry.LocalEndpoint.Address2 == 0
-            && entry.LocalEndpoint.Address3 == 0;
+            && entry.LocalEndpoint.Address3 == 0);
     }
 
+    [HostTest("appmodel.socket.bindbridge rejects policy mismatch", HostLane.Fast, 1)]
     private static bool TestRejectsPolicyMismatch()
     {
         byte[] source = ManifestWithListen("192.0.2.27:8080");
@@ -93,15 +56,16 @@ internal static class NativeAppSocketBindBridgeTests
             wrongEndpoint,
             out NativeAppSocketBindBridgeResult result);
 
-        return status == NativeAppSocketBindBridgeStatus.PolicyRejected
+        return HostCheck.Result(status == NativeAppSocketBindBridgeStatus.PolicyRejected
             && !result.Succeeded
             && result.IsInitialized
             && result.PolicyStatus == NativeAppSocketBindPolicyStatus.PortMismatch
             && result.SocketStatus == OSHostStatus.AccessDenied
             && table.TryGetEntry(create.Socket, out OSHostSocketTableEntry entry) == OSHostStatus.Ok
-            && entry.State == OSHostSocketLifecycleState.Created;
+            && entry.State == OSHostSocketLifecycleState.Created);
     }
 
+    [HostTest("appmodel.socket.bindbridge propagates mock bind conflict", HostLane.Fast, 2)]
     private static bool TestPropagatesMockBindConflict()
     {
         byte[] source = ManifestWithListen("0.0.0.0:8080");
@@ -112,7 +76,7 @@ internal static class NativeAppSocketBindBridgeTests
         OSHostIpv4Endpoint endpoint = Endpoint(0, 0, 0, 0, 8080);
         if (table.Bind(first.Socket, endpoint) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppSocketBindBridgeStatus status = NativeAppSocketBindBridge.BindManifestApprovedEndpoint(
@@ -123,15 +87,16 @@ internal static class NativeAppSocketBindBridgeTests
             endpoint,
             out NativeAppSocketBindBridgeResult result);
 
-        return status == NativeAppSocketBindBridgeStatus.SocketBindFailed
+        return HostCheck.Result(status == NativeAppSocketBindBridgeStatus.SocketBindFailed
             && !result.Succeeded
             && result.IsInitialized
             && result.PolicyStatus == NativeAppSocketBindPolicyStatus.Success
             && result.SocketStatus == OSHostStatus.AddressInUse
             && table.TryGetEntry(second.Socket, out OSHostSocketTableEntry entry) == OSHostStatus.Ok
-            && entry.State == OSHostSocketLifecycleState.Created;
+            && entry.State == OSHostSocketLifecycleState.Created);
     }
 
+    [HostTest("appmodel.socket.bindbridge rejects missing table", HostLane.Fast, 3)]
     private static bool TestRejectsMissingTable()
     {
         byte[] source = ManifestWithListen("0.0.0.0:8080");
@@ -146,13 +111,14 @@ internal static class NativeAppSocketBindBridgeTests
             endpoint,
             out NativeAppSocketBindBridgeResult result);
 
-        return status == NativeAppSocketBindBridgeStatus.MissingSocketTable
+        return HostCheck.Result(status == NativeAppSocketBindBridgeStatus.MissingSocketTable
             && !result.Succeeded
             && result.IsInitialized
             && result.PolicyStatus == NativeAppSocketBindPolicyStatus.Success
-            && result.SocketStatus == OSHostStatus.InvalidArgument;
+            && result.SocketStatus == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("appmodel.socket.bindbridge preserves mock-only boundary", HostLane.Fast, 4)]
     private static bool TestPreservesMockOnlyBoundary()
     {
         byte[] source = ManifestWithListen("localhost:8080");
@@ -168,7 +134,7 @@ internal static class NativeAppSocketBindBridgeTests
             Endpoint(127, 0, 0, 1, 8080),
             out NativeAppSocketBindBridgeResult result);
 
-        return NativeAppSocketBindBridge.UsesMockSocketTable
+        return HostCheck.Result(NativeAppSocketBindBridge.UsesMockSocketTable
             && NativeAppSocketBindBridge.CallsPolicyFirst
             && !NativeAppSocketBindBridge.ExportsPalFunctions
             && !NativeAppSocketBindBridge.OpensLiveSockets
@@ -178,21 +144,22 @@ internal static class NativeAppSocketBindBridgeTests
             && result.IsInitialized
             && result.PolicyStatus == NativeAppSocketBindPolicyStatus.InvalidListenHost
             && table.TryGetEntry(create.Socket, out OSHostSocketTableEntry entry) == OSHostStatus.Ok
-            && entry.State == OSHostSocketLifecycleState.Created;
+            && entry.State == OSHostSocketLifecycleState.Created);
     }
 
+    [HostTest("appmodel.socket.bindbridge default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAppSocketBindBridgeResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppSocketBindBridgeStatus.Success
             && result.PolicyStatus == NativeAppSocketBindPolicyStatus.Success
             && result.LaunchStatus == NativeAppLaunchStatus.Success
             && result.SocketStatus == OSHostStatus.Ok
             && result.Socket.Value == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppSocketBindBridgeResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppSocketBindBridgeResult>());
     }
 
     private static NativeAppLaunchPlanResult CreateLaunchPlan(byte[] source)

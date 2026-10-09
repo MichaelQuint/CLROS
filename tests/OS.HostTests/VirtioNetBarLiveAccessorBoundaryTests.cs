@@ -19,69 +19,7 @@ internal static class VirtioNetBarLiveAccessorBoundaryTests
     private const ushort TxNotifyOffset = 5;
     private const uint FrameBufferBytes = VirtioNetQueuePlan.MaximumFrameBufferBytes;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run(
-            "drivers.virtionet.bar.liveaccessor reads planned queue-size access",
-            TestReadsPlannedQueueSizeAccess,
-            ref failures);
-        Run(
-            "drivers.virtionet.bar.liveaccessor writes planned descriptor access",
-            TestWritesPlannedDescriptorAccess,
-            ref failures);
-        Run(
-            "drivers.virtionet.bar.liveaccessor rejects missing accessor and plan",
-            TestRejectsMissingAccessorAndPlan,
-            ref failures);
-        Run(
-            "drivers.virtionet.bar.liveaccessor rejects unsupported width",
-            TestRejectsUnsupportedWidth,
-            ref failures);
-        Run(
-            "drivers.virtionet.bar.liveaccessor propagates accessor status",
-            TestPropagatesAccessorStatus,
-            ref failures);
-        Run(
-            "drivers.virtionet.bar.liveaccessor preserves boundary contract",
-            TestPreservesBoundaryContract,
-            ref failures);
-        Run(
-            "drivers.virtionet.bar.liveaccessor default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio-net BAR live-accessor boundary host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtionet.bar.liveaccessor reads planned queue-size access", HostLane.Fast, 0)]
     private static bool TestReadsPlannedQueueSizeAccess()
     {
         VirtioPciBarRegisterWindowAccessPlan[] accessPlans = CreateQueueSetupAccessPlans();
@@ -95,7 +33,7 @@ internal static class VirtioNetBarLiveAccessorBoundaryTests
                 accessPlans[1],
                 accessor);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioPciBarRegisterWindowLiveAccessorStatus.Success
             && result.Operation == VirtioPciBarRegisterWindowLiveAccessorOperation.Read16
             && result.ReadStatus == VirtioPciRegisterReadStatus.Success
@@ -118,9 +56,10 @@ internal static class VirtioNetBarLiveAccessorBoundaryTests
             && accessor.RelativeOffsets[0] == VirtioPciModernRegisterMap.CommonConfiguration.QueueSizeOffset
             && accessor.Values[0] == RxDeviceMaximumQueueSize
             && accessor.CapabilityTypes[0] == VirtioPciCapabilityType.CommonConfiguration
-            && accessor.BarIndices[0] == 0;
+            && accessor.BarIndices[0] == 0);
     }
 
+    [HostTest("drivers.virtionet.bar.liveaccessor writes planned descriptor access", HostLane.Fast, 1)]
     private static bool TestWritesPlannedDescriptorAccess()
     {
         VirtioPciBarRegisterWindowAccessPlan[] accessPlans = CreateQueueSetupAccessPlans();
@@ -133,7 +72,7 @@ internal static class VirtioNetBarLiveAccessorBoundaryTests
                 descriptorAddress,
                 accessor);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioPciBarRegisterWindowLiveAccessorStatus.Success
             && result.Operation == VirtioPciBarRegisterWindowLiveAccessorOperation.Write64
             && result.WriteStatus == VirtioPciRegisterWriteStatus.Success
@@ -145,9 +84,10 @@ internal static class VirtioNetBarLiveAccessorBoundaryTests
             && !accessor.IsRead[0]
             && accessor.RelativeOffsets[0] == VirtioPciModernRegisterMap.CommonConfiguration.QueueDescOffset
             && accessor.Values[0] == descriptorAddress
-            && accessor.Widths[0] == sizeof(ulong);
+            && accessor.Widths[0] == sizeof(ulong));
     }
 
+    [HostTest("drivers.virtionet.bar.liveaccessor rejects missing accessor and plan", HostLane.Fast, 2)]
     private static bool TestRejectsMissingAccessorAndPlan()
     {
         VirtioPciBarRegisterWindowAccessPlan[] accessPlans = CreateQueueSetupAccessPlans();
@@ -163,7 +103,7 @@ internal static class VirtioNetBarLiveAccessorBoundaryTests
                 default,
                 accessor);
 
-        return !missingAccessor.Succeeded
+        return HostCheck.Result(!missingAccessor.Succeeded
             && missingAccessor.Status == VirtioPciBarRegisterWindowLiveAccessorStatus.AccessorNotReady
             && missingAccessor.Operation == VirtioPciBarRegisterWindowLiveAccessorOperation.Write16
             && missingAccessor.WriteStatus == VirtioPciRegisterWriteStatus.NotReady
@@ -171,9 +111,10 @@ internal static class VirtioNetBarLiveAccessorBoundaryTests
             && missingPlan.Status == VirtioPciBarRegisterWindowLiveAccessorStatus.MissingAccessPlan
             && missingPlan.Operation == VirtioPciBarRegisterWindowLiveAccessorOperation.Read16
             && missingPlan.WidthBytes == 0
-            && accessor.OperationCount == 0;
+            && accessor.OperationCount == 0);
     }
 
+    [HostTest("drivers.virtionet.bar.liveaccessor rejects unsupported width", HostLane.Fast, 3)]
     private static bool TestRejectsUnsupportedWidth()
     {
         VirtioPciBarRegisterWindowAccessPlan[] accessPlans = CreateQueueSetupAccessPlans();
@@ -189,16 +130,17 @@ internal static class VirtioNetBarLiveAccessorBoundaryTests
                 value: 1,
                 accessor);
 
-        return !readQword.Succeeded
+        return HostCheck.Result(!readQword.Succeeded
             && readQword.Status == VirtioPciBarRegisterWindowLiveAccessorStatus.UnsupportedReadWidth
             && readQword.Width == VirtioPciRegisterAccessWidth.QWord
             && !writeWordAsQword.Succeeded
             && writeWordAsQword.Status ==
                 VirtioPciBarRegisterWindowLiveAccessorStatus.UnsupportedWriteWidth
             && writeWordAsQword.Width == VirtioPciRegisterAccessWidth.Word
-            && accessor.OperationCount == 0;
+            && accessor.OperationCount == 0);
     }
 
+    [HostTest("drivers.virtionet.bar.liveaccessor propagates accessor status", HostLane.Fast, 4)]
     private static bool TestPropagatesAccessorStatus()
     {
         VirtioPciBarRegisterWindowAccessPlan[] accessPlans = CreateQueueSetupAccessPlans();
@@ -229,7 +171,7 @@ internal static class VirtioNetBarLiveAccessorBoundaryTests
                 accessPlans[1],
                 notReady);
 
-        return !readResult.Succeeded
+        return HostCheck.Result(!readResult.Succeeded
             && readResult.Status == VirtioPciBarRegisterWindowLiveAccessorStatus.RegisterReadFailed
             && readResult.ReadStatus == VirtioPciRegisterReadStatus.ReadFailed
             && readFailure.OperationCount == 1
@@ -240,9 +182,10 @@ internal static class VirtioNetBarLiveAccessorBoundaryTests
             && !notReadyResult.Succeeded
             && notReadyResult.Status == VirtioPciBarRegisterWindowLiveAccessorStatus.AccessorNotReady
             && notReadyResult.ReadStatus == VirtioPciRegisterReadStatus.NotReady
-            && notReady.OperationCount == 1;
+            && notReady.OperationCount == 1);
     }
 
+    [HostTest("drivers.virtionet.bar.liveaccessor preserves boundary contract", HostLane.Fast, 5)]
     private static bool TestPreservesBoundaryContract()
     {
         VirtioPciBarRegisterWindowAccessPlan[] accessPlans = CreateQueueSetupAccessPlans();
@@ -254,7 +197,7 @@ internal static class VirtioNetBarLiveAccessorBoundaryTests
                 VirtioNetQueuePlan.ReceiveQueueIndex,
                 accessor);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && VirtioPciBarRegisterWindowLiveAccessorBoundary.RequiresAccessPlan
             && VirtioPciBarRegisterWindowLiveAccessorBoundary.RequiresInjectedAccessor
             && VirtioPciBarRegisterWindowLiveAccessorBoundary.ConsumesMappedRegisterWindowAccessPlan
@@ -270,21 +213,22 @@ internal static class VirtioNetBarLiveAccessorBoundaryTests
             && !VirtioPciBarRegisterWindowLiveAccessorBoundary.PollsDevice
             && !VirtioPciBarRegisterWindowLiveAccessorBoundary.HandlesInterrupts
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioPciBarRegisterWindowLiveAccessorResult>();
+                VirtioPciBarRegisterWindowLiveAccessorResult>());
     }
 
+    [HostTest("drivers.virtionet.bar.liveaccessor default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioPciBarRegisterWindowLiveAccessorResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioPciBarRegisterWindowLiveAccessorStatus.Success
             && result.Operation == VirtioPciBarRegisterWindowLiveAccessorOperation.None
             && result.ReadStatus == VirtioPciRegisterReadStatus.Success
             && result.WriteStatus == VirtioPciRegisterWriteStatus.Success
             && result.WidthBytes == 0
-            && result.Value == 0;
+            && result.Value == 0);
     }
 
     private static VirtioPciBarRegisterWindowAccessPlan[] CreateQueueSetupAccessPlans()

@@ -4,51 +4,11 @@ using OS.Std.Binary;
 
 internal static class EnaAdminDescriptorsTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.ena.admin.desc exposes descriptor size constants", TestDescriptorSizeConstants, ref failures);
-        Run("drivers.ena.admin.desc writes get feature device attributes", TestWritesGetFeatureDeviceAttributes, ref failures);
-        Run("drivers.ena.admin.desc parses successful completion", TestParsesSuccessfulCompletion, ref failures);
-        Run("drivers.ena.admin.desc reports command id mismatch", TestReportsCommandIdMismatch, ref failures);
-        Run("drivers.ena.admin.desc reports completion status", TestReportsCompletionStatus, ref failures);
-        Run("drivers.ena.admin.desc rejects short buffers", TestRejectsShortBuffers, ref failures);
-        Run("drivers.ena.admin.desc preserves phase status bits", TestPreservesPhaseStatusBits, ref failures);
-        Run("drivers.ena.admin.desc rejects default completion entry", TestRejectsDefaultCompletionEntry, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ENA admin descriptor host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.ena.admin.desc exposes descriptor size constants", HostLane.Fast, 0)]
     private static bool TestDescriptorSizeConstants()
     {
-        return EnaAdminDescriptors.AdminSubmissionDescriptorByteLength == 64
+        return HostCheck.Result(EnaAdminDescriptors.AdminSubmissionDescriptorByteLength == 64
             && EnaAdminDescriptors.AdminCompletionDescriptorByteLength == 64
             && EnaAdminDescriptors.AqCommonDescriptorByteLength == 4
             && EnaAdminDescriptors.AcqCommonDescriptorByteLength == 8
@@ -65,9 +25,10 @@ internal static class EnaAdminDescriptorsTests
             && !EnaAdminDescriptors.AllocatesDmaMemory
             && !EnaAdminDescriptors.PerformsMmio
             && !EnaAdminDescriptors.RingsDoorbell
-            && !EnaAdminDescriptors.ExecutesAdminCommand;
+            && !EnaAdminDescriptors.ExecutesAdminCommand);
     }
 
+    [HostTest("drivers.ena.admin.desc writes get feature device attributes", HostLane.Fast, 1)]
     private static bool TestWritesGetFeatureDeviceAttributes()
     {
         byte[] descriptor = new byte[EnaAdminDescriptors.GetFeatureCommandByteLength + 2];
@@ -93,7 +54,7 @@ internal static class EnaAdminDescriptorsTests
             reservedPayloadZero &= descriptor[index] == 0;
         }
 
-        return writeStatus == EnaAdminDescriptorStatus.Success
+        return HostCheck.Result(writeStatus == EnaAdminDescriptorStatus.Success
             && readStatus == EnaAdminDescriptorStatus.Success
             && bytesWritten == EnaAdminDescriptors.GetFeatureCommandByteLength
             && descriptor[0] == 0x23
@@ -119,9 +80,10 @@ internal static class EnaAdminDescriptorsTests
             && parsed.ControlBuffer.PhysicalAddress == 0
             && parsed.FeatureSelect == (byte)EnaAdminFeatureSelect.CurrentValue
             && parsed.FeatureId == (byte)EnaAdminFeatureId.DeviceAttributes
-            && parsed.FeatureVersion == 0;
+            && parsed.FeatureVersion == 0);
     }
 
+    [HostTest("drivers.ena.admin.desc parses successful completion", HostLane.Fast, 2)]
     private static bool TestParsesSuccessfulCompletion()
     {
         byte[] completion = CreateCompletion(
@@ -142,7 +104,7 @@ internal static class EnaAdminDescriptorsTests
                 expectedPhase: true);
 
         EnaAdminAcqCommonDescriptor common = entry.CommonDescriptor;
-        return parseStatus == EnaAdminDescriptorStatus.Success
+        return HostCheck.Result(parseStatus == EnaAdminDescriptorStatus.Success
             && validationStatus == EnaAdminDescriptorStatus.Success
             && entry.IsInitialized
             && common.RawCommand == 0xA456
@@ -152,9 +114,10 @@ internal static class EnaAdminDescriptorsTests
             && common.Flags == EnaAdminDescriptors.PhaseFlag
             && common.Phase
             && common.ExtendedStatus == 0x0012
-            && common.SubmissionQueueHeadIndex == 0x0020;
+            && common.SubmissionQueueHeadIndex == 0x0020);
     }
 
+    [HostTest("drivers.ena.admin.desc reports command id mismatch", HostLane.Fast, 3)]
     private static bool TestReportsCommandIdMismatch()
     {
         byte[] completion = CreateCompletion(
@@ -174,11 +137,12 @@ internal static class EnaAdminDescriptorsTests
                 expectedCommandId: 0x0101,
                 expectedPhase: true);
 
-        return parseStatus == EnaAdminDescriptorStatus.Success
+        return HostCheck.Result(parseStatus == EnaAdminDescriptorStatus.Success
             && validationStatus == EnaAdminDescriptorStatus.CommandIdMismatch
-            && entry.CommonDescriptor.CommandId == 0x0100;
+            && entry.CommonDescriptor.CommandId == 0x0100);
     }
 
+    [HostTest("drivers.ena.admin.desc reports completion status", HostLane.Fast, 4)]
     private static bool TestReportsCompletionStatus()
     {
         byte[] completion = CreateCompletion(
@@ -198,13 +162,14 @@ internal static class EnaAdminDescriptorsTests
                 expectedCommandId: 0x0002,
                 expectedPhase: true);
 
-        return parseStatus == EnaAdminDescriptorStatus.Success
+        return HostCheck.Result(parseStatus == EnaAdminDescriptorStatus.Success
             && validationStatus == EnaAdminDescriptorStatus.CompletionStatusNotSuccess
             && entry.CommonDescriptor.Status == (byte)EnaAdminCompletionStatus.IllegalParameter
             && entry.CommonDescriptor.CompletionStatus == EnaAdminCompletionStatus.IllegalParameter
-            && entry.CommonDescriptor.ExtendedStatus == 0xBEEF;
+            && entry.CommonDescriptor.ExtendedStatus == 0xBEEF);
     }
 
+    [HostTest("drivers.ena.admin.desc rejects short buffers", HostLane.Fast, 5)]
     private static bool TestRejectsShortBuffers()
     {
         byte[] shortSubmission = new byte[EnaAdminDescriptors.GetFeatureCommandByteLength - 1];
@@ -251,14 +216,15 @@ internal static class EnaAdminDescriptorsTests
                     controlBufferIndirect: false),
                 out _);
 
-        return shortWrite == EnaAdminDescriptorStatus.BufferTooSmall
+        return HostCheck.Result(shortWrite == EnaAdminDescriptorStatus.BufferTooSmall
             && bytesWritten == 0
             && shortReadCommand == EnaAdminDescriptorStatus.BufferTooSmall
             && shortReadCompletion == EnaAdminDescriptorStatus.BufferTooSmall
             && commandIdOutOfRange == EnaAdminDescriptorStatus.CommandIdOutOfRange
-            && physicalAddressOutOfRange == EnaAdminDescriptorStatus.PhysicalAddressOutOfRange;
+            && physicalAddressOutOfRange == EnaAdminDescriptorStatus.PhysicalAddressOutOfRange);
     }
 
+    [HostTest("drivers.ena.admin.desc preserves phase status bits", HostLane.Fast, 6)]
     private static bool TestPreservesPhaseStatusBits()
     {
         byte[] completion = CreateCompletion(
@@ -278,16 +244,17 @@ internal static class EnaAdminDescriptorsTests
                 expectedCommandId: 0x0007,
                 expectedPhase: false);
 
-        return parseStatus == EnaAdminDescriptorStatus.Success
+        return HostCheck.Result(parseStatus == EnaAdminDescriptorStatus.Success
             && phaseMismatch == EnaAdminDescriptorStatus.PhaseMismatch
             && entry.CommonDescriptor.Status == 0x87
             && entry.CommonDescriptor.Flags == 0xA5
             && entry.CommonDescriptor.Phase
             && entry.CommonDescriptor.CommandId == 0x0007
             && entry.CommonDescriptor.ExtendedStatus == 0x0102
-            && entry.CommonDescriptor.SubmissionQueueHeadIndex == 0x0304;
+            && entry.CommonDescriptor.SubmissionQueueHeadIndex == 0x0304);
     }
 
+    [HostTest("drivers.ena.admin.desc rejects default completion entry", HostLane.Fast, 7)]
     private static bool TestRejectsDefaultCompletionEntry()
     {
         EnaAdminAcqEntry entry = default;
@@ -297,9 +264,9 @@ internal static class EnaAdminDescriptorsTests
                 expectedCommandId: 0,
                 expectedPhase: false);
 
-        return !entry.IsInitialized
+        return HostCheck.Result(!entry.IsInitialized
             && status == EnaAdminDescriptorStatus.CompletionEntryNotInitialized
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<EnaAdminAcqEntry>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<EnaAdminAcqEntry>());
     }
 
     private static byte[] CreateCompletion(

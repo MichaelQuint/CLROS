@@ -4,44 +4,8 @@ using OS.Kernel.Platform;
 
 internal static class PlatformMemoryMapGuardTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("platform.memorymap allows snapshot copy before UEFI gone", TestAllowedBeforeUefiGone, ref failures);
-        Run("platform.memorymap rejects snapshot copy in UEFI-gone simulation", TestRejectedAfterUefiGoneSimulation, ref failures);
-        Run("platform.memorymap rejects snapshot copy after ExitBootServices", TestRejectedAfterExitBootServices, ref failures);
-        Run("platform.memorymap reports invalid snapshot as status", TestInvalidSnapshotStatus, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Platform memory-map guard host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("platform.memorymap allows snapshot copy before UEFI gone", HostLane.Fast, 0)]
     private static bool TestAllowedBeforeUefiGone()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -49,15 +13,16 @@ internal static class PlatformMemoryMapGuardTests
 
         PlatformMemoryMapResult result = memoryMap.CopySnapshot();
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == PlatformMemoryMapStatus.Success
             && result.Mode == FirmwareServicesMode.BootServicesAvailable
             && result.Operation == PlatformMemoryMapOperations.GetMemoryMap
             && result.Message.Length == 0
             && result.Snapshot.MapKey == 0x55
-            && result.Snapshot.DescriptorCount == 1;
+            && result.Snapshot.DescriptorCount == 1);
     }
 
+    [HostTest("platform.memorymap rejects snapshot copy in UEFI-gone simulation", HostLane.Fast, 1)]
     private static bool TestRejectedAfterUefiGoneSimulation()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -66,14 +31,15 @@ internal static class PlatformMemoryMapGuardTests
 
         PlatformMemoryMapResult result = memoryMap.CopySnapshot();
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformMemoryMapStatus.FirmwareServicesUnavailable
             && result.Mode == FirmwareServicesMode.UefiGoneSimulated
             && result.Operation == PlatformMemoryMapOperations.GetMemoryMap
             && result.Snapshot.DescriptorCount == 0
-            && result.Message.Contains("UefiGoneSimulated", StringComparison.Ordinal);
+            && result.Message.Contains("UefiGoneSimulated", StringComparison.Ordinal));
     }
 
+    [HostTest("platform.memorymap rejects snapshot copy after ExitBootServices", HostLane.Fast, 2)]
     private static bool TestRejectedAfterExitBootServices()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -82,14 +48,15 @@ internal static class PlatformMemoryMapGuardTests
 
         PlatformMemoryMapResult result = memoryMap.CopySnapshot();
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformMemoryMapStatus.FirmwareServicesUnavailable
             && result.Mode == FirmwareServicesMode.BootServicesExited
             && result.Operation == PlatformMemoryMapOperations.GetMemoryMap
             && result.Snapshot.DescriptorCount == 0
-            && result.Message.Contains("BootServicesExited", StringComparison.Ordinal);
+            && result.Message.Contains("BootServicesExited", StringComparison.Ordinal));
     }
 
+    [HostTest("platform.memorymap reports invalid snapshot as status", HostLane.Fast, 3)]
     private static bool TestInvalidSnapshotStatus()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -97,11 +64,11 @@ internal static class PlatformMemoryMapGuardTests
 
         PlatformMemoryMapResult result = memoryMap.CopySnapshot();
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformMemoryMapStatus.InvalidSnapshot
             && result.Mode == FirmwareServicesMode.BootServicesAvailable
             && result.Operation == PlatformMemoryMapOperations.GetMemoryMap
-            && result.Message.Contains("descriptor entries", StringComparison.Ordinal);
+            && result.Message.Contains("descriptor entries", StringComparison.Ordinal));
     }
 
     private static UefiMemoryMapSnapshot CreateValidSnapshot()

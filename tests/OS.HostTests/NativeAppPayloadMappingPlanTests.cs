@@ -9,45 +9,7 @@ internal static class NativeAppPayloadMappingPlanTests
     private const ulong PayloadOffsetInPackage = 128;
     private const ulong PayloadLength = 48;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("appmodel payload mapping plans executable range", TestPlansExecutableRange, ref failures);
-        Run("appmodel payload mapping rejects descriptor failure", TestRejectsDescriptorFailure, ref failures);
-        Run("appmodel payload mapping rejects zero executable bytes", TestRejectsZeroExecutableBytes, ref failures);
-        Run("appmodel payload mapping rejects invalid entry range", TestRejectsInvalidEntryRange, ref failures);
-        Run("appmodel payload mapping default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app payload mapping plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel payload mapping plans executable range", HostLane.Fast, 0)]
     private static bool TestPlansExecutableRange()
     {
         NativeAppLaunchDescriptorResult descriptor = CreateDescriptorResult(
@@ -58,7 +20,7 @@ internal static class NativeAppPayloadMappingPlanTests
         NativeAppPayloadMappingPlanResult result =
             NativeAppPayloadMappingPlanner.Create(descriptor);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppPayloadMappingPlanStatus.Success
             && result.Plan.PayloadOffsetInPackage == PayloadOffsetInPackage
@@ -69,9 +31,10 @@ internal static class NativeAppPayloadMappingPlanTests
             && result.Plan.ExecutableLength == PayloadLength - NativeAppPayloadHeader.HeaderSize
             && result.Plan.EntryOffsetInPayload == NativeAppPayloadHeader.HeaderSize + 4
             && result.Plan.EntryOffsetInExecutable == 4
-            && result.Plan.EntryOffsetInPackage == PayloadOffsetInPackage + NativeAppPayloadHeader.HeaderSize + 4;
+            && result.Plan.EntryOffsetInPackage == PayloadOffsetInPackage + NativeAppPayloadHeader.HeaderSize + 4);
     }
 
+    [HostTest("appmodel payload mapping rejects descriptor failure", HostLane.Fast, 1)]
     private static bool TestRejectsDescriptorFailure()
     {
         NativeAppLaunchDescriptorResult descriptor = NativeAppLaunchDescriptorResult.Fail(
@@ -84,13 +47,14 @@ internal static class NativeAppPayloadMappingPlanTests
         NativeAppPayloadMappingPlanResult result =
             NativeAppPayloadMappingPlanner.Create(descriptor);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppPayloadMappingPlanStatus.DescriptorFailed
             && result.DescriptorStatus == NativeAppLaunchDescriptorStatus.InvalidPayloadHeader
-            && result.PayloadHeaderStatus == NativeAppPayloadHeaderStatus.InvalidMagic;
+            && result.PayloadHeaderStatus == NativeAppPayloadHeaderStatus.InvalidMagic);
     }
 
+    [HostTest("appmodel payload mapping rejects zero executable bytes", HostLane.Fast, 2)]
     private static bool TestRejectsZeroExecutableBytes()
     {
         NativeAppPayloadHeader header = ParsePayloadHeader(40, NativeAppPayloadHeader.HeaderSize);
@@ -102,11 +66,12 @@ internal static class NativeAppPayloadMappingPlanTests
         NativeAppPayloadMappingPlanResult result =
             NativeAppPayloadMappingPlanner.Create(descriptor);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
-            && result.Status == NativeAppPayloadMappingPlanStatus.ZeroExecutableContent;
+            && result.Status == NativeAppPayloadMappingPlanStatus.ZeroExecutableContent);
     }
 
+    [HostTest("appmodel payload mapping rejects invalid entry range", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidEntryRange()
     {
         NativeAppPayloadHeader header = ParsePayloadHeader((int)PayloadLength, NativeAppPayloadHeader.HeaderSize + 8);
@@ -118,16 +83,17 @@ internal static class NativeAppPayloadMappingPlanTests
         NativeAppPayloadMappingPlanResult result =
             NativeAppPayloadMappingPlanner.Create(descriptor);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
-            && result.Status == NativeAppPayloadMappingPlanStatus.InvalidEntryOffset;
+            && result.Status == NativeAppPayloadMappingPlanStatus.InvalidEntryOffset);
     }
 
+    [HostTest("appmodel payload mapping default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAppPayloadMappingPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppPayloadMappingPlanStatus.Success
             && result.DescriptorStatus == NativeAppLaunchDescriptorStatus.Success
@@ -141,7 +107,7 @@ internal static class NativeAppPayloadMappingPlanTests
             && result.Plan.EntryOffsetInPayload == 0
             && result.Plan.EntryOffsetInExecutable == 0
             && result.Plan.EntryOffsetInPackage == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppPayloadMappingPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppPayloadMappingPlanResult>());
     }
 
     private static NativeAppLaunchDescriptorResult CreateDescriptorResult(

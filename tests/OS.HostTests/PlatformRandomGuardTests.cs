@@ -3,47 +3,8 @@ using OS.Kernel.Platform;
 
 internal static class PlatformRandomGuardTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("platform.random fill allowed before UEFI gone", TestAllowedBeforeUefiGone, ref failures);
-        Run("platform.random fill denied in UEFI-gone simulation", TestDeniedAfterUefiGoneSimulation, ref failures);
-        Run("platform.random fill denied after ExitBootServices", TestDeniedAfterExitBootServices, ref failures);
-        Run("platform.random fill rejects empty destination", TestRejectsEmptyDestination, ref failures);
-        Run("platform.random fill reports source failure", TestReportsSourceFailure, ref failures);
-        Run("platform.random fill reports short read", TestReportsShortRead, ref failures);
-        Run("platform.random result contains no managed references", TestResultContainsNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Platform random guard host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("platform.random fill allowed before UEFI gone", HostLane.Fast, 0)]
     private static bool TestAllowedBeforeUefiGone()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -53,7 +14,7 @@ internal static class PlatformRandomGuardTests
 
         PlatformRandomResult result = random.FillBytes(destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == PlatformRandomStatus.Success
             && result.Mode == FirmwareServicesMode.BootServicesAvailable
             && result.Operation == PlatformRandomOperations.FillBytes
@@ -64,9 +25,10 @@ internal static class PlatformRandomGuardTests
             && destination[0] == 0x5a
             && destination[1] == 0x5b
             && destination[2] == 0x5c
-            && destination[3] == 0x5d;
+            && destination[3] == 0x5d);
     }
 
+    [HostTest("platform.random fill denied in UEFI-gone simulation", HostLane.Fast, 1)]
     private static bool TestDeniedAfterUefiGoneSimulation()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -77,16 +39,17 @@ internal static class PlatformRandomGuardTests
 
         PlatformRandomResult result = random.FillBytes(destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformRandomStatus.FirmwareServicesUnavailable
             && result.Mode == FirmwareServicesMode.UefiGoneSimulated
             && result.Operation == PlatformRandomOperations.FillBytes
             && result.RequestedBytes == 0
             && result.BytesWritten == 0
             && source.FillCount == 0
-            && BufferIsZero(destination);
+            && BufferIsZero(destination));
     }
 
+    [HostTest("platform.random fill denied after ExitBootServices", HostLane.Fast, 2)]
     private static bool TestDeniedAfterExitBootServices()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -97,16 +60,17 @@ internal static class PlatformRandomGuardTests
 
         PlatformRandomResult result = random.FillBytes(destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformRandomStatus.FirmwareServicesUnavailable
             && result.Mode == FirmwareServicesMode.BootServicesExited
             && result.Operation == PlatformRandomOperations.FillBytes
             && result.RequestedBytes == 0
             && result.BytesWritten == 0
             && source.FillCount == 0
-            && BufferIsZero(destination);
+            && BufferIsZero(destination));
     }
 
+    [HostTest("platform.random fill rejects empty destination", HostLane.Fast, 3)]
     private static bool TestRejectsEmptyDestination()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -115,15 +79,16 @@ internal static class PlatformRandomGuardTests
 
         PlatformRandomResult result = random.FillBytes(Span<byte>.Empty);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformRandomStatus.InvalidDestination
             && result.Mode == FirmwareServicesMode.BootServicesAvailable
             && result.Operation == PlatformRandomOperations.FillBytes
             && result.RequestedBytes == 0
             && result.BytesWritten == 0
-            && source.FillCount == 0;
+            && source.FillCount == 0);
     }
 
+    [HostTest("platform.random fill reports source failure", HostLane.Fast, 4)]
     private static bool TestReportsSourceFailure()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -134,7 +99,7 @@ internal static class PlatformRandomGuardTests
 
         PlatformRandomResult result = random.FillBytes(destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformRandomStatus.SourceFailed
             && result.Mode == FirmwareServicesMode.BootServicesAvailable
             && result.Operation == PlatformRandomOperations.FillBytes
@@ -142,9 +107,10 @@ internal static class PlatformRandomGuardTests
             && result.BytesWritten == 0
             && result.FirmwareStatus == firmwareStatus
             && source.FillCount == 1
-            && BufferIsZero(destination);
+            && BufferIsZero(destination));
     }
 
+    [HostTest("platform.random fill reports short read", HostLane.Fast, 5)]
     private static bool TestReportsShortRead()
     {
         FirmwareServicesGuard firmware = new FirmwareServicesGuard();
@@ -154,7 +120,7 @@ internal static class PlatformRandomGuardTests
 
         PlatformRandomResult result = random.FillBytes(destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PlatformRandomStatus.ShortRead
             && result.Mode == FirmwareServicesMode.BootServicesAvailable
             && result.Operation == PlatformRandomOperations.FillBytes
@@ -164,13 +130,14 @@ internal static class PlatformRandomGuardTests
             && destination[0] == 0x30
             && destination[1] == 0x31
             && destination[2] == 0
-            && destination[3] == 0;
+            && destination[3] == 0);
     }
 
+    [HostTest("platform.random result contains no managed references", HostLane.Fast, 6)]
     private static bool TestResultContainsNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<PlatformRandomSourceResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<PlatformRandomResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<PlatformRandomSourceResult>()
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<PlatformRandomResult>());
     }
 
     private static bool BufferIsZero(ReadOnlySpan<byte> buffer)

@@ -6,53 +6,8 @@ using OS.Manifest;
 
 internal static class BootSequenceAppExecutableMappingTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run(
-            "boot.sequence app executable mapping ready",
-            TestExecutableMappingReady,
-            ref failures);
-        Run(
-            "boot.sequence app executable mapping rejects mapping failure",
-            TestExecutableMappingRejectsMappingFailure,
-            ref failures);
-        Run(
-            "boot.sequence app executable mapping preserves default markers",
-            TestExecutableMappingPreservesDefaultMarkers,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Boot sequence app executable mapping host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("boot.sequence app executable mapping ready", HostLane.Fast, 0)]
     private static bool TestExecutableMappingReady()
     {
         NativeAppPayloadMappingPlanResult mapping = NativeAppPayloadMappingPlanResult.Success(
@@ -71,12 +26,13 @@ internal static class BootSequenceAppExecutableMappingTests
 
         BootResult result = BootSequence.RunAppExecutableMappingReadiness(mapping, serial, events);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.AppExecutableMappingReady
-            && events.Snapshot()[0] == BootSequence.AppExecutableMappingReady;
+            && events.Snapshot()[0] == BootSequence.AppExecutableMappingReady);
     }
 
+    [HostTest("boot.sequence app executable mapping rejects mapping failure", HostLane.Fast, 1)]
     private static bool TestExecutableMappingRejectsMappingFailure()
     {
         NativeAppPayloadMappingPlanResult mapping = NativeAppPayloadMappingPlanResult.Fail(
@@ -92,7 +48,7 @@ internal static class BootSequenceAppExecutableMappingTests
 
         BootResult result = BootSequence.RunAppExecutableMappingReadiness(mapping, serial, events);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(
                 nameof(NativeAppPayloadMappingPlanStatus.DescriptorFailed),
                 StringComparison.Ordinal)
@@ -101,9 +57,10 @@ internal static class BootSequenceAppExecutableMappingTests
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence app executable mapping preserves default markers", HostLane.Fast, 2)]
     private static bool TestExecutableMappingPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -112,19 +69,19 @@ internal static class BootSequenceAppExecutableMappingTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.AppExecutableMappingReady)
-            && !serial.ContainsPrefix(BootSequence.AppExecutableMappingNotReadyPrefix);
+        return HostCheck.Result(!serial.Contains(BootSequence.AppExecutableMappingReady)
+            && !serial.ContainsPrefix(BootSequence.AppExecutableMappingNotReadyPrefix));
     }
 
     private sealed class SequenceTestSerialSink : ISerialSink

@@ -3,48 +3,8 @@ using OS.Pal;
 
 internal static class PalThreadTableTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("pal.thread table creates joinable thread", TestCreatesJoinableThread, ref failures);
-        Run("pal.thread table rejects invalid create options", TestRejectsInvalidCreateOptions, ref failures);
-        Run("pal.thread table reports exhaustion and reuse", TestReportsExhaustionAndReuse, ref failures);
-        Run("pal.thread table reports early mode capabilities", TestReportsEarlyModeCapabilities, ref failures);
-        Run("pal.thread table current id and yield are stable", TestCurrentIdAndYieldAreStable, ref failures);
-        Run("pal.thread table sleep reports unsupported blocking waits", TestSleepReportsUnsupportedBlockingWaits, ref failures);
-        Run("pal.thread table rejects invalid timeout and handles", TestRejectsInvalidTimeoutAndHandles, ref failures);
-        Run("pal.thread table default results are not success", TestDefaultResultsAreNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL thread table host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.thread table creates joinable thread", HostLane.Fast, 0)]
     private static bool TestCreatesJoinableThread()
     {
         OSHostThreadTable table = new(capacity: 1);
@@ -53,14 +13,14 @@ internal static class PalThreadTableTests
             create.ThreadId != OSHostThreadConstants.FirstCreatedThreadId ||
             table.TryGetEntry(create.Thread, out OSHostThreadTableEntry entry) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostThreadJoinResult beforeExit = table.Join(create.Thread);
         OSHostStatus exitStatus = table.MarkExited(create.Thread, exitCode: 42);
         OSHostThreadJoinResult afterExit = table.Join(create.Thread);
 
-        return entry.State == OSHostThreadLifecycleState.Created
+        return HostCheck.Result(entry.State == OSHostThreadLifecycleState.Created
             && entry.Options.Start.EntryPoint == 0x4000
             && beforeExit.Status == OSHostStatus.WouldBlock
             && !beforeExit.Succeeded
@@ -68,14 +28,15 @@ internal static class PalThreadTableTests
             && afterExit.Succeeded
             && afterExit.ExitCode == 42
             && table.Join(create.Thread).Status == OSHostStatus.InvalidArgument
-            && table.ActiveCount == 0;
+            && table.ActiveCount == 0);
     }
 
+    [HostTest("pal.thread table rejects invalid create options", HostLane.Fast, 1)]
     private static bool TestRejectsInvalidCreateOptions()
     {
         OSHostThreadTable table = new(capacity: 1);
 
-        return table.Create(new OSHostThreadCreateOptions(
+        return HostCheck.Result(table.Create(new OSHostThreadCreateOptions(
                 version: 0,
                 flags: 0,
                 stackSizeBytes: 4096,
@@ -116,9 +77,10 @@ internal static class PalThreadTableTests
                 stackSizeBytes: 4096,
                 guardSizeBytes: 4096,
                 nameUtf8: new OSHostByteSpan(address: 0, length: 4),
-                start: new OSHostThreadStart(entryPoint: 0x4000, context: 0))).Status == OSHostStatus.InvalidArgument;
+                start: new OSHostThreadStart(entryPoint: 0x4000, context: 0))).Status == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.thread table reports exhaustion and reuse", HostLane.Fast, 2)]
     private static bool TestReportsExhaustionAndReuse()
     {
         OSHostThreadTable table = new(capacity: 1);
@@ -128,32 +90,34 @@ internal static class PalThreadTableTests
             exhausted.Status != OSHostStatus.OutOfMemory ||
             table.MarkExited(first.Thread, exitCode: 7) != OSHostStatus.Ok)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         OSHostThreadJoinResult joined = table.Join(first.Thread);
         OSHostThreadCreateResult reused = table.Create(CreateOptions(entryPoint: 0x6000));
 
-        return joined.Succeeded
+        return HostCheck.Result(joined.Succeeded
             && joined.ExitCode == 7
             && reused.Succeeded
             && reused.Thread.Value != first.Thread.Value
             && reused.ThreadId == OSHostThreadConstants.FirstCreatedThreadId + 1
             && table.MarkExited(first.Thread, exitCode: 8) == OSHostStatus.InvalidArgument
             && table.TryGetEntry(reused.Thread, out OSHostThreadTableEntry entry) == OSHostStatus.Ok
-            && entry.Options.Start.EntryPoint == 0x6000;
+            && entry.Options.Start.EntryPoint == 0x6000);
     }
 
+    [HostTest("pal.thread table current id and yield are stable", HostLane.Fast, 4)]
     private static bool TestCurrentIdAndYieldAreStable()
     {
         OSHostThreadTable table = new(capacity: 0);
         OSHostThreadIdResult current = table.GetCurrentThreadId();
 
-        return current.Succeeded
+        return HostCheck.Result(current.Succeeded
             && current.ThreadId == OSHostThreadConstants.CurrentThreadId
-            && table.Yield() == OSHostStatus.Ok;
+            && table.Yield() == OSHostStatus.Ok);
     }
 
+    [HostTest("pal.thread table reports early mode capabilities", HostLane.Fast, 3)]
     private static bool TestReportsEarlyModeCapabilities()
     {
         OSHostThreadTable table = new(capacity: 2);
@@ -161,7 +125,7 @@ internal static class PalThreadTableTests
         OSHostThreadCreateResult create = table.Create(CreateOptions());
         OSHostThreadCapabilityResult afterCreate = table.GetCapabilities();
 
-        return initial.Succeeded
+        return HostCheck.Result(initial.Succeeded
             && !initial.ReadyForHostedRuntime
             && initial.MaxThreadCount == 2
             && initial.ActiveThreadCount == 0
@@ -174,9 +138,10 @@ internal static class PalThreadTableTests
             && afterCreate.Succeeded
             && afterCreate.ActiveThreadCount == 1
             && afterCreate.MaxThreadCount == 2
-            && !afterCreate.ReadyForHostedRuntime;
+            && !afterCreate.ReadyForHostedRuntime);
     }
 
+    [HostTest("pal.thread table sleep reports unsupported blocking waits", HostLane.Fast, 5)]
     private static bool TestSleepReportsUnsupportedBlockingWaits()
     {
         OSHostThreadTable table = new(capacity: 0);
@@ -193,7 +158,7 @@ internal static class PalThreadTableTests
             ticks: 1,
             tickFrequency: 1_000));
 
-        return immediate.Succeeded
+        return HostCheck.Result(immediate.Succeeded
             && immediate.Status == OSHostStatus.Ok
             && immediate.TimeoutKind == OSHostSocketConstants.TimeoutKindImmediate
             && immediate.CompletedSynchronously
@@ -203,9 +168,10 @@ internal static class PalThreadTableTests
             && relative.Status == OSHostStatus.NotSupported
             && !relative.Succeeded
             && absolute.Status == OSHostStatus.NotSupported
-            && !absolute.Succeeded;
+            && !absolute.Succeeded);
     }
 
+    [HostTest("pal.thread table rejects invalid timeout and handles", HostLane.Fast, 6)]
     private static bool TestRejectsInvalidTimeoutAndHandles()
     {
         OSHostThreadTable table = new(capacity: 1);
@@ -225,7 +191,7 @@ internal static class PalThreadTableTests
             ticks: 1,
             tickFrequency: 0));
 
-        return invalidKind.Status == OSHostStatus.InvalidArgument
+        return HostCheck.Result(invalidKind.Status == OSHostStatus.InvalidArgument
             && invalidKind.TimeoutKind == 99
             && !invalidKind.Succeeded
             && invalidFlags.Status == OSHostStatus.InvalidArgument
@@ -235,9 +201,10 @@ internal static class PalThreadTableTests
             && table.TryGetEntry(default, out OSHostThreadTableEntry entry) == OSHostStatus.InvalidArgument
             && entry.Thread.Value == 0
             && entry.ThreadId == 0
-            && entry.State == OSHostThreadLifecycleState.None;
+            && entry.State == OSHostThreadLifecycleState.None);
     }
 
+    [HostTest("pal.thread table default results are not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         OSHostThreadCreateResult create = default;
@@ -247,7 +214,7 @@ internal static class PalThreadTableTests
         OSHostThreadSleepResult sleep = default;
         OSHostThreadCapabilityResult emptyTableCapabilities = new OSHostThreadTable(capacity: 0).GetCapabilities();
 
-        return create.Status == OSHostStatus.Ok
+        return HostCheck.Result(create.Status == OSHostStatus.Ok
             && !create.Succeeded
             && !create.IsInitialized
             && create.Thread.Value == 0
@@ -271,7 +238,7 @@ internal static class PalThreadTableTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostThreadJoinResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostThreadIdResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostThreadCapabilityResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostThreadSleepResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostThreadSleepResult>());
     }
 
     private static OSHostThreadCreateOptions CreateOptions(ulong entryPoint = 0x4000)

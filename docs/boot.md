@@ -60,7 +60,7 @@ firmware-page reclamation remain outside this change.
 
 Boot has a firmware-visible QEMU/OVMF smoke proof. `src/OS` publishes a
 no-stdlib NativeAOT EFI application, `tools/OS.ImageBuilder` wraps it in a raw
-GPT/FAT32 EFI System Partition image, and `scripts/run-qemu-smoke.ps1` boots
+GPT/FAT32 EFI System Partition image, and `dotnet run --project tools/OS.Tooling -- qemu smoke` boots
 that image in QEMU/OVMF and captures serial markers. A separate
 `M01_LOADED_IMAGE_STACK_PROBE` build now has source-bound opt-in QEMU proof that
 the M01-021 adapter captures the live loaded-image range, allocates and
@@ -264,7 +264,7 @@ This is still an EFI application smoke, not a functional kernel. The current evi
 - `FirmwareServicesGuard` begins UEFI-gone preparation by denying firmware-backed calls after simulated or real boot-services shutdown modes.
 - `GuardedPlatformConsole`, `GuardedPlatformMemoryMap`, `GuardedPlatformConfigurationTables`, `GuardedPlatformTimer`, `GuardedPlatformRandom`, `GuardedPlatformPhysicalMemory`, and `GuardedPlatformFramebuffer` provide host-tested adapter boundaries for UEFI-gone simulation. `PlatformUefiGoneSimulation` now verifies that all seven guarded adapters deny firmware-backed calls after the simulated boundary before any real firmware shutdown is attempted, and includes allowance-detection tests for the older console path and the newer timer path.
 - `BootSequence.RunUefiGoneSimulation` emits host-tested `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, `UEFI_GONE_SIM_PASS`, and status-coded failure markers. The compile-time probe is present and defaults off.
-- `scripts/build-efi-shell.ps1 -EnableUefiGoneSimulationProbe` builds a QEMU-testable EFI variant that emits `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS` without calling real `ExitBootServices`.
+- `dotnet run --project tools/OS.Tooling -- efi build -BootPolicy Diagnostic -EnableUefiGoneSimulationProbe` builds a QEMU-testable EFI variant that emits `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS` without calling real `ExitBootServices`.
 - `BootSequence.RunPostFirmwareDiagnosticsReadiness` defines the post-firmware diagnostics gate that must pass before real firmware shutdown work advances. It consumes `SerialDiagnosticsGuardResult`, emits `POST_FIRMWARE_DIAGNOSTICS_READY` only when OS-owned serial diagnostics are explicitly ready, and emits `POST_FIRMWARE_DIAGNOSTICS_BLOCKED status=<status>` for firmware-console-only, firmware-services-unavailable, serial-unavailable, or invalid-transition states.
 - `GuardedPlatformSerial`, `Com1PlatformSerialTransport`, and `OwnedSerialDiagnostics` provide the host-testable serial diagnostics boundary behind that gate: firmware-backed serial output can be used before UEFI-gone, UEFI-gone simulation requires an owned serial transport, the COM1 transport can satisfy that owned boundary over a fakeable byte-port backend, and marker/panic preamble lines are formatted into caller-owned byte storage.
 - `BootSequence.RunExitBootServicesPreflight` defines the combined preflight gate before the future real firmware shutdown call. It consumes post-firmware diagnostics readiness, `UefiExitBootServicesPlanResult`, and `FirmwareServicesGuard`; emits `UEFI_EBS_PREFLIGHT_READY` only when diagnostics are ready and the plan succeeded; emits `UEFI_EBS_PREFLIGHT_BLOCKED diagnostics=<status> plan=<status>` otherwise; and does not call firmware.
@@ -4152,14 +4152,14 @@ TEST_PASS appmodel selection loader rejects descriptor failure
 Firmware smoke proof:
 
 ```powershell
-.\scripts\build-efi-shell.ps1
-.\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -RequireMarker OS_BOOT_OK,"TEST_PASS boot.sequence",OS_SMOKE_PASS,UEFI_MEMORY_MAP_OWNED,BOOT_HANDOFF_READY,UEFI_MEMORY_MAP_NORMALIZED,BOOT_MEMORY_MAP_ACCEPTED,BOOT_MEMORY_REGIONS_READY,BOOT_MEMORY_REGION_COUNT,BOOT_PAGE_ALLOCATOR_READY,BOOT_ACPI_RSDP_HANDOFF_READY,UEFI_ACPI_RSDP_READY
-.\scripts\build-efi-shell.ps1 -EnableUefiGoneSimulationProbe -EfiOutputPath artifacts/efi/BOOTX64-SIM.EFI -LogPath artifacts/logs/efi-shell-publish-sim.log
-.\scripts\run-qemu-smoke.ps1 -EfiArtifact artifacts/efi/BOOTX64-SIM.EFI -Image artifacts/images/os-sim.raw -SerialLog artifacts/logs/qemu-smoke-sim.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset uefi-gone
-.\scripts\run-qemu-smoke.ps1 -BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
+dotnet run --project tools/OS.Tooling -- efi build
+dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
+dotnet run --project tools/OS.Tooling -- efi build -BootPolicy Diagnostic -EnableUefiGoneSimulationProbe -EfiOutputPath artifacts/efi/BOOTX64-SIM.EFI -LogPath artifacts/logs/efi-shell-publish-sim.log
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -EfiArtifact artifacts/efi/BOOTX64-SIM.EFI -Image artifacts/images/os-sim.raw -SerialLog artifacts/logs/qemu-smoke-sim.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15 -MarkerPreset uefi-gone
+dotnet run --project tools/OS.Tooling -- qemu smoke -BootPolicy Diagnostic -BuildEfi -EnableAcpiPhysicalDiscoveryProbe -MarkerPreset acpi -EfiArtifact artifacts/efi/BOOTX64-ACPI.EFI -Image artifacts/images/os-acpi.raw -SerialLog artifacts/logs/qemu-smoke-acpi.log -SummaryLog artifacts/logs/qemu-smoke-acpi.summary.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 30
 ```
 
-Evidence from 2026-05-21:
+Historical evidence from 2026-05-21:
 
 - Managed build passed with 0 warnings and 0 errors.
 - Host tests emitted `TEST_PASS host.tests`.
@@ -4170,7 +4170,7 @@ Evidence from 2026-05-21:
 - `artifacts/logs/qemu-smoke.log` contains `TEST_START efi.main`, `EFI_CONSOLE_READY`, `UEFI_MEMORY_MAP_READY`, `UEFI_MEMORY_MAP_DESCRIPTOR_COUNT <count>`, `TEST_START boot.sequence`, ordered `BOOT_PHASE` markers, `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`.
 - `artifacts/logs/qemu-smoke-sim.log` additionally contains `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
 
-Evidence from 2026-05-22:
+Historical evidence from 2026-05-22:
 
 - `.\scripts\build-efi-shell.ps1` emitted `TEST_PASS efi.shell.publish` and staged `artifacts/efi/BOOTX64.EFI`.
 - After the no-stdlib console adapter was added, `.\scripts\build-efi-shell.ps1`

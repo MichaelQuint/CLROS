@@ -14,46 +14,7 @@ internal static class AcpiTableDirectoryTests
         (byte)'E',
         (byte)'T');
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("acpi.directory selects mcfg from xsdt pointer list", TestSelectsMcfgFromXsdtPointerList, ref failures);
-        Run("acpi.directory selects first matching signature deterministically", TestSelectsFirstMatchingSignatureDeterministically, ref failures);
-        Run("acpi.directory rejects missing table source", TestRejectsMissingTableSource, ref failures);
-        Run("acpi.directory rejects invalid table checksum", TestRejectsInvalidTableChecksum, ref failures);
-        Run("acpi.directory reports destination capacity exhaustion", TestReportsDestinationCapacityExhaustion, ref failures);
-        Run("acpi.directory reports signature not found", TestReportsSignatureNotFound, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ACPI table directory host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("acpi.directory selects mcfg from xsdt pointer list", HostLane.Fast, 0)]
     private static bool TestSelectsMcfgFromXsdtPointerList()
     {
         byte[] xsdt = CreateXsdt(HpetAddress, McfgAddress);
@@ -74,7 +35,7 @@ internal static class AcpiTableDirectoryTests
             AcpiTableDirectory.McfgSignature,
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == AcpiTableDirectoryStatus.Success
             && result.SelectedCount == 1
             && result.PointerCount == 2
@@ -88,9 +49,10 @@ internal static class AcpiTableDirectoryTests
             && destination[0].Signature == AcpiTableDirectory.McfgSignature
             && destination[0].Length == mcfg.Length
             && destination[0].PointerIndex == 1
-            && destination[0].SourceIndex == 1;
+            && destination[0].SourceIndex == 1);
     }
 
+    [HostTest("acpi.directory selects first matching signature deterministically", HostLane.Fast, 1)]
     private static bool TestSelectsFirstMatchingSignatureDeterministically()
     {
         byte[] xsdt = CreateXsdt(McfgAddress, SecondMcfgAddress);
@@ -111,15 +73,16 @@ internal static class AcpiTableDirectoryTests
             AcpiTableDirectory.McfgSignature,
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.PointerIndex == 0
             && result.SourceIndex == 1
             && result.PhysicalAddress == McfgAddress
             && result.DeclaredLength == firstMcfg.Length
             && destination[0].PhysicalAddress == McfgAddress
-            && destination[0].Length == firstMcfg.Length;
+            && destination[0].Length == firstMcfg.Length);
     }
 
+    [HostTest("acpi.directory rejects missing table source", HostLane.Fast, 2)]
     private static bool TestRejectsMissingTableSource()
     {
         byte[] xsdt = CreateXsdt(McfgAddress);
@@ -137,14 +100,15 @@ internal static class AcpiTableDirectoryTests
             AcpiTableDirectory.McfgSignature,
             destination);
 
-        return IsFailure(
+        return HostCheck.Result(IsFailure(
             result,
             AcpiTableDirectoryStatus.TableSourceMissing,
             pointerCount: 1,
             pointerIndex: 0,
-            physicalAddress: McfgAddress);
+            physicalAddress: McfgAddress));
     }
 
+    [HostTest("acpi.directory rejects invalid table checksum", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidTableChecksum()
     {
         byte[] xsdt = CreateXsdt(McfgAddress);
@@ -164,7 +128,7 @@ internal static class AcpiTableDirectoryTests
             AcpiTableDirectory.McfgSignature,
             destination);
 
-        return IsFailure(
+        return HostCheck.Result(IsFailure(
             result,
             AcpiTableDirectoryStatus.TableChecksumInvalid,
             pointerCount: 1,
@@ -173,9 +137,10 @@ internal static class AcpiTableDirectoryTests
             physicalAddress: McfgAddress,
             tableSignature: AcpiTableDirectory.McfgSignature,
             declaredLength: (uint)mcfg.Length,
-            requiredLength: (uint)mcfg.Length);
+            requiredLength: (uint)mcfg.Length));
     }
 
+    [HostTest("acpi.directory reports destination capacity exhaustion", HostLane.Fast, 4)]
     private static bool TestReportsDestinationCapacityExhaustion()
     {
         byte[] xsdt = CreateXsdt(McfgAddress);
@@ -193,7 +158,7 @@ internal static class AcpiTableDirectoryTests
             AcpiTableDirectory.McfgSignature,
             Span<AcpiTableSnapshot>.Empty);
 
-        return IsFailure(
+        return HostCheck.Result(IsFailure(
             result,
             AcpiTableDirectoryStatus.DestinationTooSmall,
             pointerCount: 1,
@@ -204,9 +169,10 @@ internal static class AcpiTableDirectoryTests
             tableSignature: AcpiTableDirectory.McfgSignature,
             declaredLength: (uint)mcfg.Length,
             requiredLength: (uint)mcfg.Length,
-            requiredDestinationCapacity: 1);
+            requiredDestinationCapacity: 1));
     }
 
+    [HostTest("acpi.directory reports signature not found", HostLane.Fast, 5)]
     private static bool TestReportsSignatureNotFound()
     {
         byte[] xsdt = CreateXsdt(HpetAddress);
@@ -224,11 +190,11 @@ internal static class AcpiTableDirectoryTests
             AcpiTableDirectory.McfgSignature,
             destination);
 
-        return IsFailure(
+        return HostCheck.Result(IsFailure(
             result,
             AcpiTableDirectoryStatus.SignatureNotFound,
             pointerCount: 1,
-            requestedSignature: AcpiTableDirectory.McfgSignature);
+            requestedSignature: AcpiTableDirectory.McfgSignature));
     }
 
     private static bool IsFailure(

@@ -6,117 +6,64 @@ using OS.Manifest;
 
 internal static class NativeAppArgumentVectorPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("appmodel args vector splits manifest args", TestSplitsManifestArgs, ref failures);
-        Run("appmodel args vector preserves quoted spaces", TestPreservesQuotedSpaces, ref failures);
-        Run("appmodel args vector accepts empty args", TestAcceptsEmptyArgs, ref failures);
-        Run("appmodel args vector rejects too many args", TestRejectsTooManyArgs, ref failures);
-        Run("appmodel args vector rejects malformed quotes", TestRejectsMalformedQuotes, ref failures);
-        Run("appmodel args vector rejects failed launch plan", TestRejectsFailedLaunchPlan, ref failures);
-        Run("appmodel args vector default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("appmodel args vector formatter formats success marker", TestFormatterFormatsSuccessMarker, ref failures);
-        Run("appmodel args vector formatter reports short destination", TestFormatterReportsShortDestination, ref failures);
-        Run("appmodel args vector formatter rejects default result", TestFormatterRejectsDefaultResult, ref failures);
-        Run("appmodel args vector formatter uses shared ascii text builder", TestFormatterUsesSharedAsciiTextBuilder, ref failures);
-        Run("boot.sequence app args vector ready", TestBootSequenceAppArgsVectorReady, ref failures);
-        Run(
-            "boot.sequence app args vector rejects failed result",
-            TestBootSequenceAppArgsVectorRejectsFailedResult,
-            ref failures);
-        Run(
-            "boot.sequence app args vector rejects default result",
-            TestBootSequenceAppArgsVectorRejectsDefaultResult,
-            ref failures);
-        Run(
-            "boot.sequence app args vector preserves default markers",
-            TestBootSequenceAppArgsVectorPreservesDefaultMarkers,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app argument vector host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel args vector splits manifest args", HostLane.Fast, 0)]
     private static bool TestSplitsManifestArgs()
     {
         byte[] source = ManifestBytes("--port=8080 --mode cloud");
         if (!TryCreateLaunchPlan(source, out NativeAppLaunchPlanResult launch))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppArgumentVectorPlanResult result =
             NativeAppArgumentVectorPlanner.Create(source, launch);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppArgumentVectorStatus.Success
             && result.ArgumentCount == 3
             && ArgumentEquals(source, result.Arguments.GetAt(0), "--port=8080")
             && ArgumentEquals(source, result.Arguments.GetAt(1), "--mode")
-            && ArgumentEquals(source, result.Arguments.GetAt(2), "cloud");
+            && ArgumentEquals(source, result.Arguments.GetAt(2), "cloud"));
     }
 
+    [HostTest("appmodel args vector preserves quoted spaces", HostLane.Fast, 1)]
     private static bool TestPreservesQuotedSpaces()
     {
         byte[] source = ManifestBytes("--name \"hello cloud\" \"\"");
         if (!TryCreateLaunchPlan(source, out NativeAppLaunchPlanResult launch))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppArgumentVectorPlanResult result =
             NativeAppArgumentVectorPlanner.Create(source, launch);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.ArgumentCount == 3
             && ArgumentEquals(source, result.Arguments.GetAt(0), "--name")
             && ArgumentEquals(source, result.Arguments.GetAt(1), "hello cloud")
-            && ArgumentEquals(source, result.Arguments.GetAt(2), string.Empty);
+            && ArgumentEquals(source, result.Arguments.GetAt(2), string.Empty));
     }
 
+    [HostTest("appmodel args vector accepts empty args", HostLane.Fast, 2)]
     private static bool TestAcceptsEmptyArgs()
     {
         byte[] source = ManifestBytes(string.Empty);
         if (!TryCreateLaunchPlan(source, out NativeAppLaunchPlanResult launch))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppArgumentVectorPlanResult result =
             NativeAppArgumentVectorPlanner.Create(source, launch);
 
-        return result.Succeeded
-            && result.ArgumentCount == 0;
+        return HostCheck.Result(result.Succeeded
+            && result.ArgumentCount == 0);
     }
 
+    [HostTest("appmodel args vector rejects too many args", HostLane.Fast, 3)]
     private static bool TestRejectsTooManyArgs()
     {
         StringBuilder builder = new StringBuilder();
@@ -133,31 +80,33 @@ internal static class NativeAppArgumentVectorPlanTests
         byte[] source = ManifestBytes(builder.ToString());
         if (!TryCreateLaunchPlan(source, out NativeAppLaunchPlanResult launch))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppArgumentVectorPlanResult result =
             NativeAppArgumentVectorPlanner.Create(source, launch);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppArgumentVectorStatus.TooManyArguments
-            && result.ArgumentCount == 0;
+            && result.ArgumentCount == 0);
     }
 
+    [HostTest("appmodel args vector rejects malformed quotes", HostLane.Fast, 4)]
     private static bool TestRejectsMalformedQuotes()
     {
-        return Rejects("\"unterminated", NativeAppArgumentVectorStatus.UnterminatedQuote)
+        return HostCheck.Result(Rejects("\"unterminated", NativeAppArgumentVectorStatus.UnterminatedQuote)
             && Rejects("\"quoted\"suffix", NativeAppArgumentVectorStatus.QuoteNotDelimited)
-            && Rejects("prefix\"suffix", NativeAppArgumentVectorStatus.QuoteNotDelimited);
+            && Rejects("prefix\"suffix", NativeAppArgumentVectorStatus.QuoteNotDelimited));
     }
 
+    [HostTest("appmodel args vector rejects failed launch plan", HostLane.Fast, 5)]
     private static bool TestRejectsFailedLaunchPlan()
     {
         byte[] source = ManifestBytes("--port=8080");
         if (!TryParse(source, out NativeManifest manifest))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppLaunchPlanResult launch = NativeAppLaunchPlan.Create(
@@ -169,30 +118,32 @@ internal static class NativeAppArgumentVectorPlanTests
         NativeAppArgumentVectorPlanResult result =
             NativeAppArgumentVectorPlanner.Create(source, launch);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppArgumentVectorStatus.LaunchPlanFailed
-            && result.LaunchStatus == NativeAppLaunchStatus.MissingBootCapabilities;
+            && result.LaunchStatus == NativeAppLaunchStatus.MissingBootCapabilities);
     }
 
+    [HostTest("appmodel args vector default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAppArgumentVectorPlanResult result = default;
         NativeAppArgument argument = default;
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && !result.IsInitialized
             && result.Status == NativeAppArgumentVectorStatus.Success
             && result.ArgumentCount == 0
-            && !argument.IsPresent;
+            && !argument.IsPresent);
     }
 
+    [HostTest("appmodel args vector formatter formats success marker", HostLane.Fast, 7)]
     private static bool TestFormatterFormatsSuccessMarker()
     {
         byte[] source = ManifestBytes("--port=8080 --mode cloud");
         if (!TryCreateLaunchPlan(source, out NativeAppLaunchPlanResult launch))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppArgumentVectorPlanResult result =
@@ -211,7 +162,7 @@ internal static class NativeAppArgumentVectorPlanTests
             first.Value.Length +
             " appExecuted=false kestrelStarted=false";
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && first.IsPresent
             && query.IsInitialized
             && !query.Succeeded
@@ -226,15 +177,16 @@ internal static class NativeAppArgumentVectorPlanTests
             && format.AvailableBytes == destination.Length
             && Encoding.ASCII.GetString(destination) == expected
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                NativeAppArgumentVectorDiagnosticFormatResult>();
+                NativeAppArgumentVectorDiagnosticFormatResult>());
     }
 
+    [HostTest("appmodel args vector formatter reports short destination", HostLane.Fast, 8)]
     private static bool TestFormatterReportsShortDestination()
     {
         byte[] source = ManifestBytes("\"hello cloud\"");
         if (!TryCreateLaunchPlan(source, out NativeAppLaunchPlanResult launch))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppArgumentVectorPlanResult result =
@@ -247,7 +199,7 @@ internal static class NativeAppArgumentVectorPlanTests
         NativeAppArgumentVectorDiagnosticFormatResult format =
             NativeAppArgumentVectorDiagnosticFormatter.FormatResult(result, destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && query.IsInitialized
             && query.Status == NativeAppArgumentVectorDiagnosticFormatStatus.Success
             && format.IsInitialized
@@ -257,9 +209,10 @@ internal static class NativeAppArgumentVectorPlanTests
             && format.BytesWritten == 0
             && format.RequiredBytes == query.RequiredBytes
             && format.AvailableBytes == destination.Length
-            && AllBytesEqual(destination, 0xCC);
+            && AllBytesEqual(destination, 0xCC));
     }
 
+    [HostTest("appmodel args vector formatter rejects default result", HostLane.Fast, 9)]
     private static bool TestFormatterRejectsDefaultResult()
     {
         NativeAppArgumentVectorPlanResult defaultResult = default;
@@ -272,7 +225,7 @@ internal static class NativeAppArgumentVectorPlanTests
             NativeAppArgumentVectorDiagnosticFormatter.QueryRequiredBytes(defaultResult);
         NativeAppArgumentVectorDiagnosticFormatResult defaultFormat = default;
 
-        return format.IsInitialized
+        return HostCheck.Result(format.IsInitialized
             && !format.Succeeded
             && format.Status == NativeAppArgumentVectorDiagnosticFormatStatus.InvalidResult
             && format.PlannerStatus == NativeAppArgumentVectorStatus.Success
@@ -286,9 +239,10 @@ internal static class NativeAppArgumentVectorPlanTests
             && query.AvailableBytes == 0
             && !defaultFormat.IsInitialized
             && !defaultFormat.Succeeded
-            && AllBytesEqual(destination, 0xA5);
+            && AllBytesEqual(destination, 0xA5));
     }
 
+    [HostTest("appmodel args vector formatter uses shared ascii text builder", HostLane.Fast, 10)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -300,7 +254,7 @@ internal static class NativeAppArgumentVectorPlanTests
                 "Manifest",
                 "NativeAppArgumentVectorDiagnosticFormatter.cs"));
 
-        return source.Contains(
+        return HostCheck.Result(source.Contains(
                 "AsciiDecimalFormatter.CountInt32Digits(result.ArgumentCount)",
                 StringComparison.Ordinal)
             && source.Contains(
@@ -323,15 +277,16 @@ internal static class NativeAppArgumentVectorPlanTests
                 StringComparison.Ordinal)
             && !source.Contains(
                 "destination[offset + index] = (byte)('0' +",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence app args vector ready", HostLane.Fast, 11)]
     private static bool TestBootSequenceAppArgsVectorReady()
     {
         byte[] source = ManifestBytes("--port=8080 --mode cloud");
         if (!TryCreateLaunchPlan(source, out NativeAppLaunchPlanResult launch))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppArgumentVectorPlanResult argumentVector =
@@ -345,7 +300,7 @@ internal static class NativeAppArgumentVectorPlanTests
             events);
         string expectedMarker = BootSequence.CreateNativeAppArgumentVectorReadyMarker(argumentVector);
 
-        return argumentVector.Succeeded
+        return HostCheck.Result(argumentVector.Succeeded
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
@@ -354,9 +309,10 @@ internal static class NativeAppArgumentVectorPlanTests
                 "APP_ARGS_VECTOR_READY status=Ready initialized=true vector=Success launch=Success argumentCount=3 maxArgumentCount=16 maxArgumentLength=128 errorOffset=-1 executesApp=false startsKestrel=false"
             && expectedMarker.Contains("executesApp=false", StringComparison.Ordinal)
             && expectedMarker.Contains("startsKestrel=false", StringComparison.Ordinal)
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppArgumentVectorPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppArgumentVectorPlanResult>());
     }
 
+    [HostTest("boot.sequence app args vector rejects failed result", HostLane.Fast, 12)]
     private static bool TestBootSequenceAppArgsVectorRejectsFailedResult()
     {
         NativeAppArgumentVectorPlanResult argumentVector = NativeAppArgumentVectorPlanResult.Fail(
@@ -374,7 +330,7 @@ internal static class NativeAppArgumentVectorPlanTests
             NativeAppArgumentVectorReadinessStatus.ArgumentVectorFailed,
             argumentVector);
 
-        return argumentVector.IsInitialized
+        return HostCheck.Result(argumentVector.IsInitialized
             && !argumentVector.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
@@ -387,9 +343,10 @@ internal static class NativeAppArgumentVectorPlanTests
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
             && expectedMarker ==
-                "APP_ARGS_VECTOR_NOT_READY status=ArgumentVectorFailed initialized=true vector=ArgumentTooLong launch=Success argumentCount=0 maxArgumentCount=16 maxArgumentLength=128 errorOffset=42 executesApp=false startsKestrel=false";
+                "APP_ARGS_VECTOR_NOT_READY status=ArgumentVectorFailed initialized=true vector=ArgumentTooLong launch=Success argumentCount=0 maxArgumentCount=16 maxArgumentLength=128 errorOffset=42 executesApp=false startsKestrel=false");
     }
 
+    [HostTest("boot.sequence app args vector rejects default result", HostLane.Fast, 13)]
     private static bool TestBootSequenceAppArgsVectorRejectsDefaultResult()
     {
         NativeAppArgumentVectorPlanResult argumentVector = default;
@@ -404,7 +361,7 @@ internal static class NativeAppArgumentVectorPlanTests
             NativeAppArgumentVectorReadinessStatus.NotInitialized,
             argumentVector);
 
-        return !argumentVector.IsInitialized
+        return HostCheck.Result(!argumentVector.IsInitialized
             && !argumentVector.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
@@ -414,9 +371,10 @@ internal static class NativeAppArgumentVectorPlanTests
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
             && expectedMarker ==
-                "APP_ARGS_VECTOR_NOT_READY status=NotInitialized initialized=false vector=Success launch=Success argumentCount=0 maxArgumentCount=16 maxArgumentLength=128 errorOffset=0 executesApp=false startsKestrel=false";
+                "APP_ARGS_VECTOR_NOT_READY status=NotInitialized initialized=false vector=Success launch=Success argumentCount=0 maxArgumentCount=16 maxArgumentLength=128 errorOffset=0 executesApp=false startsKestrel=false");
     }
 
+    [HostTest("boot.sequence app args vector preserves default markers", HostLane.Fast, 14)]
     private static bool TestBootSequenceAppArgsVectorPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -425,19 +383,19 @@ internal static class NativeAppArgumentVectorPlanTests
         BootResult result = BootSequence.Run(serial, events);
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.ContainsPrefix(BootSequence.NativeAppArgumentVectorReadyPrefix)
-            && !serial.ContainsPrefix(BootSequence.NativeAppArgumentVectorNotReadyPrefix);
+        return HostCheck.Result(!serial.ContainsPrefix(BootSequence.NativeAppArgumentVectorReadyPrefix)
+            && !serial.ContainsPrefix(BootSequence.NativeAppArgumentVectorNotReadyPrefix));
     }
 
     private static bool Rejects(string args, NativeAppArgumentVectorStatus status)

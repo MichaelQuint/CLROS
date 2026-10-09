@@ -312,22 +312,8 @@ internal static class M04RhpNewFastEfiIntegrationTests
     private const string Flag="EnableM04RhpNewFastProbe";
     private static readonly string[] Chain=["EnableM01LoadedImageStackProbe","EnableM01LiveAllocatorProbe","EnableM04IndependentEndianConformanceProbe",
         "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe","EnableM04ArithmeticConformanceProbe","EnableM04LayoutContractProbe","EnableM04ManagedHeapPageRangeProbe"];
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        Run("source profile and original handoff",TestSource);
-        Run("actual POD core and bounded PE",TestCore);
-        Run("exact frozen leaf source firewall",TestFirewall);
-        Run("strongest full transcript and negatives",TestTranscript);
-        Run("explicit profile prerequisites and conflicts",TestProfiles);
-        Run("actual default and three allocation artifacts",TestArtifacts);
-    }
-    private static void Run(string name,Action test)
-    {
-        Console.WriteLine("TEST_START m04.007.efi "+name);
-        try{test();Console.WriteLine("TEST_PASS m04.007.efi "+name);}
-        catch(Exception ex){Console.WriteLine("TEST_FAIL m04.007.efi "+name+" "+ex.Message);throw;}
-    }
+
+    [HostTest("m04.007.efi actual POD core and bounded PE", HostLane.Native, 1)]
     private static void TestCore()
     {
         string root=HostToolProcess.FindRepositoryRoot(),directory=Scratch(root,"core");
@@ -342,12 +328,13 @@ internal static class M04RhpNewFastEfiIntegrationTests
         File.WriteAllText(Path.Combine(directory,"process.log"),result.Output);File.WriteAllText(Path.Combine(directory,"exit.txt"),result.Code.ToString());
         Need(result.Code==0 && result.Output.Contains("TEST_PASS rhp.core.tests",StringComparison.Ordinal),result.Output);
     }
+    [HostTest("m04.007.efi source profile and original handoff", HostLane.Fast, 0)]
     private static void TestSource()
     {
         string root=HostToolProcess.FindRepositoryRoot();
         XDocument p=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));
         string[] compile=p.Descendants("Compile").Select(x=>x.Attribute("Include")!.Value+"|"+(x.Attribute("Link")?.Value??"")).ToArray();
-        Need(compile.Length==122 && compile[80]=="..\\OS.Kernel\\Runtime\\GuestTestRhpNewFast.cs|Runtime\\GuestTestRhpNewFast.cs" && compile[81]=="..\\OS.Kernel\\Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs" && compile[84]=="Runtime\\RhpNewFastAllocation.cs|","exact appended closure");
+        Need(compile.Length==OS.Tooling.EfiContracts.CompileItems.Count && compile[80]=="..\\OS.Kernel\\Runtime\\GuestTestRhpNewFast.cs|Runtime\\GuestTestRhpNewFast.cs" && compile[81]=="..\\OS.Kernel\\Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs|Runtime\\GuestTestArrayAllocationLengthOverflowChecks.cs" && compile[84]=="Runtime\\RhpNewFastAllocation.cs|","exact appended closure");
         foreach(string flag in new[]{Flag,"EnableM04RhpNewFastBeforeBindFailureProbe","EnableM04RhpNewFastExhaustionFailureProbe"})
         {
             XElement value=p.Descendants(flag).Single();
@@ -355,7 +342,7 @@ internal static class M04RhpNewFastEfiIntegrationTests
         }
         foreach(string required in Chain)Need(p.Descendants("Error").Any(x=>x.Attribute("Condition")?.Value=="'$("+Flag+")' == 'true' and '$("+required+")' != 'true'"),"explicit prerequisite "+required);
         string leaf=File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs")).Replace("\r\n","\n",StringComparison.Ordinal);
-        Need(Hash(Encoding.UTF8.GetBytes(leaf))=="7a14fa23e28548fa94d30e5569f786a1ce4c5bbe2375ac5b23a493d06f20ebd5","frozen allocation leaf");
+        Need(Hash(Encoding.UTF8.GetBytes(leaf))==OS.Tooling.EfiContracts.AllocationSourceSha256,"frozen allocation leaf");
         string entry=File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.cs"));
         int zero=entry.IndexOf("if (!M01StageTwoAdapter.ValidateManagedHeapBeforeBootPlan",StringComparison.Ordinal);
         int handoff=entry.IndexOf("M01StageTwoAdapter.RunRhpNewFastAfterZeroCheckpoint();",StringComparison.Ordinal);
@@ -372,37 +359,26 @@ internal static class M04RhpNewFastEfiIntegrationTests
         foreach(string forbidden in new[]{"FreeOnePage(","FreePages(","RhBox(","new object[","throw ","System.Reflection","System.Console"})
             Need(!adapter.Contains(forbidden,StringComparison.Ordinal),"no expanded runtime "+forbidden);
     }
-    private static void TestFirewall()
-    {
-        string root=HostToolProcess.FindRepositoryRoot(),directory=Scratch(root,"firewall");
-        string ps=Path.Combine(directory,"Test.ps1");
-        File.WriteAllText(ps,"""
-            param([string]$Root)
-            $ErrorActionPreference='Stop';$t=$null;$e=$null
-            $ast=[System.Management.Automation.Language.Parser]::ParseFile((Join-Path $Root 'scripts/build-efi-shell.ps1'),[ref]$t,[ref]$e)
-            foreach($name in @('Get-M01Utf8Sha256','Get-NostdlibEfiActiveSource','Test-M01ActiveSourceSurface')) {
-                $f=$ast.Find({param($n) $n -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -eq $name},$true)
-                . ([scriptblock]::Create($f.Extent.Text))
-            }
-            $name='..\OS.Kernel\Runtime\GuestTestRhpNewFast.cs'
-            $text=[IO.File]::ReadAllText((Join-Path $Root 'src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs')).Replace("`r`n","`n")
-            foreach($good in @($text,$text.Replace("`n","`r`n"))) { if(-not (Test-M01ActiveSourceSurface $good $name).Succeeded){throw 'exact reviewed source rejected'} }
-            foreach($bad in @(($text+' '), ($text+"`r"),($text+"`n// extra"),$text.Replace('4096','4095'))) { if((Test-M01ActiveSourceSurface $bad $name).Succeeded){throw 'changed content admitted'} }
-            foreach($bad in @($name.ToLowerInvariant(),($name+' '),$name.Replace('\','/'),$name.Replace('Runtime\','Runtime\.\'),$name.Insert(4,[string][char]0),'..\OS.Kernel\Runtime\Other.cs')) { if((Test-M01ActiveSourceSurface $text $bad).Succeeded){throw ('path alias admitted ['+$bad+']')} }
-            if((Test-M01ActiveSourceSurface 'using System; public class X { }' '..\OS.Kernel\Other.cs').Succeeded){throw 'generic scanner weakened'}
-            Write-Output 'TEST_PASS m04.007.efi.firewall'
-            """);
-        Result result=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",ps,"-Root",root]);
-        Save(directory,result);Need(result.Code==0,result.Output);
-    }
+    [HostTest("m04.007.efi source admission and strict firewall", HostLane.Fast, 2)]
+private static void TestFirewall()
+{
+    const string name = @"..\OS.Kernel\Runtime\GuestTestRhpNewFast.cs";
+    string text = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS.Kernel/Runtime/GuestTestRhpNewFast.cs")).Replace("\r\n", "\n", StringComparison.Ordinal);
+    foreach (string good in new[] { text, text.Replace("\n", "\r\n", StringComparison.Ordinal) })
+        Need(OS.Tooling.EfiSourceAdmission.Inspect(good, name).Succeeded, "reviewed source admission");
+    foreach (string bad in new[] { "using System; public class X {}", "public class X { object value = new object(); }" })
+        Need(!OS.Tooling.EfiSourceAdmission.Inspect(bad, name).Succeeded, "generic surface remains closed");
+    foreach (string bad in new[] { text + " ", text + "\r", text + "\n// extra", text.Replace("4096", "4095", StringComparison.Ordinal) })
+    Need(!OS.Tooling.EfiSourceAdmission.Inspect(bad, name).Succeeded, "mutated reviewed source");
+foreach (string alias in new[] { name.ToLowerInvariant(), name + " ", name.Replace('\\', '/'), name.Replace("Runtime\\", "Runtime\\.\\", StringComparison.Ordinal), name.Insert(4, "\0"), @"..\OS.Kernel\Runtime\Other.cs" })
+    Need(!OS.Tooling.EfiSourceAdmission.Inspect(text, alias).Succeeded, "source alias refused");
+Need(!OS.Tooling.EfiSourceAdmission.Inspect("using System; public class X {}", @"..\OS.Kernel\Other.cs").Succeeded, "generic scanner unchanged");
+}
+    [HostTest("m04.007.efi strongest full transcript and negatives", HostLane.Fast, 3)]
     private static void TestTranscript()
     {
         string root=HostToolProcess.FindRepositoryRoot(),directory=Scratch(root,"transcript");
-        string source=File.ReadAllText(Path.Combine(root,"scripts/run-qemu-smoke.ps1"));
-        Need(source.Contains("QEMU_SCRIPT_M04_RHP_NEW_FAST_TRANSCRIPT exactWholeLines=true lines=78 objects=10 compiledNew=4 direct=6 terminal=true",StringComparison.Ordinal),"reported exact transcript line count");
-        string defs=Between(source,"$script:M04IndependentEndianConformanceReadyMarker =","function Invoke-NativeCommand {");
-        string functions=Between(source,"function Assert-M04ManagedHeapPageRangeTranscript {","function Assert-M04LayoutContractTranscript {");
-        Result dry=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts/run-qemu-smoke.ps1"),"-BootPolicy", "Diagnostic", "-DryRun","-BuildEfi",..Chain.Append(Flag).Select(x=>"-"+x)]);
+        Result dry=Command(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", ..Chain.Append(Flag).Select(x=>"-"+x)]);
         Save(Path.Combine(directory,"dryrun"),dry);Need(dry.Code==0,dry.Output);
         string[] chain=dry.Output.Replace("\r","").Split('\n').Single(x=>x.StartsWith("ORDERED_MARKERS ",StringComparison.Ordinal))[16..].Split(';');
         List<string> lines=["TEST_START efi.main",..chain.Take(6),"UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 3","UEFI_MEMORY_MAP_OWNED","BOOT_HANDOFF_READY","UEFI_MEMORY_MAP_NORMALIZED","BOOT_MEMORY_MAP_ACCEPTED","BOOT_MEMORY_REGIONS_READY","BOOT_MEMORY_REGION_COUNT 3","BOOT_PAGE_ALLOCATOR_READY status=Ready regions=3 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0","BOOT_ACPI_RSDP_HANDOFF_READY","UEFI_ACPI_RSDP_READY",..chain.Skip(6)];
@@ -441,14 +417,17 @@ internal static class M04RhpNewFastEfiIntegrationTests
         var manifest=cases.Select((c,i)=>new{Path=Path.Combine(directory,i+".log"),c.Accept}).ToArray();
         for(int i=0;i<cases.Count;i++)File.WriteAllText(manifest[i].Path,cases[i].Text,new UTF8Encoding(false));
         string json=Path.Combine(directory,"cases.json");File.WriteAllText(json,System.Text.Json.JsonSerializer.Serialize(manifest));
-        string ps=Path.Combine(directory,"Test.ps1");File.WriteAllText(ps,"$ErrorActionPreference='Stop'\n"+defs+functions+"\n$cases=[IO.File]::ReadAllText('"+json+"')|ConvertFrom-Json\n"+"""
-            foreach($case in $cases){$accepted=$true;$reason='';try{Assert-M04RhpNewFastTranscript $case.Path}catch{$accepted=$false;$reason=$_.Exception.Message};if($accepted -ne $case.Accept){throw ($case.Path+' accepted='+$accepted+' reason='+$reason)}}
-            foreach($exitCode in @('0','-1','2147483647','-2147483648')){Assert-M04ManagedHeapRunnerResult @('SERIAL_MARKER_DRAIN milliseconds=750',('QEMU_PROCESS_RESULT disposition=runner-terminated exitCode='+$exitCode))}
-            foreach($exitCode in @('none','2147483648','-2147483649','-0','01','+1')){$rejected=$false;try{Assert-M04ManagedHeapRunnerResult @('SERIAL_MARKER_DRAIN milliseconds=750',('QEMU_PROCESS_RESULT disposition=runner-terminated exitCode='+$exitCode))}catch{$rejected=$true};if(-not $rejected){throw 'invalid exit admitted'}}
-            Write-Output ('TEST_PASS m04.007.efi.transcript cases='+$cases.Count)
-            """);
-        Result result=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",ps]);Save(directory,result);Need(result.Code==0,result.Output);
+        foreach(var entry in manifest)
+        {
+            bool accepted = true;
+            try { OS.Tooling.QemuTranscripts.AssertM04RhpNewFastTranscript(entry.Path); }
+            catch (OS.Tooling.ToolFailure) { accepted = false; }
+            Need(accepted == entry.Accept, "whole transcript control " + entry.Path + " expected=" + entry.Accept);
+        }
+        EfiTranscriptControls.RunnerExitCodes();
+        Console.WriteLine("TRANSCRIPT_CONTROLS m04.007 cases=" + manifest.Length);
     }
+    [HostTest("m04.007.efi explicit profile prerequisites and conflicts", HostLane.Native, 4)]
     private static void TestProfiles()
     {
         string root=HostToolProcess.FindRepositoryRoot(),directory=Scratch(root,"profiles");
@@ -463,18 +442,18 @@ internal static class M04RhpNewFastEfiIntegrationTests
         foreach(string[] flags in invalid)
         foreach(bool runner in new[]{false,true})
         {
-            Result r=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts",runner?"run-qemu-smoke.ps1":"build-efi-shell.ps1"),
-                ..(runner?new[]{"-BootPolicy", "Diagnostic", "-DryRun","-BuildEfi"}:new[]{"-PreflightOnly","-LogPath",Path.Combine(directory,"preflight-"+id+".log")}),..flags.Select(x=>"-"+x)]);
+            Result r=Command([..(runner ? new[] { "qemu", "smoke" } : new[] { "efi", "build" }), ..(runner?new[]{"-BootPolicy", "Diagnostic", "-DryRun","-BuildEfi"}:new[]{"-PreflightOnly","-LogPath",Path.Combine(directory,"preflight-"+id+".log")}), ..flags.Select(x=>"-"+x)]);
             Save(Path.Combine(directory,(id++).ToString()),r);
-            Need(r.Code!=0 && (flags.Contains("EnableM04TypeManagerModuleRegistrationProbe",StringComparer.Ordinal) ? r.Output.Contains("m04_type_manager_profile_conflict property=EnableM01LiveAllocatorProbe",StringComparison.Ordinal) : flags.Contains("EnableM03FirmwareEntropySeedProbe",StringComparer.Ordinal) ? r.Output.Contains("m03_firmware_entropy_profile_conflict property=EnableM01LiveAllocatorProbe",StringComparison.Ordinal) : flags.Contains("EnableM03MemoryMapCaptureProbe",StringComparer.Ordinal) ? r.Output.Contains("m03_memory_map_capture_profile_conflict property=EnableM01LoadedImageStackProbe",StringComparison.Ordinal) : r.Output.Contains("m04_rhp_new_fast",StringComparison.Ordinal)),"explicit profile rejection "+string.Join(',',flags)+" "+r.Output);
+            Need(r.Code!=0 && (flags.Contains("EnableM04TypeManagerModuleRegistrationProbe",StringComparer.Ordinal) ? r.Output.Contains("m04_type_manager_profile_conflict property=EnableM01LiveAllocatorProbe",StringComparison.Ordinal) : flags.Contains("EnableM03FirmwareEntropySeedProbe",StringComparer.Ordinal) ? r.Output.Contains("m03_firmware_entropy_profile_conflict property=EnableM01LoadedImageStackProbe",StringComparison.Ordinal) : flags.Contains("EnableM03MemoryMapCaptureProbe",StringComparer.Ordinal) ? r.Output.Contains("m03_memory_map_capture_profile_conflict property=EnableM01LoadedImageStackProbe",StringComparison.Ordinal) : r.Output.Contains("m04_rhp_new_fast",StringComparison.Ordinal)),"explicit profile rejection "+string.Join(',',flags)+" "+r.Output);
         }
         foreach(string[] flags in new[]{all,all.Append(before).ToArray(),all.Append(exhaust).ToArray()})
         {
-            Result r=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts/run-qemu-smoke.ps1"),"-BootPolicy", "Diagnostic", "-DryRun","-BuildEfi",..flags.Select(x=>"-"+x)]);
+            Result r=Command(["qemu", "smoke", "-BootPolicy", "Diagnostic", "-DryRun", "-BuildEfi", ..flags.Select(x=>"-"+x)]);
             Save(Path.Combine(directory,(id++).ToString()),r);Need(r.Code==0,r.Output);
             Need(r.Output.Contains("TEST_FAIL m04.007.rhp_new_fast",StringComparison.Ordinal),"negative profile does not weaken generic failure inventory");
         }
     }
+    [HostTest("m04.007.efi actual default and three allocation artifacts", HostLane.Native, 5)]
     private static void TestArtifacts()
     {
         string root=HostToolProcess.FindRepositoryRoot();
@@ -482,17 +461,17 @@ internal static class M04RhpNewFastEfiIntegrationTests
         foreach(var lane in new[]{("default",Array.Empty<string>()),("positive",all),("before-bind",all.Append("EnableM04RhpNewFastBeforeBindFailureProbe").ToArray()),("exhaustion",all.Append("EnableM04RhpNewFastExhaustionFailureProbe").ToArray())})
         {
             string directory=Scratch(root,"artifact-"+lane.Item1),artifact=Path.Combine(root,"artifacts/efi/issue519-tests-"+Guid.NewGuid().ToString("N")+".EFI");
-            Result r=Process(root,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(root,"scripts/build-efi-shell.ps1"),"-EfiOutputPath",artifact,"-LogPath",Path.Combine(directory,"publish.log"),..lane.Item2.Select(x=>"-"+x)]);
+            Result r=Command(["efi", "build", "-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory,"publish.log"), ..lane.Item2.Select(x=>"-"+x)]);
             Save(directory,r);
             Need(r.Code==0 && r.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal) && r.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),r.Output);
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(directory,file.Item2));
             using var document=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=document.RootElement;
-            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==138,"actual138 raw sources");
+            var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==OS.Tooling.EfiEvidence.SourceClosurePaths(root).Count,"complete raw source inventory");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw source unchanged");
-            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==122,"actual122 compile items");
+            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==OS.Tooling.EfiContracts.CompileItems.Count,"actual122 compile items");
             var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();
-            Need(flags.Length==52,"complete52 evaluated flags");
+            Need(flags.Length==OS.Tooling.EfiContracts.DiagnosticProbes.Count,"complete52 evaluated flags");
             foreach(var f in flags)Need(f.Value.GetString()==(lane.Item2.Contains(f.Name,StringComparer.Ordinal)?"true":"false"),"actual requested/evaluated profile "+f.Name);
             using(var pe=new PEReader(File.OpenRead(Path.Combine(directory,"OS.dll"))))
             {
@@ -562,12 +541,7 @@ internal static class M04RhpNewFastEfiIntegrationTests
     private static Result Process(string root,string executable,string[] arguments)
     {
         ProcessStartInfo start=new(executable){WorkingDirectory=root,UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true};
-        if(string.Equals(executable,"powershell.exe",StringComparison.OrdinalIgnoreCase))
-        {
-            string modules=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows),"System32","WindowsPowerShell","v1.0","Modules");
-            string inherited=Environment.GetEnvironmentVariable("PSModulePath")??string.Empty;
-            start.Environment["PSModulePath"]=modules+(inherited.Length==0?string.Empty:Path.PathSeparator+inherited);
-        }
+
         foreach(string a in arguments)start.ArgumentList.Add(a);
         using System.Diagnostics.Process p=System.Diagnostics.Process.Start(start)!;
         Task<string> stdout=p.StandardOutput.ReadToEndAsync(),stderr=p.StandardError.ReadToEndAsync();
@@ -576,6 +550,7 @@ internal static class M04RhpNewFastEfiIntegrationTests
     }
     private static string Scratch(string root,string name){string p=Path.Combine(root,"artifacts/issue519-tests",name,Guid.NewGuid().ToString("N"));Directory.CreateDirectory(p);return p;}
     private static void Need(bool x,string reason){if(!x)throw new InvalidOperationException(reason);}
+    private static Result Command(params string[] args) { var result = HostToolProcess.RunTool(args); return new(result.ExitCode, result.Output + result.Error); }
     private readonly record struct Result(int Code,string Output);
 }
 #endif

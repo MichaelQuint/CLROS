@@ -16,20 +16,12 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
         "CLROS_M02_011_EFI_HOST_READY switchDefault=false " +
         "sourceLinked=true allocationPages=3 cleanup=true " +
         "markerOrder=true noExecution=true";
-    private const string StartMarker = "TEST_START m02.011";
+    private const string StartMarker = OS.Tooling.QemuContracts.Record146;
     private const string ReadyMarker =
-        "CLROS_M02_011_READY vectors=256 gates=256 gateBytes=16 " +
-        "tableBytes=4096 selector=8 present=256 dpl0=256 " +
-        "interruptGates=256 ownedHandlers=256 firmwareGatesCopied=0 " +
-        "nmiIst=3 doubleFaultIst=1 pageFaultIst=2 " +
-        "normalizedFnv1a64=8514F42EBDFC5D55 readBack=true " +
-        "guestPopulation=true loaderData=true allocationPages=3 " +
-        "allocationReleased=true stubExecution=false idtrLoaded=false " +
-        "faultTriggered=false markerTransport=uefiSerial " +
-        "postExitBootServices=false";
-    private const string PassMarker = "TEST_PASS m02.011";
+        OS.Tooling.QemuContracts.Record120;
+    private const string PassMarker = OS.Tooling.QemuContracts.Record147;
     private const string FailureMarker =
-        "M02_OWNED_IDT_GATE_POPULATION_FAILED";
+        OS.Tooling.QemuContracts.Record145;
     private const string FailureTestMarker =
         "TEST_FAIL m02.011 guest_population_readback_or_cleanup";
     private const string HostOnlyReadyMarker =
@@ -40,284 +32,66 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
         "normalizedFnv1a64=8514F42EBDFC5D55 readBack=true " +
         "guestPopulation=false idtrLoaded=false stubExecution=false " +
         "faultTriggered=false postExitBootServices=false";
-    private const string LegacyStartMarker = "TEST_START m02.010";
+    private const string LegacyStartMarker = OS.Tooling.QemuContracts.Record137;
     private const string LegacyReadyMarker =
-        "CLROS_M02_010_READY vectors=256 hardwareErrorCodeVectors=9 " +
-        "syntheticErrorCodeVectors=247 slotBytes=16 pageBytes=4096 " +
-        "normalizedSlots=3 commonTargetDelta=4096 " +
-        "fnv1a64=428D0353A96B7ACE readBack=true " +
-        "guestMaterialization=true loaderData=true pageReleased=true " +
-        "stubExecution=false idtInstalled=false faultTriggered=false " +
-        "markerTransport=uefiSerial postExitBootServices=false";
-    private const string LegacyPassMarker = "TEST_PASS m02.010";
+        OS.Tooling.QemuContracts.Record136;
+    private const string LegacyPassMarker = OS.Tooling.QemuContracts.Record138;
     private const string M04EndianReadyMarker =
-        "CLROS_M04_002_READY readVectors=25 reverseVectors=7 byteSeries=5 " +
-        "uint16Series=7 fingerprint=E81E4451E8D999F6 " +
-        "referenceFilesRequired=false hostConformance=false " +
-        "guestIntegrated=true gate4=Fail";
+        OS.Tooling.QemuContracts.Record278;
     private const string M04SpanReadyMarker =
-        "CLROS_M04_003_READY vectors=16 spanVectors=4 overlapVectors=5 " +
-        "memoryCastVectors=3 unsafeWidthVectors=4 " +
-        "fingerprint=F03FF59D36F39ECD pointerWidth=8 " +
-        "referenceFilesRequired=false hostConformance=false " +
-        "guestIntegrated=true gate4=Fail";
-    private const string CompileClosureSha256 =
-        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
-    private const string SourceClosureSha256 =
-        "1499540f03bcd994d06ccc0c4fe11aea213055c9efa18ddfafa8f8834c5ab1bf";
+        OS.Tooling.QemuContracts.Record279;
+    private static readonly string CompileClosureSha256 =
+        OS.Tooling.EfiContracts.CompileInventorySha256;
     private const string FrozenProductionSha256 =
         "00EC277C3F6A0DB49CB54B34810202EE1D508318B29733C3F0392A7BC36CFA38";
-    private const string FrozenHostLeafSha256 =
-        "F7C4C19A643FCD8010B0AE69870A9B6BF129EEC2AA32A53AF867C182C31A2C70";
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        Console.WriteLine("TEST_START " + TestName);
-        int failures = 0;
 
-        RunCase(
-            "M02-011 project source authority and tooling propagation are exact",
-            TestProjectAndToolingContract,
-            ref failures);
-        RunCase(
-            "M02-011 default and enabled NativeAOT artifacts prove exact provenance",
-            TestDefaultAndEnabledEfiArtifacts,
-            ref failures);
-        RunCase(
-            "M02-011 EFI arena population cleanup and result order are exact",
-            TestEfiEntryContract,
-            ref failures);
-        RunCase(
-            "M02-011 fake Boot Services owns validates and releases every allocation path",
-            TestFakeBootServicesOrchestration,
-            ref failures);
-        RunCase(
-            "M02-011 QEMU profile and hostile arguments remain exact",
-            TestQemuProfilesAndHostileArguments,
-            ref failures);
-        RunCase(
-            "M02-011 transcript rejects missing reordered duplicate and failure records",
-            TestMarkerTranscriptRejection,
-            ref failures);
 
-        if (failures != 0)
-        {
-            Console.WriteLine(
-                "TEST_FAIL " + TestName + " host-contract failures=" + failures);
-            throw new InvalidOperationException(
-                "M02-011 EFI integration host tests failed: " + failures);
-        }
 
-        Console.WriteLine(HostReadyMarker);
-        Console.WriteLine("TEST_PASS " + TestName);
-    }
 
-    private static void RunCase(
-        string name,
-        Func<bool> test,
-        ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
 
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + name + " " + exception.GetType().Name +
-                ": " + exception.Message);
-        }
-    }
-
+    [HostTest("M02-011 project source authority and tooling propagation are exact", HostLane.Fast, 0)]
     private static bool TestProjectAndToolingContract()
     {
+        HostCheck.Registered(typeof(PopulateAllN256IDTVectorsOwnedGatesNeverTests));
+        foreach (bool build in new[]
+        {
+        true,
+        false
+    }
+
+        )
+            HostCheck.True(OS.Tooling.EfiOptions.Parse(["--EnableM02OwnedIdtGatePopulationProbe"], build).Profile().IsEnabled("EnableM02OwnedIdtGatePopulationProbe"));
         string root = HostToolProcess.FindRepositoryRoot();
         string projectPath = Path.Combine(root, "src", "OS", "OS.csproj");
         XDocument project = XDocument.Load(projectPath);
         XElement[] compileItems = project.Descendants("Compile").ToArray();
-        string[] compileKeys = compileItems
-            .Select(item =>
-                (item.Attribute("Include")?.Value ?? string.Empty) + "|" +
-                (item.Attribute("Link")?.Value ?? string.Empty))
-            .ToArray();
-        string compileHash = Convert.ToHexString(
-                SHA256.HashData(
-                    Encoding.UTF8.GetBytes(
-                        string.Join("\n", compileKeys) + "\n")))
-            .ToLowerInvariant();
-
-        const string TerminalKey =
-            @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
-        const string NormalizedKey =
-            @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
-        const string IdtKey =
-            @"..\OS.Kernel\Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs|Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs";
-        const string IdtrKey =
-            @"..\OS.Kernel\Diagnostics\IDTRContinuedExecution.cs|Diagnostics\IDTRContinuedExecution.cs";
-        const string EndianKey =
-            @"..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
+        string[] compileKeys = compileItems.Select(item => (item.Attribute("Include")?.Value ?? string.Empty) + "|" + (item.Attribute("Link")?.Value ?? string.Empty)).ToArray();
+        string compileHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n", compileKeys) + "\n"))).ToLowerInvariant();
+        const string TerminalKey = @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
+        const string NormalizedKey = @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
+        const string IdtKey = @"..\OS.Kernel\Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs|Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs";
+        const string IdtrKey = @"..\OS.Kernel\Diagnostics\IDTRContinuedExecution.cs|Diagnostics\IDTRContinuedExecution.cs";
+        const string EndianKey = @"..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
         int terminalIndex = Array.IndexOf(compileKeys, TerminalKey);
         int normalizedIndex = Array.IndexOf(compileKeys, NormalizedKey);
         int idtIndex = Array.IndexOf(compileKeys, IdtKey);
         int idtrIndex = Array.IndexOf(compileKeys, IdtrKey);
         int endianIndex = Array.IndexOf(compileKeys, EndianKey);
-
-        XElement[] defaults = project
-            .Descendants("EnableM02OwnedIdtGatePopulationProbe")
-            .Where(element => element.Parent?.Name.LocalName == "PropertyGroup")
-            .ToArray();
-        XElement[] symbolGroups = project
-            .Descendants("PropertyGroup")
-            .Where(group => group.Attribute("Condition")?.Value ==
-                "'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'")
-            .ToArray();
-        XElement[] terminalExclusions = project
-            .Descendants("Error")
-            .Where(error => error.Attribute("Condition")?.Value ==
-                "'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and " +
-                "'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'")
-            .ToArray();
-        XElement[] normalizedExclusions = project
-            .Descendants("Error")
-            .Where(error => error.Attribute("Condition")?.Value ==
-                "'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and " +
-                "'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'")
-            .ToArray();
-
-        string productionPath = Path.Combine(
-            root,
-            "src",
-            "OS.Kernel",
-            "Diagnostics",
-            "PopulateAllN256IDTVectorsOwnedGatesNever.cs");
-        string leafTestPath = Path.Combine(
-            root,
-            "tests",
-            "OS.HostTests",
-            "PopulateAllN256IDTVectorsOwnedGatesNeverTests.cs");
-        string build = File.ReadAllText(
-            Path.Combine(root, "scripts", "build-efi-shell.ps1"));
-        string verifier = File.ReadAllText(
-            Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
-        string qemu = File.ReadAllText(
-            Path.Combine(root, "scripts", "run-qemu-smoke.ps1"));
-        string probes = File.ReadAllText(
-            Path.Combine(
-                root,
-                "src",
-                "OS.Kernel",
-                "Diagnostics",
-                "Probes.cs"));
-        string[] buildCompileFirewall = ExtractPowerShellArray(
-            build,
-            "$script:ExpectedEfiCompileItems = @(");
-        string[] verifierCompileFirewall = ExtractPowerShellArray(
-            verifier,
-            "$expectedEfiCompileItems = @(");
-
-        return compileItems.Length == 122
-            && compileHash == CompileClosureSha256
-            && buildCompileFirewall.SequenceEqual(
-                compileKeys,
-                StringComparer.Ordinal)
-            && verifierCompileFirewall.SequenceEqual(
-                compileKeys,
-                StringComparer.Ordinal)
-            && terminalIndex >= 0
-            && normalizedIndex == terminalIndex + 1
-            && idtIndex == normalizedIndex + 1
-            && idtrIndex == idtIndex + 1
-            && endianIndex == idtrIndex + 15
-            && compileKeys.Count(key => key == IdtKey) == 1
-            && compileKeys.Count(key => key == IdtrKey) == 1
-            && compileItems.All(item =>
-                !(item.Attribute("Include")?.Value ?? string.Empty)
-                    .Contains('*', StringComparison.Ordinal))
-            && defaults.Length == 1
-            && defaults[0].Value == "false"
-            && defaults[0].Attribute("Condition")?.Value ==
-                "'$(EnableM02OwnedIdtGatePopulationProbe)' == ''"
-            && symbolGroups.Length == 1
-            && symbolGroups[0].Elements("DefineConstants").Single().Value ==
-                "$(DefineConstants);M02_OWNED_IDT_GATE_POPULATION_PROBE"
-            && terminalExclusions.Length == 1
-            && terminalExclusions[0].Attribute("Text")?.Value ==
-                "EnableM02OwnedIdtGatePopulationProbe cannot be combined " +
-                "with EnableM02OwnedGdtTssTerminalProbe=true."
-            && normalizedExclusions.Length == 1
-            && normalizedExclusions[0].Attribute("Text")?.Value ==
-                "EnableM02OwnedIdtGatePopulationProbe cannot be combined " +
-                "with EnableM02NormalizedInterruptFramePageProbe=true."
-            && Sha256File(productionPath) == FrozenProductionSha256
-            && Sha256File(leafTestPath) == FrozenHostLeafSha256
-            && build.Contains(
-                "[switch] $EnableM02OwnedIdtGatePopulationProbe",
-                StringComparison.Ordinal)
-            && build.Contains(
-                "-M02OwnedIdtGatePopulationEnabled " +
-                "$EnableM02OwnedIdtGatePopulationProbe.IsPresent",
-                StringComparison.Ordinal)
-            && build.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138",
-                StringComparison.Ordinal)
-            && build.Contains(IdtKey, StringComparison.Ordinal)
-            && build.Contains(
-                "M02_OWNED_IDT_GATE_POPULATION_PROBE",
-                StringComparison.Ordinal)
-            && verifier.Contains(
-                "[switch]$EnableM02OwnedIdtGatePopulationProbe",
-                StringComparison.Ordinal)
-            && verifier.Contains(
-                "$expectedSourceClosureInputCount = 138",
-                StringComparison.Ordinal)
-            && verifier.Contains(
-                "$compileItems.Count -ne 122",
-                StringComparison.Ordinal)
-            && verifier.Contains(IdtKey, StringComparison.Ordinal)
-            && verifier.Contains(
-                "-p:EnableM02OwnedIdtGatePopulationProbe=true",
-                StringComparison.Ordinal)
-            && qemu.Contains(
-                "[switch] $EnableM02OwnedIdtGatePopulationProbe",
-                StringComparison.Ordinal)
-            && qemu.Contains(
-                "-EnableM02OwnedIdtGatePopulationProbe",
-                StringComparison.Ordinal)
-            && qemu.Contains(ReadyMarker, StringComparison.Ordinal)
-            && qemu.Contains(
-                "m02_owned_idt_gate_population_probe_requires_build_efi",
-                StringComparison.Ordinal)
-            && qemu.Contains(
-                "m02_owned_idt_gate_population_probe_forbids_skip_image_build",
-                StringComparison.Ordinal)
-            && qemu.Contains(
-                "m02_owned_idt_gate_population_probe_forbids_owned_gdt_tss_terminal",
-                StringComparison.Ordinal)
-            && qemu.Contains(
-                "m02_owned_idt_gate_population_probe_forbids_normalized_interrupt_frame_page_probe",
-                StringComparison.Ordinal)
-            && !probes.Contains(
-                "EnableM02OwnedIdtGatePopulationProbe",
-                StringComparison.Ordinal)
-            && !probes.Contains(
-                "M02_OWNED_IDT_GATE_POPULATION_PROBE",
-                StringComparison.Ordinal);
+        XElement[] defaults = project.Descendants("EnableM02OwnedIdtGatePopulationProbe").Where(element => element.Parent?.Name.LocalName == "PropertyGroup").ToArray();
+        XElement[] symbolGroups = project.Descendants("PropertyGroup").Where(group => group.Attribute("Condition")?.Value == "'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true'").ToArray();
+        XElement[] terminalExclusions = project.Descendants("Error").Where(error => error.Attribute("Condition")?.Value == "'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and " + "'$(EnableM02OwnedGdtTssTerminalProbe)' == 'true'").ToArray();
+        XElement[] normalizedExclusions = project.Descendants("Error").Where(error => error.Attribute("Condition")?.Value == "'$(EnableM02OwnedIdtGatePopulationProbe)' == 'true' and " + "'$(EnableM02NormalizedInterruptFramePageProbe)' == 'true'").ToArray();
+        string productionPath = Path.Combine(root, "src", "OS.Kernel", "Diagnostics", "PopulateAllN256IDTVectorsOwnedGatesNever.cs");
+        string probes = File.ReadAllText(Path.Combine(root, "src", "OS.Kernel", "Diagnostics", "Probes.cs"));
+        return HostCheck.Result((compileItems.Length == OS.Tooling.EfiContracts.CompileItems.Count && compileHash == CompileClosureSha256 && terminalIndex >= 0 && normalizedIndex == terminalIndex + 1 && idtIndex == normalizedIndex + 1 && idtrIndex == idtIndex + 1 && endianIndex == idtrIndex + 15 && compileKeys.Count(key => key == IdtKey) == 1 && compileKeys.Count(key => key == IdtrKey) == 1 && compileItems.All(item => !(item.Attribute("Include")?.Value ?? string.Empty).Contains('*', StringComparison.Ordinal)) && defaults.Length == 1 && defaults[0].Value == "false" && defaults[0].Attribute("Condition")?.Value == "'$(EnableM02OwnedIdtGatePopulationProbe)' == ''" && symbolGroups.Length == 1 && symbolGroups[0].Elements("DefineConstants").Single().Value == "$(DefineConstants);M02_OWNED_IDT_GATE_POPULATION_PROBE" && terminalExclusions.Length == 1 && terminalExclusions[0].Attribute("Text")?.Value == "EnableM02OwnedIdtGatePopulationProbe cannot be combined " + "with EnableM02OwnedGdtTssTerminalProbe=true." && normalizedExclusions.Length == 1 && normalizedExclusions[0].Attribute("Text")?.Value == "EnableM02OwnedIdtGatePopulationProbe cannot be combined " + "with EnableM02NormalizedInterruptFramePageProbe=true." && Sha256File(productionPath) == FrozenProductionSha256 && !probes.Contains("EnableM02OwnedIdtGatePopulationProbe", StringComparison.Ordinal) && !probes.Contains("M02_OWNED_IDT_GATE_POPULATION_PROBE", StringComparison.Ordinal)) && OS.Tooling.ContractAudit.Inspect(root).Count == 0);
     }
 
+    [HostTest("M02-011 default and enabled NativeAOT artifacts prove exact provenance", HostLane.Native, 1)]
     private static bool TestDefaultAndEnabledEfiArtifacts()
     {
         string root = HostToolProcess.FindRepositoryRoot();
-        string script = Path.Combine(root, "scripts", "build-efi-shell.ps1");
+        string script = "efi build";
         string artifactDirectory = Path.Combine(root, "artifacts", "efi");
         string logDirectory = Path.Combine(root, "artifacts", "logs");
         Directory.CreateDirectory(artifactDirectory);
@@ -330,7 +104,7 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
         string enabledArtifact = Path.Combine(
             artifactDirectory,
             "BOOTX64-M02-011-HOSTTEST-" + runIdentity + "-ENABLED.EFI");
-        ScriptResult defaultBuild = RunPowerShellScript(
+        ScriptResult defaultBuild = RunToolCommand(
             root,
             script,
             600_000,
@@ -340,7 +114,7 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
             Path.Combine(
                 logDirectory,
                 "m02-011-hosttest-" + runIdentity + "-default.log"));
-        ScriptResult enabledBuild = RunPowerShellScript(
+        ScriptResult enabledBuild = RunToolCommand(
             root,
             script,
             600_000,
@@ -401,6 +175,7 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
             provenanceExact;
     }
 
+    [HostTest("M02-011 EFI arena population cleanup and result order are exact", HostLane.Fast, 2)]
     private static bool TestEfiEntryContract()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -651,6 +426,7 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
                 StringComparer.Ordinal);
     }
 
+    [HostTest("M02-011 fake Boot Services owns validates and releases every allocation path", HostLane.Fast, 3)]
     private static unsafe bool TestFakeBootServicesOrchestration()
     {
         const ulong ValidArenaAddress = 0x0000_0000_0020_0000UL;
@@ -1146,6 +922,7 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
             !trace.PassEmitted;
     }
 
+    [HostTest("M02-011 QEMU profile and hostile arguments remain exact", HostLane.Fast, 4)]
     private static bool TestQemuProfilesAndHostileArguments()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -1242,10 +1019,10 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
                 StringComparer.Ordinal)
             && FailsWith(
                 missingBuild,
-                "m02_owned_idt_gate_population_probe_requires_build_efi")
+                "qemu_profile_requires_build_efi")
             && FailsWith(
                 skipImage,
-                "m02_owned_idt_gate_population_probe_forbids_skip_image_build")
+                "qemu_profile_forbids_skip_image_build")
             && FailsWith(
                 terminalCollision,
                 "m02_owned_idt_gate_population_probe_forbids_owned_gdt_tss_terminal")
@@ -1254,6 +1031,7 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
                 "m02_owned_idt_gate_population_probe_forbids_normalized_interrupt_frame_page_probe");
     }
 
+    [HostTest("M02-011 transcript rejects missing reordered duplicate and failure records", HostLane.Fast, 5)]
     private static bool TestMarkerTranscriptRejection()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -1447,74 +1225,16 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
         return parser.Complete();
     }
 
-    private static ScriptResult RunQemuDryRun(
-        string root,
-        params string[] arguments)
+    private static ScriptResult RunQemuDryRun(string root, params string[] arguments)
     {
-        string script = Path.Combine(root, "scripts", "run-qemu-smoke.ps1");
-        return RunPowerShellScript(
-            root,
-            script,
-            30_000,
-            ["-DryRun", "-BootPolicy", "Diagnostic", .. arguments]);
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. arguments]);
+        return new(result.ExitCode, result.Output + result.Error);
     }
 
-    private static ScriptResult RunPowerShellScript(
-        string root,
-        string script,
-        int timeoutMilliseconds,
-        params string[] arguments)
+    private static ScriptResult RunToolCommand(string root, string command, int timeoutMilliseconds, params string[] arguments)
     {
-        string systemPowerShell = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.System),
-            "WindowsPowerShell",
-            "v1.0",
-            "powershell.exe");
-        ProcessStartInfo start = new(
-            File.Exists(systemPowerShell) ? systemPowerShell : "powershell.exe")
-        {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            WorkingDirectory = root
-        };
-        string windowsPowerShellModules = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.System),
-            "WindowsPowerShell",
-            "v1.0",
-            "Modules");
-        string inheritedModulePath =
-            Environment.GetEnvironmentVariable("PSModulePath") ?? string.Empty;
-        start.Environment["PSModulePath"] = inheritedModulePath.Length == 0
-            ? windowsPowerShellModules
-            : windowsPowerShellModules + Path.PathSeparator + inheritedModulePath;
-        start.ArgumentList.Add("-NoProfile");
-        start.ArgumentList.Add("-NonInteractive");
-        start.ArgumentList.Add("-ExecutionPolicy");
-        start.ArgumentList.Add("Bypass");
-        start.ArgumentList.Add("-File");
-        start.ArgumentList.Add(script);
-        foreach (string argument in arguments)
-        {
-            start.ArgumentList.Add(argument);
-        }
-
-        using Process process = Process.Start(start) ??
-            throw new InvalidOperationException("Could not start PowerShell.");
-        Task<string> stdout = process.StandardOutput.ReadToEndAsync();
-        Task<string> stderr = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(timeoutMilliseconds))
-        {
-            process.Kill(entireProcessTree: true);
-            process.WaitForExit();
-            throw new TimeoutException(
-                "M02-011 PowerShell command timed out: " + script);
-        }
-
-        return new ScriptResult(
-            process.ExitCode,
-            stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult());
+        var result = HostToolProcess.RunTool([.. command.Split(' '), .. arguments]);
+        return new(result.ExitCode, result.Output + result.Error);
     }
 
     private static bool ValidateLinkEvidence(
@@ -1553,14 +1273,14 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
             && evidence.GetProperty("artifactSha256").GetString() ==
                 Sha256File(artifactPath).ToLowerInvariant()
             && evidence.GetProperty("sourceClosureSha256").GetString() ==
-                SourceClosureSha256
+                HostToolProcess.SourceClosureSha256(root)
             && evidence.GetProperty("sourceProjectSha256").GetString() ==
                 Sha256File(Path.Combine(root, "src", "OS", "OS.csproj"))
                     .ToLowerInvariant()
             && evidence.GetProperty("entrySourceSha256").GetString() ==
                 Sha256File(Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs"))
                     .ToLowerInvariant()
-            && evaluation.GetProperty("compileCount").GetInt32() == 122
+            && evaluation.GetProperty("compileCount").GetInt32() == OS.Tooling.EfiContracts.CompileItems.Count
             && evaluation.GetProperty("compileSha256").GetString() ==
                 CompileClosureSha256
             && evaluation.GetProperty("projectReferenceCount").GetInt32() == 0
@@ -1584,74 +1304,14 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
             && properties.GetProperty(
                     "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe")
                 .GetString() == "false"
-            && inputElements.Length == 138
+            && inputElements.Length == expectedPaths.Length
             && actualPaths.SequenceEqual(expectedPaths, StringComparer.Ordinal)
             && inputHashesExact;
     }
 
-    private static string[] ExpectedSourceAuthorityPaths(string root)
-    {
-        string projectPath = Path.Combine(root, "src", "OS", "OS.csproj");
-        string projectDirectory = Path.GetDirectoryName(projectPath) ??
-            throw new InvalidOperationException("OS project directory is missing.");
-        XDocument project = XDocument.Load(projectPath);
-        List<string> paths =
-        [
-            "CLROS.slnx",
-            "Directory.Build.props",
-            "Directory.Build.targets",
-            "global.json",
-            "scripts/build-efi-shell.ps1",
-            "scripts/test-efi-artifact.ps1",
-            "src/OS/OS.csproj",
-            "tools/Directory.Build.props",
-            "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
-            "tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/ExceptionHandlingThunkGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj",
-            "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets",
-            "tools/OS.X64TextSerializerGenerator/Program.cs"
-        ];
-        paths.AddRange(project
-            .Descendants("Compile")
-            .Select(item => item.Attribute("Include")?.Value ?? string.Empty)
-            .Select(include => Path.GetFullPath(
-                Path.Combine(projectDirectory, include)))
-            .Select(fullPath => Path.GetRelativePath(root, fullPath)
-                .Replace('\\', '/')));
-        return paths
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .ToArray();
-    }
+    private static string[] ExpectedSourceAuthorityPaths(string root) => OS.Tooling.EfiEvidence.SourceClosurePaths(root).ToArray();
 
-    private static string[] ExtractPowerShellArray(
-        string source,
-        string declaration)
-    {
-        int start = source.IndexOf(declaration, StringComparison.Ordinal);
-        if (start < 0)
-        {
-            return [];
-        }
 
-        int bodyStart = start + declaration.Length;
-        int close = source.IndexOf("\n)", bodyStart, StringComparison.Ordinal);
-        if (close < 0)
-        {
-            return [];
-        }
-
-        return Regex.Matches(
-                source[bodyStart..close],
-                @"(?m)^\s*'(?<value>[^'\r\n]*)',?\s*$",
-                RegexOptions.CultureInvariant)
-            .Cast<Match>()
-            .Select(match => match.Groups["value"].Value)
-            .ToArray();
-    }
 
     private static bool ContainsAscii(byte[] bytes, string value)
     {

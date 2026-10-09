@@ -3,48 +3,8 @@ using OS.Net;
 
 internal static class ArpPacketTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.packet.arp.request-round-trip", TestArpRequestRoundTrip, ref failures);
-        Run("net.packet.arp.reply-round-trip", TestArpReplyRoundTrip, ref failures);
-        Run("net.packet.arp.reject-unsupported-hardware-type", TestUnsupportedHardwareType, ref failures);
-        Run("net.packet.arp.reject-unsupported-protocol-type", TestUnsupportedProtocolType, ref failures);
-        Run("net.packet.arp.reject-invalid-address-lengths", TestInvalidAddressLengths, ref failures);
-        Run("net.packet.arp.reject-unsupported-opcode", TestUnsupportedOperation, ref failures);
-        Run("net.packet.arp.reject-truncated-packet", TestTruncatedPacket, ref failures);
-        Run("net.packet.ethernet.dispatch-arp-and-ipv4", TestEthernetDispatchRecognizesArpAndIpv4, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ARP packet host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.packet.arp.request-round-trip", HostLane.Fast, 0)]
     private static bool TestArpRequestRoundTrip()
     {
         ArpPacket request = CreateRequest();
@@ -67,18 +27,19 @@ internal static class ArpPacketTests
             || bytesWritten != expected.Length
             || !packet.SequenceEqual(expected))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         PacketParseStatus parseStatus = ArpPacket.TryParse(packet, out ArpPacket parsed);
-        return parseStatus == PacketParseStatus.Success
+        return HostCheck.Result(parseStatus == PacketParseStatus.Success
             && parsed.Operation == request.Operation
             && parsed.SenderMac == request.SenderMac
             && parsed.SenderAddress == request.SenderAddress
             && parsed.TargetMac == request.TargetMac
-            && parsed.TargetAddress == request.TargetAddress;
+            && parsed.TargetAddress == request.TargetAddress);
     }
 
+    [HostTest("net.packet.arp.reply-round-trip", HostLane.Fast, 1)]
     private static bool TestArpReplyRoundTrip()
     {
         ArpPacket reply = CreateReply();
@@ -101,18 +62,19 @@ internal static class ArpPacketTests
             || bytesWritten != expected.Length
             || !packet.SequenceEqual(expected))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         PacketParseStatus parseStatus = ArpPacket.TryParse(packet, out ArpPacket parsed);
-        return parseStatus == PacketParseStatus.Success
+        return HostCheck.Result(parseStatus == PacketParseStatus.Success
             && parsed.Operation == reply.Operation
             && parsed.SenderMac == reply.SenderMac
             && parsed.SenderAddress == reply.SenderAddress
             && parsed.TargetMac == reply.TargetMac
-            && parsed.TargetAddress == reply.TargetAddress;
+            && parsed.TargetAddress == reply.TargetAddress);
     }
 
+    [HostTest("net.packet.arp.reject-unsupported-hardware-type", HostLane.Fast, 2)]
     private static bool TestUnsupportedHardwareType()
     {
         byte[] packet = CreateRequestBytes();
@@ -121,9 +83,10 @@ internal static class ArpPacketTests
 
         PacketParseStatus status = ArpPacket.TryParse(packet, out ArpPacket _);
 
-        return status == PacketParseStatus.UnsupportedHardwareType;
+        return HostCheck.Result(status == PacketParseStatus.UnsupportedHardwareType);
     }
 
+    [HostTest("net.packet.arp.reject-unsupported-protocol-type", HostLane.Fast, 3)]
     private static bool TestUnsupportedProtocolType()
     {
         byte[] packet = CreateRequestBytes();
@@ -132,9 +95,10 @@ internal static class ArpPacketTests
 
         PacketParseStatus status = ArpPacket.TryParse(packet, out ArpPacket _);
 
-        return status == PacketParseStatus.UnsupportedProtocolType;
+        return HostCheck.Result(status == PacketParseStatus.UnsupportedProtocolType);
     }
 
+    [HostTest("net.packet.arp.reject-invalid-address-lengths", HostLane.Fast, 4)]
     private static bool TestInvalidAddressLengths()
     {
         byte[] invalidHardwareLength = CreateRequestBytes();
@@ -145,10 +109,11 @@ internal static class ArpPacketTests
         invalidProtocolLength[5] = 0x10;
         PacketParseStatus protocolStatus = ArpPacket.TryParse(invalidProtocolLength, out ArpPacket _);
 
-        return hardwareStatus == PacketParseStatus.UnsupportedHardwareAddressLength
-            && protocolStatus == PacketParseStatus.UnsupportedProtocolAddressLength;
+        return HostCheck.Result(hardwareStatus == PacketParseStatus.UnsupportedHardwareAddressLength
+            && protocolStatus == PacketParseStatus.UnsupportedProtocolAddressLength);
     }
 
+    [HostTest("net.packet.arp.reject-unsupported-opcode", HostLane.Fast, 5)]
     private static bool TestUnsupportedOperation()
     {
         byte[] packet = CreateRequestBytes();
@@ -157,18 +122,20 @@ internal static class ArpPacketTests
 
         PacketParseStatus status = ArpPacket.TryParse(packet, out ArpPacket _);
 
-        return status == PacketParseStatus.UnsupportedOperation;
+        return HostCheck.Result(status == PacketParseStatus.UnsupportedOperation);
     }
 
+    [HostTest("net.packet.arp.reject-truncated-packet", HostLane.Fast, 6)]
     private static bool TestTruncatedPacket()
     {
         byte[] packet = CreateRequestBytes();
 
         PacketParseStatus status = ArpPacket.TryParse(packet.AsSpan(0, packet.Length - 1), out ArpPacket _);
 
-        return status == PacketParseStatus.BufferTooSmall;
+        return HostCheck.Result(status == PacketParseStatus.BufferTooSmall);
     }
 
+    [HostTest("net.packet.ethernet.dispatch-arp-and-ipv4", HostLane.Fast, 7)]
     private static bool TestEthernetDispatchRecognizesArpAndIpv4()
     {
         byte[] arpFrame = CreateArpFrame();
@@ -185,14 +152,14 @@ internal static class ArpPacketTests
             out EthernetPayloadKind ipv4Kind,
             out ReadOnlySpan<byte> ipv4Payload);
 
-        return arpStatus == PacketParseStatus.Success
+        return HostCheck.Result(arpStatus == PacketParseStatus.Success
             && arpHeader.EtherType == EthernetHeader.EtherTypeArp
             && arpKind == EthernetPayloadKind.Arp
             && arpPayload.Length == ArpPacket.PacketLength
             && ipv4Status == PacketParseStatus.Success
             && ipv4Header.EtherType == EthernetHeader.EtherTypeIpv4
             && ipv4Kind == EthernetPayloadKind.Ipv4
-            && ipv4Payload.Length == Ipv4Header.MinHeaderLength + UdpHeader.HeaderLength + 4;
+            && ipv4Payload.Length == Ipv4Header.MinHeaderLength + UdpHeader.HeaderLength + 4);
     }
 
     private static ArpPacket CreateRequest()

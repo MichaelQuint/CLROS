@@ -4,7 +4,7 @@ using OS.Std;
 
 internal static class StdMathTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void Run()
     {
         RunMinMaxIntegerHelpers();
@@ -15,9 +15,7 @@ internal static class StdMathTests
     private static void RunMinMaxIntegerHelpers()
     {
         const string name = "std.math min max integer helpers";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             ExpectBool("status", true, StdMath.Status == CompatibilityStatus.Partial);
 
@@ -32,22 +30,13 @@ internal static class StdMathTests
             ExpectLong("Max long", long.MaxValue, StdMath.Max(0, long.MaxValue));
             ExpectULong("Min ulong", 5, StdMath.Min(5UL, ulong.MaxValue));
             ExpectULong("Max ulong", ulong.MaxValue, StdMath.Max(5UL, ulong.MaxValue));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunClampIntegerBounds()
     {
         const string name = "std.math clamp integer bounds";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             ExpectInt("Clamp int below", -2, StdMath.Clamp(-9, -2, 7));
             ExpectInt("Clamp int inside", 3, StdMath.Clamp(3, -2, 7));
@@ -69,22 +58,13 @@ internal static class StdMathTests
             ExpectArgumentException("Clamp uint invalid bounds", () => StdMath.Clamp(0u, 2u, 1u));
             ExpectArgumentException("Clamp long invalid bounds", () => StdMath.Clamp(0L, 2L, 1L));
             ExpectArgumentException("Clamp ulong invalid bounds", () => StdMath.Clamp(0UL, 2UL, 1UL));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunAbsOverflowBehavior()
     {
         const string name = "std.math abs overflow behavior";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             ExpectInt("Abs int positive", 7, StdMath.Abs(7));
             ExpectInt("Abs int zero", 0, StdMath.Abs(0));
@@ -95,14 +75,7 @@ internal static class StdMathTests
 
             ExpectOverflowException("Abs int min", () => StdMath.Abs(int.MinValue));
             ExpectOverflowException("Abs long min", () => StdMath.Abs(long.MinValue));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void ExpectInt(string scenario, int expected, int actual)

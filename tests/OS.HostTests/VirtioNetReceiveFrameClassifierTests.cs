@@ -7,51 +7,7 @@ internal static class VirtioNetReceiveFrameClassifierTests
 {
     private const ushort UnsupportedEtherType = 0x86DD;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.virtionet.rx classifies arp frame", TestClassifiesArpFrame, ref failures);
-        Run("drivers.virtionet.rx classifies ipv4 frame", TestClassifiesIpv4Frame, ref failures);
-        Run("drivers.virtionet.rx rejects truncated virtio header", TestRejectsTruncatedVirtioHeader, ref failures);
-        Run("drivers.virtionet.rx rejects unsupported offload", TestRejectsUnsupportedOffload, ref failures);
-        Run("drivers.virtionet.rx rejects missing ethernet header", TestRejectsMissingEthernetHeader, ref failures);
-        Run("drivers.virtionet.rx reports unsupported payload", TestReportsUnsupportedPayload, ref failures);
-        Run(
-            "drivers.virtionet.rx classifier default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio-net RX frame classifier host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtionet.rx classifies arp frame", HostLane.Fast, 0)]
     private static bool TestClassifiesArpFrame()
     {
         byte[] frame = CreateReceiveBuffer(EthernetHeader.EtherTypeArp, payloadBytes: 28);
@@ -59,7 +15,7 @@ internal static class VirtioNetReceiveFrameClassifierTests
         VirtioNetReceiveFrameClassificationResult result =
             VirtioNetReceiveFrameClassifier.Classify(frame);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioNetReceiveFrameClassifierStatus.Success
             && result.PacketStatus == PacketParseStatus.Success
             && result.PayloadKind == EthernetPayloadKind.Arp
@@ -70,9 +26,10 @@ internal static class VirtioNetReceiveFrameClassifierTests
             && result.VirtioMetadata.EthernetFrameOffset == VirtioNetHeader.HeaderLengthWithoutMergeableBuffers
             && result.VirtioMetadata.EthernetPayloadLength == 28
             && result.PayloadOffset == ExpectedPayloadOffset
-            && result.PayloadLength == 28;
+            && result.PayloadLength == 28);
     }
 
+    [HostTest("drivers.virtionet.rx classifies ipv4 frame", HostLane.Fast, 1)]
     private static bool TestClassifiesIpv4Frame()
     {
         byte[] frame = CreateReceiveBuffer(EthernetHeader.EtherTypeIpv4, payloadBytes: 20);
@@ -80,15 +37,16 @@ internal static class VirtioNetReceiveFrameClassifierTests
         VirtioNetReceiveFrameClassificationResult result =
             VirtioNetReceiveFrameClassifier.Classify(frame);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == VirtioNetReceiveFrameClassifierStatus.Success
             && result.PacketStatus == PacketParseStatus.Success
             && result.PayloadKind == EthernetPayloadKind.Ipv4
             && result.EthernetHeader.EtherType == EthernetHeader.EtherTypeIpv4
             && result.PayloadOffset == ExpectedPayloadOffset
-            && result.PayloadLength == 20;
+            && result.PayloadLength == 20);
     }
 
+    [HostTest("drivers.virtionet.rx rejects truncated virtio header", HostLane.Fast, 2)]
     private static bool TestRejectsTruncatedVirtioHeader()
     {
         byte[] frame = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers - 1];
@@ -96,14 +54,15 @@ internal static class VirtioNetReceiveFrameClassifierTests
         VirtioNetReceiveFrameClassificationResult result =
             VirtioNetReceiveFrameClassifier.Classify(frame);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetReceiveFrameClassifierStatus.BufferTooSmall
             && result.PacketStatus == PacketParseStatus.BufferTooSmall
             && result.PayloadKind == EthernetPayloadKind.Unsupported
             && result.PayloadOffset == 0
-            && result.PayloadLength == 0;
+            && result.PayloadLength == 0);
     }
 
+    [HostTest("drivers.virtionet.rx rejects unsupported offload", HostLane.Fast, 3)]
     private static bool TestRejectsUnsupportedOffload()
     {
         byte[] frame = CreateReceiveBuffer(EthernetHeader.EtherTypeIpv4, payloadBytes: 0);
@@ -114,14 +73,15 @@ internal static class VirtioNetReceiveFrameClassifierTests
         VirtioNetReceiveFrameClassificationResult result =
             VirtioNetReceiveFrameClassifier.Classify(frame);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetReceiveFrameClassifierStatus.UnsupportedChecksumOffload
             && result.PacketStatus == PacketParseStatus.UnsupportedOperation
             && result.PayloadKind == EthernetPayloadKind.Unsupported
             && result.PayloadOffset == 0
-            && result.PayloadLength == 0;
+            && result.PayloadLength == 0);
     }
 
+    [HostTest("drivers.virtionet.rx rejects missing ethernet header", HostLane.Fast, 4)]
     private static bool TestRejectsMissingEthernetHeader()
     {
         byte[] frame =
@@ -130,14 +90,15 @@ internal static class VirtioNetReceiveFrameClassifierTests
         VirtioNetReceiveFrameClassificationResult result =
             VirtioNetReceiveFrameClassifier.Classify(frame);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetReceiveFrameClassifierStatus.MissingEthernetHeader
             && result.PacketStatus == PacketParseStatus.BufferTooSmall
             && result.PayloadKind == EthernetPayloadKind.Unsupported
             && result.PayloadOffset == 0
-            && result.PayloadLength == 0;
+            && result.PayloadLength == 0);
     }
 
+    [HostTest("drivers.virtionet.rx reports unsupported payload", HostLane.Fast, 5)]
     private static bool TestReportsUnsupportedPayload()
     {
         byte[] frame = CreateReceiveBuffer(UnsupportedEtherType, payloadBytes: 8);
@@ -145,21 +106,22 @@ internal static class VirtioNetReceiveFrameClassifierTests
         VirtioNetReceiveFrameClassificationResult result =
             VirtioNetReceiveFrameClassifier.Classify(frame);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetReceiveFrameClassifierStatus.UnsupportedPayload
             && result.PacketStatus == PacketParseStatus.UnsupportedEtherType
             && result.PayloadKind == EthernetPayloadKind.Unsupported
             && result.EthernetHeader.EtherType == UnsupportedEtherType
             && result.VirtioMetadata.EthernetFrameLength == EthernetHeader.HeaderLength + 8
             && result.PayloadOffset == ExpectedPayloadOffset
-            && result.PayloadLength == 8;
+            && result.PayloadLength == 8);
     }
 
+    [HostTest("drivers.virtionet.rx classifier default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioNetReceiveFrameClassificationResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioNetReceiveFrameClassifierStatus.Success
             && result.PacketStatus == PacketParseStatus.Success
@@ -167,7 +129,7 @@ internal static class VirtioNetReceiveFrameClassifierTests
             && result.PayloadOffset == 0
             && result.PayloadLength == 0
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetReceiveFrameClassificationResult>();
+                VirtioNetReceiveFrameClassificationResult>());
     }
 
     private static byte[] CreateReceiveBuffer(ushort etherType, int payloadBytes)

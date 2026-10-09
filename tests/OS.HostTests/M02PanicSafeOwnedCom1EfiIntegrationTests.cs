@@ -9,21 +9,16 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
 {
     private const string TestName = "m02.006.efi.integration";
     private const string ReadyMarker =
-        "CLROS_M02_006_READY panicFormatter=bounded ownedCom1Transport=true " +
-        "callerScratch=true statusCoded=true firmwareFallback=false";
+        OS.Tooling.QemuContracts.Record115;
     private const string EvidenceMarker =
-        "CLROS_M02_006_EVIDENCE markerBytes=125 serialBytes=127 " +
-        "configurationWrites=7 lineStatusPolls=127 markerTransport=com1PortIo " +
-        "evidenceTransport=uefiSerial guestPortIo=true guestIn8=true " +
-        "panicFormatter=linked panicReporter=ownedCom1 callerScratch=true " +
-        "statusCoded=true firmwareFallback=false postExitBootServices=false";
-    private const string FailureMarker = "M02_PANIC_SAFE_OWNED_COM1_FAILED";
-    private const string CompileClosureSha256 =
-        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
+        OS.Tooling.QemuContracts.Record116;
+    private const string FailureMarker = OS.Tooling.QemuContracts.Record109;
+    private static readonly string CompileClosureSha256 =
+        OS.Tooling.EfiContracts.CompileInventorySha256;
     private const string CanonicalProjectSha256 =
-        "70b5a8737c78658b7f702f3deaa881d224ef2a4ce04116a8ee92523568748f5a";
+        OS.Tooling.EfiContracts.CanonicalProjectSha256;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START " + TestName);
@@ -62,190 +57,37 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
         Func<bool> test,
         ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
 
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + name + " " + exception.GetType().Name + ": " +
-                exception.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestCompileClosureAndSwitch()
-    {
-        string root = HostToolProcess.FindRepositoryRoot();
-        XDocument project = XDocument.Load(
-            Path.Combine(root, "src", "OS", "OS.csproj"));
-        XElement[] compileItems = project.Descendants("Compile").ToArray();
-        string[] compileKeys = compileItems
-            .Select(item =>
-                (item.Attribute("Include")?.Value ?? string.Empty) + "|" +
-                (item.Attribute("Link")?.Value ?? string.Empty))
-            .ToArray();
-        string compileHash = Convert.ToHexString(
-                SHA256.HashData(
-                    Encoding.UTF8.GetBytes(string.Join("\n", compileKeys) + "\n")))
-            .ToLowerInvariant();
-
-        const string WriterKey =
-            @"..\OS.Kernel\Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs|Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs";
-        const string ReporterKey =
-            @"..\OS.Kernel\Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs|Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs";
-        const string GdtKey =
-            @"..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs";
-        const string GuardedIstKey =
-            @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
-        const string TerminalKey =
-            @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
-        const string NormalizedInterruptFrameKey =
-            @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
-        const string CatalogKey =
-            @"..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
-        int writerIndex = Array.IndexOf(compileKeys, WriterKey);
-        int reporterIndex = Array.IndexOf(compileKeys, ReporterKey);
-        int gdtIndex = Array.IndexOf(compileKeys, GdtKey);
-        int guardedIstIndex = Array.IndexOf(compileKeys, GuardedIstKey);
-        int terminalIndex = Array.IndexOf(compileKeys, TerminalKey);
-        int normalizedInterruptFrameIndex =
-            Array.IndexOf(compileKeys, NormalizedInterruptFrameKey);
-        int catalogIndex = Array.IndexOf(compileKeys, CatalogKey);
-
-        XElement[] defaults = project
-            .Descendants("EnableM02PanicSafeOwnedCom1Probe")
-            .Where(element => element.Attribute("Condition")?.Value ==
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == ''")
-            .ToArray();
-        XElement[] ud2ProfileOverrides = project
-            .Descendants("PropertyGroup")
-            .Where(group => group.Attribute("Condition")?.Value ==
-                "'$(EnableM02Ud2VectorStateProbe)' == 'true'")
-            .SelectMany(group => group.Elements(
-                "EnableM02PanicSafeOwnedCom1Probe"))
-            .ToArray();
-        XElement[] symbolGroups = project
-            .Descendants("PropertyGroup")
-            .Where(element =>
-                element.Attribute("Condition")?.Value ==
-                    "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'")
-            .ToArray();
-        string[] dependencyConditions = project
-            .Descendants("Error")
-            .Select(element => element.Attribute("Condition")?.Value ?? string.Empty)
-            .Where(value => value.StartsWith(
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'",
-                StringComparison.Ordinal))
-            .ToArray();
-
-        string buildScript = File.ReadAllText(
-            Path.Combine(root, "scripts", "build-efi-shell.ps1"));
-        string verifierScript = File.ReadAllText(
-            Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
-
-        return compileItems.Length == 122
-            && compileHash == CompileClosureSha256
-            && writerIndex >= 0
-            && reporterIndex == writerIndex + 1
-            && gdtIndex == reporterIndex + 1
-            && guardedIstIndex == gdtIndex + 1
-            && terminalIndex == guardedIstIndex + 1
-            && normalizedInterruptFrameIndex == terminalIndex + 1
-            && catalogIndex == normalizedInterruptFrameIndex + 17
-            && compileKeys.Count(key => key == ReporterKey) == 1
-            && defaults.Length == 1
-            && defaults[0].Value == "false"
-            && defaults[0].Attribute("Condition")?.Value ==
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == ''"
-            && ud2ProfileOverrides.Length == 1
-            && ud2ProfileOverrides[0].Value == "true"
-            && symbolGroups.Length == 1
-            && symbolGroups[0].Elements("DefineConstants").Single().Value ==
-                "$(DefineConstants);M02_PANIC_SAFE_OWNED_COM1_PROBE"
-            && dependencyConditions.Length == 14
-            && dependencyConditions.Contains(
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM02OwnedCom1ReadyProbe)' != 'true'",
-                StringComparer.Ordinal)
-            && buildScript.Contains(
-                "[switch] $EnableM02PanicSafeOwnedCom1Probe",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "$arguments += \"-p:EnableM02PanicSafeOwnedCom1Probe=true\"",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "m02_panic_safe_owned_com1_requires_owned_com1_ready",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                CanonicalProjectSha256,
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "\"-EnableM02PanicSafeOwnedCom1Probe\",\n            \"true\"",
-                StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "[switch]$EnableM02PanicSafeOwnedCom1Probe",
-                StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 138",
-                StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "$compileItems.Count -ne 122",
-                StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "-p:EnableM02PanicSafeOwnedCom1Probe=true",
-                StringComparison.Ordinal);
-    }
+{
+    string root = HostToolProcess.FindRepositoryRoot();
+    XDocument project = XDocument.Load(Path.Combine(root, "src", "OS", "OS.csproj"));
+    XElement[] compileItems = project.Descendants("Compile").ToArray();
+    string[] compileKeys = compileItems.Select(item => (item.Attribute("Include")?.Value ?? string.Empty) + "|" + (item.Attribute("Link")?.Value ?? string.Empty)).ToArray();
+    string compileHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n", compileKeys) + "\n"))).ToLowerInvariant();
+    const string WriterKey = @"..\OS.Kernel\Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs|Diagnostics\OWNEDCOM1READYExclusivelyOwnedWriter.cs";
+    const string ReporterKey = @"..\OS.Kernel\Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs|Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs";
+    const string GdtKey = @"..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs";
+    const string GuardedIstKey = @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
+    const string TerminalKey = @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
+    const string NormalizedInterruptFrameKey = @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
+    const string CatalogKey = @"..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
+    int writerIndex = Array.IndexOf(compileKeys, WriterKey);
+    int reporterIndex = Array.IndexOf(compileKeys, ReporterKey);
+    int gdtIndex = Array.IndexOf(compileKeys, GdtKey);
+    int guardedIstIndex = Array.IndexOf(compileKeys, GuardedIstKey);
+    int terminalIndex = Array.IndexOf(compileKeys, TerminalKey);
+    int normalizedInterruptFrameIndex = Array.IndexOf(compileKeys, NormalizedInterruptFrameKey);
+    int catalogIndex = Array.IndexOf(compileKeys, CatalogKey);
+    XElement[] defaults = project.Descendants("EnableM02PanicSafeOwnedCom1Probe").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02PanicSafeOwnedCom1Probe)' == ''").ToArray();
+    XElement[] ud2ProfileOverrides = project.Descendants("PropertyGroup").Where(group => group.Attribute("Condition")?.Value == "'$(EnableM02Ud2VectorStateProbe)' == 'true'").SelectMany(group => group.Elements("EnableM02PanicSafeOwnedCom1Probe")).ToArray();
+    XElement[] symbolGroups = project.Descendants("PropertyGroup").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'").ToArray();
+    string[] dependencyConditions = project.Descendants("Error").Select(element => element.Attribute("Condition")?.Value ?? string.Empty).Where(value => value.StartsWith("'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true'", StringComparison.Ordinal)).ToArray();
+    return (compileItems.Length == OS.Tooling.EfiContracts.CompileItems.Count && compileHash == CompileClosureSha256 && writerIndex >= 0 && reporterIndex == writerIndex + 1 && gdtIndex == reporterIndex + 1 && guardedIstIndex == gdtIndex + 1 && terminalIndex == guardedIstIndex + 1 && normalizedInterruptFrameIndex == terminalIndex + 1 && catalogIndex == normalizedInterruptFrameIndex + 17 && compileKeys.Count(key => key == ReporterKey) == 1 && defaults.Length == 1 && defaults[0].Value == "false" && defaults[0].Attribute("Condition")?.Value == "'$(EnableM02PanicSafeOwnedCom1Probe)' == ''" && ud2ProfileOverrides.Length == 1 && ud2ProfileOverrides[0].Value == "true" && symbolGroups.Length == 1 && symbolGroups[0].Elements("DefineConstants").Single().Value == "$(DefineConstants);M02_PANIC_SAFE_OWNED_COM1_PROBE" && dependencyConditions.Length == 14 && dependencyConditions.Contains("'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02PanicSafeOwnedCom1Probe)' == 'true' and '$(EnableM02OwnedCom1ReadyProbe)' != 'true'", StringComparer.Ordinal)) && OS.Tooling.ContractAudit.Inspect(root).Count == 0;
+}
 
     private static bool TestEntryCallOrderAndResultGate()
     {
@@ -373,72 +215,7 @@ internal static class M02PanicSafeOwnedCom1EfiIntegrationTests
                 "WriteM02PanicSafeOwnedCom1FailureLine(") == 2;
     }
 
-    private static bool TestQemuProfileSource()
-    {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(root, "scripts", "run-qemu-smoke.ps1"));
-
-        int panicProfile = source.IndexOf(
-            "elseif ($EnableM02PanicSafeOwnedCom1Probe) {",
-            StringComparison.Ordinal);
-        int priorProfile = IndexOfAfter(
-            source,
-            "elseif ($EnableM02OwnedCom1ReadyProbe) {",
-            panicProfile);
-
-        return source.Contains(
-                "[switch] $EnableM02PanicSafeOwnedCom1Probe",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$script:M02PanicSafeOwnedCom1ReadyMarker =",
-                StringComparison.Ordinal)
-            && source.Contains(ReadyMarker, StringComparison.Ordinal)
-            && source.Contains(EvidenceMarker, StringComparison.Ordinal)
-            && source.Contains(FailureMarker, StringComparison.Ordinal)
-            && source.Contains(
-                "$script:M02PanicSafeOwnedCom1RequiredMarkers",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$script:M02PanicSafeOwnedCom1ForbiddenMarkers",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "m02_panic_safe_owned_com1_probe_requires_owned_com1_ready",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "m02_panic_safe_owned_com1_probe_requires_build_efi",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "m02_panic_safe_owned_com1_probe_forbids_skip_image_build",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$buildArguments += \"-EnableM02PanicSafeOwnedCom1Probe\"",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "profileRequired=54 profileForbidden=38",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$script:M02OwnedCom1ReadyEvidenceMarker) {",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$script:M02PanicSafeOwnedCom1ReadyMarker",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$script:M02PanicSafeOwnedCom1EvidenceMarker",
-                StringComparison.Ordinal)
-            && source.Contains("\"TEST_FAIL\"", StringComparison.Ordinal)
-            && panicProfile >= 0
-            && priorProfile > panicProfile
-            && ReadyMarker.Contains(
-                "firmwareFallback=false",
-                StringComparison.Ordinal)
-            && EvidenceMarker.Contains(
-                "postExitBootServices=false",
-                StringComparison.Ordinal)
-            && !ReadyMarker.Contains("gate", StringComparison.OrdinalIgnoreCase)
-            && !EvidenceMarker.Contains("CloudReady", StringComparison.OrdinalIgnoreCase)
-            && !EvidenceMarker.Contains("production", StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool TestQemuProfileSource() => EfiProfileTestControls.Returning("M02PanicSafeOwnedCom1", OS.Tooling.QemuContracts.M02PanicSafeOwnedCom1RequiredMarkers, OS.Tooling.QemuContracts.M02PanicSafeOwnedCom1ForbiddenMarkers, ReadyMarker, FailureMarker);
 
     private static string ExtractAsciiMarker(string source, string methodToken)
     {

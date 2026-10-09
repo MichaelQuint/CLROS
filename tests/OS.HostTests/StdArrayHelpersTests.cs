@@ -4,7 +4,7 @@ using StdArrayHelpers = OS.Std.ArrayHelpers;
 
 internal static class StdArrayHelpersTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void Run()
     {
         RunClearFillUnmanagedSpans();
@@ -22,9 +22,7 @@ internal static class StdArrayHelpersTests
     private static void RunClearFillUnmanagedSpans()
     {
         const string name = "std.arrayhelpers clear fill unmanaged spans";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             ExpectBool("status", true, StdArrayHelpers.Status == CompatibilityStatus.Partial);
 
@@ -43,22 +41,13 @@ internal static class StdArrayHelpersTests
             ExpectInt("fill writes first selected", 42, values[1]);
             ExpectInt("fill writes last selected", 42, values[2]);
             ExpectInt("fill preserves suffix", 0, values[3]);
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunIndexOfUnmanagedSpans()
     {
         const string name = "std.arrayhelpers indexof unmanaged spans";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             ReadOnlySpan<ushort> empty = ReadOnlySpan<ushort>.Empty;
             ushort[] values = new ushort[] { 7, 3, 7, 9, 7 };
@@ -71,22 +60,13 @@ internal static class StdArrayHelpersTests
             ExpectInt("last index duplicate", 4, StdArrayHelpers.LastIndexOf(values, (ushort)7));
             ExpectInt("last index middle", 1, StdArrayHelpers.LastIndexOf(values, (ushort)3));
             ExpectInt("last index missing", -1, StdArrayHelpers.LastIndexOf(values, (ushort)2));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunBinarySearchInsertionPoints()
     {
         const string name = "std.arrayhelpers binarysearch insertion points";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             ReadOnlySpan<int> empty = ReadOnlySpan<int>.Empty;
             int[] sorted = new int[] { 1, 3, 5, 7 };
@@ -103,22 +83,13 @@ internal static class StdArrayHelpersTests
             int duplicateIndex = StdArrayHelpers.BinarySearch(duplicates, 3);
             ExpectBool("duplicate match in range", true, duplicateIndex >= 1 && duplicateIndex <= 3);
             ExpectInt("duplicate match value", 3, duplicates[duplicateIndex]);
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunSortUnmanagedSpans()
     {
         const string name = "std.arrayhelpers sort unmanaged spans";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             Span<int> empty = Span<int>.Empty;
             StdArrayHelpers.Sort(empty);
@@ -138,22 +109,13 @@ internal static class StdArrayHelpersTests
             int[] duplicates = new int[] { 4, 1, 4, 2, 1, 3 };
             StdArrayHelpers.Sort(duplicates);
             ExpectSorted("duplicates sorted", duplicates, new int[] { 1, 1, 2, 3, 4, 4 });
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunTrySortRangeAndStatus()
     {
         const string name = "std.arrayhelpers trysort range and status";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             int[] values = new int[] { 99, 8, 3, 8, 1, 77 };
 
@@ -185,22 +147,13 @@ internal static class StdArrayHelpersTests
                 invalid.Length,
                 invalidRange);
             ExpectSorted("invalid range does not write", invalid, new int[] { 4, 3, 2, 1 });
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunTrySortDefaultResult()
     {
         const string name = "std.arrayhelpers trysort default result is not success";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             ArraySortResult result = default;
 
@@ -211,22 +164,13 @@ internal static class StdArrayHelpersTests
                 "sort result contains no references",
                 false,
                 RuntimeHelpers.IsReferenceOrContainsReferences<ArraySortResult>());
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunTryBinarySearchFoundRange()
     {
         const string name = "std.arrayhelpers trybinarysearch found range";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             int[] sorted = new int[] { 1, 3, 5, 7, 9 };
 
@@ -245,22 +189,13 @@ internal static class StdArrayHelpersTests
                 3,
                 sorted.Length,
                 found);
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunTryBinarySearchNotFoundRange()
     {
         const string name = "std.arrayhelpers trybinarysearch notfound range";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             int[] sorted = new int[] { 1, 3, 5, 7, 9 };
 
@@ -293,22 +228,13 @@ internal static class StdArrayHelpersTests
                 0,
                 sorted.Length,
                 emptyTail);
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunTryBinarySearchInvalidRange()
     {
         const string name = "std.arrayhelpers trybinarysearch invalid range";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             int[] sorted = new int[] { 1, 3, 5 };
 
@@ -348,22 +274,13 @@ internal static class StdArrayHelpersTests
                 0,
                 sorted.Length,
                 StdArrayHelpers.TryBinarySearch(sorted, start: 4, length: 0, value: 5));
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void RunTryBinarySearchDefaultResult()
     {
         const string name = "std.arrayhelpers trybinarysearch default result is not success";
-        Console.WriteLine("TEST_START " + name);
-
-        try
+        HostCheck.Run(name, () =>
         {
             ArraySearchResult result = default;
 
@@ -374,14 +291,7 @@ internal static class StdArrayHelpersTests
                 "result contains no references",
                 false,
                 RuntimeHelpers.IsReferenceOrContainsReferences<ArraySearchResult>());
-
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void ExpectBool(string scenario, bool expected, bool actual)

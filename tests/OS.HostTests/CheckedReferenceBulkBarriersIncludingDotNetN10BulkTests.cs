@@ -15,7 +15,7 @@ internal static unsafe class CheckedReferenceBulkBarriersIncludingDotNetN10BulkT
 {
     private const CheckedReferenceBulkProfile Profile = CheckedReferenceBulkProfile.NonCollectingExclusiveRetainedPage;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void Run()
     {
         Console.WriteLine("TEST_START m04.010");
@@ -44,13 +44,8 @@ internal static unsafe class CheckedReferenceBulkBarriersIncludingDotNetN10BulkT
 
     private static void Group(string name, Action test)
     {
-        Console.WriteLine("TEST_START m04.010." + name);
-        try { test(); Console.WriteLine("TEST_PASS m04.010." + name); }
-        catch (Exception error)
-        {
-            Console.WriteLine("TEST_FAIL m04.010." + name + " " + error.Message);
-            throw;
-        }
+
+        HostCheck.Run("m04.010." + name, test);
     }
 
     private static void CheckContract()

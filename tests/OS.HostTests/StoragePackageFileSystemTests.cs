@@ -12,52 +12,7 @@ internal static class StoragePackageFileSystemTests
     private const int AppContentLength = 23;
     private const int ConfigContentLength = 31;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("storage.package opens file", TestOpensFile, ref failures);
-        Run("storage.package rejects missing file", TestRejectsMissingFile, ref failures);
-        Run("storage.package enforces bounds", TestEnforcesBounds, ref failures);
-        Run("storage.package filesystem enumerates bounded paths", TestEnumeratesBoundedPaths, ref failures);
-        Run(
-            "storage.package filesystem copies use shared buffer operations",
-            TestCopiesUseSharedBufferOperations,
-            ref failures);
-        Run(
-            "storage.package filesystem result defaults are not success",
-            TestDefaultResultsAreNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Storage package filesystem host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage.package opens file", HostLane.Fast, 0)]
     private static bool TestOpensFile()
     {
         byte[] package = CreateValidPackage();
@@ -73,7 +28,7 @@ internal static class StoragePackageFileSystemTests
             byteCount: 9,
             rangeDestination);
 
-        return open.Succeeded
+        return HostCheck.Result(open.Succeeded
             && open.Status == OsPackageFileSystemStatus.Success
             && open.PackageStatus == OsPackageStatus.Success
             && open.Entry.Index == 0
@@ -84,9 +39,10 @@ internal static class StoragePackageFileSystemTests
             && ContentMatches(destination, AppContentSeed, startIndex: 0)
             && partial.Succeeded
             && partial.BytesRead == 9
-            && RangeMatches(rangeDestination, ConfigContentSeed, startIndex: 5);
+            && RangeMatches(rangeDestination, ConfigContentSeed, startIndex: 5));
     }
 
+    [HostTest("storage.package rejects missing file", HostLane.Fast, 1)]
     private static bool TestRejectsMissingFile()
     {
         byte[] package = CreateValidPackage();
@@ -98,15 +54,16 @@ internal static class StoragePackageFileSystemTests
             "bin/missing.dll"u8,
             destination);
 
-        return !open.Succeeded
+        return HostCheck.Result(!open.Succeeded
             && open.Status == OsPackageFileSystemStatus.MissingFile
             && open.PackageStatus == OsPackageStatus.MissingFile
             && !read.Succeeded
             && read.Status == OsPackageFileSystemStatus.MissingFile
             && read.PackageStatus == OsPackageStatus.MissingFile
-            && read.BytesRead == 0;
+            && read.BytesRead == 0);
     }
 
+    [HostTest("storage.package enforces bounds", HostLane.Fast, 2)]
     private static bool TestEnforcesBounds()
     {
         byte[] package = CreateValidPackage();
@@ -128,7 +85,7 @@ internal static class StoragePackageFileSystemTests
             "/bin/app.dll"u8,
             destination);
 
-        return !tooSmallResult.Succeeded
+        return HostCheck.Result(!tooSmallResult.Succeeded
             && tooSmallResult.Status == OsPackageFileSystemStatus.DestinationTooSmall
             && tooSmallResult.PackageStatus == OsPackageStatus.Success
             && tooSmallResult.RequiredBytes == AppContentLength
@@ -138,9 +95,10 @@ internal static class StoragePackageFileSystemTests
             && invalidRangeResult.PackageStatus == OsPackageStatus.Success
             && !invalidPathResult.Succeeded
             && invalidPathResult.Status == OsPackageFileSystemStatus.InvalidPath
-            && invalidPathResult.PackageStatus == OsPackageStatus.InvalidPath;
+            && invalidPathResult.PackageStatus == OsPackageStatus.InvalidPath);
     }
 
+    [HostTest("storage.package filesystem enumerates bounded paths", HostLane.Fast, 3)]
     private static bool TestEnumeratesBoundedPaths()
     {
         byte[] package = CreateValidPackage();
@@ -160,7 +118,7 @@ internal static class StoragePackageFileSystemTests
             FileCount,
             destination);
 
-        return enumerate.Succeeded
+        return HostCheck.Result(enumerate.Succeeded
             && enumerate.Status == OsPackageFileSystemStatus.Success
             && enumerate.PackageStatus == OsPackageStatus.Success
             && enumerate.Entry.Index == 1
@@ -174,9 +132,10 @@ internal static class StoragePackageFileSystemTests
             && small.BytesWritten == 0
             && !outOfRange.Succeeded
             && outOfRange.Status == OsPackageFileSystemStatus.FileIndexOutOfRange
-            && outOfRange.PackageStatus == OsPackageStatus.FileIndexOutOfRange;
+            && outOfRange.PackageStatus == OsPackageStatus.FileIndexOutOfRange);
     }
 
+    [HostTest("storage.package filesystem result defaults are not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         OsPackageOpenFileResult open = default;
@@ -199,7 +158,7 @@ internal static class StoragePackageFileSystemTests
             default,
             requiredBytes: 8);
 
-        return !open.IsInitialized
+        return HostCheck.Result(!open.IsInitialized
             && !open.Succeeded
             && open.Status == OsPackageFileSystemStatus.Success
             && open.PackageStatus == OsPackageStatus.Success
@@ -234,9 +193,10 @@ internal static class StoragePackageFileSystemTests
             && enumerateFailure.RequiredBytes == 8
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OsPackageOpenFileResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<OsPackageReadFileResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OsPackageEnumerateFileResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OsPackageEnumerateFileResult>());
     }
 
+    [HostTest("storage.package filesystem copies use shared buffer operations", HostLane.Fast, 4)]
     private static bool TestCopiesUseSharedBufferOperations()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -247,7 +207,7 @@ internal static class StoragePackageFileSystemTests
             "Storage",
             "OsPackageFileSystem.cs"));
 
-        return source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
             && source.Contains(
                 "BufferOperations.MemoryCopy(content.Content, destination)",
                 StringComparison.Ordinal)
@@ -257,7 +217,7 @@ internal static class StoragePackageFileSystemTests
             && source.Contains("BufferOperations.MemoryCopy(source, destination)", StringComparison.Ordinal)
             && source.Contains("OsPackageFileSystemStatus.DestinationTooSmall", StringComparison.Ordinal)
             && !source.Contains("content.Content.CopyTo(destination)", StringComparison.Ordinal)
-            && !source.Contains(".CopyTo(destination)", StringComparison.Ordinal);
+            && !source.Contains(".CopyTo(destination)", StringComparison.Ordinal));
     }
 
     private static byte[] CreateValidPackage()

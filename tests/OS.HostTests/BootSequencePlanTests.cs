@@ -7,88 +7,8 @@ using OS.Kernel.Runtime;
 
 internal static class BootSequencePlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("boot.sequence plan exposes ordered marker bytes", TestOrderedMarkerBytes, ref failures);
-        Run("boot.sequence M01 stage-one plan exposes exact success bytes", TestM01StageOneSuccessMarkerBytes, ref failures);
-        Run("boot.sequence M01 stage-one plan preserves default bytes", TestM01StageOnePlanPreservesDefaultBytes, ref failures);
-        Run("boot.sequence M01 stage-one plan preserves EFI linkage boundary", TestM01StageOnePlanPreservesEfiLinkageBoundary, ref failures);
-        Run("boot.sequence M01 stage-two plan exposes exact success bytes", TestM01StageTwoSuccessMarkerBytes, ref failures);
-        Run("boot.sequence M01 stage-two plan preserves default bytes", TestM01StageTwoPlanPreservesDefaultBytes, ref failures);
-        Run("boot.sequence M01 stage-two plan preserves EFI linkage boundary", TestM01StageTwoPlanPreservesEfiLinkageBoundary, ref failures);
-        Run("boot.sequence M01 stage-three plan exposes exact success bytes", TestM01StageThreeSuccessMarkerBytes, ref failures);
-        Run("boot.sequence M01 stage-three presenter emits exact success transcript", TestM01StageThreePresenterEmitsExactSuccessTranscript, ref failures);
-        Run("boot.sequence M01 stage-three presenter rejects default and nonfinal results", TestM01StageThreePresenterRejectsDefaultAndNonfinalResults, ref failures);
-        Run("boot.sequence M01 stage-three presenter rejects null outputs", TestM01StageThreePresenterRejectsNullOutputs, ref failures);
-        Run("boot.sequence M01 stage-three plan preserves default bytes", TestM01StageThreePlanPreservesDefaultBytes, ref failures);
-        Run("boot.sequence M01 stage-three plan preserves EFI linkage boundary", TestM01StageThreePlanPreservesEfiLinkageBoundary, ref failures);
-        Run("boot.phase catalog documents implemented phases", TestBootPhaseCatalog, ref failures);
-        Run("boot.phase catalog marker text matches plan", TestBootPhaseMarkersMatchPlan, ref failures);
-        Run("boot.sequence run emits plan lines in order", TestBootSequenceUsesPlan, ref failures);
-        Run("boot.sequence validates handoff and emits ready marker", TestBootSequenceHandoffReadyMarker, ref failures);
-        Run("boot.sequence rejects invalid handoff before phases", TestBootSequenceRejectsInvalidHandoff, ref failures);
-        Run("boot.sequence handoff validator rejects source capability and count issues", TestBootSequenceHandoffValidatorFailures, ref failures);
-        Run("boot.sequence handoff validator validates ACPI RSDP metadata", TestBootSequenceHandoffValidatorAcpiRsdp, ref failures);
-        Run("boot.sequence memory map accepted", TestBootSequenceMemoryMapAccepted, ref failures);
-        Run("boot.sequence memory map missing rejected", TestBootSequenceMemoryMapMissingRejected, ref failures);
-        Run("boot.sequence memory map invalid rejected", TestBootSequenceMemoryMapInvalidRejected, ref failures);
-        Run("boot.sequence fault infra readiness emits ready marker", TestFaultInfrastructureReadyMarker, ref failures);
-        Run("boot.sequence fault infra readiness emits failure marker", TestFaultInfrastructureFailureMarker, ref failures);
-        Run("boot.sequence default markers unchanged by fault readiness helper", TestDefaultMarkersUnchangedByFaultReadinessHelper, ref failures);
-        Run("boot.sequence exitboot transition emits ready marker", TestExitBootServicesTransitionReadyMarker, ref failures);
-        Run("boot.sequence exitboot transition blocks non-success plan", TestExitBootServicesTransitionBlockedMarker, ref failures);
-        Run("boot.sequence exitboot transition leaves default markers unchanged", TestDefaultMarkersUnchangedByExitBootServicesHelper, ref failures);
-        Run("boot.sequence exitboot preflight emits ready marker", TestExitBootServicesPreflightReadyMarker, ref failures);
-        Run("boot.sequence exitboot preflight blocks missing post-firmware diagnostics", TestExitBootServicesPreflightBlocksMissingDiagnostics, ref failures);
-        Run("boot.sequence exitboot preflight blocks non-success transition plan", TestExitBootServicesPreflightBlocksNonSuccessPlan, ref failures);
-        Run("boot.sequence exitboot preflight leaves default markers unchanged", TestDefaultMarkersUnchangedByExitBootServicesPreflight, ref failures);
-        Run("boot.sequence early diagnostics readiness emits ready marker", TestEarlyDiagnosticsReadyMarker, ref failures);
-        Run("boot.sequence early diagnostics readiness rejects serial backend failure", TestEarlyDiagnosticsRejectsSerialBackendFailure, ref failures);
-        Run("boot.sequence early diagnostics readiness rejects descriptor readiness failure", TestEarlyDiagnosticsRejectsDescriptorReadinessFailure, ref failures);
-        Run("boot.sequence early diagnostics readiness leaves default markers unchanged", TestDefaultMarkersUnchangedByEarlyDiagnosticsHelper, ref failures);
-        Run("boot.sequence diagnostic stubs materialized emits ready marker", TestDiagnosticStubMaterializationReadyMarker, ref failures);
-        Run("boot.sequence diagnostic stubs materialized rejects materializer failure", TestDiagnosticStubMaterializationRejectsMaterializerFailure, ref failures);
-        Run("boot.sequence diagnostic stubs materialized leaves default markers unchanged", TestDefaultMarkersUnchangedByDiagnosticStubMaterializationHelper, ref failures);
-        Run("boot.sequence post-firmware diagnostics readiness emits ready marker", TestPostFirmwareDiagnosticsReadyMarker, ref failures);
-        Run("boot.sequence post-firmware diagnostics readiness blocks firmware-console-only path", TestPostFirmwareDiagnosticsBlocksFirmwareConsoleOnly, ref failures);
-        Run("boot.sequence post-firmware diagnostics readiness blocks firmware-services-unavailable path", TestPostFirmwareDiagnosticsBlocksFirmwareServicesUnavailable, ref failures);
-        Run("boot.sequence post-firmware diagnostics readiness leaves default markers unchanged", TestDefaultMarkersUnchangedByPostFirmwareDiagnosticsHelper, ref failures);
-        Run("boot.sequence controlled fault probes emit ready marker", TestControlledFaultProbesReadyMarker, ref failures);
-        Run("boot.sequence controlled fault probes reject early diagnostics failure", TestControlledFaultProbesRejectEarlyDiagnosticsFailure, ref failures);
-        Run("boot.sequence controlled fault probes reject probe readiness failure", TestControlledFaultProbesRejectProbeReadinessFailure, ref failures);
-        Run("boot.sequence controlled fault probes leave default markers unchanged", TestDefaultMarkersUnchangedByControlledFaultProbeHelper, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Boot sequence plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("boot.sequence plan exposes ordered marker bytes", HostLane.Fast, 0)]
     private static bool TestOrderedMarkerBytes()
     {
         string[] expected =
@@ -105,20 +25,21 @@ internal static class BootSequencePlanTests
 
         if (BootSequencePlan.NonSmokeLineCount != 5 || BootSequencePlan.LineCount != expected.Length)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < expected.Length; lineIndex++)
         {
             if (BootSequence.CreatePlanLine(lineIndex) != expected[lineIndex])
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return BootSequence.CreatePlanLine(BootSequencePlan.LineCount).Length == 0;
+        return HostCheck.Result(BootSequence.CreatePlanLine(BootSequencePlan.LineCount).Length == 0);
     }
 
+    [HostTest("boot.sequence M01 stage-one plan exposes exact success bytes", HostLane.Fast, 1)]
     private static bool TestM01StageOneSuccessMarkerBytes()
     {
         string[] expected =
@@ -138,7 +59,7 @@ internal static class BootSequencePlanTests
 
         if (BootSequencePlan.M01StageOneSuccessLineCount != expected.Length)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < expected.Length; lineIndex++)
@@ -147,7 +68,7 @@ internal static class BootSequencePlanTests
             if (BootSequencePlan.GetM01StageOneSuccessLineLength(lineIndex) != expectedLine.Length
                 || BootSequencePlan.GetM01StageOneSuccessLineByte(lineIndex, -1) != 0)
             {
-                return false;
+                return HostCheck.Result(false);
             }
 
             for (int offset = 0; offset < expectedLine.Length; offset++)
@@ -155,22 +76,23 @@ internal static class BootSequencePlanTests
                 if (BootSequencePlan.GetM01StageOneSuccessLineByte(lineIndex, offset)
                     != (byte)expectedLine[offset])
                 {
-                    return false;
+                    return HostCheck.Result(false);
                 }
             }
 
             if (BootSequencePlan.GetM01StageOneSuccessLineByte(lineIndex, expectedLine.Length) != 0)
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return BootSequencePlan.GetM01StageOneSuccessLineLength(-1) == 0
+        return HostCheck.Result(BootSequencePlan.GetM01StageOneSuccessLineLength(-1) == 0
             && BootSequencePlan.GetM01StageOneSuccessLineLength(expected.Length) == 0
             && BootSequencePlan.GetM01StageOneSuccessLineByte(-1, 0) == 0
-            && BootSequencePlan.GetM01StageOneSuccessLineByte(expected.Length, 0) == 0;
+            && BootSequencePlan.GetM01StageOneSuccessLineByte(expected.Length, 0) == 0);
     }
 
+    [HostTest("boot.sequence M01 stage-two plan exposes exact success bytes", HostLane.Fast, 4)]
     private static bool TestM01StageTwoSuccessMarkerBytes()
     {
         string[] expected =
@@ -188,7 +110,7 @@ internal static class BootSequencePlanTests
 
         if (BootSequencePlan.M01StageTwoSuccessLineCount != expected.Length)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < expected.Length; lineIndex++)
@@ -204,7 +126,7 @@ internal static class BootSequencePlanTests
                     expectedLine,
                     StringComparison.Ordinal))
             {
-                return false;
+                return HostCheck.Result(false);
             }
 
             for (int offset = 0; offset < expectedLine.Length; offset++)
@@ -214,7 +136,7 @@ internal static class BootSequencePlanTests
                         offset)
                     != (byte)expectedLine[offset])
                 {
-                    return false;
+                    return HostCheck.Result(false);
                 }
             }
 
@@ -222,11 +144,11 @@ internal static class BootSequencePlanTests
                     lineIndex,
                     expectedLine.Length) != 0)
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return BootSequencePlan.GetM01StageTwoSuccessLineLength(-1) == 0
+        return HostCheck.Result(BootSequencePlan.GetM01StageTwoSuccessLineLength(-1) == 0
             && BootSequencePlan.GetM01StageTwoSuccessLineLength(
                 expected.Length) == 0
             && BootSequencePlan.GetM01StageTwoSuccessLineByte(-1, 0) == 0
@@ -235,9 +157,10 @@ internal static class BootSequencePlanTests
                 0) == 0
             && BootSequence.CreateM01StageTwoSuccessLine(-1).Length == 0
             && BootSequence.CreateM01StageTwoSuccessLine(
-                expected.Length).Length == 0;
+                expected.Length).Length == 0);
     }
 
+    [HostTest("boot.sequence M01 stage-three plan exposes exact success bytes", HostLane.Fast, 7)]
     private static bool TestM01StageThreeSuccessMarkerBytes()
     {
         string[] expected =
@@ -267,7 +190,7 @@ internal static class BootSequencePlanTests
         if (BootSequencePlan.M01StageThreeSuccessLineCount
             != expected.Length)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0;
@@ -286,7 +209,7 @@ internal static class BootSequencePlanTests
                     expectedLine,
                     StringComparison.Ordinal))
             {
-                return false;
+                return HostCheck.Result(false);
             }
 
             for (int offset = 0;
@@ -297,7 +220,7 @@ internal static class BootSequencePlanTests
                         lineIndex,
                         offset) != (byte)expectedLine[offset])
                 {
-                    return false;
+                    return HostCheck.Result(false);
                 }
             }
 
@@ -305,11 +228,11 @@ internal static class BootSequencePlanTests
                     lineIndex,
                     expectedLine.Length) != 0)
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return BootSequencePlan.GetM01StageThreeSuccessLineLength(-1)
+        return HostCheck.Result(BootSequencePlan.GetM01StageThreeSuccessLineLength(-1)
                 == 0
             && BootSequencePlan.GetM01StageThreeSuccessLineLength(
                 expected.Length) == 0
@@ -322,9 +245,10 @@ internal static class BootSequencePlanTests
             && BootSequence.CreateM01StageThreeSuccessLine(-1).Length
                 == 0
             && BootSequence.CreateM01StageThreeSuccessLine(
-                expected.Length).Length == 0;
+                expected.Length).Length == 0);
     }
 
+    [HostTest("boot.sequence M01 stage-three presenter emits exact success transcript", HostLane.Fast, 8)]
     private static bool TestM01StageThreePresenterEmitsExactSuccessTranscript()
     {
         M01LivePagingIntegrationResult integration =
@@ -370,13 +294,13 @@ internal static class BootSequencePlanTests
                 != expected.Length
             || serial.Count != expected.Length)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         string[] eventSnapshot = events.Snapshot();
         if (eventSnapshot.Length != expected.Length)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int index = 0; index < expected.Length; index++)
@@ -390,13 +314,14 @@ internal static class BootSequencePlanTests
                     expected[index],
                     StringComparison.Ordinal))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return true;
+        return HostCheck.Result(true);
     }
 
+    [HostTest("boot.sequence M01 stage-three presenter rejects default and nonfinal results", HostLane.Fast, 9)]
     private static bool
         TestM01StageThreePresenterRejectsDefaultAndNonfinalResults()
     {
@@ -430,7 +355,7 @@ internal static class BootSequencePlanTests
                 "M01 stage three failed: status="
                     + defaultDetail))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         M01LivePagingIntegrationResult forgedNonfinalSuccess =
@@ -460,7 +385,7 @@ internal static class BootSequencePlanTests
                 + illegalDetail
         ];
 
-        return forgedNonfinalSuccess.Status
+        return HostCheck.Result(forgedNonfinalSuccess.Status
                 == M01LivePagingStatus.Success
             && !forgedNonfinalSuccess.Succeeded
             && M01StageThreeFailureMatches(
@@ -469,9 +394,10 @@ internal static class BootSequencePlanTests
                 nonfinalEvents,
                 nonfinalExpected,
                 "M01 stage three failed: status="
-                    + illegalDetail);
+                    + illegalDetail));
     }
 
+    [HostTest("boot.sequence M01 stage-three presenter rejects null outputs", HostLane.Fast, 10)]
     private static bool TestM01StageThreePresenterRejectsNullOutputs()
     {
         BootEventRingBuffer nullSerialEvents =
@@ -490,7 +416,7 @@ internal static class BootSequencePlanTests
                 nullEventSerial,
                 null!);
 
-        return !nullSerialResult.Succeeded
+        return HostCheck.Result(!nullSerialResult.Succeeded
             && string.Equals(
                 nullSerialResult.Reason,
                 "serial sink is required",
@@ -501,7 +427,7 @@ internal static class BootSequencePlanTests
                 nullEventsResult.Reason,
                 "boot event ring buffer is required",
                 StringComparison.Ordinal)
-            && nullEventSerial.Count == 0;
+            && nullEventSerial.Count == 0);
     }
 
     private static bool M01StageThreeFailureMatches(
@@ -556,6 +482,7 @@ internal static class BootSequencePlanTests
         return true;
     }
 
+    [HostTest("boot.sequence M01 stage-one plan preserves default bytes", HostLane.Fast, 2)]
     private static bool TestM01StageOnePlanPreservesDefaultBytes()
     {
         string[] expected =
@@ -573,7 +500,7 @@ internal static class BootSequencePlanTests
         if (BootSequencePlan.NonSmokeLineCount != 5
             || BootSequencePlan.LineCount != expected.Length)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < expected.Length; lineIndex++)
@@ -581,14 +508,14 @@ internal static class BootSequencePlanTests
             string expectedLine = expected[lineIndex];
             if (BootSequencePlan.GetLineLength(lineIndex) != expectedLine.Length)
             {
-                return false;
+                return HostCheck.Result(false);
             }
 
             for (int offset = 0; offset < expectedLine.Length; offset++)
             {
                 if (BootSequencePlan.GetLineByte(lineIndex, offset) != (byte)expectedLine[offset])
                 {
-                    return false;
+                    return HostCheck.Result(false);
                 }
             }
         }
@@ -597,13 +524,14 @@ internal static class BootSequencePlanTests
         BootEventRingBuffer events = new BootEventRingBuffer(16);
         BootResult result = BootSequence.Run(serial, events);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && serial.Count == expected.Length
             && !serial.Contains("TEST_START m01.stage1")
             && !serial.Contains("TEST_PASS m01.stage1")
-            && !serial.ContainsPrefix("M01_");
+            && !serial.ContainsPrefix("M01_"));
     }
 
+    [HostTest("boot.sequence M01 stage-two plan preserves default bytes", HostLane.Fast, 5)]
     private static bool TestM01StageTwoPlanPreservesDefaultBytes()
     {
         string[] expected =
@@ -621,7 +549,7 @@ internal static class BootSequencePlanTests
         if (BootSequencePlan.NonSmokeLineCount != 5
             || BootSequencePlan.LineCount != expected.Length)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < expected.Length; lineIndex++)
@@ -631,7 +559,7 @@ internal static class BootSequencePlanTests
                     expected[lineIndex],
                     StringComparison.Ordinal))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
@@ -647,7 +575,7 @@ internal static class BootSequencePlanTests
             || serial.Contains("TEST_PASS m01.stage2")
             || serial.ContainsPrefix("M01_"))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < expected.Length; lineIndex++)
@@ -661,13 +589,14 @@ internal static class BootSequencePlanTests
                     expected[lineIndex],
                     StringComparison.Ordinal))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return true;
+        return HostCheck.Result(true);
     }
 
+    [HostTest("boot.sequence M01 stage-three plan preserves default bytes", HostLane.Fast, 11)]
     private static bool TestM01StageThreePlanPreservesDefaultBytes()
     {
         string[] expected =
@@ -685,7 +614,7 @@ internal static class BootSequencePlanTests
         if (BootSequencePlan.NonSmokeLineCount != 5
             || BootSequencePlan.LineCount != expected.Length)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0;
@@ -697,7 +626,7 @@ internal static class BootSequencePlanTests
                     expected[lineIndex],
                     StringComparison.Ordinal))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
@@ -714,7 +643,7 @@ internal static class BootSequencePlanTests
             || serial.Contains("CLROS_M01_LIVE_BOOT_MEMORY_READY")
             || serial.ContainsPrefix("M01_"))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0;
@@ -730,11 +659,11 @@ internal static class BootSequencePlanTests
                     expected[lineIndex],
                     StringComparison.Ordinal))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return true;
+        return HostCheck.Result(true);
     }
 
     internal static bool HasNoStdlibBootAuthorityBoundary()
@@ -806,6 +735,7 @@ internal static class BootSequencePlanTests
         }
     }
 
+    [HostTest("boot.sequence M01 stage-one plan preserves EFI linkage boundary", HostLane.Fast, 3)]
     private static bool TestM01StageOnePlanPreservesEfiLinkageBoundary()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -832,7 +762,7 @@ internal static class BootSequencePlanTests
             string normalized = include.Replace('/', '\\');
             if (normalized.Contains('*'))
             {
-                return false;
+                return HostCheck.Result(false);
             }
 
             if (string.Equals(
@@ -922,7 +852,7 @@ internal static class BootSequencePlanTests
                     StringComparison.Ordinal);
         }
 
-        return defaultCompileItemsDisabled
+        return HostCheck.Result(defaultCompileItemsDisabled
             && planLinked
             && integrationLinked
             && HasNoStdlibBootAuthorityBoundary()
@@ -941,9 +871,10 @@ internal static class BootSequencePlanTests
                 StringComparison.Ordinal)
             && !efiEntrySource.Contains(
                 "ObserveContinuationRsp(",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence M01 stage-two plan preserves EFI linkage boundary", HostLane.Fast, 6)]
     private static bool TestM01StageTwoPlanPreservesEfiLinkageBoundary()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -979,7 +910,7 @@ internal static class BootSequencePlanTests
             string normalized = include.Replace('/', '\\');
             if (normalized.Contains('*'))
             {
-                return false;
+                return HostCheck.Result(false);
             }
 
             if (string.Equals(
@@ -999,7 +930,7 @@ internal static class BootSequencePlanTests
             "EfiEntry.cs");
         string efiEntrySource = File.ReadAllText(efiEntryPath);
 
-        return defaultCompileItemsDisabled
+        return HostCheck.Result(defaultCompileItemsDisabled
             && planLinked
             && integrationLinked
             && HasNoStdlibBootAuthorityBoundary()
@@ -1008,9 +939,10 @@ internal static class BootSequencePlanTests
                 StringComparison.Ordinal)
             && !efiEntrySource.Contains(
                 "M01LiveAllocatorIntegration.Execute",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence M01 stage-three plan preserves EFI linkage boundary", HostLane.Fast, 12)]
     private static bool TestM01StageThreePlanPreservesEfiLinkageBoundary()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -1046,7 +978,7 @@ internal static class BootSequencePlanTests
             string normalized = include.Replace('/', '\\');
             if (normalized.Contains('*'))
             {
-                return false;
+                return HostCheck.Result(false);
             }
 
             if (string.Equals(
@@ -1066,7 +998,7 @@ internal static class BootSequencePlanTests
             "EfiEntry.cs");
         string efiEntrySource = File.ReadAllText(efiEntryPath);
 
-        return defaultCompileItemsDisabled
+        return HostCheck.Result(defaultCompileItemsDisabled
             && planLinked
             && integrationLinked
             && HasNoStdlibBootAuthorityBoundary()
@@ -1075,9 +1007,10 @@ internal static class BootSequencePlanTests
                 StringComparison.Ordinal)
             && !efiEntrySource.Contains(
                 "M01LivePagingIntegration.Execute",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence run emits plan lines in order", HostLane.Fast, 15)]
     private static bool TestBootSequenceUsesPlan()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1087,23 +1020,24 @@ internal static class BootSequencePlanTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
         string[] eventSnapshot = events.Snapshot();
-        return eventSnapshot.Length == BootSequencePlan.LineCount
+        return HostCheck.Result(eventSnapshot.Length == BootSequencePlan.LineCount
             && eventSnapshot[0] == BootSequence.CreatePlanLine(0)
-            && eventSnapshot[^1] == BootSequence.CreatePlanLine(BootSequencePlan.LineCount - 1);
+            && eventSnapshot[^1] == BootSequence.CreatePlanLine(BootSequencePlan.LineCount - 1));
     }
 
+    [HostTest("boot.sequence validates handoff and emits ready marker", HostLane.Fast, 16)]
     private static bool TestBootSequenceHandoffReadyMarker()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1113,18 +1047,19 @@ internal static class BootSequencePlanTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount + 1)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         string[] eventSnapshot = events.Snapshot();
-        return serial.LineAt(0) == BootSequence.CreatePlanLine(0)
+        return HostCheck.Result(serial.LineAt(0) == BootSequence.CreatePlanLine(0)
             && serial.LineAt(1) == BootSequenceHandoffValidator.ReadyMarker
             && serial.LineAt(2) == BootSequence.CreatePlanLine(1)
             && serial.LineAt(serial.Count - 1) == SerialSmokeMarkers.OsSmokePass
             && eventSnapshot.Length == serial.Count
-            && eventSnapshot[1] == BootSequenceHandoffValidator.ReadyMarker;
+            && eventSnapshot[1] == BootSequenceHandoffValidator.ReadyMarker);
     }
 
+    [HostTest("boot.sequence rejects invalid handoff before phases", HostLane.Fast, 17)]
     private static bool TestBootSequenceRejectsInvalidHandoff()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1137,13 +1072,14 @@ internal static class BootSequencePlanTests
         string expectedFailMarker = BootSequenceHandoffValidator.CreateFailMarker(
             BootSequenceHandoffStatus.MemoryMapNotOwned);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(nameof(BootSequenceHandoffStatus.MemoryMapNotOwned), StringComparison.Ordinal)
             && serial.Count == 2
             && serial.LineAt(0) == BootSequence.CreatePlanLine(0)
-            && serial.LineAt(1) == expectedFailMarker;
+            && serial.LineAt(1) == expectedFailMarker);
     }
 
+    [HostTest("boot.sequence handoff validator rejects source capability and count issues", HostLane.Fast, 18)]
     private static bool TestBootSequenceHandoffValidatorFailures()
     {
         BootHandoffRecord missingCapability = CreateValidOwnedHandoffRecord();
@@ -1166,15 +1102,16 @@ internal static class BootSequencePlanTests
         BootSequenceHandoffValidationResult tooManyDescriptorsResult =
             BootSequence.ValidateHandoff(tooManyDescriptors);
 
-        return !missingCapabilityResult.Succeeded
+        return HostCheck.Result(!missingCapabilityResult.Succeeded
             && missingCapabilityResult.Status == BootSequenceHandoffStatus.MissingRequiredCapability
             && missingCapabilityResult.MissingCapabilities == BootCapabilities.MemoryMap
             && !sourceMatchesOwnedResult.Succeeded
             && sourceMatchesOwnedResult.Status == BootSequenceHandoffStatus.SourceMatchesOwnedBuffer
             && !tooManyDescriptorsResult.Succeeded
-            && tooManyDescriptorsResult.Status == BootSequenceHandoffStatus.InvalidDescriptorCount;
+            && tooManyDescriptorsResult.Status == BootSequenceHandoffStatus.InvalidDescriptorCount);
     }
 
+    [HostTest("boot.sequence handoff validator validates ACPI RSDP metadata", HostLane.Fast, 19)]
     private static bool TestBootSequenceHandoffValidatorAcpiRsdp()
     {
         BootHandoffRecord validAcpi = CreateValidOwnedHandoffRecord();
@@ -1192,11 +1129,12 @@ internal static class BootSequencePlanTests
         BootSequenceHandoffValidationResult validResult = BootSequence.ValidateHandoff(validAcpi);
         BootSequenceHandoffValidationResult invalidResult = BootSequence.ValidateHandoff(invalidAcpi);
 
-        return validResult.Succeeded
+        return HostCheck.Result(validResult.Succeeded
             && validResult.Status == BootSequenceHandoffStatus.Success
-            && invalidResult.Status == BootSequenceHandoffStatus.InvalidAcpiRsdp;
+            && invalidResult.Status == BootSequenceHandoffStatus.InvalidAcpiRsdp);
     }
 
+    [HostTest("boot.sequence memory map accepted", HostLane.Fast, 20)]
     private static bool TestBootSequenceMemoryMapAccepted()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1210,19 +1148,20 @@ internal static class BootSequencePlanTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount + 2)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         string[] eventSnapshot = events.Snapshot();
-        return serial.LineAt(0) == BootSequence.CreatePlanLine(0)
+        return HostCheck.Result(serial.LineAt(0) == BootSequence.CreatePlanLine(0)
             && serial.LineAt(1) == BootSequenceHandoffValidator.ReadyMarker
             && serial.LineAt(2) == BootSequence.BootMemoryMapAccepted
             && serial.LineAt(3) == BootSequence.CreatePlanLine(1)
             && serial.LineAt(serial.Count - 1) == SerialSmokeMarkers.OsSmokePass
             && eventSnapshot.Length == serial.Count
-            && eventSnapshot[2] == BootSequence.BootMemoryMapAccepted;
+            && eventSnapshot[2] == BootSequence.BootMemoryMapAccepted);
     }
 
+    [HostTest("boot.sequence memory map missing rejected", HostLane.Fast, 21)]
     private static bool TestBootSequenceMemoryMapMissingRejected()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1237,14 +1176,15 @@ internal static class BootSequencePlanTests
         string expectedFailMarker = BootSequence.CreateMemoryMapRejectedMarker(
             BootMemoryMapAcceptanceStatus.MissingSummary);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(nameof(BootMemoryMapAcceptanceStatus.MissingSummary), StringComparison.Ordinal)
             && serial.Count == 3
             && serial.LineAt(0) == BootSequence.CreatePlanLine(0)
             && serial.LineAt(1) == BootSequenceHandoffValidator.ReadyMarker
-            && serial.LineAt(2) == expectedFailMarker;
+            && serial.LineAt(2) == expectedFailMarker);
     }
 
+    [HostTest("boot.sequence memory map invalid rejected", HostLane.Fast, 22)]
     private static bool TestBootSequenceMemoryMapInvalidRejected()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1266,14 +1206,15 @@ internal static class BootSequencePlanTests
         string expectedFailMarker = BootSequence.CreateMemoryMapRejectedMarker(
             BootMemoryMapAcceptanceStatus.ZeroPages);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(nameof(BootMemoryMapAcceptanceStatus.ZeroPages), StringComparison.Ordinal)
             && serial.Count == 3
             && serial.LineAt(0) == BootSequence.CreatePlanLine(0)
             && serial.LineAt(1) == BootSequenceHandoffValidator.ReadyMarker
-            && serial.LineAt(2) == expectedFailMarker;
+            && serial.LineAt(2) == expectedFailMarker);
     }
 
+    [HostTest("boot.sequence fault infra readiness emits ready marker", HostLane.Fast, 23)]
     private static bool TestFaultInfrastructureReadyMarker()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1285,13 +1226,14 @@ internal static class BootSequencePlanTests
             events);
 
         string[] eventSnapshot = events.Snapshot();
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.FaultInfrastructureReady
             && eventSnapshot.Length == 1
-            && eventSnapshot[0] == BootSequence.FaultInfrastructureReady;
+            && eventSnapshot[0] == BootSequence.FaultInfrastructureReady);
     }
 
+    [HostTest("boot.sequence fault infra readiness emits failure marker", HostLane.Fast, 24)]
     private static bool TestFaultInfrastructureFailureMarker()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1313,16 +1255,17 @@ internal static class BootSequencePlanTests
             FaultInfrastructureReadinessStatus.SerialDiagnosticsNotReady);
         string[] eventSnapshot = events.Snapshot();
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(
                 nameof(FaultInfrastructureReadinessStatus.SerialDiagnosticsNotReady),
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && eventSnapshot.Length == 1
-            && eventSnapshot[0] == expectedMarker;
+            && eventSnapshot[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence default markers unchanged by fault readiness helper", HostLane.Fast, 25)]
     private static bool TestDefaultMarkersUnchangedByFaultReadinessHelper()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1332,21 +1275,22 @@ internal static class BootSequencePlanTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.FaultInfrastructureReady)
-            && !serial.ContainsPrefix(BootSequence.FaultInfrastructureNotReadyPrefix);
+        return HostCheck.Result(!serial.Contains(BootSequence.FaultInfrastructureReady)
+            && !serial.ContainsPrefix(BootSequence.FaultInfrastructureNotReadyPrefix));
     }
 
+    [HostTest("boot.sequence exitboot transition emits ready marker", HostLane.Fast, 26)]
     private static bool TestExitBootServicesTransitionReadyMarker()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1360,14 +1304,15 @@ internal static class BootSequencePlanTests
             events);
 
         string[] eventSnapshot = events.Snapshot();
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && firmware.Mode == FirmwareServicesMode.BootServicesExited
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.ExitBootServicesTransitionReady
             && eventSnapshot.Length == 1
-            && eventSnapshot[0] == BootSequence.ExitBootServicesTransitionReady;
+            && eventSnapshot[0] == BootSequence.ExitBootServicesTransitionReady);
     }
 
+    [HostTest("boot.sequence exitboot transition blocks non-success plan", HostLane.Fast, 27)]
     private static bool TestExitBootServicesTransitionBlockedMarker()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1383,15 +1328,16 @@ internal static class BootSequencePlanTests
             UefiExitBootServicesPlanStatus.RetryRequired);
         string[] eventSnapshot = events.Snapshot();
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(nameof(UefiExitBootServicesPlanStatus.RetryRequired), StringComparison.Ordinal)
             && firmware.Mode == FirmwareServicesMode.BootServicesAvailable
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && eventSnapshot.Length == 1
-            && eventSnapshot[0] == expectedMarker;
+            && eventSnapshot[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence exitboot transition leaves default markers unchanged", HostLane.Fast, 28)]
     private static bool TestDefaultMarkersUnchangedByExitBootServicesHelper()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1401,21 +1347,22 @@ internal static class BootSequencePlanTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.ExitBootServicesTransitionReady)
-            && !serial.ContainsPrefix(BootSequence.ExitBootServicesTransitionBlockedPrefix);
+        return HostCheck.Result(!serial.Contains(BootSequence.ExitBootServicesTransitionReady)
+            && !serial.ContainsPrefix(BootSequence.ExitBootServicesTransitionBlockedPrefix));
     }
 
+    [HostTest("boot.sequence exitboot preflight emits ready marker", HostLane.Fast, 29)]
     private static bool TestExitBootServicesPreflightReadyMarker()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1430,14 +1377,15 @@ internal static class BootSequencePlanTests
             events);
 
         string[] eventSnapshot = events.Snapshot();
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && firmware.Mode == FirmwareServicesMode.BootServicesExited
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.ExitBootServicesPreflightReady
             && eventSnapshot.Length == 1
-            && eventSnapshot[0] == BootSequence.ExitBootServicesPreflightReady;
+            && eventSnapshot[0] == BootSequence.ExitBootServicesPreflightReady);
     }
 
+    [HostTest("boot.sequence exitboot preflight blocks missing post-firmware diagnostics", HostLane.Fast, 30)]
     private static bool TestExitBootServicesPreflightBlocksMissingDiagnostics()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1458,7 +1406,7 @@ internal static class BootSequencePlanTests
             UefiExitBootServicesPlanStatus.Success);
         string[] eventSnapshot = events.Snapshot();
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(
                 nameof(SerialDiagnosticsGuardStatus.FirmwareConsoleOnly),
                 StringComparison.Ordinal)
@@ -1466,9 +1414,10 @@ internal static class BootSequencePlanTests
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && eventSnapshot.Length == 1
-            && eventSnapshot[0] == expectedMarker;
+            && eventSnapshot[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence exitboot preflight blocks non-success transition plan", HostLane.Fast, 31)]
     private static bool TestExitBootServicesPreflightBlocksNonSuccessPlan()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1486,7 +1435,7 @@ internal static class BootSequencePlanTests
             UefiExitBootServicesPlanStatus.RetryRequired);
         string[] eventSnapshot = events.Snapshot();
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(
                 nameof(UefiExitBootServicesPlanStatus.RetryRequired),
                 StringComparison.Ordinal)
@@ -1494,9 +1443,10 @@ internal static class BootSequencePlanTests
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && eventSnapshot.Length == 1
-            && eventSnapshot[0] == expectedMarker;
+            && eventSnapshot[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence exitboot preflight leaves default markers unchanged", HostLane.Fast, 32)]
     private static bool TestDefaultMarkersUnchangedByExitBootServicesPreflight()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1506,21 +1456,22 @@ internal static class BootSequencePlanTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.ExitBootServicesPreflightReady)
-            && !serial.ContainsPrefix(BootSequence.ExitBootServicesPreflightBlockedPrefix);
+        return HostCheck.Result(!serial.Contains(BootSequence.ExitBootServicesPreflightReady)
+            && !serial.ContainsPrefix(BootSequence.ExitBootServicesPreflightBlockedPrefix));
     }
 
+    [HostTest("boot.sequence early diagnostics readiness emits ready marker", HostLane.Fast, 33)]
     private static bool TestEarlyDiagnosticsReadyMarker()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1533,13 +1484,14 @@ internal static class BootSequencePlanTests
             events);
 
         string[] eventSnapshot = events.Snapshot();
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.EarlyDiagnosticsReady
             && eventSnapshot.Length == 1
-            && eventSnapshot[0] == BootSequence.EarlyDiagnosticsReady;
+            && eventSnapshot[0] == BootSequence.EarlyDiagnosticsReady);
     }
 
+    [HostTest("boot.sequence early diagnostics readiness rejects serial backend failure", HostLane.Fast, 34)]
     private static bool TestEarlyDiagnosticsRejectsSerialBackendFailure()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1556,14 +1508,15 @@ internal static class BootSequencePlanTests
         string expectedMarker = BootSequence.CreateEarlyDiagnosticsNotReadyMarker(
             EarlyDiagnosticsReadinessStatus.SerialBackendNotReady);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(
                 nameof(EarlyDiagnosticsReadinessStatus.SerialBackendNotReady),
                 StringComparison.Ordinal)
             && serial.Count == 1
-            && serial.LineAt(0) == expectedMarker;
+            && serial.LineAt(0) == expectedMarker);
     }
 
+    [HostTest("boot.sequence early diagnostics readiness rejects descriptor readiness failure", HostLane.Fast, 35)]
     private static bool TestEarlyDiagnosticsRejectsDescriptorReadinessFailure()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1582,14 +1535,15 @@ internal static class BootSequencePlanTests
         string expectedMarker = BootSequence.CreateEarlyDiagnosticsNotReadyMarker(
             EarlyDiagnosticsReadinessStatus.DescriptorTablesNotReady);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(
                 nameof(EarlyDiagnosticsReadinessStatus.DescriptorTablesNotReady),
                 StringComparison.Ordinal)
             && serial.Count == 1
-            && serial.LineAt(0) == expectedMarker;
+            && serial.LineAt(0) == expectedMarker);
     }
 
+    [HostTest("boot.sequence early diagnostics readiness leaves default markers unchanged", HostLane.Fast, 36)]
     private static bool TestDefaultMarkersUnchangedByEarlyDiagnosticsHelper()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1599,21 +1553,22 @@ internal static class BootSequencePlanTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.EarlyDiagnosticsReady)
-            && !serial.ContainsPrefix(BootSequence.EarlyDiagnosticsNotReadyPrefix);
+        return HostCheck.Result(!serial.Contains(BootSequence.EarlyDiagnosticsReady)
+            && !serial.ContainsPrefix(BootSequence.EarlyDiagnosticsNotReadyPrefix));
     }
 
+    [HostTest("boot.sequence diagnostic stubs materialized emits ready marker", HostLane.Fast, 37)]
     private static bool TestDiagnosticStubMaterializationReadyMarker()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1625,13 +1580,14 @@ internal static class BootSequencePlanTests
             events);
 
         string[] eventSnapshot = events.Snapshot();
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.DiagnosticStubsMaterialized
             && eventSnapshot.Length == 1
-            && eventSnapshot[0] == BootSequence.DiagnosticStubsMaterialized;
+            && eventSnapshot[0] == BootSequence.DiagnosticStubsMaterialized);
     }
 
+    [HostTest("boot.sequence diagnostic stubs materialized rejects materializer failure", HostLane.Fast, 38)]
     private static bool TestDiagnosticStubMaterializationRejectsMaterializerFailure()
     {
         SequenceTestSerialSink failedSerial = new SequenceTestSerialSink();
@@ -1662,7 +1618,7 @@ internal static class BootSequencePlanTests
             DiagnosticStubMaterializationReadinessStatus.MaterializerFailed);
         string[] defaultEventSnapshot = defaultEvents.Snapshot();
 
-        return !failedResult.Succeeded
+        return HostCheck.Result(!failedResult.Succeeded
             && failedResult.Reason.Contains(
                 nameof(DiagnosticStubMaterializationReadinessStatus.MaterializerFailed),
                 StringComparison.Ordinal)
@@ -1677,9 +1633,10 @@ internal static class BootSequencePlanTests
             && defaultSerial.Count == 1
             && defaultSerial.LineAt(0) == expectedDefaultMarker
             && defaultEventSnapshot.Length == 1
-            && defaultEventSnapshot[0] == expectedDefaultMarker;
+            && defaultEventSnapshot[0] == expectedDefaultMarker);
     }
 
+    [HostTest("boot.sequence diagnostic stubs materialized leaves default markers unchanged", HostLane.Fast, 39)]
     private static bool TestDefaultMarkersUnchangedByDiagnosticStubMaterializationHelper()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1689,21 +1646,22 @@ internal static class BootSequencePlanTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.DiagnosticStubsMaterialized)
-            && !serial.ContainsPrefix(BootSequence.DiagnosticStubsNotMaterializedPrefix);
+        return HostCheck.Result(!serial.Contains(BootSequence.DiagnosticStubsMaterialized)
+            && !serial.ContainsPrefix(BootSequence.DiagnosticStubsNotMaterializedPrefix));
     }
 
+    [HostTest("boot.sequence post-firmware diagnostics readiness emits ready marker", HostLane.Fast, 40)]
     private static bool TestPostFirmwareDiagnosticsReadyMarker()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1716,13 +1674,14 @@ internal static class BootSequencePlanTests
         BootResult result = BootSequence.RunPostFirmwareDiagnosticsReadiness(readiness, serial, events);
         string[] eventSnapshot = events.Snapshot();
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.PostFirmwareDiagnosticsReady
             && eventSnapshot.Length == 1
-            && eventSnapshot[0] == BootSequence.PostFirmwareDiagnosticsReady;
+            && eventSnapshot[0] == BootSequence.PostFirmwareDiagnosticsReady);
     }
 
+    [HostTest("boot.sequence post-firmware diagnostics readiness blocks firmware-console-only path", HostLane.Fast, 41)]
     private static bool TestPostFirmwareDiagnosticsBlocksFirmwareConsoleOnly()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1736,16 +1695,17 @@ internal static class BootSequencePlanTests
             SerialDiagnosticsGuardStatus.FirmwareConsoleOnly);
         string[] eventSnapshot = events.Snapshot();
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(
                 nameof(SerialDiagnosticsGuardStatus.FirmwareConsoleOnly),
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && eventSnapshot.Length == 1
-            && eventSnapshot[0] == expectedMarker;
+            && eventSnapshot[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence post-firmware diagnostics readiness blocks firmware-services-unavailable path", HostLane.Fast, 42)]
     private static bool TestPostFirmwareDiagnosticsBlocksFirmwareServicesUnavailable()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1760,16 +1720,17 @@ internal static class BootSequencePlanTests
             SerialDiagnosticsGuardStatus.FirmwareServicesUnavailable);
         string[] eventSnapshot = events.Snapshot();
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(
                 nameof(SerialDiagnosticsGuardStatus.FirmwareServicesUnavailable),
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && eventSnapshot.Length == 1
-            && eventSnapshot[0] == expectedMarker;
+            && eventSnapshot[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence post-firmware diagnostics readiness leaves default markers unchanged", HostLane.Fast, 43)]
     private static bool TestDefaultMarkersUnchangedByPostFirmwareDiagnosticsHelper()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1779,21 +1740,22 @@ internal static class BootSequencePlanTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.PostFirmwareDiagnosticsReady)
-            && !serial.ContainsPrefix(BootSequence.PostFirmwareDiagnosticsBlockedPrefix);
+        return HostCheck.Result(!serial.Contains(BootSequence.PostFirmwareDiagnosticsReady)
+            && !serial.ContainsPrefix(BootSequence.PostFirmwareDiagnosticsBlockedPrefix));
     }
 
+    [HostTest("boot.sequence controlled fault probes emit ready marker", HostLane.Fast, 44)]
     private static bool TestControlledFaultProbesReadyMarker()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1806,13 +1768,14 @@ internal static class BootSequencePlanTests
             events);
 
         string[] eventSnapshot = events.Snapshot();
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.ControlledFaultProbesReady
             && eventSnapshot.Length == 1
-            && eventSnapshot[0] == BootSequence.ControlledFaultProbesReady;
+            && eventSnapshot[0] == BootSequence.ControlledFaultProbesReady);
     }
 
+    [HostTest("boot.sequence controlled fault probes reject early diagnostics failure", HostLane.Fast, 45)]
     private static bool TestControlledFaultProbesRejectEarlyDiagnosticsFailure()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1826,14 +1789,15 @@ internal static class BootSequencePlanTests
         string expectedMarker = BootSequence.CreateControlledFaultProbesNotReadyMarker(
             ControlledFaultProbeReadinessStatus.EarlyDiagnosticsNotReady);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(
                 nameof(ControlledFaultProbeReadinessStatus.EarlyDiagnosticsNotReady),
                 StringComparison.Ordinal)
             && serial.Count == 1
-            && serial.LineAt(0) == expectedMarker;
+            && serial.LineAt(0) == expectedMarker);
     }
 
+    [HostTest("boot.sequence controlled fault probes reject probe readiness failure", HostLane.Fast, 46)]
     private static bool TestControlledFaultProbesRejectProbeReadinessFailure()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1847,14 +1811,15 @@ internal static class BootSequencePlanTests
         string expectedMarker = BootSequence.CreateControlledFaultProbesNotReadyMarker(
             ControlledFaultProbeReadinessStatus.FaultProbePlanNotReady);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(
                 nameof(ControlledFaultProbeReadinessStatus.FaultProbePlanNotReady),
                 StringComparison.Ordinal)
             && serial.Count == 1
-            && serial.LineAt(0) == expectedMarker;
+            && serial.LineAt(0) == expectedMarker);
     }
 
+    [HostTest("boot.sequence controlled fault probes leave default markers unchanged", HostLane.Fast, 47)]
     private static bool TestDefaultMarkersUnchangedByControlledFaultProbeHelper()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -1864,28 +1829,29 @@ internal static class BootSequencePlanTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.ControlledFaultProbesReady)
-            && !serial.ContainsPrefix(BootSequence.ControlledFaultProbesNotReadyPrefix);
+        return HostCheck.Result(!serial.Contains(BootSequence.ControlledFaultProbesReady)
+            && !serial.ContainsPrefix(BootSequence.ControlledFaultProbesNotReadyPrefix));
     }
 
+    [HostTest("boot.phase catalog documents implemented phases", HostLane.Fast, 13)]
     private static bool TestBootPhaseCatalog()
     {
         BootPhaseInfo audit = BootPhaseCatalog.GetImplementedPhase(0);
         BootPhaseInfo diagnostics = BootPhaseCatalog.GetImplementedPhase(1);
         BootPhaseInfo futureRuntime = BootPhaseCatalog.Get(BootPhaseId.PhaseD_Runtime);
 
-        return BootPhaseCatalog.ImplementedPhaseCount == 2
+        return HostCheck.Result(BootPhaseCatalog.ImplementedPhaseCount == 2
             && BootPhaseCatalog.KnownPhaseCount == 8
             && audit.Id == BootPhaseId.PhaseA_Audit
             && audit.Name == "PhaseA.Audit"
@@ -1898,18 +1864,19 @@ internal static class BootSequencePlanTests
             && diagnostics.Postcondition.Length > 0
             && futureRuntime.Id == BootPhaseId.PhaseD_Runtime
             && futureRuntime.Precondition.Length > 0
-            && futureRuntime.Postcondition.Length > 0;
+            && futureRuntime.Postcondition.Length > 0);
     }
 
+    [HostTest("boot.phase catalog marker text matches plan", HostLane.Fast, 14)]
     private static bool TestBootPhaseMarkersMatchPlan()
     {
         BootPhaseInfo audit = BootPhaseCatalog.GetImplementedPhase(0);
         BootPhaseInfo diagnostics = BootPhaseCatalog.GetImplementedPhase(1);
 
-        return audit.StartMarker == BootSequence.CreatePlanLine(1)
+        return HostCheck.Result(audit.StartMarker == BootSequence.CreatePlanLine(1)
             && audit.PassMarker == BootSequence.CreatePlanLine(2)
             && diagnostics.StartMarker == BootSequence.CreatePlanLine(3)
-            && diagnostics.PassMarker == BootSequence.CreatePlanLine(4);
+            && diagnostics.PassMarker == BootSequence.CreatePlanLine(4));
     }
 
     private static BootHandoffRecord CreateValidOwnedHandoffRecord()

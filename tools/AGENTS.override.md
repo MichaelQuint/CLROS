@@ -9,10 +9,18 @@ Host tools build, validate, package, run, or inspect OS artifacts. They are not 
 Current tools:
 
 - `OS.QemuRunner`
+- `OS.QemuCapture`
 - `OS.ManifestTool`
 - `OS.LibvirtRunner`
 - `OS.ImageBuilder`
 - `OS.X64TextSerializerGenerator`
+- `OS.Tooling`: C# build, verification, smoke, CI, backlog, repository checks,
+  shared reviewed expectations, and atomic evidence-step allocation.
+
+New automation belongs in C#/.NET 10. Do not add PowerShell scripts or embed
+PowerShell in C# fixtures. Use typed production APIs from host fixtures; preserve
+independent byte vectors and rejection controls. Native operations retain bounded
+processes, source/output locks, exact provenance, and confirmed child cleanup.
 
 `OS.X64TextSerializerGenerator` is the host-build leaf that produces the
 deterministic M01 instruction-publication serializer object. M01-034 includes
@@ -89,7 +97,7 @@ Run the relevant host tests:
 dotnet build .\tools\OS.X64TextSerializerGenerator\OS.X64TextSerializerGenerator.csproj --nologo
 dotnet build .\CLROS.slnx --nologo -m:1
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj --no-build
-.\scripts\run-qemu-smoke.ps1 -DryRun
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun
 ```
 
 For image builder changes, add deterministic output tests before relying on QEMU.

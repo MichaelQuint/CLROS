@@ -7,57 +7,8 @@ using OS.Storage;
 
 internal static class BootSequenceAppEntryReadinessTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("boot.sequence app entry ready", TestAppEntryReady, ref failures);
-        Run(
-            "boot.sequence app entry rejects dependency failure",
-            TestAppEntryRejectsDependencyFailure,
-            ref failures);
-        Run(
-            "boot.sequence app entry rejects staging preflight failure",
-            TestAppEntryRejectsStagingPreflightFailure,
-            ref failures);
-        Run(
-            "boot.sequence app entry blocks default staging preflight",
-            TestAppEntryBlocksDefaultStagingPreflight,
-            ref failures);
-        Run(
-            "boot.sequence app entry preserves default markers",
-            TestAppEntryPreservesDefaultMarkers,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Boot sequence app entry readiness host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("boot.sequence app entry ready", HostLane.Fast, 0)]
     private static bool TestAppEntryReady()
     {
         AppEntryInputs inputs = CreateReadyInputs();
@@ -76,12 +27,13 @@ internal static class BootSequenceAppEntryReadinessTests
             serial,
             events);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == BootSequence.AppEntryReady
-            && events.Snapshot()[0] == BootSequence.AppEntryReady;
+            && events.Snapshot()[0] == BootSequence.AppEntryReady);
     }
 
+    [HostTest("boot.sequence app entry rejects dependency failure", HostLane.Fast, 1)]
     private static bool TestAppEntryRejectsDependencyFailure()
     {
         AppEntryInputs inputs = CreateReadyInputs();
@@ -116,7 +68,7 @@ internal static class BootSequenceAppEntryReadinessTests
             NativeAppExecutableMemoryPlanStatus.Success,
             NativeAppInvocationPlanStatus.Success);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Reason.Contains(
                 nameof(AppEntryReadinessStatus.PayloadMappingFailed),
                 StringComparison.Ordinal)
@@ -125,9 +77,10 @@ internal static class BootSequenceAppEntryReadinessTests
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence app entry rejects staging preflight failure", HostLane.Fast, 2)]
     private static bool TestAppEntryRejectsStagingPreflightFailure()
     {
         AppEntryInputs inputs = CreateReadyInputs();
@@ -179,7 +132,7 @@ internal static class BootSequenceAppEntryReadinessTests
             NativeAppExecutableMemoryPlanStatus.Success,
             NativeAppInvocationPlanStatus.Success);
 
-        return !stagingPreflight.Succeeded
+        return HostCheck.Result(!stagingPreflight.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
                 nameof(AppEntryReadinessStatus.StagingPreflightFailed),
@@ -189,9 +142,10 @@ internal static class BootSequenceAppEntryReadinessTests
                 StringComparison.Ordinal)
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
-            && events.Snapshot()[0] == expectedMarker;
+            && events.Snapshot()[0] == expectedMarker);
     }
 
+    [HostTest("boot.sequence app entry blocks default staging preflight", HostLane.Fast, 3)]
     private static bool TestAppEntryBlocksDefaultStagingPreflight()
     {
         AppEntryInputs inputs = CreateReadyInputs();
@@ -223,13 +177,14 @@ internal static class BootSequenceAppEntryReadinessTests
             NativeAppExecutableMemoryPlanStatus.Success,
             NativeAppInvocationPlanStatus.Success);
 
-        return !stagingPreflight.IsInitialized
+        return HostCheck.Result(!stagingPreflight.IsInitialized
             && !stagingPreflight.Succeeded
             && !result.Succeeded
             && serial.Count == 1
-            && serial.LineAt(0) == expectedMarker;
+            && serial.LineAt(0) == expectedMarker);
     }
 
+    [HostTest("boot.sequence app entry preserves default markers", HostLane.Fast, 4)]
     private static bool TestAppEntryPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -238,19 +193,19 @@ internal static class BootSequenceAppEntryReadinessTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.AppEntryReady)
-            && !serial.ContainsPrefix(BootSequence.AppEntryNotReadyPrefix);
+        return HostCheck.Result(!serial.Contains(BootSequence.AppEntryReady)
+            && !serial.ContainsPrefix(BootSequence.AppEntryNotReadyPrefix));
     }
 
     private static AppEntryInputs CreateReadyInputs()

@@ -4,7 +4,7 @@ using OS.Tools.QemuRunner;
 
 internal static class SerialMarkerStateMachineTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void Run()
     {
         Console.WriteLine("TEST_START serial.marker.state_machine");
@@ -36,26 +36,28 @@ internal static class SerialMarkerStateMachineTests
 
     private static void RunCase(string name, Func<bool> test, ref int failures)
     {
-        try
+        HostCheck.Run("serial.marker.state_machine" + " " + name, () =>
         {
-            if (test())
+            try
             {
-                return;
+                if (test())
+                {
+                    return true;
+                }
+                Console.WriteLine(
+                    "TEST_FAIL serial.marker.state_machine case=" + NormalizeCase(name));
+                return false;
             }
-
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL serial.marker.state_machine case=" + NormalizeCase(name));
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL serial.marker.state_machine case="
-                + NormalizeCase(name)
-                + " exception="
-                + ex.GetType().Name);
-        }
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    "TEST_FAIL serial.marker.state_machine case="
+                    + NormalizeCase(name)
+                    + " exception="
+                    + ex.GetType().Name);
+                throw;
+            }
+        }, ref failures);
     }
 
     private static bool TestRequiredMarkersAtEverySplit()

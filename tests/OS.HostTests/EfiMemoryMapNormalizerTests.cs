@@ -4,43 +4,8 @@ using OS.Std.Binary;
 
 internal static unsafe class EfiMemoryMapNormalizerTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("efi.memorymap.normalizer summarizes owned descriptors", TestSummarizesOwnedDescriptors, ref failures);
-        Run("efi.memorymap.normalizer rejects invalid metadata", TestRejectsInvalidMetadata, ref failures);
-        Run("efi.memorymap.normalizer rejects descriptor arithmetic issues", TestRejectsDescriptorArithmeticIssues, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("EFI memory-map normalizer host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("efi.memorymap.normalizer summarizes owned descriptors", HostLane.Fast, 0)]
     private static bool TestSummarizesOwnedDescriptors()
     {
         byte[] source = new byte[96];
@@ -64,7 +29,7 @@ internal static unsafe class EfiMemoryMapNormalizerTests
                 descriptorVersion: 1,
                 descriptorCount: 2);
 
-            return result.Succeeded
+            return HostCheck.Result(result.Succeeded
                 && result.Status == EfiMemoryMapNormalizeStatus.Success
                 && result.RequiredSourceBytes == 96
                 && result.Summary.DescriptorCount == 2
@@ -72,10 +37,11 @@ internal static unsafe class EfiMemoryMapNormalizerTests
                 && result.Summary.TotalBytes == 6 * EfiMemoryMapNormalizer.PageSize
                 && result.Summary.ConventionalPages == 4
                 && result.Summary.LowestPhysicalAddress == 0x100000
-                && result.Summary.HighestPhysicalEndExclusive == 0x202000;
+                && result.Summary.HighestPhysicalEndExclusive == 0x202000);
         }
     }
 
+    [HostTest("efi.memorymap.normalizer rejects invalid metadata", HostLane.Fast, 1)]
     private static bool TestRejectsInvalidMetadata()
     {
         byte[] source = new byte[48];
@@ -122,15 +88,16 @@ internal static unsafe class EfiMemoryMapNormalizerTests
                 descriptorVersion: 1,
                 descriptorCount: 1);
 
-            return IsStatus(missingSource, EfiMemoryMapNormalizeStatus.MissingSource)
+            return HostCheck.Result(IsStatus(missingSource, EfiMemoryMapNormalizeStatus.MissingSource)
                 && IsStatus(invalidSize, EfiMemoryMapNormalizeStatus.InvalidDescriptorSize)
                 && IsStatus(invalidVersion, EfiMemoryMapNormalizeStatus.InvalidDescriptorVersion)
                 && IsStatus(invalidCount, EfiMemoryMapNormalizeStatus.InvalidDescriptorCount)
                 && sourceTooSmall.Status == EfiMemoryMapNormalizeStatus.SourceTooSmall
-                && sourceTooSmall.RequiredSourceBytes == 48;
+                && sourceTooSmall.RequiredSourceBytes == 48);
         }
     }
 
+    [HostTest("efi.memorymap.normalizer rejects descriptor arithmetic issues", HostLane.Fast, 2)]
     private static bool TestRejectsDescriptorArithmeticIssues()
     {
         byte[] zeroPagesSource = new byte[48];
@@ -179,10 +146,10 @@ internal static unsafe class EfiMemoryMapNormalizerTests
                 descriptorVersion: 1,
                 descriptorCount: 1);
 
-            return zeroPages.Status == EfiMemoryMapNormalizeStatus.InvalidPageCount
+            return HostCheck.Result(zeroPages.Status == EfiMemoryMapNormalizeStatus.InvalidPageCount
                 && zeroPages.InvalidDescriptorIndex == 0
                 && pageOverflow.Status == EfiMemoryMapNormalizeStatus.PageByteCountOverflow
-                && addressOverflow.Status == EfiMemoryMapNormalizeStatus.AddressRangeOverflow;
+                && addressOverflow.Status == EfiMemoryMapNormalizeStatus.AddressRangeOverflow);
         }
     }
 

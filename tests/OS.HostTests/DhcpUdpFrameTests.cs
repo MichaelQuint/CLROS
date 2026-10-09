@@ -5,48 +5,8 @@ using OS.Std.Binary;
 
 internal static class DhcpUdpFrameTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.dhcp.udp writes discover broadcast frame", TestWritesDiscoverBroadcastFrame, ref failures);
-        Run("net.dhcp.udp writes request broadcast frame", TestWritesRequestBroadcastFrame, ref failures);
-        Run("net.dhcp.udp extracts server reply payload", TestExtractsServerReplyPayload, ref failures);
-        Run("net.dhcp.udp rejects wrong udp ports", TestRejectsWrongUdpPorts, ref failures);
-        Run("net.dhcp.udp reports short frame buffer", TestReportsShortFrameBuffer, ref failures);
-        Run("net.dhcp.udp reports malformed reply frame", TestReportsMalformedReplyFrame, ref failures);
-        Run("net.dhcp.udp write default result is not success", TestWriteDefaultResultIsNotSuccess, ref failures);
-        Run("net.dhcp.udp read default result is not success", TestReadDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("DHCP UDP frame host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.dhcp.udp writes discover broadcast frame", HostLane.Fast, 0)]
     private static bool TestWritesDiscoverBroadcastFrame()
     {
         byte[] frame = new byte[DhcpUdpFrame.DiscoverFrameLength];
@@ -62,7 +22,7 @@ internal static class DhcpUdpFrameTests
             out EthernetIpv4UdpPacketInfo info,
             out ReadOnlySpan<byte> payload);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == DhcpUdpFrameStatus.Success
             && result.DhcpStatus == DhcpMessageStatus.Success
             && result.PacketStatus == PacketParseStatus.Success
@@ -75,9 +35,10 @@ internal static class DhcpUdpFrameTests
             && payload[0] == DhcpMessage.OpBootRequest
             && EndianPrimitives.ReadUInt32BigEndian(payload.Slice(4, 4)) == 0x12345678
             && payload[DhcpMessage.OptionsOffset] == DhcpMessage.OptionDhcpMessageType
-            && payload[DhcpMessage.OptionsOffset + 2] == DhcpMessage.MessageTypeDiscover;
+            && payload[DhcpMessage.OptionsOffset + 2] == DhcpMessage.MessageTypeDiscover);
     }
 
+    [HostTest("net.dhcp.udp writes request broadcast frame", HostLane.Fast, 1)]
     private static bool TestWritesRequestBroadcastFrame()
     {
         byte[] frame = new byte[DhcpUdpFrame.RequestFrameLength];
@@ -98,7 +59,7 @@ internal static class DhcpUdpFrameTests
             out ReadOnlySpan<byte> payload);
 
         int options = DhcpMessage.OptionsOffset;
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.DhcpPayloadLength == DhcpUdpFrame.RequestPayloadLength
             && result.BytesWritten == DhcpUdpFrame.RequestFrameLength
             && bytesWritten == DhcpUdpFrame.RequestFrameLength
@@ -112,9 +73,10 @@ internal static class DhcpUdpFrameTests
             && payload[options + 3] == DhcpMessage.OptionRequestedIpAddress
             && Ipv4At(payload, options + 5) == requestedAddress
             && payload[options + 9] == DhcpMessage.OptionServerIdentifier
-            && Ipv4At(payload, options + 11) == serverIdentifier;
+            && Ipv4At(payload, options + 11) == serverIdentifier);
     }
 
+    [HostTest("net.dhcp.udp extracts server reply payload", HostLane.Fast, 2)]
     private static bool TestExtractsServerReplyPayload()
     {
         byte[] frame = CreateServerReplyFrame(
@@ -130,7 +92,7 @@ internal static class DhcpUdpFrameTests
         DhcpUdpFrameReadResult frameResult =
             DhcpUdpFrame.TryParseServerReplyFromEthernetFrame(frame);
 
-        return rxResult.Succeeded
+        return HostCheck.Result(rxResult.Succeeded
             && rxResult.Status == DhcpUdpFrameStatus.Success
             && rxResult.DhcpStatus == DhcpMessageStatus.Success
             && rxResult.PacketStatus == PacketParseStatus.Success
@@ -149,9 +111,10 @@ internal static class DhcpUdpFrameTests
             && frameResult.Succeeded
             && frameResult.PayloadOffset == DhcpUdpFrame.FrameHeaderLength
             && frameResult.PayloadLength == dhcpPayloadLength
-            && frameResult.Message.MessageType == DhcpMessage.MessageTypeOffer;
+            && frameResult.Message.MessageType == DhcpMessage.MessageTypeOffer);
     }
 
+    [HostTest("net.dhcp.udp rejects wrong udp ports", HostLane.Fast, 3)]
     private static bool TestRejectsWrongUdpPorts()
     {
         byte[] frame = CreateServerReplyFrame(
@@ -163,16 +126,17 @@ internal static class DhcpUdpFrameTests
         DhcpUdpFrameReadResult result =
             DhcpUdpFrame.TryParseServerReplyFromEthernetFrame(frame);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == DhcpUdpFrameStatus.WrongUdpPorts
             && result.DhcpStatus == DhcpMessageStatus.Success
             && result.PacketStatus == PacketParseStatus.Success
             && result.UdpStatus == UdpReceiveDispatchStatus.Success
             && result.PacketInfo.SourcePort == DhcpMessage.ClientPort
             && result.PacketInfo.DestinationPort == DhcpMessage.ServerPort
-            && result.PayloadLength == 0;
+            && result.PayloadLength == 0);
     }
 
+    [HostTest("net.dhcp.udp reports short frame buffer", HostLane.Fast, 4)]
     private static bool TestReportsShortFrameBuffer()
     {
         byte[] frame = new byte[DhcpUdpFrame.DiscoverFrameLength - 1];
@@ -183,15 +147,16 @@ internal static class DhcpUdpFrameTests
             ClientMac(),
             out int bytesWritten);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == DhcpUdpFrameStatus.PacketFailed
             && result.DhcpStatus == DhcpMessageStatus.BufferTooSmall
             && result.PacketStatus == PacketParseStatus.BufferTooSmall
             && result.DhcpPayloadLength == 0
             && result.BytesWritten == 0
-            && bytesWritten == 0;
+            && bytesWritten == 0);
     }
 
+    [HostTest("net.dhcp.udp reports malformed reply frame", HostLane.Fast, 5)]
     private static bool TestReportsMalformedReplyFrame()
     {
         byte[] frame = CreateServerReplyFrame(
@@ -203,15 +168,16 @@ internal static class DhcpUdpFrameTests
         DhcpUdpFrameReadResult result =
             DhcpUdpFrame.TryParseServerReplyFromEthernetFrame(frame);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == DhcpUdpFrameStatus.DhcpMessageFailed
             && result.DhcpStatus == DhcpMessageStatus.MissingMagicCookie
             && result.PacketStatus == PacketParseStatus.Success
             && result.UdpStatus == UdpReceiveDispatchStatus.Success
             && result.PayloadOffset == 0
-            && result.PayloadLength == 0;
+            && result.PayloadLength == 0);
     }
 
+    [HostTest("net.dhcp.udp write default result is not success", HostLane.Fast, 6)]
     private static bool TestWriteDefaultResultIsNotSuccess()
     {
         DhcpUdpFrameWriteResult defaultResult = default;
@@ -227,7 +193,7 @@ internal static class DhcpUdpFrameTests
             ClientMac(),
             out int failureBytesWritten);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == DhcpUdpFrameStatus.Success
             && defaultResult.DhcpStatus == DhcpMessageStatus.Success
@@ -250,9 +216,10 @@ internal static class DhcpUdpFrameTests
             && failure.DhcpPayloadLength == 0
             && failure.BytesWritten == 0
             && failureBytesWritten == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<DhcpUdpFrameWriteResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<DhcpUdpFrameWriteResult>());
     }
 
+    [HostTest("net.dhcp.udp read default result is not success", HostLane.Fast, 7)]
     private static bool TestReadDefaultResultIsNotSuccess()
     {
         DhcpUdpFrameReadResult defaultResult = default;
@@ -276,7 +243,7 @@ internal static class DhcpUdpFrameTests
         DhcpUdpFrameReadResult failure =
             DhcpUdpFrame.TryParseServerReplyFromEthernetFrame(wrongPortFrame);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == DhcpUdpFrameStatus.Success
             && defaultResult.DhcpStatus == DhcpMessageStatus.Success
@@ -306,7 +273,7 @@ internal static class DhcpUdpFrameTests
             && failure.PacketInfo.DestinationPort == DhcpMessage.ServerPort
             && failure.PayloadOffset == 0
             && failure.PayloadLength == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<DhcpUdpFrameReadResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<DhcpUdpFrameReadResult>());
     }
 
     private static byte[] CreateServerReplyFrame(

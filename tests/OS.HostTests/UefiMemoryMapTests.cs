@@ -18,64 +18,7 @@ internal static unsafe class UefiMemoryMapTests
     private static ulong s_descriptorSize;
     private static uint s_descriptorVersion;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("uefi.memorymap captures descriptor metadata and entries", TestCapturedMemoryMap, ref failures);
-        Run("uefi.memorymap reports buffer-too-small status", TestBufferTooSmall, ref failures);
-        Run("uefi.memorymap rejects invalid descriptor metadata", TestInvalidDescriptorMetadata, ref failures);
-        Run("uefi.memorymap rejects missing descriptor entries", TestMissingDescriptorEntries, ref failures);
-        Run("uefi.memorymap preserves firmware error status", TestFirmwareError, ref failures);
-        Run("uefi.memorymap.copyplan validates metadata", TestCopyPlanValidMetadata, ref failures);
-        Run("uefi.memorymap.copyplan rejects missing source", TestCopyPlanMissingSource, ref failures);
-        Run("uefi.memorymap.copyplan rejects invalid sizes", TestCopyPlanInvalidSizes, ref failures);
-        Run("uefi.memorymap.copyplan rejects invalid descriptor metadata", TestCopyPlanInvalidDescriptorMetadata, ref failures);
-        Run("uefi.memorymap.copyplan rejects descriptor count mismatch", TestCopyPlanDescriptorCountMismatch, ref failures);
-        Run("uefi.memorymap.copyplan rejects descriptor count limit", TestCopyPlanDescriptorCountLimit, ref failures);
-        Run("uefi.memorymap.copyplan rejects overflow", TestCopyPlanOverflow, ref failures);
-        Run("uefi.memorymap.copyplan rejects destination too small", TestCopyPlanDestinationTooSmall, ref failures);
-        Run("uefi.memorymap.capture helper copies owned map", TestCaptureHelperCopiesOwnedMap, ref failures);
-        Run(
-            "uefi.memorymap.capture helper rejects missing firmware pointers",
-            TestCaptureHelperRejectsMissingFirmwarePointers,
-            ref failures);
-        Run(
-            "uefi.memorymap.capture helper rejects missing owned destination",
-            TestCaptureHelperRejectsMissingOwnedDestination,
-            ref failures);
-        Run("uefi.memorymap.capture helper reports allocation overflow", TestCaptureHelperReportsAllocationOverflow, ref failures);
-        Run("uefi.memorymap.capture helper reports copy-plan status", TestCaptureHelperReportsCopyPlanStatus, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("UEFI memory map host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("uefi.memorymap captures descriptor metadata and entries", HostLane.Fast, 0)]
     private static bool TestCapturedMemoryMap()
     {
         UefiMemoryDescriptor[] descriptors =
@@ -105,7 +48,7 @@ internal static unsafe class UefiMemoryMapTests
         bool outOfRangeFails = !result.Snapshot.TryGetDescriptor(2, out _);
         bool negativeIndexFails = !result.Snapshot.TryGetDescriptor(-1, out _);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == UefiMemoryMapStatus.Success
             && result.Message.Length == 0
             && result.RequiredBufferSize == 0
@@ -128,21 +71,23 @@ internal static unsafe class UefiMemoryMapTests
             && second.NumberOfPages == 512
             && second.Attribute == 0xF
             && outOfRangeFails
-            && negativeIndexFails;
+            && negativeIndexFails);
     }
 
+    [HostTest("uefi.memorymap reports buffer-too-small status", HostLane.Fast, 1)]
     private static bool TestBufferTooSmall()
     {
         UefiMemoryMapResult result = UefiMemoryMapResult.BufferTooSmall(4096);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == UefiMemoryMapStatus.BufferTooSmall
             && result.RequiredBufferSize == 4096
             && result.FirmwareStatus == 0
             && !result.Snapshot.HasDescriptors
-            && result.Message.Contains("buffer is too small", StringComparison.Ordinal);
+            && result.Message.Contains("buffer is too small", StringComparison.Ordinal));
     }
 
+    [HostTest("uefi.memorymap rejects invalid descriptor metadata", HostLane.Fast, 2)]
     private static bool TestInvalidDescriptorMetadata()
     {
         UefiMemoryDescriptor[] descriptors =
@@ -158,16 +103,17 @@ internal static unsafe class UefiMemoryMapTests
         UefiMemoryMapResult invalidSize = UefiMemoryMapResult.Captured(1, 0, 1, descriptors);
         UefiMemoryMapResult invalidVersion = UefiMemoryMapResult.Captured(1, 48, 0, descriptors);
 
-        return !invalidSize.Succeeded
+        return HostCheck.Result(!invalidSize.Succeeded
             && invalidSize.Status == UefiMemoryMapStatus.InvalidDescriptorSize
             && invalidSize.Snapshot.DescriptorCount == 0
             && invalidSize.Message.Contains("descriptor size", StringComparison.Ordinal)
             && !invalidVersion.Succeeded
             && invalidVersion.Status == UefiMemoryMapStatus.InvalidDescriptorVersion
             && invalidVersion.Snapshot.DescriptorCount == 0
-            && invalidVersion.Message.Contains("descriptor version", StringComparison.Ordinal);
+            && invalidVersion.Message.Contains("descriptor version", StringComparison.Ordinal));
     }
 
+    [HostTest("uefi.memorymap rejects missing descriptor entries", HostLane.Fast, 3)]
     private static bool TestMissingDescriptorEntries()
     {
         UefiMemoryMapResult nullEntries = UefiMemoryMapResult.Captured(1, 48, 1, null);
@@ -177,27 +123,29 @@ internal static unsafe class UefiMemoryMapTests
             1,
             Array.Empty<UefiMemoryDescriptor>());
 
-        return !nullEntries.Succeeded
+        return HostCheck.Result(!nullEntries.Succeeded
             && nullEntries.Status == UefiMemoryMapStatus.InvalidDescriptorEntries
             && nullEntries.Message.Contains("descriptor entries", StringComparison.Ordinal)
             && !emptyEntries.Succeeded
             && emptyEntries.Status == UefiMemoryMapStatus.InvalidDescriptorEntries
-            && emptyEntries.Snapshot.DescriptorCount == 0;
+            && emptyEntries.Snapshot.DescriptorCount == 0);
     }
 
+    [HostTest("uefi.memorymap preserves firmware error status", HostLane.Fast, 4)]
     private static bool TestFirmwareError()
     {
         const ulong efiInvalidParameter = 0x8000000000000002;
         UefiMemoryMapResult result = UefiMemoryMapResult.FirmwareError(efiInvalidParameter);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == UefiMemoryMapStatus.FirmwareError
             && result.FirmwareStatus == efiInvalidParameter
             && result.RequiredBufferSize == 0
             && result.Snapshot.DescriptorCount == 0
-            && result.Message.Contains("GetMemoryMap failed", StringComparison.Ordinal);
+            && result.Message.Contains("GetMemoryMap failed", StringComparison.Ordinal));
     }
 
+    [HostTest("uefi.memorymap.copyplan validates metadata", HostLane.Fast, 5)]
     private static bool TestCopyPlanValidMetadata()
     {
         FirmwareMemoryMapRecord metadata = CreateCopyPlanMetadata();
@@ -205,7 +153,7 @@ internal static unsafe class UefiMemoryMapTests
             metadata,
             destinationCapacity: 4096);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == UefiMemoryMapCopyPlanStatus.Success
             && result.Plan.SourceAddress == 0x100000
             && result.Plan.SourceBufferSize == 8192
@@ -215,9 +163,10 @@ internal static unsafe class UefiMemoryMapTests
             && result.Plan.MapKey == 0xABC
             && result.Plan.DescriptorSize == 48
             && result.Plan.DescriptorVersion == 1
-            && result.Plan.DescriptorCount == 3;
+            && result.Plan.DescriptorCount == 3);
     }
 
+    [HostTest("uefi.memorymap.copyplan rejects missing source", HostLane.Fast, 6)]
     private static bool TestCopyPlanMissingSource()
     {
         UefiMemoryMapCopyPlanResult missingAddress = UefiMemoryMapCopyPlanResult.Create(
@@ -230,11 +179,12 @@ internal static unsafe class UefiMemoryMapTests
             CreateCopyPlanMetadata(mapSize: 0),
             destinationCapacity: 4096);
 
-        return IsStatus(missingAddress, UefiMemoryMapCopyPlanStatus.MissingSource)
+        return HostCheck.Result(IsStatus(missingAddress, UefiMemoryMapCopyPlanStatus.MissingSource)
             && IsStatus(missingBuffer, UefiMemoryMapCopyPlanStatus.MissingSource)
-            && IsStatus(missingMap, UefiMemoryMapCopyPlanStatus.MissingSource);
+            && IsStatus(missingMap, UefiMemoryMapCopyPlanStatus.MissingSource));
     }
 
+    [HostTest("uefi.memorymap.copyplan rejects invalid sizes", HostLane.Fast, 7)]
     private static bool TestCopyPlanInvalidSizes()
     {
         UefiMemoryMapCopyPlanResult mapExceedsBuffer = UefiMemoryMapCopyPlanResult.Create(
@@ -245,10 +195,11 @@ internal static unsafe class UefiMemoryMapTests
             CreateCopyPlanMetadata(mapSize: 49, descriptorCount: 1),
             destinationCapacity: 4096);
 
-        return IsStatus(mapExceedsBuffer, UefiMemoryMapCopyPlanStatus.InvalidMapSize)
-            && IsStatus(misalignedMap, UefiMemoryMapCopyPlanStatus.MapSizeDescriptorMismatch);
+        return HostCheck.Result(IsStatus(mapExceedsBuffer, UefiMemoryMapCopyPlanStatus.InvalidMapSize)
+            && IsStatus(misalignedMap, UefiMemoryMapCopyPlanStatus.MapSizeDescriptorMismatch));
     }
 
+    [HostTest("uefi.memorymap.copyplan rejects invalid descriptor metadata", HostLane.Fast, 8)]
     private static bool TestCopyPlanInvalidDescriptorMetadata()
     {
         UefiMemoryMapCopyPlanResult invalidSize = UefiMemoryMapCopyPlanResult.Create(
@@ -259,10 +210,11 @@ internal static unsafe class UefiMemoryMapTests
             CreateCopyPlanMetadata(descriptorVersion: 0),
             destinationCapacity: 4096);
 
-        return IsStatus(invalidSize, UefiMemoryMapCopyPlanStatus.InvalidDescriptorSize)
-            && IsStatus(invalidVersion, UefiMemoryMapCopyPlanStatus.InvalidDescriptorVersion);
+        return HostCheck.Result(IsStatus(invalidSize, UefiMemoryMapCopyPlanStatus.InvalidDescriptorSize)
+            && IsStatus(invalidVersion, UefiMemoryMapCopyPlanStatus.InvalidDescriptorVersion));
     }
 
+    [HostTest("uefi.memorymap.copyplan rejects descriptor count mismatch", HostLane.Fast, 9)]
     private static bool TestCopyPlanDescriptorCountMismatch()
     {
         UefiMemoryMapCopyPlanResult zeroCount = UefiMemoryMapCopyPlanResult.Create(
@@ -273,10 +225,11 @@ internal static unsafe class UefiMemoryMapTests
             CreateCopyPlanMetadata(mapSize: 96, descriptorCount: 3),
             destinationCapacity: 4096);
 
-        return IsStatus(zeroCount, UefiMemoryMapCopyPlanStatus.InvalidDescriptorCount)
-            && IsStatus(mismatch, UefiMemoryMapCopyPlanStatus.InvalidDescriptorCount);
+        return HostCheck.Result(IsStatus(zeroCount, UefiMemoryMapCopyPlanStatus.InvalidDescriptorCount)
+            && IsStatus(mismatch, UefiMemoryMapCopyPlanStatus.InvalidDescriptorCount));
     }
 
+    [HostTest("uefi.memorymap.copyplan rejects descriptor count limit", HostLane.Fast, 10)]
     private static bool TestCopyPlanDescriptorCountLimit()
     {
         UefiMemoryMapCopyPlanResult result = UefiMemoryMapCopyPlanResult.Create(
@@ -284,9 +237,10 @@ internal static unsafe class UefiMemoryMapTests
             destinationCapacity: 4096,
             maximumDescriptorCount: 3);
 
-        return IsStatus(result, UefiMemoryMapCopyPlanStatus.DescriptorCountLimitExceeded);
+        return HostCheck.Result(IsStatus(result, UefiMemoryMapCopyPlanStatus.DescriptorCountLimitExceeded));
     }
 
+    [HostTest("uefi.memorymap.copyplan rejects overflow", HostLane.Fast, 11)]
     private static bool TestCopyPlanOverflow()
     {
         UefiMemoryMapCopyPlanResult result = UefiMemoryMapCopyPlanResult.Create(
@@ -296,18 +250,20 @@ internal static unsafe class UefiMemoryMapTests
             destinationCapacity: ulong.MaxValue,
             maximumDescriptorCount: ulong.MaxValue);
 
-        return IsStatus(result, UefiMemoryMapCopyPlanStatus.SizeOverflow);
+        return HostCheck.Result(IsStatus(result, UefiMemoryMapCopyPlanStatus.SizeOverflow));
     }
 
+    [HostTest("uefi.memorymap.copyplan rejects destination too small", HostLane.Fast, 12)]
     private static bool TestCopyPlanDestinationTooSmall()
     {
         UefiMemoryMapCopyPlanResult result = UefiMemoryMapCopyPlanResult.Create(
             CreateCopyPlanMetadata(mapSize: 96, descriptorCount: 2),
             destinationCapacity: 95);
 
-        return IsStatus(result, UefiMemoryMapCopyPlanStatus.DestinationTooSmall);
+        return HostCheck.Result(IsStatus(result, UefiMemoryMapCopyPlanStatus.DestinationTooSmall));
     }
 
+    [HostTest("uefi.memorymap.capture helper copies owned map", HostLane.Fast, 13)]
     private static bool TestCaptureHelperCopiesOwnedMap()
     {
         byte[] firmwareBuffer = new byte[512];
@@ -324,7 +280,7 @@ internal static unsafe class UefiMemoryMapTests
                 owned,
                 (ulong)ownedBuffer.Length);
 
-            return result.Succeeded
+            return HostCheck.Result(result.Succeeded
                 && result.Status == UefiMemoryMapCaptureStatus.Success
                 && result.CopyPlanStatus == UefiMemoryMapCopyPlanStatus.Success
                 && s_getMemoryMapCallCount == 2
@@ -346,10 +302,11 @@ internal static unsafe class UefiMemoryMapTests
                 && ownedBuffer[0] == 0xA0
                 && ownedBuffer[47] == 0xAF
                 && ownedBuffer[95] == 0xAF
-                && ownedBuffer[96] == 0;
+                && ownedBuffer[96] == 0);
         }
     }
 
+    [HostTest("uefi.memorymap.capture helper rejects missing firmware pointers", HostLane.Fast, 14)]
     private static bool TestCaptureHelperRejectsMissingFirmwarePointers()
     {
         byte[] ownedBuffer = new byte[512];
@@ -371,13 +328,14 @@ internal static unsafe class UefiMemoryMapTests
                 owned,
                 (ulong)ownedBuffer.Length);
 
-            return !missingGetMemoryMapResult.Succeeded
+            return HostCheck.Result(!missingGetMemoryMapResult.Succeeded
                 && missingGetMemoryMapResult.Status == UefiMemoryMapCaptureStatus.MissingGetMemoryMap
                 && !missingAllocatePoolResult.Succeeded
-                && missingAllocatePoolResult.Status == UefiMemoryMapCaptureStatus.MissingAllocatePool;
+                && missingAllocatePoolResult.Status == UefiMemoryMapCaptureStatus.MissingAllocatePool);
         }
     }
 
+    [HostTest("uefi.memorymap.capture helper rejects missing owned destination", HostLane.Fast, 15)]
     private static bool TestCaptureHelperRejectsMissingOwnedDestination()
     {
         UefiMemoryMapCaptureResult missingPointer = UefiMemoryMapCapture.Capture(
@@ -395,15 +353,16 @@ internal static unsafe class UefiMemoryMapTests
                 owned,
                 0);
 
-            return !missingPointer.Succeeded
+            return HostCheck.Result(!missingPointer.Succeeded
                 && missingPointer.Status == UefiMemoryMapCaptureStatus.MissingOwnedDestination
                 && missingPointer.CopyPlanStatus == UefiMemoryMapCopyPlanStatus.DestinationTooSmall
                 && !missingSize.Succeeded
                 && missingSize.Status == UefiMemoryMapCaptureStatus.MissingOwnedDestination
-                && missingSize.CopyPlanStatus == UefiMemoryMapCopyPlanStatus.DestinationTooSmall;
+                && missingSize.CopyPlanStatus == UefiMemoryMapCopyPlanStatus.DestinationTooSmall);
         }
     }
 
+    [HostTest("uefi.memorymap.capture helper reports allocation overflow", HostLane.Fast, 16)]
     private static bool TestCaptureHelperReportsAllocationOverflow()
     {
         byte[] ownedBuffer = new byte[512];
@@ -422,15 +381,16 @@ internal static unsafe class UefiMemoryMapTests
                 owned,
                 (ulong)ownedBuffer.Length);
 
-            return !result.Succeeded
+            return HostCheck.Result(!result.Succeeded
                 && result.Status == UefiMemoryMapCaptureStatus.AllocationSizeOverflow
                 && result.CopyPlanStatus == UefiMemoryMapCopyPlanStatus.SizeOverflow
                 && result.RequiredBufferSize == UefiMemoryMapCapture.MaximumUnsignedLong - 4
                 && s_getMemoryMapCallCount == 1
-                && s_allocatePoolCallCount == 0;
+                && s_allocatePoolCallCount == 0);
         }
     }
 
+    [HostTest("uefi.memorymap.capture helper reports copy-plan status", HostLane.Fast, 17)]
     private static bool TestCaptureHelperReportsCopyPlanStatus()
     {
         byte[] firmwareBuffer = new byte[512];
@@ -451,7 +411,7 @@ internal static unsafe class UefiMemoryMapTests
                 owned,
                 (ulong)ownedBuffer.Length);
 
-            return !result.Succeeded
+            return HostCheck.Result(!result.Succeeded
                 && result.Status == UefiMemoryMapCaptureStatus.CopyPlanRejected
                 && result.CopyPlanStatus == UefiMemoryMapCopyPlanStatus.MapSizeDescriptorMismatch
                 && result.SourceRecord.BufferAddress == (ulong)firmware
@@ -459,7 +419,7 @@ internal static unsafe class UefiMemoryMapTests
                 && result.SourceRecord.DescriptorSize == 48
                 && s_getMemoryMapCallCount == 2
                 && s_allocatePoolCallCount == 1
-                && ownedBuffer[0] == 0;
+                && ownedBuffer[0] == 0);
         }
     }
 

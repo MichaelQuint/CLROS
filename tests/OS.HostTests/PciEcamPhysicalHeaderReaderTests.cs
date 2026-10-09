@@ -5,49 +5,8 @@ using OS.Std.Binary;
 
 internal static class PciEcamPhysicalHeaderReaderTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("pci.ecam.physical_header reads present device", TestReadsPresentDevice, ref failures);
-        Run("pci.ecam.physical_header surfaces absent vendor through scanner", TestSurfacesAbsentVendorThroughScanner, ref failures);
-        Run("pci.ecam.physical_header rejects invalid address tuple", TestRejectsInvalidAddressTuple, ref failures);
-        Run("pci.ecam.physical_header reports destination capacity", TestReportsDestinationCapacity, ref failures);
-        Run("pci.ecam.physical_header reports physical read failure", TestReportsPhysicalReadFailure, ref failures);
-        Run("pci.ecam.physical_header reports short read", TestReportsShortRead, ref failures);
-        Run("pci.ecam.physical_header adapts into pci bus scanner", TestAdaptsIntoPciBusScanner, ref failures);
-        Run("pci.ecam.physical_header default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("pci.ecam.physical_header result contains no managed references", TestResultContainsNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PCI ECAM physical header reader host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pci.ecam.physical_header reads present device", HostLane.Fast, 0)]
     private static bool TestReadsPresentDevice()
     {
         PciEcamSegment segment = DefaultSegment();
@@ -67,7 +26,7 @@ internal static class PciEcamPhysicalHeaderReaderTests
 
         PciConfigurationHeaderResult headerResult = PciConfigurationHeader.ParseType0(destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == PciEcamPhysicalHeaderReadStatus.Success
             && result.AddressStatus == PciEcamConfigurationSpaceStatus.Success
             && result.PhysicalReadStatus == PlatformPhysicalMemoryStatus.Success
@@ -78,9 +37,10 @@ internal static class PciEcamPhysicalHeaderReaderTests
             && physicalMemory.RequestedAddress == physicalAddress
             && headerResult.Succeeded
             && headerResult.Header.VendorId == 0x1AF4
-            && headerResult.Header.DeviceId == 0x1001;
+            && headerResult.Header.DeviceId == 0x1001);
     }
 
+    [HostTest("pci.ecam.physical_header surfaces absent vendor through scanner", HostLane.Fast, 1)]
     private static bool TestSurfacesAbsentVendorThroughScanner()
     {
         PciEcamSegment segment = DefaultSegment(startBus: 2, endBus: 2);
@@ -97,13 +57,14 @@ internal static class PciEcamPhysicalHeaderReaderTests
             reader.Read,
             devices);
 
-        return scan.Succeeded
+        return HostCheck.Result(scan.Succeeded
             && scan.DeviceCount == 0
             && scan.FunctionReadCount == 1
             && reader.LastResult.Succeeded
-            && reader.LastResult.PhysicalAddress == physicalAddress;
+            && reader.LastResult.PhysicalAddress == physicalAddress);
     }
 
+    [HostTest("pci.ecam.physical_header rejects invalid address tuple", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidAddressTuple()
     {
         PciEcamSegment segment = DefaultSegment(startBus: 4, endBus: 4);
@@ -118,13 +79,14 @@ internal static class PciEcamPhysicalHeaderReaderTests
             function: 0,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PciEcamPhysicalHeaderReadStatus.AddressPlanningFailed
             && result.AddressStatus == PciEcamConfigurationSpaceStatus.BusOutsideSegment
             && result.ToConfigurationSpaceReadStatus() == PciConfigurationSpaceReadStatus.UnsupportedTuple
-            && physicalMemory.ReadCount == 0;
+            && physicalMemory.ReadCount == 0);
     }
 
+    [HostTest("pci.ecam.physical_header reports destination capacity", HostLane.Fast, 3)]
     private static bool TestReportsDestinationCapacity()
     {
         PciEcamSegment segment = DefaultSegment();
@@ -139,13 +101,14 @@ internal static class PciEcamPhysicalHeaderReaderTests
             function: 0,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PciEcamPhysicalHeaderReadStatus.DestinationTooSmall
             && result.RequiredBytes == PciConfigurationHeader.Type0HeaderLength
             && result.ToConfigurationSpaceReadStatus() == PciConfigurationSpaceReadStatus.DestinationTooSmall
-            && physicalMemory.ReadCount == 0;
+            && physicalMemory.ReadCount == 0);
     }
 
+    [HostTest("pci.ecam.physical_header reports physical read failure", HostLane.Fast, 4)]
     private static bool TestReportsPhysicalReadFailure()
     {
         PciEcamSegment segment = DefaultSegment();
@@ -161,12 +124,13 @@ internal static class PciEcamPhysicalHeaderReaderTests
             function: 0,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PciEcamPhysicalHeaderReadStatus.PhysicalReadFailed
             && result.PhysicalReadStatus == PlatformPhysicalMemoryStatus.SourceFailed
-            && result.ToConfigurationSpaceReadStatus() == PciConfigurationSpaceReadStatus.ReadFailed;
+            && result.ToConfigurationSpaceReadStatus() == PciConfigurationSpaceReadStatus.ReadFailed);
     }
 
+    [HostTest("pci.ecam.physical_header reports short read", HostLane.Fast, 5)]
     private static bool TestReportsShortRead()
     {
         PciEcamSegment segment = DefaultSegment();
@@ -183,13 +147,14 @@ internal static class PciEcamPhysicalHeaderReaderTests
             function: 0,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == PciEcamPhysicalHeaderReadStatus.PhysicalReadFailed
             && result.PhysicalReadStatus == PlatformPhysicalMemoryStatus.ShortRead
             && result.BytesRead == PciConfigurationHeader.Type0HeaderLength - 1
-            && result.RequiredBytes == PciConfigurationHeader.Type0HeaderLength;
+            && result.RequiredBytes == PciConfigurationHeader.Type0HeaderLength);
     }
 
+    [HostTest("pci.ecam.physical_header adapts into pci bus scanner", HostLane.Fast, 6)]
     private static bool TestAdaptsIntoPciBusScanner()
     {
         PciEcamSegment segment = DefaultSegment(startBus: 2, endBus: 2);
@@ -207,22 +172,23 @@ internal static class PciEcamPhysicalHeaderReaderTests
             reader.Read,
             devices);
 
-        return scan.Succeeded
+        return HostCheck.Result(scan.Succeeded
             && scan.DeviceCount == 1
             && scan.FunctionReadCount == 2
             && devices[0].VendorId == 0x1AF4
             && devices[0].DeviceId == 0x1000
             && reader.LastResult.Succeeded
-            && reader.LastResult.PhysicalAddress == absentAddress;
+            && reader.LastResult.PhysicalAddress == absentAddress);
     }
 
+    [HostTest("pci.ecam.physical_header default result is not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         PciEcamPhysicalHeaderReadResult result = default;
         PciEcamPhysicalConfigurationSpaceHeaderReader reader =
             new PciEcamPhysicalConfigurationSpaceHeaderReader(DefaultSegment(), physicalMemory: null);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == PciEcamPhysicalHeaderReadStatus.Success
             && result.ToConfigurationSpaceReadStatus() == PciConfigurationSpaceReadStatus.ReadFailed
@@ -230,12 +196,13 @@ internal static class PciEcamPhysicalHeaderReaderTests
             && !reader.LastResult.Succeeded
             && reader.LastResult.Status == PciEcamPhysicalHeaderReadStatus.Success
             && reader.LastResult.ToConfigurationSpaceReadStatus() ==
-                PciConfigurationSpaceReadStatus.ReadFailed;
+                PciConfigurationSpaceReadStatus.ReadFailed);
     }
 
+    [HostTest("pci.ecam.physical_header result contains no managed references", HostLane.Fast, 8)]
     private static bool TestResultContainsNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<PciEcamPhysicalHeaderReadResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<PciEcamPhysicalHeaderReadResult>());
     }
 
     private static PciEcamSegment DefaultSegment(byte startBus = 2, byte endBus = 4)

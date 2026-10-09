@@ -5,48 +5,8 @@ using OS.Manifest;
 
 internal static class NativeAppLaunchPlanDiagnosticFormatterTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("appmodel launch diagnostic formats selected app", TestFormatsSelectedApp, ref failures);
-        Run("appmodel launch diagnostic reports short destination", TestReportsShortDestination, ref failures);
-        Run("appmodel launch diagnostic formats missing runtime", TestFormatsMissingRuntime, ref failures);
-        Run("appmodel launch diagnostic rejects default result", TestRejectsDefaultResult, ref failures);
-        Run(
-            "appmodel launch plan formatter uses shared ascii text builder",
-            TestFormatterUsesSharedAsciiTextBuilder,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app launch diagnostic host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel launch diagnostic formats selected app", HostLane.Fast, 0)]
     private static bool TestFormatsSelectedApp()
     {
         byte[] source = ManifestBytes(
@@ -61,7 +21,7 @@ internal static class NativeAppLaunchPlanDiagnosticFormatterTests
             NativeAppLaunchRuntimeCapabilities.Network,
             out NativeAppLaunchPlanResult launch))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppLaunchPlanDiagnosticFormatResult query =
@@ -79,7 +39,7 @@ internal static class NativeAppLaunchPlanDiagnosticFormatterTests
             "missingRuntimeCapabilities=0 appSelected=true appLoaded=false " +
             "appExecuted=false hostedDotNetStarted=false kestrelStarted=false";
 
-        return launch.Succeeded
+        return HostCheck.Result(launch.Succeeded
             && query.IsInitialized
             && !query.Succeeded
             && query.Status == NativeAppLaunchPlanDiagnosticFormatStatus.Success
@@ -93,9 +53,10 @@ internal static class NativeAppLaunchPlanDiagnosticFormatterTests
             && format.AvailableBytes == destination.Length
             && Encoding.ASCII.GetString(destination) == expected
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                NativeAppLaunchPlanDiagnosticFormatResult>();
+                NativeAppLaunchPlanDiagnosticFormatResult>());
     }
 
+    [HostTest("appmodel launch diagnostic reports short destination", HostLane.Fast, 1)]
     private static bool TestReportsShortDestination()
     {
         byte[] source = ManifestBytes(
@@ -110,7 +71,7 @@ internal static class NativeAppLaunchPlanDiagnosticFormatterTests
             NativeAppLaunchRuntimeCapabilities.Network,
             out NativeAppLaunchPlanResult launch))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppLaunchPlanDiagnosticFormatResult query =
@@ -121,7 +82,7 @@ internal static class NativeAppLaunchPlanDiagnosticFormatterTests
         NativeAppLaunchPlanDiagnosticFormatResult format =
             NativeAppLaunchPlanDiagnosticFormatter.FormatResult(launch, source, destination);
 
-        return launch.Succeeded
+        return HostCheck.Result(launch.Succeeded
             && query.Status == NativeAppLaunchPlanDiagnosticFormatStatus.Success
             && format.IsInitialized
             && !format.Succeeded
@@ -130,9 +91,10 @@ internal static class NativeAppLaunchPlanDiagnosticFormatterTests
             && format.BytesWritten == 0
             && format.RequiredBytes == query.RequiredBytes
             && format.AvailableBytes == destination.Length
-            && AllBytesEqual(destination, 0xCC);
+            && AllBytesEqual(destination, 0xCC));
     }
 
+    [HostTest("appmodel launch diagnostic formats missing runtime", HostLane.Fast, 2)]
     private static bool TestFormatsMissingRuntime()
     {
         byte[] source = ManifestBytes(
@@ -143,7 +105,7 @@ internal static class NativeAppLaunchPlanDiagnosticFormatterTests
             includeEnvironment: false);
         if (!TryParse(source, out NativeManifest manifest))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         NativeAppLaunchPlanResult launch = NativeAppLaunchPlan.Create(
@@ -168,7 +130,7 @@ internal static class NativeAppLaunchPlanDiagnosticFormatterTests
             "missingRuntimeCapabilities=2 appSelected=false appLoaded=false " +
             "appExecuted=false hostedDotNetStarted=false kestrelStarted=false";
 
-        return !launch.Succeeded
+        return HostCheck.Result(!launch.Succeeded
             && launch.IsInitialized
             && launch.Status == NativeAppLaunchStatus.MissingRuntimeCapabilities
             && query.Status == NativeAppLaunchPlanDiagnosticFormatStatus.Success
@@ -176,9 +138,10 @@ internal static class NativeAppLaunchPlanDiagnosticFormatterTests
             && query.RequiredBytes == expected.Length
             && format.Succeeded
             && format.LaunchStatus == NativeAppLaunchStatus.MissingRuntimeCapabilities
-            && Encoding.ASCII.GetString(destination) == expected;
+            && Encoding.ASCII.GetString(destination) == expected);
     }
 
+    [HostTest("appmodel launch diagnostic rejects default result", HostLane.Fast, 3)]
     private static bool TestRejectsDefaultResult()
     {
         NativeAppLaunchPlanResult defaultResult = default;
@@ -197,7 +160,7 @@ internal static class NativeAppLaunchPlanDiagnosticFormatterTests
             NativeAppLaunchPlanDiagnosticFormatter.QueryRequiredBytes(defaultResult, source);
         NativeAppLaunchPlanDiagnosticFormatResult defaultFormat = default;
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && format.IsInitialized
             && !format.Succeeded
@@ -213,9 +176,10 @@ internal static class NativeAppLaunchPlanDiagnosticFormatterTests
             && query.AvailableBytes == 0
             && !defaultFormat.IsInitialized
             && !defaultFormat.Succeeded
-            && AllBytesEqual(destination, 0xA5);
+            && AllBytesEqual(destination, 0xA5));
     }
 
+    [HostTest("appmodel launch plan formatter uses shared ascii text builder", HostLane.Fast, 4)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -227,7 +191,7 @@ internal static class NativeAppLaunchPlanDiagnosticFormatterTests
                 "Manifest",
                 "NativeAppLaunchPlanDiagnosticFormatter.cs"));
 
-        return source.Contains(
+        return HostCheck.Result(source.Contains(
                 "AsciiDecimalFormatter.CountInt32Digits(appNameBytes)",
                 StringComparison.Ordinal)
             && source.Contains(
@@ -256,7 +220,7 @@ internal static class NativeAppLaunchPlanDiagnosticFormatterTests
                 StringComparison.Ordinal)
             && !source.Contains(
                 "destination[offset] = (byte)'-'",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
     private static bool TryCreateLaunchPlan(

@@ -14,46 +14,7 @@ internal static class NativeAppInvocationPlanTests
     private const ulong ExecutableLength = 64;
     private const ulong PayloadLength = HeaderLength + ExecutableLength;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("appmodel native invocation plan accepts executable memory", TestAcceptsExecutableMemory, ref failures);
-        Run("appmodel native invocation plan rejects memory failure", TestRejectsMemoryFailure, ref failures);
-        Run("appmodel native invocation plan rejects invalid stack", TestRejectsInvalidStack, ref failures);
-        Run("appmodel native invocation plan preserves manifest metadata counts", TestPreservesManifestMetadataCounts, ref failures);
-        Run("appmodel native invocation plan rejects invalid entry metadata", TestRejectsInvalidEntryMetadata, ref failures);
-        Run("appmodel native invocation plan default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app invocation plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel native invocation plan accepts executable memory", HostLane.Fast, 0)]
     private static bool TestAcceptsExecutableMemory()
     {
         NativeAppExecutableMemoryPlanResult executableMemoryPlan = CreateExecutableMemoryPlan();
@@ -62,7 +23,7 @@ internal static class NativeAppInvocationPlanTests
         NativeAppInvocationPlanResult result =
             NativeAppInvocationPlanner.Create(executableMemoryPlan, launchPlan);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppInvocationPlanStatus.Success
             && result.ExecutableMemoryStatus == NativeAppExecutableMemoryPlanStatus.Success
@@ -77,9 +38,10 @@ internal static class NativeAppInvocationPlanTests
                 executableMemoryPlan.EntryOffsetInExecutableMapping
             && result.Plan.RequiredBootCapabilities == BootCapabilities.TextOutput
             && result.Plan.RequiredRuntimeCapabilities ==
-                (NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network);
+                (NativeAppLaunchRuntimeCapabilities.PackageStorage | NativeAppLaunchRuntimeCapabilities.Network));
     }
 
+    [HostTest("appmodel native invocation plan rejects memory failure", HostLane.Fast, 1)]
     private static bool TestRejectsMemoryFailure()
     {
         NativeAppExecutableMemoryPlanResult executableMemoryPlan =
@@ -92,13 +54,14 @@ internal static class NativeAppInvocationPlanTests
         NativeAppInvocationPlanResult result =
             NativeAppInvocationPlanner.Create(executableMemoryPlan, CreateLaunchPlan());
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppInvocationPlanStatus.ExecutableMemoryPlanFailed
             && result.ExecutableMemoryStatus == NativeAppExecutableMemoryPlanStatus.MappingPlanFailed
-            && result.PayloadMappingStatus == NativeAppPayloadMappingPlanStatus.DescriptorFailed;
+            && result.PayloadMappingStatus == NativeAppPayloadMappingPlanStatus.DescriptorFailed);
     }
 
+    [HostTest("appmodel native invocation plan rejects invalid stack", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidStack()
     {
         NativeAppInvocationPlanResult tooSmall =
@@ -113,14 +76,15 @@ internal static class NativeAppInvocationPlanTests
                 CreateLaunchPlan(),
                 stackSizeBytes: NativeAppInvocationPlanner.DefaultStackBytes + 1);
 
-        return !tooSmall.Succeeded
+        return HostCheck.Result(!tooSmall.Succeeded
             && tooSmall.IsInitialized
             && tooSmall.Status == NativeAppInvocationPlanStatus.InvalidStackSize
             && !unaligned.Succeeded
             && unaligned.IsInitialized
-            && unaligned.Status == NativeAppInvocationPlanStatus.InvalidStackSize;
+            && unaligned.Status == NativeAppInvocationPlanStatus.InvalidStackSize);
     }
 
+    [HostTest("appmodel native invocation plan preserves manifest metadata counts", HostLane.Fast, 3)]
     private static bool TestPreservesManifestMetadataCounts()
     {
         NativeAppLaunchPlanResult launchPlan = CreateLaunchPlanWithEnvironment();
@@ -136,7 +100,7 @@ internal static class NativeAppInvocationPlanTests
             "PORT".Length +
             "8080".Length;
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Plan.ManifestVersion == NativeManifest.Version0
             && result.Plan.AppKind == NativeManifestAppKind.Package
@@ -145,9 +109,10 @@ internal static class NativeAppInvocationPlanTests
             && result.Plan.LogMode == NativeManifestLogMode.Serial
             && result.Plan.ArgumentByteLength == Arguments.Length
             && result.Plan.EnvironmentCount == 2
-            && result.Plan.ManifestMetadataByteCount == expectedMetadataBytes;
+            && result.Plan.ManifestMetadataByteCount == expectedMetadataBytes);
     }
 
+    [HostTest("appmodel native invocation plan rejects invalid entry metadata", HostLane.Fast, 4)]
     private static bool TestRejectsInvalidEntryMetadata()
     {
         NativeAppExecutableMemoryPlanResult executableMemoryPlan =
@@ -175,17 +140,18 @@ internal static class NativeAppInvocationPlanTests
         NativeAppInvocationPlanResult result =
             NativeAppInvocationPlanner.Create(executableMemoryPlan, CreateLaunchPlan());
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppInvocationPlanStatus.InvalidEntryOffset
-            && result.ExecutableMemoryStatus == NativeAppExecutableMemoryPlanStatus.Success;
+            && result.ExecutableMemoryStatus == NativeAppExecutableMemoryPlanStatus.Success);
     }
 
+    [HostTest("appmodel native invocation plan default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAppInvocationPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppInvocationPlanStatus.Success
             && result.ExecutableMemoryStatus == NativeAppExecutableMemoryPlanStatus.Success
@@ -201,7 +167,7 @@ internal static class NativeAppInvocationPlanTests
             && result.Plan.ManifestMetadataByteCount == 0
             && result.Plan.ArgumentByteLength == 0
             && result.Plan.EnvironmentCount == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppInvocationPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppInvocationPlanResult>());
     }
 
     private static NativeAppExecutableMemoryPlanResult CreateExecutableMemoryPlan()

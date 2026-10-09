@@ -7,7 +7,7 @@ using Status = OS.Kernel.Runtime.X64UnwindMetadataStatus;
 
 internal static unsafe class X64PERuntimeFunctionUnwindMetadataHostileInputTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         int failures = 0;
@@ -26,9 +26,8 @@ internal static unsafe class X64PERuntimeFunctionUnwindMetadataHostileInputTests
 
     private static void Run(string name, Action test, ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
-        try { test(); Console.WriteLine("TEST_PASS " + name); }
-        catch (Exception e) { failures++; Console.WriteLine("TEST_FAIL " + name + " " + e); }
+
+        HostCheck.Run("" + name, test, ref failures);
     }
     private static void Check(bool value, string reason) { if (!value) throw new InvalidOperationException(reason); }
     private static void Failure(X64UnwindMetadataResult result, Status expected, string reason)

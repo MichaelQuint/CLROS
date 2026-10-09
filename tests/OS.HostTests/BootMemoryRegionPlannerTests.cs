@@ -4,46 +4,8 @@ using OS.Kernel.Memory;
 
 internal static class BootMemoryRegionPlannerTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("memory.boot regions selects conventional ranges", TestSelectsConventionalRanges, ref failures);
-        Run("memory.boot regions records reserved ranges", TestRecordsReservedRanges, ref failures);
-        Run("memory.boot regions rejects overlapping ranges", TestRejectsOverlappingRanges, ref failures);
-        Run("memory.boot regions reports destination capacity", TestReportsDestinationCapacity, ref failures);
-        Run("memory.boot regions rejects invalid metadata", TestRejectsInvalidMetadata, ref failures);
-        Run("memory.boot regions covers overflow failures", TestCoversOverflowFailures, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Boot memory region planner host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("memory.boot regions selects conventional ranges", HostLane.Fast, 0)]
     private static bool TestSelectsConventionalRanges()
     {
         Span<BootMemoryRegionRecord> source = stackalloc BootMemoryRegionRecord[4];
@@ -56,7 +18,7 @@ internal static class BootMemoryRegionPlannerTests
         Span<BootMemoryReservedRange> reserved = stackalloc BootMemoryReservedRange[2];
         BootMemoryRegionPlanResult result = BootMemoryRegionPlanner.Plan(source, usable, reserved);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == BootMemoryRegionPlanStatus.Success
             && result.SourceRegionCount == 4
             && result.UsableRangeCount == 2
@@ -81,9 +43,10 @@ internal static class BootMemoryRegionPlannerTests
             && usable[1].SourceRegionIndex == 3
             && usable[1].PhysicalStart == 0x300000
             && usable[1].PageCount == 6
-            && usable[1].Attribute == 0x30;
+            && usable[1].Attribute == 0x30);
     }
 
+    [HostTest("memory.boot regions records reserved ranges", HostLane.Fast, 1)]
     private static bool TestRecordsReservedRanges()
     {
         const uint unknownType = 0x80000000;
@@ -97,7 +60,7 @@ internal static class BootMemoryRegionPlannerTests
         Span<BootMemoryReservedRange> reserved = stackalloc BootMemoryReservedRange[4];
         BootMemoryRegionPlanResult result = BootMemoryRegionPlanner.Plan(source, usable, reserved);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.UsableRangeCount == 0
             && result.ReservedRangeCount == 4
             && result.UsablePages == 0
@@ -115,9 +78,10 @@ internal static class BootMemoryRegionPlannerTests
             && reserved[2].ByteLength == 3 * BootMemoryRegionRecord.PageSize
             && reserved[3].SourceRegionIndex == 3
             && reserved[3].UefiType == unknownType
-            && reserved[3].Attribute == 0x44;
+            && reserved[3].Attribute == 0x44);
     }
 
+    [HostTest("memory.boot regions rejects overlapping ranges", HostLane.Fast, 2)]
     private static bool TestRejectsOverlappingRanges()
     {
         Span<BootMemoryRegionRecord> source = stackalloc BootMemoryRegionRecord[2];
@@ -146,7 +110,7 @@ internal static class BootMemoryRegionPlannerTests
 
         BootMemoryRegionPlanResult result = BootMemoryRegionPlanner.Plan(source, usable, reserved);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == BootMemoryRegionPlanStatus.OverlappingRange
             && result.InvalidRegionIndex == 1
             && result.UsableRangeCount == 0
@@ -160,9 +124,10 @@ internal static class BootMemoryRegionPlannerTests
             && usable[0].SourceRegionIndex == usableSentinel.SourceRegionIndex
             && usable[0].PhysicalStart == usableSentinel.PhysicalStart
             && reserved[0].SourceRegionIndex == reservedSentinel.SourceRegionIndex
-            && reserved[0].PhysicalStart == reservedSentinel.PhysicalStart;
+            && reserved[0].PhysicalStart == reservedSentinel.PhysicalStart);
     }
 
+    [HostTest("memory.boot regions reports destination capacity", HostLane.Fast, 3)]
     private static bool TestReportsDestinationCapacity()
     {
         Span<BootMemoryRegionRecord> source = stackalloc BootMemoryRegionRecord[3];
@@ -203,7 +168,7 @@ internal static class BootMemoryRegionPlannerTests
             enoughUsable,
             tooSmallReserved);
 
-        return !usableCapacity.Succeeded
+        return HostCheck.Result(!usableCapacity.Succeeded
             && usableCapacity.Status == BootMemoryRegionPlanStatus.UsableDestinationTooSmall
             && usableCapacity.RequiredUsableRangeCapacity == 2
             && usableCapacity.AvailableUsableRangeCapacity == 1
@@ -221,9 +186,10 @@ internal static class BootMemoryRegionPlannerTests
             && reservedCapacity.RequiredUsableRangeCapacity == 2
             && reservedCapacity.AvailableUsableRangeCapacity == 2
             && reservedCapacity.RequiredReservedRangeCapacity == 1
-            && reservedCapacity.AvailableReservedRangeCapacity == 0;
+            && reservedCapacity.AvailableReservedRangeCapacity == 0);
     }
 
+    [HostTest("memory.boot regions rejects invalid metadata", HostLane.Fast, 4)]
     private static bool TestRejectsInvalidMetadata()
     {
         BootMemoryRegionPlanResult zeroPages = PlanSingle(new BootMemoryRegionRecord(
@@ -261,7 +227,7 @@ internal static class BootMemoryRegionPlannerTests
             usable,
             reserved);
 
-        return !zeroPages.Succeeded
+        return HostCheck.Result(!zeroPages.Succeeded
             && zeroPages.Status == BootMemoryRegionPlanStatus.InvalidPageCount
             && zeroPages.InvalidRegionIndex == 0
             && !byteLengthMismatch.Succeeded
@@ -272,9 +238,10 @@ internal static class BootMemoryRegionPlannerTests
             && physicalEndMismatch.InvalidRegionIndex == 0
             && !unsortedResult.Succeeded
             && unsortedResult.Status == BootMemoryRegionPlanStatus.UnsortedRange
-            && unsortedResult.InvalidRegionIndex == 1;
+            && unsortedResult.InvalidRegionIndex == 1);
     }
 
+    [HostTest("memory.boot regions covers overflow failures", HostLane.Fast, 5)]
     private static bool TestCoversOverflowFailures()
     {
         BootMemoryRegionPlanResult pageByteOverflow = PlanSingle(new BootMemoryRegionRecord(
@@ -294,12 +261,12 @@ internal static class BootMemoryRegionPlannerTests
             byteLength: BootMemoryRegionRecord.PageSize,
             physicalEndExclusive: 0));
 
-        return !pageByteOverflow.Succeeded
+        return HostCheck.Result(!pageByteOverflow.Succeeded
             && pageByteOverflow.Status == BootMemoryRegionPlanStatus.PageByteCountOverflow
             && pageByteOverflow.InvalidRegionIndex == 0
             && !addressOverflow.Succeeded
             && addressOverflow.Status == BootMemoryRegionPlanStatus.AddressRangeOverflow
-            && addressOverflow.InvalidRegionIndex == 0;
+            && addressOverflow.InvalidRegionIndex == 0);
     }
 
     private static BootMemoryRegionPlanResult PlanSingle(BootMemoryRegionRecord region)

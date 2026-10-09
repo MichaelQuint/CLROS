@@ -6,23 +6,7 @@ using Core = OS.Boot.ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemory;
 
 internal static unsafe class ConsoleFilesystemTimerRNGConfigurationTablePhysicalMemoryTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        Run("typed operations enter their bound backends and preserve status", Positive);
-        Run("copied capabilities observe every terminal authority cutoff", Cutoffs);
-        Run("consumed binding rejects early failure and reentry without backend access", EarlyFailure);
-        Run("invalid binding and copied or rebound owners fail closed", Identity);
-        Run("output aliases and invalid extents reject without backend entry", Ranges);
-        Run("unavailable backends still observe original authority first", Unavailable);
-    }
 
-    private static void Run(string name, Action test)
-    {
-        Console.WriteLine("TEST_START m03.008 " + name);
-        try { test(); Console.WriteLine("TEST_PASS m03.008 " + name); }
-        catch (Exception e) { Console.WriteLine("TEST_FAIL m03.008 " + name + " " + e.Message); throw; }
-    }
     private static void Need(bool value, string message)
     { if (!value) throw new InvalidOperationException(message); }
 
@@ -176,6 +160,7 @@ internal static unsafe class ConsoleFilesystemTimerRNGConfigurationTablePhysical
         else Need(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(data, 256)), "denial leaves all outputs unchanged");
     }
 
+    [HostTest("m03.008 typed operations enter their bound backends and preserve status", HostLane.Fast, 0)]
     private static void Positive()
     {
         Need(!RuntimeHelpers.IsReferenceOrContainsReferences<FirmwareAdapterAuthority>() &&
@@ -191,6 +176,7 @@ internal static unsafe class ConsoleFilesystemTimerRNGConfigurationTablePhysical
             "bound descriptor cannot be rebound");
     }
 
+    [HostTest("m03.008 copied capabilities observe every terminal authority cutoff", HostLane.Fast, 1)]
     private static void Cutoffs()
     {
         foreach (uint phase in new uint[] { 0, 2, 3, uint.MaxValue })
@@ -215,6 +201,7 @@ internal static unsafe class ConsoleFilesystemTimerRNGConfigurationTablePhysical
         }
     }
 
+    [HostTest("m03.008 consumed binding rejects early failure and reentry without backend access", HostLane.Fast, 2)]
     private static void EarlyFailure()
     {
         using var f = new Fixture(); f.Bind();
@@ -231,6 +218,7 @@ internal static unsafe class ConsoleFilesystemTimerRNGConfigurationTablePhysical
         Exercise(reentry, FirmwareAdapterStatus.ServicesUnavailable);
     }
 
+    [HostTest("m03.008 invalid binding and copied or rebound owners fail closed", HostLane.Fast, 3)]
     private static void Identity()
     {
         Need(default(FirmwareConsoleCapability).Write((char*)1, ulong.MaxValue).Status == FirmwareAdapterStatus.Unbound &&
@@ -264,6 +252,7 @@ internal static unsafe class ConsoleFilesystemTimerRNGConfigurationTablePhysical
         Exercise(f, FirmwareAdapterStatus.Success);
     }
 
+    [HostTest("m03.008 output aliases and invalid extents reject without backend entry", HostLane.Fast, 4)]
     private static void Ranges()
     {
         using var f = new Fixture(); f.Bind();
@@ -287,6 +276,7 @@ internal static unsafe class ConsoleFilesystemTimerRNGConfigurationTablePhysical
             "invalid calls touch neither authority nor backend counters");
     }
 
+    [HostTest("m03.008 unavailable backends still observe original authority first", HostLane.Fast, 5)]
     private static void Unavailable()
     {
         using var f = new Fixture(); f.Backends = default; f.Bind();

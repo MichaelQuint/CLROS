@@ -8,47 +8,7 @@ internal static class TcpConnectionTableTests
     private const uint LocalNextSequence = 0x01020304;
     private const uint RemoteNextSequence = 0x10203040;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.tcp.connection table adds established connection", TestAddsEstablishedConnection, ref failures);
-        Run("net.tcp.connection table rejects duplicate and capacity", TestRejectsDuplicateAndCapacity, ref failures);
-        Run("net.tcp.connection table looks up endpoint tuple", TestLooksUpEndpointTuple, ref failures);
-        Run("net.tcp.connection table updates sequence metadata", TestUpdatesSequenceMetadata, ref failures);
-        Run("net.tcp.connection table closes removes and reuses slot", TestClosesRemovesAndReusesSlot, ref failures);
-        Run("net.tcp.connection table default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("net.tcp.connection table layouts contain no managed references", TestLayoutsContainNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("TCP connection table host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.tcp.connection table adds established connection", HostLane.Fast, 0)]
     private static bool TestAddsEstablishedConnection()
     {
         TcpConnectionTableEntry[] entries = new TcpConnectionTableEntry[2];
@@ -57,7 +17,7 @@ internal static class TcpConnectionTableTests
 
         TcpConnectionTableResult result = TcpConnectionTable.AddEstablished(entries, key, sequence);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == TcpConnectionTableStatus.Success
             && result.Count == 1
             && result.Capacity == entries.Length
@@ -72,9 +32,10 @@ internal static class TcpConnectionTableTests
             && TcpConnectionTable.RequiresCallerOwnedEntryStorage
             && !TcpConnectionTable.AllocatesEntries
             && !TcpConnectionTable.DispatchesSockets
-            && !TcpConnectionTable.PerformsNicIo;
+            && !TcpConnectionTable.PerformsNicIo);
     }
 
+    [HostTest("net.tcp.connection table rejects duplicate and capacity", HostLane.Fast, 1)]
     private static bool TestRejectsDuplicateAndCapacity()
     {
         TcpConnectionTableEntry[] entries = new TcpConnectionTableEntry[1];
@@ -94,7 +55,7 @@ internal static class TcpConnectionTableTests
             secondKey,
             Sequence(remoteNextSequence: RemoteNextSequence + 1));
 
-        return first.Succeeded
+        return HostCheck.Result(first.Succeeded
             && !duplicate.Succeeded
             && duplicate.Status == TcpConnectionTableStatus.DuplicateEndpoint
             && duplicate.EntryIndex == first.EntryIndex
@@ -105,9 +66,10 @@ internal static class TcpConnectionTableTests
             && full.Capacity == entries.Length
             && full.RequiredCapacity == 2
             && full.EntryIndex == TcpConnectionTable.NoEntryIndex
-            && entries[0].Key.HasSameEndpoint(firstKey);
+            && entries[0].Key.HasSameEndpoint(firstKey));
     }
 
+    [HostTest("net.tcp.connection table looks up endpoint tuple", HostLane.Fast, 2)]
     private static bool TestLooksUpEndpointTuple()
     {
         TcpConnectionTableEntry[] entries = new TcpConnectionTableEntry[2];
@@ -124,7 +86,7 @@ internal static class TcpConnectionTableTests
             entries,
             Key(remotePort: RemotePort + 2));
 
-        return lookup.Succeeded
+        return HostCheck.Result(lookup.Succeeded
             && lookup.EntryIndex == 1
             && lookup.Count == 2
             && lookup.Entry.Key.HasSameEndpoint(secondKey)
@@ -132,9 +94,10 @@ internal static class TcpConnectionTableTests
             && !missing.Succeeded
             && missing.Status == TcpConnectionTableStatus.NotFound
             && missing.EntryIndex == TcpConnectionTable.NoEntryIndex
-            && missing.Count == 2;
+            && missing.Count == 2);
     }
 
+    [HostTest("net.tcp.connection table updates sequence metadata", HostLane.Fast, 3)]
     private static bool TestUpdatesSequenceMetadata()
     {
         TcpConnectionTableEntry[] entries = new TcpConnectionTableEntry[1];
@@ -153,7 +116,7 @@ internal static class TcpConnectionTableTests
             key,
             default);
 
-        return updated.Succeeded
+        return HostCheck.Result(updated.Succeeded
             && updated.EntryIndex == 0
             && updated.Entry.State == TcpConnectionLifecycleState.Established
             && updated.Entry.Sequence.LocalNextSequenceNumber == LocalNextSequence + 5
@@ -161,9 +124,10 @@ internal static class TcpConnectionTableTests
             && entries[0].Sequence.LocalNextSequenceNumber == LocalNextSequence + 5
             && !invalidSequence.Succeeded
             && invalidSequence.Status == TcpConnectionTableStatus.InvalidSequenceMetadata
-            && entries[0].Sequence.RemoteNextSequenceNumber == RemoteNextSequence + 7;
+            && entries[0].Sequence.RemoteNextSequenceNumber == RemoteNextSequence + 7);
     }
 
+    [HostTest("net.tcp.connection table closes removes and reuses slot", HostLane.Fast, 4)]
     private static bool TestClosesRemovesAndReusesSlot()
     {
         TcpConnectionTableEntry[] entries = new TcpConnectionTableEntry[2];
@@ -197,9 +161,10 @@ internal static class TcpConnectionTableTests
             && entries[0].State == TcpConnectionLifecycleState.Established
             && entries[1].State == TcpConnectionLifecycleState.Established;
 
-        return passed;
+        return HostCheck.Result(passed);
     }
 
+    [HostTest("net.tcp.connection table default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         TcpConnectionTableResult defaultResult = default;
@@ -220,7 +185,7 @@ internal static class TcpConnectionTableTests
             Key(remotePort: RemotePort),
             default);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == TcpConnectionTableStatus.Success
             && failureResult.IsInitialized
@@ -230,9 +195,10 @@ internal static class TcpConnectionTableTests
             && invalidEndpoint.Status == TcpConnectionTableStatus.InvalidEndpoint
             && !invalidSequence.Succeeded
             && invalidSequence.Status == TcpConnectionTableStatus.InvalidSequenceMetadata
-            && entries[0].State == TcpConnectionLifecycleState.Free;
+            && entries[0].State == TcpConnectionLifecycleState.Free);
     }
 
+    [HostTest("net.tcp.connection table layouts contain no managed references", HostLane.Fast, 6)]
     private static bool TestLayoutsContainNoManagedReferences()
     {
         TcpConnectionTableEntry[] entries = new TcpConnectionTableEntry[2];
@@ -250,7 +216,7 @@ internal static class TcpConnectionTableTests
             Sequence(localNextSequence: LocalNextSequence + 1));
         TcpConnectionTableResult invalid = TcpConnectionTable.Inspect(entries);
 
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<TcpConnectionKey>()
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<TcpConnectionKey>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpConnectionSequenceMetadata>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpConnectionTableEntry>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpConnectionTableResult>()
@@ -260,7 +226,7 @@ internal static class TcpConnectionTableTests
             && invalid.Status == TcpConnectionTableStatus.InvalidEntryState
             && !TcpConnectionTable.OwnsTimers
             && !TcpConnectionTable.DispatchesSockets
-            && !TcpConnectionTable.PerformsNicIo;
+            && !TcpConnectionTable.PerformsNicIo);
     }
 
     private static TcpConnectionKey Key(ushort remotePort)

@@ -15,48 +15,7 @@ internal static class VirtioNetDriverQueueBringUpPlanTests
     private const ushort RxBufferCount = 3;
     private const uint FrameBufferBytes = VirtioNetQueuePlan.MaximumFrameBufferBytes;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.virtionet.queue.bringup creates publish ready plan", TestCreatesPublishReadyPlan, ref failures);
-        Run("drivers.virtionet.queue.bringup rejects non network descriptor", TestRejectsNonNetworkDescriptor, ref failures);
-        Run("drivers.virtionet.queue.bringup rejects invalid queue plan", TestRejectsInvalidQueuePlan, ref failures);
-        Run("drivers.virtionet.queue.bringup rejects split ring memory", TestRejectsSplitRingMemory, ref failures);
-        Run("drivers.virtionet.queue.bringup rejects buffer capacities", TestRejectsBufferCapacities, ref failures);
-        Run("drivers.virtionet.queue.bringup rejects byte count overflow", TestRejectsByteCountOverflow, ref failures);
-        Run("drivers.virtionet.queue.bringup default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio-net driver queue bring-up host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtionet.queue.bringup creates publish ready plan", HostLane.Fast, 0)]
     private static bool TestCreatesPublishReadyPlan()
     {
         MacAddress macAddress = new MacAddress(0x02, 0x33, 0x44, 0x55, 0x66, 0x77);
@@ -79,7 +38,7 @@ internal static class VirtioNetDriverQueueBringUpPlanTests
                 queuePlan.TxFrame.RequiredBufferBytes);
         VirtioNetDriverQueueBringUpMetadata plan = result.Plan;
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioNetDriverQueueBringUpPlanStatus.Success
             && result.DeviceKind == VirtioPciDeviceKind.Network
@@ -122,9 +81,10 @@ internal static class VirtioNetDriverQueueBringUpPlanTests
             && !VirtioNetDriverQueueBringUpPlan.PublishesDescriptors
             && !VirtioNetDriverQueueBringUpPlan.NotifiesDevice
             && !VirtioNetDriverQueueBringUpPlan.HandlesInterrupts
-            && !VirtioNetDriverQueueBringUpPlan.SendsOrReceivesPackets;
+            && !VirtioNetDriverQueueBringUpPlan.SendsOrReceivesPackets);
     }
 
+    [HostTest("drivers.virtionet.queue.bringup rejects non network descriptor", HostLane.Fast, 1)]
     private static bool TestRejectsNonNetworkDescriptor()
     {
         VirtioDeviceDescriptor descriptor = CreateBlockDescriptor(sourceIndex: 32);
@@ -142,14 +102,15 @@ internal static class VirtioNetDriverQueueBringUpPlanTests
                 queuePlan.RxBuffers.RequiredBufferBytes,
                 queuePlan.TxFrame.RequiredBufferBytes);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetDriverQueueBringUpPlanStatus.DescriptorNotNetwork
             && result.DeviceKind == VirtioPciDeviceKind.Block
             && result.BindingPlanStatus == VirtioPciBindingPlanStatus.Success
             && result.NetworkConfigurationStatus == default
-            && result.QueuePlanStatus == default;
+            && result.QueuePlanStatus == default);
     }
 
+    [HostTest("drivers.virtionet.queue.bringup rejects invalid queue plan", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidQueuePlan()
     {
         VirtioDeviceDescriptor descriptor = CreateNetworkDescriptor(
@@ -169,13 +130,14 @@ internal static class VirtioNetDriverQueueBringUpPlanTests
                 availableRxBufferBytes: uint.MaxValue,
                 availableTxBufferBytes: uint.MaxValue);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetDriverQueueBringUpPlanStatus.QueuePlanFailed
             && result.QueuePlanStatus == VirtioNetQueuePlanStatus.InvalidRxQueueSize
             && result.RxQueueStatus == VirtqueueSplitRingPlanStatus.QueueSizeNotPowerOfTwo
-            && result.TxQueueStatus == VirtqueueSplitRingPlanStatus.Success;
+            && result.TxQueueStatus == VirtqueueSplitRingPlanStatus.Success);
     }
 
+    [HostTest("drivers.virtionet.queue.bringup rejects split ring memory", HostLane.Fast, 3)]
     private static bool TestRejectsSplitRingMemory()
     {
         VirtioDeviceDescriptor descriptor = CreateNetworkDescriptor(
@@ -207,16 +169,17 @@ internal static class VirtioNetDriverQueueBringUpPlanTests
                 availableRxBufferBytes: queuePlan.RxBuffers.RequiredBufferBytes,
                 availableTxBufferBytes: queuePlan.TxFrame.RequiredBufferBytes);
 
-        return !rxTooSmall.Succeeded
+        return HostCheck.Result(!rxTooSmall.Succeeded
             && rxTooSmall.Status == VirtioNetDriverQueueBringUpPlanStatus.RxQueueMemoryTooSmall
             && rxTooSmall.RequiredRxQueueMemoryBytes == queuePlan.RxQueue.RequiredByteLength
             && rxTooSmall.AvailableRxQueueMemoryBytes == queuePlan.RxQueue.RequiredByteLength - 1
             && !txTooSmall.Succeeded
             && txTooSmall.Status == VirtioNetDriverQueueBringUpPlanStatus.TxQueueMemoryTooSmall
             && txTooSmall.RequiredTxQueueMemoryBytes == queuePlan.TxQueue.RequiredByteLength
-            && txTooSmall.AvailableTxQueueMemoryBytes == queuePlan.TxQueue.RequiredByteLength - 1;
+            && txTooSmall.AvailableTxQueueMemoryBytes == queuePlan.TxQueue.RequiredByteLength - 1);
     }
 
+    [HostTest("drivers.virtionet.queue.bringup rejects buffer capacities", HostLane.Fast, 4)]
     private static bool TestRejectsBufferCapacities()
     {
         VirtioDeviceDescriptor descriptor = CreateNetworkDescriptor(
@@ -248,16 +211,17 @@ internal static class VirtioNetDriverQueueBringUpPlanTests
                 queuePlan.RxBuffers.RequiredBufferBytes,
                 availableTxBufferBytes: queuePlan.TxFrame.RequiredBufferBytes - 1);
 
-        return !rxTooSmall.Succeeded
+        return HostCheck.Result(!rxTooSmall.Succeeded
             && rxTooSmall.Status == VirtioNetDriverQueueBringUpPlanStatus.RxBufferCapacityTooSmall
             && rxTooSmall.RequiredRxBufferBytes == queuePlan.RxBuffers.RequiredBufferBytes
             && rxTooSmall.AvailableRxBufferBytes == queuePlan.RxBuffers.RequiredBufferBytes - 1
             && !txTooSmall.Succeeded
             && txTooSmall.Status == VirtioNetDriverQueueBringUpPlanStatus.TxBufferCapacityTooSmall
             && txTooSmall.RequiredTxBufferBytes == queuePlan.TxFrame.RequiredBufferBytes
-            && txTooSmall.AvailableTxBufferBytes == queuePlan.TxFrame.RequiredBufferBytes - 1;
+            && txTooSmall.AvailableTxBufferBytes == queuePlan.TxFrame.RequiredBufferBytes - 1);
     }
 
+    [HostTest("drivers.virtionet.queue.bringup rejects byte count overflow", HostLane.Fast, 5)]
     private static bool TestRejectsByteCountOverflow()
     {
         VirtioDeviceDescriptor descriptor = CreateNetworkDescriptor(
@@ -278,23 +242,24 @@ internal static class VirtioNetDriverQueueBringUpPlanTests
                 availableRxBufferBytes: uint.MaxValue,
                 availableTxBufferBytes: 1);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetDriverQueueBringUpPlanStatus.ByteCountOverflow
             && result.RequiredRxQueueMemoryBytes == queuePlan.RxQueue.RequiredByteLength
             && result.RequiredTxQueueMemoryBytes == queuePlan.TxQueue.RequiredByteLength
             && result.AvailableRxBufferBytes == uint.MaxValue
-            && result.AvailableTxBufferBytes == 1;
+            && result.AvailableTxBufferBytes == 1);
     }
 
+    [HostTest("drivers.virtionet.queue.bringup default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioNetDriverQueueBringUpPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && result.Status == VirtioNetDriverQueueBringUpPlanStatus.Success
             && !result.Succeeded
             && !result.Plan.PublishReady
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetDriverQueueBringUpPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetDriverQueueBringUpPlanResult>());
     }
 
     private static VirtioNetQueuePlanResult CreateQueuePlan()

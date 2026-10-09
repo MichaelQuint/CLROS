@@ -5,47 +5,7 @@ internal static class DnsMessageTests
 {
     private const ushort TransactionId = 0x1234;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.dns writes a-record query", TestWritesARecordQuery, ref failures);
-        Run("net.dns parses compressed a-record response", TestParsesCompressedARecordResponse, ref failures);
-        Run("net.dns rejects malformed compression", TestRejectsMalformedCompression, ref failures);
-        Run("net.dns rejects forward compression pointer", TestRejectsForwardCompressionPointer, ref failures);
-        Run("net.dns rejects out-of-range compression pointer", TestRejectsOutOfRangeCompressionPointer, ref failures);
-        Run("net.dns rejects unsupported response", TestRejectsUnsupportedResponse, ref failures);
-        Run("net.dns message uses shared ascii hostname helper", TestUsesSharedAsciiHostnameHelper, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("DNS message host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.dns writes a-record query", HostLane.Fast, 0)]
     private static bool TestWritesARecordQuery()
     {
         byte[] buffer = new byte[64];
@@ -72,11 +32,12 @@ internal static class DnsMessageTests
             "example.com",
             out int bytesWritten);
 
-        return status == DnsMessageStatus.Success
+        return HostCheck.Result(status == DnsMessageStatus.Success
             && bytesWritten == expected.Length
-            && buffer.AsSpan(0, bytesWritten).SequenceEqual(expected);
+            && buffer.AsSpan(0, bytesWritten).SequenceEqual(expected));
     }
 
+    [HostTest("net.dns parses compressed a-record response", HostLane.Fast, 1)]
     private static bool TestParsesCompressedARecordResponse()
     {
         byte[] response = CreateCompressedResponse(
@@ -87,10 +48,11 @@ internal static class DnsMessageTests
 
         DnsMessageStatus status = DnsMessage.TryParseAResponse(response, TransactionId, out Ipv4Address address);
 
-        return status == DnsMessageStatus.Success
-            && address == new Ipv4Address(93, 184, 216, 34);
+        return HostCheck.Result(status == DnsMessageStatus.Success
+            && address == new Ipv4Address(93, 184, 216, 34));
     }
 
+    [HostTest("net.dns rejects malformed compression", HostLane.Fast, 2)]
     private static bool TestRejectsMalformedCompression()
     {
         byte[] response = CreateCompressedResponse(
@@ -104,9 +66,10 @@ internal static class DnsMessageTests
 
         DnsMessageStatus status = DnsMessage.TryParseAResponse(response, TransactionId, out Ipv4Address _);
 
-        return status == DnsMessageStatus.CompressionPointerLoop;
+        return HostCheck.Result(status == DnsMessageStatus.CompressionPointerLoop);
     }
 
+    [HostTest("net.dns rejects forward compression pointer", HostLane.Fast, 3)]
     private static bool TestRejectsForwardCompressionPointer()
     {
         byte[] response = CreateCompressedResponse(
@@ -120,9 +83,10 @@ internal static class DnsMessageTests
 
         DnsMessageStatus status = DnsMessage.TryParseAResponse(response, TransactionId, out Ipv4Address _);
 
-        return status == DnsMessageStatus.CompressionPointerLoop;
+        return HostCheck.Result(status == DnsMessageStatus.CompressionPointerLoop);
     }
 
+    [HostTest("net.dns rejects out-of-range compression pointer", HostLane.Fast, 4)]
     private static bool TestRejectsOutOfRangeCompressionPointer()
     {
         byte[] response = CreateCompressedResponse(
@@ -136,9 +100,10 @@ internal static class DnsMessageTests
 
         DnsMessageStatus status = DnsMessage.TryParseAResponse(response, TransactionId, out Ipv4Address _);
 
-        return status == DnsMessageStatus.CompressionPointerOutOfRange;
+        return HostCheck.Result(status == DnsMessageStatus.CompressionPointerOutOfRange);
     }
 
+    [HostTest("net.dns rejects unsupported response", HostLane.Fast, 5)]
     private static bool TestRejectsUnsupportedResponse()
     {
         byte[] rcodeResponse = CreateCompressedResponse(
@@ -171,11 +136,12 @@ internal static class DnsMessageTests
             TransactionId,
             out Ipv4Address _);
 
-        return rcodeStatus == DnsMessageStatus.ResponseCodeFailure
+        return HostCheck.Result(rcodeStatus == DnsMessageStatus.ResponseCodeFailure
             && typeStatus == DnsMessageStatus.UnsupportedType
-            && classStatus == DnsMessageStatus.UnsupportedClass;
+            && classStatus == DnsMessageStatus.UnsupportedClass);
     }
 
+    [HostTest("net.dns message uses shared ascii hostname helper", HostLane.Fast, 6)]
     private static bool TestUsesSharedAsciiHostnameHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -187,23 +153,23 @@ internal static class DnsMessageTests
             StringComparison.Ordinal);
         if (helperStart < 0)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         int helperEnd = source.IndexOf("public enum DnsMessageStatus", helperStart, StringComparison.Ordinal);
         if (helperEnd < 0)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         string helperSource = source[helperStart..helperEnd];
-        return helperSource.Contains("OS.Std.Ascii.IsLetterOrDigit(value)", StringComparison.Ordinal)
+        return HostCheck.Result(helperSource.Contains("OS.Std.Ascii.IsLetterOrDigit(value)", StringComparison.Ordinal)
             && !helperSource.Contains("value >= (byte)'A'", StringComparison.Ordinal)
             && !helperSource.Contains("value <= (byte)'Z'", StringComparison.Ordinal)
             && !helperSource.Contains("value >= (byte)'a'", StringComparison.Ordinal)
             && !helperSource.Contains("value <= (byte)'z'", StringComparison.Ordinal)
             && !helperSource.Contains("value >= (byte)'0'", StringComparison.Ordinal)
-            && !helperSource.Contains("value <= (byte)'9'", StringComparison.Ordinal);
+            && !helperSource.Contains("value <= (byte)'9'", StringComparison.Ordinal));
     }
 
     private const int EncodedExampleComLength = 13;

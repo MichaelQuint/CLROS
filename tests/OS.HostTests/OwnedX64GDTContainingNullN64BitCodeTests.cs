@@ -11,7 +11,7 @@ internal static unsafe class OwnedX64GDTContainingNullN64BitCodeTests
         "CLROS_M02_007_READY encoding=hostValidated callerOwned=true " +
         "readBack=true guestEncoding=false guestLgdt=false guestLtr=false allocationFree=true";
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START m02.007");
@@ -39,26 +39,8 @@ internal static unsafe class OwnedX64GDTContainingNullN64BitCodeTests
 
     private static void Run(string name, Func<bool> test, ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + name + " " +
-                exception.GetType().Name + ": " + exception.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestExactOwnedEncoding()

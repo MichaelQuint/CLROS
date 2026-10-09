@@ -28,77 +28,7 @@ internal static class StorageFat32ParserTests
     private const uint ChainedFileSize = SectorSize * 3;
     private const uint Fat32EndOfChain = 0x0FFFFFFF;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("storage fat32 parses valid BPB", TestValidBpbParse, ref failures);
-        Run("storage fat32 rejects bad boot signature", TestBadBootSignature, ref failures);
-        Run("storage fat32 rejects unsupported sector size", TestUnsupportedSectorSize, ref failures);
-        Run("storage fat32 rejects invalid sectors per cluster", TestInvalidSectorsPerCluster, ref failures);
-        Run("storage fat32 rejects invalid FAT count", TestInvalidFatCount, ref failures);
-        Run("storage fat32 enumerates root directory entries", TestRootDirectoryEnumeration, ref failures);
-        Run("storage fat32 reports missing root short-name file", TestMissingRootFile, ref failures);
-        Run("storage fat32 finds root short-name file metadata", TestFoundRootFileMetadata, ref failures);
-        Run("storage fat32 reads root short-name file content", TestReadRootShortNameFileContent, ref failures);
-        Run("storage fat32 reads chained file content", TestReadChainedFileContent, ref failures);
-        Run("storage fat32 rejects chained file loop", TestRejectsChainedFileLoop, ref failures);
-        Run("storage fat32 rejects short chained file", TestRejectsShortChainedFile, ref failures);
-        Run("storage fat32 reads chained root directory entries", TestReadsChainedRootDirectoryEntries, ref failures);
-        Run("storage fat32 finds chained root directory file metadata", TestFindsChainedRootDirectoryFileMetadata, ref failures);
-        Run("storage fat32 reads chained first-level directory entries", TestReadsChainedFirstLevelDirectoryEntries, ref failures);
-        Run("storage fat32 rejects directory chain loop", TestRejectsDirectoryChainLoop, ref failures);
-        Run("storage fat32 reports short chained directory read", TestReportsShortChainedDirectoryRead, ref failures);
-        Run("storage fat32 finds OS directory metadata", TestFoundOsDirectoryMetadata, ref failures);
-        Run("storage fat32 finds OS/MANIFEST.JSON metadata", TestFoundOsManifestMetadata, ref failures);
-        Run("storage fat32 reads OS/MANIFEST.JSON content", TestReadOsManifestContent, ref failures);
-        Run("storage fat32 rejects OS/MANIFEST.JSON destination too small", TestOsManifestDestinationTooSmall, ref failures);
-        Run("storage fat32 rejects missing OS directory for content read", TestReadOsManifestMissingDirectory, ref failures);
-        Run("storage fat32 rejects unsupported nested path", TestRejectsUnsupportedNestedPath, ref failures);
-        Run("storage fat32 finds MANIFEST.JSON root long-name file metadata", TestFoundRootLongNameManifestMetadata, ref failures);
-        Run("storage fat32 reads MANIFEST.JSON root long-name file content", TestReadRootLongNameManifestContent, ref failures);
-        Run("storage fat32 reports missing root long-name file", TestMissingRootLongNameFile, ref failures);
-        Run("storage fat32 rejects root file destination too small", TestRootFileDestinationTooSmall, ref failures);
-        Run("storage fat32 rejects directory read as file", TestDirectoryReadAsFile, ref failures);
-        Run("storage fat32 rejects malformed long-name metadata", TestMalformedLongNameMetadata, ref failures);
-        Run("storage fat32 rejects orphan long-name metadata", TestOrphanLongNameMetadata, ref failures);
-        Run("storage fat32 rejects unsupported long-name path", TestUnsupportedLongNamePath, ref failures);
-        Run("storage fat32 reports truncated directory entry", TestTruncatedDirectoryEntry, ref failures);
-        Run("storage fat32 result defaults are not success", TestDefaultResultsAreNotSuccess, ref failures);
-        Run("storage fat32 uses shared memory short-name helper", TestUsesSharedMemoryShortNameHelper, ref failures);
-        Run("storage fat32 uses shared ascii long-name case helper", TestUsesSharedAsciiLongNameCaseHelper, ref failures);
-        Run("storage fat32 uses shared ascii trailing-space helper", TestUsesSharedAsciiTrailingSpaceHelper, ref failures);
-        Run("storage fat32 final block copy uses shared buffer operations", TestFinalBlockCopyUsesSharedBufferOperations, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Storage FAT32 parser host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("storage fat32 result defaults are not success", HostLane.Fast, 32)]
     private static bool TestDefaultResultsAreNotSuccess()
     {
         Fat32BpbParseResult bpb = default;
@@ -106,7 +36,7 @@ internal static class StorageFat32ParserTests
         Fat32FileLookupResult lookup = default;
         Fat32FileReadResult read = default;
 
-        return !bpb.IsInitialized
+        return HostCheck.Result(!bpb.IsInitialized
             && !bpb.Succeeded
             && bpb.Status == Fat32Status.Success
             && bpb.BlockStatus == BlockDeviceStatus.Success
@@ -137,49 +67,53 @@ internal static class StorageFat32ParserTests
             && read.BytesRead == 0
             && !read.AssumedContiguousClusters
             && !RuntimeHelpers.IsReferenceOrContainsReferences<Fat32BpbParseResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<Fat32DirectoryReadResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<Fat32DirectoryReadResult>());
     }
 
+    [HostTest("storage fat32 uses shared memory short-name helper", HostLane.Fast, 33)]
     private static bool TestUsesSharedMemoryShortNameHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "Fat32Parser.cs"));
 
-        return source.Contains(
+        return HostCheck.Result(source.Contains(
                 "return OS.Std.MemoryExtensions.SequenceEqual(actual, expected);",
                 StringComparison.Ordinal)
-            && !source.Contains("if (actual[i] != expected[i])", StringComparison.Ordinal);
+            && !source.Contains("if (actual[i] != expected[i])", StringComparison.Ordinal));
     }
 
+    [HostTest("storage fat32 uses shared ascii long-name case helper", HostLane.Fast, 34)]
     private static bool TestUsesSharedAsciiLongNameCaseHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "Fat32Parser.cs"));
 
-        return source.Contains("OS.Std.Ascii.ToUpperInvariant", StringComparison.Ordinal)
-            && !source.Contains("private static char ToUpperAscii", StringComparison.Ordinal);
+        return HostCheck.Result(source.Contains("OS.Std.Ascii.ToUpperInvariant", StringComparison.Ordinal)
+            && !source.Contains("private static char ToUpperAscii", StringComparison.Ordinal));
     }
 
+    [HostTest("storage fat32 uses shared ascii trailing-space helper", HostLane.Fast, 35)]
     private static bool TestUsesSharedAsciiTrailingSpaceHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "Fat32Parser.cs"));
 
-        return source.Contains("AsciiString.TrimTrailingSpace(bytes[..8])", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("AsciiString.TrimTrailingSpace(bytes[..8])", StringComparison.Ordinal)
             && source.Contains("AsciiString.TrimTrailingSpace(bytes.Slice(8, 3))", StringComparison.Ordinal)
-            && !source.Contains("private static int TrimTrailingSpaces", StringComparison.Ordinal);
+            && !source.Contains("private static int TrimTrailingSpaces", StringComparison.Ordinal));
     }
 
+    [HostTest("storage fat32 final block copy uses shared buffer operations", HostLane.Fast, 36)]
     private static bool TestFinalBlockCopyUsesSharedBufferOperations()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Storage", "Fat32Parser.cs"));
 
-        return source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
             && source.Contains("BufferOperationResult copy = BufferOperations.MemoryCopy(", StringComparison.Ordinal)
             && source.Contains("finalBlock[..bytesRemaining]", StringComparison.Ordinal)
             && source.Contains("destination.Slice(destinationOffset, bytesRemaining)", StringComparison.Ordinal)
@@ -187,9 +121,10 @@ internal static class StorageFat32ParserTests
             && source.Contains("if (!copy.Succeeded)", StringComparison.Ordinal)
             && !source.Contains(
                 "finalBlock[..bytesRemaining].CopyTo(destination.Slice(destinationOffset, bytesRemaining))",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("storage fat32 parses valid BPB", HostLane.Fast, 0)]
     private static bool TestValidBpbParse()
     {
         byte[] image = CreateValidFat32Image();
@@ -198,7 +133,7 @@ internal static class StorageFat32ParserTests
             MemoryBlockDevice.FromImage(image, SectorSize),
             PartitionStartLba);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == Fat32Status.Success
             && result.BlockStatus == BlockDeviceStatus.Success
             && result.Bpb.PartitionStartLba == PartitionStartLba
@@ -211,9 +146,10 @@ internal static class StorageFat32ParserTests
             && result.Bpb.TotalSectors == TotalSectors
             && result.Bpb.FirstFatLba == PartitionStartLba + ReservedSectorCount
             && result.Bpb.FirstDataLba == RootDirectoryLba
-            && result.Bpb.RootDirectoryFirstLba == RootDirectoryLba;
+            && result.Bpb.RootDirectoryFirstLba == RootDirectoryLba);
     }
 
+    [HostTest("storage fat32 rejects bad boot signature", HostLane.Fast, 1)]
     private static bool TestBadBootSignature()
     {
         byte[] image = CreateValidFat32Image();
@@ -224,10 +160,11 @@ internal static class StorageFat32ParserTests
             MemoryBlockDevice.FromImage(image, SectorSize),
             PartitionStartLba);
 
-        return !result.Succeeded
-            && result.Status == Fat32Status.InvalidBootSectorSignature;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == Fat32Status.InvalidBootSectorSignature);
     }
 
+    [HostTest("storage fat32 rejects unsupported sector size", HostLane.Fast, 2)]
     private static bool TestUnsupportedSectorSize()
     {
         byte[] image = CreateValidFat32Image();
@@ -238,10 +175,11 @@ internal static class StorageFat32ParserTests
             MemoryBlockDevice.FromImage(image, SectorSize),
             PartitionStartLba);
 
-        return !result.Succeeded
-            && result.Status == Fat32Status.UnsupportedSectorSize;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == Fat32Status.UnsupportedSectorSize);
     }
 
+    [HostTest("storage fat32 rejects invalid sectors per cluster", HostLane.Fast, 3)]
     private static bool TestInvalidSectorsPerCluster()
     {
         byte[] image = CreateValidFat32Image();
@@ -252,10 +190,11 @@ internal static class StorageFat32ParserTests
             MemoryBlockDevice.FromImage(image, SectorSize),
             PartitionStartLba);
 
-        return !result.Succeeded
-            && result.Status == Fat32Status.InvalidSectorsPerCluster;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == Fat32Status.InvalidSectorsPerCluster);
     }
 
+    [HostTest("storage fat32 rejects invalid FAT count", HostLane.Fast, 4)]
     private static bool TestInvalidFatCount()
     {
         byte[] image = CreateValidFat32Image();
@@ -266,10 +205,11 @@ internal static class StorageFat32ParserTests
             MemoryBlockDevice.FromImage(image, SectorSize),
             PartitionStartLba);
 
-        return !result.Succeeded
-            && result.Status == Fat32Status.InvalidFatCount;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == Fat32Status.InvalidFatCount);
     }
 
+    [HostTest("storage fat32 enumerates root directory entries", HostLane.Fast, 5)]
     private static bool TestRootDirectoryEnumeration()
     {
         byte[] image = CreateValidFat32Image();
@@ -280,7 +220,7 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             entries);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == Fat32Status.Success
             && result.EntriesRead == 2
             && result.ReachedEndMarker
@@ -290,9 +230,10 @@ internal static class StorageFat32ParserTests
             && entries[0].FileSize == KernelFileSize
             && entries[1].ShortName == "EFI"
             && entries[1].IsDirectory
-            && entries[1].FirstCluster == EfiCluster;
+            && entries[1].FirstCluster == EfiCluster);
     }
 
+    [HostTest("storage fat32 reports missing root short-name file", HostLane.Fast, 6)]
     private static bool TestMissingRootFile()
     {
         byte[] image = CreateValidFat32Image();
@@ -302,10 +243,11 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             "MISSING.BIN");
 
-        return !result.Succeeded
-            && result.Status == Fat32Status.MissingFile;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == Fat32Status.MissingFile);
     }
 
+    [HostTest("storage fat32 finds root short-name file metadata", HostLane.Fast, 7)]
     private static bool TestFoundRootFileMetadata()
     {
         byte[] image = CreateValidFat32Image();
@@ -315,14 +257,15 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             "kernel.bin");
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == Fat32Status.Success
             && result.Entry.ShortName == "KERNEL.BIN"
             && result.Entry.FirstCluster == KernelCluster
             && result.Entry.FileSize == KernelFileSize
-            && !result.Entry.IsDirectory;
+            && !result.Entry.IsDirectory);
     }
 
+    [HostTest("storage fat32 reads root short-name file content", HostLane.Fast, 8)]
     private static bool TestReadRootShortNameFileContent()
     {
         byte[] image = CreateValidFat32Image();
@@ -334,7 +277,7 @@ internal static class StorageFat32ParserTests
             "kernel.bin",
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == Fat32Status.Success
             && result.BlockStatus == BlockDeviceStatus.Success
             && result.Entry.ShortName == "KERNEL.BIN"
@@ -342,9 +285,10 @@ internal static class StorageFat32ParserTests
             && result.FileSize == KernelFileSize
             && result.BytesRead == KernelFileSize
             && result.AssumedContiguousClusters
-            && ContentMatches(destination, KernelFileSize, KernelContentByte);
+            && ContentMatches(destination, KernelFileSize, KernelContentByte));
     }
 
+    [HostTest("storage fat32 reads chained file content", HostLane.Fast, 9)]
     private static bool TestReadChainedFileContent()
     {
         byte[] image = CreateFat32ImageWithChainedFile();
@@ -356,7 +300,7 @@ internal static class StorageFat32ParserTests
             "CHAINED.BIN",
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == Fat32Status.Success
             && result.BlockStatus == BlockDeviceStatus.Success
             && result.Entry.ShortName == "CHAINED.BIN"
@@ -364,9 +308,10 @@ internal static class StorageFat32ParserTests
             && result.FileSize == ChainedFileSize
             && result.BytesRead == ChainedFileSize
             && !result.AssumedContiguousClusters
-            && ContentMatches(destination, ChainedFileSize, ChainedContentByte);
+            && ContentMatches(destination, ChainedFileSize, ChainedContentByte));
     }
 
+    [HostTest("storage fat32 rejects chained file loop", HostLane.Fast, 10)]
     private static bool TestRejectsChainedFileLoop()
     {
         byte[] image = CreateFat32ImageWithChainedFile(loopChain: true);
@@ -378,16 +323,17 @@ internal static class StorageFat32ParserTests
             "CHAINED.BIN",
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == Fat32Status.FileClusterChainLoop
             && result.BlockStatus == BlockDeviceStatus.Success
             && result.Entry.ShortName == "CHAINED.BIN"
             && result.Entry.FirstCluster == ChainedFileFirstCluster
             && result.FileSize == ChainedFileSize
             && result.BytesRead == SectorSize * 2
-            && !result.AssumedContiguousClusters;
+            && !result.AssumedContiguousClusters);
     }
 
+    [HostTest("storage fat32 rejects short chained file", HostLane.Fast, 11)]
     private static bool TestRejectsShortChainedFile()
     {
         byte[] image = CreateFat32ImageWithChainedFile(shortChain: true);
@@ -399,16 +345,17 @@ internal static class StorageFat32ParserTests
             "CHAINED.BIN",
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == Fat32Status.FileClusterChainTooShort
             && result.BlockStatus == BlockDeviceStatus.Success
             && result.Entry.ShortName == "CHAINED.BIN"
             && result.Entry.FirstCluster == ChainedFileFirstCluster
             && result.FileSize == ChainedFileSize
             && result.BytesRead == SectorSize * 2
-            && !result.AssumedContiguousClusters;
+            && !result.AssumedContiguousClusters);
     }
 
+    [HostTest("storage fat32 reads chained root directory entries", HostLane.Fast, 12)]
     private static bool TestReadsChainedRootDirectoryEntries()
     {
         byte[] image = CreateFat32ImageWithChainedRootDirectory();
@@ -419,7 +366,7 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             entries);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == Fat32Status.Success
             && result.BlockStatus == BlockDeviceStatus.Success
             && result.EntriesRead == 17
@@ -428,9 +375,10 @@ internal static class StorageFat32ParserTests
             && entries[1].ShortName == "EFI"
             && entries[16].ShortName == "LATE.BIN"
             && entries[16].FirstCluster == ChainedRootLateFileCluster
-            && entries[16].FileSize == 1;
+            && entries[16].FileSize == 1);
     }
 
+    [HostTest("storage fat32 finds chained root directory file metadata", HostLane.Fast, 13)]
     private static bool TestFindsChainedRootDirectoryFileMetadata()
     {
         byte[] image = CreateFat32ImageWithChainedRootDirectory();
@@ -440,15 +388,16 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             "LATE.BIN");
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == Fat32Status.Success
             && result.BlockStatus == BlockDeviceStatus.Success
             && result.Entry.ShortName == "LATE.BIN"
             && result.Entry.FirstCluster == ChainedRootLateFileCluster
             && result.Entry.FileSize == 1
-            && !result.Entry.IsDirectory;
+            && !result.Entry.IsDirectory);
     }
 
+    [HostTest("storage fat32 reads chained first-level directory entries", HostLane.Fast, 14)]
     private static bool TestReadsChainedFirstLevelDirectoryEntries()
     {
         byte[] image = CreateFat32ImageWithChainedOsDirectory();
@@ -458,15 +407,16 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             "OS/LATEOS.BIN");
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == Fat32Status.Success
             && result.BlockStatus == BlockDeviceStatus.Success
             && result.Entry.ShortName == "LATEOS.BIN"
             && result.Entry.FirstCluster == ChainedDirectoryLateFileCluster
             && result.Entry.FileSize == 1
-            && !result.Entry.IsDirectory;
+            && !result.Entry.IsDirectory);
     }
 
+    [HostTest("storage fat32 rejects directory chain loop", HostLane.Fast, 15)]
     private static bool TestRejectsDirectoryChainLoop()
     {
         byte[] image = CreateFat32ImageWithChainedRootDirectory(loopChain: true, includeLateEntry: false);
@@ -476,11 +426,12 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             "MISSING.BIN");
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == Fat32Status.DirectoryClusterChainLoop
-            && result.BlockStatus == BlockDeviceStatus.Success;
+            && result.BlockStatus == BlockDeviceStatus.Success);
     }
 
+    [HostTest("storage fat32 reports short chained directory read", HostLane.Fast, 16)]
     private static bool TestReportsShortChainedDirectoryRead()
     {
         byte[] image = CreateFat32ImageWithChainedOsDirectory();
@@ -492,11 +443,12 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             "OS/LATEOS.BIN");
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == Fat32Status.DirectoryClusterShortRead
-            && result.BlockStatus == BlockDeviceStatus.Success;
+            && result.BlockStatus == BlockDeviceStatus.Success);
     }
 
+    [HostTest("storage fat32 finds OS directory metadata", HostLane.Fast, 17)]
     private static bool TestFoundOsDirectoryMetadata()
     {
         byte[] image = CreateFat32ImageWithOsManifest();
@@ -506,14 +458,15 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             "os");
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == Fat32Status.Success
             && result.Entry.ShortName == "OS"
             && result.Entry.FirstCluster == OsDirectoryCluster
             && result.Entry.FileSize == 0
-            && result.Entry.IsDirectory;
+            && result.Entry.IsDirectory);
     }
 
+    [HostTest("storage fat32 finds OS/MANIFEST.JSON metadata", HostLane.Fast, 18)]
     private static bool TestFoundOsManifestMetadata()
     {
         byte[] image = CreateFat32ImageWithOsManifest();
@@ -523,14 +476,15 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             "OS/MANIFEST.JSON");
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == Fat32Status.Success
             && result.Entry.ShortName == "MANIFE~1.JSO"
             && result.Entry.FirstCluster == ManifestCluster
             && result.Entry.FileSize == ManifestFileSize
-            && !result.Entry.IsDirectory;
+            && !result.Entry.IsDirectory);
     }
 
+    [HostTest("storage fat32 rejects unsupported nested path", HostLane.Fast, 22)]
     private static bool TestRejectsUnsupportedNestedPath()
     {
         byte[] image = CreateFat32ImageWithOsManifest();
@@ -540,10 +494,11 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             "OS/CONFIG/MANIFEST.JSON");
 
-        return !result.Succeeded
-            && result.Status == Fat32Status.UnsupportedNestedPath;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == Fat32Status.UnsupportedNestedPath);
     }
 
+    [HostTest("storage fat32 reads OS/MANIFEST.JSON content", HostLane.Fast, 19)]
     private static bool TestReadOsManifestContent()
     {
         byte[] image = CreateFat32ImageWithOsManifest();
@@ -555,7 +510,7 @@ internal static class StorageFat32ParserTests
             "OS/MANIFEST.JSON",
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == Fat32Status.Success
             && result.BlockStatus == BlockDeviceStatus.Success
             && result.Entry.ShortName == "MANIFE~1.JSO"
@@ -563,9 +518,10 @@ internal static class StorageFat32ParserTests
             && result.FileSize == ManifestFileSize
             && result.BytesRead == ManifestFileSize
             && result.AssumedContiguousClusters
-            && ContentMatches(destination, ManifestFileSize, ManifestContentByte);
+            && ContentMatches(destination, ManifestFileSize, ManifestContentByte));
     }
 
+    [HostTest("storage fat32 rejects OS/MANIFEST.JSON destination too small", HostLane.Fast, 20)]
     private static bool TestOsManifestDestinationTooSmall()
     {
         byte[] image = CreateFat32ImageWithOsManifest();
@@ -577,16 +533,17 @@ internal static class StorageFat32ParserTests
             "OS/MANIFEST.JSON",
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == Fat32Status.FileDestinationTooSmall
             && result.BlockStatus == BlockDeviceStatus.Success
             && result.Entry.ShortName == "MANIFE~1.JSO"
             && result.Entry.FirstCluster == ManifestCluster
             && result.FileSize == ManifestFileSize
             && result.BytesRead == 0
-            && !result.AssumedContiguousClusters;
+            && !result.AssumedContiguousClusters);
     }
 
+    [HostTest("storage fat32 rejects missing OS directory for content read", HostLane.Fast, 21)]
     private static bool TestReadOsManifestMissingDirectory()
     {
         byte[] image = CreateValidFat32Image();
@@ -598,13 +555,14 @@ internal static class StorageFat32ParserTests
             "OS/MANIFEST.JSON",
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == Fat32Status.MissingDirectory
             && result.BlockStatus == BlockDeviceStatus.Success
             && result.BytesRead == 0
-            && !result.AssumedContiguousClusters;
+            && !result.AssumedContiguousClusters);
     }
 
+    [HostTest("storage fat32 finds MANIFEST.JSON root long-name file metadata", HostLane.Fast, 23)]
     private static bool TestFoundRootLongNameManifestMetadata()
     {
         byte[] image = CreateFat32ImageWithManifestLongName();
@@ -614,14 +572,15 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             "manifest.json");
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == Fat32Status.Success
             && result.Entry.ShortName == "MANIFE~1.JSO"
             && result.Entry.FirstCluster == ManifestCluster
             && result.Entry.FileSize == ManifestFileSize
-            && !result.Entry.IsDirectory;
+            && !result.Entry.IsDirectory);
     }
 
+    [HostTest("storage fat32 reads MANIFEST.JSON root long-name file content", HostLane.Fast, 24)]
     private static bool TestReadRootLongNameManifestContent()
     {
         byte[] image = CreateFat32ImageWithManifestLongName();
@@ -633,7 +592,7 @@ internal static class StorageFat32ParserTests
             "MANIFEST.JSON",
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == Fat32Status.Success
             && result.BlockStatus == BlockDeviceStatus.Success
             && result.Entry.ShortName == "MANIFE~1.JSO"
@@ -641,9 +600,10 @@ internal static class StorageFat32ParserTests
             && result.FileSize == ManifestFileSize
             && result.BytesRead == ManifestFileSize
             && result.AssumedContiguousClusters
-            && ContentMatches(destination, ManifestFileSize, ManifestContentByte);
+            && ContentMatches(destination, ManifestFileSize, ManifestContentByte));
     }
 
+    [HostTest("storage fat32 reports missing root long-name file", HostLane.Fast, 25)]
     private static bool TestMissingRootLongNameFile()
     {
         byte[] image = CreateValidFat32Image();
@@ -653,10 +613,11 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             "MANIFEST.JSON");
 
-        return !result.Succeeded
-            && result.Status == Fat32Status.MissingFile;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == Fat32Status.MissingFile);
     }
 
+    [HostTest("storage fat32 rejects root file destination too small", HostLane.Fast, 26)]
     private static bool TestRootFileDestinationTooSmall()
     {
         byte[] image = CreateValidFat32Image();
@@ -668,15 +629,16 @@ internal static class StorageFat32ParserTests
             "KERNEL.BIN",
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == Fat32Status.FileDestinationTooSmall
             && result.BlockStatus == BlockDeviceStatus.Success
             && result.Entry.ShortName == "KERNEL.BIN"
             && result.FileSize == KernelFileSize
             && result.BytesRead == 0
-            && !result.AssumedContiguousClusters;
+            && !result.AssumedContiguousClusters);
     }
 
+    [HostTest("storage fat32 rejects directory read as file", HostLane.Fast, 27)]
     private static bool TestDirectoryReadAsFile()
     {
         byte[] image = CreateValidFat32Image();
@@ -688,7 +650,7 @@ internal static class StorageFat32ParserTests
             "EFI",
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == Fat32Status.DirectoryReadAsFile
             && result.BlockStatus == BlockDeviceStatus.Success
             && result.Entry.ShortName == "EFI"
@@ -696,9 +658,10 @@ internal static class StorageFat32ParserTests
             && result.Entry.IsDirectory
             && result.FileSize == 0
             && result.BytesRead == 0
-            && !result.AssumedContiguousClusters;
+            && !result.AssumedContiguousClusters);
     }
 
+    [HostTest("storage fat32 rejects malformed long-name metadata", HostLane.Fast, 28)]
     private static bool TestMalformedLongNameMetadata()
     {
         byte[] image = CreateFat32ImageWithManifestLongName(corruptLongNameChecksum: true);
@@ -708,10 +671,11 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             "MANIFEST.JSON");
 
-        return !result.Succeeded
-            && result.Status == Fat32Status.MalformedLongFileNameMetadata;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == Fat32Status.MalformedLongFileNameMetadata);
     }
 
+    [HostTest("storage fat32 rejects orphan long-name metadata", HostLane.Fast, 29)]
     private static bool TestOrphanLongNameMetadata()
     {
         byte[] image = CreateValidFat32Image();
@@ -729,10 +693,11 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             "MANIFEST.JSON");
 
-        return !result.Succeeded
-            && result.Status == Fat32Status.MalformedLongFileNameMetadata;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == Fat32Status.MalformedLongFileNameMetadata);
     }
 
+    [HostTest("storage fat32 rejects unsupported long-name path", HostLane.Fast, 30)]
     private static bool TestUnsupportedLongNamePath()
     {
         byte[] image = CreateValidFat32Image();
@@ -742,10 +707,11 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             @"OS\MANIFEST.JSON");
 
-        return !result.Succeeded
-            && result.Status == Fat32Status.UnsupportedLongNamePath;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == Fat32Status.UnsupportedLongNamePath);
     }
 
+    [HostTest("storage fat32 reports truncated directory entry", HostLane.Fast, 31)]
     private static bool TestTruncatedDirectoryEntry()
     {
         byte[] image = CreateValidFat32Image();
@@ -756,8 +722,8 @@ internal static class StorageFat32ParserTests
             PartitionStartLba,
             entries);
 
-        return !result.Succeeded
-            && result.Status == Fat32Status.TruncatedDirectoryEntry;
+        return HostCheck.Result(!result.Succeeded
+            && result.Status == Fat32Status.TruncatedDirectoryEntry);
     }
 
     private static byte[] CreateValidFat32Image()

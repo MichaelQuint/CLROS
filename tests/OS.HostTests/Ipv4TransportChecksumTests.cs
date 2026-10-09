@@ -3,48 +3,8 @@ using OS.Net;
 
 internal static class Ipv4TransportChecksumTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.transport.checksum computes udp ipv4 pseudo header", TestComputesUdpIpv4PseudoHeader, ref failures);
-        Run("net.transport.checksum computes tcp ipv4 pseudo header", TestComputesTcpIpv4PseudoHeader, ref failures);
-        Run("net.transport.checksum validates segmented payload", TestValidatesSegmentedPayload, ref failures);
-        Run("net.transport.checksum rejects corrupted checksum", TestRejectsCorruptedChecksum, ref failures);
-        Run("net.transport.checksum rejects invalid inputs", TestRejectsInvalidInputs, ref failures);
-        Run("net.transport.checksum default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("net.transport.checksum preserves primitive boundary", TestPreservesPrimitiveBoundary, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "IPv4 transport checksum host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.transport.checksum computes udp ipv4 pseudo header", HostLane.Fast, 0)]
     private static bool TestComputesUdpIpv4PseudoHeader()
     {
         byte[] payload = { 0x70, 0x69, 0x6E, 0x67 };
@@ -57,14 +17,15 @@ internal static class Ipv4TransportChecksumTests
             datagram,
             out Ipv4TransportChecksumResult result);
 
-        return status == Ipv4TransportChecksumStatus.Success
+        return HostCheck.Result(status == Ipv4TransportChecksumStatus.Success
             && result.Succeeded
             && result.Protocol == Ipv4TransportChecksum.ProtocolUdp
             && result.TransportLength == UdpHeader.HeaderLength + payload.Length
             && result.Checksum == 0xE4E9
-            && !result.IsValid;
+            && !result.IsValid);
     }
 
+    [HostTest("net.transport.checksum computes tcp ipv4 pseudo header", HostLane.Fast, 1)]
     private static bool TestComputesTcpIpv4PseudoHeader()
     {
         byte[] payload = { 0x64, 0x61, 0x74, 0x61 };
@@ -77,13 +38,14 @@ internal static class Ipv4TransportChecksumTests
             segment,
             out Ipv4TransportChecksumResult result);
 
-        return status == Ipv4TransportChecksumStatus.Success
+        return HostCheck.Result(status == Ipv4TransportChecksumStatus.Success
             && result.Succeeded
             && result.Protocol == Ipv4TransportChecksum.ProtocolTcp
             && result.TransportLength == TcpHeader.MinHeaderLength + payload.Length
-            && result.Checksum == 0x59A9;
+            && result.Checksum == 0x59A9);
     }
 
+    [HostTest("net.transport.checksum validates segmented payload", HostLane.Fast, 2)]
     private static bool TestValidatesSegmentedPayload()
     {
         byte[] payload = { 0x64, 0x61, 0x74, 0x61 };
@@ -108,14 +70,15 @@ internal static class Ipv4TransportChecksumTests
             payload,
             out Ipv4TransportChecksumResult validation);
 
-        return computeStatus == Ipv4TransportChecksumStatus.Success
+        return HostCheck.Result(computeStatus == Ipv4TransportChecksumStatus.Success
             && computed.Checksum == 0x59A9
             && validateStatus == Ipv4TransportChecksumStatus.Success
             && validation.Checksum == 0
             && validation.IsValid
-            && validation.TransportLength == TcpHeader.MinHeaderLength + payload.Length;
+            && validation.TransportLength == TcpHeader.MinHeaderLength + payload.Length);
     }
 
+    [HostTest("net.transport.checksum rejects corrupted checksum", HostLane.Fast, 3)]
     private static bool TestRejectsCorruptedChecksum()
     {
         byte[] payload = { 0x70, 0x69, 0x6E, 0x67 };
@@ -129,12 +92,13 @@ internal static class Ipv4TransportChecksumTests
             datagram,
             out Ipv4TransportChecksumResult result);
 
-        return status == Ipv4TransportChecksumStatus.Success
+        return HostCheck.Result(status == Ipv4TransportChecksumStatus.Success
             && result.Succeeded
             && !result.IsValid
-            && result.Checksum != 0;
+            && result.Checksum != 0);
     }
 
+    [HostTest("net.transport.checksum rejects invalid inputs", HostLane.Fast, 4)]
     private static bool TestRejectsInvalidInputs()
     {
         byte[] datagram = CreateUdpDatagram(new byte[] { 0x70 }, checksum: 0);
@@ -158,7 +122,7 @@ internal static class Ipv4TransportChecksumTests
             tooLong,
             out Ipv4TransportChecksumResult lengthResult);
 
-        return protocolStatus == Ipv4TransportChecksumStatus.InvalidProtocol
+        return HostCheck.Result(protocolStatus == Ipv4TransportChecksumStatus.InvalidProtocol
             && !protocolResult.Succeeded
             && protocolResult.Protocol == 1
             && emptyStatus == Ipv4TransportChecksumStatus.InvalidLength
@@ -166,19 +130,21 @@ internal static class Ipv4TransportChecksumTests
             && emptyResult.TransportLength == 0
             && lengthStatus == Ipv4TransportChecksumStatus.InvalidLength
             && !lengthResult.Succeeded
-            && lengthResult.TransportLength == tooLong.Length;
+            && lengthResult.TransportLength == tooLong.Length);
     }
 
+    [HostTest("net.transport.checksum preserves primitive boundary", HostLane.Fast, 6)]
     private static bool TestPreservesPrimitiveBoundary()
     {
-        return Ipv4TransportChecksum.RequiresCallerOwnedTransportBuffers
+        return HostCheck.Result(Ipv4TransportChecksum.RequiresCallerOwnedTransportBuffers
             && !Ipv4TransportChecksum.AllocatesBuffers
             && !Ipv4TransportChecksum.ParsesPackets
             && !Ipv4TransportChecksum.ReadsNic
             && !Ipv4TransportChecksum.DispatchesSockets
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<Ipv4TransportChecksumResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<Ipv4TransportChecksumResult>());
     }
 
+    [HostTest("net.transport.checksum default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         Ipv4TransportChecksumResult result = default;
@@ -187,7 +153,7 @@ internal static class Ipv4TransportChecksumTests
             Ipv4TransportChecksum.ProtocolUdp,
             transportLength: 0);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == Ipv4TransportChecksumStatus.Success
             && result.Protocol == 0
@@ -201,7 +167,7 @@ internal static class Ipv4TransportChecksumTests
             && failed.TransportLength == 0
             && failed.Checksum == 0
             && !failed.IsValid
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<Ipv4TransportChecksumResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<Ipv4TransportChecksumResult>());
     }
 
     private static byte[] CreateUdpDatagram(ReadOnlySpan<byte> payload, ushort checksum)

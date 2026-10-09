@@ -5,51 +5,14 @@ using OS.Storage;
 
 internal static class NativeAppEntryStagingPreflightTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("appmodel entry staging preflight accepts staged package and payload", TestAcceptsStaging, ref failures);
-        Run("appmodel entry staging preflight rejects payload staging failure", TestRejectsPayloadStagingFailure, ref failures);
-        Run("appmodel entry staging preflight rejects default staging readiness", TestRejectsDefaultStagingReadiness, ref failures);
-        Run("appmodel entry staging preflight default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("appmodel entry staging preflight preserves no-launch boundary", TestPreservesNoLaunchBoundary, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app entry staging preflight host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel entry staging preflight accepts staged package and payload", HostLane.Fast, 0)]
     private static bool TestAcceptsStaging()
     {
         NativeAppEntryStagingPreflightResult result =
             NativeAppEntryStagingPreflight.FromPackageStagingReadiness(CreateReadyReadiness());
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppEntryStagingPreflightStatus.Success
             && result.StagingReadinessStatus == NativeAppPackageStagingReadinessStatus.Success
@@ -67,9 +30,10 @@ internal static class NativeAppEntryStagingPreflightTests
             && result.PayloadExecutableBytesStaged == 480
             && result.RequiredWritableStagingBytes == 4096
             && result.RequiredStackBytes == NativeAppInvocationPlanner.DefaultStackBytes
-            && result.EntryOffsetInPackage == 4136;
+            && result.EntryOffsetInPackage == 4136);
     }
 
+    [HostTest("appmodel entry staging preflight rejects payload staging failure", HostLane.Fast, 1)]
     private static bool TestRejectsPayloadStagingFailure()
     {
         NativeAppPackageStagingReadinessResult readiness =
@@ -96,36 +60,38 @@ internal static class NativeAppEntryStagingPreflightTests
         NativeAppEntryStagingPreflightResult result =
             NativeAppEntryStagingPreflight.FromPackageStagingReadiness(readiness);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppEntryStagingPreflightStatus.PayloadStagingFailed
             && result.StagingReadinessStatus == NativeAppPackageStagingReadinessStatus.PayloadStagingFailed
             && result.PackageFileStagingStatus == OsPackageFileStagingStatus.Success
             && result.PayloadStagingStatus == NativeAppPayloadStagingStatus.DestinationTooSmall
             && result.PackageFileBytesStaged == 512
-            && result.PayloadExecutableBytesStaged == 0;
+            && result.PayloadExecutableBytesStaged == 0);
     }
 
+    [HostTest("appmodel entry staging preflight rejects default staging readiness", HostLane.Fast, 2)]
     private static bool TestRejectsDefaultStagingReadiness()
     {
         NativeAppPackageStagingReadinessResult readiness = default;
         NativeAppEntryStagingPreflightResult result =
             NativeAppEntryStagingPreflight.FromPackageStagingReadiness(readiness);
 
-        return !readiness.IsInitialized
+        return HostCheck.Result(!readiness.IsInitialized
             && !result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppEntryStagingPreflightStatus.NotInitialized
             && result.StagingReadinessStatus == NativeAppPackageStagingReadinessStatus.Success
             && result.PackageFileBytesStaged == 0
-            && result.PayloadExecutableBytesStaged == 0;
+            && result.PayloadExecutableBytesStaged == 0);
     }
 
+    [HostTest("appmodel entry staging preflight default result is not success", HostLane.Fast, 3)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAppEntryStagingPreflightResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppEntryStagingPreflightStatus.Success
             && result.StagingReadinessStatus == NativeAppPackageStagingReadinessStatus.Success
@@ -135,12 +101,13 @@ internal static class NativeAppEntryStagingPreflightTests
             && result.DescriptorStatus == NativeAppLaunchDescriptorStatus.Success
             && result.PackageFileStagingStatus == OsPackageFileStagingStatus.Success
             && result.PayloadStagingStatus == NativeAppPayloadStagingStatus.Success
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppEntryStagingPreflightResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppEntryStagingPreflightResult>());
     }
 
+    [HostTest("appmodel entry staging preflight preserves no-launch boundary", HostLane.Fast, 4)]
     private static bool TestPreservesNoLaunchBoundary()
     {
-        return NativeAppEntryStagingPreflight.RequiresPackageStagingReadiness
+        return HostCheck.Result(NativeAppEntryStagingPreflight.RequiresPackageStagingReadiness
             && NativeAppEntryStagingPreflight.RequiresCallerOwnedPackageFileStaging
             && NativeAppEntryStagingPreflight.RequiresCallerOwnedPayloadStaging
             && !NativeAppEntryStagingPreflight.ReadsLiveStorage
@@ -148,7 +115,7 @@ internal static class NativeAppEntryStagingPreflightTests
             && !NativeAppEntryStagingPreflight.MapsExecutablePages
             && !NativeAppEntryStagingPreflight.ChangesPagePermissions
             && !NativeAppEntryStagingPreflight.ExecutesAppCode
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppEntryStagingPreflightResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppEntryStagingPreflightResult>());
     }
 
     private static NativeAppPackageStagingReadinessResult CreateReadyReadiness()

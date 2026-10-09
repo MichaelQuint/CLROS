@@ -6,48 +6,7 @@ internal static class DiagnosticStubCallableBindingPlanTests
 {
     private const nuint RegionBaseAddress = 0x0010_0000;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("diagnostics.stub_callable binding accepts materialized callable targets", TestAcceptsMaterializedCallableTargets, ref failures);
-        Run("diagnostics.stub_callable binding rejects failed invocation readiness", TestRejectsFailedInvocationReadiness, ref failures);
-        Run("diagnostics.stub_callable binding rejects backend mismatch", TestRejectsBackendMismatch, ref failures);
-        Run("diagnostics.stub_callable binding rejects invalid com1 base port", TestRejectsInvalidCom1BasePort, ref failures);
-        Run("diagnostics.stub_callable binding rejects target beyond materialized payload", TestRejectsTargetBeyondPayload, ref failures);
-        Run("diagnostics.stub_callable binding rejects overlapping targets", TestRejectsOverlappingTargets, ref failures);
-        Run("diagnostics.stub_callable binding default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("diagnostics.stub_callable binding result contains no managed references", TestResultContainsNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Diagnostic stub callable binding plan tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("diagnostics.stub_callable binding accepts materialized callable targets", HostLane.Fast, 0)]
     private static bool TestAcceptsMaterializedCallableTargets()
     {
         ExecutableStubPageTransitionPlanResult pageTransition = CreateReadyPageTransition();
@@ -59,7 +18,7 @@ internal static class DiagnosticStubCallableBindingPlanTests
         DiagnosticStubCallableBindingPlanResult result =
             DiagnosticStubCallableBindingPlan.Create(invocationReadiness, backendContract, materializer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == DiagnosticStubCallableBindingPlanStatus.Ready
             && result.InvocationStatus == DiagnosticStubInvocationReadinessStatus.Ready
@@ -79,9 +38,10 @@ internal static class DiagnosticStubCallableBindingPlanTests
             && !result.CreatesManagedDelegate
             && !result.InvokesCallable
             && !result.PerformsPortIo
-            && !result.WritesSerial;
+            && !result.WritesSerial);
     }
 
+    [HostTest("diagnostics.stub_callable binding rejects failed invocation readiness", HostLane.Fast, 1)]
     private static bool TestRejectsFailedInvocationReadiness()
     {
         ExecutableStubPageTransitionPlanResult pageTransition = CreateReadyPageTransition();
@@ -92,14 +52,15 @@ internal static class DiagnosticStubCallableBindingPlanTests
         DiagnosticStubCallableBindingPlanResult result =
             DiagnosticStubCallableBindingPlan.Create(invocationReadiness, backendContract, materializer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == DiagnosticStubCallableBindingPlanStatus.InvocationReadinessNotReady
             && result.InvocationStatus == DiagnosticStubInvocationReadinessStatus.Ready
             && result.PageTransitionStatus == ExecutableStubPageTransitionPlanStatus.Success
-            && result.BackendContractStatus == Com1PortIoBackendContractStatus.Success;
+            && result.BackendContractStatus == Com1PortIoBackendContractStatus.Success);
     }
 
+    [HostTest("diagnostics.stub_callable binding rejects backend mismatch", HostLane.Fast, 2)]
     private static bool TestRejectsBackendMismatch()
     {
         ExecutableStubPageTransitionPlanResult pageTransition = CreateReadyPageTransition();
@@ -120,11 +81,12 @@ internal static class DiagnosticStubCallableBindingPlanTests
                 mismatchedContract,
                 ExecutableStubBundleMaterializerResult.Success());
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == DiagnosticStubCallableBindingPlanStatus.BackendContractMismatch
-            && result.In8StubAddress == mismatchedContract.In8StubAddress;
+            && result.In8StubAddress == mismatchedContract.In8StubAddress);
     }
 
+    [HostTest("diagnostics.stub_callable binding rejects invalid com1 base port", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidCom1BasePort()
     {
         ExecutableStubPageTransitionPlanResult pageTransition = CreateReadyPageTransition();
@@ -144,12 +106,13 @@ internal static class DiagnosticStubCallableBindingPlanTests
                 backendContract,
                 ExecutableStubBundleMaterializerResult.Success());
 
-        return invocationReadiness.Succeeded
+        return HostCheck.Result(invocationReadiness.Succeeded
             && !result.Succeeded
             && result.Status == DiagnosticStubCallableBindingPlanStatus.InvalidCom1BasePort
-            && result.ConfiguredBasePort == 0x02f8;
+            && result.ConfiguredBasePort == 0x02f8);
     }
 
+    [HostTest("diagnostics.stub_callable binding rejects target beyond materialized payload", HostLane.Fast, 4)]
     private static bool TestRejectsTargetBeyondPayload()
     {
         ExecutableStubPageTransitionPlanResult pageTransition = CreateReadyPageTransition();
@@ -170,12 +133,13 @@ internal static class DiagnosticStubCallableBindingPlanTests
                 backendContract,
                 ExecutableStubBundleMaterializerResult.Success());
 
-        return invocationReadiness.Succeeded
+        return HostCheck.Result(invocationReadiness.Succeeded
             && !result.Succeeded
             && result.Status == DiagnosticStubCallableBindingPlanStatus.Out8CallableOutsidePayload
-            && result.Out8StubAddress == pageTransition.PayloadEndAddress - 1;
+            && result.Out8StubAddress == pageTransition.PayloadEndAddress - 1);
     }
 
+    [HostTest("diagnostics.stub_callable binding rejects overlapping targets", HostLane.Fast, 5)]
     private static bool TestRejectsOverlappingTargets()
     {
         ExecutableStubPageTransitionPlanResult pageTransition = CreateReadyPageTransition();
@@ -195,18 +159,19 @@ internal static class DiagnosticStubCallableBindingPlanTests
                 backendContract,
                 ExecutableStubBundleMaterializerResult.Success());
 
-        return invocationReadiness.Succeeded
+        return HostCheck.Result(invocationReadiness.Succeeded
             && !result.Succeeded
             && result.Status == DiagnosticStubCallableBindingPlanStatus.CallableRangesOverlap
             && result.Out8StubAddress == pageTransition.PayloadBaseAddress
-            && result.In8StubAddress == pageTransition.PayloadBaseAddress + 3;
+            && result.In8StubAddress == pageTransition.PayloadBaseAddress + 3);
     }
 
+    [HostTest("diagnostics.stub_callable binding default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         DiagnosticStubCallableBindingPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == DiagnosticStubCallableBindingPlanStatus.Ready
             && result.InvocationStatus == DiagnosticStubInvocationReadinessStatus.Ready
@@ -222,12 +187,13 @@ internal static class DiagnosticStubCallableBindingPlanTests
             && !result.CreatesManagedDelegate
             && !result.InvokesCallable
             && !result.PerformsPortIo
-            && !result.WritesSerial;
+            && !result.WritesSerial);
     }
 
+    [HostTest("diagnostics.stub_callable binding result contains no managed references", HostLane.Fast, 7)]
     private static bool TestResultContainsNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<DiagnosticStubCallableBindingPlanResult>();
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<DiagnosticStubCallableBindingPlanResult>());
     }
 
     private static ExecutableStubPageTransitionPlanResult CreateReadyPageTransition()

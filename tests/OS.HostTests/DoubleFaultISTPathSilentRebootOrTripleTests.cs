@@ -15,7 +15,7 @@ internal static unsafe class DoubleFaultISTPathSilentRebootOrTripleTests
     private const ulong Pat = 0x0007040600070406;
     private const ulong C = 0x0000000100000000, D = 0x0000000200000000, T = 0x0000000300000000;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START m02.015");
@@ -46,9 +46,8 @@ internal static unsafe class DoubleFaultISTPathSilentRebootOrTripleTests
 
     private static void Group(string name, Action action)
     {
-        Console.WriteLine("TEST_START m02.015." + name);
-        try { action(); Console.WriteLine("TEST_PASS m02.015." + name); }
-        catch (Exception error) { Console.WriteLine("TEST_FAIL m02.015." + name + " " + error.GetType().Name); throw; }
+
+        HostCheck.Run("m02.015." + name, action);
     }
 
     private static void TestPreparedBytes(Fixture f)

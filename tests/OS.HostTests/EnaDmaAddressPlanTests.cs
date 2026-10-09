@@ -4,45 +4,8 @@ using OS.Net;
 
 internal static class EnaDmaAddressPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.ena.dma validates address width", TestValidatesAddressWidth, ref failures);
-        Run("drivers.ena.dma rejects overflow", TestRejectsOverflow, ref failures);
-        Run("drivers.ena.dma validates queue regions", TestValidatesQueueRegions, ref failures);
-        Run("drivers.ena.dma rejects invalid regions", TestRejectsInvalidRegions, ref failures);
-        Run("drivers.ena.dma rejects default results", TestRejectsDefaultResults, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ENA DMA address plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.ena.dma validates address width", HostLane.Fast, 0)]
     private static bool TestValidatesAddressWidth()
     {
         EnaDmaRegionValidationResult valid32 = EnaDmaAddressPlan.ValidateRegion(
@@ -88,7 +51,7 @@ internal static class EnaDmaAddressPlanTests
                 lengthBytes: 0x1000,
                 alignment: 4096));
 
-        return valid32.Succeeded
+        return HostCheck.Result(valid32.Succeeded
             && valid32.Status == EnaDmaAddressPlanStatus.Success
             && valid32.PhysicalAddressWidth == 32
             && valid32.MaximumAddress == 0xFFFF_FFFFUL
@@ -107,15 +70,16 @@ internal static class EnaDmaAddressPlanTests
             && invalidHigh.PhysicalAddressWidth == 65
             && !outOfRange32.Succeeded
             && outOfRange32.Status == EnaDmaAddressPlanStatus.AddressOutOfRange
-            && outOfRange32.MaximumAddress == 0xFFFF_FFFFUL;
+            && outOfRange32.MaximumAddress == 0xFFFF_FFFFUL);
     }
 
+    [HostTest("drivers.ena.dma rejects default results", HostLane.Fast, 4)]
     private static bool TestRejectsDefaultResults()
     {
         EnaDmaRegionValidationResult region = default;
         EnaAdminQueueDmaMemoryPlanResult queue = default;
 
-        return !region.IsInitialized
+        return HostCheck.Result(!region.IsInitialized
             && !region.Succeeded
             && region.Status == EnaDmaAddressPlanStatus.Success
             && !queue.IsInitialized
@@ -124,9 +88,10 @@ internal static class EnaDmaAddressPlanTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
                 EnaDmaRegionValidationResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                EnaAdminQueueDmaMemoryPlanResult>();
+                EnaAdminQueueDmaMemoryPlanResult>());
     }
 
+    [HostTest("drivers.ena.dma rejects overflow", HostLane.Fast, 1)]
     private static bool TestRejectsOverflow()
     {
         EnaDmaRegionValidationResult addOverflow = EnaDmaAddressPlan.ValidateRegion(
@@ -144,21 +109,22 @@ internal static class EnaDmaAddressPlanTests
                 lengthBytes: 0x2000,
                 alignment: 4096));
 
-        return !addOverflow.Succeeded
+        return HostCheck.Result(!addOverflow.Succeeded
             && addOverflow.Status == EnaDmaAddressPlanStatus.AddressOverflow
             && addOverflow.Region.BasePhysicalAddress == ulong.MaxValue - 15UL
             && addOverflow.Region.LengthBytes == 32
             && !rangeOverflow48.Succeeded
             && rangeOverflow48.Status == EnaDmaAddressPlanStatus.AddressOutOfRange
-            && rangeOverflow48.MaximumAddress == 0x0000_FFFF_FFFF_FFFFUL;
+            && rangeOverflow48.MaximumAddress == 0x0000_FFFF_FFFF_FFFFUL);
     }
 
+    [HostTest("drivers.ena.dma validates queue regions", HostLane.Fast, 2)]
     private static bool TestValidatesQueueRegions()
     {
         EnaAdminQueueLayoutPlanResult layout = CreateLayout();
         if (!layout.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         ulong baseAddress = 0x0000_1234_0000UL;
@@ -170,11 +136,11 @@ internal static class EnaDmaAddressPlanTests
                 layout.Plan.TotalRequiredBytes);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         EnaAdminQueueDmaMemoryPlan plan = result.Plan;
-        return result.Status == EnaDmaAddressPlanStatus.Success
+        return HostCheck.Result(result.Status == EnaDmaAddressPlanStatus.Success
             && result.QueueLayoutStatus == EnaAdminQueueLayoutPlanStatus.Success
             && result.FailingRegionKind == EnaDmaRegionKind.None
             && result.PhysicalAddressWidth == 48
@@ -203,16 +169,17 @@ internal static class EnaDmaAddressPlanTests
             && !EnaDmaAddressPlan.WritesMmioRegisters
             && !EnaDmaAddressPlan.RingsDoorbells
             && !EnaDmaAddressPlan.ConfiguresInterrupts
-            && !EnaDmaAddressPlan.PerformsPacketIo;
+            && !EnaDmaAddressPlan.PerformsPacketIo);
     }
 
+    [HostTest("drivers.ena.dma rejects invalid regions", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidRegions()
     {
         EnaDeviceAttributes attributes = CreateAttributes(48);
         EnaAdminQueueLayoutPlanResult layout = CreateLayout();
         if (!layout.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         EnaDmaRegionValidationResult zeroLength = EnaDmaAddressPlan.ValidateRegion(
@@ -264,7 +231,7 @@ internal static class EnaDmaAddressPlanTests
                 basePhysicalAddress: 0x0000_1234_0001UL,
                 lengthBytes: layout.Plan.TotalRequiredBytes);
 
-        return !zeroLength.Succeeded
+        return HostCheck.Result(!zeroLength.Succeeded
             && zeroLength.Status == EnaDmaAddressPlanStatus.ZeroLength
             && zeroLength.Region.Kind == EnaDmaRegionKind.PacketBuffer
             && !invalidAlignment.Succeeded
@@ -281,7 +248,7 @@ internal static class EnaDmaAddressPlanTests
             && rejectedQueue.QueueLayoutStatus == EnaAdminQueueLayoutPlanStatus.InvalidDepth
             && !unalignedQueue.Succeeded
             && unalignedQueue.Status == EnaDmaAddressPlanStatus.UnalignedBaseAddress
-            && unalignedQueue.FailingRegionKind == EnaDmaRegionKind.ContiguousAdminQueueMemory;
+            && unalignedQueue.FailingRegionKind == EnaDmaRegionKind.ContiguousAdminQueueMemory);
     }
 
     private static EnaAdminQueueLayoutPlanResult CreateLayout()

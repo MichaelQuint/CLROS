@@ -4,47 +4,8 @@ using OS.Std.Binary;
 
 internal static class PciBarSizingProbePlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.pci.bar.sizeprobe plans 32bit mmio sequence", TestPlans32BitMmioSequence, ref failures);
-        Run("drivers.pci.bar.sizeprobe plans 64bit mmio sequence", TestPlans64BitMmioSequence, ref failures);
-        Run("drivers.pci.bar.sizeprobe skips absent io consumed bars", TestSkipsAbsentIoConsumedBars, ref failures);
-        Run("drivers.pci.bar.sizeprobe rejects malformed descriptor", TestRejectsMalformedDescriptor, ref failures);
-        Run("drivers.pci.bar.sizeprobe rejects short command destination", TestRejectsShortCommandDestination, ref failures);
-        Run("drivers.pci.bar.sizeprobe default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("drivers.pci.bar.sizeprobe preserves no-live-config-access boundary", TestPreservesNoLiveConfigAccessBoundary, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PCI BAR sizing probe host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.pci.bar.sizeprobe plans 32bit mmio sequence", HostLane.Fast, 0)]
     private static bool TestPlans32BitMmioSequence()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -55,7 +16,7 @@ internal static class PciBarSizingProbePlanTests
         PciBarSizingProbePlanResult result =
             PciBarSizingProbePlanner.Plan(bars, commands);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.CommandCount == 3
             && result.RequiredCommandCount == 3
@@ -77,9 +38,10 @@ internal static class PciBarSizingProbePlanTests
             && commands[2].Kind == PciBarSizingProbeCommandKind.RestoreOriginal
             && commands[2].BarIndex == 0
             && commands[2].RegisterOffset == 0x10
-            && commands[2].Value == 0xFE000008;
+            && commands[2].Value == 0xFE000008);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe plans 64bit mmio sequence", HostLane.Fast, 1)]
     private static bool TestPlans64BitMmioSequence()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -91,7 +53,7 @@ internal static class PciBarSizingProbePlanTests
         PciBarSizingProbePlanResult result =
             PciBarSizingProbePlanner.Plan(bars, commands);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.CommandCount == 6
             && result.RequiredCommandCount == 6
@@ -150,9 +112,10 @@ internal static class PciBarSizingProbePlanTests
                 pairBarIndex: 3,
                 registerOffset: 0x18,
                 value: 0x8000000C,
-                isUpperPart: false);
+                isUpperPart: false));
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe skips absent io consumed bars", HostLane.Fast, 2)]
     private static bool TestSkipsAbsentIoConsumedBars()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -165,7 +128,7 @@ internal static class PciBarSizingProbePlanTests
         PciBarSizingProbePlanResult result =
             PciBarSizingProbePlanner.Plan(bars, commands);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.CommandCount == 6
             && result.RequiredCommandCount == 6
@@ -179,9 +142,10 @@ internal static class PciBarSizingProbePlanTests
             && commands[2].BarIndex == 2
             && commands[3].BarIndex == 3
             && commands[4].BarIndex == 3
-            && commands[5].BarIndex == 2;
+            && commands[5].BarIndex == 2);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe rejects malformed descriptor", HostLane.Fast, 3)]
     private static bool TestRejectsMalformedDescriptor()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -192,7 +156,7 @@ internal static class PciBarSizingProbePlanTests
         PciBarSizingProbePlanResult result =
             PciBarSizingProbePlanner.Plan(bars, commands);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingProbePlanStatus.DescriptorMalformed
             && result.CommandCount == 0
@@ -200,9 +164,10 @@ internal static class PciBarSizingProbePlanTests
             && result.FailingBarKind == PciBarKind.Malformed
             && result.RequiredCommandCount == 0
             && result.MemoryBarCount == 0
-            && result.SkippedBarCount == 5;
+            && result.SkippedBarCount == 5);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe rejects short command destination", HostLane.Fast, 4)]
     private static bool TestRejectsShortCommandDestination()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -213,7 +178,7 @@ internal static class PciBarSizingProbePlanTests
         PciBarSizingProbePlanResult result =
             PciBarSizingProbePlanner.Plan(bars, commands);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == PciBarSizingProbePlanStatus.CommandDestinationTooSmall
             && result.CommandCount == 0
@@ -222,14 +187,15 @@ internal static class PciBarSizingProbePlanTests
             && result.SkippedBarCount == 5
             && result.FailingBarIndex == PciBarDecoder.NoBarIndex
             && commands[0].Kind == default
-            && commands[1].Kind == default;
+            && commands[1].Kind == default);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         PciBarSizingProbePlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == PciBarSizingProbePlanStatus.Success
             && result.CommandCount == 0
@@ -237,9 +203,10 @@ internal static class PciBarSizingProbePlanTests
             && result.MemoryBarCount == 0
             && result.SkippedBarCount == 0
             && result.FailingBarIndex == 0
-            && result.FailingBarKind == PciBarKind.Absent;
+            && result.FailingBarKind == PciBarKind.Absent);
     }
 
+    [HostTest("drivers.pci.bar.sizeprobe preserves no-live-config-access boundary", HostLane.Fast, 6)]
     private static bool TestPreservesNoLiveConfigAccessBoundary()
     {
         byte[] headerBytes = CreateBaseHeader();
@@ -250,7 +217,7 @@ internal static class PciBarSizingProbePlanTests
         PciBarSizingProbePlanResult result =
             PciBarSizingProbePlanner.Plan(bars, commands);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && PciBarSizingProbePlanner.RequiresDecodedBarDescriptors
             && PciBarSizingProbePlanner.ProducesConfigSpaceCommandPlan
@@ -265,7 +232,7 @@ internal static class PciBarSizingProbePlanTests
             && !PciBarSizingProbePlanner.PerformsPacketIo
             && !PciBarSizingProbePlanner.PerformsBlockIo
             && !RuntimeHelpers.IsReferenceOrContainsReferences<PciBarSizingProbePlanResult>()
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciBarSizingProbeCommand>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<PciBarSizingProbeCommand>());
     }
 
     private static bool IsCommand(

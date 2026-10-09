@@ -11,6 +11,11 @@ This map defines where canonical information belongs and when agents must update
 each document. It does not move any canonical build, ABI, gate, or evidence
 material out of the repository.
 
+Current automation uses `dotnet run --project tools/OS.Tooling -- <command>`.
+Historical evidence paragraphs and immutable `done` files may name the removed
+PowerShell scripts that produced those captures. Those names identify past
+provenance; current runnable examples use the compiled commands.
+
 ## Implemented Behavior
 
 Canonical repository docs:
@@ -22,6 +27,7 @@ Canonical repository docs:
 | Quick project status and common commands | `README.md` | Current status, first-run command set, or high-level limits change |
 | Repository audit and evidence snapshot | `docs/repo-audit.md` | Top-level implementation status, evidence boundary, or audit summary changes |
 | Host prerequisites | `docs/host-requirements.md` | Required SDK, Windows, Visual Studio, QEMU, OVMF, or toolchain changes |
+| Host test runner and shared expectations | `docs/host-requirements.md`, `tests/AGENTS.override.md` | Test discovery, lanes, filters, result markers, build freshness, or tooling migration changes |
 | Windows development-machine handoff | `docs/windows-handoff.md` | Final source/ref/evidence transfer, destination verification, or tracker endpoint instructions change |
 | Architecture overview | `docs/architecture.md` | Cross-subsystem architecture, milestone ordering, or workload-profile boundaries change |
 | Completion gates and claim boundaries | `docs/completion-gates.md` | Any gate status, evidence, or remaining-work boundary changes |
@@ -38,7 +44,7 @@ Canonical repository docs:
 | Cloud provider requirements | `docs/cloud-provider-requirements.md`, `docs/aws-cloud-requirements.md`, `docs/azure-cloud-requirements.md` | Provider-specific device, image, metadata, networking, or Kestrel claim scope changes |
 | Security and license | `docs/security.md`, `docs/license-audit.md` | Secret handling, W^X/NX, metadata policy, release diagnostics, or license/provenance changes |
 | Reference repositories | `docs/reference-map.md`, `docs/fork-diff.md` | Reference inventory, allowed use, provenance, or comparison notes change |
-| Issue taxonomy and synchronization | `.gitea/backlog/clros-issues.json`, `scripts/sync-gitea-backlog.ps1`, `docs/issue-labels.md` | Issue intent, dependencies, labels, desired state, or backlog workflow changes |
+| Issue taxonomy and synchronization | `.gitea/backlog/clros-issues.json`, `tools/OS.Tooling/BacklogSync.cs`, `docs/issue-labels.md` | Issue intent, dependencies, labels, desired state, or backlog workflow changes |
 | Evidence history | `done/stepNN.md` | Every meaningful implementation, test, evidence, or documentation milestone |
 
 Directory-local guides:
@@ -47,7 +53,7 @@ Directory-local guides:
 | --- | --- | --- |
 | `apps/AGENTS.override.md` | App fixture and workload-example rules | App projects need local rules for host-only fixtures, manifest behavior, or Kestrel claim boundaries |
 | `references/AGENTS.override.md` | Reference repository safety rules | References remain read-mostly and excluded from first-party implementation edits |
-| `scripts/AGENTS.override.md` | PowerShell automation and evidence-marker rules | Scripts remain the developer/CI command surface |
+| `scripts/AGENTS.override.md` | Migration notice for historical script paths | Historical evidence refers to removed scripts |
 | `src/OS/AGENTS.override.md` | Freestanding no-stdlib EFI artifact rules | The EFI project remains subject to stricter runtime/link rules while included in `CLROS.slnx` |
 | `src/OS.Kernel/AGENTS.override.md` | Kernel-contract implementation rules | Kernel-facing code needs constrained NativeAOT/status-code/marker guidance |
 | `std/no-runtime/shared/AGENTS.override.md` | Shared no-runtime utility rules | Shared BCL-like work needs stricter compatibility and no-runtime guidance |

@@ -5,44 +5,8 @@ using OS.Std.Binary;
 
 internal static class AcpiMcfgParserTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("acpi.mcfg parses ecam segment", TestParsesEcamSegment, ref failures);
-        Run("acpi.mcfg rejects bad signature", TestRejectsBadSignature, ref failures);
-        Run("acpi.mcfg rejects truncated entry", TestRejectsTruncatedEntry, ref failures);
-        Run("acpi.mcfg rejects invalid bus range", TestRejectsInvalidBusRange, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ACPI MCFG parser host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("acpi.mcfg parses ecam segment", HostLane.Fast, 0)]
     private static bool TestParsesEcamSegment()
     {
         byte[] mcfg = CreateMcfg(
@@ -62,7 +26,7 @@ internal static class AcpiMcfgParserTests
             registerOffset: 0,
             accessWidth: 4);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == AcpiMcfgParseStatus.Success
             && result.SegmentCount == 1
             && result.DeclaredLength == mcfg.Length
@@ -72,9 +36,10 @@ internal static class AcpiMcfgParserTests
             && segments[0].StartBus == 0x20
             && segments[0].EndBus == 0x2F
             && address.Succeeded
-            && address.PhysicalAddress == 0x00000000E0400000;
+            && address.PhysicalAddress == 0x00000000E0400000);
     }
 
+    [HostTest("acpi.mcfg rejects bad signature", HostLane.Fast, 1)]
     private static bool TestRejectsBadSignature()
     {
         byte[] badSignature = CreateMcfg(
@@ -116,7 +81,7 @@ internal static class AcpiMcfgParserTests
             invalidReservedBytes,
             new PciEcamSegment[1]);
 
-        return IsFailure(badSignatureResult, AcpiMcfgParseStatus.InvalidSignature)
+        return HostCheck.Result(IsFailure(badSignatureResult, AcpiMcfgParseStatus.InvalidSignature)
             && IsFailure(
                 tooShortResult,
                 AcpiMcfgParseStatus.SourceTooShort,
@@ -130,9 +95,10 @@ internal static class AcpiMcfgParserTests
                 invalidReservedBytesResult,
                 AcpiMcfgParseStatus.InvalidReservedBytes,
                 declaredLength: (uint)invalidReservedBytes.Length,
-                requiredLength: (uint)invalidReservedBytes.Length);
+                requiredLength: (uint)invalidReservedBytes.Length));
     }
 
+    [HostTest("acpi.mcfg rejects truncated entry", HostLane.Fast, 2)]
     private static bool TestRejectsTruncatedEntry()
     {
         byte[] truncatedEntry = CreateMcfg(
@@ -159,7 +125,7 @@ internal static class AcpiMcfgParserTests
             sourceTooShort,
             new PciEcamSegment[2]);
 
-        return IsFailure(
+        return HostCheck.Result(IsFailure(
                 truncatedEntryResult,
                 AcpiMcfgParseStatus.TruncatedAllocationEntry,
                 declaredLength: (uint)truncatedEntry.Length,
@@ -169,9 +135,10 @@ internal static class AcpiMcfgParserTests
                 sourceTooShortResult,
                 AcpiMcfgParseStatus.SourceTooShortForDeclaredLength,
                 declaredLength: (uint)(sourceTooShort.Length + AcpiMcfgParser.AllocationEntryLength),
-                requiredLength: (uint)(sourceTooShort.Length + AcpiMcfgParser.AllocationEntryLength));
+                requiredLength: (uint)(sourceTooShort.Length + AcpiMcfgParser.AllocationEntryLength)));
     }
 
+    [HostTest("acpi.mcfg rejects invalid bus range", HostLane.Fast, 3)]
     private static bool TestRejectsInvalidBusRange()
     {
         byte[] invalidRange = CreateMcfg(
@@ -199,7 +166,7 @@ internal static class AcpiMcfgParserTests
             validTwoSegments,
             new PciEcamSegment[1]);
 
-        return IsFailure(
+        return HostCheck.Result(IsFailure(
                 invalidRangeResult,
                 AcpiMcfgParseStatus.InvalidBusRange,
                 declaredLength: (uint)invalidRange.Length,
@@ -210,7 +177,7 @@ internal static class AcpiMcfgParserTests
                 AcpiMcfgParseStatus.DestinationTooSmall,
                 declaredLength: (uint)validTwoSegments.Length,
                 requiredLength: (uint)validTwoSegments.Length,
-                requiredSegmentCapacity: 2);
+                requiredSegmentCapacity: 2));
     }
 
     private static bool IsFailure(

@@ -9,49 +9,7 @@ internal static class VirtioPciBindingDerivedBarSizePlanTests
     private const byte IsrOffset = 0x80;
     private const byte DeviceOffset = 0xA0;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.virtio.pci.binding.derive creates network binding from fake bar probe", TestCreatesNetworkBindingFromFakeBarProbe, ref failures);
-        Run("drivers.virtio.pci.binding.derive creates block binding from fake bar probe", TestCreatesBlockBindingFromFakeBarProbe, ref failures);
-        Run("drivers.virtio.pci.binding.derive reports header parse failure", TestReportsHeaderParseFailure, ref failures);
-        Run("drivers.virtio.pci.binding.derive reports bar decode failure", TestReportsBarDecodeFailure, ref failures);
-        Run("drivers.virtio.pci.binding.derive propagates derived size failure", TestPropagatesDerivedSizeFailure, ref failures);
-        Run("drivers.virtio.pci.binding.derive reports short size destination", TestReportsShortSizeDestination, ref failures);
-        Run("drivers.virtio.pci.binding.derive propagates binding failure", TestPropagatesBindingFailure, ref failures);
-        Run("drivers.virtio.pci.binding.derive default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("drivers.virtio.pci.binding.derive preserves no-live-config-access boundary", TestPreservesNoLiveConfigAccessBoundary, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio PCI fake-derived BAR sizing binding host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtio.pci.binding.derive creates network binding from fake bar probe", HostLane.Fast, 0)]
     private static bool TestCreatesNetworkBindingFromFakeBarProbe()
     {
         ushort deviceId = VirtioPciDeviceDiscovery.ModernDeviceIdStart +
@@ -64,7 +22,7 @@ internal static class VirtioPciBindingDerivedBarSizePlanTests
         VirtioPciBindingDerivedBarSizePlanResult result =
             Plan(CreateCandidate(deviceId), config, accessor, out ulong[] sizes);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioPciBindingDerivedBarSizePlanStatus.Success
             && result.HeaderStatus == PciConfigurationHeaderStatus.Success
@@ -83,9 +41,10 @@ internal static class VirtioPciBindingDerivedBarSizePlanTests
             && sizes[1] == 0x1000
             && sizes[2] == 0x1000
             && sizes[3] == 0x1000
-            && accessor.OperationCount == 12;
+            && accessor.OperationCount == 12);
     }
 
+    [HostTest("drivers.virtio.pci.binding.derive creates block binding from fake bar probe", HostLane.Fast, 1)]
     private static bool TestCreatesBlockBindingFromFakeBarProbe()
     {
         ushort deviceId = VirtioPciDeviceDiscovery.ModernDeviceIdStart +
@@ -98,14 +57,15 @@ internal static class VirtioPciBindingDerivedBarSizePlanTests
         VirtioPciBindingDerivedBarSizePlanResult result =
             Plan(CreateCandidate(deviceId), config, accessor, out _);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Binding.DeviceKind == VirtioPciDeviceKind.Block
             && result.Binding.VirtioDeviceId == VirtioPciDeviceDiscovery.BlockDeviceId
             && result.Binding.Apertures.DeviceConfiguration.Length
-                == VirtioPciDeviceDiscovery.BlockDeviceConfigurationMinimumLength;
+                == VirtioPciDeviceDiscovery.BlockDeviceConfigurationMinimumLength);
     }
 
+    [HostTest("drivers.virtio.pci.binding.derive reports header parse failure", HostLane.Fast, 2)]
     private static bool TestReportsHeaderParseFailure()
     {
         ushort deviceId = VirtioPciDeviceDiscovery.ModernDeviceIdStart +
@@ -115,16 +75,17 @@ internal static class VirtioPciBindingDerivedBarSizePlanTests
         VirtioPciBindingDerivedBarSizePlanResult result =
             Plan(CreateCandidate(deviceId), new byte[16], accessor, out _);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioPciBindingDerivedBarSizePlanStatus.HeaderParseFailed
             && result.HeaderStatus == PciConfigurationHeaderStatus.BufferTooSmall
             && result.BarDecode.Status == default
             && result.DerivedSizeStatus == default
             && result.BindingStatus == default
-            && accessor.OperationCount == 0;
+            && accessor.OperationCount == 0);
     }
 
+    [HostTest("drivers.virtio.pci.binding.derive reports bar decode failure", HostLane.Fast, 3)]
     private static bool TestReportsBarDecodeFailure()
     {
         ushort deviceId = VirtioPciDeviceDiscovery.ModernDeviceIdStart +
@@ -138,7 +99,7 @@ internal static class VirtioPciBindingDerivedBarSizePlanTests
         VirtioPciBindingDerivedBarSizePlanResult result =
             Plan(CreateCandidate(deviceId), config, accessor, out _);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioPciBindingDerivedBarSizePlanStatus.BarDecodeFailed
             && result.HeaderStatus == PciConfigurationHeaderStatus.Success
@@ -146,9 +107,10 @@ internal static class VirtioPciBindingDerivedBarSizePlanTests
             && result.BarDecode.FailingBarIndex == 0
             && result.DerivedSizeStatus == default
             && result.BindingStatus == default
-            && accessor.OperationCount == 0;
+            && accessor.OperationCount == 0);
     }
 
+    [HostTest("drivers.virtio.pci.binding.derive propagates derived size failure", HostLane.Fast, 4)]
     private static bool TestPropagatesDerivedSizeFailure()
     {
         ushort deviceId = VirtioPciDeviceDiscovery.ModernDeviceIdStart +
@@ -162,16 +124,17 @@ internal static class VirtioPciBindingDerivedBarSizePlanTests
         VirtioPciBindingDerivedBarSizePlanResult result =
             Plan(CreateCandidate(deviceId), config, accessor, out _);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioPciBindingDerivedBarSizePlanStatus.DerivedSizeFailed
             && result.DerivedSizeStatus == PciBarSizingProbeDerivedSizeStatus.SizingFailed
             && result.SizingStatus == PciBarSizingPlanStatus.MalformedReadback
             && result.BindingStatus == default
             && result.DerivedSize.FailingBarIndex == 0
-            && result.DerivedSize.FailingDescriptorStatus == PciBarSizeDescriptorStatus.MalformedReadback;
+            && result.DerivedSize.FailingDescriptorStatus == PciBarSizeDescriptorStatus.MalformedReadback);
     }
 
+    [HostTest("drivers.virtio.pci.binding.derive reports short size destination", HostLane.Fast, 5)]
     private static bool TestReportsShortSizeDestination()
     {
         ushort deviceId = VirtioPciDeviceDiscovery.ModernDeviceIdStart +
@@ -185,16 +148,17 @@ internal static class VirtioPciBindingDerivedBarSizePlanTests
         VirtioPciBindingDerivedBarSizePlanResult result =
             PlanWithSizes(CreateCandidate(deviceId), config, accessor, sizes);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioPciBindingDerivedBarSizePlanStatus.SizeDestinationTooSmall
             && result.DerivedSizeStatus == PciBarSizingProbeDerivedSizeStatus.Success
             && result.BindingStatus == default
             && sizes[0] == 0
             && sizes[1] == 0
-            && accessor.OperationCount == 12;
+            && accessor.OperationCount == 12);
     }
 
+    [HostTest("drivers.virtio.pci.binding.derive propagates binding failure", HostLane.Fast, 6)]
     private static bool TestPropagatesBindingFailure()
     {
         ushort deviceId = VirtioPciDeviceDiscovery.ModernDeviceIdStart +
@@ -208,20 +172,21 @@ internal static class VirtioPciBindingDerivedBarSizePlanTests
         VirtioPciBindingDerivedBarSizePlanResult result =
             Plan(CreateCandidate(deviceId), config, accessor, out _);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioPciBindingDerivedBarSizePlanStatus.BindingFailed
             && result.DerivedSizeStatus == PciBarSizingProbeDerivedSizeStatus.Success
             && result.BindingStatus == VirtioPciBindingPlanStatus.CapabilityParseFailed
             && result.BindingPlan.CapabilityParse.Status == VirtioPciCapabilityListParseStatus.VendorCapabilityTooShort
-            && result.BindingPlan.CapabilityParse.FailingOffset == CommonOffset;
+            && result.BindingPlan.CapabilityParse.FailingOffset == CommonOffset);
     }
 
+    [HostTest("drivers.virtio.pci.binding.derive default result is not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioPciBindingDerivedBarSizePlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioPciBindingDerivedBarSizePlanStatus.Success
             && result.HeaderStatus == PciConfigurationHeaderStatus.Success
@@ -233,9 +198,10 @@ internal static class VirtioPciBindingDerivedBarSizePlanTests
             && result.DerivedSizeStatus == PciBarSizingProbeDerivedSizeStatus.Success
             && result.ExecutionStatus == PciBarSizingProbeExecutionStatus.Success
             && result.SizingStatus == PciBarSizingPlanStatus.Success
-            && result.BindingStatus == VirtioPciBindingPlanStatus.Success;
+            && result.BindingStatus == VirtioPciBindingPlanStatus.Success);
     }
 
+    [HostTest("drivers.virtio.pci.binding.derive preserves no-live-config-access boundary", HostLane.Fast, 8)]
     private static bool TestPreservesNoLiveConfigAccessBoundary()
     {
         ushort deviceId = VirtioPciDeviceDiscovery.ModernDeviceIdStart +
@@ -248,7 +214,7 @@ internal static class VirtioPciBindingDerivedBarSizePlanTests
         VirtioPciBindingDerivedBarSizePlanResult result =
             Plan(CreateCandidate(deviceId), config, accessor, out _);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && VirtioPciBindingDerivedBarSizePlanner.RequiresCallerProvidedPciConfigurationSpace
             && VirtioPciBindingDerivedBarSizePlanner.RequiresDecodedBarDescriptors
@@ -271,7 +237,7 @@ internal static class VirtioPciBindingDerivedBarSizePlanTests
             && !VirtioPciBindingDerivedBarSizePlanner.HandlesInterrupts
             && !VirtioPciBindingDerivedBarSizePlanner.PerformsPacketIo
             && !VirtioPciBindingDerivedBarSizePlanner.PerformsBlockIo
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciBindingDerivedBarSizePlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioPciBindingDerivedBarSizePlanResult>());
     }
 
     private static VirtioPciBindingDerivedBarSizePlanResult Plan(

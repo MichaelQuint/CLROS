@@ -4,18 +4,8 @@ using OS.Std.Text;
 
 internal static class StdAsciiStringTests
 {
-    [ModuleInitializer]
-    internal static void Run()
-    {
-        RunScenario("std.ascii.string startswith endswith ignorecase", TestStartsWithEndsWithIgnoreCase);
-        RunScenario("std.ascii.string equality helpers", TestEqualityHelpers);
-        RunScenario("std.ascii.string indexof ignorecase", TestIndexOfIgnoreCase);
-        RunScenario("std.ascii.string trims space and tab", TestTrimSpaceOrTab);
-        RunScenario("std.ascii.string trim uses shared space-or-tab helper", TestTrimUsesSharedSpaceOrTabHelper);
-        RunScenario("std.ascii.string trims trailing space", TestTrimTrailingSpace);
-        RunScenario("std.ascii.string compatibility boundary", TestCompatibilityBoundary);
-    }
 
+    [HostTest("std.ascii.string equality helpers", HostLane.Fast, 1)]
     private static void TestEqualityHelpers()
     {
         ReadOnlySpan<byte> value = "Content-Length"u8;
@@ -30,6 +20,7 @@ internal static class StdAsciiStringTests
         ExpectBool("ignorecase length mismatch", false, AsciiString.EqualsIgnoreCase(value, "Content-Lengths"u8));
     }
 
+    [HostTest("std.ascii.string startswith endswith ignorecase", HostLane.Fast, 0)]
     private static void TestStartsWithEndsWithIgnoreCase()
     {
         ReadOnlySpan<byte> header = "Content-Type: text/plain"u8;
@@ -44,6 +35,7 @@ internal static class StdAsciiStringTests
         ExpectBool("too-long suffix", false, AsciiString.EndsWithIgnoreCase("abc"u8, "zabc"u8));
     }
 
+    [HostTest("std.ascii.string indexof ignorecase", HostLane.Fast, 2)]
     private static void TestIndexOfIgnoreCase()
     {
         ReadOnlySpan<byte> source = "GET /Healthz HTTP/1.1"u8;
@@ -57,6 +49,7 @@ internal static class StdAsciiStringTests
         ExpectInt("first repeated match", 1, AsciiString.IndexOfIgnoreCase("aBaBa"u8, "bab"u8));
     }
 
+    [HostTest("std.ascii.string trims space and tab", HostLane.Fast, 3)]
     private static void TestTrimSpaceOrTab()
     {
         ExpectBytes("empty", ReadOnlySpan<byte>.Empty, AsciiString.TrimSpaceOrTab(ReadOnlySpan<byte>.Empty));
@@ -68,6 +61,7 @@ internal static class StdAsciiStringTests
         ExpectBytes("other controls preserved", new byte[] { (byte)'\n', (byte)'x', (byte)'\r' }, AsciiString.TrimSpaceOrTab(new byte[] { (byte)'\n', (byte)'x', (byte)'\r' }));
     }
 
+    [HostTest("std.ascii.string trims trailing space", HostLane.Fast, 5)]
     private static void TestTrimTrailingSpace()
     {
         ExpectBytes("empty", ReadOnlySpan<byte>.Empty, AsciiString.TrimTrailingSpace(ReadOnlySpan<byte>.Empty));
@@ -78,6 +72,7 @@ internal static class StdAsciiStringTests
         ExpectBytes("space after tab trimmed", "name\t"u8, AsciiString.TrimTrailingSpace("name\t "u8));
     }
 
+    [HostTest("std.ascii.string trim uses shared space-or-tab helper", HostLane.Fast, 4)]
     private static void TestTrimUsesSharedSpaceOrTabHelper()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -92,6 +87,7 @@ internal static class StdAsciiStringTests
                 && !source.Contains("private static bool IsSpaceOrTab(byte value)", StringComparison.Ordinal));
     }
 
+    [HostTest("std.ascii.string compatibility boundary", HostLane.Fast, 6)]
     private static void TestCompatibilityBoundary()
     {
         ExpectBool("status is partial", true, AsciiString.Status == CompatibilityStatus.Partial);
@@ -107,22 +103,6 @@ internal static class StdAsciiStringTests
         ExpectBool("ignorecase preserves matching non-ASCII", true, AsciiString.EqualsIgnoreCase(left, sameNonAscii));
         ExpectBool("ignorecase rejects different non-ASCII", false, AsciiString.EqualsIgnoreCase(left, differentNonAscii));
         ExpectInt("non-ASCII search does not fold", -1, AsciiString.IndexOfIgnoreCase(left, differentNonAscii));
-    }
-
-    private static void RunScenario(string name, Action test)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            test();
-            Console.WriteLine("TEST_PASS " + name);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
     }
 
     private static void ExpectBool(string scenario, bool expected, bool actual)

@@ -5,49 +5,8 @@ using OS.Std.Binary;
 
 internal static class IcmpReceiveDispatcherTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.icmp.rx parses echo request", TestParsesEchoRequest, ref failures);
-        Run("net.icmp.rx parses echo reply", TestParsesEchoReply, ref failures);
-        Run("net.icmp.rx reports classifier failure", TestReportsClassifierFailure, ref failures);
-        Run("net.icmp.rx rejects non-ipv4 payload", TestRejectsNonIpv4Payload, ref failures);
-        Run("net.icmp.rx rejects non-icmp protocol", TestRejectsNonIcmpProtocol, ref failures);
-        Run("net.icmp.rx rejects truncated icmp packet", TestRejectsTruncatedIcmpPacket, ref failures);
-        Run("net.icmp.rx rejects bad checksum", TestRejectsBadChecksum, ref failures);
-        Run("net.icmp.rx default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "ICMP receive dispatcher host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.icmp.rx parses echo request", HostLane.Fast, 0)]
     private static bool TestParsesEchoRequest()
     {
         byte[] payload = { 0x70, 0x69, 0x6E, 0x67 };
@@ -55,7 +14,7 @@ internal static class IcmpReceiveDispatcherTests
 
         IcmpReceiveDispatchResult result = IcmpReceiveDispatcher.Dispatch(buffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == IcmpReceiveDispatchStatus.Success
             && result.NetworkStatus == NetworkReceiveDispatchStatus.Success
             && result.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.Success
@@ -73,9 +32,10 @@ internal static class IcmpReceiveDispatcherTests
             && result.EchoPayloadOffset == ExpectedIcmpPayloadOffset
             && result.EchoPayloadLength == payload.Length
             && buffer[result.EchoPayloadOffset] == payload[0]
-            && buffer[result.EchoPayloadOffset + 3] == payload[3];
+            && buffer[result.EchoPayloadOffset + 3] == payload[3]);
     }
 
+    [HostTest("net.icmp.rx parses echo reply", HostLane.Fast, 1)]
     private static bool TestParsesEchoReply()
     {
         byte[] payload = { 0x70, 0x6F, 0x6E, 0x67 };
@@ -83,7 +43,7 @@ internal static class IcmpReceiveDispatcherTests
 
         IcmpReceiveDispatchResult result = IcmpReceiveDispatcher.Dispatch(buffer);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == IcmpReceiveDispatchStatus.Success
             && result.IcmpPacketStatus == PacketParseStatus.Success
             && result.EchoPacket.IsEchoReply
@@ -92,16 +52,17 @@ internal static class IcmpReceiveDispatcherTests
             && result.EchoPayloadOffset == ExpectedIcmpPayloadOffset
             && result.EchoPayloadLength == payload.Length
             && buffer[result.EchoPayloadOffset] == payload[0]
-            && buffer[result.EchoPayloadOffset + 3] == payload[3];
+            && buffer[result.EchoPayloadOffset + 3] == payload[3]);
     }
 
+    [HostTest("net.icmp.rx reports classifier failure", HostLane.Fast, 2)]
     private static bool TestReportsClassifierFailure()
     {
         byte[] buffer = new byte[VirtioNetHeader.HeaderLengthWithoutMergeableBuffers - 1];
 
         IcmpReceiveDispatchResult result = IcmpReceiveDispatcher.Dispatch(buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == IcmpReceiveDispatchStatus.ClassifierFailed
             && result.NetworkStatus == NetworkReceiveDispatchStatus.ClassifierFailed
             && result.ClassifierStatus == VirtioNetReceiveFrameClassifierStatus.BufferTooSmall
@@ -109,40 +70,43 @@ internal static class IcmpReceiveDispatcherTests
             && result.NetworkPacketStatus == PacketParseStatus.BufferTooSmall
             && result.IcmpPacketStatus == PacketParseStatus.BufferTooSmall
             && result.EchoPayloadOffset == 0
-            && result.EchoPayloadLength == 0;
+            && result.EchoPayloadLength == 0);
     }
 
+    [HostTest("net.icmp.rx rejects non-ipv4 payload", HostLane.Fast, 3)]
     private static bool TestRejectsNonIpv4Payload()
     {
         byte[] buffer = CreateArpReceiveBuffer();
 
         IcmpReceiveDispatchResult result = IcmpReceiveDispatcher.Dispatch(buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == IcmpReceiveDispatchStatus.NonIpv4Payload
             && result.NetworkStatus == NetworkReceiveDispatchStatus.Success
             && result.PayloadKind == EthernetPayloadKind.Arp
             && result.IcmpPacketStatus == PacketParseStatus.UnsupportedEtherType
             && result.EchoPayloadOffset == 0
-            && result.EchoPayloadLength == 0;
+            && result.EchoPayloadLength == 0);
     }
 
+    [HostTest("net.icmp.rx rejects non-icmp protocol", HostLane.Fast, 4)]
     private static bool TestRejectsNonIcmpProtocol()
     {
         byte[] buffer = CreateIpv4ReceiveBuffer(Ipv4Header.ProtocolUdp, ipv4PayloadLength: 0);
 
         IcmpReceiveDispatchResult result = IcmpReceiveDispatcher.Dispatch(buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == IcmpReceiveDispatchStatus.UnsupportedIpProtocol
             && result.NetworkStatus == NetworkReceiveDispatchStatus.Success
             && result.PayloadKind == EthernetPayloadKind.Ipv4
             && result.Ipv4Header.Protocol == Ipv4Header.ProtocolUdp
             && result.IcmpPacketStatus == PacketParseStatus.UnsupportedIpProtocol
             && result.EchoPayloadOffset == 0
-            && result.EchoPayloadLength == 0;
+            && result.EchoPayloadLength == 0);
     }
 
+    [HostTest("net.icmp.rx rejects truncated icmp packet", HostLane.Fast, 5)]
     private static bool TestRejectsTruncatedIcmpPacket()
     {
         byte[] buffer = CreateIpv4ReceiveBuffer(
@@ -151,15 +115,16 @@ internal static class IcmpReceiveDispatcherTests
 
         IcmpReceiveDispatchResult result = IcmpReceiveDispatcher.Dispatch(buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == IcmpReceiveDispatchStatus.IcmpParseFailed
             && result.NetworkStatus == NetworkReceiveDispatchStatus.Success
             && result.Ipv4Header.Protocol == Ipv4Header.ProtocolIcmp
             && result.IcmpPacketStatus == PacketParseStatus.BufferTooSmall
             && result.EchoPayloadOffset == 0
-            && result.EchoPayloadLength == 0;
+            && result.EchoPayloadLength == 0);
     }
 
+    [HostTest("net.icmp.rx rejects bad checksum", HostLane.Fast, 6)]
     private static bool TestRejectsBadChecksum()
     {
         byte[] payload = { 0x62, 0x61, 0x64, 0x21 };
@@ -168,14 +133,15 @@ internal static class IcmpReceiveDispatcherTests
 
         IcmpReceiveDispatchResult result = IcmpReceiveDispatcher.Dispatch(buffer);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == IcmpReceiveDispatchStatus.IcmpParseFailed
             && result.NetworkStatus == NetworkReceiveDispatchStatus.Success
             && result.IcmpPacketStatus == PacketParseStatus.BadChecksum
             && result.EchoPayloadOffset == 0
-            && result.EchoPayloadLength == 0;
+            && result.EchoPayloadLength == 0);
     }
 
+    [HostTest("net.icmp.rx default result is not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         byte[] payload = { 0x64, 0x61, 0x74, 0x61 };
@@ -186,7 +152,7 @@ internal static class IcmpReceiveDispatcherTests
         IcmpReceiveDispatchResult failure =
             IcmpReceiveDispatcher.Dispatch(CreateArpReceiveBuffer());
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == IcmpReceiveDispatchStatus.Success
             && !defaultResult.NetworkResult.IsInitialized
@@ -211,7 +177,7 @@ internal static class IcmpReceiveDispatcherTests
             && failure.IcmpPacketStatus == PacketParseStatus.UnsupportedEtherType
             && failure.EchoPayloadOffset == 0
             && failure.EchoPayloadLength == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<IcmpReceiveDispatchResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<IcmpReceiveDispatchResult>());
     }
 
     private static byte[] CreateIcmpReceiveBuffer(byte icmpType, ReadOnlySpan<byte> payload)

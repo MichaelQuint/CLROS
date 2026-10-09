@@ -10,58 +10,7 @@ internal static class HttpTcpClientGetPlannerTests
     private const uint ServerInitialSequence = 0x5000_7000;
     private const ushort TcpChecksum = 0x1234;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.http.tcp.get completes request response", TestCompletesRequestResponse, ref failures);
-        Run("net.http.tcp.get writes request checksum", TestWritesRequestChecksum, ref failures);
-        Run("net.http.tcp.get default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("net.http.tcp.get preserves tcp handshake failures", TestPreservesTcpHandshakeFailures, ref failures);
-        Run("net.http.tcp.get rejects bad synack checksum", TestRejectsBadSynAckChecksum, ref failures);
-        Run("net.http.tcp.get rejects request failures", TestRejectsRequestFailures, ref failures);
-        Run("net.http.tcp.get rejects bad response checksum", TestRejectsBadResponseChecksum, ref failures);
-        Run("net.http.tcp.get rejects response frame failures", TestRejectsResponseFrameFailures, ref failures);
-        Run("net.http.tcp.get preserves http response failures", TestPreservesHttpResponseFailures, ref failures);
-        Run("net.http.tcp.get rejects response buffer too small", TestRejectsResponseBufferTooSmall, ref failures);
-        Run("net.http.tcp.get formatter formats success marker", TestFormatterFormatsSuccessMarker, ref failures);
-        Run("net.http.tcp.get formatter names duplicate content length", TestFormatterNamesDuplicateContentLength, ref failures);
-        Run("net.http.tcp.get formatter reports short destination", TestFormatterReportsShortDestination, ref failures);
-        Run("net.http.tcp.get formatter default result is not success", TestFormatterDefaultResultIsNotSuccess, ref failures);
-        Run(
-            "net.http.tcp.get formatter uses shared ascii text builder",
-            TestFormatterUsesSharedAsciiTextBuilder,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("HTTP TCP GET planner host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.http.tcp.get completes request response", HostLane.Fast, 0)]
     private static bool TestCompletesRequestResponse()
     {
         byte[] receiveBuffer = new byte[512];
@@ -69,7 +18,7 @@ internal static class HttpTcpClientGetPlannerTests
 
         if (!Establish(ref planner))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] host = Encoding.ASCII.GetBytes("example.test");
@@ -93,7 +42,7 @@ internal static class HttpTcpClientGetPlannerTests
             || requestResult.LocalNextSequenceNumber != ClientInitialSequence + 1 + (uint)requestResult.RequestBytesWritten
             || requestResult.RemoteNextSequenceNumber != ServerInitialSequence + 1)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (!TryParseTcpFrame(
@@ -103,7 +52,7 @@ internal static class HttpTcpClientGetPlannerTests
                 out TcpHeader requestTcp,
                 out ReadOnlySpan<byte> requestPayload))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         string requestText = Encoding.ASCII.GetString(requestPayload);
@@ -124,7 +73,7 @@ internal static class HttpTcpClientGetPlannerTests
                 "Connection: close\r\n" +
                 "\r\n")
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] responsePayload = Encoding.ASCII.GetBytes(
@@ -146,7 +95,7 @@ internal static class HttpTcpClientGetPlannerTests
             responseDestination,
             out HttpTcpClientGetPlanResult responseResult);
 
-        return responseStatus == HttpTcpClientGetPlanStatus.Success
+        return HostCheck.Result(responseStatus == HttpTcpClientGetPlanStatus.Success
             && responseResult.Succeeded
             && responseResult.State == HttpTcpClientGetPlannerState.ResponseReceived
             && responseResult.StreamStatus == TcpEstablishedStreamStatus.Success
@@ -159,9 +108,10 @@ internal static class HttpTcpClientGetPlannerTests
             && planner.State == HttpTcpClientGetPlannerState.ResponseReceived
             && planner.HttpStatusCode == 200
             && planner.HttpBodyLength == 5
-            && planner.RemoteNextSequenceNumber == ServerInitialSequence + 1 + (uint)responsePayload.Length;
+            && planner.RemoteNextSequenceNumber == ServerInitialSequence + 1 + (uint)responsePayload.Length);
     }
 
+    [HostTest("net.http.tcp.get writes request checksum", HostLane.Fast, 1)]
     private static bool TestWritesRequestChecksum()
     {
         byte[] receiveBuffer = new byte[512];
@@ -169,7 +119,7 @@ internal static class HttpTcpClientGetPlannerTests
 
         if (!Establish(ref planner))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] host = Encoding.ASCII.GetBytes("example.test");
@@ -185,7 +135,7 @@ internal static class HttpTcpClientGetPlannerTests
             out HttpTcpClientGetPlanResult result);
         if (status != HttpTcpClientGetPlanStatus.Success || !result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (!TryParseTcpFrame(
@@ -196,7 +146,7 @@ internal static class HttpTcpClientGetPlannerTests
                 out ReadOnlySpan<byte> tcpSegment,
                 out ReadOnlySpan<byte> payload))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Ipv4TransportChecksumStatus checksumStatus = Ipv4TransportChecksum.Validate(
@@ -206,14 +156,15 @@ internal static class HttpTcpClientGetPlannerTests
             tcpSegment,
             out Ipv4TransportChecksumResult checksumResult);
 
-        return result.TcpHeader.Checksum == tcp.Checksum
+        return HostCheck.Result(result.TcpHeader.Checksum == tcp.Checksum
             && tcp.Checksum != 0
             && tcp.Checksum != TcpChecksum
             && checksumStatus == Ipv4TransportChecksumStatus.Success
             && checksumResult.IsValid
-            && checksumResult.TransportLength == TcpHeader.MinHeaderLength + payload.Length;
+            && checksumResult.TransportLength == TcpHeader.MinHeaderLength + payload.Length);
     }
 
+    [HostTest("net.http.tcp.get default result is not success", HostLane.Fast, 2)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         HttpTcpClientGetPlanResult defaultResult = default;
@@ -238,7 +189,7 @@ internal static class HttpTcpClientGetPlannerTests
             requestFrame,
             out HttpTcpClientGetPlanResult failure);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == HttpTcpClientGetPlanStatus.Success
             && defaultResult.State == HttpTcpClientGetPlannerState.Initial
@@ -280,9 +231,10 @@ internal static class HttpTcpClientGetPlannerTests
             && failure.PacketStatus == PacketParseStatus.Success
             && failure.RequestBytesWritten == 0
             && failurePlanner.State == HttpTcpClientGetPlannerState.Initial
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<HttpTcpClientGetPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<HttpTcpClientGetPlanResult>());
     }
 
+    [HostTest("net.http.tcp.get preserves tcp handshake failures", HostLane.Fast, 3)]
     private static bool TestPreservesTcpHandshakeFailures()
     {
         byte[] receiveBuffer = new byte[128];
@@ -291,7 +243,7 @@ internal static class HttpTcpClientGetPlannerTests
         if (planner.TryWriteSynFrame(synFrame, out HttpTcpClientGetPlanResult _) !=
             HttpTcpClientGetPlanStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] wrongAck = CreateServerSynAckFrame(
@@ -308,14 +260,15 @@ internal static class HttpTcpClientGetPlannerTests
             wrongAck,
             out HttpTcpClientGetPlanResult result);
 
-        return status == HttpTcpClientGetPlanStatus.WrongAcknowledgementNumber
+        return HostCheck.Result(status == HttpTcpClientGetPlanStatus.WrongAcknowledgementNumber
             && !result.Succeeded
             && result.TcpFrameStatus == TcpIpv4FramePlanStatus.WrongAcknowledgementNumber
             && result.TcpStatus == TcpActiveConnectStatus.WrongAcknowledgementNumber
             && result.TcpHeader.AcknowledgementNumber == ClientInitialSequence + 2
-            && planner.State == HttpTcpClientGetPlannerState.Failed;
+            && planner.State == HttpTcpClientGetPlannerState.Failed);
     }
 
+    [HostTest("net.http.tcp.get rejects bad synack checksum", HostLane.Fast, 4)]
     private static bool TestRejectsBadSynAckChecksum()
     {
         byte[] receiveBuffer = new byte[128];
@@ -324,7 +277,7 @@ internal static class HttpTcpClientGetPlannerTests
         if (planner.TryWriteSynFrame(synFrame, out HttpTcpClientGetPlanResult _) !=
             HttpTcpClientGetPlanStatus.Success)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         byte[] badChecksum = CreateServerSynAckFrame(
@@ -343,7 +296,7 @@ internal static class HttpTcpClientGetPlannerTests
             badChecksum,
             out HttpTcpClientGetPlanResult result);
 
-        return status == HttpTcpClientGetPlanStatus.TcpFrameFailed
+        return HostCheck.Result(status == HttpTcpClientGetPlanStatus.TcpFrameFailed
             && !result.Succeeded
             && result.TcpFrameStatus == TcpIpv4FramePlanStatus.BadTcpChecksum
             && result.TcpStatus == TcpActiveConnectStatus.Success
@@ -351,9 +304,10 @@ internal static class HttpTcpClientGetPlannerTests
             && result.TcpHeader.SourcePort == RemotePort
             && result.TcpHeader.DestinationPort == LocalPort
             && result.State == HttpTcpClientGetPlannerState.SynSent
-            && planner.State == HttpTcpClientGetPlannerState.SynSent;
+            && planner.State == HttpTcpClientGetPlannerState.SynSent);
     }
 
+    [HostTest("net.http.tcp.get rejects request failures", HostLane.Fast, 5)]
     private static bool TestRejectsRequestFailures()
     {
         byte[] receiveBuffer = new byte[128];
@@ -373,12 +327,12 @@ internal static class HttpTcpClientGetPlannerTests
         if (earlyStatus != HttpTcpClientGetPlanStatus.InvalidState
             || earlyResult.State != HttpTcpClientGetPlannerState.Initial)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         if (!Establish(ref planner))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         HttpTcpClientGetPlanStatus invalidHostStatus = planner.TryWriteRequestFrame(
@@ -392,7 +346,7 @@ internal static class HttpTcpClientGetPlannerTests
             || invalidHostResult.RequestStatus != HttpRequestBuilderStatus.InvalidHost
             || planner.State != HttpTcpClientGetPlannerState.Established)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         HttpTcpClientGetPlanStatus smallStatus = planner.TryWriteRequestFrame(
@@ -402,12 +356,13 @@ internal static class HttpTcpClientGetPlannerTests
             frame,
             out HttpTcpClientGetPlanResult smallResult);
 
-        return smallStatus == HttpTcpClientGetPlanStatus.RequestBufferTooSmall
+        return HostCheck.Result(smallStatus == HttpTcpClientGetPlanStatus.RequestBufferTooSmall
             && smallResult.HttpStatus == HttpClientGetTransactionStatus.RequestBufferTooSmall
             && smallResult.RequestStatus == HttpRequestBuilderStatus.DestinationTooSmall
-            && planner.State == HttpTcpClientGetPlannerState.Established;
+            && planner.State == HttpTcpClientGetPlannerState.Established);
     }
 
+    [HostTest("net.http.tcp.get rejects bad response checksum", HostLane.Fast, 6)]
     private static bool TestRejectsBadResponseChecksum()
     {
         byte[] receiveBuffer = new byte[512];
@@ -433,7 +388,7 @@ internal static class HttpTcpClientGetPlannerTests
             new byte[responsePayload.Length],
             out HttpTcpClientGetPlanResult result);
 
-        return status == HttpTcpClientGetPlanStatus.TcpFrameFailed
+        return HostCheck.Result(status == HttpTcpClientGetPlanStatus.TcpFrameFailed
             && !result.Succeeded
             && result.TcpFrameStatus == TcpIpv4FramePlanStatus.BadTcpChecksum
             && result.TcpStatus == TcpActiveConnectStatus.Success
@@ -447,9 +402,10 @@ internal static class HttpTcpClientGetPlannerTests
             && result.RemoteNextSequenceNumber == remoteNextSequenceNumber
             && planner.State == HttpTcpClientGetPlannerState.RequestWritten
             && planner.LocalNextSequenceNumber == localNextSequenceNumber
-            && planner.RemoteNextSequenceNumber == remoteNextSequenceNumber;
+            && planner.RemoteNextSequenceNumber == remoteNextSequenceNumber);
     }
 
+    [HostTest("net.http.tcp.get rejects response frame failures", HostLane.Fast, 7)]
     private static bool TestRejectsResponseFrameFailures()
     {
         byte[] receiveBuffer = new byte[512];
@@ -488,14 +444,15 @@ internal static class HttpTcpClientGetPlannerTests
             new byte[responsePayload.Length],
             out HttpTcpClientGetPlanResult wrongAckResult);
 
-        return wrongPeerStatus == HttpTcpClientGetPlanStatus.WrongRemoteAddress
+        return HostCheck.Result(wrongPeerStatus == HttpTcpClientGetPlanStatus.WrongRemoteAddress
             && wrongPeerResult.PacketStatus == PacketParseStatus.Success
             && wrongPeerPlanner.State == HttpTcpClientGetPlannerState.RequestWritten
             && wrongAckStatus == HttpTcpClientGetPlanStatus.WrongAcknowledgementNumber
             && wrongAckResult.TcpHeader.AcknowledgementNumber == wrongAckPlanner.LocalNextSequenceNumber + 1
-            && wrongAckPlanner.State == HttpTcpClientGetPlannerState.RequestWritten;
+            && wrongAckPlanner.State == HttpTcpClientGetPlannerState.RequestWritten);
     }
 
+    [HostTest("net.http.tcp.get preserves http response failures", HostLane.Fast, 8)]
     private static bool TestPreservesHttpResponseFailures()
     {
         byte[] receiveBuffer = new byte[512];
@@ -519,15 +476,16 @@ internal static class HttpTcpClientGetPlannerTests
             responseDestination,
             out HttpTcpClientGetPlanResult result);
 
-        return status == HttpTcpClientGetPlanStatus.HttpResponseFailed
+        return HostCheck.Result(status == HttpTcpClientGetPlanStatus.HttpResponseFailed
             && !result.Succeeded
             && result.StreamStatus == TcpEstablishedStreamStatus.Success
             && result.HttpStatus == HttpClientGetTransactionStatus.UnsupportedTransferEncoding
             && result.ResponseStatus == HttpResponseParseStatus.UnsupportedTransferEncoding
             && result.ResponseBytesRead == chunkedPayload.Length
-            && planner.State == HttpTcpClientGetPlannerState.Failed;
+            && planner.State == HttpTcpClientGetPlannerState.Failed);
     }
 
+    [HostTest("net.http.tcp.get rejects response buffer too small", HostLane.Fast, 9)]
     private static bool TestRejectsResponseBufferTooSmall()
     {
         byte[] receiveBuffer = new byte[512];
@@ -551,13 +509,14 @@ internal static class HttpTcpClientGetPlannerTests
             responseDestination,
             out HttpTcpClientGetPlanResult result);
 
-        return status == HttpTcpClientGetPlanStatus.ResponseBufferTooSmall
+        return HostCheck.Result(status == HttpTcpClientGetPlanStatus.ResponseBufferTooSmall
             && !result.Succeeded
             && result.StreamStatus == TcpEstablishedStreamStatus.Success
             && result.PacketStatus == PacketParseStatus.Success
-            && planner.State == HttpTcpClientGetPlannerState.RequestWritten;
+            && planner.State == HttpTcpClientGetPlannerState.RequestWritten);
     }
 
+    [HostTest("net.http.tcp.get formatter formats success marker", HostLane.Fast, 10)]
     private static bool TestFormatterFormatsSuccessMarker()
     {
         byte[] receiveBuffer = new byte[512];
@@ -582,7 +541,7 @@ internal static class HttpTcpClientGetPlannerTests
             out HttpTcpClientGetPlanResult result);
         if (status != HttpTcpClientGetPlanStatus.Success || !result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> destination = stackalloc byte[512];
@@ -601,7 +560,7 @@ internal static class HttpTcpClientGetPlannerTests
             " bodyBytes=5 localSeq=" + result.LocalNextSequenceNumber +
             " remoteSeq=" + result.RemoteNextSequenceNumber;
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && !query.Succeeded
             && query.Status == HttpTcpClientGetPlanDiagnosticFormatStatus.Success
             && query.PlanStatus == HttpTcpClientGetPlanStatus.Success
@@ -613,9 +572,10 @@ internal static class HttpTcpClientGetPlannerTests
             && format.BytesWritten == expected.Length
             && format.RequiredBytes == expected.Length
             && format.AvailableBytes == destination.Length
-            && text == expected;
+            && text == expected);
     }
 
+    [HostTest("net.http.tcp.get formatter names duplicate content length", HostLane.Fast, 11)]
     private static bool TestFormatterNamesDuplicateContentLength()
     {
         byte[] receiveBuffer = new byte[512];
@@ -642,7 +602,7 @@ internal static class HttpTcpClientGetPlannerTests
             result.HttpStatus != HttpClientGetTransactionStatus.MalformedResponse ||
             result.ResponseStatus != HttpResponseParseStatus.DuplicateContentLength)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         Span<byte> destination = stackalloc byte[512];
@@ -653,7 +613,7 @@ internal static class HttpTcpClientGetPlannerTests
             HttpTcpClientGetPlanDiagnosticFormatter.FormatResult(result, destination);
         string text = Encoding.ASCII.GetString(destination[..format.BytesWritten]);
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && !query.Succeeded
             && query.Status == HttpTcpClientGetPlanDiagnosticFormatStatus.Success
             && query.PlanStatus == HttpTcpClientGetPlanStatus.HttpResponseFailed
@@ -662,9 +622,10 @@ internal static class HttpTcpClientGetPlannerTests
             && text.Contains("status=HttpResponseFailed", StringComparison.Ordinal)
             && text.Contains("http=MalformedResponse", StringComparison.Ordinal)
             && text.Contains("response=DuplicateContentLength", StringComparison.Ordinal)
-            && !text.Contains("response=Unknown", StringComparison.Ordinal);
+            && !text.Contains("response=Unknown", StringComparison.Ordinal));
     }
 
+    [HostTest("net.http.tcp.get formatter reports short destination", HostLane.Fast, 12)]
     private static bool TestFormatterReportsShortDestination()
     {
         byte[] receiveBuffer = new byte[512];
@@ -689,7 +650,7 @@ internal static class HttpTcpClientGetPlannerTests
             out HttpTcpClientGetPlanResult result);
         if (status != HttpTcpClientGetPlanStatus.Success || !result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         HttpTcpClientGetPlanDiagnosticFormatResult query =
@@ -700,7 +661,7 @@ internal static class HttpTcpClientGetPlannerTests
         HttpTcpClientGetPlanDiagnosticFormatResult shortResult =
             HttpTcpClientGetPlanDiagnosticFormatter.FormatResult(result, destination);
 
-        return shortResult.IsInitialized
+        return HostCheck.Result(shortResult.IsInitialized
             && !shortResult.Succeeded
             && shortResult.Status == HttpTcpClientGetPlanDiagnosticFormatStatus.DestinationTooSmall
             && shortResult.PlanStatus == HttpTcpClientGetPlanStatus.Success
@@ -709,9 +670,10 @@ internal static class HttpTcpClientGetPlannerTests
             && shortResult.AvailableBytes == destination.Length
             && query.RequiredBytes > destination.Length
             && destination[0] == 0xA5
-            && destination[11] == 0xA5;
+            && destination[11] == 0xA5);
     }
 
+    [HostTest("net.http.tcp.get formatter default result is not success", HostLane.Fast, 13)]
     private static bool TestFormatterDefaultResultIsNotSuccess()
     {
         Span<byte> destination = stackalloc byte[64];
@@ -724,7 +686,7 @@ internal static class HttpTcpClientGetPlannerTests
             HttpTcpClientGetPlanDiagnosticFormatter.QueryRequiredBytes(defaultPlanResult);
         HttpTcpClientGetPlanDiagnosticFormatResult defaultFormat = default;
 
-        return invalidFormat.IsInitialized
+        return HostCheck.Result(invalidFormat.IsInitialized
             && !invalidFormat.Succeeded
             && invalidFormat.Status == HttpTcpClientGetPlanDiagnosticFormatStatus.InvalidResult
             && invalidFormat.PlanStatus == HttpTcpClientGetPlanStatus.Success
@@ -744,9 +706,10 @@ internal static class HttpTcpClientGetPlannerTests
             && destination[0] == 0xCC
             && destination[63] == 0xCC
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                HttpTcpClientGetPlanDiagnosticFormatResult>();
+                HttpTcpClientGetPlanDiagnosticFormatResult>());
     }
 
+    [HostTest("net.http.tcp.get formatter uses shared ascii text builder", HostLane.Fast, 14)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -758,7 +721,7 @@ internal static class HttpTcpClientGetPlannerTests
                 "Net",
                 "HttpTcpClientGetPlanDiagnosticFormatter.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains(
                 "AsciiDecimalFormatter.CountInt64Digits(result.BytesWritten)",
                 StringComparison.Ordinal)
@@ -796,7 +759,7 @@ internal static class HttpTcpClientGetPlannerTests
                 "destination[offset + index] = (byte)('0' +",
                 StringComparison.Ordinal)
             && !source.Contains("value /= 10", StringComparison.Ordinal)
-            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal);
+            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal));
     }
 
     private static HttpTcpClientGetPlanner PreparedRequestPlanner(byte[] receiveBuffer)

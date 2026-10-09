@@ -4,55 +4,15 @@ using OS.Storage;
 
 internal static class NativeAppSelectionBootScratchPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("appmodel.selectionscratch accepts default image buffers", TestAcceptsDefaultImageBuffers, ref failures);
-        Run("appmodel.selectionscratch rejects short manifest buffer", TestRejectsShortManifestBuffer, ref failures);
-        Run("appmodel.selectionscratch rejects short package buffer", TestRejectsShortPackageBuffer, ref failures);
-        Run("appmodel.selectionscratch rejects short gpt entry buffer", TestRejectsShortGptEntryBuffer, ref failures);
-        Run("appmodel.selectionscratch rejects invalid requested sizes", TestRejectsInvalidRequestedSizes, ref failures);
-        Run("appmodel.selectionscratch rejects unaligned sector size", TestRejectsUnalignedSectorSize, ref failures);
-        Run("appmodel.selectionscratch default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("appmodel.selectionscratch preserves no-live-storage boundary", TestPreservesNoLiveStorageBoundary, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app selection boot scratch plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel.selectionscratch accepts default image buffers", HostLane.Fast, 0)]
     private static bool TestAcceptsDefaultImageBuffers()
     {
         ScratchBuffers scratch = ScratchBuffers.CreateDefault();
 
         NativeAppSelectionBootScratchPlanResult result = ValidateDefault(scratch);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppSelectionBootScratchPlanStatus.Success
             && result.SectorSizeBytes == NativeAppSelectionBootScratchPlan.DefaultSectorSizeBytes
@@ -76,9 +36,10 @@ internal static class NativeAppSelectionBootScratchPlanTests
             && result.ManifestBytesRequired == NativeAppSelectionBootScratchPlan.DefaultManifestBufferBytes
             && result.ManifestBytesAvailable == NativeAppSelectionBootScratchPlan.DefaultManifestBufferBytes
             && result.PackageBytesRequired == NativeAppSelectionBootScratchPlan.DefaultPackageBufferBytes
-            && result.PackageBytesAvailable == NativeAppSelectionBootScratchPlan.DefaultPackageBufferBytes;
+            && result.PackageBytesAvailable == NativeAppSelectionBootScratchPlan.DefaultPackageBufferBytes);
     }
 
+    [HostTest("appmodel.selectionscratch rejects short manifest buffer", HostLane.Fast, 1)]
     private static bool TestRejectsShortManifestBuffer()
     {
         ScratchBuffers scratch = ScratchBuffers.Create(
@@ -86,14 +47,15 @@ internal static class NativeAppSelectionBootScratchPlanTests
 
         NativeAppSelectionBootScratchPlanResult result = ValidateDefault(scratch);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppSelectionBootScratchPlanStatus.ManifestBufferTooSmall
             && result.ManifestBytesRequired == NativeAppSelectionBootScratchPlan.DefaultManifestBufferBytes
             && result.ManifestBytesAvailable == NativeAppSelectionBootScratchPlan.DefaultManifestBufferBytes - 1
-            && result.PackageBytesAvailable == NativeAppSelectionBootScratchPlan.DefaultPackageBufferBytes;
+            && result.PackageBytesAvailable == NativeAppSelectionBootScratchPlan.DefaultPackageBufferBytes);
     }
 
+    [HostTest("appmodel.selectionscratch rejects short package buffer", HostLane.Fast, 2)]
     private static bool TestRejectsShortPackageBuffer()
     {
         ScratchBuffers scratch = ScratchBuffers.Create(
@@ -101,14 +63,15 @@ internal static class NativeAppSelectionBootScratchPlanTests
 
         NativeAppSelectionBootScratchPlanResult result = ValidateDefault(scratch);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppSelectionBootScratchPlanStatus.PackageBufferTooSmall
             && result.PackageBytesRequired == NativeAppSelectionBootScratchPlan.DefaultPackageBufferBytes
             && result.PackageBytesAvailable == NativeAppSelectionBootScratchPlan.DefaultPackageBufferBytes - 1
-            && result.ManifestBytesAvailable == NativeAppSelectionBootScratchPlan.DefaultManifestBufferBytes;
+            && result.ManifestBytesAvailable == NativeAppSelectionBootScratchPlan.DefaultManifestBufferBytes);
     }
 
+    [HostTest("appmodel.selectionscratch rejects short gpt entry buffer", HostLane.Fast, 3)]
     private static bool TestRejectsShortGptEntryBuffer()
     {
         ScratchBuffers scratch = ScratchBuffers.Create(
@@ -118,7 +81,7 @@ internal static class NativeAppSelectionBootScratchPlanTests
 
         NativeAppSelectionBootScratchPlanResult result = ValidateDefault(scratch);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppSelectionBootScratchPlanStatus.GptPartitionEntrySectorBufferTooSmall
             && result.GptPartitionEntryBytesRequired ==
@@ -131,9 +94,10 @@ internal static class NativeAppSelectionBootScratchPlanTests
                 NativeAppSelectionBootScratchPlan.DefaultSectorSizeBytes
             && result.GptPartitionEntrySectorBytesAvailable ==
                 NativeAppSelectionBootScratchPlan.DefaultPartitionEntrySectorsRequired *
-                NativeAppSelectionBootScratchPlan.DefaultSectorSizeBytes - 1;
+                NativeAppSelectionBootScratchPlan.DefaultSectorSizeBytes - 1);
     }
 
+    [HostTest("appmodel.selectionscratch rejects invalid requested sizes", HostLane.Fast, 4)]
     private static bool TestRejectsInvalidRequestedSizes()
     {
         ScratchBuffers scratch = ScratchBuffers.CreateDefault();
@@ -164,14 +128,15 @@ internal static class NativeAppSelectionBootScratchPlanTests
             manifestBufferBytesRequired: NativeAppSelectionBootScratchPlan.DefaultManifestBufferBytes,
             packageBufferBytesRequired: NativeAppSelectionBootScratchPlan.DefaultPackageBufferBytes);
 
-        return !sector.Succeeded
+        return HostCheck.Result(!sector.Succeeded
             && sector.IsInitialized
             && sector.Status == NativeAppSelectionBootScratchPlanStatus.InvalidSectorSize
             && !descriptor.Succeeded
             && descriptor.IsInitialized
-            && descriptor.Status == NativeAppSelectionBootScratchPlanStatus.InvalidPartitionDescriptorCount;
+            && descriptor.Status == NativeAppSelectionBootScratchPlanStatus.InvalidPartitionDescriptorCount);
     }
 
+    [HostTest("appmodel.selectionscratch rejects unaligned sector size", HostLane.Fast, 5)]
     private static bool TestRejectsUnalignedSectorSize()
     {
         ScratchBuffers scratch = ScratchBuffers.CreateDefault();
@@ -190,7 +155,7 @@ internal static class NativeAppSelectionBootScratchPlanTests
             NativeAppSelectionBootScratchPlan.DefaultManifestBufferBytes,
             NativeAppSelectionBootScratchPlan.DefaultPackageBufferBytes);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppSelectionBootScratchPlanStatus.InvalidSectorSize
             && result.SectorSizeBytes == sectorSize
@@ -198,14 +163,15 @@ internal static class NativeAppSelectionBootScratchPlanTests
             && result.GptHeaderSectorBytesAvailable == NativeAppSelectionBootScratchPlan.DefaultSectorSizeBytes
             && result.GptPartitionEntryBytesRequired == 0
             && result.GptPartitionEntrySectorsRequired == 0
-            && result.GptPartitionEntrySectorBytesRequired == 0;
+            && result.GptPartitionEntrySectorBytesRequired == 0);
     }
 
+    [HostTest("appmodel.selectionscratch default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAppSelectionBootScratchPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppSelectionBootScratchPlanStatus.Success
             && result.SectorSizeBytes == 0
@@ -223,9 +189,10 @@ internal static class NativeAppSelectionBootScratchPlanTests
             && result.ManifestBytesAvailable == 0
             && result.PackageBytesRequired == 0
             && result.PackageBytesAvailable == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppSelectionBootScratchPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppSelectionBootScratchPlanResult>());
     }
 
+    [HostTest("appmodel.selectionscratch preserves no-live-storage boundary", HostLane.Fast, 7)]
     private static bool TestPreservesNoLiveStorageBoundary()
     {
         ScratchBuffers scratch = ScratchBuffers.CreateDefault();
@@ -236,7 +203,7 @@ internal static class NativeAppSelectionBootScratchPlanTests
 
         NativeAppSelectionBootScratchPlanResult result = ValidateDefault(scratch);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && !NativeAppSelectionBootScratchPlan.ReadsStorage
             && !NativeAppSelectionBootScratchPlan.ParsesManifestOrPackage
@@ -246,7 +213,7 @@ internal static class NativeAppSelectionBootScratchPlanTests
             && AllBytesEqual(scratch.PrimaryHeaderSector, 0xA5)
             && AllBytesEqual(scratch.PartitionEntrySectors, 0x5A)
             && AllBytesEqual(scratch.ManifestBuffer, 0x33)
-            && AllBytesEqual(scratch.PackageBuffer, 0xCC);
+            && AllBytesEqual(scratch.PackageBuffer, 0xCC));
     }
 
     private static NativeAppSelectionBootScratchPlanResult ValidateDefault(ScratchBuffers scratch)

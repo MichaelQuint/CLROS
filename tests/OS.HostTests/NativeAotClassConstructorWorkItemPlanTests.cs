@@ -10,70 +10,7 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
     private const uint TypeId = 101;
     private const uint FailureCode = 0xC0DE1001;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("runtime.cctor work item plans uninitialized entries", TestPlansUninitializedEntries, ref failures);
-        Run("runtime.cctor work item skips initialized entries", TestSkipsInitializedEntries, ref failures);
-        Run("runtime.cctor work item rejects missing target token", TestRejectsMissingTargetToken, ref failures);
-        Run("runtime.cctor work item rejects missing target metadata", TestRejectsMissingTargetMetadata, ref failures);
-        Run("runtime.cctor work item reports destination capacity", TestReportsDestinationCapacity, ref failures);
-        Run("runtime.cctor work item rejects failed preflight", TestRejectsFailedPreflight, ref failures);
-        Run("runtime.cctor work item rejects pending preflight", TestRejectsPendingPreflight, ref failures);
-        Run("runtime.cctor work item rejects default preflight", TestRejectsDefaultPreflight, ref failures);
-        Run("runtime.cctor work item formatter formats success marker", TestFormatterFormatsSuccessMarker, ref failures);
-        Run("runtime.cctor work item formatter formats failure marker", TestFormatterFormatsFailureMarker, ref failures);
-        Run("runtime.cctor work item formatter reports short destination", TestFormatterReportsShortDestination, ref failures);
-        Run("runtime.cctor work item formatter rejects default result", TestFormatterRejectsDefaultResult, ref failures);
-        Run(
-            "runtime.cctor work item formatter uses shared ascii text builder",
-            TestFormatterUsesSharedAsciiTextBuilder,
-            ref failures);
-        Run("boot.sequence cctor work item ready", TestBootSequenceCctorWorkItemReady, ref failures);
-        Run(
-            "boot.sequence cctor work item rejects failed result",
-            TestBootSequenceCctorWorkItemRejectsFailedResult,
-            ref failures);
-        Run(
-            "boot.sequence cctor work item rejects default result",
-            TestBootSequenceCctorWorkItemRejectsDefaultResult,
-            ref failures);
-        Run(
-            "boot.sequence cctor work item preserves default markers",
-            TestBootSequenceCctorWorkItemPreservesDefaultMarkers,
-            ref failures);
-        Run("runtime.cctor work item layouts contain no managed references", TestLayoutsContainNoManagedReferences, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("NativeAOT class constructor work item plan tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("runtime.cctor work item plans uninitialized entries", HostLane.Fast, 0)]
     private static bool TestPlansUninitializedEntries()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -101,7 +38,7 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
         NativeAotClassConstructorWorkItemPlanResult result =
             NativeAotClassConstructorWorkItemPlanner.Create(entries, preflight, targets, workItems);
 
-        return preflight.Succeeded
+        return HostCheck.Result(preflight.Succeeded
             && result.Succeeded
             && result.Status == NativeAotClassConstructorWorkItemPlanStatus.Ready
             && result.PreflightStatus == NativeAotClassConstructorRunnerPreflightStatus.Ready
@@ -123,9 +60,10 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
             && NativeAotClassConstructorWorkItemPlanner.UsesCallerOwnedStorage
             && !NativeAotClassConstructorWorkItemPlanner.ExecutesConstructors
             && !NativeAotClassConstructorWorkItemPlanner.UsesManagedDelegates
-            && !NativeAotClassConstructorWorkItemPlanner.DiscoversMetadata;
+            && !NativeAotClassConstructorWorkItemPlanner.DiscoversMetadata);
     }
 
+    [HostTest("runtime.cctor work item skips initialized entries", HostLane.Fast, 1)]
     private static bool TestSkipsInitializedEntries()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -146,13 +84,14 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
         NativeAotClassConstructorWorkItemPlanResult result =
             NativeAotClassConstructorWorkItemPlanner.Create(entries, preflight, targets, workItems);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.PlannedCount == 0
             && result.SkippedInitializedCount == 1
             && result.RequiredWorkItemCapacity == 0
-            && result.AvailableWorkItemCapacity == 0;
+            && result.AvailableWorkItemCapacity == 0);
     }
 
+    [HostTest("runtime.cctor work item rejects missing target token", HostLane.Fast, 2)]
     private static bool TestRejectsMissingTargetToken()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -170,15 +109,16 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
         NativeAotClassConstructorWorkItemPlanResult result =
             NativeAotClassConstructorWorkItemPlanner.Create(entries, preflight, targets, workItems);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NativeAotClassConstructorWorkItemPlanStatus.MissingTargetToken
             && result.FirstProblemIndex == 0
             && result.FirstProblemState == NativeAotClassConstructorState.Uninitialized
             && result.RequiredWorkItemCapacity == 1
             && result.AvailableWorkItemCapacity == 1
-            && !workItems[0].IsValid;
+            && !workItems[0].IsValid);
     }
 
+    [HostTest("runtime.cctor work item rejects missing target metadata", HostLane.Fast, 3)]
     private static bool TestRejectsMissingTargetMetadata()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -196,14 +136,15 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
         NativeAotClassConstructorWorkItemPlanResult result =
             NativeAotClassConstructorWorkItemPlanner.Create(entries, preflight, targets, workItems);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NativeAotClassConstructorWorkItemPlanStatus.MissingTargetMetadata
             && result.FirstProblemIndex == 0
             && result.FirstProblemState == NativeAotClassConstructorState.Uninitialized
             && result.PlannedCount == 0
-            && result.SkippedInitializedCount == 0;
+            && result.SkippedInitializedCount == 0);
     }
 
+    [HostTest("runtime.cctor work item reports destination capacity", HostLane.Fast, 4)]
     private static bool TestReportsDestinationCapacity()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -224,7 +165,7 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
         NativeAotClassConstructorWorkItemPlanResult result =
             NativeAotClassConstructorWorkItemPlanner.Create(entries, preflight, targets, workItems);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == NativeAotClassConstructorWorkItemPlanStatus.DestinationTooSmall
             && result.PlannedCount == 1
             && result.RequiredWorkItemCapacity == 2
@@ -232,9 +173,10 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
             && result.FirstProblemIndex == 1
             && workItems[0].IsValid
             && workItems[0].Key.Equals(first)
-            && workItems[0].TargetToken == (nuint)0x1000;
+            && workItems[0].TargetToken == (nuint)0x1000);
     }
 
+    [HostTest("runtime.cctor work item rejects failed preflight", HostLane.Fast, 5)]
     private static bool TestRejectsFailedPreflight()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -254,15 +196,16 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
         NativeAotClassConstructorWorkItemPlanResult result =
             NativeAotClassConstructorWorkItemPlanner.Create(entries, preflight, targets, workItems);
 
-        return !preflight.Succeeded
+        return HostCheck.Result(!preflight.Succeeded
             && result.Status == NativeAotClassConstructorWorkItemPlanStatus.FailedConstructor
             && result.PreflightStatus == NativeAotClassConstructorRunnerPreflightStatus.FailedConstructor
             && result.FirstProblemIndex == 0
             && result.FirstProblemState == NativeAotClassConstructorState.Failed
             && result.FirstProblemFailureCode == FailureCode
-            && result.PlannedCount == 0;
+            && result.PlannedCount == 0);
     }
 
+    [HostTest("runtime.cctor work item rejects pending preflight", HostLane.Fast, 6)]
     private static bool TestRejectsPendingPreflight()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -281,14 +224,15 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
         NativeAotClassConstructorWorkItemPlanResult result =
             NativeAotClassConstructorWorkItemPlanner.Create(entries, preflight, targets, workItems);
 
-        return !preflight.Succeeded
+        return HostCheck.Result(!preflight.Succeeded
             && result.Status == NativeAotClassConstructorWorkItemPlanStatus.PendingOrReentrantConstructor
             && result.PreflightStatus == NativeAotClassConstructorRunnerPreflightStatus.PendingOrReentrantConstructor
             && result.FirstProblemIndex == 0
             && result.FirstProblemState == NativeAotClassConstructorState.Initializing
-            && result.PlannedCount == 0;
+            && result.PlannedCount == 0);
     }
 
+    [HostTest("runtime.cctor work item rejects default preflight", HostLane.Fast, 7)]
     private static bool TestRejectsDefaultPreflight()
     {
         Span<NativeAotClassConstructorStateEntry> entries =
@@ -302,19 +246,20 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
         NativeAotClassConstructorWorkItemPlanResult result =
             NativeAotClassConstructorWorkItemPlanner.Create(entries, default, targets, workItems);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAotClassConstructorWorkItemPlanStatus.NotInitialized
             && result.PreflightStatus == NativeAotClassConstructorRunnerPreflightStatus.Ready
             && result.FirstProblemIndex == 0
-            && result.AvailableWorkItemCapacity == 1;
+            && result.AvailableWorkItemCapacity == 1);
     }
 
+    [HostTest("runtime.cctor work item layouts contain no managed references", HostLane.Fast, 17)]
     private static bool TestLayoutsContainNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAotClassConstructorTargetMetadata>()
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<NativeAotClassConstructorTargetMetadata>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAotClassConstructorWorkItem>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAotClassConstructorWorkItemPlanResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
@@ -324,9 +269,10 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
             && !NativeAotClassConstructorWorkItemPlanner.UsesReflection
             && !NativeAotClassConstructorWorkItemPlanner.UsesExceptionControlFlow
             && !NativeAotClassConstructorWorkItemPlanner.UsesManagedDelegates
-            && !NativeAotClassConstructorWorkItemPlanner.DiscoversMetadata;
+            && !NativeAotClassConstructorWorkItemPlanner.DiscoversMetadata);
     }
 
+    [HostTest("runtime.cctor work item formatter formats success marker", HostLane.Fast, 8)]
     private static bool TestFormatterFormatsSuccessMarker()
     {
         NativeAotClassConstructorWorkItemPlanResult result = CreateReadyPlan();
@@ -341,16 +287,17 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
         const string Expected =
             "NATIVEAOT_CCTOR_WORK_ITEMS status=Ready initialized=true preflight=Ready typeCount=2 targetMetadataCount=2 plannedCount=1 skippedInitializedCount=1 requiredWorkItemCapacity=1 availableWorkItemCapacity=1 firstProblemIndex=-1 firstProblemState=Uninitialized firstProblemFailureCode=0 executesConstructors=false usesReflection=false usesExceptionControlFlow=false usesManagedDelegates=false discoversMetadata=false";
 
-        return query.Succeeded
+        return HostCheck.Result(query.Succeeded
             && query.BytesWritten == 0
             && format.Succeeded
             && format.Status == NativeAotClassConstructorWorkItemPlanDiagnosticFormatStatus.Success
             && format.PlanStatus == NativeAotClassConstructorWorkItemPlanStatus.Ready
             && format.BytesWritten == query.RequiredBytes
             && format.RequiredBytes == query.RequiredBytes
-            && marker == Expected;
+            && marker == Expected);
     }
 
+    [HostTest("runtime.cctor work item formatter formats failure marker", HostLane.Fast, 9)]
     private static bool TestFormatterFormatsFailureMarker()
     {
         NativeAotClassConstructorWorkItemPlanResult result = CreateMissingTargetTokenPlan();
@@ -365,13 +312,14 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
         const string Expected =
             "NATIVEAOT_CCTOR_WORK_ITEMS status=MissingTargetToken initialized=true preflight=Ready typeCount=1 targetMetadataCount=1 plannedCount=0 skippedInitializedCount=0 requiredWorkItemCapacity=1 availableWorkItemCapacity=1 firstProblemIndex=0 firstProblemState=Uninitialized firstProblemFailureCode=0 executesConstructors=false usesReflection=false usesExceptionControlFlow=false usesManagedDelegates=false discoversMetadata=false";
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && query.Succeeded
             && format.Succeeded
             && format.PlanStatus == NativeAotClassConstructorWorkItemPlanStatus.MissingTargetToken
-            && marker == Expected;
+            && marker == Expected);
     }
 
+    [HostTest("runtime.cctor work item formatter reports short destination", HostLane.Fast, 10)]
     private static bool TestFormatterReportsShortDestination()
     {
         NativeAotClassConstructorWorkItemPlanResult result = CreateReadyPlan();
@@ -389,15 +337,16 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
             preserved &= destination[index] == 0xCC;
         }
 
-        return query.Succeeded
+        return HostCheck.Result(query.Succeeded
             && !format.Succeeded
             && format.Status == NativeAotClassConstructorWorkItemPlanDiagnosticFormatStatus.DestinationTooSmall
             && format.BytesWritten == 0
             && format.RequiredBytes == query.RequiredBytes
             && format.AvailableBytes == destination.Length
-            && preserved;
+            && preserved);
     }
 
+    [HostTest("runtime.cctor work item formatter rejects default result", HostLane.Fast, 11)]
     private static bool TestFormatterRejectsDefaultResult()
     {
         NativeAotClassConstructorWorkItemPlanResult defaultResult = default;
@@ -416,7 +365,7 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
             preserved &= destination[index] == 0xAA;
         }
 
-        return !defaultFormat.IsInitialized
+        return HostCheck.Result(!defaultFormat.IsInitialized
             && !defaultFormat.Succeeded
             && !defaultResult.IsInitialized
             && !defaultResult.Succeeded
@@ -425,9 +374,10 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
             && !format.Succeeded
             && format.Status == NativeAotClassConstructorWorkItemPlanDiagnosticFormatStatus.InvalidResult
             && format.BytesWritten == 0
-            && preserved;
+            && preserved);
     }
 
+    [HostTest("runtime.cctor work item formatter uses shared ascii text builder", HostLane.Fast, 12)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -439,7 +389,7 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
                 "Runtime",
                 "NativeAotClassConstructorWorkItemPlanDiagnosticFormatter.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains(
                 "AsciiDecimalFormatter.CountInt32Digits(result.TypeCount)",
                 StringComparison.Ordinal)
@@ -475,9 +425,10 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
                 StringComparison.Ordinal)
             && !source.Contains(
                 "destination[offset + index] = (byte)('0' +",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence cctor work item ready", HostLane.Fast, 13)]
     private static bool TestBootSequenceCctorWorkItemReady()
     {
         NativeAotClassConstructorWorkItemPlanResult plan = CreateReadyPlan();
@@ -490,7 +441,7 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
             events);
         string expectedMarker = BootSequence.CreateNativeAotClassConstructorWorkItemReadyMarker(plan);
 
-        return plan.Succeeded
+        return HostCheck.Result(plan.Succeeded
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
@@ -500,9 +451,10 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
             && expectedMarker.Contains("executesConstructors=false", StringComparison.Ordinal)
             && expectedMarker.Contains("usesReflection=false", StringComparison.Ordinal)
             && expectedMarker.Contains("usesManagedDelegates=false", StringComparison.Ordinal)
-            && expectedMarker.Contains("discoversMetadata=false", StringComparison.Ordinal);
+            && expectedMarker.Contains("discoversMetadata=false", StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence cctor work item rejects failed result", HostLane.Fast, 14)]
     private static bool TestBootSequenceCctorWorkItemRejectsFailedResult()
     {
         NativeAotClassConstructorWorkItemPlanResult plan = CreateMissingTargetTokenPlan();
@@ -517,7 +469,7 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
             NativeAotClassConstructorWorkItemReadinessStatus.PlanFailed,
             plan);
 
-        return !plan.Succeeded
+        return HostCheck.Result(!plan.Succeeded
             && plan.Status == NativeAotClassConstructorWorkItemPlanStatus.MissingTargetToken
             && !result.Succeeded
             && result.Reason.Contains(
@@ -530,9 +482,10 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
             && expectedMarker ==
-                "NATIVEAOT_CCTOR_WORK_ITEMS_NOT_READY status=PlanFailed initialized=true plan=MissingTargetToken preflight=Ready typeCount=1 targetMetadataCount=1 plannedCount=0 skippedInitializedCount=0 requiredWorkItemCapacity=1 availableWorkItemCapacity=1 firstProblemIndex=0 firstProblemState=Uninitialized firstProblemFailureCode=0 executesConstructors=false usesReflection=false usesExceptionControlFlow=false usesManagedDelegates=false discoversMetadata=false";
+                "NATIVEAOT_CCTOR_WORK_ITEMS_NOT_READY status=PlanFailed initialized=true plan=MissingTargetToken preflight=Ready typeCount=1 targetMetadataCount=1 plannedCount=0 skippedInitializedCount=0 requiredWorkItemCapacity=1 availableWorkItemCapacity=1 firstProblemIndex=0 firstProblemState=Uninitialized firstProblemFailureCode=0 executesConstructors=false usesReflection=false usesExceptionControlFlow=false usesManagedDelegates=false discoversMetadata=false");
     }
 
+    [HostTest("boot.sequence cctor work item rejects default result", HostLane.Fast, 15)]
     private static bool TestBootSequenceCctorWorkItemRejectsDefaultResult()
     {
         NativeAotClassConstructorWorkItemPlanResult plan = default;
@@ -547,7 +500,7 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
             NativeAotClassConstructorWorkItemReadinessStatus.NotInitialized,
             plan);
 
-        return !plan.IsInitialized
+        return HostCheck.Result(!plan.IsInitialized
             && !plan.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
@@ -557,9 +510,10 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
             && expectedMarker ==
-                "NATIVEAOT_CCTOR_WORK_ITEMS_NOT_READY status=NotInitialized initialized=false plan=Ready preflight=Ready typeCount=0 targetMetadataCount=0 plannedCount=0 skippedInitializedCount=0 requiredWorkItemCapacity=0 availableWorkItemCapacity=0 firstProblemIndex=0 firstProblemState=Uninitialized firstProblemFailureCode=0 executesConstructors=false usesReflection=false usesExceptionControlFlow=false usesManagedDelegates=false discoversMetadata=false";
+                "NATIVEAOT_CCTOR_WORK_ITEMS_NOT_READY status=NotInitialized initialized=false plan=Ready preflight=Ready typeCount=0 targetMetadataCount=0 plannedCount=0 skippedInitializedCount=0 requiredWorkItemCapacity=0 availableWorkItemCapacity=0 firstProblemIndex=0 firstProblemState=Uninitialized firstProblemFailureCode=0 executesConstructors=false usesReflection=false usesExceptionControlFlow=false usesManagedDelegates=false discoversMetadata=false");
     }
 
+    [HostTest("boot.sequence cctor work item preserves default markers", HostLane.Fast, 16)]
     private static bool TestBootSequenceCctorWorkItemPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -568,11 +522,11 @@ internal static class NativeAotClassConstructorWorkItemPlanTests
         BootResult result = BootSequence.Run(serial, events);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
-        return !serial.ContainsPrefix(BootSequence.NativeAotClassConstructorWorkItemReadyPrefix)
-            && !serial.ContainsPrefix(BootSequence.NativeAotClassConstructorWorkItemNotReadyPrefix);
+        return HostCheck.Result(!serial.ContainsPrefix(BootSequence.NativeAotClassConstructorWorkItemReadyPrefix)
+            && !serial.ContainsPrefix(BootSequence.NativeAotClassConstructorWorkItemNotReadyPrefix));
     }
 
     private static NativeAotClassConstructorWorkItemPlanResult CreateReadyPlan()

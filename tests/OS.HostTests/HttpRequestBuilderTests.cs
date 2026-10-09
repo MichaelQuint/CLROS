@@ -4,45 +4,8 @@ using OS.Net;
 
 internal static class HttpRequestBuilderTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.http writes get request", TestWritesGetRequest, ref failures);
-        Run("net.http rejects unsafe request path", TestRejectsUnsafeRequestPath, ref failures);
-        Run("net.http rejects request buffer too small", TestRejectsRequestBufferTooSmall, ref failures);
-        Run("net.http request default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("net.http.request builder uses shared buffer operations", TestUsesSharedBufferOperations, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("HTTP request builder host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.http writes get request", HostLane.Fast, 0)]
     private static bool TestWritesGetRequest()
     {
         byte[] host = Encoding.ASCII.GetBytes("example.test");
@@ -64,13 +27,14 @@ internal static class HttpRequestBuilderTests
             "Connection: close\r\n" +
             "\r\n";
 
-        return status == HttpRequestBuilderStatus.Success
+        return HostCheck.Result(status == HttpRequestBuilderStatus.Success
             && result.Succeeded
             && result.BytesWritten == expected.Length
             && result.BytesRequired == expected.Length
-            && request == expected;
+            && request == expected);
     }
 
+    [HostTest("net.http rejects unsafe request path", HostLane.Fast, 1)]
     private static bool TestRejectsUnsafeRequestPath()
     {
         byte[] host = Encoding.ASCII.GetBytes("example.test");
@@ -95,14 +59,15 @@ internal static class HttpRequestBuilderTests
             destination,
             out HttpRequestBuilderResult nonAsciiResult);
 
-        return noSlashStatus == HttpRequestBuilderStatus.MissingLeadingSlash
+        return HostCheck.Result(noSlashStatus == HttpRequestBuilderStatus.MissingLeadingSlash
             && !noSlashResult.Succeeded
             && crlfStatus == HttpRequestBuilderStatus.InvalidPath
             && !crlfResult.Succeeded
             && nonAsciiStatus == HttpRequestBuilderStatus.InvalidPath
-            && !nonAsciiResult.Succeeded;
+            && !nonAsciiResult.Succeeded);
     }
 
+    [HostTest("net.http rejects request buffer too small", HostLane.Fast, 2)]
     private static bool TestRejectsRequestBufferTooSmall()
     {
         byte[] host = Encoding.ASCII.GetBytes("example.test");
@@ -128,15 +93,16 @@ internal static class HttpRequestBuilderTests
             destinationUnchanged &= destination[i] == 0xcc;
         }
 
-        return smallStatus == HttpRequestBuilderStatus.DestinationTooSmall
+        return HostCheck.Result(smallStatus == HttpRequestBuilderStatus.DestinationTooSmall
             && smallResult.BytesRequired > destination.Length
             && smallResult.BytesWritten == 0
             && !smallResult.Succeeded
             && destinationUnchanged
             && hostStatus == HttpRequestBuilderStatus.InvalidHost
-            && !hostResult.Succeeded;
+            && !hostResult.Succeeded);
     }
 
+    [HostTest("net.http request default result is not success", HostLane.Fast, 3)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         HttpRequestBuilderResult result = default;
@@ -144,7 +110,7 @@ internal static class HttpRequestBuilderTests
             HttpRequestBuilderStatus.DestinationTooSmall,
             bytesRequired: 64);
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == HttpRequestBuilderStatus.Success
             && result.BytesWritten == 0
@@ -154,9 +120,10 @@ internal static class HttpRequestBuilderTests
             && failed.Status == HttpRequestBuilderStatus.DestinationTooSmall
             && failed.BytesWritten == 0
             && failed.BytesRequired == 64
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<HttpRequestBuilderResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<HttpRequestBuilderResult>());
     }
 
+    [HostTest("net.http.request builder uses shared buffer operations", HostLane.Fast, 4)]
     private static bool TestUsesSharedBufferOperations()
     {
         string source = File.ReadAllText(Path.Combine(
@@ -166,10 +133,10 @@ internal static class HttpRequestBuilderTests
             "Net",
             "HttpRequestBuilder.cs"));
 
-        return source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
             && source.Contains("BufferOperations.MemoryCopy(path, destination.Slice(offset, path.Length))", StringComparison.Ordinal)
             && source.Contains("BufferOperations.MemoryCopy(host, destination.Slice(offset, host.Length))", StringComparison.Ordinal)
             && !source.Contains("path.CopyTo(destination.Slice(offset, path.Length))", StringComparison.Ordinal)
-            && !source.Contains("host.CopyTo(destination.Slice(offset, host.Length))", StringComparison.Ordinal);
+            && !source.Contains("host.CopyTo(destination.Slice(offset, host.Length))", StringComparison.Ordinal));
     }
 }

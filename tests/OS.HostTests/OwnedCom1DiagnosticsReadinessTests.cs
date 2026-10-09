@@ -7,58 +7,7 @@ internal static class OwnedCom1DiagnosticsReadinessTests
 {
     private const nuint PayloadBaseAddress = 0x0010_0000;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("diagnostics.owned com1 readiness composes", TestComposesReadiness, ref failures);
-        Run(
-            "diagnostics.owned com1 readiness rejects backend plan",
-            TestRejectsBackendPlan,
-            ref failures);
-        Run(
-            "diagnostics.owned com1 readiness rejects backend contract",
-            TestRejectsBackendContract,
-            ref failures);
-        Run(
-            "diagnostics.owned com1 readiness emits post firmware marker metadata",
-            TestEmitsPostFirmwareMarkerMetadata,
-            ref failures);
-        Run(
-            "diagnostics.owned com1 readiness default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Owned COM1 diagnostics readiness host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("diagnostics.owned com1 readiness composes", HostLane.Fast, 0)]
     private static bool TestComposesReadiness()
     {
         SerialDiagnosticsGuard guard = new SerialDiagnosticsGuard();
@@ -75,7 +24,7 @@ internal static class OwnedCom1DiagnosticsReadinessTests
                 events);
         string[] eventSnapshot = events.Snapshot();
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == OwnedCom1DiagnosticsReadinessStatus.Success
             && result.BackendPlan.Status == Com1PortIoBackendPlanStatus.Success
@@ -93,9 +42,10 @@ internal static class OwnedCom1DiagnosticsReadinessTests
             && serial.LineAt(0) == BootSequence.PostFirmwareDiagnosticsReady
             && eventSnapshot.Length == 1
             && eventSnapshot[0] == BootSequence.PostFirmwareDiagnosticsReady
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OwnedCom1DiagnosticsReadinessResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OwnedCom1DiagnosticsReadinessResult>());
     }
 
+    [HostTest("diagnostics.owned com1 readiness rejects backend plan", HostLane.Fast, 1)]
     private static bool TestRejectsBackendPlan()
     {
         SerialDiagnosticsGuard guard = new SerialDiagnosticsGuard();
@@ -111,7 +61,7 @@ internal static class OwnedCom1DiagnosticsReadinessTests
                 serial,
                 events);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == OwnedCom1DiagnosticsReadinessStatus.BackendPlanFailed
             && result.BackendPlan.Status == Com1PortIoBackendPlanStatus.InvalidSerialConfiguration
@@ -122,9 +72,10 @@ internal static class OwnedCom1DiagnosticsReadinessTests
             && serial.Count == 0
             && events.Snapshot().Length == 0
             && !guard.OwnedSerialReady
-            && !guard.CanUsePostFirmwareDiagnostics;
+            && !guard.CanUsePostFirmwareDiagnostics);
     }
 
+    [HostTest("diagnostics.owned com1 readiness rejects backend contract", HostLane.Fast, 2)]
     private static bool TestRejectsBackendContract()
     {
         SerialDiagnosticsGuard guard = new SerialDiagnosticsGuard();
@@ -140,7 +91,7 @@ internal static class OwnedCom1DiagnosticsReadinessTests
                 serial,
                 events);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == OwnedCom1DiagnosticsReadinessStatus.BackendContractFailed
             && result.BackendPlan.Status == Com1PortIoBackendPlanStatus.Success
@@ -152,9 +103,10 @@ internal static class OwnedCom1DiagnosticsReadinessTests
             && serial.Count == 0
             && events.Snapshot().Length == 0
             && !guard.OwnedSerialReady
-            && !guard.CanUsePostFirmwareDiagnostics;
+            && !guard.CanUsePostFirmwareDiagnostics);
     }
 
+    [HostTest("diagnostics.owned com1 readiness emits post firmware marker metadata", HostLane.Fast, 3)]
     private static bool TestEmitsPostFirmwareMarkerMetadata()
     {
         SerialDiagnosticsGuard guard = new SerialDiagnosticsGuard();
@@ -174,7 +126,7 @@ internal static class OwnedCom1DiagnosticsReadinessTests
             SerialDiagnosticsGuardStatus.FirmwareServicesUnavailable);
         string[] eventSnapshot = events.Snapshot();
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == OwnedCom1DiagnosticsReadinessStatus.GuardTransitionFailed
             && result.BackendPlan.Status == Com1PortIoBackendPlanStatus.Success
@@ -190,14 +142,15 @@ internal static class OwnedCom1DiagnosticsReadinessTests
             && eventSnapshot.Length == 1
             && eventSnapshot[0] == expectedMarker
             && !guard.OwnedSerialReady
-            && !guard.CanUsePostFirmwareDiagnostics;
+            && !guard.CanUsePostFirmwareDiagnostics);
     }
 
+    [HostTest("diagnostics.owned com1 readiness default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         OwnedCom1DiagnosticsReadinessResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == OwnedCom1DiagnosticsReadinessStatus.Success
             && !result.BackendPlan.Succeeded
@@ -207,7 +160,7 @@ internal static class OwnedCom1DiagnosticsReadinessTests
             && result.PostFirmwareDiagnosticsStatus == SerialDiagnosticsGuardStatus.FirmwareConsoleOnly
             && !result.MarkOwnedSerialSucceeded
             && !result.PostFirmwareMarkerInvoked
-            && !result.PostFirmwareMarkerSucceeded;
+            && !result.PostFirmwareMarkerSucceeded);
     }
 
     private static Com1PortIoBackendPlan CreateFailedBackendPlan()

@@ -9,6 +9,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<Compile Include="..\OS.Tooling\QemuContracts.cs" Link="QemuContracts.cs" />
 		<ProjectReference Include="..\..\src\OS.Kernel\OS.Kernel.csproj" />
 	</ItemGroup>
 

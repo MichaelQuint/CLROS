@@ -3,47 +3,8 @@ using OS.Net;
 
 internal static class TcpHeaderTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.packet.tcp.header-round-trip", TestHeaderRoundTrip, ref failures);
-        Run("net.packet.tcp.rejects-invalid-data-offset", TestRejectsInvalidDataOffset, ref failures);
-        Run("net.packet.tcp.rejects-truncated-options", TestRejectsTruncatedOptions, ref failures);
-        Run(
-            "net.tcp header payloads use shared buffer operations",
-            TestHeaderPayloadsUseSharedBufferOperations,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("TCP header host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.packet.tcp.header-round-trip", HostLane.Fast, 0)]
     private static bool TestHeaderRoundTrip()
     {
         byte[] options = { 0x02, 0x04, 0x05, 0xb4 };
@@ -70,7 +31,7 @@ internal static class TcpHeaderTests
             out ReadOnlySpan<byte> parsedOptions,
             out ReadOnlySpan<byte> parsedPayload);
 
-        return writeStatus == PacketParseStatus.Success
+        return HostCheck.Result(writeStatus == PacketParseStatus.Success
             && bytesWritten == segment.Length
             && parseStatus == PacketParseStatus.Success
             && header.SourcePort == 49152
@@ -84,9 +45,10 @@ internal static class TcpHeaderTests
             && header.UrgentPointer == 0
             && parsedOptions.SequenceEqual(options)
             && parsedPayload.SequenceEqual(payload)
-            && segment[12] == 0x60;
+            && segment[12] == 0x60);
     }
 
+    [HostTest("net.packet.tcp.rejects-invalid-data-offset", HostLane.Fast, 1)]
     private static bool TestRejectsInvalidDataOffset()
     {
         byte[] segment = new byte[TcpHeader.MinHeaderLength];
@@ -114,11 +76,12 @@ internal static class TcpHeaderTests
             ReadOnlySpan<byte>.Empty,
             out int bytesWritten);
 
-        return parseStatus == PacketParseStatus.InvalidLength
+        return HostCheck.Result(parseStatus == PacketParseStatus.InvalidLength
             && writeStatus == PacketParseStatus.InvalidLength
-            && bytesWritten == 0;
+            && bytesWritten == 0);
     }
 
+    [HostTest("net.packet.tcp.rejects-truncated-options", HostLane.Fast, 2)]
     private static bool TestRejectsTruncatedOptions()
     {
         byte[] segment = new byte[TcpHeader.MinHeaderLength + 2];
@@ -130,12 +93,13 @@ internal static class TcpHeaderTests
             out ReadOnlySpan<byte> options,
             out ReadOnlySpan<byte> payload);
 
-        return parseStatus == PacketParseStatus.TruncatedPayload
+        return HostCheck.Result(parseStatus == PacketParseStatus.TruncatedPayload
             && header.HeaderLength == 0
             && options.Length == 0
-            && payload.Length == 0;
+            && payload.Length == 0);
     }
 
+    [HostTest("net.tcp header payloads use shared buffer operations", HostLane.Fast, 3)]
     private static bool TestHeaderPayloadsUseSharedBufferOperations()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -146,7 +110,7 @@ internal static class TcpHeaderTests
             "Net",
             "TcpHeader.cs"));
 
-        return source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
             && source.Contains(
                 "BufferOperations.MemoryCopy(options, segment.Slice(MinHeaderLength, options.Length))",
                 StringComparison.Ordinal)
@@ -160,6 +124,6 @@ internal static class TcpHeaderTests
                 StringComparison.Ordinal)
             && !source.Contains(
                 "payload.CopyTo(segment.Slice(headerLength, payload.Length))",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 }

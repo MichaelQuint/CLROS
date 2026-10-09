@@ -8,46 +8,7 @@ internal static class NativeAppExecutableMemoryPlanTests
     private const ulong ExecutableLength = 48;
     private const ulong PayloadLength = HeaderLength + ExecutableLength;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("appmodel executable memory plan aligns payload mapping", TestAlignsPayloadMapping, ref failures);
-        Run("appmodel executable memory plan rejects rwx policy", TestRejectsRwxPolicy, ref failures);
-        Run("appmodel executable memory plan rejects invalid alignment", TestRejectsInvalidAlignment, ref failures);
-        Run("appmodel executable memory plan rejects zero executable content", TestRejectsZeroExecutableContent, ref failures);
-        Run("appmodel executable memory plan rejects overflow", TestRejectsOverflow, ref failures);
-        Run("appmodel executable memory plan default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app executable memory plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel executable memory plan aligns payload mapping", HostLane.Fast, 0)]
     private static bool TestAlignsPayloadMapping()
     {
         NativeAppPayloadMappingPlanResult mappingPlan = CreateMappingPlanResult(
@@ -58,7 +19,7 @@ internal static class NativeAppExecutableMemoryPlanTests
         NativeAppExecutableMemoryPlanResult result =
             NativeAppExecutableMemoryPlan.Create(mappingPlan);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppExecutableMemoryPlanStatus.Success
             && result.PayloadMappingStatus == NativeAppPayloadMappingPlanStatus.Success
@@ -77,9 +38,10 @@ internal static class NativeAppExecutableMemoryPlanTests
             && result.ExecutableProtection ==
                 (NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Execute)
             && result.FinalProtection ==
-                (NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Execute);
+                (NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Execute));
     }
 
+    [HostTest("appmodel executable memory plan rejects rwx policy", HostLane.Fast, 1)]
     private static bool TestRejectsRwxPolicy()
     {
         NativeAppExecutableMemoryProtection rwx =
@@ -95,13 +57,14 @@ internal static class NativeAppExecutableMemoryPlanTests
             executableProtection: NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Execute,
             finalProtection: NativeAppExecutableMemoryProtection.Read | NativeAppExecutableMemoryProtection.Execute);
 
-        return !rejected.Succeeded
+        return HostCheck.Result(!rejected.Succeeded
             && rejected.IsInitialized
             && rejected.Status == NativeAppExecutableMemoryPlanStatus.AccidentalWritableExecutable
             && rejected.RequiredWritableStagingBytes == 0
-            && NativeAppExecutableMemoryPlan.IsWritableExecutable(rwx);
+            && NativeAppExecutableMemoryPlan.IsWritableExecutable(rwx));
     }
 
+    [HostTest("appmodel executable memory plan rejects invalid alignment", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidAlignment()
     {
         NativeAppExecutableMemoryPlanResult smallPage = NativeAppExecutableMemoryPlan.Create(
@@ -121,7 +84,7 @@ internal static class NativeAppExecutableMemoryPlanTests
             pageSize: 4096,
             executableAlignment: 16);
 
-        return !smallPage.Succeeded
+        return HostCheck.Result(!smallPage.Succeeded
             && smallPage.IsInitialized
             && smallPage.Status == NativeAppExecutableMemoryPlanStatus.InvalidPageSize
             && !invalidAlignment.Succeeded
@@ -132,9 +95,10 @@ internal static class NativeAppExecutableMemoryPlanTests
             && largeAlignment.Status == NativeAppExecutableMemoryPlanStatus.AlignmentGreaterThanPageSize
             && !unalignedExecutable.Succeeded
             && unalignedExecutable.IsInitialized
-            && unalignedExecutable.Status == NativeAppExecutableMemoryPlanStatus.UnalignedExecutableOffset;
+            && unalignedExecutable.Status == NativeAppExecutableMemoryPlanStatus.UnalignedExecutableOffset);
     }
 
+    [HostTest("appmodel executable memory plan rejects zero executable content", HostLane.Fast, 3)]
     private static bool TestRejectsZeroExecutableContent()
     {
         NativeAppPayloadMappingPlan mappingPlan = CreateMappingPlan(
@@ -145,11 +109,12 @@ internal static class NativeAppExecutableMemoryPlanTests
         NativeAppExecutableMemoryPlanResult result =
             NativeAppExecutableMemoryPlan.Create(mappingPlan);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
-            && result.Status == NativeAppExecutableMemoryPlanStatus.ZeroExecutableContent;
+            && result.Status == NativeAppExecutableMemoryPlanStatus.ZeroExecutableContent);
     }
 
+    [HostTest("appmodel executable memory plan rejects overflow", HostLane.Fast, 4)]
     private static bool TestRejectsOverflow()
     {
         NativeAppPayloadMappingPlan mappingPlan = CreateMappingPlan(
@@ -160,16 +125,17 @@ internal static class NativeAppExecutableMemoryPlanTests
         NativeAppExecutableMemoryPlanResult result =
             NativeAppExecutableMemoryPlan.Create(mappingPlan);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
-            && result.Status == NativeAppExecutableMemoryPlanStatus.RangeOverflow;
+            && result.Status == NativeAppExecutableMemoryPlanStatus.RangeOverflow);
     }
 
+    [HostTest("appmodel executable memory plan default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAppExecutableMemoryPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppExecutableMemoryPlanStatus.Success
             && result.PayloadMappingStatus == NativeAppPayloadMappingPlanStatus.Success
@@ -186,7 +152,7 @@ internal static class NativeAppExecutableMemoryPlanTests
             && result.WritableStagingProtection == NativeAppExecutableMemoryProtection.None
             && result.ExecutableProtection == NativeAppExecutableMemoryProtection.None
             && result.FinalProtection == NativeAppExecutableMemoryProtection.None
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppExecutableMemoryPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppExecutableMemoryPlanResult>());
     }
 
     private static NativeAppPayloadMappingPlanResult CreateMappingPlanResult(

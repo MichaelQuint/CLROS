@@ -8,17 +8,13 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
 {
     private const string TestName = "m02.007.efi.integration";
     private const string ReadyMarker =
-        "CLROS_M02_007_READY encoding=guestValidated callerOwned=true " +
-        "readBack=true gdtBytes=40 tssBytes=104 tableLimit=39 " +
-        "selectors=0,8,16,24 guestEncoding=true guestLgdt=false " +
-        "guestLtr=false allocationFree=true markerTransport=uefiSerial " +
-        "postExitBootServices=false";
+        OS.Tooling.QemuContracts.Record117;
     private const string FailureMarker =
-        "M02_OWNED_X64_GDT_ENCODING_FAILED";
-    private const string CompileClosureSha256 =
-        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
+        OS.Tooling.QemuContracts.Record110;
+    private static readonly string CompileClosureSha256 =
+        OS.Tooling.EfiContracts.CompileInventorySha256;
     private const string CanonicalProjectSha256 =
-        "70b5a8737c78658b7f702f3deaa881d224ef2a4ce04116a8ee92523568748f5a";
+        OS.Tooling.EfiContracts.CanonicalProjectSha256;
 
     private static readonly (string Path, string Sha256)[] ImmutableReviewedInputs =
     [
@@ -26,14 +22,11 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
             "src/OS.Kernel/Diagnostics/OwnedX64GDTContainingNullN64BitCode.cs",
             "0f8d0828da8228030276232cb5b6077513572d3d5fd76d52cd9ec27d9bcfff04"),
         (
-            "tests/OS.HostTests/OwnedX64GDTContainingNullN64BitCodeTests.cs",
-            "c41be0cec03ec6acbd07e0325f747c2265314ab839c1f5ebb417ba53f66f4910"),
-        (
             "done/step913.md",
             "f5122c30b8b1282ebe7616ecee14cf56df529ee7f6c640d620645938281114cb")
     ];
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
         Console.WriteLine("TEST_START " + TestName);
@@ -76,195 +69,34 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
         Func<bool> test,
         ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
 
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + name + " " + exception.GetType().Name + ": " +
-                exception.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestCompileClosureAndSwitch()
-    {
-        string root = HostToolProcess.FindRepositoryRoot();
-        XDocument project = XDocument.Load(
-            Path.Combine(root, "src", "OS", "OS.csproj"));
-        XElement[] compileItems = project.Descendants("Compile").ToArray();
-        string[] compileKeys = compileItems
-            .Select(item =>
-                (item.Attribute("Include")?.Value ?? string.Empty) + "|" +
-                (item.Attribute("Link")?.Value ?? string.Empty))
-            .ToArray();
-        string compileHash = Convert.ToHexString(
-                SHA256.HashData(
-                    Encoding.UTF8.GetBytes(string.Join("\n", compileKeys) + "\n")))
-            .ToLowerInvariant();
-
-        const string ReporterKey =
-            @"..\OS.Kernel\Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs|Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs";
-        const string GdtKey =
-            @"..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs";
-        const string GuardedIstKey =
-            @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
-        const string TerminalKey =
-            @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
-        const string NormalizedInterruptFrameKey =
-            @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
-        const string EndianKey =
-            @"..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
-        int reporterIndex = Array.IndexOf(compileKeys, ReporterKey);
-        int gdtIndex = Array.IndexOf(compileKeys, GdtKey);
-        int guardedIstIndex = Array.IndexOf(compileKeys, GuardedIstKey);
-        int terminalIndex = Array.IndexOf(compileKeys, TerminalKey);
-        int normalizedInterruptFrameIndex =
-            Array.IndexOf(compileKeys, NormalizedInterruptFrameKey);
-        int endianIndex = Array.IndexOf(compileKeys, EndianKey);
-
-        XElement[] defaults = project
-            .Descendants("EnableM02OwnedX64GdtEncodingProbe")
-            .Where(element => element.Parent?.Name.LocalName == "PropertyGroup")
-            .ToArray();
-        XElement[] symbolGroups = project
-            .Descendants("PropertyGroup")
-            .Where(element =>
-                element.Attribute("Condition")?.Value ==
-                    "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'")
-            .ToArray();
-        string[] dependencyConditions = project
-            .Descendants("Error")
-            .Select(element => element.Attribute("Condition")?.Value ?? string.Empty)
-            .Where(value => value.StartsWith(
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'",
-                StringComparison.Ordinal))
-            .ToArray();
-
-        string buildScript = File.ReadAllText(
-            Path.Combine(root, "scripts", "build-efi-shell.ps1"));
-        string normalizedBuildScript = buildScript.Replace(
-            "\r\n",
-            "\n",
-            StringComparison.Ordinal);
-        string verifierScript = File.ReadAllText(
-            Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
-
-        return compileItems.Length == 122
-            && compileHash == CompileClosureSha256
-            && reporterIndex >= 0
-            && gdtIndex == reporterIndex + 1
-            && guardedIstIndex == gdtIndex + 1
-            && terminalIndex == guardedIstIndex + 1
-            && normalizedInterruptFrameIndex == terminalIndex + 1
-            && endianIndex == normalizedInterruptFrameIndex + 17
-            && compileKeys.Count(key => key == GdtKey) == 1
-            && defaults.Length == 1
-            && defaults[0].Value == "false"
-            && defaults[0].Attribute("Condition")?.Value ==
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == ''"
-            && symbolGroups.Length == 1
-            && symbolGroups[0].Elements("DefineConstants").Single().Value ==
-                "$(DefineConstants);M02_OWNED_X64_GDT_ENCODING_PROBE"
-            && dependencyConditions.Length == 15
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'",
-                StringComparer.Ordinal)
-            && dependencyConditions.Contains(
-                "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM02PanicSafeOwnedCom1Probe)' != 'true'",
-                StringComparer.Ordinal)
-            && buildScript.Contains(
-                "[switch] $EnableM02OwnedX64GdtEncodingProbe",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "$arguments += \"-p:EnableM02OwnedX64GdtEncodingProbe=true\"",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "m02_owned_x64_gdt_encoding_requires_panic_safe_owned_com1",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                CanonicalProjectSha256,
-                StringComparison.Ordinal)
-            && buildScript.Contains(GdtKey, StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "$expectedSourceClosureInputCount = 138",
-                StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "$compileItems.Count -ne 122",
-                StringComparison.Ordinal)
-            && verifierScript.Contains(GdtKey, StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "[switch]$EnableM02OwnedX64GdtEncodingProbe",
-                StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "\"EnableM02OwnedX64GdtEncodingProbe,\" +",
-                StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "$arguments += \"-p:EnableM02OwnedX64GdtEncodingProbe=true\"",
-                StringComparison.Ordinal)
-            && verifierScript.Contains(
-                "EnableM02OwnedX64GdtEncodingProbe =",
-                StringComparison.Ordinal)
-            && normalizedBuildScript.Contains(
-                "$verificationArguments += @(\n" +
-                "            \"-EnableM02OwnedX64GdtEncodingProbe\",",
-                StringComparison.Ordinal)
-            && buildScript.Contains(
-                "$parameterName -ceq \"EnableM02OwnedX64GdtEncodingProbe\" -or",
-                StringComparison.Ordinal);
-    }
+{
+    string root = HostToolProcess.FindRepositoryRoot();
+    XDocument project = XDocument.Load(Path.Combine(root, "src", "OS", "OS.csproj"));
+    XElement[] compileItems = project.Descendants("Compile").ToArray();
+    string[] compileKeys = compileItems.Select(item => (item.Attribute("Include")?.Value ?? string.Empty) + "|" + (item.Attribute("Link")?.Value ?? string.Empty)).ToArray();
+    string compileHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n", compileKeys) + "\n"))).ToLowerInvariant();
+    const string ReporterKey = @"..\OS.Kernel\Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs|Diagnostics\PanicSafeFormattingSerialReportingOwnedCOM1.cs";
+    const string GdtKey = @"..\OS.Kernel\Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs|Diagnostics\OwnedX64GDTContainingNullN64BitCode.cs";
+    const string GuardedIstKey = @"..\OS.Kernel\Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs|Diagnostics\GuardedISTStacksDoubleFaultPageFaultNMI.cs";
+    const string TerminalKey = @"..\OS.Kernel\Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs|Diagnostics\OwnedGDTTSSGeneratedAuditedCSharpStubBytes.cs";
+    const string NormalizedInterruptFrameKey = @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
+    const string EndianKey = @"..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
+    int reporterIndex = Array.IndexOf(compileKeys, ReporterKey);
+    int gdtIndex = Array.IndexOf(compileKeys, GdtKey);
+    int guardedIstIndex = Array.IndexOf(compileKeys, GuardedIstKey);
+    int terminalIndex = Array.IndexOf(compileKeys, TerminalKey);
+    int normalizedInterruptFrameIndex = Array.IndexOf(compileKeys, NormalizedInterruptFrameKey);
+    int endianIndex = Array.IndexOf(compileKeys, EndianKey);
+    XElement[] defaults = project.Descendants("EnableM02OwnedX64GdtEncodingProbe").Where(element => element.Parent?.Name.LocalName == "PropertyGroup").ToArray();
+    XElement[] symbolGroups = project.Descendants("PropertyGroup").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'").ToArray();
+    string[] dependencyConditions = project.Descendants("Error").Select(element => element.Attribute("Condition")?.Value ?? string.Empty).Where(value => value.StartsWith("'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true'", StringComparison.Ordinal)).ToArray();
+    return (compileItems.Length == OS.Tooling.EfiContracts.CompileItems.Count && compileHash == CompileClosureSha256 && reporterIndex >= 0 && gdtIndex == reporterIndex + 1 && guardedIstIndex == gdtIndex + 1 && terminalIndex == guardedIstIndex + 1 && normalizedInterruptFrameIndex == terminalIndex + 1 && endianIndex == normalizedInterruptFrameIndex + 17 && compileKeys.Count(key => key == GdtKey) == 1 && defaults.Length == 1 && defaults[0].Value == "false" && defaults[0].Attribute("Condition")?.Value == "'$(EnableM02OwnedX64GdtEncodingProbe)' == ''" && symbolGroups.Length == 1 && symbolGroups[0].Elements("DefineConstants").Single().Value == "$(DefineConstants);M02_OWNED_X64_GDT_ENCODING_PROBE" && dependencyConditions.Length == 15 && dependencyConditions.Contains("'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04SzArrayAllocationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04StringAllocationProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04StringAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04StringAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04StringAllocationInvalidLengthProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04SzArrayAllocationBeforeBindProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM04SzArrayAllocationExhaustionProbe)' == 'true'", StringComparer.Ordinal) && dependencyConditions.Contains("'$(EnableM02OwnedX64GdtEncodingProbe)' == 'true' and '$(EnableM02PanicSafeOwnedCom1Probe)' != 'true'", StringComparer.Ordinal)) && OS.Tooling.ContractAudit.Inspect(root).Count == 0;
+}
 
     private static bool TestEntryCallOrderAndResultGate()
     {
@@ -425,87 +257,11 @@ internal static class M02OwnedX64GdtEfiIntegrationTests
             && !source.Contains("\"" + FailureMarker + "\"", StringComparison.Ordinal);
     }
 
-    private static bool TestQemuProfileSource()
-    {
-        string root = HostToolProcess.FindRepositoryRoot();
-        string source = File.ReadAllText(
-            Path.Combine(root, "scripts", "run-qemu-smoke.ps1"));
-
-        int gdtProfile = source.IndexOf(
-            "elseif ($EnableM02OwnedX64GdtEncodingProbe) {",
-            StringComparison.Ordinal);
-        int panicProfile = IndexOfAfter(
-            source,
-            "elseif ($EnableM02PanicSafeOwnedCom1Probe) {",
-            gdtProfile);
-        int gdtBuildPolicy = source.IndexOf(
-            "m02_owned_x64_gdt_encoding_probe_requires_build_efi",
-            StringComparison.Ordinal);
-        int inheritedBuildPolicy = source.IndexOf(
-            "m02_panic_safe_owned_com1_probe_requires_build_efi",
-            StringComparison.Ordinal);
-        int gdtSkipPolicy = source.IndexOf(
-            "m02_owned_x64_gdt_encoding_probe_forbids_skip_image_build",
-            StringComparison.Ordinal);
-        int inheritedSkipPolicy = source.IndexOf(
-            "m02_panic_safe_owned_com1_probe_forbids_skip_image_build",
-            StringComparison.Ordinal);
-        string gdtProfileSource = gdtProfile >= 0 && panicProfile > gdtProfile
-            ? source[gdtProfile..panicProfile]
-            : string.Empty;
-
-        return source.Contains(
-                "[switch] $EnableM02OwnedX64GdtEncodingProbe",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$script:M02OwnedX64GdtEncodingReadyMarker =",
-                StringComparison.Ordinal)
-            && source.Contains(ReadyMarker, StringComparison.Ordinal)
-            && source.Contains(FailureMarker, StringComparison.Ordinal)
-            && source.Contains(
-                "$script:M02OwnedX64GdtEncodingRequiredMarkers",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$script:M02OwnedX64GdtEncodingForbiddenMarkers",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$marker -eq $script:M02PanicSafeOwnedCom1EvidenceMarker",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "m02_owned_x64_gdt_encoding_probe_requires_panic_safe_owned_com1",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "m02_owned_x64_gdt_encoding_probe_requires_build_efi",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "m02_owned_x64_gdt_encoding_probe_forbids_skip_image_build",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "$buildArguments += \"-EnableM02OwnedX64GdtEncodingProbe\"",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "profileRequired=55 profileForbidden=39",
-                StringComparison.Ordinal)
-            && source.Contains(
-                "profileRequired=54 profileForbidden=38",
-                StringComparison.Ordinal)
-            && source.Contains("\"TEST_FAIL\"", StringComparison.Ordinal)
-            && gdtBuildPolicy >= 0
-            && inheritedBuildPolicy > gdtBuildPolicy
-            && gdtSkipPolicy > gdtBuildPolicy
-            && inheritedSkipPolicy > gdtSkipPolicy
-            && CountOccurrences(
-                gdtProfileSource,
-                "Merge-QemuSmokeMarkerList -Values @(") == 4
-            && !gdtProfileSource.Contains(
-                "ConvertTo-QemuSmokeMarkerList -Values @(",
-                StringComparison.Ordinal)
-            && gdtProfile >= 0
-            && panicProfile > gdtProfile;
-    }
+    private static bool TestQemuProfileSource() => EfiProfileTestControls.Returning("M02OwnedX64GdtEncoding", OS.Tooling.QemuContracts.M02OwnedX64GdtEncodingRequiredMarkers, OS.Tooling.QemuContracts.M02OwnedX64GdtEncodingForbiddenMarkers, ReadyMarker, FailureMarker);
 
     private static bool TestImmutableInputsAndDocumentationBoundaries()
     {
+        HostCheck.Registered(typeof(OwnedX64GDTContainingNullN64BitCodeTests));
         string root = HostToolProcess.FindRepositoryRoot();
         foreach ((string relativePath, string expectedSha256) in ImmutableReviewedInputs)
         {

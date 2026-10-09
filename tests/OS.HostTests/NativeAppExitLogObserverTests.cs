@@ -7,64 +7,8 @@ using OS.Pal;
 
 internal static class NativeAppExitLogObserverTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("appmodel.exit observer finds stdout marker", TestFindsStdoutMarker, ref failures);
-        Run("appmodel.exit observer ignores non-machine-readable records", TestIgnoresNonMachineReadableRecords, ref failures);
-        Run("appmodel.exit observer reports malformed marker", TestReportsMalformedMarker, ref failures);
-        Run("appmodel.exit observer reports no marker", TestReportsNoMarker, ref failures);
-        Run("appmodel.exit observer reports short record buffer", TestReportsShortRecordBuffer, ref failures);
-        Run("appmodel.exit observer reports invalid log table", TestReportsInvalidLogTable, ref failures);
-        Run("appmodel.exit observer default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("appmodel.exit observer formatter formats success marker", TestFormatterFormatsSuccessMarker, ref failures);
-        Run("appmodel.exit observer formatter reports short destination", TestFormatterReportsShortDestination, ref failures);
-        Run("appmodel.exit observer formatter rejects default result", TestFormatterRejectsDefaultResult, ref failures);
-        Run("appmodel.exit observer formatter uses shared ascii text builder", TestFormatterUsesSharedAsciiTextBuilder, ref failures);
-        Run("boot.sequence app exit observer ready", TestBootSequenceAppExitObserverReady, ref failures);
-        Run(
-            "boot.sequence app exit observer rejects observer failure",
-            TestBootSequenceAppExitObserverRejectsObserverFailure,
-            ref failures);
-        Run(
-            "boot.sequence app exit observer rejects default result",
-            TestBootSequenceAppExitObserverRejectsDefaultResult,
-            ref failures);
-        Run(
-            "boot.sequence app exit observer preserves default markers",
-            TestBootSequenceAppExitObserverPreservesDefaultMarkers,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Native app exit log observer host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("appmodel.exit observer finds stdout marker", HostLane.Fast, 0)]
     private static bool TestFindsStdoutMarker()
     {
         OSHostAppLogTable table = new(recordCapacity: 3, maxRecordBytes: 128);
@@ -81,7 +25,7 @@ internal static class NativeAppExitLogObserverTests
         NativeAppExitLogObserverResult result =
             NativeAppExitLogObserver.Observe(table, scratch);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == NativeAppExitLogObserverStatus.Success
             && result.RecordIndex == 1
@@ -96,9 +40,10 @@ internal static class NativeAppExitLogObserverTests
             && result.ParseStatus == NativeAppExitParseStatus.Success
             && result.ExitCode == 7
             && result.ExitStatus == OSHostStatus.InternalError
-            && !result.LauncherFailure;
+            && !result.LauncherFailure);
     }
 
+    [HostTest("appmodel.exit observer ignores non-machine-readable records", HostLane.Fast, 1)]
     private static bool TestIgnoresNonMachineReadableRecords()
     {
         OSHostAppLogTable table = new(recordCapacity: 3, maxRecordBytes: 128);
@@ -115,15 +60,16 @@ internal static class NativeAppExitLogObserverTests
         NativeAppExitLogObserverResult result =
             NativeAppExitLogObserver.Observe(table, scratch);
 
-        return result.IsInitialized
+        return HostCheck.Result(result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppExitLogObserverStatus.NoExitMarker
             && result.RecordsScanned == 2
             && result.RecordIndex == NativeAppExitLogObserverResult.NoRecordIndex
             && !result.ParseAttempted
-            && result.LogStatus == OSHostStatus.NotFound;
+            && result.LogStatus == OSHostStatus.NotFound);
     }
 
+    [HostTest("appmodel.exit observer reports malformed marker", HostLane.Fast, 2)]
     private static bool TestReportsMalformedMarker()
     {
         OSHostAppLogTable table = new(recordCapacity: 2, maxRecordBytes: 128);
@@ -136,7 +82,7 @@ internal static class NativeAppExitLogObserverTests
         NativeAppExitLogObserverResult result =
             NativeAppExitLogObserver.Observe(table, scratch);
 
-        return result.IsInitialized
+        return HostCheck.Result(result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppExitLogObserverStatus.MalformedExitMarker
             && result.RecordIndex == 0
@@ -146,9 +92,10 @@ internal static class NativeAppExitLogObserverTests
             && result.LogStatus == OSHostStatus.Ok
             && result.ParseAttempted
             && result.ParseStatus == NativeAppExitParseStatus.MalformedCode
-            && result.ExitStatus == OSHostStatus.InvalidArgument;
+            && result.ExitStatus == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("appmodel.exit observer reports no marker", HostLane.Fast, 3)]
     private static bool TestReportsNoMarker()
     {
         OSHostAppLogTable table = new(recordCapacity: 2, maxRecordBytes: 128);
@@ -161,15 +108,16 @@ internal static class NativeAppExitLogObserverTests
         NativeAppExitLogObserverResult result =
             NativeAppExitLogObserver.Observe(table, scratch);
 
-        return result.IsInitialized
+        return HostCheck.Result(result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppExitLogObserverStatus.NoExitMarker
             && result.RecordsScanned == 1
             && result.RecordIndex == NativeAppExitLogObserverResult.NoRecordIndex
             && !result.ParseAttempted
-            && result.ExitStatus == OSHostStatus.NotFound;
+            && result.ExitStatus == OSHostStatus.NotFound);
     }
 
+    [HostTest("appmodel.exit observer reports short record buffer", HostLane.Fast, 4)]
     private static bool TestReportsShortRecordBuffer()
     {
         OSHostAppLogTable table = new(recordCapacity: 1, maxRecordBytes: 128);
@@ -183,7 +131,7 @@ internal static class NativeAppExitLogObserverTests
         NativeAppExitLogObserverResult result =
             NativeAppExitLogObserver.Observe(table, scratch);
 
-        return result.IsInitialized
+        return HostCheck.Result(result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppExitLogObserverStatus.RecordBufferTooSmall
             && result.RecordIndex == 0
@@ -192,9 +140,10 @@ internal static class NativeAppExitLogObserverTests
             && result.BytesRead == 0
             && result.RequiredBytes == (uint)marker.Length
             && result.LogStatus == OSHostStatus.BufferTooSmall
-            && !result.ParseAttempted;
+            && !result.ParseAttempted);
     }
 
+    [HostTest("appmodel.exit observer reports invalid log table", HostLane.Fast, 5)]
     private static bool TestReportsInvalidLogTable()
     {
         Span<byte> scratch = stackalloc byte[NativeAppExitStatusFormatter.MaximumMarkerBytes];
@@ -203,29 +152,31 @@ internal static class NativeAppExitLogObserverTests
         NativeAppExitLogObserverResult emptyTable =
             NativeAppExitLogObserver.Observe(new OSHostAppLogTable(0, 128), scratch);
 
-        return nullTable.IsInitialized
+        return HostCheck.Result(nullTable.IsInitialized
             && !nullTable.Succeeded
             && nullTable.Status == NativeAppExitLogObserverStatus.InvalidLogTable
             && nullTable.LogStatus == OSHostStatus.InvalidArgument
             && emptyTable.IsInitialized
             && !emptyTable.Succeeded
-            && emptyTable.Status == NativeAppExitLogObserverStatus.InvalidLogTable;
+            && emptyTable.Status == NativeAppExitLogObserverStatus.InvalidLogTable);
     }
 
+    [HostTest("appmodel.exit observer default result is not success", HostLane.Fast, 6)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         NativeAppExitLogObserverResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == NativeAppExitLogObserverStatus.Success
             && result.RecordIndex == 0
             && result.BytesRead == 0
             && result.ParseStatus == NativeAppExitParseStatus.Success
             && result.ExitStatus == OSHostStatus.Ok
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppExitLogObserverResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<NativeAppExitLogObserverResult>());
     }
 
+    [HostTest("appmodel.exit observer formatter formats success marker", HostLane.Fast, 7)]
     private static bool TestFormatterFormatsSuccessMarker()
     {
         NativeAppExitLogObserverResult observer = CreateSuccessfulObserverResult(
@@ -246,7 +197,7 @@ internal static class NativeAppExitLogObserverTests
             + " logStatus=OSHOST_STATUS_OK parseAttempted=true parseStatus=Success"
             + " exitCode=7 exitStatus=OSHOST_STATUS_INTERNAL_ERROR launcherFailure=false";
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && !query.Succeeded
             && query.Status == NativeAppExitLogObserverDiagnosticFormatStatus.Success
             && query.ObserverStatus == NativeAppExitLogObserverStatus.Success
@@ -258,9 +209,10 @@ internal static class NativeAppExitLogObserverTests
             && format.BytesWritten == expected.Length
             && format.RequiredBytes == expected.Length
             && format.AvailableBytes == destination.Length
-            && text == expected;
+            && text == expected);
     }
 
+    [HostTest("appmodel.exit observer formatter reports short destination", HostLane.Fast, 8)]
     private static bool TestFormatterReportsShortDestination()
     {
         NativeAppExitLogObserverResult observer = CreateSuccessfulObserverResult(
@@ -273,7 +225,7 @@ internal static class NativeAppExitLogObserverTests
         NativeAppExitLogObserverDiagnosticFormatResult format =
             NativeAppExitLogObserverDiagnosticFormatter.FormatResult(observer, destination);
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && query.Status == NativeAppExitLogObserverDiagnosticFormatStatus.Success
             && query.RequiredBytes > destination.Length
             && !query.Succeeded
@@ -285,9 +237,10 @@ internal static class NativeAppExitLogObserverTests
             && format.RequiredBytes == query.RequiredBytes
             && format.AvailableBytes == destination.Length
             && destination[0] == 0xA5
-            && destination[^1] == 0xA5;
+            && destination[^1] == 0xA5);
     }
 
+    [HostTest("appmodel.exit observer formatter rejects default result", HostLane.Fast, 9)]
     private static bool TestFormatterRejectsDefaultResult()
     {
         Span<byte> destination = stackalloc byte[64];
@@ -300,7 +253,7 @@ internal static class NativeAppExitLogObserverTests
             NativeAppExitLogObserverDiagnosticFormatter.QueryRequiredBytes(observer);
         NativeAppExitLogObserverDiagnosticFormatResult defaultFormat = default;
 
-        return format.IsInitialized
+        return HostCheck.Result(format.IsInitialized
             && !format.Succeeded
             && format.Status == NativeAppExitLogObserverDiagnosticFormatStatus.InvalidResult
             && format.ObserverStatus == NativeAppExitLogObserverStatus.Success
@@ -319,9 +272,10 @@ internal static class NativeAppExitLogObserverTests
             && destination[0] == 0xCC
             && destination[^1] == 0xCC
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                NativeAppExitLogObserverDiagnosticFormatResult>();
+                NativeAppExitLogObserverDiagnosticFormatResult>());
     }
 
+    [HostTest("appmodel.exit observer formatter uses shared ascii text builder", HostLane.Fast, 10)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -333,7 +287,7 @@ internal static class NativeAppExitLogObserverTests
                 "Runtime",
                 "NativeAppExitLogObserverDiagnosticFormatter.cs"));
 
-        return source.Contains(
+        return HostCheck.Result(source.Contains(
                 "AsciiDecimalFormatter.CountInt32Digits(result.RecordsScanned)",
                 StringComparison.Ordinal)
             && source.Contains(
@@ -356,9 +310,10 @@ internal static class NativeAppExitLogObserverTests
                 StringComparison.Ordinal)
             && !source.Contains(
                 "destination[offset + index] = (byte)('0' +",
-                StringComparison.Ordinal);
+                StringComparison.Ordinal));
     }
 
+    [HostTest("boot.sequence app exit observer ready", HostLane.Fast, 11)]
     private static bool TestBootSequenceAppExitObserverReady()
     {
         NativeAppExitLogObserverResult observer = CreateSuccessfulObserverResult(out _);
@@ -371,14 +326,15 @@ internal static class NativeAppExitLogObserverTests
             events);
         string expectedMarker = BootSequence.CreateAppExitObserverReadyMarker(observer);
 
-        return observer.Succeeded
+        return HostCheck.Result(observer.Succeeded
             && result.Succeeded
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
-            && expectedMarker == "APP_EXIT_OBSERVER_READY status=Ready initialized=true succeeded=true observer=Success recordsScanned=2 recordIndex=1 streamId=1 flags=1 sequence=1 bytesRead=51 requiredBytes=51 logStatus=Ok parseAttempted=true parseStatus=Success exitCode=7 exitStatus=InternalError launcherFailure=false";
+            && expectedMarker == "APP_EXIT_OBSERVER_READY status=Ready initialized=true succeeded=true observer=Success recordsScanned=2 recordIndex=1 streamId=1 flags=1 sequence=1 bytesRead=51 requiredBytes=51 logStatus=Ok parseAttempted=true parseStatus=Success exitCode=7 exitStatus=InternalError launcherFailure=false");
     }
 
+    [HostTest("boot.sequence app exit observer rejects observer failure", HostLane.Fast, 12)]
     private static bool TestBootSequenceAppExitObserverRejectsObserverFailure()
     {
         NativeAppExitLogObserverResult observer = NativeAppExitLogObserverResult.NoExitMarker(
@@ -394,7 +350,7 @@ internal static class NativeAppExitLogObserverTests
             AppExitObserverReadinessStatus.ObserverFailure,
             observer);
 
-        return observer.IsInitialized
+        return HostCheck.Result(observer.IsInitialized
             && !observer.Succeeded
             && observer.Status == NativeAppExitLogObserverStatus.NoExitMarker
             && !result.Succeeded
@@ -407,9 +363,10 @@ internal static class NativeAppExitLogObserverTests
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
-            && expectedMarker == "APP_EXIT_OBSERVER_NOT_READY status=ObserverFailure initialized=true succeeded=false observer=NoExitMarker recordsScanned=2 recordIndex=4294967295 streamId=0 flags=0 sequence=0 bytesRead=0 requiredBytes=0 logStatus=NotFound parseAttempted=false parseStatus=InvalidPrefix exitCode=0 exitStatus=NotFound launcherFailure=false";
+            && expectedMarker == "APP_EXIT_OBSERVER_NOT_READY status=ObserverFailure initialized=true succeeded=false observer=NoExitMarker recordsScanned=2 recordIndex=4294967295 streamId=0 flags=0 sequence=0 bytesRead=0 requiredBytes=0 logStatus=NotFound parseAttempted=false parseStatus=InvalidPrefix exitCode=0 exitStatus=NotFound launcherFailure=false");
     }
 
+    [HostTest("boot.sequence app exit observer rejects default result", HostLane.Fast, 13)]
     private static bool TestBootSequenceAppExitObserverRejectsDefaultResult()
     {
         NativeAppExitLogObserverResult observer = default;
@@ -424,7 +381,7 @@ internal static class NativeAppExitLogObserverTests
             AppExitObserverReadinessStatus.NotInitialized,
             observer);
 
-        return !observer.IsInitialized
+        return HostCheck.Result(!observer.IsInitialized
             && !observer.Succeeded
             && !result.Succeeded
             && result.Reason.Contains(
@@ -433,9 +390,10 @@ internal static class NativeAppExitLogObserverTests
             && serial.Count == 1
             && serial.LineAt(0) == expectedMarker
             && events.Snapshot()[0] == expectedMarker
-            && expectedMarker == "APP_EXIT_OBSERVER_NOT_READY status=NotInitialized initialized=false succeeded=false observer=Success recordsScanned=0 recordIndex=0 streamId=0 flags=0 sequence=0 bytesRead=0 requiredBytes=0 logStatus=Ok parseAttempted=false parseStatus=Success exitCode=0 exitStatus=Ok launcherFailure=false";
+            && expectedMarker == "APP_EXIT_OBSERVER_NOT_READY status=NotInitialized initialized=false succeeded=false observer=Success recordsScanned=0 recordIndex=0 streamId=0 flags=0 sequence=0 bytesRead=0 requiredBytes=0 logStatus=Ok parseAttempted=false parseStatus=Success exitCode=0 exitStatus=Ok launcherFailure=false");
     }
 
+    [HostTest("boot.sequence app exit observer preserves default markers", HostLane.Fast, 14)]
     private static bool TestBootSequenceAppExitObserverPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -444,7 +402,7 @@ internal static class NativeAppExitLogObserverTests
         BootResult result = BootSequence.Run(serial, events);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int index = 0; index < serial.Count; index++)
@@ -453,11 +411,11 @@ internal static class NativeAppExitLogObserverTests
             if (line.StartsWith(BootSequence.AppExitObserverReadyPrefix, StringComparison.Ordinal) ||
                 line.StartsWith(BootSequence.AppExitObserverNotReadyPrefix, StringComparison.Ordinal))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return true;
+        return HostCheck.Result(true);
     }
 
     private static NativeAppExitLogObserverResult CreateSuccessfulObserverResult(

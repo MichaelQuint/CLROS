@@ -4,58 +4,15 @@ using OS.Kernel.Platform;
 
 internal static class BootHandoffInfoTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("boothandoff validates UEFI memory-map metadata", TestValidMetadata, ref failures);
-        Run("boothandoff rejects missing memory map", TestMissingMemoryMap, ref failures);
-        Run("boothandoff rejects invalid descriptor size", TestInvalidDescriptorSize, ref failures);
-        Run("boothandoff rejects invalid descriptor version", TestInvalidDescriptorVersion, ref failures);
-        Run("boothandoff rejects invalid descriptor count", TestInvalidDescriptorCount, ref failures);
-        Run("boothandoff preserves UEFI-gone simulation mode", TestUefiGoneSimulationMode, ref failures);
-        Run("boothandoff imports no-stdlib EFI handoff record", TestImportsNoStdlibRecord, ref failures);
-        Run("boothandoff imports owned memory-map handoff record", TestImportsOwnedMemoryMapRecord, ref failures);
-        Run("boothandoff imports ACPI RSDP metadata", TestImportsAcpiRsdpMetadata, ref failures);
-        Run("boothandoff keeps ACPI RSDP optional", TestAcpiRsdpOptional, ref failures);
-        Run("boothandoff rejects inconsistent ACPI RSDP metadata", TestRejectsInconsistentAcpiRsdpMetadata, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("BootHandoffInfo host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("boothandoff validates UEFI memory-map metadata", HostLane.Fast, 0)]
     private static bool TestValidMetadata()
     {
         BootHandoffInfo handoff = CreateValidHandoff(FirmwareServicesMode.BootServicesAvailable);
         BootHandoffValidationResult result = handoff.Validate();
         FirmwareMemoryMapMetadata memoryMap = handoff.MemoryMap;
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == BootHandoffStatus.Success
             && result.Message.Length == 0
             && handoff.BootMode == BootMode.Uefi
@@ -69,9 +26,10 @@ internal static class BootHandoffInfoTests
             && memoryMap.DescriptorSize == ValidDescriptorSize
             && memoryMap.DescriptorVersion == ValidDescriptorVersion
             && memoryMap.DescriptorCount == ValidDescriptorCount
-            && memoryMap.HasMap;
+            && memoryMap.HasMap);
     }
 
+    [HostTest("boothandoff rejects missing memory map", HostLane.Fast, 1)]
     private static bool TestMissingMemoryMap()
     {
         FirmwareMemoryMapMetadata memoryMap = new FirmwareMemoryMapMetadata(
@@ -85,11 +43,12 @@ internal static class BootHandoffInfoTests
 
         BootHandoffValidationResult result = CreateHandoff(memoryMap).Validate();
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == BootHandoffStatus.MissingMemoryMap
-            && result.Message.Contains("memory map", StringComparison.Ordinal);
+            && result.Message.Contains("memory map", StringComparison.Ordinal));
     }
 
+    [HostTest("boothandoff rejects invalid descriptor size", HostLane.Fast, 2)]
     private static bool TestInvalidDescriptorSize()
     {
         FirmwareMemoryMapMetadata memoryMap = new FirmwareMemoryMapMetadata(
@@ -103,11 +62,12 @@ internal static class BootHandoffInfoTests
 
         BootHandoffValidationResult result = CreateHandoff(memoryMap).Validate();
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == BootHandoffStatus.InvalidDescriptorSize
-            && result.Message.Contains("descriptor size", StringComparison.Ordinal);
+            && result.Message.Contains("descriptor size", StringComparison.Ordinal));
     }
 
+    [HostTest("boothandoff rejects invalid descriptor version", HostLane.Fast, 3)]
     private static bool TestInvalidDescriptorVersion()
     {
         FirmwareMemoryMapMetadata memoryMap = new FirmwareMemoryMapMetadata(
@@ -121,11 +81,12 @@ internal static class BootHandoffInfoTests
 
         BootHandoffValidationResult result = CreateHandoff(memoryMap).Validate();
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == BootHandoffStatus.InvalidDescriptorVersion
-            && result.Message.Contains("descriptor version", StringComparison.Ordinal);
+            && result.Message.Contains("descriptor version", StringComparison.Ordinal));
     }
 
+    [HostTest("boothandoff rejects invalid descriptor count", HostLane.Fast, 4)]
     private static bool TestInvalidDescriptorCount()
     {
         FirmwareMemoryMapMetadata zeroCount = new FirmwareMemoryMapMetadata(
@@ -149,25 +110,27 @@ internal static class BootHandoffInfoTests
         BootHandoffValidationResult zeroCountResult = CreateHandoff(zeroCount).Validate();
         BootHandoffValidationResult mismatchedCountResult = CreateHandoff(mismatchedCount).Validate();
 
-        return !zeroCountResult.Succeeded
+        return HostCheck.Result(!zeroCountResult.Succeeded
             && zeroCountResult.Status == BootHandoffStatus.InvalidDescriptorCount
             && zeroCountResult.Message.Contains("descriptor count", StringComparison.Ordinal)
             && !mismatchedCountResult.Succeeded
-            && mismatchedCountResult.Status == BootHandoffStatus.InvalidDescriptorCount;
+            && mismatchedCountResult.Status == BootHandoffStatus.InvalidDescriptorCount);
     }
 
+    [HostTest("boothandoff preserves UEFI-gone simulation mode", HostLane.Fast, 5)]
     private static bool TestUefiGoneSimulationMode()
     {
         BootHandoffInfo handoff = CreateValidHandoff(FirmwareServicesMode.UefiGoneSimulated);
         BootHandoffValidationResult result = handoff.Validate();
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == BootHandoffStatus.Success
             && handoff.FirmwareServicesMode == FirmwareServicesMode.UefiGoneSimulated
             && !handoff.FirmwareContext.BootServicesAvailable
-            && handoff.MemoryMap.DescriptorCount == ValidDescriptorCount;
+            && handoff.MemoryMap.DescriptorCount == ValidDescriptorCount);
     }
 
+    [HostTest("boothandoff imports no-stdlib EFI handoff record", HostLane.Fast, 6)]
     private static bool TestImportsNoStdlibRecord()
     {
         BootHandoffRecord record = BootHandoffRecord.CreateUefiWithMemoryMap(
@@ -182,7 +145,7 @@ internal static class BootHandoffInfoTests
         BootHandoffInfo handoff = BootHandoffInfo.FromRecord(record);
         BootHandoffValidationResult result = handoff.Validate();
 
-        return record.BootMode == BootHandoffRecord.BootModeUefi
+        return HostCheck.Result(record.BootMode == BootHandoffRecord.BootModeUefi
             && record.Capabilities == (BootHandoffRecord.CapabilityTextOutput | BootHandoffRecord.CapabilityMemoryMap)
             && record.FirmwareServicesMode == BootHandoffRecord.FirmwareServicesAvailable
             && record.MemoryMap.HasMap()
@@ -199,9 +162,10 @@ internal static class BootHandoffInfoTests
             && handoff.MemoryMap.MapKey == ValidMapKey
             && handoff.MemoryMap.DescriptorSize == ValidDescriptorSize
             && handoff.MemoryMap.DescriptorVersion == ValidDescriptorVersion
-            && handoff.MemoryMap.DescriptorCount == ValidDescriptorCount;
+            && handoff.MemoryMap.DescriptorCount == ValidDescriptorCount);
     }
 
+    [HostTest("boothandoff imports owned memory-map handoff record", HostLane.Fast, 7)]
     private static bool TestImportsOwnedMemoryMapRecord()
     {
         const ulong firmwareBufferAddress = ValidBufferAddress;
@@ -223,7 +187,7 @@ internal static class BootHandoffInfoTests
         BootHandoffInfo handoff = BootHandoffInfo.FromRecord(record);
         BootHandoffValidationResult result = handoff.Validate();
 
-        return record.MemoryMap.HasMap()
+        return HostCheck.Result(record.MemoryMap.HasMap()
             && record.MemoryMap.HasOwnedCopy()
             && record.MemoryMap.BufferAddress == ownedBufferAddress
             && record.MemoryMap.BufferSize == ownedBufferSize
@@ -233,9 +197,10 @@ internal static class BootHandoffInfoTests
             && handoff.MemoryMap.BufferAddress == ownedBufferAddress
             && handoff.MemoryMap.BufferSize == ownedBufferSize
             && handoff.MemoryMap.MapSize == ValidMapSize
-            && handoff.MemoryMap.DescriptorCount == ValidDescriptorCount;
+            && handoff.MemoryMap.DescriptorCount == ValidDescriptorCount);
     }
 
+    [HostTest("boothandoff imports ACPI RSDP metadata", HostLane.Fast, 8)]
     private static bool TestImportsAcpiRsdpMetadata()
     {
         BootHandoffRecord record = CreateValidOwnedRecord();
@@ -247,7 +212,7 @@ internal static class BootHandoffInfoTests
         BootHandoffInfo handoff = BootHandoffInfo.FromRecord(record);
         BootHandoffValidationResult result = handoff.Validate();
 
-        return record.AcpiRsdp.HasRsdp()
+        return HostCheck.Result(record.AcpiRsdp.HasRsdp()
             && (record.Capabilities & BootHandoffRecord.CapabilityAcpiRsdp) != 0
             && result.Succeeded
             && handoff.Capabilities == (BootCapabilities.TextOutput | BootCapabilities.MemoryMap | BootCapabilities.AcpiRsdp)
@@ -255,9 +220,10 @@ internal static class BootHandoffInfoTests
             && handoff.AcpiRsdp.IsPresent
             && handoff.AcpiRsdp.RsdpAddress == ValidRsdpAddress
             && handoff.AcpiRsdp.TableKind == EfiAcpiTableKind.Acpi20
-            && handoff.AcpiRsdp.ScanStatus == EfiConfigurationTableScanStatus.Ok;
+            && handoff.AcpiRsdp.ScanStatus == EfiConfigurationTableScanStatus.Ok);
     }
 
+    [HostTest("boothandoff keeps ACPI RSDP optional", HostLane.Fast, 9)]
     private static bool TestAcpiRsdpOptional()
     {
         BootHandoffRecord record = CreateValidOwnedRecord();
@@ -266,14 +232,15 @@ internal static class BootHandoffInfoTests
         BootHandoffInfo handoff = BootHandoffInfo.FromRecord(record);
         BootHandoffValidationResult result = handoff.Validate();
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && (record.Capabilities & BootHandoffRecord.CapabilityAcpiRsdp) == 0
             && !handoff.AcpiRsdp.HasRsdp
             && !handoff.AcpiRsdp.IsPresent
             && handoff.AcpiRsdp.RsdpAddress == 0
-            && handoff.AcpiRsdp.ScanStatus == EfiConfigurationTableScanStatus.NotFound;
+            && handoff.AcpiRsdp.ScanStatus == EfiConfigurationTableScanStatus.NotFound);
     }
 
+    [HostTest("boothandoff rejects inconsistent ACPI RSDP metadata", HostLane.Fast, 10)]
     private static bool TestRejectsInconsistentAcpiRsdpMetadata()
     {
         BootHandoffRecord zeroPointer = CreateValidOwnedRecord();
@@ -299,12 +266,12 @@ internal static class BootHandoffInfoTests
         BootHandoffValidationResult pointerWithoutCapabilityResult =
             BootHandoffInfo.FromRecord(pointerWithoutCapability).Validate();
 
-        return !zeroPointerResult.Succeeded
+        return HostCheck.Result(!zeroPointerResult.Succeeded
             && zeroPointerResult.Status == BootHandoffStatus.InvalidAcpiRsdp
             && !invalidKindResult.Succeeded
             && invalidKindResult.Status == BootHandoffStatus.InvalidAcpiRsdp
             && !pointerWithoutCapabilityResult.Succeeded
-            && pointerWithoutCapabilityResult.Status == BootHandoffStatus.InvalidAcpiRsdp;
+            && pointerWithoutCapabilityResult.Status == BootHandoffStatus.InvalidAcpiRsdp);
     }
 
     private static BootHandoffInfo CreateValidHandoff(FirmwareServicesMode firmwareServicesMode)

@@ -7,13 +7,12 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
     private const string ReadyMarkerPrefix =
         "CLROS_M04_001_READY declarations=";
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void Run()
     {
-        Console.WriteLine("TEST_START m04.001");
-
-        try
+        HostCheck.Run("m04.001", () =>
         {
+
             string repositoryRoot = HostToolProcess.FindRepositoryRoot();
             string minimalRuntimePath = Path.Combine(
                 repositoryRoot,
@@ -68,14 +67,7 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
                 + " gate4=" + (gate4Pass ? "Pass" : "Fail")
                 + " canonicalSystemNamespace="
                 + (canonicalSystemNamespace ? "true" : "false"));
-            Console.WriteLine("TEST_PASS m04.001");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine(
-                "TEST_FAIL m04.001 " + ex.GetType().Name + ": " + ex.Message);
-            throw;
-        }
+        });
     }
 
     private static void TestSystemDeclarationSourceBinding(

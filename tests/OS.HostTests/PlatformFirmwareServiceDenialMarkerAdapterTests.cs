@@ -5,57 +5,8 @@ using OS.Kernel.Platform;
 
 internal static class PlatformFirmwareServiceDenialMarkerAdapterTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run(
-            "platform.firmware denial adapters format guarded results",
-            TestFormatsGuardedResults,
-            ref failures);
-        Run(
-            "platform.firmware denial adapters query required bytes",
-            TestQueriesRequiredBytes,
-            ref failures);
-        Run(
-            "platform.firmware denial adapters reject non-denial results",
-            TestRejectsNonDenialResults,
-            ref failures);
-        Run(
-            "platform.firmware denial adapters result layout contains no managed references",
-            TestResultLayoutContainsNoManagedReferences,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Platform firmware service-denial adapter host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("platform.firmware denial adapters format guarded results", HostLane.Fast, 0)]
     private static bool TestFormatsGuardedResults()
     {
         FirmwareCallResult consoleDenied = Denied(PlatformConsoleOperations.OutputString);
@@ -81,7 +32,7 @@ internal static class PlatformFirmwareServiceDenialMarkerAdapterTests
         PlatformFramebufferResult framebuffer =
             PlatformFramebufferResult.FirmwareServicesUnavailable(framebufferDenied);
 
-        return Format(console)
+        return HostCheck.Result(Format(console)
                 == "UEFI_SERVICE_DENIED operation=OutputString mode=UefiGoneSimulated"
             && Format(memoryMap)
                 == "UEFI_SERVICE_DENIED operation=GetMemoryMap mode=UefiGoneSimulated"
@@ -94,9 +45,10 @@ internal static class PlatformFirmwareServiceDenialMarkerAdapterTests
             && Format(physicalMemory)
                 == "UEFI_SERVICE_DENIED operation=PhysicalMemory.ReadBytes mode=UefiGoneSimulated"
             && Format(framebuffer)
-                == "UEFI_SERVICE_DENIED operation=Framebuffer.CaptureSnapshot mode=UefiGoneSimulated";
+                == "UEFI_SERVICE_DENIED operation=Framebuffer.CaptureSnapshot mode=UefiGoneSimulated");
     }
 
+    [HostTest("platform.firmware denial adapters query required bytes", HostLane.Fast, 1)]
     private static bool TestQueriesRequiredBytes()
     {
         PlatformRandomResult denied = PlatformRandomResult.FirmwareServicesUnavailable(
@@ -109,14 +61,15 @@ internal static class PlatformFirmwareServiceDenialMarkerAdapterTests
         PlatformFirmwareServiceDenialMarkerResult format =
             PlatformFirmwareServiceDenialMarkerAdapters.TryFormatDeniedCall(denied, destination);
 
-        return query.Succeeded
+        return HostCheck.Result(query.Succeeded
             && format.Succeeded
             && query.BytesWritten == 0
             && query.RequiredBytes == format.RequiredBytes
             && format.BytesWritten == format.RequiredBytes
-            && query.OperationBytes == PlatformRandomOperations.FillBytes.Length;
+            && query.OperationBytes == PlatformRandomOperations.FillBytes.Length);
     }
 
+    [HostTest("platform.firmware denial adapters reject non-denial results", HostLane.Fast, 2)]
     private static bool TestRejectsNonDenialResults()
     {
         FirmwareCallResult allowed = FirmwareCallResult.Allowed(
@@ -141,7 +94,7 @@ internal static class PlatformFirmwareServiceDenialMarkerAdapterTests
                 defaultResult,
                 stackalloc byte[96]);
 
-        return successFormat.IsInitialized
+        return HostCheck.Result(successFormat.IsInitialized
             && !successFormat.Succeeded
             && successFormat.Status == PlatformFirmwareServiceDenialMarkerStatus.AllowedCall
             && invalidFormat.IsInitialized
@@ -149,15 +102,16 @@ internal static class PlatformFirmwareServiceDenialMarkerAdapterTests
             && invalidFormat.Status == PlatformFirmwareServiceDenialMarkerStatus.InvalidResult
             && defaultFormat.IsInitialized
             && !defaultFormat.Succeeded
-            && defaultFormat.Status == PlatformFirmwareServiceDenialMarkerStatus.InvalidResult;
+            && defaultFormat.Status == PlatformFirmwareServiceDenialMarkerStatus.InvalidResult);
     }
 
+    [HostTest("platform.firmware denial adapters result layout contains no managed references", HostLane.Fast, 3)]
     private static bool TestResultLayoutContainsNoManagedReferences()
     {
-        return !RuntimeHelpers.IsReferenceOrContainsReferences<
+        return HostCheck.Result(!RuntimeHelpers.IsReferenceOrContainsReferences<
                 PlatformFirmwareServiceDenialMarkerResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                PlatformFirmwareServiceDenialMarkerStatus>();
+                PlatformFirmwareServiceDenialMarkerStatus>());
     }
 
     private static FirmwareCallResult Denied(string operation)

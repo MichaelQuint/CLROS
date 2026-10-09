@@ -4,46 +4,8 @@ using OS.Net;
 
 internal static class HttpResponseWriterTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("net.http.response writes healthz text response", TestWritesHealthzTextResponse, ref failures);
-        Run("net.http.response writes empty keepalive response", TestWritesEmptyKeepAliveResponse, ref failures);
-        Run("net.http.response rejects invalid metadata", TestRejectsInvalidMetadata, ref failures);
-        Run("net.http.response rejects short destination without write", TestRejectsShortDestinationWithoutWrite, ref failures);
-        Run("net.http.response default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("net.http.response writer uses shared buffer operations", TestUsesSharedBufferOperations, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("HTTP response writer host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.http.response writes healthz text response", HostLane.Fast, 0)]
     private static bool TestWritesHealthzTextResponse()
     {
         byte[] reason = Encoding.ASCII.GetBytes("OK");
@@ -69,7 +31,7 @@ internal static class HttpResponseWriterTests
             "\r\n" +
             "OS_MINIMAL_API_OK";
 
-        return status == HttpResponseWriterStatus.Success
+        return HostCheck.Result(status == HttpResponseWriterStatus.Success
             && result.Succeeded
             && result.StatusCode == 200
             && result.BytesWritten == expected.Length
@@ -77,9 +39,10 @@ internal static class HttpResponseWriterTests
             && result.HeaderLength == expected.Length - body.Length
             && result.BodyOffset == result.HeaderLength
             && result.BodyLength == body.Length
-            && response == expected;
+            && response == expected);
     }
 
+    [HostTest("net.http.response writes empty keepalive response", HostLane.Fast, 1)]
     private static bool TestWritesEmptyKeepAliveResponse()
     {
         byte[] reason = Encoding.ASCII.GetBytes("No Content");
@@ -104,13 +67,14 @@ internal static class HttpResponseWriterTests
             "Connection: keep-alive\r\n" +
             "\r\n";
 
-        return status == HttpResponseWriterStatus.Success
+        return HostCheck.Result(status == HttpResponseWriterStatus.Success
             && result.Succeeded
             && result.BodyLength == 0
             && result.BodyOffset == expected.Length
-            && response == expected;
+            && response == expected);
     }
 
+    [HostTest("net.http.response rejects invalid metadata", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidMetadata()
     {
         byte[] reason = Encoding.ASCII.GetBytes("OK");
@@ -153,16 +117,17 @@ internal static class HttpResponseWriterTests
             destination,
             out HttpResponseWriterResult emptyContentTypeResult);
 
-        return statusCodeStatus == HttpResponseWriterStatus.InvalidStatusCode
+        return HostCheck.Result(statusCodeStatus == HttpResponseWriterStatus.InvalidStatusCode
             && !statusCodeResult.Succeeded
             && reasonStatus == HttpResponseWriterStatus.InvalidReasonPhrase
             && !reasonResult.Succeeded
             && contentTypeStatus == HttpResponseWriterStatus.InvalidContentType
             && !contentTypeResult.Succeeded
             && emptyContentTypeStatus == HttpResponseWriterStatus.EmptyContentType
-            && !emptyContentTypeResult.Succeeded;
+            && !emptyContentTypeResult.Succeeded);
     }
 
+    [HostTest("net.http.response rejects short destination without write", HostLane.Fast, 3)]
     private static bool TestRejectsShortDestinationWithoutWrite()
     {
         byte[] reason = Encoding.ASCII.GetBytes("OK");
@@ -186,14 +151,15 @@ internal static class HttpResponseWriterTests
             destinationUnchanged &= destination[index] == 0xcc;
         }
 
-        return status == HttpResponseWriterStatus.DestinationTooSmall
+        return HostCheck.Result(status == HttpResponseWriterStatus.DestinationTooSmall
             && !result.Succeeded
             && result.BytesRequired > destination.Length
             && result.BytesWritten == 0
             && result.BodyLength == 0
-            && destinationUnchanged;
+            && destinationUnchanged);
     }
 
+    [HostTest("net.http.response default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         HttpResponseWriterResult defaultResult = default;
@@ -202,7 +168,7 @@ internal static class HttpResponseWriterTests
             statusCode: 200,
             bytesRequired: 64);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == HttpResponseWriterStatus.Success
             && defaultResult.StatusCode == 0
@@ -213,9 +179,10 @@ internal static class HttpResponseWriterTests
             && failedResult.Status == HttpResponseWriterStatus.DestinationTooSmall
             && failedResult.StatusCode == 200
             && failedResult.BytesRequired == 64
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<HttpResponseWriterResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<HttpResponseWriterResult>());
     }
 
+    [HostTest("net.http.response writer uses shared buffer operations", HostLane.Fast, 5)]
     private static bool TestUsesSharedBufferOperations()
     {
         string source = File.ReadAllText(Path.Combine(
@@ -225,12 +192,12 @@ internal static class HttpResponseWriterTests
             "Net",
             "HttpResponseWriter.cs"));
 
-        return source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Memory;", StringComparison.Ordinal)
             && source.Contains("BufferOperations.MemoryCopy(reasonPhrase, destination.Slice(offset, reasonPhrase.Length))", StringComparison.Ordinal)
             && source.Contains("BufferOperations.MemoryCopy(contentType, destination.Slice(offset, contentType.Length))", StringComparison.Ordinal)
             && source.Contains("BufferOperations.MemoryCopy(body, destination.Slice(offset, body.Length))", StringComparison.Ordinal)
             && !source.Contains("reasonPhrase.CopyTo(destination.Slice(offset, reasonPhrase.Length))", StringComparison.Ordinal)
             && !source.Contains("contentType.CopyTo(destination.Slice(offset, contentType.Length))", StringComparison.Ordinal)
-            && !source.Contains("body.CopyTo(destination.Slice(offset, body.Length))", StringComparison.Ordinal);
+            && !source.Contains("body.CopyTo(destination.Slice(offset, body.Length))", StringComparison.Ordinal));
     }
 }

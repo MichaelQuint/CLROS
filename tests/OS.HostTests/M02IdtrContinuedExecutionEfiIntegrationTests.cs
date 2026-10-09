@@ -16,363 +16,76 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
         "CLROS_M02_012_EFI_HOST_READY switchDefault=false " +
         "sourceLinked=true codePages=2 dataPages=1 contextBytes=80 " +
         "cleanup=true markerOrder=true guestExecution=false";
-    private const string StartMarker = "TEST_START m02.012";
+    private const string StartMarker = OS.Tooling.QemuContracts.Record122;
     private const string ReadyMarker =
-        "CLROS_M02_012_READY tableBytes=4096 idtrBytes=10 " +
-        "idtrLimit=4095 policyFnv=8514F42EBDFC5D55 " +
-        "firmwareGatesCopied=0 firmwareIdtrCaptured=true " +
-        "ownedIdtrLoaded=true ownedIdtrReadBack=true " +
-        "firmwareIdtrRestored=true restoreReadBack=true " +
-        "ownedIdtrActive=false continuedExecution=true cliWindow=true " +
-        "ifRestored=true instructionPublished=true " +
-        "allocationsReleased=true wxEnforced=false " +
-        "interruptTriggered=false faultTriggered=false " +
-        "markerTransport=uefiSerial postExitBootServices=false";
-    private const string PassMarker = "TEST_PASS m02.012";
+        OS.Tooling.QemuContracts.Record123;
+    private const string PassMarker = OS.Tooling.QemuContracts.Record124;
     private const string FailureMarker =
-        "M02_IDTR_CONTINUED_EXECUTION_FAILED";
+        OS.Tooling.QemuContracts.Record118;
     private const string FailureTestMarker =
         "TEST_FAIL m02.012 " +
         "idtr_load_readback_restore_return_or_cleanup";
     private const string HostOnlyReadyMarker =
-        "CLROS_M02_012_HOST_READY contextBytes=80 stubBytes=52 " +
-        "idtrBytes=10 tableBytes=4096 limit=4095 lidtPlan=2 " +
-        "sidtPlan=3 cliPlan=1 stiPlan=1 " +
-        "returnCookie=4F53494454523132 readBack=true " +
-        "guestExecution=false idtrLoaded=false idtrRestored=false " +
-        "continuedExecution=false faultTriggered=false " +
-        "postExitBootServices=false";
+        OS.Tooling.QemuContracts.Record119;
     private const string StandaloneM02011ReadyMarker =
-        "CLROS_M02_011_READY vectors=256 gates=256 gateBytes=16 " +
-        "tableBytes=4096 selector=8 present=256 dpl0=256 " +
-        "interruptGates=256 ownedHandlers=256 firmwareGatesCopied=0 " +
-        "nmiIst=3 doubleFaultIst=1 pageFaultIst=2 " +
-        "normalizedFnv1a64=8514F42EBDFC5D55 readBack=true " +
-        "guestPopulation=true loaderData=true allocationPages=3 " +
-        "allocationReleased=true stubExecution=false " +
-        "idtrLoaded=false faultTriggered=false " +
-        "markerTransport=uefiSerial postExitBootServices=false";
-    private const string CompileClosureSha256 =
-        "96f295814495f98ed4cc3b394429a5ea8206004c0806a22f0ab8144856a0058d";
-    private const string SourceClosureSha256 =
-        "1499540f03bcd994d06ccc0c4fe11aea213055c9efa18ddfafa8f8834c5ab1bf";
+        OS.Tooling.QemuContracts.Record120;
+    private static readonly string CompileClosureSha256 =
+        OS.Tooling.EfiContracts.CompileInventorySha256;
     private const string FrozenProductionSha256 =
         "7CBF5DD9FB17D8D9608237FC78D06FE00B40D7AFE8669E1196C72B9F1B6848EB";
-    private const string FrozenHostLeafSha256 =
-        "E9F296DE66CB3FC5ED29C565DDBC99A596EC9D3188019F6E810795821C6A2CD1";
+
     private const ulong ValidCodeAddress = 0x0020_0000UL;
     private const ulong ValidDataAddress = 0x0030_0000UL;
     private const ulong ValidContextAddress = 0x0040_0000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        Console.WriteLine("TEST_START " + TestName);
-        int failures = 0;
 
-        RunCase(
-            "M02-012 project source authority and tooling propagation are exact",
-            TestProjectAndToolingContract,
-            ref failures);
-        RunCase(
-            "M02-012 default and enabled NativeAOT artifacts prove exact provenance",
-            TestDefaultAndEnabledEfiArtifacts,
-            ref failures);
-        RunCase(
-            "M02-012 EFI adapter ordering and fail-closed boundaries are exact",
-            TestEfiEntryContract,
-            ref failures);
-        RunCase(
-            "M02-012 fake firmware covers hostile allocation audit and cleanup paths",
-            TestFakeFirmwareOrchestration,
-            ref failures);
-        RunCase(
-            "M02-012 QEMU profile and hostile arguments remain exact",
-            TestQemuProfilesAndHostileArguments,
-            ref failures);
-        RunCase(
-            "M02-012 transcript rejects missing reordered duplicate and failure records",
-            TestMarkerTranscriptRejection,
-            ref failures);
 
-        if (failures != 0)
-        {
-            Console.WriteLine(
-                "TEST_FAIL " + TestName + " host-contract failures=" + failures);
-            throw new InvalidOperationException(
-                "M02-012 EFI integration host tests failed: " + failures);
-        }
 
-        Console.WriteLine(HostReadyMarker);
-        Console.WriteLine("TEST_PASS " + TestName);
-    }
 
-    private static void RunCase(
-        string name,
-        Func<bool> test,
-        ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception exception)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + name + " " + exception.GetType().Name +
-                ": " + exception.Message);
-        }
-    }
-
+    [HostTest("M02-012 project source authority and tooling propagation are exact", HostLane.Native, 0)]
     private static bool TestProjectAndToolingContract()
     {
+        HostCheck.Registered(typeof(IDTRContinuedExecutionTests));
+        foreach (bool build in new[]
+        {
+        true,
+        false
+    }
+
+        )
+            HostCheck.True(OS.Tooling.EfiOptions.Parse(["--EnableM02IdtrContinuedExecutionProbe"], build).Profile().IsEnabled("EnableM02IdtrContinuedExecutionProbe"));
         string root = HostToolProcess.FindRepositoryRoot();
         string projectPath = Path.Combine(root, "src", "OS", "OS.csproj");
         XDocument project = XDocument.Load(projectPath);
         XElement[] compileItems = project.Descendants("Compile").ToArray();
-        string[] compileKeys = compileItems
-            .Select(item =>
-                (item.Attribute("Include")?.Value ?? string.Empty) + "|" +
-                (item.Attribute("Link")?.Value ?? string.Empty))
-            .ToArray();
-        string compileHash = Convert.ToHexString(
-                SHA256.HashData(
-                    Encoding.UTF8.GetBytes(
-                        string.Join("\n", compileKeys) + "\n")))
-            .ToLowerInvariant();
-
-        const string NormalizedKey =
-            @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
-        const string IdtKey =
-            @"..\OS.Kernel\Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs|Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs";
-        const string IdtrKey =
-            @"..\OS.Kernel\Diagnostics\IDTRContinuedExecution.cs|Diagnostics\IDTRContinuedExecution.cs";
-        const string EndianKey =
-            @"..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
+        string[] compileKeys = compileItems.Select(item => (item.Attribute("Include")?.Value ?? string.Empty) + "|" + (item.Attribute("Link")?.Value ?? string.Empty)).ToArray();
+        string compileHash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("\n", compileKeys) + "\n"))).ToLowerInvariant();
+        const string NormalizedKey = @"..\OS.Kernel\Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs|Diagnostics\NormalizeErrorCodeNonErrorCodeInterruptFrame.cs";
+        const string IdtKey = @"..\OS.Kernel\Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs|Diagnostics\PopulateAllN256IDTVectorsOwnedGatesNever.cs";
+        const string IdtrKey = @"..\OS.Kernel\Diagnostics\IDTRContinuedExecution.cs|Diagnostics\IDTRContinuedExecution.cs";
+        const string EndianKey = @"..\..\std\no-runtime\shared\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs|Std\Binary\IndependentEndianBinaryPrimitivesConformanceVectorsDerivedMOSA.cs";
         int normalizedIndex = Array.IndexOf(compileKeys, NormalizedKey);
         int idtIndex = Array.IndexOf(compileKeys, IdtKey);
         int idtrIndex = Array.IndexOf(compileKeys, IdtrKey);
         int endianIndex = Array.IndexOf(compileKeys, EndianKey);
-
-        XElement[] defaults = project
-            .Descendants("EnableM02IdtrContinuedExecutionProbe")
-            .Where(element => element.Parent?.Name.LocalName == "PropertyGroup")
-            .ToArray();
-        XElement[] symbolGroups = project
-            .Descendants("PropertyGroup")
-            .Where(group => group.Attribute("Condition")?.Value ==
-                "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true'")
-            .ToArray();
-        string[] forbiddenSwitches =
-        [
-            "EnableM02OwnedGdtTssTerminalProbe",
-            "EnableM02NormalizedInterruptFramePageProbe",
-            "EnableM02OwnedIdtGatePopulationProbe"
-        ];
-        string[] arrayExclusions =
-        [
-            "EnableM04SzArrayAllocationProbe",
-            "EnableM04SzArrayAllocationBeforeBindProbe",
-            "EnableM04SzArrayAllocationExhaustionProbe"
-        ];
-        string[] stringExclusions =
-        [
-            "EnableM04StringAllocationProbe",
-            "EnableM04StringAllocationBeforeBindProbe",
-            "EnableM04StringAllocationExhaustionProbe",
-            "EnableM04StringAllocationInvalidLengthProbe"
-        ];
-        XElement[] idtrExclusions = project
-            .Descendants("Error")
-            .Where(error =>
-                (error.Attribute("Condition")?.Value ?? string.Empty).StartsWith(
-                    "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true'",
-                    StringComparison.Ordinal))
-            .ToArray();
-        XElement[] ud2Exclusions = project
-            .Descendants("Error")
-            .Where(error => error.Attribute("Condition")?.Value ==
-                "'$(EnableM02Ud2VectorStateProbe)' == 'true' and " +
-                "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true'")
-            .ToArray();
-        bool exclusionsExact = idtrExclusions.Length == forbiddenSwitches.Length + arrayExclusions.Length + stringExclusions.Length + 7 &&
-            idtrExclusions.Count(error =>
-                error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'" &&
-                error.Attribute("Text")?.Value == "m03_typed_ebs_profile_conflict EnableM03TypedExitBootServicesCallProbe") == 1 &&
-            idtrExclusions.Count(error =>
-                error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" &&
-                error.Attribute("Text")?.Value == "m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe") == 1 &&
-            idtrExclusions.Count(error =>
-                error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'" &&
-                error.Attribute("Text")?.Value == "m04_type_manager_profile_conflict EnableM04TypeManagerModuleRegistrationProbe") == 1 &&
-            idtrExclusions.Count(error =>
-                error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'" &&
-                error.Attribute("Text")?.Value == "m04_checked_reference_profile_conflict EnableM04CheckedReferenceBarrierProbe") == 1 &&
-            idtrExclusions.Count(error =>
-                error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'" &&
-                error.Attribute("Text")?.Value == "m03_memory_map_capture_profile_conflict EnableM03MemoryMapCaptureProbe") == 1 &&
-            idtrExclusions.Count(error =>
-                error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" &&
-                error.Attribute("Text")?.Value == "m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe") == 1 &&
-            idtrExclusions.Count(error =>
-                error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" &&
-                error.Attribute("Text")?.Value == "m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe") == 1 &&
-            forbiddenSwitches.All(forbidden =>
-            idtrExclusions.Count(error =>
-                error.Attribute("Condition")?.Value ==
-                    "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and " +
-                    "'$({0})' == 'true'".Replace("{0}", forbidden,
-                        StringComparison.Ordinal) &&
-                error.Attribute("Text")?.Value ==
-                    "EnableM02IdtrContinuedExecutionProbe cannot be " +
-                    "combined with " + forbidden + "=true.") == 1) &&
-            arrayExclusions.All(forbidden =>
-                idtrExclusions.Count(error =>
-                    error.Attribute("Condition")?.Value ==
-                        "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and " +
-                        "'$(" + forbidden + ")' == 'true'" &&
-                    error.Attribute("Text")?.Value ==
-                        "m04_sz_array_profile_invalid " + forbidden) == 1) &&
-            stringExclusions.All(forbidden =>
-                idtrExclusions.Count(error =>
-                    error.Attribute("Condition")?.Value ==
-                        "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and " +
-                        "'$(" + forbidden + ")' == 'true'" &&
-                    error.Attribute("Text")?.Value ==
-                        "m04_string_profile_invalid " + forbidden) == 1);
-
-        string productionPath = Path.Combine(
-            root,
-            "src",
-            "OS.Kernel",
-            "Diagnostics",
-            "IDTRContinuedExecution.cs");
-        string hostLeafPath = Path.Combine(
-            root,
-            "tests",
-            "OS.HostTests",
-            "IDTRContinuedExecutionTests.cs");
-        string build = File.ReadAllText(
-            Path.Combine(root, "scripts", "build-efi-shell.ps1"));
-        string verifier = File.ReadAllText(
-            Path.Combine(root, "scripts", "test-efi-artifact.ps1"));
-        string qemu = File.ReadAllText(
-            Path.Combine(root, "scripts", "run-qemu-smoke.ps1"));
-        string probes = File.ReadAllText(Path.Combine(
-            root,
-            "src",
-            "OS.Kernel",
-            "Diagnostics",
-            "Probes.cs"));
-        string bootSequence = File.ReadAllText(Path.Combine(
-            root,
-            "src",
-            "OS.Kernel",
-            "Boot",
-            "BootSequence.cs"));
-        string[] buildCompileFirewall = ExtractPowerShellArray(
-            build,
-            "$script:ExpectedEfiCompileItems = @(");
-        string[] verifierCompileFirewall = ExtractPowerShellArray(
-            verifier,
-            "$expectedEfiCompileItems = @(");
-
-        return compileItems.Length == 122
-            && compileHash == CompileClosureSha256
-            && buildCompileFirewall.SequenceEqual(
-                compileKeys,
-                StringComparer.Ordinal)
-            && verifierCompileFirewall.SequenceEqual(
-                compileKeys,
-                StringComparer.Ordinal)
-            && normalizedIndex >= 0
-            && idtIndex == normalizedIndex + 1
-            && idtrIndex == idtIndex + 1
-            && endianIndex == idtrIndex + 15
-            && compileKeys.Count(key => key == IdtrKey) == 1
-            && compileItems.All(item =>
-                !(item.Attribute("Include")?.Value ?? string.Empty)
-                    .Contains('*', StringComparison.Ordinal))
-            && defaults.Length == 1
-            && defaults[0].Value == "false"
-            && defaults[0].Attribute("Condition")?.Value ==
-                "'$(EnableM02IdtrContinuedExecutionProbe)' == ''"
-            && symbolGroups.Length == 1
-            && symbolGroups[0].Elements("DefineConstants").Single().Value ==
-                "$(DefineConstants);M02_IDTR_CONTINUED_EXECUTION_PROBE"
-            && exclusionsExact
-            && ud2Exclusions.Length == 1
-            && ud2Exclusions[0].Attribute("Text")?.Value ==
-                "EnableM02Ud2VectorStateProbe cannot be combined with " +
-                "EnableM02IdtrContinuedExecutionProbe=true."
-            && Sha256File(productionPath) == FrozenProductionSha256
-            && Sha256File(hostLeafPath) == FrozenHostLeafSha256
-            && build.Contains(
-                "[switch] $EnableM02IdtrContinuedExecutionProbe",
-                StringComparison.Ordinal)
-            && build.Contains(
-                "-p:EnableM02IdtrContinuedExecutionProbe=true",
-                StringComparison.Ordinal)
-            && build.Contains(
-                "EFI_PUBLISH_SOURCE_AUTHORITY status=ok inputs=138",
-                StringComparison.Ordinal)
-            && verifier.Contains(
-                "[switch]$EnableM02IdtrContinuedExecutionProbe",
-                StringComparison.Ordinal)
-            && verifier.Contains(
-                "$expectedSourceClosureInputCount = 138",
-                StringComparison.Ordinal)
-            && verifier.Contains(
-                "$compileItems.Count -ne 122",
-                StringComparison.Ordinal)
-            && qemu.Contains(
-                "[switch] $EnableM02IdtrContinuedExecutionProbe",
-                StringComparison.Ordinal)
-            && qemu.Contains(
-                "m02_idtr_continued_execution_probe_requires_build_efi",
-                StringComparison.Ordinal)
-            && qemu.Contains(
-                "m02_idtr_continued_execution_probe_forbids_skip_image_build",
-                StringComparison.Ordinal)
-            && qemu.Contains(
-                "m02_idtr_continued_execution_marker_requires_typed_profile",
-                StringComparison.Ordinal)
-            && qemu.Contains(HostOnlyReadyMarker, StringComparison.Ordinal)
-            && qemu.Contains(StandaloneM02011ReadyMarker, StringComparison.Ordinal)
-            && !probes.Contains(
-                "EnableM02IdtrContinuedExecutionProbe",
-                StringComparison.Ordinal)
-            && !probes.Contains(
-                "M02_IDTR_CONTINUED_EXECUTION_PROBE",
-                StringComparison.Ordinal)
-            && !bootSequence.Contains(
-                "EnableM02IdtrContinuedExecutionProbe",
-                StringComparison.Ordinal)
-            && !bootSequence.Contains(
-                "M02_IDTR_CONTINUED_EXECUTION_PROBE",
-                StringComparison.Ordinal)
-            && TestBuildAndVerifierCollisionContracts(root);
+        XElement[] defaults = project.Descendants("EnableM02IdtrContinuedExecutionProbe").Where(element => element.Parent?.Name.LocalName == "PropertyGroup").ToArray();
+        XElement[] symbolGroups = project.Descendants("PropertyGroup").Where(group => group.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true'").ToArray();
+        string[] forbiddenSwitches = ["EnableM02OwnedGdtTssTerminalProbe", "EnableM02NormalizedInterruptFramePageProbe", "EnableM02OwnedIdtGatePopulationProbe"];
+        string[] arrayExclusions = ["EnableM04SzArrayAllocationProbe", "EnableM04SzArrayAllocationBeforeBindProbe", "EnableM04SzArrayAllocationExhaustionProbe"];
+        string[] stringExclusions = ["EnableM04StringAllocationProbe", "EnableM04StringAllocationBeforeBindProbe", "EnableM04StringAllocationExhaustionProbe", "EnableM04StringAllocationInvalidLengthProbe"];
+        XElement[] idtrExclusions = project.Descendants("Error").Where(error => (error.Attribute("Condition")?.Value ?? string.Empty).StartsWith("'$(EnableM02IdtrContinuedExecutionProbe)' == 'true'", StringComparison.Ordinal)).ToArray();
+        XElement[] ud2Exclusions = project.Descendants("Error").Where(error => error.Attribute("Condition")?.Value == "'$(EnableM02Ud2VectorStateProbe)' == 'true' and " + "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true'").ToArray();
+        bool exclusionsExact = idtrExclusions.Length == forbiddenSwitches.Length + arrayExclusions.Length + stringExclusions.Length + 7 && idtrExclusions.Count(error => error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM03TypedExitBootServicesCallProbe)' == 'true'" && error.Attribute("Text")?.Value == "m03_typed_ebs_profile_conflict EnableM03TypedExitBootServicesCallProbe") == 1 && idtrExclusions.Count(error => error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' == 'true'" && error.Attribute("Text")?.Value == "m04_gc_static_profile_conflict EnableM04GcStaticRootMaterializationProbe") == 1 && idtrExclusions.Count(error => error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true'" && error.Attribute("Text")?.Value == "m04_type_manager_profile_conflict EnableM04TypeManagerModuleRegistrationProbe") == 1 && idtrExclusions.Count(error => error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM04CheckedReferenceBarrierProbe)' == 'true'" && error.Attribute("Text")?.Value == "m04_checked_reference_profile_conflict EnableM04CheckedReferenceBarrierProbe") == 1 && idtrExclusions.Count(error => error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM03MemoryMapCaptureProbe)' == 'true'" && error.Attribute("Text")?.Value == "m03_memory_map_capture_profile_conflict EnableM03MemoryMapCaptureProbe") == 1 && idtrExclusions.Count(error => error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM03FirmwareEntropySeedProbe)' == 'true'" && error.Attribute("Text")?.Value == "m03_firmware_entropy_profile_conflict EnableM03FirmwareEntropySeedProbe") == 1 && idtrExclusions.Count(error => error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'" && error.Attribute("Text")?.Value == "m02_unexpected_vector_panic_profile_invalid EnableM02UnexpectedVectorPanicProbe") == 1 && forbiddenSwitches.All(forbidden => idtrExclusions.Count(error => error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and " + "'$({0})' == 'true'".Replace("{0}", forbidden, StringComparison.Ordinal) && error.Attribute("Text")?.Value == "EnableM02IdtrContinuedExecutionProbe cannot be " + "combined with " + forbidden + "=true.") == 1) && arrayExclusions.All(forbidden => idtrExclusions.Count(error => error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and " + "'$(" + forbidden + ")' == 'true'" && error.Attribute("Text")?.Value == "m04_sz_array_profile_invalid " + forbidden) == 1) && stringExclusions.All(forbidden => idtrExclusions.Count(error => error.Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == 'true' and " + "'$(" + forbidden + ")' == 'true'" && error.Attribute("Text")?.Value == "m04_string_profile_invalid " + forbidden) == 1);
+        string productionPath = Path.Combine(root, "src", "OS.Kernel", "Diagnostics", "IDTRContinuedExecution.cs");
+        string probes = File.ReadAllText(Path.Combine(root, "src", "OS.Kernel", "Diagnostics", "Probes.cs"));
+        string bootSequence = File.ReadAllText(Path.Combine(root, "src", "OS.Kernel", "Boot", "BootSequence.cs"));
+        return HostCheck.Result((compileItems.Length == OS.Tooling.EfiContracts.CompileItems.Count && compileHash == CompileClosureSha256 && normalizedIndex >= 0 && idtIndex == normalizedIndex + 1 && idtrIndex == idtIndex + 1 && endianIndex == idtrIndex + 15 && compileKeys.Count(key => key == IdtrKey) == 1 && compileItems.All(item => !(item.Attribute("Include")?.Value ?? string.Empty).Contains('*', StringComparison.Ordinal)) && defaults.Length == 1 && defaults[0].Value == "false" && defaults[0].Attribute("Condition")?.Value == "'$(EnableM02IdtrContinuedExecutionProbe)' == ''" && symbolGroups.Length == 1 && symbolGroups[0].Elements("DefineConstants").Single().Value == "$(DefineConstants);M02_IDTR_CONTINUED_EXECUTION_PROBE" && exclusionsExact && ud2Exclusions.Length == 1 && ud2Exclusions[0].Attribute("Text")?.Value == "EnableM02Ud2VectorStateProbe cannot be combined with " + "EnableM02IdtrContinuedExecutionProbe=true." && Sha256File(productionPath) == FrozenProductionSha256 && !probes.Contains("EnableM02IdtrContinuedExecutionProbe", StringComparison.Ordinal) && !probes.Contains("M02_IDTR_CONTINUED_EXECUTION_PROBE", StringComparison.Ordinal) && !bootSequence.Contains("EnableM02IdtrContinuedExecutionProbe", StringComparison.Ordinal) && !bootSequence.Contains("M02_IDTR_CONTINUED_EXECUTION_PROBE", StringComparison.Ordinal) && TestBuildAndVerifierCollisionContracts(root)) && OS.Tooling.ContractAudit.Inspect(root).Count == 0);
     }
 
     private static bool TestBuildAndVerifierCollisionContracts(string root)
     {
-        string buildScript = Path.Combine(
-            root,
-            "scripts",
-            "build-efi-shell.ps1");
-        string verifierScript = Path.Combine(
-            root,
-            "scripts",
-            "test-efi-artifact.ps1");
+        string buildScript = "efi build";
+        string verifierScript = "efi verify";
         string collisionArtifact = Path.Combine(
             root,
             "artifacts",
@@ -398,7 +111,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
 
         foreach ((string collisionSwitch, string reason) in collisions)
         {
-            ScriptResult buildCollision = RunPowerShellScript(
+            ScriptResult buildCollision = RunToolCommand(
                 root,
                 buildScript,
                 30_000,
@@ -408,7 +121,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
                 collisionArtifact,
                 "-LogPath",
                 collisionLog);
-            ScriptResult verifierCollision = RunPowerShellScript(
+            ScriptResult verifierCollision = RunToolCommand(
                 root,
                 verifierScript,
                 30_000,
@@ -439,10 +152,11 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
                 StringComparison.Ordinal);
     }
 
+    [HostTest("M02-012 default and enabled NativeAOT artifacts prove exact provenance", HostLane.Native, 1)]
     private static bool TestDefaultAndEnabledEfiArtifacts()
     {
         string root = HostToolProcess.FindRepositoryRoot();
-        string script = Path.Combine(root, "scripts", "build-efi-shell.ps1");
+        string script = "efi build";
         string artifactDirectory = Path.Combine(root, "artifacts", "efi");
         string logDirectory = Path.Combine(root, "artifacts", "logs");
         Directory.CreateDirectory(artifactDirectory);
@@ -455,7 +169,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
         string enabledArtifact = Path.Combine(
             artifactDirectory,
             "BOOTX64-M02-012-HOSTTEST-" + runIdentity + "-ENABLED.EFI");
-        ScriptResult defaultBuild = RunPowerShellScript(
+        ScriptResult defaultBuild = RunToolCommand(
             root,
             script,
             600_000,
@@ -465,7 +179,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
             Path.Combine(
                 logDirectory,
                 "m02-012-hosttest-" + runIdentity + "-default.log"));
-        ScriptResult enabledBuild = RunPowerShellScript(
+        ScriptResult enabledBuild = RunToolCommand(
             root,
             script,
             600_000,
@@ -539,6 +253,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
             provenanceExact;
     }
 
+    [HostTest("M02-012 EFI adapter ordering and fail-closed boundaries are exact", HostLane.Fast, 2)]
     private static bool TestEfiEntryContract()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -863,6 +578,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
             && !spin.Contains("FreePages", StringComparison.Ordinal);
     }
 
+    [HostTest("M02-012 fake firmware covers hostile allocation audit and cleanup paths", HostLane.Fast, 3)]
     private static bool TestFakeFirmwareOrchestration()
     {
         FakeTrace success = RunFakeProbe(new FakePlan());
@@ -1561,6 +1277,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
         ]);
     }
 
+    [HostTest("M02-012 QEMU profile and hostile arguments remain exact", HostLane.Fast, 4)]
     private static bool TestQemuProfilesAndHostileArguments()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -1714,15 +1431,14 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
                 ],
                 StringComparer.Ordinal)
             && m02012.Output.Contains(
-                "profileRequired=17 profileOrdered=17 profileUnique=6 " +
-                "profileForbidden=5",
+                $"QEMU_SCRIPT_PROFILE required={required.Length} ordered={ordered.Length} unique={unique.Length} forbidden={forbidden.Length}",
                 StringComparison.Ordinal)
             && FailsWith(
                 missingBuild,
-                "m02_idtr_continued_execution_probe_requires_build_efi")
+                "qemu_profile_requires_build_efi")
             && FailsWith(
                 skipImage,
-                "m02_idtr_continued_execution_probe_forbids_skip_image_build")
+                "qemu_profile_forbids_skip_image_build")
             && FailsWith(
                 terminalCollision,
                 "m02_idtr_continued_execution_probe_forbids_owned_gdt_tss_terminal")
@@ -1734,25 +1450,25 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
                 "m02_idtr_continued_execution_probe_forbids_owned_idt_gate_population_probe")
             && FailsWith(
                 markerWithoutProfile,
-                "m02_idtr_continued_execution_marker_requires_typed_profile")
+                "m02_idtr_continued_execution_requires_explicit_profile")
             && FailsWith(
                 markerPrefixWithoutProfile,
-                "m02_idtr_continued_execution_marker_requires_typed_profile")
+                "m02_idtr_continued_execution_requires_explicit_profile")
             && FailsWith(
                 packedMarkerWithoutProfile,
-                "m02_idtr_continued_execution_marker_requires_typed_profile")
+                "m02_idtr_continued_execution_requires_explicit_profile")
             && FailsWith(
                 orderedMarkerWithoutProfile,
-                "m02_idtr_continued_execution_marker_requires_typed_profile")
+                "m02_idtr_continued_execution_requires_explicit_profile")
             && FailsWith(
                 uniqueMarkerWithoutProfile,
-                "m02_idtr_continued_execution_marker_requires_typed_profile")
+                "m02_idtr_continued_execution_requires_explicit_profile")
             && FailsWith(
                 startMarkerWithoutProfile,
-                "m02_idtr_continued_execution_marker_requires_typed_profile")
+                "m02_idtr_continued_execution_requires_explicit_profile")
             && FailsWith(
                 passMarkerWithoutProfile,
-                "m02_idtr_continued_execution_marker_requires_typed_profile")
+                "m02_idtr_continued_execution_requires_explicit_profile")
             && typedExplicitReady.ExitCode == 0
             && typedExplicitRequired.SequenceEqual(
                 ExpectedM02012RequiredMarkers(),
@@ -1797,6 +1513,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
             && spanForbidden.Contains("TEST_FAIL", StringComparer.Ordinal);
     }
 
+    [HostTest("M02-012 transcript rejects missing reordered duplicate and failure records", HostLane.Fast, 5)]
     private static bool TestMarkerTranscriptRejection()
     {
         string root = HostToolProcess.FindRepositoryRoot();
@@ -2115,72 +1832,16 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
         return parser.Complete();
     }
 
-    private static ScriptResult RunQemuDryRun(
-        string root,
-        params string[] arguments)
+    private static ScriptResult RunQemuDryRun(string root, params string[] arguments)
     {
-        return RunPowerShellScript(
-            root,
-            Path.Combine(root, "scripts", "run-qemu-smoke.ps1"),
-            30_000,
-            ["-DryRun", "-BootPolicy", "Diagnostic", .. arguments]);
+        var result = HostToolProcess.RunTool(["qemu", "smoke", "--boot-policy", "Diagnostic", "--dry-run", .. arguments]);
+        return new(result.ExitCode, result.Output + result.Error);
     }
 
-    private static ScriptResult RunPowerShellScript(
-        string root,
-        string script,
-        int timeoutMilliseconds,
-        params string[] arguments)
+    private static ScriptResult RunToolCommand(string root, string command, int timeoutMilliseconds, params string[] arguments)
     {
-        string systemPowerShell = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.System),
-            "WindowsPowerShell",
-            "v1.0",
-            "powershell.exe");
-        ProcessStartInfo start = new(
-            File.Exists(systemPowerShell) ? systemPowerShell : "powershell.exe")
-        {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true,
-            WorkingDirectory = root
-        };
-        string windowsPowerShellModules = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.System),
-            "WindowsPowerShell",
-            "v1.0",
-            "Modules");
-        string inheritedModulePath =
-            Environment.GetEnvironmentVariable("PSModulePath") ?? string.Empty;
-        start.Environment["PSModulePath"] = inheritedModulePath.Length == 0
-            ? windowsPowerShellModules
-            : windowsPowerShellModules + Path.PathSeparator + inheritedModulePath;
-        start.ArgumentList.Add("-NoProfile");
-        start.ArgumentList.Add("-NonInteractive");
-        start.ArgumentList.Add("-ExecutionPolicy");
-        start.ArgumentList.Add("Bypass");
-        start.ArgumentList.Add("-File");
-        start.ArgumentList.Add(script);
-        foreach (string argument in arguments)
-        {
-            start.ArgumentList.Add(argument);
-        }
-
-        using Process process = Process.Start(start) ??
-            throw new InvalidOperationException("Could not start PowerShell.");
-        Task<string> stdout = process.StandardOutput.ReadToEndAsync();
-        Task<string> stderr = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(timeoutMilliseconds))
-        {
-            process.Kill(entireProcessTree: true);
-            process.WaitForExit();
-            throw new TimeoutException(
-                "M02-012 PowerShell command timed out: " + script);
-        }
-        return new ScriptResult(
-            process.ExitCode,
-            stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult());
+        var result = HostToolProcess.RunTool([.. command.Split(' '), .. arguments]);
+        return new(result.ExitCode, result.Output + result.Error);
     }
 
     private static ScriptResult RunProcess(
@@ -2257,14 +1918,14 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
             && evidence.GetProperty("artifactSha256").GetString() ==
                 Sha256File(artifactPath).ToLowerInvariant()
             && evidence.GetProperty("sourceClosureSha256").GetString() ==
-                SourceClosureSha256
+                HostToolProcess.SourceClosureSha256(root)
             && evidence.GetProperty("sourceProjectSha256").GetString() ==
                 Sha256File(Path.Combine(root, "src", "OS", "OS.csproj"))
                     .ToLowerInvariant()
             && evidence.GetProperty("entrySourceSha256").GetString() ==
                 Sha256File(Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs"))
                     .ToLowerInvariant()
-            && evaluation.GetProperty("compileCount").GetInt32() == 122
+            && evaluation.GetProperty("compileCount").GetInt32() == OS.Tooling.EfiContracts.CompileItems.Count
             && evaluation.GetProperty("compileSha256").GetString() ==
                 CompileClosureSha256
             && evaluation.GetProperty("projectReferenceCount").GetInt32() == 0
@@ -2291,48 +1952,12 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
             && properties.GetProperty(
                     "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe")
                 .GetString() == "false"
-            && inputElements.Length == 138
+            && inputElements.Length == expectedPaths.Length
             && actualPaths.SequenceEqual(expectedPaths, StringComparer.Ordinal)
             && inputHashesExact;
     }
 
-    private static string[] ExpectedSourceAuthorityPaths(string root)
-    {
-        string projectPath = Path.Combine(root, "src", "OS", "OS.csproj");
-        string projectDirectory = Path.GetDirectoryName(projectPath) ??
-            throw new InvalidOperationException("OS project directory is missing.");
-        XDocument project = XDocument.Load(projectPath);
-        List<string> paths =
-        [
-            "CLROS.slnx",
-            "Directory.Build.props",
-            "Directory.Build.targets",
-            "global.json",
-            "scripts/build-efi-shell.ps1",
-            "scripts/test-efi-artifact.ps1",
-            "src/OS/OS.csproj",
-            "tools/Directory.Build.props",
-            "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs",
-            "tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/ExceptionHandlingThunkGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs",
-            "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj",
-            "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets",
-            "tools/OS.X64TextSerializerGenerator/Program.cs"
-        ];
-        paths.AddRange(project
-            .Descendants("Compile")
-            .Select(item => item.Attribute("Include")?.Value ?? string.Empty)
-            .Select(include => Path.GetFullPath(
-                Path.Combine(projectDirectory, include)))
-            .Select(fullPath => Path.GetRelativePath(root, fullPath)
-                .Replace('\\', '/')));
-        return paths
-            .Distinct(StringComparer.Ordinal)
-            .OrderBy(path => path, StringComparer.Ordinal)
-            .ToArray();
-    }
+    private static string[] ExpectedSourceAuthorityPaths(string root) => OS.Tooling.EfiEvidence.SourceClosurePaths(root).ToArray();
 
     private static string TailForAudit(string value)
     {
@@ -2371,29 +1996,7 @@ internal static unsafe class M02IdtrContinuedExecutionEfiIntegrationTests
             : value.Split(';', StringSplitOptions.RemoveEmptyEntries);
     }
 
-    private static string[] ExtractPowerShellArray(
-        string source,
-        string declaration)
-    {
-        int start = source.IndexOf(declaration, StringComparison.Ordinal);
-        if (start < 0)
-        {
-            return [];
-        }
-        int bodyStart = start + declaration.Length;
-        int close = source.IndexOf("\n)", bodyStart, StringComparison.Ordinal);
-        if (close < 0)
-        {
-            return [];
-        }
-        return Regex.Matches(
-                source[bodyStart..close],
-                @"(?m)^\s*'(?<value>[^'\r\n]*)',?\s*$",
-                RegexOptions.CultureInvariant)
-            .Cast<Match>()
-            .Select(match => match.Groups["value"].Value)
-            .ToArray();
-    }
+
 
     private static string ExtractMethod(string source, string methodToken)
     {

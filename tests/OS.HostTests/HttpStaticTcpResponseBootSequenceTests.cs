@@ -12,57 +12,7 @@ internal static class HttpStaticTcpResponseBootSequenceTests
     private const uint LocalNextSequence = 0x1020_3040;
     private const uint RemoteNextSequence = 0x5060_7080;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run(
-            "boot.sequence http static tcp response emits ready marker",
-            TestEmitsReadyMarker,
-            ref failures);
-        Run(
-            "boot.sequence http static tcp response emits blocked marker",
-            TestEmitsBlockedMarker,
-            ref failures);
-        Run(
-            "boot.sequence http static tcp response reports formatter failure",
-            TestReportsFormatterFailure,
-            ref failures);
-        Run(
-            "boot.sequence http static tcp response preserves default markers",
-            TestPreservesDefaultMarkers,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "HTTP static TCP response BootSequence host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("boot.sequence http static tcp response emits ready marker", HostLane.Fast, 0)]
     private static bool TestEmitsReadyMarker()
     {
         HttpStaticTcpResponsePlanResult response = CreateSuccessfulResponsePlan();
@@ -73,7 +23,7 @@ internal static class HttpStaticTcpResponseBootSequenceTests
         BootResult boot = BootSequence.RunHttpStaticTcpResponseReadiness(response, serial, events);
         string[] snapshot = events.Snapshot();
 
-        return response.Succeeded
+        return HostCheck.Result(response.Succeeded
             && boot.Succeeded
             && serial.Count == 2
             && serial.LineAt(0) == diagnostic
@@ -85,9 +35,10 @@ internal static class HttpStaticTcpResponseBootSequenceTests
             && serial.LineAt(1) == BootSequence.HttpStaticTcpResponseReady
             && snapshot.Length == 2
             && snapshot[0] == serial.LineAt(0)
-            && snapshot[1] == BootSequence.HttpStaticTcpResponseReady;
+            && snapshot[1] == BootSequence.HttpStaticTcpResponseReady);
     }
 
+    [HostTest("boot.sequence http static tcp response emits blocked marker", HostLane.Fast, 1)]
     private static bool TestEmitsBlockedMarker()
     {
         HttpStaticTcpResponsePlanResult response = CreateUninitializedTcpDispatchResponsePlan();
@@ -96,7 +47,7 @@ internal static class HttpStaticTcpResponseBootSequenceTests
 
         BootResult boot = BootSequence.RunHttpStaticTcpResponseReadiness(response, serial, events);
 
-        return response.IsInitialized
+        return HostCheck.Result(response.IsInitialized
             && !response.Succeeded
             && response.Status == HttpStaticTcpResponsePlanStatus.TcpDispatchNotInitialized
             && !boot.Succeeded
@@ -114,9 +65,10 @@ internal static class HttpStaticTcpResponseBootSequenceTests
             && serial.LineAt(0).Contains("plan=TcpDispatchNotInitialized", StringComparison.Ordinal)
             && serial.LineAt(0).Contains("tcp=Success", StringComparison.Ordinal)
             && serial.LineAt(0).Contains("http=Success", StringComparison.Ordinal)
-            && events.Snapshot()[0] == serial.LineAt(0);
+            && events.Snapshot()[0] == serial.LineAt(0));
     }
 
+    [HostTest("boot.sequence http static tcp response reports formatter failure", HostLane.Fast, 2)]
     private static bool TestReportsFormatterFailure()
     {
         HttpStaticTcpResponsePlanResult response = HttpStaticTcpResponsePlanResult.Fail(
@@ -130,7 +82,7 @@ internal static class HttpStaticTcpResponseBootSequenceTests
 
         BootResult boot = BootSequence.RunHttpStaticTcpResponseReadiness(response, serial, events);
 
-        return response.IsInitialized
+        return HostCheck.Result(response.IsInitialized
             && response.Succeeded
             && !boot.Succeeded
             && boot.Reason.Contains(
@@ -144,9 +96,10 @@ internal static class HttpStaticTcpResponseBootSequenceTests
             && serial.LineAt(0).Contains("plan=Success", StringComparison.Ordinal)
             && serial.LineAt(0).Contains("format=InvalidResult", StringComparison.Ordinal)
             && serial.LineAt(0).Contains("httpStatus=0", StringComparison.Ordinal)
-            && events.Snapshot()[0] == serial.LineAt(0);
+            && events.Snapshot()[0] == serial.LineAt(0));
     }
 
+    [HostTest("boot.sequence http static tcp response preserves default markers", HostLane.Fast, 3)]
     private static bool TestPreservesDefaultMarkers()
     {
         SequenceTestSerialSink serial = new SequenceTestSerialSink();
@@ -155,20 +108,20 @@ internal static class HttpStaticTcpResponseBootSequenceTests
 
         if (!result.Succeeded || serial.Count != BootSequencePlan.LineCount)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         for (int lineIndex = 0; lineIndex < BootSequencePlan.LineCount; lineIndex++)
         {
             if (serial.LineAt(lineIndex) != BootSequence.CreatePlanLine(lineIndex))
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return !serial.Contains(BootSequence.HttpStaticTcpResponseReady)
+        return HostCheck.Result(!serial.Contains(BootSequence.HttpStaticTcpResponseReady)
             && !serial.ContainsPrefix(BootSequence.HttpStaticTcpResponseNotReadyPrefix)
-            && !serial.ContainsPrefix("HTTP_STATIC_TCP_RESPONSE status=");
+            && !serial.ContainsPrefix("HTTP_STATIC_TCP_RESPONSE status="));
     }
 
     private static HttpStaticTcpResponsePlanResult CreateSuccessfulResponsePlan()

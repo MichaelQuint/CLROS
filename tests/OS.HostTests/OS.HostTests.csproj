@@ -7,9 +7,17 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<DefineConstants>$(DefineConstants);TYPE_MANAGER_CAPTURE_HOST</DefineConstants>
+		<!-- The linked production EFI adapter has its own Main; this harness uses
+		     its top-level entry point and invokes only the mapped adapter controls. -->
+		<NoWarn>$(NoWarn);CS7022</NoWarn>
 	</PropertyGroup>
 
 	<ItemGroup>
+		<Compile Include="..\..\src\OS\Boot\EfiEntry.cs" Link="EfiAdapters\EfiEntry.cs" />
+		<Compile Include="..\..\src\OS\Boot\EfiConsoleAdapter.cs" Link="EfiAdapters\EfiConsoleAdapter.cs" />
+		<Compile Include="..\..\src\OS\Runtime\NativeAotModuleRegistrationProbe.cs" Link="EfiAdapters\NativeAotModuleRegistrationProbe.cs" />
+		<ProjectReference Include="..\..\tools\OS.Tooling\OS.Tooling.csproj" />
 		<ProjectReference Include="..\..\src\OS.Kernel\OS.Kernel.csproj" />
 		<ProjectReference Include="..\..\std\no-runtime\shared\OS.Std.NoRuntime.Shared.csproj" />
 		<ProjectReference Include="..\..\tools\OS.ImageBuilder\OS.ImageBuilder.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
@@ -17,5 +25,25 @@
 		<ProjectReference Include="..\..\tools\OS.ManifestTool\OS.ManifestTool.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
 		<ProjectReference Include="..\..\tools\OS.QemuRunner\OS.QemuRunner.csproj" />
 	</ItemGroup>
+
+  <Target Name="CaptureHostTestBuildInputs" BeforeTargets="AssignTargetPaths" DependsOnTargets="ResolveReferences">
+    <ItemGroup>
+      <_HostTestInput Include="@(Compile);@(ReferencePath);$(MSBuildProjectFullPath);$(MSBuildThisFileDirectory)..\..\global.json;$(MSBuildThisFileDirectory)..\..\CLROS.slnx;$(MSBuildThisFileDirectory)..\..\Directory.Build.props;$(MSBuildThisFileDirectory)..\..\Directory.Build.targets;$(MSBuildThisFileDirectory)..\..\.gitea\backlog\clros-issues.json" />
+      <_HostTestInput Include="$(MSBuildThisFileDirectory)..\..\apps\**\*.cs;$(MSBuildThisFileDirectory)..\..\apps\**\*.csproj;$(MSBuildThisFileDirectory)..\..\apps\**\*.props;$(MSBuildThisFileDirectory)..\..\apps\**\*.targets;$(MSBuildThisFileDirectory)..\..\apps\**\*.json"
+        Exclude="$(MSBuildThisFileDirectory)..\..\**\obj\**;$(MSBuildThisFileDirectory)..\..\**\bin\**;$(MSBuildThisFileDirectory)..\..\**\artifacts\**" />
+      <_HostTestInput Include="$(MSBuildThisFileDirectory)..\..\src\**\*.cs;$(MSBuildThisFileDirectory)..\..\src\**\*.csproj;$(MSBuildThisFileDirectory)..\..\std\**\*.cs;$(MSBuildThisFileDirectory)..\..\std\**\*.csproj;$(MSBuildThisFileDirectory)..\..\tools\**\*.cs;$(MSBuildThisFileDirectory)..\..\tools\**\*.csproj;$(MSBuildThisFileDirectory)..\**\*.cs;$(MSBuildThisFileDirectory)..\**\*.csproj"
+        Exclude="$(MSBuildThisFileDirectory)..\..\**\obj\**;$(MSBuildThisFileDirectory)..\..\**\bin\**;$(MSBuildThisFileDirectory)..\..\**\artifacts\**" />
+      <_HostTestInput Include="$(MSBuildThisFileDirectory)..\..\src\**\*.props;$(MSBuildThisFileDirectory)..\..\src\**\*.targets;$(MSBuildThisFileDirectory)..\..\std\**\*.props;$(MSBuildThisFileDirectory)..\..\std\**\*.targets;$(MSBuildThisFileDirectory)..\..\tools\**\*.props;$(MSBuildThisFileDirectory)..\..\tools\**\*.targets;$(MSBuildThisFileDirectory)..\**\*.props;$(MSBuildThisFileDirectory)..\**\*.targets;$(MSBuildThisFileDirectory)..\..\scripts\*.ps1;$(MSBuildThisFileDirectory)..\..\.gitea\workflows\*.yml"
+        Exclude="$(MSBuildThisFileDirectory)..\..\**\obj\**;$(MSBuildThisFileDirectory)..\..\**\bin\**;$(MSBuildThisFileDirectory)..\..\**\artifacts\**" />
+    </ItemGroup>
+    <GetFileHash Files="@(_HostTestInput)" Algorithm="SHA256">
+      <Output TaskParameter="Items" ItemName="_HostTestInputHash" />
+    </GetFileHash>
+    <WriteLinesToFile File="$(IntermediateOutputPath)host-test-inputs.txt"
+      Lines="@(_HostTestInputHash->'%(FullPath)|%(FileHash)')" Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <EmbeddedResource Include="$(IntermediateOutputPath)host-test-inputs.txt" LogicalName="host-test-inputs.txt" />
+    </ItemGroup>
+  </Target>
 
 </Project>

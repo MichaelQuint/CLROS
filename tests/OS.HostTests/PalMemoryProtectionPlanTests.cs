@@ -5,46 +5,7 @@ internal static class PalMemoryProtectionPlanTests
 {
     private const ulong PageSize = OSHostMemoryProtectionPlan.DefaultPageSize;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("pal.memory protect accepts write then execute", TestAcceptsWriteThenExecute, ref failures);
-        Run("pal.memory protect rejects rwx", TestRejectsRwx, ref failures);
-        Run("pal.memory protect rejects unaligned range", TestRejectsUnalignedRange, ref failures);
-        Run("pal.memory protect rejects overflow", TestRejectsOverflow, ref failures);
-        Run("pal.memory protect rejects invalid transition", TestRejectsInvalidTransition, ref failures);
-        Run("pal.memory protect default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL memory protection plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.memory protect accepts write then execute", HostLane.Fast, 0)]
     private static bool TestAcceptsWriteThenExecute()
     {
         OSHostPageProtection readWrite =
@@ -58,7 +19,7 @@ internal static class PalMemoryProtectionPlanTests
             currentProtection: readWrite,
             requestedProtection: readExecute);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == OSHostMemoryProtectionPlanStatus.Success
             && result.HostStatus == OSHostStatus.Ok
@@ -68,9 +29,10 @@ internal static class PalMemoryProtectionPlanTests
             && result.PageSizeBytes == PageSize
             && result.PageCount == 2
             && result.CurrentProtection == readWrite
-            && result.RequestedProtection == readExecute;
+            && result.RequestedProtection == readExecute);
     }
 
+    [HostTest("pal.memory protect rejects rwx", HostLane.Fast, 1)]
     private static bool TestRejectsRwx()
     {
         OSHostPageProtection readWrite =
@@ -91,16 +53,17 @@ internal static class PalMemoryProtectionPlanTests
             currentProtection: readWriteExecute,
             requestedProtection: OSHostPageProtection.Read | OSHostPageProtection.Execute);
 
-        return !requestedRwx.Succeeded
+        return HostCheck.Result(!requestedRwx.Succeeded
             && requestedRwx.IsInitialized
             && requestedRwx.Status == OSHostMemoryProtectionPlanStatus.WritableExecutableRejected
             && requestedRwx.HostStatus == OSHostStatus.AccessDenied
             && !currentRwx.Succeeded
             && currentRwx.IsInitialized
             && currentRwx.Status == OSHostMemoryProtectionPlanStatus.WritableExecutableRejected
-            && OSHostMemoryProtectionPlan.IsWritableExecutable(readWriteExecute);
+            && OSHostMemoryProtectionPlan.IsWritableExecutable(readWriteExecute));
     }
 
+    [HostTest("pal.memory protect rejects unaligned range", HostLane.Fast, 2)]
     private static bool TestRejectsUnalignedRange()
     {
         OSHostPageProtection readWrite =
@@ -119,15 +82,16 @@ internal static class PalMemoryProtectionPlanTests
             currentProtection: readWrite,
             requestedProtection: readExecute);
 
-        return !unalignedBase.Succeeded
+        return HostCheck.Result(!unalignedBase.Succeeded
             && unalignedBase.IsInitialized
             && unalignedBase.Status == OSHostMemoryProtectionPlanStatus.InvalidRange
             && unalignedBase.HostStatus == OSHostStatus.InvalidArgument
             && !unalignedLength.Succeeded
             && unalignedLength.IsInitialized
-            && unalignedLength.Status == OSHostMemoryProtectionPlanStatus.InvalidRange;
+            && unalignedLength.Status == OSHostMemoryProtectionPlanStatus.InvalidRange);
     }
 
+    [HostTest("pal.memory protect rejects overflow", HostLane.Fast, 3)]
     private static bool TestRejectsOverflow()
     {
         OSHostPageProtection readWrite =
@@ -141,14 +105,15 @@ internal static class PalMemoryProtectionPlanTests
             currentProtection: readWrite,
             requestedProtection: readExecute);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == OSHostMemoryProtectionPlanStatus.RangeOverflow
             && result.HostStatus == OSHostStatus.InvalidArgument
             && result.EndAddress == 0
-            && result.PageCount == 0;
+            && result.PageCount == 0);
     }
 
+    [HostTest("pal.memory protect rejects invalid transition", HostLane.Fast, 4)]
     private static bool TestRejectsInvalidTransition()
     {
         OSHostMemoryProtectionPlanResult result = OSHostMemoryProtectionPlan.Create(
@@ -157,17 +122,18 @@ internal static class PalMemoryProtectionPlanTests
             currentProtection: OSHostPageProtection.Read | OSHostPageProtection.Execute,
             requestedProtection: OSHostPageProtection.Read | OSHostPageProtection.Write);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.IsInitialized
             && result.Status == OSHostMemoryProtectionPlanStatus.InvalidTransition
-            && result.HostStatus == OSHostStatus.InvalidArgument;
+            && result.HostStatus == OSHostStatus.InvalidArgument);
     }
 
+    [HostTest("pal.memory protect default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         OSHostMemoryProtectionPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == OSHostMemoryProtectionPlanStatus.Success
             && result.HostStatus == OSHostStatus.Ok
@@ -178,6 +144,6 @@ internal static class PalMemoryProtectionPlanTests
             && result.PageCount == 0
             && result.CurrentProtection == OSHostPageProtection.None
             && result.RequestedProtection == OSHostPageProtection.None
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostMemoryProtectionPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostMemoryProtectionPlanResult>());
     }
 }

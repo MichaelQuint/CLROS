@@ -165,18 +165,7 @@ internal static unsafe class MemoryMapCaptureHost
 internal static class M03MemoryMapCaptureEfiIntegrationTests
 {
     private const string Flag="EnableM03MemoryMapCaptureProbe";
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        Run("source profile closure and original capture",TestSource);
-        Run("actual original capture controlled callbacks and guarded copy",TestCapture);
-        Run("ordinary source admission and unchanged generic firewall",TestFirewall);
-        Run("strict whole transcript and ordinary lifecycle",TestTranscript);
-        Run("all reciprocal profile collisions and ordinary dry runs",TestProfiles);
-        Run("default and enabled native artifacts and managed ABI",TestArtifacts);
-    }
-    private static void Run(string name,Action action)
-    {Console.WriteLine("TEST_START m03.001.efi "+name);try{action();Console.WriteLine("TEST_PASS m03.001.efi "+name);}catch(Exception e){Console.WriteLine("TEST_FAIL m03.001.efi "+name+" "+e.Message);throw;}}
+
     private static void Need(bool value,string reason){if(!value)throw new InvalidOperationException(reason);}
     private static string Root()=>HostToolProcess.FindRepositoryRoot();
     private static string Hash(byte[] bytes)=>Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
@@ -196,11 +185,22 @@ internal static class M03MemoryMapCaptureEfiIntegrationTests
         File.WriteAllText(Path.Combine(directory,"result.json"),JsonSerializer.Serialize(new{NativeExit=p.ExitCode,TimedOut=timeout,StartedUtc=begin,EndedUtc=DateTime.UtcNow}));
         return new(p.ExitCode,stdout,stderr,timeout);
     }
+    private static Result Profile(bool build,string[] args)
+    {
+        var result=HostToolProcess.ValidateEfiProfile(build,args);
+        return new(result.ExitCode,result.Output,result.Error,false);
+    }
+    private static Result Tool(params string[] args)
+    {
+        var result=HostToolProcess.RunTool(args);
+        return new(result.ExitCode,result.Output,result.Error,false);
+    }
     private static void Passed(Result r)=>Need(!r.TimedOut&&r.Code==0&&r.Error.Length==0,r.Output+r.Error);
+    [HostTest("m03.001.efi source profile closure and original capture", HostLane.Fast, 0)]
     private static void TestSource()
     {
         string root=Root();var project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));var compile=project.Descendants("Compile").ToArray();
-        Need(compile.Length==122&&compile[85].Attribute("Include")!.Value=="..\\OS.Kernel\\Diagnostics\\MemoryMapCaptureProbeAuthority.cs"&&compile[85].Attribute("Link")!.Value=="Diagnostics\\MemoryMapCaptureProbeAuthority.cs","exact one appended source");
+        Need(compile.Length==OS.Tooling.EfiContracts.CompileItems.Count&&compile[85].Attribute("Include")!.Value=="..\\OS.Kernel\\Diagnostics\\MemoryMapCaptureProbeAuthority.cs"&&compile[85].Attribute("Link")!.Value=="Diagnostics\\MemoryMapCaptureProbeAuthority.cs","exact one appended source");
         var flag=project.Descendants(Flag).Single();Need(flag.Value=="false"&&flag.Attribute("Condition")!.Value=="'$("+Flag+")' == ''","explicit false default");
         Need(project.Descendants("PropertyGroup").Single(x=>x.Attribute("Condition")?.Value=="'$("+Flag+")' == 'true'").Element("DefineConstants")!.Value=="$(DefineConstants);M03_MEMORY_MAP_CAPTURE_PROBE","exact compiler symbol");
         string[] flags=Flags();Need(flags.Length==41&&flags.Distinct(StringComparer.Ordinal).Count()==41,"all41 conflicts");
@@ -221,6 +221,7 @@ internal static class M03MemoryMapCaptureEfiIntegrationTests
         // Only these assignments record addresses; no firmware-table mutation exists.
         Need(observer.Contains("o->GetMemoryMap = (ulong)services->GetMemoryMap",StringComparison.Ordinal)&&observer.Contains("o->AllocatePool = (ulong)services->AllocatePool",StringComparison.Ordinal),"retained originals");
     }
+    [HostTest("m03.001.efi actual original capture controlled callbacks and guarded copy", HostLane.Native, 1)]
     private static void TestCapture()
     {
         string root=Root(),directory=Scratch("actual-capture");
@@ -239,35 +240,24 @@ internal static class M03MemoryMapCaptureEfiIntegrationTests
         Result r=Process(directory,"dotnet","run","--project",Path.Combine(directory,"Capture.csproj"),"-c","Release","--nologo");Passed(r);
         Need(r.Output.Contains("TEST_PASS m03.capture.host.tests",StringComparison.Ordinal)&&r.Output.Contains("distinctCaptureSizeSlots=true",StringComparison.Ordinal),"complete actual Capture child");
     }
+    [HostTest("m03.001.efi strict whole transcript and ordinary lifecycle", HostLane.Fast, 3)]
     private static void TestTranscript()=>TranscriptControls();
+    [HostTest("m03.001.efi ordinary source admission and unchanged generic firewall", HostLane.Fast, 2)]
     private static void TestFirewall()
     {
-        string directory=Scratch("firewall"),script=Path.Combine(directory,"Test.ps1");
-        File.WriteAllText(script,"""
-            param([string]$Root)
-            $ErrorActionPreference='Stop';$t=$null;$e=$null
-            $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $Root 'scripts/build-efi-shell.ps1'),[ref]$t,[ref]$e)
-            if($e.Count){throw 'parse'}
-            foreach($name in @('Get-M01Utf8Sha256','Get-NostdlibEfiActiveSource','Test-M01ActiveSourceSurface')) {
-                $f=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq $name},$true);. ([scriptblock]::Create($f.Extent.Text))
-            }
-            $name='..\OS.Kernel\Diagnostics\MemoryMapCaptureProbeAuthority.cs'
-            $source=[IO.File]::ReadAllText((Join-Path $Root 'src/OS.Kernel/Diagnostics/MemoryMapCaptureProbeAuthority.cs'))
-            if(-not(Test-M01ActiveSourceSurface $source $name).Succeeded){throw 'ordinary authority rejected'}
-            foreach($bad in @('using System.Text;','class Bad { object M()=>new object(); }','class Bad { void M(){throw null;} }','class Bad { [System.Runtime.InteropServices.UnmanagedCallersOnly] static void M(){} }')) {
-                if((Test-M01ActiveSourceSurface ($source+"`n"+$bad) $name).Succeeded){throw 'generic source bypass'}
-            }
-            Write-Output 'TEST_PASS m03.capture.firewall'
-            """);
-        Result r=Process(directory,"powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",script,"-Root",Root());Passed(r);
-        Need(r.Output.Contains("TEST_PASS m03.capture.firewall",StringComparison.Ordinal),"ordinary exact authority admission");
+        string name=@"..\OS.Kernel\Diagnostics\MemoryMapCaptureProbeAuthority.cs";
+        string source=File.ReadAllText(Path.Combine(Root(),"src/OS.Kernel/Diagnostics/MemoryMapCaptureProbeAuthority.cs"));
+        Need(OS.Tooling.EfiSourceAdmission.Inspect(source,name).Succeeded,"ordinary authority admission");
+        foreach(string bad in new[]{"using System.Text;","class Bad { object M()=>new object(); }","class Bad { void M(){throw null;} }","class Bad { [System.Runtime.InteropServices.UnmanagedCallersOnly] static void M(){} }"})
+            Need(!OS.Tooling.EfiSourceAdmission.Inspect(source+"\n"+bad,name).Succeeded,"generic source bypass");
     }
+    [HostTest("m03.001.efi all reciprocal profile collisions and ordinary dry runs", HostLane.Native, 4)]
     private static void TestProfiles()
     {
         string directory=Scratch("profiles");int index=0;
-        foreach(string other in Flags())foreach(string file in new[]{"build-efi-shell.ps1","test-efi-artifact.ps1","run-qemu-smoke.ps1"})
+        foreach(string other in Flags())foreach(string file in new[]{"build","verify","qemu"})
         {
-            string[] extra=file.StartsWith("build-",StringComparison.Ordinal)?["-PreflightOnly","-LogPath",Path.Combine(directory,"preflight-"+index+".log")]:file.StartsWith("test-",StringComparison.Ordinal)?["-EfiArtifact","missing.EFI"]:["-BootPolicy","Diagnostic","-DryRun","-BuildEfi"];
+            string[] extra=file=="build"?["-PreflightOnly","-LogPath",Path.Combine(directory,"preflight-"+index+".log")]:file=="verify"?["-EfiArtifact","missing.EFI"]:["-BootPolicy","Diagnostic","-DryRun","-BuildEfi"];
             // The new reference profile validates first; admit its prerequisites to test the actual reciprocal conflict.
             string[] companion=other=="EnableM04CheckedReferenceBarrierProbe"?
                 ["-EnableM01LoadedImageStackProbe","-EnableM01LiveAllocatorProbe","-EnableM04IndependentEndianConformanceProbe",
@@ -275,35 +265,36 @@ internal static class M03MemoryMapCaptureEfiIntegrationTests
                  "-EnableM04LayoutContractProbe","-EnableM04ManagedHeapPageRangeProbe","-EnableM04RhpNewFastProbe"]:[];
             string expected=other=="EnableM04GcStaticRootMaterializationProbe"?"m04_gc_static_profile_invalid property=EnableM01LoadedImageStackProbe":other=="EnableM03TypedExitBootServicesCallProbe"?"m03_typed_ebs_profile_conflict property=EnableM03MemoryMapCaptureProbe":other=="EnableM04TypeManagerModuleRegistrationProbe"?"m04_type_manager_requires_original_loaded_image":other=="EnableM03FirmwareEntropySeedProbe"?"m03_firmware_entropy_profile_conflict property=EnableM03MemoryMapCaptureProbe":other=="EnableM04CheckedReferenceBarrierProbe"?
                 "m04_checked_reference_profile_conflict property=EnableM03MemoryMapCaptureProbe":"m03_memory_map_capture_profile_conflict";
-            Result r=Process(Path.Combine(directory,(index++).ToString()),"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(Root(),"scripts",file),..extra,"-"+Flag,"-"+other,..companion]);
+            Result r = file=="qemu" ? Tool(["qemu","smoke",..extra,"-"+Flag,"-"+other,..companion]) : Profile(file=="build",[..extra,"-"+Flag,"-"+other,..companion]);index++;
             Need(r.Code!=0&&!r.TimedOut&&(r.Output+r.Error).Contains(expected,StringComparison.Ordinal),"exact early conflict "+other+" "+r.Output+r.Error);
         }
         foreach(bool enabled in new[]{false,true})
         {
-            Result r=Process(Path.Combine(directory,(index++).ToString()),"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(Root(),"scripts/run-qemu-smoke.ps1"),"-BootPolicy","Diagnostic","-DryRun","-BuildEfi",..(enabled?new[]{"-"+Flag}:Array.Empty<string>())]);Passed(r);
+            Result r=Tool(["qemu","smoke","-BootPolicy","Diagnostic","-DryRun","-BuildEfi",..(enabled?new[]{"-"+Flag}:Array.Empty<string>())]);Passed(r);
             string ordered=r.Output.Replace("\r","").Split('\n').Single(x=>x.StartsWith("ORDERED_MARKERS ",StringComparison.Ordinal));
-            Need(enabled?ordered.Split(';').Length==31:!ordered.Contains("m03.001.capture",StringComparison.Ordinal),"default/enabled exact ordered marker selection");
+            Need(enabled?ordered.Split(';').Length==OS.Tooling.QemuContracts.M03MemoryMapCaptureRequiredMarkers.Count:!ordered.Contains("m03.001.capture",StringComparison.Ordinal),"default/enabled exact ordered marker selection");
             if(enabled)
             {
                 string[] outputLines=r.Output.Replace("\r","").Split('\n');
                 string[][] vectors=new[]{"REQUIRED_MARKERS ","ORDERED_MARKERS ","UNIQUE_MARKERS "}.Select(prefix=>outputLines.Single(line=>line.StartsWith(prefix,StringComparison.Ordinal))[prefix.Length..].Split(';')).ToArray();
-                Need(vectors.All(vector=>vector.Length==31&&vector.Distinct(StringComparer.Ordinal).Count()==31&&vector.All(marker=>marker==marker.Trim()))&&vectors[0].ToHashSet(StringComparer.Ordinal).SetEquals(vectors[1])&&vectors[1].SequenceEqual(vectors[2],StringComparer.Ordinal),"31 canonical unique matching required set and exact ordered unique sequence");
+                Need(vectors.All(vector=>vector.Length==OS.Tooling.QemuContracts.M03MemoryMapCaptureRequiredMarkers.Count&&vector.Distinct(StringComparer.Ordinal).Count()==vector.Length&&vector.All(marker=>marker==marker.Trim()))&&vectors[0].ToHashSet(StringComparer.Ordinal).SetEquals(vectors[1])&&vectors[1].SequenceEqual(vectors[2],StringComparer.Ordinal),"31 canonical unique matching required set and exact ordered unique sequence");
             }
         }
     }
+    [HostTest("m03.001.efi default and enabled native artifacts and managed ABI", HostLane.Native, 5)]
     private static void TestArtifacts()
     {
         foreach(bool enabled in new[]{false,true})
         {
             string directory=Scratch(enabled?"enabled":"default"),artifact=Path.Combine(Root(),"artifacts/efi/issue532-"+Guid.NewGuid().ToString("N")+".EFI");
-            Result r=Process(directory,"powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",Path.Combine(Root(),"scripts/build-efi-shell.ps1"),"-EfiOutputPath",artifact,"-LogPath",Path.Combine(directory,"publish.log"),..(enabled?new[]{"-"+Flag}:Array.Empty<string>())]);Passed(r);
+            Result r=Tool(["efi","build","-EfiOutputPath",artifact,"-LogPath",Path.Combine(directory,"publish.log"),..(enabled?new[]{"-"+Flag}:Array.Empty<string>())]);Passed(r);
             Need(r.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal)&&r.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),"complete artifact producer/verifier");
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var pair in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(Root(),pair.Item1),Path.Combine(directory,pair.Item2));
-            using var json=JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=json.RootElement;var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==138,"actual138 raw inputs");
+            using var json=JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=json.RootElement;var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Select(i=>i.GetProperty("path").GetString()).SequenceEqual(OS.Tooling.EfiEvidence.SourceClosurePaths(Root()),StringComparer.Ordinal),"exact raw source inventory");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(Root(),input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw hash");
-            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==122,"actual122 Compile");
-            var properties=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Need(properties.Length==52,"actual52 profile flags");
+            var evaluation=e.GetProperty("postRestoreEvaluation");Need(evaluation.GetProperty("compileCount").GetInt32()==OS.Tooling.EfiContracts.CompileItems.Count,"actual122 Compile");
+            var properties=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Need(properties.Length==OS.Tooling.EfiContracts.DiagnosticProbes.Count,"all evaluated profile flags");
             foreach(var p in properties)Need(p.Value.GetString()==(enabled&&p.Name==Flag?"true":"false"),"exact requested/evaluated "+p.Name);
             InspectMetadata(Path.Combine(directory,"OS.dll"),enabled);
         }
@@ -331,68 +322,66 @@ internal static class M03MemoryMapCaptureEfiIntegrationTests
         File.WriteAllText(Path.ChangeExtension(path,"metadata.json"),JsonSerializer.Serialize(new{AssemblyReferences=reader.AssemblyReferences.Count,GuestExecuted=false,
             Methods=type.GetMethods().Select(h=>{var m=reader.GetMethodDefinition(h);return new{Name=reader.GetString(m.Name),Rva=m.RelativeVirtualAddress,Signature=Convert.ToHexString(reader.GetBlobBytes(m.Signature))};}).ToArray()}));
     }
-    // The finite PowerShell controls below extract only the actual parser functions.
     private static void TranscriptControls()
     {
-        string directory=Scratch("transcript"),script=Path.Combine(directory,"Test.ps1");
-        File.WriteAllText(script,TranscriptScript);
-        Result r=Process(directory,"powershell.exe","-NoProfile","-ExecutionPolicy","Bypass","-File",script,"-Root",Root(),"-Directory",directory);Passed(r);
-        Need(r.Output.Contains("TEST_PASS m03.capture.transcript",StringComparison.Ordinal),"complete finite transcript controls");
+        string directory=Scratch("transcript");
+        string[] lines = [
+            "TEST_START efi.main",
+            "EFI_CONSOLE_READY",
+            "TEST_START m03.001.capture",
+            "M03_CAPTURE_AUTH observer=0000000000100000 observerBytes=488 guard=0000000000200000 guardSpan=131104 payload=0000000000200010 capacity=131072 services=0000000000300000 get=0000000000400000 allocate=0000000000400100",
+            "M03_CAPTURE_QUERY calls=1 order=1 inputBytes=0 buffer=0000000000000000 status=8000000000000005 required=96 key=FEDCBA9876543210 stride=48 version=1",
+            "M03_CAPTURE_ALLOC calls=1 order=2 type=2 bytes=480 status=0000000000000000 pool=0000000000500000 admitted=1",
+            "M03_CAPTURE_FINAL calls=1 order=3 inputBytes=480 buffer=0000000000500000 status=0000000000000000 bytes=160 key=123456789ABCDEF0 stride=40 version=2",
+            "M03_CAPTURE_COPY source=0000000000500000 sourceBytes=480 owned=0000000000200010 capacity=131072 bytes=160 count=4 flag=1 compared=160 mismatches=0 firstMismatch=FFFFFFFFFFFFFFFF",
+            "M03_CAPTURE_GUARDS bytes=32 mismatches=0 tailBytes=130912 tailMismatches=0",
+            "M03_CAPTURE_HANDOFF snapshotKey=123456789ABCDEF0 handoffKey=123456789ABCDEF0 flag=1 matched=1",
+            "CLROS_M03_001_READY firmwareAvailable=true exitBootServices=false",
+            "TEST_PASS m03.001.capture",
+            "UEFI_MEMORY_MAP_READY",
+            "UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 4",
+            "UEFI_MEMORY_MAP_OWNED",
+            "BOOT_HANDOFF_READY",
+            "UEFI_MEMORY_MAP_NORMALIZED",
+            "BOOT_MEMORY_MAP_ACCEPTED",
+            "BOOT_MEMORY_REGIONS_READY",
+            "BOOT_MEMORY_REGION_COUNT 4",
+            "BOOT_PAGE_ALLOCATOR_READY status=Ready regions=4 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0",
+            "BOOT_ACPI_RSDP_HANDOFF_READY",
+            "UEFI_ACPI_RSDP_READY",
+            "TEST_START boot.sequence",
+            "BOOT_PHASE PhaseA.Audit START",
+            "BOOT_PHASE PhaseA.Audit PASS",
+            "BOOT_PHASE PhaseA.Diagnostics START",
+            "BOOT_PHASE PhaseA.Diagnostics PASS",
+            "OS_BOOT_OK",
+            "TEST_PASS boot.sequence",
+            "OS_SMOKE_PASS"
+        ];
+        byte[] good=FirmwareTranscriptControls.Bytes(lines);
+        var control=new FirmwareTranscriptControls(directory,OS.Tooling.QemuTranscripts.AssertM03MemoryMapCaptureTranscript);
+        control.Check(good,true);
+        foreach(string version in new[]{"0","4294967295"}) control.Check(Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(good).Replace("stride=48 version=1","stride=48 version="+version)),true);
+        foreach(string version in new[]{"4294967296","18446744073709551615"}) control.Check(Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(good).Replace("stride=48 version=1","stride=48 version="+version)),false);
+        for(int i=0;i<lines.Length;i++)
+        {
+            string[] copy=[..lines];copy[i]+=" extra=1";control.Check(FirmwareTranscriptControls.Bytes(copy),false);
+            copy=[..lines];copy[i]="";control.Check(FirmwareTranscriptControls.Bytes(copy),false);
+        }
+        foreach(var pair in new (string Old,string New)[] { ("observerBytes=488","observerBytes=487"), ("guardSpan=131104","guardSpan=131103"), ("capacity=131072","capacity=131071"), ("pool=0000000000500000","pool=0000000000200000"), ("inputBytes=480","inputBytes=479"), ("compared=160","compared=159"), ("tailMismatches=0","tailMismatches=1"), ("firstMismatch=FFFFFFFFFFFFFFFF","firstMismatch=0000000000000000"), ("snapshotKey=123456789ABCDEF0","snapshotKey=123456789ABCDEF1"), ("required=96","required=18446744073709551616"), ("status=8000000000000005","status=0000000000000000"), ("order=3","order=2"), ("type=2","type=1"), ("version=2","version=0"), ("stride=40","stride=41"), ("count=4","count=5"), ("freeBytes=81920","freeBytes=81921") })
+            control.Check(Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(good).Replace(pair.Old,pair.New)),false);
+        control.Check(Encoding.ASCII.GetBytes(Encoding.ASCII.GetString(good).Replace("\r\n","\n")),false);
+        control.Check([..good,0],false);control.Check(good,false,[255]);control.Check(good,false,post:[..FirmwareTranscriptControls.Suffix,65]);control.Check(good,false,Encoding.ASCII.GetBytes("arbitrary"));
+        foreach(string exit in new[]{"0","-1","-2147483648","2147483647"})
+            OS.Tooling.QemuTranscripts.AssertM03MemoryMapCaptureRunnerResult(["FORBIDDEN_MARKERS OS_SMOKE_FAIL|TEST_FAIL","SERIAL_MARKER_DRAIN milliseconds=750","QEMU_PROCESS_RESULT disposition=runner-terminated exitCode="+exit]);
+        foreach(string drain in new[]{"SERIAL_MARKER_DRAIN milliseconds=750\0","SERIAL_MARKER_DRAIN Milliseconds=750"})
+            FirmwareTranscriptControls.Reject(()=>OS.Tooling.QemuTranscripts.AssertM03MemoryMapCaptureRunnerResult([drain,"QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1"]),"drain");
+        foreach(string exit in new[]{"none","-0","01","+1","2147483648","-2147483649"})
+            FirmwareTranscriptControls.Reject(()=>OS.Tooling.QemuTranscripts.AssertM03MemoryMapCaptureRunnerResult(["SERIAL_MARKER_DRAIN milliseconds=750","QEMU_PROCESS_RESULT disposition=runner-terminated exitCode="+exit]),"exit");
+        foreach(string extra in new[]{"TEST_FAIL x","OS_SMOKE_FAIL","QEMU_PROCESS_CLEANUP_FAILED","QEMU_PROCESS_RESULT disposition=spontaneous-exit exitCode=0","SERIAL_MARKER_DRAIN milliseconds=750"})
+            FirmwareTranscriptControls.Reject(()=>OS.Tooling.QemuTranscripts.AssertM03MemoryMapCaptureRunnerResult(["SERIAL_MARKER_DRAIN milliseconds=750","QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1",extra]),"lifecycle");
+        Console.WriteLine("TRANSCRIPT_CONTROLS m03.capture cases="+control.Cases);
     }
-    private const string TranscriptScript="""
-        param([string]$Root,[string]$Directory)
-        $ErrorActionPreference='Stop';$t=$null;$e=$null
-        $ast=[Management.Automation.Language.Parser]::ParseFile((Join-Path $Root 'scripts/run-qemu-smoke.ps1'),[ref]$t,[ref]$e)
-        if($e.Count){throw 'source parse'}
-        foreach($name in @('Read-M03MemoryMapCaptureRecord','Assert-M03MemoryMapCaptureTranscript','Assert-M03MemoryMapCaptureRunnerResult')) {
-            $f=$ast.Find({param($n)$n -is [Management.Automation.Language.FunctionDefinitionAst] -and $n.Name -ceq $name},$true)
-            if($null -eq $f){throw 'missing function'};. ([scriptblock]::Create($f.Extent.Text))
-        }
-        $lines=@(
-        'TEST_START efi.main','EFI_CONSOLE_READY','TEST_START m03.001.capture',
-        'M03_CAPTURE_AUTH observer=0000000000100000 observerBytes=488 guard=0000000000200000 guardSpan=131104 payload=0000000000200010 capacity=131072 services=0000000000300000 get=0000000000400000 allocate=0000000000400100',
-        'M03_CAPTURE_QUERY calls=1 order=1 inputBytes=0 buffer=0000000000000000 status=8000000000000005 required=96 key=FEDCBA9876543210 stride=48 version=1',
-        'M03_CAPTURE_ALLOC calls=1 order=2 type=2 bytes=480 status=0000000000000000 pool=0000000000500000 admitted=1',
-        'M03_CAPTURE_FINAL calls=1 order=3 inputBytes=480 buffer=0000000000500000 status=0000000000000000 bytes=160 key=123456789ABCDEF0 stride=40 version=2',
-        'M03_CAPTURE_COPY source=0000000000500000 sourceBytes=480 owned=0000000000200010 capacity=131072 bytes=160 count=4 flag=1 compared=160 mismatches=0 firstMismatch=FFFFFFFFFFFFFFFF',
-        'M03_CAPTURE_GUARDS bytes=32 mismatches=0 tailBytes=130912 tailMismatches=0',
-        'M03_CAPTURE_HANDOFF snapshotKey=123456789ABCDEF0 handoffKey=123456789ABCDEF0 flag=1 matched=1',
-        'CLROS_M03_001_READY firmwareAvailable=true exitBootServices=false','TEST_PASS m03.001.capture',
-        'UEFI_MEMORY_MAP_READY','UEFI_MEMORY_MAP_DESCRIPTOR_COUNT 4','UEFI_MEMORY_MAP_OWNED','BOOT_HANDOFF_READY',
-        'UEFI_MEMORY_MAP_NORMALIZED','BOOT_MEMORY_MAP_ACCEPTED','BOOT_MEMORY_REGIONS_READY','BOOT_MEMORY_REGION_COUNT 4',
-        'BOOT_PAGE_ALLOCATOR_READY status=Ready regions=4 conventionalPages=20 conventionalBytes=81920 freeNodes=2 freePages=20 freeBytes=81920 pageSize=4096 statusCode=0',
-        'BOOT_ACPI_RSDP_HANDOFF_READY','UEFI_ACPI_RSDP_READY','TEST_START boot.sequence','BOOT_PHASE PhaseA.Audit START','BOOT_PHASE PhaseA.Audit PASS',
-        'BOOT_PHASE PhaseA.Diagnostics START','BOOT_PHASE PhaseA.Diagnostics PASS','OS_BOOT_OK','TEST_PASS boot.sequence','OS_SMOKE_PASS')
-        ; # Accepted firmware framing is a fixed byte fixture, never learned from a run.
-        $preamble=[Convert]::FromBase64String('G1syShtbMDE7MDFIG1s9M2gbWzJKG1swMTswMUgbWzJKG1swMTswMUgbWz0zaBtbMkobWzAxOzAxSBtbMkobWzAxOzAxSBtbPTNoG1syShtbMDE7MDFIQmRzRHhlOiBsb2FkaW5nIEJvb3QwMDAxICJVRUZJIFFFTVUgSEFSRERJU0sgUU0wMDAxMyAiIGZyb20gUGNpUm9vdCgweDApL1BjaSgweDIsMHgwKS9TYXRhKDB4MCwweEZGRkYsMHgwKQ0KQmRzRHhlOiBzdGFydGluZyBCb290MDAwMSAiVUVGSSBRRU1VIEhBUkRESVNLIFFNMDAwMTMgIiBmcm9tIFBjaVJvb3QoMHgwKS9QY2koMHgyLDB4MCkvU2F0YSgweDAsMHhGRkZGLDB4MCkNCg==')
-        $suffix=[Convert]::FromBase64String('QmRzRHhlOiBsb2FkaW5nIEJvb3QwMDAwICJVaUFwcCIgZnJvbSBGdig3Q0I4QkRDOS1GOEVCLTRGMzQtQUFFQS0zRUU0QUY2NTE2QTEpL0Z2RmlsZSg0NjJDQUEyMS03NjE0LTQ1MDMtODM2RS04QUI2RjQ2NjIzMzEpDQpCZHNEeGU6IHN0YXJ0aW5nIEJvb3QwMDAwICJVaUFwcCIgZnJvbSBGdig3Q0I4QkRDOS1GOEVCLTRGMzQtQUFFQS0zRUU0QUY2NTE2QTEpL0Z2RmlsZSg0NjJDQUEyMS03NjE0LTQ1MDMtODM2RS04QUI2RjQ2NjIzMzEpDQobWzJKG1swMTswMUgbWzJKG1swMTswMUgbWz0zaBtbMkobWzAxOzAxSBtbMG0bWzMwbRtbNDBtG1swMTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDI7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzAzOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swNDswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDU7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzA2OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swNzswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDg7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzA5OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxMDswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTE7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzEyOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxMzswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTQ7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzE1OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxNjswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTc7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzE4OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxOTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMjA7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzIxOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1syMjswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMjM7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzI0OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1syNTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swMTswMUgbWzBtG1szNG0bWzQ3bRtbMDE7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzAyOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swMzswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDQ7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzA1OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swNjswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMDE7MDFIG1swMjswMkhTdGFuZGFyZCBQQyAoUTM1ICsgSUNIOSwgMjAwOSkbWzAzOzAySHBjLXEzNS0xMS4xG1swMzs1NEgyLjAwIEdIehtbMDQ7MDJIZWRrMi1zdGFibGUyMDI0MDgtcHJlYnVpbHQucWVtdS5vcmcbWzA0OzU0SDI1NiBNQiBSQU0bWzA1OzAySBtbMDU7NTRIG1swNjswMkgbWzA2OzU0SBtbMG0bWzM3bRtbNDBtG1syMTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMjI7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzIzOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1syNDswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMjE7MDFIG1swbRtbMzBtG1s0MG0bWzI1OzUzSCAgG1syNTs1NEggIBtbMjU7NTVIICAbWzI1OzU2SCAgG1syNTs1N0ggIBtbMjU7NThIICAbWzI1OzU5SCAgG1syNTs2MEggIBtbMjU7NjFIICAbWzI1OzYySCAgG1syNTs2M0ggIBtbMjU7NjRIICAbWzI1OzY1SCAgG1syNTs2NkggIBtbMjU7NjdIICAbWzI1OzY4SCAgG1syNTs2OUggIBtbMjU7NzBIICAbWzI1OzcxSCAgG1syNTs3MkggIBtbMjU7NzNIICAbWzBtG1szMG0bWzQ3bRtbMDc7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzA4OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swOTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTA7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzExOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxMjswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTM7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzE0OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxNTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTY7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzE3OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxODswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTk7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzIwOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swNzswMUgbWzA3OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swbRtbMzdtG1s0MG0bWzA4OzMxSDxTdGFuZGFyZCBFbmdsaXNoPhtbMG0bWzMwbRtbNDdtG1swODs0OUggICAgICAgICAbWzA4OzAxSCAgIBtbMDg7MDRIU2VsZWN0IExhbmd1YWdlICAgICAgICAgICAgG1swbRtbMzRtG1s0N20bWzA5OzAxSCAgIBtbMDk7MDRIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swbRtbMzBtG1s0N20bWzEwOzAxSCAgIBtbMTA7MDJI4pa6G1sxMDswNEhEZXZpY2UgTWFuYWdlciAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzExOzAxSCAgIBtbMTE7MDJI4pa6G1sxMTswNEhCb290IE1hbmFnZXIgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzEyOzAxSCAgIBtbMTI7MDJI4pa6G1sxMjswNEhCb290IE1haW50ZW5hbmNlIE1hbmFnZXIgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzBtG1szNG0bWzQ3bRtbMTM7MDFIICAgG1sxMzswNEggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzBtG1szMG0bWzQ3bRtbMTQ7MDFIICAgG1sxNDswNEhDb250aW51ZSAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzE1OzAxSCAgIBtbMTU7MDRIUmVzZXQgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxNjswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzE3OzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIBtbMTg7MDFIICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1sxOTswMUggICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAbWzIwOzAxSCAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgG1swbRtbMzdtG1s0MG0bWzIzOzAySCAbWzIyOzAySCAbWzIyOzUzSCAgICAgICAgICAgICAgICAgICAgICAgICAbWzIyOzI3SCAgICAgICAgICAgICAgICAgICAgICAgICAgG1syMzs1M0ggICAgICAgICAgICAgICAgICAgICAgICAgICAbWzIzOzAzSOKGkeKGkz1Nb3ZlIEhpZ2hsaWdodCAgICAgICAbWzIyOzAzSCAgICAgICAgICAgICAgICAgICAgICAgIBtbMjM7MjdIPEVudGVyPj1TZWxlY3QgRW50cnkgICAgICAbWzBtG1szNG0bWzQ3bRtbMDg7NThIVGhpcyBpcyB0aGUgb3B0aW9uICAgICAbWzA5OzU4SG9uZSBhZGp1c3RzIHRvIGNoYW5nZSAgG1sxMDs1OEh0aGUgbGFuZ3VhZ2UgZm9yIHRoZSAgIBtbMTE7NThIY3VycmVudCBzeXN0ZW0gICAgICAgICAbWzEyOzU4SCAgICAgICAgICAgICAgICAgICAgICAgG1sxMzs1OEggICAgICAgICAgICAgICAgICAgICAgIBtbMTQ7NThIICAgICAgICAgICAgICAgICAgICAgICAbWzE1OzU4SCAgICAgICAgICAgICAgICAgICAgICAgG1sxNjs1OEggICAgICAgICAgICAgICAgICAgICAgIBtbMTc7NThIICAgICAgICAgICAgICAgICAgICAgICAbWzE4OzU4SCAgICAgICAgICAgICAgICAgICAgICAgG1sxOTs1OEggICAgICAgICAgICAgICAgICAgICAgIBtbMTk7ODBI')
-        $good=[Text.Encoding]::ASCII.GetBytes(($lines -join "`r`n")+"`r`n")
-        $path=Join-Path $Directory 'serial.log';$count=0
-        function Check([byte[]]$protocol,[bool]$expected,[byte[]]$pre=$preamble,[byte[]]$post=$suffix) {
-            [IO.File]::WriteAllBytes($path,[byte[]]($pre+$protocol+$post));$accepted=$true
-            try{Assert-M03MemoryMapCaptureTranscript $path}catch{$accepted=$false}
-            if($accepted -ne $expected){throw ('transcript case '+$script:count)};$script:count++
-        }
-        Check $good $true
-        foreach($version in @('0','4294967295')) { Check ([Text.Encoding]::ASCII.GetBytes([Text.Encoding]::ASCII.GetString($good).Replace('stride=48 version=1','stride=48 version='+$version))) $true }
-        foreach($version in @('4294967296','18446744073709551615')) { Check ([Text.Encoding]::ASCII.GetBytes([Text.Encoding]::ASCII.GetString($good).Replace('stride=48 version=1','stride=48 version='+$version))) $false }
-        for($i=0;$i -lt $lines.Count;$i++) {
-            $copy=@($lines);$copy[$i]+=' extra=1';Check ([Text.Encoding]::ASCII.GetBytes(($copy -join "`r`n")+"`r`n")) $false
-            $copy=@($lines);$copy[$i]='';Check ([Text.Encoding]::ASCII.GetBytes(($copy -join "`r`n")+"`r`n")) $false
-        }
-        foreach($pair in @(@('observerBytes=488','observerBytes=487'),@('guardSpan=131104','guardSpan=131103'),@('capacity=131072','capacity=131071'),@('pool=0000000000500000','pool=0000000000200000'),@('inputBytes=480','inputBytes=479'),@('compared=160','compared=159'),@('tailMismatches=0','tailMismatches=1'),@('firstMismatch=FFFFFFFFFFFFFFFF','firstMismatch=0000000000000000'),@('snapshotKey=123456789ABCDEF0','snapshotKey=123456789ABCDEF1'),@('required=96','required=18446744073709551616'),@('status=8000000000000005','status=0000000000000000'),@('order=3','order=2'),@('type=2','type=1'),@('version=2','version=0'),@('stride=40','stride=41'),@('count=4','count=5'),@('freeBytes=81920','freeBytes=81921'))) {
-            Check ([Text.Encoding]::ASCII.GetBytes([Text.Encoding]::ASCII.GetString($good).Replace($pair[0],$pair[1]))) $false
-        }
-        Check ([Text.Encoding]::ASCII.GetBytes([Text.Encoding]::ASCII.GetString($good).Replace("`r`n","`n"))) $false
-        Check ([byte[]]($good+0)) $false
-        Check $good $false ([byte[]]@(0xFF))
-        Check $good $false $preamble ([byte[]]($suffix+65))
-        Check $good $false ([Text.Encoding]::ASCII.GetBytes('arbitrary'))
-        foreach($exit in @('0','-1','-2147483648','2147483647')) {Assert-M03MemoryMapCaptureRunnerResult @('FORBIDDEN_MARKERS OS_SMOKE_FAIL|TEST_FAIL','SERIAL_MARKER_DRAIN milliseconds=750',('QEMU_PROCESS_RESULT disposition=runner-terminated exitCode='+$exit))}
-        foreach($drain in @("SERIAL_MARKER_DRAIN milliseconds=750`0",'SERIAL_MARKER_DRAIN milliseconds=750'.Replace('milliseconds','Milliseconds'))) {$bad=$false;try{Assert-M03MemoryMapCaptureRunnerResult @($drain,'QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1')}catch{$bad=$true};if(-not $bad){throw 'drain accepted'}}
-        foreach($exit in @('none','-0','01','+1','2147483648','-2147483649')) {$bad=$false;try{Assert-M03MemoryMapCaptureRunnerResult @('SERIAL_MARKER_DRAIN milliseconds=750',('QEMU_PROCESS_RESULT disposition=runner-terminated exitCode='+$exit))}catch{$bad=$true};if(-not $bad){throw 'exit accepted'}}
-        foreach($extra in @('TEST_FAIL x','OS_SMOKE_FAIL','QEMU_PROCESS_CLEANUP_FAILED','QEMU_PROCESS_RESULT disposition=spontaneous-exit exitCode=0','SERIAL_MARKER_DRAIN milliseconds=750')) {$bad=$false;try{Assert-M03MemoryMapCaptureRunnerResult @('SERIAL_MARKER_DRAIN milliseconds=750','QEMU_PROCESS_RESULT disposition=runner-terminated exitCode=-1',$extra)}catch{$bad=$true};if(-not $bad){throw 'lifecycle accepted'}}
-        Write-Output ('TEST_PASS m03.capture.transcript cases='+$script:count)
-        """;
+
 }
 #endif

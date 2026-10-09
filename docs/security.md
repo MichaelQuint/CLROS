@@ -9,7 +9,7 @@ Security is policy baseline only.
 - The design has no users, SSH, or remote admin surface by default.
 - Network services must come from the launched app or explicit manifest.
 - `OS.ManifestTool validate --manifest <path>` rejects malformed, oversized, unknown-version, unsafe-path, and duplicate-env-key manifests in host tests.
-- `scripts/check-naming.ps1` now includes a source firewall:
+- `dotnet run --project tools/OS.Tooling -- repo check` includes a source firewall:
   - rejects committed first-party `.c`, `.cpp`, `.h`, `.asm`, and `.s` files under `src/`, `std/`, and `apps/`;
   - rejects `references/` project paths in `CLROS.slnx`;
   - rejects `references/` project paths from first-party `src/`, `std/`, and `apps/` project files;

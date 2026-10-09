@@ -12,26 +12,7 @@ internal static unsafe class ExceptionTypeMatchTests
     private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
     private const uint ClassFlags = 0x50000000;
 
-    [ModuleInitializer]
-    internal static void Run()
-    {
-        Group("identity", Identity);
-        Group("object_authority", ObjectAuthority);
-        Group("module_authority", ModuleAuthority);
-        Group("metadata", Metadata);
-        Group("unsupported", Unsupported);
-        Group("hierarchy_bounds", HierarchyBounds);
-        Group("zero_allocation", ZeroAllocation);
-    }
-
-    private static void Group(string name, Action test)
-    {
-        string marker = "m04.exception_type_match." + name;
-        Console.WriteLine("TEST_START " + marker);
-        try { test(); Console.WriteLine("TEST_PASS " + marker); }
-        catch (Exception error) { Console.WriteLine("TEST_FAIL " + marker + " " + error.Message); throw; }
-    }
-
+    [HostTest("m04.exception_type_match.identity", HostLane.Fast, 0)]
     private static void Identity()
     {
         Require(!default(ExceptionTypeMatchResult).Succeeded && !default(ExceptionTypeMatchResult).Matches, "default denied");
@@ -58,6 +39,7 @@ internal static unsafe class ExceptionTypeMatchTests
         Expect(f, f.Base, Status.Success, true, "reference-containing ordinary class");
     }
 
+    [HostTest("m04.exception_type_match.object_authority", HostLane.Fast, 1)]
     private static void ObjectAuthority()
     {
         using Fixture f = new();
@@ -98,6 +80,7 @@ internal static unsafe class ExceptionTypeMatchTests
         Expect(f, f.Root, Status.Success, true, "restored original authority");
     }
 
+    [HostTest("m04.exception_type_match.module_authority", HostLane.Fast, 2)]
     private static void ModuleAuthority()
     {
         using Fixture f = new();
@@ -125,6 +108,7 @@ internal static unsafe class ExceptionTypeMatchTests
         Expect(f, f.Root, Status.Success, true, "restored registration");
     }
 
+    [HostTest("m04.exception_type_match.metadata", HostLane.Fast, 3)]
     private static void Metadata()
     {
         using Fixture f = new();
@@ -161,6 +145,7 @@ internal static unsafe class ExceptionTypeMatchTests
         Expect(f, f.Root, Status.UnsupportedType, false, "undeclared indirection is not followed");
     }
 
+    [HostTest("m04.exception_type_match.unsupported", HostLane.Fast, 4)]
     private static void Unsupported()
     {
         using Fixture f = new();
@@ -191,6 +176,7 @@ internal static unsafe class ExceptionTypeMatchTests
             Status.UnsupportedProfile, false, "unknown profile");
     }
 
+    [HostTest("m04.exception_type_match.hierarchy_bounds", HostLane.Fast, 5)]
     private static void HierarchyBounds()
     {
         using Fixture f = new();
@@ -214,6 +200,7 @@ internal static unsafe class ExceptionTypeMatchTests
         Expect(f, head, Status.DepthExceeded, false, "overlong target chain");
     }
 
+    [HostTest("m04.exception_type_match.zero_allocation", HostLane.Fast, 6)]
     private static void ZeroAllocation()
     {
         using Fixture f = new();

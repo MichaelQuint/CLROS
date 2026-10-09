@@ -4,50 +4,8 @@ using OS.Kernel.Memory;
 
 internal static class MemoryMapInfoTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("memory.mapinfo converts UEFI descriptors", TestConvertsUefiDescriptors, ref failures);
-        Run("memory.mapinfo rejects invalid descriptor size", TestInvalidDescriptorSize, ref failures);
-        Run("memory.mapinfo rejects invalid descriptor version", TestInvalidDescriptorVersion, ref failures);
-        Run("memory.mapinfo rejects invalid descriptor count", TestInvalidDescriptorCount, ref failures);
-        Run("memory.mapinfo maps unknown UEFI descriptor type", TestUnknownUefiDescriptorType, ref failures);
-        Run("memory.mapinfo rejects zero page descriptors", TestZeroPageDescriptor, ref failures);
-        Run("memory.mapinfo calculates total pages and bytes", TestTotalPagesAndBytes, ref failures);
-        Run("memory.mapinfo writes caller-owned regions", TestWritesCallerOwnedRegions, ref failures);
-        Run("memory.mapinfo reports destination capacity", TestReportsDestinationCapacity, ref failures);
-        Run("memory.mapinfo rejects invalid caller-owned descriptors", TestRejectsInvalidCallerOwnedDescriptors, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Memory map info host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("memory.mapinfo converts UEFI descriptors", HostLane.Fast, 0)]
     private static bool TestConvertsUefiDescriptors()
     {
         UefiMemoryDescriptor[] descriptors =
@@ -79,7 +37,7 @@ internal static class MemoryMapInfoTests
         bool outOfRangeFails = !result.Info.TryGetRegion(2, out _);
         bool negativeIndexFails = !result.Info.TryGetRegion(-1, out _);
 
-        return snapshotResult.Succeeded
+        return HostCheck.Result(snapshotResult.Succeeded
             && result.Succeeded
             && result.Status == MemoryMapInfoStatus.Success
             && result.InvalidDescriptorIndex == -1
@@ -110,9 +68,10 @@ internal static class MemoryMapInfoTests
             && second.PageCount == 5
             && second.Attribute == 0xF
             && outOfRangeFails
-            && negativeIndexFails;
+            && negativeIndexFails);
     }
 
+    [HostTest("memory.mapinfo rejects invalid descriptor size", HostLane.Fast, 1)]
     private static bool TestInvalidDescriptorSize()
     {
         MemoryMapInfoResult result = MemoryMapInfoResult.FromUefiDescriptors(
@@ -122,13 +81,14 @@ internal static class MemoryMapInfoTests
             descriptorCount: 1,
             descriptorEntries: CreateSingleDescriptor());
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == MemoryMapInfoStatus.InvalidDescriptorSize
             && result.Info.RegionCount == 0
             && result.InvalidDescriptorIndex == -1
-            && result.Message.Contains("descriptor size", StringComparison.Ordinal);
+            && result.Message.Contains("descriptor size", StringComparison.Ordinal));
     }
 
+    [HostTest("memory.mapinfo rejects invalid descriptor version", HostLane.Fast, 2)]
     private static bool TestInvalidDescriptorVersion()
     {
         MemoryMapInfoResult result = MemoryMapInfoResult.FromUefiDescriptors(
@@ -138,13 +98,14 @@ internal static class MemoryMapInfoTests
             descriptorCount: 1,
             descriptorEntries: CreateSingleDescriptor());
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == MemoryMapInfoStatus.InvalidDescriptorVersion
             && result.Info.RegionCount == 0
             && result.InvalidDescriptorIndex == -1
-            && result.Message.Contains("descriptor version", StringComparison.Ordinal);
+            && result.Message.Contains("descriptor version", StringComparison.Ordinal));
     }
 
+    [HostTest("memory.mapinfo rejects invalid descriptor count", HostLane.Fast, 3)]
     private static bool TestInvalidDescriptorCount()
     {
         MemoryMapInfoResult zeroCount = MemoryMapInfoResult.FromUefiDescriptors(
@@ -161,15 +122,16 @@ internal static class MemoryMapInfoTests
             descriptorCount: 2,
             descriptorEntries: CreateSingleDescriptor());
 
-        return !zeroCount.Succeeded
+        return HostCheck.Result(!zeroCount.Succeeded
             && zeroCount.Status == MemoryMapInfoStatus.InvalidDescriptorCount
             && zeroCount.Info.RegionCount == 0
             && !mismatchedCount.Succeeded
             && mismatchedCount.Status == MemoryMapInfoStatus.InvalidDescriptorCount
             && mismatchedCount.Info.RegionCount == 0
-            && mismatchedCount.Message.Contains("descriptor count", StringComparison.Ordinal);
+            && mismatchedCount.Message.Contains("descriptor count", StringComparison.Ordinal));
     }
 
+    [HostTest("memory.mapinfo maps unknown UEFI descriptor type", HostLane.Fast, 4)]
     private static bool TestUnknownUefiDescriptorType()
     {
         const uint unknownTypeValue = 0x80000000;
@@ -192,16 +154,17 @@ internal static class MemoryMapInfoTests
 
         bool regionFound = result.Info.TryGetRegion(0, out MemoryRegion region);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == MemoryMapInfoStatus.Success
             && regionFound
             && region.Type == MemoryRegionType.Unknown
             && region.UefiTypeValue == unknownTypeValue
             && region.PhysicalStart == 0x300000
             && region.PageCount == 1
-            && region.Attribute == 0x22;
+            && region.Attribute == 0x22);
     }
 
+    [HostTest("memory.mapinfo rejects zero page descriptors", HostLane.Fast, 5)]
     private static bool TestZeroPageDescriptor()
     {
         UefiMemoryDescriptor[] descriptors =
@@ -221,13 +184,14 @@ internal static class MemoryMapInfoTests
             descriptorCount: descriptors.Length,
             descriptorEntries: descriptors);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == MemoryMapInfoStatus.InvalidPageCount
             && result.InvalidDescriptorIndex == 0
             && result.Info.RegionCount == 0
-            && result.Message.Contains("page count", StringComparison.Ordinal);
+            && result.Message.Contains("page count", StringComparison.Ordinal));
     }
 
+    [HostTest("memory.mapinfo calculates total pages and bytes", HostLane.Fast, 6)]
     private static bool TestTotalPagesAndBytes()
     {
         UefiMemoryDescriptor[] descriptors =
@@ -256,7 +220,7 @@ internal static class MemoryMapInfoTests
         bool firstFound = result.Info.TryGetRegion(0, out MemoryRegion first);
         bool secondFound = result.Info.TryGetRegion(1, out MemoryRegion second);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Info.TotalPages == 8
             && result.Info.TotalBytes == 8 * MemoryRegion.PageSize
             && result.Info.ConventionalMemoryPages == 6
@@ -266,9 +230,10 @@ internal static class MemoryMapInfoTests
             && first.PhysicalEndExclusive == 0x500000 + (2 * MemoryRegion.PageSize)
             && secondFound
             && second.ByteLength == 6 * MemoryRegion.PageSize
-            && second.PhysicalEndExclusive == 0x600000 + (6 * MemoryRegion.PageSize);
+            && second.PhysicalEndExclusive == 0x600000 + (6 * MemoryRegion.PageSize));
     }
 
+    [HostTest("memory.mapinfo writes caller-owned regions", HostLane.Fast, 7)]
     private static bool TestWritesCallerOwnedRegions()
     {
         Span<UefiMemoryDescriptor> descriptors = stackalloc UefiMemoryDescriptor[3];
@@ -300,7 +265,7 @@ internal static class MemoryMapInfoTests
             descriptorEntries: descriptors,
             destination);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == MemoryMapInfoRegionWriteStatus.Success
             && result.MapKey == 0x55
             && result.DescriptorSize == 48
@@ -320,9 +285,10 @@ internal static class MemoryMapInfoTests
             && destination[1].Type == MemoryRegionType.BootServicesData
             && destination[1].Attribute == 0x8
             && destination[2].Type == MemoryRegionType.ConventionalMemory
-            && destination[2].PhysicalEndExclusive == 0xA00000 + (4 * MemoryRegion.PageSize);
+            && destination[2].PhysicalEndExclusive == 0xA00000 + (4 * MemoryRegion.PageSize));
     }
 
+    [HostTest("memory.mapinfo reports destination capacity", HostLane.Fast, 8)]
     private static bool TestReportsDestinationCapacity()
     {
         Span<UefiMemoryDescriptor> descriptors = stackalloc UefiMemoryDescriptor[2];
@@ -357,7 +323,7 @@ internal static class MemoryMapInfoTests
             descriptorEntries: descriptors,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == MemoryMapInfoRegionWriteStatus.DestinationTooSmall
             && result.DescriptorCount == 2
             && result.RegionCount == 0
@@ -369,9 +335,10 @@ internal static class MemoryMapInfoTests
             && destination[0].Type == sentinel.Type
             && destination[0].PhysicalStart == sentinel.PhysicalStart
             && destination[0].PageCount == sentinel.PageCount
-            && destination[0].Attribute == sentinel.Attribute;
+            && destination[0].Attribute == sentinel.Attribute);
     }
 
+    [HostTest("memory.mapinfo rejects invalid caller-owned descriptors", HostLane.Fast, 9)]
     private static bool TestRejectsInvalidCallerOwnedDescriptors()
     {
         Span<UefiMemoryDescriptor> descriptors = stackalloc UefiMemoryDescriptor[2];
@@ -406,7 +373,7 @@ internal static class MemoryMapInfoTests
             descriptorEntries: descriptors,
             destination);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == MemoryMapInfoRegionWriteStatus.InvalidPageCount
             && result.DescriptorCount == 2
             && result.RegionCount == 0
@@ -421,7 +388,7 @@ internal static class MemoryMapInfoTests
             && destination[0].Type == sentinel.Type
             && destination[0].PhysicalStart == sentinel.PhysicalStart
             && destination[0].PageCount == sentinel.PageCount
-            && destination[0].Attribute == sentinel.Attribute;
+            && destination[0].Attribute == sentinel.Attribute);
     }
 
     private static UefiMemoryDescriptor[] CreateSingleDescriptor()

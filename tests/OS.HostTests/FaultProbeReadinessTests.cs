@@ -4,56 +4,8 @@ using OS.Kernel.Runtime;
 
 internal static class FaultProbeReadinessTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run(
-            "fault probe readiness accepts disabled planned probes",
-            TestAcceptsDisabledPlannedProbes,
-            ref failures);
-        Run(
-            "fault probe readiness rejects enabled destructive defaults",
-            TestRejectsEnabledDestructiveDefaults,
-            ref failures);
-        Run(
-            "fault probe readiness rejects invalid stub readiness",
-            TestRejectsInvalidStubReadiness,
-            ref failures);
-        Run(
-            "fault probe readiness rejects insufficient executable memory plan",
-            TestRejectsInsufficientExecutableMemoryPlan,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Fault probe readiness host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("fault probe readiness accepts disabled planned probes", HostLane.Fast, 0)]
     private static bool TestAcceptsDisabledPlannedProbes()
     {
         byte[] invalidOpcodeBuffer = new byte[FaultProbeStubPlan.InvalidOpcodeRequiredByteLength];
@@ -64,7 +16,7 @@ internal static class FaultProbeReadinessTests
         FaultProbeReadinessResult result =
             FaultProbeReadiness.RequireReady(invalidOpcodeBuffer, nullWriteBuffer, memoryPlan);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.Status == FaultProbeReadinessStatus.Ready
             && result.Operation == FaultProbeReadiness.OperationName
             && result.InvalidOpcodeStubStatus == FaultProbeStubPlanStatus.Success
@@ -83,9 +35,10 @@ internal static class FaultProbeReadinessTests
             && nullWriteBuffer[1] == FaultProbeStubPlan.AbsoluteAddressModRm
             && nullWriteBuffer[2] == FaultProbeStubPlan.AbsoluteAddressSib
             && nullWriteBuffer[7] == FaultProbeStubPlan.NullWriteValue
-            && nullWriteBuffer[8] == FaultProbeStubPlan.RetOpcode;
+            && nullWriteBuffer[8] == FaultProbeStubPlan.RetOpcode);
     }
 
+    [HostTest("fault probe readiness rejects enabled destructive defaults", HostLane.Fast, 1)]
     private static bool TestRejectsEnabledDestructiveDefaults()
     {
         byte[] invalidOpcodeBuffer = new byte[FaultProbeStubPlan.InvalidOpcodeRequiredByteLength];
@@ -109,14 +62,15 @@ internal static class FaultProbeReadinessTests
                 nullWriteBuffer,
                 memoryPlan);
 
-        return !Probes.GetInvalidOpcodePanicProbe().EnabledByDefault
+        return HostCheck.Result(!Probes.GetInvalidOpcodePanicProbe().EnabledByDefault
             && !Probes.GetNullPointerPanicProbe().EnabledByDefault
             && !invalidOpcodeEnabled.Succeeded
             && invalidOpcodeEnabled.Status == FaultProbeReadinessStatus.ProbeEnabledByDefault
             && !nullWriteEnabled.Succeeded
-            && nullWriteEnabled.Status == FaultProbeReadinessStatus.ProbeEnabledByDefault;
+            && nullWriteEnabled.Status == FaultProbeReadinessStatus.ProbeEnabledByDefault);
     }
 
+    [HostTest("fault probe readiness rejects invalid stub readiness", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidStubReadiness()
     {
         byte[] validInvalidOpcodeBuffer = new byte[FaultProbeStubPlan.InvalidOpcodeRequiredByteLength];
@@ -142,7 +96,7 @@ internal static class FaultProbeReadinessTests
                 shortNullWriteBuffer,
                 memoryPlan);
 
-        return !invalidOpcodeFailure.Succeeded
+        return HostCheck.Result(!invalidOpcodeFailure.Succeeded
             && invalidOpcodeFailure.Status == FaultProbeReadinessStatus.InvalidOpcodeStubFailure
             && invalidOpcodeFailure.InvalidOpcodeStubStatus == FaultProbeStubPlanStatus.OutputBufferTooSmall
             && invalidOpcodeFailure.NullWriteStubStatus == FaultProbeStubPlanStatus.Success
@@ -150,9 +104,10 @@ internal static class FaultProbeReadinessTests
             && nullWriteFailure.Status == FaultProbeReadinessStatus.NullWriteStubFailure
             && nullWriteFailure.InvalidOpcodeStubStatus == FaultProbeStubPlanStatus.Success
             && nullWriteFailure.NullWriteStubStatus == FaultProbeStubPlanStatus.OutputBufferTooSmall
-            && nullWriteFailure.InvalidOpcodeBytesWritten == FaultProbeStubPlan.InvalidOpcodeRequiredByteLength;
+            && nullWriteFailure.InvalidOpcodeBytesWritten == FaultProbeStubPlan.InvalidOpcodeRequiredByteLength);
     }
 
+    [HostTest("fault probe readiness rejects insufficient executable memory plan", HostLane.Fast, 3)]
     private static bool TestRejectsInsufficientExecutableMemoryPlan()
     {
         byte[] invalidOpcodeBuffer = new byte[FaultProbeStubPlan.InvalidOpcodeRequiredByteLength];
@@ -174,7 +129,7 @@ internal static class FaultProbeReadinessTests
                 nullWriteBuffer,
                 ExecutableStubMemoryPlan.Create((nuint)(FaultProbeReadiness.RequiredPayloadBytes - 1)));
 
-        return !unavailable.Succeeded
+        return HostCheck.Result(!unavailable.Succeeded
             && unavailable.Status == FaultProbeReadinessStatus.MemoryPlanUnavailable
             && unavailable.MemoryPlanStatus == ExecutableStubMemoryPlanStatus.InvalidPayloadLength
             && unavailable.InvalidOpcodeStubStatus == FaultProbeStubPlanStatus.Success
@@ -182,6 +137,6 @@ internal static class FaultProbeReadinessTests
             && !tooSmall.Succeeded
             && tooSmall.Status == FaultProbeReadinessStatus.MemoryPlanTooSmall
             && tooSmall.MemoryPlanStatus == ExecutableStubMemoryPlanStatus.Success
-            && tooSmall.AvailablePayloadBytes == (nuint)(FaultProbeReadiness.RequiredPayloadBytes - 1);
+            && tooSmall.AvailablePayloadBytes == (nuint)(FaultProbeReadiness.RequiredPayloadBytes - 1));
     }
 }

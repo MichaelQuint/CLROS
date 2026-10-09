@@ -2,6 +2,22 @@
 
 ## Current Status
 
+The C# tooling migration in [step1097](../done/step1097.md) completes the
+implementation begun in [step1096](../done/step1096.md). Explicit test discovery,
+isolated fast workers, exclusive native workers, bounded process cleanup and
+source freshness replace module-initializer execution. EFI production and
+verification, guest orchestration, CI/baseline, backlog and package commands now
+use .NET 10 console tools; maintained PowerShell scripts have been removed.
+Reviewed contracts have shared C# owners and inventory counts are derived.
+Raw build provenance remains exact. Final host and guest qualification results
+are recorded in step1097; this tooling work changes no numbered OS gate.
+
+The test-only follow-up in [step1098](../done/step1098.md) reuses an isolated
+clone for single-file semantic mutation vectors and restores exact bytes between
+them. All original producer invocations and rejection checks remain. It removes
+9,312 redundant file copies in the current source inventory and adds a fast
+restoration control; production tooling and guest source identities are unchanged.
+
 The M03 tracker reconciliation in [step1095](../done/step1095.md) records all
 11 keyed children accepted, closes epic #57 and milestone 5, and refreshes the
 #68 dependency in #93/#94. #94 is the next ready platform leaf; #93 remains an
@@ -11,6 +27,8 @@ new host/runtime/guest acceptance or numbered completion-gate pass.
 Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 
 This is a bounded terminal boot path. It reuses the original retained allocator and copied ACPI, adopts owned descriptors/page tables and reports through owned COM1. It does not reclaim firmware pages or start a continuing workload. General EH, hosted .NET/Kestrel, live storage/networking, cloud and production readiness remain unproved; numbered gate statuses are unchanged.
+
+## Prior qualification history
 
 The new Windows host completed a scoped SDK401/ILC108 native/default guest
 checkpoint ([step1077](../done/step1077.md)). The active compiler/runtime pack
@@ -103,7 +121,7 @@ The lost implementation backlog has been reconstructed in both the repository
 and the reachable local Gitea tracker:
 
 - `.gitea/backlog/clros-issues.json` is the version-controlled intent ledger.
-- `scripts/sync-gitea-backlog.ps1` previews by default and requires `-Apply`
+- `OS.Tooling backlog sync` previews by default and requires `--apply`
   before it can mutate `http://localhost:3000/admin/CLROS`.
 - The original applied tracker contained 16 open milestones, 68 managed
   labels, 16 milestone epics, and 303 child issues. M00-023 extended both the
@@ -287,7 +305,7 @@ and the reachable local Gitea tracker:
   #79/#537 stay claimed because real executing-stack canary evidence is missing;
   #80 stays blocked. #60 is eligible only after #59 closes with merged evidence.
   No general GC, real EBS, post-firmware operation or hosted runtime is proved.
-- `scripts/check-naming.ps1` enumerates admitted files once for its naming and
+- `dotnet run --project tools/OS.Tooling -- repo check` enumerates admitted files once for its naming and
   source-firewall checks. It prunes excluded directory names before descent,
   skips directory reparse points, retains the provider's default hidden-file
   visibility, and includes untracked files. Its existing naming exceptions,
@@ -296,18 +314,18 @@ and the reachable local Gitea tracker:
   recovery checks; this is a traversal correction, not a performance benchmark.
   [Step954](../done/step954.md) records the accepted integrated host gate and
   final naming/source-firewall checks for this correction.
-  A compiled, case-insensitive union of the existing naming patterns now skips
-  per-rule evaluation for lines that cannot match. Candidate lines retain the
-  original rule order, reference allowances and diagnostics; streaming line
-  numbers and source-firewall checks are unchanged. [Step1048](../done/step1048.md)
-  records the focused host checks and baseline-output comparison.
+  The previous PowerShell implementation used a compiled, case-insensitive
+  pattern union to skip lines that could not match. [Step1048](../done/step1048.md)
+  records that historical optimization and its baseline-output comparison.
+  The C# implementation retains ordered naming rules, reference allowances,
+  line-numbered diagnostics and source-firewall checks.
 - `tools/OS.QemuRunner` can dry-run and run a QEMU/OVMF smoke, capture serial logs, and require `OS_SMOKE_PASS`.
 - `tools/OS.ManifestTool` validates manifest v0 JSON with machine-readable markers.
 - `tools/OS.LibvirtRunner` generates deterministic host-side domain XML in dry-run mode without requiring libvirt.
 - `tools/OS.ImageBuilder` creates a deterministic raw GPT/FAT32 EFI System Partition image containing `\EFI\BOOT\BOOTX64.EFI`.
-- `scripts/new-done-step.ps1` allocates the next `done/stepNNN.md` path with machine-readable markers and can reserve a template file for parallel-agent work without overwriting an existing path.
+- `dotnet run --project tools/OS.Tooling -- done reserve` atomically reserves the next `done/stepNNN.md` without overwriting an existing path; `done next` only reports the candidate path.
 - `.gitea/backlog/clros-issues.json`,
-  `scripts/sync-gitea-backlog.ps1`, and
+  `tools/OS.Tooling/BacklogSync.cs` (`dotnet run --project tools/OS.Tooling -- backlog sync`), and
   `tests/OS.HostTests/GiteaBacklogManifestTests.cs` preserve and verify the
   milestone, label, issue, parent, dependency, readiness, and additive
   synchronization contracts without storing Gitea credentials.
@@ -381,8 +399,8 @@ Current baseline tests passed:
 
 ```powershell
 dotnet run --project .\tests\OS.HostTests\OS.HostTests.csproj
-.\scripts\run-qemu-smoke.ps1 -DryRun
-.\scripts\run-qemu-smoke.ps1 -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
+dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun
+dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 15
 ```
 
 Evidence:

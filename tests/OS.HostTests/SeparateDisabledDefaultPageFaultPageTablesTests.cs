@@ -14,11 +14,10 @@ internal static unsafe class SeparateDisabledDefaultPageFaultPageTablesTests
     private const PageProtection Rx = PageProtection.Read | PageProtection.Execute;
     private const PageProtection Rw = PageProtection.Read | PageProtection.Write;
 
-    [ModuleInitializer]
+    [HostFixture(HostLane.Fast)]
     internal static void RunAll()
     {
-        Console.WriteLine("TEST_START m02.014.page_image");
-        try
+        HostCheck.Run("m02.014.page_image", () =>
         {
             TestDefaultsAndBound();
             TestIndependentPositiveWalks();
@@ -29,16 +28,10 @@ internal static unsafe class SeparateDisabledDefaultPageFaultPageTablesTests
             TestImageCorruption();
             TestMetadataCorruptionAndSnapshotBoundary();
             TestAllocationAndSourceBoundary();
-        }
-        catch (Exception exception)
-        {
-            Console.WriteLine("TEST_FAIL m02.014.page_image " + exception.Message);
-            throw;
-        }
-        Console.WriteLine("CLROS_M02_014_PAGE_IMAGE_HOST_READY maxRanges=8 maxRangePages=16 " +
-            "maxTablePages=55 suppliedImageAudited=true guestExecution=false cr3Installed=false " +
-            "activePermissionsObserved=false tlbInvalidated=false faultTriggered=false");
-        Console.WriteLine("TEST_PASS m02.014.page_image");
+            Console.WriteLine("CLROS_M02_014_PAGE_IMAGE_HOST_READY maxRanges=8 maxRangePages=16 " +
+                "maxTablePages=55 suppliedImageAudited=true guestExecution=false cr3Installed=false " +
+                "activePermissionsObserved=false tlbInvalidated=false faultTriggered=false");
+        });
     }
 
     private static void TestDefaultsAndBound()

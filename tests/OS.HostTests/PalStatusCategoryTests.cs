@@ -5,47 +5,8 @@ using OS.Pal;
 
 internal static class PalStatusCategoryTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("pal.status_categories maps canonical statuses", TestMapsCanonicalStatuses, ref failures);
-        Run("pal.status_categories formats category names", TestFormatsCategoryNames, ref failures);
-        Run("pal.status_categories reports required bytes", TestReportsRequiredBytes, ref failures);
-        Run("pal.status_categories rejects short buffer", TestRejectsShortBuffer, ref failures);
-        Run("pal.status_categories maps unknown status", TestMapsUnknownStatus, ref failures);
-        Run("pal.status_categories default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("pal.status_categories uses shared ascii text builder", TestUsesSharedAsciiTextBuilder, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("PAL status-category host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("pal.status_categories maps canonical statuses", HostLane.Fast, 0)]
     private static bool TestMapsCanonicalStatuses()
     {
         foreach ((OSHostStatus status, OSHostStatusCategory category) in ExpectedCategories())
@@ -53,13 +14,14 @@ internal static class PalStatusCategoryTests
             if (OSHostStatusCategoryFormatter.Categorize(status) != category)
             {
                 Console.WriteLine("unexpected category for " + status);
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return true;
+        return HostCheck.Result(true);
     }
 
+    [HostTest("pal.status_categories formats category names", HostLane.Fast, 1)]
     private static bool TestFormatsCategoryNames()
     {
         Span<byte> destination = stackalloc byte[64];
@@ -77,26 +39,28 @@ internal static class PalStatusCategoryTests
                 || result.RequiredBytes != (uint)expectedName.Length
                 || actualName != expectedName)
             {
-                return false;
+                return HostCheck.Result(false);
             }
         }
 
-        return true;
+        return HostCheck.Result(true);
     }
 
+    [HostTest("pal.status_categories reports required bytes", HostLane.Fast, 2)]
     private static bool TestReportsRequiredBytes()
     {
         OSHostStatusCategoryFormatResult result =
             OSHostStatusCategoryFormatter.QueryRequiredBytes(OSHostStatus.TimedOut);
 
-        return result.IsInitialized
+        return HostCheck.Result(result.IsInitialized
             && !result.Succeeded
             && result.Status == OSHostStatus.Ok
             && result.Category == OSHostStatusCategory.RuntimeUnavailable
             && result.BytesWritten == 0
-            && result.RequiredBytes == (uint)"OSHOST_STATUS_CATEGORY_RUNTIME_UNAVAILABLE".Length;
+            && result.RequiredBytes == (uint)"OSHOST_STATUS_CATEGORY_RUNTIME_UNAVAILABLE".Length);
     }
 
+    [HostTest("pal.status_categories rejects short buffer", HostLane.Fast, 3)]
     private static bool TestRejectsShortBuffer()
     {
         Span<byte> destination = stackalloc byte[3];
@@ -105,7 +69,7 @@ internal static class PalStatusCategoryTests
         OSHostStatusCategoryFormatResult result =
             OSHostStatusCategoryFormatter.Format(OSHostStatus.OutOfMemory, destination);
 
-        return result.IsInitialized
+        return HostCheck.Result(result.IsInitialized
             && !result.Succeeded
             && result.Status == OSHostStatus.BufferTooSmall
             && result.Category == OSHostStatusCategory.ResourceError
@@ -113,9 +77,10 @@ internal static class PalStatusCategoryTests
             && result.RequiredBytes == (uint)"OSHOST_STATUS_CATEGORY_RESOURCE_ERROR".Length
             && destination[0] == 0xCC
             && destination[1] == 0xCC
-            && destination[2] == 0xCC;
+            && destination[2] == 0xCC);
     }
 
+    [HostTest("pal.status_categories maps unknown status", HostLane.Fast, 4)]
     private static bool TestMapsUnknownStatus()
     {
         Span<byte> destination = stackalloc byte[64];
@@ -128,7 +93,7 @@ internal static class PalStatusCategoryTests
         OSHostStatusCategoryFormatResult invalidCategory =
             OSHostStatusCategoryFormatter.FormatCategory((OSHostStatusCategory)99, destination);
 
-        return category == OSHostStatusCategory.Unknown
+        return HostCheck.Result(category == OSHostStatusCategory.Unknown
             && format.Succeeded
             && format.Status == OSHostStatus.Ok
             && format.Category == OSHostStatusCategory.Unknown
@@ -136,34 +101,36 @@ internal static class PalStatusCategoryTests
             && invalidCategory.IsInitialized
             && !invalidCategory.Succeeded
             && invalidCategory.Status == OSHostStatus.InvalidArgument
-            && invalidCategory.Category == OSHostStatusCategory.Unknown;
+            && invalidCategory.Category == OSHostStatusCategory.Unknown);
     }
 
+    [HostTest("pal.status_categories default result is not success", HostLane.Fast, 5)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         OSHostStatusCategoryFormatResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == OSHostStatus.Ok
             && result.Category == OSHostStatusCategory.Success
             && result.BytesWritten == 0
             && result.RequiredBytes == 0
             && result.Flags == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostStatusCategoryFormatResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<OSHostStatusCategoryFormatResult>());
     }
 
+    [HostTest("pal.status_categories uses shared ascii text builder", HostLane.Fast, 6)]
     private static bool TestUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
         string source = File.ReadAllText(
             Path.Combine(repositoryRoot, "src", "OS.Kernel", "Pal", "OSHostStatusCategory.cs"));
 
-        return source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("using OS.Std.Text;", StringComparison.Ordinal)
             && source.Contains(
                 "AsciiTextBuilder.AppendBytes(destination, 0, name)",
                 StringComparison.Ordinal)
-            && !source.Contains("name.CopyTo(destination)", StringComparison.Ordinal);
+            && !source.Contains("name.CopyTo(destination)", StringComparison.Ordinal));
     }
 
     private static (OSHostStatus Status, OSHostStatusCategory Category)[] ExpectedCategories()

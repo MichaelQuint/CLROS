@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 
 internal static class LibvirtRunnerTests
 {
-    [ModuleInitializer]
+    [HostFixture(HostLane.Native)]
     public static void Initialize()
     {
         int failures = 0;
@@ -36,24 +36,8 @@ internal static class LibvirtRunnerTests
 
     private static void Run(string name, Func<bool> test, ref int failures)
     {
-        Console.WriteLine("TEST_START " + name);
 
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
+        HostCheck.Run("" + name, test, ref failures);
     }
 
     private static bool TestGenerateXmlNetworkNone()
@@ -346,23 +330,7 @@ internal static class LibvirtRunnerTests
 
     private static bool TestSmokeScriptDocumentsEvidence()
     {
-        string repositoryRoot = HostToolProcess.FindRepositoryRoot();
-        string script = File.ReadAllText(Path.Combine(repositoryRoot, "scripts", "run-libvirt-smoke.ps1"));
-
-        return script.Contains("TEST_PASS libvirt.smoke.dryrun", StringComparison.Ordinal)
-            && script.Contains("TEST_SKIP libvirt.smoke missing_tool=virsh", StringComparison.Ordinal)
-            && script.Contains("TEST_PASS libvirt.smoke.missing_tool_reported", StringComparison.Ordinal)
-            && script.Contains("BOOT_MEMORY_REGIONS_READY", StringComparison.Ordinal)
-            && script.Contains("BOOT_MEMORY_REGION_COUNT", StringComparison.Ordinal)
-            && script.Contains("LIBVIRT_DISK_FORMAT", StringComparison.Ordinal)
-            && script.Contains("qcow2", StringComparison.Ordinal)
-            && script.Contains("PlanLifecycle", StringComparison.Ordinal)
-            && script.Contains("TEST_PASS libvirt.lifecycle.plan", StringComparison.Ordinal)
-            && script.Contains("AllowRealLibvirtLifecycle", StringComparison.Ordinal)
-            && script.Contains("real_lifecycle_requires_opt_in", StringComparison.Ordinal)
-            && script.Contains("CheckSerialOnly", StringComparison.Ordinal)
-            && script.Contains("LIBVIRT_CHECK_SERIAL_ONLY", StringComparison.Ordinal)
-            && script.Contains("TEST_PASS libvirt.smoke.check_serial", StringComparison.Ordinal);
+        return LibvirtSmokeTests.ValidateDefaultDryRun();
     }
 
     private static bool TestDiagnosticsReportPathReadiness()

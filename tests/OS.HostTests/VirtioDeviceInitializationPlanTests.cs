@@ -8,45 +8,7 @@ internal static class VirtioDeviceInitializationPlanTests
     private const ulong UnsupportedOptionalFeature = 1UL << 11;
     private const ulong MissingRequiredFeature = 1UL << 12;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.virtio init plans status sequence", TestPlansStatusSequence, ref failures);
-        Run("drivers.virtio init rejects missing features", TestRejectsMissingFeatures, ref failures);
-        Run("drivers.virtio init rejects features-ok failure", TestRejectsFeaturesOkFailure, ref failures);
-        Run("drivers.virtio init records selected features", TestRecordsSelectedFeatures, ref failures);
-        Run("drivers.virtio init default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("Virtio device initialization host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtio init plans status sequence", HostLane.Fast, 0)]
     private static bool TestPlansStatusSequence()
     {
         VirtioDeviceInitializationPlanResult result = CreateSuccessfulPlan();
@@ -59,7 +21,7 @@ internal static class VirtioDeviceInitializationPlanTests
                 VirtioDeviceInitializationPlan.FeaturesOkStatus,
                 VirtioDeviceInitializationPlan.DriverOkStatus))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioDeviceInitializationPlanResult zeroRequiredQueues = VirtioDeviceInitializationPlan.Create(
@@ -78,7 +40,7 @@ internal static class VirtioDeviceInitializationPlanTests
                 VirtioDeviceInitializationPlan.FeaturesOkStatus,
                 VirtioDeviceInitializationPlan.FailedAfterFeaturesOkStatus))
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         VirtioDeviceInitializationPlanResult insufficientQueues = VirtioDeviceInitializationPlan.Create(
@@ -89,7 +51,7 @@ internal static class VirtioDeviceInitializationPlanTests
             requiredQueueCount: 2,
             featuresOkAccepted: true);
 
-        return !insufficientQueues.Succeeded
+        return HostCheck.Result(!insufficientQueues.Succeeded
             && insufficientQueues.Status == VirtioDeviceInitializationPlanStatus.InsufficientQueueCount
             && insufficientQueues.AvailableQueueCount == 1
             && insufficientQueues.RequiredQueueCount == 2
@@ -98,9 +60,10 @@ internal static class VirtioDeviceInitializationPlanTests
                 VirtioDeviceInitializationPlan.AcknowledgeStatus,
                 VirtioDeviceInitializationPlan.DriverStatus,
                 VirtioDeviceInitializationPlan.FeaturesOkStatus,
-                VirtioDeviceInitializationPlan.FailedAfterFeaturesOkStatus);
+                VirtioDeviceInitializationPlan.FailedAfterFeaturesOkStatus));
     }
 
+    [HostTest("drivers.virtio init rejects missing features", HostLane.Fast, 1)]
     private static bool TestRejectsMissingFeatures()
     {
         VirtioDeviceInitializationPlanResult result = VirtioDeviceInitializationPlan.Create(
@@ -111,7 +74,7 @@ internal static class VirtioDeviceInitializationPlanTests
             requiredQueueCount: 1,
             featuresOkAccepted: true);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioDeviceInitializationPlanStatus.MissingRequiredFeatures
             && result.MissingRequiredFeatures == MissingRequiredFeature
             && result.SelectedFeatures == RequiredFeature
@@ -119,9 +82,10 @@ internal static class VirtioDeviceInitializationPlanTests
                 result.StatusWrites,
                 VirtioDeviceInitializationPlan.AcknowledgeStatus,
                 VirtioDeviceInitializationPlan.DriverStatus,
-                VirtioDeviceInitializationPlan.FailedBeforeFeaturesOkStatus);
+                VirtioDeviceInitializationPlan.FailedBeforeFeaturesOkStatus));
     }
 
+    [HostTest("drivers.virtio init rejects features-ok failure", HostLane.Fast, 2)]
     private static bool TestRejectsFeaturesOkFailure()
     {
         VirtioDeviceInitializationPlanResult result = VirtioDeviceInitializationPlan.Create(
@@ -132,7 +96,7 @@ internal static class VirtioDeviceInitializationPlanTests
             requiredQueueCount: 1,
             featuresOkAccepted: false);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioDeviceInitializationPlanStatus.FeaturesOkRejected
             && result.MissingRequiredFeatures == 0
             && result.SelectedFeatures == (RequiredFeature | OptionalFeature)
@@ -141,9 +105,10 @@ internal static class VirtioDeviceInitializationPlanTests
                 VirtioDeviceInitializationPlan.AcknowledgeStatus,
                 VirtioDeviceInitializationPlan.DriverStatus,
                 VirtioDeviceInitializationPlan.FeaturesOkStatus,
-                VirtioDeviceInitializationPlan.FailedBeforeFeaturesOkStatus);
+                VirtioDeviceInitializationPlan.FailedBeforeFeaturesOkStatus));
     }
 
+    [HostTest("drivers.virtio init records selected features", HostLane.Fast, 3)]
     private static bool TestRecordsSelectedFeatures()
     {
         VirtioDeviceInitializationPlanResult result = VirtioDeviceInitializationPlan.Create(
@@ -154,27 +119,28 @@ internal static class VirtioDeviceInitializationPlanTests
             requiredQueueCount: 2,
             featuresOkAccepted: true);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.SelectedFeatures == (RequiredFeature | OptionalFeature)
             && (result.SelectedFeatures & UnsupportedOptionalFeature) == 0
             && result.RequiredFeatures == RequiredFeature
             && result.OptionalFeatures == (OptionalFeature | UnsupportedOptionalFeature)
             && result.AvailableQueueCount == 4
-            && result.RequiredQueueCount == 2;
+            && result.RequiredQueueCount == 2);
     }
 
+    [HostTest("drivers.virtio init default result is not success", HostLane.Fast, 4)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioDeviceInitializationPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioDeviceInitializationPlanStatus.Success
             && result.StatusWrites.Count == 0
             && !result.StatusWrites.TryGetStatus(0, out _)
             && result.SelectedFeatures == 0
             && result.AvailableQueueCount == 0
-            && result.RequiredQueueCount == 0;
+            && result.RequiredQueueCount == 0);
     }
 
     private static VirtioDeviceInitializationPlanResult CreateSuccessfulPlan()

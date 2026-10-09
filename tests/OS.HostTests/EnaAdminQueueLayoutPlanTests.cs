@@ -3,50 +3,8 @@ using OS.Drivers;
 
 internal static class EnaAdminQueueLayoutPlanTests
 {
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
 
-        Run("drivers.ena.admin.queue plans aq acq layout", TestPlansAqAcqLayout, ref failures);
-        Run("drivers.ena.admin.queue rejects invalid depth", TestRejectsInvalidDepth, ref failures);
-        Run("drivers.ena.admin.queue rejects invalid entry size", TestRejectsInvalidEntrySize, ref failures);
-        Run("drivers.ena.admin.queue rejects insufficient memory", TestRejectsInsufficientMemory, ref failures);
-        Run("drivers.ena.admin.queue reports arithmetic overflow", TestReportsArithmeticOverflow, ref failures);
-        Run("drivers.ena.admin.queue rejects default result", TestRejectsDefaultResult, ref failures);
-        Run(
-            "drivers.ena.admin.queue default plan does not fit budget",
-            TestDefaultPlanDoesNotFitBudget,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("ENA admin queue layout host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.ena.admin.queue plans aq acq layout", HostLane.Fast, 0)]
     private static bool TestPlansAqAcqLayout()
     {
         EnaAdminQueueLayoutPlanResult result = EnaAdminQueueLayoutPlan.Create(
@@ -59,11 +17,11 @@ internal static class EnaAdminQueueLayoutPlanTests
             requiresContiguousMemory: true);
         if (!result.Succeeded)
         {
-            return false;
+            return HostCheck.Result(false);
         }
 
         EnaAdminQueueLayoutPlan plan = result.Plan;
-        return result.Status == EnaAdminQueueLayoutPlanStatus.Success
+        return HostCheck.Result(result.Status == EnaAdminQueueLayoutPlanStatus.Success
             && result.AdminQueueDepth == 8
             && result.AdminCompletionQueueDepth == 8
             && result.AdminQueueEntrySize == 64
@@ -88,30 +46,33 @@ internal static class EnaAdminQueueLayoutPlanTests
             && plan.FitsBudget
             && EnaAdminQueueLayoutPlan.InitialAdminQueueProducerIndex == 0
             && EnaAdminQueueLayoutPlan.InitialAdminCompletionQueueConsumerIndex == 0
-            && EnaAdminQueueLayoutPlan.InitialAdminCompletionPhase == 1;
+            && EnaAdminQueueLayoutPlan.InitialAdminCompletionPhase == 1);
     }
 
+    [HostTest("drivers.ena.admin.queue rejects default result", HostLane.Fast, 5)]
     private static bool TestRejectsDefaultResult()
     {
         EnaAdminQueueLayoutPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == EnaAdminQueueLayoutPlanStatus.Success
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                EnaAdminQueueLayoutPlanResult>();
+                EnaAdminQueueLayoutPlanResult>());
     }
 
+    [HostTest("drivers.ena.admin.queue default plan does not fit budget", HostLane.Fast, 6)]
     private static bool TestDefaultPlanDoesNotFitBudget()
     {
         EnaAdminQueueLayoutPlan plan = default;
 
-        return !plan.FitsBudget
+        return HostCheck.Result(!plan.FitsBudget
             && plan.TotalRequiredBytes == 0
             && plan.MemoryBudgetBytes == 0
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<EnaAdminQueueLayoutPlan>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<EnaAdminQueueLayoutPlan>());
     }
 
+    [HostTest("drivers.ena.admin.queue rejects invalid depth", HostLane.Fast, 1)]
     private static bool TestRejectsInvalidDepth()
     {
         EnaAdminQueueLayoutPlanResult zeroDepth = EnaAdminQueueLayoutPlan.Create(
@@ -131,7 +92,7 @@ internal static class EnaAdminQueueLayoutPlanTests
             memoryBudgetBytes: 8192,
             requiresContiguousMemory: false);
 
-        return !zeroDepth.Succeeded
+        return HostCheck.Result(!zeroDepth.Succeeded
             && zeroDepth.Status == EnaAdminQueueLayoutPlanStatus.InvalidDepth
             && zeroDepth.AdminQueueDepth == 0
             && zeroDepth.AdminCompletionQueueDepth == 8
@@ -139,9 +100,10 @@ internal static class EnaAdminQueueLayoutPlanTests
             && !notPowerOfTwo.Succeeded
             && notPowerOfTwo.Status == EnaAdminQueueLayoutPlanStatus.InvalidDepth
             && notPowerOfTwo.AdminQueueDepth == 6
-            && !notPowerOfTwo.RequiresContiguousMemory;
+            && !notPowerOfTwo.RequiresContiguousMemory);
     }
 
+    [HostTest("drivers.ena.admin.queue rejects invalid entry size", HostLane.Fast, 2)]
     private static bool TestRejectsInvalidEntrySize()
     {
         EnaAdminQueueLayoutPlanResult zeroEntry = EnaAdminQueueLayoutPlan.Create(
@@ -169,16 +131,17 @@ internal static class EnaAdminQueueLayoutPlanTests
             memoryBudgetBytes: 8192,
             requiresContiguousMemory: true);
 
-        return !zeroEntry.Succeeded
+        return HostCheck.Result(!zeroEntry.Succeeded
             && zeroEntry.Status == EnaAdminQueueLayoutPlanStatus.InvalidEntrySize
             && !unalignedEntry.Succeeded
             && unalignedEntry.Status == EnaAdminQueueLayoutPlanStatus.InvalidEntrySize
             && unalignedEntry.AdminQueueEntrySize == 63
             && !invalidAlignment.Succeeded
             && invalidAlignment.Status == EnaAdminQueueLayoutPlanStatus.InvalidAlignment
-            && invalidAlignment.BaseAlignment == 24;
+            && invalidAlignment.BaseAlignment == 24);
     }
 
+    [HostTest("drivers.ena.admin.queue rejects insufficient memory", HostLane.Fast, 3)]
     private static bool TestRejectsInsufficientMemory()
     {
         EnaAdminQueueLayoutPlanResult result = EnaAdminQueueLayoutPlan.Create(
@@ -190,12 +153,13 @@ internal static class EnaAdminQueueLayoutPlanTests
             memoryBudgetBytes: 4223,
             requiresContiguousMemory: true);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == EnaAdminQueueLayoutPlanStatus.InsufficientMemory
             && result.TotalRequiredBytes == 4224
-            && result.MemoryBudgetBytes == 4223;
+            && result.MemoryBudgetBytes == 4223);
     }
 
+    [HostTest("drivers.ena.admin.queue reports arithmetic overflow", HostLane.Fast, 4)]
     private static bool TestReportsArithmeticOverflow()
     {
         EnaAdminQueueLayoutPlanResult multiplyOverflow = EnaAdminQueueLayoutPlan.Create(
@@ -215,9 +179,9 @@ internal static class EnaAdminQueueLayoutPlanTests
             memoryBudgetBytes: uint.MaxValue,
             requiresContiguousMemory: true);
 
-        return !multiplyOverflow.Succeeded
+        return HostCheck.Result(!multiplyOverflow.Succeeded
             && multiplyOverflow.Status == EnaAdminQueueLayoutPlanStatus.LayoutOverflow
             && !alignOverflow.Succeeded
-            && alignOverflow.Status == EnaAdminQueueLayoutPlanStatus.LayoutOverflow;
+            && alignOverflow.Status == EnaAdminQueueLayoutPlanStatus.LayoutOverflow);
     }
 }

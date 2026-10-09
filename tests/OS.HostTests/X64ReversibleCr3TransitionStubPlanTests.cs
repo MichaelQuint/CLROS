@@ -82,27 +82,8 @@ internal static unsafe class X64ReversibleCr3TransitionStubPlanTests
         Func<bool> test,
         ref int failures)
     {
-        string caseName = TestName + "." + number.ToString("00");
-        Console.WriteLine("TEST_START " + caseName);
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + caseName);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + caseName + " " + Normalize(name));
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine(
-                "TEST_FAIL " + caseName + " "
-                + Normalize(name + " " + ex.GetType().Name + " " + ex.Message));
-        }
+string caseName = TestName + "." + number.ToString("00");
+        HostCheck.Run("" + caseName, test, ref failures);
     }
 
     private static bool TestEnumsAndPodLayout()

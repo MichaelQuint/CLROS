@@ -26,100 +26,8 @@ internal static class VirtioNetTransmitCompletionPlanTests
     private const ulong TxHeaderPhysicalAddress = 0x0050_0000UL;
     private const ulong TxFramePhysicalAddress = 0x0060_0000UL;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("drivers.virtionet.tx.completion accepts matching used entry", TestAcceptsMatchingUsedEntry, ref failures);
-        Run("drivers.virtionet.tx.completion accepts executed notification", TestAcceptsMatchingUsedEntry, ref failures);
-        Run("drivers.virtionet.tx.completion advances wrapped used index", TestAdvancesWrappedUsedIndex, ref failures);
-        Run("drivers.virtionet.tx.completion reports no completion", TestReportsNoCompletion, ref failures);
-        Run("drivers.virtionet.tx.completion rejects unexpected used index", TestRejectsUnexpectedUsedIndex, ref failures);
-        Run("drivers.virtionet.tx.completion rejects wrong descriptor head", TestRejectsWrongDescriptorHead, ref failures);
-        Run("drivers.virtionet.tx.completion rejects unexpected byte count", TestRejectsUnexpectedByteCount, ref failures);
-        Run("drivers.virtionet.tx.completion rejects short queue memory", TestRejectsShortQueueMemory, ref failures);
-        Run("drivers.virtionet.tx.completion rejects failed publish", TestRejectsFailedPublish, ref failures);
-        Run("drivers.virtionet.tx.completion rejects failed notification", TestRejectsFailedNotification, ref failures);
-        Run(
-            "drivers.virtionet.tx.completion rejects failed notification execution",
-            TestRejectsFailedNotificationExecution,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.completion rejects wrong executed notification kind",
-            TestRejectsWrongExecutedNotificationKind,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.completion rejects executed notification queue mismatch",
-            TestRejectsExecutedNotificationQueueMismatch,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.completion rejects executed notification index mismatch",
-            TestRejectsExecutedNotificationIndexMismatch,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.completion accepts register-window notification",
-            TestAcceptsRegisterWindowNotification,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.completion rejects failed register-window notification",
-            TestRejectsFailedRegisterWindowNotification,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.completion rejects wrong register-window notification kind",
-            TestRejectsWrongRegisterWindowNotificationKind,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.completion rejects register-window notification queue mismatch",
-            TestRejectsRegisterWindowNotificationQueueMismatch,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.completion rejects register-window notification index mismatch",
-            TestRejectsRegisterWindowNotificationIndexMismatch,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.completion preserves register-window notification boundary",
-            TestPreservesRegisterWindowNotificationBoundary,
-            ref failures);
-        Run("drivers.virtionet.tx.completion preserves no-mmio boundary", TestPreservesNoMmioBoundary, ref failures);
-        Run(
-            "drivers.virtionet.tx.completion preserves executed-notification boundary",
-            TestPreservesNoMmioBoundary,
-            ref failures);
-        Run(
-            "drivers.virtionet.tx.completion default result is not success",
-            TestDefaultResultIsNotSuccess,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException(
-                "Virtio-net TX completion planner host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("drivers.virtionet.tx.completion accepts executed notification", HostLane.Fast, 1)]
+    [HostTest("drivers.virtionet.tx.completion accepts matching used entry", HostLane.Fast, 0)]
     private static bool TestAcceptsMatchingUsedEntry()
     {
         TestContext context = CreateContext();
@@ -142,7 +50,7 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex,
                 queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.IsInitialized
             && result.Status == VirtioNetTransmitCompletionPlanStatus.Success
             && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.Success
@@ -159,9 +67,10 @@ internal static class VirtioNetTransmitCompletionPlanTests
             && result.UsedByteCount == VirtioNetTransmitCompletionPlanner.ExpectedTransmitUsedByteCount
             && result.ReclaimedDescriptorCount == VirtioNetTransmitLifecycle.RequiredDescriptorCount
             && result.HeaderDescriptorIndex == publish.Plan.HeaderDescriptor.DescriptorIndex
-            && result.FrameDescriptorIndex == publish.Plan.FrameDescriptor.DescriptorIndex;
+            && result.FrameDescriptorIndex == publish.Plan.FrameDescriptor.DescriptorIndex);
     }
 
+    [HostTest("drivers.virtionet.tx.completion advances wrapped used index", HostLane.Fast, 2)]
     private static bool TestAdvancesWrappedUsedIndex()
     {
         TestContext context = CreateContext();
@@ -184,13 +93,14 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex,
                 queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.PreviousUsedIndex == ushort.MaxValue
             && result.CurrentUsedIndex == 0
             && result.NextUsedIndex == 0
-            && result.UsedRingSlot == TxQueueSize - 1;
+            && result.UsedRingSlot == TxQueueSize - 1);
     }
 
+    [HostTest("drivers.virtionet.tx.completion reports no completion", HostLane.Fast, 3)]
     private static bool TestReportsNoCompletion()
     {
         TestContext context = CreateContext();
@@ -209,12 +119,13 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex,
                 queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetTransmitCompletionPlanStatus.NoCompletion
             && result.CurrentUsedIndex == previousUsedIndex
-            && result.ReclaimedDescriptorCount == 0;
+            && result.ReclaimedDescriptorCount == 0);
     }
 
+    [HostTest("drivers.virtionet.tx.completion rejects unexpected used index", HostLane.Fast, 4)]
     private static bool TestRejectsUnexpectedUsedIndex()
     {
         TestContext context = CreateContext();
@@ -237,12 +148,13 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex,
                 queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetTransmitCompletionPlanStatus.UnexpectedUsedIndex
             && result.CurrentUsedIndex == 7
-            && result.DescriptorHead == 0;
+            && result.DescriptorHead == 0);
     }
 
+    [HostTest("drivers.virtionet.tx.completion rejects wrong descriptor head", HostLane.Fast, 5)]
     private static bool TestRejectsWrongDescriptorHead()
     {
         TestContext context = CreateContext();
@@ -266,12 +178,13 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex,
                 queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetTransmitCompletionPlanStatus.UnexpectedDescriptorHead
             && result.DescriptorHead == wrongHead
-            && result.UsedByteCount == 0;
+            && result.UsedByteCount == 0);
     }
 
+    [HostTest("drivers.virtionet.tx.completion rejects unexpected byte count", HostLane.Fast, 6)]
     private static bool TestRejectsUnexpectedByteCount()
     {
         TestContext context = CreateContext();
@@ -294,12 +207,13 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex,
                 queueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetTransmitCompletionPlanStatus.UnexpectedByteCount
             && result.DescriptorHead == publish.HeadDescriptorIndex
-            && result.UsedByteCount == publish.EthernetFrameBytes;
+            && result.UsedByteCount == publish.EthernetFrameBytes);
     }
 
+    [HostTest("drivers.virtionet.tx.completion rejects short queue memory", HostLane.Fast, 7)]
     private static bool TestRejectsShortQueueMemory()
     {
         TestContext context = CreateContext();
@@ -315,11 +229,12 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex: 0,
                 shortQueueMemory);
 
-        return !result.Succeeded
+        return HostCheck.Result(!result.Succeeded
             && result.Status == VirtioNetTransmitCompletionPlanStatus.QueueMemoryTooSmall
-            && result.ReclaimedDescriptorCount == 0;
+            && result.ReclaimedDescriptorCount == 0);
     }
 
+    [HostTest("drivers.virtionet.tx.completion rejects failed publish", HostLane.Fast, 8)]
     private static bool TestRejectsFailedPublish()
     {
         TestContext context = CreateContext();
@@ -343,13 +258,14 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex: 0,
                 queueMemory);
 
-        return !failedPublish.Succeeded
+        return HostCheck.Result(!failedPublish.Succeeded
             && failedPublish.Status == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall
             && !result.Succeeded
             && result.Status == VirtioNetTransmitCompletionPlanStatus.TransmitPublishFailed
-            && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall;
+            && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.HeaderBufferTooSmall);
     }
 
+    [HostTest("drivers.virtionet.tx.completion rejects failed notification", HostLane.Fast, 9)]
     private static bool TestRejectsFailedNotification()
     {
         TestContext context = CreateContext();
@@ -393,7 +309,7 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex: 0,
                 mismatchMemory);
 
-        return !failedNotificationPlan.Succeeded
+        return HostCheck.Result(!failedNotificationPlan.Succeeded
             && !failedNotification.Succeeded
             && failedNotification.Status ==
                 VirtioNetQueueNotificationExecutionStatus.NotificationPlanFailed
@@ -407,9 +323,10 @@ internal static class VirtioNetTransmitCompletionPlanTests
             && wrongKind.Status == VirtioNetTransmitCompletionPlanStatus.NotificationKindMismatch
             && mismatchedNotification.Succeeded
             && !mismatch.Succeeded
-            && mismatch.Status == VirtioNetTransmitCompletionPlanStatus.NotificationPublishMismatch;
+            && mismatch.Status == VirtioNetTransmitCompletionPlanStatus.NotificationPublishMismatch);
     }
 
+    [HostTest("drivers.virtionet.tx.completion rejects failed notification execution", HostLane.Fast, 10)]
     private static bool TestRejectsFailedNotificationExecution()
     {
         TestContext context = CreateContext();
@@ -428,7 +345,7 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex: 0,
                 queueMemory);
 
-        return !failedNotification.Succeeded
+        return HostCheck.Result(!failedNotification.Succeeded
             && failedNotification.Status == VirtioNetQueueNotificationExecutionStatus.SinkNotReady
             && !result.Succeeded
             && result.Status == VirtioNetTransmitCompletionPlanStatus.NotificationFailed
@@ -436,9 +353,10 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 VirtioNetQueueNotificationExecutionStatus.SinkNotReady
             && result.NotificationPlanStatus == VirtioNetQueueNotificationPlanStatus.Success
             && result.NotificationStatus == VirtioPciQueueNotificationPlanStatus.Success
-            && result.NotificationSinkStatus == VirtioPciNotifyWriteStatus.NotReady;
+            && result.NotificationSinkStatus == VirtioPciNotifyWriteStatus.NotReady);
     }
 
+    [HostTest("drivers.virtionet.tx.completion rejects wrong executed notification kind", HostLane.Fast, 11)]
     private static bool TestRejectsWrongExecutedNotificationKind()
     {
         TestContext context = CreateContext();
@@ -454,13 +372,14 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex: 0,
                 queueMemory);
 
-        return rxNotification.Succeeded
+        return HostCheck.Result(rxNotification.Succeeded
             && rxNotification.Kind == VirtioNetQueueNotificationKind.Receive
             && !result.Succeeded
             && result.Status == VirtioNetTransmitCompletionPlanStatus.NotificationKindMismatch
-            && result.NotificationExecutionStatus == VirtioNetQueueNotificationExecutionStatus.Success;
+            && result.NotificationExecutionStatus == VirtioNetQueueNotificationExecutionStatus.Success);
     }
 
+    [HostTest("drivers.virtionet.tx.completion rejects executed notification queue mismatch", HostLane.Fast, 12)]
     private static bool TestRejectsExecutedNotificationQueueMismatch()
     {
         TestContext context = CreateContext();
@@ -479,15 +398,16 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex: 0,
                 queueMemory);
 
-        return txNotification.Succeeded
+        return HostCheck.Result(txNotification.Succeeded
             && mismatchedNotification.Succeeded
             && mismatchedNotification.Kind == VirtioNetQueueNotificationKind.Transmit
             && mismatchedNotification.QueueIndex == VirtioNetQueuePlan.ReceiveQueueIndex
             && mismatchedNotification.QueueIndex != VirtioNetQueuePlan.TransmitQueueIndex
             && !result.Succeeded
-            && result.Status == VirtioNetTransmitCompletionPlanStatus.NotificationPublishMismatch;
+            && result.Status == VirtioNetTransmitCompletionPlanStatus.NotificationPublishMismatch);
     }
 
+    [HostTest("drivers.virtionet.tx.completion rejects executed notification index mismatch", HostLane.Fast, 13)]
     private static bool TestRejectsExecutedNotificationIndexMismatch()
     {
         TestContext context = CreateContext();
@@ -504,14 +424,15 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex: 0,
                 queueMemory);
 
-        return mismatchedNotification.Succeeded
+        return HostCheck.Result(mismatchedNotification.Succeeded
             && mismatchedNotification.Kind == VirtioNetQueueNotificationKind.Transmit
             && mismatchedNotification.PreviousAvailableRingIndex != publish.Plan.AvailableRingIndex
             && !result.Succeeded
             && result.Status == VirtioNetTransmitCompletionPlanStatus.NotificationPublishMismatch
-            && result.NotificationExecutionStatus == VirtioNetQueueNotificationExecutionStatus.Success;
+            && result.NotificationExecutionStatus == VirtioNetQueueNotificationExecutionStatus.Success);
     }
 
+    [HostTest("drivers.virtionet.tx.completion accepts register-window notification", HostLane.Fast, 14)]
     private static bool TestAcceptsRegisterWindowNotification()
     {
         TestContext context = CreateContext();
@@ -536,7 +457,7 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 queueMemory);
 
         ulong expectedBarOffset = NotifyApertureBarOffset + TxNotifyOffset * NotifyOffsetMultiplier;
-        return notification.Succeeded
+        return HostCheck.Result(notification.Succeeded
             && result.Succeeded
             && result.Status == VirtioNetTransmitCompletionPlanStatus.Success
             && result.UsesRegisterWindowNotification
@@ -567,9 +488,10 @@ internal static class VirtioNetTransmitCompletionPlanTests
             && ReadUInt16AtBarOffset(notifyBytes, result.NotificationBarRelativeOffset) ==
                 VirtioNetQueuePlan.TransmitQueueIndex
             && result.DescriptorHead == publish.HeadDescriptorIndex
-            && result.ReclaimedDescriptorCount == VirtioNetTransmitLifecycle.RequiredDescriptorCount;
+            && result.ReclaimedDescriptorCount == VirtioNetTransmitLifecycle.RequiredDescriptorCount);
     }
 
+    [HostTest("drivers.virtionet.tx.completion rejects failed register-window notification", HostLane.Fast, 15)]
     private static bool TestRejectsFailedRegisterWindowNotification()
     {
         TestContext context = CreateContext();
@@ -590,7 +512,7 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex: 0,
                 queueMemory);
 
-        return !notification.Succeeded
+        return HostCheck.Result(!notification.Succeeded
             && notification.Status ==
                 VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus.AccessExecutionFailed
             && !result.Succeeded
@@ -605,9 +527,10 @@ internal static class VirtioNetTransmitCompletionPlanTests
             && result.NotificationWindowExecutionAttempted
             && result.NotificationBarrierSucceeded
             && result.NotificationBarrierSequence == 32
-            && result.ReclaimedDescriptorCount == 0;
+            && result.ReclaimedDescriptorCount == 0);
     }
 
+    [HostTest("drivers.virtionet.tx.completion rejects wrong register-window notification kind", HostLane.Fast, 16)]
     private static bool TestRejectsWrongRegisterWindowNotificationKind()
     {
         TestContext context = CreateContext();
@@ -624,16 +547,17 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex: 0,
                 queueMemory);
 
-        return rxNotification.Succeeded
+        return HostCheck.Result(rxNotification.Succeeded
             && rxNotification.Kind == VirtioNetQueueNotificationKind.Receive
             && !result.Succeeded
             && result.Status == VirtioNetTransmitCompletionPlanStatus.NotificationKindMismatch
             && result.UsesRegisterWindowNotification
             && result.NotificationKind == VirtioNetQueueNotificationKind.Receive
             && result.NotificationWindowExecutionStatus ==
-                VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus.Success;
+                VirtioNetQueueNotificationRegisterWindowBarrierExecutionStatus.Success);
     }
 
+    [HostTest("drivers.virtionet.tx.completion rejects register-window notification queue mismatch", HostLane.Fast, 17)]
     private static bool TestRejectsRegisterWindowNotificationQueueMismatch()
     {
         TestContext context = CreateContext();
@@ -653,16 +577,17 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex: 0,
                 queueMemory);
 
-        return txNotification.Succeeded
+        return HostCheck.Result(txNotification.Succeeded
             && mismatchedNotification.Succeeded
             && mismatchedNotification.Kind == VirtioNetQueueNotificationKind.Transmit
             && mismatchedNotification.QueueIndex == VirtioNetQueuePlan.ReceiveQueueIndex
             && !result.Succeeded
             && result.Status == VirtioNetTransmitCompletionPlanStatus.NotificationPublishMismatch
             && result.UsesRegisterWindowNotification
-            && result.NotificationQueueIndex == VirtioNetQueuePlan.ReceiveQueueIndex;
+            && result.NotificationQueueIndex == VirtioNetQueuePlan.ReceiveQueueIndex);
     }
 
+    [HostTest("drivers.virtionet.tx.completion rejects register-window notification index mismatch", HostLane.Fast, 18)]
     private static bool TestRejectsRegisterWindowNotificationIndexMismatch()
     {
         TestContext context = CreateContext();
@@ -684,15 +609,16 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex: 0,
                 queueMemory);
 
-        return mismatchedNotification.Succeeded
+        return HostCheck.Result(mismatchedNotification.Succeeded
             && mismatchedNotification.Kind == VirtioNetQueueNotificationKind.Transmit
             && mismatchedNotification.PreviousAvailableRingIndex != publish.Plan.AvailableRingIndex
             && !result.Succeeded
             && result.Status == VirtioNetTransmitCompletionPlanStatus.NotificationPublishMismatch
             && result.UsesRegisterWindowNotification
-            && result.NotificationPreviousAvailableRingIndex != publish.Plan.AvailableRingIndex;
+            && result.NotificationPreviousAvailableRingIndex != publish.Plan.AvailableRingIndex);
     }
 
+    [HostTest("drivers.virtionet.tx.completion preserves register-window notification boundary", HostLane.Fast, 19)]
     private static bool TestPreservesRegisterWindowNotificationBoundary()
     {
         TestContext context = CreateContext();
@@ -715,7 +641,7 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex: 0,
                 queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && result.UsesRegisterWindowNotification
             && result.NotificationWindowExecutionAttempted
             && VirtioNetQueueNotificationRegisterWindowBarrierExecutor.RequiresBarrierReadiness
@@ -737,9 +663,11 @@ internal static class VirtioNetTransmitCompletionPlanTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
                 VirtioNetQueueNotificationRegisterWindowBarrierExecutionResult>()
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetTransmitCompletionPlanResult>();
+                VirtioNetTransmitCompletionPlanResult>());
     }
 
+    [HostTest("drivers.virtionet.tx.completion preserves executed-notification boundary", HostLane.Fast, 21)]
+    [HostTest("drivers.virtionet.tx.completion preserves no-mmio boundary", HostLane.Fast, 20)]
     private static bool TestPreservesNoMmioBoundary()
     {
         TestContext context = CreateContext();
@@ -761,7 +689,7 @@ internal static class VirtioNetTransmitCompletionPlanTests
                 previousUsedIndex: 0,
                 queueMemory);
 
-        return result.Succeeded
+        return HostCheck.Result(result.Succeeded
             && !VirtioNetTransmitCompletionPlanner.PerformsMmio
             && !VirtioNetTransmitCompletionPlanner.PollsDevice
             && !VirtioNetTransmitCompletionPlanner.HandlesInterrupts
@@ -782,14 +710,15 @@ internal static class VirtioNetTransmitCompletionPlanTests
             && !VirtioNetQueueNotificationExecutor.AllocatesDmaMemory
             && !VirtioNetQueueNotificationExecutor.PerformsPacketIo
             && !VirtioNetQueueNotificationExecutor.NotifiesLiveDevice
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetTransmitCompletionPlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<VirtioNetTransmitCompletionPlanResult>());
     }
 
+    [HostTest("drivers.virtionet.tx.completion default result is not success", HostLane.Fast, 22)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         VirtioNetTransmitCompletionPlanResult result = default;
 
-        return !result.IsInitialized
+        return HostCheck.Result(!result.IsInitialized
             && !result.Succeeded
             && result.Status == VirtioNetTransmitCompletionPlanStatus.Success
             && result.TransmitPublishStatus == VirtioNetTransmitLifecycleStatus.Success
@@ -801,7 +730,7 @@ internal static class VirtioNetTransmitCompletionPlanTests
             && result.HeaderDescriptorIndex == 0
             && result.FrameDescriptorIndex == 0
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                VirtioNetTransmitCompletionPlanResult>();
+                VirtioNetTransmitCompletionPlanResult>());
     }
 
     private static VirtioNetTransmitLifecycleResult CreateTxPublish(

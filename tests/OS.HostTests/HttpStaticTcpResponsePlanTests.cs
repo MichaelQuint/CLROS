@@ -10,65 +10,7 @@ internal static class HttpStaticTcpResponsePlanTests
     private const uint LocalNextSequence = 0x10203040;
     private const uint RemoteNextSequence = 0x50607080;
 
-    [ModuleInitializer]
-    internal static void RunAll()
-    {
-        int failures = 0;
-
-        Run("net.http.static.tcp serves accepted get", TestServesAcceptedGet, ref failures);
-        Run("net.http.static.tcp maps route miss to not found", TestMapsRouteMissToNotFound, ref failures);
-        Run("net.http.static.tcp maps non get to method not allowed", TestMapsNonGetToMethodNotAllowed, ref failures);
-        Run("net.http.static.tcp rejects default tcp dispatch", TestRejectsDefaultTcpDispatch, ref failures);
-        Run("net.http.static.tcp rejects non payload dispatch", TestRejectsNonPayloadDispatch, ref failures);
-        Run("net.http.static.tcp rejects invalid payload range", TestRejectsInvalidPayloadRange, ref failures);
-        Run("net.http.static.tcp reports short response buffer", TestReportsShortResponseBuffer, ref failures);
-        Run("net.http.static.tcp default result is not success", TestDefaultResultIsNotSuccess, ref failures);
-        Run("net.http.static.tcp.formatter formats 200 marker", TestFormatterFormats200Marker, ref failures);
-        Run(
-            "net.http.static.tcp.formatter formats 404 and 405 metadata",
-            TestFormatterFormats404And405Metadata,
-            ref failures);
-        Run(
-            "net.http.static.tcp.formatter reports destination capacity",
-            TestFormatterReportsDestinationCapacity,
-            ref failures);
-        Run(
-            "net.http.static.tcp.formatter rejects default and invalid results",
-            TestFormatterRejectsDefaultAndInvalidResults,
-            ref failures);
-        Run(
-            "net.http.static.tcp.formatter uses shared ascii text builder",
-            TestFormatterUsesSharedAsciiTextBuilder,
-            ref failures);
-
-        if (failures != 0)
-        {
-            throw new InvalidOperationException("HTTP static TCP response plan host tests failed: " + failures);
-        }
-    }
-
-    private static void Run(string name, Func<bool> test, ref int failures)
-    {
-        Console.WriteLine("TEST_START " + name);
-
-        try
-        {
-            if (test())
-            {
-                Console.WriteLine("TEST_PASS " + name);
-                return;
-            }
-
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name);
-        }
-        catch (Exception ex)
-        {
-            failures++;
-            Console.WriteLine("TEST_FAIL " + name + " " + ex.GetType().Name + ": " + ex.Message);
-        }
-    }
-
+    [HostTest("net.http.static.tcp serves accepted get", HostLane.Fast, 0)]
     private static bool TestServesAcceptedGet()
     {
         byte[] request = Encoding.ASCII.GetBytes(
@@ -90,7 +32,7 @@ internal static class HttpStaticTcpResponsePlanTests
 
         string text = Encoding.ASCII.GetString(response, 0, result.ResponseBytesWritten);
 
-        return status == HttpStaticTcpResponsePlanStatus.Success
+        return HostCheck.Result(status == HttpStaticTcpResponsePlanStatus.Success
             && result.Succeeded
             && result.TcpDispatchStatus == TcpReceiveDispatchStatus.Success
             && result.TcpAction == TcpReceiveDispatchAction.PayloadAccepted
@@ -102,9 +44,10 @@ internal static class HttpStaticTcpResponsePlanTests
             && result.RequestPayloadOffset == TcpSegmentOffset + TcpHeader.MinHeaderLength
             && result.RequestPayloadLength == request.Length
             && result.ResponseBodyLength == "OS_MINIMAL_API_OK".Length
-            && text.EndsWith("OS_MINIMAL_API_OK", StringComparison.Ordinal);
+            && text.EndsWith("OS_MINIMAL_API_OK", StringComparison.Ordinal));
     }
 
+    [HostTest("net.http.static.tcp maps route miss to not found", HostLane.Fast, 1)]
     private static bool TestMapsRouteMissToNotFound()
     {
         byte[] request = Encoding.ASCII.GetBytes("GET /missing HTTP/1.1\r\nHost: os.test\r\n\r\n");
@@ -125,15 +68,16 @@ internal static class HttpStaticTcpResponsePlanTests
 
         string text = Encoding.ASCII.GetString(response, 0, result.ResponseBytesWritten);
 
-        return status == HttpStaticTcpResponsePlanStatus.Success
+        return HostCheck.Result(status == HttpStaticTcpResponsePlanStatus.Success
             && result.Succeeded
             && result.HttpStatusCode == 404
             && result.Method == HttpRequestMethod.Get
             && result.ResponseBodyLength == "not found".Length
             && text.Contains("HTTP/1.1 404 Not Found\r\n", StringComparison.Ordinal)
-            && text.EndsWith("not found", StringComparison.Ordinal);
+            && text.EndsWith("not found", StringComparison.Ordinal));
     }
 
+    [HostTest("net.http.static.tcp maps non get to method not allowed", HostLane.Fast, 2)]
     private static bool TestMapsNonGetToMethodNotAllowed()
     {
         byte[] request = Encoding.ASCII.GetBytes(
@@ -155,15 +99,16 @@ internal static class HttpStaticTcpResponsePlanTests
 
         string text = Encoding.ASCII.GetString(response, 0, result.ResponseBytesWritten);
 
-        return status == HttpStaticTcpResponsePlanStatus.Success
+        return HostCheck.Result(status == HttpStaticTcpResponsePlanStatus.Success
             && result.Succeeded
             && result.HttpStatusCode == 405
             && result.Method == HttpRequestMethod.Post
             && result.ResponseBodyLength == "bad method".Length
             && text.Contains("HTTP/1.1 405 Method Not Allowed\r\n", StringComparison.Ordinal)
-            && text.EndsWith("bad method", StringComparison.Ordinal);
+            && text.EndsWith("bad method", StringComparison.Ordinal));
     }
 
+    [HostTest("net.http.static.tcp rejects default tcp dispatch", HostLane.Fast, 3)]
     private static bool TestRejectsDefaultTcpDispatch()
     {
         Span<byte> response = stackalloc byte[64];
@@ -180,15 +125,16 @@ internal static class HttpStaticTcpResponsePlanTests
             response,
             out HttpStaticTcpResponsePlanResult result);
 
-        return status == HttpStaticTcpResponsePlanStatus.TcpDispatchNotInitialized
+        return HostCheck.Result(status == HttpStaticTcpResponsePlanStatus.TcpDispatchNotInitialized
             && !result.Succeeded
             && result.TcpDispatchStatus == TcpReceiveDispatchStatus.Success
             && result.RequestPayloadLength == 0
             && result.ResponseBytesWritten == 0
             && response[0] == 0xCC
-            && response[63] == 0xCC;
+            && response[63] == 0xCC);
     }
 
+    [HostTest("net.http.static.tcp rejects non payload dispatch", HostLane.Fast, 4)]
     private static bool TestRejectsNonPayloadDispatch()
     {
         Span<byte> response = stackalloc byte[64];
@@ -216,14 +162,15 @@ internal static class HttpStaticTcpResponsePlanTests
             response,
             out HttpStaticTcpResponsePlanResult result);
 
-        return status == HttpStaticTcpResponsePlanStatus.NonPayloadDispatch
+        return HostCheck.Result(status == HttpStaticTcpResponsePlanStatus.NonPayloadDispatch
             && !result.Succeeded
             && result.TcpAction == TcpReceiveDispatchAction.None
             && result.RequestPayloadLength == 0
             && response[0] == 0xCC
-            && response[63] == 0xCC;
+            && response[63] == 0xCC);
     }
 
+    [HostTest("net.http.static.tcp rejects invalid payload range", HostLane.Fast, 5)]
     private static bool TestRejectsInvalidPayloadRange()
     {
         byte[] request = Encoding.ASCII.GetBytes("GET /healthz HTTP/1.1\r\n\r\n");
@@ -253,14 +200,15 @@ internal static class HttpStaticTcpResponsePlanTests
             response,
             out HttpStaticTcpResponsePlanResult result);
 
-        return status == HttpStaticTcpResponsePlanStatus.InvalidPayloadRange
+        return HostCheck.Result(status == HttpStaticTcpResponsePlanStatus.InvalidPayloadRange
             && !result.Succeeded
             && result.RequestPayloadLength == request.Length
             && result.ResponseBytesWritten == 0
             && response[0] == 0xCC
-            && response[63] == 0xCC;
+            && response[63] == 0xCC);
     }
 
+    [HostTest("net.http.static.tcp reports short response buffer", HostLane.Fast, 6)]
     private static bool TestReportsShortResponseBuffer()
     {
         byte[] request = Encoding.ASCII.GetBytes("GET /healthz HTTP/1.1\r\nHost: os.test\r\n\r\n");
@@ -280,7 +228,7 @@ internal static class HttpStaticTcpResponsePlanTests
             response,
             out HttpStaticTcpResponsePlanResult result);
 
-        return status == HttpStaticTcpResponsePlanStatus.HttpTransactionFailed
+        return HostCheck.Result(status == HttpStaticTcpResponsePlanStatus.HttpTransactionFailed
             && !result.Succeeded
             && result.HttpStatus == HttpStaticResponseTransactionStatus.ResponseWriteFailed
             && result.ResponseStatus == HttpResponseWriterStatus.DestinationTooSmall
@@ -288,9 +236,10 @@ internal static class HttpStaticTcpResponsePlanTests
             && result.ResponseBytesWritten == 0
             && result.ResponseBytesRequired > response.Length
             && response[0] == 0xCC
-            && response[15] == 0xCC;
+            && response[15] == 0xCC);
     }
 
+    [HostTest("net.http.static.tcp default result is not success", HostLane.Fast, 7)]
     private static bool TestDefaultResultIsNotSuccess()
     {
         HttpStaticTcpResponsePlanResult defaultResult = default;
@@ -301,7 +250,7 @@ internal static class HttpStaticTcpResponsePlanTests
             requestPayloadOffset: 0,
             requestPayloadLength: 0);
 
-        return !defaultResult.IsInitialized
+        return HostCheck.Result(!defaultResult.IsInitialized
             && !defaultResult.Succeeded
             && defaultResult.Status == HttpStaticTcpResponsePlanStatus.Success
             && defaultResult.HttpStatus == HttpStaticResponseTransactionStatus.Success
@@ -317,9 +266,10 @@ internal static class HttpStaticTcpResponsePlanTests
             && !HttpStaticTcpResponsePlan.PerformsNicIo
             && !HttpStaticTcpResponsePlan.StartsHostedDotNet
             && !HttpStaticTcpResponsePlan.StartsKestrel
-            && !RuntimeHelpers.IsReferenceOrContainsReferences<HttpStaticTcpResponsePlanResult>();
+            && !RuntimeHelpers.IsReferenceOrContainsReferences<HttpStaticTcpResponsePlanResult>());
     }
 
+    [HostTest("net.http.static.tcp.formatter formats 200 marker", HostLane.Fast, 8)]
     private static bool TestFormatterFormats200Marker()
     {
         HttpStaticTcpResponsePlanResult plan = CreatePlan(
@@ -356,7 +306,7 @@ internal static class HttpStaticTcpResponsePlanTests
             " performsNicIo=false" +
             " startsKestrel=false";
 
-        return query.IsInitialized
+        return HostCheck.Result(query.IsInitialized
             && !query.Succeeded
             && query.Status == HttpStaticTcpResponsePlanDiagnosticFormatStatus.Success
             && query.PlanStatus == HttpStaticTcpResponsePlanStatus.Success
@@ -371,9 +321,10 @@ internal static class HttpStaticTcpResponsePlanTests
             && !marker.Contains("GET /healthz", StringComparison.Ordinal)
             && !marker.Contains("OS_MINIMAL_API_OK", StringComparison.Ordinal)
             && !RuntimeHelpers.IsReferenceOrContainsReferences<
-                HttpStaticTcpResponsePlanDiagnosticFormatResult>();
+                HttpStaticTcpResponsePlanDiagnosticFormatResult>());
     }
 
+    [HostTest("net.http.static.tcp.formatter formats 404 and 405 metadata", HostLane.Fast, 9)]
     private static bool TestFormatterFormats404And405Metadata()
     {
         HttpStaticTcpResponsePlanResult notFound = CreatePlan(
@@ -392,7 +343,7 @@ internal static class HttpStaticTcpResponsePlanTests
             out _);
         string methodMarker = FormatPlanMarker(methodNotAllowed);
 
-        return notFound.HttpStatusCode == 404
+        return HostCheck.Result(notFound.HttpStatusCode == 404
             && methodNotAllowed.HttpStatusCode == 405
             && notFoundMarker.Contains("httpStatus=404", StringComparison.Ordinal)
             && notFoundMarker.Contains("method=Get", StringComparison.Ordinal)
@@ -409,9 +360,10 @@ internal static class HttpStaticTcpResponsePlanTests
             && methodMarker.Contains("performsNicIo=false", StringComparison.Ordinal)
             && methodMarker.Contains("startsKestrel=false", StringComparison.Ordinal)
             && !notFoundMarker.Contains("not found", StringComparison.Ordinal)
-            && !methodMarker.Contains("bad method", StringComparison.Ordinal);
+            && !methodMarker.Contains("bad method", StringComparison.Ordinal));
     }
 
+    [HostTest("net.http.static.tcp.formatter reports destination capacity", HostLane.Fast, 10)]
     private static bool TestFormatterReportsDestinationCapacity()
     {
         HttpStaticTcpResponsePlanResult plan = CreatePlan(
@@ -428,16 +380,17 @@ internal static class HttpStaticTcpResponsePlanTests
         HttpStaticTcpResponsePlanDiagnosticFormatResult format =
             HttpStaticTcpResponsePlanDiagnosticFormatter.FormatResult(plan, destination);
 
-        return query.Status == HttpStaticTcpResponsePlanDiagnosticFormatStatus.Success
+        return HostCheck.Result(query.Status == HttpStaticTcpResponsePlanDiagnosticFormatStatus.Success
             && query.RequiredBytes > 0
             && format.Status == HttpStaticTcpResponsePlanDiagnosticFormatStatus.DestinationTooSmall
             && !format.Succeeded
             && format.BytesWritten == 0
             && format.RequiredBytes == query.RequiredBytes
             && format.AvailableBytes == destination.Length
-            && AllBytesEqual(destination, 0xCC);
+            && AllBytesEqual(destination, 0xCC));
     }
 
+    [HostTest("net.http.static.tcp.formatter rejects default and invalid results", HostLane.Fast, 11)]
     private static bool TestFormatterRejectsDefaultAndInvalidResults()
     {
         Span<byte> destination = stackalloc byte[512];
@@ -499,7 +452,7 @@ internal static class HttpStaticTcpResponsePlanTests
                 stackalloc byte[512]);
         HttpStaticTcpResponsePlanDiagnosticFormatResult defaultFormatResult = default;
 
-        return defaultFormat.Status == HttpStaticTcpResponsePlanDiagnosticFormatStatus.InvalidResult
+        return HostCheck.Result(defaultFormat.Status == HttpStaticTcpResponsePlanDiagnosticFormatStatus.InvalidResult
             && !defaultFormat.Succeeded
             && defaultFormat.RequiredBytes == 0
             && defaultFormat.AvailableBytes == destination.Length
@@ -514,9 +467,10 @@ internal static class HttpStaticTcpResponsePlanTests
             && defaultFormatResult.Status == HttpStaticTcpResponsePlanDiagnosticFormatStatus.Success
             && defaultFormatResult.PlanStatus == HttpStaticTcpResponsePlanStatus.Success
             && destination[0] == 0xCC
-            && destination[511] == 0xCC;
+            && destination[511] == 0xCC);
     }
 
+    [HostTest("net.http.static.tcp.formatter uses shared ascii text builder", HostLane.Fast, 12)]
     private static bool TestFormatterUsesSharedAsciiTextBuilder()
     {
         string repositoryRoot = HostToolProcess.FindRepositoryRoot();
@@ -528,7 +482,7 @@ internal static class HttpStaticTcpResponsePlanTests
                 "Net",
                 "HttpStaticTcpResponsePlanDiagnosticFormatter.cs"));
 
-        return HttpStaticTcpResponsePlanDiagnosticFormatter.UsesSharedAsciiTextBuilder
+        return HostCheck.Result(HttpStaticTcpResponsePlanDiagnosticFormatter.UsesSharedAsciiTextBuilder
             && HttpStaticTcpResponsePlanDiagnosticFormatter.UsesCallerProvidedDestination
             && !HttpStaticTcpResponsePlanDiagnosticFormatter.AllocatesManagedStorage
             && !HttpStaticTcpResponsePlanDiagnosticFormatter.OpensSocket
@@ -546,7 +500,7 @@ internal static class HttpStaticTcpResponsePlanTests
             && !source.Contains("destination[offset + index] = (byte)('0' +", StringComparison.Ordinal)
             && !source.Contains("value /= 10", StringComparison.Ordinal)
             && !source.Contains("value % 10", StringComparison.Ordinal)
-            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal);
+            && !source.Contains("value.CopyTo(destination[offset..])", StringComparison.Ordinal));
     }
 
     private static byte[] CreateReceiveBuffer(ReadOnlySpan<byte> request)

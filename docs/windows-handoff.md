@@ -128,7 +128,7 @@ git -C 'C:\Projects\CLROS' status --short
 
 The repository's `localhost:3000` instructions refer to the **source host**.
 The destination's localhost is its unrelated Gitea. Existing REST issue helpers
-and `sync-gitea-backlog.ps1` enforce loopback; passing a LAN `-BaseUrl` is not a
+and `OS.Tooling backlog sync` enforce loopback; passing a LAN `--base-url` is not a
 supported workaround. Run those tools on the source host, or explicitly
 configure/review scoped LAN REST tooling and secure credentials before tracker
 operations from the destination. Do not rewrite the historical manifest target,
