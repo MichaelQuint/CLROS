@@ -1797,12 +1797,14 @@ recovery.
 
 ## Bounded rethrow development
 
-The distinct rethrow development probe is catalog entry 25 (26 entries total),
+The distinct rethrow development probe is catalog entry 25,
 `EnableM04RethrowProbe`, group `runtime.exception`, destructive and false by
 default. It reserves `TEST_START/PASS/FAIL m04.021.rethrow`, `M04_RETHROW` rows
-and `CLROS_M04_RETHROW_READY`. [Step1098](../done/step1098.md) is a disabled
-native publication; the runner does not yet accept a rethrow transcript, and
-these markers do not establish a guest result or general EH acceptance.
+and `CLROS_M04_RETHROW_READY`. The runner now validates the explicit profile's
+88 complete records and 15 ordered rethrow stages. Native-reviewed publication,
+the first real rethrow capture and ordinary/GC/catch/finally regressions are
+recorded in [step1100](../done/step1100.md). Final full-host acceptance remains
+pending; these markers do not establish general EH acceptance.
 
 ## Single-finally development transcript
 
