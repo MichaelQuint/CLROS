@@ -308,6 +308,11 @@ artifact or dynamic source dependencies run fresh. Do not edit sources or share
 native output directories between simultaneous suites. Checkpoints are local to
 the same workspace and machine, and do not import legacy runner receipts.
 
+The build manifest captures SDK-generated assembly attributes after generation.
+Pointer-probe builds use `--no-dependencies` so they cannot rebuild libraries
+already admitted by the running harness. Step1117 records the commit-version
+staleness failures that led to these fixes and their focused checks.
+
 Native reuse is deliberately explicit. The owned-IDT group and the individually
 selected IDTR publication case produce every artifact they read. Their keys also
 hash the resolved SDK, linker/support files, Windows library, LLVM, runtime and

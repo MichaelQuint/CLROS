@@ -28,7 +28,7 @@
 		<ProjectReference Include="..\..\tools\OS.QemuRunner\OS.QemuRunner.csproj" />
 	</ItemGroup>
 
-  <Target Name="CaptureHostTestBuildInputs" BeforeTargets="AssignTargetPaths" DependsOnTargets="ResolveReferences">
+  <Target Name="CaptureHostTestBuildInputs" BeforeTargets="AssignTargetPaths" DependsOnTargets="ResolveReferences;GenerateGlobalUsings;GenerateTargetFrameworkMonikerAttribute;GenerateAssemblyInfo">
     <ItemGroup>
       <_HostTestInput Include="@(Compile);@(ReferencePath);$(MSBuildProjectFullPath);$(MSBuildThisFileDirectory)..\..\global.json;$(MSBuildThisFileDirectory)..\..\CLROS.slnx;$(MSBuildThisFileDirectory)..\..\Directory.Build.props;$(MSBuildThisFileDirectory)..\..\Directory.Build.targets;$(MSBuildThisFileDirectory)..\..\.gitea\backlog\clros-issues.json" />
       <_HostTestInput Include="$(MSBuildThisFileDirectory)..\..\apps\**\*.cs;$(MSBuildThisFileDirectory)..\..\apps\**\*.csproj;$(MSBuildThisFileDirectory)..\..\apps\**\*.props;$(MSBuildThisFileDirectory)..\..\apps\**\*.targets;$(MSBuildThisFileDirectory)..\..\apps\**\*.json"
