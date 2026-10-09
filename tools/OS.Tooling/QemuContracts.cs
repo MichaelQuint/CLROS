@@ -1,8 +1,11 @@
+using System.Linq;
+
 namespace OS.Tooling;
 
 // Reviewed guest protocol records. Each literal is owned once; inventories reuse it.
 public static class QemuContracts
 {
+
     public const string M03TypedAdmissionRecord = "M03_TYPED_EBS_ADMISSION default=6 missingFunction=3 missingHandle=4 simulated=5 exited=5 readyDenied=5 readyPrepare=7 unchanged=1 calls=0";
     public const string M03TypedReadyRecord = "CLROS_M03_004_READY controlled=true realExitBootServices=false states=4 calls=4 reuse=4 reentry=1 mode=0";
     public const string M03FinalMapReadyRecord = "CLROS_M03_005_READY controlled=true realExitBootServices=false captures=1 exits=1 reuseRejected=true";
@@ -641,4 +644,17 @@ public static class QemuContracts
     public static IReadOnlyList<string> M02HistoricalManifestSuccessMarkers { get; } = Array.AsReadOnly<string>([Record061, Record608, Record609, Record078, Record610, Record080]);
     public static IReadOnlyList<string> M02IssueSuccessMarkers { get; } = Array.AsReadOnly<string>([Record061, Record062, Record063, Record078, Record079, Record080]);
     public static IReadOnlyList<string> M02IssueForbiddenMarkers { get; } = Array.AsReadOnly<string>([Record025, Record026, Record027, Record028, Record029, Record030, Record031, Record032, Record033]);
+    public static IReadOnlyList<string> M04RethrowRequiredMarkers { get; } = Array.AsReadOnly<string>(
+    [
+        .. M04GcStaticRootRequiredMarkers.Take(M04GcStaticRootRequiredMarkers.Count - 8),
+        "TEST_START m04.021.rethrow",
+        .. new[] { 0, 1, 2, 3, 4, 9, 10, 5, 14, 11, 12, 13, 6, 7, 8 }.Select(stage => "M04_RETHROW " + stage),
+        "TEST_PASS m04.021.rethrow", "CLROS_M04_RETHROW_READY",
+        .. M04GcStaticRootRequiredMarkers.TakeLast(8)
+    ]);
+    public static IReadOnlyList<string> M05PhysicalMappingMarkers { get; } = Array.AsReadOnly<string>(
+    [
+        .. M03OwnedSubsystemMarkers, "TEST_START m05.001", .. Enumerable.Range(0, 7).Select(stage => "M05_MAP " + stage),
+        "CLROS_M05_001_READY", "TEST_PASS m05.001"
+    ]);
 }

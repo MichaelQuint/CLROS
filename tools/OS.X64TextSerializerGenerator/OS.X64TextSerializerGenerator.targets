@@ -10,6 +10,8 @@
     <_ClrosInterfaceDispatchObjectName>CLROS.X64.InterfaceDispatch.obj</_ClrosInterfaceDispatchObjectName>
     <_ClrosSimpleCatchObjectName>CLROS.X64.SimpleThrowCatch.obj</_ClrosSimpleCatchObjectName>
     <_ClrosSingleFinallyObjectName>CLROS.X64.SingleFinallyCatch.obj</_ClrosSingleFinallyObjectName>
+    <_ClrosRethrowOuterObjectName>CLROS.X64.RethrowOuter.obj</_ClrosRethrowOuterObjectName>
+    <_ClrosRethrowInnerObjectName>CLROS.X64.RethrowInner.obj</_ClrosRethrowInnerObjectName>
     <_ClrosX64SerializerCanonicalSdkDirectory>$([System.IO.Path]::GetFullPath('$(MSBuildToolsPath)\.'))</_ClrosX64SerializerCanonicalSdkDirectory>
     <_ClrosX64SerializerCanonicalSdksPath>$([System.IO.Path]::GetFullPath('$(_ClrosX64SerializerCanonicalSdkDirectory)\Sdks'))</_ClrosX64SerializerCanonicalSdksPath>
     <_ClrosX64SerializerCanonicalMsbuildExtensionsPath>$(_ClrosX64SerializerCanonicalSdkDirectory)\</_ClrosX64SerializerCanonicalMsbuildExtensionsPath>
@@ -183,6 +185,12 @@
       Condition="'$(_ClrosSingleFinallyObjectName)' != 'CLROS.X64.SingleFinallyCatch.obj' Or '$(_ClrosSingleFinallyActualSha256)' != ''"
       Text="CLROS_M04_021_FINALLY_GENERATOR_FAILED object_contract_override" />
     <Error
+      Condition="'$(_ClrosRethrowOuterObjectName)' != 'CLROS.X64.RethrowOuter.obj' Or '$(_ClrosRethrowOuterActualSha256)' != ''"
+      Text="CLROS_M04_021_RETHROW_OUTER_GENERATOR_FAILED object_contract_override" />
+    <Error
+      Condition="'$(_ClrosRethrowInnerObjectName)' != 'CLROS.X64.RethrowInner.obj' Or '$(_ClrosRethrowInnerActualSha256)' != ''"
+      Text="CLROS_M04_021_RETHROW_INNER_GENERATOR_FAILED object_contract_override" />
+    <Error
       Condition="'$(ClrosX64InstructionPublicationSymbol)' != 'CLROS_X64_SerializeInstructionPublication'"
       Text="CLROS_M01_034_GENERATOR_FAILED symbol_override" />
     <Error
@@ -218,6 +226,8 @@
       <_ClrosInterfaceDispatchObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosInterfaceDispatchObjectName)</_ClrosInterfaceDispatchObject>
       <_ClrosSimpleCatchObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosSimpleCatchObjectName)</_ClrosSimpleCatchObject>
       <_ClrosSingleFinallyObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosSingleFinallyObjectName)</_ClrosSingleFinallyObject>
+      <_ClrosRethrowOuterObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosRethrowOuterObjectName)</_ClrosRethrowOuterObject>
+      <_ClrosRethrowInnerObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosRethrowInnerObjectName)</_ClrosRethrowInnerObject>
       <ClrosX64InstructionPublicationMap>$(_ClrosX64SerializerNativeIntermediateRoot)\OS.link.map</ClrosX64InstructionPublicationMap>
     </PropertyGroup>
     <Error
@@ -262,6 +272,12 @@
     <Error
       Condition="'$(_ClrosSingleFinallyObject)' != '$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.SingleFinallyCatch.obj'"
       Text="CLROS_M04_021_FINALLY_GENERATOR_FAILED object_path_override" />
+    <Error
+      Condition="'$(_ClrosRethrowOuterObject)' != '$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.RethrowOuter.obj'"
+      Text="CLROS_M04_021_RETHROW_OUTER_GENERATOR_FAILED object_path_override" />
+    <Error
+      Condition="'$(_ClrosRethrowInnerObject)' != '$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.RethrowInner.obj'"
+      Text="CLROS_M04_021_RETHROW_INNER_GENERATOR_FAILED object_path_override" />
     <Error
       Condition="'@(_ClrosX64SerializerGeneratorInput)' == ''"
       Text="CLROS_M01_034_GENERATOR_FAILED inputs_missing" />
@@ -388,6 +404,42 @@
       <LinkerArg Include="/INCLUDE:RhpThrowEx" />
       <LinkerArg Include="/INCLUDE:CLROS_Eh_GetClauseTable" />
       <FileWrites Include="$(_ClrosSingleFinallyObject)" />
+    </ItemGroup>
+    <Exec Condition="'$(EnableM04RethrowProbe)' == 'true'"
+      Command="&quot;$(_ClrosX64SerializerToolExecutable)&quot; --rethrow-outer --output-root &quot;$(_ClrosX64SerializerNativeIntermediateRoot)&quot; --output-file &quot;CLROS.X64.RethrowOuter.obj&quot;"
+      ConsoleToMSBuild="true" IgnoreExitCode="false" Timeout="60000" />
+    <Error Condition="'$(EnableM04RethrowProbe)' == 'true' And !Exists('$(_ClrosRethrowOuterObject)')"
+      Text="CLROS_M04_021_RETHROW_OUTER_GENERATOR_FAILED object_missing" />
+    <GetFileHash Condition="'$(EnableM04RethrowProbe)' == 'true'"
+      Files="$(_ClrosRethrowOuterObject)" Algorithm="SHA256" HashEncoding="hex">
+      <Output TaskParameter="Hash" PropertyName="_ClrosRethrowOuterActualSha256" />
+    </GetFileHash>
+    <Error Condition="'$(EnableM04RethrowProbe)' == 'true' And '$(_ClrosRethrowOuterActualSha256)' != '635C903FF77EE3C7DE3D1EDCE3E6F015DDEF204454A50432DFCF9692686E337B'"
+      Text="CLROS_M04_021_RETHROW_OUTER_GENERATOR_FAILED object_hash_mismatch" />
+    <ItemGroup Condition="'$(EnableM04RethrowProbe)' == 'true'">
+      <NativeLibrary Include="$(_ClrosRethrowOuterObject)" />
+      <LinkerArg Include="&quot;$(_ClrosRethrowOuterObject)&quot;" />
+      <LinkerArg Include="/INCLUDE:RhpRethrow" />
+      <LinkerArg Include="/INCLUDE:CLROS_Rethrow_OuterClauses" />
+      <FileWrites Include="$(_ClrosRethrowOuterObject)" />
+    </ItemGroup>
+    <Exec Condition="'$(EnableM04RethrowProbe)' == 'true'"
+      Command="&quot;$(_ClrosX64SerializerToolExecutable)&quot; --rethrow-inner --output-root &quot;$(_ClrosX64SerializerNativeIntermediateRoot)&quot; --output-file &quot;CLROS.X64.RethrowInner.obj&quot;"
+      ConsoleToMSBuild="true" IgnoreExitCode="false" Timeout="60000" />
+    <Error Condition="'$(EnableM04RethrowProbe)' == 'true' And !Exists('$(_ClrosRethrowInnerObject)')"
+      Text="CLROS_M04_021_RETHROW_INNER_GENERATOR_FAILED object_missing" />
+    <GetFileHash Condition="'$(EnableM04RethrowProbe)' == 'true'"
+      Files="$(_ClrosRethrowInnerObject)" Algorithm="SHA256" HashEncoding="hex">
+      <Output TaskParameter="Hash" PropertyName="_ClrosRethrowInnerActualSha256" />
+    </GetFileHash>
+    <Error Condition="'$(EnableM04RethrowProbe)' == 'true' And '$(_ClrosRethrowInnerActualSha256)' != 'D30D37F5AD93A70A66D2ED2E69A184A75DB903C5A1D69C4E31571569016E7A10'"
+      Text="CLROS_M04_021_RETHROW_INNER_GENERATOR_FAILED object_hash_mismatch" />
+    <ItemGroup Condition="'$(EnableM04RethrowProbe)' == 'true'">
+      <NativeLibrary Include="$(_ClrosRethrowInnerObject)" />
+      <LinkerArg Include="&quot;$(_ClrosRethrowInnerObject)&quot;" />
+      <LinkerArg Include="/INCLUDE:RhpThrowEx" />
+      <LinkerArg Include="/INCLUDE:CLROS_Rethrow_InnerClauses" />
+      <FileWrites Include="$(_ClrosRethrowInnerObject)" />
     </ItemGroup>
   </Target>
 

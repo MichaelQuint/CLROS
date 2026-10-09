@@ -163,17 +163,18 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
         Need(errors.Count(x=>x=="'$("+Flag+")' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'")==1,"exact original M01 prerequisite");
         Need(errors.Count(x=>x=="'$(EnableM04X64UnwindMetadataProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' != 'true'") == 1, "exact unwind child original-module prerequisite");
         foreach(string other in flags.Where(x=>x!=Flag&&x!="EnableM01LoadedImageStackProbe"&&x!="EnableM04X64UnwindMetadataProbe")){
-            if(other=="EnableM03FirstRealExitBootServicesProbe"||other=="EnableM03FirmwareAdapterRevocationProbe"||other=="EnableM03OwnedSubsystemSurvivalProbe"||other=="EnableM03OwnedSubsystemPanicProbe"){
+            if(other=="EnableM03FirstRealExitBootServicesProbe"||other=="EnableM03FirmwareAdapterRevocationProbe"||other=="EnableM03OwnedSubsystemSurvivalProbe"||other=="EnableM03OwnedSubsystemPanicProbe"||other=="EnableM05PhysicalMappingProbe"){
                 if(other=="EnableM03FirmwareAdapterRevocationProbe")
                     Need(errors.Count(x=>x=="'$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' and '$(EnableM03FirstRealExitBootServicesProbe)' != 'true'")==1,"exact inherited revocation prerequisite");
                 if(other=="EnableM03OwnedSubsystemPanicProbe")
                     Need(errors.Count(x=>x=="'$(EnableM03OwnedSubsystemPanicProbe)' == 'true' and '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true'")==1,"exact inherited owned panic prerequisite");
                 if(other=="EnableM03OwnedSubsystemSurvivalProbe"||other=="EnableM03OwnedSubsystemPanicProbe")
                     Need(errors.Count(x=>x=="'$(EnableM03OwnedSubsystemSurvivalProbe)' == 'true' and '$(EnableM03FirstRealExitBootServicesProbe)' != 'true'")==1,"exact inherited owned survival prerequisite");
+                if(other=="EnableM05PhysicalMappingProbe") Need(errors.Count(x=>x=="'$(EnableM05PhysicalMappingProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM03FirstRealExitBootServicesProbe)' != 'true' or '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true')")==1,"exact inherited mapping prerequisite");
                 Need(errors.Count(x=>x=="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$("+Flag+")' == 'true'")==1,"exact incoming first-exit conflict");
                 continue;
             }
-            if(other=="EnableM04SeededCollectorChurnProbe"||other=="EnableM04ClassConstructorExecutionProbe"||other=="EnableM04InterfaceDispatchProbe"||other=="EnableM04SimpleThrowCatchProbe"||other=="EnableM04SingleFinallyCatchProbe"){
+            if(other=="EnableM04SeededCollectorChurnProbe"||other=="EnableM04ClassConstructorExecutionProbe"||other=="EnableM04InterfaceDispatchProbe"||other=="EnableM04SimpleThrowCatchProbe"||other=="EnableM04SingleFinallyCatchProbe"||other=="EnableM04RethrowProbe"){
                 string gcChild=other;
                 if(other=="EnableM04InterfaceDispatchProbe"){
                     Need(errors.Count(x=>x=="'$(EnableM04InterfaceDispatchProbe)' == 'true' and '$(EnableM04ClassConstructorExecutionProbe)' != 'true'")==1,"exact inherited dispatch prerequisite");
@@ -247,7 +248,7 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
         Result result=Dry(positive);Passed(result);Need(result.Output.Contains("TEST_PASS qemu.runner.dryrun",StringComparison.Ordinal),"actual dry-run terminal");
         string[] Vector(string prefix)=>result.Output.Split('\n').Single(x=>x.StartsWith(prefix+" ",StringComparison.Ordinal))[(prefix.Length+1)..].TrimEnd('\r').Split(';').Select(x=>x.Trim()).ToArray();
         var required=Vector("REQUIRED_MARKERS");var ordered=Vector("ORDERED_MARKERS");var unique=Vector("UNIQUE_MARKERS");var forbidden=Vector("FORBIDDEN_MARKERS");
-        foreach(var vector in new[]{required,ordered,unique})Need(vector.Length==QemuContracts.M04TypeManagerRequiredMarkers.Count&&vector.Distinct(StringComparer.Ordinal).Count()==vector.Length,"actual45 canonical unique vectors");
+        foreach(var vector in new[]{required,ordered,unique})Need(vector.Length==QemuContracts.M04TypeManagerRequiredMarkers.Count&&vector.Distinct(StringComparer.Ordinal).Count()==vector.Length,"canonical unique marker inventories");
         Need(required.Order(StringComparer.Ordinal).SequenceEqual(ordered.Order(StringComparer.Ordinal),StringComparer.Ordinal)&&ordered.SequenceEqual(unique,StringComparer.Ordinal),"actual complete set and ordered/unique sequence");
         OS.Tools.QemuRunner.SerialMarkerCompletionResult Stream(string[] lines){var state=new OS.Tools.QemuRunner.SerialMarkerStateMachine(required,forbidden,orderedMarkers:ordered,uniqueMarkers:unique);Need(state.Feed(Encoding.ASCII.GetBytes(string.Join("\r\n",lines)+"\r\n")).Succeeded,"actual streamer Feed");return state.Complete();}
         var accepted=Stream(ProtocolLines);Need(accepted.Passed&&accepted.LinesProcessed==ProtocolLines.Length&&accepted.OrderedSeenCount==ordered.Length&&accepted.UniqueSeenCount==unique.Length,"genuine full-token streamer success");
@@ -257,7 +258,7 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
             string[] swapped=[..ProtocolLines];(swapped[index],swapped[index+1])=(swapped[index+1],swapped[index]);Need(Stream(swapped).OutOfOrderOccurrenceCount>0,"reordered registration row");
         }
         void Reject(string[] args,string reason){Result failure=Dry(args);Need(failure.Exit!=0&&!failure.Timeout&&(failure.Output+failure.Error).Contains(reason,StringComparison.Ordinal),"profile rejection "+reason);}
-        string project=File.ReadAllText(Path.Combine(root,"src/OS/OS.csproj"));string[] flags=Regex.Matches(project,@"\$\((Enable\w+Probe)\)").Select(x=>x.Groups[1].Value).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();Need(flags.Length==OS.Tooling.EfiContracts.DiagnosticProbes.Count,"actual52 profile flags");
+        string project=File.ReadAllText(Path.Combine(root,"src/OS/OS.csproj"));string[] flags=Regex.Matches(project,@"\$\((Enable\w+Probe)\)").Select(x=>x.Groups[1].Value).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();Need(flags.Length==OS.Tooling.EfiContracts.DiagnosticProbes.Count,"complete profile inventory");
         foreach(string other in flags.Where(x=>x!=Flag&&x!="EnableM01LoadedImageStackProbe"&&x!="EnableM04X64UnwindMetadataProbe"))
         {
             Result failure=Dry([..positive,"-"+other]);

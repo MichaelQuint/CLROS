@@ -51,9 +51,9 @@ internal static class M04GCStaticRootMaterializationEfiIntegrationTests
         Need(project.Descendants("Error").Count(x => x.Attribute("Condition")?.Value == "'$(EnableM04SimpleThrowCatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'") == 1, "simple catch inherits exact GC prerequisites and conflicts");
         Need(project.Descendants("Error").Count(x => x.Attribute("Condition")?.Value == "'$(EnableM04SingleFinallyCatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'") == 1, "single finally inherits exact GC prerequisites and conflicts");
         Need(conditions.Count(x => x == "'$(EnableM04TypeManagerModuleRegistrationProbe)' == 'true' and '$(" + Flag + ")' == 'true'") == 1, "incoming original TypeManager conflict");
-        foreach (string other in flags.Except(Chain.Append(Flag).Append("EnableM04SeededCollectorChurnProbe").Append("EnableM04ClassConstructorExecutionProbe").Append("EnableM04InterfaceDispatchProbe").Append("EnableM04SimpleThrowCatchProbe").Append("EnableM04SingleFinallyCatchProbe"), StringComparer.Ordinal))
+        foreach (string other in flags.Except(Chain.Append(Flag).Append("EnableM04SeededCollectorChurnProbe").Append("EnableM04ClassConstructorExecutionProbe").Append("EnableM04InterfaceDispatchProbe").Append("EnableM04SimpleThrowCatchProbe").Append("EnableM04SingleFinallyCatchProbe").Append("EnableM04RethrowProbe"), StringComparer.Ordinal))
         {
-            string profile = other is "EnableM03FirmwareAdapterRevocationProbe" or "EnableM03OwnedSubsystemSurvivalProbe" or "EnableM03OwnedSubsystemPanicProbe" ? "EnableM03FirstRealExitBootServicesProbe"
+            string profile = other is "EnableM03FirmwareAdapterRevocationProbe" or "EnableM03OwnedSubsystemSurvivalProbe" or "EnableM03OwnedSubsystemPanicProbe" or "EnableM05PhysicalMappingProbe" ? "EnableM03FirstRealExitBootServicesProbe"
                 : other == "EnableM04X64UnwindMetadataProbe" ? "EnableM04TypeManagerModuleRegistrationProbe" : other;
             Need(conditions.Count(x => x == (profile == "EnableM03FirstRealExitBootServicesProbe"
                 ? "'$(" + profile + ")' == 'true' and '$(" + Flag + ")' == 'true'"

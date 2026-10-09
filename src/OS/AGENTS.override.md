@@ -59,7 +59,7 @@ Before adding a stub:
 2. Check whether the helper belongs in `std/no-runtime/shared` instead.
 3. Implement the smallest C# surface needed.
 4. Document if behavior is a placeholder.
-5. Re-run `scripts/build-efi-shell.ps1`.
+5. Re-run `dotnet run --project tools/OS.Tooling -- efi build`.
 
 Do not use permissive shell placeholders as a model for the real kernel runtime. The current type-cast helpers are publish-boundary placeholders only.
 
@@ -81,7 +81,7 @@ EFI link output must remain freestanding and use `/SUBSYSTEM:EFI_APPLICATION`.
 Required command:
 
 ```powershell
-.\scripts\build-efi-shell.ps1
+dotnet run --project tools/OS.Tooling -- efi build
 ```
 
 Expected markers:

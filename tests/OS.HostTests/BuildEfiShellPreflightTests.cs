@@ -2667,7 +2667,7 @@ internal static class BuildEfiShellPreflightTests
         [
             "EFI_PREFLIGHT_M01_SWITCHES status=ok loadedImageStack=false liveAllocator=false ownedPaging=false m02SafeStub=false",
             "EFI_PREFLIGHT_M02_SWITCHES status=ok enabled=false loadedImageStack=false liveAllocator=false ownedPaging=false checkedPortIoBinding=false",
-            "EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed=31 prerequisites=3 compileItems=122 prerequisiteGap=UefiMemoryType",
+            $"EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed={EfiContracts.ReviewedSourceIncludes.Count} prerequisites={EfiContracts.PrerequisiteSourceIncludes.Count} compileItems={EfiContracts.CompileItems.Count} prerequisiteGap=UefiMemoryType",
             "EFI_PREFLIGHT_DOTNET path=\"",
             "sdkVersion=\"10.0.4",
             "EFI_PREFLIGHT_MSVC_LINKER path=\"" + Path.GetFullPath(tools.LinkerPath) + "\" version=\"14.40.33807\"",

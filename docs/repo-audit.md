@@ -2,6 +2,13 @@
 
 ## Current Status
 
+[Step1120](../done/step1120.md) qualifies the compiled rethrow/mapping batch:
+4,146 logical full-host checks pass, including 2,599 checks reused with retained
+origins, and six fresh guest profiles pass with independent disk association.
+The assertion audit records every host C# file/method and reviews staleness risks.
+Steps1116/1117 cover checkpoint provenance and build isolation; step1119 adds
+fast-phase gating and the remaining multiline source normalization repairs.
+
 The C# tooling migration in [step1097](../done/step1097.md) completes the
 implementation begun in [step1096](../done/step1096.md). Explicit test discovery,
 isolated fast workers, exclusive native workers, bounded process cleanup and
@@ -51,7 +58,8 @@ default/GC/legacy-catch/finally captures pass at `736d10d`. Later changes are
 reviewed host-fixture repairs and documentation, with all 137 native authority
 inputs unchanged. R01/R02 failures and their focused repairs remain recorded in
 steps1086/1087. This adds one pre-exit cleanup before typed catch and continuation;
-general EH, rethrow, #90 and Gate4 remain incomplete.
+general EH, arbitrary rethrow, #90 and Gate4 remain incomplete. The later bounded
+rethrow slice is accepted in step1120.
 
 The first new unfiltered host run stopped on four inherited backlog ownership
 notes that violate the unchanged manifest fixture. The current repair changes

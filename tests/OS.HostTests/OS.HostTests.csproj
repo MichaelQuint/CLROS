@@ -7,7 +7,7 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 		<Nullable>enable</Nullable>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-		<DefineConstants>$(DefineConstants);TYPE_MANAGER_CAPTURE_HOST</DefineConstants>
+		<DefineConstants>$(DefineConstants);TYPE_MANAGER_CAPTURE_HOST;RETHROW_CORE_TEST</DefineConstants>
 		<!-- The linked production EFI adapter has its own Main; this harness uses
 		     its top-level entry point and invokes only the mapped adapter controls. -->
 		<NoWarn>$(NoWarn);CS7022</NoWarn>
@@ -19,6 +19,7 @@
 		<Compile Include="..\..\src\OS\Boot\EfiEntry.cs" Link="EfiAdapters\EfiEntry.cs" />
 		<Compile Include="..\..\src\OS\Boot\EfiConsoleAdapter.cs" Link="EfiAdapters\EfiConsoleAdapter.cs" />
 		<Compile Include="..\..\src\OS\Runtime\NativeAotModuleRegistrationProbe.cs" Link="EfiAdapters\NativeAotModuleRegistrationProbe.cs" />
+		<Compile Include="..\..\src\OS\Runtime\ExceptionRethrowProbe.cs" Link="EfiAdapters\ExceptionRethrowProbe.cs" />
 		<ProjectReference Include="..\..\tools\OS.Tooling\OS.Tooling.csproj" />
 		<ProjectReference Include="..\..\src\OS.Kernel\OS.Kernel.csproj" />
 		<ProjectReference Include="..\..\std\no-runtime\shared\OS.Std.NoRuntime.Shared.csproj" />

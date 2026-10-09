@@ -16,6 +16,10 @@ public struct FirstExitImageReferences
     // Optional in host-only compositions. The EFI adapter must retain its
     // original installed NativeAOT stack-probe page, outside the loaded image.
     public ulong RuntimeSupportCode, RuntimeSupportCodeBytes;
+#if M05_PHYSICAL_MAPPING_PROBE
+    // Original EFI allocation containing one exclusive aligned 2 MiB test span.
+    public ulong MappingScratchBacking, MappingScratchBackingPages, MappingScratchStart;
+#endif
 }
 
 public enum FirstExitDiagnosticStatus : uint
@@ -211,7 +215,11 @@ public static unsafe class FirstExitPostExitDiagnostics
 public static unsafe class FirstExitRetainedMappings
 {
     public const ulong MaximumRanges = FirstExitImageMappings.MaximumSections + 1 +
-        FirstExitOwnedArena.MappingRangeCount + 3;
+        FirstExitOwnedArena.MappingRangeCount + 3
+#if M05_PHYSICAL_MAPPING_PROBE
+        + 1
+#endif
+        ;
     private const ulong LowEnd = 0x0000800000000000;
     private const PageProtection Data = PageProtection.Read | PageProtection.Write;
     private const PageProtection Code = PageProtection.Read | PageProtection.Execute;
@@ -266,8 +274,13 @@ public static unsafe class FirstExitRetainedMappings
             if ((ulong)state < references.AdapterState || references.AdapterStateBytes < (ulong)sizeof(FirstExitOwnedArenaState) ||
                 (ulong)state - references.AdapterState > references.AdapterStateBytes - (ulong)sizeof(FirstExitOwnedArenaState)) return false;
 
+#if M05_PHYSICAL_MAPPING_PROBE
+        ulong* starts = stackalloc ulong[7];
+        ulong* lengths = stackalloc ulong[7];
+#else
         ulong* starts = stackalloc ulong[6];
         ulong* lengths = stackalloc ulong[6];
+#endif
         starts[0] = pending[0].Start; lengths[0] = capture.Range.ImageSize;
         starts[1] = (ulong)arena.Storage; lengths[1] = FirstExitOwnedArena.Bytes;
         starts[2] = (ulong)code; lengths[2] = FirstExitCodeBundle.Bytes;
@@ -275,6 +288,16 @@ public static unsafe class FirstExitRetainedMappings
         starts[4] = root; lengths[4] = tables.ArenaPageCount * 4096;
         int allocations = references.RuntimeSupportCode == 0 ? 5 : 6;
         starts[5] = references.RuntimeSupportCode; lengths[5] = references.RuntimeSupportCodeBytes;
+#if M05_PHYSICAL_MAPPING_PROBE
+        if (references.RuntimeSupportCode == 0 || references.MappingScratchBacking < 0x100000 ||
+            (references.MappingScratchBacking & 4095) != 0 || references.MappingScratchBackingPages != 1023 ||
+            references.MappingScratchBacking >= LowEnd - 1023 * 4096 ||
+            (references.MappingScratchStart & 0x1fffff) != 0 ||
+            references.MappingScratchStart < references.MappingScratchBacking ||
+            references.MappingScratchStart - references.MappingScratchBacking > (1023 - 512) * 4096) return false;
+        starts[6] = references.MappingScratchBacking; lengths[6] = 1023 * 4096;
+        allocations = 7;
+#endif
         for (int i = 0; i < allocations; i++) for (int j = 0; j < i; j++)
             if (FirstExitDescriptors.Overlaps(starts[i], lengths[i], starts[j], lengths[j])) return false;
 
@@ -283,7 +306,10 @@ public static unsafe class FirstExitRetainedMappings
         count += arenaCount;
         pending[count++] = new SeparatePageFaultMappingRange((ulong)code, FirstExitCodeBundle.Bytes / 4096, Code);
         pending[count++] = allocator;
-        if (allocations == 6) pending[count++] = new SeparatePageFaultMappingRange(references.RuntimeSupportCode, 1, Code);
+        if (references.RuntimeSupportCode != 0) pending[count++] = new SeparatePageFaultMappingRange(references.RuntimeSupportCode, 1, Code);
+#if M05_PHYSICAL_MAPPING_PROBE
+        pending[count++] = new SeparatePageFaultMappingRange(references.MappingScratchStart, 512, Data);
+#endif
         ulong totalPages = 0;
         for (ulong i = 0; i < count; i++) totalPages += pending[i].PageCount;
         ulong outputBytes = count * (ulong)sizeof(SeparatePageFaultMappingRange);
@@ -314,6 +340,12 @@ public static unsafe class FirstExitCodeBundle
     public const uint FaultOffset = 4096;
     public const uint Out8Offset = 4352;
     public const uint In8Offset = 4368;
+#if M05_PHYSICAL_MAPPING_PROBE
+    public const uint MappingPublishOffset = 4608;
+    public const uint MappingReadMsrOffset = 4800;
+    public const uint MappingWritePatOffset = 4832;
+    public const uint MappingReadCapabilitiesOffset = 5120;
+#endif
     public const uint StackEntryOffset = 8192;
     public const uint PermanentOffset = 8448;
     private const ulong LowEnd = 0x0000800000000000;
@@ -331,6 +363,12 @@ public static unsafe class FirstExitCodeBundle
             PortIoStubPlan.In8.Emit(code + In8Offset, PortIoStubPlan.In8RequiredByteLength).Succeeded &&
             FirstExitOwnedStackStub.Emit(code + StackEntryOffset, PermanentOffset - StackEntryOffset, out _) &&
             FirstExitPermanentCr3Stub.Emit(code + PermanentOffset, Bytes - PermanentOffset, out _) &&
+#if M05_PHYSICAL_MAPPING_PROBE
+            X64PhysicalMappingPublication.Emit(code + MappingPublishOffset, MappingReadMsrOffset - MappingPublishOffset) &&
+            X64PhysicalMappingPublication.EmitReadMsr(code + MappingReadMsrOffset, MappingWritePatOffset - MappingReadMsrOffset) &&
+            X64PhysicalMappingPublication.EmitWritePat(code + MappingWritePatOffset, MappingReadCapabilitiesOffset - MappingWritePatOffset) &&
+            X64PhysicalMappingPublication.EmitReadCapabilities(code + MappingReadCapabilitiesOffset, StackEntryOffset - MappingReadCapabilitiesOffset) &&
+#endif
             CheckBytes(code, (ulong)arena.Fault, callback);
         if (!emitted)
         {
@@ -406,9 +444,23 @@ public static unsafe class FirstExitCodeBundle
             !Equal(scratch, code + StackEntryOffset, entryBytes) ||
             !FirstExitPermanentCr3Stub.Emit(scratch, 1024, out uint permanentBytes) ||
             !Equal(scratch, code + PermanentOffset, permanentBytes)) return false;
+#if M05_PHYSICAL_MAPPING_PROBE
+        if (!X64PhysicalMappingPublication.ValidateReadBack(code + MappingPublishOffset, X64PhysicalMappingPublication.RequiredBytes) ||
+            !X64PhysicalMappingPublication.EmitReadMsr(scratch, 1024) ||
+            !Equal(scratch, code + MappingReadMsrOffset, X64PhysicalMappingPublication.ReadMsrBytes) ||
+            !X64PhysicalMappingPublication.ValidateWritePatReadBack(code + MappingWritePatOffset, X64PhysicalMappingPublication.WritePatBytes) ||
+            !X64PhysicalMappingPublication.EmitReadCapabilities(scratch, 1024) ||
+            !Equal(scratch, code + MappingReadCapabilitiesOffset, X64PhysicalMappingPublication.ReadCapabilitiesBytes)) return false;
+#endif
         for (uint index = 4096; index < Bytes; index++)
             if (!Inside(index, FaultOffset, faultBytes) && !Inside(index, Out8Offset, PortIoStubPlan.Out8RequiredByteLength) &&
                 !Inside(index, In8Offset, PortIoStubPlan.In8RequiredByteLength) && !Inside(index, StackEntryOffset, entryBytes) &&
+#if M05_PHYSICAL_MAPPING_PROBE
+                !Inside(index, MappingPublishOffset, X64PhysicalMappingPublication.RequiredBytes) &&
+                !Inside(index, MappingReadMsrOffset, X64PhysicalMappingPublication.ReadMsrBytes) &&
+                !Inside(index, MappingWritePatOffset, X64PhysicalMappingPublication.WritePatBytes) &&
+                !Inside(index, MappingReadCapabilitiesOffset, X64PhysicalMappingPublication.ReadCapabilitiesBytes) &&
+#endif
                 !Inside(index, PermanentOffset, permanentBytes) && code[index] != 0) return false;
         return true;
     }

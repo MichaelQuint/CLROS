@@ -21,6 +21,9 @@ public static partial class EfiContracts
     public const string InterfaceDispatchObjectSha256 = "228630b0ad4d6ab298414fda0fcf07e76cb4699a63339fa59ba331afdc3aeb61";
     public const string SimpleCatchObjectSha256 = "dd32dc30808c3b6dd42981df652b95f62236bdc8c45c1daa3dde32bab1c981ab";
     public const string SingleFinallyObjectSha256 = "d24da7653745da1d37f1fc9d286a2e370c32b687a0415e90fc626a597326025a";
+    public const int RethrowInnerObjectBytes = 1732, RethrowOuterObjectBytes = 1382;
+    public const string RethrowInnerObjectSha256 = "d30d37f5ad93a70a66d2ed2e69a184a75db903c5a1d69c4e31571569016e7a10";
+    public const string RethrowOuterObjectSha256 = "635c903ff77ee3c7de3d1edce3e6f015ddef204454a50432dfcf9692686e337b";
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> SourceClosureExplicitPaths { get; } = Array.AsReadOnly<string>(
     [
         "CLROS.slnx", "global.json", "src/OS/OS.csproj", "Directory.Build.props", "Directory.Build.targets", "tools/Directory.Build.props",

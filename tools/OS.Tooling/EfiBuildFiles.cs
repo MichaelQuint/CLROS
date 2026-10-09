@@ -102,6 +102,7 @@ public sealed record EfiOutputPlan(string Directory, string EfiPath, string MapP
         if (profile is null || profile.IsEnabled("M04InterfaceDispatch")) paths.Add(efi + ".dispatch.obj");
         if (profile is null || profile.IsEnabled("M04SimpleThrowCatch")) paths.Add(efi + ".catch.obj");
         if (profile is null || profile.IsEnabled("M04SingleFinallyCatch")) paths.Add(efi + ".finally.obj");
+        if (profile is null || profile.IsEnabled("M04Rethrow")) paths.AddRange([efi + ".rethrow-inner.obj", efi + ".rethrow-outer.obj"]);
         foreach (string path in paths)
         {
             Require(!EfiEvidence.SamePath(path, logPath), "output_authority_log_path_collision", path);

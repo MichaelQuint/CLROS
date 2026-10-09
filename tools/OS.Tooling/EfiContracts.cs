@@ -6,9 +6,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "1884e30fbdaa3043f95a26e87e35d1a2b58e401412cbd4c625c84cdd37178657";
-    public const string CanonicalProjectSha256 = "70b5a8737c78658b7f702f3deaa881d224ef2a4ce04116a8ee92523568748f5a";
-    public const string EfiEntrySourceSha256 = "b68bc18fa8734829c03161ce874b192c683a8b13269387469cba916e71b69583";
+    public const string ProjectSourceSha256 = "63758c4a3795c301e0746d6b8e2395568c801302731af37cf08c2a13aef9c8d5";
+    public const string CanonicalProjectSha256 = "840c077a6d406f948293f65ed82c8f0f31e83d9c8e2c9629554056a016e30636";
+    public const string EfiEntrySourceSha256 = "8fb9724d1d6b5f8142af065ba4848c437289577304d46b593c162c4e4528c255";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -121,6 +121,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs|Boot\NoAllocationOrUnrelatedFirmwareCallOccursBetween.cs",
         @"..\OS.Kernel\Boot\BoundedRetryStaleKeyStatus.cs|Boot\BoundedRetryStaleKeyStatus.cs",
         @"..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs|Boot\FirstOptRealExitBootServicesTransition.cs",
+        @"..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs|Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs",
         @"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs|Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs",
         @"..\OS.Kernel\Boot\BootSequence.cs|Boot\BootSequence.cs",
         @"..\OS.Kernel\Diagnostics\Probes.cs|Diagnostics\Probes.cs",
@@ -146,6 +147,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Runtime\X64FrameUnwind.cs|Runtime\X64FrameUnwind.cs",
         @"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs|Runtime\NativeAotEhClauseMetadata.cs",
         @"Runtime\ExceptionCatchProbe.cs|",
+        @"Runtime\ExceptionRethrowProbe.cs|",
     ]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> DiagnosticProbes { get; } = Array.AsReadOnly<string>(
@@ -185,6 +187,7 @@ public static partial class EfiContracts
         "EnableM04InterfaceDispatchProbe",
         "EnableM04LayoutContractProbe",
         "EnableM04ManagedHeapPageRangeProbe",
+        "EnableM04RethrowProbe",
         "EnableM04RhpNewFastBeforeBindFailureProbe",
         "EnableM04RhpNewFastExhaustionFailureProbe",
         "EnableM04RhpNewFastProbe",
@@ -201,6 +204,7 @@ public static partial class EfiContracts
         "EnableM04SzArrayAllocationProbe",
         "EnableM04TypeManagerModuleRegistrationProbe",
         "EnableM04X64UnwindMetadataProbe",
+        "EnableM05PhysicalMappingProbe",
         "EnableUefiGoneSimulationProbe",
     ]);
 }

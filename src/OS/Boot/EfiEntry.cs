@@ -43,7 +43,10 @@ public static unsafe class EfiEntry
             internal FirstExitDiagnosticMemory Memory;
             internal ulong PreparationCheckpoint;
             internal uint TableMemoryType;
-            internal fixed ulong PageMetadata[165]; // 55 * 24 bytes, naturally aligned
+            internal fixed ulong PageMetadata[(int)TablePages * 3]; // 24 bytes per page, naturally aligned
+#if M05_PHYSICAL_MAPPING_PROBE
+            internal ulong MappingPhase, MappingCr0;
+#endif
 #if (M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
             internal OwnedAllocatorRoundTripState OwnedAllocator;
             internal ulong OwnedPhase; // 0 fresh, 1 consumed, 2 positive complete, 3 armed, 4 fault entered, 5 reported
@@ -165,8 +168,22 @@ public static unsafe class EfiEntry
                 !Disjoint(data, FirstExitOwnedArena.Bytes, stackProbePage, Page) ||
                 !Disjoint(tables, TablePages * Page, stackProbePage, Page)) return false;
 
+#if M05_PHYSICAL_MAPPING_PROBE
+            if (!Allocate(services, 2, 1023, image, imageBytes, allocator, out ulong scratch) ||
+                !Disjoint(scratch, 1023 * Page, code, FirstExitCodeBundle.Bytes) ||
+                !Disjoint(scratch, 1023 * Page, data, FirstExitOwnedArena.Bytes) ||
+                !Disjoint(scratch, 1023 * Page, tables, TablePages * Page) ||
+                !Disjoint(scratch, 1023 * Page, stackProbePage, Page)) return false;
+            references.MappingScratchBacking = scratch;
+            references.MappingScratchBackingPages = 1023;
+            references.MappingScratchStart = (scratch + 0x1fffff) & ~0x1fffffUL;
+#endif
+
             state->PreparationCheckpoint = 50;
             if (!Query(code, out var cpu, out ulong cs, out var conditions)) return false;
+#if M05_PHYSICAL_MAPPING_PROBE
+            state->MappingCr0 = cpu.Cr0;
+#endif
             state->PreparationCheckpoint = 60;
             if (!FirstExitOwnedArena.Materialize(ref state->Arena, (byte*)data, FirstExitOwnedArena.Bytes, code, (ushort)cs) ||
                 !FirstExitCodeBundle.Materialize((byte*)code, FirstExitCodeBundle.Bytes,
@@ -462,6 +479,9 @@ public static unsafe class EfiEntry
 #if (M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
                 if (ReportOwnedSubsystems(state))
                 {
+#if M05_PHYSICAL_MAPPING_PROBE
+                    _ = BootSequence.RunPostFirmwarePhysicalMapping(state->OwnedPhase == 2, state, &RunPhysicalMapping);
+#endif
 #if CLROS_NORMAL_VERIFIED_EXIT
                     _ = BootSequence.ReportVerifiedExitCompletion(state, &WriteVerifiedExitBytes);
 #endif
@@ -475,6 +495,204 @@ public static unsafe class EfiEntry
                 // All returns, including success, terminate in the native stub.
             }
         }
+
+#if M05_PHYSICAL_MAPPING_PROBE
+        // Reviewed mapping graph: 8,176 bytes below permanent continuation,
+        // within its 32 KiB reserve. The dangerous profile still defaults off.
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static bool MappingExecutionReady() => true;
+
+        private static bool RunPhysicalMapping(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->MappingPhase != 0 || state->OwnedPhase != 2 ||
+                state->Diagnostic.Status != FirstExitDiagnosticStatus.Completed) return false;
+            state->MappingPhase = 1;
+            if (!WriteMappingLiteral(state, 0)) return false;
+            if (!MappingExecutionReady() || !RunPhysicalMappingCore(state))
+            {
+                _ = WriteMappingRow(state, 9, state->MappingPhase, (ulong)state->Memory.Entries, 0, 0);
+                _ = WriteMappingLiteral(state, 3);
+                return false;
+            }
+            state->MappingPhase = 8;
+            return WriteMappingLiteral(state, 1) && WriteMappingLiteral(state, 2);
+        }
+
+        private static bool RunPhysicalMappingCore(Storage* state)
+        {
+            FirstExitDiagnosticMemory memory = state->Memory;
+            ulong root = (ulong)memory.Entries, start = memory.References.MappingScratchStart;
+            if (!AuditOriginalMapping(state) ||
+                PhysicalAddress.TryCreateFromUefiBoundary(start, out var physical) != AddressValueStatus.Success ||
+                PhysicalAddress.TryCreateFromUefiBoundary(start + Page, out var selected) != AddressValueStatus.Success)
+                return false;
+            var readMsr = (delegate* unmanaged<uint, ulong>)(memory.Code + FirstExitCodeBundle.MappingReadMsrOffset);
+            var writePat = (delegate* unmanaged<ulong, ulong, ulong, uint>)(memory.Code + FirstExitCodeBundle.MappingWritePatOffset);
+            var publish = (delegate* unmanaged<ulong*, ulong, ulong, ulong, uint>)(memory.Code + FirstExitCodeBundle.MappingPublishOffset);
+            ulong capabilities = ((delegate* unmanaged<ulong>)(memory.Code + FirstExitCodeBundle.MappingReadCapabilitiesOffset))();
+            if ((capabilities & 0x11000) != 0x11000 || ((capabilities >> 32) & 0x2000) != 0) return false;
+            ulong mtrrCap = readMsr(0xfe), mtrrDefault = readMsr(0x2ff), originalPat = readMsr(0x277);
+            uint variableCount = (uint)(mtrrCap & 0xff);
+            if (variableCount > 32 || (mtrrCap & 0xc00) != 0x400 ||
+                originalPat != memory.Tables.Preconditions.PatMapping.RawIa32Pat ||
+                ((originalPat >> 32) & 0xff) != 6) return false;
+            ulong* bases = stackalloc ulong[32]; ulong* masks = stackalloc ulong[32];
+            for (uint i = 0; i < variableCount; i++)
+            {
+                bases[i] = readMsr(0x200 + 2 * i); masks[i] = readMsr(0x201 + 2 * i);
+            }
+            if (PostFirmwarePhysicalMappingExplicitUCWCWB.ValidateWriteBackMtrrRange(
+                    physical, 0x200000, memory.Tables.Preconditions.PhysicalAddressWidth, state->MappingCr0,
+                    mtrrCap, mtrrDefault, false, bases, masks, variableCount) != PhysicalMappingPreparationStatus.Prepared ||
+                !WriteMappingRow(state, 0, root, start, mtrrCap, mtrrDefault)) return false;
+
+            // The original canonical audit admits only PAT index 0 WB leaves.
+            // Slot 4 is unused, so changing it needs translation invalidation,
+            // but no cache-type transition until a leaf actually selects it.
+            ulong changedPat = (originalPat & ~(0xffUL << 32)) | (1UL << 32);
+            if (X64PatMappingToken.TryCreate(changedPat, 0, 3, 4, out var cache) != X64PageTableEntryStatus.Success)
+                return false;
+            var conditions = X64PageTableEncodingPreconditions.CreateObserved(
+                memory.Tables.Preconditions.PhysicalAddressWidth, true, true, false, false, cache);
+            if (conditions.Validate() != X64PageTableEntryStatus.Success) return false;
+            state->MappingPhase = 2;
+            if (writePat(originalPat, changedPat, root) != 1 || readMsr(0x277) != changedPat ||
+                !WriteMappingRow(state, 1, originalPat, changedPat, root, capabilities)) return false;
+
+            if (!FindMappingPde(memory, start, out uint parentIndex, out uint childPage)) return false;
+            ulong* parent = memory.Entries + parentIndex;
+            ulong* children = memory.Entries + childPage * 512;
+            for (uint i = 0; i < 512; i++)
+            {
+                var leaf = X64PageTableEntry.TryDecode(X64PageTableLevel.Pte, children[i], conditions);
+                if (!leaf.Succeeded || leaf.Kind != X64PageTableEntryKind.Leaf ||
+                    leaf.Protection != (PageProtection.Read | PageProtection.Write) || leaf.CachePolicy != PageCachePolicy.WriteBack ||
+                    leaf.PhysicalAddress.TryGetRawValueForHardwareRegisterBoundary(out ulong address) != AddressValueStatus.Success ||
+                    address != start + i * Page) return false;
+                WriteMappingValue((ulong*)address, 0x434c524f53000000UL + i);
+            }
+            var large = X64PageTableEntry.TryEncode(new X64PageTableEntryRequest(X64PageTableLevel.Pde,
+                X64PageTableEntryKind.Leaf, physical, PageProtection.Read | PageProtection.Write, PageCachePolicy.WriteBack), conditions);
+            if (!large.Succeeded) return false;
+            ulong originalParent = *parent, largeEntry = large.Entry.RawValue | 0x60UL;
+            // Both refusals must occur before the native stub's first write.
+            if (publish(parent, originalParent ^ 2UL, largeEntry, root) != 0 || *parent != originalParent ||
+                publish(parent, originalParent, largeEntry, root + Page) != 0 || *parent != originalParent) return false;
+            state->MappingPhase = 3;
+            if (publish(parent, originalParent, largeEntry, root) != 1 || *parent != largeEntry ||
+                !WriteMappingRow(state, 2, (ulong)parent, originalParent, *parent, childPage)) return false;
+            // The old PT is detached only after CR3 reload and cache flush.
+            // Reuse that exact page so the final canonical audit remains valid.
+            for (uint i = 0; i < 512; i++) children[i] = 0;
+            var split = PostFirmwarePhysicalMappingExplicitUCWCWB.PrepareIdentitySplit(
+                memory.Tables.ArenaStart, memory.Entries, (uint)TablePages, selected, Page,
+                PhysicalMappingUsage.Device, conditions);
+            if (!split.IsPrepared || split.ParentEntryIndex != parentIndex || split.ChildTablePageIndex != childPage ||
+                split.OriginalPde != *parent) return false;
+            state->MappingPhase = 4;
+            if (publish(parent, split.OriginalPde, split.ReplacementPde, root) != 1 ||
+                ReadMappingValue((ulong*)(start + Page)) != 0x434c524f53000001UL ||
+                !WriteMappingRow(state, 3, (ulong)parent, split.OriginalPde, *parent, children[1])) return false;
+
+            ulong* selectedEntry = children + 1;
+            WriteMappingValue((ulong*)(start + Page), 0x5543000000000001UL);
+            if (ReadMappingValue((ulong*)(start + Page)) != 0x5543000000000001UL ||
+                !EncodeMappingLeaf(selected, PageCachePolicy.WriteCombining, conditions, *selectedEntry, out ulong wc)) return false;
+            ulong uc = *selectedEntry;
+            state->MappingPhase = 5;
+            if (publish(selectedEntry, uc, wc, root) != 1 || *selectedEntry != wc ||
+                !WriteMappingRow(state, 4, (ulong)selectedEntry, uc, wc, changedPat)) return false;
+            WriteMappingValue((ulong*)(start + Page), 0x5743000000000001UL);
+            if (!EncodeMappingLeaf(selected, PageCachePolicy.WriteBack, conditions, *selectedEntry, out ulong wb)) return false;
+            state->MappingPhase = 6;
+            // The native MFENCE drains the WC store before removing this leaf.
+            if (publish(selectedEntry, *selectedEntry, wb, root) != 1 ||
+                ReadMappingValue((ulong*)(start + Page)) != 0x5743000000000001UL ||
+                !WriteMappingRow(state, 5, (ulong)selectedEntry, wc, *selectedEntry, 0x5743000000000001UL)) return false;
+            for (uint i = 0; i < 512; i++)
+                if (ReadMappingValue((ulong*)(start + i * Page)) !=
+                    (i == 1 ? 0x5743000000000001UL : 0x434c524f53000000UL + i)) return false;
+            // No reachable leaf uses slot 4 before restoring its firmware value.
+            if (!AuditOriginalMapping(state)) return false;
+            state->MappingPhase = 7;
+            if (writePat(changedPat, originalPat, root) != 1 || readMsr(0x277) != originalPat ||
+                !AuditOriginalMapping(state) || !FirstExitOwnedArena.ValidateCanaries(state->Arena) ||
+                !WriteMappingRow(state, 6, root, start, originalPat, *selectedEntry)) return false;
+            return true;
+        }
+
+        private static bool AuditOriginalMapping(Storage* state)
+        {
+            FirstExitDiagnosticMemory memory = state->Memory;
+            SeparatePageFaultMappingRange* ranges = stackalloc SeparatePageFaultMappingRange[(int)FirstExitRetainedMappings.MaximumRanges];
+            return FirstExitOwnedArena.ValidateCanaries(state->Arena) &&
+                FirstExitRetainedMappings.WriteInstalledRanges(ref state->Arena, memory.Code, memory.Capture, memory.Mapping,
+                    memory.References, memory.Allocator, memory.Tables, ranges, FirstExitRetainedMappings.MaximumRanges, out ulong count) &&
+                SeparateDisabledDefaultPageFaultPageTables.AuditRetainedAccessedImage(memory.Tables, ranges, count,
+                    FirstExitRetainedMappings.MaximumRanges, memory.Pages, memory.PageCapacity, memory.Entries, memory.EntryCapacity).Succeeded;
+        }
+
+        private static bool FindMappingPde(FirstExitDiagnosticMemory memory, ulong start, out uint parentIndex, out uint childPage)
+        {
+            parentIndex = 0; childPage = 0;
+            ulong root = (ulong)memory.Entries, table = root;
+            for (int level = 4; level >= 2; level--)
+            {
+                uint index = (uint)((table - root) / 8 + ((start >> (12 + 9 * (level - 1))) & 511));
+                var entry = X64PageTableEntry.TryDecode((X64PageTableLevel)level, memory.Entries[index], memory.Tables.Preconditions);
+                if (!entry.Succeeded || entry.Kind != X64PageTableEntryKind.TablePointer ||
+                    entry.PhysicalAddress.TryGetRawValueForHardwareRegisterBoundary(out ulong next) != AddressValueStatus.Success ||
+                    next < root || next - root >= TablePages * Page || (next & 4095) != 0) return false;
+                if (level == 2) { parentIndex = index; childPage = (uint)((next - root) / Page); return true; }
+                table = next;
+            }
+            return false;
+        }
+
+        private static bool EncodeMappingLeaf(PhysicalAddress address, PageCachePolicy cache,
+            X64PageTableEncodingPreconditions conditions, ulong previous, out ulong encoded)
+        {
+            var result = X64PageTableEntry.TryEncode(new X64PageTableEntryRequest(X64PageTableLevel.Pte,
+                X64PageTableEntryKind.Leaf, address, PageProtection.Read | PageProtection.Write, cache), conditions);
+            encoded = result.Succeeded ? result.Entry.RawValue | (previous & 0x60UL) : 0;
+            return result.Succeeded;
+        }
+
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static ulong ReadMappingValue(ulong* address) => *address;
+        [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+        private static void WriteMappingValue(ulong* address, ulong value) => *address = value;
+
+        private static bool WriteMappingLiteral(Storage* state, uint marker)
+        {
+            ulong* words = stackalloc ulong[5]; uint bytes;
+            if (marker == 0) { words[0] = 0x4154535f54534554UL; words[1] = 0x302e35306d205452UL; words[2] = 0xa0d3130UL; bytes = 20; }
+            else if (marker == 1) { words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3130305f35UL; words[2] = 0xa0d594441UL; bytes = 21; }
+            else if (marker == 2) { words[0] = 0x5341505f54534554UL; words[1] = 0x30302e35306d2053UL; words[2] = 0xa0d31UL; bytes = 19; }
+            else { words[0] = 0x4941465f54534554UL; words[1] = 0x30302e35306d204cUL; words[2] = 0x6e697070616d2031UL; words[3] = 0xd65746174735f67UL; words[4] = 0xaUL; bytes = 33; }
+            return WriteOwnedBytes(state, (byte*)words, bytes);
+        }
+
+        private static bool WriteMappingRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d)
+        {
+            if (stage > 9) return false;
+            byte* text = stackalloc byte[87]; *(ulong*)text = 0x2050414d5f35304dUL;
+            text[8] = (byte)('0' + stage); uint length = 9;
+            ulong* values = stackalloc ulong[4]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;
+            for (int i = 0; i < 4; i++)
+            {
+                text[length++] = (byte)' '; text[length++] = (byte)'0'; text[length++] = (byte)'x';
+                for (int shift = 60; shift >= 0; shift -= 4)
+                {
+                    uint digit = (uint)((values[i] >> shift) & 15);
+                    text[length++] = (byte)(digit < 10 ? '0' + digit : 'a' + digit - 10);
+                }
+            }
+            text[length++] = 13; text[length++] = 10;
+            return WriteOwnedBytes(state, text, length);
+        }
+#endif
 
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static void Fault(FirstExitFaultFrame* frame, FirstExitFaultContext* context, ulong cr2, ulong cr3)

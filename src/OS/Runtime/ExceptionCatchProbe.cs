@@ -1,4 +1,4 @@
-#if NOSTDLIB_EFI && (M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE)
+#if NOSTDLIB_EFI && (M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE)
 using OS.Boot;
 using OS.Kernel.Runtime;
 using System.Runtime.CompilerServices;
@@ -65,7 +65,12 @@ internal static unsafe partial class RhpNewFastAllocation
     private static ulong s_ehSelected, s_ehTransferAddress;
     private static ulong s_ehPhase, s_ehSeed, s_ehCatchEntries, s_ehContinuations;
     private static ulong s_ehChecks, s_ehMinimum;
+#if M04_RETHROW_PROBE
+    private static ulong s_ehFinallyEntries, s_ehFinallyLocal, s_ehSelectedFinally;
+    private static EhControl s_ehEntryControl;
+#endif
 
+#if !M04_RETHROW_PROBE
     [System.Runtime.RuntimeImport("*", "CLROS_Eh_GetClauseTable")]
     [MethodImpl(MethodImplOptions.InternalCall)]
     private static extern ulong EhClauseTable();
@@ -119,9 +124,11 @@ internal static unsafe partial class RhpNewFastAllocation
         s_ehPhase = EhReleasedPhase; s_ehReceipt = default;
         EhText(1); EhText(2);
     }
+#endif
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static SimpleCatchDerived NewCatchException(ulong payload) => new(payload);
+#if !M04_RETHROW_PROBE
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void Thrower(System.Exception value) { throw value; }
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -205,6 +212,7 @@ internal static unsafe partial class RhpNewFastAllocation
         s_ehContinuations++; s_ehPhase = EhCompletedPhase;
         EhLine(7, Bits(value), value.Payload, result, s_ehContinuations);
     }
+#endif
 
     private static ulong AllocateCatchException(ulong token)
     {
@@ -240,6 +248,7 @@ internal static unsafe partial class RhpNewFastAllocation
     [MethodImpl(MethodImplOptions.NoInlining)] private static ulong EhBaseType() => (ulong)Internal.Runtime.MethodTable.Of<SimpleCatchBase>();
     [MethodImpl(MethodImplOptions.NoInlining)] private static bool EhGeometryReady() => EhTransferAdmitted;
 
+#if !M04_RETHROW_PROBE
 #if M04_SINGLE_FINALLY_CATCH_PROBE
     [System.Runtime.RuntimeExport("CLROS_Eh_Select")]
     private static uint SelectCatch(ulong exception, X64UnwindContext* captured, EhTransfer* transfer, EhControl* control)
@@ -457,6 +466,7 @@ internal static unsafe partial class RhpNewFastAllocation
 
 #endif
 
+#endif
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static bool CaptureAdmitted(ulong capturedAddress, ulong rip, ulong rsp, ulong thrower) =>
         rip == thrower + EhThrowReturnOffset && rsp == capturedAddress + 816 &&
@@ -495,7 +505,12 @@ internal static unsafe partial class RhpNewFastAllocation
     private static void EhText(uint kind)
     {
         // Constant string access is already supported by the admitted shell.
-#if M04_SINGLE_FINALLY_CATCH_PROBE
+#if M04_RETHROW_PROBE
+        string text = kind == 0 ? "TEST_START m04.021.rethrow\r\n" :
+            kind == 1 ? "TEST_PASS m04.021.rethrow\r\n" :
+            kind == 2 ? "CLROS_M04_RETHROW_READY\r\n" :
+            kind == 3 ? "TEST_FAIL m04.021.rethrow " : "M04_RETHROW ";
+#elif M04_SINGLE_FINALLY_CATCH_PROBE
         string text = kind == 0 ? "TEST_START m04.021.single-finally\r\n" :
             kind == 1 ? "TEST_PASS m04.021.single-finally\r\n" :
             kind == 2 ? "CLROS_M04_SINGLE_FINALLY_READY\r\n" :
@@ -515,7 +530,7 @@ internal static unsafe partial class RhpNewFastAllocation
 using OS.Kernel.Runtime;
 namespace OS.Runtime;
 #endif
-#if (NOSTDLIB_EFI && M04_SINGLE_FINALLY_CATCH_PROBE) || SINGLE_FINALLY_CORE_TEST
+#if (NOSTDLIB_EFI && (M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE)) || SINGLE_FINALLY_CORE_TEST
 // Pure admission predicates shared by the real EFI callbacks and an isolated
 // host fixture compiling this same source. They do not authenticate a module,
 // dereference guest addresses, search types or execute/restore a context.

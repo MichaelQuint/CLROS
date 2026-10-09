@@ -86,6 +86,22 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static readonly string[] PackageTaskBindings = OS.Tooling.EfiContracts.PackageTaskBindings.ToArray();
 
+    [HostTest("EFI verifier fixture profile properties cover the current project", HostLane.Fast)]
+    private static void FixtureProfileProperties()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        var fixture = BuildPostRestoreEvaluationFixture(root, root, root, root);
+        var properties = (Dictionary<string, string>)fixture["properties"]!;
+        var project = System.Xml.Linq.XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
+        string[] declared = project.Descendants().Where(element => element.Name.LocalName.StartsWith("Enable", StringComparison.Ordinal) && element.Name.LocalName.EndsWith("Probe", StringComparison.Ordinal))
+            .Select(element => element.Name.LocalName)
+            // These legacy optional properties are inherited instead of declared with defaults.
+            .Concat(OS.Tooling.EfiContracts.InheritedDiagnosticProbes)
+            .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+        HostCheck.True(declared.SequenceEqual(properties.Keys.Where(name => name.StartsWith("Enable", StringComparison.Ordinal) && name.EndsWith("Probe", StringComparison.Ordinal)).Order(StringComparer.Ordinal)));
+        HostCheck.True(declared.All(name => properties[name] == "false"), "fixture default probe isolation");
+    }
+
     [HostFixture(HostLane.Native)]
     internal static void Run()
     {
@@ -4632,62 +4648,6 @@ internal static class EfiArtifactVerificationScriptTests
             ["PublishAot"] = "true",
             ["SelfContained"] = "true",
             ["PublishTrimmed"] = "true",
-            ["EnableM02OwnedCom1ReadyProbe"] = "false",
-            ["EnableM02PanicSafeOwnedCom1Probe"] = "false",
-            ["EnableM02OwnedX64GdtEncodingProbe"] = "false",
-            ["EnableM02GuardedIstStackAllocationProbe"] = "false",
-            ["EnableM02OwnedGdtTssTerminalProbe"] = "false",
-            ["EnableM02NormalizedInterruptFramePageProbe"] = "false",
-            ["EnableM02OwnedIdtGatePopulationProbe"] = "false",
-            ["EnableM02IdtrContinuedExecutionProbe"] = "false",
-            ["EnableM02Ud2VectorStateProbe"] = "false",
-            ["EnableM02PageFaultCr2ErrorCodeProbe"] = "false",
-            ["EnableM02DoubleFaultIstProbe"] = "false",
-            ["EnableM02UnexpectedVectorPanicProbe"] = "false",
-            ["EnableM04RhpNewFastProbe"] = "false",
-            ["EnableM04RhpNewFastBeforeBindFailureProbe"] = "false",
-            ["EnableM04RhpNewFastExhaustionFailureProbe"] = "false",
-            ["EnableM04SzArrayAllocationProbe"] = "false",
-            ["EnableM04SzArrayAllocationBeforeBindProbe"] = "false",
-            ["EnableM04SzArrayAllocationExhaustionProbe"] = "false",
-            ["EnableM04StringAllocationProbe"] = "false",
-            ["EnableM04StringAllocationBeforeBindProbe"] = "false",
-            ["EnableM04StringAllocationExhaustionProbe"] = "false",
-            ["EnableM04StringAllocationInvalidLengthProbe"] = "false",
-            ["EnableM03MemoryMapCaptureProbe"] = "false",
-            ["EnableM03FirmwareEntropySeedProbe"] = "false",
-            ["EnableM04TypeManagerModuleRegistrationProbe"] = "false",
-            ["EnableM04X64UnwindMetadataProbe"] = "false",
-            ["EnableM03OwnedSubsystemSurvivalProbe"] = "false",
-            ["EnableM03OwnedSubsystemPanicProbe"] = "false",
-            ["EnableM04SimpleThrowCatchProbe"] = "false",
-            ["EnableM04SingleFinallyCatchProbe"] = "false",
-            ["EnableM03TypedExitBootServicesCallProbe"] = "false",
-            ["EnableM03FirstRealExitBootServicesProbe"] = "false",
-            ["EnableM04GcStaticRootMaterializationProbe"] = "false",
-            ["EnableM04SeededCollectorChurnProbe"] = "false",
-            ["EnableM03FirmwareAdapterRevocationProbe"] = "false",
-            ["EnableM04ClassConstructorExecutionProbe"] = "false",
-            ["EnableM04InterfaceDispatchProbe"] = "false",
-            ["EnableM04CheckedReferenceBarrierProbe"] = "false",
-            ["EnableM04IndependentEndianConformanceProbe"] = "false",
-            ["EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe"] =
-                "false",
-            ["EnableM04ArithmeticConformanceProbe"] =
-                "false",
-            ["EnableM04LayoutContractProbe"] =
-                "false",
-            ["EnableM04ManagedHeapPageRangeProbe"] =
-                "false",
-            ["EnableM01LoadedImageStackProbe"] = "false",
-            ["EnableM01LiveAllocatorProbe"] = "false",
-            ["EnableM01OwnedPagingProbe"] = "false",
-            ["EnableM02SafeStubProbe"] = "false",
-            ["EnableM02CheckedPortIoBindingProbe"] = "false",
-            ["EnableM02Com1OwnedPortIoProbe"] = "false",
-            ["EnableUefiGoneSimulationProbe"] = "false",
-            ["EnableExitBootServicesFreshMapProbe"] = "false",
-            ["EnableAcpiPhysicalDiscoveryProbe"] = "false",
             ["ImportProjectExtensionProps"] = "false",
             ["ImportProjectExtensionTargets"] = "false",
             ["ExcludeRestorePackageImports"] = "true",
@@ -4788,6 +4748,7 @@ internal static class EfiArtifactVerificationScriptTests
             ["ImportByWildcardAfterMicrosoftCommonCrossTargetingTargets"] =
                 "false"
         };
+        foreach (string probe in EfiContracts.DiagnosticProbes) properties.Add(probe, "false");
         return new Dictionary<string, object?>
         {
             ["compileCount"] = OS.Tooling.EfiContracts.CompileItems.Count,

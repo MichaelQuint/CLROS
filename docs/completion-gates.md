@@ -2,6 +2,15 @@
 
 ## Current Status
 
+The bounded C# profiles for #596 and #94/#598 are accepted in
+[step1120](../done/step1120.md). The frozen runtime source passes the resumed
+full host gate: 4,146 checks, 455 groups, 331 reused groups and unchanged inputs.
+Fresh rethrow/mapping/ordinary captures pass 88/86/79 application records;
+GC/catch/finally regressions pass 70/82/84. All six disks pass independent
+GPT/FAT/EFI association checks. Final test-only phase ordering and semantic
+normalization changes have separate focused evidence in step1119 and step1120.
+General EH, arbitrary mappings, live devices and numbered gate status are unchanged.
+
 The compiled host-tooling migration is accepted in
 [step1097](../done/step1097.md): the unfiltered fast and full host lanes pass,
 along with all 39 declared real QEMU/OVMF captures. The full host gate takes

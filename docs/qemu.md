@@ -1,5 +1,31 @@
 # QEMU
 
+## Rethrow and mapping captures
+
+Build the solution, then select one profile below and run the common command.
+Both require a fresh EFI/image and original capture; arbitrary marker overrides
+do not substitute for the fixed transcript contract.
+
+```powershell
+# Bounded rethrow (88 application records).
+$profile = @('M01LoadedImageStack','M01LiveAllocator','M04IndependentEndianConformance',
+  'M04SpanOverlapMemoryCastUnsafeWidthConformance','M04ArithmeticConformance',
+  'M04LayoutContract','M04ManagedHeapPageRange','M04RhpNewFast',
+  'M04GcStaticRootMaterialization','M04Rethrow')
+# Or post-firmware physical mapping (86 application records).
+$profile = @('M01LoadedImageStack','M01LiveAllocator','AcpiPhysicalDiscovery',
+  'M03FirstRealExitBootServices','M03OwnedSubsystemSurvival','M05PhysicalMapping')
+$probeArgs = $profile | ForEach-Object { '--Enable' + $_ + 'Probe' }
+dotnet run --project tools/OS.Tooling --no-build -- qemu smoke --BuildEfi @probeArgs `
+  --Qemu 'C:\Program Files\qemu\qemu-system-x86_64.exe' `
+  --OvmfCode 'C:\Program Files\qemu\share\edk2-x86_64-code.fd' --TimeoutSeconds 15
+```
+
+[Step1120](../done/step1120.md) records fresh C# captures for both profiles,
+ordinary boot and GC/catch/finally regressions, plus reviewed native continuity,
+the full host gate and independent disk association. Historical step1100/1107
+commands retain their original provenance.
+
 ## Current Status
 
 The maintained smoke commands are C# 14/.NET 10 services in `OS.Tooling`.

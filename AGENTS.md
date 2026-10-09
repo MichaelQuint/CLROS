@@ -37,8 +37,11 @@ contracts. The separate bounded throw/catch profile has final acceptance in
 `done/step1075.md`: one real throw, typed catch and compiled continuation, with
 local-input admission rejection. `done/step1088.md` accepts a separate bounded
 compiler-finally profile: one cleanup before typed catch and compiled continuation,
-with the original exception and checked parent-stack side effect. General EH and
-rethrow remain incomplete. See
+with the original exception and checked parent-stack side effect. The bounded
+rethrow and post-firmware UC/WC/WB mapping profiles are accepted in
+`done/step1120.md`. Rethrow reaches the outer typed handler and compiled
+continuation with the same rooted exception. General EH and arbitrary rethrow
+remain incomplete. See
 `docs/completion-gates.md` for each scope.
 Storage, PAL, app-model, and networking progress is still host-tested
 contract/planning evidence only; networking now includes UDP/TCP checksum

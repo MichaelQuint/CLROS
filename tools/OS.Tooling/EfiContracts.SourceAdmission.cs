@@ -16,6 +16,7 @@ public static partial class EfiContracts
         ["..\\OS.Kernel\\Runtime\\X64PERuntimeFunctionUnwindMetadataHostileInput.cs"] = "reviewed_x64_unwind_metadata_source_identity",
         ["..\\OS.Kernel\\Diagnostics\\Probes.cs"] = "reviewed_first_exit_probe_identity",
         ["..\\OS.Kernel\\Boot\\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs"] = "reviewed_owned_allocator_identity",
+        ["..\\OS.Kernel\\Platform\\PostFirmwarePhysicalMappingExplicitUCWCWB.cs"] = "mapping_source_identity",
         ["..\\OS.Kernel\\Boot\\FirstOptRealExitBootServicesTransition.cs"] = "reviewed_first_exit_source_identity",
         ["..\\..\\std\\no-runtime\\shared\\Hash\\Crc32.cs"] = "reviewed_first_exit_source_identity",
         ["..\\..\\std\\no-runtime\\shared\\DeterministicRandom32.cs"] = "reviewed_seeded_churn_source_identity",

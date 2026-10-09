@@ -19,7 +19,13 @@ public static class ExceptionHandlingThunkGenerator
 
     public static Amd64CoffObjectDefinition Define() => Define(false);
 
-    public static Amd64CoffObjectDefinition Define(bool singleFinally)
+    public static Amd64CoffObjectDefinition Define(bool singleFinally) => DefineCore(singleFinally, false, false);
+
+    // These definitions are not linked by an EFI profile until its independent
+    // active-exception, frame and handler admission has been implemented/reviewed.
+    public static Amd64CoffObjectDefinition DefineRethrow(bool outer) => DefineCore(!outer, true, outer);
+
+    private static Amd64CoffObjectDefinition DefineCore(bool singleFinally, bool rethrowProfile, bool outer)
     {
         List<byte> code = [];
         List<int> rejects = [];
@@ -67,6 +73,7 @@ public static class ExceptionHandlingThunkGenerator
 
         Add(0x9C, 0x58); // capture flags before SUB changes arithmetic flags
         Add(0x48, 0x81, 0xEC); I32(FrameBytes); // entry8(mod16) -> callback0(mod16)
+        if (outer) Add(0x31, 0xC9); // RhpRethrow has no exception argument; never trust incoming RCX.
         Mem(false, 1, Exception);
         Mem(false, 0, EntryControl);
         Mem(true, 0, FrameBytes); Mem(false, 0, Capture); // genuine raw return RIP
@@ -90,7 +97,9 @@ public static class ExceptionHandlingThunkGenerator
         }
         // No original RBX/RBP is used for bookkeeping across the special call.
         Registers(true, Selected);
-        Mem(true, 1, Exception);
+        // Only the rethrow selector can supply the active rooted exception.
+        // Its Reserved slot is not a cleanup target in the outer bridge.
+        Mem(true, 1, outer ? Transfer + 8 : Exception);
         Add(0xFF, 0x94, 0x24); I32(Transfer); // call actual validated compiler funclet
         Mem(false, 0, Post); // preserve the actual returned continuation
         Mem(true, 0, Selected + 8); Mem(false, 0, Post + 8);
@@ -117,10 +126,16 @@ public static class ExceptionHandlingThunkGenerator
         Add(0x48, 0x8D, 0x05);
         relocations.Add(new((uint)code.Count, 4, 4)); I32(0);
         Add(0xC3); // Ordinary Win64 leaf: original linker-resolved EH contribution.
+        string selector = !rethrowProfile ? Select : outer ? "CLROS_Rethrow_SelectOuter" : "CLROS_Rethrow_SelectInner";
+        string validator = !rethrowProfile ? Validate : outer ? "CLROS_Rethrow_ValidateOuter" : "CLROS_Rethrow_RejectInnerReturn";
+        string getterName = !rethrowProfile ? GetClauseTable : outer ? "CLROS_Rethrow_OuterClauses" : "CLROS_Rethrow_InnerClauses";
+        string table = !rethrowProfile ? ClauseTable : outer
+            ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__RethrowOuter"
+            : "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__RethrowInner";
         List<CoffSymbolDefinition> symbols =
-            [new(Entry, 0, 1, 0x20, 2), new(Select, 0, 0, 0x20, 2), new(Validate, 0, 0, 0x20, 2),
-             new(GetClauseTable, getter, 1, 0x20, 2), new(ClauseTable, 0, 0, 0, 2)];
-        if (singleFinally) symbols.Add(new(ValidateFinally, 0, 0, 0x20, 2));
+            [new(outer ? "RhpRethrow" : Entry, 0, 1, 0x20, 2), new(selector, 0, 0, 0x20, 2), new(validator, 0, 0, 0x20, 2),
+             new(getterName, getter, 1, 0x20, 2), new(table, 0, 0, 0, 2)];
+        if (singleFinally) symbols.Add(new(rethrowProfile ? "CLROS_Rethrow_ValidateFinally" : ValidateFinally, 0, 0, 0x20, 2));
         return new(0x8664, 0, [new(".text", code.ToArray(), 0x60500020, relocations.ToArray())], symbols.ToArray());
     }
 
