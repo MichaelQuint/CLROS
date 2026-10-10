@@ -327,6 +327,11 @@ public static class BootSequence
         OS.Kernel.Diagnostics.Probes.EnableM06FatReadProbe &&
         gptPartitionComplete && context != null && execute != null && execute(context);
 
+    public static unsafe bool RunOwnedPackageRead(
+        bool fatReadComplete, void* context, delegate*<void*, bool> execute) =>
+        OS.Kernel.Diagnostics.Probes.EnableM06PackageReadProbe &&
+        fatReadComplete && context != null && execute != null && execute(context);
+
     public static unsafe bool RunOwnedLiveBlockContract(
         bool blockReadComplete, void* context, delegate*<void*, bool> execute) =>
         OS.Kernel.Diagnostics.Probes.EnableM06LiveBlockContractProbe &&

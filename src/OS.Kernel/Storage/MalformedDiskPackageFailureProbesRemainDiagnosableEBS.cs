@@ -1,6 +1,6 @@
 namespace OS.Storage;
 
-public enum LiveStorageFailureKind : byte { Uninitialized = 0, Manifest = 1, Package = 2, Payload = 3 }
+public enum LiveStorageFailureKind : byte { Uninitialized = 0, Manifest = 1, Package = 2, Payload = 3, Disk = 4 }
 
 public struct LiveStorageFailure
 {
@@ -22,8 +22,10 @@ public static class MalformedDiskPackageFailureProbesRemainDiagnosableEBS
             ? code > (byte)LiveManifestStatus.Success && code <= (byte)LiveManifestStatus.InvalidPath
             : kind == LiveStorageFailureKind.Package
                 ? code > (byte)LivePackageStatus.Success && code <= (byte)LivePackageStatus.ChecksumMismatch
-                : kind == LiveStorageFailureKind.Payload && code > (byte)SelectedPayloadOwnedMemoryStatus.Success &&
-                    code <= (byte)SelectedPayloadOwnedMemoryStatus.OverlappingBuffers;
+                : kind == LiveStorageFailureKind.Payload
+                    ? code > (byte)SelectedPayloadOwnedMemoryStatus.Success && code <= (byte)SelectedPayloadOwnedMemoryStatus.OverlappingBuffers
+                    : kind == LiveStorageFailureKind.Disk &&
+                        (code == (byte)LiveFat32Status.Truncated || code == (byte)LiveFat32Status.Loop);
         return valid ? new LiveStorageFailure { Kind = kind, Code = code } : default;
     }
 }

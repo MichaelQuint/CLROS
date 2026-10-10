@@ -12,7 +12,7 @@ public static partial class EfiContracts
          "EnableM05VirtqueuePollingProbe", "EnableM05ApicSetupProbe", "EnableM05VirtqueueInterruptProbe",
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
-        "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe"]);
+        "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -24,14 +24,15 @@ public static partial class EfiContracts
             ("M06_VIRTIO_BLOCK_READ_PROBE", "RunOwnedVirtioBlockRead", "RunBlockReadCore"),
             ("M06_LIVE_BLOCK_CONTRACT_PROBE", "RunOwnedLiveBlockContract", "RunBlockReadCore"),
             ("M06_GPT_PARTITION_PROBE", "ReadGptSector", "RunBlockReadCore"),
-            ("M06_FAT_READ_PROBE", "ReadFatSector", "RunBlockReadCore")]);
+            ("M06_FAT_READ_PROBE", "ReadFatSector", "RunBlockReadCore"),
+            ("M06_PACKAGE_READ_PROBE", "ReadPackageSector", "RunBlockReadCore")]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "faf993be7b054610e629a6c6628d30029086d58a0771725a9f92a97966ea3fa0";
-    public const string CanonicalProjectSha256 = "a52e14592f8e95d2019bae8d8a25134a35c25a4f5331a057bb2db367010f41f1";
-    public const string EfiEntrySourceSha256 = "410d5fe0fcd83e3950f5b586946119f88f24ee4a0df20104f4d786986736dc94";
+    public const string ProjectSourceSha256 = "70147f6081cb26e84dd4dbfe57e9ab3f469dfcb06ccde0e2e1cc761314372925";
+    public const string CanonicalProjectSha256 = "59c451241be9e81d245af7ef8a78b259a6a17b7fa0c2d84bef232a95a6c55b98";
+    public const string EfiEntrySourceSha256 = "b764fdb3462738c02f9101205c50db1ddac67addc7352faf77c5082fdc2310ba";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -189,6 +190,13 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Storage\FAT32ApplicationEFIPartition.cs|Storage\FAT32ApplicationEFIPartition.cs",
         @"..\OS.Kernel\Storage\FATClusterChainsLoopBadClusterTruncationDetection.cs|Storage\FATClusterChainsLoopBadClusterTruncationDetection.cs",
         @"..\OS.Kernel\Storage\MultiClusterDirectoryVFATLongNameSupportSeparate.cs|Storage\MultiClusterDirectoryVFATLongNameSupportSeparate.cs",
+        @"..\OS.Kernel\Storage\NativeManifestDisk.cs|Storage\NativeManifestDisk.cs",
+        @"..\OS.Kernel\Storage\APPPKGDisk.cs|Storage\APPPKGDisk.cs",
+        @"..\OS.Kernel\Storage\SelectedPayloadOwnedMemory.cs|Storage\SelectedPayloadOwnedMemory.cs",
+        @"..\OS.Kernel\Storage\MalformedDiskPackageFailureProbesRemainDiagnosableEBS.cs|Storage\MalformedDiskPackageFailureProbesRemainDiagnosableEBS.cs",
+        @"..\OS.Kernel\Storage\M06DiskPackageFixture.cs|Storage\M06DiskPackageFixture.cs",
+        @"..\..\std\no-runtime\shared\Text\AsciiPointerMatcher.cs|Std\Text\AsciiPointerMatcher.cs",
+        @"..\..\std\no-runtime\shared\Memory\BoundedFileSectorCopy.cs|Std\Memory\BoundedFileSectorCopy.cs",
         @"..\OS.Kernel\Storage\KnownFileSHAN256EquivalentKnownFixtureHash.cs|Storage\KnownFileSHAN256EquivalentKnownFixtureHash.cs",
         @"..\OS.Kernel\Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs|Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs",
         @"..\..\std\no-runtime\shared\Binary\EndianPrimitives.Pointer.cs|Std\Binary\EndianPrimitives.Pointer.cs",
@@ -286,6 +294,7 @@ public static partial class EfiContracts
         "EnableM06FatReadProbe",
         "EnableM06GptPartitionProbe",
         "EnableM06LiveBlockContractProbe",
+        "EnableM06PackageReadProbe",
         "EnableM06VirtioBlockQueueSetupProbe",
         "EnableM06VirtioBlockReadProbe",
         "EnableUefiGoneSimulationProbe",

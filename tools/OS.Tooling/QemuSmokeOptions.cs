@@ -16,6 +16,7 @@ public sealed class QemuSmokeOptions
     public string FirmwareRngSource { get; set; } = "";
     public string WorkloadProfile { get; set; } = "SingleMinimalApi";
     public string GptImageVariant { get; set; } = "Intact";
+    public string PackageImageVariant { get; set; } = "Intact";
     public string DiskFormat { get; set; } = "raw";
     public int TimeoutSeconds { get; set; } = 30;
     public bool DryRun { get; set; }
@@ -43,7 +44,7 @@ public sealed class QemuSmokeOptions
             ["bootpolicy"] = "BootPolicy", ["image"] = "Image", ["efiartifact"] = "EfiArtifact", ["seriallog"] = "SerialLog",
             ["summarylog"] = "SummaryLog", ["m01rawobservationlog"] = "M01RawObservationLog", ["qemu"] = "Qemu",
             ["ovmfcode"] = "OvmfCode", ["firmwarerngsource"] = "FirmwareRngSource", ["workloadprofile"] = "WorkloadProfile",
-            ["gptimagevariant"] = "GptImageVariant", ["diskformat"] = "DiskFormat", ["timeoutseconds"] = "TimeoutSeconds", ["timeout"] = "TimeoutSeconds",
+            ["gptimagevariant"] = "GptImageVariant", ["packageimagevariant"] = "PackageImageVariant", ["diskformat"] = "DiskFormat", ["timeoutseconds"] = "TimeoutSeconds", ["timeout"] = "TimeoutSeconds",
             ["dryrun"] = "DryRun", ["buildefi"] = "BuildEfi", ["skipimagebuild"] = "SkipImageBuild",
             ["requirenativeappmarkers"] = "RequireNativeAppMarkers", ["requiremarker"] = "RequireMarker",
             ["requireorderedmarker"] = "RequireOrderedMarker", ["requireuniquemarker"] = "RequireUniqueMarker",
@@ -75,6 +76,7 @@ public sealed class QemuSmokeOptions
                 case "FirmwareRngSource": result.FirmwareRngSource = value; break;
                 case "WorkloadProfile": result.WorkloadProfile = value; break;
                 case "GptImageVariant": result.GptImageVariant = value; break;
+                case "PackageImageVariant": result.PackageImageVariant = value; break;
                 case "DiskFormat": result.DiskFormat = value.ToLowerInvariant(); break;
                 case "TimeoutSeconds": result.TimeoutSeconds = int.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture); break;
                 case "DryRun": result.DryRun = bit; break;

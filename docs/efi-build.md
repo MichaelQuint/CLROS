@@ -1,5 +1,17 @@
 # EFI Build
 
+## Package read profile awaiting qualification
+
+Add `--EnableM06PackageReadProbe` to the complete FAT/GPT command below, with
+`--BuildEfi`, a fresh image and `--GptImageVariant Intact`. The flag defaults
+false and requires the completed FAT profile. `--PackageImageVariant` accepts
+`Intact`, `ManifestVersion`, `PackageChecksum`, `PackageHeader`,
+`PackageTruncated` and `PackageLoop`; each requires its own exact transcript
+ending `TEST_PASS m06.018` and associations to the actual disk bytes.
+Use distinct artifact paths. [Step1154](../done/step1154.md) records implementation,
+focused host controls and no-stdlib compilation, with linked-native/stack,
+full-host and real guest qualification still pending.
+
 ## FAT read profile
 
 Add `--EnableM06FatReadProbe` to the complete GPT command below, with

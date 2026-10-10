@@ -83,6 +83,15 @@ public static unsafe class EfiEntry
 #if M06_FAT_READ_PROBE
             internal uint FatPhase;
             internal ulong FatPartitionFirst, FatPartitionLast;
+#if M06_PACKAGE_READ_PROBE
+            internal uint PackagePhase;
+            // Exclusive, bounded profile scratch lives in retained image storage.
+            // It is never DMA backing and does not enlarge the diagnostic stack.
+            internal fixed byte ManifestBytes[4096], PackageBytes[4096];
+            internal fixed byte PackageSector[512], PackageMirror[512];
+            internal fixed ushort PackageName[260];
+            internal fixed uint PackageHistory[8];
+#endif
 #endif
 #endif
             internal ulong BlockReadCapacity;
@@ -611,6 +620,9 @@ public static unsafe class EfiEntry
                         _ = BootSequence.RunOwnedGptPartition(state->BlockContractPhase == 9, state, &RunOwnedGptPartition);
 #if M06_FAT_READ_PROBE
                         _ = BootSequence.RunOwnedFatRead(state->GptPhase == 12, state, &RunOwnedFatRead);
+#if M06_PACKAGE_READ_PROBE
+                        _ = BootSequence.RunOwnedPackageRead(state->FatPhase == 15, state, &RunOwnedPackageRead);
+#endif
 #endif
 #endif
 #endif
@@ -1431,7 +1443,11 @@ public static unsafe class EfiEntry
 
         private static bool WriteBlockLiteral(Storage* state, uint issue, uint kind)
         {
+#if M06_PACKAGE_READ_PROBE
+            if (issue < 1 || issue > 18 || kind > 3) return false;
+#else
             if (issue < 1 || issue > 14 || kind > 3) return false;
+#endif
             ulong* words = stackalloc ulong[4]; uint bytes, digit;
             if (kind == 0) { words[0] = 0x4154535f54534554UL; words[1] = 0x302e36306d205452UL; words[2] = 0xa0d3030UL; bytes = 20; digit = 17; }
             else if (kind == 1) { words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3030305f36UL; words[2] = 0xa0d594441UL; bytes = 21; digit = 12; }
@@ -1540,11 +1556,18 @@ public static unsafe class EfiEntry
             return true;
         }
 
-        private static bool WriteGptRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d, bool fat = false)
+        private static bool WriteGptRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d, bool fat = false
+#if M06_PACKAGE_READ_PROBE
+            , bool package = false
+#endif
+            )
         {
             if (stage > 255) return false;
             byte* text = stackalloc byte[96];
             *(ulong*)text = fat ? 0x205441465f36304dUL : 0x205450475f36304dUL; uint length = 8;
+#if M06_PACKAGE_READ_PROBE
+            if (package) *(ulong*)text = 0x20474b505f36304dUL;
+#endif
             for (int shift = 4; shift >= 0; shift -= 4)
             { uint digit = (stage >> shift) & 15; text[length++] = (byte)(digit < 10 ? '0' + digit : 'A' + digit - 10); }
             ulong* values = stackalloc ulong[4]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;
@@ -1698,10 +1721,269 @@ public static unsafe class EfiEntry
         }
 #endif
 
+#if M06_PACKAGE_READ_PROBE
+        private static bool RunOwnedPackageRead(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->PackagePhase != 0 || state->FatPhase != 15 || state->GptPhase != 12 ||
+                state->BlockContractPhase != 9 || state->BlockReadPhase != 7) return false;
+            state->PackagePhase = 15;
+            if (!RunPackageReadCore(state))
+            { _ = WriteBlockLiteral(state, state->PackagePhase, 3); return false; }
+            state->PackagePhase = 19;
+            return true;
+        }
+
+        private static bool RunPackageReadCore(Storage* state)
+        {
+            byte* sector = state->PackageSector; byte* mirror = state->PackageMirror;
+            ushort* name = state->PackageName; uint* history = state->PackageHistory;
+            uint reads = 0; LiveFat32Volume volume = default;
+            if (!WriteBlockLiteral(state, 15, 0) ||
+                !ReadPackageSector(state, state->FatPartitionFirst, sector, ref reads) ||
+                FatChain.ParseBpb(new System.Span<byte>(sector, 512), state->BlockReadCapacity,
+                    state->FatPartitionFirst, state->FatPartitionLast, BlockReadResult.Success(1, 512), ref volume) != LiveFat32Status.Success ||
+                volume.SectorsPerCluster != 1 ||
+                !WritePackageRow(state, 0, volume.PartitionFirstLba, volume.PartitionLastLba, volume.FirstFatLba, volume.FirstDataLba)) return false;
+            // Re-read directory bytes under this profile's own transport epochs.
+            // The parent's completed FAT probe is a prerequisite, not a receipt
+            // authorizing bytes or a mutable directory entry.
+            uint rootCount = 0, osCount = 0, cluster = volume.RootCluster, rootSecond = 0;
+            LiveVfatState sequence = default; LiveDirectoryEntry os = default; bool ended = false;
+            while (true)
+            {
+                if (FatChain.Visit(volume, cluster, new System.Span<uint>(history, 8), ref rootCount) != LiveFat32Status.Success ||
+                    rootCount > 2) return false;
+                if (rootCount == 2) rootSecond = cluster;
+                ulong lba = 0;
+                if (ended || FatChain.ClusterFirstLba(volume, cluster, ref lba) != LiveFat32Status.Success ||
+                    !ReadPackageSector(state, lba, sector, ref reads)) return false;
+                for (uint offset = 0; offset < 512; offset += 32)
+                {
+                    var status = FatDirectory.Consume(new System.Span<byte>(sector + offset, 32), ref sequence,
+                        new System.Span<ushort>(name, 260), out var entry);
+                    if (status == LiveDirectoryStatus.End) { ended = true; break; }
+                    if (status == LiveDirectoryStatus.Skipped || status == LiveDirectoryStatus.LongName) continue;
+                    if (status != LiveDirectoryStatus.Entry) return false;
+                    if (entry.ShortNameLow == 0x202020202020534fUL && entry.ShortNameHigh == 0x202020)
+                    {
+                        if (++osCount != 1 || entry.HasLongName || entry.Attributes != 0x10 || entry.ByteCount != 0) return false;
+                        os = entry;
+                    }
+                }
+                uint next = 0;
+                var link = ReadPackageLink(state, volume, cluster, ref reads, ref next);
+                if (link == LiveFat32Status.EndOfChain) break;
+                if (link != LiveFat32Status.Success) return false;
+                cluster = next;
+            }
+            if (rootCount != 2 || !ended || osCount != 1 || FatDirectory.Finish(sequence) != LiveDirectoryStatus.End ||
+                os.FirstCluster == volume.RootCluster || os.FirstCluster == rootSecond ||
+                !WritePackageRow(state, 1, rootCount, volume.RootCluster, rootSecond, os.FirstCluster)) return false;
+            ulong osLba = 0; uint osNext = 0;
+            if (FatChain.ClusterFirstLba(volume, os.FirstCluster, ref osLba) != LiveFat32Status.Success ||
+                ReadPackageLink(state, volume, os.FirstCluster, ref reads, ref osNext) != LiveFat32Status.EndOfChain ||
+                !ReadPackageSector(state, osLba, sector, ref reads)) return false;
+            sequence = default; ended = false;
+            uint manifestCount = 0, packageCount = 0;
+            LiveDirectoryEntry manifestFile = default, packageFile = default;
+            for (uint offset = 0; offset < 512; offset += 32)
+            {
+                var status = FatDirectory.Consume(new System.Span<byte>(sector + offset, 32), ref sequence,
+                    new System.Span<ushort>(name, 260), out var entry);
+                if (status == LiveDirectoryStatus.End) { ended = true; break; }
+                if (status == LiveDirectoryStatus.Skipped || status == LiveDirectoryStatus.LongName) continue;
+                if (status != LiveDirectoryStatus.Entry) return false;
+                bool manifest = entry.ShortNameLow == 0x202045564954414eUL && entry.ShortNameHigh == 0x4e414d;
+                bool package = entry.ShortNameLow == 0x2020202020505041UL && entry.ShortNameHigh == 0x474b50;
+                if (!manifest && !package) continue;
+                if (entry.HasLongName || entry.Attributes != 0x20 || entry.ByteCount == 0 || entry.ByteCount > 4096 ||
+                    entry.FirstCluster == volume.RootCluster || entry.FirstCluster == rootSecond || entry.FirstCluster == os.FirstCluster)
+                    return false;
+                if (manifest) { if (++manifestCount != 1) return false; manifestFile = entry; }
+                else { if (++packageCount != 1) return false; packageFile = entry; }
+            }
+            if (!ended || manifestCount != 1 || packageCount != 1 || manifestFile.FirstCluster == packageFile.FirstCluster ||
+                FatDirectory.Finish(sequence) != LiveDirectoryStatus.End ||
+                !WritePackageRow(state, 2, os.FirstCluster, manifestFile.FirstCluster, packageFile.FirstCluster, reads)) return false;
+            var disk = ReadPackageFile(state, volume, manifestFile, state->ManifestBytes, packageFile.FirstCluster,
+                os.FirstCluster, rootSecond, ref reads);
+            if (disk != LiveFat32Status.Success) return ReportPackageFault(state, LiveStorageFailureKind.Disk, (byte)disk, reads);
+            var manifestResult = NativeManifestDisk.Validate(new System.Span<byte>(state->ManifestBytes, (int)manifestFile.ByteCount));
+            if (!manifestResult.Succeeded)
+                return ReportPackageFault(state, LiveStorageFailureKind.Manifest, (byte)manifestResult.Status, reads);
+            if (!WritePackageRow(state, 3, manifestResult.ByteCount, manifestResult.AppPathOffset, manifestResult.AppPathLength,
+                    PackageBytesCrc(state->ManifestBytes, manifestFile.ByteCount)) ||
+                !WriteBlockLiteral(state, 15, 1) || !WriteBlockLiteral(state, 15, 2)) return false;
+            state->PackagePhase = 16;
+            if (!WriteBlockLiteral(state, 16, 0)) return false;
+            disk = ReadPackageFile(state, volume, packageFile, state->PackageBytes, manifestFile.FirstCluster,
+                os.FirstCluster, rootSecond, ref reads);
+            if (disk != LiveFat32Status.Success) return ReportPackageFault(state, LiveStorageFailureKind.Disk, (byte)disk, reads);
+            var packageBytes = new System.Span<byte>(state->PackageBytes, (int)packageFile.ByteCount);
+            var selectedPath = new System.Span<byte>(state->ManifestBytes + manifestResult.AppPathOffset, (int)manifestResult.AppPathLength);
+            var selected = APPPKGDisk.Validate(packageBytes, selectedPath, M06DiskPackageFixture.PackageCrc32);
+            if (!selected.Succeeded) return ReportPackageFault(state, LiveStorageFailureKind.Package, (byte)selected.Status, reads);
+            if (!WritePackageRow(state, 4, packageFile.ByteCount, selected.ContentOffset, selected.ContentLength, selected.PackageCrc32) ||
+                !WriteBlockLiteral(state, 16, 1) || !WriteBlockLiteral(state, 16, 2)) return false;
+            state->PackagePhase = 17;
+            if (!WriteBlockLiteral(state, 17, 0)) return false;
+            if (!StagePackagePayload(state, packageBytes, selectedPath)) return false;
+            if (!WritePackageRow(state, 7, reads, reads + 133UL, 17, 1) ||
+                !WriteBlockLiteral(state, 17, 1) || !WriteBlockLiteral(state, 17, 2)) return false;
+            state->PackagePhase = 18;
+            if (!WriteBlockLiteral(state, 18, 0) || !WritePackageCleanup(state) ||
+                !WriteBlockLiteral(state, 18, 1) || !WriteBlockLiteral(state, 18, 2)) return false;
+            return true;
+        }
+
+        private static LiveFat32Status ReadPackageFile(Storage* state, LiveFat32Volume volume, LiveDirectoryEntry file,
+            byte* destination, uint otherFile, uint osDirectory, uint rootSecond, ref uint reads)
+        {
+            uint count = 0, written = 0, cluster = file.FirstCluster;
+            while (true)
+            {
+                if (cluster == otherFile || cluster == osDirectory || cluster == volume.RootCluster || cluster == rootSecond)
+                    return LiveFat32Status.InvalidCluster;
+                var visit = FatChain.Visit(volume, cluster, new System.Span<uint>(state->PackageHistory, 8), ref count);
+                if (visit != LiveFat32Status.Success) return visit;
+                ulong lba = 0;
+                if (FatChain.ClusterFirstLba(volume, cluster, ref lba) != LiveFat32Status.Success ||
+                    !ReadPackageSector(state, lba, state->PackageSector, ref reads)) return LiveFat32Status.ReadFailed;
+                if (OS.Std.Memory.BoundedFileSectorCopy.Copy(new System.Span<byte>(state->PackageSector, 512), 512,
+                    file.ByteCount, new System.Span<byte>(destination, 4096), ref written) != OS.Std.Memory.FileSectorCopyStatus.Success)
+                    return LiveFat32Status.InvalidLength;
+                uint next = 0;
+                var link = ReadPackageLink(state, volume, cluster, ref reads, ref next);
+                if (link == LiveFat32Status.EndOfChain) return FatChain.CheckLength(count, (file.ByteCount + 511) / 512);
+                if (link != LiveFat32Status.Success) return link;
+                // This profile admits one-cluster files only. It observes
+                // truncation and self-loops without ever reading another file's
+                // possible backing cluster or publishing partial file bytes.
+                for (uint i = 0; i < count; i++) if (state->PackageHistory[i] == next) return LiveFat32Status.Loop;
+                if (written == file.ByteCount) return LiveFat32Status.Overlong;
+                return LiveFat32Status.ScratchLimit;
+            }
+        }
+
+        private static LiveFat32Status ReadPackageLink(Storage* state, LiveFat32Volume volume, uint cluster,
+            ref uint reads, ref uint next)
+        {
+            ulong lba = volume.FirstFatLba + cluster / 128;
+            if (!ReadPackageSector(state, lba, state->PackageSector, ref reads) ||
+                !ReadPackageSector(state, lba + volume.FatSectors, state->PackageMirror, ref reads)) return LiveFat32Status.ReadFailed;
+            for (uint i = 0; i < 512; i++) if (state->PackageSector[i] != state->PackageMirror[i]) return LiveFat32Status.InvalidFatBounds;
+            return FatChain.ReadFatEntry(volume, cluster, lba, new System.Span<byte>(state->PackageSector, 512),
+                BlockReadResult.Success(1, 512), ref next);
+        }
+
+        private static bool ReadPackageSector(Storage* state, ulong sector, byte* destination, ref uint reads)
+        {
+            if (reads >= 64) return false;
+            state->BlockReadPhase = 5;
+            if (!RunBlockReadCore(state, false, destination, sector, reads + 134UL, false, true)) return false;
+            // The shared core returns only after reset, bus-master disable,
+            // DMA release and exact allocator restoration; its row mode leaves
+            // phase six for the caller to finish.
+            state->BlockReadPhase = 7;
+            if (!WritePackageRow(state, 0x80 + reads, sector, PackageBytesCrc(destination, 512), reads + 134UL, 1)) return false;
+            reads++;
+            return true;
+        }
+
+        private static uint PackageBytesCrc(byte* bytes, uint count)
+        {
+            uint crc = OS.Std.Hash.Crc32.InitialState;
+            for (uint i = 0; i < count; i++) crc = OS.Std.Hash.Crc32.UpdateByte(crc, bytes[i]);
+            return OS.Std.Hash.Crc32.Finish(crc);
+        }
+
+        private static bool StagePackagePayload(Storage* state, System.Span<byte> packageBytes, System.Span<byte> selectedPath)
+        {
+            if (!M01StageTwoAdapter.TryGetOriginalExitAllocator(out ulong address, out var backing) ||
+                address != state->Memory.References.AllocatorState || backing.Start != state->Memory.Allocator.Start ||
+                backing.PageCount != state->Memory.Allocator.PageCount || backing.PageCount == 0 ||
+                backing.PageCount > M01LiveAllocatorIntegration.MaximumArenaPageCount) return false;
+            M01LiveAllocatorStaticState* owner = (M01LiveAllocatorStaticState*)address;
+            if (!owner->IsCompleted) return false;
+            var before = owner->AllocatorStateValue; var node = owner->FreeNodeValue;
+            var allocation = BootPageAllocatorMutator.AllocateOnePage(before, &owner->FreeNodeValue, 1, 1, null, 0, 0, 1, 4096);
+            if (!allocation.Succeeded) return false;
+            owner->AllocatorStateValue = allocation.AfterState;
+            bool valid = allocation.PhysicalStart.TryGetRawValueForHardwareRegisterBoundary(out ulong page) == AddressValueStatus.Success &&
+                allocation.PageCount == 1 && allocation.ByteLength == 4096 && (page & 4095) == 0 &&
+                page >= backing.Start && page - backing.Start <= backing.PageCount * 4096 - 4096;
+            SelectedPayloadOwnedMemoryResult staged = default;
+            if (valid) staged = SelectedPayloadOwnedMemory.Stage(packageBytes, selectedPath, M06DiskPackageFixture.PackageCrc32,
+                new System.Span<byte>((void*)page, 4096));
+            bool copied = valid && staged.Succeeded && staged.BytesWritten == M06DiskPackageFixture.PayloadBytes &&
+                staged.EntryOffset == M06DiskPackageFixture.EntryOffset && staged.PayloadCrc32 == M06DiskPackageFixture.PayloadCrc32;
+            if (copied)
+            {
+                var selected = APPPKGDisk.Validate(packageBytes, selectedPath, M06DiskPackageFixture.PackageCrc32);
+                if (!selected.Succeeded) copied = false;
+                else for (uint i = 0; i < staged.BytesWritten; i++)
+                    if (((byte*)page)[i] != state->PackageBytes[selected.ContentOffset + i]) copied = false;
+            }
+            // Free the successful allocation on every subsequent path, including
+            // malformed payloads and unexpected receipt/staging results.
+            var freed = BootPageAllocatorMutator.FreeOnePage(owner->AllocatorStateValue, &owner->FreeNodeValue, 1, 1, null, 0, 0, allocation);
+            if (!freed.Succeeded) return false;
+            owner->AllocatorStateValue = freed.AfterState;
+            var restored = owner->AllocatorStateValue; var finalNode = owner->FreeNodeValue;
+            bool equal = before.IsInitialized == restored.IsInitialized && before.PageSize == restored.PageSize &&
+                before.HeadNodeIndex == restored.HeadNodeIndex && before.FreeNodeCount == restored.FreeNodeCount &&
+                before.FreePageCount == restored.FreePageCount && before.FreeByteCount == restored.FreeByteCount &&
+                before.AllocatedPageCount == restored.AllocatedPageCount && before.AllocatedByteCount == restored.AllocatedByteCount &&
+                node.SourceFreeSegmentIndex == finalNode.SourceFreeSegmentIndex && node.SourceUsableRangeIndex == finalNode.SourceUsableRangeIndex &&
+                node.PhysicalStart == finalNode.PhysicalStart && node.PhysicalEndExclusive == finalNode.PhysicalEndExclusive &&
+                node.PageCount == finalNode.PageCount && node.ByteLength == finalNode.ByteLength && node.NextNodeIndex == finalNode.NextNodeIndex;
+            return copied && equal && owner->IsCompleted && FirstExitOwnedArena.ValidateCanaries(state->Arena) &&
+                WritePackageRow(state, 5, page, staged.BytesWritten, staged.EntryOffset, staged.PayloadCrc32) &&
+                WritePackageRow(state, 6, before.FreePageCount, restored.FreePageCount, restored.AllocatedPageCount, 1);
+        }
+
+        private static bool ReportPackageFault(Storage* state, LiveStorageFailureKind kind, byte code, uint reads)
+        {
+            var failure = MalformedDiskPackageFailureProbesRemainDiagnosableEBS.Create(kind, code,
+                state->BlockReadPhase == 7, FirstExitOwnedArena.ValidateCanaries(state->Arena));
+            if (!failure.Succeeded) return false;
+            uint failedPhase = state->PackagePhase;
+            state->PackagePhase = 18;
+            if (!WriteBlockLiteral(state, 18, 0) ||
+                !WritePackageRow(state, 8, (ulong)failure.Kind, failure.Code, failedPhase, reads) ||
+                !WritePackageCleanup(state) || !WriteBlockLiteral(state, 18, 1) || !WriteBlockLiteral(state, 18, 2)) return false;
+            return true;
+        }
+
+        private static bool WritePackageCleanup(Storage* state)
+        {
+            byte status = 0xff;
+            var read8 = (delegate* unmanaged<void*, ulong, byte*, byte>)&ReadVirtioStatus;
+            return state->BlockReadPhase == 7 && FirstExitOwnedArena.ValidateCanaries(state->Arena) &&
+                BlockDisableBusMaster(state) == 1 && read8(null, state->BlockCommon.VirtualStart + 20, &status) == 1 && status == 0 &&
+                WritePackageRow(state, 9, 1, status, 1, 1);
+        }
+
+        private static bool WritePackageRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d) =>
+            WriteGptRow(state, stage, a, b, c, d, false, true);
+#endif
+
         private static bool RunBlockReadCore(Storage* state, bool liveContract = false,
-            byte* gptDestination = null, ulong gptSector = 0, ulong gptEpoch = 0, bool fat = false)
+            byte* gptDestination = null, ulong gptSector = 0, ulong gptEpoch = 0, bool fat = false
+#if M06_PACKAGE_READ_PROBE
+            , bool package = false
+#endif
+            )
         {
             bool gpt = gptDestination != null;
+#if M06_PACKAGE_READ_PROBE
+            if (package && (!gpt || fat || liveContract || state->GptPhase != 12 || state->FatPhase != 15 ||
+                state->PackagePhase < 15 || state->PackagePhase > 16 || state->BlockContractPhase != 9 ||
+                state->FatPartitionFirst == 0 || state->FatPartitionFirst > state->FatPartitionLast ||
+                state->FatPartitionLast >= state->BlockReadCapacity || gptSector < state->FatPartitionFirst ||
+                gptSector > state->FatPartitionLast || gptEpoch < 134 || gptEpoch > 197)) return false;
+#endif
 #if M06_FAT_READ_PROBE
             if (fat && (!gpt || liveContract || state->GptPhase != 12 || state->FatPhase < 12 || state->FatPhase > 14 ||
                 state->BlockContractPhase != 9 || state->FatPartitionFirst == 0 || state->FatPartitionFirst > state->FatPartitionLast ||
@@ -1711,7 +1993,11 @@ public static unsafe class EfiEntry
             if (fat) return false;
 #endif
 #if M06_GPT_PARTITION_PROBE
-            if (gpt && !fat && (liveContract || state->GptPhase != 9 || state->BlockContractPhase != 9 ||
+            if (gpt && !fat
+#if M06_PACKAGE_READ_PROBE
+                && !package
+#endif
+                && (liveContract || state->GptPhase != 9 || state->BlockContractPhase != 9 ||
                 gptSector >= state->BlockReadCapacity || gptEpoch < 4 || gptEpoch > 69)) return false;
 #else
             if (gpt) return false;

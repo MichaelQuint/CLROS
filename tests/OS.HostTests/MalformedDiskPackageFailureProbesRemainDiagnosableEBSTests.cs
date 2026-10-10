@@ -8,7 +8,9 @@ internal static class MalformedDiskPackageFailureProbesRemainDiagnosableEBSTests
         HostCheck.True(!default(LiveStorageFailure).Succeeded);
         foreach (var item in new[] { (LiveStorageFailureKind.Manifest, (byte)LiveManifestStatus.InvalidValue),
             (LiveStorageFailureKind.Package, (byte)LivePackageStatus.ChecksumMismatch),
-            (LiveStorageFailureKind.Payload, (byte)SelectedPayloadOwnedMemoryStatus.DestinationTooSmall) })
+            (LiveStorageFailureKind.Payload, (byte)SelectedPayloadOwnedMemoryStatus.DestinationTooSmall),
+            (LiveStorageFailureKind.Disk, (byte)OS.Storage.LiveFat32Status.Truncated),
+            (LiveStorageFailureKind.Disk, (byte)OS.Storage.LiveFat32Status.Loop) })
         {
             foreach (bool cleanup in new[] { false, true })
             foreach (bool canary in new[] { false, true })
@@ -23,5 +25,8 @@ internal static class MalformedDiskPackageFailureProbesRemainDiagnosableEBSTests
         foreach (byte code in new byte[] { 0, 1, 255 })
             HostCheck.True(!MalformedDiskPackageFailureProbesRemainDiagnosableEBS.Create(kind, code, true, true).Succeeded);
         HostCheck.True(!MalformedDiskPackageFailureProbesRemainDiagnosableEBS.Create((LiveStorageFailureKind)255, 2, true, true).Succeeded);
+        foreach (OS.Storage.LiveFat32Status status in Enum.GetValues<OS.Storage.LiveFat32Status>())
+            HostCheck.Equal(status is OS.Storage.LiveFat32Status.Loop or OS.Storage.LiveFat32Status.Truncated,
+                MalformedDiskPackageFailureProbesRemainDiagnosableEBS.Create(LiveStorageFailureKind.Disk, (byte)status, true, true).Succeeded);
     }
 }

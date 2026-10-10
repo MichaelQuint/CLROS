@@ -69,6 +69,11 @@ public static class QemuSmoke
                     var receipt = FatImageFixture.Apply(Path.GetFullPath(options.Image, root), Path.GetFullPath(options.EfiArtifact, root));
                     output.WriteLine("M06_FAT_IMAGE_FIXTURE " + System.Text.Json.JsonSerializer.Serialize(receipt));
                 }
+                if (plan.IsEnabled("EnableM06PackageReadProbe"))
+                {
+                    var receipt = PackageImageFixture.Apply(Path.GetFullPath(options.Image, root), Path.GetFullPath(options.EfiArtifact, root), options.PackageImageVariant);
+                    output.WriteLine("M06_PACKAGE_IMAGE_FIXTURE " + System.Text.Json.JsonSerializer.Serialize(receipt));
+                }
                 if (options.GptImageVariant == "PrimaryHeaderCrcFault")
                 {
                     File.Copy(Path.GetFullPath(options.Image, root), Path.GetFullPath(gptBootImage, root), true);

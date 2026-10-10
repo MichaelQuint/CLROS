@@ -1,5 +1,14 @@
 # Diagnostics
 
+The development `EnableM06PackageReadProbe` defaults false and requires FAT.
+It owns `M06_PKG` rows and `m06.015`..`m06.018` markers. Fresh sector receipts use
+epochs134..197 only after reset, bus-master disable, DMA release and allocator
+restoration. Controlled malformed-input success requires a known typed failure,
+completed cleanup and valid canaries; it does not pass the interrupted positive
+manifest/package stage. The exact chosen image variant determines the permitted
+failure kind/code. [Step1154](../done/step1154.md) records focused host controls and
+active no-stdlib compilation; native, full-host and guest qualification is pending.
+
 The qualified `EnableM06FatReadProbe` defaults false and requires the GPT profile.
 It owns `M06_FAT` records and `m06.012`..`m06.014` markers. The reviewed inventory
 contains40 host catalog entries. [Step1152](../done/step1152.md) records full-host,

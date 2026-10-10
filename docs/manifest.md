@@ -6,8 +6,12 @@ It accepts at most 4,096 bytes of ASCII native v0 required fields and optional
 package/native-aot kind fields, with LF/CRLF and source-backed offsets.
 Environment/listen keys reject as unsupported; this does not reduce the
 existing `NativeManifestParser` host contract. Strict relative app paths reject
-absolute/drive/backslash, empty and dot/dot-dot segments. No live disk read,
-process environment, app activation or guest parser acceptance is added.
+absolute/drive/backslash, empty and dot/dot-dot segments.
+The default-off package profile in [step1154](../done/step1154.md) now connects
+this validator to bounded one-cluster `OS/NATIVE.MAN` reads and source-backed
+package path selection. Its active no-stdlib compile and focused host controls
+pass; linked native, full-host and guest qualification remain pending.
+Process environment and app activation remain incomplete.
 
 ## Current Status
 

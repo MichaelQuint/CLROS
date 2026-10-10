@@ -1,6 +1,6 @@
 # Storage
 
-## Manifest/package batch: host foundation only
+## Manifest/package batch: implementation awaiting qualification
 
 [Step1153](../done/step1153.md) implements the pure helpers for owned issues
 #130–#133 and shared integration #631. The bounded native v0 manifest validator
@@ -17,12 +17,25 @@ writes. Shared sector copying also rejects byte-counter aliases and excludes
 final-sector padding. Failure metadata requires asserted cleanup and canary
 checks; it does not establish those assertions or emit serial output.
 
-All 29 new focused host checks pass with unchanged compiled inputs. These
-helpers are not linked into the EFI image or connected to live FAT/Virtio
-reads. There is no new guest, native, full-host, app-execution or Gate7
-acceptance. The issues remain claimed/open; next work is the default-off
-live-read/owned-page/serial integration under #631, followed by combined
-qualification. Accepted FAT evidence remains [step1152](../done/step1152.md).
+The 29 foundation checks passed before integration. [Step1154](../done/step1154.md)
+adds explicit EFI compile inputs and the default-off `EnableM06PackageReadProbe`
+under #631, after completed GPT/FAT prerequisites in `BootSequence`. It re-reads
+the two-cluster root and one-cluster OS directory, admits one-cluster
+`OS/NATIVE.MAN` and `OS/APP.PKG` files, validates the selected package against the
+reviewed fixture CRC, and stages the complete OSAPP payload in one original
+allocator-owned RW/NX page. It compares copied bytes and restores the exact
+allocator state before success. Every sector uses a separate reset/cleanup
+lifetime with epochs134..197; fixed profile scratch is retained image storage.
+
+Focused profile, ownership, transcript/disk association, image mutation and
+failure-metadata checks pass, as does the active no-stdlib C# compile. Intact,
+manifest-version, package-checksum, package-header, truncated-chain and self-loop
+variants have separate exact expected transcripts. Only truncation/self-loop
+disk failures are admitted to controlled fault diagnostics; uncertain transport
+cleanup fails the profile. Full-host, linked-native/stack and real guest evidence
+remain pending. The issues stay claimed/open; app execution, continuing storage
+and Gate7 remain incomplete. Accepted FAT evidence is still
+[step1152](../done/step1152.md).
 
 ## Bounded FAT read profile
 

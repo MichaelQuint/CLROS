@@ -3,9 +3,19 @@
 The next disk-manifest/package/staging batch has host-tested validators in
 [step1153](../done/step1153.md). Its independently authored test packages use the
 existing OSPKGv0 table and OSAPPv0 payload formats. CRC32 is an explicit expected
-fixture checksum, not an embedded or cryptographic package hash. No image
-builder command or live smoke fixture changes in this foundation; #631 still
-needs the native manifest/APP.PKG image fixture and real guest integration.
+fixture checksum, not an embedded or cryptographic package hash.
+
+[Step1154](../done/step1154.md) adds the compiled smoke-only `PackageImageFixture`
+after the accepted FAT fixture. It preserves GPT, EFI, root entries and the
+fragmented long-name fixture, adds `OS/NATIVE.MAN` and `OS/APP.PKG` in exactly two
+free clusters, and updates both FATs and FSInfo copies. Identity, geometry,
+existing names, free space and all planned writes are checked before mutation;
+flushed bytes and hashes are read back. Repeat application is rejected.
+`--PackageImageVariant` selects `Intact`, `ManifestVersion`, `PackageChecksum`,
+`PackageHeader`, `PackageTruncated` or `PackageLoop` only with the package profile.
+Dry runs do not mutate images. The underlying image builder commands are unchanged.
+Focused host mutation/preservation checks pass; real guest qualification remains
+pending.
 
 ## FAT smoke fixture
 

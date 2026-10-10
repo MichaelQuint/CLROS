@@ -14608,7 +14608,7 @@
       ],
       "collisionLane": null,
       "summary": "Read and validate the native manifest from disk.",
-      "currentEvidence": "Host foundation only in done/step1153.md: bounded pointer native-manifest/OSPKGv0 validation, explicit expected CRC32, complete selected OSAPPv0 payload staging and cleanup-gated failure metadata are implemented; 29 new focused checks pass. These helpers are not yet linked into EFI or connected to live disk reads. No native/full-host/guest acceptance or issue completion; shared integration #631 and batch qualification remain required. Accepted prerequisites remain step1152; continuing storage, app execution, M06/Gate7, hosted .NET/Kestrel and cloud claims remain incomplete.",
+      "currentEvidence": "Development implementation in done/step1154.md, following the 29-check host foundation in step1153: default-off package profile now links the pointer helpers, reads bounded one-cluster native manifest/APP.PKG files through fresh reset/cleanup lifetimes, stages the selected OSAPP payload in one owned RW/NX allocator page, restores state and emits strict owned diagnostics. Active no-stdlib compilation and 11 focused profile/image/failure/source-admission checks pass. Linked-native/stack, full-host and real guest qualification remain pending; issues stay claimed/open. Accepted prerequisites remain step1152. Continuing storage, app execution, M06/Gate7, hosted .NET/Kestrel and cloud evidence remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read and validate the native manifest from disk.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14699,7 +14699,7 @@
       ],
       "collisionLane": null,
       "summary": "Read and validate APP.PKG from disk.",
-      "currentEvidence": "Host foundation only in done/step1153.md: bounded pointer native-manifest/OSPKGv0 validation, explicit expected CRC32, complete selected OSAPPv0 payload staging and cleanup-gated failure metadata are implemented; 29 new focused checks pass. These helpers are not yet linked into EFI or connected to live disk reads. No native/full-host/guest acceptance or issue completion; shared integration #631 and batch qualification remain required. Accepted prerequisites remain step1152; continuing storage, app execution, M06/Gate7, hosted .NET/Kestrel and cloud claims remain incomplete.",
+      "currentEvidence": "Development implementation in done/step1154.md, following the 29-check host foundation in step1153: default-off package profile now links the pointer helpers, reads bounded one-cluster native manifest/APP.PKG files through fresh reset/cleanup lifetimes, stages the selected OSAPP payload in one owned RW/NX allocator page, restores state and emits strict owned diagnostics. Active no-stdlib compilation and 11 focused profile/image/failure/source-admission checks pass. Linked-native/stack, full-host and real guest qualification remain pending; issues stay claimed/open. Accepted prerequisites remain step1152. Continuing storage, app execution, M06/Gate7, hosted .NET/Kestrel and cloud evidence remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read and validate APP.PKG from disk.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14790,7 +14790,7 @@
       ],
       "collisionLane": null,
       "summary": "Stage the selected payload into owned memory.",
-      "currentEvidence": "Host foundation only in done/step1153.md: bounded pointer native-manifest/OSPKGv0 validation, explicit expected CRC32, complete selected OSAPPv0 payload staging and cleanup-gated failure metadata are implemented; 29 new focused checks pass. These helpers are not yet linked into EFI or connected to live disk reads. No native/full-host/guest acceptance or issue completion; shared integration #631 and batch qualification remain required. Accepted prerequisites remain step1152; continuing storage, app execution, M06/Gate7, hosted .NET/Kestrel and cloud claims remain incomplete.",
+      "currentEvidence": "Development implementation in done/step1154.md, following the 29-check host foundation in step1153: default-off package profile now links the pointer helpers, reads bounded one-cluster native manifest/APP.PKG files through fresh reset/cleanup lifetimes, stages the selected OSAPP payload in one owned RW/NX allocator page, restores state and emits strict owned diagnostics. Active no-stdlib compilation and 11 focused profile/image/failure/source-admission checks pass. Linked-native/stack, full-host and real guest qualification remain pending; issues stay claimed/open. Accepted prerequisites remain step1152. Continuing storage, app execution, M06/Gate7, hosted .NET/Kestrel and cloud evidence remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Stage the selected payload into owned memory.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14881,7 +14881,7 @@
       ],
       "collisionLane": "lane:probes",
       "summary": "Add malformed disk/package failure probes that remain diagnosable after EBS.",
-      "currentEvidence": "Host foundation only in done/step1153.md: bounded pointer native-manifest/OSPKGv0 validation, explicit expected CRC32, complete selected OSAPPv0 payload staging and cleanup-gated failure metadata are implemented; 29 new focused checks pass. These helpers are not yet linked into EFI or connected to live disk reads. No native/full-host/guest acceptance or issue completion; shared integration #631 and batch qualification remain required. Accepted prerequisites remain step1152; continuing storage, app execution, M06/Gate7, hosted .NET/Kestrel and cloud claims remain incomplete.",
+      "currentEvidence": "Development implementation in done/step1154.md, following the 29-check host foundation in step1153: default-off package profile now links the pointer helpers, reads bounded one-cluster native manifest/APP.PKG files through fresh reset/cleanup lifetimes, stages the selected OSAPP payload in one owned RW/NX allocator page, restores state and emits strict owned diagnostics. Active no-stdlib compilation and 11 focused profile/image/failure/source-admission checks pass. Linked-native/stack, full-host and real guest qualification remain pending; issues stay claimed/open. Accepted prerequisites remain step1152. Continuing storage, app execution, M06/Gate7, hosted .NET/Kestrel and cloud evidence remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add malformed disk/package failure probes that remain diagnosable after EBS.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
