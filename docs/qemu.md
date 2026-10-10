@@ -1,5 +1,11 @@
 # QEMU
 
+The APIC/MSI-X profiles in [step1137](../done/step1137.md) pass 4,277 full-host
+checks, strict native review and exact 104/157-record guest checks, plus a
+79-record ordinary regression with independent disk/EFI association. Use the
+[profile commands](efi-build.md#bounded-apic-and-msi-x-profiles); see
+[drivers](drivers.md) for the single-BSP, one-shot completion boundary.
+
 The bounded split-queue batch #109-#112/#617 is accepted in
 [step1133](../done/step1133.md): 4,251 full-host checks, strict native
 review, a 139-record real queue diagnostic and a 79-record ordinary

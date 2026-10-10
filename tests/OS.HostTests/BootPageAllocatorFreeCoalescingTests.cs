@@ -3068,15 +3068,8 @@ internal static class BootPageAllocatorFreeCoalescingTests
                 // Admit one receipt operation only inside each reviewed owned
                 // device profile; preserve the firewall everywhere else.
                 const string call = "BootPageAllocatorMutator.FreeOnePage";
-                foreach (var (symbol, entry) in OS.Tooling.EfiContracts.OwnedDmaAllocatorProfiles)
-                {
-                    Match block = Regex.Match(source,
-                        @"(?ms)^#if " + Regex.Escape(symbol) + @"\s+private static bool " + Regex.Escape(entry) + @"\b(?:(?!^#).)*^#endif");
-                    if (!block.Success || Regex.Matches(block.Value, Regex.Escape(call)).Count != 1)
-                        return SourceFailure(symbol + "-release-conditional");
-                    source = source.Remove(block.Index, block.Length).Insert(block.Index,
-                        block.Value.Replace(call, string.Empty, StringComparison.Ordinal));
-                }
+                if (!EfiProfileTestControls.RemoveOwnedDmaCalls(ref source, call, out string reason))
+                    return SourceFailure("owned-device-release-conditional " + reason);
             }
             foreach (string name in forbiddenIntegrationNames)
             {

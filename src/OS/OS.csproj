@@ -88,6 +88,8 @@
 		<EnableM05PciEnumerationProbe Condition="'$(EnableM05PciEnumerationProbe)' == ''">false</EnableM05PciEnumerationProbe>
 		<EnableM05BarDmaProbe Condition="'$(EnableM05BarDmaProbe)' == ''">false</EnableM05BarDmaProbe>
 		<EnableM05VirtioNegotiationProbe Condition="'$(EnableM05VirtioNegotiationProbe)' == ''">false</EnableM05VirtioNegotiationProbe>
+		<EnableM05ApicSetupProbe Condition="'$(EnableM05ApicSetupProbe)' == ''">false</EnableM05ApicSetupProbe>
+		<EnableM05VirtqueueInterruptProbe Condition="'$(EnableM05VirtqueueInterruptProbe)' == ''">false</EnableM05VirtqueueInterruptProbe>
 		<EnableM05VirtqueuePollingProbe Condition="'$(EnableM05VirtqueuePollingProbe)' == ''">false</EnableM05VirtqueuePollingProbe>
 		<EnableM04InterfaceDispatchProbe Condition="'$(EnableM04InterfaceDispatchProbe)' == ''">false</EnableM04InterfaceDispatchProbe>
 	</PropertyGroup>
@@ -342,6 +344,12 @@
 	<PropertyGroup Condition="'$(EnableM05BarDmaProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M05_BAR_DMA_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM05ApicSetupProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M05_APIC_SETUP_PROBE</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM05VirtqueueInterruptProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M05_VIRTQUEUE_INTERRUPT_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM05VirtqueuePollingProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M05_VIRTQUEUE_POLLING_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -420,6 +428,8 @@
 			'$(EnableM05PciEnumerationProbe)' == 'true' or
 			'$(EnableM05BarDmaProbe)' == 'true' or
 			'$(EnableM05VirtioNegotiationProbe)' == 'true' or
+			'$(EnableM05ApicSetupProbe)' == 'true' or
+			'$(EnableM05VirtqueueInterruptProbe)' == 'true' or
 			'$(EnableM05VirtqueuePollingProbe)' == 'true' or
 			'$(EnableUefiGoneSimulationProbe)' == 'true')">Diagnostic</ClrosBootPolicy>
 		<ClrosBootPolicy Condition="'$(ClrosBootPolicy)' == ''">VerifiedExit</ClrosBootPolicy>
@@ -541,6 +551,8 @@
 		<Compile Include="..\OS.Kernel\Drivers\VirtioPciModernRegisterMap.cs" Link="Drivers\VirtioPciModernRegisterMap.cs" />
 		<Compile Include="..\OS.Kernel\Drivers\VirtqueuePowerTwoConstraintsIndexWidthNegotiatedMaximum.cs" Link="Drivers\VirtqueuePowerTwoConstraintsIndexWidthNegotiatedMaximum.cs" />
 		<Compile Include="..\OS.Kernel\Drivers\DescriptorAllocationExhaustionInvalidIndexDoubleFreeTests.cs" Link="Drivers\DescriptorAllocationExhaustionInvalidIndexDoubleFreeTests.cs" />
+		<Compile Include="..\OS.Kernel\Drivers\MADTLocalAPICIOAPICSeparatelyPollingProof.cs" Link="Drivers\MADTLocalAPICIOAPICSeparatelyPollingProof.cs" />
+		<Compile Include="..\OS.Kernel\Drivers\MSIMSIXSetupInterruptDrivenVirtqueueCompletion.cs" Link="Drivers\MSIMSIXSetupInterruptDrivenVirtqueueCompletion.cs" />
 		<Compile Include="..\OS.Kernel\Drivers\SplitVirtqueuePollingNotificationCompletion.cs" Link="Drivers\SplitVirtqueuePollingNotificationCompletion.cs" />
 		<Compile Include="..\OS.Kernel\Drivers\MemoryOrderingPrimitivesReplacingReadinessBooleans.cs" Link="Drivers\MemoryOrderingPrimitivesReplacingReadinessBooleans.cs" />
 		<Compile Include="..\OS.Kernel\Drivers\VirtqueueSplitRingPlan.cs" Link="Drivers\VirtqueueSplitRingPlan.cs" />
@@ -658,6 +670,8 @@
 			'$(EnableM05PciEnumerationProbe)' == 'true' or
 			'$(EnableM05BarDmaProbe)' == 'true' or
 			'$(EnableM05VirtioNegotiationProbe)' == 'true' or
+			'$(EnableM05ApicSetupProbe)' == 'true' or
+			'$(EnableM05VirtqueueInterruptProbe)' == 'true' or
 			'$(EnableM05VirtqueuePollingProbe)' == 'true' or
 			'$(EnableUefiGoneSimulationProbe)' == 'true')" Text="clros_boot_policy_probe_conflict" />
 	</Target>
@@ -1775,6 +1789,13 @@
 		<Error Condition="'$(EnableM05BarDmaProbe)' != 'true' and '$(EnableM05BarDmaProbe)' != 'false'" Text="m05_bar_dma_switch_invalid" />
 		<Error Condition="'$(EnableM05BarDmaProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM05PciEnumerationProbe)' != 'true')" Text="m05_bar_dma_requires_pci" />
 		<Error Condition="'$(EnableM05VirtioNegotiationProbe)' != 'true' and '$(EnableM05VirtioNegotiationProbe)' != 'false'" Text="m05_virtio_negotiation_switch_invalid" />
+		<Error Condition="'$(EnableM05ApicSetupProbe)' != 'true' and '$(EnableM05ApicSetupProbe)' != 'false'" Text="m05_apic_switch_invalid" />
+		<Error Condition="'$(EnableM05VirtqueueInterruptProbe)' != 'true' and '$(EnableM05VirtqueueInterruptProbe)' != 'false'" Text="m05_virtqueue_interrupt_switch_invalid" />
+		<Error Condition="'$(EnableM05ApicSetupProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM05PciEnumerationProbe)' != 'true')" Text="m05_apic_requires_pci" />
+		<Error Condition="'$(EnableM05ApicSetupProbe)' == 'true' and ('$(EnableM05BarDmaProbe)' == 'true' or '$(EnableM05VirtqueuePollingProbe)' == 'true')" Text="m05_apic_profile_conflict" />
+		<Error Condition="'$(EnableM05ApicSetupProbe)' == 'true' and '$(EnableM05VirtioNegotiationProbe)' == 'true' and '$(EnableM05VirtqueueInterruptProbe)' != 'true'" Text="m05_apic_negotiation_requires_interrupt" />
+		<Error Condition="'$(EnableM05VirtqueueInterruptProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM05ApicSetupProbe)' != 'true' or '$(EnableM05VirtioNegotiationProbe)' != 'true')" Text="m05_virtqueue_interrupt_requires_apic_negotiation" />
+		<Error Condition="'$(EnableM05VirtqueueInterruptProbe)' == 'true' and '$(EnableM05VirtqueuePollingProbe)' == 'true'" Text="m05_virtqueue_interrupt_polling_conflict" />
 		<Error Condition="'$(EnableM05VirtqueuePollingProbe)' != 'true' and '$(EnableM05VirtqueuePollingProbe)' != 'false'" Text="m05_virtqueue_polling_switch_invalid" />
 		<Error Condition="'$(EnableM05VirtqueuePollingProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM05VirtioNegotiationProbe)' != 'true')" Text="m05_virtqueue_polling_requires_negotiation" />
 		<Error Condition="'$(EnableM05VirtioNegotiationProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM05PciEnumerationProbe)' != 'true')" Text="m05_virtio_negotiation_requires_pci" />

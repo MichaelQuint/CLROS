@@ -56,6 +56,11 @@ public sealed class EfiProfile
         Set("M05MonotonicClock", ["M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival"], true, "m05_clock_requires_owned_first_exit");
         Set("M05PciEnumeration", ["M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival"], true, "m05_pci_requires_owned_first_exit");
         Set("M05BarDma", ["M05PciEnumeration"], true, "m05_bar_dma_requires_pci");
+        Set("M05ApicSetup", ["M05PciEnumeration"], true, "m05_apic_requires_pci");
+        Set("M05ApicSetup", ["M05BarDma", "M05VirtqueuePolling"], false, "m05_apic_profile_conflict");
+        if (IsEnabled("M05ApicSetup")) Need("M05VirtioNegotiation", "M05VirtqueueInterrupt", "m05_apic_negotiation_requires_interrupt");
+        Set("M05VirtqueueInterrupt", ["M05ApicSetup", "M05VirtioNegotiation"], true, "m05_virtqueue_interrupt_requires_apic_negotiation");
+        Conflict("M05VirtqueueInterrupt", "M05VirtqueuePolling", "m05_virtqueue_interrupt_polling_conflict");
         Set("M05VirtqueuePolling", ["M05VirtioNegotiation"], true, "m05_virtqueue_polling_requires_negotiation");
         Set("M05VirtioNegotiation", ["M05PciEnumeration"], true, "m05_virtio_negotiation_requires_pci");
         Conflict("M05BarDma", "M05VirtioNegotiation", "m05_bar_dma_profile_conflict");

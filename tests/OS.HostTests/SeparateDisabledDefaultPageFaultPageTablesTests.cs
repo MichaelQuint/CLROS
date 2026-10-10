@@ -118,20 +118,20 @@ internal static unsafe class SeparateDisabledDefaultPageFaultPageTablesTests
         }
         using (Fixture sparse = new(true))
         {
-            sparse.RangeCount = 32;
+            sparse.RangeCount = Image.MaximumRetainedRanges;
             sparse.Request = Request(pages: 55);
-            for (ulong index = 0; index < 32; index++)
-                sparse.Ranges[index] = new(0x40_0000 + (31 - index) * 2 * Page, 1, Rw);
+            for (ulong index = 0; index < Image.MaximumRetainedRanges; index++)
+                sparse.Ranges[index] = new(0x40_0000 + (Image.MaximumRetainedRanges - 1 - index) * 2 * Page, 1, Rw);
             VerifyImage(sparse); // independent oracle rejects any mapped gap
             sparse.EntryBytes.Clear();
             sparse.Request = Request((1UL << 39) - Page, 55);
             VerifyImage(sparse); // count the arena itself across every prefix boundary
             sparse.EntryBytes.Clear();
             sparse.Request = Request(pages: 55);
-            for (ulong index = 0; index < 32; index++)
+            for (ulong index = 0; index < Image.MaximumRetainedRanges; index++)
                 sparse.Ranges[index] = new((index + 1) << 39, 1, Rw);
             RejectUnchanged(sparse, Status.InsufficientTablePages);
-            sparse.RangeCount = 33;
+            sparse.RangeCount = Image.MaximumRetainedRanges + 1;
             RejectUnchanged(sparse, Status.InvalidRangeCount);
         }
         using (Fixture maximum = new(true))
@@ -623,7 +623,7 @@ internal static unsafe class SeparateDisabledDefaultPageFaultPageTablesTests
         internal Fixture(bool retained = false)
         {
             _retained = retained;
-            int rangeCapacity = retained ? 32 : 8;
+            int rangeCapacity = (int)(retained ? Image.MaximumRetainedRanges : Image.MaximumRanges);
             Ranges = (SeparatePageFaultMappingRange*)NativeMemory.AlignedAlloc((nuint)(rangeCapacity * sizeof(SeparatePageFaultMappingRange)), 8);
             _pageAllocation = (byte*)NativeMemory.AlignedAlloc((nuint)(55 * sizeof(X64PageTableImagePage) + 16), 8);
             _entryAllocation = (byte*)NativeMemory.AlignedAlloc((nuint)(Image.MaximumEntries * sizeof(ulong) + 16), 8);
@@ -641,13 +641,13 @@ internal static unsafe class SeparateDisabledDefaultPageFaultPageTablesTests
         }
 
         internal SeparatePageFaultPageTableResult Build() => _retained
-            ? Image.BuildRetainedImage(Request, Ranges, RangeCount, 32, Pages, 55, Entries, Image.MaximumEntries)
+            ? Image.BuildRetainedImage(Request, Ranges, RangeCount, Image.MaximumRetainedRanges, Pages, 55, Entries, Image.MaximumEntries)
             : Image.Build(Request, Ranges, RangeCount, 8, Pages, 55, Entries, Image.MaximumEntries);
         internal SeparatePageFaultPageTableResult Audit() => _retained
-            ? Image.AuditRetainedImage(Request, Ranges, RangeCount, 32, Pages, 55, Entries, Image.MaximumEntries)
+            ? Image.AuditRetainedImage(Request, Ranges, RangeCount, Image.MaximumRetainedRanges, Pages, 55, Entries, Image.MaximumEntries)
             : Image.Audit(Request, Ranges, RangeCount, 8, Pages, 55, Entries, Image.MaximumEntries);
         internal SeparatePageFaultPageTableResult AuditAccessed() => Image.AuditRetainedAccessedImage(
-            Request, Ranges, RangeCount, 32, Pages, 55, Entries, Image.MaximumEntries);
+            Request, Ranges, RangeCount, Image.MaximumRetainedRanges, Pages, 55, Entries, Image.MaximumEntries);
         internal void AssertCanaries() => Require(*(ulong*)_pageAllocation == Canary &&
             *(ulong*)(_pageAllocation + 8 + PageBytes.Length) == Canary && *(ulong*)_entryAllocation == Canary &&
             *(ulong*)(_entryAllocation + 8 + EntryBytes.Length) == Canary, "caller span canaries");

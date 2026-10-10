@@ -1,5 +1,11 @@
 # Boot Order
 
+The default-off APIC/MSI-X profiles follow original owned subsystem
+survival through BootSequence: PCI enumeration, APIC setup, Virtio negotiation,
+then interrupt completion. They add no ordinary boot phase. Full-host, native and
+guest qualification is accepted in [step1137](../done/step1137.md).
+See [drivers](drivers.md) for prerequisites and cleanup.
+
 The bounded split-queue batch #109-#112/#617 is accepted in
 [step1133](../done/step1133.md): 4,251 full-host checks, strict native
 review, a 139-record real queue diagnostic and a 79-record ordinary

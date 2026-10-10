@@ -21,6 +21,8 @@ internal static unsafe class SplitVirtqueuePollingNotificationCompletionTests
         public bool InvalidAccess, InvalidOrder, FailedCallback, BusEnabled, Notified, PayloadObserved;
         public bool NoCompletion, ResetStuck, DisableFailure, EnableFailure, ResetRequested, ResetObserved;
         public bool HeldDuringReset, CleanupFenceObserved, BadAfterEnable, BadOnNotify, BadAfterUsed;
+        public bool InterruptMode, WaitObserved, WaitFailure, MaskFailure, MaskAttempted, RejectVector;
+        public uint WaitCalls, UsedReads;
     }
 
     [HostTest("virtqueue.polling transmits one readonly descriptor with distinct address domains and ordered cleanup", HostLane.Fast, 0)]
@@ -177,6 +179,56 @@ internal static unsafe class SplitVirtqueuePollingNotificationCompletionTests
         if (d->Calls != d->FailCall) return true;
         d->FailedCallback = true; return false;
     }
+
+    [HostTest("virtqueue.interrupt requests entry zero waits before acquisition and masks before reset", HostLane.Fast, 6)]
+    private static void InterruptSuccess()
+    {
+        using var f = new Fixture(); var r = f.RunInterrupt();
+        HostCheck.True(r.Succeeded && r.InterruptObserved && r.InterruptsMasked && r.Polls == 1 && r.Fences == 5);
+        HostCheck.True(f.State->Vector == 0 && f.State->WaitCalls == 1 && f.State->UsedReads == 1 && f.State->MaskAttempted);
+        HostCheck.Equal((ushort)0, *(ushort*)(f.Data + Available));
+        HostCheck.True(r.ResetComplete && r.BusMasterDisabled && r.DmaReleased && f.State->HeldDuringReset);
+        Clean(f);
+        using var polling = new Fixture(); var p = polling.Run();
+        HostCheck.True(p.Succeeded && !p.InterruptObserved && !p.InterruptsMasked && polling.State->WaitCalls == 0 &&
+            !polling.State->MaskAttempted && polling.State->Vector == 0xffff && *(ushort*)(polling.Data + Available) == 1);
+        Clean(polling);
+    }
+
+    [HostTest("virtqueue.interrupt rejects absent IRQ without polling fallback and retains uncertain masking", HostLane.Fast, 7)]
+    private static void InterruptFailures()
+    {
+        using (var f = new Fixture())
+        {
+            f.State->WaitFailure = true; var r = f.RunInterrupt();
+            HostCheck.True(r.Status == VirtqueuePollingStatus.InterruptFailed && !r.InterruptObserved && r.Polls == 0 &&
+                f.State->UsedReads == 0 && r.InterruptsMasked && r.DmaReleased); Clean(f);
+        }
+        using (var f = new Fixture())
+        {
+            f.State->NoCompletion = true; var r = f.RunInterrupt();
+            HostCheck.True(r.Status == VirtqueuePollingStatus.Timeout && r.InterruptObserved && r.Polls == 1 && r.DmaReleased); Clean(f);
+        }
+        using (var f = new Fixture())
+        {
+            f.State->MaskFailure = true; var r = f.RunInterrupt();
+            HostCheck.True(r.Status == VirtqueuePollingStatus.Success && r.CleanupStatus == VirtqueuePollingStatus.InterruptFailed &&
+                !r.InterruptsMasked && r.ResetComplete && r.BusMasterDisabled); Retained(f, r); Clean(f);
+        }
+        using (var f = new Fixture())
+        {
+            f.State->RejectVector = true; var r = f.RunInterrupt();
+            HostCheck.True(r.Status == VirtqueuePollingStatus.InvalidQueue && !r.Published && !r.InterruptObserved &&
+                r.InterruptsMasked && r.DmaReleased && f.State->WaitCalls == 0); Clean(f);
+        }
+        for (int missing = 0; missing < 2; missing++)
+        {
+            using var f = new Fixture(); var irq = f.InterruptAccess;
+            if (missing == 0) irq.Wait = null; else irq.Mask = null;
+            var r = SplitVirtqueuePollingNotificationCompletion.RunInterrupt(f.Common, f.Notify, 4, f.Pool, f.Access, 3, 3, irq);
+            HostCheck.True(r.Status == VirtqueuePollingStatus.InvalidAccess && f.State->Calls == 0 && !f.State->MaskAttempted); NoDma(f);
+        }
+    }
     private static byte Bad(Device* d, bool order = false)
     { if (order) d->InvalidOrder = true; else d->InvalidAccess = true; return 0; }
 
@@ -198,7 +250,10 @@ internal static unsafe class SplitVirtqueuePollingNotificationCompletionTests
         Device* d = (Device*)context; if (!Begin(d)) return 0;
         if (address != CommonAddress + 20 || (value != 0 && value != 15)) return Bad(d);
         if (value == 0)
-        { d->ResetRequested = true; d->HeldDuringReset = d->Pool->AllocatedMask != 0; return 1; }
+        {
+            if (d->InterruptMode && !d->MaskAttempted) return Bad(d, true);
+            d->ResetRequested = true; d->HeldDuringReset = d->Pool->AllocatedMask != 0; return 1;
+        }
         if (d->Status != 11 || d->Enabled != 1 || !d->BusEnabled) return Bad(d, true);
         d->Status = value; return 1;
     }
@@ -208,7 +263,10 @@ internal static unsafe class SplitVirtqueuePollingNotificationCompletionTests
         Device* d = (Device*)context; if (!Begin(d)) return 0;
         if (address == CommonAddress + 18) { *output = d->Queues; return 1; }
         if (address == (ulong)d->Data + Used + 2)
-        { if (!d->Notified) return Bad(d, true); *output = *(ushort*)(d->Data + Used + 2); return 1; }
+        {
+            if (!d->Notified || (d->InterruptMode && !d->WaitObserved)) return Bad(d, true);
+            d->UsedReads++; *output = *(ushort*)(d->Data + Used + 2); return 1;
+        }
         if (d->SelectedQueue != 1) return Bad(d, true);
         if (address == CommonAddress + 24) *output = d->Size == 0 ? d->Maximum : d->Size;
         else if (address == CommonAddress + 26) *output = d->Vector;
@@ -225,7 +283,7 @@ internal static unsafe class SplitVirtqueuePollingNotificationCompletionTests
         {
             if (value != 1 || d->Status != 15 || !d->BusEnabled || d->FenceMask != 7 || !Addresses(d) || !Payload(d)) return Bad(d, true);
             d->Notifications++; d->Notified = true; d->PayloadObserved = true;
-            if (!d->NoCompletion)
+            if (!d->NoCompletion && !d->InterruptMode)
             {
                 *(uint*)(d->Data + Used + 4) = d->CompletionId;
                 *(uint*)(d->Data + Used + 8) = d->CompletionLength;
@@ -236,7 +294,8 @@ internal static unsafe class SplitVirtqueuePollingNotificationCompletionTests
         }
         if (address == CommonAddress + 22 && value == 1) d->SelectedQueue = 1;
         else if (address == CommonAddress + 24 && value == 8 && (d->FenceMask & 1) != 0) d->Size = 8;
-        else if (address == CommonAddress + 26 && value == 0xffff) d->Vector = 0xffff;
+        else if (address == CommonAddress + 26 && value == (d->InterruptMode ? 0U : 0xffffU))
+            d->Vector = d->RejectVector ? (ushort)0xffff : (ushort)value;
         else if (address == CommonAddress + 28 && value == 1 && Addresses(d)) d->Enabled = 1;
         else return Bad(d);
         return 1;
@@ -309,13 +368,35 @@ internal static unsafe class SplitVirtqueuePollingNotificationCompletionTests
     private static bool Payload(Device* d)
     {
         if (*(ulong*)d->Data != DeviceAddress + 256 || *(uint*)(d->Data + 8) != 72 || *(uint*)(d->Data + 12) != 0 ||
-            *(ushort*)(d->Data + Available) != 1 || *(ushort*)(d->Data + Available + 2) != 1 || *(ushort*)(d->Data + Available + 4) != 0) return false;
+            *(ushort*)(d->Data + Available) != (d->InterruptMode ? 0 : 1) || *(ushort*)(d->Data + Available + 2) != 1 || *(ushort*)(d->Data + Available + 4) != 0) return false;
         for (uint i = 0; i < 72; i++)
         {
             byte expected = i == 12 || i == 17 || i == 18 ? (byte)2 : i == 23 ? (byte)1 : i == 24 ? (byte)0x88 : i == 25 ? (byte)0xb5 : (byte)0;
             if (d->Data[256 + i] != expected) return false;
         }
         return true;
+    }
+    [UnmanagedCallersOnly]
+    private static byte WaitInterrupt(void* context, uint limit)
+    {
+        Device* d = (Device*)context; d->WaitCalls++;
+        if (!d->InterruptMode || !d->Notified || d->Vector != 0 || limit != 3 || d->UsedReads != 0) return Bad(d, true);
+        if (d->WaitFailure) return 0;
+        d->WaitObserved = true;
+        if (!d->NoCompletion)
+        {
+            *(uint*)(d->Data + Used + 4) = d->CompletionId;
+            *(uint*)(d->Data + Used + 8) = d->CompletionLength;
+            *(ushort*)(d->Data + Used + 2) = d->CompletionIndex;
+        }
+        return 1;
+    }
+    [UnmanagedCallersOnly]
+    private static byte MaskInterrupt(void* context)
+    {
+        Device* d = (Device*)context;
+        if (!d->InterruptMode || d->ResetRequested) return Bad(d, true);
+        d->MaskAttempted = true; return d->MaskFailure ? (byte)0 : (byte)1;
     }
     private static void Clean(Fixture f) => HostCheck.True(!f.State->InvalidAccess && !f.State->InvalidOrder);
     private static void NoDma(Fixture f)
@@ -338,6 +419,7 @@ internal static unsafe class SplitVirtqueuePollingNotificationCompletionTests
         internal readonly VirtioMappedRegion Common, Notify;
         internal VirtqueuePollingAccess Access => new() { Context = State, Read8 = &Read8, Write8 = &Write8,
             Read16 = &Read16, Write16 = &Write16, Read32 = &Read32, Write32 = &Write32, Fence = &Fence, BusMaster = &BusMaster };
+        internal VirtqueueInterruptAccess InterruptAccess => new() { Context = State, Wait = &WaitInterrupt, Mask = &MaskInterrupt };
         internal Fixture(uint notifyBytes = 4096)
         {
             new Span<byte>(Data, 4096).Fill(0xa5);
@@ -361,6 +443,11 @@ internal static unsafe class SplitVirtqueuePollingNotificationCompletionTests
         {
             State->Multiplier = multiplier;
             return SplitVirtqueuePollingNotificationCompletion.Run(Common, Notify, multiplier, Pool, Access, 3, 3);
+        }
+        internal VirtqueuePollingResult RunInterrupt()
+        {
+            State->InterruptMode = true;
+            return SplitVirtqueuePollingNotificationCompletion.RunInterrupt(Common, Notify, 4, Pool, Access, 3, 3, InterruptAccess);
         }
         public void Dispose() { NativeMemory.Free(State); NativeMemory.Free(slot); NativeMemory.Free(Pool); NativeMemory.AlignedFree(Data); }
     }

@@ -2,6 +2,13 @@
 
 ## Current Status
 
+The APIC/MSI-X batch #113/#114/#619 is accepted in
+[step1137](../done/step1137.md): 4,277 full-host checks, strict native review,
+104/157-record APIC/MSI-X captures and a 79-record ordinary regression, all with
+current source/image association. The 21 keyed M05 child scopes are satisfied;
+optional USB discovery remains open and Gate 6 remains incomplete. The preceding
+polling queue batch is accepted in [step1133](../done/step1133.md).
+
 [Step1120](../done/step1120.md) qualifies the compiled rethrow/mapping batch:
 4,146 logical full-host checks pass, including 2,599 checks reused with retained
 origins, and six fresh guest profiles pass with independent disk association.

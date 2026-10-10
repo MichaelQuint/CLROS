@@ -62,8 +62,23 @@ public static unsafe class EfiEntry
 #if M05_VIRTIO_NEGOTIATION_PROBE
             internal uint VirtioPhase;
 #endif
-#if M05_VIRTQUEUE_POLLING_PROBE
+#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE
             internal uint QueuePhase, QueueCommand;
+#endif
+#if M05_APIC_SETUP_PROBE
+            internal uint ApicPhase;
+            internal ulong MadtAddress, MadtBytes;
+            internal MadtPollingTopology ApicTopology;
+            internal XApicCpuObservation ApicCpu;
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+            internal uint InterruptPhase;
+            internal MsixCapability MsixCapability;
+            internal MsixRegions MsixRegions;
+            internal MsixInterruptContext InterruptContext;
+            internal MsixProgrammingResult InterruptProgramming;
+            internal VirtqueuePollingResult InterruptQueue;
+            internal fixed ulong InterruptIdtStorage[514];
 #endif
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE
@@ -178,8 +193,23 @@ public static unsafe class EfiEntry
                 if (!ECAMPageVendorDeviceHeader.TryWindow(mcfg, selected.Mcfg.Length, 0, firstBus, firstBus, out state->PciWindow) ||
                     !ECAMPageVendorDeviceHeader.AdmitWindow(state->PciWindow, s_bootHandoff.MemoryMap)) return false;
                 references.EcamStart = state->PciWindow.Start; references.EcamPages = state->PciWindow.Bytes / 4096;
+#if M05_APIC_SETUP_PROBE
+                // The diagnostic fixture admits only its single declared BSP 0.
+                // Actual CPUID/MSR identity is required again after exit before MMIO.
+                state->MadtAddress = (ulong)(copied->Bytes + 16 + selected.Madt.Offset);
+                state->MadtBytes = selected.Madt.Length;
+                if (MADTLocalAPICIOAPICSeparatelyPollingProof.Parse((byte*)state->MadtAddress, state->MadtBytes, 0,
+                        out state->ApicTopology) != MadtPollingStatus.Success ||
+                    !CommonNotifyISRDeviceConfigurationRegions.AdmitMmioPages(state->ApicTopology.LocalApicAddress, 1, s_bootHandoff.MemoryMap) ||
+                    !CommonNotifyISRDeviceConfigurationRegions.AdmitMmioPages(state->ApicTopology.IoApicAddress, 1, s_bootHandoff.MemoryMap)) return false;
+                references.LocalApicPage = state->ApicTopology.LocalApicAddress;
+                references.IoApicPage = state->ApicTopology.IoApicAddress;
+#endif
 #if M05_VIRTIO_NEGOTIATION_PROBE
                 if (!PrepareVirtioMapping(state, out references.VirtioBarStart)) return false;
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+                if (!PrepareMsixMapping(state, out references.MsixPage)) return false;
 #endif
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE
@@ -247,15 +277,20 @@ public static unsafe class EfiEntry
             if (!AdmitOwnedAcpiState(state)) return false;
 #endif
             for (ulong i = 0; i < TablePages * 512; i++) state->Memory.Entries[i] = 0;
+            state->PreparationCheckpoint = 71;
             if (!FirstExitRetainedMappings.WriteRanges(ref state->Arena, (byte*)code, capture, mapping,
-                    references, allocator, state->Memory.Tables, ranges, FirstExitRetainedMappings.MaximumRanges, out count) ||
-                !SeparateDisabledDefaultPageFaultPageTables.BuildRetainedImage(state->Memory.Tables,
+                    references, allocator, state->Memory.Tables, ranges, FirstExitRetainedMappings.MaximumRanges, out count)) return false;
+            var retained = SeparateDisabledDefaultPageFaultPageTables.BuildRetainedImage(state->Memory.Tables,
                     ranges, count, FirstExitRetainedMappings.MaximumRanges, state->Memory.Pages, TablePages,
-                    state->Memory.Entries, TablePages * 512).Succeeded ||
-                !FirstExitOwnedStackStub.Prepare(ref *state->Arena.StackEntry, cpu.RawCr3, cpu.RawCr4,
+                    state->Memory.Entries, TablePages * 512);
+            state->PreparationCheckpoint = 7200 + (ulong)retained.Status;
+            if (!retained.Succeeded) return false;
+            state->PreparationCheckpoint = 73;
+            if (!FirstExitOwnedStackStub.Prepare(ref *state->Arena.StackEntry, cpu.RawCr3, cpu.RawCr4,
                     state->Arena.StackBottom, state->Arena.StackTop, FirstExitOwnedArena.LowerCanary,
-                    FirstExitOwnedArena.UpperCanary, EntryStackBudget, &Enter, state, (ulong)sizeof(Storage)) ||
-                !FirstExitPermanentCr3Stub.Prepare(ref *state->Arena.Permanent, cpu.RawCr3, tables, cpu.RawCr4,
+                    FirstExitOwnedArena.UpperCanary, EntryStackBudget, &Enter, state, (ulong)sizeof(Storage))) return false;
+            state->PreparationCheckpoint = 74;
+            if (!FirstExitPermanentCr3Stub.Prepare(ref *state->Arena.Permanent, cpu.RawCr3, tables, cpu.RawCr4,
                     state->Arena.StackBottom, state->Arena.StackTop, DiagnosticStackBudget,
                     FirstExitOwnedArena.LowerCanary, FirstExitOwnedArena.UpperCanary, &Diagnose, state, state->Arena.Descriptors)) return false;
 
@@ -530,6 +565,9 @@ public static unsafe class EfiEntry
 #if M05_PCI_ENUMERATION_PROBE
                     if (BootSequence.RunOwnedPciEnumeration(state->OwnedPhase == 2, state, &RunOwnedPciEnumeration))
                     {
+#if M05_APIC_SETUP_PROBE
+                        if (!BootSequence.RunOwnedApicSetup(state->PciPhase == 8, state, &RunOwnedApicSetup)) return;
+#endif
 #if M05_BAR_DMA_PROBE
                         _ = BootSequence.RunOwnedBarDma(state->PciPhase == 8, state, &RunOwnedBarDma);
 #endif
@@ -538,6 +576,9 @@ public static unsafe class EfiEntry
 #endif
 #if M05_VIRTQUEUE_POLLING_PROBE
                         _ = BootSequence.RunOwnedVirtqueuePolling(state->VirtioPhase == 16, state, &RunOwnedVirtqueuePolling);
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+                        _ = BootSequence.RunOwnedVirtqueueInterrupt(state->ApicPhase == 2 && state->VirtioPhase == 16, state, &RunOwnedVirtqueueInterrupt);
 #endif
                     }
 #endif
@@ -562,6 +603,263 @@ public static unsafe class EfiEntry
         }
 
 #if M05_PCI_ENUMERATION_PROBE
+#if M05_APIC_SETUP_PROBE
+        private static bool RunOwnedApicSetup(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->ApicPhase != 0 || state->PciPhase != 8 || state->OwnedPhase != 2 ||
+                state->Diagnostic.Status != FirstExitDiagnosticStatus.Completed || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            state->ApicPhase = 1;
+            if (!WriteInterruptLiteral(state, 20, 0)) return false;
+            if (!RunApicCore(state)) { _ = WriteInterruptLiteral(state, 20, 3); return false; }
+            state->ApicPhase = 2;
+            return WriteInterruptLiteral(state, 20, 1) && WriteInterruptLiteral(state, 20, 2);
+        }
+
+        private static bool RunApicCore(Storage* state)
+        {
+            byte* code = state->Memory.Code;
+            if (!X64ApicObservation.Validate(code + FirstExitCodeBundle.ApicObservationOffset, X64ApicObservation.Bytes) ||
+                !X64PciBarAccess.Validate(code + FirstExitCodeBundle.PciBarOffset, X64PciBarAccess.Bytes) ||
+                !AuditInterruptMappings(state) ||
+                ((delegate* unmanaged<XApicCpuObservation*, uint>)(code + FirstExitCodeBundle.ApicObservationOffset))(&state->ApicCpu) != 1) return false;
+            var cpu = state->ApicCpu;
+            fixed (AcpiBootstrapWorkspace* workspace = &s_acpiBootstrap)
+            fixed (AcpiBootstrapOwnedBuffer* copied = &s_acpiBootstrapOwned)
+            {
+                if ((ulong)workspace != state->AcpiWorkspace || state->AcpiWorkspaceBytes != (ulong)sizeof(AcpiBootstrapWorkspace) ||
+                    !ReadBackAcpiBootstrap(workspace, copied->Bytes, AcpiOwnedPayloadCapacity)) return false;
+                var selected = OwnedACPIDirectorySelectMADTHPETMCFG.Select(copied->Bytes + 16, workspace->TotalBytes, workspace->Descriptors, 30);
+                if (!selected.Succeeded || (ulong)(copied->Bytes + 16 + selected.Madt.Offset) != state->MadtAddress ||
+                    selected.Madt.Length != state->MadtBytes ||
+                    MADTLocalAPICIOAPICSeparatelyPollingProof.Parse((byte*)state->MadtAddress, state->MadtBytes, cpu.BspId,
+                        out var topology) != MadtPollingStatus.Success || topology.BspApicId != 0 ||
+                    topology.LocalApicAddress != state->Memory.References.LocalApicPage ||
+                    topology.IoApicAddress != state->Memory.References.IoApicPage) return false;
+                state->ApicTopology = topology;
+            }
+            var t = state->ApicTopology;
+            if (!WriteInterruptRow(state, false, 0, t.LocalApicAddress, t.IoApicAddress, cpu.BspId, t.HeaderFlags)) return false;
+            var result = BoundedXApicSetup.Run(t, cpu.FeaturesEdx, cpu.BspId, cpu.ApicBaseMsr, cpu.Rflags, ApicAccess(state));
+            if (result.Status != XApicSetupStatus.Success)
+            { _ = WriteInterruptRow(state, false, 9, (ulong)result.Status, result.LocalVersion, result.IoVersion, cpu.ApicBaseMsr); return false; }
+            return WriteInterruptRow(state, false, 1, cpu.ApicBaseMsr, cpu.FeaturesEdx, result.LocalVersion, result.IoVersion) &&
+                WriteInterruptRow(state, false, 2, result.MaskedLocalEntries, result.MaskedIoEntries, result.LegacyPicMasked ? 1UL : 0, t.MaximumIsoGsi) &&
+                WriteInterruptRow(state, false, 3, result.TaskPriority, result.Spurious, cpu.Rflags & 0x202, t.IoApicGsiBase) &&
+                FirstExitOwnedArena.ValidateCanaries(state->Arena);
+        }
+
+        private static bool AuditInterruptMappings(Storage* state)
+        {
+            SeparatePageFaultMappingRange* ranges = stackalloc SeparatePageFaultMappingRange[(int)FirstExitRetainedMappings.MaximumRanges];
+            return FirstExitRetainedMappings.WriteInstalledRanges(ref state->Arena, state->Memory.Code, state->Memory.Capture,
+                    state->Memory.Mapping, state->Memory.References, state->Memory.Allocator, state->Memory.Tables,
+                    ranges, FirstExitRetainedMappings.MaximumRanges, out ulong count) &&
+                SeparateDisabledDefaultPageFaultPageTables.AuditRetainedAccessedImage(state->Memory.Tables, ranges, count,
+                    FirstExitRetainedMappings.MaximumRanges, state->Memory.Pages, state->Memory.PageCapacity,
+                    state->Memory.Entries, state->Memory.EntryCapacity).Succeeded;
+        }
+        private static XApicSetupAccess ApicAccess(Storage* state)
+        {
+            byte* code = state->Memory.Code + FirstExitCodeBundle.PciBarOffset;
+            return new XApicSetupAccess { Context = state,
+                Read32 = (delegate* unmanaged<void*, ulong, uint*, byte>)code,
+                Write32 = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 16),
+                ReadPort8 = &ReadPicMask, WritePort8 = &WritePicMask };
+        }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte ReadPicMask(void* context, ushort port, byte* output)
+        {
+            Storage* state = (Storage*)context;
+            if (state->ApicPhase != 1 || (port != 0x21 && port != 0xa1)) return 0;
+            *output = ((delegate* unmanaged<ushort, byte>)(state->Memory.Code + FirstExitCodeBundle.In8Offset))(port);
+            return 1;
+        }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte WritePicMask(void* context, ushort port, byte value)
+        {
+            Storage* state = (Storage*)context;
+            if (state->ApicPhase != 1 || (port != 0x21 && port != 0xa1) || value != 255) return 0;
+            ((delegate* unmanaged<ushort, byte, void>)(state->Memory.Code + FirstExitCodeBundle.Out8Offset))(port, value);
+            return 1;
+        }
+        private static bool WriteInterruptRow(Storage* state, bool msix, uint stage, ulong a, ulong b, ulong c, ulong d)
+        {
+            if (stage > 9) return false;
+            byte* text = stackalloc byte[96];
+            *(ulong*)text = msix ? 0x205152495f35304dUL : 0x434950415f35304dUL;
+            uint length = 8; if (!msix) text[length++] = (byte)' ';
+            text[length++] = (byte)('0' + stage);
+            ulong* values = stackalloc ulong[4]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;
+            for (int i = 0; i < 4; i++)
+            {
+                text[length++] = (byte)' '; text[length++] = (byte)'0'; text[length++] = (byte)'x';
+                for (int shift = 60; shift >= 0; shift -= 4)
+                {
+                    uint digit = (uint)((values[i] >> shift) & 15);
+                    text[length++] = (byte)(digit < 10 ? '0' + digit : 'A' + digit - 10);
+                }
+            }
+            text[length++] = 13; text[length++] = 10;
+            return WriteOwnedBytes(state, text, length);
+        }
+        private static bool WriteInterruptLiteral(Storage* state, uint issue, uint kind)
+        {
+            if (issue < 20 || issue > 21 || kind > 3) return false;
+            ulong* words = stackalloc ulong[5]; uint bytes, digit;
+            if (kind == 0) { words[0] = 0x4154535f54534554UL; words[1] = 0x302e35306d205452UL; words[2] = 0xa0d3030UL; bytes = 20; digit = 17; }
+            else if (kind == 1) { words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3030305f35UL; words[2] = 0xa0d594441UL; bytes = 21; digit = 12; }
+            else if (kind == 2) { words[0] = 0x5341505f54534554UL; words[1] = 0x30302e35306d2053UL; words[2] = 0xa0d30UL; bytes = 19; digit = 16; }
+            else { words[0] = 0x4941465f54534554UL; words[1] = 0x30302e35306d204cUL; words[2] = 0x735f636970612030UL; words[3] = 0x0a0d65746174UL; bytes = 30; digit = 16; }
+            ((byte*)words)[digit - 1] = (byte)('0' + issue / 10); ((byte*)words)[digit] = (byte)('0' + issue % 10);
+            return WriteOwnedBytes(state, (byte*)words, bytes);
+        }
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+        private static bool PrepareMsixMapping(Storage* state, out ulong page)
+        {
+            page = 0; uint* words = stackalloc uint[64];
+            if (!ReadVirtioFixture(state, &ReadVirtioSnapshotWord, words, out _) ||
+                MSIMSIXSetupInterruptDrivenVirtqueueCompletion.Discover((byte*)words, 256, out var cap) != MsixStatus.Success ||
+                cap.TableBar != cap.PbaBar || cap.TableBar >= 4) return false;
+            PciSizedBar* bars = stackalloc PciSizedBar[6];
+            for (uint i = 0; i < 6; i++) bars[i] = default;
+            bool found = false;
+            for (uint i = 0; i < 6; i++)
+            {
+                uint raw = words[4 + i];
+                if (BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Format(raw, i, out var kind) != PciBarProbeStatus.Success) return false;
+                if (i == cap.TableBar)
+                {
+                    if ((kind != PciSizedBarKind.Memory32 && kind != PciSizedBarKind.Memory64) ||
+                        BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(raw, words[5 + i],
+                            0xfffff000U | (raw & 15), 0xffffffff, i, out bars[i]) != PciBarProbeStatus.Success) return false;
+                    if (kind == PciSizedBarKind.Memory64) bars[i + 1] = new PciSizedBar(PciSizedBarKind.UpperHalf, 0, 0, false);
+                    found = true;
+                }
+                if (kind == PciSizedBarKind.Memory64) i++;
+            }
+            // A provisional single-page aperture grants no device-programming
+            // authority. The destructive post-exit BAR probe must confirm it.
+            if (!found || MSIMSIXSetupInterruptDrivenVirtqueueCompletion.Plan(cap, bars, 6, out var regions) != MsixStatus.Success ||
+                regions.Table.PageCount != 1 || regions.Pba.PageCount != 1 || regions.Table.PageStart != regions.Pba.PageStart ||
+                regions.Table.PageStart != bars[cap.TableBar].Base ||
+                !CommonNotifyISRDeviceConfigurationRegions.AdmitMmioPages(regions.Table.PageStart, 1, s_bootHandoff.MemoryMap)) return false;
+            state->MsixCapability = cap; state->MsixRegions = regions; page = regions.Table.PageStart;
+            return true;
+        }
+
+        private static bool AdmitSizedMsix(Storage* state, uint* words, PciSizedBar* bars)
+        {
+            if (state->InterruptPhase != 0 ||
+                MSIMSIXSetupInterruptDrivenVirtqueueCompletion.Discover((byte*)words, 256, out var cap) != MsixStatus.Success ||
+                cap.CapabilityOffset != state->MsixCapability.CapabilityOffset || cap.Control != state->MsixCapability.Control ||
+                cap.TableBar != state->MsixCapability.TableBar || cap.PbaBar != state->MsixCapability.PbaBar ||
+                cap.TableOffset != state->MsixCapability.TableOffset || cap.PbaOffset != state->MsixCapability.PbaOffset ||
+                MSIMSIXSetupInterruptDrivenVirtqueueCompletion.Plan(cap, bars, 6, out var regions) != MsixStatus.Success ||
+                bars[cap.TableBar].Bytes != 4096 || bars[cap.TableBar].Base != state->Memory.References.MsixPage ||
+                regions.Table.PhysicalStart != state->MsixRegions.Table.PhysicalStart || regions.Table.Bytes != state->MsixRegions.Table.Bytes ||
+                regions.Pba.PhysicalStart != state->MsixRegions.Pba.PhysicalStart || regions.Pba.Bytes != state->MsixRegions.Pba.Bytes ||
+                regions.Table.PageCount != 1 || regions.Pba.PageCount != 1 || regions.Table.PageStart != state->Memory.References.MsixPage ||
+                regions.Pba.PageStart != state->Memory.References.MsixPage || !AuditInterruptMappings(state)) return false;
+            state->InterruptPhase = 1;
+            return true;
+        }
+
+        private static MsixRegisterAccess MsixAccess(Storage* state)
+        {
+            byte* code = state->Memory.Code + FirstExitCodeBundle.PciBarOffset;
+            return new MsixRegisterAccess { Context = state, Read16 = &ReadQueueWord,
+                Read32 = (delegate* unmanaged<void*, ulong, uint*, byte>)code,
+                Write32 = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 16),
+                Write16 = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 32) };
+        }
+        private static byte* TemporaryInterruptIdt(Storage* state) => (byte*)(((ulong)state->InterruptIdtStorage + 15) & ~15UL);
+
+        private static bool PrepareInterruptTransaction(Storage* state, VirtioMappedRegion common)
+        {
+            if (state->InterruptPhase != 2 || state->ApicPhase != 2 || state->QueuePhase != 16 ||
+                !AuditInterruptMappings(state)) return false;
+            byte* code = state->Memory.Code + FirstExitCodeBundle.MsixInterruptOffset;
+            byte* temporary = TemporaryInterruptIdt(state);
+            if (!X64MsixInterrupt.Validate(code, X64MsixInterrupt.Bytes) ||
+                !X64MsixInterrupt.PrepareTemporaryIdt(state->Arena.Descriptors->FinalIdt, temporary, 4096, (ulong)state->Memory.Code, (ulong)code) ||
+                BoundedXApicSetup.CheckQuiescent(state->ApicTopology.LocalApicAddress, ApicAccess(state)) != XApicSetupStatus.Success) return false;
+            state->InterruptContext = default;
+            state->InterruptContext.EoiAddress = state->ApicTopology.LocalApicAddress + 0xb0;
+            *(ushort*)state->InterruptContext.TemporaryIdtr = 4095;
+            *(ulong*)(state->InterruptContext.TemporaryIdtr + 2) = (ulong)temporary;
+            state->InterruptProgramming = BoundedMsixProgramming.Prepare(state->MsixCapability, state->MsixRegions,
+                state->PciWindow.Start + 0x30000, common, state->ApicTopology.BspApicId, MsixAccess(state));
+            if (state->InterruptProgramming.Status != MsixStatus.Success) return false;
+            state->InterruptPhase = 3;
+            return true;
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte WaitQueueInterrupt(void* context, uint limit)
+        {
+            Storage* state = (Storage*)context;
+            byte* code = state->Memory.Code + FirstExitCodeBundle.MsixInterruptOffset;
+            byte* original = state->Arena.Descriptors->FinalIdt; byte* temporary = TemporaryInterruptIdt(state);
+            if (state->InterruptPhase != 3 || state->ApicPhase != 2 || state->QueuePhase != 18 || limit != X64MsixInterrupt.MaximumIterations ||
+                !X64MsixInterrupt.Validate(code, X64MsixInterrupt.Bytes) ||
+                !X64MsixInterrupt.ValidateTemporaryIdt(original, temporary, 4096, (ulong)state->Memory.Code, (ulong)code) ||
+                BoundedMsixProgramming.SetFunctionMask(state->MsixCapability, state->PciWindow.Start + 0x30000, false, MsixAccess(state)) != MsixStatus.Success) return 0;
+            state->InterruptPhase = 4;
+            uint observed = ((delegate* unmanaged<MsixInterruptContext*, uint, uint>)code)(&state->InterruptContext, limit);
+            if (!X64MsixInterrupt.ValidateCompletion(&state->InterruptContext, (ulong)code, (ulong)original, (ulong)temporary,
+                    state->ApicTopology.LocalApicAddress, limit, observed) ||
+                !X64MsixInterrupt.ValidateTemporaryIdt(original, temporary, 4096, (ulong)state->Memory.Code, (ulong)code) ||
+                !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return 0;
+            state->InterruptPhase = 5;
+            return 1;
+        }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte MaskQueueInterrupt(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->InterruptPhase < 3 || state->InterruptPhase > 5 || state->QueuePhase != 18 ||
+                BoundedMsixProgramming.SetFunctionMask(state->MsixCapability, state->PciWindow.Start + 0x30000, true, MsixAccess(state)) != MsixStatus.Success) return 0;
+            state->InterruptPhase = 6;
+            return 1;
+        }
+
+        private static bool RunOwnedVirtqueueInterrupt(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->InterruptPhase != 1 || state->QueuePhase != 0 || state->ApicPhase != 2 ||
+                state->VirtioPhase != 16 || state->PciPhase != 8 || state->OwnedPhase != 2 ||
+                !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            state->InterruptPhase = 2; state->QueuePhase = 16;
+            if (!WriteInterruptLiteral(state, 21, 0)) return false;
+            if (!RunQueueCore(state) || state->InterruptPhase != 7)
+            {
+                _ = BoundedMsixProgramming.Disable(state->MsixCapability, state->PciWindow.Start + 0x30000, MsixAccess(state));
+                _ = WriteInterruptRow(state, true, 9, state->InterruptPhase, state->InterruptContext.Count,
+                    (ulong)state->InterruptProgramming.Status, (ulong)state->InterruptQueue.Status);
+                _ = WriteInterruptLiteral(state, 21, 3); return false;
+            }
+            state->QueuePhase = 20;
+            MsixInterruptContext* c = &state->InterruptContext;
+            ulong code = (ulong)state->Memory.Code + FirstExitCodeBundle.MsixInterruptOffset;
+            var p = state->InterruptProgramming; var r = state->InterruptQueue;
+            if (!AuditInterruptMappings(state) || !FirstExitOwnedArena.ValidateInstalledDescriptors(ref state->Arena, (ulong)state->Memory.Code) ||
+                BoundedXApicSetup.CheckQuiescent(state->ApicTopology.LocalApicAddress, ApicAccess(state)) != XApicSetupStatus.Success ||
+                !WriteInterruptRow(state, true, 0, state->MsixRegions.Table.PhysicalStart, state->MsixRegions.Pba.PhysicalStart,
+                    state->MsixCapability.TableSize, state->MsixCapability.CapabilityOffset) ||
+                !WriteInterruptRow(state, true, 1, p.MessageAddress, p.MessageData, p.Control, p.ConfigVector) ||
+                !WriteInterruptRow(state, true, 2, code, (ulong)state->Arena.Descriptors->FinalIdt, (ulong)TemporaryInterruptIdt(state), c->EoiAddress) ||
+                !WriteInterruptRow(state, true, 3, c->Count, c->SpuriousCount, c->BeforeEoiIsr, c->AfterEoiIsr) ||
+                !WriteInterruptRow(state, true, 4, c->InterruptedRip, c->InterruptedFlags, c->EntryFlags, c->ExitFlags) ||
+                !WriteInterruptRow(state, true, 5, c->Iterations, X64MsixInterrupt.MaximumIterations, r.Polls, r.Fences) ||
+                !WriteInterruptRow(state, true, 6, *(ushort*)c->OriginalIdtr, *(ulong*)(c->OriginalIdtr + 2),
+                    *(ushort*)c->RestoredIdtr, *(ulong*)(c->RestoredIdtr + 2)) ||
+                !WriteInterruptRow(state, true, 7, state->MsixCapability.Control, 1, 1, 1)) return false;
+            state->InterruptPhase = 8;
+            return WriteInterruptLiteral(state, 21, 1) && WriteInterruptLiteral(state, 21, 2);
+        }
+#endif
         private static bool RunOwnedPciEnumeration(void* context)
         {
             Storage* state = (Storage*)context;
@@ -791,6 +1089,9 @@ public static unsafe class EfiEntry
             if (!probe.Succeeded || bars[4].Kind != PciSizedBarKind.Memory64 || bars[4].Base != start ||
                 bars[4].Bytes != 0x4000 || bars[5].Kind != PciSizedBarKind.UpperHalf ||
                 !WriteVirtioRow(state, 2, originalCommand, ownedCommand, 0, bars[4].Bytes)) return false;
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+            if (!AdmitSizedMsix(state, words, bars)) return false;
+#endif
             VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
             if (CommonNotifyISRDeviceConfigurationRegions.Plan(caps, bars, 6, regions, 4) != VirtioRegionStatus.Success) return false;
             VirtioMappedRegion common = default;
@@ -878,6 +1179,7 @@ public static unsafe class EfiEntry
         }
 #endif
 
+#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE
 #if M05_VIRTQUEUE_POLLING_PROBE
         private static bool RunOwnedVirtqueuePolling(void* context)
         {
@@ -889,6 +1191,7 @@ public static unsafe class EfiEntry
             state->QueuePhase = 20;
             return true;
         }
+#endif
 
         private static bool RunQueueCore(Storage* state)
         {
@@ -922,6 +1225,9 @@ public static unsafe class EfiEntry
             ushort maximum = 0;
             if (!negotiated.Succeeded || write16(null, start + 22, 1) != 1 || read16(null, start + 24, &maximum) != 1 ||
                 BoundedVirtqueueSize.Validate(8, maximum, out ushort size) != VirtqueueSizeStatus.Success) return false;
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+            if (!PrepareInterruptTransaction(state, common)) return false;
+#endif
             var invalid = BoundedVirtqueueSize.Validate(3, maximum, out ushort empty);
             if (invalid != VirtqueueSizeStatus.InvalidRequested || empty != 0 ||
                 !WriteQueueRow(state, 0, 1, maximum, size, (ulong)invalid) ||
@@ -952,11 +1258,23 @@ public static unsafe class EfiEntry
             access.Context = state; access.Read8 = &ReadVirtioStatus; access.Write8 = &WriteVirtioStatus;
             access.Read16 = read16; access.Write16 = write16; access.Read32 = read; access.Write32 = write32;
             access.Fence = (delegate* unmanaged<void*, byte>)fence; access.BusMaster = &QueueBusMaster;
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+            var result = SplitVirtqueuePollingNotificationCompletion.RunInterrupt(common, notify, caps.NotifyConfiguration.NotifyOffsetMultiplier,
+                &pool, access, X64MsixInterrupt.MaximumIterations, 1024,
+                new VirtqueueInterruptAccess { Context = state, Wait = &WaitQueueInterrupt, Mask = &MaskQueueInterrupt });
+            state->InterruptQueue = result;
+#else
             var result = SplitVirtqueuePollingNotificationCompletion.Run(common, notify, caps.NotifyConfiguration.NotifyOffsetMultiplier,
                 &pool, access, 1000000, 1024);
+#endif
             // Preserve allocator ownership on any uncertain device lifetime.
             if (!result.Succeeded || pool.AllocatedMask != 0)
             { _ = WriteQueueRow(state, 8, (ulong)result.Status, (ulong)result.CleanupStatus, result.UsedIndex, result.Polls); return false; }
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+            if (state->InterruptPhase != 6 || !result.InterruptObserved || !result.InterruptsMasked ||
+                BoundedMsixProgramming.Disable(state->MsixCapability, state->PciWindow.Start + 0x30000, MsixAccess(state)) != MsixStatus.Success) return false;
+            state->InterruptPhase = 7;
+#endif
             var freed = BootPageAllocatorMutator.FreeOnePage(owner->AllocatorStateValue, &owner->FreeNodeValue, 1, 1, null, 0, 0, allocation);
             if (!freed.Succeeded) return false;
             owner->AllocatorStateValue = freed.AfterState;

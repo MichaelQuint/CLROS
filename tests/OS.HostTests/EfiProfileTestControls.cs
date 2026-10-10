@@ -2,6 +2,45 @@ using OS.Tooling;
 
 internal static class EfiProfileTestControls
 {
+    // Inspect each active diagnostic branch; strip only the union of exactly
+    // owned call sites so the existing raw-source firewall still sees all others.
+    internal static bool RemoveOwnedDmaCalls(ref string source, string call, out string reason)
+    {
+        reason = string.Empty;
+        var admitted = new SortedSet<(int Start, int Length)>();
+        foreach (var (symbol, entry, body) in EfiContracts.OwnedDmaAllocatorProfiles)
+        {
+            string[] symbols = ["M01_LOADED_IMAGE_STACK_PROBE", "M01_LIVE_ALLOCATOR_PROBE", "ACPI_PHYSICAL_DISCOVERY_PROBE",
+                "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE", "M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE",
+                "M05_PCI_ENUMERATION_PROBE", symbol, .. symbol == "M05_BAR_DMA_PROBE" ? Array.Empty<string>() :
+                    symbol == "M05_VIRTQUEUE_INTERRUPT_PROBE" ? ["M05_VIRTIO_NEGOTIATION_PROBE", "M05_APIC_SETUP_PROBE"] : ["M05_VIRTIO_NEGOTIATION_PROBE"]];
+            var tree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(source,
+                new Microsoft.CodeAnalysis.CSharp.CSharpParseOptions(preprocessorSymbols: symbols));
+            reason = symbol + ":syntax " + string.Join(" | ", tree.GetDiagnostics().Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
+            if (tree.GetDiagnostics().Any(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)) return false;
+            var root = tree.GetRoot();
+            var methods = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>();
+            reason = symbol + ":entry-body";
+            if (methods.Count(m => m.Identifier.Text == entry) != 1 || methods.Count(m => m.Identifier.Text == body) != 1) return false;
+            var invocations = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax>().ToArray();
+            var calls = invocations.Where(i => i.Expression.ToString() == call).ToArray();
+            reason = symbol + ":call-count-owner " + calls.Length;
+            if (calls.Length != 1 || calls[0].Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
+                .FirstOrDefault()?.Identifier.Text != body) return false;
+            if (body != entry)
+            {
+                var edges = invocations.Where(i => i.Expression.ToString() == body).ToArray();
+                reason = symbol + ":shared-body-caller " + edges.Length;
+                if (edges.Length != 1 || edges[0].Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
+                    .FirstOrDefault()?.Identifier.Text != entry) return false;
+            }
+            admitted.Add((calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
+        }
+        foreach (var span in admitted.Reverse()) source = source.Remove(span.Start, span.Length);
+        reason = string.Empty;
+        return true;
+    }
+
     // Independent expectations shared by cross-profile rejection fixtures.
     internal static string? MissingParentReason(IReadOnlyCollection<string> selected)
     {
@@ -20,6 +59,9 @@ internal static class EfiProfileTestControls
             ("M05PciEnumeration", "M03FirstRealExitBootServices", "m05_pci_requires_owned_first_exit"),
             ("M05PciEnumeration", "M03OwnedSubsystemSurvival", "m05_pci_requires_owned_first_exit"),
             ("M05BarDma", "M05PciEnumeration", "m05_bar_dma_requires_pci"),
+            ("M05ApicSetup", "M05PciEnumeration", "m05_apic_requires_pci"),
+            ("M05VirtqueueInterrupt", "M05ApicSetup", "m05_virtqueue_interrupt_requires_apic_negotiation"),
+            ("M05VirtqueueInterrupt", "M05VirtioNegotiation", "m05_virtqueue_interrupt_requires_apic_negotiation"),
             ("M05VirtqueuePolling", "M05VirtioNegotiation", "m05_virtqueue_polling_requires_negotiation"),
             ("M05VirtioNegotiation", "M05PciEnumeration", "m05_virtio_negotiation_requires_pci"),
             ("M04ClassConstructorExecution", "M04GcStaticRootMaterialization", "m04_cctor_requires_gc_profile"),

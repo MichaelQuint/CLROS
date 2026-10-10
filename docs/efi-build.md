@@ -1,5 +1,23 @@
 # EFI Build
 
+## Bounded APIC and MSI-X profiles
+
+[Step1137](../done/step1137.md) accepts the full-host, strict native and guest
+qualification. Both switches default false. APIC setup requires
+the owned PCI profile; MSI-X completion additionally requires Virtio negotiation.
+Neither combines with the polling or BAR/DMA profile. See [drivers](drivers.md)
+for mapping, temporary IDT and cleanup boundaries.
+
+```powershell
+dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --BootPolicy Diagnostic --EnableM01LoadedImageStackProbe --EnableM01LiveAllocatorProbe --EnableAcpiPhysicalDiscoveryProbe --EnableM03FirstRealExitBootServicesProbe --EnableM03OwnedSubsystemSurvivalProbe --EnableM05PciEnumerationProbe --EnableM05ApicSetupProbe --Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" --OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" --TimeoutSeconds 15
+```
+
+Add `--EnableM05VirtioNegotiationProbe --EnableM05VirtqueueInterruptProbe` for
+the 157-record interrupt capture. The APIC-only capture has 104 records.
+Use distinct `--EfiArtifact`, `--Image`, `--SerialLog` and `--SummaryLog` paths
+when retaining multiple captures. Omitting all diagnostic switches exercises
+the ordinary 79-record VerifiedExit regression.
+
 The bounded split-queue batch #109-#112/#617 is accepted in
 [step1133](../done/step1133.md): 4,251 full-host checks, strict native
 review, a 139-record real queue diagnostic and a 79-record ordinary
@@ -25,8 +43,9 @@ address/buffer lifetime. No device DMA transfer or Gate 6 completion is claimed.
 
 `EnableM05PciEnumerationProbe` defaults false and requires Diagnostic policy,
 loaded-image stack, live allocator, retained ACPI, first real firmware exit and
-owned subsystem survival. It conflicts with the other M05 diagnostics, owned
-panic and adapter revocation. [Step1127](../done/step1127.md) records the accepted
+owned subsystem survival. Its permitted dependent device profiles are listed in
+[drivers](drivers.md); unrelated M05 diagnostics, owned panic and adapter
+revocation remain exclusive. [Step1127](../done/step1127.md) records the accepted
 native publication, full host gate and real diagnostic/ordinary captures.
 
 ```powershell

@@ -287,6 +287,16 @@ public static class BootSequence
         OS.Kernel.Diagnostics.Probes.EnableM05BarDmaProbe &&
         pciEnumerationComplete && context != null && execute != null && execute(context);
 
+    public static unsafe bool RunOwnedApicSetup(
+        bool pciEnumerationComplete, void* context, delegate*<void*, bool> execute) =>
+        OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe &&
+        pciEnumerationComplete && context != null && execute != null && execute(context);
+
+    public static unsafe bool RunOwnedVirtqueueInterrupt(
+        bool apicAndNegotiationComplete, void* context, delegate*<void*, bool> execute) =>
+        OS.Kernel.Diagnostics.Probes.EnableM05VirtqueueInterruptProbe &&
+        apicAndNegotiationComplete && context != null && execute != null && execute(context);
+
     public static unsafe bool RunOwnedVirtqueuePolling(
         bool virtioNegotiationComplete, void* context, delegate*<void*, bool> execute) =>
         OS.Kernel.Diagnostics.Probes.EnableM05VirtqueuePollingProbe &&

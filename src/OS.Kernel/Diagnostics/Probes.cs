@@ -98,6 +98,18 @@ public static partial class Probes
     public const bool EnableM05BarDmaProbe = false;
 #endif
 
+#if M05_APIC_SETUP_PROBE
+    public const bool EnableM05ApicSetupProbe = true;
+#else
+    public const bool EnableM05ApicSetupProbe = false;
+#endif
+
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+    public const bool EnableM05VirtqueueInterruptProbe = true;
+#else
+    public const bool EnableM05VirtqueueInterruptProbe = false;
+#endif
+
 #if M05_VIRTQUEUE_POLLING_PROBE
     public const bool EnableM05VirtqueuePollingProbe = true;
 #else
@@ -111,7 +123,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 33;
+    public const int ProbeCatalogCount = 35;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -310,6 +322,14 @@ public static partial class Probes
         new("platform.bar-dma", nameof(EnableM05BarDmaProbe),
             EnableM05BarDmaProbe, ProbeRisk.Destructive,
             "Sizes quiescent PCI BARs and exercises owned DMA buffer lifetime.");
+
+    public static ProbeDefinition GetM05ApicSetupProbe() =>
+        new("platform.apic", nameof(EnableM05ApicSetupProbe), EnableM05ApicSetupProbe,
+            ProbeRisk.Destructive, "Validates the original BSP and masks owned local and IO APIC sources.");
+
+    public static ProbeDefinition GetM05VirtqueueInterruptProbe() =>
+        new("platform.virtqueue-interrupt", nameof(EnableM05VirtqueueInterruptProbe), EnableM05VirtqueueInterruptProbe,
+            ProbeRisk.Destructive, "Completes one TX queue through a bounded returning MSI-X handler.");
 
     public static ProbeDefinition GetM05VirtqueuePollingProbe() =>
         new("platform.virtqueue-polling", nameof(EnableM05VirtqueuePollingProbe),
@@ -532,6 +552,12 @@ public static partial class Probes
                 return true;
             case 30:
                 definition = GetM05BarDmaProbe();
+                return true;
+            case 33:
+                definition = GetM05ApicSetupProbe();
+                return true;
+            case 34:
+                definition = GetM05VirtqueueInterruptProbe();
                 return true;
             case 32:
                 definition = GetM05VirtqueuePollingProbe();

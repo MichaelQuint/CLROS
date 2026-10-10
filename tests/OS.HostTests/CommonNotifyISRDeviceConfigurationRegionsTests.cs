@@ -85,6 +85,25 @@ internal static unsafe class CommonNotifyISRDeviceConfigurationRegionsTests
         return true;
     }
 
+    [HostTest("mmio.pages admission rejects malformed bounds and partial original descriptors", HostLane.Fast, 5)]
+    private static void MmioPages()
+    {
+        ulong* rows = stackalloc ulong[5]; new Span<ulong>(rows, 5).Clear();
+        rows[0] = 11; rows[1] = 0xfee00000; rows[3] = 1;
+        OS.Boot.FirmwareMemoryMapRecord map = new() { BufferAddress = (ulong)rows, BufferSize = 40, MapSize = 40,
+            DescriptorSize = 40, DescriptorCount = 1, DescriptorVersion = 1, Flags = 1 };
+        bool Admit(ulong address, ulong pages) => CommonNotifyISRDeviceConfigurationRegions.AdmitMmioPages(address, pages, map);
+        HostCheck.True(Admit(0xfee00000, 1));
+        HostCheck.True(Admit(0xfec00000, 1)); // A hole still requires separate ACPI/PCI authority.
+        HostCheck.True(!Admit(0xfee00000, 2));
+        HostCheck.True(!Admit(0xfedff000, 2));
+        foreach (ulong address in new ulong[] { 0, 0xff000, 0xfee00001, 0x800000000000, ulong.MaxValue - 4095 })
+            HostCheck.True(!Admit(address, 1));
+        foreach (ulong pages in new ulong[] { 0, 17, ulong.MaxValue }) HostCheck.True(!Admit(0xfee00000, pages));
+        rows[0] = 7; HostCheck.True(!Admit(0xfee00000, 1));
+        map.Flags = 0; HostCheck.True(!Admit(0xfec00000, 1));
+    }
+
     [HostTest("virtqueue.regions expanded notification binding validates full address policy", HostLane.Fast, 4)]
     private static void NotificationPageBounds()
     {
