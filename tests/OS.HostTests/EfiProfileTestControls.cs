@@ -12,8 +12,14 @@ internal static class EfiProfileTestControls
         {
             string[] symbols = ["M01_LOADED_IMAGE_STACK_PROBE", "M01_LIVE_ALLOCATOR_PROBE", "ACPI_PHYSICAL_DISCOVERY_PROBE",
                 "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE", "M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE",
-                "M05_PCI_ENUMERATION_PROBE", symbol, .. symbol is "M05_BAR_DMA_PROBE" or "M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE" ? Array.Empty<string>() :
-                    symbol == "M05_VIRTQUEUE_INTERRUPT_PROBE" ? ["M05_VIRTIO_NEGOTIATION_PROBE", "M05_APIC_SETUP_PROBE"] : ["M05_VIRTIO_NEGOTIATION_PROBE"]];
+                "M05_PCI_ENUMERATION_PROBE", symbol, .. symbol switch
+                {
+                    "M05_BAR_DMA_PROBE" or "M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE" => Array.Empty<string>(),
+                    "M06_VIRTIO_BLOCK_READ_PROBE" => Array.Empty<string>(),
+                    "M06_LIVE_BLOCK_CONTRACT_PROBE" => ["M06_VIRTIO_BLOCK_READ_PROBE"],
+                    "M05_VIRTQUEUE_INTERRUPT_PROBE" => ["M05_VIRTIO_NEGOTIATION_PROBE", "M05_APIC_SETUP_PROBE"],
+                    _ => ["M05_VIRTIO_NEGOTIATION_PROBE"]
+                }];
             var tree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(source,
                 new Microsoft.CodeAnalysis.CSharp.CSharpParseOptions(preprocessorSymbols: symbols));
             reason = symbol + ":syntax " + string.Join(" | ", tree.GetDiagnostics().Where(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
@@ -31,8 +37,11 @@ internal static class EfiProfileTestControls
             {
                 var edges = invocations.Where(i => i.Expression.ToString() == body).ToArray();
                 reason = symbol + ":shared-body-caller " + edges.Length;
-                if (edges.Length != 1 || edges[0].Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
-                    .FirstOrDefault()?.Identifier.Text != entry) return false;
+                string[] expectedCallers = symbol == "M06_LIVE_BLOCK_CONTRACT_PROBE" ? ["RunOwnedVirtioBlockRead", entry] : [entry];
+                if (!edges.Select(e => e.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
+                    .FirstOrDefault()?.Identifier.Text).Order().SequenceEqual(expectedCallers.Order())) return false;
+                if (symbol == "M06_LIVE_BLOCK_CONTRACT_PROBE" &&
+                    (edges[0].ArgumentList.ToString() != "(state)" || edges[1].ArgumentList.ToString() != "(state, true)")) return false;
             }
             admitted.Add((calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
         }
@@ -64,6 +73,7 @@ internal static class EfiProfileTestControls
             ("M05VirtqueueInterrupt", "M05VirtioNegotiation", "m05_virtqueue_interrupt_requires_apic_negotiation"),
             ("M05VirtqueuePolling", "M05VirtioNegotiation", "m05_virtqueue_polling_requires_negotiation"),
             ("M05VirtioNegotiation", "M05PciEnumeration", "m05_virtio_negotiation_requires_pci"),
+            ("M06LiveBlockContract", "M06VirtioBlockRead", "m06_live_block_contract_requires_read"),
             ("M06VirtioBlockRead", "M06VirtioBlockQueueSetup", "m06_block_read_requires_queue"),
             ("M06VirtioBlockQueueSetup", "M05PciEnumeration", "m06_block_queue_requires_pci"),
             ("M04ClassConstructorExecution", "M04GcStaticRootMaterialization", "m04_cctor_requires_gc_profile"),

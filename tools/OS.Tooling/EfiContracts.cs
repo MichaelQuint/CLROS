@@ -11,7 +11,8 @@ public static partial class EfiContracts
          "EnableM05PciEnumerationProbe", "EnableM05BarDmaProbe", "EnableM05VirtioNegotiationProbe",
          "EnableM05VirtqueuePollingProbe", "EnableM05ApicSetupProbe", "EnableM05VirtqueueInterruptProbe",
          "EnableM06VirtioBlockQueueSetupProbe",
-         "EnableM06VirtioBlockReadProbe"]);
+         "EnableM06VirtioBlockReadProbe",
+        "EnableM06LiveBlockContractProbe", "EnableM06LiveBlockContractProbe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -20,14 +21,15 @@ public static partial class EfiContracts
             ("M05_VIRTQUEUE_POLLING_PROBE", "RunOwnedVirtqueuePolling", "RunQueueCore"),
             ("M05_VIRTQUEUE_INTERRUPT_PROBE", "RunOwnedVirtqueueInterrupt", "RunQueueCore"),
             ("M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE", "RunOwnedVirtioBlockQueueSetup", "RunBlockQueueCore"),
-            ("M06_VIRTIO_BLOCK_READ_PROBE", "RunOwnedVirtioBlockRead", "RunBlockReadCore")]);
+            ("M06_VIRTIO_BLOCK_READ_PROBE", "RunOwnedVirtioBlockRead", "RunBlockReadCore"),
+            ("M06_LIVE_BLOCK_CONTRACT_PROBE", "RunOwnedLiveBlockContract", "RunBlockReadCore")]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "cc8d87ba5fdcecd2457949e83805eb3af676539cf3c0e1c016a30cf6895feee8";
-    public const string CanonicalProjectSha256 = "fe6852e76e982f7c9360e9a81fbe79363195e3e8c7807f34e12e49be8172856b";
-    public const string EfiEntrySourceSha256 = "7924f687095ba4ea837bb43e960412db95dd077325091751682d2592af58df0e";
+    public const string ProjectSourceSha256 = "e82682f0d98193a8114f8e37dbfcabb299b94f05f6aefaa38a8495c094c34f87";
+    public const string CanonicalProjectSha256 = "54278dbe2f01fe9d2f1fc8269abe406998d8878ccf864bc11d19b5b1a8eb77a0";
+    public const string EfiEntrySourceSha256 = "ac1444ca626396f932a0719a45c46eb1ec619fa7f9417472f74c5467ee02307f";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -171,6 +173,15 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Storage\VirtioBlkQueueN0.cs|Storage\VirtioBlkQueueN0.cs",
         @"..\OS.Kernel\Storage\SubmitPollSectorRequest.cs|Storage\SubmitPollSectorRequest.cs",
         @"..\OS.Kernel\Storage\UsedRingCompletionStatusByteTimeoutDeviceReset.cs|Storage\UsedRingCompletionStatusByteTimeoutDeviceReset.cs",
+        @"..\..\std\no-runtime\shared\Memory\SystemSpanPointer.cs|Std\Memory\SystemSpanPointer.cs",
+        @"..\OS.Kernel\Storage\IReadOnlyBlockDevice.cs|Storage\IReadOnlyBlockDevice.cs",
+        @"..\OS.Kernel\Storage\BlockDeviceInfo.cs|Storage\BlockDeviceInfo.cs",
+        @"..\OS.Kernel\Storage\BlockDeviceInfoResult.cs|Storage\BlockDeviceInfoResult.cs",
+        @"..\OS.Kernel\Storage\BlockDeviceStatus.cs|Storage\BlockDeviceStatus.cs",
+        @"..\OS.Kernel\Storage\BlockReadResult.cs|Storage\BlockReadResult.cs",
+        @"..\OS.Kernel\Storage\BlockDeviceRead.cs|Storage\BlockDeviceRead.cs",
+        @"..\OS.Kernel\Storage\LiveDeviceExistingIReadOnlyBlockDeviceContract.cs|Storage\LiveDeviceExistingIReadOnlyBlockDeviceContract.cs",
+        @"..\OS.Kernel\Storage\LBAN0Guest.cs|Storage\LBAN0Guest.cs",
         @"..\OS.Kernel\Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs|Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs",
         @"..\..\std\no-runtime\shared\Binary\EndianPrimitives.Pointer.cs|Std\Binary\EndianPrimitives.Pointer.cs",
         @"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs|Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs",
@@ -264,6 +275,7 @@ public static partial class EfiContracts
         "EnableM05VirtioNegotiationProbe",
         "EnableM05VirtqueueInterruptProbe",
         "EnableM05VirtqueuePollingProbe",
+        "EnableM06LiveBlockContractProbe",
         "EnableM06VirtioBlockQueueSetupProbe",
         "EnableM06VirtioBlockReadProbe",
         "EnableUefiGoneSimulationProbe",

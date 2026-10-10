@@ -87,6 +87,7 @@ public static class QemuProfiles
         else if (Enabled("M05PhysicalMapping")) Select(QemuContracts.M05PhysicalMappingMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05OwnedAcpiSelection")) Select(QemuContracts.M05OwnedAcpiSelectionMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05MonotonicClock")) Select(QemuContracts.M05MonotonicClockMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M06LiveBlockContract")) Select(QemuContracts.M06LiveBlockContractMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M06VirtioBlockRead")) Select(QemuContracts.M06VirtioBlockReadMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M06VirtioBlockQueueSetup")) Select(QemuContracts.M06VirtioBlockQueueSetupMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05VirtqueueInterrupt")) Select(QemuContracts.M05VirtqueueInterruptMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
@@ -195,6 +196,7 @@ public static class QemuProfiles
         ("M05ApicSetup", @"^(M05_APIC|CLROS_M05_020_READY|TEST_(START|PASS) m05\.020)", "m05_apic"),
         ("M05VirtqueueInterrupt", @"^(M05_IRQ|CLROS_M05_021_READY|TEST_(START|PASS) m05\.021)", "m05_irq"),
         ("M06VirtioBlockQueueSetup", @"^(M06_BLK|CLROS_M06_00[1-4]_READY|TEST_(START|PASS) m06\.00[1-4])", "m06_block_queue"),
+        ("M06LiveBlockContract", @"^(M06_BDEV|CLROS_M06_00[7-8]_READY|TEST_(START|PASS) m06\.00[7-8])", "m06_live_block_contract"),
         ("M06VirtioBlockRead", @"^(M06_READ|CLROS_M06_00[5-6]_READY|TEST_(START|PASS) m06\.00[5-6])", "m06_block_read"),
         ("M05VirtioNegotiation", @"^(M05_VIRTIO|CLROS_M05_01[2-5]_READY|TEST_(START|PASS) m05\.01[2-5])", "m05_virtio"),
         ("M04X64UnwindMetadata", @"^(CLROS_M04_020_|TEST_(START|PASS) m04\.020)", "m04_x64_unwind"),

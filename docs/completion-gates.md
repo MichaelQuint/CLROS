@@ -1,11 +1,19 @@
 # CLROS Completion Gates
 
+#122/#123/#625 are accepted in [step1147](../done/step1147.md): a one-attempt live
+adapter implements the existing block contract and validates protective LBA0.
+All 4,316 full-host checks, targeted native Span/constrained-call ABI/stack review
+and fresh 158/138/122/79-record guest captures pass with current source and image
+association. Guest GPT/FAT/package parsing and continuing storage remain
+incomplete; Gate 7 still fails.
+
 The bounded read/completion batch #120/#121/#623 is accepted in
 [step1143](../done/step1143.md): 4,304 full-host checks, native delta review and
 strict 138/122/79-record read/queue/ordinary captures pass. One 512-byte sector
 read matches the disk, then reset/bus-off/fence precedes exact allocator
-restoration. Gate 7 still fails: a live block-contract adapter, guest filesystem
-and package reads, continuing storage and later error probes remain incomplete.
+restoration. That checkpoint did not include the now-accepted block adapter.
+Guest filesystem/package reads, continuing storage and later error probes still
+prevent Gate 7 acceptance.
 
 The block binding/queue-zero batch #116-#119/#621 is accepted in
 [step1140](../done/step1140.md): 4,294 full-host checks, strict native review and
@@ -790,7 +798,7 @@ isolation, supervisor, restart, port-conflict, and crash-isolation evidence.
   memmove behavior, too-small destination rejection, zero-length copy, and
   no-managed-reference result layout.
 - Host tests verify the NativeAOT helper ledger for object allocation, array/string allocation, write barriers, interface dispatch, class constructors, thread statics, exception/unwind, module init, TypeManager/RTR scans, GC stack roots, EFI-only reverse P/Invoke stubs, EFI-only fail-fast type-cast stubs, structured required-contract/allowed-stub/test-coverage/owner columns, exact coverage of current EFI `[RuntimeExport]` symbols, and the caller-owned `BootPageAllocatorMutation` evidence boundary while keeping object/array/string allocation helper statuses deferred and non-completing.
-- Host tests derive all 49 current canonical `System.*` declarations and all 21
+- Host tests derive all 50 current canonical `System.*` declarations and all 21
   `[RuntimeExport]` methods from `src/OS/Runtime/MinimalRuntime.cs`, bind their identities with
   stable append-only entries in the allocation-free `OS.Std.NoRuntime` compatibility ledger,
   verify four link-only no-op helpers, twelve fail-fast helpers, one audited

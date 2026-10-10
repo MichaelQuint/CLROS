@@ -134,8 +134,14 @@ public static partial class Probes
     public const bool EnableM06VirtioBlockReadProbe = false;
 #endif
 
+#if M06_LIVE_BLOCK_CONTRACT_PROBE
+    public const bool EnableM06LiveBlockContractProbe = true;
+#else
+    public const bool EnableM06LiveBlockContractProbe = false;
+#endif
+
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 37;
+    public const int ProbeCatalogCount = 38;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -342,6 +348,10 @@ public static partial class Probes
     public static ProbeDefinition GetM06VirtioBlockReadProbe() =>
         new("storage.virtio-block-read", nameof(EnableM06VirtioBlockReadProbe), EnableM06VirtioBlockReadProbe,
             ProbeRisk.Destructive, "Reads one sector through an owned queue, validates completion and resets before release.");
+
+    public static ProbeDefinition GetM06LiveBlockContractProbe() =>
+        new("storage.live-block-contract", nameof(EnableM06LiveBlockContractProbe), EnableM06LiveBlockContractProbe,
+            ProbeRisk.Destructive, "Reads LBA0 through a closed constrained block contract and validates its protective MBR.");
 
     public static ProbeDefinition GetM06VirtioBlockQueueSetupProbe() =>
         new("storage.virtio-block-queue", nameof(EnableM06VirtioBlockQueueSetupProbe), EnableM06VirtioBlockQueueSetupProbe,
@@ -581,6 +591,9 @@ public static partial class Probes
                 return true;
             case 36:
                 definition = GetM06VirtioBlockReadProbe();
+                return true;
+            case 37:
+                definition = GetM06LiveBlockContractProbe();
                 return true;
             case 35:
                 definition = GetM06VirtioBlockQueueSetupProbe();

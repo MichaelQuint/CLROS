@@ -40,7 +40,10 @@ namespace System
     public struct Byte { }
     public struct Int16 { }
     public struct UInt16 { }
-    public struct Int32 { }
+    public struct Int32
+    {
+        public const int MaxValue = 0x7fff_ffff;
+    }
     public struct UInt32 { }
     public struct Int64 { }
     public struct UInt64
@@ -405,6 +408,9 @@ namespace System
         public static class RuntimeFeature
         {
             public const string UnmanagedSignatureCallingConvention = nameof(UnmanagedSignatureCallingConvention);
+            // Compiler admission for the pointer-backed shared Span subset.
+            // This does not supply managed-heap interior-reference services.
+            public const string ByRefFields = nameof(ByRefFields);
         }
 
         public static class RuntimeHelpers
@@ -419,6 +425,10 @@ namespace System
 
 namespace System.Runtime.InteropServices
 {
+    // Required modreq identity for the C# unmanaged generic constraint.
+    // No marshalling API or enum values are implemented by this shell contract.
+    public enum UnmanagedType { }
+
     public sealed class UnmanagedCallersOnlyAttribute : System.Attribute
     {
         public UnmanagedCallersOnlyAttribute()

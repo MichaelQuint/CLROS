@@ -71,6 +71,10 @@ public static unsafe class EfiEntry
 #if M06_VIRTIO_BLOCK_READ_PROBE
             internal uint BlockReadPhase, BlockNotifyMultiplier;
             internal VirtioMappedRegion BlockCommon, BlockNotify, BlockDevice;
+#if M06_LIVE_BLOCK_CONTRACT_PROBE
+            internal uint BlockContractPhase;
+            internal ulong BlockReadCapacity;
+#endif
 #endif
 #endif
 #if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE
@@ -589,6 +593,9 @@ public static unsafe class EfiEntry
                         _ = BootSequence.RunOwnedVirtioBlockQueueSetup(state->PciPhase == 8, state, &RunOwnedVirtioBlockQueueSetup);
 #if M06_VIRTIO_BLOCK_READ_PROBE
                         _ = BootSequence.RunOwnedVirtioBlockRead(state->BlockPhase == 5, state, &RunOwnedVirtioBlockRead);
+#if M06_LIVE_BLOCK_CONTRACT_PROBE
+                        _ = BootSequence.RunOwnedLiveBlockContract(state->BlockReadPhase == 7, state, &RunOwnedLiveBlockContract);
+#endif
 #endif
 #endif
 #if M05_VIRTQUEUE_POLLING_PROBE
@@ -1406,7 +1413,7 @@ public static unsafe class EfiEntry
 
         private static bool WriteBlockLiteral(Storage* state, uint issue, uint kind)
         {
-            if (issue < 1 || issue > 6 || kind > 3) return false;
+            if (issue < 1 || issue > 8 || kind > 3) return false;
             ulong* words = stackalloc ulong[4]; uint bytes, digit;
             if (kind == 0) { words[0] = 0x4154535f54534554UL; words[1] = 0x302e36306d205452UL; words[2] = 0xa0d3030UL; bytes = 20; digit = 17; }
             else if (kind == 1) { words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3030305f36UL; words[2] = 0xa0d594441UL; bytes = 21; digit = 12; }
@@ -1429,13 +1436,32 @@ public static unsafe class EfiEntry
             return true;
         }
 
-        private static bool RunBlockReadCore(Storage* state)
+#if M06_LIVE_BLOCK_CONTRACT_PROBE
+        private static bool RunOwnedLiveBlockContract(void* context)
         {
+            Storage* state = (Storage*)context;
+            if (state->BlockContractPhase != 0 || state->BlockReadPhase != 7 || state->BlockReadCapacity < 2 ||
+                state->BlockPhase != 5 || state->PciPhase != 8 || state->OwnedPhase != 2 ||
+                !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            state->BlockContractPhase = 7;
+            // A fresh negotiation/reset lifetime, reusing the same checked
+            // original allocator core. The prerequisite read has completed.
+            state->BlockReadPhase = 5;
+            if (!RunBlockReadCore(state, true))
+            { _ = WriteBlockLiteral(state, state->BlockReadPhase + 2, 3); return false; }
+            state->BlockReadPhase = 7; state->BlockContractPhase = 9;
+            return true;
+        }
+#endif
+
+        private static bool RunBlockReadCore(Storage* state, bool liveContract = false)
+        {
+            uint firstIssue = liveContract ? 7u : 5u, secondIssue = firstIssue + 1;
             byte* code = state->Memory.Code + FirstExitCodeBundle.PciBarOffset;
             byte* fence = state->Memory.Code + FirstExitCodeBundle.QueueFenceOffset;
             if (!X64PciBarAccess.Validate(code, X64PciBarAccess.Bytes) ||
                 !X64VirtqueueMemoryFence.Validate(fence, X64VirtqueueMemoryFence.Bytes) ||
-                !WriteBlockLiteral(state, 5, 0) || SetBlockReadBusMaster(state, false) != 1) return false;
+                !WriteBlockLiteral(state, firstIssue, 0) || SetBlockReadBusMaster(state, false) != 1) return false;
             var read32 = (delegate* unmanaged<void*, ulong, uint*, byte>)code;
             var write32 = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 16);
             // The prerequisite queue-only proof reset the device. Negotiate a
@@ -1458,7 +1484,7 @@ public static unsafe class EfiEntry
                 page < backing.Start || page - backing.Start > backing.PageCount * 4096 - 4096 ||
                 DmaAddressWindow.TryCreate(page, page, page, 4096, 32, out var window) != DmaAddressStatus.Success) return false;
             DmaBufferPool pool = default; DmaBufferSlot slot = default;
-            if (PageAlignedDmaBuffers.TryInitialize(&pool, window, &slot, 1, 2) != DmaBufferStatus.Success) return false;
+            if (PageAlignedDmaBuffers.TryInitialize(&pool, window, &slot, 1, liveContract ? 3UL : 2UL) != DmaBufferStatus.Success) return false;
             VirtioBlkReadAccess access = new();
             access.Queue.Context = state; access.Queue.Read8 = &ReadVirtioStatus; access.Queue.Write8 = &WriteVirtioStatus;
             access.Queue.Read16 = &ReadBlockWord;
@@ -1468,25 +1494,69 @@ public static unsafe class EfiEntry
             access.Queue.BusMasterOff = &BlockReadBusMasterOff; access.BusMasterOn = &BlockReadBusMasterOn;
             byte* destination = stackalloc byte[512];
             for (uint i = 0; i < 512; i++) destination[i] = 0xa5;
-            // LBA1 is transported as opaque bytes. GPT interpretation belongs to
-            // its later issue; the host associates this payload with the disk.
-            var result = SubmitPollSectorRequest.Run(state->BlockCommon, state->BlockNotify, state->BlockDevice,
-                state->BlockNotifyMultiplier, &pool, access, 1, destination, 512, 1000000, 1024);
+            VirtioBlkReadResult result;
+#if M06_LIVE_BLOCK_CONTRACT_PROBE
+            BlockDeviceInfo contractInfo = default; BlockReadResult contractRead = default;
+            Lba0Result lba0 = default;
+            ulong spanLength = 0, emptyLength = 0, emptyPointer = 1, spanMatches = 0;
+            if (liveContract)
+            {
+                var geometry = BlockDeviceInfo.Create(512, state->BlockReadCapacity);
+                if (!geometry.Succeeded) return false;
+                var device = new LiveDeviceExistingIReadOnlyBlockDeviceContract(geometry.Info,
+                    state->BlockCommon, state->BlockNotify, state->BlockDevice, state->BlockNotifyMultiplier,
+                    &pool, access, 1000000, 1024);
+                var span = new System.Span<byte>(destination, 512);
+                contractInfo = LBAN0Guest.Info(ref device);
+                contractRead = LBAN0Guest.Read(ref device, span);
+                result = device.LastRead;
+                if (!contractRead.Succeeded || contractRead.BlocksRead != 1 || contractRead.BytesRead != 512) return false;
+                spanLength = (ulong)span.Length;
+                fixed (byte* pointer = span) spanMatches = pointer == destination ? 1UL : 0;
+                var empty = default(System.Span<byte>); emptyLength = (ulong)empty.Length;
+                fixed (byte* pointer = empty) emptyPointer = (ulong)pointer;
+                var zero = new System.Span<byte>(destination, 0);
+                fixed (byte* pointer = zero) if (pointer != null || zero.Length != 0) return false;
+            }
+            else
+#endif
+            {
+                // The prerequisite LBA1 is opaque transport, not GPT parsing.
+                result = SubmitPollSectorRequest.Run(state->BlockCommon, state->BlockNotify, state->BlockDevice,
+                    state->BlockNotifyMultiplier, &pool, access, 1, destination, 512, 1000000, 1024);
+            }
             if (!result.Succeeded || pool.AllocatedMask != 0)
-            { _ = WriteBlockReadRow(state, 10, (ulong)result.Status, (ulong)result.Queue.Status, (ulong)result.Queue.CleanupStatus, result.Polls); return false; }
+            { _ = WriteBlockReadRow(state, liveContract ? 14u : 10u, (ulong)result.Status, (ulong)result.Queue.Status, (ulong)result.Queue.CleanupStatus, result.Polls, liveContract); return false; }
+#if M06_LIVE_BLOCK_CONTRACT_PROBE
+            if (!liveContract) state->BlockReadCapacity = result.Capacity;
+#endif
             uint crc = OS.Std.Hash.Crc32.InitialState;
             for (uint i = 0; i < 512; i++) crc = OS.Std.Hash.Crc32.UpdateByte(crc, destination[i]);
             crc = OS.Std.Hash.Crc32.Finish(crc);
             var layout = result.Queue.Layout;
-            if (!WriteBlockReadRow(state, 0, result.Capacity, result.Sector, result.BytesRead, result.Generation) ||
-                !WriteBlockReadRow(state, 1, result.CapacityReads, result.NotifyOffset, result.NotifyAddress, result.Polls) ||
-                !WriteBlockReadRow(state, 2, layout.Range.CpuVirtualAddress, layout.Range.PhysicalAddress, layout.Range.DeviceAddress, layout.Range.ByteLength) ||
-                !WriteBlockReadRow(state, 3, result.UsedIndex, result.UsedId, result.UsedLength, result.DeviceStatus) ||
-                !WriteBlockReadRow(state, 4, result.Published ? 1UL : 0, result.Notified ? 1UL : 0, result.Fences, result.Queue.Fences) ||
-                !WriteBlockReadRow(state, 5, crc, *(ulong*)destination, *(ulong*)(destination + 504), 512) ||
-                !WriteBlockLiteral(state, 5, 1) || !WriteBlockLiteral(state, 5, 2)) return false;
+            if (!WriteBlockReadRow(state, 0, result.Capacity, result.Sector, result.BytesRead, result.Generation, liveContract) ||
+                !WriteBlockReadRow(state, 1, result.CapacityReads, result.NotifyOffset, result.NotifyAddress, result.Polls, liveContract) ||
+                !WriteBlockReadRow(state, 2, layout.Range.CpuVirtualAddress, layout.Range.PhysicalAddress, layout.Range.DeviceAddress, layout.Range.ByteLength, liveContract) ||
+                !WriteBlockReadRow(state, 3, result.UsedIndex, result.UsedId, result.UsedLength, result.DeviceStatus, liveContract) ||
+                !WriteBlockReadRow(state, 4, result.Published ? 1UL : 0, result.Notified ? 1UL : 0, result.Fences, result.Queue.Fences, liveContract) ||
+                !WriteBlockReadRow(state, 5, crc, *(ulong*)destination, *(ulong*)(destination + 504), 512, liveContract) ||
+                !WriteBlockLiteral(state, firstIssue, 1) || !WriteBlockLiteral(state, firstIssue, 2)) return false;
             state->BlockReadPhase = 6;
-            if (!WriteBlockLiteral(state, 6, 0)) return false;
+            if (!WriteBlockLiteral(state, secondIssue, 0)) return false;
+#if M06_LIVE_BLOCK_CONTRACT_PROBE
+            Lba0Status badSignature = default, badEntry = default, hybrid = default, failedRead = default;
+            if (liveContract)
+            {
+                var sector = new System.Span<byte>(destination, 512);
+                lba0 = LBAN0Guest.Validate(sector, contractInfo.BlockCount, contractRead);
+                if (!lba0.Succeeded) return false;
+                destination[510] ^= 1; badSignature = LBAN0Guest.Validate(sector, contractInfo.BlockCount, contractRead).Status; destination[510] ^= 1;
+                destination[450] ^= 1; badEntry = LBAN0Guest.Validate(sector, contractInfo.BlockCount, contractRead).Status; destination[450] ^= 1;
+                destination[462] = 1; hybrid = LBAN0Guest.Validate(sector, contractInfo.BlockCount, contractRead).Status; destination[462] = 0;
+                failedRead = LBAN0Guest.Validate(sector, contractInfo.BlockCount, default).Status;
+                if (!LBAN0Guest.Validate(sector, contractInfo.BlockCount, contractRead).Succeeded) return false;
+            }
+#endif
             var freed = BootPageAllocatorMutator.FreeOnePage(owner->AllocatorStateValue, &owner->FreeNodeValue, 1, 1, null, 0, 0, allocation);
             if (!freed.Succeeded) return false;
             owner->AllocatorStateValue = freed.AfterState;
@@ -1500,18 +1570,26 @@ public static unsafe class EfiEntry
                 node.PageCount == finalNode.PageCount && node.ByteLength == finalNode.ByteLength && node.NextNodeIndex == finalNode.NextNodeIndex;
             byte status = 0xff;
             var read8 = (delegate* unmanaged<void*, ulong, byte*, byte>)&ReadVirtioStatus;
-            return equal && owner->IsCompleted && FirstExitOwnedArena.ValidateCanaries(state->Arena) &&
+            bool cleaned = equal && owner->IsCompleted && FirstExitOwnedArena.ValidateCanaries(state->Arena) &&
                 SetBlockReadBusMaster(state, false) == 1 && read8(null, state->BlockCommon.VirtualStart + 20, &status) == 1 && status == 0 &&
                 WriteBlockReadRow(state, 6, result.Queue.ResetComplete ? 1UL : 0, result.Queue.BusMasterDisabled ? 1UL : 0,
-                    result.Queue.DmaReleased ? 1UL : 0, result.Queue.ResetReads) &&
-                WriteBlockReadRow(state, 7, before.FreePageCount, restored.FreePageCount, restored.AllocatedPageCount, 1) &&
-                WriteBlockReadRow(state, 8, state->BlockCommand, status, state->BlockMsix.Control, 1) &&
+                    result.Queue.DmaReleased ? 1UL : 0, result.Queue.ResetReads, liveContract) &&
+                WriteBlockReadRow(state, 7, before.FreePageCount, restored.FreePageCount, restored.AllocatedPageCount, 1, liveContract) &&
+                WriteBlockReadRow(state, 8, state->BlockCommand, status, state->BlockMsix.Control, 1, liveContract) &&
                 WriteBlockReadRow(state, 9,
                     (ulong)UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(0, 0, 513, 0),
                     (ulong)UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, 0, 512, 0),
                     (ulong)UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, 0, 1, 1),
-                    (ulong)UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, 0, 513, 0xff)) &&
-                WriteBlockLiteral(state, 6, 1) && WriteBlockLiteral(state, 6, 2);
+                    (ulong)UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, 0, 513, 0xff), liveContract);
+#if M06_LIVE_BLOCK_CONTRACT_PROBE
+            if (liveContract)
+                cleaned = cleaned && WriteBlockReadRow(state, 10, contractInfo.BlockSize, contractInfo.BlockCount,
+                        contractInfo.CapacityBytes, contractRead.BlocksRead, true) &&
+                    WriteBlockReadRow(state, 11, (ulong)lba0.Status, lba0.FirstLba, lba0.ProtectedSectors, lba0.Read.BytesRead, true) &&
+                    WriteBlockReadRow(state, 12, spanLength, emptyLength, emptyPointer, spanMatches, true) &&
+                    WriteBlockReadRow(state, 13, (ulong)badSignature, (ulong)badEntry, (ulong)hybrid, (ulong)failedRead, true);
+#endif
+            return cleaned && WriteBlockLiteral(state, secondIssue, 1) && WriteBlockLiteral(state, secondIssue, 2);
         }
 
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
@@ -1536,12 +1614,12 @@ public static unsafe class EfiEntry
             return 1;
         }
 
-        private static bool WriteBlockReadRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d)
+        private static bool WriteBlockReadRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d, bool liveContract = false)
         {
-            if (stage > 10) return false;
+            if (stage > 14) return false;
             byte* text = stackalloc byte[96];
-            *(ulong*)text = 0x444145525f36304dUL; text[8] = 32; uint length = 9;
-            text[length++] = (byte)(stage < 10 ? '0' + stage : 'A');
+            *(ulong*)text = liveContract ? 0x564544425f36304dUL : 0x444145525f36304dUL; text[8] = 32; uint length = 9;
+            text[length++] = (byte)(stage < 10 ? '0' + stage : 'A' + stage - 10);
             ulong* values = stackalloc ulong[4]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;
             for (int i = 0; i < 4; i++)
             {

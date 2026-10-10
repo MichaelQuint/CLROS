@@ -149,14 +149,14 @@ internal sealed unsafe class BlockReadFixture : IDisposable
         internal byte* Data, Output;
         internal DmaBufferPool* Pool;
         internal fixed uint Addresses[6];
-        internal ulong Capacity;
+        internal ulong Capacity, ExpectedSector;
         internal uint Calls, FailCall, Fences, FailFence, BusOffCalls, FailBusOff, GenerationReads, PollReads, Delay,
             UsedId, UsedLength, WriteMask, ReadMask;
         internal ushort Selected, Size, Enabled, ConfigVector, QueueVector, NotifyOffset, UsedIndex;
         internal byte Status, CompletionStatus;
         internal bool FailAfterWrite, FailedCallback, BadAccess, BadOrder, BusEnabled, Notified, ChainChecked,
             IndexObserved, Acquired, ResetRequested, ResetObserved, CleanupBusOff, CleanupFence, ResetStuck,
-            GenerationChurn, ChurnOnce, ChangeBeforePublish, ChangeAfterCompletion, NeverComplete;
+            GenerationChurn, ChurnOnce, ChangeBeforePublish, ChangeAfterCompletion, NeverComplete, ProtectiveMbr;
     }
     private static long epoch;
     private readonly byte* backing = (byte*)NativeMemory.AlignedAlloc(12288, 4096);
@@ -179,7 +179,8 @@ internal sealed unsafe class BlockReadFixture : IDisposable
         HostCheck.Equal(DmaBufferStatus.Success, PageAlignedDmaBuffers.TryInitialize(Pool, window, slot, 1,
             (ulong)System.Threading.Interlocked.Increment(ref epoch)));
         State->Data = Data; State->Output = Output; State->Pool = Pool; State->Status = 11;
-        State->Capacity = Capacity; State->Selected = 0xffff; State->NotifyOffset = 3; State->UsedIndex = 1; State->UsedLength = 513;
+        State->Capacity = Capacity; State->ExpectedSector = Sector;
+        State->Selected = 0xffff; State->NotifyOffset = 3; State->UsedIndex = 1; State->UsedLength = 513;
         PciSizedBar* bars = stackalloc PciSizedBar[6]; new Span<PciSizedBar>(bars, 6).Clear();
         HostCheck.Equal(PciBarProbeStatus.Success, BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(0xc, 0xc0, 0xffffc00c, 0xffffffff, 4, out bars[4]));
         var caps = VirtioPciCapabilitySet.Create(new(VirtioPciCapabilityType.CommonConfiguration, 4, 0, 56, 0),
@@ -192,6 +193,12 @@ internal sealed unsafe class BlockReadFixture : IDisposable
         HostCheck.Equal(VirtioRegionStatus.Success, CommonNotifyISRDeviceConfigurationRegions.Bind(regions[3], Config, out config));
     }
     internal VirtioBlkReadResult Run() => Run(Access);
+    internal LiveDeviceExistingIReadOnlyBlockDeviceContract CreateLiveDevice(ulong capacity = Capacity, uint blockSize = 512)
+    {
+        var info = BlockDeviceInfo.Create(blockSize, capacity);
+        HostCheck.True(info.Succeeded);
+        return new(info.Info, common, notify, config, Multiplier, Pool, Access, PollLimit, ResetLimit);
+    }
     internal VirtioBlkReadResult Run(VirtioBlkReadAccess access) => Run(access, Output, 512);
     internal VirtioBlkReadResult Run(VirtioBlkReadAccess access, byte* output, uint bytes) =>
         SubmitPollSectorRequest.Run(common, notify, config, Multiplier, Pool, access, Sector, output, bytes, PollLimit, ResetLimit);
@@ -292,6 +299,13 @@ internal sealed unsafe class BlockReadFixture : IDisposable
             if (!d->BusEnabled || d->Status != 15 || d->Enabled != 1 || d->Fences != 4 || d->Pool->AllocatedMask != 1) d->BadOrder = true;
             d->Notified = true; CheckChain(d);
             for (int i = 0; i < 512; i++) d->Data[512 + i] = Payload(i);
+            if (d->ProtectiveMbr)
+            {
+                var mbr = new Span<byte>(d->Data + 512, 512); mbr.Clear();
+                mbr[450] = 0xee; mbr[510] = 0x55; mbr[511] = 0xaa;
+                BinaryPrimitives.WriteUInt32LittleEndian(mbr[454..], 1);
+                BinaryPrimitives.WriteUInt32LittleEndian(mbr[458..], (uint)Math.Min(d->Capacity - 1, uint.MaxValue));
+            }
             d->Data[272] = d->CompletionStatus;
         }
         else return Bad(d);
@@ -359,7 +373,7 @@ internal sealed unsafe class BlockReadFixture : IDisposable
         }
         good &= bytes.Slice(48, 80).IndexOfAnyExcept((byte)0) < 0 && bytes[128] == 1 && bytes[129] == 0 &&
             BinaryPrimitives.ReadUInt16LittleEndian(bytes[130..]) == 1 && bytes.Slice(132, 124).IndexOfAnyExcept((byte)0) < 0 &&
-            BinaryPrimitives.ReadUInt64LittleEndian(bytes[256..]) == 0 && BinaryPrimitives.ReadUInt64LittleEndian(bytes[264..]) == Sector &&
+            BinaryPrimitives.ReadUInt64LittleEndian(bytes[256..]) == 0 && BinaryPrimitives.ReadUInt64LittleEndian(bytes[264..]) == d->ExpectedSector &&
             bytes[272] == 0xff && bytes.Slice(273).IndexOfAnyExcept((byte)0) < 0;
         d->ChainChecked = good; if (!good) d->BadOrder = true;
     }

@@ -2,6 +2,21 @@
 
 ## Current Status
 
+#122/#123 and integration #625 are accepted in [step1147](../done/step1147.md):
+4,316 full-host checks across 525 groups, native ABI/stack review and fresh
+158/138/122/79-record contract/read/queue/ordinary captures pass. A value-type adapter
+implements the existing `IReadOnlyBlockDevice`, reuses `BlockDeviceRead` bounds,
+and permits one attempted one-sector read per fresh negotiated lifetime.
+Capacity must still match before publication; failed/uncertain cleanup preserves
+the accepted transport's output and DMA rules. Closed constrained calls return
+the existing Info and BlockReadResult values without boxing on the reviewed
+native specialization as well as in host tests.
+LBA0 validation accepts only one inactive protective EE entry starting at LBA1,
+covering min(capacity-1, UINT32_MAX), signature55AA and no hybrid entries.
+Boot code and CHS are opaque. Exact disk/source association and local rejection
+controls pass. The [native Span subset](nativeaot-nostdlib-limits.md) remains
+bounded. This does not accept guest GPT/FAT/package parsing or Gate 7.
+
 The bounded read batch #120/#121/#623 is accepted in
 [step1143](../done/step1143.md): 4,304 full-host checks across 521 groups, targeted
 native review and strict 138/122/79-record read/queue/ordinary captures pass.
@@ -20,8 +35,9 @@ The separate `EnableM06VirtioBlockReadProbe` defaults false and requires the
 accepted queue profile. It transports LBA1 as opaque bytes and records CRC32,
 first/last words, original allocator restoration and completion controls. The
 wrapper checks the returned bytes against the generated disk image. This does
-not implement GPT parsing. #122 also needs a narrow native Span/constrained
-interface path; a host adapter plus guest pointer call is insufficient evidence.
+not implement GPT parsing. The separate contract profile now proves the narrow
+native Span/constrained interface path; a host adapter plus guest pointer call
+alone would remain insufficient evidence.
 
 The bounded live block binding/queue batch #116-#119/#621 is accepted in
 [step1140](../done/step1140.md): 4,294 full-host checks across 518 groups, strict
@@ -1076,10 +1092,10 @@ The package loader locates `OS/APP.PKG` through a GPT ESP and a first-level FAT3
 
 ## Next Steps
 
-1. Expose the accepted transport through `IReadOnlyBlockDevice` (#122), with a
-   narrow native Span surface and proven constrained call/return lowering.
-2. Read and validate LBA0, primary/backup GPT and FAT metadata from the guest
-   in the ordered M06 issues. Existing host parsers are not guest acceptance.
+1. Read primary GPT and independently validate bounds/CRC (#124), using the
+   accepted transport and block contract within explicit bounded lifetimes.
+2. Exercise live backup-GPT fallback and locate the EFI partition (#125/#126),
+   then validate FAT metadata. Existing host parsers are not guest acceptance.
 3. Load the manifest and package from the live read-only device, then complete
    the scoped storage failure probes before promoting Gate 7.
 4. Add continuing queue/service lifetime only when its ownership and recovery

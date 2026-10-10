@@ -67,8 +67,12 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
         string root = Root(), directory = Scratch("adapter");
         string adapter = Adapter(File.ReadAllText(Path.Combine(root, "src/OS/Boot/EfiEntry.cs")));
         XDocument sourceProject = XDocument.Load(Path.Combine(root, "src/OS/OS.csproj"));
+        // This hosted adapter needs the framework Span used by its setup. Keep
+        // NOSTDLIB_EFI branches, but leave the replacement to TestBuild's real
+        // no-stdlib compilation, which includes the complete project inventory.
         string includes = string.Join('\n', sourceProject.Descendants("Compile")
-            .Select(x => x.Attribute("Include")!.Value).Where(x => x.StartsWith("..", StringComparison.Ordinal))
+            .Select(x => x.Attribute("Include")!.Value).Where(x => x.StartsWith("..", StringComparison.Ordinal)
+                && x != @"..\..\std\no-runtime\shared\Memory\SystemSpanPointer.cs")
             .Select(x => "<Compile Include=\"" + SecurityElement.Escape(Path.GetFullPath(Path.Combine(root, "src/OS", x))) + "\"/>"));
         File.WriteAllText(Path.Combine(directory, "Adapter.csproj"), """
             <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType>

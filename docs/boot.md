@@ -1,5 +1,12 @@
 # Boot
 
+The default-off `EnableM06LiveBlockContractProbe` adds a fresh LBA0 read after
+the accepted sector-read proof, through the existing block interface using a
+closed constrained value-type call and the narrow native pointer Span subset.
+Its separate phase validates a protective MBR and restores original allocator
+state after quiescence. [Step1147](../done/step1147.md) accepts full-host,
+native and real guest qualification; development is preserved in steps1144-1146.
+
 The separate default-off read profile follows the accepted queue proof with
 fresh feature negotiation and one LBA1 request. Checked completion, observed
 reset/bus-off/fence and exact allocator restoration precede terminal success.

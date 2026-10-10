@@ -2,6 +2,30 @@
 
 ## Current Status
 
+The #122/#123/#625 batch accepted in [step1147](../done/step1147.md) adds a narrow pointer-backed `System.Span<T>`
+surface from `std/no-runtime/shared/Memory/SystemSpanPointer.cs`: pointer/length
+constructor, `Length` and `GetPinnableReference`, restricted to unmanaged T.
+The same storage operations build as an `OS.Std.NoRuntime.Span<T>` host mirror.
+Default/zero-length pinning yields a null reference; nonempty pinning retains
+the supplied address. Construction/pinning allocates nothing and does not map,
+validate or retain the pointed-to memory; the caller owns its full lifetime.
+Negative lengths throw in the host mirror and halt in the no-stdlib surface.
+Reference-containing T, arrays, indexing, slices, enumeration and copying are
+not supplied. This is not general Span/BCL or moving-GC interior-reference support.
+
+Source basis is the pinned runtime's
+[Span layout and pointer/pinning contracts](https://github.com/dotnet/dotnet/blob/95017c711e6afc1085133d440e42b4bd78155701/src/runtime/src/libraries/System.Private.CoreLib/src/System/Span.cs)
+and [ByRefFields compiler feature identity](https://github.com/dotnet/dotnet/blob/95017c711e6afc1085133d440e42b4bd78155701/src/runtime/src/libraries/System.Private.CoreLib/src/System/Runtime/CompilerServices/RuntimeFeature.cs).
+Concrete compilation/publish diagnostics require the unmanaged-constraint
+`UnmanagedType` identity (no marshalling values/API), `RuntimeFeature.ByRefFields`
+and `Int32.MaxValue`. Host parity, strict source admission, full-host and real
+guest qualification pass. Targeted native review verifies the exercised closed
+constrained Info/Read calls, pointer/length layout and aggregate returns without
+boxing or unsupported helpers. The reviewed diagnostic stack bound is 9528
+bytes and the separate fault bound is 4968 bytes, within 32768-byte stacks.
+Constant empty/default pinning controls may fold; this is not arbitrary Span
+lowering, interface-reference dispatch or general GC support.
+
 `OS.Std.Memory.MemoryOrder.Fence(void*, delegate* unmanaged<void*, byte>)` is
 an OS-specific allocation-free status API, not `System.Threading.Thread` or BCL
 compatibility. It rejects a null callback, invokes a non-null callback exactly
@@ -312,7 +336,7 @@ extending the metadata reader's contract to general EH. #90 remains open.
 - `OS.Std.ArrayHelpers` provides a host-tested partial unmanaged-span helper slice for `Clear`, `Fill`, `IndexOf`, `LastIndexOf`, BCL-shaped `BinarySearch` insertion-point results, full-span `Sort`, status-coded range-limited `TrySort`, and status-coded `TryBinarySearch` over caller-specified ranges. The current slice is no-throw, allocation-free, deterministic for small buffers, and constrained to unmanaged element types.
 - `src/OS/Runtime/MinimalRuntime.cs` defines the current compiler-required primitive stubs, throw helpers, memory helpers, fail-fast type-cast placeholders, `IDynamicInterfaceCastable` metadata shape, and reverse-P/Invoke exports needed by the explicit EFI shell project.
 - `OS.Std.NoRuntime.DotNetN10SystemExportCompatibilityLedgerImplementedStubbed`
-  records a source-bound compatibility snapshot for all 49 current canonical
+  records a source-bound compatibility snapshot for all 50 current canonical
   `System.*` declarations and all 21 `[RuntimeExport]` methods in
   `MinimalRuntime.cs`. It uses readonly reference-free entries and
   switch-indexed retrieval without arrays, reflection, LINQ, exceptions, or a
@@ -405,14 +429,16 @@ Boundary rules:
 
 `std/no-runtime/shared/DotNetN10SystemExportCompatibilityLedgerImplementedStubbed.cs`
 is the allocation-free declaration/export classification companion to that
-planning ledger. Its 49 append-only declaration identities bind current
+planning ledger. Its 50 append-only declaration identities bind current
 `MinimalRuntime.cs` declarations, distinguish generic arities, and carry stable
 unknown, narrowly-implemented, stubbed, or forbidden support states. Its 21
 export identities preserve source order: four link-only transition no-ops,
 eleven fail-fast type-cast helpers plus `RhpFallbackFailFast`, the audited
 `RhpStackProbe` bridge, the profile-bound `RhpNewFast` export, then the two
 appended SZ-array and string exports. The guarded empty Exception identity
-is classified as Stubbed and adds no general exception services. The fixed allocator
+is classified as Stubbed and adds no general exception services. The appended
+empty UnmanagedType identity is also Stubbed; it supplies only the unmanaged
+constraint modreq identity and no marshalling constants or services. The fixed allocator
 defaults to self-contained failure; its opt-in adapter is implemented and
 artifact-tested in step946, with bounded real guest acceptance in step949.
 Step952 adds the array host contract and focused artifact checks; step954

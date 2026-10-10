@@ -317,6 +317,11 @@ public static class BootSequence
         OS.Kernel.Diagnostics.Probes.EnableM06VirtioBlockReadProbe &&
         blockQueueSetupComplete && context != null && execute != null && execute(context);
 
+    public static unsafe bool RunOwnedLiveBlockContract(
+        bool blockReadComplete, void* context, delegate*<void*, bool> execute) =>
+        OS.Kernel.Diagnostics.Probes.EnableM06LiveBlockContractProbe &&
+        blockReadComplete && context != null && execute != null && execute(context);
+
     public static unsafe bool RunOwnedMonotonicClock(
         bool ownedSubsystemsComplete, void* context, delegate*<void*, bool> execute) =>
         OS.Kernel.Diagnostics.Probes.EnableM05MonotonicClockProbe &&

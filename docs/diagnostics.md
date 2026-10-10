@@ -1,5 +1,12 @@
 # Diagnostics
 
+`EnableM06LiveBlockContractProbe` defaults false and requires the read profile.
+The accepted 158-record capture appends issue007/008 markers and `M06_BDEV` rows
+0-D: transport, cleanup, original Info, protective MBR, Span/default pinning and
+local rejection controls. Strict transcript, actual LBA0 image checks, full-host
+and native qualification pass in [step1147](../done/step1147.md). All four fresh
+contract/read/queue/ordinary captures retain the reviewed EFI bytes.
+
 `EnableM06VirtioBlockReadProbe` defaults false and requires the block queue
 diagnostic. Its accepted 138-record profile appends `M06_READ` rows 0-9 and
 issue005/006 start/ready/pass markers. It records one read, capacity, used-ring

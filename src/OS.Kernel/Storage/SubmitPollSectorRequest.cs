@@ -43,7 +43,7 @@ public static unsafe class SubmitPollSectorRequest
 {
     public static VirtioBlkReadResult Run(VirtioMappedRegion common, VirtioMappedRegion notify,
         VirtioMappedRegion device, uint notifyMultiplier, DmaBufferPool* dma, VirtioBlkReadAccess access,
-        ulong sector, byte* destination, uint destinationBytes, uint pollLimit, uint resetLimit)
+        ulong sector, byte* destination, uint destinationBytes, uint pollLimit, uint resetLimit, ulong expectedCapacity = 0)
     {
         VirtioBlkReadResult r = default;
         r.Status = VirtioBlkReadStatus.InvalidAccess; r.Sector = sector; r.DeviceStatus = 0xff;
@@ -68,7 +68,7 @@ public static unsafe class SubmitPollSectorRequest
         DmaBufferAllocation allocation = default;
         bool deviceOwned = false;
         r.Status = Execute(common, notify, device, notifyMultiplier, dma, access, destination,
-            pollLimit, ref allocation, ref deviceOwned, ref r);
+            pollLimit, expectedCapacity, ref allocation, ref deviceOwned, ref r);
         VirtioBlkQueueN0.Cleanup(common, dma, a, resetLimit, allocation, deviceOwned, ref r.Queue);
         if (r.Status == VirtioBlkReadStatus.Success && r.Queue.Succeeded)
         {
@@ -81,7 +81,7 @@ public static unsafe class SubmitPollSectorRequest
 
     private static VirtioBlkReadStatus Execute(VirtioMappedRegion common, VirtioMappedRegion notify,
         VirtioMappedRegion device, uint multiplier, DmaBufferPool* dma, VirtioBlkReadAccess access,
-        byte* destination, uint pollLimit, ref DmaBufferAllocation allocation, ref bool deviceOwned, ref VirtioBlkReadResult r)
+        byte* destination, uint pollLimit, ulong expectedCapacity, ref DmaBufferAllocation allocation, ref bool deviceOwned, ref VirtioBlkReadResult r)
     {
         var a = access.Queue;
         if (a.BusMasterOff(a.Context) != 1) return VirtioBlkReadStatus.BusMasterFailed;
@@ -89,6 +89,7 @@ public static unsafe class SubmitPollSectorRequest
         if (status != VirtioBlkReadStatus.Success) return status;
         status = ReadCapacity(common, device, a, ref r);
         if (status != VirtioBlkReadStatus.Success) return status;
+        if (expectedCapacity != 0 && r.Capacity != expectedCapacity) return VirtioBlkReadStatus.ConfigurationChanged;
         if (r.Sector >= r.Capacity) return VirtioBlkReadStatus.SectorOutOfRange;
         r.Queue.Status = VirtioBlkQueueN0.Configure(common, dma, a, ref allocation, ref deviceOwned,
             ref r.Queue, notify, device, (ulong)destination);

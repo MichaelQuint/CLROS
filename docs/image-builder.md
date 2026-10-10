@@ -1,5 +1,14 @@
 # Image Builder
 
+The new `--EnableM06LiveBlockContractProbe` requires the read diagnostic and
+adds an LBA0 receipt. Host checks independently compare disk capacity, CRC32,
+first/last words, signature55AA and the single protective MBR entry with guest
+records; malformed or hybrid entries fail. This does not interpret GPT or load
+files in the guest. [Step1147](../done/step1147.md) accepts actual guest and
+full-host qualification. Independent host inspection also checks both GPT
+copies, FAT copies and the exact EFI payload in each capture image; those host
+checks do not establish guest GPT/FAT parsing.
+
 ## Current Status
 
 The accepted read diagnostic adds `--EnableM06VirtioBlockReadProbe` to that block

@@ -1,13 +1,21 @@
 # Repository Audit
 
+The #122/#123/#625 batch is accepted in [step1147](../done/step1147.md): a
+one-attempt block-interface adapter, protective LBA0 validation and an explicit
+default-off integration profile. All 4,316 full-host checks across 525 groups,
+targeted native review and fresh 158/138/122/79-record guest captures pass with
+current source/image association. Steps1144-1146 preserve failed attempts and
+focused repairs. Guest GPT/FAT/package loading, continuing storage and Gate 7
+remain incomplete.
+
 ## Current Status
 
 The M06 read/completion batch #120/#121/#623 is accepted in
 [step1143](../done/step1143.md): 4,304 full-host checks across 521 groups, native
 delta review and fresh 138/122/79-record read/queue/ordinary captures pass with
 independent source/image association. One 512-byte read and quiescent cleanup
-are proven; the block-contract adapter, filesystem/package loading and Gate 7
-remain incomplete.
+are proven. The block-contract adapter was deferred to step1147; filesystem/
+package loading and Gate 7 remain incomplete.
 
 The four M06 leaves #116-#119 and integration #621 are accepted in
 [step1140](../done/step1140.md): 4,294 full-host checks across 518 groups, strict
