@@ -14581,7 +14581,7 @@
         "M06-014"
       ],
       "labels": [
-        "agent:ready",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14608,7 +14608,7 @@
       ],
       "collisionLane": null,
       "summary": "Read and validate the native manifest from disk.",
-      "currentEvidence": "Bounded sector transport is accepted in step1143, the live block contract/LBA0 in step1147, primary/backup GPT plus EFI partition selection in step1150, and bounded FAT chains, cross-cluster VFAT and one known-file CRC32 read in step1152. This issue has no accepted live implementation or guest proof. Native-manifest/package loading, payload staging, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Host foundation only in done/step1153.md: bounded pointer native-manifest/OSPKGv0 validation, explicit expected CRC32, complete selected OSAPPv0 payload staging and cleanup-gated failure metadata are implemented; 29 new focused checks pass. These helpers are not yet linked into EFI or connected to live disk reads. No native/full-host/guest acceptance or issue completion; shared integration #631 and batch qualification remain required. Accepted prerequisites remain step1152; continuing storage, app execution, M06/Gate7, hosted .NET/Kestrel and cloud claims remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read and validate the native manifest from disk.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14672,7 +14672,7 @@
         "M06-015"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14699,7 +14699,7 @@
       ],
       "collisionLane": null,
       "summary": "Read and validate APP.PKG from disk.",
-      "currentEvidence": "Bounded sector transport is accepted in step1143, the live block contract/LBA0 in step1147, primary/backup GPT plus EFI partition selection in step1150, and bounded FAT chains, cross-cluster VFAT and one known-file CRC32 read in step1152. This issue has no accepted live implementation or guest proof. Native-manifest/package loading, payload staging, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Host foundation only in done/step1153.md: bounded pointer native-manifest/OSPKGv0 validation, explicit expected CRC32, complete selected OSAPPv0 payload staging and cleanup-gated failure metadata are implemented; 29 new focused checks pass. These helpers are not yet linked into EFI or connected to live disk reads. No native/full-host/guest acceptance or issue completion; shared integration #631 and batch qualification remain required. Accepted prerequisites remain step1152; continuing storage, app execution, M06/Gate7, hosted .NET/Kestrel and cloud claims remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read and validate APP.PKG from disk.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14763,7 +14763,7 @@
         "M06-016"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14790,7 +14790,7 @@
       ],
       "collisionLane": null,
       "summary": "Stage the selected payload into owned memory.",
-      "currentEvidence": "Bounded sector transport is accepted in step1143, the live block contract/LBA0 in step1147, primary/backup GPT plus EFI partition selection in step1150, and bounded FAT chains, cross-cluster VFAT and one known-file CRC32 read in step1152. This issue has no accepted live implementation or guest proof. Native-manifest/package loading, payload staging, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Host foundation only in done/step1153.md: bounded pointer native-manifest/OSPKGv0 validation, explicit expected CRC32, complete selected OSAPPv0 payload staging and cleanup-gated failure metadata are implemented; 29 new focused checks pass. These helpers are not yet linked into EFI or connected to live disk reads. No native/full-host/guest acceptance or issue completion; shared integration #631 and batch qualification remain required. Accepted prerequisites remain step1152; continuing storage, app execution, M06/Gate7, hosted .NET/Kestrel and cloud claims remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Stage the selected payload into owned memory.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14854,7 +14854,7 @@
         "M06-017"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14881,7 +14881,7 @@
       ],
       "collisionLane": "lane:probes",
       "summary": "Add malformed disk/package failure probes that remain diagnosable after EBS.",
-      "currentEvidence": "Bounded sector transport is accepted in step1143, the live block contract/LBA0 in step1147, primary/backup GPT plus EFI partition selection in step1150, and bounded FAT chains, cross-cluster VFAT and one known-file CRC32 read in step1152. This issue has no accepted live implementation or guest proof. Native-manifest/package loading, payload staging, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Host foundation only in done/step1153.md: bounded pointer native-manifest/OSPKGv0 validation, explicit expected CRC32, complete selected OSAPPv0 payload staging and cleanup-gated failure metadata are implemented; 29 new focused checks pass. These helpers are not yet linked into EFI or connected to live disk reads. No native/full-host/guest acceptance or issue completion; shared integration #631 and batch qualification remain required. Accepted prerequisites remain step1152; continuing storage, app execution, M06/Gate7, hosted .NET/Kestrel and cloud claims remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add malformed disk/package failure probes that remain diagnosable after EBS.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

@@ -1,5 +1,12 @@
 # Image Builder
 
+The next disk-manifest/package/staging batch has host-tested validators in
+[step1153](../done/step1153.md). Its independently authored test packages use the
+existing OSPKGv0 table and OSAPPv0 payload formats. CRC32 is an explicit expected
+fixture checksum, not an embedded or cryptographic package hash. No image
+builder command or live smoke fixture changes in this foundation; #631 still
+needs the native manifest/APP.PKG image fixture and real guest integration.
+
 ## FAT smoke fixture
 
 The default-off FAT profile in [step1152](../done/step1152.md) applies the compiled

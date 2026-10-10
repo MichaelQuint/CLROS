@@ -1,5 +1,29 @@
 # Storage
 
+## Manifest/package batch: host foundation only
+
+[Step1153](../done/step1153.md) implements the pure helpers for owned issues
+#130–#133 and shared integration #631. The bounded native v0 manifest validator
+admits required fields plus package/native-aot kind fields, source-backed path
+offsets and strict relative paths. Environment/listen fields remain unsupported
+in this disk validator; the existing broader host parser is unchanged.
+The package validator checks at most 8,192 bytes and 16 OSPKGv0 entries,
+including metadata bounds, reserved values, duplicates and all overlaps, then
+compares an explicit expected repository CRC32. The format has no embedded
+cryptographic hash. Payload staging revalidates package bytes and the selected
+OSAPPv0 header before copying its complete bytes and preserving entry offset.
+All source/path/destination aliases and invalid numeric ranges reject before
+writes. Shared sector copying also rejects byte-counter aliases and excludes
+final-sector padding. Failure metadata requires asserted cleanup and canary
+checks; it does not establish those assertions or emit serial output.
+
+All 29 new focused host checks pass with unchanged compiled inputs. These
+helpers are not linked into the EFI image or connected to live FAT/Virtio
+reads. There is no new guest, native, full-host, app-execution or Gate7
+acceptance. The issues remain claimed/open; next work is the default-off
+live-read/owned-page/serial integration under #631, followed by combined
+qualification. Accepted FAT evidence remains [step1152](../done/step1152.md).
+
 ## Bounded FAT read profile
 
 The #127/#128/#129 batch and shared integration #629 are qualified in
