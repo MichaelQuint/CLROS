@@ -1,5 +1,11 @@
 # CLROS Completion Gates
 
+The block binding/queue-zero batch #116-#119/#621 is implemented but unaccepted
+in [step1138](../done/step1138.md). Focused host checks, strict native development
+review and one 122-record development capture do not replace frozen-source
+full-host and final guest qualification. It submits no block request and does
+not pass Gate 7. See [storage](cstorage.md#bounded-modern-block-queue-profile).
+
 The APIC/MSI-X batch #113/#114/#619 has accepted full-host, strict native and
 guest evidence in [step1137](../done/step1137.md), including one returning MSI-X
 queue completion. This satisfies the bounded M05 keyed-child scopes.

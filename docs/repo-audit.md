@@ -2,6 +2,11 @@
 
 ## Current Status
 
+The four owned M06 leaves #116-#119 and integration #621 are implemented but
+unaccepted in [step1138](../done/step1138.md). Focused checks and a bounded
+122-record development capture pass; the stable batch still needs full-host
+and final guest qualification. No CLROS block I/O is claimed.
+
 The APIC/MSI-X batch #113/#114/#619 is accepted in
 [step1137](../done/step1137.md): 4,277 full-host checks, strict native review,
 104/157-record APIC/MSI-X captures and a 79-record ordinary regression, all with

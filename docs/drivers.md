@@ -1,5 +1,10 @@
 # Drivers
 
+The separate modern block queue profile is implemented but not yet accepted in
+[step1138](../done/step1138.md). It reuses the accepted PCI/BAR/DMA contracts,
+with explicit block feature and region entry points that preserve network
+policy. See [storage](cstorage.md#bounded-modern-block-queue-profile) for scope.
+
 The APIC/MSI-X batch #113/#114/#619 is accepted in
 [step1137](../done/step1137.md), following development steps1134-1136. All 4,277
 full-host checks across 513 groups pass with unchanged inputs and no reuse.

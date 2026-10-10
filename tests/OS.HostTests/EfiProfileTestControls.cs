@@ -12,7 +12,7 @@ internal static class EfiProfileTestControls
         {
             string[] symbols = ["M01_LOADED_IMAGE_STACK_PROBE", "M01_LIVE_ALLOCATOR_PROBE", "ACPI_PHYSICAL_DISCOVERY_PROBE",
                 "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE", "M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE",
-                "M05_PCI_ENUMERATION_PROBE", symbol, .. symbol == "M05_BAR_DMA_PROBE" ? Array.Empty<string>() :
+                "M05_PCI_ENUMERATION_PROBE", symbol, .. symbol is "M05_BAR_DMA_PROBE" or "M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE" ? Array.Empty<string>() :
                     symbol == "M05_VIRTQUEUE_INTERRUPT_PROBE" ? ["M05_VIRTIO_NEGOTIATION_PROBE", "M05_APIC_SETUP_PROBE"] : ["M05_VIRTIO_NEGOTIATION_PROBE"]];
             var tree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(source,
                 new Microsoft.CodeAnalysis.CSharp.CSharpParseOptions(preprocessorSymbols: symbols));
@@ -64,6 +64,7 @@ internal static class EfiProfileTestControls
             ("M05VirtqueueInterrupt", "M05VirtioNegotiation", "m05_virtqueue_interrupt_requires_apic_negotiation"),
             ("M05VirtqueuePolling", "M05VirtioNegotiation", "m05_virtqueue_polling_requires_negotiation"),
             ("M05VirtioNegotiation", "M05PciEnumeration", "m05_virtio_negotiation_requires_pci"),
+            ("M06VirtioBlockQueueSetup", "M05PciEnumeration", "m06_block_queue_requires_pci"),
             ("M04ClassConstructorExecution", "M04GcStaticRootMaterialization", "m04_cctor_requires_gc_profile"),
             ("M04InterfaceDispatch", "M04ClassConstructorExecution", "m04_dispatch_requires_cctor_profile"),
             ("M04X64UnwindMetadata", "M04TypeManagerModuleRegistration", "m04_x64_unwind_metadata_requires_original_module"),

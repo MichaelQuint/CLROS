@@ -65,16 +65,18 @@ public static partial class QemuTranscripts
             seen.Add((start, end));
         }
     }
-    internal static string[] FirmwareProtocol(string path, string terminal, bool noSuffix, bool allowShortSuffix, string reason)
+    internal static string[] FirmwareProtocol(string path, string terminal, bool noSuffix, bool allowShortSuffix, string reason, bool blockBoot = false)
     {
         byte[] bytes = File.ReadAllBytes(path);
-        Need(bytes.Length is >= FirmwarePrefixBytes and <= 32768, reason + "_raw_extent");
+        int prefixBytes = blockBoot ? QemuContracts.BlockFirmwarePrefixBytes : FirmwarePrefixBytes;
+        string prefixHash = blockBoot ? QemuContracts.BlockFirmwarePrefixSha256 : FirmwarePrefixSha256;
+        Need(bytes.Length >= prefixBytes && bytes.Length <= 32768, reason + "_raw_extent");
         string text = DecodeUtf8(bytes);
         int start = text.IndexOf("TEST_START efi.main\r\n", StringComparison.Ordinal);
         int terminalAt = terminal.Length == 0 ? text.Length : text.IndexOf(terminal, StringComparison.Ordinal);
         int end = terminalAt + terminal.Length;
-        Need(start == FirmwarePrefixBytes && terminalAt >= start, reason + "_protocol_extent");
-        Need(Convert.ToHexString(SHA256.HashData(bytes.AsSpan(0, FirmwarePrefixBytes))) == FirmwarePrefixSha256,
+        Need(start == prefixBytes && terminalAt >= start, reason + "_protocol_extent");
+        Need(Convert.ToHexString(SHA256.HashData(bytes.AsSpan(0, prefixBytes))) == prefixHash,
             reason + "_firmware_prefix");
         int suffixLength = bytes.Length - end;
         if (noSuffix) Need(suffixLength == 0, reason + "_firmware_eof");

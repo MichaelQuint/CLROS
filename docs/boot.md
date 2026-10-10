@@ -1,5 +1,11 @@
 # Boot
 
+The default-off `EnableM06VirtioBlockQueueSetupProbe` follows owned PCI
+enumeration through BootSequence. It configures/readbacks one queue and resets
+before terminal success; it never submits a block request. Development evidence
+is in [step1138](../done/step1138.md); acceptance remains pending. See
+[storage](cstorage.md#bounded-modern-block-queue-profile) for ownership and cleanup.
+
 The default-off APIC/MSI-X integration has accepted full-host, strict native and
 guest evidence in [step1137](../done/step1137.md).
 It uses owned mappings and a temporary IDT after firmware exit. BootSequence

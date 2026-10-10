@@ -88,6 +88,7 @@ internal static class QemuRunnerTests
             Run("qemu firmware RNG missing provider has no device", () => TestFirmwareRngSource(tempRoot, "missing"), ref failures);
             Run("qemu firmware RNG rejects unknown empty and duplicate choices", TestFirmwareRngRejected, ref failures);
             Run("qemu virtio negotiation fixture is modern exclusive and has no option ROM", () => TestVirtioNegotiationFixture(tempRoot), ref failures);
+            Run("qemu block queue fixture uses readonly modern boot disk and exclusive PCI slot", () => TestVirtioBlockQueueFixture(tempRoot), ref failures);
             Run("qemu dry-run emits default workload profile", () => TestDryRunDefaultWorkloadProfile(tempRoot), ref failures);
             Run("qemu dry-run propagates multi workload profile", () => TestDryRunMultiWorkloadProfile(tempRoot), ref failures);
             Run("qemu rejects invalid workload profile", () => TestRejectsInvalidWorkloadProfile(tempRoot), ref failures);
@@ -302,6 +303,18 @@ internal static class QemuRunnerTests
             ["--pci-bar-test-device", "--virtio-negotiation-device"]
         })
             if (RunQemuRunner(["--dry-run", .. flags]).ExitCode == 0) return false;
+        return true;
+    }
+
+    private static bool TestVirtioBlockQueueFixture(string root)
+    {
+        ProcessResult block = RunQemuRunner("--dry-run", "--qemu", "qemu-test", "--image", Path.Combine(root, "block.raw"), "--virtio-block-queue-device");
+        if (block.ExitCode != 0 || !block.Output.Contains("-device virtio-blk-pci,drive=esp,addr=06.0,disable-legacy=on,romfile=", StringComparison.Ordinal) ||
+            !block.Output.Contains("if=none,id=esp,format=raw,readonly=on,file=", StringComparison.Ordinal) ||
+            block.Output.Contains("ide-hd,drive=esp", StringComparison.Ordinal) || block.Output.Contains("pci-testdev", StringComparison.Ordinal)) return false;
+        foreach (string flag in new[] { "--virtio-block-queue-device", "--virtio-negotiation-device", "--pci-bar-test-device" })
+            foreach (string[] flags in new[] { new[] { flag, "--virtio-block-queue-device" }, new[] { "--virtio-block-queue-device", flag } })
+                if (RunQemuRunner(["--dry-run", .. flags]).ExitCode == 0) return false;
         return true;
     }
 

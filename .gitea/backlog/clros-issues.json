@@ -13307,13 +13307,13 @@
         "M05-019"
       ],
       "labels": [
-        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:storage",
         "phase:m06-storage",
-        "reference:test-only"
+        "reference:test-only",
+        "agent:claimed"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -13334,7 +13334,7 @@
       ],
       "collisionLane": null,
       "summary": "Bind one live virtio-blk PCI device.",
-      "currentEvidence": "Dependency #112 is accepted with bounded ordered queue polling in done/step1133.md. The first general virtio-blk binding slice is ready but unimplemented; no guest block read or disk-backed package load is accepted.",
+      "currentEvidence": "Implemented but unaccepted in done/step1138.md under shared integration #621. Focused host checks, strict NativeAOT development review (739 associated methods) and a 122-record real development block-queue capture pass after exact-prefix revalidation. The stable batch still requires full-host and fresh final guest/source/image qualification. All leaves remain open and claimed; internal dependencies close only after evidence. No block request, DRIVER_OK, notification or CLROS sector I/O is performed; sector reads begin with #120.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Bind one live virtio-blk PCI device.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -13398,13 +13398,13 @@
         "M06-001"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:storage",
         "phase:m06-storage",
-        "reference:test-only"
+        "reference:test-only",
+        "agent:claimed"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -13425,7 +13425,7 @@
       ],
       "collisionLane": null,
       "summary": "Negotiate the minimal read-only virtio-blk feature set.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Implemented but unaccepted in done/step1138.md under shared integration #621. Focused host checks, strict NativeAOT development review (739 associated methods) and a 122-record real development block-queue capture pass after exact-prefix revalidation. The stable batch still requires full-host and fresh final guest/source/image qualification. All leaves remain open and claimed; internal dependencies close only after evidence. No block request, DRIVER_OK, notification or CLROS sector I/O is performed; sector reads begin with #120.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Negotiate the minimal read-only virtio-blk feature set.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -13489,13 +13489,13 @@
         "M06-002"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:tooling",
         "evidence:qemu",
         "component:storage",
         "phase:m06-storage",
-        "reference:test-only"
+        "reference:test-only",
+        "agent:claimed"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -13516,7 +13516,7 @@
       ],
       "collisionLane": null,
       "summary": "Allocate DMA-safe request, status, descriptor, available, and used-ring storage.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Implemented but unaccepted in done/step1138.md under shared integration #621. Focused host checks, strict NativeAOT development review (739 associated methods) and a 122-record real development block-queue capture pass after exact-prefix revalidation. The stable batch still requires full-host and fresh final guest/source/image qualification. All leaves remain open and claimed; internal dependencies close only after evidence. No block request, DRIVER_OK, notification or CLROS sector I/O is performed; sector reads begin with #120.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Allocate DMA-safe request, status, descriptor, available, and used-ring storage.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -13580,13 +13580,13 @@
         "M06-003"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:storage",
         "phase:m06-storage",
-        "reference:test-only"
+        "reference:test-only",
+        "agent:claimed"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -13607,7 +13607,7 @@
       ],
       "collisionLane": null,
       "summary": "Program virtio-blk queue 0.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Implemented but unaccepted in done/step1138.md under shared integration #621. Focused host checks, strict NativeAOT development review (739 associated methods) and a 122-record real development block-queue capture pass after exact-prefix revalidation. The stable batch still requires full-host and fresh final guest/source/image qualification. All leaves remain open and claimed; internal dependencies close only after evidence. No block request, DRIVER_OK, notification or CLROS sector I/O is performed; sector reads begin with #120.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Program virtio-blk queue 0.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

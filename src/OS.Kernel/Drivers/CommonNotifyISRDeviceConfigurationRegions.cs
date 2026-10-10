@@ -76,6 +76,16 @@ public static unsafe class CommonNotifyISRDeviceConfigurationRegions
     // by this VERSION_1-only profile; larger capability lengths remain valid.
     public static VirtioRegionStatus Plan(VirtioPciCapabilitySet capabilities,
         PciSizedBar* bars, uint barCount, VirtioConfigurationRegion* regions, uint capacity)
+        => PlanCore(capabilities, bars, barCount, regions, capacity, false);
+
+    /// <summary>Same bounded mappings with the complete eight-byte block capacity
+    /// field admitted. A stable config-generation read remains a separate step.</summary>
+    public static VirtioRegionStatus PlanBlock(VirtioPciCapabilitySet capabilities,
+        PciSizedBar* bars, uint barCount, VirtioConfigurationRegion* regions, uint capacity)
+        => PlanCore(capabilities, bars, barCount, regions, capacity, true);
+
+    private static VirtioRegionStatus PlanCore(VirtioPciCapabilitySet capabilities,
+        PciSizedBar* bars, uint barCount, VirtioConfigurationRegion* regions, uint capacity, bool block)
     {
         if (bars == null || regions == null || barCount != 6 || capacity < RegionCount ||
             ((ulong)bars & 7) != 0 || ((ulong)regions & 7) != 0 ||
@@ -90,7 +100,8 @@ public static unsafe class CommonNotifyISRDeviceConfigurationRegions
         {
             var cap = i == 0 ? capabilities.CommonConfiguration : i == 1 ? capabilities.NotifyConfiguration :
                 i == 2 ? capabilities.IsrStatus : capabilities.DeviceConfiguration;
-            uint needed = i == 0 ? VirtioPciModernRegisterMap.CommonConfiguration.FirstLiveQueueSetupLength : i == 1 ? 2u : 1u;
+            uint needed = i == 0 ? VirtioPciModernRegisterMap.CommonConfiguration.FirstLiveQueueSetupLength :
+                i == 1 ? 2u : i == 3 && block ? 8u : 1u;
             uint alignment = i == 0 || i == 3 ? 4u : i == 1 ? 2u : 1u;
             if ((uint)cap.Type != i + 1 || cap.Bar >= 6 || cap.Length < needed ||
                 (cap.Offset & (alignment - 1)) != 0 ||

@@ -1,5 +1,11 @@
 # Boot Order
 
+The separate default-off block profile orders original owned subsystem survival,
+PCI enumeration, block binding, FEATURES_OK, queue-zero setup/readback, then
+observed reset and allocator restoration. `BootSequence.RunOwnedVirtioBlockQueueSetup`
+owns this edge; ordinary boot is unchanged. [Step1138](../done/step1138.md)
+records implementation pending batch acceptance.
+
 The default-off APIC/MSI-X profiles follow original owned subsystem
 survival through BootSequence: PCI enumeration, APIC setup, Virtio negotiation,
 then interrupt completion. They add no ordinary boot phase. Full-host, native and

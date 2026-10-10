@@ -3,6 +3,10 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        ["..\\OS.Kernel\\Storage\\LiveVirtioBlkPCIDevice.cs"] = "reviewed_block_binding_source_identity",
+        ["..\\OS.Kernel\\Storage\\MinimalVirtioBlkFeatureSet.cs"] = "reviewed_block_features_source_identity",
+        ["..\\OS.Kernel\\Storage\\DMASafeRequestStatusDescriptorAvailableUsedRing.cs"] = "reviewed_block_dma_source_identity",
+        ["..\\OS.Kernel\\Storage\\VirtioBlkQueueN0.cs"] = "reviewed_block_queue_source_identity",
         ["..\\OS.Kernel\\Boot\\VerifiedExitPathOptDefaultRepeatedCleanQEMU.cs"] = "reviewed_normal_exit_policy_identity",
         ["..\\OS.Kernel\\Runtime\\ObjectArrayStringEETypeMethodTableLayoutContracts.cs"] = "reviewed_layout_source_identity",
         ["..\\OS.Kernel\\Runtime\\ManagedHeapPageRangeLiveAllocator.cs"] = "reviewed_heap_source_identity",

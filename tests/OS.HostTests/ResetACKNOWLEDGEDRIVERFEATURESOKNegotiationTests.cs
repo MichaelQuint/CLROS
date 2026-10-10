@@ -34,9 +34,11 @@ internal static unsafe class ResetACKNOWLEDGEDRIVERFEATURESOKNegotiationTests
         }
     }
     private static Device Fresh() => new() { Offered = 0x8000000100000001UL };
-    private static VirtioNegotiationResult Run(Device* device, uint resetReads = 4) =>
-        ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation.Run(Common, BoundedVirtioFeatures.Version1, resetReads,
-            device, &Read32, &Write32, &Read8, &Write8);
+    private static VirtioNegotiationResult Run(Device* device, uint resetReads = 4, bool block = false) =>
+        block ? OS.Storage.MinimalVirtioBlkFeatureSet.Negotiate(Common, resetReads,
+            device, &Read32, &Write32, &Read8, &Write8) :
+            ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation.Run(Common, BoundedVirtioFeatures.Version1, resetReads,
+                device, &Read32, &Write32, &Read8, &Write8);
     private static bool Fail(Device* device) => ++device->Calls == device->FailCall;
 
     [UnmanagedCallersOnly]
@@ -193,5 +195,36 @@ internal static unsafe class ResetACKNOWLEDGEDRIVERFEATURESOKNegotiationTests
         HostCheck.True(result.FailureStatusAttempted && result.FailureStatusWritten && !device.DriverOkWritten);
         for (uint i = 0; i < device.StatusWrites; i++) HostCheck.True(device.History[i] != 11);
         return true;
+    }
+
+    [HostTest("virtio.block.negotiation preserves read-only and rejects failed feature status and every callback")]
+    private static void BlockNegotiation()
+    {
+        foreach (ulong offered in new ulong[] { 1UL << 32, (1UL << 32) | 32, ulong.MaxValue })
+        {
+            Device d = Fresh(); d.Offered = offered;
+            var r = Run(&d, block: true);
+            HostCheck.True(r.Succeeded && !d.InvalidAccess && !d.DriverOkWritten);
+            HostCheck.Equal((1UL << 32) | (offered & 32), r.Selected);
+            HostCheck.Equal(r.Selected, d.Selected);
+            HostCheck.Equal((byte)11, d.Status);
+            uint calls = d.Calls;
+            for (uint fail = 1; fail <= calls; fail++)
+            {
+                d = Fresh(); d.Offered = offered; d.FailCall = fail;
+                r = Run(&d, block: true);
+                HostCheck.True(!r.Succeeded && !d.DriverOkWritten && !d.InvalidAccess);
+                HostCheck.True(r.Status == VirtioNegotiationStatus.ReadFailed || r.Status == VirtioNegotiationStatus.WriteFailed);
+            }
+        }
+        Device absent = Fresh(); absent.Offered = 32;
+        HostCheck.Equal(VirtioNegotiationStatus.MissingVersion1, Run(&absent, block: true).Status);
+        Device rejected = Fresh(); rejected.RejectFeatures = true;
+        HostCheck.Equal(VirtioNegotiationStatus.FeaturesRejected, Run(&rejected, block: true).Status);
+        Device broken = Fresh(); broken.NeedsResetAfterFeatures = true;
+        HostCheck.Equal(VirtioNegotiationStatus.DeviceFailed, Run(&broken, block: true).Status);
+        Device stuck = Fresh(); stuck.ResetDelay = 5;
+        HostCheck.Equal(VirtioNegotiationStatus.ResetTimeout, Run(&stuck, 2, true).Status);
+        HostCheck.True(!absent.DriverOkWritten && !rejected.DriverOkWritten && !broken.DriverOkWritten && !stuck.DriverOkWritten);
     }
 }

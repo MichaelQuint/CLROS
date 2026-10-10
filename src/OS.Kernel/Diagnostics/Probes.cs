@@ -122,8 +122,14 @@ public static partial class Probes
     public const bool EnableM05VirtioNegotiationProbe = false;
 #endif
 
+#if M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+    public const bool EnableM06VirtioBlockQueueSetupProbe = true;
+#else
+    public const bool EnableM06VirtioBlockQueueSetupProbe = false;
+#endif
+
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 35;
+    public const int ProbeCatalogCount = 36;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -326,6 +332,10 @@ public static partial class Probes
     public static ProbeDefinition GetM05ApicSetupProbe() =>
         new("platform.apic", nameof(EnableM05ApicSetupProbe), EnableM05ApicSetupProbe,
             ProbeRisk.Destructive, "Validates the original BSP and masks owned local and IO APIC sources.");
+
+    public static ProbeDefinition GetM06VirtioBlockQueueSetupProbe() =>
+        new("storage.virtio-block-queue", nameof(EnableM06VirtioBlockQueueSetupProbe), EnableM06VirtioBlockQueueSetupProbe,
+            ProbeRisk.Destructive, "Binds modern block queue zero with DMA disabled and resets before releasing its owned buffer.");
 
     public static ProbeDefinition GetM05VirtqueueInterruptProbe() =>
         new("platform.virtqueue-interrupt", nameof(EnableM05VirtqueueInterruptProbe), EnableM05VirtqueueInterruptProbe,
@@ -558,6 +568,9 @@ public static partial class Probes
                 return true;
             case 34:
                 definition = GetM05VirtqueueInterruptProbe();
+                return true;
+            case 35:
+                definition = GetM06VirtioBlockQueueSetupProbe();
                 return true;
             case 32:
                 definition = GetM05VirtqueuePollingProbe();

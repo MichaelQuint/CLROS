@@ -1,5 +1,23 @@
 # EFI Build
 
+## Bounded Virtio block queue profile
+
+[Step1138](../done/step1138.md) records development implementation and focused
+evidence for #116-#119/#621; final batch qualification is pending. The default-off
+switch requires the complete owned PCI profile and is exclusive with BAR/DMA,
+network Virtio negotiation, polling, APIC and MSI-X profiles. It selects a modern
+read-only boot disk at slot 6, not the ordinary SATA boot attachment.
+
+```powershell
+dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --BootPolicy Diagnostic --EnableM01LoadedImageStackProbe --EnableM01LiveAllocatorProbe --EnableAcpiPhysicalDiscoveryProbe --EnableM03FirstRealExitBootServicesProbe --EnableM03OwnedSubsystemSurvivalProbe --EnableM05PciEnumerationProbe --EnableM06VirtioBlockQueueSetupProbe --Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" --OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" --TimeoutSeconds 30
+```
+
+Use distinct `--EfiArtifact`, `--Image`, `--SerialLog` and `--SummaryLog` paths
+for retained captures. The strict transcript requires exactly 122 records and
+the separately pinned 240-byte Virtio OVMF prefix. Existing SATA profiles retain
+their exact prefix contract. See [storage](cstorage.md#bounded-modern-block-queue-profile)
+for binding, negotiation, DMA lifetime and the no-block-I/O boundary.
+
 ## Bounded APIC and MSI-X profiles
 
 [Step1137](../done/step1137.md) accepts the full-host, strict native and guest

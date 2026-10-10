@@ -11,6 +11,9 @@ public static class QemuContracts
     public const string M03FinalMapReadyRecord = "CLROS_M03_005_READY controlled=true realExitBootServices=false captures=1 exits=1 reuseRejected=true";
     public const string M03FinalMapRetryReadyRecord = "CLROS_M03_006_READY controlled=true realExitBootServices=false cases=2 maxAttempts=2 captures=4 exits=4 exhausted=1";
     public const int FirmwarePrefixBytes = 304;
+    // Pinned OVMF boot through the explicit modern block fixture at 00:06.0.
+    public const int BlockFirmwarePrefixBytes = 240;
+    public const string BlockFirmwarePrefixSha256 = "B60C7B9F9AAF6D318D4B9F2F33970E5389E71F180D7B09DE7C189B1FB59CDC57";
     public const string FirmwarePrefixSha256 = "BB50E913C752428AE49AE6C20879196F507926CC685CAD83986494244299D124";
     public static IReadOnlyList<string> RunnerDefaultRequiredMarkers { get; } = Array.AsReadOnly<string>([Record092, Record093, Record083]);
     public static int M02UnexpectedCaptureRecordCount => M02TerminalPrefix.Count + 2;
@@ -669,6 +672,15 @@ public static class QemuContracts
         "TEST_START m05.005", "M05_PCI 2", "M05_PCI 3", "CLROS_M05_005_READY", "TEST_PASS m05.005",
         "TEST_START m05.006", "M05_PCI 4", "M05_PCI 5", "M05_PCI 6", "CLROS_M05_006_READY", "TEST_PASS m05.006",
         "TEST_START m05.007", "M05_PCI 7", "M05_PCI 8", "CLROS_M05_007_READY", "TEST_PASS m05.007"
+    ]);
+
+    public static IReadOnlyList<string> M06VirtioBlockQueueSetupMarkers { get; } = Array.AsReadOnly<string>(
+    [
+        .. M05PciEnumerationMarkers,
+        "TEST_START m06.001", "M06_BLK 0", "M06_BLK 1", "M06_BLK 2", "CLROS_M06_001_READY", "TEST_PASS m06.001",
+        "TEST_START m06.002", "M06_BLK 3", "M06_BLK 4", "CLROS_M06_002_READY", "TEST_PASS m06.002",
+        "TEST_START m06.003", "M06_BLK 5", "M06_BLK 6", "M06_BLK 7", "CLROS_M06_003_READY", "TEST_PASS m06.003",
+        "TEST_START m06.004", "M06_BLK 8", "M06_BLK 9", "M06_BLK A", "M06_BLK B", "M06_BLK C", "CLROS_M06_004_READY", "TEST_PASS m06.004"
     ]);
 
     public static IReadOnlyList<string> M05VirtioNegotiationMarkers { get; } = Array.AsReadOnly<string>(
