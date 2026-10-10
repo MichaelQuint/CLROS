@@ -51,6 +51,7 @@ internal static unsafe class M05VirtqueueInterruptEfiIntegrationTests
         try
         {
             Check(lines);
+            Mutations(lines, "M05_QUEUE ", [(5,0,2)], Check);
             Reject(() => QemuTranscripts.AssertM03AcpiBootstrapTranscript(path, firstRealExit: true, ownedSurvival: true,
                 pciEnumeration: true, virtioNegotiation: true, virtqueuePolling: true));
             Mutations(lines, "M05_IRQ ", [(0,0,0),(0,1,0xfe000008),(0,1,0xfe001000),(0,2,0),(0,2,2048),(0,3,0xf8),

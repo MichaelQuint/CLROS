@@ -3,6 +3,14 @@ namespace OS.Tooling;
 // Reviewed expected contracts. Do not populate these from actual output at test runtime.
 public static partial class EfiContracts
 {
+    // These profiles inherit first-exit conflicts through their required parent.
+    // Source guards use the same inventory rather than copying each new leaf.
+    public static IReadOnlyList<string> FirstExitDependentProbes { get; } = Array.AsReadOnly<string>(
+        ["EnableM03FirmwareAdapterRevocationProbe", "EnableM03OwnedSubsystemSurvivalProbe", "EnableM03OwnedSubsystemPanicProbe",
+         "EnableM05PhysicalMappingProbe", "EnableM05OwnedAcpiSelectionProbe", "EnableM05MonotonicClockProbe",
+         "EnableM05PciEnumerationProbe", "EnableM05BarDmaProbe", "EnableM05VirtioNegotiationProbe",
+         "EnableM05VirtqueuePollingProbe", "EnableM05ApicSetupProbe", "EnableM05VirtqueueInterruptProbe"]);
+
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
     public static IReadOnlyList<(string Symbol, string Entry, string Body)> OwnedDmaAllocatorProfiles { get; } =
@@ -15,7 +23,7 @@ public static partial class EfiContracts
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
     public const string ProjectSourceSha256 = "54d80b9a388bd9db6971e2c2daf4283c4d21c33b21a12afe4dace8a6bb7867fc";
     public const string CanonicalProjectSha256 = "eb625669d91b257e916fb5700e7cf95d646623516badb593567d5c8642bc9cbb";
-    public const string EfiEntrySourceSha256 = "3796971d995eeeab7b1371ec3dbfbe619b9df42052955af2d294789bc53678a0";
+    public const string EfiEntrySourceSha256 = "bdfd075c7b1aff5497a50af021bd6806c40f039600e1f8ac17653b267890526b";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";

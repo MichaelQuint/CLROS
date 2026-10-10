@@ -44,6 +44,8 @@ public static partial class QemuTranscripts
             (rows[4][2] & 0x202) == 2 && (rows[4][3] & 0x202) == 2, "m05_irq_bounded_if_window");
         Need(rows[5][0] is >= 1 and <= 1000000 && rows[5][1] == 1000000 && rows[5][2] == 1 && rows[5][3] == 5,
             "m05_irq_wait_then_acquire");
+        ulong[] completion = ReadHexRecord(lines.Single(s => s.StartsWith("M05_QUEUE 5 ", StringComparison.Ordinal)), "M05_QUEUE 5", 4);
+        Need(completion[0] == rows[5][2] && completion[1] == rows[5][3], "m05_irq_queue_acquire_matches");
         Need(rows[6].SequenceEqual(new[] { 4095UL, original, 4095UL, original }), "m05_irq_idtr_restored");
         Need((rows[7][0] & ~0x4000UL) == entries - 1 && rows[7][1] == 1 && rows[7][2] == 1 && rows[7][3] == 1,
             "m05_irq_disabled_masked_cleanup");
