@@ -87,6 +87,7 @@ internal static class QemuRunnerTests
             Run("qemu firmware RNG virtio arguments and source evidence", () => TestFirmwareRngSource(tempRoot, "virtio"), ref failures);
             Run("qemu firmware RNG missing provider has no device", () => TestFirmwareRngSource(tempRoot, "missing"), ref failures);
             Run("qemu firmware RNG rejects unknown empty and duplicate choices", TestFirmwareRngRejected, ref failures);
+            Run("qemu virtio negotiation fixture is modern exclusive and has no option ROM", () => TestVirtioNegotiationFixture(tempRoot), ref failures);
             Run("qemu dry-run emits default workload profile", () => TestDryRunDefaultWorkloadProfile(tempRoot), ref failures);
             Run("qemu dry-run propagates multi workload profile", () => TestDryRunMultiWorkloadProfile(tempRoot), ref failures);
             Run("qemu rejects invalid workload profile", () => TestRejectsInvalidWorkloadProfile(tempRoot), ref failures);
@@ -287,6 +288,23 @@ internal static class QemuRunnerTests
             (source == "virtio" ? command.Contains("-object rng-builtin,id=clrosrng -device virtio-rng-pci,rng=clrosrng", StringComparison.Ordinal) :
                 !command.Contains("rng-builtin", StringComparison.Ordinal) && !command.Contains("virtio-rng-pci", StringComparison.Ordinal));
     }
+    private static bool TestVirtioNegotiationFixture(string root)
+    {
+        ProcessResult ordinary = RunQemuRunner("--dry-run", "--qemu", "qemu-test", "--image", Path.Combine(root, "ordinary.raw"));
+        ProcessResult virtio = RunQemuRunner("--dry-run", "--qemu", "qemu-test", "--image", Path.Combine(root, "virtio.raw"), "--virtio-negotiation-device");
+        if (ordinary.ExitCode != 0 || virtio.ExitCode != 0 || ordinary.Output.Contains("disable-legacy=on", StringComparison.Ordinal) ||
+            !virtio.Output.Contains("-device virtio-net-pci,netdev=n0,addr=06.0,disable-legacy=on,romfile=", StringComparison.Ordinal) ||
+            virtio.Output.Contains("pci-testdev", StringComparison.Ordinal)) return false;
+        foreach (string[] flags in new string[][]
+        {
+            ["--virtio-negotiation-device", "--virtio-negotiation-device"],
+            ["--virtio-negotiation-device", "--pci-bar-test-device"],
+            ["--pci-bar-test-device", "--virtio-negotiation-device"]
+        })
+            if (RunQemuRunner(["--dry-run", .. flags]).ExitCode == 0) return false;
+        return true;
+    }
+
     private static bool TestFirmwareRngRejected()
     {
         foreach (string[] args in new string[][] {

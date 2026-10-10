@@ -87,6 +87,7 @@
 		<EnableM05MonotonicClockProbe Condition="'$(EnableM05MonotonicClockProbe)' == ''">false</EnableM05MonotonicClockProbe>
 		<EnableM05PciEnumerationProbe Condition="'$(EnableM05PciEnumerationProbe)' == ''">false</EnableM05PciEnumerationProbe>
 		<EnableM05BarDmaProbe Condition="'$(EnableM05BarDmaProbe)' == ''">false</EnableM05BarDmaProbe>
+		<EnableM05VirtioNegotiationProbe Condition="'$(EnableM05VirtioNegotiationProbe)' == ''">false</EnableM05VirtioNegotiationProbe>
 		<EnableM04InterfaceDispatchProbe Condition="'$(EnableM04InterfaceDispatchProbe)' == ''">false</EnableM04InterfaceDispatchProbe>
 	</PropertyGroup>
 
@@ -340,6 +341,9 @@
 	<PropertyGroup Condition="'$(EnableM05BarDmaProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M05_BAR_DMA_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM05VirtioNegotiationProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M05_VIRTIO_NEGOTIATION_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM05PciEnumerationProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M05_PCI_ENUMERATION_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -411,6 +415,7 @@
 			'$(EnableM05MonotonicClockProbe)' == 'true' or
 			'$(EnableM05PciEnumerationProbe)' == 'true' or
 			'$(EnableM05BarDmaProbe)' == 'true' or
+			'$(EnableM05VirtioNegotiationProbe)' == 'true' or
 			'$(EnableUefiGoneSimulationProbe)' == 'true')">Diagnostic</ClrosBootPolicy>
 		<ClrosBootPolicy Condition="'$(ClrosBootPolicy)' == ''">VerifiedExit</ClrosBootPolicy>
 	</PropertyGroup>
@@ -527,6 +532,12 @@
 		<Compile Include="..\OS.Kernel\Drivers\BARPrefetchTypeRegressionTestsDerivedMOSAFailures.cs" Link="Drivers\BARPrefetchTypeRegressionTestsDerivedMOSAFailures.cs" />
 		<Compile Include="..\OS.Kernel\Platform\ExplicitCPUVirtualPhysicalDeviceAddressDMAMappings.cs" Link="Platform\ExplicitCPUVirtualPhysicalDeviceAddressDMAMappings.cs" />
 		<Compile Include="..\OS.Kernel\Drivers\PageAlignedDMABuffersLifetimeOwnershipTracking.cs" Link="Drivers\PageAlignedDMABuffersLifetimeOwnershipTracking.cs" />
+		<Compile Include="..\OS.Kernel\Drivers\VirtioPciCapabilities.cs" Link="Drivers\VirtioPciCapabilities.cs" />
+		<Compile Include="..\OS.Kernel\Drivers\VirtioPciModernRegisterMap.cs" Link="Drivers\VirtioPciModernRegisterMap.cs" />
+		<Compile Include="..\OS.Kernel\Drivers\ModernVirtioPCICapabilitiesLiveConfigurationSpace.cs" Link="Drivers\ModernVirtioPCICapabilitiesLiveConfigurationSpace.cs" />
+		<Compile Include="..\OS.Kernel\Drivers\CommonNotifyISRDeviceConfigurationRegions.cs" Link="Drivers\CommonNotifyISRDeviceConfigurationRegions.cs" />
+		<Compile Include="..\OS.Kernel\Drivers\ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation.cs" Link="Drivers\ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation.cs" />
+		<Compile Include="..\OS.Kernel\Drivers\UnsupportedDeviceFeaturesFailedFEATURESOKState.cs" Link="Drivers\UnsupportedDeviceFeaturesFailedFEATURESOKState.cs" />
 		<Compile Include="..\OS.Kernel\Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs" Link="Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\Binary\EndianPrimitives.Pointer.cs" Link="Std\Binary\EndianPrimitives.Pointer.cs" />
 		<Compile Include="..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs" Link="Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs" />
@@ -635,6 +646,7 @@
 			'$(EnableM05MonotonicClockProbe)' == 'true' or
 			'$(EnableM05PciEnumerationProbe)' == 'true' or
 			'$(EnableM05BarDmaProbe)' == 'true' or
+			'$(EnableM05VirtioNegotiationProbe)' == 'true' or
 			'$(EnableUefiGoneSimulationProbe)' == 'true')" Text="clros_boot_policy_probe_conflict" />
 	</Target>
 
@@ -1750,6 +1762,10 @@
 		<Error Condition="'$(EnableM05PciEnumerationProbe)' != 'true' and '$(EnableM05PciEnumerationProbe)' != 'false'" Text="m05_pci_switch_invalid" />
 		<Error Condition="'$(EnableM05BarDmaProbe)' != 'true' and '$(EnableM05BarDmaProbe)' != 'false'" Text="m05_bar_dma_switch_invalid" />
 		<Error Condition="'$(EnableM05BarDmaProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM05PciEnumerationProbe)' != 'true')" Text="m05_bar_dma_requires_pci" />
+		<Error Condition="'$(EnableM05VirtioNegotiationProbe)' != 'true' and '$(EnableM05VirtioNegotiationProbe)' != 'false'" Text="m05_virtio_negotiation_switch_invalid" />
+		<Error Condition="'$(EnableM05VirtioNegotiationProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM05PciEnumerationProbe)' != 'true')" Text="m05_virtio_negotiation_requires_pci" />
+		<Error Condition="'$(EnableM05BarDmaProbe)' == 'true' and '$(EnableM05VirtioNegotiationProbe)' == 'true'" Text="m05_bar_dma_profile_conflict" />
+		<Error Condition="'$(EnableM05VirtioNegotiationProbe)' == 'true' and '$(EnableM05BarDmaProbe)' == 'true'" Text="m05_virtio_negotiation_profile_conflict" />
 		<Error Condition="'$(EnableM05MonotonicClockProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM03FirstRealExitBootServicesProbe)' != 'true' or '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true')" Text="m05_clock_requires_owned_first_exit" />
 		<Error Condition="'$(EnableM05PciEnumerationProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM03FirstRealExitBootServicesProbe)' != 'true' or '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true')" Text="m05_pci_requires_owned_first_exit" />
 		<Error Condition="'$(EnableM05MonotonicClockProbe)' == 'true' and ('$(EnableM03OwnedSubsystemPanicProbe)' == 'true' or '$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' or '$(EnableM05PhysicalMappingProbe)' == 'true' or '$(EnableM05OwnedAcpiSelectionProbe)' == 'true')" Text="m05_clock_profile_conflict" />

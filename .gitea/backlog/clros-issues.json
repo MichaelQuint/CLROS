@@ -12382,14 +12382,14 @@
         "M05-011"
       ],
       "labels": [
-        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:virtio",
         "phase:m05-platform",
         "reference:test-only",
-        "lane:common-virtio"
+        "lane:common-virtio",
+        "agent:claimed"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -12410,7 +12410,7 @@
       ],
       "collisionLane": "lane:common-virtio",
       "summary": "Parse modern virtio PCI capabilities from live configuration space.",
-      "currentEvidence": "Dependency #104 is accepted with the bounded BAR/DMA batch in done/step1129.md. This live modern-virtio capability slice is ready but unimplemented; no live virtio configuration, feature negotiation, virtqueue or device DMA transfer is accepted.",
+      "currentEvidence": "Implemented but unaccepted in done/step1130.md under integration #614: bounded modern Virtio capability discovery, UC/NX region mappings, VERSION_1-only reset/ACKNOWLEDGE/DRIVER/FEATURES_OK negotiation and rejection controls. Focused checks, strict native review, a 119-record real diagnostic capture and 79-record ordinary regression pass. Stable unfiltered full-host qualification and PR acceptance remain pending. No DRIVER_OK, queues, actual device DMA, interrupts, packet/block I/O or Gate 6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Parse modern virtio PCI capabilities from live configuration space.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12469,13 +12469,13 @@
         "M05-012"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:platform",
         "phase:m05-platform",
-        "reference:test-only"
+        "reference:test-only",
+        "agent:claimed"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -12496,7 +12496,7 @@
       ],
       "collisionLane": null,
       "summary": "Map common, notify, ISR, and device configuration regions.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Implemented but unaccepted in done/step1130.md under integration #614: bounded modern Virtio capability discovery, UC/NX region mappings, VERSION_1-only reset/ACKNOWLEDGE/DRIVER/FEATURES_OK negotiation and rejection controls. Focused checks, strict native review, a 119-record real diagnostic capture and 79-record ordinary regression pass. Stable unfiltered full-host qualification and PR acceptance remain pending. No DRIVER_OK, queues, actual device DMA, interrupts, packet/block I/O or Gate 6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Map common, notify, ISR, and device configuration regions.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12555,13 +12555,13 @@
         "M05-013"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:virtio",
         "phase:m05-platform",
-        "reference:test-only"
+        "reference:test-only",
+        "agent:claimed"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -12582,16 +12582,16 @@
       ],
       "collisionLane": null,
       "summary": "Execute reset-to-ACKNOWLEDGE-to-DRIVER-to-FEATURES_OK negotiation.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Implemented but unaccepted in done/step1130.md under integration #614: bounded modern Virtio capability discovery, UC/NX region mappings, VERSION_1-only reset/ACKNOWLEDGE/DRIVER/FEATURES_OK negotiation and rejection controls. Focused checks, strict native review, a 119-record real diagnostic capture and 79-record ordinary regression pass. Stable unfiltered full-host qualification and PR acceptance remain pending. No DRIVER_OK, queues, actual device DMA, interrupts, packet/block I/O or Gate 6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Execute reset-to-ACKNOWLEDGE-to-DRIVER-to-FEATURES_OK negotiation.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Complete the valid packet or socket transition required by: Execute reset-to-ACKNOWLEDGE-to-DRIVER-to-FEATURES_OK negotiation.",
-        "Failure cases: Cover truncation, bad length/checksum, loss, duplication, reordering, stale neighbor/lease/cache entry, partial I/O, retransmission timeout, reset, half-close, cancellation, and capacity exhaustion as applicable.",
-        "Explicitly inapplicable here: UEFI map-key retry and PE relocation failures are outside this network slice.",
+        "Positive case: Complete the bounded device reset-to-ACKNOWLEDGE-to-DRIVER-to-FEATURES_OK transaction with explicit status readback and no DRIVER_OK or queue publication.",
+        "Failure cases: Cover bounded reset timeout, read/write failure, unsupported or missing required features, failed FEATURES_OK, device-needs-reset/failed status, and invalid register extents as applicable.",
+        "Explicitly inapplicable here: Queue publication, device DMA, interrupts and packet/block I/O are outside this negotiation slice.",
         "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
       ],
       "referenceInfluences": [
@@ -12607,9 +12607,9 @@
         "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
         "Affected canonical documentation is updated without promoting unsupported completion gates.",
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Complete the valid packet or socket transition required by: Execute reset-to-ACKNOWLEDGE-to-DRIVER-to-FEATURES_OK negotiation.",
-        "Applicable failure cases are asserted: Cover truncation, bad length/checksum, loss, duplication, reordering, stale neighbor/lease/cache entry, partial I/O, retransmission timeout, reset, half-close, cancellation, and capacity exhaustion as applicable.",
-        "The evidence report explicitly records these non-goals: UEFI map-key retry and PE relocation failures are outside this network slice."
+        "The positive case is demonstrated: Complete the bounded device reset-to-ACKNOWLEDGE-to-DRIVER-to-FEATURES_OK transaction with explicit status readback and no DRIVER_OK or queue publication.",
+        "Applicable failure cases are asserted: Cover bounded reset timeout, read/write failure, unsupported or missing required features, failed FEATURES_OK, device-needs-reset/failed status, and invalid register extents as applicable.",
+        "The evidence report explicitly records these non-goals: Queue publication, device DMA, interrupts and packet/block I/O are outside this negotiation slice."
       ],
       "requiredMarkers": [
         "TEST_START m05.014",
@@ -12641,13 +12641,13 @@
         "M05-014"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:virtio",
         "phase:m05-platform",
-        "reference:test-only"
+        "reference:test-only",
+        "agent:claimed"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -12668,7 +12668,7 @@
       ],
       "collisionLane": null,
       "summary": "Reject unsupported device features and failed FEATURES_OK state.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Implemented but unaccepted in done/step1130.md under integration #614: bounded modern Virtio capability discovery, UC/NX region mappings, VERSION_1-only reset/ACKNOWLEDGE/DRIVER/FEATURES_OK negotiation and rejection controls. Focused checks, strict native review, a 119-record real diagnostic capture and 79-record ordinary regression pass. Stable unfiltered full-host qualification and PR acceptance remain pending. No DRIVER_OK, queues, actual device DMA, interrupts, packet/block I/O or Gate 6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Reject unsupported device features and failed FEATURES_OK state.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

@@ -40,7 +40,7 @@ internal static class QemuCommandBuilder
             "-netdev",
             "user,id=n0",
             "-device",
-            "virtio-net-pci,netdev=n0"
+            options.VirtioNegotiationDevice ? "virtio-net-pci,netdev=n0,addr=06.0,disable-legacy=on,romfile=" : "virtio-net-pci,netdev=n0"
         ]);
 
         if (options.PciBarTestDevice)

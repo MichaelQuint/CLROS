@@ -671,6 +671,15 @@ public static class QemuContracts
         "TEST_START m05.007", "M05_PCI 7", "M05_PCI 8", "CLROS_M05_007_READY", "TEST_PASS m05.007"
     ]);
 
+    public static IReadOnlyList<string> M05VirtioNegotiationMarkers { get; } = Array.AsReadOnly<string>(
+    [
+        .. M05PciEnumerationMarkers,
+        "TEST_START m05.012", "M05_VIRTIO 0", "M05_VIRTIO 1", "CLROS_M05_012_READY", "TEST_PASS m05.012",
+        "TEST_START m05.013", .. Enumerable.Range(2, 5).Select(i => "M05_VIRTIO " + i), "CLROS_M05_013_READY", "TEST_PASS m05.013",
+        "TEST_START m05.014", "M05_VIRTIO 7", "CLROS_M05_014_READY", "TEST_PASS m05.014",
+        "TEST_START m05.015", "M05_VIRTIO 8", "M05_VIRTIO 9", "CLROS_M05_015_READY", "TEST_PASS m05.015"
+    ]);
+
     public static IReadOnlyList<string> M05BarDmaMarkers { get; } = Array.AsReadOnly<string>(
     [
         .. M05PciEnumerationMarkers,

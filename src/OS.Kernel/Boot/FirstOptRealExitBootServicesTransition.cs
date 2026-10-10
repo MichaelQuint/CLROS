@@ -23,6 +23,9 @@ public struct FirstExitImageReferences
 #if M05_PCI_ENUMERATION_PROBE
     public ulong EcamStart, EcamPages;
 #endif
+#if M05_VIRTIO_NEGOTIATION_PROBE
+    public ulong VirtioBarStart;
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
     // Original EFI allocation containing one exclusive aligned 2 MiB test span.
     public ulong MappingScratchBacking, MappingScratchBackingPages, MappingScratchStart;
@@ -229,8 +232,11 @@ public static unsafe class FirstExitRetainedMappings
 #if M05_MONOTONIC_CLOCK_PROBE || M05_PCI_ENUMERATION_PROBE
         + 1
 #endif
-#if M05_BAR_DMA_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE
         + 2
+#endif
+#if M05_VIRTIO_NEGOTIATION_PROBE
+        + 4
 #endif
         ;
     private const ulong LowEnd = 0x0000800000000000;
@@ -287,7 +293,10 @@ public static unsafe class FirstExitRetainedMappings
             if ((ulong)state < references.AdapterState || references.AdapterStateBytes < (ulong)sizeof(FirstExitOwnedArenaState) ||
                 (ulong)state - references.AdapterState > references.AdapterStateBytes - (ulong)sizeof(FirstExitOwnedArenaState)) return false;
 
-#if M05_PHYSICAL_MAPPING_PROBE || M05_MONOTONIC_CLOCK_PROBE || M05_PCI_ENUMERATION_PROBE
+#if M05_VIRTIO_NEGOTIATION_PROBE
+        ulong* starts = stackalloc ulong[8];
+        ulong* lengths = stackalloc ulong[8];
+#elif M05_PHYSICAL_MAPPING_PROBE || M05_MONOTONIC_CLOCK_PROBE || M05_PCI_ENUMERATION_PROBE
         ulong* starts = stackalloc ulong[7];
         ulong* lengths = stackalloc ulong[7];
 #else
@@ -322,6 +331,11 @@ public static unsafe class FirstExitRetainedMappings
             references.EcamStart > 0x100000000UL - 0x100000) return false;
         starts[6] = references.EcamStart; lengths[6] = 0x100000; allocations = 7;
 #endif
+#if M05_VIRTIO_NEGOTIATION_PROBE
+        if (references.VirtioBarStart < 0x100000 || (references.VirtioBarStart & 0x3fff) != 0 ||
+            references.VirtioBarStart >= LowEnd - 0x4000) return false;
+        starts[7] = references.VirtioBarStart; lengths[7] = 0x4000; allocations = 8;
+#endif
         for (int i = 0; i < allocations; i++) for (int j = 0; j < i; j++)
             if (FirstExitDescriptors.Overlaps(starts[i], lengths[i], starts[j], lengths[j])) return false;
 
@@ -338,7 +352,7 @@ public static unsafe class FirstExitRetainedMappings
         pending[count++] = new SeparatePageFaultMappingRange(references.HpetDevicePage, 1, Data, PageCachePolicy.Uncached);
 #endif
 #if M05_PCI_ENUMERATION_PROBE
-#if M05_BAR_DMA_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE
         // Only the dedicated quiescent test function at device 6/function 0 is
         // writable. The rest of the admitted one-bus ECAM window stays read-only.
         pending[count++] = new SeparatePageFaultMappingRange(references.EcamStart, 48, PageProtection.Read, PageCachePolicy.Uncached);
@@ -347,6 +361,10 @@ public static unsafe class FirstExitRetainedMappings
 #else
         pending[count++] = new SeparatePageFaultMappingRange(references.EcamStart, references.EcamPages, PageProtection.Read, PageCachePolicy.Uncached);
 #endif
+#endif
+#if M05_VIRTIO_NEGOTIATION_PROBE
+        for (ulong page = 0; page < 4; page++)
+            pending[count++] = new SeparatePageFaultMappingRange(references.VirtioBarStart + page * 4096, 1, Data, PageCachePolicy.Uncached);
 #endif
         ulong totalPages = 0;
         for (ulong i = 0; i < count; i++) totalPages += pending[i].PageCount;
@@ -383,7 +401,7 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_PCI_ENUMERATION_PROBE
     public const uint PciReadOffset = 4608;
-#if M05_BAR_DMA_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE
     public const uint PciBarOffset = 4624;
 #endif
 #endif
@@ -415,7 +433,7 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_PCI_ENUMERATION_PROBE
             OS.Drivers.X64PciConfigurationRead.Emit(code + PciReadOffset, StackEntryOffset - PciReadOffset) &&
-#if M05_BAR_DMA_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE
             OS.Drivers.X64PciBarAccess.Emit(code + PciBarOffset, StackEntryOffset - PciBarOffset) &&
 #endif
 #endif
@@ -505,7 +523,7 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_PCI_ENUMERATION_PROBE
         if (!OS.Drivers.X64PciConfigurationRead.Validate(code + PciReadOffset, OS.Drivers.X64PciConfigurationRead.Bytes)) return false;
-#if M05_BAR_DMA_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE
         if (!OS.Drivers.X64PciBarAccess.Validate(code + PciBarOffset, OS.Drivers.X64PciBarAccess.Bytes)) return false;
 #endif
 #endif
@@ -525,7 +543,7 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_PCI_ENUMERATION_PROBE
                 !Inside(index, PciReadOffset, OS.Drivers.X64PciConfigurationRead.Bytes) &&
-#if M05_BAR_DMA_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE
                 !Inside(index, PciBarOffset, OS.Drivers.X64PciBarAccess.Bytes) &&
 #endif
 #endif

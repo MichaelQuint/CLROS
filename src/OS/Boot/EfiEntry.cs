@@ -59,6 +59,9 @@ public static unsafe class EfiEntry
 #if M05_BAR_DMA_PROBE
             internal uint BarDmaPhase;
 #endif
+#if M05_VIRTIO_NEGOTIATION_PROBE
+            internal uint VirtioPhase;
+#endif
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE
             internal ulong ClockPhase;
@@ -172,6 +175,9 @@ public static unsafe class EfiEntry
                 if (!ECAMPageVendorDeviceHeader.TryWindow(mcfg, selected.Mcfg.Length, 0, firstBus, firstBus, out state->PciWindow) ||
                     !ECAMPageVendorDeviceHeader.AdmitWindow(state->PciWindow, s_bootHandoff.MemoryMap)) return false;
                 references.EcamStart = state->PciWindow.Start; references.EcamPages = state->PciWindow.Bytes / 4096;
+#if M05_VIRTIO_NEGOTIATION_PROBE
+                if (!PrepareVirtioMapping(state, out references.VirtioBarStart)) return false;
+#endif
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE
                 var selected = OwnedACPIDirectorySelectMADTHPETMCFG.Select(
@@ -524,6 +530,9 @@ public static unsafe class EfiEntry
 #if M05_BAR_DMA_PROBE
                         _ = BootSequence.RunOwnedBarDma(state->PciPhase == 8, state, &RunOwnedBarDma);
 #endif
+#if M05_VIRTIO_NEGOTIATION_PROBE
+                        _ = BootSequence.RunOwnedVirtioNegotiation(state->PciPhase == 8, state, &RunOwnedVirtioNegotiation);
+#endif
                     }
 #endif
 #if M05_OWNED_ACPI_SELECTION_PROBE
@@ -685,6 +694,180 @@ public static unsafe class EfiEntry
             else if (kind == 2) { words[0] = 0x5341505f54534554UL; words[1] = 0x30302e35306d2053UL; words[2] = 0xa0d30UL; bytes = 19; digit = 16; }
             else { words[0] = 0x4941465f54534554UL; words[1] = 0x30302e35306d204cUL; words[2] = 0x74735f6963702030UL; words[3] = 0xa0d657461UL; bytes = 29; digit = 16; }
             ((byte*)words)[digit] = (byte)('0' + issue);
+            return WriteOwnedBytes(state, (byte*)words, bytes);
+        }
+#endif
+
+#if M05_VIRTIO_NEGOTIATION_PROBE
+        private static bool PrepareVirtioMapping(Storage* state, out ulong start)
+        {
+            start = 0;
+            uint* words = stackalloc uint[64];
+            PciSizedBar* bars = stackalloc PciSizedBar[6];
+            VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
+            if (!ReadVirtioFixture(state, &ReadVirtioSnapshotWord, words, out var caps)) return false;
+            for (uint i = 0; i < 6; i++) bars[i] = default;
+            // The runner fixes a modern QEMU net device with a 16 KiB BAR4.
+            // This provisional declaration grants only initial reset access.
+            // After firmware exit/reset, destructive sizing must confirm it
+            // before mapping/negotiation success is reported.
+            if ((words[8] & 15) != 12 || BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(
+                    words[8], words[9], 0xffffc00c, 0xffffffff, 4, out bars[4]) != PciBarProbeStatus.Success ||
+                CommonNotifyISRDeviceConfigurationRegions.Plan(caps, bars, 6, regions, 4) != VirtioRegionStatus.Success) return false;
+            for (uint i = 0; i < 4; i++)
+                if (!CommonNotifyISRDeviceConfigurationRegions.Admit(regions[i], s_bootHandoff.MemoryMap)) return false;
+            start = bars[4].Base;
+            return true;
+        }
+
+        private static bool ReadVirtioFixture(Storage* state, delegate* unmanaged<void*, ulong, uint> read,
+            uint* words, out VirtioPciCapabilitySet caps)
+        {
+            caps = default;
+            if (state->PciWindow.FirstBus != 0 || state->PciWindow.LastBus != 0 ||
+                !BoundedPCIConfigurationSpaceInterface.TryOpen(state->PciWindow, null, read, out var access)) return false;
+            var snapshot = ECAMPageVendorDeviceHeader.ReadSnapshot(ref access, 0, 6, 0, words, 64);
+            BoundedPCIConfigurationSpaceInterface.Revoke(ref access);
+            if (snapshot != BoundedPciStatus.Success || words[0] != 0x10411af4 || (words[1] & 2) == 0 ||
+                ModernVirtioPCICapabilitiesLiveConfigurationSpace.Parse((byte*)words, 256, out caps) != VirtioCapabilityStatus.Success) return false;
+            return VirtioFixtureCapability(caps.CommonConfiguration, 0) && VirtioFixtureCapability(caps.NotifyConfiguration, 0x3000) &&
+                VirtioFixtureCapability(caps.IsrStatus, 0x1000) && VirtioFixtureCapability(caps.DeviceConfiguration, 0x2000);
+        }
+
+        private static bool VirtioFixtureCapability(VirtioPciCapabilityMetadata cap, uint offset) =>
+            cap.Bar == 4 && cap.Offset == offset && cap.Length == 4096;
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static uint ReadVirtioSnapshotWord(void* context, ulong address) => *(uint*)address;
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte ReadVirtioStatus(void* context, ulong address, byte* output) { *output = *(byte*)address; return 1; }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte WriteVirtioStatus(void* context, ulong address, byte value) { *(byte*)address = value; return 1; }
+
+        private static bool RunOwnedVirtioNegotiation(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->VirtioPhase != 0 || state->PciPhase != 8 || state->OwnedPhase != 2 ||
+                state->Diagnostic.Status != FirstExitDiagnosticStatus.Completed || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            state->VirtioPhase = 12;
+            if (!RunVirtioCore(state)) { _ = WriteVirtioLiteral(state, state->VirtioPhase, 3); return false; }
+            state->VirtioPhase = 16;
+            return true;
+        }
+
+        private static bool RunVirtioCore(Storage* state)
+        {
+            byte* code = state->Memory.Code + FirstExitCodeBundle.PciBarOffset;
+            byte* snapshotCode = state->Memory.Code + FirstExitCodeBundle.PciReadOffset;
+            if (!X64PciBarAccess.Validate(code, X64PciBarAccess.Bytes) ||
+                !X64PciConfigurationRead.Validate(snapshotCode, X64PciConfigurationRead.Bytes) ||
+                !WriteVirtioLiteral(state, 12, 0)) return false;
+            var read = (delegate* unmanaged<void*, ulong, uint*, byte>)code;
+            var write32 = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 16);
+            var write16 = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 32);
+            uint* words = stackalloc uint[64];
+            if (!ReadVirtioFixture(state, (delegate* unmanaged<void*, ulong, uint>)snapshotCode, words, out var caps)) return false;
+            ulong start = state->Memory.References.VirtioBarStart;
+            ulong observedBase = ((ulong)words[9] << 32) | (words[8] & ~15u);
+            if (observedBase != start || !WriteVirtioRow(state, 0, 0x600, words[0], start, 4) ||
+                !WriteVirtioRow(state, 1, start, start + 0x3000, start + 0x1000, start + 0x2000) ||
+                !WriteVirtioLiteral(state, 12, 1) || !WriteVirtioLiteral(state, 12, 2)) return false;
+            state->VirtioPhase = 13;
+            if (!WriteVirtioLiteral(state, 13, 0)) return false;
+            ulong page = state->PciWindow.Start + 0x30000;
+            uint originalCommand = words[1] & 0xffff, ownedCommand = (originalCommand & 0xfffb) | 0x400, current = 0;
+            // Terminal ownership: disable bus mastering and INTx before reset.
+            // Firmware is gone; no firmware interface or device DMA is used.
+            if (write16(null, page + 4, ownedCommand) != 1 || read(null, page + 4, &current) != 1 ||
+                (current & 0xffff) != ownedCommand || !ResetVirtio(start)) return false;
+            PciSizedBar* bars = stackalloc PciSizedBar[6];
+            var probe = N32BitN64BitBARsWhileAlwaysRestoring.Probe(state->PciWindow, 0, 6, 0, null, read, write32, write16, bars, 6);
+            if (!probe.Succeeded || bars[4].Kind != PciSizedBarKind.Memory64 || bars[4].Base != start ||
+                bars[4].Bytes != 0x4000 || bars[5].Kind != PciSizedBarKind.UpperHalf ||
+                !WriteVirtioRow(state, 2, originalCommand, ownedCommand, 0, bars[4].Bytes)) return false;
+            VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
+            if (CommonNotifyISRDeviceConfigurationRegions.Plan(caps, bars, 6, regions, 4) != VirtioRegionStatus.Success) return false;
+            VirtioMappedRegion common = default;
+            for (uint i = 0; i < 4; i++)
+            {
+                if (regions[i].PageCount != 1 || regions[i].PageStart < start || regions[i].PageStart >= start + 0x4000 ||
+                    CommonNotifyISRDeviceConfigurationRegions.Bind(regions[i], regions[i].PageStart, out var mapped) != VirtioRegionStatus.Success ||
+                    !WriteVirtioRow(state, i + 3, mapped.PhysicalStart, mapped.VirtualStart, mapped.Bytes, regions[i].PageCount)) return false;
+                if (i == 0) common = mapped;
+            }
+            // Re-audit the installed, accessed image, including all four UC/RW/NX
+            // leaves. Numeric region binding is never accepted as mapping proof.
+            SeparatePageFaultMappingRange* ranges = stackalloc SeparatePageFaultMappingRange[(int)FirstExitRetainedMappings.MaximumRanges];
+            if (!FirstExitRetainedMappings.WriteInstalledRanges(ref state->Arena, state->Memory.Code, state->Memory.Capture,
+                    state->Memory.Mapping, state->Memory.References, state->Memory.Allocator, state->Memory.Tables,
+                    ranges, FirstExitRetainedMappings.MaximumRanges, out ulong count) ||
+                !SeparateDisabledDefaultPageFaultPageTables.AuditRetainedAccessedImage(state->Memory.Tables, ranges, count,
+                    FirstExitRetainedMappings.MaximumRanges, state->Memory.Pages, state->Memory.PageCapacity,
+                    state->Memory.Entries, state->Memory.EntryCapacity).Succeeded ||
+                !WriteVirtioLiteral(state, 13, 1) || !WriteVirtioLiteral(state, 13, 2)) return false;
+            state->VirtioPhase = 14;
+            if (!WriteVirtioLiteral(state, 14, 0)) return false;
+            var negotiated = ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation.Run(common, BoundedVirtioFeatures.Version1, 1024,
+                null, read, write32, &ReadVirtioStatus, &WriteVirtioStatus);
+            if (!WriteVirtioRow(state, 7, negotiated.Offered, negotiated.Selected, negotiated.DeviceStatus, (ulong)negotiated.Status) ||
+                !negotiated.Succeeded || !WriteVirtioLiteral(state, 14, 1) || !WriteVirtioLiteral(state, 14, 2)) return false;
+            state->VirtioPhase = 15;
+            if (!WriteVirtioLiteral(state, 15, 0)) return false;
+            var unsupported = BoundedVirtioFeatures.Select(negotiated.Offered, BoundedVirtioFeatures.Version1 | 1, out ulong none);
+            var missing = BoundedVirtioFeatures.Select(0, BoundedVirtioFeatures.Version1, out ulong empty);
+            var rejected = BoundedVirtioFeatures.ValidateFeaturesOk(3);
+            var failed = BoundedVirtioFeatures.ValidateFeaturesOk(0x83);
+            if (unsupported != VirtioFeatureStatus.UnsupportedRequested || missing != VirtioFeatureStatus.MissingVersion1 ||
+                rejected != VirtioFeatureStatus.FeaturesRejected || failed != VirtioFeatureStatus.DeviceFailed || none != 0 || empty != 0 ||
+                !WriteVirtioRow(state, 8, (ulong)unsupported, (ulong)missing, (ulong)rejected, (ulong)failed) ||
+                !ResetVirtio(start) || read(null, page + 4, &current) != 1 || (current & 0xffff) != ownedCommand ||
+                !FirstExitOwnedArena.ValidateCanaries(state->Arena) || !WriteVirtioRow(state, 9, 0, current & 0xffff, 1, 0)) return false;
+            return WriteVirtioLiteral(state, 15, 1) && WriteVirtioLiteral(state, 15, 2);
+        }
+
+        private static bool ResetVirtio(ulong common)
+        {
+            var write = (delegate* unmanaged<void*, ulong, byte, byte>)&WriteVirtioStatus;
+            var read = (delegate* unmanaged<void*, ulong, byte*, byte>)&ReadVirtioStatus;
+            if (write(null, common + 20, 0) != 1) return false;
+            byte value = 0;
+            for (uint i = 0; i < 1024; i++)
+            {
+                if (read(null, common + 20, &value) != 1) return false;
+                if (value == 0) return true;
+            }
+            return false;
+        }
+
+        private static bool WriteVirtioRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d)
+        {
+            if (stage > 9) return false;
+            byte* text = stackalloc byte[96];
+            *(ulong*)text = 0x545249565f35304dUL; *(uint*)(text + 8) = 0x00204f49; uint length = 11;
+            text[length++] = (byte)('0' + stage);
+            ulong* values = stackalloc ulong[4]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;
+            for (int i = 0; i < 4; i++)
+            {
+                text[length++] = (byte)' '; text[length++] = (byte)'0'; text[length++] = (byte)'x';
+                for (int shift = 60; shift >= 0; shift -= 4)
+                {
+                    uint digit = (uint)((values[i] >> shift) & 15);
+                    text[length++] = (byte)(digit < 10 ? '0' + digit : 'A' + digit - 10);
+                }
+            }
+            text[length++] = 13; text[length++] = 10;
+            return WriteOwnedBytes(state, text, length);
+        }
+
+        private static bool WriteVirtioLiteral(Storage* state, uint issue, uint kind)
+        {
+            if (issue < 12 || issue > 15 || kind > 3) return false;
+            ulong* words = stackalloc ulong[5]; uint bytes, digit;
+            if (kind == 0) { words[0] = 0x4154535f54534554UL; words[1] = 0x302e35306d205452UL; words[2] = 0xa0d3030UL; bytes = 20; digit = 17; }
+            else if (kind == 1) { words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3030305f35UL; words[2] = 0xa0d594441UL; bytes = 21; digit = 12; }
+            else if (kind == 2) { words[0] = 0x5341505f54534554UL; words[1] = 0x30302e35306d2053UL; words[2] = 0xa0d30UL; bytes = 19; digit = 16; }
+            else { words[0] = 0x4941465f54534554UL; words[1] = 0x30302e35306d204cUL; words[2] = 0x6f69747269762030UL; words[3] = 0x0a0d65746174735fUL; bytes = 32; digit = 16; }
+            ((byte*)words)[digit - 1] = (byte)('0' + issue / 10); ((byte*)words)[digit] = (byte)('0' + issue % 10);
             return WriteOwnedBytes(state, (byte*)words, bytes);
         }
 #endif

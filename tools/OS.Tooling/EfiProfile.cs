@@ -56,6 +56,9 @@ public sealed class EfiProfile
         Set("M05MonotonicClock", ["M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival"], true, "m05_clock_requires_owned_first_exit");
         Set("M05PciEnumeration", ["M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival"], true, "m05_pci_requires_owned_first_exit");
         Set("M05BarDma", ["M05PciEnumeration"], true, "m05_bar_dma_requires_pci");
+        Set("M05VirtioNegotiation", ["M05PciEnumeration"], true, "m05_virtio_negotiation_requires_pci");
+        Conflict("M05BarDma", "M05VirtioNegotiation", "m05_bar_dma_profile_conflict");
+        Conflict("M05VirtioNegotiation", "M05BarDma", "m05_virtio_negotiation_profile_conflict");
         Set("M05MonotonicClock", ["M03OwnedSubsystemPanic", "M03FirmwareAdapterRevocation", "M05PhysicalMapping", "M05OwnedAcpiSelection"], false, "m05_clock_profile_conflict");
         Set("M05PciEnumeration", ["M03OwnedSubsystemPanic", "M03FirmwareAdapterRevocation", "M05PhysicalMapping", "M05OwnedAcpiSelection", "M05MonotonicClock"], false, "m05_pci_profile_conflict");
         Set("M05PhysicalMapping", ["M03OwnedSubsystemPanic", "M03FirmwareAdapterRevocation"], false, "m05_mapping_profile_conflict");

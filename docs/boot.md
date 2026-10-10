@@ -1,4 +1,11 @@
 # Boot
+
+The Virtio negotiation batch #105-#108/#614 is implemented but unaccepted in
+[step1130](../done/step1130.md). Focused checks, strict native review and
+119/79-record real diagnostic/ordinary captures pass; full-host qualification
+and PR acceptance remain pending. See
+[drivers](drivers.md) for its bounded profile and mapping assumptions.
+
 The bounded BAR/DMA batch #101-#104/#612 is accepted in
 [step1129](../done/step1129.md): 4,208 full-host checks, strict native review,
 a 122-record real diagnostic capture, and a 79-record ordinary regression.

@@ -287,6 +287,11 @@ public static class BootSequence
         OS.Kernel.Diagnostics.Probes.EnableM05BarDmaProbe &&
         pciEnumerationComplete && context != null && execute != null && execute(context);
 
+    public static unsafe bool RunOwnedVirtioNegotiation(
+        bool pciEnumerationComplete, void* context, delegate*<void*, bool> execute) =>
+        OS.Kernel.Diagnostics.Probes.EnableM05VirtioNegotiationProbe &&
+        pciEnumerationComplete && context != null && execute != null && execute(context);
+
     public static unsafe bool RunOwnedMonotonicClock(
         bool ownedSubsystemsComplete, void* context, delegate*<void*, bool> execute) =>
         OS.Kernel.Diagnostics.Probes.EnableM05MonotonicClockProbe &&
