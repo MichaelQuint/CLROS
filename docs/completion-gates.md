@@ -1,5 +1,10 @@
 # CLROS Completion Gates
 
+#127/#128/#129/#629 have bounded FAT chain, VFAT directory and known-file CRC
+implementation in [step1151](../done/step1151.md), with focused checks. Native
+review, actual guest evidence and the frozen full-host gate remain pending.
+No FAT guest acceptance, manifest/package loading or Gate7 completion is claimed.
+
 #124/#125/#126/#627 are accepted in [step1150](../done/step1150.md): bounded
 primary GPT CRC/bounds validation, real backup fallback and EFI partition
 selection. All4,336 full-host checks, native ABI/stack review and exact207/208-record

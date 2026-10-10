@@ -1,5 +1,10 @@
 # Repository Audit
 
+The current development batch is #127/#128/#129/#629: bounded FAT chain,
+VFAT directory and known-file checksum implementation with focused controls in
+[step1151](../done/step1151.md). Strict native/guest/full-host qualification is
+pending. The accepted storage boundary remains [step1150](../done/step1150.md).
+
 The #124/#125/#126/#627 batch is accepted in [step1150](../done/step1150.md).
 All4,336 full-host checks across530 groups pass with zero reuse, timeouts or
 input changes. Native ABI/stack review, intact/damaged-primary guest captures,

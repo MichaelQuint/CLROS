@@ -3,6 +3,10 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"..\OS.Kernel\Storage\FATClusterChainsLoopBadClusterTruncationDetection.cs"] = "reviewed_fat_read_source_identity",
+        [@"..\OS.Kernel\Storage\MultiClusterDirectoryVFATLongNameSupportSeparate.cs"] = "reviewed_fat_read_source_identity",
+        [@"..\OS.Kernel\Storage\KnownFileSHAN256EquivalentKnownFixtureHash.cs"] = "reviewed_fat_read_source_identity",
+        [@"..\..\std\no-runtime\shared\Binary\EndianPrimitives.Pointer.cs"] = "reviewed_fat_read_source_identity",
         [@"..\OS.Kernel\Storage\PrimaryGPTIndependentlyBoundsCRC.cs"] = "reviewed_gpt_partition_source_identity",
         [@"..\OS.Kernel\Storage\ExerciseBackupGPTFallbackLiveDisk.cs"] = "reviewed_gpt_partition_source_identity",
         [@"..\OS.Kernel\Storage\FAT32ApplicationEFIPartition.cs"] = "reviewed_gpt_partition_source_identity",

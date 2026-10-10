@@ -75,6 +75,7 @@ public static class QemuProfiles
         }
         Require(options.GptImageVariant is "Intact" or "PrimaryHeaderCrcFault", "gpt_image_variant_invalid");
         Require(options.GptImageVariant == "Intact" || Enabled("M06GptPartition"), "gpt_image_variant_requires_gpt_profile");
+        Require(!Enabled("M06FatRead") || options.GptImageVariant == "Intact", "fat_read_requires_intact_gpt");
         string[] required = Markers(options.RequireMarker), ordered = Markers(options.RequireOrderedMarker), unique = Markers(options.RequireUniqueMarker), forbidden = Markers(options.ForbidMarker);
         string[] custom = [.. required, .. ordered, .. unique];
         foreach (var rule in Ownership)
@@ -89,6 +90,7 @@ public static class QemuProfiles
         else if (Enabled("M05PhysicalMapping")) Select(QemuContracts.M05PhysicalMappingMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05OwnedAcpiSelection")) Select(QemuContracts.M05OwnedAcpiSelectionMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05MonotonicClock")) Select(QemuContracts.M05MonotonicClockMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M06FatRead")) Select(QemuContracts.M06FatReadMarkers(), ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M06GptPartition")) Select(QemuContracts.M06GptPartitionMarkers(options.GptImageVariant == "PrimaryHeaderCrcFault"), ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M06LiveBlockContract")) Select(QemuContracts.M06LiveBlockContractMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M06VirtioBlockRead")) Select(QemuContracts.M06VirtioBlockReadMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
@@ -199,6 +201,7 @@ public static class QemuProfiles
         ("M05ApicSetup", @"^(M05_APIC|CLROS_M05_020_READY|TEST_(START|PASS) m05\.020)", "m05_apic"),
         ("M05VirtqueueInterrupt", @"^(M05_IRQ|CLROS_M05_021_READY|TEST_(START|PASS) m05\.021)", "m05_irq"),
         ("M06VirtioBlockQueueSetup", @"^(M06_BLK|CLROS_M06_00[1-4]_READY|TEST_(START|PASS) m06\.00[1-4])", "m06_block_queue"),
+        ("M06FatRead", @"^(M06_FAT|CLROS_M06_01[2-4]_READY|TEST_(START|PASS) m06\.01[2-4])", "m06_fat_read"),
         ("M06GptPartition", @"^(M06_GPT|CLROS_M06_(009|01[0-1])_READY|TEST_(START|PASS) m06\.(009|01[0-1]))", "m06_gpt_partition"),
         ("M06LiveBlockContract", @"^(M06_BDEV|CLROS_M06_00[7-8]_READY|TEST_(START|PASS) m06\.00[7-8])", "m06_live_block_contract"),
         ("M06VirtioBlockRead", @"^(M06_READ|CLROS_M06_00[5-6]_READY|TEST_(START|PASS) m06\.00[5-6])", "m06_block_read"),

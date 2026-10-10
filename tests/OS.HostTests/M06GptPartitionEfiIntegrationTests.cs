@@ -124,7 +124,7 @@ internal static unsafe class M06GptPartitionEfiIntegrationTests
         finally { Directory.Delete(dir, true); }
     }
 
-    private static (string[] Lines, byte[] Disk) Capture(bool fault)
+    internal static (string[] Lines, byte[] Disk) Capture(bool fault)
     {
         var (primary, entries) = GptTestData.Create(); var (backup, _) = GptTestData.Create(true);
         uint headerCrc = BinaryPrimitives.ReadUInt32LittleEndian(primary.AsSpan(16)), arrayCrc = Crc32.Compute(entries), backupCrc = BinaryPrimitives.ReadUInt32LittleEndian(backup.AsSpan(16));

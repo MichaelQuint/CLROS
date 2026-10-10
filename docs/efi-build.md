@@ -1,5 +1,15 @@
 # EFI Build
 
+## FAT read profile (qualification pending)
+
+Add `--EnableM06FatReadProbe` to the complete GPT command below, with
+`--GptImageVariant Intact`, `--BuildEfi` and a fresh image. The child flag defaults
+false; skip-image and damaged-primary combinations fail admission. The compiled
+fixture adds the bounded FAT test data and the wrapper requires241 exact records
+ending `TEST_PASS m06.014`, plus sector/image association. Use distinct artifact
+paths. [Step1151](../done/step1151.md) currently records implementation and focused
+checks only; strict native/guest/full qualification remains pending.
+
 ## Bounded GPT partition profile
 
 Add `--EnableM06GptPartitionProbe` to the complete live block-contract command.

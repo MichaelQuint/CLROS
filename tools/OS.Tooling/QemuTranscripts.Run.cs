@@ -26,9 +26,10 @@ public static partial class QemuTranscripts
         if (plan.IsNormalBoot || Enabled("M03FirstRealExitBootServices") || Enabled("AcpiPhysicalDiscovery"))
         {
             Need(runner.StandardError.Length == 0, "qemu_runner_stderr_not_empty");
-            AssertM03AcpiBootstrapTranscript(path, plan.IsNormalBoot || Enabled("M03FirstRealExitBootServices"), Enabled("M03FirmwareAdapterRevocation"), plan.IsNormalBoot || Enabled("M03OwnedSubsystemSurvival"), Enabled("M03OwnedSubsystemPanic"), plan.IsNormalBoot, Enabled("M05PhysicalMapping"), Enabled("M05OwnedAcpiSelection"), Enabled("M05MonotonicClock"), Enabled("M05PciEnumeration"), Enabled("M05BarDma"), Enabled("M05VirtioNegotiation"), Enabled("M05VirtqueuePolling"), Enabled("M05ApicSetup"), Enabled("M05VirtqueueInterrupt"), Enabled("M06VirtioBlockQueueSetup"), Enabled("M06VirtioBlockRead"), Enabled("M06LiveBlockContract"), Enabled("M06GptPartition"), options.GptImageVariant == "PrimaryHeaderCrcFault");
+            AssertM03AcpiBootstrapTranscript(path, plan.IsNormalBoot || Enabled("M03FirstRealExitBootServices"), Enabled("M03FirmwareAdapterRevocation"), plan.IsNormalBoot || Enabled("M03OwnedSubsystemSurvival"), Enabled("M03OwnedSubsystemPanic"), plan.IsNormalBoot, Enabled("M05PhysicalMapping"), Enabled("M05OwnedAcpiSelection"), Enabled("M05MonotonicClock"), Enabled("M05PciEnumeration"), Enabled("M05BarDma"), Enabled("M05VirtioNegotiation"), Enabled("M05VirtqueuePolling"), Enabled("M05ApicSetup"), Enabled("M05VirtqueueInterrupt"), Enabled("M06VirtioBlockQueueSetup"), Enabled("M06VirtioBlockRead"), Enabled("M06LiveBlockContract"), Enabled("M06GptPartition"), options.GptImageVariant == "PrimaryHeaderCrcFault", Enabled("M06FatRead"));
             if (Enabled("M06VirtioBlockRead")) AssertM06VirtioBlockReadImage(path, Path.GetFullPath(options.Image, root));
             if (Enabled("M06LiveBlockContract")) AssertM06LiveBlockContractImage(path, Path.GetFullPath(options.Image, root));
+            if (Enabled("M06FatRead")) AssertM06FatReadImage(path, Path.GetFullPath(options.Image, root));
             if (Enabled("M06GptPartition")) AssertM06GptPartitionImage(path, Path.GetFullPath(options.Image, root), options.GptImageVariant == "PrimaryHeaderCrcFault");
             if (Enabled("M03OwnedSubsystemPanic")) AssertExpectedPanicRunner(root, options, plan, runner, lines, ownedSubsystem: true);
             else AssertStandardRunnerResult(root, options, plan, lines);
@@ -126,6 +127,7 @@ public static partial class QemuTranscripts
             ("M05ApicSetup", @"M05_APIC|CLROS_M05_020_READY|m05\.020"),
             ("M05VirtqueueInterrupt", @"M05_IRQ|CLROS_M05_021_READY|m05\.021"),
             ("M06VirtioBlockQueueSetup", @"M06_BLK|CLROS_M06_00[1-4]_READY|m06\.00[1-4]"),
+            ("M06FatRead", @"M06_FAT|CLROS_M06_01[2-4]_READY|m06\.01[2-4]"),
             ("M06GptPartition", @"M06_GPT|CLROS_M06_(009|01[0-1])_READY|m06\.(009|01[0-1])"),
             ("M05PciEnumeration", @"M05_PCI|CLROS_M05_00[4-7]_READY|m05\.00[4-7]"),
             ("M04InterfaceDispatch", "M04_DISPATCH|CLROS_M04_016|m04\\.016"),

@@ -95,6 +95,7 @@
 		<EnableM06VirtioBlockReadProbe Condition="'$(EnableM06VirtioBlockReadProbe)' == ''">false</EnableM06VirtioBlockReadProbe>
 		<EnableM06LiveBlockContractProbe Condition="'$(EnableM06LiveBlockContractProbe)' == ''">false</EnableM06LiveBlockContractProbe>
 		<EnableM06GptPartitionProbe Condition="'$(EnableM06GptPartitionProbe)' == ''">false</EnableM06GptPartitionProbe>
+		<EnableM06FatReadProbe Condition="'$(EnableM06FatReadProbe)' == ''">false</EnableM06FatReadProbe>
 		<EnableM04InterfaceDispatchProbe Condition="'$(EnableM04InterfaceDispatchProbe)' == ''">false</EnableM04InterfaceDispatchProbe>
 	</PropertyGroup>
 
@@ -369,6 +370,9 @@
 	<PropertyGroup Condition="'$(EnableM06GptPartitionProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M06_GPT_PARTITION_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM06FatReadProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M06_FAT_READ_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM06VirtioBlockReadProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M06_VIRTIO_BLOCK_READ_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -451,6 +455,7 @@
 			'$(EnableM06VirtioBlockReadProbe)' == 'true' or
 			'$(EnableM06LiveBlockContractProbe)' == 'true' or
 			'$(EnableM06GptPartitionProbe)' == 'true' or
+			'$(EnableM06FatReadProbe)' == 'true' or
 			'$(EnableUefiGoneSimulationProbe)' == 'true')">Diagnostic</ClrosBootPolicy>
 		<ClrosBootPolicy Condition="'$(ClrosBootPolicy)' == ''">VerifiedExit</ClrosBootPolicy>
 	</PropertyGroup>
@@ -599,6 +604,9 @@
 		<Compile Include="..\OS.Kernel\Storage\PrimaryGPTIndependentlyBoundsCRC.cs" Link="Storage\PrimaryGPTIndependentlyBoundsCRC.cs" />
 		<Compile Include="..\OS.Kernel\Storage\ExerciseBackupGPTFallbackLiveDisk.cs" Link="Storage\ExerciseBackupGPTFallbackLiveDisk.cs" />
 		<Compile Include="..\OS.Kernel\Storage\FAT32ApplicationEFIPartition.cs" Link="Storage\FAT32ApplicationEFIPartition.cs" />
+		<Compile Include="..\OS.Kernel\Storage\FATClusterChainsLoopBadClusterTruncationDetection.cs" Link="Storage\FATClusterChainsLoopBadClusterTruncationDetection.cs" />
+		<Compile Include="..\OS.Kernel\Storage\MultiClusterDirectoryVFATLongNameSupportSeparate.cs" Link="Storage\MultiClusterDirectoryVFATLongNameSupportSeparate.cs" />
+		<Compile Include="..\OS.Kernel\Storage\KnownFileSHAN256EquivalentKnownFixtureHash.cs" Link="Storage\KnownFileSHAN256EquivalentKnownFixtureHash.cs" />
 		<Compile Include="..\OS.Kernel\Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs" Link="Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\Binary\EndianPrimitives.Pointer.cs" Link="Std\Binary\EndianPrimitives.Pointer.cs" />
 		<Compile Include="..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs" Link="Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs" />
@@ -715,6 +723,7 @@
 			'$(EnableM06VirtioBlockReadProbe)' == 'true' or
 			'$(EnableM06LiveBlockContractProbe)' == 'true' or
 			'$(EnableM06GptPartitionProbe)' == 'true' or
+			'$(EnableM06FatReadProbe)' == 'true' or
 			'$(EnableUefiGoneSimulationProbe)' == 'true')" Text="clros_boot_policy_probe_conflict" />
 	</Target>
 
@@ -1843,6 +1852,8 @@
 		<Error Condition="'$(EnableM06LiveBlockContractProbe)' == 'true' and '$(EnableM06VirtioBlockReadProbe)' != 'true'" Text="m06_live_block_contract_requires_read" />
 		<Error Condition="'$(EnableM06GptPartitionProbe)' != 'true' and '$(EnableM06GptPartitionProbe)' != 'false'" Text="m06_gpt_partition_switch_invalid" />
 		<Error Condition="'$(EnableM06GptPartitionProbe)' == 'true' and '$(EnableM06LiveBlockContractProbe)' != 'true'" Text="m06_gpt_partition_requires_contract" />
+		<Error Condition="'$(EnableM06FatReadProbe)' != 'true' and '$(EnableM06FatReadProbe)' != 'false'" Text="m06_fat_read_switch_invalid" />
+		<Error Condition="'$(EnableM06FatReadProbe)' == 'true' and '$(EnableM06GptPartitionProbe)' != 'true'" Text="m06_fat_read_requires_gpt" />
 		<Error Condition="'$(EnableM06VirtioBlockReadProbe)' != 'true' and '$(EnableM06VirtioBlockReadProbe)' != 'false'" Text="m06_block_read_switch_invalid" />
 		<Error Condition="'$(EnableM06VirtioBlockReadProbe)' == 'true' and '$(EnableM06VirtioBlockQueueSetupProbe)' != 'true'" Text="m06_block_read_requires_queue" />
 		<Error Condition="'$(EnableM06VirtioBlockQueueSetupProbe)' != 'true' and '$(EnableM06VirtioBlockQueueSetupProbe)' != 'false'" Text="m06_block_queue_switch_invalid" />

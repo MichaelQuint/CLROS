@@ -2,8 +2,11 @@ namespace OS.Std.Binary;
 
 public static partial class EndianPrimitives
 {
-    // The caller must retain a readable range of at least four/eight bytes.
+    // The caller must retain a readable range of at least two/four/eight bytes.
     // Byte loads permit unaligned input; these overloads allocate and throw nothing.
+    public static unsafe ushort ReadUInt16LittleEndian(byte* source) =>
+        (ushort)(source[0] | (source[1] << 8));
+
     public static unsafe uint ReadUInt32LittleEndian(byte* source) =>
         source[0] | ((uint)source[1] << 8) | ((uint)source[2] << 16) | ((uint)source[3] << 24);
 

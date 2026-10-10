@@ -1,8 +1,14 @@
 <p align="center">
+
   <img src="img/clros_logo.png" alt="CLROS logo" width="500">
 </p>
 
 <h1 align="center">CLROS</h1>
+
+The bounded FAT read batch passes focused checks, native review and a241-record
+guest capture, with six ancestor regressions, in [step1151](done/step1151.md).
+Full-host qualification remains pending. The accepted storage boundary remains
+GPT partition selection in step1150.
 
 <p align="center">
   <strong>A C#-first NativeAOT operating system for minimal cloud workloads.</strong>

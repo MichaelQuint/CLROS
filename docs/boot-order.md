@@ -1,5 +1,10 @@
 # Boot Order
 
+The pending `RunOwnedFatRead` child follows successful `RunOwnedGptPartition`.
+Its finite phases12/13/14 cover root FAT chain, directory/VFAT and file checksum;
+phase15 follows success. Each sector completes cleanup before another read.
+[Step1151](../done/step1151.md) has focused evidence only; default boot is unchanged.
+
 `BootSequence.RunOwnedGptPartition` requires completed live block-contract proof
 and its separate default-off probe. Primary validation precedes optional backup
 reads and EFI partition selection. Each read completes reset and original

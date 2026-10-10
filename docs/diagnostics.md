@@ -1,5 +1,10 @@
 # Diagnostics
 
+The pending `EnableM06FatReadProbe` defaults false and requires the GPT profile.
+It owns `M06_FAT` records and `m06.012`..`m06.014` markers. The reviewed inventory
+contains40 host catalog entries. [Step1151](../done/step1151.md) records focused
+controls; native/guest/full-host qualification remains pending.
+
 `EnableM06GptPartitionProbe` defaults false and requires the live block contract.
 Its intended 207/208-record intact/primary-CRC-fault captures append issues009-011
 and `M06_GPT` rows: `80` onward bind individual sector CRCs and fresh epochs;

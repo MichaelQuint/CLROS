@@ -13,6 +13,11 @@ using OS.Drivers;
 #if M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
 using OS.Storage;
 #endif
+#if M06_FAT_READ_PROBE
+using FatChain = OS.Storage.FATClusterChainsLoopBadClusterTruncationDetection;
+using FatDirectory = OS.Storage.MultiClusterDirectoryVFATLongNameSupportSeparate;
+using FatFile = OS.Storage.KnownFileSHAN256EquivalentKnownFixtureHash;
+#endif
 #if !(M01_LOADED_IMAGE_STACK_PROBE || CLROS_NORMAL_VERIFIED_EXIT) || !(M01_LIVE_ALLOCATOR_PROBE || CLROS_NORMAL_VERIFIED_EXIT) || !(ACPI_PHYSICAL_DISCOVERY_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
 #error The first real exit requires the original loaded-image, live allocator and copied ACPI adapters.
 #endif
@@ -75,6 +80,10 @@ public static unsafe class EfiEntry
             internal uint BlockContractPhase;
 #if M06_GPT_PARTITION_PROBE
             internal uint GptPhase;
+#if M06_FAT_READ_PROBE
+            internal uint FatPhase;
+            internal ulong FatPartitionFirst, FatPartitionLast;
+#endif
 #endif
             internal ulong BlockReadCapacity;
 #endif
@@ -600,6 +609,9 @@ public static unsafe class EfiEntry
                         _ = BootSequence.RunOwnedLiveBlockContract(state->BlockReadPhase == 7, state, &RunOwnedLiveBlockContract);
 #if M06_GPT_PARTITION_PROBE
                         _ = BootSequence.RunOwnedGptPartition(state->BlockContractPhase == 9, state, &RunOwnedGptPartition);
+#if M06_FAT_READ_PROBE
+                        _ = BootSequence.RunOwnedFatRead(state->GptPhase == 12, state, &RunOwnedFatRead);
+#endif
 #endif
 #endif
 #endif
@@ -1419,7 +1431,7 @@ public static unsafe class EfiEntry
 
         private static bool WriteBlockLiteral(Storage* state, uint issue, uint kind)
         {
-            if (issue < 1 || issue > 11 || kind > 3) return false;
+            if (issue < 1 || issue > 14 || kind > 3) return false;
             ulong* words = stackalloc ulong[4]; uint bytes, digit;
             if (kind == 0) { words[0] = 0x4154535f54534554UL; words[1] = 0x302e36306d205452UL; words[2] = 0xa0d3030UL; bytes = 20; digit = 17; }
             else if (kind == 1) { words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3030305f36UL; words[2] = 0xa0d594441UL; bytes = 21; digit = 12; }
@@ -1493,6 +1505,9 @@ public static unsafe class EfiEntry
                 !FirstExitOwnedArena.ValidateCanaries(state->Arena) ||
                 !WriteBlockLiteral(state, 11, 1) || !WriteBlockLiteral(state, 11, 2)) return false;
             state->BlockReadPhase = 7; state->GptPhase = 12;
+#if M06_FAT_READ_PROBE
+            state->FatPartitionFirst = partition.FirstLba; state->FatPartitionLast = partition.LastLba;
+#endif
             return true;
         }
 
@@ -1525,11 +1540,11 @@ public static unsafe class EfiEntry
             return true;
         }
 
-        private static bool WriteGptRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d)
+        private static bool WriteGptRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d, bool fat = false)
         {
             if (stage > 255) return false;
             byte* text = stackalloc byte[96];
-            *(ulong*)text = 0x205450475f36304dUL; uint length = 8;
+            *(ulong*)text = fat ? 0x205441465f36304dUL : 0x205450475f36304dUL; uint length = 8;
             for (int shift = 4; shift >= 0; shift -= 4)
             { uint digit = (stage >> shift) & 15; text[length++] = (byte)(digit < 10 ? '0' + digit : 'A' + digit - 10); }
             ulong* values = stackalloc ulong[4]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;
@@ -1544,12 +1559,159 @@ public static unsafe class EfiEntry
         }
 #endif
 
+#if M06_FAT_READ_PROBE
+        private static bool RunOwnedFatRead(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->FatPhase != 0 || state->GptPhase != 12 || state->BlockContractPhase != 9 || state->BlockReadPhase != 7)
+                return false;
+            state->FatPhase = 12;
+            if (!RunFatReadCore(state)) { _ = WriteBlockLiteral(state, state->FatPhase, 3); return false; }
+            state->FatPhase = 15; state->BlockReadPhase = 7;
+            return true;
+        }
+
+        private static bool RunFatReadCore(Storage* state)
+        {
+            // Fixed scratch outside every read/walk loop. No metadata or DMA
+            // from a prior transport lifetime is reused as device authority.
+            byte* sector = stackalloc byte[512]; byte* mirror = stackalloc byte[512];
+            ushort* name = stackalloc ushort[FatDirectory.NameScratchWords];
+            uint* rootHistory = stackalloc uint[8]; uint* fileHistory = stackalloc uint[8];
+            uint reads = 0, rootCount = 0;
+            LiveFat32Volume volume = default;
+            if (!WriteBlockLiteral(state, 12, 0) || !ReadFatSector(state, state->FatPartitionFirst, sector, ref reads) ||
+                FatChain.ParseBpb(new System.Span<byte>(sector, 512), state->BlockReadCapacity,
+                    state->FatPartitionFirst, state->FatPartitionLast, BlockReadResult.Success(1, 512), ref volume) != LiveFat32Status.Success ||
+                volume.SectorsPerCluster != 1 ||
+                !WriteFatRow(state, 0, volume.PartitionFirstLba, volume.PartitionLastLba, volume.FirstFatLba, volume.FirstDataLba) ||
+                !WriteFatRow(state, 1, volume.SectorsPerCluster, volume.ClusterCount, volume.RootCluster, volume.TotalSectors)) return false;
+            uint cluster = volume.RootCluster;
+            while (true)
+            {
+                if (FatChain.Visit(volume, cluster, new System.Span<uint>(rootHistory, 8), ref rootCount) != LiveFat32Status.Success)
+                    return false;
+                uint next = 0;
+                var status = ReadFatLink(state, volume, cluster, sector, mirror, ref reads, ref next);
+                if (status == LiveFat32Status.EndOfChain) break;
+                if (status != LiveFat32Status.Success) return false;
+                cluster = next;
+            }
+            if (rootCount != 2 || !WriteFatRow(state, 2, rootCount, rootHistory[0], rootHistory[1], reads) ||
+                !WriteBlockLiteral(state, 12, 1) || !WriteBlockLiteral(state, 12, 2)) return false;
+            state->FatPhase = 13;
+            if (!WriteBlockLiteral(state, 13, 0)) return false;
+            LiveVfatState sequence = default; LiveDirectoryEntry file = default;
+            uint found = 0, consumed = 0, nameCrc = 0; bool ended = false;
+            for (uint i = 0; i < rootCount; i++)
+            {
+                ulong lba = 0;
+                if (ended || FatChain.ClusterFirstLba(volume, rootHistory[i], ref lba) != LiveFat32Status.Success ||
+                    !ReadFatSector(state, lba, sector, ref reads)) return false;
+                for (uint offset = 0; offset < 512; offset += 32)
+                {
+                    consumed++;
+                    var status = FatDirectory.Consume(new System.Span<byte>(sector + offset, 32), ref sequence,
+                        new System.Span<ushort>(name, FatDirectory.NameScratchWords), out var entry);
+                    if (status == LiveDirectoryStatus.End) { ended = true; break; }
+                    if (status == LiveDirectoryStatus.Skipped || status == LiveDirectoryStatus.LongName) continue;
+                    if (status != LiveDirectoryStatus.Entry) return false;
+                    if (entry.NameLength == 30 && IsFatFixtureName(name))
+                    {
+                        if (++found != 1 || entry.Attributes != 0x20) return false;
+                        file = entry;
+                        uint crc = OS.Std.Hash.Crc32.InitialState;
+                        for (uint n = 0; n < 60; n++) crc = OS.Std.Hash.Crc32.UpdateByte(crc, ((byte*)name)[n]);
+                        nameCrc = OS.Std.Hash.Crc32.Finish(crc);
+                    }
+                }
+            }
+            if (!ended || found != 1 || FatDirectory.Finish(sequence) != LiveDirectoryStatus.End ||
+                !WriteFatRow(state, 3, rootCount, consumed, found, 1) ||
+                !WriteFatRow(state, 4, file.FirstCluster, file.ByteCount, file.NameLength, nameCrc) ||
+                !WriteFatRow(state, 5, file.ShortNameLow, file.ShortNameHigh, file.Attributes, reads) ||
+                !WriteBlockLiteral(state, 13, 1) || !WriteBlockLiteral(state, 13, 2)) return false;
+            state->FatPhase = 14;
+            LiveFileChecksum checksum = default;
+            if (!WriteBlockLiteral(state, 14, 0) ||
+                FatFile.Begin(file, FatFile.FixtureBytes, FatFile.FixtureCrc32, ref checksum) != LiveFileStatus.Success) return false;
+            uint fileCount = 0; cluster = file.FirstCluster;
+            while (true)
+            {
+                if (cluster == rootHistory[0] || cluster == rootHistory[1] ||
+                    FatChain.Visit(volume, cluster, new System.Span<uint>(fileHistory, 8), ref fileCount) != LiveFat32Status.Success)
+                    return false;
+                ulong lba = 0;
+                if (FatChain.ClusterFirstLba(volume, cluster, ref lba) != LiveFat32Status.Success ||
+                    !ReadFatSector(state, lba, sector, ref reads) ||
+                    FatFile.Append(new System.Span<byte>(sector, 512), BlockReadResult.Success(1, 512), checksum.BytesRead, ref checksum) != LiveFileStatus.Success)
+                    return false;
+                uint next = 0;
+                var status = ReadFatLink(state, volume, cluster, sector, mirror, ref reads, ref next);
+                if (status == LiveFat32Status.EndOfChain) break;
+                if (status != LiveFat32Status.Success) return false;
+                cluster = next;
+            }
+            uint required = (file.ByteCount + 511) / 512;
+            return FatChain.CheckLength(fileCount, required) == LiveFat32Status.Success && fileCount == 3 &&
+                FatFile.Finish(ref checksum) == LiveFileStatus.Complete && FirstExitOwnedArena.ValidateCanaries(state->Arena) &&
+                WriteFatRow(state, 6, checksum.BytesRead, OS.Std.Hash.Crc32.Finish(checksum.CrcState), checksum.ExpectedCrc, fileCount) &&
+                WriteFatRow(state, 7, fileHistory[0], fileHistory[1], fileHistory[2], reads) &&
+                WriteFatRow(state, 8, 1, required, 15, reads + 69UL) &&
+                WriteBlockLiteral(state, 14, 1) && WriteBlockLiteral(state, 14, 2);
+        }
+
+        private static LiveFat32Status ReadFatLink(Storage* state, LiveFat32Volume volume, uint cluster,
+            byte* sector, byte* mirror, ref uint reads, ref uint next)
+        {
+            ulong lba = volume.FirstFatLba + cluster / 128;
+            if (!ReadFatSector(state, lba, sector, ref reads) ||
+                !ReadFatSector(state, lba + volume.FatSectors, mirror, ref reads)) return LiveFat32Status.ReadFailed;
+            for (uint i = 0; i < 512; i++) if (sector[i] != mirror[i]) return LiveFat32Status.InvalidFatBounds;
+            return FatChain.ReadFatEntry(volume, cluster, lba, new System.Span<byte>(sector, 512), BlockReadResult.Success(1, 512), ref next);
+        }
+
+        private static bool ReadFatSector(Storage* state, ulong sector, byte* destination, ref uint reads)
+        {
+            if (reads >= 64) return false;
+            state->BlockReadPhase = 5;
+            if (!RunBlockReadCore(state, false, destination, sector, reads + 70UL, true)) return false;
+            uint crc = OS.Std.Hash.Crc32.InitialState;
+            for (uint i = 0; i < 512; i++) crc = OS.Std.Hash.Crc32.UpdateByte(crc, destination[i]);
+            if (!WriteFatRow(state, 0x80 + reads, sector, OS.Std.Hash.Crc32.Finish(crc), reads + 70UL, 1)) return false;
+            reads++;
+            return true;
+        }
+
+        private static bool WriteFatRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d) =>
+            WriteGptRow(state, stage, a, b, c, d, true);
+
+        private static bool IsFatFixtureName(ushort* name)
+        {
+            // Exact UTF-16LE "CLROS Live Storage Fixture.bin"; no strings,
+            // allocation, collation or checksum-only filename matching.
+            ulong* words = (ulong*)name;
+            return words[0] == 0x004f0052004c0043UL && words[1] == 0x0069004c00200053UL &&
+                words[2] == 0x0053002000650076UL && words[3] == 0x00610072006f0074UL &&
+                words[4] == 0x0046002000650067UL && words[5] == 0x0075007400780069UL &&
+                words[6] == 0x0062002e00650072UL && *(uint*)(name + 28) == 0x006e0069;
+        }
+#endif
+
         private static bool RunBlockReadCore(Storage* state, bool liveContract = false,
-            byte* gptDestination = null, ulong gptSector = 0, ulong gptEpoch = 0)
+            byte* gptDestination = null, ulong gptSector = 0, ulong gptEpoch = 0, bool fat = false)
         {
             bool gpt = gptDestination != null;
+#if M06_FAT_READ_PROBE
+            if (fat && (!gpt || liveContract || state->GptPhase != 12 || state->FatPhase < 12 || state->FatPhase > 14 ||
+                state->BlockContractPhase != 9 || state->FatPartitionFirst == 0 || state->FatPartitionFirst > state->FatPartitionLast ||
+                state->FatPartitionLast >= state->BlockReadCapacity || gptSector < state->FatPartitionFirst ||
+                gptSector > state->FatPartitionLast || gptEpoch < 70 || gptEpoch > 133)) return false;
+#else
+            if (fat) return false;
+#endif
 #if M06_GPT_PARTITION_PROBE
-            if (gpt && (liveContract || state->GptPhase != 9 || state->BlockContractPhase != 9 ||
+            if (gpt && !fat && (liveContract || state->GptPhase != 9 || state->BlockContractPhase != 9 ||
                 gptSector >= state->BlockReadCapacity || gptEpoch < 4 || gptEpoch > 69)) return false;
 #else
             if (gpt) return false;

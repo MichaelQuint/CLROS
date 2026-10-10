@@ -1,5 +1,10 @@
 # CLROS AI Agent Guide
 
+Current development: #127/#128/#129/#629 implement a default-off bounded FAT
+read child profile. `done/step1151.md` records focused evidence; native review,
+real guest capture and full-host qualification are pending. Do not treat this
+implementation as accepted FAT/file-read or Gate7 completion.
+
 This is the root operating contract for agents working in this repository. Keep
 it concise. Put subsystem detail in the relevant `docs/*.md` file and use
 `docs/documentation-map.md` to find the canonical source for each topic.

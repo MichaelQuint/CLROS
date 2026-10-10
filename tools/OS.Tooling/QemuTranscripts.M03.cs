@@ -5,7 +5,7 @@ namespace OS.Tooling;
 public static partial class QemuTranscripts
 {
     public static void AssertM03AcpiBootstrapTranscript(string path, bool firstRealExit = false, bool firmwareRevocation = false,
-        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false, bool apicSetup = false, bool virtqueueInterrupt = false, bool virtioBlockQueueSetup = false, bool virtioBlockRead = false, bool liveBlockContract = false, bool gptPartition = false, bool primaryHeaderFault = false)
+        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false, bool apicSetup = false, bool virtqueueInterrupt = false, bool virtioBlockQueueSetup = false, bool virtioBlockRead = false, bool liveBlockContract = false, bool gptPartition = false, bool primaryHeaderFault = false, bool fatRead = false)
     {
         Need(!ownedSurvival || firstRealExit && !firmwareRevocation, "m03_owned_profile_invalid");
         Need(!ownedPanic || ownedSurvival, "m03_owned_profile_invalid");
@@ -25,9 +25,10 @@ public static partial class QemuTranscripts
         Need(!liveBlockContract || virtioBlockRead, "m06_live_block_contract_requires_read");
         Need(!gptPartition || liveBlockContract, "m06_gpt_partition_requires_contract");
         Need(!primaryHeaderFault || gptPartition, "m06_gpt_fault_requires_profile");
-        string terminal = gptPartition ? "TEST_PASS m06.011\r\n" : liveBlockContract ? "TEST_PASS m06.008\r\n" : virtioBlockRead ? "TEST_PASS m06.006\r\n" : virtioBlockQueueSetup ? "TEST_PASS m06.004\r\n" : virtqueueInterrupt ? "TEST_PASS m05.021\r\n" : apicSetup ? "TEST_PASS m05.020\r\n" : virtqueuePolling ? "TEST_PASS m05.019\r\n" : virtioNegotiation ? "TEST_PASS m05.015\r\n" : barDma ? "TEST_PASS m05.011\r\n" : pciEnumeration ? "TEST_PASS m05.007\r\n" : monotonicClock ? "TEST_PASS m05.003\r\n" : ownedAcpiSelection ? "TEST_PASS m05.002\r\n" : physicalMapping ? "TEST_PASS m05.001\r\n" : normalBoot || !firstRealExit ? "OS_SMOKE_PASS\r\n" : ownedPanic ? "" : ownedSurvival ? "TEST_PASS m03.010\r\n" : firmwareRevocation ? "TEST_PASS m03.008\r\n" : "TEST_PASS m03.009\r\n";
+        Need(!fatRead || (gptPartition && !primaryHeaderFault), "m06_fat_requires_intact_gpt");
+        string terminal = fatRead ? "TEST_PASS m06.014\r\n" : gptPartition ? "TEST_PASS m06.011\r\n" : liveBlockContract ? "TEST_PASS m06.008\r\n" : virtioBlockRead ? "TEST_PASS m06.006\r\n" : virtioBlockQueueSetup ? "TEST_PASS m06.004\r\n" : virtqueueInterrupt ? "TEST_PASS m05.021\r\n" : apicSetup ? "TEST_PASS m05.020\r\n" : virtqueuePolling ? "TEST_PASS m05.019\r\n" : virtioNegotiation ? "TEST_PASS m05.015\r\n" : barDma ? "TEST_PASS m05.011\r\n" : pciEnumeration ? "TEST_PASS m05.007\r\n" : monotonicClock ? "TEST_PASS m05.003\r\n" : ownedAcpiSelection ? "TEST_PASS m05.002\r\n" : physicalMapping ? "TEST_PASS m05.001\r\n" : normalBoot || !firstRealExit ? "OS_SMOKE_PASS\r\n" : ownedPanic ? "" : ownedSurvival ? "TEST_PASS m03.010\r\n" : firmwareRevocation ? "TEST_PASS m03.008\r\n" : "TEST_PASS m03.009\r\n";
         string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi", virtioBlockQueueSetup && !primaryHeaderFault);
-        IReadOnlyList<string> expected = gptPartition ? QemuContracts.M06GptPartitionMarkers(primaryHeaderFault) : liveBlockContract ? QemuContracts.M06LiveBlockContractMarkers : virtioBlockRead ? QemuContracts.M06VirtioBlockReadMarkers : virtioBlockQueueSetup ? QemuContracts.M06VirtioBlockQueueSetupMarkers : virtqueueInterrupt ? QemuContracts.M05VirtqueueInterruptMarkers : apicSetup ? QemuContracts.M05ApicSetupMarkers : virtqueuePolling ? QemuContracts.M05VirtqueuePollingMarkers : virtioNegotiation ? QemuContracts.M05VirtioNegotiationMarkers : barDma ? QemuContracts.M05BarDmaMarkers : pciEnumeration ? QemuContracts.M05PciEnumerationMarkers : monotonicClock ? QemuContracts.M05MonotonicClockMarkers : ownedAcpiSelection ? QemuContracts.M05OwnedAcpiSelectionMarkers : physicalMapping ? QemuContracts.M05PhysicalMappingMarkers : normalBoot ? QemuContracts.M03NormalVerifiedExitMarkers : ownedPanic ? QemuContracts.M03OwnedSubsystemPanicMarkers :
+        IReadOnlyList<string> expected = fatRead ? QemuContracts.M06FatReadMarkers() : gptPartition ? QemuContracts.M06GptPartitionMarkers(primaryHeaderFault) : liveBlockContract ? QemuContracts.M06LiveBlockContractMarkers : virtioBlockRead ? QemuContracts.M06VirtioBlockReadMarkers : virtioBlockQueueSetup ? QemuContracts.M06VirtioBlockQueueSetupMarkers : virtqueueInterrupt ? QemuContracts.M05VirtqueueInterruptMarkers : apicSetup ? QemuContracts.M05ApicSetupMarkers : virtqueuePolling ? QemuContracts.M05VirtqueuePollingMarkers : virtioNegotiation ? QemuContracts.M05VirtioNegotiationMarkers : barDma ? QemuContracts.M05BarDmaMarkers : pciEnumeration ? QemuContracts.M05PciEnumerationMarkers : monotonicClock ? QemuContracts.M05MonotonicClockMarkers : ownedAcpiSelection ? QemuContracts.M05OwnedAcpiSelectionMarkers : physicalMapping ? QemuContracts.M05PhysicalMappingMarkers : normalBoot ? QemuContracts.M03NormalVerifiedExitMarkers : ownedPanic ? QemuContracts.M03OwnedSubsystemPanicMarkers :
             ownedSurvival ? QemuContracts.M03OwnedSubsystemMarkers : firmwareRevocation ? QemuContracts.M03RevocationRequiredMarkers :
             firstRealExit ? QemuContracts.M03FirstExitRequiredMarkers : QemuContracts.M03AcpiBootstrapRequiredMarkers;
         int ownedStart = normalBoot ? 63 : 66;
@@ -41,6 +42,7 @@ public static partial class QemuTranscripts
         if (virtioBlockQueueSetup) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_BLK ", StringComparison.Ordinal)).Select(x => x.i)];
         if (virtioBlockRead) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_READ ", StringComparison.Ordinal)).Select(x => x.i)];
         if (liveBlockContract) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_BDEV ", StringComparison.Ordinal)).Select(x => x.i)];
+        if (fatRead) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_FAT ", StringComparison.Ordinal)).Select(x => x.i)];
         if (gptPartition) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M06_GPT ", StringComparison.Ordinal)).Select(x => x.i)];
         ExactInventory(lines, expected, varying);
         ValidateAllocator(lines);
@@ -97,7 +99,8 @@ public static partial class QemuTranscripts
         if (virtioBlockQueueSetup) AssertM06VirtioBlockQueueSetupRecords(virtioBlockRead ? lines[..QemuContracts.M06VirtioBlockQueueSetupMarkers.Count] : lines);
         if (virtioBlockRead) AssertM06VirtioBlockReadRecords(liveBlockContract ? lines[..QemuContracts.M06VirtioBlockReadMarkers.Count] : lines);
         if (liveBlockContract) AssertM06LiveBlockContractRecords(gptPartition ? lines[..QemuContracts.M06LiveBlockContractMarkers.Count] : lines);
-        if (gptPartition) AssertM06GptPartitionRecords(lines, primaryHeaderFault);
+        if (gptPartition) AssertM06GptPartitionRecords(fatRead ? lines[..QemuContracts.M06GptPartitionMarkers().Count] : lines, primaryHeaderFault);
+        if (fatRead) AssertM06FatReadRecords(lines);
         if (monotonicClock) AssertM05MonotonicClockRecords(lines);
     }
 

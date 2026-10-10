@@ -134,6 +134,12 @@ public static partial class Probes
     public const bool EnableM06VirtioBlockReadProbe = false;
 #endif
 
+#if M06_FAT_READ_PROBE
+    public const bool EnableM06FatReadProbe = true;
+#else
+    public const bool EnableM06FatReadProbe = false;
+#endif
+
 #if M06_GPT_PARTITION_PROBE
     public const bool EnableM06GptPartitionProbe = true;
 #else
@@ -147,7 +153,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 39;
+    public const int ProbeCatalogCount = 40;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -358,6 +364,10 @@ public static partial class Probes
     public static ProbeDefinition GetM06GptPartitionProbe() =>
         new("storage.gpt-partition", nameof(EnableM06GptPartitionProbe), EnableM06GptPartitionProbe,
             ProbeRisk.Destructive, "Validates bounded live GPT tables, backup fallback and EFI partition location.");
+
+    public static ProbeDefinition GetM06FatReadProbe() =>
+        new("storage.fat-read", nameof(EnableM06FatReadProbe), EnableM06FatReadProbe,
+            ProbeRisk.Destructive, "Reads bounded FAT chains, a directory with VFAT entries and a known file checksum.");
 
     public static ProbeDefinition GetM06LiveBlockContractProbe() =>
         new("storage.live-block-contract", nameof(EnableM06LiveBlockContractProbe), EnableM06LiveBlockContractProbe,
@@ -601,6 +611,9 @@ public static partial class Probes
                 return true;
             case 36:
                 definition = GetM06VirtioBlockReadProbe();
+                return true;
+            case 39:
+                definition = GetM06FatReadProbe();
                 return true;
             case 38:
                 definition = GetM06GptPartitionProbe();

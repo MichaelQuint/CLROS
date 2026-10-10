@@ -14308,7 +14308,7 @@
         "M06-011"
       ],
       "labels": [
-        "agent:ready",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14335,7 +14335,7 @@
       ],
       "collisionLane": null,
       "summary": "Walk FAT cluster chains with loop, bad-cluster, and truncation detection.",
-      "currentEvidence": "Bounded sector transport is accepted in step1143, the live block contract/LBA0 in step1147, and primary/backup GPT validation plus EFI partition location in step1150. This issue has no accepted live implementation or guest proof. FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Claimed as dependency-ordered #127/#128/#129 with shared integration #629, following accepted GPT step1150/PR628. Implementing bounded FAT chains, multi-cluster directory/VFAT parsing and a known-file checksum. Focused/native/full-host/guest qualification remains pending. No FAT or file-read guest acceptance, manifest/package loading, continuing storage or M06/Gate7 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Walk FAT cluster chains with loop, bad-cluster, and truncation detection.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14399,7 +14399,7 @@
         "M06-012"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14426,7 +14426,7 @@
       ],
       "collisionLane": null,
       "summary": "Add multi-cluster directory and VFAT long-name support as separate parser slices.",
-      "currentEvidence": "Bounded sector transport is accepted in step1143, the live block contract/LBA0 in step1147, and primary/backup GPT validation plus EFI partition location in step1150. This issue has no accepted live implementation or guest proof. FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Claimed as dependency-ordered #127/#128/#129 with shared integration #629, following accepted GPT step1150/PR628. Implementing bounded FAT chains, multi-cluster directory/VFAT parsing and a known-file checksum. Focused/native/full-host/guest qualification remains pending. No FAT or file-read guest acceptance, manifest/package loading, continuing storage or M06/Gate7 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add multi-cluster directory and VFAT long-name support as separate parser slices.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14490,7 +14490,7 @@
         "M06-013"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14517,7 +14517,7 @@
       ],
       "collisionLane": null,
       "summary": "Read one known file and verify its SHA-256-equivalent host-known fixture hash or repository-defined checksum.",
-      "currentEvidence": "Bounded sector transport is accepted in step1143, the live block contract/LBA0 in step1147, and primary/backup GPT validation plus EFI partition location in step1150. This issue has no accepted live implementation or guest proof. FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Claimed as dependency-ordered #127/#128/#129 with shared integration #629, following accepted GPT step1150/PR628. Implementing bounded FAT chains, multi-cluster directory/VFAT parsing and a known-file checksum. Focused/native/full-host/guest qualification remains pending. No FAT or file-read guest acceptance, manifest/package loading, continuing storage or M06/Gate7 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read one known file and verify its SHA-256-equivalent host-known fixture hash or repository-defined checksum.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
