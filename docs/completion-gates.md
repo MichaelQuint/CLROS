@@ -1,9 +1,9 @@
 # CLROS Completion Gates
-The BAR/DMA batch #101-#104/#612 is implemented but unaccepted in
-[step1128](../done/step1128.md). Its separate default-off diagnostic extends the
-PCI profile with quiescent BAR sizing/restoration and an owned-page DMA address
-and buffer-lifetime exercise. Full-host, native and real guest qualification
-remain pending; no device DMA transfer or Gate 6 completion is established.
+The bounded BAR/DMA batch #101-#104/#612 is accepted in
+[step1129](../done/step1129.md): 4,208 full-host checks, strict native review,
+a 122-record real diagnostic capture, and a 79-record ordinary regression.
+The default-off profile proves quiescent BAR sizing/restoration and owned-page
+address/buffer lifetime. No device DMA transfer or Gate 6 completion is claimed.
 
 The PCI interface/header/enumeration/capability batch #97-#100/#610 is accepted
 in [step1127](../done/step1127.md): 4,190 full-host checks across 492 groups, native

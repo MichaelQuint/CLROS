@@ -1,9 +1,9 @@
 # EFI Build
-The BAR/DMA batch #101-#104/#612 is implemented but unaccepted in
-[step1128](../done/step1128.md). Its separate default-off diagnostic extends the
-PCI profile with quiescent BAR sizing/restoration and an owned-page DMA address
-and buffer-lifetime exercise. Full-host, native and real guest qualification
-remain pending; no device DMA transfer or Gate 6 completion is established.
+The bounded BAR/DMA batch #101-#104/#612 is accepted in
+[step1129](../done/step1129.md): 4,208 full-host checks, strict native review,
+a 122-record real diagnostic capture, and a 79-record ordinary regression.
+The default-off profile proves quiescent BAR sizing/restoration and owned-page
+address/buffer lifetime. No device DMA transfer or Gate 6 completion is claimed.
 
 ## Bounded PCI profile
 
@@ -3155,13 +3155,13 @@ Its approximately 8.74x measured gain applies to the helper benchmark only, with
 unchanged authority checks and deadline. Symlink creation and ACL-denial fixture
 coverage remain unavailable on this host, as recorded in the original results.
 
-The development BAR/DMA diagnostic adds `--EnableM05BarDmaProbe` to the explicit
+The accepted bounded BAR/DMA diagnostic adds `--EnableM05BarDmaProbe` to the explicit
 `--EnableM05PciEnumerationProbe` profile and requires `Diagnostic` plus the same
 original M01/ACPI/M03 ownership prerequisites. The wrapper must freshly build its
 EFI and disk. Its runner automatically adds `pci-testdev,addr=06.0,membar=2M`;
 this device is absent from ordinary runs. The 122-record stream includes the
 original 97 PCI records and four bounded issue suffixes through m05.011. This
-profile remains unaccepted until step1128's deferred gates have actual evidence.
+profile is qualified by step1129; step1128 retains its development history.
 OVMF can leave Command bus mastering enabled on this synthetic non-DMA function.
 Only this diagnostic adapter clears that bit with a 16-bit write and verifies
 readback before sizing; the general BAR probe still rejects enabled bus mastering.
