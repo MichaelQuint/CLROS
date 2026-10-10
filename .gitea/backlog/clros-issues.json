@@ -11394,7 +11394,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M05: Platform, PCI, and Common Virtio.",
-      "currentEvidence": "Dependencies #68, #94, #95 and #96 are accepted in steps1094, 1120, 1123 and 1125; #97-#100 read-only PCI discovery is accepted in step1127. The bounded BAR/DMA address and buffer-lifetime batch #101-#104/#612 is accepted in step1129. The epic remains open/agent:blocked with 10 remaining children. Live device DMA, virtqueues and Gate6 completion remain unproven.",
+      "currentEvidence": "Dependencies #68, #94, #95 and #96 are accepted in steps1094, 1120, 1123 and 1125; #97-#100 read-only PCI discovery is accepted in step1127. Bounded BAR/DMA address and buffer lifetime is accepted in step1129; modern Virtio capability discovery, configuration mappings and VERSION_1 negotiation #105-#108/#614 are accepted in step1131. The epic remains open/agent:blocked with six remaining children. Virtqueues, actual device DMA, interrupt completion and Gate 6 remain unproven.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -12389,7 +12389,7 @@
         "phase:m05-platform",
         "reference:test-only",
         "lane:common-virtio",
-        "agent:claimed"
+        "agent:done"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -12410,7 +12410,7 @@
       ],
       "collisionLane": "lane:common-virtio",
       "summary": "Parse modern virtio PCI capabilities from live configuration space.",
-      "currentEvidence": "Implemented but unaccepted in done/step1130.md under integration #614: bounded modern Virtio capability discovery, UC/NX region mappings, VERSION_1-only reset/ACKNOWLEDGE/DRIVER/FEATURES_OK negotiation and rejection controls. Focused checks, strict native review, a 119-record real diagnostic capture and 79-record ordinary regression pass. Stable unfiltered full-host qualification and PR acceptance remain pending. No DRIVER_OK, queues, actual device DMA, interrupts, packet/block I/O or Gate 6 completion is claimed.",
+      "currentEvidence": "Accepted in done/step1131.md with #105-#108 and shared integration #614. Frozen source c99134e3600e6a568e051500b2e6b24cb2715adc passes 4,230 full-host checks across 504 groups, strict native review, real 119-record modern Virtio and 79-record ordinary captures, and independent disk association. The exact modern device uses admitted UC/RW/NX regions, negotiates only VERSION_1 to FEATURES_OK, then resets with bus mastering disabled. Negative guest feature/status controls are local inputs. No DRIVER_OK, queues, actual device DMA, interrupts, packet/block I/O or Gate 6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Parse modern virtio PCI capabilities from live configuration space.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12458,7 +12458,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Parse modern virtio PCI capabilities from live configuration space.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-013",
@@ -12475,7 +12475,7 @@
         "component:platform",
         "phase:m05-platform",
         "reference:test-only",
-        "agent:claimed"
+        "agent:done"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -12496,7 +12496,7 @@
       ],
       "collisionLane": null,
       "summary": "Map common, notify, ISR, and device configuration regions.",
-      "currentEvidence": "Implemented but unaccepted in done/step1130.md under integration #614: bounded modern Virtio capability discovery, UC/NX region mappings, VERSION_1-only reset/ACKNOWLEDGE/DRIVER/FEATURES_OK negotiation and rejection controls. Focused checks, strict native review, a 119-record real diagnostic capture and 79-record ordinary regression pass. Stable unfiltered full-host qualification and PR acceptance remain pending. No DRIVER_OK, queues, actual device DMA, interrupts, packet/block I/O or Gate 6 completion is claimed.",
+      "currentEvidence": "Accepted in done/step1131.md with #105-#108 and shared integration #614. Frozen source c99134e3600e6a568e051500b2e6b24cb2715adc passes 4,230 full-host checks across 504 groups, strict native review, real 119-record modern Virtio and 79-record ordinary captures, and independent disk association. The exact modern device uses admitted UC/RW/NX regions, negotiates only VERSION_1 to FEATURES_OK, then resets with bus mastering disabled. Negative guest feature/status controls are local inputs. No DRIVER_OK, queues, actual device DMA, interrupts, packet/block I/O or Gate 6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Map common, notify, ISR, and device configuration regions.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12544,7 +12544,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Map common, notify, ISR, and device configuration regions.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-014",
@@ -12561,7 +12561,7 @@
         "component:virtio",
         "phase:m05-platform",
         "reference:test-only",
-        "agent:claimed"
+        "agent:done"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -12582,7 +12582,7 @@
       ],
       "collisionLane": null,
       "summary": "Execute reset-to-ACKNOWLEDGE-to-DRIVER-to-FEATURES_OK negotiation.",
-      "currentEvidence": "Implemented but unaccepted in done/step1130.md under integration #614: bounded modern Virtio capability discovery, UC/NX region mappings, VERSION_1-only reset/ACKNOWLEDGE/DRIVER/FEATURES_OK negotiation and rejection controls. Focused checks, strict native review, a 119-record real diagnostic capture and 79-record ordinary regression pass. Stable unfiltered full-host qualification and PR acceptance remain pending. No DRIVER_OK, queues, actual device DMA, interrupts, packet/block I/O or Gate 6 completion is claimed.",
+      "currentEvidence": "Accepted in done/step1131.md with #105-#108 and shared integration #614. Frozen source c99134e3600e6a568e051500b2e6b24cb2715adc passes 4,230 full-host checks across 504 groups, strict native review, real 119-record modern Virtio and 79-record ordinary captures, and independent disk association. The exact modern device uses admitted UC/RW/NX regions, negotiates only VERSION_1 to FEATURES_OK, then resets with bus mastering disabled. Negative guest feature/status controls are local inputs. No DRIVER_OK, queues, actual device DMA, interrupts, packet/block I/O or Gate 6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Execute reset-to-ACKNOWLEDGE-to-DRIVER-to-FEATURES_OK negotiation.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12630,7 +12630,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Execute reset-to-ACKNOWLEDGE-to-DRIVER-to-FEATURES_OK negotiation.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-015",
@@ -12647,7 +12647,7 @@
         "component:virtio",
         "phase:m05-platform",
         "reference:test-only",
-        "agent:claimed"
+        "agent:done"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -12668,7 +12668,7 @@
       ],
       "collisionLane": null,
       "summary": "Reject unsupported device features and failed FEATURES_OK state.",
-      "currentEvidence": "Implemented but unaccepted in done/step1130.md under integration #614: bounded modern Virtio capability discovery, UC/NX region mappings, VERSION_1-only reset/ACKNOWLEDGE/DRIVER/FEATURES_OK negotiation and rejection controls. Focused checks, strict native review, a 119-record real diagnostic capture and 79-record ordinary regression pass. Stable unfiltered full-host qualification and PR acceptance remain pending. No DRIVER_OK, queues, actual device DMA, interrupts, packet/block I/O or Gate 6 completion is claimed.",
+      "currentEvidence": "Accepted in done/step1131.md with #105-#108 and shared integration #614. Frozen source c99134e3600e6a568e051500b2e6b24cb2715adc passes 4,230 full-host checks across 504 groups, strict native review, real 119-record modern Virtio and 79-record ordinary captures, and independent disk association. The exact modern device uses admitted UC/RW/NX regions, negotiates only VERSION_1 to FEATURES_OK, then resets with bus mastering disabled. Negative guest feature/status controls are local inputs. No DRIVER_OK, queues, actual device DMA, interrupts, packet/block I/O or Gate 6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Reject unsupported device features and failed FEATURES_OK state.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12716,7 +12716,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Reject unsupported device features and failed FEATURES_OK state.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-016",
@@ -12727,7 +12727,7 @@
         "M05-015"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -12755,7 +12755,7 @@
       ],
       "collisionLane": "lane:common-virtio",
       "summary": "Validate virtqueue size, power-of-two constraints, index width, and negotiated maximum.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Dependency #108 is accepted with bounded modern Virtio negotiation in done/step1131.md. This live queue-size admission slice is ready but unimplemented; no programmed virtqueue, actual device DMA or completion is accepted.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Validate virtqueue size, power-of-two constraints, index width, and negotiated maximum.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

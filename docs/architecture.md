@@ -1,10 +1,11 @@
 # Architecture
 
-The Virtio negotiation batch #105-#108/#614 is implemented but unaccepted in
-[step1130](../done/step1130.md). Focused checks, strict native review and
-119/79-record real diagnostic/ordinary captures pass; full-host qualification
-and PR acceptance remain pending. See
-[drivers](drivers.md) for its bounded profile and mapping assumptions.
+The bounded Virtio negotiation batch #105-#108/#614 is accepted in
+[step1131](../done/step1131.md): 4,230 full-host checks, strict native
+review, a 119-record real diagnostic capture and a 79-record ordinary
+regression. The default-off profile stops at FEATURES_OK and resets the
+device with bus mastering disabled. No queues, device DMA transfer,
+interrupts, packet/block I/O or Gate 6 completion is claimed.
 
 The bounded BAR/DMA batch #101-#104/#612 is accepted in
 [step1129](../done/step1129.md): 4,208 full-host checks, strict native review,

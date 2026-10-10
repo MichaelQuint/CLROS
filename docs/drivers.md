@@ -1,9 +1,11 @@
 # Drivers
 
-The Virtio negotiation batch #105-#108/#614 is implemented but unaccepted in
-[step1130](../done/step1130.md). Focused checks, strict native review and
-119/79-record real diagnostic/ordinary captures pass. Full-host qualification
-and PR acceptance remain pending.
+The bounded Virtio negotiation batch #105-#108/#614 is accepted in
+[step1131](../done/step1131.md): 4,230 full-host checks, strict native
+review, a 119-record real diagnostic capture and a 79-record ordinary
+regression. The default-off profile stops at FEATURES_OK and resets the
+device with bus mastering disabled. No queues, device DMA transfer,
+interrupts, packet/block I/O or Gate 6 completion is claimed.
 
 Its default-off `EnableM05VirtioNegotiationProbe` requires the owned PCI profile
 and conflicts with BAR/DMA diagnostics. The runner places one modern QEMU
