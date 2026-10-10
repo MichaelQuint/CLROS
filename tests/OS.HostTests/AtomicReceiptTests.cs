@@ -35,7 +35,8 @@ internal static class AtomicReceiptTests
             await Task.Delay(40); // Keep a real deny-delete handle across at least one retry.
             HostCheck.True(!replacement.IsCompleted, "replacement must wait for the held reader");
             HostCheck.Equal("previous", Phase(path));
-            HostCheck.Equal("next", Phase(path + ".tmp"));
+            // The temporary file remains writer-owned until publication. Reading
+            // it here races the write on Windows; only the target is public.
         }
         finally { reader.Dispose(); }
         await replacement.WaitAsync(TimeSpan.FromSeconds(5));
