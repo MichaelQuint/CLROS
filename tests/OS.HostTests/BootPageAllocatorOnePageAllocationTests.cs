@@ -2140,6 +2140,18 @@ internal static class BootPageAllocatorOnePageAllocationTests
         foreach (string path in integrationPaths)
         {
             string source = File.ReadAllText(path);
+            if (Path.GetFileName(path) == "EfiEntry.cs")
+            {
+                // The owned BAR/DMA profile returns the exact receipt; other EFI
+                // paths must retain this original host-only integration firewall.
+                const string call = "BootPageAllocatorMutator.AllocateOnePage";
+                Match block = Regex.Match(source,
+                    @"(?ms)^#if M05_BAR_DMA_PROBE\s+private static bool RunOwnedBarDma\b(?:(?!^#).)*^#endif");
+                if (!block.Success || Regex.Matches(block.Value, Regex.Escape(call)).Count != 1)
+                    return SourceFailure("bar-dma-allocation-conditional");
+                source = source.Remove(block.Index, block.Length).Insert(block.Index,
+                    block.Value.Replace(call, string.Empty, StringComparison.Ordinal));
+            }
             foreach (string name in forbiddenIntegrationNames)
             {
                 if (source.Contains(name, StringComparison.Ordinal))
