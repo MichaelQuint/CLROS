@@ -13260,7 +13260,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M06: Live Storage.",
-      "currentEvidence": "Common queue prerequisite #112 is accepted in step1133; storage children remain open. GPT, FAT32, package and virtio-blk plans remain host-tested; no guest block read or disk-backed package load is accepted.",
+      "currentEvidence": "The first four bounded live storage children #116-#119 are accepted in done/step1140.md with full-host, strict native and real guest evidence. #120 is the next ready sector-request slice. No CLROS sector I/O, live block-contract adapter, filesystem/package loading or M06 exit criterion is accepted; the epic and milestone remain open.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -13307,13 +13307,13 @@
         "M05-019"
       ],
       "labels": [
-        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:storage",
         "phase:m06-storage",
-        "reference:test-only"
+        "reference:test-only",
+        "agent:done"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -13334,7 +13334,7 @@
       ],
       "collisionLane": null,
       "summary": "Bind one live virtio-blk PCI device.",
-      "currentEvidence": "Dependency #112 is accepted with bounded ordered queue polling in done/step1133.md. The first general virtio-blk binding slice is ready but unimplemented; no guest block read or disk-backed package load is accepted.",
+      "currentEvidence": "Accepted in done/step1140.md at frozen qualification 3c978cbf69a623d3385169a3c9f133afb03e878d, published through PR622. All 4294 full-host checks across 518 groups pass with zero reuse and unchanged inputs. Strict native review and fresh 122/157/79-record block/network/ordinary captures pass with independent disk and 623-file raw-source association. This accepts only the named binding/features/DMA/queue-setup slice; no DRIVER_OK, request, notification or CLROS sector I/O occurs. Gate 7 and M06 remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Bind one live virtio-blk PCI device.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -13387,7 +13387,7 @@
         "docs/image-builder.md"
       ],
       "evidenceBoundary": "This issue proves only \"Bind one live virtio-blk PCI device.\" It does not by itself prove the M06 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M06-002",
@@ -13398,13 +13398,13 @@
         "M06-001"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:storage",
         "phase:m06-storage",
-        "reference:test-only"
+        "reference:test-only",
+        "agent:done"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -13425,7 +13425,7 @@
       ],
       "collisionLane": null,
       "summary": "Negotiate the minimal read-only virtio-blk feature set.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Accepted in done/step1140.md at frozen qualification 3c978cbf69a623d3385169a3c9f133afb03e878d, published through PR622. All 4294 full-host checks across 518 groups pass with zero reuse and unchanged inputs. Strict native review and fresh 122/157/79-record block/network/ordinary captures pass with independent disk and 623-file raw-source association. This accepts only the named binding/features/DMA/queue-setup slice; no DRIVER_OK, request, notification or CLROS sector I/O occurs. Gate 7 and M06 remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Negotiate the minimal read-only virtio-blk feature set.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -13478,7 +13478,7 @@
         "docs/image-builder.md"
       ],
       "evidenceBoundary": "This issue proves only \"Negotiate the minimal read-only virtio-blk feature set.\" It does not by itself prove the M06 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M06-003",
@@ -13489,13 +13489,13 @@
         "M06-002"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:tooling",
         "evidence:qemu",
         "component:storage",
         "phase:m06-storage",
-        "reference:test-only"
+        "reference:test-only",
+        "agent:done"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -13516,7 +13516,7 @@
       ],
       "collisionLane": null,
       "summary": "Allocate DMA-safe request, status, descriptor, available, and used-ring storage.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Accepted in done/step1140.md at frozen qualification 3c978cbf69a623d3385169a3c9f133afb03e878d, published through PR622. All 4294 full-host checks across 518 groups pass with zero reuse and unchanged inputs. Strict native review and fresh 122/157/79-record block/network/ordinary captures pass with independent disk and 623-file raw-source association. This accepts only the named binding/features/DMA/queue-setup slice; no DRIVER_OK, request, notification or CLROS sector I/O occurs. Gate 7 and M06 remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Allocate DMA-safe request, status, descriptor, available, and used-ring storage.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -13569,7 +13569,7 @@
         "docs/image-builder.md"
       ],
       "evidenceBoundary": "This issue proves only \"Allocate DMA-safe request, status, descriptor, available, and used-ring storage.\" It does not by itself prove the M06 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M06-004",
@@ -13580,13 +13580,13 @@
         "M06-003"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:storage",
         "phase:m06-storage",
-        "reference:test-only"
+        "reference:test-only",
+        "agent:done"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -13607,7 +13607,7 @@
       ],
       "collisionLane": null,
       "summary": "Program virtio-blk queue 0.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Accepted in done/step1140.md at frozen qualification 3c978cbf69a623d3385169a3c9f133afb03e878d, published through PR622. All 4294 full-host checks across 518 groups pass with zero reuse and unchanged inputs. Strict native review and fresh 122/157/79-record block/network/ordinary captures pass with independent disk and 623-file raw-source association. This accepts only the named binding/features/DMA/queue-setup slice; no DRIVER_OK, request, notification or CLROS sector I/O occurs. Gate 7 and M06 remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Program virtio-blk queue 0.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -13660,7 +13660,7 @@
         "docs/image-builder.md"
       ],
       "evidenceBoundary": "This issue proves only \"Program virtio-blk queue 0.\" It does not by itself prove the M06 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M06-005",
@@ -13671,7 +13671,7 @@
         "M06-004"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -13698,7 +13698,7 @@
       ],
       "collisionLane": null,
       "summary": "Submit and poll one sector-read request.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Dependency #119 is accepted in done/step1140.md. Live modern block binding, VERSION_1/RO features, owned DMA layout and queue-zero setup/readback/reset are qualified. Sector request submission remains unimplemented; this is the next ready storage slice. No CLROS sector I/O, live block-contract adapter or Gate 7 completion is accepted.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Submit and poll one sector-read request.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

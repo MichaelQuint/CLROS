@@ -2,6 +2,12 @@
 
 ## Current Status
 
+The four M06 leaves #116-#119 and integration #621 are accepted in
+[step1140](../done/step1140.md): 4,294 full-host checks across 518 groups, strict
+native review and fresh block/network/ordinary captures pass with matching
+disk and source evidence. Two test-only repairs are recorded alongside the
+preserved failed attempts. No CLROS block I/O is claimed.
+
 The APIC/MSI-X batch #113/#114/#619 is accepted in
 [step1137](../done/step1137.md): 4,277 full-host checks, strict native review,
 104/157-record APIC/MSI-X captures and a 79-record ordinary regression, all with

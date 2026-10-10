@@ -23,7 +23,7 @@ public struct FirstExitImageReferences
 #if M05_PCI_ENUMERATION_PROBE
     public ulong EcamStart, EcamPages;
 #endif
-#if M05_VIRTIO_NEGOTIATION_PROBE
+#if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
     public ulong VirtioBarStart;
 #endif
 #if M05_APIC_SETUP_PROBE
@@ -238,10 +238,10 @@ public static unsafe class FirstExitRetainedMappings
 #if M05_MONOTONIC_CLOCK_PROBE || M05_PCI_ENUMERATION_PROBE
         + 1
 #endif
-#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
         + 2
 #endif
-#if M05_VIRTIO_NEGOTIATION_PROBE
+#if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
         + 4
 #endif
 #if M05_APIC_SETUP_PROBE
@@ -255,7 +255,7 @@ public static unsafe class FirstExitRetainedMappings
 #if M05_PHYSICAL_MAPPING_PROBE || M05_MONOTONIC_CLOCK_PROBE || M05_PCI_ENUMERATION_PROBE
         + 1
 #endif
-#if M05_VIRTIO_NEGOTIATION_PROBE
+#if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
         + 1
 #endif
 #if M05_APIC_SETUP_PROBE
@@ -349,7 +349,7 @@ public static unsafe class FirstExitRetainedMappings
             references.EcamStart > 0x100000000UL - 0x100000) return false;
         starts[6] = references.EcamStart; lengths[6] = 0x100000; allocations = 7;
 #endif
-#if M05_VIRTIO_NEGOTIATION_PROBE
+#if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
         if (references.VirtioBarStart < 0x100000 || (references.VirtioBarStart & 0x3fff) != 0 ||
             references.VirtioBarStart >= LowEnd - 0x4000) return false;
         starts[7] = references.VirtioBarStart; lengths[7] = 0x4000; allocations = 8;
@@ -380,7 +380,7 @@ public static unsafe class FirstExitRetainedMappings
         pending[count++] = new SeparatePageFaultMappingRange(references.HpetDevicePage, 1, Data, PageCachePolicy.Uncached);
 #endif
 #if M05_PCI_ENUMERATION_PROBE
-#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
         // Only the dedicated quiescent test function at device 6/function 0 is
         // writable. The rest of the admitted one-bus ECAM window stays read-only.
         pending[count++] = new SeparatePageFaultMappingRange(references.EcamStart, 48, PageProtection.Read, PageCachePolicy.Uncached);
@@ -390,7 +390,7 @@ public static unsafe class FirstExitRetainedMappings
         pending[count++] = new SeparatePageFaultMappingRange(references.EcamStart, references.EcamPages, PageProtection.Read, PageCachePolicy.Uncached);
 #endif
 #endif
-#if M05_VIRTIO_NEGOTIATION_PROBE
+#if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
         for (ulong page = 0; page < 4; page++)
             pending[count++] = new SeparatePageFaultMappingRange(references.VirtioBarStart + page * 4096, 1, Data, PageCachePolicy.Uncached);
 #endif
@@ -436,9 +436,9 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_PCI_ENUMERATION_PROBE
     public const uint PciReadOffset = 4608;
-#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
     public const uint PciBarOffset = 4624;
-#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE
+#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
     public const uint QueueFenceOffset = 4672;
 #endif
 #endif
@@ -477,9 +477,9 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_PCI_ENUMERATION_PROBE
             OS.Drivers.X64PciConfigurationRead.Emit(code + PciReadOffset, StackEntryOffset - PciReadOffset) &&
-#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
             OS.Drivers.X64PciBarAccess.Emit(code + PciBarOffset, StackEntryOffset - PciBarOffset) &&
-#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE
+#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
             OS.Drivers.X64VirtqueueMemoryFence.Emit(code + QueueFenceOffset, StackEntryOffset - QueueFenceOffset) &&
 #endif
 #endif
@@ -576,9 +576,9 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_PCI_ENUMERATION_PROBE
         if (!OS.Drivers.X64PciConfigurationRead.Validate(code + PciReadOffset, OS.Drivers.X64PciConfigurationRead.Bytes)) return false;
-#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
         if (!OS.Drivers.X64PciBarAccess.Validate(code + PciBarOffset, OS.Drivers.X64PciBarAccess.Bytes)) return false;
-#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE
+#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
         if (!OS.Drivers.X64VirtqueueMemoryFence.Validate(code + QueueFenceOffset, OS.Drivers.X64VirtqueueMemoryFence.Bytes)) return false;
 #endif
 #endif
@@ -605,9 +605,9 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_PCI_ENUMERATION_PROBE
                 !Inside(index, PciReadOffset, OS.Drivers.X64PciConfigurationRead.Bytes) &&
-#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
                 !Inside(index, PciBarOffset, OS.Drivers.X64PciBarAccess.Bytes) &&
-#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE
+#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
                 !Inside(index, QueueFenceOffset, OS.Drivers.X64VirtqueueMemoryFence.Bytes) &&
 #endif
 #endif

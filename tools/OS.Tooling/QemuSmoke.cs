@@ -78,6 +78,7 @@ public static class QemuSmoke
             if (plan.IsEnabled("EnableM03FirmwareEntropySeedProbe")) arguments.AddRange(["--firmware-rng-source", options.FirmwareRngSource]);
             if (plan.IsEnabled("EnableM05BarDmaProbe")) arguments.Add("--pci-bar-test-device");
             if (plan.IsEnabled("EnableM05VirtioNegotiationProbe")) arguments.Add("--virtio-negotiation-device");
+            if (plan.IsEnabled("EnableM06VirtioBlockQueueSetupProbe")) arguments.Add("--virtio-block-queue-device");
             foreach (var (name, values) in new[] { ("--require-marker", plan.Required), ("--require-ordered-marker", plan.Ordered), ("--require-unique-marker", plan.Unique), ("--forbid-marker", plan.Forbidden), ("--marker-preset", plan.Presets) })
                 foreach (string value in values) arguments.AddRange([name, value]);
             if (qemu.Length != 0) arguments.AddRange(["--qemu", qemu]);

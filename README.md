@@ -21,6 +21,11 @@
 
 ## Progress
 
+The first bounded live block binding/queue setup batch is
+[accepted](done/step1140.md): 4,294 full-host checks and fresh block, network and
+ordinary guest captures pass. It configures and resets one read-only Virtio
+device; CLROS block reads and Gate 7 remain incomplete.
+
 The bounded APIC/MSI-X batch is [accepted](done/step1137.md): 4,277 full-host
 checks, strict native review, one real MSI-X queue completion and an ordinary
 boot regression pass. This completes the 21 keyed M05 child scopes; broader

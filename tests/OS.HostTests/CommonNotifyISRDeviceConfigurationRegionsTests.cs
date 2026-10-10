@@ -16,6 +16,27 @@ internal static unsafe class CommonNotifyISRDeviceConfigurationRegionsTests
             0x0000000c, 0xc0, 0xffffc00c, 0xffffffff, 4, out bars[4]));
     }
 
+    [HostTest("virtio.block.regions admits complete capacity field without widening network contract")]
+    private static void BlockCapacityExtent()
+    {
+        PciSizedBar* bars = stackalloc PciSizedBar[6]; Bars(bars);
+        VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
+        var caps = Capabilities();
+        HostCheck.Equal(VirtioRegionStatus.Success, CommonNotifyISRDeviceConfigurationRegions.PlanBlock(caps, bars, 6, regions, 4));
+        HostCheck.Equal(8U, regions[3].Bytes);
+        HostCheck.Equal(VirtioRegionStatus.Success, CommonNotifyISRDeviceConfigurationRegions.Plan(caps, bars, 6, regions, 4));
+        HostCheck.Equal(1U, regions[3].Bytes);
+        foreach (uint bytes in new uint[] { 1, 7 })
+        {
+            for (int i = 0; i < 4; i++) regions[i] = default;
+            var shortCaps = VirtioPciCapabilitySet.Create(caps.CommonConfiguration, caps.NotifyConfiguration, caps.IsrStatus,
+                new(VirtioPciCapabilityType.DeviceConfiguration, 4, 0x2000, bytes, 0));
+            HostCheck.Equal(VirtioRegionStatus.InvalidCapability,
+                CommonNotifyISRDeviceConfigurationRegions.PlanBlock(shortCaps, bars, 6, regions, 4));
+            for (int i = 0; i < 4; i++) HostCheck.True(!regions[i].IsValid);
+        }
+    }
+
     [HostTest("virtio.regions retains high physical BAR and distinct virtual binding", HostLane.Fast, 0)]
     private static bool HighAddressAndDistinctMapping()
     {

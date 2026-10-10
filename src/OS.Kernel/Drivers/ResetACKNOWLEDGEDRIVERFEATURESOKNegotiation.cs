@@ -29,6 +29,22 @@ public static unsafe class ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation
         delegate* unmanaged<void*, ulong, uint, byte> write32,
         delegate* unmanaged<void*, ulong, byte*, byte> read8,
         delegate* unmanaged<void*, ulong, byte, byte> write8)
+        => RunCore(common, requested, resetReads, context, read32, write32, read8, write8, false);
+
+    /// <summary>Explicit block-only feature profile. Retains RO if offered; never
+    /// enables writes, DRIVER_OK, interrupts or queues.</summary>
+    public static VirtioNegotiationResult RunBlock(VirtioMappedRegion common, uint resetReads,
+        void* context, delegate* unmanaged<void*, ulong, uint*, byte> read32,
+        delegate* unmanaged<void*, ulong, uint, byte> write32,
+        delegate* unmanaged<void*, ulong, byte*, byte> read8,
+        delegate* unmanaged<void*, ulong, byte, byte> write8)
+        => RunCore(common, BoundedVirtioFeatures.Version1, resetReads, context, read32, write32, read8, write8, true);
+
+    private static VirtioNegotiationResult RunCore(VirtioMappedRegion common, ulong requested, uint resetReads,
+        void* context, delegate* unmanaged<void*, ulong, uint*, byte> read32,
+        delegate* unmanaged<void*, ulong, uint, byte> write32,
+        delegate* unmanaged<void*, ulong, byte*, byte> read8,
+        delegate* unmanaged<void*, ulong, byte, byte> write8, bool block)
     {
         if (!common.IsValid || common.Bytes < VirtioPciModernRegisterMap.CommonConfiguration.FirstLiveQueueSetupLength || (common.VirtualStart & 3) != 0 ||
             resetReads == 0 || resetReads > 1024 || read32 == null || write32 == null || read8 == null || write8 == null)
@@ -58,7 +74,8 @@ public static unsafe class ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation
         }
         if (failure == VirtioNegotiationStatus.Success)
         {
-            var choice = BoundedVirtioFeatures.Select(offered, requested, out selected);
+            var choice = block ? BoundedVirtioFeatures.SelectBlock(offered, out selected) :
+                BoundedVirtioFeatures.Select(offered, requested, out selected);
             if (choice != VirtioFeatureStatus.Success) failure = VirtioNegotiationStatus.MissingVersion1;
         }
         for (uint i = 0; failure == VirtioNegotiationStatus.Success && i < 2; i++)

@@ -43,8 +43,11 @@ rethrow and post-firmware UC/WC/WB mapping profiles are accepted in
 continuation with the same rooted exception. General EH and arbitrary rethrow
 remain incomplete. See
 `docs/completion-gates.md` for each scope.
-Storage, PAL, app-model, and networking progress is still host-tested
-contract/planning evidence only; networking now includes UDP/TCP checksum
+Bounded modern Virtio block binding, feature negotiation, owned DMA layout and
+queue-zero setup/readback/reset are accepted in `done/step1140.md`. This submits
+no block request; sector reads, continuing storage and Gate 7 remain incomplete.
+PAL and app-model progress remains host-tested contract/planning evidence;
+networking includes UDP/TCP checksum
 slices through active/passive handshakes, HTTP GET payload frames, and active
 close FIN/ACK frame generation. It is not a functional kernel, not cloud-ready,
 and not production-ready.

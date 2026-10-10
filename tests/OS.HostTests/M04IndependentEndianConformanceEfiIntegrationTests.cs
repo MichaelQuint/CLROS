@@ -269,13 +269,9 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
         source = source.Replace("\r\n", "\n", StringComparison.Ordinal);
         const string export =
             "[System.Runtime.RuntimeExport(\"__security_cookie\")]";
+        // Cookie ownership depends on these prerequisites/exclusions, not on
+        // unrelated conditional using directives above them.
         string incompatibleProfiles = """
-            #if (M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
-            using OS.Kernel.Diagnostics;
-            using OS.Kernel.Platform;
-            #if M05_PCI_ENUMERATION_PROBE
-            using OS.Drivers;
-            #endif
             #if !(M01_LOADED_IMAGE_STACK_PROBE || CLROS_NORMAL_VERIFIED_EXIT) || !(M01_LIVE_ALLOCATOR_PROBE || CLROS_NORMAL_VERIFIED_EXIT) || !(ACPI_PHYSICAL_DISCOVERY_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
             #error The first real exit requires the original loaded-image, live allocator and copied ACPI adapters.
             #endif

@@ -2,6 +2,13 @@
 
 ## Current Status
 
+The default-off [block queue diagnostic](efi-build.md#bounded-virtio-block-queue-profile)
+attaches the existing GPT/FAT EFI image as a read-only modern Virtio boot disk.
+Image contents and ordinary SATA attachment are unchanged. Firmware loads the
+EFI payload; CLROS only binds/configures/resets the device in this batch, with
+no CLROS sector read or package load. Independent GPT/FAT/EFI inspection and
+accepted evidence are in [step1140](../done/step1140.md).
+
 `tools/OS.ImageBuilder` can emit a non-writing dry-run layout plan, create a deterministic raw disk image containing a GPT-partitioned FAT32 EFI System Partition, build deterministic `OSPKGv0` app-package files from an input directory, wrap a raw native app binary in the minimal `OSAPPv0` native payload header, build a validated single-file native app package directly from a native manifest plus raw app bytes, compose that package into a raw native-app image in one host command, validate that a package contains the manifest-selected `app.path` with a valid native payload header, and emit local size/SHA-256 metadata for existing image artifacts. It also has a host-side `qemu-img` wrapper that can convert an existing raw image to qcow2 when `qemu-img` is available. `dotnet run --project tools/OS.Tooling -- qemu qcow2` coordinates conversion and local QEMU/OVMF smoke; boot proof requires its real execution and captured guest markers.
 
 The raw image places the staged EFI artifact at the default UEFI removable-media path:

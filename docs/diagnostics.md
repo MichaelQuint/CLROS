@@ -1,5 +1,11 @@
 # Diagnostics
 
+`EnableM06VirtioBlockQueueSetupProbe` defaults false. Its accepted 122-record
+stream binds block identity, quiescence, feature policy, queue address readbacks
+and original allocator restoration. Exact markers and scope are in
+[storage](cstorage.md#bounded-modern-block-queue-profile); [step1140](../done/step1140.md)
+records full-host, native and final guest qualification.
+
 `EnableM05ApicSetupProbe` and `EnableM05VirtqueueInterruptProbe` default false.
 Their exact 104/157-record streams bind controller masking, one interrupt/EOI,
 IF and IDTR restoration, and queue cleanup. Full-host, strict native and real

@@ -14,6 +14,7 @@ internal static class EfiSourceAdmissionTests
             foreach (string changed in new[] {
                 source + "\nstatic class Rogue { static void Run() { " + call + "(); } }",
                 source.Replace("RunQueueCore(state)", "UnreviewedQueue(state)", StringComparison.Ordinal),
+                source.Replace("RunBlockQueueCore(state, common)", "UnreviewedBlockQueue(state, common)", StringComparison.Ordinal),
                 source.Replace(call + "(", "UnreviewedAllocator.Call(", StringComparison.Ordinal) })
             {
                 string rejected = changed;

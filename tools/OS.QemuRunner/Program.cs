@@ -1900,6 +1900,7 @@ sealed class RunnerOptions
 
     public bool PciBarTestDevice { get; private set; }
     public bool VirtioNegotiationDevice { get; private set; }
+    public bool VirtioBlockQueueDevice { get; private set; }
 
     public string WorkloadProfile { get; private set; } = DefaultWorkloadProfile;
 
@@ -1993,6 +1994,10 @@ sealed class RunnerOptions
                     if (options.VirtioNegotiationDevice) throw new ArgumentException("--virtio-negotiation-device may be specified only once.");
                     options.VirtioNegotiationDevice = true;
                     break;
+                case "--virtio-block-queue-device":
+                    if (options.VirtioBlockQueueDevice) throw new ArgumentException("--virtio-block-queue-device may be specified only once.");
+                    options.VirtioBlockQueueDevice = true;
+                    break;
                 case "--firmware-rng-source":
                     if (options.FirmwareRngSource is not null)
                         throw new ArgumentException("--firmware-rng-source may be specified only once.");
@@ -2047,7 +2052,7 @@ sealed class RunnerOptions
         }
 
         options.FinishParsing();
-        if (options.PciBarTestDevice && options.VirtioNegotiationDevice)
+        if ((options.PciBarTestDevice ? 1 : 0) + (options.VirtioNegotiationDevice ? 1 : 0) + (options.VirtioBlockQueueDevice ? 1 : 0) > 1)
             throw new ArgumentException("Dedicated PCI test devices cannot share slot 6.");
         return options;
     }

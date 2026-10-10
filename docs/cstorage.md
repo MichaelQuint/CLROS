@@ -2,6 +2,58 @@
 
 ## Current Status
 
+The bounded live block binding/queue batch #116-#119/#621 is accepted in
+[step1140](../done/step1140.md): 4,294 full-host checks across 518 groups, strict
+native review and fresh 122/157/79-record block/network/ordinary captures pass
+with independent disk and 623-file source association. Development history is
+in steps1138-1139. The earlier storage parsers and composed read plans below
+remain host-only; this batch does not submit a block request.
+
+### Bounded modern block queue profile
+
+`EnableM06VirtioBlockQueueSetupProbe` is false by default. After original owned
+subsystem survival and PCI enumeration, `BootSequence.RunOwnedVirtioBlockQueueSetup`
+binds the exclusive QEMU modern block function at `00:06.0` (`1042:1af4`). It
+uses a complete retained configuration snapshot and four admitted UC/RW/NX BAR4
+pages. Firmware may have used this boot disk: bus mastering and INTx are disabled
+and reset is observed before destructive BAR sizing. MSI-X must already be
+disabled and stays disabled. The fixture is a read-only Virtio boot disk;
+[EFI build](efi-build.md#bounded-virtio-block-queue-profile) owns the command.
+
+`LiveVirtioBlkPCIDevice` binds the modern type-zero identity and capability chain.
+`MinimalVirtioBlkFeatureSet` requires VERSION_1 and accepts RO when offered,
+declining other features, following the
+[Virtio block feature contract](https://docs.oasis-open.org/virtio/virtio/v1.3/virtio-v1.3.html).
+The existing network negotiation entry point retains its VERSION_1-only policy.
+FEATURES_OK is read back; DRIVER_OK is never set.
+
+`DMASafeRequestStatusDescriptorAvailableUsedRing` reserves one 4 KiB page with
+separate CPU, physical and device address domains. For eight entries the
+descriptor/available/used ranges are `0/128`, `128/20`, `148/68`; the 16-byte
+request header, one-byte status and 512-byte data area begin at 256, 272 and
+512. The adapter authenticates the exact original allocator receipt and coherent
+WB/RW/NX backing. It rejects CPU or physical MMIO overlap before clearing the
+page. Empty indices, NO_INTERRUPT and an incomplete status byte are initialized;
+no descriptors or available entries are published.
+
+`VirtioBlkQueueN0` holds the exact DMA token while configuring queue zero.
+It checks the negotiated maximum, size eight, disabled vectors, all six address
+words, queue-enable readback and fresh status, with bus mastering off throughout.
+Observed reset, disabled bus mastering and a fence precede token release.
+Only successful cleanup permits release of the original allocator backing;
+uncertain cleanup retains it. Final readbacks check allocator restoration and
+canaries, status zero and disabled bus mastering/MSI-X.
+
+The exact 122-record stream adds `M06_BLK` rows `0` through `C` and
+`TEST_START`/`CLROS_M06_00N_READY`/`TEST_PASS m06.00N` for N=1..4 to the PCI
+profile. Transcript checks bind the DMA page to the recorded original owned
+arena. Host negative controls cover malformed binding, feature rejection,
+range/alias errors, callback failures, readback mismatches and cleanup retention;
+they are simulated inputs, not physical fault injection. There is no capacity
+read, notification, sector read/write, filesystem/package load or block ABI yet.
+
+### Host-only storage contracts
+
 Virtio storage readiness now includes a host-tested generic virtio initialization plan for status writes, feature selection, `FEATURES_OK` rejection, `FAILED` planning, and queue-count validation over caller-provided metadata only.
 
 Virtio-blk queue setup now has a host-tested command planner for queue 0 common-configuration setup. `OS.Storage.VirtioBlockQueueMmioSetupPlanner` consumes a successful block `VirtioDeviceDescriptor`, caller-provided queue size, physical descriptor/driver/device ring addresses, and caller-provided queue metadata, then emits deterministic future register commands without invoking a register accessor, mapping BARs, allocating DMA memory, publishing descriptors, configuring a live queue, notifying a device, or performing block I/O. `OS.Storage.VirtioBlockQueueMmioSetupRegisterWindowPlanner` now bridges those planned commands to checked virtio PCI common-configuration register-window access metadata, preserving setup-plan and register-window failure provenance while still avoiding volatile/live MMIO and queue mutation. `OS.Storage.VirtioBlockQueueMmioSetupRegisterWindowExecutor` can fake-execute that command stream over caller-owned common-configuration BAR-window bytes, staging expected device read values for queue size and notify offset, while still avoiding live MMIO, real barriers, DMA, queue ownership, and block I/O. `OS.Storage.VirtioBlockQueueMmioSetupRegisterWindowBarrierExecutor` now adds explicit setup-write visibility metadata and gates the final `queue_enable` fake write on ordered-before-enable readiness. `OS.Storage.VirtioBlockReadOnlyReadSessionSetupGate` now makes that setup-barrier execution a required host-tested precondition before a read session can publish/notify descriptors.
