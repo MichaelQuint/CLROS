@@ -318,8 +318,8 @@ M01-015 host tests freeze the page-zero and disabled-probe enum/POD contracts;
 exercise present and non-present raw mapping intents, partial page-zero
 coverage, wraparound, alignment, and canonicality; and audit synthetic
 four-level images with absence at PML4E, PDPTE, PDE, and PTE. They reject
-present 1 GiB, 2 MiB, and 4 KiB mappingsâ€”including raw present entries whose
-physical base is zeroâ€”plus malformed non-present encodings, missing children,
+present 1 GiB, 2 MiB, and 4 KiB mappings—including raw present entries whose
+physical base is zero—plus malformed non-present encodings, missing children,
 invalid roots/preconditions, malformed records, hostile counts/capacities,
 misaligned/overflowing spans, and aliased storage. Complete caller buffers are
 snapshotted around success and rejection. The null-fault plan accepts only a
