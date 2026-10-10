@@ -410,6 +410,7 @@
 			'$(EnableM05OwnedAcpiSelectionProbe)' == 'true' or
 			'$(EnableM05MonotonicClockProbe)' == 'true' or
 			'$(EnableM05PciEnumerationProbe)' == 'true' or
+			'$(EnableM05BarDmaProbe)' == 'true' or
 			'$(EnableUefiGoneSimulationProbe)' == 'true')">Diagnostic</ClrosBootPolicy>
 		<ClrosBootPolicy Condition="'$(ClrosBootPolicy)' == ''">VerifiedExit</ClrosBootPolicy>
 	</PropertyGroup>
@@ -633,6 +634,7 @@
 			'$(EnableM05OwnedAcpiSelectionProbe)' == 'true' or
 			'$(EnableM05MonotonicClockProbe)' == 'true' or
 			'$(EnableM05PciEnumerationProbe)' == 'true' or
+			'$(EnableM05BarDmaProbe)' == 'true' or
 			'$(EnableUefiGoneSimulationProbe)' == 'true')" Text="clros_boot_policy_probe_conflict" />
 	</Target>
 
