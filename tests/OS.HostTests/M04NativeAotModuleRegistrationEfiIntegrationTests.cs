@@ -163,7 +163,7 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
         Need(errors.Count(x=>x=="'$("+Flag+")' == 'true' and '$(EnableM01LoadedImageStackProbe)' != 'true'")==1,"exact original M01 prerequisite");
         Need(errors.Count(x=>x=="'$(EnableM04X64UnwindMetadataProbe)' == 'true' and '$(EnableM04TypeManagerModuleRegistrationProbe)' != 'true'") == 1, "exact unwind child original-module prerequisite");
         foreach(string other in flags.Where(x=>x!=Flag&&x!="EnableM01LoadedImageStackProbe"&&x!="EnableM04X64UnwindMetadataProbe")){
-            if(other=="EnableM03FirstRealExitBootServicesProbe"||other=="EnableM03FirmwareAdapterRevocationProbe"||other=="EnableM03OwnedSubsystemSurvivalProbe"||other=="EnableM03OwnedSubsystemPanicProbe"||other=="EnableM05PhysicalMappingProbe"||other=="EnableM05OwnedAcpiSelectionProbe"||other=="EnableM05MonotonicClockProbe"||other=="EnableM05PciEnumerationProbe"||other=="EnableM05BarDmaProbe"){
+            if(other=="EnableM03FirstRealExitBootServicesProbe"||other=="EnableM03FirmwareAdapterRevocationProbe"||other=="EnableM03OwnedSubsystemSurvivalProbe"||other=="EnableM03OwnedSubsystemPanicProbe"||other=="EnableM05PhysicalMappingProbe"||other=="EnableM05OwnedAcpiSelectionProbe"||other=="EnableM05MonotonicClockProbe"||other=="EnableM05PciEnumerationProbe"||other=="EnableM05BarDmaProbe"||other=="EnableM05VirtioNegotiationProbe"){
                 if(other=="EnableM03FirmwareAdapterRevocationProbe")
                     Need(errors.Count(x=>x=="'$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' and '$(EnableM03FirstRealExitBootServicesProbe)' != 'true'")==1,"exact inherited revocation prerequisite");
                 if(other=="EnableM03OwnedSubsystemPanicProbe")

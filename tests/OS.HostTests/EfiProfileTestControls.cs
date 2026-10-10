@@ -20,6 +20,7 @@ internal static class EfiProfileTestControls
             ("M05PciEnumeration", "M03FirstRealExitBootServices", "m05_pci_requires_owned_first_exit"),
             ("M05PciEnumeration", "M03OwnedSubsystemSurvival", "m05_pci_requires_owned_first_exit"),
             ("M05BarDma", "M05PciEnumeration", "m05_bar_dma_requires_pci"),
+            ("M05VirtioNegotiation", "M05PciEnumeration", "m05_virtio_negotiation_requires_pci"),
             ("M04ClassConstructorExecution", "M04GcStaticRootMaterialization", "m04_cctor_requires_gc_profile"),
             ("M04InterfaceDispatch", "M04ClassConstructorExecution", "m04_dispatch_requires_cctor_profile"),
             ("M04X64UnwindMetadata", "M04TypeManagerModuleRegistration", "m04_x64_unwind_metadata_requires_original_module"),

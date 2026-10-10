@@ -1,4 +1,12 @@
 # EFI Build
+
+The bounded Virtio negotiation batch #105-#108/#614 is accepted in
+[step1131](../done/step1131.md): 4,230 full-host checks, strict native
+review, a 119-record real diagnostic capture and a 79-record ordinary
+regression. The default-off profile stops at FEATURES_OK and resets the
+device with bus mastering disabled. No queues, device DMA transfer,
+interrupts, packet/block I/O or Gate 6 completion is claimed.
+
 The bounded BAR/DMA batch #101-#104/#612 is accepted in
 [step1129](../done/step1129.md): 4,208 full-host checks, strict native review,
 a 122-record real diagnostic capture, and a 79-record ordinary regression.
@@ -84,7 +92,7 @@ Current source-authority counts are derived from the compiled/tooling inventory.
 
 Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 
-The five diagnostic regressions are firmware-visible compatibility, first exit, owned survival, adapter revocation and expected owned panic. Their EFI bytes exactly match their retained accepted images. Failed full runs and fixture corrections remain in steps1091–1093; the earlier failed wrapper is preserved in step1090.
+The five diagnostic regressions are firmware-visible compatibility, first exit, owned survival, adapter revocation and expected owned panic. Their EFI bytes exactly match their retained accepted images. Failed full runs and fixture corrections remain in steps1091â€“1093; the earlier failed wrapper is preserved in step1090.
 
 This is a bounded terminal boot path. It reuses the original retained allocator and copied ACPI, adopts owned descriptors/page tables and reports through owned COM1. It does not reclaim firmware pages or start a continuing workload. General EH, hosted .NET/Kestrel, live storage/networking, cloud and production readiness remain unproved; numbered gate statuses are unchanged.
 
@@ -3098,7 +3106,7 @@ EH table select one returning cleanup, then one typed catch and its compiled
 continuation. The bridge checks the parent-stack stamp, original exception/root,
 register context and control fields; the Thrower-to-parent RSP delta is 48.
 The measured CLROS stack bound is 14,240 bytes, excluding firmware body depth
-and arbitrary interrupts. Steps1079–1085 retain implementation and native-review
+and arbitrary interrupts. Steps1079â€“1085 retain implementation and native-review
 history, including the corrected frame admission.
 
 The fresh ordinary QEMU/OVMF capture has the complete

@@ -1,4 +1,38 @@
 # Drivers
+
+The bounded Virtio negotiation batch #105-#108/#614 is accepted in
+[step1131](../done/step1131.md): 4,230 full-host checks, strict native
+review, a 119-record real diagnostic capture and a 79-record ordinary
+regression. The default-off profile stops at FEATURES_OK and resets the
+device with bus mastering disabled. No queues, device DMA transfer,
+interrupts, packet/block I/O or Gate 6 completion is claimed.
+
+Its default-off `EnableM05VirtioNegotiationProbe` requires the owned PCI profile
+and conflicts with BAR/DMA diagnostics. The runner places one modern QEMU
+Virtio network function (`1af4:1041`, legacy mode and option ROM disabled) at
+00:06.0. No DRIVER_OK, queues, device DMA, interrupts or packet I/O are enabled.
+
+The complete 256-byte capability chain is validated before selecting the first
+supported common/notify/ISR/device records. Reserved types/BARs are ignored;
+truncated, overlapping and cyclic records fail. The initial reset mapping is
+explicitly limited to this fixture's assigned 16 KiB BAR4 and four distinct
+pages. Original EFI-map admission rules out RAM; all later retained allocations
+must be disjoint. After firmware exit, the adapter clears bus mastering,
+disables INTx, resets the device, and sizes/restores its BARs to confirm the
+provisional extent before reporting mapping success. It audits four installed
+UC/RW/NX leaves. Numeric physical/virtual binding alone proves no mapping.
+
+Negotiation bounds reset reads, verifies ACKNOWLEDGE and DRIVER status, selects
+only the offered mandatory VERSION_1 bit, and requires exact FEATURES_OK
+readback. Other optional offers remain unselected. Failures stop access and
+attempt FAILED only after completed reset and fresh compatible status readback.
+The successful terminal diagnostic resets the device again and keeps bus
+mastering disabled. Guest negative feature/status controls use local inputs;
+they do not demonstrate a physical device rejecting negotiated features.
+The static nativeaot-patcher review informed independent tests only; no source
+or driver architecture was copied. Protocol authority is
+[OASIS Virtio 1.3](https://docs.oasis-open.org/virtio/virtio/v1.3/virtio-v1.3.html).
+
 The bounded BAR/DMA batch #101-#104/#612 is accepted in
 [step1129](../done/step1129.md): 4,208 full-host checks, strict native review,
 a 122-record real diagnostic capture, and a 79-record ordinary regression.

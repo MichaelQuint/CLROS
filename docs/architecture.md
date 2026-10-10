@@ -1,4 +1,12 @@
 # Architecture
+
+The bounded Virtio negotiation batch #105-#108/#614 is accepted in
+[step1131](../done/step1131.md): 4,230 full-host checks, strict native
+review, a 119-record real diagnostic capture and a 79-record ordinary
+regression. The default-off profile stops at FEATURES_OK and resets the
+device with bus mastering disabled. No queues, device DMA transfer,
+interrupts, packet/block I/O or Gate 6 completion is claimed.
+
 The bounded BAR/DMA batch #101-#104/#612 is accepted in
 [step1129](../done/step1129.md): 4,208 full-host checks, strict native review,
 a 122-record real diagnostic capture, and a 79-record ordinary regression.
@@ -310,8 +318,8 @@ M01-015 host tests freeze the page-zero and disabled-probe enum/POD contracts;
 exercise present and non-present raw mapping intents, partial page-zero
 coverage, wraparound, alignment, and canonicality; and audit synthetic
 four-level images with absence at PML4E, PDPTE, PDE, and PTE. They reject
-present 1 GiB, 2 MiB, and 4 KiB mappings—including raw present entries whose
-physical base is zero—plus malformed non-present encodings, missing children,
+present 1 GiB, 2 MiB, and 4 KiB mappingsâ€”including raw present entries whose
+physical base is zeroâ€”plus malformed non-present encodings, missing children,
 invalid roots/preconditions, malformed records, hostile counts/capacities,
 misaligned/overflowing spans, and aliased storage. Complete caller buffers are
 snapshotted around success and rejection. The null-fault plan accepts only a

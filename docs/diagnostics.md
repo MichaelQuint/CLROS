@@ -1,4 +1,12 @@
 # Diagnostics
+
+The bounded Virtio negotiation batch #105-#108/#614 is accepted in
+[step1131](../done/step1131.md): 4,230 full-host checks, strict native
+review, a 119-record real diagnostic capture and a 79-record ordinary
+regression. The default-off profile stops at FEATURES_OK and resets the
+device with bus mastering disabled. No queues, device DMA transfer,
+interrupts, packet/block I/O or Gate 6 completion is claimed.
+
 The bounded BAR/DMA batch #101-#104/#612 is accepted in
 [step1129](../done/step1129.md): 4,208 full-host checks, strict native review,
 a 122-record real diagnostic capture, and a 79-record ordinary regression.
@@ -587,7 +595,7 @@ COM1/serial invocation.
   and the old null-write error code 2 is rejected.
 - The exact zero-error policy applies only to the planned ordinary supervisor
   data read of a nonpresent page. It is not a general page-fault rule. Intel's
-  [SDM revision 090, Volume 3A, Interrupt 14, pp. 7-44–7-46](https://cdrdv2-public.intel.com/874240/325462-090-sdm-vol-1-2abcd-3abcd-4.pdf)
+  [SDM revision 090, Volume 3A, Interrupt 14, pp. 7-44â€“7-46](https://cdrdv2-public.intel.com/874240/325462-090-sdm-vol-1-2abcd-3abcd-4.pdf)
   defines error bits, CR2, and the saved instruction pointer. A real handler
   must preserve CR2 before another page fault overwrites it. This host leaf
   does not validate saved flags/RF, CR3, stacks, GPRs, frame layout, or hardware

@@ -98,8 +98,14 @@ public static partial class Probes
     public const bool EnableM05BarDmaProbe = false;
 #endif
 
+#if M05_VIRTIO_NEGOTIATION_PROBE
+    public const bool EnableM05VirtioNegotiationProbe = true;
+#else
+    public const bool EnableM05VirtioNegotiationProbe = false;
+#endif
+
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 31;
+    public const int ProbeCatalogCount = 32;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -298,6 +304,11 @@ public static partial class Probes
         new("platform.bar-dma", nameof(EnableM05BarDmaProbe),
             EnableM05BarDmaProbe, ProbeRisk.Destructive,
             "Sizes quiescent PCI BARs and exercises owned DMA buffer lifetime.");
+
+    public static ProbeDefinition GetM05VirtioNegotiationProbe() =>
+        new("platform.virtio-negotiation", nameof(EnableM05VirtioNegotiationProbe),
+            EnableM05VirtioNegotiationProbe, ProbeRisk.Destructive,
+            "Validates modern virtio PCI capabilities and negotiates VERSION_1 after owned PCI enumeration.");
 
     public static ProbeDefinition GetM05MonotonicClockProbe() =>
         new("platform.clock", nameof(EnableM05MonotonicClockProbe),
@@ -510,6 +521,9 @@ public static partial class Probes
                 return true;
             case 30:
                 definition = GetM05BarDmaProbe();
+                return true;
+            case 31:
+                definition = GetM05VirtioNegotiationProbe();
                 return true;
             case 29:
                 definition = GetM05PciEnumerationProbe();
