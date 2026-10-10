@@ -13073,7 +13073,7 @@
         "M05-019"
       ],
       "labels": [
-        "agent:ready",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -13100,16 +13100,16 @@
       ],
       "collisionLane": null,
       "summary": "Parse MADT and initialize local APIC/IOAPIC separately from polling proof.",
-      "currentEvidence": "Dependency #112 is accepted with bounded ordered queue polling in done/step1133.md. Bounded MADT parsing and APIC/IOAPIC initialization are ready but unimplemented; no APIC initialization or interrupt delivery is accepted.",
+      "currentEvidence": "Development contracts implemented in step1134 under #619 on codex/m05-apic-msix-batch, based on accepted step1133/PR618. Focused host checks cover retained MADT parsing, masked APIC setup, MSI-X capability/table planning and programming, native-leaf bytes and explicit interrupt-mode queue lifetime. Boot integration, strict native admission, full-host qualification and real QEMU interrupt delivery remain pending. #113/#114 stay claimed and unaccepted; #114 depends on #113 and the batch will be qualified together.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Parse MADT and initialize local APIC/IOAPIC separately from polling proof.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Exercise the valid firmware handoff sequence for: Parse MADT and initialize local APIC/IOAPIC separately from polling proof.",
-        "Failure cases: Cover EFI_BUFFER_TOO_SMALL, descriptor growth, stale map key, retry exhaustion, copied-range overflow, missing tables, invalid signatures/checksums, and prohibited firmware use after exit as applicable.",
-        "Explicitly inapplicable here: TCP retransmission, application imports, and provider resource cleanup are outside this firmware slice.",
+        "Positive case: Parse retained MADT bytes and initialize one bounded xAPIC/IOAPIC set through admitted mappings with register read-back while unrelated interrupt sources remain masked; preserve polling isolation.",
+        "Failure cases: Cover missing or malformed MADT bytes, length/checksum/entry failures, duplicate or unsupported topology, invalid APIC address or actual CPU/MSR identity, unsupported APIC mode, register/access failure and read-back mismatch; never dereference unadmitted physical addresses.",
+        "Explicitly inapplicable here: SMP startup, scheduling, general interrupt routing, block I/O and packet delivery are outside this bounded APIC setup slice.",
         "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
       ],
       "referenceInfluences": [
@@ -13125,9 +13125,9 @@
         "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
         "Affected canonical documentation is updated without promoting unsupported completion gates.",
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Exercise the valid firmware handoff sequence for: Parse MADT and initialize local APIC/IOAPIC separately from polling proof.",
-        "Applicable failure cases are asserted: Cover EFI_BUFFER_TOO_SMALL, descriptor growth, stale map key, retry exhaustion, copied-range overflow, missing tables, invalid signatures/checksums, and prohibited firmware use after exit as applicable.",
-        "The evidence report explicitly records these non-goals: TCP retransmission, application imports, and provider resource cleanup are outside this firmware slice."
+        "The positive case is demonstrated: Parse retained MADT bytes and initialize one bounded xAPIC/IOAPIC set through admitted mappings with register read-back while unrelated interrupt sources remain masked; preserve polling isolation.",
+        "Applicable failure cases are asserted: Cover missing or malformed MADT bytes, length/checksum/entry failures, duplicate or unsupported topology, invalid APIC address or actual CPU/MSR identity, unsupported APIC mode, register/access failure and read-back mismatch; never dereference unadmitted physical addresses.",
+        "The evidence report explicitly records these non-goals: SMP startup, scheduling, general interrupt routing, block I/O and packet delivery are outside this bounded APIC setup slice."
       ],
       "requiredMarkers": [
         "TEST_START m05.020",
@@ -13159,7 +13159,7 @@
         "M05-020"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -13187,7 +13187,7 @@
       ],
       "collisionLane": "lane:common-virtio",
       "summary": "Add MSI/MSI-X setup and interrupt-driven virtqueue completion after polling paths pass.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Development contracts implemented in step1134 under #619 on codex/m05-apic-msix-batch, based on accepted step1133/PR618. Focused host checks cover retained MADT parsing, masked APIC setup, MSI-X capability/table planning and programming, native-leaf bytes and explicit interrupt-mode queue lifetime. Boot integration, strict native admission, full-host qualification and real QEMU interrupt delivery remain pending. #113/#114 stay claimed and unaccepted; #114 depends on #113 and the batch will be qualified together.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add MSI/MSI-X setup and interrupt-driven virtqueue completion after polling paths pass.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

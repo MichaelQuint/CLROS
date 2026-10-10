@@ -1,5 +1,12 @@
 # Drivers
 
+The APIC/MSI-X batch #113/#114/#619 has host-tested development contracts in
+[step1134](../done/step1134.md). Retained MADT parsing, masked xAPIC/IOAPIC setup,
+MSI-X discovery and table programming, returning native interrupt leaves, and an
+explicit interrupt-mode queue transaction are implemented. Boot integration,
+strict native admission, full-host qualification and real interrupt delivery
+remain pending. These contracts do not promote any completion gate.
+
 The bounded split-queue batch #109-#112/#617 is accepted in
 [step1133](../done/step1133.md): 4,251 full-host checks, strict native
 review, a 139-record real queue diagnostic and a 79-record ordinary

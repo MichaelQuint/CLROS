@@ -6,7 +6,18 @@ public enum VirtqueuePollingStatus : byte
 {
     Uninitialized, Success, InvalidAccess, ReadFailed, WriteFailed, StatusRejected,
     InvalidQueue, InvalidNotify, DmaRejected, DescriptorRejected, OrderingFailed,
-    BusMasterFailed, Timeout, InvalidCompletion, ResetFailed
+    BusMasterFailed, Timeout, InvalidCompletion, ResetFailed, InterruptFailed
+}
+
+/// <summary>Explicit one-shot interrupt completion. Wait must arm the admitted
+/// MSI-X source, observe a real returning handler, and restore IF=0 and the owned
+/// original IDTR on every return. Mask must disable that source; 1 means success.
+/// These callbacks do not replace the required coherent-DMA/MMIO/fence authority.</summary>
+public unsafe struct VirtqueueInterruptAccess
+{
+    public void* Context;
+    public delegate* unmanaged<void*, uint, byte> Wait;
+    public delegate* unmanaged<void*, byte> Mask;
 }
 
 /// <summary>Exclusive, non-throwing access (1=success). The adapter authenticates
@@ -32,13 +43,16 @@ public struct VirtqueuePollingResult
     public uint Polls, UsedId, UsedLength, Fences;
     public ulong CpuAddress, DeviceAddress, NotifyAddress;
     public bool Published, ResetComplete, BusMasterDisabled, DmaReleased;
+    public bool InterruptObserved, InterruptsMasked;
     public readonly bool Succeeded => Status == VirtqueuePollingStatus.Success &&
         CleanupStatus == VirtqueuePollingStatus.Success && ResetComplete && BusMasterDisabled && DmaReleased;
 }
 
 /// <summary>One VERSION_1-only modern-net TX transaction: queue 1, size 8,
 /// one read-only descriptor with a 12-byte zero virtio header and a local test
-/// Ethernet frame. No receive, offload, indirect/event-index, interrupt or reuse.
+/// Ethernet frame. Run suppresses interrupts; RunInterrupt explicitly requests
+/// MSI-X entry zero and requires a returning interrupt before reading completion.
+/// No receive, offload, indirect/event-index or reuse.
 /// Caller provides an exclusive CPU-owned DMA pool with mapped coherent WB/RW/NX
 /// backing and retains that backing on failure. Device starts at status 11,
 /// reset queues and bus mastering off. Reset completion plus bus-master disable
@@ -51,6 +65,16 @@ public static unsafe class SplitVirtqueuePollingNotificationCompletion
 
     public static VirtqueuePollingResult Run(VirtioMappedRegion common, VirtioMappedRegion notify,
         uint notifyMultiplier, DmaBufferPool* dma, VirtqueuePollingAccess access, uint pollLimit, uint resetLimit)
+        => RunCore(common, notify, notifyMultiplier, dma, access, pollLimit, resetLimit, false, default);
+
+    public static VirtqueuePollingResult RunInterrupt(VirtioMappedRegion common, VirtioMappedRegion notify,
+        uint notifyMultiplier, DmaBufferPool* dma, VirtqueuePollingAccess access, uint waitLimit, uint resetLimit,
+        VirtqueueInterruptAccess interrupts)
+        => RunCore(common, notify, notifyMultiplier, dma, access, waitLimit, resetLimit, true, interrupts);
+
+    private static VirtqueuePollingResult RunCore(VirtioMappedRegion common, VirtioMappedRegion notify,
+        uint notifyMultiplier, DmaBufferPool* dma, VirtqueuePollingAccess access, uint pollLimit, uint resetLimit,
+        bool interrupt, VirtqueueInterruptAccess interrupts)
     {
         VirtqueuePollingResult result = default;
         result.Status = VirtqueuePollingStatus.InvalidAccess;
@@ -59,7 +83,8 @@ public static unsafe class SplitVirtqueuePollingNotificationCompletion
             (notifyMultiplier != 0 && (notifyMultiplier < 2 || (notifyMultiplier & (notifyMultiplier - 1)) != 0)) ||
             pollLimit == 0 || pollLimit > 1000000 || resetLimit == 0 || resetLimit > 1024 ||
             access.Read8 == null || access.Write8 == null || access.Read16 == null || access.Write16 == null ||
-            access.Read32 == null || access.Write32 == null || access.Fence == null || access.BusMaster == null)
+            access.Read32 == null || access.Write32 == null || access.Fence == null || access.BusMaster == null ||
+            (interrupt && (interrupts.Wait == null || interrupts.Mask == null)))
             return result;
         DmaBufferAllocation allocation = default;
         VirtqueueDescriptorPoolState pool = default;
@@ -67,7 +92,10 @@ public static unsafe class SplitVirtqueuePollingNotificationCompletion
         for (uint i = 0; i < QueueSize; i++) slots[i] = default;
         VirtqueueDescriptorToken token = default;
         result.Status = Execute(common, notify, notifyMultiplier, dma, access, pollLimit,
-            &pool, slots, ref allocation, ref token, ref result);
+            &pool, slots, ref allocation, ref token, ref result, interrupt, interrupts);
+        // Even a failed wait may have armed the source. Mask before reset and
+        // retain backing if masking cannot be confirmed, while still disabling DMA.
+        if (interrupt) result.InterruptsMasked = interrupts.Mask(interrupts.Context) == 1;
         // Reset is the sole device-lifetime boundary, including timeout and
         // failures after an MMIO callback may already have performed its write.
         result.CleanupStatus = VirtqueuePollingStatus.ResetFailed;
@@ -81,6 +109,7 @@ public static unsafe class SplitVirtqueuePollingNotificationCompletion
         result.BusMasterDisabled = access.BusMaster(access.Context, 0) == 1;
         if (!result.ResetComplete) return result;
         if (!result.BusMasterDisabled) { result.CleanupStatus = VirtqueuePollingStatus.BusMasterFailed; return result; }
+        if (interrupt && !result.InterruptsMasked) { result.CleanupStatus = VirtqueuePollingStatus.InterruptFailed; return result; }
         if (!Fence(access, ref result)) { result.CleanupStatus = VirtqueuePollingStatus.OrderingFailed; return result; }
         result.CleanupStatus = VirtqueuePollingStatus.Success;
         if (allocation.IsInitialized)
@@ -105,7 +134,8 @@ public static unsafe class SplitVirtqueuePollingNotificationCompletion
     private static VirtqueuePollingStatus Execute(VirtioMappedRegion common, VirtioMappedRegion notify,
         uint multiplier, DmaBufferPool* dma, VirtqueuePollingAccess a, uint pollLimit,
         VirtqueueDescriptorPoolState* descriptors, VirtqueueDescriptorSlot* slots,
-        ref DmaBufferAllocation allocation, ref VirtqueueDescriptorToken token, ref VirtqueuePollingResult r)
+        ref DmaBufferAllocation allocation, ref VirtqueueDescriptorToken token, ref VirtqueuePollingResult r,
+        bool interrupt, VirtqueueInterruptAccess interrupts)
     {
         ulong c = common.VirtualStart;
         var status = Status(c, 11, a);
@@ -144,16 +174,17 @@ public static unsafe class SplitVirtqueuePollingNotificationCompletion
         *(ulong*)descriptor = r.DeviceAddress + PayloadOffset;
         *(uint*)(descriptor + 8) = PayloadBytes; // flags and next remain zero.
         ushort* available = (ushort*)(data + plan.AvailableRing.Offset);
-        available[0] = 1; // VIRTQ_AVAIL_F_NO_INTERRUPT; PCI INTx remains disabled.
+        available[0] = interrupt ? (ushort)0 : (ushort)1; // Polling retains VIRTQ_AVAIL_F_NO_INTERRUPT.
         available[2] = token.Index;
         if (!Fence(a, ref r)) return VirtqueuePollingStatus.OrderingFailed;
-        if (a.Write16(a.Context, c + 24, QueueSize) != 1 || a.Write16(a.Context, c + 26, 0xffff) != 1 ||
+        ushort requestedVector = interrupt ? (ushort)0 : (ushort)0xffff;
+        if (a.Write16(a.Context, c + 24, QueueSize) != 1 || a.Write16(a.Context, c + 26, requestedVector) != 1 ||
             !WriteAddress(a, c + 32, r.DeviceAddress + plan.DescriptorTable.Offset) ||
             !WriteAddress(a, c + 40, r.DeviceAddress + plan.AvailableRing.Offset) ||
             !WriteAddress(a, c + 48, r.DeviceAddress + plan.UsedRing.Offset)) return VirtqueuePollingStatus.WriteFailed;
         if (a.Read16(a.Context, c + 24, &maximum) != 1 || a.Read16(a.Context, c + 26, &vector) != 1)
             return VirtqueuePollingStatus.ReadFailed;
-        if (maximum != QueueSize || vector != 0xffff) return VirtqueuePollingStatus.InvalidQueue;
+        if (maximum != QueueSize || vector != requestedVector) return VirtqueuePollingStatus.InvalidQueue;
         status = Status(c, 11, a);
         if (status != VirtqueuePollingStatus.Success) return status;
         if (a.Write16(a.Context, c + 28, 1) != 1) return VirtqueuePollingStatus.WriteFailed;
@@ -174,8 +205,13 @@ public static unsafe class SplitVirtqueuePollingNotificationCompletion
         available[1] = 1; r.AvailableIndex = 1;
         if (!Fence(a, ref r)) return VirtqueuePollingStatus.OrderingFailed;
         if (a.Write16(a.Context, r.NotifyAddress, QueueIndex) != 1) return VirtqueuePollingStatus.WriteFailed;
+        if (interrupt)
+        {
+            if (interrupts.Wait(interrupts.Context, pollLimit) != 1) return VirtqueuePollingStatus.InterruptFailed;
+            r.InterruptObserved = true;
+        }
         ushort used = 0;
-        for (uint i = 0; i < pollLimit; i++)
+        for (uint i = 0; i < (interrupt ? 1U : pollLimit); i++)
         {
             r.Polls++;
             status = Status(c, 15, a);

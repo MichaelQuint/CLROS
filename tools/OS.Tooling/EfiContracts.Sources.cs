@@ -11,7 +11,7 @@ public static partial class EfiContracts
                 [@"..\..\std\no-runtime\shared\Memory\MemoryOrder.cs"] = "c26985ed287bda9192fb5cac309242b4da6b77866f6b0d71b518281f183b724f",
                 [@"..\OS.Kernel\Drivers\VirtqueueSplitRingPlan.cs"] = "3634f2372fda144886de555a65d9395dfa339b39d9a4b4b2c9a88db785220291",
                 [@"..\OS.Kernel\Drivers\MemoryOrderingPrimitivesReplacingReadinessBooleans.cs"] = "a202423035bc37a5ae1de5e0fc76898ddb0d3c510d69bd9f8f13c359d1e8e3c0",
-                [@"..\OS.Kernel\Drivers\SplitVirtqueuePollingNotificationCompletion.cs"] = "9000d3da288a8ee64717337f6c57664482fe5eed753a62d6146b54d71963253b",
+                [@"..\OS.Kernel\Drivers\SplitVirtqueuePollingNotificationCompletion.cs"] = "b896d3a2ef1dcb7e3cc80b7a0108db6b5caa6ebeccc1d0eaeeffba6ec90ffd3c",
                 [@"..\OS.Kernel\Drivers\DescriptorAllocationExhaustionInvalidIndexDoubleFreeTests.cs"] = "0c7a5ec7a24178fd075983581b70e1d9ba60b6c8843864eeb562a258aa05cb34",
                 [@"..\OS.Kernel\Drivers\VirtqueuePowerTwoConstraintsIndexWidthNegotiatedMaximum.cs"] = "22022fb0a81fec7d89e71960137a909fe0998518565f98deeddb4041d55ae7e4",
                 [@"..\OS.Kernel\Drivers\VirtioPciModernRegisterMap.cs"] = "4a169747f11fda8d4d58b5c3a6e8e60901858555c95e7173e6a3d8defcf145c3",
