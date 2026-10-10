@@ -2,6 +2,17 @@
 
 ## Current Status
 
+#122/#123 are under development with integration #625. A value-type adapter
+implements the existing `IReadOnlyBlockDevice`, reuses `BlockDeviceRead` bounds,
+and permits one attempted one-sector read per fresh negotiated lifetime.
+Capacity must still match before publication; failed/uncertain cleanup preserves
+the accepted transport's output and DMA rules. Closed constrained calls return
+the existing Info and BlockReadResult values without boxing in the host tests.
+LBA0 validation accepts only one inactive protective EE entry starting at LBA1,
+covering min(capacity-1, UINT32_MAX), signature55AA and no hybrid entries.
+Boot code and CHS are opaque. Focused host checks pass; native/guest evidence
+is pending. The [native Span subset](nativeaot-nostdlib-limits.md) remains bounded.
+
 The bounded read batch #120/#121/#623 is accepted in
 [step1143](../done/step1143.md): 4,304 full-host checks across 521 groups, targeted
 native review and strict 138/122/79-record read/queue/ordinary captures pass.

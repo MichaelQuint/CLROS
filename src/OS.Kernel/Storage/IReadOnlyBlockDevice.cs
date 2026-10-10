@@ -1,3 +1,5 @@
+using System;
+
 namespace OS.Storage;
 
 public interface IReadOnlyBlockDevice

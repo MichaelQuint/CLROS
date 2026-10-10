@@ -2,6 +2,25 @@
 
 ## Current Status
 
+The #122/#123/#625 development batch adds a narrow pointer-backed `System.Span<T>`
+surface from `std/no-runtime/shared/Memory/SystemSpanPointer.cs`: pointer/length
+constructor, `Length` and `GetPinnableReference`, restricted to unmanaged T.
+The same storage operations build as an `OS.Std.NoRuntime.Span<T>` host mirror.
+Default/zero-length pinning yields a null reference; nonempty pinning retains
+the supplied address. Construction/pinning allocates nothing and does not map,
+validate or retain the pointed-to memory; the caller owns its full lifetime.
+Negative lengths throw in the host mirror and halt in the no-stdlib surface.
+Reference-containing T, arrays, indexing, slices, enumeration and copying are
+not supplied. This is not general Span/BCL or moving-GC interior-reference support.
+
+Source basis is the pinned runtime's
+[Span layout and pointer/pinning contracts](https://github.com/dotnet/dotnet/blob/95017c711e6afc1085133d440e42b4bd78155701/src/runtime/src/libraries/System.Private.CoreLib/src/System/Span.cs)
+and [ByRefFields compiler feature identity](https://github.com/dotnet/dotnet/blob/95017c711e6afc1085133d440e42b4bd78155701/src/runtime/src/libraries/System.Private.CoreLib/src/System/Runtime/CompilerServices/RuntimeFeature.cs).
+Concrete compilation/publish diagnostics require the unmanaged-constraint
+`UnmanagedType` identity (no marshalling values/API), `RuntimeFeature.ByRefFields`
+and `Int32.MaxValue`. Focused host parity/contract tests pass; native lowering,
+strict source admission, guest and stable-batch qualification are still pending.
+
 `OS.Std.Memory.MemoryOrder.Fence(void*, delegate* unmanaged<void*, byte>)` is
 an OS-specific allocation-free status API, not `System.Threading.Thread` or BCL
 compatibility. It rejects a null callback, invokes a non-null callback exactly

@@ -1,5 +1,11 @@
 # CLROS Completion Gates
 
+#122/#123/#625 implementation is in progress: the existing block contract has
+a one-attempt live adapter and a protective LBA0 validator. Focused host and
+selected no-stdlib compilation evidence is in [step1144](../done/step1144.md).
+Native Span/constrained-call lowering, guest capture and stable-batch full-host
+qualification remain pending. These issues remain open and Gate 7 still fails.
+
 The bounded read/completion batch #120/#121/#623 is accepted in
 [step1143](../done/step1143.md): 4,304 full-host checks, native delta review and
 strict 138/122/79-record read/queue/ordinary captures pass. One 512-byte sector

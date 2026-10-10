@@ -690,6 +690,13 @@ public static class QemuContracts
         "TEST_START m06.006", .. Enumerable.Range(6, 4).Select(i => "M06_READ " + i), "CLROS_M06_006_READY", "TEST_PASS m06.006"
     ]);
 
+    public static IReadOnlyList<string> M06LiveBlockContractMarkers { get; } = Array.AsReadOnly<string>(
+    [
+        .. M06VirtioBlockReadMarkers,
+        "TEST_START m06.007", .. Enumerable.Range(0, 6).Select(i => "M06_BDEV " + i), "CLROS_M06_007_READY", "TEST_PASS m06.007",
+        "TEST_START m06.008", .. Enumerable.Range(6, 8).Select(i => "M06_BDEV " + i.ToString("X")), "CLROS_M06_008_READY", "TEST_PASS m06.008"
+    ]);
+
     public static IReadOnlyList<string> M05VirtioNegotiationMarkers { get; } = Array.AsReadOnly<string>(
     [
         .. M05PciEnumerationMarkers,

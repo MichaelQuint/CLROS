@@ -93,7 +93,7 @@ internal static unsafe class M06VirtioBlockReadEfiIntegrationTests
         finally { Directory.Delete(directory, true); }
     }
 
-    private static string[] Capture()
+    internal static string[] Capture()
     {
         string[] prefix = M06VirtioBlockQueueSetupEfiIntegrationTests.Capture();
         string[] lines = QemuContracts.M06VirtioBlockReadMarkers.ToArray(); prefix.CopyTo(lines, 0);

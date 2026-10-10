@@ -93,6 +93,7 @@
 		<EnableM05VirtqueuePollingProbe Condition="'$(EnableM05VirtqueuePollingProbe)' == ''">false</EnableM05VirtqueuePollingProbe>
 		<EnableM06VirtioBlockQueueSetupProbe Condition="'$(EnableM06VirtioBlockQueueSetupProbe)' == ''">false</EnableM06VirtioBlockQueueSetupProbe>
 		<EnableM06VirtioBlockReadProbe Condition="'$(EnableM06VirtioBlockReadProbe)' == ''">false</EnableM06VirtioBlockReadProbe>
+		<EnableM06LiveBlockContractProbe Condition="'$(EnableM06LiveBlockContractProbe)' == ''">false</EnableM06LiveBlockContractProbe>
 		<EnableM04InterfaceDispatchProbe Condition="'$(EnableM04InterfaceDispatchProbe)' == ''">false</EnableM04InterfaceDispatchProbe>
 	</PropertyGroup>
 
@@ -361,6 +362,9 @@
 	<PropertyGroup Condition="'$(EnableM06VirtioBlockQueueSetupProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM06LiveBlockContractProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M06_LIVE_BLOCK_CONTRACT_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM06VirtioBlockReadProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M06_VIRTIO_BLOCK_READ_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -441,6 +445,7 @@
 			'$(EnableM05VirtqueuePollingProbe)' == 'true' or
 			'$(EnableM06VirtioBlockQueueSetupProbe)' == 'true' or
 			'$(EnableM06VirtioBlockReadProbe)' == 'true' or
+			'$(EnableM06LiveBlockContractProbe)' == 'true' or
 			'$(EnableUefiGoneSimulationProbe)' == 'true')">Diagnostic</ClrosBootPolicy>
 		<ClrosBootPolicy Condition="'$(ClrosBootPolicy)' == ''">VerifiedExit</ClrosBootPolicy>
 	</PropertyGroup>
@@ -577,6 +582,15 @@
 		<Compile Include="..\OS.Kernel\Storage\VirtioBlkQueueN0.cs" Link="Storage\VirtioBlkQueueN0.cs" />
 		<Compile Include="..\OS.Kernel\Storage\SubmitPollSectorRequest.cs" Link="Storage\SubmitPollSectorRequest.cs" />
 		<Compile Include="..\OS.Kernel\Storage\UsedRingCompletionStatusByteTimeoutDeviceReset.cs" Link="Storage\UsedRingCompletionStatusByteTimeoutDeviceReset.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Memory\SystemSpanPointer.cs" Link="Std\Memory\SystemSpanPointer.cs" />
+		<Compile Include="..\OS.Kernel\Storage\IReadOnlyBlockDevice.cs" Link="Storage\IReadOnlyBlockDevice.cs" />
+		<Compile Include="..\OS.Kernel\Storage\BlockDeviceInfo.cs" Link="Storage\BlockDeviceInfo.cs" />
+		<Compile Include="..\OS.Kernel\Storage\BlockDeviceInfoResult.cs" Link="Storage\BlockDeviceInfoResult.cs" />
+		<Compile Include="..\OS.Kernel\Storage\BlockDeviceStatus.cs" Link="Storage\BlockDeviceStatus.cs" />
+		<Compile Include="..\OS.Kernel\Storage\BlockReadResult.cs" Link="Storage\BlockReadResult.cs" />
+		<Compile Include="..\OS.Kernel\Storage\BlockDeviceRead.cs" Link="Storage\BlockDeviceRead.cs" />
+		<Compile Include="..\OS.Kernel\Storage\LiveDeviceExistingIReadOnlyBlockDeviceContract.cs" Link="Storage\LiveDeviceExistingIReadOnlyBlockDeviceContract.cs" />
+		<Compile Include="..\OS.Kernel\Storage\LBAN0Guest.cs" Link="Storage\LBAN0Guest.cs" />
 		<Compile Include="..\OS.Kernel\Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs" Link="Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\Binary\EndianPrimitives.Pointer.cs" Link="Std\Binary\EndianPrimitives.Pointer.cs" />
 		<Compile Include="..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs" Link="Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs" />
@@ -691,6 +705,7 @@
 			'$(EnableM05VirtqueuePollingProbe)' == 'true' or
 			'$(EnableM06VirtioBlockQueueSetupProbe)' == 'true' or
 			'$(EnableM06VirtioBlockReadProbe)' == 'true' or
+			'$(EnableM06LiveBlockContractProbe)' == 'true' or
 			'$(EnableUefiGoneSimulationProbe)' == 'true')" Text="clros_boot_policy_probe_conflict" />
 	</Target>
 
@@ -1815,6 +1830,8 @@
 		<Error Condition="'$(EnableM05VirtqueueInterruptProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM05ApicSetupProbe)' != 'true' or '$(EnableM05VirtioNegotiationProbe)' != 'true')" Text="m05_virtqueue_interrupt_requires_apic_negotiation" />
 		<Error Condition="'$(EnableM05VirtqueueInterruptProbe)' == 'true' and '$(EnableM05VirtqueuePollingProbe)' == 'true'" Text="m05_virtqueue_interrupt_polling_conflict" />
 		<Error Condition="'$(EnableM05VirtqueuePollingProbe)' != 'true' and '$(EnableM05VirtqueuePollingProbe)' != 'false'" Text="m05_virtqueue_polling_switch_invalid" />
+		<Error Condition="'$(EnableM06LiveBlockContractProbe)' != 'true' and '$(EnableM06LiveBlockContractProbe)' != 'false'" Text="m06_live_block_contract_switch_invalid" />
+		<Error Condition="'$(EnableM06LiveBlockContractProbe)' == 'true' and '$(EnableM06VirtioBlockReadProbe)' != 'true'" Text="m06_live_block_contract_requires_read" />
 		<Error Condition="'$(EnableM06VirtioBlockReadProbe)' != 'true' and '$(EnableM06VirtioBlockReadProbe)' != 'false'" Text="m06_block_read_switch_invalid" />
 		<Error Condition="'$(EnableM06VirtioBlockReadProbe)' == 'true' and '$(EnableM06VirtioBlockQueueSetupProbe)' != 'true'" Text="m06_block_read_requires_queue" />
 		<Error Condition="'$(EnableM06VirtioBlockQueueSetupProbe)' != 'true' and '$(EnableM06VirtioBlockQueueSetupProbe)' != 'false'" Text="m06_block_queue_switch_invalid" />

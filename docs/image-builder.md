@@ -1,5 +1,12 @@
 # Image Builder
 
+The new `--EnableM06LiveBlockContractProbe` requires the read diagnostic and
+adds an LBA0 receipt. Host checks independently compare disk capacity, CRC32,
+first/last words, signature55AA and the single protective MBR entry with guest
+records; malformed or hybrid entries fail. This does not interpret GPT or load
+files. Implementation is in [step1144](../done/step1144.md), with actual guest
+qualification pending.
+
 ## Current Status
 
 The accepted read diagnostic adds `--EnableM06VirtioBlockReadProbe` to that block

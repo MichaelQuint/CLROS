@@ -44,7 +44,8 @@ public static class EfiProjectAdmission
                 string path = Path.GetFullPath(Path.Combine(Path.GetDirectoryName(project)!, include));
                 _ = RelativePath(root, path, "source_outside_repository"); Require(physical.Add(path), "duplicate_compile_include", include); Require(File.Exists(path), "source_missing", include);
                 AuthorityFiles.RequirePlainPath(root, path, "source_reparse_point");
-                if (!include.StartsWith("..\\OS.Kernel\\", StringComparison.Ordinal)) continue;
+                if (!include.StartsWith("..\\OS.Kernel\\", StringComparison.Ordinal) &&
+                    !EfiContracts.SourceAdmissionReasons.ContainsKey(include)) continue;
                 string text = File.ReadAllText(path); source[include] = text;
                 EfiSourceResult result = EfiSourceAdmission.Inspect(text, include);
                 Require(result.Succeeded, result.Reason, result.Detail); active[include] = result.ActiveText;

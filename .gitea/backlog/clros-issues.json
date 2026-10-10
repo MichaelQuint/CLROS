@@ -13853,7 +13853,7 @@
         "M06-006"
       ],
       "labels": [
-        "agent:ready",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -13880,7 +13880,7 @@
       ],
       "collisionLane": null,
       "summary": "Expose the live device through the existing IReadOnlyBlockDevice contract.",
-      "currentEvidence": "Prerequisite bounded one-sector transport/completion is accepted in done/step1143.md. GPT, FAT32 and package consumers remain host-tested; this issue has no accepted live implementation or guest proof. No live block-contract adapter, guest filesystem/package load or M06/Gate7 completion is claimed. Native Span and a closed constrained block-interface path must be validated; a host adapter plus a guest pointer call is insufficient.",
+      "currentEvidence": "Prerequisite bounded sector transport/completion is accepted in done/step1143.md. Claimed with integration #625: one-use IReadOnlyBlockDevice adapter, pointer-backed Span subset and protective LBA0 validation are implemented with focused host checks. The new default-off native profile, strict admission, native lowering review and real QEMU/OVMF qualification remain pending. No live block-contract, filesystem/package, M06/Gate7 or later gate acceptance is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Expose the live device through the existing IReadOnlyBlockDevice contract.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -13944,7 +13944,7 @@
         "M06-007"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -13971,7 +13971,7 @@
       ],
       "collisionLane": null,
       "summary": "Read and validate LBA 0 from the guest.",
-      "currentEvidence": "Prerequisite bounded one-sector transport/completion is accepted in done/step1143.md. GPT, FAT32 and package consumers remain host-tested; this issue has no accepted live implementation or guest proof. No live block-contract adapter, guest filesystem/package load or M06/Gate7 completion is claimed.",
+      "currentEvidence": "Prerequisite bounded sector transport/completion is accepted in done/step1143.md. Claimed with integration #625: one-use IReadOnlyBlockDevice adapter, pointer-backed Span subset and protective LBA0 validation are implemented with focused host checks. The new default-off native profile, strict admission, native lowering review and real QEMU/OVMF qualification remain pending. No live block-contract, filesystem/package, M06/Gate7 or later gate acceptance is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read and validate LBA 0 from the guest.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

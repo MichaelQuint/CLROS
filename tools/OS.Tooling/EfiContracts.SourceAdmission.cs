@@ -3,6 +3,17 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"Runtime\MinimalRuntime.cs"] = "reviewed_minimal_runtime_source_identity",
+        [@"..\..\std\no-runtime\shared\Memory\SystemSpanPointer.cs"] = "reviewed_live_block_contract_source_identity",
+        [@"..\OS.Kernel\Storage\IReadOnlyBlockDevice.cs"] = "reviewed_live_block_contract_source_identity",
+        [@"..\OS.Kernel\Storage\BlockDeviceInfo.cs"] = "reviewed_live_block_contract_source_identity",
+        [@"..\OS.Kernel\Storage\BlockDeviceInfoResult.cs"] = "reviewed_live_block_contract_source_identity",
+        [@"..\OS.Kernel\Storage\BlockDeviceStatus.cs"] = "reviewed_live_block_contract_source_identity",
+        [@"..\OS.Kernel\Storage\BlockReadResult.cs"] = "reviewed_live_block_contract_source_identity",
+        [@"..\OS.Kernel\Storage\BlockDeviceRead.cs"] = "reviewed_live_block_contract_source_identity",
+        [@"..\OS.Kernel\Storage\LiveDeviceExistingIReadOnlyBlockDeviceContract.cs"] = "reviewed_live_block_contract_source_identity",
+        [@"..\OS.Kernel\Storage\LBAN0Guest.cs"] = "reviewed_live_block_contract_source_identity",
+
         ["..\\OS.Kernel\\Storage\\LiveVirtioBlkPCIDevice.cs"] = "reviewed_block_binding_source_identity",
         ["..\\OS.Kernel\\Storage\\MinimalVirtioBlkFeatureSet.cs"] = "reviewed_block_features_source_identity",
         ["..\\OS.Kernel\\Storage\\DMASafeRequestStatusDescriptorAvailableUsedRing.cs"] = "reviewed_block_dma_source_identity",

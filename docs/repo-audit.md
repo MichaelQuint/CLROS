@@ -1,5 +1,11 @@
 # Repository Audit
 
+The owned batch #122/#123/#625 implements a one-attempt block-interface adapter,
+protective LBA0 validation and an explicit default-off integration profile.
+Focused host checks and no-stdlib compilation are development evidence only;
+native/guest and full-host qualification remain pending. See
+[step1144](../done/step1144.md).
+
 ## Current Status
 
 The M06 read/completion batch #120/#121/#623 is accepted in
