@@ -238,15 +238,16 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
             [
                 ("projectSourceSha256", ExpectedProjectSourceSha256,
                     ContractAudit.HashSource(File.ReadAllText(Path.Combine(root, "src", "OS", "OS.csproj")))),
-                ("entrySha256", ExpectedEntrySha256, before.EntrySha256),
+                ("entrySha256", ExpectedEntrySha256,
+                    ContractAudit.HashSource(File.ReadAllText(Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs")))),
                 ("compileSha256", ExpectedCompileSha256, before.CompileSha256),
                 ("sourceInputCount", ExpectedSourceInputCount.ToString(CultureInfo.InvariantCulture),
                     before.SourceInputCount.ToString(CultureInfo.InvariantCulture)),
                 ("compileCount", ExpectedCompileCount.ToString(CultureInfo.InvariantCulture),
                     before.CompileCount.ToString(CultureInfo.InvariantCulture)),
                 ("transitionSha256", ExpectedTransitionSha256,
-                    Sha256File(Path.Combine(root, "src", "OS.Kernel", "Diagnostics",
-                        "DisabledDefaultUd2VectorStateTransition.cs")))
+                    ContractAudit.HashSource(File.ReadAllText(Path.Combine(root, "src", "OS.Kernel", "Diagnostics",
+                        "DisabledDefaultUd2VectorStateTransition.cs"))))
             ];
             bool frozenAuthorityExact = true;
             foreach (var authority in frozenAuthority)

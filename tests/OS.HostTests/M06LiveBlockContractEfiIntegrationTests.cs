@@ -58,7 +58,8 @@ internal static unsafe class M06LiveBlockContractEfiIntegrationTests
             HostCheck.True(accepted.Succeeded, accepted.Reason + " " + accepted.Detail);
             string[] sources = [@"..\..\std\no-runtime\shared\Memory\SystemSpanPointer.cs", @"Runtime\MinimalRuntime.cs",
                 .. new[] { "IReadOnlyBlockDevice", "BlockDeviceInfo", "BlockDeviceInfoResult", "BlockDeviceStatus",
-                    "BlockReadResult", "BlockDeviceRead", "LiveDeviceExistingIReadOnlyBlockDeviceContract", "LBAN0Guest" }
+                    "BlockReadResult", "BlockDeviceRead", "LiveDeviceExistingIReadOnlyBlockDeviceContract", "LBAN0Guest",
+                    "PrimaryGPTIndependentlyBoundsCRC", "ExerciseBackupGPTFallbackLiveDisk", "FAT32ApplicationEFIPartition" }
                     .Select(name => @"..\OS.Kernel\Storage\" + name + ".cs")];
             foreach (string source in sources)
             {
@@ -159,7 +160,7 @@ internal static unsafe class M06LiveBlockContractEfiIntegrationTests
         finally { Directory.Delete(directory, true); }
     }
 
-    private static string[] Capture()
+    internal static string[] Capture()
     {
         string[] prefix = M06VirtioBlockReadEfiIntegrationTests.Capture();
         string[] lines = QemuContracts.M06LiveBlockContractMarkers.ToArray(); prefix.CopyTo(lines, 0);

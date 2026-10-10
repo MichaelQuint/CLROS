@@ -315,6 +315,24 @@ internal static class QemuRunnerTests
         foreach (string flag in new[] { "--virtio-block-queue-device", "--virtio-negotiation-device", "--pci-bar-test-device" })
             foreach (string[] flags in new[] { new[] { flag, "--virtio-block-queue-device" }, new[] { "--virtio-block-queue-device", flag } })
                 if (RunQemuRunner(["--dry-run", .. flags]).ExitCode == 0) return false;
+        string data = Path.Combine(root, "damaged.raw"), boot = Path.Combine(root, "intact.raw");
+        ProcessResult separate = RunQemuRunner("--dry-run", "--qemu", "qemu-test", "--image", data,
+            "--virtio-block-queue-device", "--virtio-block-boot-image", boot);
+        if (separate.ExitCode != 0 || !separate.Output.Contains("ide-hd,drive=esp,bus=ahci.0", StringComparison.Ordinal) ||
+            !separate.Output.Contains("if=none,id=esp,format=raw,snapshot=on,file=" + boot, StringComparison.Ordinal) ||
+            !separate.Output.Contains("if=none,id=gptdata,format=raw,readonly=on,file=" + data, StringComparison.Ordinal) ||
+            !separate.Output.Contains("virtio-blk-pci,drive=gptdata,addr=06.0,disable-legacy=on,romfile=", StringComparison.Ordinal)) return false;
+        foreach (string[] args in new string[][] {
+            ["--virtio-block-boot-image", boot],
+            ["--virtio-block-queue-device", "--virtio-block-boot-image", ""],
+            ["--virtio-block-queue-device", "--virtio-block-boot-image", boot, "--virtio-block-boot-image", boot],
+            ["--virtio-block-queue-device", "--virtio-block-boot-image", data],
+            ["--virtio-block-queue-device", "--virtio-block-boot-image", boot, "--serial-log", boot],
+            ["--virtio-block-queue-device", "--virtio-block-boot-image", boot, "--summary-log", boot],
+            ["--virtio-block-queue-device", "--virtio-block-boot-image", boot, "--disk-format", "qcow2"],
+            ["--virtio-block-queue-device", "--virtio-block-boot-image", boot, "--virtio-negotiation-device"] })
+            if (RunQemuRunner(["--dry-run", "--image", data, .. args]).ExitCode == 0) return false;
+        if (RunQemuRunner("preflight", "--image", data, "--virtio-block-queue-device", "--virtio-block-boot-image", boot).ExitCode == 0) return false;
         return true;
     }
 

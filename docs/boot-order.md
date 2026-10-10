@@ -1,5 +1,12 @@
 # Boot Order
 
+`BootSequence.RunOwnedGptPartition` requires completed live block-contract proof
+and its separate default-off probe. Primary validation precedes optional backup
+reads and EFI partition selection. Each read completes reset and original
+allocator restoration before the next begins. [Step1150](../done/step1150.md)
+accepts full-host/native review and intact/backup guest captures. Ordinary boot
+gains no storage phase.
+
 `BootSequence.RunOwnedLiveBlockContract` requires completed read proof and its
 own default-off probe. It starts another fresh negotiation/read/reset lifetime,
 then validates LBA0 and restores the original allocator. The adapter is consumed

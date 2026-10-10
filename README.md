@@ -21,11 +21,16 @@
 
 ## Progress
 
+The bounded GPT validation/backup/EFI partition batch is [accepted](done/step1150.md):
+4,336 full-host checks, native review and exact 207/208-record intact/damaged-primary
+guest captures pass. EFI partition location is established; FAT/package loading,
+continuing storage and Gate 7 remain incomplete.
+
 A one-attempt live block adapter and protective LBA0 validation are
 [accepted](done/step1147.md): 4,316 full-host checks, native ABI/stack review and
 158/138/122/79-record contract/read/queue/ordinary guest captures pass. The
 existing block interface returns the checked 512-byte read through a closed
-constrained call, then validates the protective MBR. Guest GPT/FAT/package
+constrained call, then validates the protective MBR. Guest FAT/package
 loading, continuing storage and Gate 7 remain incomplete.
 
 The bounded APIC/MSI-X batch is [accepted](done/step1137.md): 4,277 full-host
@@ -166,7 +171,8 @@ disabled by default and are not all combined into one continuing kernel boot.
 | NativeAOT runtime subset | Guest evidence covers bounded fixed-object, byte/long-array and String allocation, checked reference helpers, one-module registration, static roots, nonmoving collection, compiler-generated constructors, and ordinary-instance interface dispatch. Current-image unwind metadata is accepted; one-frame restoration and EH-clause helpers retain their bounded host contracts, and one separate profile executes a real throw, typed catch and compiled continuation. This is a limited runtime subset, not the full .NET libraries, GC or exception runtime. |
 | Shared utilities | Host-tested ASCII/text, numeric formatting, memory, endian, checksum, and collection helpers; selected fixed conformance catalogs also execute in the EFI guest. |
 | Bounded platform and Virtio | Separate accepted diagnostics cover retained ACPI, a polled clock, UC mappings, PCI/BAR access, DMA lifetime, modern Virtio negotiation, one polling TX completion and one MSI-X TX completion. These are finite single-BSP profiles, not continuing device services or packet-delivery proof. |
-| PAL, storage, networking, and app groundwork | Host-tested ABI contracts, parser/planner logic, mock PAL tables, disk/package/image tools, protocol frames, and app launch/lifecycle metadata. These do not establish live guest drivers, packet I/O, package loading, or app execution. |
+| Bounded storage | Accepted terminal diagnostics cover one-sector reads through the block contract, protective LBA0, primary/backup GPT CRCs and EFI partition location. Each read has a fresh negotiated lifetime; guest FAT/package loading and continuing storage remain incomplete. |
+| PAL, networking, and app groundwork | Host-tested ABI contracts, parser/planner logic, mock PAL tables, package/image tools, protocol frames, and app launch/lifecycle metadata. These do not establish continuing drivers, packet I/O, package loading, or app execution. |
 | Evidence tooling | Stable test/serial markers, source and artifact checks, host image tools, QEMU runners, CI dry-run scaffolding, and immutable `done/stepNN.md` records. Executed CI and cloud-provider acceptance remain separate gates. |
 
 ## What Is Not Complete

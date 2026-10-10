@@ -12,7 +12,7 @@ public static partial class EfiContracts
          "EnableM05VirtqueuePollingProbe", "EnableM05ApicSetupProbe", "EnableM05VirtqueueInterruptProbe",
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
-        "EnableM06LiveBlockContractProbe", "EnableM06LiveBlockContractProbe"]);
+        "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -22,14 +22,15 @@ public static partial class EfiContracts
             ("M05_VIRTQUEUE_INTERRUPT_PROBE", "RunOwnedVirtqueueInterrupt", "RunQueueCore"),
             ("M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE", "RunOwnedVirtioBlockQueueSetup", "RunBlockQueueCore"),
             ("M06_VIRTIO_BLOCK_READ_PROBE", "RunOwnedVirtioBlockRead", "RunBlockReadCore"),
-            ("M06_LIVE_BLOCK_CONTRACT_PROBE", "RunOwnedLiveBlockContract", "RunBlockReadCore")]);
+            ("M06_LIVE_BLOCK_CONTRACT_PROBE", "RunOwnedLiveBlockContract", "RunBlockReadCore"),
+            ("M06_GPT_PARTITION_PROBE", "ReadGptSector", "RunBlockReadCore")]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "e82682f0d98193a8114f8e37dbfcabb299b94f05f6aefaa38a8495c094c34f87";
-    public const string CanonicalProjectSha256 = "54278dbe2f01fe9d2f1fc8269abe406998d8878ccf864bc11d19b5b1a8eb77a0";
-    public const string EfiEntrySourceSha256 = "ac1444ca626396f932a0719a45c46eb1ec619fa7f9417472f74c5467ee02307f";
+    public const string ProjectSourceSha256 = "1561f1e0cb7a201d47e330ac0d0d3cfd469f842a693cf323efb4b1f55fa4cb8d";
+    public const string CanonicalProjectSha256 = "f17e9e430e7abc7ff01888f7567eab9b46d80e51bd77e3427b784dba4e2db259";
+    public const string EfiEntrySourceSha256 = "1187546da0d858e89f9584465e04606013db6c46c6ce280a70e03047fdb10f13";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -182,6 +183,9 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Storage\BlockDeviceRead.cs|Storage\BlockDeviceRead.cs",
         @"..\OS.Kernel\Storage\LiveDeviceExistingIReadOnlyBlockDeviceContract.cs|Storage\LiveDeviceExistingIReadOnlyBlockDeviceContract.cs",
         @"..\OS.Kernel\Storage\LBAN0Guest.cs|Storage\LBAN0Guest.cs",
+        @"..\OS.Kernel\Storage\PrimaryGPTIndependentlyBoundsCRC.cs|Storage\PrimaryGPTIndependentlyBoundsCRC.cs",
+        @"..\OS.Kernel\Storage\ExerciseBackupGPTFallbackLiveDisk.cs|Storage\ExerciseBackupGPTFallbackLiveDisk.cs",
+        @"..\OS.Kernel\Storage\FAT32ApplicationEFIPartition.cs|Storage\FAT32ApplicationEFIPartition.cs",
         @"..\OS.Kernel\Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs|Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs",
         @"..\..\std\no-runtime\shared\Binary\EndianPrimitives.Pointer.cs|Std\Binary\EndianPrimitives.Pointer.cs",
         @"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs|Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs",
@@ -275,6 +279,7 @@ public static partial class EfiContracts
         "EnableM05VirtioNegotiationProbe",
         "EnableM05VirtqueueInterruptProbe",
         "EnableM05VirtqueuePollingProbe",
+        "EnableM06GptPartitionProbe",
         "EnableM06LiveBlockContractProbe",
         "EnableM06VirtioBlockQueueSetupProbe",
         "EnableM06VirtioBlockReadProbe",

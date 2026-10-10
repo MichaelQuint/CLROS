@@ -27,6 +27,16 @@ public static class QemuSmoke
             output.WriteLine("TEST_PASS workload.profile.tooling " + (options.WorkloadProfile == "SingleMinimalApi" ? "default single" : "propagates multi"));
             output.WriteLine("QEMU_SCRIPT_PROFILE required=" + plan.Required.Count + " ordered=" + plan.Ordered.Count + " unique=" + plan.Unique.Count + " forbidden=" + plan.Forbidden.Count);
             if (plan.Presets.Count != 0) output.WriteLine("QEMU_MARKER_PRESETS " + string.Join(';', plan.Presets));
+            string gptBootImage = options.GptImageVariant == "PrimaryHeaderCrcFault" ? options.Image + ".boot.raw" : "";
+            if (gptBootImage.Length != 0)
+            {
+                string boot = Path.GetFullPath(gptBootImage, root);
+                var comparer = OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal;
+                foreach (string path in new[] { options.Image, options.EfiArtifact, options.SerialLog, options.SummaryLog,
+                    options.SummaryLog + ".stderr.log", options.Qemu, options.OvmfCode, options.M01RawObservationLog })
+                    if (path.Length != 0 && comparer.Equals(boot, Path.GetFullPath(path, root)))
+                        throw new ToolFailure("gpt_boot_image_path_alias");
+            }
             string qemu = options.Qemu, ovmf = options.OvmfCode;
             if (!options.DryRun)
             {
@@ -54,6 +64,16 @@ public static class QemuSmoke
                     var image = await Run("OS.ImageBuilder", ["create-raw", "--workload-profile", options.WorkloadProfile, "--efi", options.EfiArtifact, "--output", options.Image]);
                     if (image.ExitCode != 0) return image.ExitCode;
                 }
+                if (options.GptImageVariant == "PrimaryHeaderCrcFault")
+                {
+                    File.Copy(Path.GetFullPath(options.Image, root), Path.GetFullPath(gptBootImage, root), true);
+                    var receipt = GptImageFixture.ApplyPrimaryHeaderCrcFault(Path.GetFullPath(options.Image, root));
+                    using var boot = File.OpenRead(Path.GetFullPath(gptBootImage, root));
+                    if (Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(boot)) != receipt.OriginalSha256)
+                        throw new ToolFailure("gpt_boot_image_identity");
+                    output.WriteLine("M06_GPT_BOOT_IMAGE path=" + gptBootImage + " sha256=" + receipt.OriginalSha256);
+                    output.WriteLine("M06_GPT_IMAGE_FAULT " + System.Text.Json.JsonSerializer.Serialize(receipt));
+                }
                 int preflight = ValidateImage(Path.GetFullPath(options.Image, root), options.DiskFormat, output, options.Image);
                 if (preflight != 0) return preflight;
             }
@@ -79,6 +99,7 @@ public static class QemuSmoke
             if (plan.IsEnabled("EnableM05BarDmaProbe")) arguments.Add("--pci-bar-test-device");
             if (plan.IsEnabled("EnableM05VirtioNegotiationProbe")) arguments.Add("--virtio-negotiation-device");
             if (plan.IsEnabled("EnableM06VirtioBlockQueueSetupProbe")) arguments.Add("--virtio-block-queue-device");
+            if (gptBootImage.Length != 0) arguments.AddRange(["--virtio-block-boot-image", gptBootImage]);
             foreach (var (name, values) in new[] { ("--require-marker", plan.Required), ("--require-ordered-marker", plan.Ordered), ("--require-unique-marker", plan.Unique), ("--forbid-marker", plan.Forbidden), ("--marker-preset", plan.Presets) })
                 foreach (string value in values) arguments.AddRange([name, value]);
             if (qemu.Length != 0) arguments.AddRange(["--qemu", qemu]);

@@ -1,5 +1,22 @@
 # Storage
 
+The #124/#125/#126/#627 GPT batch is accepted in
+[step1150](../done/step1150.md), with full-host, native and real guest qualification.
+The default-off profile reads a 512-byte header and exactly 128 entries of 128
+bytes through separate fresh one-sector lifetimes. It checks reciprocal header
+locations, bounded usable/array extents, header/array CRCs, nonzero identities,
+unused-entry zeros, duplicate partition GUIDs and overlapping extents. Layout
+follows [UEFI GPT section5.3](https://uefi.org/specs/UEFI/2.10/05_GUID_Partition_Table_Format.html).
+A rejected primary triggers reads of the real last-sector backup header and its
+array; uncertain transport cleanup stops the profile. One fixed 16KiB caller
+buffer is reused after rejection. Exactly one EFI System Partition is selected;
+its type, extent and byte offset do not establish FAT/BPB validity. Names and
+attributes remain opaque. Every sector receipt follows observed device reset,
+bus-master disable, DMA release and exact original allocator restoration.
+The intact/damaged-primary captures pass207/208 records, with33/34 fresh reads
+and terminal `TEST_PASS m06.011`. All4,336 full-host checks and native stack/ABI
+review pass. FAT/BPB validity and continuing storage remain separate work.
+
 ## Current Status
 
 #122/#123 and integration #625 are accepted in [step1147](../done/step1147.md):
@@ -15,7 +32,7 @@ LBA0 validation accepts only one inactive protective EE entry starting at LBA1,
 covering min(capacity-1, UINT32_MAX), signature55AA and no hybrid entries.
 Boot code and CHS are opaque. Exact disk/source association and local rejection
 controls pass. The [native Span subset](nativeaot-nostdlib-limits.md) remains
-bounded. This does not accept guest GPT/FAT/package parsing or Gate 7.
+bounded. This does not accept guest FAT/package parsing or Gate 7.
 
 The bounded read batch #120/#121/#623 is accepted in
 [step1143](../done/step1143.md): 4,304 full-host checks across 521 groups, targeted
@@ -205,9 +222,9 @@ Kernel-facing parsers should prefer the non-throwing `TryRead` and `TryWrite` va
 
 ## Unsupported Behavior
 
-Beyond the accepted terminal binding/queue/one-sector diagnostic, continuing
-virtio-blk I/O, a live `IReadOnlyBlockDevice` adapter, writes, flushes,
-discard/TRIM, guest GPT/FAT interpretation, boot-time disk-backed package reads,
+Beyond the accepted terminal binding/queue, block-contract, LBA0 and bounded GPT
+diagnostics, continuing virtio-blk I/O, writes, flushes,
+discard/TRIM, guest FAT interpretation, boot-time disk-backed package reads,
 MBR fallback, deeper directory traversal, package payload loading and app loading
 remain pending. Legacy parser limitations described below also remain.
 
@@ -1092,10 +1109,10 @@ The package loader locates `OS/APP.PKG` through a GPT ESP and a first-level FAT3
 
 ## Next Steps
 
-1. Read primary GPT and independently validate bounds/CRC (#124), using the
-   accepted transport and block contract within explicit bounded lifetimes.
-2. Exercise live backup-GPT fallback and locate the EFI partition (#125/#126),
-   then validate FAT metadata. Existing host parsers are not guest acceptance.
+1. Validate guest FAT metadata and bounded cluster chains (#127), including
+   loops, bad clusters and truncation, through fresh owned read lifetimes.
+2. Add multi-cluster directory/VFAT parsing (#128) and a known file checksum
+   (#129). Existing host parsers are not guest filesystem acceptance.
 3. Load the manifest and package from the live read-only device, then complete
    the scoped storage failure probes before promoting Gate 7.
 4. Add continuing queue/service lifetime only when its ownership and recovery

@@ -1,5 +1,27 @@
 # EFI Build
 
+## Bounded GPT partition profile
+
+Add `--EnableM06GptPartitionProbe` to the complete live block-contract command.
+It defaults false and requires that contract profile. Use separate artifact paths.
+The default `--GptImageVariant Intact` expects 207 records. A second fresh run
+with `--GptImageVariant PrimaryHeaderCrcFault` expects 208 records and real
+backup fallback. Both end `TEST_PASS m06.011`. The fault option is exclusive to
+this profile: after fresh image creation the compiled fixture validates both
+copies, flips only byte528 (primary header CRC), and verifies the expected whole
+image SHA256. Dry runs do not mutate images. Existing fresh-build and no-skip
+image guards remain required. [Step1150](../done/step1150.md) accepts full-host,
+native review and both actual guest captures; steps1148-1149 retain failed attempts.
+
+For the fault variant, retain the fresh intact image as `<Image>.boot.raw`,
+boot it through SATA with `snapshot=on` (temporary writes only), and expose the
+one-byte-damaged image as the
+read-only Virtio device at slot6. This OVMF build cannot boot directly from the
+damaged primary. The wrapper verifies the companion against the pre-mutation
+hash, and final image checks require exactly the CRC-byte difference. Paths
+must be distinct. The fault capture uses the existing exact SATA firmware
+prefix; intact captures retain the existing Virtio boot prefix.
+
 ## Bounded live block-contract profile
 
 Add both `--EnableM06VirtioBlockReadProbe` and `--EnableM06LiveBlockContractProbe`
