@@ -3,8 +3,8 @@
 `BootSequence.RunOwnedLiveBlockContract` requires completed read proof and its
 own default-off probe. It starts another fresh negotiation/read/reset lifetime,
 then validates LBA0 and restores the original allocator. The adapter is consumed
-by one attempted nonempty read. See [step1144](../done/step1144.md); native/guest
-qualification is pending.
+by one attempted nonempty read. [Step1147](../done/step1147.md) accepts the
+full-host, native and guest evidence. Ordinary boot gains no storage phase.
 
 `BootSequence.RunOwnedVirtioBlockRead` follows successful queue proof only in
 the separate default-off read profile. It performs fresh negotiation, one

@@ -46,7 +46,9 @@ remain incomplete. See
 Bounded modern Virtio block binding, feature negotiation, owned DMA layout and
 queue setup are accepted in `done/step1140.md`. One default-off sector read with
 checked completion and reset/allocator cleanup is accepted in `done/step1143.md`.
-The live block-contract adapter, continuing storage and Gate 7 remain incomplete.
+A one-attempt live block-contract adapter and protective LBA0 validation are
+accepted in `done/step1147.md`. Guest GPT/FAT/package loading, continuing storage
+and Gate 7 remain incomplete.
 PAL and app-model progress remains host-tested contract/planning evidence;
 networking includes UDP/TCP checksum
 slices through active/passive handshakes, HTTP GET payload frames, and active

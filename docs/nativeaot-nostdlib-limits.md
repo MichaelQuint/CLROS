@@ -2,7 +2,7 @@
 
 ## Current Status
 
-The #122/#123/#625 development batch adds a narrow pointer-backed `System.Span<T>`
+The #122/#123/#625 batch accepted in [step1147](../done/step1147.md) adds a narrow pointer-backed `System.Span<T>`
 surface from `std/no-runtime/shared/Memory/SystemSpanPointer.cs`: pointer/length
 constructor, `Length` and `GetPinnableReference`, restricted to unmanaged T.
 The same storage operations build as an `OS.Std.NoRuntime.Span<T>` host mirror.
@@ -18,8 +18,13 @@ Source basis is the pinned runtime's
 and [ByRefFields compiler feature identity](https://github.com/dotnet/dotnet/blob/95017c711e6afc1085133d440e42b4bd78155701/src/runtime/src/libraries/System.Private.CoreLib/src/System/Runtime/CompilerServices/RuntimeFeature.cs).
 Concrete compilation/publish diagnostics require the unmanaged-constraint
 `UnmanagedType` identity (no marshalling values/API), `RuntimeFeature.ByRefFields`
-and `Int32.MaxValue`. Focused host parity/contract tests pass; native lowering,
-strict source admission, guest and stable-batch qualification are still pending.
+and `Int32.MaxValue`. Host parity, strict source admission, full-host and real
+guest qualification pass. Targeted native review verifies the exercised closed
+constrained Info/Read calls, pointer/length layout and aggregate returns without
+boxing or unsupported helpers. The reviewed diagnostic stack bound is 9528
+bytes and the separate fault bound is 4968 bytes, within 32768-byte stacks.
+Constant empty/default pinning controls may fold; this is not arbitrary Span
+lowering, interface-reference dispatch or general GC support.
 
 `OS.Std.Memory.MemoryOrder.Fence(void*, delegate* unmanaged<void*, byte>)` is
 an OS-specific allocation-free status API, not `System.Threading.Thread` or BCL

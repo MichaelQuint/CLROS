@@ -1,6 +1,6 @@
 # EFI Build
 
-## Bounded live block-contract profile (qualification pending)
+## Bounded live block-contract profile
 
 Add both `--EnableM06VirtioBlockReadProbe` and `--EnableM06LiveBlockContractProbe`
 to the queue command below, with separate EFI/image/serial/summary paths. The
@@ -9,8 +9,10 @@ ending `TEST_PASS m06.008`; the existing 138-record read remains its prerequisit
 The compiler uses nine explicit new shared/storage sources, including a narrow
 pointer-backed Span. Exact reviewed identities cover that shared surface and
 MinimalRuntime as well as storage inputs. Host admission mutations are rejected.
-[Step1144](../done/step1144.md) records implementation and compiler diagnostics;
-no native publication or guest acceptance has yet been established.
+[Step1147](../done/step1147.md) accepts full-host, strict native publication,
+targeted ABI/stack review and real guest evidence. The refreshed four-profile
+capture binds 630 current raw inputs; its EFI bytes match the reviewed checkpoint.
+Steps1144-1146 retain compiler, ledger and hosted-fixture repair history.
 
 ## Bounded Virtio block read profile
 

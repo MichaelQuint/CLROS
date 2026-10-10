@@ -21,11 +21,12 @@
 
 ## Progress
 
-One bounded live Virtio sector read is [accepted](done/step1143.md): 4,304
-full-host checks, native review and 138/122/79-record read/queue/ordinary guest
-captures pass. The 512-byte payload matches the disk image, followed by checked
-reset and allocator restoration. The live block-contract adapter, filesystem
-and package loading, continuing storage and Gate 7 remain incomplete.
+A one-attempt live block adapter and protective LBA0 validation are
+[accepted](done/step1147.md): 4,316 full-host checks, native ABI/stack review and
+158/138/122/79-record contract/read/queue/ordinary guest captures pass. The
+existing block interface returns the checked 512-byte read through a closed
+constrained call, then validates the protective MBR. Guest GPT/FAT/package
+loading, continuing storage and Gate 7 remain incomplete.
 
 The bounded APIC/MSI-X batch is [accepted](done/step1137.md): 4,277 full-host
 checks, strict native review, one real MSI-X queue completion and an ordinary
