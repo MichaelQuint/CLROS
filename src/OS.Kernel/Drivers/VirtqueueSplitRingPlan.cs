@@ -211,7 +211,7 @@ public readonly struct VirtqueueSplitRingPlan
         uint right,
         out uint result)
     {
-        if (left > uint.MaxValue - right)
+        if (left > (~0u) - right)
         {
             result = 0;
             return false;
@@ -227,7 +227,7 @@ public readonly struct VirtqueueSplitRingPlan
         out uint result)
     {
         ulong value = (ulong)left * right;
-        if (value > uint.MaxValue)
+        if (value > (~0u))
         {
             result = 0;
             return false;

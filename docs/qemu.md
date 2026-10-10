@@ -1,5 +1,13 @@
 # QEMU
 
+The bounded split-queue batch #109-#112/#617 is accepted in
+[step1133](../done/step1133.md): 4,251 full-host checks, strict native
+review, a 139-record real queue diagnostic and a 79-record ordinary
+regression. One ordered TX publication completes, then observed reset and
+bus-master disable precede DMA release and exact allocator restoration.
+No packet delivery, receive, interrupts, general networking or Gate 6
+completion is claimed. See [drivers](drivers.md) for the lifetime boundary.
+
 The bounded Virtio negotiation batch #105-#108/#614 is accepted in
 [step1131](../done/step1131.md): 4,230 full-host checks, strict native
 review, a 119-record real diagnostic capture and a 79-record ordinary
@@ -436,7 +444,8 @@ The 259-character detailed marker disclosed the first bounded host-tool limit.
 That historical tooling slice raised
 `SerialMarkerStateMachine.MaximumMarkerLength` from 256 to 320. The later exact
 370-character M02-010 marker required a second bounded increase from 320 to
-512. The current contract preserves the 128-marker limit, 4,096-byte default
+512. The queue profile in step1132 raises the marker-count limit to 256 while
+preserving the 4,096-byte default
 line capacity, 1 MiB maximum line capacity, exact/prefix/order/unique behavior,
 and terminal/noise policy. Host tests accept the exact 259- and 370-character
 records and the 512-character boundary, and reject 513 characters.
@@ -777,8 +786,8 @@ The start, ready, and pass records are unique. `OS_SMOKE_FAIL`, every
 Hostile fake-runner tests reject missing, reordered, duplicated, and
 failure-injected M02-010 transcripts. The exact 370-character ready record also
 drove the bounded `MaximumMarkerLength` increase from 320 to 512; focused tests
-accept 512 and reject 513 without changing the 128-marker or line-capacity
-limits.
+accept 512 and reject 513 without changing the then-current 128-marker or
+line-capacity limits. Step1132 separately raises the marker count to 256.
 
 The accepted real command was:
 

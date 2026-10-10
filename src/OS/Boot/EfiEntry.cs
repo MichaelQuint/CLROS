@@ -62,6 +62,9 @@ public static unsafe class EfiEntry
 #if M05_VIRTIO_NEGOTIATION_PROBE
             internal uint VirtioPhase;
 #endif
+#if M05_VIRTQUEUE_POLLING_PROBE
+            internal uint QueuePhase, QueueCommand;
+#endif
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE
             internal ulong ClockPhase;
@@ -533,6 +536,9 @@ public static unsafe class EfiEntry
 #if M05_VIRTIO_NEGOTIATION_PROBE
                         _ = BootSequence.RunOwnedVirtioNegotiation(state->PciPhase == 8, state, &RunOwnedVirtioNegotiation);
 #endif
+#if M05_VIRTQUEUE_POLLING_PROBE
+                        _ = BootSequence.RunOwnedVirtqueuePolling(state->VirtioPhase == 16, state, &RunOwnedVirtqueuePolling);
+#endif
                     }
 #endif
 #if M05_OWNED_ACPI_SELECTION_PROBE
@@ -861,7 +867,7 @@ public static unsafe class EfiEntry
 
         private static bool WriteVirtioLiteral(Storage* state, uint issue, uint kind)
         {
-            if (issue < 12 || issue > 15 || kind > 3) return false;
+            if (issue < 12 || issue > 19 || kind > 3) return false;
             ulong* words = stackalloc ulong[5]; uint bytes, digit;
             if (kind == 0) { words[0] = 0x4154535f54534554UL; words[1] = 0x302e35306d205452UL; words[2] = 0xa0d3030UL; bytes = 20; digit = 17; }
             else if (kind == 1) { words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3030305f35UL; words[2] = 0xa0d594441UL; bytes = 21; digit = 12; }
@@ -869,6 +875,169 @@ public static unsafe class EfiEntry
             else { words[0] = 0x4941465f54534554UL; words[1] = 0x30302e35306d204cUL; words[2] = 0x6f69747269762030UL; words[3] = 0x0a0d65746174735fUL; bytes = 32; digit = 16; }
             ((byte*)words)[digit - 1] = (byte)('0' + issue / 10); ((byte*)words)[digit] = (byte)('0' + issue % 10);
             return WriteOwnedBytes(state, (byte*)words, bytes);
+        }
+#endif
+
+#if M05_VIRTQUEUE_POLLING_PROBE
+        private static bool RunOwnedVirtqueuePolling(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->QueuePhase != 0 || state->VirtioPhase != 16 || state->PciPhase != 8 ||
+                state->OwnedPhase != 2 || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            state->QueuePhase = 16;
+            if (!RunQueueCore(state)) { _ = WriteVirtioLiteral(state, state->QueuePhase, 3); return false; }
+            state->QueuePhase = 20;
+            return true;
+        }
+
+        private static bool RunQueueCore(Storage* state)
+        {
+            byte* code = state->Memory.Code + FirstExitCodeBundle.PciBarOffset;
+            byte* fence = state->Memory.Code + FirstExitCodeBundle.QueueFenceOffset;
+            if (!X64PciBarAccess.Validate(code, X64PciBarAccess.Bytes) ||
+                !X64VirtqueueMemoryFence.Validate(fence, X64VirtqueueMemoryFence.Bytes) ||
+                !WriteVirtioLiteral(state, 16, 0)) return false;
+            var read = (delegate* unmanaged<void*, ulong, uint*, byte>)code;
+            var write32 = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 16);
+            var write16 = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 32);
+            var read16 = (delegate* unmanaged<void*, ulong, ushort*, byte>)&ReadQueueWord;
+            uint* words = stackalloc uint[64];
+            if (!ReadVirtioFixture(state, &ReadVirtioSnapshotWord, words, out var caps)) return false;
+            ulong start = state->Memory.References.VirtioBarStart;
+            // Negotiation profile already sized this exact BAR and audited all
+            // four installed UC/RW/NX pages. Rebind only that retained extent.
+            PciSizedBar* bars = stackalloc PciSizedBar[6];
+            for (uint i = 0; i < 6; i++) bars[i] = default;
+            if (BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(words[8], words[9], 0xffffc00c, 0xffffffff, 4, out bars[4]) != PciBarProbeStatus.Success ||
+                bars[4].Base != start || bars[4].Bytes != 0x4000) return false;
+            VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
+            if (CommonNotifyISRDeviceConfigurationRegions.Plan(caps, bars, 6, regions, 4) != VirtioRegionStatus.Success ||
+                CommonNotifyISRDeviceConfigurationRegions.Bind(regions[0], start, out var common) != VirtioRegionStatus.Success ||
+                CommonNotifyISRDeviceConfigurationRegions.BindNotificationPage(regions[1], caps.NotifyConfiguration.Length,
+                    start + 0x3000, out var notify) != VirtioRegionStatus.Success) return false;
+            state->QueueCommand = words[1] & 0xffff;
+            if ((state->QueueCommand & 0x406) != 0x402) return false;
+            var negotiated = ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation.Run(common, BoundedVirtioFeatures.Version1, 1024,
+                null, read, write32, &ReadVirtioStatus, &WriteVirtioStatus);
+            ushort maximum = 0;
+            if (!negotiated.Succeeded || write16(null, start + 22, 1) != 1 || read16(null, start + 24, &maximum) != 1 ||
+                BoundedVirtqueueSize.Validate(8, maximum, out ushort size) != VirtqueueSizeStatus.Success) return false;
+            var invalid = BoundedVirtqueueSize.Validate(3, maximum, out ushort empty);
+            if (invalid != VirtqueueSizeStatus.InvalidRequested || empty != 0 ||
+                !WriteQueueRow(state, 0, 1, maximum, size, (ulong)invalid) ||
+                !WriteVirtioLiteral(state, 16, 1) || !WriteVirtioLiteral(state, 16, 2)) return false;
+            state->QueuePhase = 17;
+            if (!WriteVirtioLiteral(state, 17, 0) || !QueueDescriptorControls(state) ||
+                !WriteVirtioLiteral(state, 17, 1) || !WriteVirtioLiteral(state, 17, 2)) return false;
+            state->QueuePhase = 18;
+            if (!WriteVirtioLiteral(state, 18, 0) || !M01StageTwoAdapter.TryGetOriginalExitAllocator(out ulong address, out var backing) ||
+                address != state->Memory.References.AllocatorState || backing.Start != state->Memory.Allocator.Start ||
+                backing.PageCount != state->Memory.Allocator.PageCount || backing.PageCount == 0 ||
+                backing.PageCount > M01LiveAllocatorIntegration.MaximumArenaPageCount) return false;
+            M01LiveAllocatorStaticState* owner = (M01LiveAllocatorStaticState*)address;
+            if (!owner->IsCompleted) return false;
+            var before = owner->AllocatorStateValue; var node = owner->FreeNodeValue;
+            var allocation = BootPageAllocatorMutator.AllocateOnePage(before, &owner->FreeNodeValue, 1, 1, null, 0, 0, 1, 4096);
+            if (!allocation.Succeeded) return false;
+            owner->AllocatorStateValue = allocation.AfterState;
+            if (allocation.PhysicalStart.TryGetRawValueForHardwareRegisterBoundary(out ulong page) != AddressValueStatus.Success ||
+                allocation.PageCount != 1 || allocation.ByteLength != 4096 || (page & 4095) != 0 ||
+                page < backing.Start || page - backing.Start > backing.PageCount * 4096 - 4096 ||
+                DmaAddressWindow.TryCreate(page, page, page, 4096, 32, out var window) != DmaAddressStatus.Success) return false;
+            // This bounded QEMU fixture has no IOMMU. The original owned arena
+            // is retained WB/RW/NX and identity mapped; all domains are explicit.
+            DmaBufferPool pool = default; DmaBufferSlot slot = default;
+            if (PageAlignedDmaBuffers.TryInitialize(&pool, window, &slot, 1, 1) != DmaBufferStatus.Success) return false;
+            VirtqueuePollingAccess access = new();
+            access.Context = state; access.Read8 = &ReadVirtioStatus; access.Write8 = &WriteVirtioStatus;
+            access.Read16 = read16; access.Write16 = write16; access.Read32 = read; access.Write32 = write32;
+            access.Fence = (delegate* unmanaged<void*, byte>)fence; access.BusMaster = &QueueBusMaster;
+            var result = SplitVirtqueuePollingNotificationCompletion.Run(common, notify, caps.NotifyConfiguration.NotifyOffsetMultiplier,
+                &pool, access, 1000000, 1024);
+            // Preserve allocator ownership on any uncertain device lifetime.
+            if (!result.Succeeded || pool.AllocatedMask != 0)
+            { _ = WriteQueueRow(state, 8, (ulong)result.Status, (ulong)result.CleanupStatus, result.UsedIndex, result.Polls); return false; }
+            var freed = BootPageAllocatorMutator.FreeOnePage(owner->AllocatorStateValue, &owner->FreeNodeValue, 1, 1, null, 0, 0, allocation);
+            if (!freed.Succeeded) return false;
+            owner->AllocatorStateValue = freed.AfterState;
+            var restored = owner->AllocatorStateValue; var finalNode = owner->FreeNodeValue;
+            bool equal = before.IsInitialized == restored.IsInitialized && before.PageSize == restored.PageSize &&
+                before.HeadNodeIndex == restored.HeadNodeIndex && before.FreeNodeCount == restored.FreeNodeCount &&
+                before.FreePageCount == restored.FreePageCount && before.FreeByteCount == restored.FreeByteCount &&
+                before.AllocatedPageCount == restored.AllocatedPageCount && before.AllocatedByteCount == restored.AllocatedByteCount &&
+                node.SourceFreeSegmentIndex == finalNode.SourceFreeSegmentIndex && node.SourceUsableRangeIndex == finalNode.SourceUsableRangeIndex &&
+                node.PhysicalStart == finalNode.PhysicalStart && node.PhysicalEndExclusive == finalNode.PhysicalEndExclusive &&
+                node.PageCount == finalNode.PageCount && node.ByteLength == finalNode.ByteLength && node.NextNodeIndex == finalNode.NextNodeIndex;
+            if (!equal || result.MaximumSize != maximum || result.Size != size ||
+                !WriteQueueRow(state, 2, page, page, page, 4096) ||
+                !WriteQueueRow(state, 3, result.NotifyAddress, result.NotifyOffset, caps.NotifyConfiguration.NotifyOffsetMultiplier, 72) ||
+                !WriteQueueRow(state, 4, result.AvailableIndex, result.UsedIndex, result.UsedId, result.UsedLength) ||
+                !WriteQueueRow(state, 5, result.Polls, result.Fences, 1, 1) ||
+                !WriteVirtioLiteral(state, 18, 1) || !WriteVirtioLiteral(state, 18, 2)) return false;
+            state->QueuePhase = 19;
+            uint command = 0;
+            return WriteVirtioLiteral(state, 19, 0) &&
+                X64VirtqueueMemoryFence.Validate(fence, X64VirtqueueMemoryFence.Bytes) &&
+                read(null, state->PciWindow.Start + 0x30004, &command) == 1 && (command & 0xffff) == state->QueueCommand &&
+                result.Fences == 5 && owner->IsCompleted && FirstExitOwnedArena.ValidateCanaries(state->Arena) &&
+                WriteQueueRow(state, 6, before.FreePageCount, restored.FreePageCount, restored.AllocatedPageCount, 1) &&
+                WriteQueueRow(state, 7, result.Fences, 1, 1, command & 0xffff) &&
+                WriteVirtioLiteral(state, 19, 1) && WriteVirtioLiteral(state, 19, 2);
+        }
+
+        private static bool QueueDescriptorControls(Storage* state)
+        {
+            VirtqueueDescriptorPoolState pool = default;
+            VirtqueueDescriptorSlot* slots = stackalloc VirtqueueDescriptorSlot[2]; slots[0] = default; slots[1] = default;
+            if (VirtqueueDescriptors.TryInitialize(&pool, slots, 2, 1) != VirtqueueDescriptorStatus.Success ||
+                VirtqueueDescriptors.TryAllocate(&pool, out var first) != VirtqueueDescriptorStatus.Success ||
+                VirtqueueDescriptors.TryAllocate(&pool, out var second) != VirtqueueDescriptorStatus.Success) return false;
+            var exhausted = VirtqueueDescriptors.TryAllocate(&pool, out _);
+            if (VirtqueueDescriptors.TryRelease(&pool, first) != VirtqueueDescriptorStatus.Success) return false;
+            var twice = VirtqueueDescriptors.TryRelease(&pool, first);
+            return first.Index == 0 && second.Index == 1 && exhausted == VirtqueueDescriptorStatus.Exhausted &&
+                twice == VirtqueueDescriptorStatus.StaleToken &&
+                VirtqueueDescriptors.TryRelease(&pool, second) == VirtqueueDescriptorStatus.Success && pool.AllocatedCount == 0 &&
+                WriteQueueRow(state, 1, first.Index, second.Index, (ulong)exhausted, (ulong)twice);
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte ReadQueueWord(void* context, ulong address, ushort* output) { *output = *(ushort*)address; return 1; }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte QueueBusMaster(void* context, byte enable)
+        {
+            Storage* state = (Storage*)context;
+            if (enable > 1 || state->QueuePhase != 18 || (state->QueueCommand & 0x406) != 0x402) return 0;
+            byte* code = state->Memory.Code + FirstExitCodeBundle.PciBarOffset;
+            var read = (delegate* unmanaged<void*, ulong, uint*, byte>)code;
+            var write = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 32);
+            ulong address = state->PciWindow.Start + 0x30004;
+            uint current = 0, wanted = state->QueueCommand | (enable == 1 ? 4u : 0u);
+            if (read(null, address, &current) != 1 || ((current & 0xffff) != state->QueueCommand &&
+                (current & 0xffff) != (state->QueueCommand | 4))) return 0;
+            return write(null, address, wanted) == 1 && read(null, address, &current) == 1 &&
+                (current & 0xffff) == wanted ? (byte)1 : (byte)0;
+        }
+
+        private static bool WriteQueueRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d)
+        {
+            if (stage > 8) return false;
+            byte* text = stackalloc byte[96];
+            *(ulong*)text = 0x554555515f35304dUL; *(ushort*)(text + 8) = 0x2045; uint length = 10;
+            text[length++] = (byte)('0' + stage);
+            ulong* values = stackalloc ulong[4]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;
+            for (int i = 0; i < 4; i++)
+            {
+                text[length++] = (byte)' '; text[length++] = (byte)'0'; text[length++] = (byte)'x';
+                for (int shift = 60; shift >= 0; shift -= 4)
+                {
+                    uint digit = (uint)((values[i] >> shift) & 15);
+                    text[length++] = (byte)(digit < 10 ? '0' + digit : 'A' + digit - 10);
+                }
+            }
+            text[length++] = 13; text[length++] = 10;
+            return WriteOwnedBytes(state, text, length);
         }
 #endif
 

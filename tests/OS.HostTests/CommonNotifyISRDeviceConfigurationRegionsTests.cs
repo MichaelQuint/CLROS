@@ -85,6 +85,36 @@ internal static unsafe class CommonNotifyISRDeviceConfigurationRegionsTests
         return true;
     }
 
+    [HostTest("virtqueue.regions expanded notification binding validates full address policy", HostLane.Fast, 4)]
+    private static void NotificationPageBounds()
+    {
+        PciSizedBar* bars = stackalloc PciSizedBar[6]; Bars(bars);
+        VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
+        HostCheck.Equal(VirtioRegionStatus.Success, CommonNotifyISRDeviceConfigurationRegions.Plan(Capabilities(), bars, 6, regions, 4));
+        foreach (uint bytes in new uint[] { 0, 1, 4097, uint.MaxValue })
+        {
+            HostCheck.Equal(VirtioRegionStatus.InvalidCapability,
+                CommonNotifyISRDeviceConfigurationRegions.BindNotificationPage(regions[1], bytes, 0x400000, out var invalid));
+            HostCheck.True(!invalid.IsValid);
+        }
+        HostCheck.Equal(VirtioRegionStatus.InvalidAddress,
+            CommonNotifyISRDeviceConfigurationRegions.BindNotificationPage(regions[1], 4096, 0x400001, out _));
+        HostCheck.Equal(PciBarProbeStatus.Success, BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(
+            0xffffc00c, 0x7fff, 0xffffc00c, 0xffffffff, 4, out bars[4]));
+        HostCheck.Equal(VirtioRegionStatus.Success, CommonNotifyISRDeviceConfigurationRegions.Plan(Capabilities(), bars, 6, regions, 4));
+        // The two-byte negotiation window is valid; expanding it to the entire
+        // last lower-half page violates the existing strict mapped-end policy.
+        HostCheck.Equal(VirtioRegionStatus.Success,
+            CommonNotifyISRDeviceConfigurationRegions.Bind(regions[1], 0x400000, out var original));
+        HostCheck.True(original.IsValid);
+        HostCheck.Equal(VirtioRegionStatus.InvalidAddress,
+            CommonNotifyISRDeviceConfigurationRegions.BindNotificationPage(regions[1], 4096, 0x400000, out var expanded));
+        HostCheck.True(!expanded.IsValid && expanded.Bytes == 0);
+        HostCheck.Equal(VirtioRegionStatus.Success,
+            CommonNotifyISRDeviceConfigurationRegions.BindNotificationPage(regions[1], 4094, 0x400000, out expanded));
+        HostCheck.True(expanded.IsValid && expanded.Bytes == 4094);
+    }
+
     [HostTest("virtio.regions binding rejects default unaligned overflow and preserves offset", HostLane.Fast, 3)]
     private static bool BindingBounds()
     {

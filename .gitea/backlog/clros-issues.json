@@ -11394,7 +11394,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M05: Platform, PCI, and Common Virtio.",
-      "currentEvidence": "Dependencies #68, #94, #95 and #96 are accepted in steps1094, 1120, 1123 and 1125; #97-#100 read-only PCI discovery is accepted in step1127. Bounded BAR/DMA address and buffer lifetime is accepted in step1129; modern Virtio capability discovery, configuration mappings and VERSION_1 negotiation #105-#108/#614 are accepted in step1131. The epic remains open/agent:blocked with six remaining children. Virtqueues, actual device DMA, interrupt completion and Gate 6 remain unproven.",
+      "currentEvidence": "Dependencies #68, #94, #95 and #96 are accepted in steps1094, 1120, 1123 and 1125; #97-#100 read-only PCI discovery is accepted in step1127. Bounded BAR/DMA lifetime is accepted in step1129; modern Virtio negotiation is accepted in step1131. Queue sizing, descriptor ownership, ordered split-queue polling and authenticated fences #109-#112/#617 are accepted in step1133. The epic remains open/agent:blocked with two remaining children #113/#114. APIC initialization, interrupt-driven completion and Gate 6 remain unproven.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -12727,14 +12727,14 @@
         "M05-015"
       ],
       "labels": [
-        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:virtio",
         "phase:m05-platform",
         "reference:test-only",
-        "lane:common-virtio"
+        "lane:common-virtio",
+        "agent:done"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -12755,7 +12755,7 @@
       ],
       "collisionLane": "lane:common-virtio",
       "summary": "Validate virtqueue size, power-of-two constraints, index width, and negotiated maximum.",
-      "currentEvidence": "Dependency #108 is accepted with bounded modern Virtio negotiation in done/step1131.md. This live queue-size admission slice is ready but unimplemented; no programmed virtqueue, actual device DMA or completion is accepted.",
+      "currentEvidence": "Accepted in done/step1133.md with #109-#112 and shared integration #617. Frozen source 9ff41f911bfc88970df9ee11302d5a0a1a79663b passes 4,251 full-host checks across 509 groups, strict native review of 739 method extents/relocations, real 139-record queue and 79-record ordinary captures, and independent disk/EFI association. One eight-entry modern TX queue publishes a single descriptor with real x64 ordering, validates its matching used entry, then observes reset and bus-master disable before releasing DMA and restoring the original allocator. Host failure callbacks and guest negative controls are simulated/local inputs. No packet delivery, receive, interrupts, general networking, Gate 6, hosted .NET/Kestrel, cloud or production acceptance is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Validate virtqueue size, power-of-two constraints, index width, and negotiated maximum.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12803,7 +12803,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Validate virtqueue size, power-of-two constraints, index width, and negotiated maximum.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-017",
@@ -12814,13 +12814,13 @@
         "M05-016"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:tooling",
         "evidence:qemu",
         "component:virtio",
         "phase:m05-platform",
-        "reference:test-only"
+        "reference:test-only",
+        "agent:done"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -12841,7 +12841,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement descriptor allocation with exhaustion, invalid-index, and double-free tests.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Accepted in done/step1133.md with #109-#112 and shared integration #617. Frozen source 9ff41f911bfc88970df9ee11302d5a0a1a79663b passes 4,251 full-host checks across 509 groups, strict native review of 739 method extents/relocations, real 139-record queue and 79-record ordinary captures, and independent disk/EFI association. One eight-entry modern TX queue publishes a single descriptor with real x64 ordering, validates its matching used entry, then observes reset and bus-master disable before releasing DMA and restoring the original allocator. Host failure callbacks and guest negative controls are simulated/local inputs. No packet delivery, receive, interrupts, general networking, Gate 6, hosted .NET/Kestrel, cloud or production acceptance is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement descriptor allocation with exhaustion, invalid-index, and double-free tests.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12889,7 +12889,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Implement descriptor allocation with exhaustion, invalid-index, and double-free tests.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-018",
@@ -12900,14 +12900,14 @@
         "M05-017"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:virtio",
         "phase:m05-platform",
         "reference:test-only",
-        "lane:common-virtio"
+        "lane:common-virtio",
+        "agent:done"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -12928,7 +12928,7 @@
       ],
       "collisionLane": "lane:common-virtio",
       "summary": "Program one split virtqueue and execute polling notification/completion.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Accepted in done/step1133.md with #109-#112 and shared integration #617. Frozen source 9ff41f911bfc88970df9ee11302d5a0a1a79663b passes 4,251 full-host checks across 509 groups, strict native review of 739 method extents/relocations, real 139-record queue and 79-record ordinary captures, and independent disk/EFI association. One eight-entry modern TX queue publishes a single descriptor with real x64 ordering, validates its matching used entry, then observes reset and bus-master disable before releasing DMA and restoring the original allocator. Host failure callbacks and guest negative controls are simulated/local inputs. No packet delivery, receive, interrupts, general networking, Gate 6, hosted .NET/Kestrel, cloud or production acceptance is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Program one split virtqueue and execute polling notification/completion.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12976,7 +12976,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Program one split virtqueue and execute polling notification/completion.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-019",
@@ -12987,13 +12987,13 @@
         "M05-018"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:platform",
         "phase:m05-platform",
-        "reference:test-only"
+        "reference:test-only",
+        "agent:done"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -13014,16 +13014,16 @@
       ],
       "collisionLane": null,
       "summary": "Add memory-ordering primitives replacing readiness booleans.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Accepted in done/step1133.md with #109-#112 and shared integration #617. Frozen source 9ff41f911bfc88970df9ee11302d5a0a1a79663b passes 4,251 full-host checks across 509 groups, strict native review of 739 method extents/relocations, real 139-record queue and 79-record ordinary captures, and independent disk/EFI association. One eight-entry modern TX queue publishes a single descriptor with real x64 ordering, validates its matching used entry, then observes reset and bus-master disable before releasing DMA and restoring the original allocator. Host failure callbacks and guest negative controls are simulated/local inputs. No packet delivery, receive, interrupts, general networking, Gate 6, hosted .NET/Kestrel, cloud or production acceptance is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add memory-ordering primitives replacing readiness booleans.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Demonstrate the exact successful repository/evidence behavior required by: Add memory-ordering primitives replacing readiness booleans.",
-        "Failure cases: Cover missing file/tool, duplicate key, malformed input, stale path/claim, nonzero process exit, missing marker, hash mismatch, and unauthorized write as applicable.",
-        "Explicitly inapplicable here: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice.",
+        "Positive case: Demonstrate actual authenticated x64 fence execution between descriptor/ring writes, available-index publication, notification and completion reads in one bounded guest queue transaction.",
+        "Failure cases: Cover null or failed fence callbacks, mutated instruction bytes, missing or reordered publication/completion fences, malformed used entries, device failure, polling timeout and reset or bus-master cleanup failure; retain DMA backing when cleanup is uncertain.",
+        "Explicitly inapplicable here: General SMP synchronization, non-coherent DMA, interrupts, general networking, runtime unwind and cloud cleanup are outside this bounded ordering slice.",
         "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
       ],
       "referenceInfluences": [
@@ -13039,9 +13039,9 @@
         "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
         "Affected canonical documentation is updated without promoting unsupported completion gates.",
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Demonstrate the exact successful repository/evidence behavior required by: Add memory-ordering primitives replacing readiness booleans.",
-        "Applicable failure cases are asserted: Cover missing file/tool, duplicate key, malformed input, stale path/claim, nonzero process exit, missing marker, hash mismatch, and unauthorized write as applicable.",
-        "The evidence report explicitly records these non-goals: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice."
+        "The positive case is demonstrated: Demonstrate actual authenticated x64 fence execution between descriptor/ring writes, available-index publication, notification and completion reads in one bounded guest queue transaction.",
+        "Applicable failure cases are asserted: Cover null or failed fence callbacks, mutated instruction bytes, missing or reordered publication/completion fences, malformed used entries, device failure, polling timeout and reset or bus-master cleanup failure; retain DMA backing when cleanup is uncertain.",
+        "The evidence report explicitly records these non-goals: General SMP synchronization, non-coherent DMA, interrupts, general networking, runtime unwind and cloud cleanup are outside this bounded ordering slice."
       ],
       "requiredMarkers": [
         "TEST_START m05.019",
@@ -13062,7 +13062,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add memory-ordering primitives replacing readiness booleans.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-020",
@@ -13073,7 +13073,7 @@
         "M05-019"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -13100,7 +13100,7 @@
       ],
       "collisionLane": null,
       "summary": "Parse MADT and initialize local APIC/IOAPIC separately from polling proof.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Dependency #112 is accepted with bounded ordered queue polling in done/step1133.md. Bounded MADT parsing and APIC/IOAPIC initialization are ready but unimplemented; no APIC initialization or interrupt delivery is accepted.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Parse MADT and initialize local APIC/IOAPIC separately from polling proof.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -13260,7 +13260,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M06: Live Storage.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Common queue prerequisite #112 is accepted in step1133; storage children remain open. GPT, FAT32, package and virtio-blk plans remain host-tested; no guest block read or disk-backed package load is accepted.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -13307,7 +13307,7 @@
         "M05-019"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -13334,7 +13334,7 @@
       ],
       "collisionLane": null,
       "summary": "Bind one live virtio-blk PCI device.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Dependency #112 is accepted with bounded ordered queue polling in done/step1133.md. The first general virtio-blk binding slice is ready but unimplemented; no guest block read or disk-backed package load is accepted.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Bind one live virtio-blk PCI device.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15051,7 +15051,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M07: Live Networking.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Common queue prerequisite #112 is accepted in step1133; networking children remain open. One terminal modern TX queue completion is accepted, without packet-delivery or receive proof. Packet/checksum/ARP/DHCP/TCP/HTTP slices remain host-tested; no general live virtio-net packet path is accepted.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -15093,7 +15093,7 @@
         "M05-019"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -15120,7 +15120,7 @@
       ],
       "collisionLane": null,
       "summary": "Bind one live virtio-net PCI device.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Dependency #112 is accepted with bounded ordered queue polling in done/step1133.md. The first general virtio-net binding slice is ready but unimplemented; one terminal queue TX completion does not establish packet delivery, receive or a general network driver.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Bind one live virtio-net PCI device.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

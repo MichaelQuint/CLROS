@@ -59,7 +59,7 @@ internal static unsafe class M05VirtioNegotiationEfiIntegrationTests
         finally { File.Delete(path); }
     }
 
-    private static string[] Capture()
+    internal static string[] Capture()
     {
         string[] lines = QemuContracts.M05VirtioNegotiationMarkers.ToArray();
         M03OwnedSubsystemSurvivalEfiIntegrationTests.Capture(false).CopyTo(lines, 0);

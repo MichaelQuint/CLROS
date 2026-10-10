@@ -697,6 +697,7 @@ internal static class BootSequencePlanTests
              "public static unsafe bool RunOwnedAcpiSelection(",
              "public static unsafe bool RunOwnedPciEnumeration(",
              "public static unsafe bool RunOwnedBarDma(",
+             "public static unsafe bool RunOwnedVirtqueuePolling(",
              "public static unsafe bool RunOwnedVirtioNegotiation(",
              "public static unsafe bool RunOwnedMonotonicClock(",
              "public static unsafe bool RunPostFirmwarePhysicalMapping(",
@@ -739,6 +740,8 @@ internal static class BootSequencePlanTests
              "public const bool EnableM05PciEnumerationProbe = false;",
              "public const bool EnableM05BarDmaProbe = true;",
              "public const bool EnableM05BarDmaProbe = false;",
+             "public const bool EnableM05VirtqueuePollingProbe = true;",
+             "public const bool EnableM05VirtqueuePollingProbe = false;",
              "public const bool EnableM05VirtioNegotiationProbe = true;",
              "public const bool EnableM05VirtioNegotiationProbe = false;"]);
 
