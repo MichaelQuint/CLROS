@@ -1,13 +1,13 @@
 # Image Builder
 
-The GPT batch in [step1148](../done/step1148.md) adds a smoke-only
+The GPT batch accepted in [step1150](../done/step1150.md) adds a smoke-only
 `GptImageVariant`: `Intact` by default, or `PrimaryHeaderCrcFault` with the explicit
 GPT diagnostic. The latter validates both GPT copies in a freshly generated raw
 image, changes only byte528 by XOR1, and records original/final SHA256 plus the
 exact byte read-back. It preserves the backup tables, FAT and EFI bytes. The
 fixture requires the image builder's adjacent backup array; the guest validator
 also permits bounded nonadjacent arrays. Dry runs never modify images. Actual
-boot/fallback and native/full-host acceptance remain pending.
+intact/backup captures, native review and full-host qualification pass.
 
 For the fault variant, retain the fresh intact image as `<Image>.boot.raw`,
 boot it through SATA with `snapshot=on` (temporary writes only), and expose the

@@ -5,8 +5,9 @@ Its intended 207/208-record intact/primary-CRC-fault captures append issues009-0
 and `M06_GPT` rows: `80` onward bind individual sector CRCs and fresh epochs;
 `00`-`06` bind header/array validation, table choice, partition extent and cleanup.
 Every read receipt is emitted only after reset and original allocator restoration.
-Exact order and image association are checked. [Step1148](../done/step1148.md)
-is development evidence; real guest/native/full-host qualification is pending.
+Exact order and image association are checked. [Step1150](../done/step1150.md)
+accepts both guest captures, native review and the full-host gate. Failed
+development attempts remain in steps1148-1149.
 
 `EnableM06LiveBlockContractProbe` defaults false and requires the read profile.
 The accepted 158-record capture appends issue007/008 markers and `M06_BDEV` rows

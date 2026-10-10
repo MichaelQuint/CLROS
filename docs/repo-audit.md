@@ -1,17 +1,18 @@
 # Repository Audit
 
-The owned #124/#125/#126/#627 batch is implemented with focused host checks in
-[step1148](../done/step1148.md). Strict source/profile admission and malformed
-metadata/receipt/image controls are present. Native ABI/stack review, full-host
-and fresh intact/damaged-primary guest qualification are pending; the issues
-remain open and no new completion gate is accepted.
+The #124/#125/#126/#627 batch is accepted in [step1150](../done/step1150.md).
+All4,336 full-host checks across530 groups pass with zero reuse, timeouts or
+input changes. Native ABI/stack review, intact/damaged-primary guest captures,
+ancestor regressions and source/disk association pass. Steps1148-1149 retain the
+failed attempts. Only bounded GPT validation/fallback/partition location is added;
+FAT/package loading, continuing storage and Gate7 remain incomplete.
 
 The #122/#123/#625 batch is accepted in [step1147](../done/step1147.md): a
 one-attempt block-interface adapter, protective LBA0 validation and an explicit
 default-off integration profile. All 4,316 full-host checks across 525 groups,
 targeted native review and fresh 158/138/122/79-record guest captures pass with
 current source/image association. Steps1144-1146 preserve failed attempts and
-focused repairs. Guest GPT/FAT/package loading, continuing storage and Gate 7
+focused repairs. Guest FAT/package loading, continuing storage and Gate 7
 remain incomplete.
 
 ## Current Status

@@ -13260,7 +13260,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M06: Live Storage.",
-      "currentEvidence": "Bounded binding/queue #116-#119 is accepted in step1140; read/completion #120/#121 in step1143; block-contract/LBA0 #122/#123 with integration #625 in step1147. The latest batch passes 4316 full-host checks, native ABI/stack review and real 158/138/122/79-record captures with current source/image association. #124 is the next ready primary-GPT slice, followed by #125/#126 backup fallback and partition selection. Guest GPT/FAT/package loading, continuing storage and the M06 exit criterion remain incomplete; epic and milestone stay open.",
+      "currentEvidence": "Bounded binding/queue #116-#119 is accepted in step1140; read/completion #120/#121 in step1143; block-contract/LBA0 #122/#123 in step1147; GPT validation/backup fallback/EFI partition location #124/#125/#126 with integration #627 in step1150. The latest batch passes 4336 full-host checks, native ABI/stack review and real 207/208-record GPT plus 158/138/122/79-record regression captures with exact source/disk association. #127 is the next ready FAT-chain slice, followed by #128/#129 directory/VFAT and known-file reads. Guest FAT/package loading, continuing storage and the M06 exit criterion remain incomplete; epic and milestone stay open.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -14035,7 +14035,7 @@
         "M06-008"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14062,7 +14062,7 @@
       ],
       "collisionLane": null,
       "summary": "Read primary GPT and independently verify bounds and CRC.",
-      "currentEvidence": "Claimed as the dependency-ordered #124/#125/#126 batch with shared integration #627, after accepted block contract/LBA0 step1147. Implementing bounded primary GPT CRC/bounds, real backup fallback and EFI partition location. Full host/native/guest qualification is pending, including a freshly built damaged-primary image; no guest GPT/FAT/package or M06/Gate7 acceptance is claimed yet.",
+      "currentEvidence": "Accepted in done/step1150.md at frozen qualification 0b5fbaab00eafb71aa26a6abfe655254d53e1115. All 4336 full-host checks across 530 groups pass with zero failures, timeouts, reuse or input changes. Strict native ABI/stack review and 207/208-record intact/damaged-primary guest captures prove bounded GPT header/array validation, real backup fallback and unique EFI partition location, with 158/138/122/79-record ancestor/ordinary regressions and exact source/disk association. Each sector has a fresh negotiated/reset lifetime and original allocator restoration. FAT/BPB validity, package loading, continuing storage, M06/Gate7, hosted .NET/Kestrel, cloud and production completion remain unproved. Steps1148-1149 retain failed development attempts.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read primary GPT and independently verify bounds and CRC.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14115,7 +14115,7 @@
         "docs/image-builder.md"
       ],
       "evidenceBoundary": "This issue proves only \"Read primary GPT and independently verify bounds and CRC.\" It does not by itself prove the M06 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M06-010",
@@ -14126,7 +14126,7 @@
         "M06-009"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:test",
         "evidence:qemu",
@@ -14153,7 +14153,7 @@
       ],
       "collisionLane": null,
       "summary": "Exercise backup-GPT fallback from live disk.",
-      "currentEvidence": "Claimed as the dependency-ordered #124/#125/#126 batch with shared integration #627, after accepted block contract/LBA0 step1147. Implementing bounded primary GPT CRC/bounds, real backup fallback and EFI partition location. Full host/native/guest qualification is pending, including a freshly built damaged-primary image; no guest GPT/FAT/package or M06/Gate7 acceptance is claimed yet.",
+      "currentEvidence": "Accepted in done/step1150.md at frozen qualification 0b5fbaab00eafb71aa26a6abfe655254d53e1115. All 4336 full-host checks across 530 groups pass with zero failures, timeouts, reuse or input changes. Strict native ABI/stack review and 207/208-record intact/damaged-primary guest captures prove bounded GPT header/array validation, real backup fallback and unique EFI partition location, with 158/138/122/79-record ancestor/ordinary regressions and exact source/disk association. Each sector has a fresh negotiated/reset lifetime and original allocator restoration. FAT/BPB validity, package loading, continuing storage, M06/Gate7, hosted .NET/Kestrel, cloud and production completion remain unproved. Steps1148-1149 retain failed development attempts.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Exercise backup-GPT fallback from live disk.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14206,7 +14206,7 @@
         "docs/image-builder.md"
       ],
       "evidenceBoundary": "This issue proves only \"Exercise backup-GPT fallback from live disk.\" It does not by itself prove the M06 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M06-011",
@@ -14217,7 +14217,7 @@
         "M06-010"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14244,7 +14244,7 @@
       ],
       "collisionLane": null,
       "summary": "Locate the FAT32 application/EFI partition.",
-      "currentEvidence": "Claimed as the dependency-ordered #124/#125/#126 batch with shared integration #627, after accepted block contract/LBA0 step1147. Implementing bounded primary GPT CRC/bounds, real backup fallback and EFI partition location. Full host/native/guest qualification is pending, including a freshly built damaged-primary image; no guest GPT/FAT/package or M06/Gate7 acceptance is claimed yet.",
+      "currentEvidence": "Accepted in done/step1150.md at frozen qualification 0b5fbaab00eafb71aa26a6abfe655254d53e1115. All 4336 full-host checks across 530 groups pass with zero failures, timeouts, reuse or input changes. Strict native ABI/stack review and 207/208-record intact/damaged-primary guest captures prove bounded GPT header/array validation, real backup fallback and unique EFI partition location, with 158/138/122/79-record ancestor/ordinary regressions and exact source/disk association. Each sector has a fresh negotiated/reset lifetime and original allocator restoration. FAT/BPB validity, package loading, continuing storage, M06/Gate7, hosted .NET/Kestrel, cloud and production completion remain unproved. Steps1148-1149 retain failed development attempts.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Locate the FAT32 application/EFI partition.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14297,7 +14297,7 @@
         "docs/image-builder.md"
       ],
       "evidenceBoundary": "This issue proves only \"Locate the FAT32 application/EFI partition.\" It does not by itself prove the M06 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M06-012",
@@ -14308,7 +14308,7 @@
         "M06-011"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14335,7 +14335,7 @@
       ],
       "collisionLane": null,
       "summary": "Walk FAT cluster chains with loop, bad-cluster, and truncation detection.",
-      "currentEvidence": "Prerequisite bounded sector transport is accepted in step1143 and the one-attempt live block contract/protective LBA0 validation in step1147, with full-host/native/real guest evidence. This issue has no accepted live implementation or guest proof. GPT/FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Bounded sector transport is accepted in step1143, the live block contract/LBA0 in step1147, and primary/backup GPT validation plus EFI partition location in step1150. This issue has no accepted live implementation or guest proof. FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Walk FAT cluster chains with loop, bad-cluster, and truncation detection.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14426,7 +14426,7 @@
       ],
       "collisionLane": null,
       "summary": "Add multi-cluster directory and VFAT long-name support as separate parser slices.",
-      "currentEvidence": "Prerequisite bounded sector transport is accepted in step1143 and the one-attempt live block contract/protective LBA0 validation in step1147, with full-host/native/real guest evidence. This issue has no accepted live implementation or guest proof. GPT/FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Bounded sector transport is accepted in step1143, the live block contract/LBA0 in step1147, and primary/backup GPT validation plus EFI partition location in step1150. This issue has no accepted live implementation or guest proof. FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add multi-cluster directory and VFAT long-name support as separate parser slices.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14517,7 +14517,7 @@
       ],
       "collisionLane": null,
       "summary": "Read one known file and verify its SHA-256-equivalent host-known fixture hash or repository-defined checksum.",
-      "currentEvidence": "Prerequisite bounded sector transport is accepted in step1143 and the one-attempt live block contract/protective LBA0 validation in step1147, with full-host/native/real guest evidence. This issue has no accepted live implementation or guest proof. GPT/FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Bounded sector transport is accepted in step1143, the live block contract/LBA0 in step1147, and primary/backup GPT validation plus EFI partition location in step1150. This issue has no accepted live implementation or guest proof. FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read one known file and verify its SHA-256-equivalent host-known fixture hash or repository-defined checksum.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14608,7 +14608,7 @@
       ],
       "collisionLane": null,
       "summary": "Read and validate the native manifest from disk.",
-      "currentEvidence": "Prerequisite bounded sector transport is accepted in step1143 and the one-attempt live block contract/protective LBA0 validation in step1147, with full-host/native/real guest evidence. This issue has no accepted live implementation or guest proof. GPT/FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Bounded sector transport is accepted in step1143, the live block contract/LBA0 in step1147, and primary/backup GPT validation plus EFI partition location in step1150. This issue has no accepted live implementation or guest proof. FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read and validate the native manifest from disk.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14699,7 +14699,7 @@
       ],
       "collisionLane": null,
       "summary": "Read and validate APP.PKG from disk.",
-      "currentEvidence": "Prerequisite bounded sector transport is accepted in step1143 and the one-attempt live block contract/protective LBA0 validation in step1147, with full-host/native/real guest evidence. This issue has no accepted live implementation or guest proof. GPT/FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Bounded sector transport is accepted in step1143, the live block contract/LBA0 in step1147, and primary/backup GPT validation plus EFI partition location in step1150. This issue has no accepted live implementation or guest proof. FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read and validate APP.PKG from disk.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14790,7 +14790,7 @@
       ],
       "collisionLane": null,
       "summary": "Stage the selected payload into owned memory.",
-      "currentEvidence": "Prerequisite bounded sector transport is accepted in step1143 and the one-attempt live block contract/protective LBA0 validation in step1147, with full-host/native/real guest evidence. This issue has no accepted live implementation or guest proof. GPT/FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Bounded sector transport is accepted in step1143, the live block contract/LBA0 in step1147, and primary/backup GPT validation plus EFI partition location in step1150. This issue has no accepted live implementation or guest proof. FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Stage the selected payload into owned memory.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14881,7 +14881,7 @@
       ],
       "collisionLane": "lane:probes",
       "summary": "Add malformed disk/package failure probes that remain diagnosable after EBS.",
-      "currentEvidence": "Prerequisite bounded sector transport is accepted in step1143 and the one-attempt live block contract/protective LBA0 validation in step1147, with full-host/native/real guest evidence. This issue has no accepted live implementation or guest proof. GPT/FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Bounded sector transport is accepted in step1143, the live block contract/LBA0 in step1147, and primary/backup GPT validation plus EFI partition location in step1150. This issue has no accepted live implementation or guest proof. FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add malformed disk/package failure probes that remain diagnosable after EBS.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14973,7 +14973,7 @@
       ],
       "collisionLane": null,
       "summary": "Convert polling completion to MSI-X without removing the polling recovery path.",
-      "currentEvidence": "Prerequisite bounded sector transport is accepted in step1143 and the one-attempt live block contract/protective LBA0 validation in step1147, with full-host/native/real guest evidence. This issue has no accepted live implementation or guest proof. GPT/FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Bounded sector transport is accepted in step1143, the live block contract/LBA0 in step1147, and primary/backup GPT validation plus EFI partition location in step1150. This issue has no accepted live implementation or guest proof. FAT/package consumers remain host-tested; guest filesystem/package loading, continuing storage and M06/Gate7 remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Convert polling completion to MSI-X without removing the polling recovery path.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

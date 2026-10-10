@@ -47,7 +47,7 @@ Bounded modern Virtio block binding, feature negotiation, owned DMA layout and
 queue setup are accepted in `done/step1140.md`. One default-off sector read with
 checked completion and reset/allocator cleanup is accepted in `done/step1143.md`.
 A one-attempt live block-contract adapter and protective LBA0 validation are
-accepted in `done/step1147.md`. Guest GPT/FAT/package loading, continuing storage
+accepted in `done/step1147.md`. Guest FAT/package loading, continuing storage
 and Gate 7 remain incomplete.
 PAL and app-model progress remains host-tested contract/planning evidence;
 networking includes UDP/TCP checksum
@@ -59,9 +59,10 @@ Never claim Kestrel, hosted .NET, real `ExitBootServices`, live PCI/storage/
 networking, cloud-provider support, cloud readiness, or production readiness
 unless `docs/completion-gates.md` has matching evidence.
 
-The #124/#125/#126/#627 GPT batch is implemented with focused host checks in
-`done/step1148.md`; native/full-host and intact/damaged-primary guest qualification
-remain pending. Do not treat this development checkpoint as accepted guest GPT.
+The #124/#125/#126/#627 bounded GPT batch is accepted in `done/step1150.md`:
+primary header/array validation, real backup fallback and EFI partition location
+pass full-host/native review and intact/damaged-primary guest captures. Each
+sector uses a fresh reset/cleanup lifetime; FAT and continuing storage remain incomplete.
 
 ## Required First Reads
 
