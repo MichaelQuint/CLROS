@@ -1,9 +1,10 @@
 # CLROS AI Agent Guide
 
-Current development: #127/#128/#129/#629 implement a default-off bounded FAT
-read child profile. `done/step1151.md` records focused evidence; native review,
-real guest capture and full-host qualification are pending. Do not treat this
-implementation as accepted FAT/file-read or Gate7 completion.
+The #127/#128/#129/#629 default-off bounded FAT read batch is qualified in
+`done/step1152.md`: 4,357 full-host checks, native review, a 241-record FAT guest
+capture and six ancestor regressions pass. It reads one cross-cluster VFAT name
+and fragmented known file with repository CRC32. Manifest/package loading,
+continuing storage and Gate7 remain incomplete.
 
 This is the root operating contract for agents working in this repository. Keep
 it concise. Put subsystem detail in the relevant `docs/*.md` file and use
@@ -52,7 +53,7 @@ Bounded modern Virtio block binding, feature negotiation, owned DMA layout and
 queue setup are accepted in `done/step1140.md`. One default-off sector read with
 checked completion and reset/allocator cleanup is accepted in `done/step1143.md`.
 A one-attempt live block-contract adapter and protective LBA0 validation are
-accepted in `done/step1147.md`. Guest FAT/package loading, continuing storage
+accepted in `done/step1147.md`. Guest manifest/package loading, continuing storage
 and Gate 7 remain incomplete.
 PAL and app-model progress remains host-tested contract/planning evidence;
 networking includes UDP/TCP checksum
@@ -67,7 +68,8 @@ unless `docs/completion-gates.md` has matching evidence.
 The #124/#125/#126/#627 bounded GPT batch is accepted in `done/step1150.md`:
 primary header/array validation, real backup fallback and EFI partition location
 pass full-host/native review and intact/damaged-primary guest captures. Each
-sector uses a fresh reset/cleanup lifetime; FAT and continuing storage remain incomplete.
+sector uses a fresh reset/cleanup lifetime; manifest/package loading and
+continuing storage remain incomplete.
 
 ## Required First Reads
 

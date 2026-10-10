@@ -1,19 +1,20 @@
 # NativeAOT NoStdLib Limits
 
-The pending FAT slice in [step1151](../done/step1151.md) uses existing pointer-backed
+The qualified FAT slice in [step1152](../done/step1152.md) uses existing pointer-backed
 `Span<byte>`, with `Span<uint>` and `Span<ushort>` specializations for fixed caller
 scratch. A shared pointer `ReadUInt16LittleEndian(byte*)` overload reads exactly
 two readable bytes, including unaligned input, with no allocation or exception.
 The caller owns pointer validity. No framework Span indexing/slicing, strings,
-collation or runtime-surface expansion is added. Native qualification is pending;
-focused managed tests do not admit new native behavior by themselves.
+collation or runtime-surface expansion is added. Associated native instructions,
+bounded stack, real guest capture and full-host checks qualify this fixed-scratch
+profile; they do not admit general Span, directory service or filesystem behavior.
 
 The GPT batch [step1150](../done/step1150.md) accepts three explicit storage sources
 using the existing pointer-backed Span and shared endian/CRC helpers. It introduces
 no new BCL surface. The guest owns one fixed 16KiB entry buffer, a 512-byte header
 and bounded repeated fresh read calls. The closed constrained specialization,
 hidden return buffers and caller ownership are reviewed. Conservative diagnostic/
-fault stack bounds31736/4968 bytes fit the32768-byte stacks, including the fixed
+fault stack bounds31736/4968 bytes fit the 32,768-byte stacks, including the fixed
 array's page-probe loop and machine-stub margins. These bounds apply only to the
 captured profile; no general Span/interface/BCL support is established.
 

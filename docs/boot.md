@@ -2,8 +2,9 @@
 
 A default-off FAT child profile is implemented after accepted GPT partition
 selection, through `BootSequence.RunOwnedFatRead`. [Step1151](../done/step1151.md)
-records focused controls; native/guest/full-host qualification is pending. See
-[the bounded storage contract](cstorage.md#bounded-fat-read-profile-qualification-pending).
+records implementation controls; [step1152](../done/step1152.md) qualifies native,
+guest and full-host behavior. See
+[the bounded storage contract](cstorage.md#bounded-fat-read-profile).
 
 The default-off GPT profile is accepted in [step1150](../done/step1150.md),
 with full-host/native and intact/backup guest evidence. After completed live block-contract proof it

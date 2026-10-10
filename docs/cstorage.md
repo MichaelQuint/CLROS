@@ -1,11 +1,13 @@
 # Storage
 
-## Bounded FAT read profile (qualification pending)
+## Bounded FAT read profile
 
-The #127/#128/#129 implementation and shared integration #629 are recorded in
-[step1151](../done/step1151.md). Focused parser, image-fixture and transcript
-controls pass. Strict native review, real guest capture and the frozen full-host
-gate remain pending; the accepted storage boundary is still step1150 GPT.
+The #127/#128/#129 batch and shared integration #629 are qualified in
+[step1152](../done/step1152.md), following the implementation checkpoint
+[step1151](../done/step1151.md). All 4,357 full-host checks, native ABI/stack review,
+the real 241-record FAT capture and 207/208/158/138/122/79-record ancestor captures
+pass. Exact 640 raw source inputs per capture and independent sector/image/EFI
+association are preserved. Diagnostic stack 31,752 bytes fits the 32,768-byte budget.
 
 `EnableM06FatReadProbe` defaults false and requires the complete GPT profile.
 `BootSequence.RunOwnedFatRead` runs only after successful EFI partition selection.

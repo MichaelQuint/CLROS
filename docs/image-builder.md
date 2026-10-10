@@ -1,8 +1,8 @@
 # Image Builder
 
-## FAT smoke fixture (qualification pending)
+## FAT smoke fixture
 
-The default-off FAT profile in [step1151](../done/step1151.md) applies the compiled
+The default-off FAT profile in [step1152](../done/step1152.md) applies the compiled
 `FatImageFixture` only after a fresh image build. It preserves GPT and EFI bytes,
 adds a second root-directory cluster and the long name
 `CLROS Live Storage Fixture.bin`, splits its VFAT records across the root boundary,
@@ -10,8 +10,9 @@ and writes1,301 deterministic bytes into three non-contiguous-order clusters.
 Both FATs and primary/backup FSInfo free counts are updated and read back. The
 receipt binds original/final image SHA256, EFI SHA256, cluster order and CRC32.
 It rejects repeat application, noncanonical geometry, unequal copies and wrong
-EFI identity before writing. Dry runs do not mutate images. Native/guest/full-host
-qualification is pending; this host fixture does not establish guest file reads.
+EFI identity before writing. Dry runs do not mutate images. The host fixture is
+qualified with independent mutation controls; the separate 241-record real guest
+capture establishes the bounded file-read behavior with native/full-host review.
 
 The GPT batch accepted in [step1150](../done/step1150.md) adds a smoke-only
 `GptImageVariant`: `Intact` by default, or `PrimaryHeaderCrcFault` with the explicit
