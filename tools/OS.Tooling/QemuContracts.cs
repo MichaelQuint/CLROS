@@ -690,6 +690,16 @@ public static class QemuContracts
         "TEST_START m06.006", .. Enumerable.Range(6, 4).Select(i => "M06_READ " + i), "CLROS_M06_006_READY", "TEST_PASS m06.006"
     ]);
 
+    public static IReadOnlyList<string> M06GptPartitionMarkers(bool primaryHeaderFault = false) => Array.AsReadOnly<string>(
+    [
+        .. M06LiveBlockContractMarkers,
+        "TEST_START m06.009", .. Enumerable.Range(0x80, primaryHeaderFault ? 1 : 33).Select(i => "M06_GPT " + i.ToString("X2")),
+        "M06_GPT 00", "M06_GPT 01", "CLROS_M06_009_READY", "TEST_PASS m06.009",
+        "TEST_START m06.010", .. primaryHeaderFault ? Enumerable.Range(0x81, 33).Select(i => "M06_GPT " + i.ToString("X2")) : [],
+        "M06_GPT 02", "M06_GPT 03", "M06_GPT 04", "CLROS_M06_010_READY", "TEST_PASS m06.010",
+        "TEST_START m06.011", "M06_GPT 05", "M06_GPT 06", "CLROS_M06_011_READY", "TEST_PASS m06.011"
+    ]);
+
     public static IReadOnlyList<string> M06LiveBlockContractMarkers { get; } = Array.AsReadOnly<string>(
     [
         .. M06VirtioBlockReadMarkers,

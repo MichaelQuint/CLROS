@@ -59,6 +59,10 @@ Never claim Kestrel, hosted .NET, real `ExitBootServices`, live PCI/storage/
 networking, cloud-provider support, cloud readiness, or production readiness
 unless `docs/completion-gates.md` has matching evidence.
 
+The #124/#125/#126/#627 GPT batch is implemented with focused host checks in
+`done/step1148.md`; native/full-host and intact/damaged-primary guest qualification
+remain pending. Do not treat this development checkpoint as accepted guest GPT.
+
 ## Required First Reads
 
 Before meaningful changes, read:

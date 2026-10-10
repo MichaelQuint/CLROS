@@ -1,5 +1,11 @@
 # CLROS Completion Gates
 
+#124/#125/#126/#627 are implemented with focused host checks in
+[step1148](../done/step1148.md). Primary GPT validation, real-backup orchestration
+and EFI partition selection await full-host, native review and two fresh guest
+captures. This is not accepted guest GPT evidence; FAT/package loading, continuing
+storage and Gate7 remain incomplete.
+
 #122/#123/#625 are accepted in [step1147](../done/step1147.md): a one-attempt live
 adapter implements the existing block contract and validates protective LBA0.
 All 4,316 full-host checks, targeted native Span/constrained-call ABI/stack review

@@ -16,6 +16,7 @@ internal static class EfiProfileTestControls
                 {
                     "M05_BAR_DMA_PROBE" or "M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE" => Array.Empty<string>(),
                     "M06_VIRTIO_BLOCK_READ_PROBE" => Array.Empty<string>(),
+                    "M06_GPT_PARTITION_PROBE" => ["M06_VIRTIO_BLOCK_READ_PROBE", "M06_LIVE_BLOCK_CONTRACT_PROBE"],
                     "M06_LIVE_BLOCK_CONTRACT_PROBE" => ["M06_VIRTIO_BLOCK_READ_PROBE"],
                     "M05_VIRTQUEUE_INTERRUPT_PROBE" => ["M05_VIRTIO_NEGOTIATION_PROBE", "M05_APIC_SETUP_PROBE"],
                     _ => ["M05_VIRTIO_NEGOTIATION_PROBE"]
@@ -37,9 +38,12 @@ internal static class EfiProfileTestControls
             {
                 var edges = invocations.Where(i => i.Expression.ToString() == body).ToArray();
                 reason = symbol + ":shared-body-caller " + edges.Length;
-                string[] expectedCallers = symbol == "M06_LIVE_BLOCK_CONTRACT_PROBE" ? ["RunOwnedVirtioBlockRead", entry] : [entry];
+                string[] expectedCallers = symbol == "M06_GPT_PARTITION_PROBE" ? ["RunOwnedVirtioBlockRead", "RunOwnedLiveBlockContract", entry] : symbol == "M06_LIVE_BLOCK_CONTRACT_PROBE" ? ["RunOwnedVirtioBlockRead", entry] : [entry];
                 if (!edges.Select(e => e.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
                     .FirstOrDefault()?.Identifier.Text).Order().SequenceEqual(expectedCallers.Order())) return false;
+                if (symbol == "M06_GPT_PARTITION_PROBE" &&
+                    (edges[0].ArgumentList.ToString() != "(state)" || edges[1].ArgumentList.ToString() != "(state, true)" ||
+                     edges[2].ArgumentList.ToString() != "(state, false, destination, sector, reads + 4UL)")) return false;
                 if (symbol == "M06_LIVE_BLOCK_CONTRACT_PROBE" &&
                     (edges[0].ArgumentList.ToString() != "(state)" || edges[1].ArgumentList.ToString() != "(state, true)")) return false;
             }
@@ -73,6 +77,7 @@ internal static class EfiProfileTestControls
             ("M05VirtqueueInterrupt", "M05VirtioNegotiation", "m05_virtqueue_interrupt_requires_apic_negotiation"),
             ("M05VirtqueuePolling", "M05VirtioNegotiation", "m05_virtqueue_polling_requires_negotiation"),
             ("M05VirtioNegotiation", "M05PciEnumeration", "m05_virtio_negotiation_requires_pci"),
+            ("M06GptPartition", "M06LiveBlockContract", "m06_gpt_partition_requires_contract"),
             ("M06LiveBlockContract", "M06VirtioBlockRead", "m06_live_block_contract_requires_read"),
             ("M06VirtioBlockRead", "M06VirtioBlockQueueSetup", "m06_block_read_requires_queue"),
             ("M06VirtioBlockQueueSetup", "M05PciEnumeration", "m06_block_queue_requires_pci"),

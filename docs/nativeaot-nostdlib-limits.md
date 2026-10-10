@@ -1,5 +1,12 @@
 # NativeAOT NoStdLib Limits
 
+The GPT batch [step1148](../done/step1148.md) adds three explicit storage sources
+using the existing pointer-backed Span and shared endian/CRC helpers. It introduces
+no new BCL surface. The guest owns one fixed 16KiB entry buffer, a 512-byte header
+and bounded repeated fresh read calls. The larger native stack path and the new
+closed constrained specialization still require review; the prior accepted stack
+bounds below do not cover this pending profile.
+
 ## Current Status
 
 The #122/#123/#625 batch accepted in [step1147](../done/step1147.md) adds a narrow pointer-backed `System.Span<T>`

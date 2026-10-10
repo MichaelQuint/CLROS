@@ -1,5 +1,12 @@
 # Boot
 
+The default-off GPT profile is implemented in [step1148](../done/step1148.md),
+with focused host evidence only. After completed live block-contract proof it
+reads primary GPT metadata, falls back to the real backup on metadata rejection,
+and selects one EFI partition. Each sector has a fresh negotiation/reset lifetime;
+failed transport or uncertain cleanup stops progress. Native and guest qualification
+are pending, and ordinary boot has no new storage phase.
+
 The default-off `EnableM06LiveBlockContractProbe` adds a fresh LBA0 read after
 the accepted sector-read proof, through the existing block interface using a
 closed constrained value-type call and the narrow native pointer Span subset.

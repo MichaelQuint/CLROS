@@ -20,6 +20,11 @@ try
         return 0;
     }
 
+    if (!options.DryRun && options.VirtioBlockBootImagePath is not null &&
+        (!File.Exists(options.VirtioBlockBootImagePath) || new FileInfo(options.VirtioBlockBootImagePath).Length < 68 * 512 ||
+         new FileInfo(options.VirtioBlockBootImagePath).Length % 512 != 0))
+        throw new ArgumentException("Virtio block boot image must be an existing sector-aligned raw image.");
+
     if (options.Preflight)
     {
         return RunPreflight(options);
@@ -866,6 +871,8 @@ static void ValidateResolvedPathSeparation(
         ("image", options.ImagePath),
         ("serial-log", options.SerialLogPath)
     ];
+
+    if (options.VirtioBlockBootImagePath is not null) paths.Add(("virtio-block-boot-image", options.VirtioBlockBootImagePath));
 
     if (!string.IsNullOrWhiteSpace(qemuPath))
     {
@@ -1901,6 +1908,7 @@ sealed class RunnerOptions
     public bool PciBarTestDevice { get; private set; }
     public bool VirtioNegotiationDevice { get; private set; }
     public bool VirtioBlockQueueDevice { get; private set; }
+    public string? VirtioBlockBootImagePath { get; private set; }
 
     public string WorkloadProfile { get; private set; } = DefaultWorkloadProfile;
 
@@ -1994,6 +2002,10 @@ sealed class RunnerOptions
                     if (options.VirtioNegotiationDevice) throw new ArgumentException("--virtio-negotiation-device may be specified only once.");
                     options.VirtioNegotiationDevice = true;
                     break;
+                case "--virtio-block-boot-image":
+                    if (options.VirtioBlockBootImagePath is not null) throw new ArgumentException("--virtio-block-boot-image may be specified only once.");
+                    options.VirtioBlockBootImagePath = RequireNonEmpty(ReadValue(args, ref i, arg), arg);
+                    break;
                 case "--virtio-block-queue-device":
                     if (options.VirtioBlockQueueDevice) throw new ArgumentException("--virtio-block-queue-device may be specified only once.");
                     options.VirtioBlockQueueDevice = true;
@@ -2051,6 +2063,8 @@ sealed class RunnerOptions
             }
         }
 
+        if (options.VirtioBlockBootImagePath is not null && (!options.VirtioBlockQueueDevice || options.DiskFormat != "raw"))
+            throw new ArgumentException("--virtio-block-boot-image requires the dedicated raw Virtio block fixture.");
         options.FinishParsing();
         if ((options.PciBarTestDevice ? 1 : 0) + (options.VirtioNegotiationDevice ? 1 : 0) + (options.VirtioBlockQueueDevice ? 1 : 0) > 1)
             throw new ArgumentException("Dedicated PCI test devices cannot share slot 6.");
@@ -2059,7 +2073,7 @@ sealed class RunnerOptions
 
     public static void PrintHelp()
     {
-        Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--replace-default-required-markers] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--expect-unexpected-vector-panic|--expect-owned-subsystem-panic] [--firmware-rng-source virtio|missing] [--dry-run]");
+        Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--replace-default-required-markers] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--expect-unexpected-vector-panic|--expect-owned-subsystem-panic] [--firmware-rng-source virtio|missing] [--virtio-block-queue-device [--virtio-block-boot-image <raw>]] [--dry-run]");
         Console.WriteLine("preflight validates local runner inputs and image format hints without launching QEMU or requiring libvirt.");
     }
 
@@ -2228,6 +2242,8 @@ sealed class RunnerOptions
             ("serial-log", SerialLogPath),
             ("qemu-requested", QemuPath)
         ];
+
+        if (VirtioBlockBootImagePath is not null) paths.Add(("virtio-block-boot-image", VirtioBlockBootImagePath));
 
         if (!string.IsNullOrWhiteSpace(OvmfCodePath))
         {

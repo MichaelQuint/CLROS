@@ -8,6 +8,9 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
+                [@"..\OS.Kernel\Storage\PrimaryGPTIndependentlyBoundsCRC.cs"] = "6fcbb597b66c5b82b9dbbcb72fdd699a35dce43659d176da671c23ac5e48ad67",
+                [@"..\OS.Kernel\Storage\ExerciseBackupGPTFallbackLiveDisk.cs"] = "60cba6a8ab65e8536c468685e4eef6ad92aed9de6588b5d97182ae635a97114c",
+                [@"..\OS.Kernel\Storage\FAT32ApplicationEFIPartition.cs"] = "18de6f91194ad12fe9c170f661a740b60432a291a8a8edf670874115b1365511",
                 [@"Runtime\MinimalRuntime.cs"] = "76f6a2e42e002196f24a7fc533bb106173e913f51141068d65f68464ae5916bc",
                 [@"..\OS.Kernel\Storage\LBAN0Guest.cs"] = "ebd79048784e3a5ee0e26a10a5631c37ad2ae7158113e155f8455b2a2fc1665c",
                 [@"..\OS.Kernel\Storage\LiveDeviceExistingIReadOnlyBlockDeviceContract.cs"] = "e1e284aee0b8fb6ab89f027a6cd5027dfc272765e0133d940bb8d546eb35f27e",
@@ -53,7 +56,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Runtime\X64FrameUnwind.cs"] = "b7cc8b10a5c1a0e819745d31e81b4915164645b17f172063522f32167afb3733",
                 [@"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs"] = "b01c67219c897cce58c756b72849a90f8032f10a222f0b4fe9e37e91bacc4d03",
                 [@"..\OS.Kernel\Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs"] = "12fac853b9dc2357d25315e4bedd0e43df0af76854079b7ae030bca36aed5253",
-                [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "80a7e311c9433e860e57851cc6e47aa5cbb7ceb8957df30699c3228dc7e98f6c",
+                [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "0b35c8ba935b1689a5cf975cf0e2e737c725a0f8d341bd367a0916b027b2266b",
                 [@"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs"] = "88053c5a7a7c46aae39e0c68d03d3dd6ab83047640e3a22455148e53023a44fe",
                 [@"..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs"] = "305c825611db57ddfdb446e6dabc0dd234a91e3c4d4bd050e9aaaf9b8ea57cb5",
                 [@"..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs"] = "a29db3387522d066ddff2c0cc06572e909a1eeb14080caba3c680a68c902dc0d",

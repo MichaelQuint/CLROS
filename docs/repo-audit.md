@@ -1,5 +1,11 @@
 # Repository Audit
 
+The owned #124/#125/#126/#627 batch is implemented with focused host checks in
+[step1148](../done/step1148.md). Strict source/profile admission and malformed
+metadata/receipt/image controls are present. Native ABI/stack review, full-host
+and fresh intact/damaged-primary guest qualification are pending; the issues
+remain open and no new completion gate is accepted.
+
 The #122/#123/#625 batch is accepted in [step1147](../done/step1147.md): a
 one-attempt block-interface adapter, protective LBA0 validation and an explicit
 default-off integration profile. All 4,316 full-host checks across 525 groups,

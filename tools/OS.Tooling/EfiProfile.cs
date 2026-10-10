@@ -55,6 +55,7 @@ public sealed class EfiProfile
         Set("M05OwnedAcpiSelection", ["M03OwnedSubsystemPanic", "M03FirmwareAdapterRevocation", "M05PhysicalMapping"], false, "m05_acpi_profile_conflict");
         Set("M05MonotonicClock", ["M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival"], true, "m05_clock_requires_owned_first_exit");
         Set("M05PciEnumeration", ["M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival"], true, "m05_pci_requires_owned_first_exit");
+        Set("M06GptPartition", ["M06LiveBlockContract"], true, "m06_gpt_partition_requires_contract");
         Set("M06LiveBlockContract", ["M06VirtioBlockRead"], true, "m06_live_block_contract_requires_read");
         Set("M06VirtioBlockRead", ["M06VirtioBlockQueueSetup"], true, "m06_block_read_requires_queue");
         Set("M06VirtioBlockQueueSetup", ["M05PciEnumeration"], true, "m06_block_queue_requires_pci");

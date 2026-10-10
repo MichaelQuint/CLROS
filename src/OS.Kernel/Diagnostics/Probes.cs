@@ -134,6 +134,12 @@ public static partial class Probes
     public const bool EnableM06VirtioBlockReadProbe = false;
 #endif
 
+#if M06_GPT_PARTITION_PROBE
+    public const bool EnableM06GptPartitionProbe = true;
+#else
+    public const bool EnableM06GptPartitionProbe = false;
+#endif
+
 #if M06_LIVE_BLOCK_CONTRACT_PROBE
     public const bool EnableM06LiveBlockContractProbe = true;
 #else
@@ -141,7 +147,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 38;
+    public const int ProbeCatalogCount = 39;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -348,6 +354,10 @@ public static partial class Probes
     public static ProbeDefinition GetM06VirtioBlockReadProbe() =>
         new("storage.virtio-block-read", nameof(EnableM06VirtioBlockReadProbe), EnableM06VirtioBlockReadProbe,
             ProbeRisk.Destructive, "Reads one sector through an owned queue, validates completion and resets before release.");
+
+    public static ProbeDefinition GetM06GptPartitionProbe() =>
+        new("storage.gpt-partition", nameof(EnableM06GptPartitionProbe), EnableM06GptPartitionProbe,
+            ProbeRisk.Destructive, "Validates bounded live GPT tables, backup fallback and EFI partition location.");
 
     public static ProbeDefinition GetM06LiveBlockContractProbe() =>
         new("storage.live-block-contract", nameof(EnableM06LiveBlockContractProbe), EnableM06LiveBlockContractProbe,
@@ -591,6 +601,9 @@ public static partial class Probes
                 return true;
             case 36:
                 definition = GetM06VirtioBlockReadProbe();
+                return true;
+            case 38:
+                definition = GetM06GptPartitionProbe();
                 return true;
             case 37:
                 definition = GetM06LiveBlockContractProbe();

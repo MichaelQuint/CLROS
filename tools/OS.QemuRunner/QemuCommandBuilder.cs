@@ -7,6 +7,7 @@ internal static class QemuCommandBuilder
 
     public static IReadOnlyList<string> BuildArguments(RunnerOptions options, string ovmfCodePath)
     {
+        bool separateBoot = options.VirtioBlockBootImagePath is not null;
         List<string> arguments =
         [
             "-machine",
@@ -34,9 +35,11 @@ internal static class QemuCommandBuilder
             "-device",
             "ich9-ahci,id=ahci",
             "-drive",
-            "if=none,id=esp,format=" + options.DiskFormat + (options.VirtioBlockQueueDevice ? ",readonly=on" : "") + ",file=" + options.ImagePath,
+            "if=none,id=esp,format=" + options.DiskFormat + (separateBoot ? ",snapshot=on" : options.VirtioBlockQueueDevice ? ",readonly=on" : "") + ",file=" + (options.VirtioBlockBootImagePath ?? options.ImagePath),
             "-device",
-            options.VirtioBlockQueueDevice ? "virtio-blk-pci,drive=esp,addr=06.0,disable-legacy=on,romfile=" : "ide-hd,drive=esp,bus=ahci.0",
+            options.VirtioBlockQueueDevice && !separateBoot ? "virtio-blk-pci,drive=esp,addr=06.0,disable-legacy=on,romfile=" : "ide-hd,drive=esp,bus=ahci.0",
+            .. separateBoot ? new[] { "-drive", "if=none,id=gptdata,format=raw,readonly=on,file=" + options.ImagePath,
+                "-device", "virtio-blk-pci,drive=gptdata,addr=06.0,disable-legacy=on,romfile=" } : Array.Empty<string>(),
             "-netdev",
             "user,id=n0",
             "-device",

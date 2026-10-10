@@ -21,6 +21,10 @@
 
 ## Progress
 
+The owned GPT validation/backup/EFI partition batch is [implemented with focused
+host checks](done/step1148.md). Full-host, native review and intact/damaged-primary
+guest qualification remain pending; no new completion gate is accepted.
+
 A one-attempt live block adapter and protective LBA0 validation are
 [accepted](done/step1147.md): 4,316 full-host checks, native ABI/stack review and
 158/138/122/79-record contract/read/queue/ordinary guest captures pass. The

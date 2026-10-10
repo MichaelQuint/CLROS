@@ -1,5 +1,22 @@
 # Storage
 
+The #124/#125/#126/#627 GPT batch is implemented with focused host checks in
+[step1148](../done/step1148.md), pending full-host, native and real guest qualification.
+The default-off profile reads a 512-byte header and exactly 128 entries of 128
+bytes through separate fresh one-sector lifetimes. It checks reciprocal header
+locations, bounded usable/array extents, header/array CRCs, nonzero identities,
+unused-entry zeros, duplicate partition GUIDs and overlapping extents. Layout
+follows [UEFI GPT section5.3](https://uefi.org/specs/UEFI/2.10/05_GUID_Partition_Table_Format.html).
+A rejected primary triggers reads of the real last-sector backup header and its
+array; uncertain transport cleanup stops the profile. One fixed 16KiB caller
+buffer is reused after rejection. Exactly one EFI System Partition is selected;
+its type, extent and byte offset do not establish FAT/BPB validity. Names and
+attributes remain opaque. Every sector receipt follows observed device reset,
+bus-master disable, DMA release and exact original allocator restoration.
+The intended intact/damaged-primary captures contain 207/208 records, with
+33/34 fresh reads and terminal `TEST_PASS m06.011`. No guest GPT acceptance is
+claimed until both captures and native stack/ABI review pass.
+
 ## Current Status
 
 #122/#123 and integration #625 are accepted in [step1147](../done/step1147.md):

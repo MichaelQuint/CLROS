@@ -3,6 +3,9 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"..\OS.Kernel\Storage\PrimaryGPTIndependentlyBoundsCRC.cs"] = "reviewed_gpt_partition_source_identity",
+        [@"..\OS.Kernel\Storage\ExerciseBackupGPTFallbackLiveDisk.cs"] = "reviewed_gpt_partition_source_identity",
+        [@"..\OS.Kernel\Storage\FAT32ApplicationEFIPartition.cs"] = "reviewed_gpt_partition_source_identity",
         [@"Runtime\MinimalRuntime.cs"] = "reviewed_minimal_runtime_source_identity",
         [@"..\..\std\no-runtime\shared\Memory\SystemSpanPointer.cs"] = "reviewed_live_block_contract_source_identity",
         [@"..\OS.Kernel\Storage\IReadOnlyBlockDevice.cs"] = "reviewed_live_block_contract_source_identity",
