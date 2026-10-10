@@ -1,9 +1,12 @@
 # Boot
 
-The bounded split-queue batch #109-#112/#617 is implemented but not accepted in
-[step1132](../done/step1132.md). Focused host checks, strict publication and one
-139-record real QEMU TX completion pass; batch qualification remains pending.
-See [drivers](drivers.md) for the queue, ordering and DMA lifetime boundary.
+The bounded split-queue batch #109-#112/#617 is accepted in
+[step1133](../done/step1133.md): 4,251 full-host checks, strict native
+review, a 139-record real queue diagnostic and a 79-record ordinary
+regression. One ordered TX publication completes, then observed reset and
+bus-master disable precede DMA release and exact allocator restoration.
+No packet delivery, receive, interrupts, general networking or Gate 6
+completion is claimed. See [drivers](drivers.md) for the lifetime boundary.
 
 The bounded Virtio negotiation batch #105-#108/#614 is accepted in
 [step1131](../done/step1131.md): 4,230 full-host checks, strict native

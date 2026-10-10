@@ -1,9 +1,12 @@
 # Drivers
 
-The bounded split-queue batch #109-#112/#617 is implemented but not accepted in
-[step1132](../done/step1132.md). Focused checks and a 139-record real QEMU capture
-and the ordinary regression pass; full-host qualification and final acceptance
-are pending.
+The bounded split-queue batch #109-#112/#617 is accepted in
+[step1133](../done/step1133.md): 4,251 full-host checks, strict native
+review, a 139-record real queue diagnostic and a 79-record ordinary
+regression. One ordered TX publication completes, then observed reset and
+bus-master disable precede DMA release and exact allocator restoration.
+No packet delivery, receive, interrupts, general networking or Gate 6
+completion is claimed. The lifetime boundary is described below.
 
 The default-off `EnableM05VirtqueuePollingProbe` requires the complete owned
 Virtio negotiation profile. After its unchanged negotiation/reset diagnostics,

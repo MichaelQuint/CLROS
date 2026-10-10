@@ -10,7 +10,7 @@ may have effects; no exception handling, callback authentication, mapping or
 lifetime validation is supplied by this utility. The adapter owns those duties.
 There are no other overloads. The bounded x64 queue adapter authenticates and
 executes its fixed MFENCE leaf; host callback/byte tests alone do not prove
-hardware ordering. See [drivers](drivers.md) and [step1132](../done/step1132.md).
+hardware ordering. See [drivers](drivers.md) and [step1133](../done/step1133.md).
 
 `OS.Std.Binary.EndianPrimitives` now has pointer overloads for 32-bit and
 64-bit little-endian reads. They use unaligned-safe byte loads without allocation
