@@ -2,11 +2,12 @@
 
 ## Current Status
 
-The bounded live block binding/queue batch #116-#119/#621 is implemented in
-[step1138](../done/step1138.md), with focused host checks and a 122-record
-development QEMU capture. It remains unaccepted pending frozen-source full-host
-and final guest qualification. The earlier storage parsers and composed read
-plans below remain host-only; this batch does not submit a block request.
+The bounded live block binding/queue batch #116-#119/#621 is accepted in
+[step1140](../done/step1140.md): 4,294 full-host checks across 518 groups, strict
+native review and fresh 122/157/79-record block/network/ordinary captures pass
+with independent disk and 623-file source association. Development history is
+in steps1138-1139. The earlier storage parsers and composed read plans below
+remain host-only; this batch does not submit a block request.
 
 ### Bounded modern block queue profile
 

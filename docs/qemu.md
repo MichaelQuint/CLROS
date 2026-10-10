@@ -4,8 +4,8 @@ The [block queue profile](efi-build.md#bounded-virtio-block-queue-profile) selec
 `--virtio-block-queue-device`: one modern read-only `virtio-blk-pci` boot disk at
 slot 6, exclusive with the network diagnostic fixture. Ordinary runner arguments
 are unchanged. Its exact 122-record validator admits only the pinned 240-byte
-Virtio firmware prefix. [Step1138](../done/step1138.md) records development
-evidence; frozen-source batch qualification remains pending.
+Virtio firmware prefix. [Step1140](../done/step1140.md) accepts the frozen-source
+batch, including MSI-X network and ordinary-boot regressions.
 
 The APIC/MSI-X profiles in [step1137](../done/step1137.md) pass 4,277 full-host
 checks, strict native review and exact 104/157-record guest checks, plus a

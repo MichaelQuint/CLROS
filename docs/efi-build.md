@@ -2,8 +2,8 @@
 
 ## Bounded Virtio block queue profile
 
-[Step1138](../done/step1138.md) records development implementation and focused
-evidence for #116-#119/#621; final batch qualification is pending. The default-off
+[Step1140](../done/step1140.md) accepts full-host, strict native and final guest
+qualification for #116-#119/#621. The default-off
 switch requires the complete owned PCI profile and is exclusive with BAR/DMA,
 network Virtio negotiation, polling, APIC and MSI-X profiles. It selects a modern
 read-only boot disk at slot 6, not the ordinary SATA boot attachment.

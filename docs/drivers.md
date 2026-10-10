@@ -1,7 +1,7 @@
 # Drivers
 
-The separate modern block queue profile is implemented but not yet accepted in
-[step1138](../done/step1138.md). It reuses the accepted PCI/BAR/DMA contracts,
+The separate modern block queue profile is accepted in
+[step1140](../done/step1140.md). It reuses the accepted PCI/BAR/DMA contracts,
 with explicit block feature and region entry points that preserve network
 policy. See [storage](cstorage.md#bounded-modern-block-queue-profile) for scope.
 

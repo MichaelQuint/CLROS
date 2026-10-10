@@ -2,7 +2,7 @@
 
 The default-off block profile adds a bounded post-firmware binding, negotiation,
 queue-zero setup and reset transaction after owned PCI enumeration. It is
-implemented but unaccepted in [step1138](../done/step1138.md); continuing storage
+accepted in [step1140](../done/step1140.md); continuing storage
 and block I/O remain absent. See [storage](cstorage.md#bounded-modern-block-queue-profile).
 
 The bounded APIC/MSI-X integration in [step1137](../done/step1137.md)
