@@ -128,8 +128,14 @@ public static partial class Probes
     public const bool EnableM06VirtioBlockQueueSetupProbe = false;
 #endif
 
+#if M06_VIRTIO_BLOCK_READ_PROBE
+    public const bool EnableM06VirtioBlockReadProbe = true;
+#else
+    public const bool EnableM06VirtioBlockReadProbe = false;
+#endif
+
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 36;
+    public const int ProbeCatalogCount = 37;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -332,6 +338,10 @@ public static partial class Probes
     public static ProbeDefinition GetM05ApicSetupProbe() =>
         new("platform.apic", nameof(EnableM05ApicSetupProbe), EnableM05ApicSetupProbe,
             ProbeRisk.Destructive, "Validates the original BSP and masks owned local and IO APIC sources.");
+
+    public static ProbeDefinition GetM06VirtioBlockReadProbe() =>
+        new("storage.virtio-block-read", nameof(EnableM06VirtioBlockReadProbe), EnableM06VirtioBlockReadProbe,
+            ProbeRisk.Destructive, "Reads one sector through an owned queue, validates completion and resets before release.");
 
     public static ProbeDefinition GetM06VirtioBlockQueueSetupProbe() =>
         new("storage.virtio-block-queue", nameof(EnableM06VirtioBlockQueueSetupProbe), EnableM06VirtioBlockQueueSetupProbe,
@@ -568,6 +578,9 @@ public static partial class Probes
                 return true;
             case 34:
                 definition = GetM05VirtqueueInterruptProbe();
+                return true;
+            case 36:
+                definition = GetM06VirtioBlockReadProbe();
                 return true;
             case 35:
                 definition = GetM06VirtioBlockQueueSetupProbe();

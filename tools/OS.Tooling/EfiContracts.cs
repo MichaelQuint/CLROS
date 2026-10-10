@@ -10,7 +10,8 @@ public static partial class EfiContracts
          "EnableM05PhysicalMappingProbe", "EnableM05OwnedAcpiSelectionProbe", "EnableM05MonotonicClockProbe",
          "EnableM05PciEnumerationProbe", "EnableM05BarDmaProbe", "EnableM05VirtioNegotiationProbe",
          "EnableM05VirtqueuePollingProbe", "EnableM05ApicSetupProbe", "EnableM05VirtqueueInterruptProbe",
-         "EnableM06VirtioBlockQueueSetupProbe"]);
+         "EnableM06VirtioBlockQueueSetupProbe",
+         "EnableM06VirtioBlockReadProbe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -18,14 +19,15 @@ public static partial class EfiContracts
         Array.AsReadOnly<(string, string, string)>([("M05_BAR_DMA_PROBE", "RunOwnedBarDma", "RunDmaCore"),
             ("M05_VIRTQUEUE_POLLING_PROBE", "RunOwnedVirtqueuePolling", "RunQueueCore"),
             ("M05_VIRTQUEUE_INTERRUPT_PROBE", "RunOwnedVirtqueueInterrupt", "RunQueueCore"),
-            ("M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE", "RunOwnedVirtioBlockQueueSetup", "RunBlockQueueCore")]);
+            ("M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE", "RunOwnedVirtioBlockQueueSetup", "RunBlockQueueCore"),
+            ("M06_VIRTIO_BLOCK_READ_PROBE", "RunOwnedVirtioBlockRead", "RunBlockReadCore")]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "60542a8edc1e0fc0a6bee14d5dcfc34e9e08253ee6bf5a15d1522c4be8c036df";
-    public const string CanonicalProjectSha256 = "8d59737af2b8fdfbdeece8f16d2a130271819e41d97f041bcc785e3392772236";
-    public const string EfiEntrySourceSha256 = "396a638157c0b183958fd636aeedaf07266538d286cf0e55af62ef3d5d3a54fe";
+    public const string ProjectSourceSha256 = "cc8d87ba5fdcecd2457949e83805eb3af676539cf3c0e1c016a30cf6895feee8";
+    public const string CanonicalProjectSha256 = "fe6852e76e982f7c9360e9a81fbe79363195e3e8c7807f34e12e49be8172856b";
+    public const string EfiEntrySourceSha256 = "7924f687095ba4ea837bb43e960412db95dd077325091751682d2592af58df0e";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -167,6 +169,8 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Storage\MinimalVirtioBlkFeatureSet.cs|Storage\MinimalVirtioBlkFeatureSet.cs",
         @"..\OS.Kernel\Storage\DMASafeRequestStatusDescriptorAvailableUsedRing.cs|Storage\DMASafeRequestStatusDescriptorAvailableUsedRing.cs",
         @"..\OS.Kernel\Storage\VirtioBlkQueueN0.cs|Storage\VirtioBlkQueueN0.cs",
+        @"..\OS.Kernel\Storage\SubmitPollSectorRequest.cs|Storage\SubmitPollSectorRequest.cs",
+        @"..\OS.Kernel\Storage\UsedRingCompletionStatusByteTimeoutDeviceReset.cs|Storage\UsedRingCompletionStatusByteTimeoutDeviceReset.cs",
         @"..\OS.Kernel\Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs|Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs",
         @"..\..\std\no-runtime\shared\Binary\EndianPrimitives.Pointer.cs|Std\Binary\EndianPrimitives.Pointer.cs",
         @"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs|Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs",
@@ -261,6 +265,7 @@ public static partial class EfiContracts
         "EnableM05VirtqueueInterruptProbe",
         "EnableM05VirtqueuePollingProbe",
         "EnableM06VirtioBlockQueueSetupProbe",
+        "EnableM06VirtioBlockReadProbe",
         "EnableUefiGoneSimulationProbe",
     ]);
 }

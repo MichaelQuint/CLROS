@@ -2,6 +2,27 @@
 
 ## Current Status
 
+The bounded read batch #120/#121/#623 is accepted in
+[step1143](../done/step1143.md): 4,304 full-host checks across 521 groups, targeted
+native review and strict 138/122/79-record read/queue/ordinary captures pass.
+Development and the initial admission-pin repair are preserved in steps1141-1142.
+`SubmitPollSectorRequest` sends one fresh 512-byte IN chain through queue zero.
+It reads capacity under config generation, validates the sector range, orders
+descriptor/available-index/notification writes and polls a bounded number of
+times. Completion requires head zero, exactly 513 written bytes and status OK.
+Observed reset, bus-master disable and a fence precede DMA-token release; only
+successful completion and cleanup allow copying into the caller's destination.
+The original backing remains owned through return. There is no queue reuse.
+Host controls cover failures before/after callbacks, short/bad completions,
+configuration churn, timeout, retained DMA and destination/metadata aliases.
+
+The separate `EnableM06VirtioBlockReadProbe` defaults false and requires the
+accepted queue profile. It transports LBA1 as opaque bytes and records CRC32,
+first/last words, original allocator restoration and completion controls. The
+wrapper checks the returned bytes against the generated disk image. This does
+not implement GPT parsing. #122 also needs a narrow native Span/constrained
+interface path; a host adapter plus guest pointer call is insufficient evidence.
+
 The bounded live block binding/queue batch #116-#119/#621 is accepted in
 [step1140](../done/step1140.md): 4,294 full-host checks across 518 groups, strict
 native review and fresh 122/157/79-record block/network/ordinary captures pass
@@ -168,7 +189,11 @@ Kernel-facing parsers should prefer the non-throwing `TryRead` and `TryWrite` va
 
 ## Unsupported Behavior
 
-Live PCI enumeration, real virtio-blk device I/O, writes, flushes, discard/TRIM, backup GPT fallback in the legacy parser entrypoints, legacy `GptParser` CRC enforcement, boot-time package reads from a real device, MBR fallback, subdirectory traversal beyond one level, package payload loading, and app loading are pending.
+Beyond the accepted terminal binding/queue/one-sector diagnostic, continuing
+virtio-blk I/O, a live `IReadOnlyBlockDevice` adapter, writes, flushes,
+discard/TRIM, guest GPT/FAT interpretation, boot-time disk-backed package reads,
+MBR fallback, deeper directory traversal, package payload loading and app loading
+remain pending. Legacy parser limitations described below also remain.
 
 ## Tests
 
@@ -1051,11 +1076,13 @@ The package loader locates `OS/APP.PKG` through a GPT ESP and a first-level FAT3
 
 ## Next Steps
 
-1. Add a general GPT partition enumeration API if a future caller needs more than ESP selection.
-2. Add multi-cluster directory chain walking for larger directories.
-3. Promote the PAL package-file table from host-only mock behavior into exported `OSHost_*` file functions once the hosted runtime adapter needs linkable symbols.
-4. Wire the package loader into the future boot app-package boundary once a real block device exists.
-5. Extend manifest/package loader integration toward live app payload reads.
-8. Wire future PCI enumeration to snapshot config bytes, feed them through `VirtioPciCapabilityListParser`, `VirtioPciDeviceDiscovery`, and the fake-derived BAR sizing binding composer, then feed live feature bits and queue counts into `VirtioDeviceInitializationPlan`.
-9. Implement live execution of the address-bound PCI BAR sizing write/read/restore commands after the fake config-accessor executor and before treating derived BAR sizes as real virtio-blk binding input.
-10. Add live virtio-blk feature negotiation, config BAR reads, DMA-safe queue ownership, barrier-ordered queue enable, device notification, and completion waiting on top of the device-config parser, queue setup register-window executor/barrier gate, split-ring, descriptor-chain writer, completion-reader, read-lifecycle, read-only device/read-queue planners, descriptor ownership state, publish/reclaim/cursor/read-queue-completion planners, notify register-window planner/executor/barrier gate, read-notify readiness executor, read-notify completion planner, read-notify block-result projector, read pipeline composer/adapter/session, and initialization-planning contracts while keeping the first live driver slice read-only.
+1. Expose the accepted transport through `IReadOnlyBlockDevice` (#122), with a
+   narrow native Span surface and proven constrained call/return lowering.
+2. Read and validate LBA0, primary/backup GPT and FAT metadata from the guest
+   in the ordered M06 issues. Existing host parsers are not guest acceptance.
+3. Load the manifest and package from the live read-only device, then complete
+   the scoped storage failure probes before promoting Gate 7.
+4. Add continuing queue/service lifetime only when its ownership and recovery
+   contract is implemented and validated. Writes remain outside current scope.
+5. Promote PAL package-file mocks into exported `OSHost_*` functions when the
+   hosted runtime integration reaches that dependency.

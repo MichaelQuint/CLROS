@@ -82,7 +82,7 @@ internal static unsafe class M06VirtioBlockQueueSetupEfiIntegrationTests
         finally { File.Delete(path); }
     }
 
-    private static string BlockFrame(string[] lines)
+    internal static string BlockFrame(string[] lines)
     {
         const string screen = "\u001b[2J\u001b[01;01H\u001b[=3h\u001b[2J\u001b[01;01H";
         string prefix = screen + screen + screen +
@@ -92,7 +92,7 @@ internal static unsafe class M06VirtioBlockQueueSetupEfiIntegrationTests
         return prefix + string.Join("\r\n", lines) + "\r\n";
     }
 
-    private static string[] Capture()
+    internal static string[] Capture()
     {
         string[] lines = QemuContracts.M06VirtioBlockQueueSetupMarkers.ToArray();
         M05VirtioNegotiationEfiIntegrationTests.Capture()[..QemuContracts.M05PciEnumerationMarkers.Count].CopyTo(lines, 0);

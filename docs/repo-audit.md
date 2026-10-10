@@ -2,6 +2,13 @@
 
 ## Current Status
 
+The M06 read/completion batch #120/#121/#623 is accepted in
+[step1143](../done/step1143.md): 4,304 full-host checks across 521 groups, native
+delta review and fresh 138/122/79-record read/queue/ordinary captures pass with
+independent source/image association. One 512-byte read and quiescent cleanup
+are proven; the block-contract adapter, filesystem/package loading and Gate 7
+remain incomplete.
+
 The four M06 leaves #116-#119 and integration #621 are accepted in
 [step1140](../done/step1140.md): 4,294 full-host checks across 518 groups, strict
 native review and fresh block/network/ordinary captures pass with matching
