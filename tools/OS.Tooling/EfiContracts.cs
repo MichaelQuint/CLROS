@@ -6,9 +6,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "fecfd24422cacfceac0bb426dfda926cc69565cb195acb431ed0831046efaa53";
-    public const string CanonicalProjectSha256 = "693420c88f9410394c2d55355ccd62dea6041846fb52442ca31fdc5add52b2b8";
-    public const string EfiEntrySourceSha256 = "a130cf3878d7567a7a83b56961f40b54f013c00d5aa9914c2afa8695a432b75d";
+    public const string ProjectSourceSha256 = "cf7d474a9627b5b1836e5a4b5bf7436bfbcedde30e9e6cc8380d6c640b262f94";
+    public const string CanonicalProjectSha256 = "5954ad2d60afddc8e6b40a36d67806faf8f3e8226090f14e2afd749a753396ed";
+    public const string EfiEntrySourceSha256 = "3796971d995eeeab7b1371ec3dbfbe619b9df42052955af2d294789bc53678a0";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -134,6 +134,12 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Drivers\PageAlignedDMABuffersLifetimeOwnershipTracking.cs|Drivers\PageAlignedDMABuffersLifetimeOwnershipTracking.cs",
         @"..\OS.Kernel\Drivers\VirtioPciCapabilities.cs|Drivers\VirtioPciCapabilities.cs",
         @"..\OS.Kernel\Drivers\VirtioPciModernRegisterMap.cs|Drivers\VirtioPciModernRegisterMap.cs",
+        @"..\OS.Kernel\Drivers\VirtqueuePowerTwoConstraintsIndexWidthNegotiatedMaximum.cs|Drivers\VirtqueuePowerTwoConstraintsIndexWidthNegotiatedMaximum.cs",
+        @"..\OS.Kernel\Drivers\DescriptorAllocationExhaustionInvalidIndexDoubleFreeTests.cs|Drivers\DescriptorAllocationExhaustionInvalidIndexDoubleFreeTests.cs",
+        @"..\OS.Kernel\Drivers\SplitVirtqueuePollingNotificationCompletion.cs|Drivers\SplitVirtqueuePollingNotificationCompletion.cs",
+        @"..\OS.Kernel\Drivers\MemoryOrderingPrimitivesReplacingReadinessBooleans.cs|Drivers\MemoryOrderingPrimitivesReplacingReadinessBooleans.cs",
+        @"..\OS.Kernel\Drivers\VirtqueueSplitRingPlan.cs|Drivers\VirtqueueSplitRingPlan.cs",
+        @"..\..\std\no-runtime\shared\Memory\MemoryOrder.cs|Std\MemoryOrder.cs",
         @"..\OS.Kernel\Drivers\ModernVirtioPCICapabilitiesLiveConfigurationSpace.cs|Drivers\ModernVirtioPCICapabilitiesLiveConfigurationSpace.cs",
         @"..\OS.Kernel\Drivers\CommonNotifyISRDeviceConfigurationRegions.cs|Drivers\CommonNotifyISRDeviceConfigurationRegions.cs",
         @"..\OS.Kernel\Drivers\ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation.cs|Drivers\ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation.cs",
@@ -228,6 +234,7 @@ public static partial class EfiContracts
         "EnableM05PciEnumerationProbe",
         "EnableM05PhysicalMappingProbe",
         "EnableM05VirtioNegotiationProbe",
+        "EnableM05VirtqueuePollingProbe",
         "EnableUefiGoneSimulationProbe",
     ]);
 }

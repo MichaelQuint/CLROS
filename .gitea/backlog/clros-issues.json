@@ -12727,14 +12727,14 @@
         "M05-015"
       ],
       "labels": [
-        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:virtio",
         "phase:m05-platform",
         "reference:test-only",
-        "lane:common-virtio"
+        "lane:common-virtio",
+        "agent:claimed"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -12755,7 +12755,7 @@
       ],
       "collisionLane": "lane:common-virtio",
       "summary": "Validate virtqueue size, power-of-two constraints, index width, and negotiated maximum.",
-      "currentEvidence": "Dependency #108 is accepted with bounded modern Virtio negotiation in done/step1131.md. This live queue-size admission slice is ready but unimplemented; no programmed virtqueue, actual device DMA or completion is accepted.",
+      "currentEvidence": "Implemented but not accepted in done/step1132.md under integration #617: bounded queue sizing, opaque descriptor ownership, one VERSION_1 split TX queue transaction, and authenticated x64 fence execution. 25 focused queue checks, 48 boot-sequence checks and 14 marker-state checks pass. Strict publication and a 139-record real QEMU capture pass. The ordinary 79-record regression, native review and independent disk/EFI association also pass. Full-host qualification and final acceptance remain pending. This is one polled QEMU TX completion, not packet delivery, interrupts, general networking, Gate 6, hosted .NET/Kestrel, cloud or production acceptance.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Validate virtqueue size, power-of-two constraints, index width, and negotiated maximum.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12814,13 +12814,13 @@
         "M05-016"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:tooling",
         "evidence:qemu",
         "component:virtio",
         "phase:m05-platform",
-        "reference:test-only"
+        "reference:test-only",
+        "agent:claimed"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -12841,7 +12841,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement descriptor allocation with exhaustion, invalid-index, and double-free tests.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Implemented but not accepted in done/step1132.md under integration #617: bounded queue sizing, opaque descriptor ownership, one VERSION_1 split TX queue transaction, and authenticated x64 fence execution. 25 focused queue checks, 48 boot-sequence checks and 14 marker-state checks pass. Strict publication and a 139-record real QEMU capture pass. The ordinary 79-record regression, native review and independent disk/EFI association also pass. Full-host qualification and final acceptance remain pending. This is one polled QEMU TX completion, not packet delivery, interrupts, general networking, Gate 6, hosted .NET/Kestrel, cloud or production acceptance.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement descriptor allocation with exhaustion, invalid-index, and double-free tests.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12900,14 +12900,14 @@
         "M05-017"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:virtio",
         "phase:m05-platform",
         "reference:test-only",
-        "lane:common-virtio"
+        "lane:common-virtio",
+        "agent:claimed"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -12928,7 +12928,7 @@
       ],
       "collisionLane": "lane:common-virtio",
       "summary": "Program one split virtqueue and execute polling notification/completion.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Implemented but not accepted in done/step1132.md under integration #617: bounded queue sizing, opaque descriptor ownership, one VERSION_1 split TX queue transaction, and authenticated x64 fence execution. 25 focused queue checks, 48 boot-sequence checks and 14 marker-state checks pass. Strict publication and a 139-record real QEMU capture pass. The ordinary 79-record regression, native review and independent disk/EFI association also pass. Full-host qualification and final acceptance remain pending. This is one polled QEMU TX completion, not packet delivery, interrupts, general networking, Gate 6, hosted .NET/Kestrel, cloud or production acceptance.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Program one split virtqueue and execute polling notification/completion.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12987,13 +12987,13 @@
         "M05-018"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:platform",
         "phase:m05-platform",
-        "reference:test-only"
+        "reference:test-only",
+        "agent:claimed"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -13014,16 +13014,16 @@
       ],
       "collisionLane": null,
       "summary": "Add memory-ordering primitives replacing readiness booleans.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Implemented but not accepted in done/step1132.md under integration #617: bounded queue sizing, opaque descriptor ownership, one VERSION_1 split TX queue transaction, and authenticated x64 fence execution. 25 focused queue checks, 48 boot-sequence checks and 14 marker-state checks pass. Strict publication and a 139-record real QEMU capture pass. The ordinary 79-record regression, native review and independent disk/EFI association also pass. Full-host qualification and final acceptance remain pending. This is one polled QEMU TX completion, not packet delivery, interrupts, general networking, Gate 6, hosted .NET/Kestrel, cloud or production acceptance.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add memory-ordering primitives replacing readiness booleans.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Demonstrate the exact successful repository/evidence behavior required by: Add memory-ordering primitives replacing readiness booleans.",
-        "Failure cases: Cover missing file/tool, duplicate key, malformed input, stale path/claim, nonzero process exit, missing marker, hash mismatch, and unauthorized write as applicable.",
-        "Explicitly inapplicable here: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice.",
+        "Positive case: Demonstrate actual authenticated x64 fence execution between descriptor/ring writes, available-index publication, notification and completion reads in one bounded guest queue transaction.",
+        "Failure cases: Cover null or failed fence callbacks, mutated instruction bytes, missing or reordered publication/completion fences, malformed used entries, device failure, polling timeout and reset or bus-master cleanup failure; retain DMA backing when cleanup is uncertain.",
+        "Explicitly inapplicable here: General SMP synchronization, non-coherent DMA, interrupts, general networking, runtime unwind and cloud cleanup are outside this bounded ordering slice.",
         "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only."
       ],
       "referenceInfluences": [
@@ -13039,9 +13039,9 @@
         "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
         "Affected canonical documentation is updated without promoting unsupported completion gates.",
         "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Demonstrate the exact successful repository/evidence behavior required by: Add memory-ordering primitives replacing readiness booleans.",
-        "Applicable failure cases are asserted: Cover missing file/tool, duplicate key, malformed input, stale path/claim, nonzero process exit, missing marker, hash mismatch, and unauthorized write as applicable.",
-        "The evidence report explicitly records these non-goals: Live device I/O, packet loss, runtime unwind, and cloud cleanup are outside this repository/tooling slice."
+        "The positive case is demonstrated: Demonstrate actual authenticated x64 fence execution between descriptor/ring writes, available-index publication, notification and completion reads in one bounded guest queue transaction.",
+        "Applicable failure cases are asserted: Cover null or failed fence callbacks, mutated instruction bytes, missing or reordered publication/completion fences, malformed used entries, device failure, polling timeout and reset or bus-master cleanup failure; retain DMA backing when cleanup is uncertain.",
+        "The evidence report explicitly records these non-goals: General SMP synchronization, non-coherent DMA, interrupts, general networking, runtime unwind and cloud cleanup are outside this bounded ordering slice."
       ],
       "requiredMarkers": [
         "TEST_START m05.019",

@@ -98,6 +98,12 @@ public static partial class Probes
     public const bool EnableM05BarDmaProbe = false;
 #endif
 
+#if M05_VIRTQUEUE_POLLING_PROBE
+    public const bool EnableM05VirtqueuePollingProbe = true;
+#else
+    public const bool EnableM05VirtqueuePollingProbe = false;
+#endif
+
 #if M05_VIRTIO_NEGOTIATION_PROBE
     public const bool EnableM05VirtioNegotiationProbe = true;
 #else
@@ -105,7 +111,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 32;
+    public const int ProbeCatalogCount = 33;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -304,6 +310,11 @@ public static partial class Probes
         new("platform.bar-dma", nameof(EnableM05BarDmaProbe),
             EnableM05BarDmaProbe, ProbeRisk.Destructive,
             "Sizes quiescent PCI BARs and exercises owned DMA buffer lifetime.");
+
+    public static ProbeDefinition GetM05VirtqueuePollingProbe() =>
+        new("platform.virtqueue-polling", nameof(EnableM05VirtqueuePollingProbe),
+            EnableM05VirtqueuePollingProbe, ProbeRisk.Destructive,
+            "Completes one bounded split TX queue with explicit fences and reset before releasing DMA.");
 
     public static ProbeDefinition GetM05VirtioNegotiationProbe() =>
         new("platform.virtio-negotiation", nameof(EnableM05VirtioNegotiationProbe),
@@ -521,6 +532,9 @@ public static partial class Probes
                 return true;
             case 30:
                 definition = GetM05BarDmaProbe();
+                return true;
+            case 32:
+                definition = GetM05VirtqueuePollingProbe();
                 return true;
             case 31:
                 definition = GetM05VirtioNegotiationProbe();

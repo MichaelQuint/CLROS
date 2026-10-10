@@ -107,6 +107,21 @@ public static unsafe class CommonNotifyISRDeviceConfigurationRegions
         return VirtioRegionStatus.Success;
     }
 
+    /// <summary>Numeric binding for notification offsets within one already
+    /// installed UC/RW/NX page. Pass the capability length admitted by Plan;
+    /// the adapter must authenticate the entire page and its lifetime.</summary>
+    public static VirtioRegionStatus BindNotificationPage(VirtioConfigurationRegion region, uint capabilityLength,
+        ulong virtualPage, out VirtioMappedRegion mapped)
+    {
+        mapped = default;
+        if (!region.IsValid || region.Bytes != 2 || region.PageCount != 1 || capabilityLength < 2 ||
+            capabilityLength > 4096 - (region.PhysicalStart & 4095)) return VirtioRegionStatus.InvalidCapability;
+        var status = Bind(region, virtualPage, out var first);
+        if (status != VirtioRegionStatus.Success) return status;
+        mapped = new(first.PhysicalStart, first.VirtualStart, capabilityLength);
+        return VirtioRegionStatus.Success;
+    }
+
     public static VirtioRegionStatus Bind(VirtioConfigurationRegion region, ulong virtualPage,
         out VirtioMappedRegion mapped)
     {

@@ -1,5 +1,48 @@
 # Drivers
 
+The bounded split-queue batch #109-#112/#617 is implemented but not accepted in
+[step1132](../done/step1132.md). Focused checks and a 139-record real QEMU capture
+and the ordinary regression pass; full-host qualification and final acceptance
+are pending.
+
+The default-off `EnableM05VirtqueuePollingProbe` requires the complete owned
+Virtio negotiation profile. After its unchanged negotiation/reset diagnostics,
+it negotiates VERSION_1 again, selects TX queue 1, validates the device maximum,
+and programs an eight-entry split ring in one owned WB/RW/NX page. CPU virtual,
+physical and device addresses remain explicit; this QEMU fixture has identity
+mapping and no IOMMU. Notification uses the admitted capability length within
+one retained UC/RW/NX page and checks `queue_notify_off * multiplier` before the
+16-bit MMIO write. Queue setup reads back addresses, size, vector and enable.
+
+Opaque descriptor tokens bind pool address, lifetime epoch, index and nonwrapping
+generation. The pool rejects exhaustion, double release, stale or wrong-pool
+tokens and release while device-owned. These metadata transitions alone do not
+establish device synchronization or completion. The transaction publishes one
+read-only descriptor containing a 12-byte zero modern Virtio-net header and a
+60-byte local experimental-EtherType frame. It enables bus mastering only after
+queue setup, verifies fresh status before DRIVER_OK and during bounded polling,
+and accepts only one matching used entry with zero writable length.
+
+`OS.Std.Memory.MemoryOrder.Fence` invokes an authenticated nonthrowing platform
+callback, accepting only return value 1. The x64 adapter installs a fixed
+ENDBR64/MFENCE/MOV EAX,1/RET leaf in the existing authenticated RX code bundle.
+Real calls order descriptor/ring initialization, available-index publication,
+notification, used-entry reads and cleanup. This is coherent single-producer
+x64 DMA ordering; it adds no general SMP or non-coherent DMA guarantee.
+
+Cleanup observes device reset completion, disables PCI bus mastering, then
+executes a fence before returning and releasing DMA metadata. Uncertain reset,
+disable or cleanup ordering retains backing. The adapter releases its original
+allocator receipt only after successful transaction and cleanup, checking exact
+allocator restoration and arena canaries. INTx stays disabled; there is no
+interrupt path, receive path, packet-delivery claim, general network driver or
+Gate 6/hosted .NET/Kestrel/cloud/production acceptance. Negative controls remain
+local guest inputs or host callback simulations, not injected hardware faults.
+
+The runner marker cap is 256 to admit this 139-record profile; exact transcript,
+ordering, uniqueness, line/byte and terminal checks remain enforced. Static
+reference review informed independent tests only; no reference code was copied.
+
 The bounded Virtio negotiation batch #105-#108/#614 is accepted in
 [step1131](../done/step1131.md): 4,230 full-host checks, strict native
 review, a 119-record real diagnostic capture and a 79-record ordinary

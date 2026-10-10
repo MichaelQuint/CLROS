@@ -87,6 +87,7 @@ public static class QemuProfiles
         else if (Enabled("M05PhysicalMapping")) Select(QemuContracts.M05PhysicalMappingMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05OwnedAcpiSelection")) Select(QemuContracts.M05OwnedAcpiSelectionMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05MonotonicClock")) Select(QemuContracts.M05MonotonicClockMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M05VirtqueuePolling")) Select(QemuContracts.M05VirtqueuePollingMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05VirtioNegotiation")) Select(QemuContracts.M05VirtioNegotiationMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05BarDma")) Select(QemuContracts.M05BarDmaMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05PciEnumeration")) Select(QemuContracts.M05PciEnumerationMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
@@ -186,6 +187,7 @@ public static class QemuProfiles
         ("M05MonotonicClock", @"^(M05_CLOCK|CLROS_M05_003_READY|TEST_(START|PASS) m05\.003)", "m05_clock"),
         ("M05PciEnumeration", @"^(M05_PCI|CLROS_M05_00[4-7]_READY|TEST_(START|PASS) m05\.00[4-7])", "m05_pci"),
         ("M05BarDma", @"^(M05_BAR_DMA|CLROS_M05_0(0[89]|1[01])_READY|TEST_(START|PASS) m05\.0(0[89]|1[01]))", "m05_bar_dma"),
+        ("M05VirtqueuePolling", @"^(M05_QUEUE|CLROS_M05_01[6-9]_READY|TEST_(START|PASS) m05\.01[6-9])", "m05_queue"),
         ("M05VirtioNegotiation", @"^(M05_VIRTIO|CLROS_M05_01[2-5]_READY|TEST_(START|PASS) m05\.01[2-5])", "m05_virtio"),
         ("M04X64UnwindMetadata", @"^(CLROS_M04_020_|TEST_(START|PASS) m04\.020)", "m04_x64_unwind"),
         ("M04TypeManagerModuleRegistration", @"^(CLROS_M04_011_|TEST_(START|PASS) m04\.011)", "m04_type_manager"),

@@ -5,7 +5,7 @@ namespace OS.Tooling;
 public static partial class QemuTranscripts
 {
     public static void AssertM03AcpiBootstrapTranscript(string path, bool firstRealExit = false, bool firmwareRevocation = false,
-        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false)
+        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false)
     {
         Need(!ownedSurvival || firstRealExit && !firmwareRevocation, "m03_owned_profile_invalid");
         Need(!ownedPanic || ownedSurvival, "m03_owned_profile_invalid");
@@ -17,9 +17,10 @@ public static partial class QemuTranscripts
         Need(!pciEnumeration || firstRealExit && ownedSurvival && !ownedPanic && !normalBoot && !firmwareRevocation && !physicalMapping && !ownedAcpiSelection && !monotonicClock, "m05_pci_profile_invalid");
         Need(!barDma || pciEnumeration, "m05_bar_dma_requires_pci");
         Need(!virtioNegotiation || pciEnumeration && !barDma, "m05_virtio_requires_exclusive_pci");
-        string terminal = virtioNegotiation ? "TEST_PASS m05.015\r\n" : barDma ? "TEST_PASS m05.011\r\n" : pciEnumeration ? "TEST_PASS m05.007\r\n" : monotonicClock ? "TEST_PASS m05.003\r\n" : ownedAcpiSelection ? "TEST_PASS m05.002\r\n" : physicalMapping ? "TEST_PASS m05.001\r\n" : normalBoot || !firstRealExit ? "OS_SMOKE_PASS\r\n" : ownedPanic ? "" : ownedSurvival ? "TEST_PASS m03.010\r\n" : firmwareRevocation ? "TEST_PASS m03.008\r\n" : "TEST_PASS m03.009\r\n";
+        Need(!virtqueuePolling || virtioNegotiation, "m05_queue_requires_negotiation");
+        string terminal = virtqueuePolling ? "TEST_PASS m05.019\r\n" : virtioNegotiation ? "TEST_PASS m05.015\r\n" : barDma ? "TEST_PASS m05.011\r\n" : pciEnumeration ? "TEST_PASS m05.007\r\n" : monotonicClock ? "TEST_PASS m05.003\r\n" : ownedAcpiSelection ? "TEST_PASS m05.002\r\n" : physicalMapping ? "TEST_PASS m05.001\r\n" : normalBoot || !firstRealExit ? "OS_SMOKE_PASS\r\n" : ownedPanic ? "" : ownedSurvival ? "TEST_PASS m03.010\r\n" : firmwareRevocation ? "TEST_PASS m03.008\r\n" : "TEST_PASS m03.009\r\n";
         string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi");
-        IReadOnlyList<string> expected = virtioNegotiation ? QemuContracts.M05VirtioNegotiationMarkers : barDma ? QemuContracts.M05BarDmaMarkers : pciEnumeration ? QemuContracts.M05PciEnumerationMarkers : monotonicClock ? QemuContracts.M05MonotonicClockMarkers : ownedAcpiSelection ? QemuContracts.M05OwnedAcpiSelectionMarkers : physicalMapping ? QemuContracts.M05PhysicalMappingMarkers : normalBoot ? QemuContracts.M03NormalVerifiedExitMarkers : ownedPanic ? QemuContracts.M03OwnedSubsystemPanicMarkers :
+        IReadOnlyList<string> expected = virtqueuePolling ? QemuContracts.M05VirtqueuePollingMarkers : virtioNegotiation ? QemuContracts.M05VirtioNegotiationMarkers : barDma ? QemuContracts.M05BarDmaMarkers : pciEnumeration ? QemuContracts.M05PciEnumerationMarkers : monotonicClock ? QemuContracts.M05MonotonicClockMarkers : ownedAcpiSelection ? QemuContracts.M05OwnedAcpiSelectionMarkers : physicalMapping ? QemuContracts.M05PhysicalMappingMarkers : normalBoot ? QemuContracts.M03NormalVerifiedExitMarkers : ownedPanic ? QemuContracts.M03OwnedSubsystemPanicMarkers :
             ownedSurvival ? QemuContracts.M03OwnedSubsystemMarkers : firmwareRevocation ? QemuContracts.M03RevocationRequiredMarkers :
             firstRealExit ? QemuContracts.M03FirstExitRequiredMarkers : QemuContracts.M03AcpiBootstrapRequiredMarkers;
         int ownedStart = normalBoot ? 63 : 66;
@@ -27,6 +28,7 @@ public static partial class QemuTranscripts
         if (ownedPanic) expected = [.. expected, lines[^1]];
         if (barDma) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_BAR_DMA ", StringComparison.Ordinal)).Select(x => x.i)];
         if (virtioNegotiation) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_VIRTIO ", StringComparison.Ordinal)).Select(x => x.i)];
+        if (virtqueuePolling) varying = [.. varying, .. expected.Select((s, i) => (s, i)).Where(x => x.s.StartsWith("M05_QUEUE ", StringComparison.Ordinal)).Select(x => x.i)];
         ExactInventory(lines, expected, varying);
         ValidateAllocator(lines);
         string[] roles = ["rsdp", "root", "mcfg", "apic", "hpet"];
@@ -75,7 +77,8 @@ public static partial class QemuTranscripts
         if (ownedAcpiSelection) AssertM05OwnedAcpiSelectionRecords(lines);
         if (pciEnumeration) AssertM05PciEnumerationRecords(barDma || virtioNegotiation ? lines[..QemuContracts.M05PciEnumerationMarkers.Count] : lines);
         if (barDma) AssertM05BarDmaRecords(lines);
-        if (virtioNegotiation) AssertM05VirtioNegotiationRecords(lines);
+        if (virtioNegotiation) AssertM05VirtioNegotiationRecords(virtqueuePolling ? lines[..QemuContracts.M05VirtioNegotiationMarkers.Count] : lines);
+        if (virtqueuePolling) AssertM05VirtqueuePollingRecords(lines);
         if (monotonicClock) AssertM05MonotonicClockRecords(lines);
     }
 

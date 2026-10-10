@@ -403,6 +403,9 @@ public static unsafe class FirstExitCodeBundle
     public const uint PciReadOffset = 4608;
 #if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE
     public const uint PciBarOffset = 4624;
+#if M05_VIRTQUEUE_POLLING_PROBE
+    public const uint QueueFenceOffset = 4672;
+#endif
 #endif
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
@@ -435,6 +438,9 @@ public static unsafe class FirstExitCodeBundle
             OS.Drivers.X64PciConfigurationRead.Emit(code + PciReadOffset, StackEntryOffset - PciReadOffset) &&
 #if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE
             OS.Drivers.X64PciBarAccess.Emit(code + PciBarOffset, StackEntryOffset - PciBarOffset) &&
+#if M05_VIRTQUEUE_POLLING_PROBE
+            OS.Drivers.X64VirtqueueMemoryFence.Emit(code + QueueFenceOffset, StackEntryOffset - QueueFenceOffset) &&
+#endif
 #endif
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
@@ -525,6 +531,9 @@ public static unsafe class FirstExitCodeBundle
         if (!OS.Drivers.X64PciConfigurationRead.Validate(code + PciReadOffset, OS.Drivers.X64PciConfigurationRead.Bytes)) return false;
 #if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE
         if (!OS.Drivers.X64PciBarAccess.Validate(code + PciBarOffset, OS.Drivers.X64PciBarAccess.Bytes)) return false;
+#if M05_VIRTQUEUE_POLLING_PROBE
+        if (!OS.Drivers.X64VirtqueueMemoryFence.Validate(code + QueueFenceOffset, OS.Drivers.X64VirtqueueMemoryFence.Bytes)) return false;
+#endif
 #endif
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
@@ -545,6 +554,9 @@ public static unsafe class FirstExitCodeBundle
                 !Inside(index, PciReadOffset, OS.Drivers.X64PciConfigurationRead.Bytes) &&
 #if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE
                 !Inside(index, PciBarOffset, OS.Drivers.X64PciBarAccess.Bytes) &&
+#if M05_VIRTQUEUE_POLLING_PROBE
+                !Inside(index, QueueFenceOffset, OS.Drivers.X64VirtqueueMemoryFence.Bytes) &&
+#endif
 #endif
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE

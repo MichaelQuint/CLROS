@@ -2,6 +2,16 @@
 
 ## Current Status
 
+`OS.Std.Memory.MemoryOrder.Fence(void*, delegate* unmanaged<void*, byte>)` is
+an OS-specific allocation-free status API, not `System.Threading.Thread` or BCL
+compatibility. It rejects a null callback, invokes a non-null callback exactly
+once, and reports success only for return 1. Context may be null. Failed calls
+may have effects; no exception handling, callback authentication, mapping or
+lifetime validation is supplied by this utility. The adapter owns those duties.
+There are no other overloads. The bounded x64 queue adapter authenticates and
+executes its fixed MFENCE leaf; host callback/byte tests alone do not prove
+hardware ordering. See [drivers](drivers.md) and [step1132](../done/step1132.md).
+
 `OS.Std.Binary.EndianPrimitives` now has pointer overloads for 32-bit and
 64-bit little-endian reads. They use unaligned-safe byte loads without allocation
 or exceptions; the caller must retain readable four/eight-byte storage. Only
