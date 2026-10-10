@@ -14,8 +14,6 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Reference Include="Microsoft.CodeAnalysis" HintPath="$(MSBuildSDKsPath)/../Roslyn/bincore/Microsoft.CodeAnalysis.dll" />
-		<Reference Include="Microsoft.CodeAnalysis.CSharp" HintPath="$(MSBuildSDKsPath)/../Roslyn/bincore/Microsoft.CodeAnalysis.CSharp.dll" />
 		<Compile Include="..\..\src\OS\Boot\EfiEntry.cs" Link="EfiAdapters\EfiEntry.cs" />
 		<Compile Include="..\..\src\OS\Boot\EfiConsoleAdapter.cs" Link="EfiAdapters\EfiConsoleAdapter.cs" />
 		<Compile Include="..\..\src\OS\Runtime\NativeAotModuleRegistrationProbe.cs" Link="EfiAdapters\NativeAotModuleRegistrationProbe.cs" />
@@ -28,6 +26,19 @@
 		<ProjectReference Include="..\..\tools\OS.ManifestTool\OS.ManifestTool.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
 		<ProjectReference Include="..\..\tools\OS.QemuRunner\OS.QemuRunner.csproj" />
 	</ItemGroup>
+
+  <!-- Resolve after SDK targets assign RoslynTargetsPath. Visual Studio selects
+       Roslyn/binfx; dotnet MSBuild selects Roslyn. Both use SDK bincore here. -->
+  <Target Name="ResolveHostTestRoslynReferences" BeforeTargets="ResolveAssemblyReferences">
+    <PropertyGroup>
+      <HostTestRoslynDirectory>$(RoslynTargetsPath)/bincore</HostTestRoslynDirectory>
+      <HostTestRoslynDirectory Condition="!Exists('$(HostTestRoslynDirectory)/Microsoft.CodeAnalysis.dll')">$(RoslynTargetsPath)/../bincore</HostTestRoslynDirectory>
+    </PropertyGroup>
+    <ItemGroup>
+      <Reference Include="Microsoft.CodeAnalysis" HintPath="$(HostTestRoslynDirectory)/Microsoft.CodeAnalysis.dll" />
+      <Reference Include="Microsoft.CodeAnalysis.CSharp" HintPath="$(HostTestRoslynDirectory)/Microsoft.CodeAnalysis.CSharp.dll" />
+    </ItemGroup>
+  </Target>
 
   <Target Name="CaptureHostTestBuildInputs" BeforeTargets="AssignTargetPaths" DependsOnTargets="ResolveReferences;GenerateGlobalUsings;GenerateTargetFrameworkMonikerAttribute;GenerateAssemblyInfo">
     <ItemGroup>

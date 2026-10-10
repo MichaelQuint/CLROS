@@ -1,18 +1,25 @@
 # Repository Audit
 
+The #127/#128/#129/#629 bounded FAT chain, VFAT directory and known-file CRC32
+batch is qualified in [step1152](../done/step1152.md). All 4,357 full-host checks
+across 535 groups pass with zero failures, timeouts, reuse or input changes.
+Native review and 241-record FAT plus207/208/158/138/122/79-record ancestor guest
+captures pass with exact raw source and independent sector/image/EFI association.
+Manifest/package loading, continuing storage and Gate7 remain incomplete.
+
 The #124/#125/#126/#627 batch is accepted in [step1150](../done/step1150.md).
 All4,336 full-host checks across530 groups pass with zero reuse, timeouts or
 input changes. Native ABI/stack review, intact/damaged-primary guest captures,
 ancestor regressions and source/disk association pass. Steps1148-1149 retain the
 failed attempts. Only bounded GPT validation/fallback/partition location is added;
-FAT/package loading, continuing storage and Gate7 remain incomplete.
+Manifest/package loading, continuing storage and Gate7 remain incomplete.
 
 The #122/#123/#625 batch is accepted in [step1147](../done/step1147.md): a
 one-attempt block-interface adapter, protective LBA0 validation and an explicit
 default-off integration profile. All 4,316 full-host checks across 525 groups,
 targeted native review and fresh 158/138/122/79-record guest captures pass with
 current source/image association. Steps1144-1146 preserve failed attempts and
-focused repairs. Guest FAT/package loading, continuing storage and Gate 7
+focused repairs. Guest manifest/package loading, continuing storage and Gate 7
 remain incomplete.
 
 ## Current Status
@@ -443,7 +450,12 @@ Host-tested Ethernet, ARP, ARP neighbor resolution, bounded ARP neighbor cache, 
 
 ## Storage Status
 
-Host-tested read-only block-device contracts, GPT ESP parsing/selection, partition-relative devices, FAT32 BPB/root and first-level directory parsing, VFAT long-name lookup, FAT-chain-aware content reads, package parser/filesystem APIs, `OS/APP.PKG` loader over an `IReadOnlyBlockDevice`, virtio-blk request/read transaction planning, split-ring layout, descriptor-chain planning, and caller-owned descriptor-chain writer exist. No runtime virtio-blk driver, live disk read, boot-time package load from hardware, executable app mapping, or app loader execution exists yet.
+General block-device, partition, FAT32, manifest/package and filesystem APIs
+remain host-tested contracts. Separate default-off terminal guest profiles now
+qualify modern Virtio binding/queue setup, fresh sector reads, primary/backup
+GPT selection and bounded FAT/VFAT/known-file CRC32 reads through step1152.
+Boot-time manifest/package loading, executable app mapping, app execution and
+continuing storage remain incomplete.
 
 ## Packaging Status
 

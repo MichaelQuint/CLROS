@@ -12,7 +12,7 @@ public static partial class EfiContracts
          "EnableM05VirtqueuePollingProbe", "EnableM05ApicSetupProbe", "EnableM05VirtqueueInterruptProbe",
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
-        "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe"]);
+        "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -23,14 +23,15 @@ public static partial class EfiContracts
             ("M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE", "RunOwnedVirtioBlockQueueSetup", "RunBlockQueueCore"),
             ("M06_VIRTIO_BLOCK_READ_PROBE", "RunOwnedVirtioBlockRead", "RunBlockReadCore"),
             ("M06_LIVE_BLOCK_CONTRACT_PROBE", "RunOwnedLiveBlockContract", "RunBlockReadCore"),
-            ("M06_GPT_PARTITION_PROBE", "ReadGptSector", "RunBlockReadCore")]);
+            ("M06_GPT_PARTITION_PROBE", "ReadGptSector", "RunBlockReadCore"),
+            ("M06_FAT_READ_PROBE", "ReadFatSector", "RunBlockReadCore")]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "1561f1e0cb7a201d47e330ac0d0d3cfd469f842a693cf323efb4b1f55fa4cb8d";
-    public const string CanonicalProjectSha256 = "f17e9e430e7abc7ff01888f7567eab9b46d80e51bd77e3427b784dba4e2db259";
-    public const string EfiEntrySourceSha256 = "1187546da0d858e89f9584465e04606013db6c46c6ce280a70e03047fdb10f13";
+    public const string ProjectSourceSha256 = "faf993be7b054610e629a6c6628d30029086d58a0771725a9f92a97966ea3fa0";
+    public const string CanonicalProjectSha256 = "a52e14592f8e95d2019bae8d8a25134a35c25a4f5331a057bb2db367010f41f1";
+    public const string EfiEntrySourceSha256 = "410d5fe0fcd83e3950f5b586946119f88f24ee4a0df20104f4d786986736dc94";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -186,6 +187,9 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Storage\PrimaryGPTIndependentlyBoundsCRC.cs|Storage\PrimaryGPTIndependentlyBoundsCRC.cs",
         @"..\OS.Kernel\Storage\ExerciseBackupGPTFallbackLiveDisk.cs|Storage\ExerciseBackupGPTFallbackLiveDisk.cs",
         @"..\OS.Kernel\Storage\FAT32ApplicationEFIPartition.cs|Storage\FAT32ApplicationEFIPartition.cs",
+        @"..\OS.Kernel\Storage\FATClusterChainsLoopBadClusterTruncationDetection.cs|Storage\FATClusterChainsLoopBadClusterTruncationDetection.cs",
+        @"..\OS.Kernel\Storage\MultiClusterDirectoryVFATLongNameSupportSeparate.cs|Storage\MultiClusterDirectoryVFATLongNameSupportSeparate.cs",
+        @"..\OS.Kernel\Storage\KnownFileSHAN256EquivalentKnownFixtureHash.cs|Storage\KnownFileSHAN256EquivalentKnownFixtureHash.cs",
         @"..\OS.Kernel\Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs|Platform\MonotonicHPETTSCClockWrapFrequencyTests.cs",
         @"..\..\std\no-runtime\shared\Binary\EndianPrimitives.Pointer.cs|Std\Binary\EndianPrimitives.Pointer.cs",
         @"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs|Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs",
@@ -279,6 +283,7 @@ public static partial class EfiContracts
         "EnableM05VirtioNegotiationProbe",
         "EnableM05VirtqueueInterruptProbe",
         "EnableM05VirtqueuePollingProbe",
+        "EnableM06FatReadProbe",
         "EnableM06GptPartitionProbe",
         "EnableM06LiveBlockContractProbe",
         "EnableM06VirtioBlockQueueSetupProbe",

@@ -17,6 +17,13 @@ the user also confirmed that all solution projects load after this fix.
 Publish EFI images through
 `dotnet run --project tools/OS.Tooling -- efi build`, which also verifies the artifact.
 
+`OS.HostTests` uses the selected .NET SDK's Roslyn assemblies for checkpoint
+source parsing. Its reference target runs after SDK evaluation: `dotnet`
+MSBuild selects `Roslyn`, while Visual Studio MSBuild selects `Roslyn/binfx`;
+both resolve the SDK's `Roslyn/bincore` assemblies. Visual Studio 2026 Insiders
+MSBuild Rebuild and `dotnet build` passed this reference repair. This removes
+the two missing `Microsoft.CodeAnalysis` namespace errors without a new package.
+
 ## Implemented Behavior
 
 Required for all current host builds:

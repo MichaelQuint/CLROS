@@ -1,5 +1,48 @@
 # Storage
 
+## Bounded FAT read profile
+
+The #127/#128/#129 batch and shared integration #629 are qualified in
+[step1152](../done/step1152.md), following the implementation checkpoint
+[step1151](../done/step1151.md). All 4,357 full-host checks, native ABI/stack review,
+the real 241-record FAT capture and 207/208/158/138/122/79-record ancestor captures
+pass. Exact 640 raw source inputs per capture and independent sector/image/EFI
+association are preserved. Diagnostic stack 31,752 bytes fits the 32,768-byte budget.
+
+`EnableM06FatReadProbe` defaults false and requires the complete GPT profile.
+`BootSequence.RunOwnedFatRead` runs only after successful EFI partition selection.
+It reads one FAT32 BPB, walks a two-cluster root directory, joins a VFAT sequence
+across the cluster boundary, then reads a fragmented three-cluster, 1,301-byte
+file. The expected repository CRC32 is `E194D61D`; CRC32 is corruption detection,
+not authentication. Every sector gets fresh negotiation, queue lifetime, reset,
+bus-master disable, DMA release and exact original allocator restoration before
+its CRC receipt. Sixteen FAT-stage reads use epochs70..85. The complete profile
+expects241 ordered records ending `TEST_PASS m06.014`; dry-run is not boot proof.
+
+The pure BPB/chain slice admits512-byte sectors, power-of-two clusters up to128
+sectors, two mirrored FATs, FAT32 cluster-count/bounds checks, free/reserved/bad
+cluster and EOC classification, finite caller history, loops and length mismatch.
+It reads FAT0; only the integrated caller's exact corresponding sector comparison
+proves mirror agreement. The diagnostic intentionally narrows to one sector per
+cluster and eight-entry history. Fixed stack scratch stays outside read loops.
+
+The directory slice consumes32-byte records with caller-owned260-word scratch.
+It checks descending VFAT ordinals/checksum/type/cluster fields, terminator and
+padding, maximum255 UTF-16 code units, surrogate pairs, forbidden characters,
+short-entry metadata, dangling sequences and dot entries. It retains state across
+sectors/clusters, clears that state on failure and publishes metadata only for a
+successful entry. The guest matches one exact name; general path traversal,
+case folding, OEM conversion and collation are not implemented. See the
+[UEFI FAT requirements](https://uefi.org/specs/UEFI/2.10/13_Protocols_Media_Access.html)
+and [Microsoft filename rules](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/2917da5c-253c-4c0e-aaf6-9dddc37d2e6e).
+
+The file checksum slice consumes only complete512-byte read receipts at the next
+exact file offset and excludes final-sector padding. Truncation, malformed state
+and checksum mismatch fail without consuming state. Caller-validated FAT ordering
+is still required. Malformed-data controls are host evidence, not live device
+fault evidence. Manifest/package loading, persistent filesystem services, storage
+error-profile acceptance and Gate7 remain incomplete.
+
 The #124/#125/#126/#627 GPT batch is accepted in
 [step1150](../done/step1150.md), with full-host, native and real guest qualification.
 The default-off profile reads a 512-byte header and exactly 128 entries of 128

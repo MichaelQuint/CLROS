@@ -700,6 +700,18 @@ public static class QemuContracts
         "TEST_START m06.011", "M06_GPT 05", "M06_GPT 06", "CLROS_M06_011_READY", "TEST_PASS m06.011"
     ]);
 
+    public static IReadOnlyList<string> M06FatReadMarkers() => Array.AsReadOnly<string>(
+    [
+        .. M06GptPartitionMarkers(),
+        "TEST_START m06.012", "M06_FAT 80", "M06_FAT 00", "M06_FAT 01",
+        .. Enumerable.Range(0x81, 4).Select(i => "M06_FAT " + i.ToString("X2")),
+        "M06_FAT 02", "CLROS_M06_012_READY", "TEST_PASS m06.012",
+        "TEST_START m06.013", "M06_FAT 85", "M06_FAT 86", "M06_FAT 03", "M06_FAT 04", "M06_FAT 05",
+        "CLROS_M06_013_READY", "TEST_PASS m06.013",
+        "TEST_START m06.014", .. Enumerable.Range(0x87, 9).Select(i => "M06_FAT " + i.ToString("X2")),
+        "M06_FAT 06", "M06_FAT 07", "M06_FAT 08", "CLROS_M06_014_READY", "TEST_PASS m06.014"
+    ]);
+
     public static IReadOnlyList<string> M06LiveBlockContractMarkers { get; } = Array.AsReadOnly<string>(
     [
         .. M06VirtioBlockReadMarkers,
