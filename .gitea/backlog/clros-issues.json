@@ -11380,12 +11380,12 @@
         "M03-011"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:epic",
         "evidence:qemu",
         "component:platform",
-        "phase:m05-platform"
+        "phase:m05-platform",
+        "agent:done"
       ],
       "priority": "priority:p1",
       "ownedPaths": [],
@@ -11394,7 +11394,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M05: Platform, PCI, and Common Virtio.",
-      "currentEvidence": "Dependencies #68, #94, #95 and #96 are accepted in steps1094, 1120, 1123 and 1125; #97-#100 read-only PCI discovery is accepted in step1127. Bounded BAR/DMA lifetime is accepted in step1129; modern Virtio negotiation is accepted in step1131. Queue sizing, descriptor ownership, ordered split-queue polling and authenticated fences #109-#112/#617 are accepted in step1133. The epic remains open/agent:blocked with two remaining children #113/#114. APIC initialization, interrupt-driven completion and Gate 6 remain unproven.",
+      "currentEvidence": "All 21 keyed child scopes #94-#114 have accepted bounded evidence through done/step1137.md. The M05 criterion is satisfied by retained ACPI selection, owned clock/PCI/BAR/DMA access, modern Virtio negotiation, polling TX completion and one MSI-X completion after masked APIC setup. Final qualification at 4372218b6b7746f03ef8573ad8f84fe45eb4d7af passes 4,277 full-host checks and strict/native/104-157-79-record guest evidence. Optional USB discovery #469 is not a keyed child or completion-gate prerequisite and remains open, so the broader milestone stays open. Gate 6, continuing platform services, live storage/network workloads, hosted .NET/Kestrel, cloud and production readiness are not promoted.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -11425,7 +11425,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "The epic records coordination only; it proves none of Platform, PCI, and Common Virtio until every child and exit criterion passes.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-001",
@@ -13073,13 +13073,13 @@
         "M05-019"
       ],
       "labels": [
-        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:platform",
         "phase:m05-platform",
-        "reference:test-only"
+        "reference:test-only",
+        "agent:done"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -13100,7 +13100,7 @@
       ],
       "collisionLane": null,
       "summary": "Parse MADT and initialize local APIC/IOAPIC separately from polling proof.",
-      "currentEvidence": "Integrated development evidence in step1135 under #619 follows step1134/accepted step1133. Default-off APIC and MSI-X profiles pass strict NativeAOT publication, linked native review, 104/157-record real guest captures and the ordinary 79-record regression. Full-host batch qualification remains pending. #113/#114/#619 stay claimed and unaccepted; #114 depends on #113 and the batch is qualified together. Scope is one legacy xAPIC BSP, masked controllers and one MSI-X queue completion; no general IRQ, packet delivery or Gate 6 completion.",
+      "currentEvidence": "Accepted in done/step1137.md with #113/#114 and shared integration #619. Frozen implementation 4372218b6b7746f03ef8573ad8f84fe45eb4d7af passes all 4,277 full-host checks across 513 groups with unchanged inputs and zero reuse, strict native review of 790 method extents, real 104-record APIC/157-record MSI-X/79-record ordinary captures, and exact native/image/source association. One legacy xAPIC BSP and one IOAPIC are admitted and masked; a temporary authenticated IDT handles one MSI-X queue completion with EOI and restores IF=0/original IDTR. Masking, observed reset and bus-master disable precede backing release. Conventional MSI, general IRQ/SMP/scheduling, receive, packet delivery, Gate 6, hosted .NET/Kestrel, cloud and production remain outside this acceptance.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Parse MADT and initialize local APIC/IOAPIC separately from polling proof.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -13148,7 +13148,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Parse MADT and initialize local APIC/IOAPIC separately from polling proof.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-021",
@@ -13159,14 +13159,14 @@
         "M05-020"
       ],
       "labels": [
-        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
         "component:virtio",
         "phase:m05-platform",
         "reference:test-only",
-        "lane:common-virtio"
+        "lane:common-virtio",
+        "agent:done"
       ],
       "priority": "priority:p1",
       "ownedPaths": [
@@ -13187,7 +13187,7 @@
       ],
       "collisionLane": "lane:common-virtio",
       "summary": "Add MSI/MSI-X setup and interrupt-driven virtqueue completion after polling paths pass.",
-      "currentEvidence": "Integrated development evidence in step1135 under #619 follows step1134/accepted step1133. Default-off APIC and MSI-X profiles pass strict NativeAOT publication, linked native review, 104/157-record real guest captures and the ordinary 79-record regression. Full-host batch qualification remains pending. #113/#114/#619 stay claimed and unaccepted; #114 depends on #113 and the batch is qualified together. Scope is one legacy xAPIC BSP, masked controllers and one MSI-X queue completion; no general IRQ, packet delivery or Gate 6 completion.",
+      "currentEvidence": "Accepted in done/step1137.md with #113/#114 and shared integration #619. Frozen implementation 4372218b6b7746f03ef8573ad8f84fe45eb4d7af passes all 4,277 full-host checks across 513 groups with unchanged inputs and zero reuse, strict native review of 790 method extents, real 104-record APIC/157-record MSI-X/79-record ordinary captures, and exact native/image/source association. One legacy xAPIC BSP and one IOAPIC are admitted and masked; a temporary authenticated IDT handles one MSI-X queue completion with EOI and restores IF=0/original IDTR. Masking, observed reset and bus-master disable precede backing release. Conventional MSI, general IRQ/SMP/scheduling, receive, packet delivery, Gate 6, hosted .NET/Kestrel, cloud and production remain outside this acceptance.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add MSI/MSI-X setup and interrupt-driven virtqueue completion after polling paths pass.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -13235,7 +13235,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add MSI/MSI-X setup and interrupt-driven virtqueue completion after polling paths pass.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M06-EPIC",

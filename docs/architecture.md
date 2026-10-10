@@ -1,8 +1,8 @@
 # Architecture
 
-The bounded APIC/MSI-X development integration in [step1135](../done/step1135.md)
+The bounded APIC/MSI-X integration in [step1137](../done/step1137.md)
 uses owned UC mappings and a temporary IDT for one returning queue completion.
-Strict native and guest checks pass; full-host qualification remains pending.
+Full-host, strict native and guest qualification passes.
 This is not a general dispatcher or scheduler. See [drivers](drivers.md).
 
 The bounded split-queue batch #109-#112/#617 is accepted in

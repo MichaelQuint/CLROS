@@ -2,8 +2,8 @@
 
 ## Bounded APIC and MSI-X profiles
 
-[Step1135](../done/step1135.md) records integrated development captures; full-host
-qualification is pending. Both new switches default false. APIC setup requires
+[Step1137](../done/step1137.md) accepts the full-host, strict native and guest
+qualification. Both switches default false. APIC setup requires
 the owned PCI profile; MSI-X completion additionally requires Virtio negotiation.
 Neither combines with the polling or BAR/DMA profile. See [drivers](drivers.md)
 for mapping, temporary IDT and cleanup boundaries.

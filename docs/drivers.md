@@ -1,10 +1,11 @@
 # Drivers
 
-The APIC/MSI-X batch #113/#114/#619 has integrated development evidence in
-[step1135](../done/step1135.md), following the contracts in step1134. Strict
-NativeAOT publication and real QEMU/OVMF captures pass: 104 records for masked
-APIC setup, 157 for one MSI-X queue completion, and 79 for ordinary boot.
-Full-host batch qualification remains pending; the issues remain open.
+The APIC/MSI-X batch #113/#114/#619 is accepted in
+[step1137](../done/step1137.md), following development steps1134-1136. All 4,277
+full-host checks across 513 groups pass with unchanged inputs and no reuse.
+Strict NativeAOT publication, native review and real QEMU/OVMF captures pass:
+104 records for masked APIC setup, 157 for one MSI-X queue completion, and 79
+for ordinary boot. Independent disk inspection binds the exact EFI payloads.
 
 `EnableM05ApicSetupProbe` defaults false and requires the complete owned PCI
 profile. Retained MADT parsing admits one enabled legacy xAPIC BSP and one

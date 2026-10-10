@@ -21,10 +21,10 @@
 
 ## Progress
 
-The bounded APIC/MSI-X batch has [integrated development evidence](done/step1135.md):
-strict native publication, one real MSI-X queue completion and an ordinary boot
-regression pass. Full-host qualification is pending. The earlier polling queue
-batch is [accepted](done/step1133.md); see [drivers](docs/drivers.md) for scope.
+The bounded APIC/MSI-X batch is [accepted](done/step1137.md): 4,277 full-host
+checks, strict native review, one real MSI-X queue completion and an ordinary
+boot regression pass. This completes the 21 keyed M05 child scopes; broader
+platform services remain incomplete. See [drivers](docs/drivers.md) for scope.
 
 Bounded rethrow and post-firmware UC/WC/WB mapping are qualified in
 [step1120](done/step1120.md): the resumed full host run passes 4,146 checks and
@@ -158,6 +158,7 @@ disabled by default and are not all combined into one continuing kernel boot.
 | Fault and serial diagnostics | Accepted bounded profiles cover owned descriptor/IST state, UD2, page fault, double fault, unexpected-vector panic, and direct COM1 output. Post-exit readiness reporting is accepted; general fault recovery is not. |
 | NativeAOT runtime subset | Guest evidence covers bounded fixed-object, byte/long-array and String allocation, checked reference helpers, one-module registration, static roots, nonmoving collection, compiler-generated constructors, and ordinary-instance interface dispatch. Current-image unwind metadata is accepted; one-frame restoration and EH-clause helpers retain their bounded host contracts, and one separate profile executes a real throw, typed catch and compiled continuation. This is a limited runtime subset, not the full .NET libraries, GC or exception runtime. |
 | Shared utilities | Host-tested ASCII/text, numeric formatting, memory, endian, checksum, and collection helpers; selected fixed conformance catalogs also execute in the EFI guest. |
+| Bounded platform and Virtio | Separate accepted diagnostics cover retained ACPI, a polled clock, UC mappings, PCI/BAR access, DMA lifetime, modern Virtio negotiation, one polling TX completion and one MSI-X TX completion. These are finite single-BSP profiles, not continuing device services or packet-delivery proof. |
 | PAL, storage, networking, and app groundwork | Host-tested ABI contracts, parser/planner logic, mock PAL tables, disk/package/image tools, protocol frames, and app launch/lifecycle metadata. These do not establish live guest drivers, packet I/O, package loading, or app execution. |
 | Evidence tooling | Stable test/serial markers, source and artifact checks, host image tools, QEMU runners, CI dry-run scaffolding, and immutable `done/stepNN.md` records. Executed CI and cloud-provider acceptance remain separate gates. |
 
@@ -168,7 +169,7 @@ disabled by default and are not all combined into one continuing kernel boot.
 | Continuing post-firmware kernel | General firmware-page reclamation, continuing allocator/platform services, interrupt/timer services, and recovery beyond the accepted bounded or terminal profiles. |
 | General runtime correctness | Automatic stack-root scanning, broader allocation/GC support, full throw/catch/finally/rethrow, constructor failure caching, thread statics, and remaining runtime helpers. Bounded dispatch does not support every interface/type shape or concurrent execution. |
 | Scheduler and synchronization | Live scheduling, thread lifecycle, blocking waits, hardware timer integration, ThreadPool, `Monitor`, and `Task` support. |
-| Live platform and storage | Device discovery, MMIO/interrupt/DMA integration, storage drivers, and post-exit disk-backed manifest/package loading. |
+| Live platform and storage | Broader device coverage, continuing MMIO/interrupt/DMA services, storage drivers, and post-exit disk-backed manifest/package loading. |
 | Live networking | Guest packet RX/TX, DHCP/DNS, working TCP connections/listeners, and externally observed HTTP traffic. |
 | App execution and PAL | A live app entry contract, executable loading/relocation/protection, app runtime registration, output routing, verified exit status, and working platform services for the supported app target. |
 | Hosted .NET and Kestrel | No standalone .NET 10 application or ASP.NET Minimal API server runs in the guest. The full Kestrel milestone below remains mandatory. |

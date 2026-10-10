@@ -2,9 +2,10 @@
 
 `EnableM05ApicSetupProbe` and `EnableM05VirtqueueInterruptProbe` default false.
 Their exact 104/157-record streams bind controller masking, one interrupt/EOI,
-IF and IDTR restoration, and queue cleanup. Strict native and real guest
-development runs pass in [step1135](../done/step1135.md); full-host qualification
-remains pending. Prerequisites and limits are in [drivers](drivers.md).
+IF and IDTR restoration, and queue cleanup. Full-host, strict native and real
+guest qualification is accepted in [step1137](../done/step1137.md). The validator
+also rejects contradictory queue/IRQ acquisition counts. Prerequisites and
+limits are in [drivers](drivers.md).
 
 The bounded split-queue batch #109-#112/#617 is accepted in
 [step1133](../done/step1133.md): 4,251 full-host checks, strict native

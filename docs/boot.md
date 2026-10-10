@@ -1,7 +1,7 @@
 # Boot
 
-The default-off APIC/MSI-X integration has strict native and guest development
-evidence in [step1135](../done/step1135.md); full-host qualification is pending.
+The default-off APIC/MSI-X integration has accepted full-host, strict native and
+guest evidence in [step1137](../done/step1137.md).
 It uses owned mappings and a temporary IDT after firmware exit. BootSequence
 orders PCI, APIC, Virtio negotiation and the bounded interrupt transaction.
 See [drivers](drivers.md) for the exact scope.
