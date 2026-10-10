@@ -2,11 +2,11 @@
 
 ## Current Status
 
-The pending read diagnostic adds `--EnableM06VirtioBlockReadProbe` to that block
+The accepted read diagnostic adds `--EnableM06VirtioBlockReadProbe` to that block
 queue profile. It keeps the same read-only image and transports LBA1 into owned
 memory. Its host validator compares device capacity and the recorded 512-byte
-CRC/first/last words with the actual image. [Step1141](../done/step1141.md) records
-focused development evidence; native/guest qualification is pending. Image
+CRC/first/last words with the actual image. [Step1143](../done/step1143.md) records
+full-host, native and guest qualification with independent image association. Image
 generation, GPT interpretation and file/package loading are unchanged.
 
 The default-off [block queue diagnostic](efi-build.md#bounded-virtio-block-queue-profile)

@@ -1,11 +1,11 @@
 # Diagnostics
 
 `EnableM06VirtioBlockReadProbe` defaults false and requires the block queue
-diagnostic. Its pending 138-record profile appends `M06_READ` rows 0-9 and
+diagnostic. Its accepted 138-record profile appends `M06_READ` rows 0-9 and
 issue005/006 start/ready/pass markers. It records one read, capacity, used-ring
 completion, publication fences, CRC/data association and reset/allocator cleanup.
-[Step1141](../done/step1141.md) has focused host evidence only; qualification is
-pending. Strict transcript and actual image checks both gate wrapper success.
+[Step1143](../done/step1143.md) records full-host, native and guest qualification.
+Strict transcript and actual image checks both gate wrapper success.
 
 `EnableM06VirtioBlockQueueSetupProbe` defaults false. Its accepted 122-record
 stream binds block identity, quiescence, feature policy, queue address readbacks

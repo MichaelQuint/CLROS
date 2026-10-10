@@ -13260,7 +13260,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M06: Live Storage.",
-      "currentEvidence": "The first four bounded live storage children #116-#119 are accepted in done/step1140.md with full-host, strict native and real guest evidence. #120 is the next ready sector-request slice. No CLROS sector I/O, live block-contract adapter, filesystem/package loading or M06 exit criterion is accepted; the epic and milestone remain open.",
+      "currentEvidence": "Bounded live binding/queue children #116-#119 are accepted in step1140; #120/#121 read/completion and integration #623 are accepted in step1143 with 4304 full-host checks, native review and real 138/122/79-record captures. #122 is the next ready live block-contract slice. The block-contract adapter, guest GPT/FAT/package reads, continuing storage and M06 exit criterion remain incomplete; epic and milestone stay open.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -13671,7 +13671,7 @@
         "M06-004"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -13698,7 +13698,7 @@
       ],
       "collisionLane": null,
       "summary": "Submit and poll one sector-read request.",
-      "currentEvidence": "Implemented with focused host/source checks in done/step1141.md under shared integration #623. One bounded sector request, completion validation and reset/retained-DMA failure handling are present. Full-host, strict native and real QEMU qualification remain pending. Dependency-ordered closure is required; no accepted sector I/O, block-contract adapter or Gate 7 completion is claimed yet.",
+      "currentEvidence": "Accepted in done/step1143.md at frozen qualification 409672a3d43e8fccb4f974bddba523f7bbda7736. All 4304 full-host checks across 521 groups pass with zero reuse and unchanged inputs. Strict native delta review and 138/122/79-record read/queue/ordinary QEMU captures pass with independent image and 626-file raw-source association. One fresh 512-byte IN request completes with checked used head/length/status and generation, then observed reset, bus-master disable and a fence precede release and exact allocator restoration. Host failure callbacks and guest malformed-completion controls are local inputs. No live block-contract adapter, guest GPT/filesystem/package parsing, continuing storage, M06/Gate7, hosted .NET/Kestrel, cloud or production completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Submit and poll one sector-read request.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -13751,7 +13751,7 @@
         "docs/image-builder.md"
       ],
       "evidenceBoundary": "This issue proves only \"Submit and poll one sector-read request.\" It does not by itself prove the M06 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M06-006",
@@ -13762,7 +13762,7 @@
         "M06-005"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -13789,7 +13789,7 @@
       ],
       "collisionLane": null,
       "summary": "Validate used-ring completion, status byte, timeout, and device reset.",
-      "currentEvidence": "Implemented with focused host/source checks in done/step1141.md under shared integration #623. One bounded sector request, completion validation and reset/retained-DMA failure handling are present. Full-host, strict native and real QEMU qualification remain pending. Dependency-ordered closure is required; no accepted sector I/O, block-contract adapter or Gate 7 completion is claimed yet.",
+      "currentEvidence": "Accepted in done/step1143.md at frozen qualification 409672a3d43e8fccb4f974bddba523f7bbda7736. All 4304 full-host checks across 521 groups pass with zero reuse and unchanged inputs. Strict native delta review and 138/122/79-record read/queue/ordinary QEMU captures pass with independent image and 626-file raw-source association. One fresh 512-byte IN request completes with checked used head/length/status and generation, then observed reset, bus-master disable and a fence precede release and exact allocator restoration. Host failure callbacks and guest malformed-completion controls are local inputs. No live block-contract adapter, guest GPT/filesystem/package parsing, continuing storage, M06/Gate7, hosted .NET/Kestrel, cloud or production completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Validate used-ring completion, status byte, timeout, and device reset.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -13842,7 +13842,7 @@
         "docs/image-builder.md"
       ],
       "evidenceBoundary": "This issue proves only \"Validate used-ring completion, status byte, timeout, and device reset.\" It does not by itself prove the M06 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M06-007",
@@ -13853,9 +13853,9 @@
         "M06-006"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
-        "type:docs",
+        "type:implementation",
         "evidence:qemu",
         "component:storage",
         "phase:m06-storage",
@@ -13880,7 +13880,7 @@
       ],
       "collisionLane": null,
       "summary": "Expose the live device through the existing IReadOnlyBlockDevice contract.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Prerequisite bounded one-sector transport/completion is accepted in done/step1143.md. GPT, FAT32 and package consumers remain host-tested; this issue has no accepted live implementation or guest proof. No live block-contract adapter, guest filesystem/package load or M06/Gate7 completion is claimed. Native Span and a closed constrained block-interface path must be validated; a host adapter plus a guest pointer call is insufficient.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Expose the live device through the existing IReadOnlyBlockDevice contract.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -13971,7 +13971,7 @@
       ],
       "collisionLane": null,
       "summary": "Read and validate LBA 0 from the guest.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Prerequisite bounded one-sector transport/completion is accepted in done/step1143.md. GPT, FAT32 and package consumers remain host-tested; this issue has no accepted live implementation or guest proof. No live block-contract adapter, guest filesystem/package load or M06/Gate7 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read and validate LBA 0 from the guest.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14062,7 +14062,7 @@
       ],
       "collisionLane": null,
       "summary": "Read primary GPT and independently verify bounds and CRC.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Prerequisite bounded one-sector transport/completion is accepted in done/step1143.md. GPT, FAT32 and package consumers remain host-tested; this issue has no accepted live implementation or guest proof. No live block-contract adapter, guest filesystem/package load or M06/Gate7 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read primary GPT and independently verify bounds and CRC.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14153,7 +14153,7 @@
       ],
       "collisionLane": null,
       "summary": "Exercise backup-GPT fallback from live disk.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Prerequisite bounded one-sector transport/completion is accepted in done/step1143.md. GPT, FAT32 and package consumers remain host-tested; this issue has no accepted live implementation or guest proof. No live block-contract adapter, guest filesystem/package load or M06/Gate7 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Exercise backup-GPT fallback from live disk.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14244,7 +14244,7 @@
       ],
       "collisionLane": null,
       "summary": "Locate the FAT32 application/EFI partition.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Prerequisite bounded one-sector transport/completion is accepted in done/step1143.md. GPT, FAT32 and package consumers remain host-tested; this issue has no accepted live implementation or guest proof. No live block-contract adapter, guest filesystem/package load or M06/Gate7 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Locate the FAT32 application/EFI partition.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14335,7 +14335,7 @@
       ],
       "collisionLane": null,
       "summary": "Walk FAT cluster chains with loop, bad-cluster, and truncation detection.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Prerequisite bounded one-sector transport/completion is accepted in done/step1143.md. GPT, FAT32 and package consumers remain host-tested; this issue has no accepted live implementation or guest proof. No live block-contract adapter, guest filesystem/package load or M06/Gate7 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Walk FAT cluster chains with loop, bad-cluster, and truncation detection.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14426,7 +14426,7 @@
       ],
       "collisionLane": null,
       "summary": "Add multi-cluster directory and VFAT long-name support as separate parser slices.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Prerequisite bounded one-sector transport/completion is accepted in done/step1143.md. GPT, FAT32 and package consumers remain host-tested; this issue has no accepted live implementation or guest proof. No live block-contract adapter, guest filesystem/package load or M06/Gate7 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add multi-cluster directory and VFAT long-name support as separate parser slices.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14517,7 +14517,7 @@
       ],
       "collisionLane": null,
       "summary": "Read one known file and verify its SHA-256-equivalent host-known fixture hash or repository-defined checksum.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Prerequisite bounded one-sector transport/completion is accepted in done/step1143.md. GPT, FAT32 and package consumers remain host-tested; this issue has no accepted live implementation or guest proof. No live block-contract adapter, guest filesystem/package load or M06/Gate7 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read one known file and verify its SHA-256-equivalent host-known fixture hash or repository-defined checksum.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14608,7 +14608,7 @@
       ],
       "collisionLane": null,
       "summary": "Read and validate the native manifest from disk.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Prerequisite bounded one-sector transport/completion is accepted in done/step1143.md. GPT, FAT32 and package consumers remain host-tested; this issue has no accepted live implementation or guest proof. No live block-contract adapter, guest filesystem/package load or M06/Gate7 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read and validate the native manifest from disk.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14699,7 +14699,7 @@
       ],
       "collisionLane": null,
       "summary": "Read and validate APP.PKG from disk.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Prerequisite bounded one-sector transport/completion is accepted in done/step1143.md. GPT, FAT32 and package consumers remain host-tested; this issue has no accepted live implementation or guest proof. No live block-contract adapter, guest filesystem/package load or M06/Gate7 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read and validate APP.PKG from disk.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14790,7 +14790,7 @@
       ],
       "collisionLane": null,
       "summary": "Stage the selected payload into owned memory.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Prerequisite bounded one-sector transport/completion is accepted in done/step1143.md. GPT, FAT32 and package consumers remain host-tested; this issue has no accepted live implementation or guest proof. No live block-contract adapter, guest filesystem/package load or M06/Gate7 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Stage the selected payload into owned memory.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14881,7 +14881,7 @@
       ],
       "collisionLane": "lane:probes",
       "summary": "Add malformed disk/package failure probes that remain diagnosable after EBS.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Prerequisite bounded one-sector transport/completion is accepted in done/step1143.md. GPT, FAT32 and package consumers remain host-tested; this issue has no accepted live implementation or guest proof. No live block-contract adapter, guest filesystem/package load or M06/Gate7 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add malformed disk/package failure probes that remain diagnosable after EBS.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14973,7 +14973,7 @@
       ],
       "collisionLane": null,
       "summary": "Convert polling completion to MSI-X without removing the polling recovery path.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Prerequisite bounded one-sector transport/completion is accepted in done/step1143.md. GPT, FAT32 and package consumers remain host-tested; this issue has no accepted live implementation or guest proof. No live block-contract adapter, guest filesystem/package load or M06/Gate7 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Convert polling completion to MSI-X without removing the polling recovery path.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

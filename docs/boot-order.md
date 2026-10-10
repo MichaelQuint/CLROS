@@ -1,5 +1,11 @@
 # Boot Order
 
+`BootSequence.RunOwnedVirtioBlockRead` follows successful queue proof only in
+the separate default-off read profile. It performs fresh negotiation, one
+bounded LBA1 read, checked completion and quiescent allocator cleanup before
+terminal success. [Step1143](../done/step1143.md) records acceptance; it adds no
+ordinary boot phase or continuing storage service.
+
 The separate default-off block profile orders original owned subsystem survival,
 PCI enumeration, block binding, FEATURES_OK, queue-zero setup/readback, then
 observed reset and allocator restoration. `BootSequence.RunOwnedVirtioBlockQueueSetup`

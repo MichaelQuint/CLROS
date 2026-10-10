@@ -2,8 +2,8 @@
 
 ## Bounded Virtio block read profile
 
-Implemented with focused host/source checks in [step1141](../done/step1141.md);
-native/guest acceptance is pending. Add `--EnableM06VirtioBlockReadProbe` to the
+Accepted with full-host/native/guest evidence in [step1143](../done/step1143.md).
+Add `--EnableM06VirtioBlockReadProbe` to the
 queue command below, with separate artifact paths. The new switch requires the
 queue switch and stays false by default. BootSequence runs the accepted empty
 queue proof first, then a fresh negotiation and one LBA1 read. There are 138

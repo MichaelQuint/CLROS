@@ -1,5 +1,11 @@
 # Boot
 
+The separate default-off read profile follows the accepted queue proof with
+fresh feature negotiation and one LBA1 request. Checked completion, observed
+reset/bus-off/fence and exact allocator restoration precede terminal success.
+[Step1143](../done/step1143.md) accepts this bounded transport; ordinary boot,
+continuing storage, filesystem and package loading are unchanged.
+
 The default-off `EnableM06VirtioBlockQueueSetupProbe` follows owned PCI
 enumeration through BootSequence. It configures/readbacks one queue and resets
 before terminal success; it never submits a block request. Full-host, native
