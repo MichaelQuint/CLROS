@@ -225,10 +225,12 @@ public static unsafe class BoundedXApicSetup
         if (status != XApicSetupStatus.Success) return status;
         r.LocalVersion = localVersion; r.IoVersion = ioVersion;
         uint maxLvt = (localVersion >> 16) & 255, maxIo = (ioVersion >> 16) & 255;
-        // This slice admits the conventional integrated LVT layout and up to 24 IO pins.
+        // Conventional LVT layout, up to 24 IO pins, and the reviewed 82093AA
+        // (0x11) or QEMU (0x20) IOREGSEL/IOWIN interface. No direct IO EOI use.
         if (localId != (uint)t.BspApicId << 24 || ioId != (uint)t.IoApicId << 24 ||
             (localVersion & 255) < 0x10 || (localVersion & 255) > 0x15 || maxLvt < 3 || maxLvt > 6 ||
-            (localVersion & 0xfe00ff00) != 0 || (ioVersion & 0xff00ffff) != 0x11 || maxIo > 23 ||
+            (localVersion & 0xfe00ff00) != 0 || (ioVersion & 0xff00ff00) != 0 ||
+            ((ioVersion & 255) != 0x11 && (ioVersion & 255) != 0x20) || maxIo > 23 ||
             t.IoApicGsiBase > ~0U - maxIo ||
             (t.IsoCount != 0 && t.MaximumIsoGsi > t.IoApicGsiBase + maxIo))
             return XApicSetupStatus.UnsupportedHardware;

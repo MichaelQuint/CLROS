@@ -1,5 +1,10 @@
 # CLROS Completion Gates
 
+The APIC/MSI-X batch #113/#114/#619 has strict native and guest development
+evidence in [step1135](../done/step1135.md), including one returning MSI-X queue
+completion. Full-host qualification remains pending and these issues stay open.
+Gate 6 and later gates remain incomplete; see [drivers](drivers.md) for scope.
+
 The bounded split-queue batch #109-#112/#617 is accepted in
 [step1133](../done/step1133.md): 4,251 full-host checks, strict native
 review, a 139-record real queue diagnostic and a 79-record ordinary

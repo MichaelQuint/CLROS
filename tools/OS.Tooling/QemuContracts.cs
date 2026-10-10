@@ -688,6 +688,17 @@ public static class QemuContracts
         "TEST_START m05.018", .. Enumerable.Range(2, 4).Select(i => "M05_QUEUE " + i), "CLROS_M05_018_READY", "TEST_PASS m05.018",
         "TEST_START m05.019", "M05_QUEUE 6", "M05_QUEUE 7", "CLROS_M05_019_READY", "TEST_PASS m05.019"
     ]);
+    public static IReadOnlyList<string> M05ApicSetupMarkers { get; } = Array.AsReadOnly<string>(
+    [
+        .. M05PciEnumerationMarkers, "TEST_START m05.020", .. Enumerable.Range(0, 4).Select(i => "M05_APIC " + i),
+        "CLROS_M05_020_READY", "TEST_PASS m05.020"
+    ]);
+    public static IReadOnlyList<string> M05VirtqueueInterruptMarkers { get; } = Array.AsReadOnly<string>(
+    [
+        .. M05ApicSetupMarkers, .. M05VirtioNegotiationMarkers.Skip(M05PciEnumerationMarkers.Count),
+        "TEST_START m05.021", .. M05VirtqueuePollingMarkers.Skip(M05VirtioNegotiationMarkers.Count),
+        .. Enumerable.Range(0, 8).Select(i => "M05_IRQ " + i), "CLROS_M05_021_READY", "TEST_PASS m05.021"
+    ]);
 
     public static IReadOnlyList<string> M05BarDmaMarkers { get; } = Array.AsReadOnly<string>(
     [

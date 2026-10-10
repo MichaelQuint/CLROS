@@ -2,6 +2,26 @@ using OS.Tooling;
 
 internal static class EfiSourceAdmissionTests
 {
+    [HostTest("EFI allocator firewall admits shared queue ownership and rejects extra or redirected calls")]
+    private static void AllocatorOwnership()
+    {
+        string source = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/Boot/EfiEntry.cs"));
+        foreach (string call in new[] { "BootPageAllocatorMutator.AllocateOnePage", "BootPageAllocatorMutator.FreeOnePage" })
+        {
+            string admitted = source;
+            HostCheck.True(EfiProfileTestControls.RemoveOwnedDmaCalls(ref admitted, call, out string reason), reason);
+            HostCheck.True(!admitted.Contains(call, StringComparison.Ordinal));
+            foreach (string changed in new[] {
+                source + "\nstatic class Rogue { static void Run() { " + call + "(); } }",
+                source.Replace("RunQueueCore(state)", "UnreviewedQueue(state)", StringComparison.Ordinal),
+                source.Replace(call + "(", "UnreviewedAllocator.Call(", StringComparison.Ordinal) })
+            {
+                string rejected = changed;
+                HostCheck.True(!EfiProfileTestControls.RemoveOwnedDmaCalls(ref rejected, call, out _));
+            }
+        }
+    }
+
     [HostTest("EFI source admission evaluates only the supported inactive managed branch")]
     private static void Preprocessor()
     {

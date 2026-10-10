@@ -26,6 +26,12 @@ public struct FirstExitImageReferences
 #if M05_VIRTIO_NEGOTIATION_PROBE
     public ulong VirtioBarStart;
 #endif
+#if M05_APIC_SETUP_PROBE
+    public ulong LocalApicPage, IoApicPage;
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+    public ulong MsixPage;
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
     // Original EFI allocation containing one exclusive aligned 2 MiB test span.
     public ulong MappingScratchBacking, MappingScratchBackingPages, MappingScratchStart;
@@ -238,6 +244,26 @@ public static unsafe class FirstExitRetainedMappings
 #if M05_VIRTIO_NEGOTIATION_PROBE
         + 4
 #endif
+#if M05_APIC_SETUP_PROBE
+        + 2
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+        + 1
+#endif
+        ;
+    private const int MaximumAllocations = 6
+#if M05_PHYSICAL_MAPPING_PROBE || M05_MONOTONIC_CLOCK_PROBE || M05_PCI_ENUMERATION_PROBE
+        + 1
+#endif
+#if M05_VIRTIO_NEGOTIATION_PROBE
+        + 1
+#endif
+#if M05_APIC_SETUP_PROBE
+        + 2
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+        + 1
+#endif
         ;
     private const ulong LowEnd = 0x0000800000000000;
     private const PageProtection Data = PageProtection.Read | PageProtection.Write;
@@ -293,16 +319,8 @@ public static unsafe class FirstExitRetainedMappings
             if ((ulong)state < references.AdapterState || references.AdapterStateBytes < (ulong)sizeof(FirstExitOwnedArenaState) ||
                 (ulong)state - references.AdapterState > references.AdapterStateBytes - (ulong)sizeof(FirstExitOwnedArenaState)) return false;
 
-#if M05_VIRTIO_NEGOTIATION_PROBE
-        ulong* starts = stackalloc ulong[8];
-        ulong* lengths = stackalloc ulong[8];
-#elif M05_PHYSICAL_MAPPING_PROBE || M05_MONOTONIC_CLOCK_PROBE || M05_PCI_ENUMERATION_PROBE
-        ulong* starts = stackalloc ulong[7];
-        ulong* lengths = stackalloc ulong[7];
-#else
-        ulong* starts = stackalloc ulong[6];
-        ulong* lengths = stackalloc ulong[6];
-#endif
+        ulong* starts = stackalloc ulong[MaximumAllocations];
+        ulong* lengths = stackalloc ulong[MaximumAllocations];
         starts[0] = pending[0].Start; lengths[0] = capture.Range.ImageSize;
         starts[1] = (ulong)arena.Storage; lengths[1] = FirstExitOwnedArena.Bytes;
         starts[2] = (ulong)code; lengths[2] = FirstExitCodeBundle.Bytes;
@@ -336,6 +354,16 @@ public static unsafe class FirstExitRetainedMappings
             references.VirtioBarStart >= LowEnd - 0x4000) return false;
         starts[7] = references.VirtioBarStart; lengths[7] = 0x4000; allocations = 8;
 #endif
+#if M05_APIC_SETUP_PROBE
+        if (references.LocalApicPage < 0x100000 || references.LocalApicPage > 0xfffff000 || (references.LocalApicPage & 4095) != 0 ||
+            references.IoApicPage < 0x100000 || references.IoApicPage > 0xfffff000 || (references.IoApicPage & 4095) != 0) return false;
+        starts[allocations] = references.LocalApicPage; lengths[allocations++] = 4096;
+        starts[allocations] = references.IoApicPage; lengths[allocations++] = 4096;
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+        if (references.MsixPage < 0x100000 || references.MsixPage >= LowEnd - 4096 || (references.MsixPage & 4095) != 0) return false;
+        starts[allocations] = references.MsixPage; lengths[allocations++] = 4096;
+#endif
         for (int i = 0; i < allocations; i++) for (int j = 0; j < i; j++)
             if (FirstExitDescriptors.Overlaps(starts[i], lengths[i], starts[j], lengths[j])) return false;
 
@@ -365,6 +393,13 @@ public static unsafe class FirstExitRetainedMappings
 #if M05_VIRTIO_NEGOTIATION_PROBE
         for (ulong page = 0; page < 4; page++)
             pending[count++] = new SeparatePageFaultMappingRange(references.VirtioBarStart + page * 4096, 1, Data, PageCachePolicy.Uncached);
+#endif
+#if M05_APIC_SETUP_PROBE
+        pending[count++] = new SeparatePageFaultMappingRange(references.LocalApicPage, 1, Data, PageCachePolicy.Uncached);
+        pending[count++] = new SeparatePageFaultMappingRange(references.IoApicPage, 1, Data, PageCachePolicy.Uncached);
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+        pending[count++] = new SeparatePageFaultMappingRange(references.MsixPage, 1, Data, PageCachePolicy.Uncached);
 #endif
         ulong totalPages = 0;
         for (ulong i = 0; i < count; i++) totalPages += pending[i].PageCount;
@@ -401,9 +436,9 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_PCI_ENUMERATION_PROBE
     public const uint PciReadOffset = 4608;
-#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE
     public const uint PciBarOffset = 4624;
-#if M05_VIRTQUEUE_POLLING_PROBE
+#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE
     public const uint QueueFenceOffset = 4672;
 #endif
 #endif
@@ -413,6 +448,12 @@ public static unsafe class FirstExitCodeBundle
     public const uint MappingReadMsrOffset = 4800;
     public const uint MappingWritePatOffset = 4832;
     public const uint MappingReadCapabilitiesOffset = 5120;
+#endif
+#if M05_APIC_SETUP_PROBE
+    public const uint ApicObservationOffset = 4688;
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+    public const uint MsixInterruptOffset = 4784;
 #endif
     public const uint StackEntryOffset = 8192;
     public const uint PermanentOffset = 8448;
@@ -436,9 +477,9 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_PCI_ENUMERATION_PROBE
             OS.Drivers.X64PciConfigurationRead.Emit(code + PciReadOffset, StackEntryOffset - PciReadOffset) &&
-#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE
             OS.Drivers.X64PciBarAccess.Emit(code + PciBarOffset, StackEntryOffset - PciBarOffset) &&
-#if M05_VIRTQUEUE_POLLING_PROBE
+#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE
             OS.Drivers.X64VirtqueueMemoryFence.Emit(code + QueueFenceOffset, StackEntryOffset - QueueFenceOffset) &&
 #endif
 #endif
@@ -448,6 +489,12 @@ public static unsafe class FirstExitCodeBundle
             X64PhysicalMappingPublication.EmitReadMsr(code + MappingReadMsrOffset, MappingWritePatOffset - MappingReadMsrOffset) &&
             X64PhysicalMappingPublication.EmitWritePat(code + MappingWritePatOffset, MappingReadCapabilitiesOffset - MappingWritePatOffset) &&
             X64PhysicalMappingPublication.EmitReadCapabilities(code + MappingReadCapabilitiesOffset, StackEntryOffset - MappingReadCapabilitiesOffset) &&
+#endif
+#if M05_APIC_SETUP_PROBE
+            OS.Drivers.X64ApicObservation.Emit(code + ApicObservationOffset, StackEntryOffset - ApicObservationOffset) &&
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+            OS.Drivers.X64MsixInterrupt.Emit(code + MsixInterruptOffset, StackEntryOffset - MsixInterruptOffset) &&
 #endif
             CheckBytes(code, (ulong)arena.Fault, callback);
         if (!emitted)
@@ -529,9 +576,9 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_PCI_ENUMERATION_PROBE
         if (!OS.Drivers.X64PciConfigurationRead.Validate(code + PciReadOffset, OS.Drivers.X64PciConfigurationRead.Bytes)) return false;
-#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE
         if (!OS.Drivers.X64PciBarAccess.Validate(code + PciBarOffset, OS.Drivers.X64PciBarAccess.Bytes)) return false;
-#if M05_VIRTQUEUE_POLLING_PROBE
+#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE
         if (!OS.Drivers.X64VirtqueueMemoryFence.Validate(code + QueueFenceOffset, OS.Drivers.X64VirtqueueMemoryFence.Bytes)) return false;
 #endif
 #endif
@@ -544,6 +591,12 @@ public static unsafe class FirstExitCodeBundle
             !X64PhysicalMappingPublication.EmitReadCapabilities(scratch, 1024) ||
             !Equal(scratch, code + MappingReadCapabilitiesOffset, X64PhysicalMappingPublication.ReadCapabilitiesBytes)) return false;
 #endif
+#if M05_APIC_SETUP_PROBE
+        if (!OS.Drivers.X64ApicObservation.Validate(code + ApicObservationOffset, OS.Drivers.X64ApicObservation.Bytes)) return false;
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+        if (!OS.Drivers.X64MsixInterrupt.Validate(code + MsixInterruptOffset, OS.Drivers.X64MsixInterrupt.Bytes)) return false;
+#endif
         for (uint index = 4096; index < Bytes; index++)
             if (!Inside(index, FaultOffset, faultBytes) && !Inside(index, Out8Offset, PortIoStubPlan.Out8RequiredByteLength) &&
                 !Inside(index, In8Offset, PortIoStubPlan.In8RequiredByteLength) && !Inside(index, StackEntryOffset, entryBytes) &&
@@ -552,9 +605,9 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_PCI_ENUMERATION_PROBE
                 !Inside(index, PciReadOffset, OS.Drivers.X64PciConfigurationRead.Bytes) &&
-#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE
+#if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE
                 !Inside(index, PciBarOffset, OS.Drivers.X64PciBarAccess.Bytes) &&
-#if M05_VIRTQUEUE_POLLING_PROBE
+#if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE
                 !Inside(index, QueueFenceOffset, OS.Drivers.X64VirtqueueMemoryFence.Bytes) &&
 #endif
 #endif
@@ -564,6 +617,12 @@ public static unsafe class FirstExitCodeBundle
                 !Inside(index, MappingReadMsrOffset, X64PhysicalMappingPublication.ReadMsrBytes) &&
                 !Inside(index, MappingWritePatOffset, X64PhysicalMappingPublication.WritePatBytes) &&
                 !Inside(index, MappingReadCapabilitiesOffset, X64PhysicalMappingPublication.ReadCapabilitiesBytes) &&
+#endif
+#if M05_APIC_SETUP_PROBE
+                !Inside(index, ApicObservationOffset, OS.Drivers.X64ApicObservation.Bytes) &&
+#endif
+#if M05_VIRTQUEUE_INTERRUPT_PROBE
+                !Inside(index, MsixInterruptOffset, OS.Drivers.X64MsixInterrupt.Bytes) &&
 #endif
                 !Inside(index, PermanentOffset, permanentBytes) && code[index] != 0) return false;
         return true;

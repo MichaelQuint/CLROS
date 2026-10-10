@@ -26,7 +26,7 @@ public static partial class QemuTranscripts
         if (plan.IsNormalBoot || Enabled("M03FirstRealExitBootServices") || Enabled("AcpiPhysicalDiscovery"))
         {
             Need(runner.StandardError.Length == 0, "qemu_runner_stderr_not_empty");
-            AssertM03AcpiBootstrapTranscript(path, plan.IsNormalBoot || Enabled("M03FirstRealExitBootServices"), Enabled("M03FirmwareAdapterRevocation"), plan.IsNormalBoot || Enabled("M03OwnedSubsystemSurvival"), Enabled("M03OwnedSubsystemPanic"), plan.IsNormalBoot, Enabled("M05PhysicalMapping"), Enabled("M05OwnedAcpiSelection"), Enabled("M05MonotonicClock"), Enabled("M05PciEnumeration"), Enabled("M05BarDma"), Enabled("M05VirtioNegotiation"), Enabled("M05VirtqueuePolling"));
+            AssertM03AcpiBootstrapTranscript(path, plan.IsNormalBoot || Enabled("M03FirstRealExitBootServices"), Enabled("M03FirmwareAdapterRevocation"), plan.IsNormalBoot || Enabled("M03OwnedSubsystemSurvival"), Enabled("M03OwnedSubsystemPanic"), plan.IsNormalBoot, Enabled("M05PhysicalMapping"), Enabled("M05OwnedAcpiSelection"), Enabled("M05MonotonicClock"), Enabled("M05PciEnumeration"), Enabled("M05BarDma"), Enabled("M05VirtioNegotiation"), Enabled("M05VirtqueuePolling"), Enabled("M05ApicSetup"), Enabled("M05VirtqueueInterrupt"));
             if (Enabled("M03OwnedSubsystemPanic")) AssertExpectedPanicRunner(root, options, plan, runner, lines, ownedSubsystem: true);
             else AssertStandardRunnerResult(root, options, plan, lines);
         }
@@ -109,6 +109,8 @@ public static partial class QemuTranscripts
         Need(Enabled("M03OwnedSubsystemPanic") || !Regex.IsMatch(text, @"(?m)^M03_OWNED [78](?: |$)"), "m03_owned_panic_unselected_record");
         Need(Enabled("M03FirmwareAdapterRevocation") || !Regex.IsMatch(candidate, @"(?i)M03_ADAPTER_|CLROS_M03_008_READY|m03\.008"), "m03_revocation_unselected_record");
         Need(Enabled("M04ClassConstructorExecution") || !Regex.IsMatch(candidate, @"(?i)M04_CCTOR|CLROS_M04_024_READY|m04\.024"), "m04_cctor_unselected_record");
+        Need(Enabled("M05VirtqueuePolling") || Enabled("M05VirtqueueInterrupt") ||
+            !Regex.IsMatch(candidate, @"(?i)M05_QUEUE|CLROS_M05_01[6-9]_READY|m05\.01[6-9]"), "m05_queue_unselected_record");
         foreach (var (flag, pattern) in new (string Flag, string Pattern)[]
         {
             ("M04SimpleThrowCatch", "M04_CATCH|CLROS_M04_SIMPLE_CATCH|m04\\.021\\.simple-catch"),
@@ -117,6 +119,8 @@ public static partial class QemuTranscripts
             ("M05PhysicalMapping", @"M05_MAP|CLROS_M05_001_READY|m05\.001"),
             ("M05OwnedAcpiSelection", @"M05_ACPI|CLROS_M05_002_READY|m05\.002"),
             ("M05MonotonicClock", @"M05_CLOCK|CLROS_M05_003_READY|m05\.003"),
+            ("M05ApicSetup", @"M05_APIC|CLROS_M05_020_READY|m05\.020"),
+            ("M05VirtqueueInterrupt", @"M05_IRQ|CLROS_M05_021_READY|m05\.021"),
             ("M05PciEnumeration", @"M05_PCI|CLROS_M05_00[4-7]_READY|m05\.00[4-7]"),
             ("M04InterfaceDispatch", "M04_DISPATCH|CLROS_M04_016|m04\\.016"),
             ("M04X64UnwindMetadata", "CLROS_M04_020|m04\\.020"),

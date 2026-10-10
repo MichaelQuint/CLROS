@@ -156,6 +156,45 @@ internal static unsafe class MSIMSIXSetupInterruptDrivenVirtqueueCompletionTests
         HostCheck.Equal((ushort)2, invalid.Control);
     }
 
+    [HostTest("msix.idt preserves every original gate except two reviewed handler addresses", HostLane.Fast, 8)]
+    private static void TemporaryIdt()
+    {
+        byte* tables = (byte*)NativeMemory.AlignedAlloc(12288, 4096);
+        try
+        {
+            byte* original = tables; byte* temporary = tables + 4096;
+            HostCheck.True(OS.Kernel.Diagnostics.PopulateAllN256IDTVectorsOwnedGatesNever.Materialize(
+                original, 4096, (ulong)original, 0x100000).Succeeded);
+            byte[] before = new ReadOnlySpan<byte>(original, 4096).ToArray();
+            HostCheck.True(X64MsixInterrupt.PrepareTemporaryIdt(original, temporary, 4096, 0x100000, 0x1012b0));
+            HostCheck.True(new ReadOnlySpan<byte>(original, 4096).SequenceEqual(before));
+            for (uint vector = 0; vector < 256; vector++)
+            {
+                byte* gate = temporary + vector * 16;
+                ulong address = *(ushort*)gate | ((ulong)*(ushort*)(gate + 6) << 16) | ((ulong)*(uint*)(gate + 8) << 32);
+                ulong expected = vector == 0xe0 ? 0x101320UL : vector == 255 ? 0x101360UL : 0x100000 + vector * 16;
+                HostCheck.Equal(expected, address);
+                foreach (int offset in new[] { 2, 3, 4, 5, 12, 13, 14, 15 })
+                    HostCheck.Equal(before[vector * 16 + offset], gate[offset]);
+            }
+            // Whole-table comparison protects unmodified fault/IST gates and padding.
+            for (int i = 0; i < 4096; i++)
+            { temporary[i] ^= 1; HostCheck.True(!X64MsixInterrupt.ValidateTemporaryIdt(original, temporary, 4096, 0x100000, 0x1012b0)); temporary[i] ^= 1; }
+            byte[] saved = new ReadOnlySpan<byte>(temporary, 4096).ToArray();
+            original[5] ^= 1;
+            HostCheck.True(!X64MsixInterrupt.PrepareTemporaryIdt(original, temporary, 4096, 0x100000, 0x1012b0));
+            HostCheck.True(new ReadOnlySpan<byte>(temporary, 4096).SequenceEqual(saved)); original[5] ^= 1;
+            HostCheck.True(!X64MsixInterrupt.PrepareTemporaryIdt(original, original, 4096, 0x100000, 0x1012b0));
+            HostCheck.True(!X64MsixInterrupt.PrepareTemporaryIdt(original, original + 16, 4096, 0x100000, 0x1012b0));
+            HostCheck.True(!X64MsixInterrupt.PrepareTemporaryIdt(original, temporary + 1, 4096, 0x100000, 0x1012b0));
+            HostCheck.True(!X64MsixInterrupt.PrepareTemporaryIdt(original, temporary, 4095, 0x100000, 0x1012b0));
+            HostCheck.True(!X64MsixInterrupt.PrepareTemporaryIdt(original, temporary, 4096, 0x100000, (ulong)temporary));
+            HostCheck.True(!X64MsixInterrupt.PrepareTemporaryIdt(original, temporary, 4096, 0x100000, (ulong)original));
+            HostCheck.True(!X64MsixInterrupt.PrepareTemporaryIdt(null, temporary, 4096, 0x100000, 0x1012b0));
+        }
+        finally { NativeMemory.AlignedFree(tables); }
+    }
+
     private struct ProgramModel
     {
         public fixed uint Table[8192];

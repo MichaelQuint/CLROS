@@ -2,6 +2,11 @@
 
 ## Current Status
 
+The APIC/MSI-X batch #113/#114/#619 is integrated with strict native and real
+guest development evidence in [step1135](../done/step1135.md). Full-host
+qualification is pending; no issue or gate completion is claimed. The preceding
+polling queue batch is accepted in [step1133](../done/step1133.md).
+
 [Step1120](../done/step1120.md) qualifies the compiled rethrow/mapping batch:
 4,146 logical full-host checks pass, including 2,599 checks reused with retained
 origins, and six fresh guest profiles pass with independent disk association.

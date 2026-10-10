@@ -1,11 +1,46 @@
 # Drivers
 
-The APIC/MSI-X batch #113/#114/#619 has host-tested development contracts in
-[step1134](../done/step1134.md). Retained MADT parsing, masked xAPIC/IOAPIC setup,
-MSI-X discovery and table programming, returning native interrupt leaves, and an
-explicit interrupt-mode queue transaction are implemented. Boot integration,
-strict native admission, full-host qualification and real interrupt delivery
-remain pending. These contracts do not promote any completion gate.
+The APIC/MSI-X batch #113/#114/#619 has integrated development evidence in
+[step1135](../done/step1135.md), following the contracts in step1134. Strict
+NativeAOT publication and real QEMU/OVMF captures pass: 104 records for masked
+APIC setup, 157 for one MSI-X queue completion, and 79 for ordinary boot.
+Full-host batch qualification remains pending; the issues remain open.
+
+`EnableM05ApicSetupProbe` defaults false and requires the complete owned PCI
+profile. Retained MADT parsing admits one enabled legacy xAPIC BSP and one
+IOAPIC, with checked inactive ISO/NMI records. Actual CPUID, APIC MSR and
+controller identities must agree before touching admitted UC/RW/NX mappings.
+The adapter masks the PIC when present, every IOAPIC redirection and supported
+LVT, stops the timer, sets TPR/SVR and checks readback with IF clear. IOAPIC
+versions 0x11 and 0x20 are admitted with the same bounded register checks;
+neither explicit IOAPIC EOI nor external IRQ routing is used.
+
+`EnableM05VirtqueueInterruptProbe` also defaults false and requires APIC setup
+and Virtio negotiation. BootSequence orders PCI, APIC, negotiation, then the
+interrupt transaction. Both profiles exclude the polling and BAR/DMA diagnostics.
+The retained range capacity is 35 for the combined profile; each writable UC
+MMIO range remains exactly one page, with the existing 55-table/8192-page bounds.
+The selected MSI-X table and PBA share one independently sized and admitted BAR
+page. All entries are masked and pending bits must be clear before programming
+entry zero for physical BSP vector 0xe0; the configuration vector stays disabled.
+
+The adapter authenticates the original owned fault IDT, copies it to disjoint
+storage and replaces only vectors 0xe0/0xff. Its native leaf preserves R15,
+loads that temporary IDT, enables interrupts only inside a bounded wait, then
+clears IF and restores/readbacks the original IDTR. The returning handler
+preserves RAX and records RIP/RFLAGS plus LAPIC ISR7 before and after EOI.
+Exactly one completion and no spurious event are required. The queue acquires
+its used entry only after this observation, without a polling fallback. Cleanup
+masks the function before observed reset and bus-master disable, then disables
+MSI-X before releasing backing. Uncertain cleanup retains backing.
+
+Native review associates all 790 method extents with the linked PE and reviews
+changed callback, ABI and cleanup paths. The conservative diagnostic bound is
+10,168 bytes within the owned 32 KiB stack; the fault bound is 4,968 bytes.
+This proves a bounded single-BSP, one-shot diagnostic only. Conventional MSI,
+x2APIC, SMP, general interrupt dispatch, scheduling, receive and packet delivery
+remain unsupported. It does not promote Gate 6, hosted .NET/Kestrel, cloud or
+production readiness. Commands are in [EFI build](efi-build.md#bounded-apic-and-msi-x-profiles).
 
 The bounded split-queue batch #109-#112/#617 is accepted in
 [step1133](../done/step1133.md): 4,251 full-host checks, strict native

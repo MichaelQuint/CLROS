@@ -21,10 +21,15 @@
 
 ## Progress
 
+The bounded APIC/MSI-X batch has [integrated development evidence](done/step1135.md):
+strict native publication, one real MSI-X queue completion and an ordinary boot
+regression pass. Full-host qualification is pending. The earlier polling queue
+batch is [accepted](done/step1133.md); see [drivers](docs/drivers.md) for scope.
+
 Bounded rethrow and post-firmware UC/WC/WB mapping are qualified in
 [step1120](done/step1120.md): the resumed full host run passes 4,146 checks and
 six fresh QEMU profiles pass with independent image association. General EH,
-live devices and workload execution remain incomplete. Host runs support
+general device support and workload execution remain incomplete. Host runs support
 validated [checkpoint resume](docs/host-requirements.md#resume-an-interrupted-or-failed-host-run)
 and finish the fast phase before admitting native work.
 

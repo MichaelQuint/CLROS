@@ -162,8 +162,10 @@ internal static unsafe class MADTLocalAPICIOAPICSeparatelyPollingProofTests
         var topology = Success(Table(Cpu(), Io(), Iso(9, 23, 15)));
         HostCheck.Equal(23U, topology.MaximumIsoGsi);
         for (uint max = 3; max <= 6; max++)
+        foreach (uint ioVersion in new uint[] { 0x170011, 0x170020 })
         {
             ApicModel model = CreateModel(max);
+            model.Io[1] = ioVersion;
             var result = Setup(topology, &model);
             HostCheck.Equal(XApicSetupStatus.Success, result.Status);
             HostCheck.True(result.MaskedLocalEntries == max + 1 && result.MaskedIoEntries == 24 &&
@@ -226,7 +228,7 @@ internal static unsafe class MADTLocalAPICIOAPICSeparatelyPollingProofTests
         {
             (0,2,0x04000000), (0,3,0x5000f), (0,3,0x50016), (0,3,0x20014),
             (0,3,0x70014), (0,3,0x2050014), (1,0,0x03000000), (1,0,0x12000000),
-            (1,1,0x170012), (1,1,0x180011), (1,1,0x170111)
+            (1,1,0x170012), (1,1,0x180011), (1,1,0x170111), (1,1,0x170021), (1,1,0x180020), (1,1,0x170120)
         })
         {
             ApicModel m = CreateModel(); if (space == 0) m.Local[index] = value; else m.Io[index] = value;

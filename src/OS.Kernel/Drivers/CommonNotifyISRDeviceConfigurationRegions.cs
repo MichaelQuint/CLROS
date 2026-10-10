@@ -41,13 +41,21 @@ public static unsafe class CommonNotifyISRDeviceConfigurationRegions
     // rules out RAM; firmware may omit MMIO. Later allocations must separately
     // be disjoint when the adapter installs these UC/RW/NX pages.
     public static bool Admit(VirtioConfigurationRegion region, OS.Boot.FirmwareMemoryMapRecord map)
+        => region.IsValid && AdmitMmioPages(region.PageStart, region.PageCount, map);
+
+    // Shared EFI-map exclusion for numerically declared ACPI/PCI MMIO. The
+    // caller separately proves the original device declaration and installed UC
+    // mapping. Absence from the EFI map alone is never device authority.
+    public static bool AdmitMmioPages(ulong address, ulong pages, OS.Boot.FirmwareMemoryMapRecord map)
     {
-        if (!region.IsValid || !map.HasOwnedCopy() || map.DescriptorVersion != 1 ||
+        if (address < 0x100000 || (address & 4095) != 0 || pages == 0 || pages > 16 ||
+            address > 0x0000800000000000UL - pages * 4096 ||
+            !map.HasOwnedCopy() || map.DescriptorVersion != 1 ||
             (map.BufferAddress & 7) != 0 || map.DescriptorSize < 40 || map.DescriptorSize > 256 ||
             (map.DescriptorSize & 7) != 0 || map.DescriptorCount == 0 || map.DescriptorCount > 4096 ||
             map.MapSize != map.DescriptorSize * map.DescriptorCount || map.MapSize > map.BufferSize ||
             map.BufferAddress > ~0UL - map.BufferSize) return false;
-        ulong address = region.PageStart, bytes = region.PageCount * 4096;
+        ulong bytes = pages * 4096;
         if (address < map.BufferAddress + map.BufferSize && map.BufferAddress < address + bytes) return false;
         uint covering = 0;
         for (ulong i = 0; i < map.DescriptorCount; i++)
@@ -55,9 +63,9 @@ public static unsafe class CommonNotifyISRDeviceConfigurationRegions
             byte* descriptor = (byte*)(map.BufferAddress + i * map.DescriptorSize);
             uint type = OS.Std.Binary.EndianPrimitives.ReadUInt32LittleEndian(descriptor);
             ulong start = OS.Std.Binary.EndianPrimitives.ReadUInt64LittleEndian(descriptor + 8);
-            ulong pages = OS.Std.Binary.EndianPrimitives.ReadUInt64LittleEndian(descriptor + 24);
-            if ((start & 4095) != 0 || pages == 0 || pages > (~0UL - start) / 4096) return false;
-            ulong end = start + pages * 4096;
+            ulong descriptorPages = OS.Std.Binary.EndianPrimitives.ReadUInt64LittleEndian(descriptor + 24);
+            if ((start & 4095) != 0 || descriptorPages == 0 || descriptorPages > (~0UL - start) / 4096) return false;
+            ulong end = start + descriptorPages * 4096;
             if (address >= end || start >= address + bytes) continue;
             if ((type != 0 && type != 11) || start > address || end < address + bytes || ++covering != 1) return false;
         }

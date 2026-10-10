@@ -46,6 +46,48 @@ public static unsafe class X64MsixInterrupt
         return true;
     }
 
+    public static bool PrepareTemporaryIdt(byte* original, byte* temporary, ulong capacity, ulong originalStubs, ulong code)
+    {
+        if (!Tables(original, temporary, capacity, originalStubs, code)) return false;
+        for (uint i = 0; i < 4096; i++) temporary[i] = original[i];
+        HandlerAddress(temporary + BoundedXApicSetup.CompletionVector * 16, code + HandlerOffset);
+        HandlerAddress(temporary + BoundedXApicSetup.SpuriousVector * 16, code + SpuriousOffset);
+        return ValidateTemporaryIdt(original, temporary, capacity, originalStubs, code);
+    }
+
+    public static bool ValidateTemporaryIdt(byte* original, byte* temporary, ulong capacity, ulong originalStubs, ulong code)
+    {
+        if (!Tables(original, temporary, capacity, originalStubs, code)) return false;
+        for (uint i = 0; i < 4096; i++)
+        {
+            uint vector = i / 16, offset = i & 15;
+            ulong target = vector == BoundedXApicSetup.CompletionVector ? code + HandlerOffset :
+                vector == BoundedXApicSetup.SpuriousVector ? code + SpuriousOffset : 0;
+            byte expected = original[i];
+            if (target != 0)
+            {
+                if (offset < 2) expected = (byte)(target >> ((int)offset * 8));
+                else if (offset >= 6 && offset < 12) expected = (byte)(target >> ((int)(offset - 4) * 8));
+            }
+            if (temporary[i] != expected) return false;
+        }
+        return true;
+    }
+    private static bool Tables(byte* original, byte* temporary, ulong capacity, ulong originalStubs, ulong code)
+    {
+        if (capacity != 4096 || ((ulong)temporary & 15) != 0 || !Range((ulong)temporary, 4096) || !Range(code, Bytes) ||
+            !OS.Kernel.Diagnostics.PopulateAllN256IDTVectorsOwnedGatesNever.ValidateReadBack(
+                original, 4096, (ulong)original, originalStubs).Succeeded) return false;
+        ulong t = (ulong)temporary, o = (ulong)original;
+        return !(t < o + 4096 && o < t + 4096) && !(t < code + Bytes && code < t + 4096) &&
+            !(t < originalStubs + 4096 && originalStubs < t + 4096) && !(o < code + Bytes && code < o + 4096);
+    }
+    private static void HandlerAddress(byte* gate, ulong handler)
+    {
+        gate[0] = (byte)handler; gate[1] = (byte)(handler >> 8);
+        for (uint i = 0; i < 6; i++) gate[6 + i] = (byte)(handler >> ((int)(i + 2) * 8));
+    }
+
     // These numeric observations are necessary but do not authenticate mappings,
     // table contents, code or DMA. The adapter must independently prove those.
     public static bool ValidateCompletion(MsixInterruptContext* c, ulong code, ulong originalIdt,

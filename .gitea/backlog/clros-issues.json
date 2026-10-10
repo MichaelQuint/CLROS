@@ -13100,7 +13100,7 @@
       ],
       "collisionLane": null,
       "summary": "Parse MADT and initialize local APIC/IOAPIC separately from polling proof.",
-      "currentEvidence": "Development contracts implemented in step1134 under #619 on codex/m05-apic-msix-batch, based on accepted step1133/PR618. Focused host checks cover retained MADT parsing, masked APIC setup, MSI-X capability/table planning and programming, native-leaf bytes and explicit interrupt-mode queue lifetime. Boot integration, strict native admission, full-host qualification and real QEMU interrupt delivery remain pending. #113/#114 stay claimed and unaccepted; #114 depends on #113 and the batch will be qualified together.",
+      "currentEvidence": "Integrated development evidence in step1135 under #619 follows step1134/accepted step1133. Default-off APIC and MSI-X profiles pass strict NativeAOT publication, linked native review, 104/157-record real guest captures and the ordinary 79-record regression. Full-host batch qualification remains pending. #113/#114/#619 stay claimed and unaccepted; #114 depends on #113 and the batch is qualified together. Scope is one legacy xAPIC BSP, masked controllers and one MSI-X queue completion; no general IRQ, packet delivery or Gate 6 completion.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Parse MADT and initialize local APIC/IOAPIC separately from polling proof.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -13187,7 +13187,7 @@
       ],
       "collisionLane": "lane:common-virtio",
       "summary": "Add MSI/MSI-X setup and interrupt-driven virtqueue completion after polling paths pass.",
-      "currentEvidence": "Development contracts implemented in step1134 under #619 on codex/m05-apic-msix-batch, based on accepted step1133/PR618. Focused host checks cover retained MADT parsing, masked APIC setup, MSI-X capability/table planning and programming, native-leaf bytes and explicit interrupt-mode queue lifetime. Boot integration, strict native admission, full-host qualification and real QEMU interrupt delivery remain pending. #113/#114 stay claimed and unaccepted; #114 depends on #113 and the batch will be qualified together.",
+      "currentEvidence": "Integrated development evidence in step1135 under #619 follows step1134/accepted step1133. Default-off APIC and MSI-X profiles pass strict NativeAOT publication, linked native review, 104/157-record real guest captures and the ordinary 79-record regression. Full-host batch qualification remains pending. #113/#114/#619 stay claimed and unaccepted; #114 depends on #113 and the batch is qualified together. Scope is one legacy xAPIC BSP, masked controllers and one MSI-X queue completion; no general IRQ, packet delivery or Gate 6 completion.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add MSI/MSI-X setup and interrupt-driven virtqueue completion after polling paths pass.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

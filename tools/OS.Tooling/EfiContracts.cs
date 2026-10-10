@@ -5,15 +5,16 @@ public static partial class EfiContracts
 {
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
-    public static IReadOnlyList<(string Symbol, string Entry)> OwnedDmaAllocatorProfiles { get; } =
-        Array.AsReadOnly<(string, string)>([("M05_BAR_DMA_PROBE", "RunOwnedBarDma"),
-            ("M05_VIRTQUEUE_POLLING_PROBE", "RunOwnedVirtqueuePolling")]);
+    public static IReadOnlyList<(string Symbol, string Entry, string Body)> OwnedDmaAllocatorProfiles { get; } =
+        Array.AsReadOnly<(string, string, string)>([("M05_BAR_DMA_PROBE", "RunOwnedBarDma", "RunDmaCore"),
+            ("M05_VIRTQUEUE_POLLING_PROBE", "RunOwnedVirtqueuePolling", "RunQueueCore"),
+            ("M05_VIRTQUEUE_INTERRUPT_PROBE", "RunOwnedVirtqueueInterrupt", "RunQueueCore")]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "cf7d474a9627b5b1836e5a4b5bf7436bfbcedde30e9e6cc8380d6c640b262f94";
-    public const string CanonicalProjectSha256 = "5954ad2d60afddc8e6b40a36d67806faf8f3e8226090f14e2afd749a753396ed";
+    public const string ProjectSourceSha256 = "54d80b9a388bd9db6971e2c2daf4283c4d21c33b21a12afe4dace8a6bb7867fc";
+    public const string CanonicalProjectSha256 = "eb625669d91b257e916fb5700e7cf95d646623516badb593567d5c8642bc9cbb";
     public const string EfiEntrySourceSha256 = "3796971d995eeeab7b1371ec3dbfbe619b9df42052955af2d294789bc53678a0";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
@@ -142,6 +143,8 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Drivers\VirtioPciModernRegisterMap.cs|Drivers\VirtioPciModernRegisterMap.cs",
         @"..\OS.Kernel\Drivers\VirtqueuePowerTwoConstraintsIndexWidthNegotiatedMaximum.cs|Drivers\VirtqueuePowerTwoConstraintsIndexWidthNegotiatedMaximum.cs",
         @"..\OS.Kernel\Drivers\DescriptorAllocationExhaustionInvalidIndexDoubleFreeTests.cs|Drivers\DescriptorAllocationExhaustionInvalidIndexDoubleFreeTests.cs",
+        @"..\OS.Kernel\Drivers\MADTLocalAPICIOAPICSeparatelyPollingProof.cs|Drivers\MADTLocalAPICIOAPICSeparatelyPollingProof.cs",
+        @"..\OS.Kernel\Drivers\MSIMSIXSetupInterruptDrivenVirtqueueCompletion.cs|Drivers\MSIMSIXSetupInterruptDrivenVirtqueueCompletion.cs",
         @"..\OS.Kernel\Drivers\SplitVirtqueuePollingNotificationCompletion.cs|Drivers\SplitVirtqueuePollingNotificationCompletion.cs",
         @"..\OS.Kernel\Drivers\MemoryOrderingPrimitivesReplacingReadinessBooleans.cs|Drivers\MemoryOrderingPrimitivesReplacingReadinessBooleans.cs",
         @"..\OS.Kernel\Drivers\VirtqueueSplitRingPlan.cs|Drivers\VirtqueueSplitRingPlan.cs",
@@ -234,12 +237,14 @@ public static partial class EfiContracts
         "EnableM04SzArrayAllocationProbe",
         "EnableM04TypeManagerModuleRegistrationProbe",
         "EnableM04X64UnwindMetadataProbe",
+        "EnableM05ApicSetupProbe",
         "EnableM05BarDmaProbe",
         "EnableM05MonotonicClockProbe",
         "EnableM05OwnedAcpiSelectionProbe",
         "EnableM05PciEnumerationProbe",
         "EnableM05PhysicalMappingProbe",
         "EnableM05VirtioNegotiationProbe",
+        "EnableM05VirtqueueInterruptProbe",
         "EnableM05VirtqueuePollingProbe",
         "EnableUefiGoneSimulationProbe",
     ]);

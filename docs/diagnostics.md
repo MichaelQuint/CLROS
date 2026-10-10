@@ -1,5 +1,11 @@
 # Diagnostics
 
+`EnableM05ApicSetupProbe` and `EnableM05VirtqueueInterruptProbe` default false.
+Their exact 104/157-record streams bind controller masking, one interrupt/EOI,
+IF and IDTR restoration, and queue cleanup. Strict native and real guest
+development runs pass in [step1135](../done/step1135.md); full-host qualification
+remains pending. Prerequisites and limits are in [drivers](drivers.md).
+
 The bounded split-queue batch #109-#112/#617 is accepted in
 [step1133](../done/step1133.md): 4,251 full-host checks, strict native
 review, a 139-record real queue diagnostic and a 79-record ordinary
@@ -23,8 +29,9 @@ address/buffer lifetime. No device DMA transfer or Gate 6 completion is claimed.
 
 ## Current Status
 
-`EnableM05PciEnumerationProbe` is default off and exclusive with the other M05
-diagnostics, owned panic and revocation. Its 97-record stream appends nine
+`EnableM05PciEnumerationProbe` is default off; its permitted dependent device
+profiles are listed in [drivers](drivers.md). Unrelated M05 diagnostics, owned
+panic and revocation remain exclusive. Its 97-record stream appends nine
 `M05_PCI` rows plus start/ready/pass groups for `m05.004` through `m05.007`.
 Rows require bounded ECAM authority, a present header, repeatable complete window
 scan, explicit capacity rejection and malformed capability controls. Full-host,
