@@ -13671,7 +13671,7 @@
         "M06-004"
       ],
       "labels": [
-        "agent:ready",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -13698,7 +13698,7 @@
       ],
       "collisionLane": null,
       "summary": "Submit and poll one sector-read request.",
-      "currentEvidence": "Dependency #119 is accepted in done/step1140.md. Live modern block binding, VERSION_1/RO features, owned DMA layout and queue-zero setup/readback/reset are qualified. Sector request submission remains unimplemented; this is the next ready storage slice. No CLROS sector I/O, live block-contract adapter or Gate 7 completion is accepted.",
+      "currentEvidence": "Implemented with focused host/source checks in done/step1141.md under shared integration #623. One bounded sector request, completion validation and reset/retained-DMA failure handling are present. Full-host, strict native and real QEMU qualification remain pending. Dependency-ordered closure is required; no accepted sector I/O, block-contract adapter or Gate 7 completion is claimed yet.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Submit and poll one sector-read request.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -13762,7 +13762,7 @@
         "M06-005"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -13789,7 +13789,7 @@
       ],
       "collisionLane": null,
       "summary": "Validate used-ring completion, status byte, timeout, and device reset.",
-      "currentEvidence": "GPT, FAT32, package, and virtio-blk plans are host-tested; no guest block read or disk-backed package load is proven.",
+      "currentEvidence": "Implemented with focused host/source checks in done/step1141.md under shared integration #623. One bounded sector request, completion validation and reset/retained-DMA failure handling are present. Full-host, strict native and real QEMU qualification remain pending. Dependency-ordered closure is required; no accepted sector I/O, block-contract adapter or Gate 7 completion is claimed yet.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Validate used-ring completion, status byte, timeout, and device reset.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

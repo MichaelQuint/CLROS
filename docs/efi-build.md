@@ -1,5 +1,16 @@
 # EFI Build
 
+## Bounded Virtio block read profile
+
+Implemented with focused host/source checks in [step1141](../done/step1141.md);
+native/guest acceptance is pending. Add `--EnableM06VirtioBlockReadProbe` to the
+queue command below, with separate artifact paths. The new switch requires the
+queue switch and stays false by default. BootSequence runs the accepted empty
+queue proof first, then a fresh negotiation and one LBA1 read. There are 138
+records, ending `TEST_PASS m06.006`. The wrapper requires exact completion and
+cleanup records and associates capacity/CRC/first/last bytes with the same disk.
+The sector is opaque transport evidence, not GPT validation or file loading.
+
 ## Bounded Virtio block queue profile
 
 [Step1140](../done/step1140.md) accepts full-host, strict native and final guest

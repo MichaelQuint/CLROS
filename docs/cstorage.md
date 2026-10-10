@@ -2,6 +2,25 @@
 
 ## Current Status
 
+The next batch #120/#121/#623 is implemented with focused host checks in
+[step1141](../done/step1141.md); full-host, native and guest acceptance is pending.
+`SubmitPollSectorRequest` sends one fresh 512-byte IN chain through queue zero.
+It reads capacity under config generation, validates the sector range, orders
+descriptor/available-index/notification writes and polls a bounded number of
+times. Completion requires head zero, exactly 513 written bytes and status OK.
+Observed reset, bus-master disable and a fence precede DMA-token release; only
+successful completion and cleanup allow copying into the caller's destination.
+The original backing remains owned through return. There is no queue reuse.
+Host controls cover failures before/after callbacks, short/bad completions,
+configuration churn, timeout, retained DMA and destination/metadata aliases.
+
+The separate `EnableM06VirtioBlockReadProbe` defaults false and requires the
+accepted queue profile. It transports LBA1 as opaque bytes and records CRC32,
+first/last words, original allocator restoration and completion controls. The
+wrapper checks the returned bytes against the generated disk image. This does
+not implement GPT parsing. #122 also needs a narrow native Span/constrained
+interface path; a host adapter plus guest pointer call is insufficient evidence.
+
 The bounded live block binding/queue batch #116-#119/#621 is accepted in
 [step1140](../done/step1140.md): 4,294 full-host checks across 518 groups, strict
 native review and fresh 122/157/79-record block/network/ordinary captures pass

@@ -702,6 +702,7 @@ internal static class BootSequencePlanTests
              "public static unsafe bool RunOwnedVirtqueuePolling(",
              "public static unsafe bool RunOwnedVirtioNegotiation(",
              "public static unsafe bool RunOwnedVirtioBlockQueueSetup(",
+             "public static unsafe bool RunOwnedVirtioBlockRead(",
              "public static unsafe bool RunOwnedMonotonicClock(",
              "public static unsafe bool RunPostFirmwarePhysicalMapping(",
              "public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunRethrowUnwind(",
@@ -752,7 +753,9 @@ internal static class BootSequencePlanTests
              "public const bool EnableM05VirtioNegotiationProbe = true;",
              "public const bool EnableM05VirtioNegotiationProbe = false;",
              "public const bool EnableM06VirtioBlockQueueSetupProbe = true;",
-             "public const bool EnableM06VirtioBlockQueueSetupProbe = false;"]);
+             "public const bool EnableM06VirtioBlockQueueSetupProbe = false;",
+             "public const bool EnableM06VirtioBlockReadProbe = true;",
+             "public const bool EnableM06VirtioBlockReadProbe = false;"]);
 
         bool HasGuardedSurface(string relativePath, int expectedRegions, string[] declarations)
         {

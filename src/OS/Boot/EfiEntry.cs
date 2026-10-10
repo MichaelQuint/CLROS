@@ -68,6 +68,10 @@ public static unsafe class EfiEntry
 #if M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
             internal uint BlockPhase, BlockCommand;
             internal MsixCapability BlockMsix;
+#if M06_VIRTIO_BLOCK_READ_PROBE
+            internal uint BlockReadPhase, BlockNotifyMultiplier;
+            internal VirtioMappedRegion BlockCommon, BlockNotify, BlockDevice;
+#endif
 #endif
 #if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE
             internal uint QueuePhase, QueueCommand;
@@ -583,6 +587,9 @@ public static unsafe class EfiEntry
 #endif
 #if M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
                         _ = BootSequence.RunOwnedVirtioBlockQueueSetup(state->PciPhase == 8, state, &RunOwnedVirtioBlockQueueSetup);
+#if M06_VIRTIO_BLOCK_READ_PROBE
+                        _ = BootSequence.RunOwnedVirtioBlockRead(state->BlockPhase == 5, state, &RunOwnedVirtioBlockRead);
+#endif
 #endif
 #if M05_VIRTQUEUE_POLLING_PROBE
                         _ = BootSequence.RunOwnedVirtqueuePolling(state->VirtioPhase == 16, state, &RunOwnedVirtqueuePolling);
@@ -1253,7 +1260,16 @@ public static unsafe class EfiEntry
                 if (regions[i].PageCount != 1 || regions[i].PageStart < start || regions[i].PageStart >= start + 0x4000 ||
                     CommonNotifyISRDeviceConfigurationRegions.Bind(regions[i], regions[i].PageStart, out var mapped) != VirtioRegionStatus.Success) return false;
                 if (i == 0) common = mapped;
+#if M06_VIRTIO_BLOCK_READ_PROBE
+                if (i == 0) state->BlockCommon = mapped;
+                if (i == 1 && CommonNotifyISRDeviceConfigurationRegions.BindNotificationPage(regions[i],
+                    caps.NotifyConfiguration.Length, regions[i].PageStart, out state->BlockNotify) != VirtioRegionStatus.Success) return false;
+                if (i == 3) state->BlockDevice = mapped;
+#endif
             }
+#if M06_VIRTIO_BLOCK_READ_PROBE
+            state->BlockNotifyMultiplier = caps.NotifyConfiguration.NotifyOffsetMultiplier;
+#endif
             SeparatePageFaultMappingRange* ranges = stackalloc SeparatePageFaultMappingRange[(int)FirstExitRetainedMappings.MaximumRanges];
             if (!FirstExitRetainedMappings.WriteInstalledRanges(ref state->Arena, state->Memory.Code, state->Memory.Capture,
                     state->Memory.Mapping, state->Memory.References, state->Memory.Allocator, state->Memory.Tables,
@@ -1390,7 +1406,7 @@ public static unsafe class EfiEntry
 
         private static bool WriteBlockLiteral(Storage* state, uint issue, uint kind)
         {
-            if (issue < 1 || issue > 4 || kind > 3) return false;
+            if (issue < 1 || issue > 6 || kind > 3) return false;
             ulong* words = stackalloc ulong[4]; uint bytes, digit;
             if (kind == 0) { words[0] = 0x4154535f54534554UL; words[1] = 0x302e36306d205452UL; words[2] = 0xa0d3030UL; bytes = 20; digit = 17; }
             else if (kind == 1) { words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3030305f36UL; words[2] = 0xa0d594441UL; bytes = 21; digit = 12; }
@@ -1398,6 +1414,143 @@ public static unsafe class EfiEntry
             else { words[0] = 0x4941465f54534554UL; words[1] = 0x30302e36306d204cUL; words[2] = 0x5f6b636f6c622030UL; words[3] = 0xa0d6574617473UL; bytes = 31; digit = 16; }
             ((byte*)words)[digit] = (byte)('0' + issue);
             return WriteOwnedBytes(state, (byte*)words, bytes);
+        }
+#endif
+
+#if M06_VIRTIO_BLOCK_READ_PROBE
+        private static bool RunOwnedVirtioBlockRead(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->BlockReadPhase != 0 || state->BlockPhase != 5 || state->PciPhase != 8 || state->OwnedPhase != 2 ||
+                !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            state->BlockReadPhase = 5;
+            if (!RunBlockReadCore(state)) { _ = WriteBlockLiteral(state, state->BlockReadPhase, 3); return false; }
+            state->BlockReadPhase = 7;
+            return true;
+        }
+
+        private static bool RunBlockReadCore(Storage* state)
+        {
+            byte* code = state->Memory.Code + FirstExitCodeBundle.PciBarOffset;
+            byte* fence = state->Memory.Code + FirstExitCodeBundle.QueueFenceOffset;
+            if (!X64PciBarAccess.Validate(code, X64PciBarAccess.Bytes) ||
+                !X64VirtqueueMemoryFence.Validate(fence, X64VirtqueueMemoryFence.Bytes) ||
+                !WriteBlockLiteral(state, 5, 0) || SetBlockReadBusMaster(state, false) != 1) return false;
+            var read32 = (delegate* unmanaged<void*, ulong, uint*, byte>)code;
+            var write32 = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 16);
+            // The prerequisite queue-only proof reset the device. Negotiate a
+            // fresh read lifetime; no descriptor or token survives that reset.
+            var features = MinimalVirtioBlkFeatureSet.Negotiate(state->BlockCommon, 1024, null,
+                read32, write32, &ReadVirtioStatus, &WriteVirtioStatus);
+            if (!features.Succeeded || features.Selected != (BoundedVirtioFeatures.Version1 | BoundedVirtioFeatures.BlockReadOnly) ||
+                !M01StageTwoAdapter.TryGetOriginalExitAllocator(out ulong address, out var backing) ||
+                address != state->Memory.References.AllocatorState || backing.Start != state->Memory.Allocator.Start ||
+                backing.PageCount != state->Memory.Allocator.PageCount || backing.PageCount == 0 ||
+                backing.PageCount > M01LiveAllocatorIntegration.MaximumArenaPageCount) return false;
+            M01LiveAllocatorStaticState* owner = (M01LiveAllocatorStaticState*)address;
+            if (!owner->IsCompleted) return false;
+            var before = owner->AllocatorStateValue; var node = owner->FreeNodeValue;
+            var allocation = BootPageAllocatorMutator.AllocateOnePage(before, &owner->FreeNodeValue, 1, 1, null, 0, 0, 1, 4096);
+            if (!allocation.Succeeded) return false;
+            owner->AllocatorStateValue = allocation.AfterState;
+            if (allocation.PhysicalStart.TryGetRawValueForHardwareRegisterBoundary(out ulong page) != AddressValueStatus.Success ||
+                allocation.PageCount != 1 || allocation.ByteLength != 4096 || (page & 4095) != 0 ||
+                page < backing.Start || page - backing.Start > backing.PageCount * 4096 - 4096 ||
+                DmaAddressWindow.TryCreate(page, page, page, 4096, 32, out var window) != DmaAddressStatus.Success) return false;
+            DmaBufferPool pool = default; DmaBufferSlot slot = default;
+            if (PageAlignedDmaBuffers.TryInitialize(&pool, window, &slot, 1, 2) != DmaBufferStatus.Success) return false;
+            VirtioBlkReadAccess access = new();
+            access.Queue.Context = state; access.Queue.Read8 = &ReadVirtioStatus; access.Queue.Write8 = &WriteVirtioStatus;
+            access.Queue.Read16 = &ReadBlockWord;
+            access.Queue.Write16 = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 32);
+            access.Queue.Read32 = read32; access.Queue.Write32 = write32;
+            access.Queue.Fence = (delegate* unmanaged<void*, byte>)fence;
+            access.Queue.BusMasterOff = &BlockReadBusMasterOff; access.BusMasterOn = &BlockReadBusMasterOn;
+            byte* destination = stackalloc byte[512];
+            for (uint i = 0; i < 512; i++) destination[i] = 0xa5;
+            // LBA1 is transported as opaque bytes. GPT interpretation belongs to
+            // its later issue; the host associates this payload with the disk.
+            var result = SubmitPollSectorRequest.Run(state->BlockCommon, state->BlockNotify, state->BlockDevice,
+                state->BlockNotifyMultiplier, &pool, access, 1, destination, 512, 1000000, 1024);
+            if (!result.Succeeded || pool.AllocatedMask != 0)
+            { _ = WriteBlockReadRow(state, 10, (ulong)result.Status, (ulong)result.Queue.Status, (ulong)result.Queue.CleanupStatus, result.Polls); return false; }
+            uint crc = OS.Std.Hash.Crc32.InitialState;
+            for (uint i = 0; i < 512; i++) crc = OS.Std.Hash.Crc32.UpdateByte(crc, destination[i]);
+            crc = OS.Std.Hash.Crc32.Finish(crc);
+            var layout = result.Queue.Layout;
+            if (!WriteBlockReadRow(state, 0, result.Capacity, result.Sector, result.BytesRead, result.Generation) ||
+                !WriteBlockReadRow(state, 1, result.CapacityReads, result.NotifyOffset, result.NotifyAddress, result.Polls) ||
+                !WriteBlockReadRow(state, 2, layout.Range.CpuVirtualAddress, layout.Range.PhysicalAddress, layout.Range.DeviceAddress, layout.Range.ByteLength) ||
+                !WriteBlockReadRow(state, 3, result.UsedIndex, result.UsedId, result.UsedLength, result.DeviceStatus) ||
+                !WriteBlockReadRow(state, 4, result.Published ? 1UL : 0, result.Notified ? 1UL : 0, result.Fences, result.Queue.Fences) ||
+                !WriteBlockReadRow(state, 5, crc, *(ulong*)destination, *(ulong*)(destination + 504), 512) ||
+                !WriteBlockLiteral(state, 5, 1) || !WriteBlockLiteral(state, 5, 2)) return false;
+            state->BlockReadPhase = 6;
+            if (!WriteBlockLiteral(state, 6, 0)) return false;
+            var freed = BootPageAllocatorMutator.FreeOnePage(owner->AllocatorStateValue, &owner->FreeNodeValue, 1, 1, null, 0, 0, allocation);
+            if (!freed.Succeeded) return false;
+            owner->AllocatorStateValue = freed.AfterState;
+            var restored = owner->AllocatorStateValue; var finalNode = owner->FreeNodeValue;
+            bool equal = before.IsInitialized == restored.IsInitialized && before.PageSize == restored.PageSize &&
+                before.HeadNodeIndex == restored.HeadNodeIndex && before.FreeNodeCount == restored.FreeNodeCount &&
+                before.FreePageCount == restored.FreePageCount && before.FreeByteCount == restored.FreeByteCount &&
+                before.AllocatedPageCount == restored.AllocatedPageCount && before.AllocatedByteCount == restored.AllocatedByteCount &&
+                node.SourceFreeSegmentIndex == finalNode.SourceFreeSegmentIndex && node.SourceUsableRangeIndex == finalNode.SourceUsableRangeIndex &&
+                node.PhysicalStart == finalNode.PhysicalStart && node.PhysicalEndExclusive == finalNode.PhysicalEndExclusive &&
+                node.PageCount == finalNode.PageCount && node.ByteLength == finalNode.ByteLength && node.NextNodeIndex == finalNode.NextNodeIndex;
+            byte status = 0xff;
+            var read8 = (delegate* unmanaged<void*, ulong, byte*, byte>)&ReadVirtioStatus;
+            return equal && owner->IsCompleted && FirstExitOwnedArena.ValidateCanaries(state->Arena) &&
+                SetBlockReadBusMaster(state, false) == 1 && read8(null, state->BlockCommon.VirtualStart + 20, &status) == 1 && status == 0 &&
+                WriteBlockReadRow(state, 6, result.Queue.ResetComplete ? 1UL : 0, result.Queue.BusMasterDisabled ? 1UL : 0,
+                    result.Queue.DmaReleased ? 1UL : 0, result.Queue.ResetReads) &&
+                WriteBlockReadRow(state, 7, before.FreePageCount, restored.FreePageCount, restored.AllocatedPageCount, 1) &&
+                WriteBlockReadRow(state, 8, state->BlockCommand, status, state->BlockMsix.Control, 1) &&
+                WriteBlockReadRow(state, 9,
+                    (ulong)UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(0, 0, 513, 0),
+                    (ulong)UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, 0, 512, 0),
+                    (ulong)UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, 0, 1, 1),
+                    (ulong)UsedRingCompletionStatusByteTimeoutDeviceReset.Validate(1, 0, 513, 0xff)) &&
+                WriteBlockLiteral(state, 6, 1) && WriteBlockLiteral(state, 6, 2);
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte BlockReadBusMasterOff(void* context) => SetBlockReadBusMaster((Storage*)context, false);
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte BlockReadBusMasterOn(void* context) => SetBlockReadBusMaster((Storage*)context, true);
+
+        private static byte SetBlockReadBusMaster(Storage* state, bool enabled)
+        {
+            if (state->BlockPhase != 5 || state->BlockReadPhase < 5 || state->BlockReadPhase > 6 ||
+                (state->BlockCommand & 0x406) != 0x402 || !state->BlockMsix.IsValid) return 0;
+            byte* code = state->Memory.Code + FirstExitCodeBundle.PciBarOffset;
+            if (!X64PciBarAccess.Validate(code, X64PciBarAccess.Bytes)) return 0;
+            var read = (delegate* unmanaged<void*, ulong, uint*, byte>)code;
+            var write = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 32);
+            ulong page = state->PciWindow.Start + 0x30000;
+            uint control = 0, command = 0, expected = enabled ? state->BlockCommand | 4u : state->BlockCommand;
+            if (read(null, page + state->BlockMsix.CapabilityOffset, &control) != 1 ||
+                (control >> 16) != state->BlockMsix.Control || (control & 0x80000000) != 0 ||
+                write(null, page + 4, expected) != 1 || read(null, page + 4, &command) != 1 ||
+                (command & 0xffff) != expected) return 0;
+            return 1;
+        }
+
+        private static bool WriteBlockReadRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d)
+        {
+            if (stage > 10) return false;
+            byte* text = stackalloc byte[96];
+            *(ulong*)text = 0x444145525f36304dUL; text[8] = 32; uint length = 9;
+            text[length++] = (byte)(stage < 10 ? '0' + stage : 'A');
+            ulong* values = stackalloc ulong[4]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;
+            for (int i = 0; i < 4; i++)
+            {
+                text[length++] = (byte)' '; text[length++] = (byte)'0'; text[length++] = (byte)'x';
+                for (int shift = 60; shift >= 0; shift -= 4)
+                { uint digit = (uint)((values[i] >> shift) & 15); text[length++] = (byte)(digit < 10 ? '0' + digit : 'A' + digit - 10); }
+            }
+            text[length++] = 13; text[length++] = 10;
+            return WriteOwnedBytes(state, text, length);
         }
 #endif
 

@@ -54,7 +54,18 @@ public static unsafe class VirtioBlkQueueN0
             access.Fence == null || access.BusMasterOff == null) return r;
         DmaBufferAllocation allocation = default;
         bool deviceOwned = false;
-        r.Status = Execute(common, dma, access, ref allocation, ref deviceOwned, ref r);
+        r.Status = Configure(common, dma, access, ref allocation, ref deviceOwned, ref r);
+        Cleanup(common, dma, access, resetLimit, allocation, deviceOwned, ref r);
+        return r;
+    }
+
+    // Shared by the bounded read transaction. The adapter keeps the original
+    // backing alive until its synchronous caller returns; pool release alone
+    // does not free that backing or permit concurrent pool access.
+    internal static void Cleanup(VirtioMappedRegion common, DmaBufferPool* dma,
+        VirtioBlkQueueAccess access, uint resetLimit, DmaBufferAllocation allocation,
+        bool deviceOwned, ref VirtioBlkQueueResult r)
+    {
         r.CleanupStatus = VirtioBlkQueueStatus.ResetFailed;
         byte status = 0xff;
         if (access.Write8(access.Context, common.VirtualStart + 20, 0) == 1)
@@ -65,9 +76,9 @@ public static unsafe class VirtioBlkQueueN0
                 if (status == 0) { r.ResetComplete = true; break; }
             }
         r.BusMasterDisabled = access.BusMasterOff(access.Context) == 1;
-        if (!r.ResetComplete) return r;
-        if (!r.BusMasterDisabled) { r.CleanupStatus = VirtioBlkQueueStatus.BusMasterFailed; return r; }
-        if (!Fence(access, ref r)) { r.CleanupStatus = VirtioBlkQueueStatus.OrderingFailed; return r; }
+        if (!r.ResetComplete) return;
+        if (!r.BusMasterDisabled) { r.CleanupStatus = VirtioBlkQueueStatus.BusMasterFailed; return; }
+        if (!Fence(access, ref r)) { r.CleanupStatus = VirtioBlkQueueStatus.OrderingFailed; return; }
         r.CleanupStatus = VirtioBlkQueueStatus.Success;
         if (allocation.IsInitialized)
         {
@@ -76,11 +87,11 @@ public static unsafe class VirtioBlkQueueN0
                 r.CleanupStatus = VirtioBlkQueueStatus.DmaRejected;
             else r.DmaReleased = true;
         }
-        return r;
     }
 
-    private static VirtioBlkQueueStatus Execute(VirtioMappedRegion common, DmaBufferPool* dma,
-        VirtioBlkQueueAccess a, ref DmaBufferAllocation allocation, ref bool deviceOwned, ref VirtioBlkQueueResult r)
+    internal static VirtioBlkQueueStatus Configure(VirtioMappedRegion common, DmaBufferPool* dma,
+        VirtioBlkQueueAccess a, ref DmaBufferAllocation allocation, ref bool deviceOwned, ref VirtioBlkQueueResult r,
+        VirtioMappedRegion notify = default, VirtioMappedRegion device = default, ulong destination = 0)
     {
         ulong c = common.VirtualStart;
         if (a.BusMasterOff(a.Context) != 1) return VirtioBlkQueueStatus.BusMasterFailed;
@@ -100,7 +111,9 @@ public static unsafe class VirtioBlkQueueN0
             return VirtioBlkQueueStatus.DmaRejected;
         var range = r.Layout.Range;
         if (Overlap(c, common.Bytes, range.CpuVirtualAddress, range.ByteLength) ||
-            Overlap(common.PhysicalStart, common.Bytes, range.PhysicalAddress, range.ByteLength))
+            Overlap(common.PhysicalStart, common.Bytes, range.PhysicalAddress, range.ByteLength) ||
+            Aliases(notify, range) || Aliases(device, range) ||
+            (destination != 0 && Overlap(destination, 512, range.CpuVirtualAddress, range.ByteLength)))
             return VirtioBlkQueueStatus.Overlap;
         DMASafeRequestStatusDescriptorAvailableUsedRing.Initialize(r.Layout);
         if (PageAlignedDmaBuffers.TryGiveToDevice(dma, allocation.Token) != DmaBufferStatus.Success)
@@ -142,6 +155,9 @@ public static unsafe class VirtioBlkQueueN0
     private static bool Fence(VirtioBlkQueueAccess a, ref VirtioBlkQueueResult r)
     { if (a.Fence(a.Context) != 1) return false; r.Fences++; return true; }
     private static bool Overlap(ulong a, ulong n, ulong b, ulong m) => a < b + m && b < a + n;
+    private static bool Aliases(VirtioMappedRegion region, OS.Kernel.Platform.DmaAddressRange range) =>
+        region.IsValid && (Overlap(region.VirtualStart, region.Bytes, range.CpuVirtualAddress, range.ByteLength) ||
+            Overlap(region.PhysicalStart, region.Bytes, range.PhysicalAddress, range.ByteLength));
     private static bool WriteAddress(VirtioBlkQueueAccess a, ulong address, ulong value) =>
         a.Write32(a.Context, address, (uint)value) == 1 && a.Write32(a.Context, address + 4, (uint)(value >> 32)) == 1;
     private static bool ReadAddress(VirtioBlkQueueAccess a, ulong address, out ulong value)

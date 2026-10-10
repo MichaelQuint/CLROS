@@ -2,6 +2,13 @@
 
 ## Current Status
 
+The pending read diagnostic adds `--EnableM06VirtioBlockReadProbe` to that block
+queue profile. It keeps the same read-only image and transports LBA1 into owned
+memory. Its host validator compares device capacity and the recorded 512-byte
+CRC/first/last words with the actual image. [Step1141](../done/step1141.md) records
+focused development evidence; native/guest qualification is pending. Image
+generation, GPT interpretation and file/package loading are unchanged.
+
 The default-off [block queue diagnostic](efi-build.md#bounded-virtio-block-queue-profile)
 attaches the existing GPT/FAT EFI image as a read-only modern Virtio boot disk.
 Image contents and ordinary SATA attachment are unchanged. Firmware loads the
