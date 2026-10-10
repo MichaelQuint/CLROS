@@ -796,7 +796,7 @@ isolation, supervisor, restart, port-conflict, and crash-isolation evidence.
   memmove behavior, too-small destination rejection, zero-length copy, and
   no-managed-reference result layout.
 - Host tests verify the NativeAOT helper ledger for object allocation, array/string allocation, write barriers, interface dispatch, class constructors, thread statics, exception/unwind, module init, TypeManager/RTR scans, GC stack roots, EFI-only reverse P/Invoke stubs, EFI-only fail-fast type-cast stubs, structured required-contract/allowed-stub/test-coverage/owner columns, exact coverage of current EFI `[RuntimeExport]` symbols, and the caller-owned `BootPageAllocatorMutation` evidence boundary while keeping object/array/string allocation helper statuses deferred and non-completing.
-- Host tests derive all 49 current canonical `System.*` declarations and all 21
+- Host tests derive all 50 current canonical `System.*` declarations and all 21
   `[RuntimeExport]` methods from `src/OS/Runtime/MinimalRuntime.cs`, bind their identities with
   stable append-only entries in the allocation-free `OS.Std.NoRuntime` compatibility ledger,
   verify four link-only no-op helpers, twelve fail-fast helpers, one audited

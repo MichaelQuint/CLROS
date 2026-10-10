@@ -73,7 +73,8 @@ public enum DotNetN10SystemDeclaration : byte
     DefaultMemberAttribute = 46,
     IndexerNameAttribute = 47,
     RuntimeImports = 48,
-    Exception = 49
+    Exception = 49,
+    UnmanagedType = 50
 }
 
 public readonly struct DotNetN10SystemDeclarationCompatibilityEntry
@@ -184,7 +185,7 @@ public readonly struct DotNetN10RuntimeExportCompatibilityEntry
 
 public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
 {
-    public const int SystemDeclarationCount = 49;
+    public const int SystemDeclarationCount = (int)DotNetN10SystemDeclaration.UnmanagedType;
 
     public const int RuntimeExportCount = 21;
 
@@ -305,6 +306,9 @@ public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             // M04_SIMPLE_THROW_CATCH_PROBE supplies only an empty compiler identity;
             // messages, stack traces, nested exceptions and general exception services are unsupported.
             48 => StubbedCore(DotNetN10SystemDeclaration.Exception),
+            // Compiler modreq identity only; no marshalling constants or API.
+            49 => SystemDeclaration(DotNetN10SystemDeclaration.UnmanagedType,
+                DotNetN10SystemDeclarationCategory.InteropContract, DotNetN10HelperSupportState.Stubbed),
             _ => InvalidSystemDeclarationEntry()
         };
     }

@@ -331,7 +331,7 @@ extending the metadata reader's contract to general EH. #90 remains open.
 - `OS.Std.ArrayHelpers` provides a host-tested partial unmanaged-span helper slice for `Clear`, `Fill`, `IndexOf`, `LastIndexOf`, BCL-shaped `BinarySearch` insertion-point results, full-span `Sort`, status-coded range-limited `TrySort`, and status-coded `TryBinarySearch` over caller-specified ranges. The current slice is no-throw, allocation-free, deterministic for small buffers, and constrained to unmanaged element types.
 - `src/OS/Runtime/MinimalRuntime.cs` defines the current compiler-required primitive stubs, throw helpers, memory helpers, fail-fast type-cast placeholders, `IDynamicInterfaceCastable` metadata shape, and reverse-P/Invoke exports needed by the explicit EFI shell project.
 - `OS.Std.NoRuntime.DotNetN10SystemExportCompatibilityLedgerImplementedStubbed`
-  records a source-bound compatibility snapshot for all 49 current canonical
+  records a source-bound compatibility snapshot for all 50 current canonical
   `System.*` declarations and all 21 `[RuntimeExport]` methods in
   `MinimalRuntime.cs`. It uses readonly reference-free entries and
   switch-indexed retrieval without arrays, reflection, LINQ, exceptions, or a
@@ -424,14 +424,16 @@ Boundary rules:
 
 `std/no-runtime/shared/DotNetN10SystemExportCompatibilityLedgerImplementedStubbed.cs`
 is the allocation-free declaration/export classification companion to that
-planning ledger. Its 49 append-only declaration identities bind current
+planning ledger. Its 50 append-only declaration identities bind current
 `MinimalRuntime.cs` declarations, distinguish generic arities, and carry stable
 unknown, narrowly-implemented, stubbed, or forbidden support states. Its 21
 export identities preserve source order: four link-only transition no-ops,
 eleven fail-fast type-cast helpers plus `RhpFallbackFailFast`, the audited
 `RhpStackProbe` bridge, the profile-bound `RhpNewFast` export, then the two
 appended SZ-array and string exports. The guarded empty Exception identity
-is classified as Stubbed and adds no general exception services. The fixed allocator
+is classified as Stubbed and adds no general exception services. The appended
+empty UnmanagedType identity is also Stubbed; it supplies only the unmanaged
+constraint modreq identity and no marshalling constants or services. The fixed allocator
 defaults to self-contained failure; its opt-in adapter is implemented and
 artifact-tested in step946, with bounded real guest acceptance in step949.
 Step952 adds the array host contract and focused artifact checks; step954
