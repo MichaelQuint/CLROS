@@ -118,7 +118,9 @@ public static unsafe class CommonNotifyISRDeviceConfigurationRegions
             capabilityLength > 4096 - (region.PhysicalStart & 4095)) return VirtioRegionStatus.InvalidCapability;
         var status = Bind(region, virtualPage, out var first);
         if (status != VirtioRegionStatus.Success) return status;
-        mapped = new(first.PhysicalStart, first.VirtualStart, capabilityLength);
+        var expanded = new VirtioMappedRegion(first.PhysicalStart, first.VirtualStart, capabilityLength);
+        if (!expanded.IsValid) return VirtioRegionStatus.InvalidAddress;
+        mapped = expanded;
         return VirtioRegionStatus.Success;
     }
 

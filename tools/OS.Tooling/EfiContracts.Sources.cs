@@ -18,7 +18,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Drivers\VirtioPciCapabilities.cs"] = "53be92183aacc4cdaef36569dce5113e0f193ea5c77c8b4a61e31e71fba6c13a",
                 [@"..\OS.Kernel\Drivers\UnsupportedDeviceFeaturesFailedFEATURESOKState.cs"] = "31f4dec656731b926cd4d8f3858b6c486f85fa2f0861180ac6933e8b948eb907",
                 [@"..\OS.Kernel\Drivers\ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation.cs"] = "e0a388b7720eac74138e8268b3d8c2fc652475560ddc9287eb7be35b01d09edf",
-                [@"..\OS.Kernel\Drivers\CommonNotifyISRDeviceConfigurationRegions.cs"] = "3b9b0facaf00f9a4fbd5b42fa183afe8bf707c8d81919a2e926bab389f0cd7de",
+                [@"..\OS.Kernel\Drivers\CommonNotifyISRDeviceConfigurationRegions.cs"] = "b43ea3e580e9d52c59dc0ad565a90886d58c7dda4acdc3d7ca5dc0cb815157f1",
                 [@"..\OS.Kernel\Drivers\ModernVirtioPCICapabilitiesLiveConfigurationSpace.cs"] = "07231386b562c3032f72b087938a51b2775cdc71d5072e7b2cd2d705e2f52664",
                 [@"..\OS.Kernel\Drivers\PageAlignedDMABuffersLifetimeOwnershipTracking.cs"] = "dc1cae865f61f981e8f2aaeb07b3ed44595b66d641271ae386a4168de23bbd54",
                 [@"..\OS.Kernel\Platform\ExplicitCPUVirtualPhysicalDeviceAddressDMAMappings.cs"] = "682042363e88831f1b5a091da9065ea061d273887918c06f0e0d211d39073ce8",

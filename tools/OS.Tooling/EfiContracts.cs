@@ -3,6 +3,12 @@ namespace OS.Tooling;
 // Reviewed expected contracts. Do not populate these from actual output at test runtime.
 public static partial class EfiContracts
 {
+    // The only explicit device profiles allowed one original allocator receipt
+    // and its matching release. Both allocator firewall fixtures consume this.
+    public static IReadOnlyList<(string Symbol, string Entry)> OwnedDmaAllocatorProfiles { get; } =
+        Array.AsReadOnly<(string, string)>([("M05_BAR_DMA_PROBE", "RunOwnedBarDma"),
+            ("M05_VIRTQUEUE_POLLING_PROBE", "RunOwnedVirtqueuePolling")]);
+
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");

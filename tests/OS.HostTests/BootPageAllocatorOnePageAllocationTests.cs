@@ -2142,15 +2142,18 @@ internal static class BootPageAllocatorOnePageAllocationTests
             string source = File.ReadAllText(path);
             if (Path.GetFileName(path) == "EfiEntry.cs")
             {
-                // The owned BAR/DMA profile returns the exact receipt; other EFI
-                // paths must retain this original host-only integration firewall.
+                // Admit one receipt operation only inside each reviewed owned
+                // device profile; preserve the firewall everywhere else.
                 const string call = "BootPageAllocatorMutator.AllocateOnePage";
-                Match block = Regex.Match(source,
-                    @"(?ms)^#if M05_BAR_DMA_PROBE\s+private static bool RunOwnedBarDma\b(?:(?!^#).)*^#endif");
-                if (!block.Success || Regex.Matches(block.Value, Regex.Escape(call)).Count != 1)
-                    return SourceFailure("bar-dma-allocation-conditional");
-                source = source.Remove(block.Index, block.Length).Insert(block.Index,
-                    block.Value.Replace(call, string.Empty, StringComparison.Ordinal));
+                foreach (var (symbol, entry) in OS.Tooling.EfiContracts.OwnedDmaAllocatorProfiles)
+                {
+                    Match block = Regex.Match(source,
+                        @"(?ms)^#if " + Regex.Escape(symbol) + @"\s+private static bool " + Regex.Escape(entry) + @"\b(?:(?!^#).)*^#endif");
+                    if (!block.Success || Regex.Matches(block.Value, Regex.Escape(call)).Count != 1)
+                        return SourceFailure(symbol + "-allocation-conditional");
+                    source = source.Remove(block.Index, block.Length).Insert(block.Index,
+                        block.Value.Replace(call, string.Empty, StringComparison.Ordinal));
+                }
             }
             foreach (string name in forbiddenIntegrationNames)
             {
