@@ -595,7 +595,7 @@ COM1/serial invocation.
   and the old null-write error code 2 is rejected.
 - The exact zero-error policy applies only to the planned ordinary supervisor
   data read of a nonpresent page. It is not a general page-fault rule. Intel's
-  [SDM revision 090, Volume 3A, Interrupt 14, pp. 7-44â€“7-46](https://cdrdv2-public.intel.com/874240/325462-090-sdm-vol-1-2abcd-3abcd-4.pdf)
+  [SDM revision 090, Volume 3A, Interrupt 14, pp. 7-44–7-46](https://cdrdv2-public.intel.com/874240/325462-090-sdm-vol-1-2abcd-3abcd-4.pdf)
   defines error bits, CR2, and the saved instruction pointer. A real handler
   must preserve CR2 before another page fault overwrites it. This host leaf
   does not validate saved flags/RF, CR3, stacks, GPRs, frame layout, or hardware
