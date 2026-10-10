@@ -92,8 +92,14 @@ public static partial class Probes
     public const bool EnableM05PciEnumerationProbe = false;
 #endif
 
+#if M05_BAR_DMA_PROBE
+    public const bool EnableM05BarDmaProbe = true;
+#else
+    public const bool EnableM05BarDmaProbe = false;
+#endif
+
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 30;
+    public const int ProbeCatalogCount = 31;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -287,6 +293,11 @@ public static partial class Probes
         new("platform.pci", nameof(EnableM05PciEnumerationProbe),
             EnableM05PciEnumerationProbe, ProbeRisk.Destructive,
             "Reads one retained ECAM bus with bounded enumeration after real firmware exit.");
+
+    public static ProbeDefinition GetM05BarDmaProbe() =>
+        new("platform.bar-dma", nameof(EnableM05BarDmaProbe),
+            EnableM05BarDmaProbe, ProbeRisk.Destructive,
+            "Sizes quiescent PCI BARs and exercises owned DMA buffer lifetime.");
 
     public static ProbeDefinition GetM05MonotonicClockProbe() =>
         new("platform.clock", nameof(EnableM05MonotonicClockProbe),
@@ -496,6 +507,9 @@ public static partial class Probes
                 return true;
             case 27:
                 definition = GetM05OwnedAcpiSelectionProbe();
+                return true;
+            case 30:
+                definition = GetM05BarDmaProbe();
                 return true;
             case 29:
                 definition = GetM05PciEnumerationProbe();

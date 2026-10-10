@@ -8,6 +8,10 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
+                [@"..\OS.Kernel\Drivers\PageAlignedDMABuffersLifetimeOwnershipTracking.cs"] = "dc1cae865f61f981e8f2aaeb07b3ed44595b66d641271ae386a4168de23bbd54",
+                [@"..\OS.Kernel\Platform\ExplicitCPUVirtualPhysicalDeviceAddressDMAMappings.cs"] = "682042363e88831f1b5a091da9065ea061d273887918c06f0e0d211d39073ce8",
+                [@"..\OS.Kernel\Drivers\BARPrefetchTypeRegressionTestsDerivedMOSAFailures.cs"] = "58dacf1fad3b7dad998c592b23ba51b65f502a9395bb41791f3f5cecfbe35e38",
+                [@"..\OS.Kernel\Drivers\N32BitN64BitBARsWhileAlwaysRestoring.cs"] = "5944877575d9e3dc980d940426a19ab56468c10bd2531fd9f722c3e3cb7b2509",
                 [@"..\OS.Kernel\Boot\VerifiedExitPathOptDefaultRepeatedCleanQEMU.cs"] = "88bcd72084f8398e8dd97bcc878976af7c90e2e859b9c2268ac97215049eb9a8",
                 [@"..\OS.Kernel\Runtime\ObjectArrayStringEETypeMethodTableLayoutContracts.cs"] = "ab9fd84a8010567c58111ab8c336ddac3e27c1942676c34e3ef31b51aa550225",
                 [@"..\OS.Kernel\Runtime\ManagedHeapPageRangeLiveAllocator.cs"] = "43cdf5af449f7963f07b200ec494da3d8538f1ceb2f01fb3dbe9c29edebcb070",
@@ -19,10 +23,10 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Runtime\X64FrameUnwind.cs"] = "b7cc8b10a5c1a0e819745d31e81b4915164645b17f172063522f32167afb3733",
                 [@"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs"] = "b01c67219c897cce58c756b72849a90f8032f10a222f0b4fe9e37e91bacc4d03",
                 [@"..\OS.Kernel\Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs"] = "12fac853b9dc2357d25315e4bedd0e43df0af76854079b7ae030bca36aed5253",
-                [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "75f0e51689b112cd456959a530e5d43116776422d8095211057c655ea9759a0d",
+                [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "ea196f1b3d17f3db55c1452000d114922b1eb6d8097cd0fd6eeda86f7a95caa8",
                 [@"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs"] = "88053c5a7a7c46aae39e0c68d03d3dd6ab83047640e3a22455148e53023a44fe",
                 [@"..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs"] = "305c825611db57ddfdb446e6dabc0dd234a91e3c4d4bd050e9aaaf9b8ea57cb5",
-                [@"..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs"] = "b803e4016e52f768cbffa9e08677b1d2b762ab35b522bdf16ecdf1c60b406352",
+                [@"..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs"] = "dff2258b3c83779c92207470586e16afdc4d6b4879e0dbe8574c5dee6b6149fb",
                 [@"..\..\std\no-runtime\shared\Hash\Crc32.cs"] = "228540b7c150ea26100ea9f509772ee89bbe10a45ef2c4d8e95a4b250c56333e",
                 [@"..\..\std\no-runtime\shared\DeterministicRandom32.cs"] = "6ca5e3e3e839017ca27fb73884b7665315b3e2df3c1f49a5fe012a3e56c2ae33",
                 [@"..\OS.Kernel\Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs"] = "f708e1192e6964dc43f5cdda86caee6656dbc155c3699be71566381b9725fc5c",

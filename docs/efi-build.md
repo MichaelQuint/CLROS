@@ -1,4 +1,9 @@
 # EFI Build
+The bounded BAR/DMA batch #101-#104/#612 is accepted in
+[step1129](../done/step1129.md): 4,208 full-host checks, strict native review,
+a 122-record real diagnostic capture, and a 79-record ordinary regression.
+The default-off profile proves quiescent BAR sizing/restoration and owned-page
+address/buffer lifetime. No device DMA transfer or Gate 6 completion is claimed.
 
 ## Bounded PCI profile
 
@@ -3149,3 +3154,16 @@ The step1068 verifier path-walk optimization is included in that accepted source
 Its approximately 8.74x measured gain applies to the helper benchmark only, with
 unchanged authority checks and deadline. Symlink creation and ACL-denial fixture
 coverage remain unavailable on this host, as recorded in the original results.
+
+The accepted bounded BAR/DMA diagnostic adds `--EnableM05BarDmaProbe` to the explicit
+`--EnableM05PciEnumerationProbe` profile and requires `Diagnostic` plus the same
+original M01/ACPI/M03 ownership prerequisites. The wrapper must freshly build its
+EFI and disk. Its runner automatically adds `pci-testdev,addr=06.0,membar=2M`;
+this device is absent from ordinary runs. The 122-record stream includes the
+original 97 PCI records and four bounded issue suffixes through m05.011. This
+profile is qualified by step1129; step1128 retains its development history.
+OVMF can leave Command bus mastering enabled on this synthetic non-DMA function.
+Only this diagnostic adapter clears that bit with a 16-bit write and verifies
+readback before sizing; the general BAR probe still rejects enabled bus mastering.
+Row 0 records the firmware Command; row 3 proves both probes restore the owned
+Command with bit 2 cleared. The terminal diagnostic leaves that bit disabled.

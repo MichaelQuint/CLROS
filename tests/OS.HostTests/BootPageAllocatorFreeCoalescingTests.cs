@@ -3063,6 +3063,18 @@ internal static class BootPageAllocatorFreeCoalescingTests
         foreach (string path in integrationPaths)
         {
             string source = File.ReadAllText(path);
+            if (Path.GetFileName(path) == "EfiEntry.cs")
+            {
+                // Admit only the matching release in the explicit owned BAR/DMA
+                // profile; allocator integration remains forbidden elsewhere.
+                const string call = "BootPageAllocatorMutator.FreeOnePage";
+                Match block = Regex.Match(source,
+                    @"(?ms)^#if M05_BAR_DMA_PROBE\s+private static bool RunOwnedBarDma\b(?:(?!^#).)*^#endif");
+                if (!block.Success || Regex.Matches(block.Value, Regex.Escape(call)).Count != 1)
+                    return SourceFailure("bar-dma-release-conditional");
+                source = source.Remove(block.Index, block.Length).Insert(block.Index,
+                    block.Value.Replace(call, string.Empty, StringComparison.Ordinal));
+            }
             foreach (string name in forbiddenIntegrationNames)
             {
                 if (source.Contains(name, StringComparison.Ordinal))

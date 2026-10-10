@@ -26,7 +26,7 @@ public static partial class QemuTranscripts
         if (plan.IsNormalBoot || Enabled("M03FirstRealExitBootServices") || Enabled("AcpiPhysicalDiscovery"))
         {
             Need(runner.StandardError.Length == 0, "qemu_runner_stderr_not_empty");
-            AssertM03AcpiBootstrapTranscript(path, plan.IsNormalBoot || Enabled("M03FirstRealExitBootServices"), Enabled("M03FirmwareAdapterRevocation"), plan.IsNormalBoot || Enabled("M03OwnedSubsystemSurvival"), Enabled("M03OwnedSubsystemPanic"), plan.IsNormalBoot, Enabled("M05PhysicalMapping"), Enabled("M05OwnedAcpiSelection"), Enabled("M05MonotonicClock"), Enabled("M05PciEnumeration"));
+            AssertM03AcpiBootstrapTranscript(path, plan.IsNormalBoot || Enabled("M03FirstRealExitBootServices"), Enabled("M03FirmwareAdapterRevocation"), plan.IsNormalBoot || Enabled("M03OwnedSubsystemSurvival"), Enabled("M03OwnedSubsystemPanic"), plan.IsNormalBoot, Enabled("M05PhysicalMapping"), Enabled("M05OwnedAcpiSelection"), Enabled("M05MonotonicClock"), Enabled("M05PciEnumeration"), Enabled("M05BarDma"));
             if (Enabled("M03OwnedSubsystemPanic")) AssertExpectedPanicRunner(root, options, plan, runner, lines, ownedSubsystem: true);
             else AssertStandardRunnerResult(root, options, plan, lines);
         }

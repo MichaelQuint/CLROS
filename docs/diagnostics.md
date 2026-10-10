@@ -1,4 +1,9 @@
 # Diagnostics
+The bounded BAR/DMA batch #101-#104/#612 is accepted in
+[step1129](../done/step1129.md): 4,208 full-host checks, strict native review,
+a 122-record real diagnostic capture, and a 79-record ordinary regression.
+The default-off profile proves quiescent BAR sizing/restoration and owned-page
+address/buffer lifetime. No device DMA transfer or Gate 6 completion is claimed.
 
 ## Current Status
 

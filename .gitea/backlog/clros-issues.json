@@ -11394,7 +11394,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M05: Platform, PCI, and Common Virtio.",
-      "currentEvidence": "Dependencies #68, #94, #95 and #96 are accepted in steps1094, 1120, 1123 and 1125. The #97-#100 bounded read-only PCI ECAM batch is accepted in step1127 with full-host, native and real guest evidence. The epic remains open/agent:blocked with 14 remaining children; #101 is the next ready leaf. BAR sizing, device activation, interrupts, DMA, virtqueues and Gate6 completion remain unproven.",
+      "currentEvidence": "Dependencies #68, #94, #95 and #96 are accepted in steps1094, 1120, 1123 and 1125; #97-#100 read-only PCI discovery is accepted in step1127. The bounded BAR/DMA address and buffer-lifetime batch #101-#104/#612 is accepted in step1129. The epic remains open/agent:blocked with 10 remaining children. Live device DMA, virtqueues and Gate6 completion remain unproven.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -12038,7 +12038,7 @@
         "M05-007"
       ],
       "labels": [
-        "agent:ready",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -12065,7 +12065,7 @@
       ],
       "collisionLane": null,
       "summary": "Size 32-bit and 64-bit BARs while always restoring original registers.",
-      "currentEvidence": "Dependency #100 (M05-007) is accepted in done/step1127.md with the bounded read-only PCI ECAM batch. This BAR sizing/restoration issue is ready and remains unimplemented. Existing BAR sizing contracts are host-tested; live config writes, BAR restore, DMA and virtqueue operation remain unproven.",
+      "currentEvidence": "Accepted in done/step1129.md with #101-#104 and shared integration #612. Frozen source d81cfb686f01af5e2f5fd8306cd97ffe17e22dc1 passes 4,208 full-host checks across 498 groups, strict native review, real 122-record BAR/DMA and 79-record ordinary captures, and independent disk association. The exact synthetic function is quiesced before two restoring BAR probes. One original owned page exercises explicit address domains and buffer ownership/generation controls, then returns its exact receipt. No device DMA transfer, IOMMU, interrupts, virtqueues or Gate6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Size 32-bit and 64-bit BARs while always restoring original registers.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12113,7 +12113,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Size 32-bit and 64-bit BARs while always restoring original registers.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-009",
@@ -12124,7 +12124,7 @@
         "M05-008"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:test",
         "evidence:qemu",
@@ -12151,7 +12151,7 @@
       ],
       "collisionLane": null,
       "summary": "Add BAR prefetch/type regression tests derived from MOSA failures.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Accepted in done/step1129.md with #101-#104 and shared integration #612. Frozen source d81cfb686f01af5e2f5fd8306cd97ffe17e22dc1 passes 4,208 full-host checks across 498 groups, strict native review, real 122-record BAR/DMA and 79-record ordinary captures, and independent disk association. The exact synthetic function is quiesced before two restoring BAR probes. One original owned page exercises explicit address domains and buffer ownership/generation controls, then returns its exact receipt. No device DMA transfer, IOMMU, interrupts, virtqueues or Gate6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add BAR prefetch/type regression tests derived from MOSA failures.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12199,7 +12199,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add BAR prefetch/type regression tests derived from MOSA failures.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-010",
@@ -12210,7 +12210,7 @@
         "M05-009"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -12237,7 +12237,7 @@
       ],
       "collisionLane": null,
       "summary": "Define explicit CPU-virtual, physical, and device-address DMA mappings.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Accepted in done/step1129.md with #101-#104 and shared integration #612. Frozen source d81cfb686f01af5e2f5fd8306cd97ffe17e22dc1 passes 4,208 full-host checks across 498 groups, strict native review, real 122-record BAR/DMA and 79-record ordinary captures, and independent disk association. The exact synthetic function is quiesced before two restoring BAR probes. One original owned page exercises explicit address domains and buffer ownership/generation controls, then returns its exact receipt. No device DMA transfer, IOMMU, interrupts, virtqueues or Gate6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Define explicit CPU-virtual, physical, and device-address DMA mappings.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12285,7 +12285,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Define explicit CPU-virtual, physical, and device-address DMA mappings.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-011",
@@ -12296,7 +12296,7 @@
         "M05-010"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -12323,7 +12323,7 @@
       ],
       "collisionLane": null,
       "summary": "Allocate page-aligned DMA buffers with lifetime and ownership tracking.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Accepted in done/step1129.md with #101-#104 and shared integration #612. Frozen source d81cfb686f01af5e2f5fd8306cd97ffe17e22dc1 passes 4,208 full-host checks across 498 groups, strict native review, real 122-record BAR/DMA and 79-record ordinary captures, and independent disk association. The exact synthetic function is quiesced before two restoring BAR probes. One original owned page exercises explicit address domains and buffer ownership/generation controls, then returns its exact receipt. No device DMA transfer, IOMMU, interrupts, virtqueues or Gate6 completion is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Allocate page-aligned DMA buffers with lifetime and ownership tracking.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -12371,7 +12371,7 @@
         "docs/architecture.md"
       ],
       "evidenceBoundary": "This issue proves only \"Allocate page-aligned DMA buffers with lifetime and ownership tracking.\" It does not by itself prove the M05 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M05-012",
@@ -12382,7 +12382,7 @@
         "M05-011"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -12410,7 +12410,7 @@
       ],
       "collisionLane": "lane:common-virtio",
       "summary": "Parse modern virtio PCI capabilities from live configuration space.",
-      "currentEvidence": "ACPI, PCI, BAR, virtio, and DMA contracts are host-tested; no live PCI/MMIO/virtqueue transaction is proven.",
+      "currentEvidence": "Dependency #104 is accepted with the bounded BAR/DMA batch in done/step1129.md. This live modern-virtio capability slice is ready but unimplemented; no live virtio configuration, feature negotiation, virtqueue or device DMA transfer is accepted.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Parse modern virtio PCI capabilities from live configuration space.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

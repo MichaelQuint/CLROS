@@ -229,6 +229,9 @@ public static unsafe class FirstExitRetainedMappings
 #if M05_MONOTONIC_CLOCK_PROBE || M05_PCI_ENUMERATION_PROBE
         + 1
 #endif
+#if M05_BAR_DMA_PROBE
+        + 2
+#endif
         ;
     private const ulong LowEnd = 0x0000800000000000;
     private const PageProtection Data = PageProtection.Read | PageProtection.Write;
@@ -335,7 +338,15 @@ public static unsafe class FirstExitRetainedMappings
         pending[count++] = new SeparatePageFaultMappingRange(references.HpetDevicePage, 1, Data, PageCachePolicy.Uncached);
 #endif
 #if M05_PCI_ENUMERATION_PROBE
+#if M05_BAR_DMA_PROBE
+        // Only the dedicated quiescent test function at device 6/function 0 is
+        // writable. The rest of the admitted one-bus ECAM window stays read-only.
+        pending[count++] = new SeparatePageFaultMappingRange(references.EcamStart, 48, PageProtection.Read, PageCachePolicy.Uncached);
+        pending[count++] = new SeparatePageFaultMappingRange(references.EcamStart + 0x30000, 1, Data, PageCachePolicy.Uncached);
+        pending[count++] = new SeparatePageFaultMappingRange(references.EcamStart + 0x31000, 207, PageProtection.Read, PageCachePolicy.Uncached);
+#else
         pending[count++] = new SeparatePageFaultMappingRange(references.EcamStart, references.EcamPages, PageProtection.Read, PageCachePolicy.Uncached);
+#endif
 #endif
         ulong totalPages = 0;
         for (ulong i = 0; i < count; i++) totalPages += pending[i].PageCount;
@@ -372,6 +383,9 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_PCI_ENUMERATION_PROBE
     public const uint PciReadOffset = 4608;
+#if M05_BAR_DMA_PROBE
+    public const uint PciBarOffset = 4624;
+#endif
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
     public const uint MappingPublishOffset = 4608;
@@ -401,6 +415,9 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_PCI_ENUMERATION_PROBE
             OS.Drivers.X64PciConfigurationRead.Emit(code + PciReadOffset, StackEntryOffset - PciReadOffset) &&
+#if M05_BAR_DMA_PROBE
+            OS.Drivers.X64PciBarAccess.Emit(code + PciBarOffset, StackEntryOffset - PciBarOffset) &&
+#endif
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
             X64PhysicalMappingPublication.Emit(code + MappingPublishOffset, MappingReadMsrOffset - MappingPublishOffset) &&
@@ -488,6 +505,9 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_PCI_ENUMERATION_PROBE
         if (!OS.Drivers.X64PciConfigurationRead.Validate(code + PciReadOffset, OS.Drivers.X64PciConfigurationRead.Bytes)) return false;
+#if M05_BAR_DMA_PROBE
+        if (!OS.Drivers.X64PciBarAccess.Validate(code + PciBarOffset, OS.Drivers.X64PciBarAccess.Bytes)) return false;
+#endif
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
         if (!X64PhysicalMappingPublication.ValidateReadBack(code + MappingPublishOffset, X64PhysicalMappingPublication.RequiredBytes) ||
@@ -505,6 +525,9 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_PCI_ENUMERATION_PROBE
                 !Inside(index, PciReadOffset, OS.Drivers.X64PciConfigurationRead.Bytes) &&
+#if M05_BAR_DMA_PROBE
+                !Inside(index, PciBarOffset, OS.Drivers.X64PciBarAccess.Bytes) &&
+#endif
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
                 !Inside(index, MappingPublishOffset, X64PhysicalMappingPublication.RequiredBytes) &&
