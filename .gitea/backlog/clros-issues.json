@@ -15120,7 +15120,7 @@
       ],
       "collisionLane": null,
       "summary": "Bind one live virtio-net PCI device.",
-      "currentEvidence": "Development host foundation in done/step1158.md under #633: modern-net snapshot/BDF/command/capability binding and rejection controls pass. No accepted live NIC integration; RX/TX/wire/reclaim and native/full-host/guest qualification remain pending. This issue stays claimed/open. Accepted M05 polling prerequisite remains step1133; continuing network and hosted/cloud readiness remain incomplete.",
+      "currentEvidence": "Development step1159 connects default-off modern-net binding and VERSION_1-only features to one primed RX0/TX1 pair and fixed-frame TX/reclaim. Eighteen distinct focused checks and active no-stdlib C# compilation pass; strict transcript/libpcap/freshness controls are implemented. Native/full-host/real guest/wire qualification remains pending. Issues remain open/claimed; no RX processing or continuing driver is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Bind one live virtio-net PCI device.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15206,7 +15206,7 @@
       ],
       "collisionLane": null,
       "summary": "Negotiate a minimal no-offload, no-GSO, no-mergeable-buffer feature set.",
-      "currentEvidence": "Development host foundation in done/step1158.md under #633: VERSION_1-only feature selection drops every optional offered bit; focused policy controls pass. Live negotiation and native/full-host/guest qualification remain pending. This issue stays claimed/open; offloads/GSO/mergeable buffers remain unnegotiated.",
+      "currentEvidence": "Development step1159 connects default-off modern-net binding and VERSION_1-only features to one primed RX0/TX1 pair and fixed-frame TX/reclaim. Eighteen distinct focused checks and active no-stdlib C# compilation pass; strict transcript/libpcap/freshness controls are implemented. Native/full-host/real guest/wire qualification remains pending. Issues remain open/claimed; no RX processing or continuing driver is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Negotiate a minimal no-offload, no-GSO, no-mergeable-buffer feature set.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15292,7 +15292,7 @@
       ],
       "collisionLane": null,
       "summary": "Allocate and program one receive queue.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Development step1159 connects default-off modern-net binding and VERSION_1-only features to one primed RX0/TX1 pair and fixed-frame TX/reclaim. Eighteen distinct focused checks and active no-stdlib C# compilation pass; strict transcript/libpcap/freshness controls are implemented. Native/full-host/real guest/wire qualification remains pending. Issues remain open/claimed; no RX processing or continuing driver is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Allocate and program one receive queue.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15378,7 +15378,7 @@
       ],
       "collisionLane": null,
       "summary": "Allocate and program one transmit queue.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Development step1159 connects default-off modern-net binding and VERSION_1-only features to one primed RX0/TX1 pair and fixed-frame TX/reclaim. Eighteen distinct focused checks and active no-stdlib C# compilation pass; strict transcript/libpcap/freshness controls are implemented. Native/full-host/real guest/wire qualification remains pending. Issues remain open/claimed; no RX processing or continuing driver is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Allocate and program one transmit queue.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15464,7 +15464,7 @@
       ],
       "collisionLane": null,
       "summary": "Transmit one fixed Ethernet frame and reclaim descriptors.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Development step1159 connects default-off modern-net binding and VERSION_1-only features to one primed RX0/TX1 pair and fixed-frame TX/reclaim. Eighteen distinct focused checks and active no-stdlib C# compilation pass; strict transcript/libpcap/freshness controls are implemented. Native/full-host/real guest/wire qualification remains pending. Issues remain open/claimed; no RX processing or continuing driver is claimed.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Transmit one fixed Ethernet frame and reclaim descriptors.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

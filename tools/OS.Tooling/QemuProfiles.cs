@@ -81,6 +81,7 @@ public static class QemuProfiles
         Require(options.PackageImageVariant == "Intact" || Enabled("M06PackageRead"), "package_image_variant_requires_profile");
         Require(!Enabled("M06BlockMsix") || options.PackageImageVariant == "Intact", "m06_block_msix_requires_intact_package");
         if (Enabled("M06BlockMsix")) Original("m06_block_msix", true, true, true);
+        if (Enabled("M07VirtioNet")) Original("m07_virtio_net", true, true, true);
         string[] required = Markers(options.RequireMarker), ordered = Markers(options.RequireOrderedMarker), unique = Markers(options.RequireUniqueMarker), forbidden = Markers(options.ForbidMarker);
         string[] custom = [.. required, .. ordered, .. unique];
         foreach (var rule in Ownership)
@@ -95,6 +96,7 @@ public static class QemuProfiles
         else if (Enabled("M05PhysicalMapping")) Select(QemuContracts.M05PhysicalMappingMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05OwnedAcpiSelection")) Select(QemuContracts.M05OwnedAcpiSelectionMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05MonotonicClock")) Select(QemuContracts.M05MonotonicClockMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M07VirtioNet")) Select(QemuContracts.M07VirtioNetMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M06BlockMsix")) Select(QemuContracts.M06BlockMsixMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M06PackageRead")) Select(QemuContracts.M06PackageReadMarkers(options.PackageImageVariant), ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M06FatRead")) Select(QemuContracts.M06FatReadMarkers(), ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
@@ -211,6 +213,7 @@ public static class QemuProfiles
         ("M06FatRead", @"^(M06_FAT|CLROS_M06_01[2-4]_READY|TEST_(START|PASS) m06\.01[2-4])", "m06_fat_read"),
         ("M06PackageRead", @"^(M06_PKG|CLROS_M06_01[5-8]_READY|TEST_(START|PASS) m06\.01[5-8])", "m06_package_read"),
         ("M06BlockMsix", @"^(M06_IRQ|CLROS_M06_019_READY|TEST_(START|PASS) m06\.019)", "m06_block_msix"),
+        ("M07VirtioNet", @"^(M07_NET|CLROS_M07_00[1-5]_READY|TEST_(START|PASS) m07\.00[1-5])", "m07_virtio_net"),
         ("M06GptPartition", @"^(M06_GPT|CLROS_M06_(009|01[0-1])_READY|TEST_(START|PASS) m06\.(009|01[0-1]))", "m06_gpt_partition"),
         ("M06LiveBlockContract", @"^(M06_BDEV|CLROS_M06_00[7-8]_READY|TEST_(START|PASS) m06\.00[7-8])", "m06_live_block_contract"),
         ("M06VirtioBlockRead", @"^(M06_READ|CLROS_M06_00[5-6]_READY|TEST_(START|PASS) m06\.00[5-6])", "m06_block_read"),

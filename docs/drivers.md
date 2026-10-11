@@ -3,8 +3,10 @@
 The next shared storage/network driver batch remains development work:
 [step1158](../done/step1158.md) wires the block IRQ/recovery profile and adds pure
 modern-net binding/minimal-feature helpers. Focused host controls and active block
-C# compilation pass; native/full-host/guest acceptance and net RX/TX/wire evidence
-remain pending. No continuing driver or protocol capability is claimed.
+C# compilation pass. [Step1159](../done/step1159.md) adds the default-off net
+binding/features/RX/TX/fixed-frame transaction and strict libpcap capture checks.
+Focused checks and active C# compilation pass; native/full-host/guest/wire
+acceptance remains pending. No continuing driver or protocol capability is claimed.
 
 The separate modern block queue profile is accepted in
 [step1140](../done/step1140.md). It reuses the accepted PCI/BAR/DMA contracts,

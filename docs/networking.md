@@ -4,9 +4,13 @@ The claimed #136–#140 development batch begins with host-tested modern PCI
 binding and a VERSION_1-only feature policy in [step1158](../done/step1158.md).
 It preserves exact snapshot/BDF/command/capability declarations and drops every
 optional offered bit, including MAC, offloads, GSO and mergeable buffers. These
-new helpers are not connected to an accepted live network profile. RX/TX queue
-integration and fixed-frame wire/reclaim evidence remain pending; all leaves
-remain open. Existing bounded M05 TX completion is separate prerequisite evidence.
+new helpers are connected to the default-off `EnableM07VirtioNetProbe` in
+[step1159](../done/step1159.md). It uses one owned page for disjoint size-eight
+RX/TX rings, publishes one 1526-byte receive buffer before DRIVER_OK, transmits one
+fixed 60-byte experimental Ethernet frame, checks its used entry and restores
+the original allocator after reset, bus-master disable and a fence. RX processing,
+continuing I/O and full-host/native/guest/wire acceptance remain pending; all
+leaves remain open. Existing bounded M05 completion remains prerequisite evidence.
 
 ## Current Status
 

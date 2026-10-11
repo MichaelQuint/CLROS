@@ -49,6 +49,9 @@ internal static class QemuCommandBuilder
         if (options.PciBarTestDevice)
             arguments.AddRange(["-device", "pci-testdev,addr=06.0,membar=2M"]);
 
+        if (options.EthernetCapturePath is not null)
+            arguments.AddRange(["-object", "filter-dump,id=clroscapture,netdev=n0,file=" + options.EthernetCapturePath + ",maxlen=65536"]);
+
         if (options.FirmwareRngSource is not null)
         {
             arguments.AddRange(["-cpu", "qemu64,-rdrand,-rdseed"]);

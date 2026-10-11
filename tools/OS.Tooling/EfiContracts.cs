@@ -13,7 +13,7 @@ public static partial class EfiContracts
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
         "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe",
-        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe"]);
+        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -26,14 +26,15 @@ public static partial class EfiContracts
             ("M06_LIVE_BLOCK_CONTRACT_PROBE", "RunOwnedLiveBlockContract", "RunBlockReadCore"),
             ("M06_GPT_PARTITION_PROBE", "ReadGptSector", "RunBlockReadCore"),
             ("M06_FAT_READ_PROBE", "ReadFatSector", "RunBlockReadCore"),
-            ("M06_PACKAGE_READ_PROBE", "ReadPackageSector", "RunBlockReadCore")]);
+            ("M06_PACKAGE_READ_PROBE", "ReadPackageSector", "RunBlockReadCore"),
+            ("M07_VIRTIO_NET_PROBE", "RunOwnedVirtioNet", "RunNetCore")]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "2e094a44a5ccab06b4e94363c79125b9673ebac0e3c031743c913517c877844d";
-    public const string CanonicalProjectSha256 = "fe0f28ab9a1b2e138aba8c4b4248f5704c0c288f6dbfa9da4547ef9954126e1f";
-    public const string EfiEntrySourceSha256 = "810bad402c2515355c7ec198e6a9518d7606d6963c0ae5b6cce893d8389463f4";
+    public const string ProjectSourceSha256 = "8e30c239d8658386f1893720a107dc6591d6819caca5ea0400045e8cdf2ab886";
+    public const string CanonicalProjectSha256 = "46aafbf4b756934cb453b34f1f0e374ee32775ebed15fdca96f00b4156eac527";
+    public const string EfiEntrySourceSha256 = "6d6f46516cbb8c6592232e17ffa3f7a3a783a359e81c6448905c37728b71b305";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -163,6 +164,10 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Drivers\DescriptorAllocationExhaustionInvalidIndexDoubleFreeTests.cs|Drivers\DescriptorAllocationExhaustionInvalidIndexDoubleFreeTests.cs",
         @"..\OS.Kernel\Drivers\MADTLocalAPICIOAPICSeparatelyPollingProof.cs|Drivers\MADTLocalAPICIOAPICSeparatelyPollingProof.cs",
         @"..\OS.Kernel\Drivers\MSIMSIXSetupInterruptDrivenVirtqueueCompletion.cs|Drivers\MSIMSIXSetupInterruptDrivenVirtqueueCompletion.cs",
+        @"..\OS.Kernel\Drivers\LiveVirtioNetPCIDevice.cs|Drivers\LiveVirtioNetPCIDevice.cs",
+        @"..\OS.Kernel\Drivers\MinimalNoOffloadNoGSONoMergeableBuffer.cs|Drivers\MinimalNoOffloadNoGSONoMergeableBuffer.cs",
+        @"..\OS.Kernel\Drivers\Queue.cs|Drivers\Queue.cs",
+        @"..\OS.Kernel\Drivers\FixedEthernetFrameReclaimDescriptors.cs|Drivers\FixedEthernetFrameReclaimDescriptors.cs",
         @"..\OS.Kernel\Drivers\SplitVirtqueuePollingNotificationCompletion.cs|Drivers\SplitVirtqueuePollingNotificationCompletion.cs",
         @"..\OS.Kernel\Drivers\MemoryOrderingPrimitivesReplacingReadinessBooleans.cs|Drivers\MemoryOrderingPrimitivesReplacingReadinessBooleans.cs",
         @"..\OS.Kernel\Drivers\VirtqueueSplitRingPlan.cs|Drivers\VirtqueueSplitRingPlan.cs",
@@ -301,6 +306,7 @@ public static partial class EfiContracts
         "EnableM06PackageReadProbe",
         "EnableM06VirtioBlockQueueSetupProbe",
         "EnableM06VirtioBlockReadProbe",
+        "EnableM07VirtioNetProbe",
         "EnableUefiGoneSimulationProbe",
     ]);
 }

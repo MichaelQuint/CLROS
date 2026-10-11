@@ -61,7 +61,7 @@ internal static unsafe class M05VirtqueuePollingEfiIntegrationTests
         finally { File.Delete(path); }
     }
 
-    private static string[] Capture()
+    internal static string[] Capture()
     {
         string[] lines = QemuContracts.M05VirtqueuePollingMarkers.ToArray();
         M05VirtioNegotiationEfiIntegrationTests.Capture().CopyTo(lines, 0);

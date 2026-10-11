@@ -5,6 +5,12 @@ default false. The main profile requires package completion and owned APIC setup
 it owns `M06_IRQ` rows0..8 and `m06.019`. [Step1158](../done/step1158.md) records
 focused/compile evidence, without native, full-host or guest acceptance.
 
+Development `EnableM07VirtioNetProbe` defaults false, requires original M05
+polling completion, and owns `M07_NET` rows0..D plus `m07.001`..`m07.005`.
+Fresh DMA epoch207 is released only after observed reset, bus-master disable,
+fence and descriptor reclamation. [Step1159](../done/step1159.md) records focused
+and compile evidence. Real guest/wire evidence and RX processing remain pending.
+
 The development `EnableM06PackageReadProbe` defaults false and requires FAT.
 It owns `M06_PKG` rows and `m06.015`..`m06.018` markers. Fresh sector receipts use
 epochs134..197 only after reset, bus-master disable, DMA release and allocator

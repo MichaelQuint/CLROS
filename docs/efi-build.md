@@ -1,5 +1,16 @@
 # EFI Build
 
+## Virtio-net development profile
+
+Default-off `--EnableM07VirtioNetProbe` requires the explicit original M05
+negotiation/polling chain, owned first exit, Diagnostic policy, fresh EFI/image
+build and exclusive modern network device at slot6. It binds the retained audited
+BAR, renegotiates VERSION_1 only, then uses a fresh one-page DMA lifetime (epoch207)
+for primed RX plus one fixed-frame TX/reclaim. Source, pointer, fence and allocator
+admission remain strict. [Step1159](../done/step1159.md) records active no-stdlib
+C# compilation and focused tests only; native stack/ABI/full-host/guest and packet
+capture qualification follows at the stable batch boundary.
+
 ## Block MSI-X development profile
 
 The default-off `--EnableM06BlockMsixProbe` requires the complete explicit

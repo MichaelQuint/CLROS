@@ -101,6 +101,8 @@ try
     }
 
     Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(options.SerialLogPath)) ?? ".");
+    if (options.EthernetCapturePath is not null)
+        Directory.CreateDirectory(Path.GetDirectoryName(options.EthernetCapturePath) ?? ".");
     if (File.Exists(options.SerialLogPath))
     {
         File.Delete(options.SerialLogPath);
@@ -1907,6 +1909,7 @@ sealed class RunnerOptions
 
     public bool PciBarTestDevice { get; private set; }
     public bool VirtioNegotiationDevice { get; private set; }
+    public string? EthernetCapturePath { get; private set; }
     public bool VirtioBlockQueueDevice { get; private set; }
     public string? VirtioBlockBootImagePath { get; private set; }
 
@@ -2002,6 +2005,12 @@ sealed class RunnerOptions
                     if (options.VirtioNegotiationDevice) throw new ArgumentException("--virtio-negotiation-device may be specified only once.");
                     options.VirtioNegotiationDevice = true;
                     break;
+                case "--ethernet-capture":
+                    if (options.EthernetCapturePath is not null) throw new ArgumentException("--ethernet-capture may be specified only once.");
+                    options.EthernetCapturePath = Path.GetFullPath(RequireNonEmpty(ReadValue(args, ref i, arg), arg));
+                    if (options.EthernetCapturePath.IndexOfAny([',', '\r', '\n']) >= 0 || File.Exists(options.EthernetCapturePath))
+                        throw new ArgumentException("--ethernet-capture requires a fresh file path without QEMU option separators.");
+                    break;
                 case "--virtio-block-boot-image":
                     if (options.VirtioBlockBootImagePath is not null) throw new ArgumentException("--virtio-block-boot-image may be specified only once.");
                     options.VirtioBlockBootImagePath = RequireNonEmpty(ReadValue(args, ref i, arg), arg);
@@ -2068,6 +2077,8 @@ sealed class RunnerOptions
         options.FinishParsing();
         if ((options.PciBarTestDevice ? 1 : 0) + (options.VirtioNegotiationDevice ? 1 : 0) + (options.VirtioBlockQueueDevice ? 1 : 0) > 1)
             throw new ArgumentException("Dedicated PCI test devices cannot share slot 6.");
+        if (options.EthernetCapturePath is not null && !options.VirtioNegotiationDevice)
+            throw new ArgumentException("--ethernet-capture requires the dedicated modern network fixture.");
         return options;
     }
 

@@ -8,6 +8,10 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
+                [@"..\OS.Kernel\Drivers\LiveVirtioNetPCIDevice.cs"] = "8d3ce2fc12c0acfb6b6c74071b2f2aa1eebcaa10cc571be5fbfee1eaa726f637",
+                [@"..\OS.Kernel\Drivers\MinimalNoOffloadNoGSONoMergeableBuffer.cs"] = "453ceae3dcf31a96bf4f14ef605ff31c674c83da1c8c30664e9d7c8e589922ba",
+                [@"..\OS.Kernel\Drivers\Queue.cs"] = "57e2d8b53d0b598f4228e89bcdc40fdf8b1df036d981a396e45c0a21df23dedb",
+                [@"..\OS.Kernel\Drivers\FixedEthernetFrameReclaimDescriptors.cs"] = "15cc3ed352a7e1b70d15c0de56f4210b63ca4d9c70972dcc3076bf7a390cd26b",
                 [@"..\OS.Kernel\Storage\NativeManifestDisk.cs"] = "1e207b3310fab42259123a1411e2a95aad62d624edba5a163fcb7e981bf9aa72",
                 [@"..\OS.Kernel\Storage\APPPKGDisk.cs"] = "00453942c44c1134e3fefe0341aed675e8136daef55cdc8a767dc44e855c4c66",
                 [@"..\OS.Kernel\Storage\SelectedPayloadOwnedMemory.cs"] = "3ac4ac69243353bbc23a1ad0c21da901bfeeb25361e2bcafa7d4874c5ebd2e50",
@@ -68,7 +72,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Runtime\X64FrameUnwind.cs"] = "b7cc8b10a5c1a0e819745d31e81b4915164645b17f172063522f32167afb3733",
                 [@"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs"] = "b01c67219c897cce58c756b72849a90f8032f10a222f0b4fe9e37e91bacc4d03",
                 [@"..\OS.Kernel\Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs"] = "12fac853b9dc2357d25315e4bedd0e43df0af76854079b7ae030bca36aed5253",
-                [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "cb0f1c9c2c30010a00b51887744ff0b5863cb69c8892828a1f6b387649b11a8c",
+                [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "165f8f558fe9d9f97eb956c0f3ed665126217d76f31fc45846c13aa715b510b3",
                 [@"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs"] = "88053c5a7a7c46aae39e0c68d03d3dd6ab83047640e3a22455148e53023a44fe",
                 [@"..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs"] = "305c825611db57ddfdb446e6dabc0dd234a91e3c4d4bd050e9aaaf9b8ea57cb5",
                 [@"..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs"] = "5685b36e42a63096dcbd252bd07c4e9dab02258d667ed908088c9e45ff2789a4",
