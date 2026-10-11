@@ -1,6 +1,6 @@
 # QEMU
 
-The implemented, unqualified `EnableM07ArpReceiveProbe` extends the fixed-frame
+The qualified `EnableM07ArpReceiveProbe` extends the fixed-frame
 parent to 194 strict records: `M07_ARP 0`..`D` and `m07.006`..`m07.009`.
 Its isolated user-network fixture fixes the local MAC to `02:00:00:00:00:01`,
 local IPv4 to `10.0.2.15` and gateway to `10.0.2.2`. The bounded libpcap checker
@@ -12,13 +12,15 @@ matches [libslirp's zero-initialized reply buffer](https://qemu.googlesource.com
 These fixture addresses do not implement device configuration or DHCP.
 The receive profile negotiates VERSION_1+MRG_RXBUF (0x100008000), still requiring
 num_buffers=1. Failed capture r04 demonstrates header0 under VERSION_1 alone.
-This matches the user-backend [QEMU receive path](https://raw.githubusercontent.com/qemu/qemu/master/hw/net/virtio-net.c)
+Source review suggests this follows the user-backend [QEMU receive path](https://raw.githubusercontent.com/qemu/qemu/master/hw/net/virtio-net.c)
 omitting the buffer-count store unless mergeable receive is negotiated; the
 [modern specification](https://docs.oasis-open.org/virtio/virtio/v1.2/virtio-v1.2.html#x1-2810004)
 requires count1. The driver retains that check and implements no assembly of
 multiple buffers. The parent fixed-TX profile retains VERSION_1-only negotiation.
-[Step1163](../done/step1163.md) records synthetic checks; real QEMU/OVMF capture
-and native/full-host qualification remain pending.
+[Step1164](../done/step1164.md) records the real 194-record QEMU/OVMF capture,
+independent request/reply libpcap, native review, 4,441 full-host checks and
+thirteen ancestor regressions. [Step1163](../done/step1163.md) retains failed
+development captures. Continuing RX and timers remain incomplete.
 
 The qualified block MSI-X profile inserts the accepted APIC marker chain after
 PCI enumeration and before package/storage receipts, then emits `M06_IRQ 0`..`8`
@@ -37,7 +39,7 @@ is rejected. The compiled bounded libpcap reader requires exactly one independen
 60-byte frame (no virtio header), permitting unrelated firmware traffic.
 [Step1162](../done/step1162.md) accepts 168 strict guest records and one exact
 60-byte frame with CRC32 D24C49DD in a 176-byte, two-record libpcap. This proves
-QEMU backend observation; physical-wire delivery and RX processing remain unproved.
+QEMU backend observation; physical-wire delivery remains unproved. Finite ARP reception is qualified above.
 
 The [block queue profile](efi-build.md#bounded-virtio-block-queue-profile) selects
 `--virtio-block-queue-device`: one modern read-only `virtio-blk-pci` boot disk at

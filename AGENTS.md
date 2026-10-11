@@ -1,11 +1,11 @@
 # CLROS AI Agent Guide
 
-The #134/#136–#140/#633 bounded driver batch is qualified in `done/step1162.md`:
-4,422 full-host checks, linked native review, 297/297/168-record IRQ/recovery/net
-captures, exact fixed-frame libpcap and eleven ancestor regressions pass. Probes
-remain default off. M06's bounded packaged-read epic criterion is separate from
-Gate7; application execution, continuing storage/networking and RX processing
-remain incomplete.
+The #141–#144/#635 bounded modern RX/header/ARP batch is qualified in
+`done/step1164.md`: 4,441 full-host checks, linked native review, a 194-record
+ARP guest capture, independent request/reply libpcap and thirteen ancestor
+regressions pass. The default-off profile receives one matching reply and checks
+supplied-tick neighbor cache controls. Continuing storage/networking, application
+execution, hosted .NET/Kestrel and later completion gates remain incomplete.
 
 This is the root operating contract for agents working in this repository. Keep
 it concise. Put subsystem detail in the relevant `docs/*.md` file and use

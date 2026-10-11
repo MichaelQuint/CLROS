@@ -1,13 +1,20 @@
 # Drivers
 
+The bounded modern RX/header/ARP extension is qualified in
+[step1164](../done/step1164.md): 4,441 full-host checks, linked native review,
+one 194-record ARP guest capture, independent request/reply libpcap and thirteen
+ancestor regressions pass. It checks one buffer and one matching reply, then
+restores the owned DMA/allocator/command lifetime. Cache controls use supplied
+ticks. Continuing drivers and timer services remain incomplete.
+
 The bounded block MSI-X/recovery and modern-net RX/TX configuration/fixed-frame
 batch is qualified in [step1162](../done/step1162.md): 4,422 full-host checks,
 linked native ABI/stack review, 297/297/168-record IRQ/recovery/net receipts,
 independent fixed-frame libpcap and eleven ancestor regressions pass. Both
 default-off paths reset, disable bus mastering and restore their original
 allocator/command after checked completion. See [storage](cstorage.md) and
-[networking](networking.md) for scope. Continuing drivers and RX processing
-remain incomplete; no live protocol or completion-gate promotion follows.
+[networking](networking.md) for scope. Continuing drivers remain incomplete;
+finite ARP reception is qualified above and numbered gates are unchanged.
 
 The separate modern block queue profile is accepted in
 [step1140](../done/step1140.md). It reuses the accepted PCI/BAR/DMA contracts,

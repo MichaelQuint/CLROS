@@ -15058,7 +15058,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M07: Live Networking.",
-      "currentEvidence": "The first five keyed children #136-#140 qualify bounded modern-net PCI/VERSION_1-only features, primed RX/TX and one fixed-frame TX/reclaim in step1162:4422 full-host checks, linked native review,168 guest records, exact QEMU libpcap frame and eleven ancestors. RX processing, continuing I/O and live DHCP/DNS/TCP/HTTP remain incomplete; the remaining twenty keyed children, epic and milestone stay open. General networking, Gate8 and hosted .NET/Kestrel remain unproved.",
+      "currentEvidence": "The first nine keyed children #136-#144 qualify separate bounded fixed TX and modern RX/header/ARP profiles in done/step1162.md and done/step1164.md. Latest qualification: 4,441 full-host checks, linked native review, 194 ARP guest records, independent request/reply libpcap and thirteen ancestor regressions. Continuing RX/I/O, real timers and live DHCP/DNS/TCP/HTTP remain incomplete; sixteen keyed children, epic and milestone stay open. Gate8 and hosted .NET/Kestrel remain unproved.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -15545,7 +15545,7 @@
         "M07-005"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:review",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -15572,7 +15572,7 @@
       ],
       "collisionLane": null,
       "summary": "Receive one Ethernet frame and pass it through the existing classifier.",
-      "currentEvidence": "Original bounded TX is accepted in done/step1162.md. This claimed receive/ARP batch is implemented with focused checks in done/step1163.md; full-host/native/guest qualification remains pending under integration #635.",
+      "currentEvidence": "Bounded modern RX/header/ARP and supplied-tick cache controls are qualified in done/step1164.md: 4,441 full-host checks, native review, a 194-record guest receipt, independent request/reply libpcap and thirteen ancestor regressions. Continuing RX, timers and DHCP/DNS/TCP/HTTP remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Receive one Ethernet frame and pass it through the existing classifier.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15620,7 +15620,7 @@
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Receive one Ethernet frame and pass it through the existing classifier.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-007",
@@ -15631,7 +15631,7 @@
         "M07-006"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:review",
         "priority:p1",
         "type:docs",
         "evidence:qemu",
@@ -15658,7 +15658,7 @@
       ],
       "collisionLane": null,
       "summary": "Enforce virtio-net header and checksum policy.",
-      "currentEvidence": "Original bounded TX is accepted in done/step1162.md. This claimed receive/ARP batch is implemented with focused checks in done/step1163.md; full-host/native/guest qualification remains pending under integration #635.",
+      "currentEvidence": "Bounded modern RX/header/ARP and supplied-tick cache controls are qualified in done/step1164.md: 4,441 full-host checks, native review, a 194-record guest receipt, independent request/reply libpcap and thirteen ancestor regressions. Continuing RX, timers and DHCP/DNS/TCP/HTTP remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Enforce virtio-net header and checksum policy.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15706,7 +15706,7 @@
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Enforce virtio-net header and checksum policy.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-008",
@@ -15717,7 +15717,7 @@
         "M07-007"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:review",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -15744,7 +15744,7 @@
       ],
       "collisionLane": null,
       "summary": "Perform ARP request/reply and update a bounded neighbor cache.",
-      "currentEvidence": "Original bounded TX is accepted in done/step1162.md. This claimed receive/ARP batch is implemented with focused checks in done/step1163.md; full-host/native/guest qualification remains pending under integration #635.",
+      "currentEvidence": "Bounded modern RX/header/ARP and supplied-tick cache controls are qualified in done/step1164.md: 4,441 full-host checks, native review, a 194-record guest receipt, independent request/reply libpcap and thirteen ancestor regressions. Continuing RX, timers and DHCP/DNS/TCP/HTTP remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Perform ARP request/reply and update a bounded neighbor cache.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15792,7 +15792,7 @@
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Perform ARP request/reply and update a bounded neighbor cache.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-009",
@@ -15803,7 +15803,7 @@
         "M07-008"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:review",
         "priority:p1",
         "type:test",
         "evidence:qemu",
@@ -15830,7 +15830,7 @@
       ],
       "collisionLane": null,
       "summary": "Add ARP expiry, unresolved-neighbor timeout, and cache-replacement tests.",
-      "currentEvidence": "Original bounded TX is accepted in done/step1162.md. This claimed receive/ARP batch is implemented with focused checks in done/step1163.md; full-host/native/guest qualification remains pending under integration #635.",
+      "currentEvidence": "Bounded modern RX/header/ARP and supplied-tick cache controls are qualified in done/step1164.md: 4,441 full-host checks, native review, a 194-record guest receipt, independent request/reply libpcap and thirteen ancestor regressions. Continuing RX, timers and DHCP/DNS/TCP/HTTP remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add ARP expiry, unresolved-neighbor timeout, and cache-replacement tests.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15878,7 +15878,7 @@
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add ARP expiry, unresolved-neighbor timeout, and cache-replacement tests.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-010",
@@ -15889,7 +15889,7 @@
         "M07-009"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -15916,7 +15916,7 @@
       ],
       "collisionLane": null,
       "summary": "Wire DHCP discover/offer/request/ack over live UDP.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Wire DHCP discover/offer/request/ack over live UDP.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -16002,7 +16002,7 @@
       ],
       "collisionLane": null,
       "summary": "Add DHCP retry, lease expiry, malformed-option, and NAK handling.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add DHCP retry, lease expiry, malformed-option, and NAK handling.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -16088,7 +16088,7 @@
       ],
       "collisionLane": null,
       "summary": "Prove ICMP echo through QEMU user networking.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Prove ICMP echo through QEMU user networking.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -16174,7 +16174,7 @@
       ],
       "collisionLane": null,
       "summary": "Introduce bounded TCP control-block storage with explicit ownership.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Introduce bounded TCP control-block storage with explicit ownership.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -16260,7 +16260,7 @@
       ],
       "collisionLane": null,
       "summary": "Prove passive SYN-to-SYN-ACK-to-ACK.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Prove passive SYN-to-SYN-ACK-to-ACK.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -16346,7 +16346,7 @@
       ],
       "collisionLane": null,
       "summary": "Receive payload, advance windows, and emit ACK.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Receive payload, advance windows, and emit ACK.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -16432,7 +16432,7 @@
       ],
       "collisionLane": null,
       "summary": "Send payload with segmentation and partial-ack handling.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Send payload with segmentation and partial-ack handling.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -16518,7 +16518,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement retransmission, RTO, duplicate ACK, and timeout behavior.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement retransmission, RTO, duplicate ACK, and timeout behavior.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -16604,7 +16604,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement FIN/ACK close, peer reset, and half-close behavior.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement FIN/ACK close, peer reset, and half-close behavior.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -16690,7 +16690,7 @@
       ],
       "collisionLane": null,
       "summary": "Serve a fixed HTTP health response over live TCP.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Serve a fixed HTTP health response over live TCP.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -16776,7 +16776,7 @@
       ],
       "collisionLane": null,
       "summary": "Implement active connect/send/receive/close.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Implement active connect/send/receive/close.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -16862,7 +16862,7 @@
       ],
       "collisionLane": null,
       "summary": "Wire DNS query/response, timeout, and bounded caching.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Wire DNS query/response, timeout, and bounded caching.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -16948,7 +16948,7 @@
       ],
       "collisionLane": null,
       "summary": "Complete an active HTTP GET through live packet I/O.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Complete an active HTTP GET through live packet I/O.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -17034,7 +17034,7 @@
       ],
       "collisionLane": null,
       "summary": "Wire FetchApp only after active HTTP GET evidence passes.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Wire FetchApp only after active HTTP GET evidence passes.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -17121,7 +17121,7 @@
       ],
       "collisionLane": null,
       "summary": "Convert RX/TX completion to MSI-X and prove interrupt/poll fallback.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Convert RX/TX completion to MSI-X and prove interrupt/poll fallback.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -17207,7 +17207,7 @@
       ],
       "collisionLane": null,
       "summary": "Add malformed Ethernet/IP/UDP/TCP/DNS/HTTP packet corpus tests.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add malformed Ethernet/IP/UDP/TCP/DNS/HTTP packet corpus tests.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
