@@ -74,7 +74,8 @@ public enum DotNetN10SystemDeclaration : byte
     IndexerNameAttribute = 47,
     RuntimeImports = 48,
     Exception = 49,
-    UnmanagedType = 50
+    UnmanagedType = 50,
+    InAttribute = 51
 }
 
 public readonly struct DotNetN10SystemDeclarationCompatibilityEntry
@@ -185,7 +186,7 @@ public readonly struct DotNetN10RuntimeExportCompatibilityEntry
 
 public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
 {
-    public const int SystemDeclarationCount = (int)DotNetN10SystemDeclaration.UnmanagedType;
+    public const int SystemDeclarationCount = (int)DotNetN10SystemDeclaration.InAttribute;
 
     public const int RuntimeExportCount = 21;
 
@@ -309,6 +310,7 @@ public static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             // Compiler modreq identity only; no marshalling constants or API.
             49 => SystemDeclaration(DotNetN10SystemDeclaration.UnmanagedType,
                 DotNetN10SystemDeclarationCategory.InteropContract, DotNetN10HelperSupportState.Stubbed),
+            50 => StubbedAttribute(DotNetN10SystemDeclaration.InAttribute),
             _ => InvalidSystemDeclarationEntry()
         };
     }

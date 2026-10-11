@@ -25,6 +25,12 @@ internal static unsafe class QueueTests
         public bool ReceiveNotified, TransmitNotified, NoCompletion, ResetStuck, DisableFailure, EnableFailure;
         public bool ResetRequested, ResetObserved, HeldDuringReset, CleanupFenceObserved;
         public bool WrongSelection, WrongAddress, BadOnNotify, BadAfterUsed;
+        public bool Receiving, NoReceiveCompletion, ReadingReceive, OutputChangedBeforeQuiescence;
+        public bool InvalidateDmaOnQuiescence;
+        public ushort ReceiveCompletionIndex;
+        public uint ReceiveCompletionId, ReceiveCompletionLength;
+        public byte* ReceiveSource;
+        public byte* OutputSentinel;
     }
 
     [HostTest("virtio.net.queue configures disjoint RX TX rings and primes RX without DRIVER_OK", HostLane.Fast, 0)]
@@ -159,7 +165,12 @@ internal static unsafe class QueueTests
         if (address == (ulong)d->Data + 2198)
         {
             if (!d->TransmitNotified) return Bad(d, true);
-            d->UsedReads++; *output = *(ushort*)address; return 1;
+            d->ReadingReceive = false; d->UsedReads++; *output = *(ushort*)address; return 1;
+        }
+        if (d->Receiving && address == (ulong)d->Data + 150)
+        {
+            if (!d->TransmitNotified) return Bad(d, true);
+            *output = *(ushort*)address; d->ReadingReceive = *output != 0; return 1;
         }
         QueueRegisters* q = Selected(d);
         if (address == CommonAddress + 24) *output = q->Size == 0 ? q->Maximum : q->Size;
@@ -189,6 +200,14 @@ internal static unsafe class QueueTests
                     *(uint*)(d->Data + 2204) = d->CompletionLength;
                     *(ushort*)(d->Data + 2198) = d->CompletionIndex;
                 }
+                if (d->Receiving && !d->NoReceiveCompletion)
+                {
+                    if (d->ReceiveSource != null && d->ReceiveCompletionLength <= 1526)
+                        for (uint i = 0; i < d->ReceiveCompletionLength; i++) d->Data[256 + i] = d->ReceiveSource[i];
+                    *(uint*)(d->Data + 152) = d->ReceiveCompletionId;
+                    *(uint*)(d->Data + 156) = d->ReceiveCompletionLength;
+                    *(ushort*)(d->Data + 150) = d->ReceiveCompletionIndex;
+                }
                 if (d->BadOnNotify) d->Status = 0x4f;
             }
             d->Notifications++; return 1;
@@ -212,9 +231,16 @@ internal static unsafe class QueueTests
         Device* d = (Device*)context; if (!Begin(d)) return 0;
         if (address == (ulong)d->Data + 2200 || address == (ulong)d->Data + 2204)
         {
-            if (d->ExecutionFences != 6) return Bad(d, true);
+            if (d->Receiving ? d->ExecutionFences < 6 : d->ExecutionFences != 6) return Bad(d, true);
             *output = *(uint*)address;
             if (d->BadAfterUsed && address == (ulong)d->Data + 2204) d->Status = 0x4f;
+            return 1;
+        }
+        if (d->Receiving && (address == (ulong)d->Data + 152 || address == (ulong)d->Data + 156))
+        {
+            if (!d->ReadingReceive || d->ExecutionFences < 6) return Bad(d, true);
+            *output = *(uint*)address;
+            if (d->BadAfterUsed && address == (ulong)d->Data + 156) d->Status = 0x4f;
             return 1;
         }
         if (address < CommonAddress + 32 || address > CommonAddress + 52 || (address & 3) != 0) return Bad(d);
@@ -244,7 +270,12 @@ internal static unsafe class QueueTests
         if (d->ResetRequested)
         {
             if (!d->ResetObserved || d->BusEnabled) return Bad(d, true);
-            d->CleanupFenceObserved = true; return 1;
+            if (d->OutputSentinel != null)
+                for (int i = 0; i < 1526; i++)
+                    if (d->OutputSentinel[i] != 0xcc) d->OutputChangedBeforeQuiescence = true;
+            d->CleanupFenceObserved = true;
+            if (d->InvalidateDmaOnQuiescence) *d->Pool = default;
+            return 1;
         }
         d->ExecutionFences++;
         ushort rx = *(ushort*)(d->Data + 130), tx = *(ushort*)(d->Data + 2178);
@@ -256,8 +287,11 @@ internal static unsafe class QueueTests
             case 3: if (rx != 1 || tx != 0 || d->Status != 11) return Bad(d, true); d->RxPrimed = true; break;
             case 4: if (rx != 1 || tx != 0 || d->Status != 15 || !d->BusEnabled || !Wire(d)) return Bad(d, true); break;
             case 5: if (rx != 1 || tx != 1) return Bad(d, true); break;
-            case 6: if (!d->TransmitNotified || *(ushort*)(d->Data + 2198) == 0) return Bad(d, true); break;
-            default: return Bad(d, true);
+            default:
+                if (d->ExecutionFences < 6 || !d->TransmitNotified ||
+                    (d->Receiving ? *(ushort*)(d->Data + (d->ReadingReceive ? 150 : 2198)) == 0 :
+                        d->ExecutionFences != 6 || *(ushort*)(d->Data + 2198) == 0)) return Bad(d, true);
+                break;
         }
         return 1;
     }
@@ -289,8 +323,11 @@ internal static unsafe class QueueTests
     {
         // Independent wire vector: twelve zero header bytes followed by the
         // 60-byte Ethernet frame and padding, without implementation constants.
-        ReadOnlySpan<byte> header = [2, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 1, 0x88, 0xb5,
+        ReadOnlySpan<byte> arp = [255,255,255,255,255,255,2,0,0,0,0,1,8,6,
+            0,1,8,0,6,4,0,1,2,0,0,0,0,1,10,0,2,15,0,0,0,0,0,0,10,0,2,2];
+        ReadOnlySpan<byte> fixedFrame = [2, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 1, 0x88, 0xb5,
             (byte)'C', (byte)'L', (byte)'R', (byte)'O', (byte)'S', (byte)'-', (byte)'M', (byte)'0', (byte)'7'];
+        ReadOnlySpan<byte> header = d->Receiving ? arp : fixedFrame;
         for (int i = 0; i < 72; i++)
             if (d->Data[2304 + i] != (i >= 12 && i < 12 + header.Length ? header[i - 12] : (byte)0)) return false;
         return true;

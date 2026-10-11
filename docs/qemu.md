@@ -1,5 +1,16 @@
 # QEMU
 
+The implemented, unqualified `EnableM07ArpReceiveProbe` extends the fixed-frame
+parent to 194 strict records: `M07_ARP 0`..`D` and `m07.006`..`m07.009`.
+Its isolated user-network fixture fixes the local MAC to `02:00:00:00:00:01`,
+local IPv4 to `10.0.2.15` and gateway to `10.0.2.2`. The bounded libpcap checker
+requires the independently checked parent frame before exactly one 60-byte ARP
+request and one matching reply, then binds both Ethernet CRC32 values to the
+guest receipt. Loss, duplicates, reordering and altered fields fail validation.
+These fixture addresses do not implement device configuration or DHCP.
+[Step1163](../done/step1163.md) records synthetic checks; real QEMU/OVMF capture
+and native/full-host qualification remain pending.
+
 The qualified block MSI-X profile inserts the accepted APIC marker chain after
 PCI enumeration and before package/storage receipts, then emits `M06_IRQ 0`..`8`
 and `m06.019`. Its strict parser distinguishes one IRQ from a complete masked wait,

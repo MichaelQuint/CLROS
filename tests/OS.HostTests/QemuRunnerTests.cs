@@ -293,6 +293,10 @@ internal static class QemuRunnerTests
     {
         ProcessResult ordinary = RunQemuRunner("--dry-run", "--qemu", "qemu-test", "--image", Path.Combine(root, "ordinary.raw"));
         ProcessResult virtio = RunQemuRunner("--dry-run", "--qemu", "qemu-test", "--image", Path.Combine(root, "virtio.raw"), "--virtio-negotiation-device");
+        ProcessResult arp = RunQemuRunner("--dry-run", "--qemu", "qemu-test", "--image", Path.Combine(root, "arp.raw"),
+            "--virtio-negotiation-device", "--ethernet-capture", Path.Combine(root, "arp-" + Guid.NewGuid().ToString("N") + ".pcap"), "--arp-receive-fixture");
+        if (arp.ExitCode != 0 || !arp.Output.Contains(",mac=02:00:00:00:00:01", StringComparison.Ordinal) ||
+            virtio.Output.Contains(",mac=", StringComparison.Ordinal)) return false;
         if (ordinary.ExitCode != 0 || virtio.ExitCode != 0 || ordinary.Output.Contains("disable-legacy=on", StringComparison.Ordinal) ||
             !virtio.Output.Contains("-device virtio-net-pci,netdev=n0,addr=06.0,disable-legacy=on,romfile=", StringComparison.Ordinal) ||
             virtio.Output.Contains("pci-testdev", StringComparison.Ordinal)) return false;
@@ -301,6 +305,8 @@ internal static class QemuRunnerTests
             ["--virtio-negotiation-device", "--virtio-negotiation-device"],
             ["--virtio-negotiation-device", "--pci-bar-test-device"],
             ["--pci-bar-test-device", "--virtio-negotiation-device"]
+            , ["--arp-receive-fixture"]
+            , ["--virtio-negotiation-device", "--arp-receive-fixture"]
         })
             if (RunQemuRunner(["--dry-run", .. flags]).ExitCode == 0) return false;
         return true;

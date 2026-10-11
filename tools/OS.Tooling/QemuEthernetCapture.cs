@@ -4,6 +4,8 @@ using OS.Std.Hash;
 namespace OS.Tooling;
 
 public readonly record struct QemuEthernetCaptureReceipt(uint Records, uint Matches, uint FrameCrc32);
+public readonly record struct QemuArpCaptureReceipt(uint Records, uint Requests, uint Replies,
+    uint RequestCrc32, uint ReplyCrc32, ulong PeerMac);
 
 /// <summary>Bounded classic little-endian libpcap evidence from QEMU filter-dump.
 /// One complete experimental Ethernet frame is required; unrelated traffic is allowed.</summary>
@@ -12,6 +14,12 @@ public static class QemuEthernetCapture
     private const int MaximumBytes = 4 * 1024 * 1024;
 
     public static QemuEthernetCaptureReceipt Assert(string path, uint expectedFrameCrc)
+        => Inspect(ReadCapture(path), expectedFrameCrc);
+
+    public static QemuArpCaptureReceipt AssertArp(string path, QemuArpReceiveReceipt expected)
+        => InspectArp(ReadCapture(path), expected);
+
+    private static byte[] ReadCapture(string path)
     {
         using var file = File.OpenRead(path);
         long length = file.Length;
@@ -20,10 +28,17 @@ public static class QemuEthernetCapture
         try { file.ReadExactly(bytes); }
         catch (EndOfStreamException error) { throw new InvalidDataException("m07_capture_file_truncated", error); }
         Need(file.ReadByte() == -1, "file_changed");
-        return Inspect(bytes, expectedFrameCrc);
+        return bytes;
     }
 
     public static QemuEthernetCaptureReceipt Inspect(ReadOnlySpan<byte> bytes, uint expectedFrameCrc)
+        => InspectCore(bytes, expectedFrameCrc, null).Frame;
+
+    public static QemuArpCaptureReceipt InspectArp(ReadOnlySpan<byte> bytes, QemuArpReceiveReceipt expected)
+        => InspectCore(bytes, 0xd24c49dd, expected).Arp;
+
+    private static (QemuEthernetCaptureReceipt Frame, QemuArpCaptureReceipt Arp) InspectCore(
+        ReadOnlySpan<byte> bytes, uint expectedFrameCrc, QemuArpReceiveReceipt? arpExpected)
     {
         Need(bytes.Length <= MaximumBytes, "file_extent");
         Need(bytes.Length >= 24, "header_truncated");
@@ -35,6 +50,7 @@ public static class QemuEthernetCapture
             BinaryPrimitives.ReadUInt32LittleEndian(bytes[16..]) == 65536 &&
             BinaryPrimitives.ReadUInt32LittleEndian(bytes[20..]) == 1, "header");
         uint records = 0, matches = 0, frameCrc = 0;
+        uint requests = 0, replies = 0, requestCrc = 0, replyCrc = 0;
         int offset = 24;
         while (offset < bytes.Length)
         {
@@ -50,11 +66,46 @@ public static class QemuEthernetCapture
             ReadOnlySpan<byte> frame = bytes.Slice(offset, (int)included);
             records++;
             if (IsFrame(frame)) { matches++; frameCrc = Crc32.Compute(frame); }
+            // Firmware traffic before the independently checked parent frame
+            // is outside the owned request/reply transaction.
+            if (arpExpected is { } expected && matches == 1)
+            {
+                if (IsArp(frame, false, expected))
+                { Need(replies == 0, "arp_request_order"); requests++; requestCrc = Crc32.Compute(frame); }
+                else if (IsArp(frame, true, expected))
+                { Need(requests == 1, "arp_reply_order"); replies++; replyCrc = Crc32.Compute(frame); }
+            }
             offset += (int)included;
         }
         Need(matches == 1, "frame_count");
         Need(frameCrc == expectedFrameCrc, "frame_crc");
-        return new(records, matches, frameCrc);
+        if (arpExpected is { } wanted)
+            Need(requests == 1 && replies == 1 && requestCrc == wanted.RequestCrc32 &&
+                replyCrc == wanted.ReceiveCrc32, "arp_association");
+        return (new(records, matches, frameCrc),
+            new(records, requests, replies, requestCrc, replyCrc, arpExpected?.PeerMac ?? 0));
+    }
+
+    private static bool IsArp(ReadOnlySpan<byte> frame, bool reply, QemuArpReceiveReceipt expected)
+    {
+        if (frame.Length != (reply ? expected.ReceiveBytes : 60) || frame.Length < 42 || frame.Length > 60) return false;
+        ReadOnlySpan<byte> localMac = [2,0,0,0,0,1];
+        Span<byte> peerMac = stackalloc byte[6];
+        for (int i = 0; i < 6; i++) peerMac[i] = (byte)(expected.PeerMac >> ((5 - i) * 8));
+        ReadOnlySpan<byte> broadcast = [255,255,255,255,255,255];
+        ReadOnlySpan<byte> zeroMac = [0,0,0,0,0,0];
+        ReadOnlySpan<byte> localIp = [10,0,2,15], peerIp = [10,0,2,2];
+        ReadOnlySpan<byte> arpHeader = [8,6,0,1,8,0,6,4];
+        if (!frame[..6].SequenceEqual(reply ? localMac : broadcast) ||
+            !frame.Slice(6,6).SequenceEqual(reply ? peerMac : localMac) ||
+            !frame.Slice(12,8).SequenceEqual(arpHeader) ||
+            frame[20] != 0 || frame[21] != (reply ? 2 : 1) ||
+            !frame.Slice(22,6).SequenceEqual(reply ? peerMac : localMac) ||
+            !frame.Slice(28,4).SequenceEqual(reply ? peerIp : localIp) ||
+            !frame.Slice(32,6).SequenceEqual(reply ? localMac : zeroMac) ||
+            !frame.Slice(38,4).SequenceEqual(reply ? localIp : peerIp)) return false;
+        for (int i = 42; i < frame.Length; i++) if (frame[i] != 0) return false;
+        return true;
     }
 
     private static bool IsFrame(ReadOnlySpan<byte> frame)

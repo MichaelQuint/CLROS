@@ -4,6 +4,39 @@ using OS.Tooling;
 
 internal static class QemuEthernetCaptureTests
 {
+    [HostTest("qemu.ARP capture associates one ordered request reply after the owned parent frame", HostLane.Fast, 4)]
+    private static void Arp()
+    {
+        byte[] request = EthernetFrameItExistingClassifierTests.Request.ToArray();
+        byte[] reply = EthernetFrameItExistingClassifierTests.Reply().AsSpan(12,42).ToArray();
+        var expected = new QemuArpReceiveReceipt(ReferenceCrc(reply), 42, ReferenceCrc(request), 0x52550a000202);
+        var r = QemuEthernetCapture.InspectArp(Capture(request, reply, Frame(), request, reply), expected);
+        HostCheck.True(r.Records == 5 && r.Requests == 1 && r.Replies == 1 &&
+            r.PeerMac == expected.PeerMac && r.RequestCrc32 == expected.RequestCrc32 && r.ReplyCrc32 == expected.ReceiveCrc32);
+        void Bad(byte[] capture, QemuArpReceiveReceipt receipt)
+        {
+            bool rejected = false;
+            try { _ = QemuEthernetCapture.InspectArp(capture, receipt); }
+            catch (InvalidDataException) { rejected = true; }
+            HostCheck.True(rejected);
+        }
+        Bad(Capture(Frame(), reply, request), expected);
+        Bad(Capture(Frame(), request), expected);
+        Bad(Capture(Frame(), request, request, reply), expected);
+        Bad(Capture(Frame(), request, reply, reply), expected);
+        Bad(Capture(Frame(), request, reply), expected with { RequestCrc32 = expected.RequestCrc32 ^ 1 });
+        Bad(Capture(Frame(), request, reply), expected with { ReceiveCrc32 = expected.ReceiveCrc32 ^ 1 });
+        for (int i = 0; i < reply.Length; i++)
+        {
+            byte[] changed = (byte[])reply.Clone(); changed[i] ^= 1;
+            Bad(Capture(Frame(), request, changed), expected);
+        }
+        for (int i = 0; i < request.Length; i++)
+        {
+            byte[] changed = (byte[])request.Clone(); changed[i] ^= 1;
+            Bad(Capture(Frame(), changed, reply), expected);
+        }
+    }
     [HostTest("qemu.ethernet.capture requires one complete independent frame among unrelated traffic", HostLane.Fast, 0)]
     private static void Valid()
     {

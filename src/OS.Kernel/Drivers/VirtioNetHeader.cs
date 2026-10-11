@@ -10,13 +10,15 @@ public enum VirtioNetHeaderStatus
     MissingEthernetHeader = 2,
     UnsupportedChecksumOffload = 3,
     UnsupportedOffloadFlags = 4,
-    UnsupportedGenericSegmentationOffload = 5
+    UnsupportedGenericSegmentationOffload = 5,
+    UnsupportedReceiveBufferCount = 6
 }
 
 public readonly struct VirtioNetHeader
 {
     public const int HeaderLengthWithoutMergeableBuffers = 10;
     public const int HeaderLengthWithMergeableBuffers = 12;
+    public const int ModernHeaderLength = 12;
 
     public const byte FlagNeedsChecksum = 0x01;
     public const byte FlagDataValid = 0x02;
@@ -107,7 +109,19 @@ public readonly struct VirtioNetHeader
 
     public static VirtioNetReceivedFrameParseResult TryParseReceivedFrameNoOffload(
         ReadOnlySpan<byte> source)
+        => ParseReceivedFrame(source, HeaderLengthWithoutMergeableBuffers);
+
+    /// <summary>VERSION_1 RX uses a 12-byte header even without MRG_RXBUF.
+    /// With mergeable buffers disabled, the device must report num_buffers=1.</summary>
+    public static VirtioNetReceivedFrameParseResult TryParseModernReceivedFrameNoOffload(
+        ReadOnlySpan<byte> source)
+        => ParseReceivedFrame(source, ModernHeaderLength);
+
+    private static VirtioNetReceivedFrameParseResult ParseReceivedFrame(
+        ReadOnlySpan<byte> source, int headerLength)
     {
+        if (source.Length < headerLength)
+            return VirtioNetReceivedFrameParseResult.Fail(VirtioNetHeaderStatus.BufferTooSmall, default);
         VirtioNetHeaderParseResult headerResult = TryParse(source);
         if (!headerResult.Succeeded)
         {
@@ -117,7 +131,7 @@ public readonly struct VirtioNetHeader
         }
 
         if (source.Length <
-            HeaderLengthWithoutMergeableBuffers + EthernetHeader.HeaderLength)
+            headerLength + EthernetHeader.HeaderLength)
         {
             return VirtioNetReceivedFrameParseResult.Fail(
                 VirtioNetHeaderStatus.MissingEthernetHeader,
@@ -133,8 +147,13 @@ public readonly struct VirtioNetHeader
                 headerResult.Header);
         }
 
+        if (headerLength == ModernHeaderLength &&
+            EndianPrimitives.ReadUInt16LittleEndian(source.Slice(10, sizeof(ushort))) != 1)
+            return VirtioNetReceivedFrameParseResult.Fail(
+                VirtioNetHeaderStatus.UnsupportedReceiveBufferCount, headerResult.Header);
+
         ReadOnlySpan<byte> ethernetFrame =
-            source.Slice(HeaderLengthWithoutMergeableBuffers);
+            source.Slice(headerLength);
         PacketParseStatus ethernetStatus = EthernetHeader.TryParse(
             ethernetFrame,
             out EthernetHeader ethernetHeader,
@@ -150,10 +169,10 @@ public readonly struct VirtioNetHeader
             new VirtioNetReceivedFrameMetadata(
                 headerResult.Header,
                 ethernetHeader,
-                HeaderLengthWithoutMergeableBuffers,
-                HeaderLengthWithoutMergeableBuffers,
+                headerLength,
+                headerLength,
                 ethernetFrame.Length,
-                HeaderLengthWithoutMergeableBuffers + EthernetHeader.HeaderLength,
+                headerLength + EthernetHeader.HeaderLength,
                 ethernetPayload.Length);
 
         return VirtioNetReceivedFrameParseResult.Success(

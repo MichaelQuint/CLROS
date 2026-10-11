@@ -162,6 +162,13 @@ public static unsafe class VirtioNetQueue
         VirtqueueDescriptorPoolState* rx, VirtqueueDescriptorPoolState* tx,
         VirtqueueDescriptorToken rxToken, VirtqueueDescriptorToken txToken, ref VirtioNetQueueResult r)
     {
+        Quiesce(common, a, resetLimit, ref r);
+        ReleaseBacking(dma, allocation, deviceOwned, rx, tx, rxToken, txToken, ref r);
+    }
+
+    internal static void Quiesce(VirtioMappedRegion common, VirtqueuePollingAccess a,
+        uint resetLimit, ref VirtioNetQueueResult r)
+    {
         r.CleanupStatus = VirtioNetQueueStatus.ResetFailed;
         byte status = 0xff;
         if (a.Write8(a.Context, common.VirtualStart + 20, 0) == 1)
@@ -176,6 +183,13 @@ public static unsafe class VirtioNetQueue
         if (!r.BusMasterDisabled) { r.CleanupStatus = VirtioNetQueueStatus.BusMasterFailed; return; }
         if (!Fence(a, ref r)) { r.CleanupStatus = VirtioNetQueueStatus.OrderingFailed; return; }
         r.CleanupStatus = VirtioNetQueueStatus.Success;
+    }
+
+    internal static void ReleaseBacking(DmaBufferPool* dma, DmaBufferAllocation allocation,
+        bool deviceOwned, VirtqueueDescriptorPoolState* rx, VirtqueueDescriptorPoolState* tx,
+        VirtqueueDescriptorToken rxToken, VirtqueueDescriptorToken txToken, ref VirtioNetQueueResult r)
+    {
+        if (r.CleanupStatus != VirtioNetQueueStatus.Success || !r.ResetComplete || !r.BusMasterDisabled) return;
         if (!Release(rx, rxToken, ref r.Receive) || !Release(tx, txToken, ref r.Transmit))
         { r.CleanupStatus = VirtioNetQueueStatus.DescriptorRejected; return; }
         if (allocation.IsInitialized)

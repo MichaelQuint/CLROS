@@ -15545,7 +15545,7 @@
         "M07-005"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -15572,7 +15572,7 @@
       ],
       "collisionLane": null,
       "summary": "Receive one Ethernet frame and pass it through the existing classifier.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Original bounded TX is accepted in done/step1162.md. This claimed receive/ARP batch is implemented with focused checks in done/step1163.md; full-host/native/guest qualification remains pending under integration #635.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Receive one Ethernet frame and pass it through the existing classifier.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15631,7 +15631,7 @@
         "M07-006"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:docs",
         "evidence:qemu",
@@ -15658,7 +15658,7 @@
       ],
       "collisionLane": null,
       "summary": "Enforce virtio-net header and checksum policy.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Original bounded TX is accepted in done/step1162.md. This claimed receive/ARP batch is implemented with focused checks in done/step1163.md; full-host/native/guest qualification remains pending under integration #635.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Enforce virtio-net header and checksum policy.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15717,7 +15717,7 @@
         "M07-007"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -15744,7 +15744,7 @@
       ],
       "collisionLane": null,
       "summary": "Perform ARP request/reply and update a bounded neighbor cache.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Original bounded TX is accepted in done/step1162.md. This claimed receive/ARP batch is implemented with focused checks in done/step1163.md; full-host/native/guest qualification remains pending under integration #635.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Perform ARP request/reply and update a bounded neighbor cache.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15803,7 +15803,7 @@
         "M07-008"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:test",
         "evidence:qemu",
@@ -15830,7 +15830,7 @@
       ],
       "collisionLane": null,
       "summary": "Add ARP expiry, unresolved-neighbor timeout, and cache-replacement tests.",
-      "currentEvidence": "Packet/checksum/ARP/DHCP/TCP/HTTP slices are host-tested; no live virtio-net packet path is proven.",
+      "currentEvidence": "Original bounded TX is accepted in done/step1162.md. This claimed receive/ARP batch is implemented with focused checks in done/step1163.md; full-host/native/guest qualification remains pending under integration #635.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add ARP expiry, unresolved-neighbor timeout, and cache-replacement tests.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

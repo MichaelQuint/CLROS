@@ -59,6 +59,7 @@ public sealed class EfiProfile
         Set("M06BlockMsix", ["M05VirtioNegotiation", "M05VirtqueuePolling", "M05VirtqueueInterrupt"], false, "m06_block_msix_profile_conflict");
         Need("M06BlockMsixPollingRecovery", "M06BlockMsix", "m06_block_msix_polling_recovery_requires_main");
         Need("M07VirtioNet", "M05VirtqueuePolling", "m07_virtio_net_requires_polling");
+        Need("M07ArpReceive", "M07VirtioNet", "m07_arp_receive_requires_net");
         Set("M06PackageRead", ["M06FatRead"], true, "m06_package_read_requires_fat");
         Set("M06FatRead", ["M06GptPartition"], true, "m06_fat_read_requires_gpt");
         Set("M06GptPartition", ["M06LiveBlockContract"], true, "m06_gpt_partition_requires_contract");

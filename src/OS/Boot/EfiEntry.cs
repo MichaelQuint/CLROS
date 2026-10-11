@@ -1,3 +1,5 @@
+global using System;
+
 #if M04_LAYOUT_CONTRACT_PROBE
 using OS.Kernel.Runtime;
 #endif
@@ -9,6 +11,12 @@ using OS.Kernel.Diagnostics;
 using OS.Kernel.Platform;
 #if M05_PCI_ENUMERATION_PROBE
 using OS.Drivers;
+#endif
+#if M07_ARP_RECEIVE_PROBE
+using OS.Net;
+#if !M07_VIRTIO_NET_PROBE
+#error The ARP receive profile requires the accepted original Virtio-net profile.
+#endif
 #endif
 #if M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
 using OS.Storage;
@@ -103,6 +111,9 @@ public static unsafe class EfiEntry
 #endif
 #if M07_VIRTIO_NET_PROBE
             internal uint NetPhase;
+#if M07_ARP_RECEIVE_PROBE
+            internal uint ArpPhase;
+#endif
 #endif
 #if M05_APIC_SETUP_PROBE
             internal uint ApicPhase;
@@ -643,6 +654,9 @@ public static unsafe class EfiEntry
 #endif
 #if M07_VIRTIO_NET_PROBE
                         _ = BootSequence.RunOwnedVirtioNet(state->QueuePhase == 20, state, &RunOwnedVirtioNet);
+#if M07_ARP_RECEIVE_PROBE
+                        _ = BootSequence.RunOwnedArpReceive(state->NetPhase == 3, state, &RunOwnedArpReceive);
+#endif
 #endif
 #if M05_VIRTQUEUE_INTERRUPT_PROBE
                         _ = BootSequence.RunOwnedVirtqueueInterrupt(state->ApicPhase == 2 && state->VirtioPhase == 16, state, &RunOwnedVirtqueueInterrupt);
@@ -2357,6 +2371,141 @@ public static unsafe class EfiEntry
 
 #if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE
 #if M07_VIRTIO_NET_PROBE
+#if M07_ARP_RECEIVE_PROBE
+        private static bool RunOwnedArpReceive(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->ArpPhase != 0 || state->NetPhase != 3 || state->QueuePhase != 20 ||
+                state->VirtioPhase != 16 || state->PciPhase != 8 || state->OwnedPhase != 2 ||
+                !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            state->ArpPhase = 1;
+            if (!RunArpCore(state)) { _ = WriteNetLiteral(state, 9, 3); return false; }
+            state->ArpPhase = 3;
+            return true;
+        }
+
+        private static bool RunArpCore(Storage* state)
+        {
+            byte* code = state->Memory.Code + FirstExitCodeBundle.PciBarOffset;
+            byte* fence = state->Memory.Code + FirstExitCodeBundle.QueueFenceOffset;
+            if (!X64PciBarAccess.Validate(code, X64PciBarAccess.Bytes) ||
+                !X64VirtqueueMemoryFence.Validate(fence, X64VirtqueueMemoryFence.Bytes)) return false;
+            for (uint issue = 6; issue <= 9; issue++) if (!WriteNetLiteral(state, issue, 0)) return false;
+            var read = (delegate* unmanaged<void*, ulong, uint*, byte>)code;
+            var write32 = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 16);
+            var write16 = (delegate* unmanaged<void*, ulong, uint, byte>)(code + 32);
+            uint* words = stackalloc uint[64];
+            if (!ReadVirtioFixture(state, &ReadVirtioSnapshotWord, words, out var priorCaps) ||
+                LiveVirtioNetPCIDevice.Parse((byte*)words, 256, 0, 6, 0, out var binding) != VirtioNetBindingStatus.Success) return false;
+            var caps = binding.Capabilities; ulong start = state->Memory.References.VirtioBarStart;
+            PciSizedBar* bars = stackalloc PciSizedBar[6]; for (uint i = 0; i < 6; i++) bars[i] = default;
+            if (BARPrefetchTypeRegressionTestsDerivedMOSAFailures.Decode(words[8], words[9], 0xffffc00c, 0xffffffff, 4, out bars[4]) != PciBarProbeStatus.Success ||
+                bars[4].Base != start || bars[4].Bytes != 0x4000 || caps.CommonConfiguration.Offset != priorCaps.CommonConfiguration.Offset ||
+                caps.NotifyConfiguration.Offset != priorCaps.NotifyConfiguration.Offset) return false;
+            VirtioConfigurationRegion* regions = stackalloc VirtioConfigurationRegion[4];
+            if (CommonNotifyISRDeviceConfigurationRegions.Plan(caps, bars, 6, regions, 4) != VirtioRegionStatus.Success ||
+                CommonNotifyISRDeviceConfigurationRegions.Bind(regions[0], start, out var common) != VirtioRegionStatus.Success ||
+                CommonNotifyISRDeviceConfigurationRegions.BindNotificationPage(regions[1], caps.NotifyConfiguration.Length,
+                    start + 0x3000, out var notify) != VirtioRegionStatus.Success || binding.OriginalCommand != state->QueueCommand ||
+                (binding.OriginalCommand & 0x406) != 0x402 || !WriteArpRow(state, 0, binding.Identity, 0x600, binding.OriginalCommand, start)) return false;
+            var negotiated = MinimalNoOffloadNoGSONoMergeableBuffer.Negotiate(common, 1024, null, read, write32,
+                &ReadVirtioStatus, &WriteVirtioStatus);
+            if (!negotiated.Succeeded || negotiated.Selected != VirtioNetHeaderChecksumPolicy.AcceptedFeatures ||
+                !WriteArpRow(state, 1, negotiated.Offered, negotiated.Selected, negotiated.DeviceStatus, 1) ||
+                !M01StageTwoAdapter.TryGetOriginalExitAllocator(out ulong address, out var backing) ||
+                address != state->Memory.References.AllocatorState || backing.Start != state->Memory.Allocator.Start ||
+                backing.PageCount != state->Memory.Allocator.PageCount || backing.PageCount == 0 ||
+                backing.PageCount > M01LiveAllocatorIntegration.MaximumArenaPageCount) return false;
+            M01LiveAllocatorStaticState* owner = (M01LiveAllocatorStaticState*)address; if (!owner->IsCompleted) return false;
+            var before = owner->AllocatorStateValue; var node = owner->FreeNodeValue;
+            var allocation = BootPageAllocatorMutator.AllocateOnePage(before, &owner->FreeNodeValue, 1, 1, null, 0, 0, 1, 4096);
+            if (!allocation.Succeeded) return false; owner->AllocatorStateValue = allocation.AfterState;
+            if (allocation.PhysicalStart.TryGetRawValueForHardwareRegisterBoundary(out ulong page) != AddressValueStatus.Success ||
+                allocation.PageCount != 1 || allocation.ByteLength != 4096 || (page & 4095) != 0 ||
+                page < backing.Start || page - backing.Start > backing.PageCount * 4096 - 4096 ||
+                DmaAddressWindow.TryCreate(page, page, page, 4096, 32, out var window) != DmaAddressStatus.Success) return false;
+            DmaBufferPool pool = default; DmaBufferSlot slot = default;
+            if (PageAlignedDmaBuffers.TryInitialize(&pool, window, &slot, 1, 208) != DmaBufferStatus.Success) return false;
+            Span<byte> received = stackalloc byte[(int)VirtioNetQueue.ReceiveBufferBytes]; received.Clear();
+            Span<ArpNeighborCacheEntry> entries = stackalloc ArpNeighborCacheEntry[2]; var cache = ArpNeighborCache.Create(entries);
+            state->ArpPhase = 2;
+            VirtqueuePollingAccess access = new(); access.Context = state;
+            access.Read8 = &ReadVirtioStatus; access.Write8 = &WriteVirtioStatus;
+            access.Read16 = &ReadQueueWord; access.Write16 = write16; access.Read32 = read; access.Write32 = write32;
+            access.Fence = (delegate* unmanaged<void*, byte>)fence; access.BusMaster = &QueueBusMaster;
+            var result = ARPRequestReplyBoundedNeighborCache.Run(common, notify, caps.NotifyConfiguration.NotifyOffsetMultiplier,
+                &pool, access, 1000000, 1024, negotiated.Selected, new MacAddress(2,0,0,0,0,1),
+                new Ipv4Address(10,0,2,15), new Ipv4Address(10,0,2,2), ref cache, 100, received);
+            var r = result.Receive.Queue; uint length = result.Receive.CapturedBytes;
+            if (!result.Succeeded || pool.AllocatedMask != 0 || length < 54 || length > 72 ||
+                cache.TryLookup(new Ipv4Address(10,0,2,2), out var cached) != ArpNeighborCacheStatus.Success ||
+                cached.Entry.MacAddress != result.Reply.ResolvedMac || cached.Entry.LastUpdatedTick != 100 || cache.Count != 1) return false;
+            for (int i = 54; i < length; i++) if (received[i] != 0) return false;
+            uint receiveCrc = OS.Std.Hash.Crc32.InitialState, transmitCrc = OS.Std.Hash.Crc32.InitialState;
+            for (uint i = 12; i < length; i++) receiveCrc = OS.Std.Hash.Crc32.UpdateByte(receiveCrc, received[(int)i]);
+            for (uint i = 0; i < 60; i++) transmitCrc = OS.Std.Hash.Crc32.UpdateByte(transmitCrc, ((byte*)page)[VirtioNetQueue.TransmitBufferOffset + 12 + i]);
+            receiveCrc = OS.Std.Hash.Crc32.Finish(receiveCrc); transmitCrc = OS.Std.Hash.Crc32.Finish(transmitCrc);
+            received[0] = 1;
+            bool policyControls = VirtioNetHeaderChecksumPolicy.Validate(negotiated.Selected, received).Frame.Status == VirtioNetHeaderStatus.UnsupportedChecksumOffload;
+            received[0] = 0; received[1] = 1;
+            policyControls &= VirtioNetHeaderChecksumPolicy.Validate(negotiated.Selected, received).Frame.Status == VirtioNetHeaderStatus.UnsupportedGenericSegmentationOffload;
+            received[1] = 0; received[10] = 0;
+            policyControls &= VirtioNetHeaderChecksumPolicy.Validate(negotiated.Selected, received).Frame.Status == VirtioNetHeaderStatus.UnsupportedReceiveBufferCount;
+            received[10] = 1;
+            policyControls &= VirtioNetHeaderChecksumPolicy.Validate(0, received).Status == VirtioNetHeaderChecksumPolicyStatus.UnsupportedFeatures;
+            var controls = ARPExpiryUnresolvedNeighborTimeoutCacheReplacementTests.Run();
+            if (!policyControls || !controls.Succeeded || controls.CacheCount != 2 || controls.RequestBytes != 42) return false;
+            var freed = BootPageAllocatorMutator.FreeOnePage(owner->AllocatorStateValue, &owner->FreeNodeValue, 1, 1, null, 0, 0, allocation);
+            if (!freed.Succeeded) return false; owner->AllocatorStateValue = freed.AfterState;
+            var restored = owner->AllocatorStateValue; var finalNode = owner->FreeNodeValue;
+            bool equal = before.IsInitialized == restored.IsInitialized && before.PageSize == restored.PageSize &&
+                before.HeadNodeIndex == restored.HeadNodeIndex && before.FreeNodeCount == restored.FreeNodeCount &&
+                before.FreePageCount == restored.FreePageCount && before.FreeByteCount == restored.FreeByteCount &&
+                before.AllocatedPageCount == restored.AllocatedPageCount && before.AllocatedByteCount == restored.AllocatedByteCount &&
+                node.SourceFreeSegmentIndex == finalNode.SourceFreeSegmentIndex && node.SourceUsableRangeIndex == finalNode.SourceUsableRangeIndex &&
+                node.PhysicalStart == finalNode.PhysicalStart && node.PhysicalEndExclusive == finalNode.PhysicalEndExclusive &&
+                node.PageCount == finalNode.PageCount && node.ByteLength == finalNode.ByteLength && node.NextNodeIndex == finalNode.NextNodeIndex;
+            uint command = 0;
+            if (!equal || r.CpuAddress != page || r.DeviceAddress != page || r.Fences != 8 ||
+                read(null, state->PciWindow.Start + 0x30004, &command) != 1 || (command & 0xffff) != state->QueueCommand ||
+                !X64VirtqueueMemoryFence.Validate(fence, X64VirtqueueMemoryFence.Bytes) || !owner->IsCompleted ||
+                !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            MacAddress mac = cached.Entry.MacAddress;
+            ulong peerMac = ((ulong)mac.Octet0 << 40) | ((ulong)mac.Octet1 << 32) | ((ulong)mac.Octet2 << 24) |
+                ((ulong)mac.Octet3 << 16) | ((ulong)mac.Octet4 << 8) | mac.Octet5;
+            if (!WriteArpRow(state, 2, page, page, page, 4096) ||
+                !WriteArpRow(state, 3, r.Receive.Descriptor, r.Receive.Available, r.Receive.Used, page + VirtioNetQueue.ReceiveBufferOffset) ||
+                !WriteArpRow(state, 4, r.Transmit.Descriptor, r.Transmit.Available, r.Transmit.Used, page + VirtioNetQueue.TransmitBufferOffset) ||
+                !WriteArpRow(state, 5, result.Receive.ReceiveUsedIndex, result.Receive.ReceiveUsedId, length, 1) ||
+                !WriteArpRow(state, 6, 12, 1, 0, negotiated.Selected) ||
+                !WriteArpRow(state, 7, (ulong)cache.Count, (ulong)cache.Capacity, peerMac, cached.Entry.LastUpdatedTick) ||
+                !WriteArpRow(state, 8, receiveCrc, length - 12, transmitCrc, 60) ||
+                !WriteArpRow(state, 9, controls.Checks, controls.CacheCount, controls.RequestBytes, 1) ||
+                !WriteArpRow(state, 10, before.FreePageCount, restored.FreePageCount, restored.AllocatedPageCount, 1) ||
+                !WriteArpRow(state, 11, r.Polls, r.Fences, r.ResetReads, 3) ||
+                !WriteArpRow(state, 12, 1, 1, 1, command & 0xffff) ||
+                !WriteArpRow(state, 13, 15, negotiated.Selected, 0x0a000202, 0x0a00020f)) return false;
+            for (uint issue = 6; issue <= 9; issue++)
+                if (!WriteNetLiteral(state, issue, 1) || !WriteNetLiteral(state, issue, 2)) return false;
+            return true;
+        }
+
+        private static bool WriteArpRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d)
+        {
+            if (stage > 13) return false;
+            byte* text = stackalloc byte[96]; *(ulong*)text = 0x205052415f37304dUL; uint length = 8;
+            text[length++] = (byte)(stage < 10 ? '0' + stage : 'A' + stage - 10);
+            ulong* values = stackalloc ulong[4]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;
+            for (int i = 0; i < 4; i++)
+            {
+                text[length++] = (byte)' '; text[length++] = (byte)'0'; text[length++] = (byte)'x';
+                for (int shift = 60; shift >= 0; shift -= 4)
+                { uint digit = (uint)((values[i] >> shift) & 15); text[length++] = (byte)(digit < 10 ? '0' + digit : 'A' + digit - 10); }
+            }
+            text[length++] = 13; text[length++] = 10;
+            return WriteOwnedBytes(state, text, length);
+        }
+#endif
         private static bool RunOwnedVirtioNet(void* context)
         {
             Storage* state = (Storage*)context;
@@ -2463,7 +2612,7 @@ public static unsafe class EfiEntry
 
         private static bool WriteNetLiteral(Storage* state, uint issue, uint kind)
         {
-            if (issue == 0 || issue > 5 || kind > 3) return false;
+            if (issue == 0 || issue > 9 || kind > 3) return false;
             ulong* words = stackalloc ulong[5]; uint bytes, digit, phase;
             if (kind == 0) { words[0] = 0x4154535f54534554UL; words[1] = 0x302e35306d205452UL; words[2] = 0xa0d3030UL; bytes = 20; digit = 17; phase = 13; }
             else if (kind == 1) { words[0] = 0x304d5f534f524c43UL; words[1] = 0x45525f3030305f35UL; words[2] = 0xa0d594441UL; bytes = 21; digit = 12; phase = 8; }
@@ -2638,6 +2787,9 @@ public static unsafe class EfiEntry
             bool active = state->QueuePhase == 18;
 #if M07_VIRTIO_NET_PROBE
             active |= state->QueuePhase == 20 && state->NetPhase == 2;
+#if M07_ARP_RECEIVE_PROBE
+            active |= state->QueuePhase == 20 && state->ArpPhase == 2;
+#endif
 #endif
             if (enable > 1 || !active || (state->QueueCommand & 0x406) != 0x402) return 0;
             byte* code = state->Memory.Code + FirstExitCodeBundle.PciBarOffset;

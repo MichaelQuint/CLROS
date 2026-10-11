@@ -773,6 +773,13 @@ public static class QemuContracts
         "CLROS_M07_003_READY", "TEST_PASS m07.003", "CLROS_M07_004_READY", "TEST_PASS m07.004",
         "CLROS_M07_005_READY", "TEST_PASS m07.005"
     ]);
+    public static IReadOnlyList<string> M07ArpReceiveMarkers { get; } = Array.AsReadOnly<string>(
+    [
+        .. M07VirtioNetMarkers,
+        .. Enumerable.Range(6, 4).Select(i => "TEST_START m07.00" + i),
+        .. Enumerable.Range(0, 14).Select(i => "M07_ARP " + i.ToString("X", System.Globalization.CultureInfo.InvariantCulture)),
+        .. Enumerable.Range(6, 4).SelectMany(i => new[] { "CLROS_M07_00" + i + "_READY", "TEST_PASS m07.00" + i })
+    ]);
     public static IReadOnlyList<string> M06BlockMsixMarkers { get; } = Array.AsReadOnly<string>(
     [
         .. M05ApicSetupMarkers, .. M06PackageReadMarkers().Skip(M05PciEnumerationMarkers.Count),

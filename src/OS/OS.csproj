@@ -97,6 +97,7 @@
 		<EnableM06GptPartitionProbe Condition="'$(EnableM06GptPartitionProbe)' == ''">false</EnableM06GptPartitionProbe>
 		<EnableM06PackageReadProbe Condition="'$(EnableM06PackageReadProbe)' == ''">false</EnableM06PackageReadProbe>
 		<EnableM07VirtioNetProbe Condition="'$(EnableM07VirtioNetProbe)' == ''">false</EnableM07VirtioNetProbe>
+		<EnableM07ArpReceiveProbe Condition="'$(EnableM07ArpReceiveProbe)' == ''">false</EnableM07ArpReceiveProbe>
 		<EnableM06BlockMsixProbe Condition="'$(EnableM06BlockMsixProbe)' == ''">false</EnableM06BlockMsixProbe>
 		<EnableM06BlockMsixPollingRecoveryProbe Condition="'$(EnableM06BlockMsixPollingRecoveryProbe)' == ''">false</EnableM06BlockMsixPollingRecoveryProbe>
 		<EnableM06FatReadProbe Condition="'$(EnableM06FatReadProbe)' == ''">false</EnableM06FatReadProbe>
@@ -380,6 +381,9 @@
 	<PropertyGroup Condition="'$(EnableM07VirtioNetProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M07_VIRTIO_NET_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM07ArpReceiveProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M07_ARP_RECEIVE_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM06BlockMsixProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M06_BLOCK_MSIX_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -473,6 +477,7 @@
 			'$(EnableM06GptPartitionProbe)' == 'true' or
 			'$(EnableM06PackageReadProbe)' == 'true' or
 			'$(EnableM07VirtioNetProbe)' == 'true' or
+			'$(EnableM07ArpReceiveProbe)' == 'true' or
 			'$(EnableM06BlockMsixProbe)' == 'true' or
 			'$(EnableM06BlockMsixPollingRecoveryProbe)' == 'true' or
 			'$(EnableM06FatReadProbe)' == 'true' or
@@ -602,6 +607,21 @@
 		<Compile Include="..\OS.Kernel\Drivers\MinimalNoOffloadNoGSONoMergeableBuffer.cs" Link="Drivers\MinimalNoOffloadNoGSONoMergeableBuffer.cs" />
 		<Compile Include="..\OS.Kernel\Drivers\Queue.cs" Link="Drivers\Queue.cs" />
 		<Compile Include="..\OS.Kernel\Drivers\FixedEthernetFrameReclaimDescriptors.cs" Link="Drivers\FixedEthernetFrameReclaimDescriptors.cs" />
+		<Compile Include="..\OS.Kernel\Drivers\VirtioNetHeader.cs" Link="Drivers\VirtioNetHeader.cs" />
+		<Compile Include="..\OS.Kernel\Drivers\VirtioNetReceiveFrameClassifier.cs" Link="Drivers\VirtioNetReceiveFrameClassifier.cs" />
+		<Compile Include="..\OS.Kernel\Drivers\VirtioNetHeaderChecksumPolicy.cs" Link="Drivers\VirtioNetHeaderChecksumPolicy.cs" />
+		<Compile Include="..\OS.Kernel\Drivers\EthernetFrameItExistingClassifier.cs" Link="Drivers\EthernetFrameItExistingClassifier.cs" />
+		<Compile Include="..\OS.Kernel\Net\PacketParseStatus.cs" Link="Net\PacketParseStatus.cs" />
+		<Compile Include="..\OS.Kernel\Net\MacAddress.cs" Link="Net\MacAddress.cs" />
+		<Compile Include="..\OS.Kernel\Net\Ipv4Address.cs" Link="Net\Ipv4Address.cs" />
+		<Compile Include="..\OS.Kernel\Net\EthernetHeader.cs" Link="Net\EthernetHeader.cs" />
+		<Compile Include="..\OS.Kernel\Net\EthernetPayloadKind.cs" Link="Net\EthernetPayloadKind.cs" />
+		<Compile Include="..\OS.Kernel\Net\ArpPacket.cs" Link="Net\ArpPacket.cs" />
+		<Compile Include="..\OS.Kernel\Net\ArpNeighborCache.cs" Link="Net\ArpNeighborCache.cs" />
+		<Compile Include="..\OS.Kernel\Net\ArpNeighborResolutionTransaction.cs" Link="Net\ArpNeighborResolutionTransaction.cs" />
+		<Compile Include="..\OS.Kernel\Net\ARPRequestReplyBoundedNeighborCache.cs" Link="Net\ARPRequestReplyBoundedNeighborCache.cs" />
+		<Compile Include="..\OS.Kernel\Net\ARPExpiryUnresolvedNeighborTimeoutCacheReplacementTests.cs" Link="Net\ARPExpiryUnresolvedNeighborTimeoutCacheReplacementTests.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Binary\EndianPrimitives.cs" Link="Std\Binary\EndianPrimitives.cs" />
 		<Compile Include="..\OS.Kernel\Drivers\SplitVirtqueuePollingNotificationCompletion.cs" Link="Drivers\SplitVirtqueuePollingNotificationCompletion.cs" />
 		<Compile Include="..\OS.Kernel\Drivers\MemoryOrderingPrimitivesReplacingReadinessBooleans.cs" Link="Drivers\MemoryOrderingPrimitivesReplacingReadinessBooleans.cs" />
 		<Compile Include="..\OS.Kernel\Drivers\VirtqueueSplitRingPlan.cs" Link="Drivers\VirtqueueSplitRingPlan.cs" />
@@ -757,6 +777,7 @@
 			'$(EnableM06GptPartitionProbe)' == 'true' or
 			'$(EnableM06PackageReadProbe)' == 'true' or
 			'$(EnableM07VirtioNetProbe)' == 'true' or
+			'$(EnableM07ArpReceiveProbe)' == 'true' or
 			'$(EnableM06BlockMsixProbe)' == 'true' or
 			'$(EnableM06BlockMsixPollingRecoveryProbe)' == 'true' or
 			'$(EnableM06FatReadProbe)' == 'true' or

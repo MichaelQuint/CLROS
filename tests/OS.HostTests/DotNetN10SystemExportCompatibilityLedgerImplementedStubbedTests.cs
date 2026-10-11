@@ -179,6 +179,10 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             DotNetN10SystemDeclarationCategory.InteropContract,
             DotNetN10HelperSupportState.Stubbed);
         ExpectSystemClassification(
+            DotNetN10SystemDeclaration.InAttribute,
+            DotNetN10SystemDeclarationCategory.AttributeContract,
+            DotNetN10HelperSupportState.Stubbed);
+        ExpectSystemClassification(
             DotNetN10SystemDeclaration.Exception,
             DotNetN10SystemDeclarationCategory.CoreType,
             DotNetN10HelperSupportState.Stubbed);
@@ -517,6 +521,7 @@ internal static class DotNetN10SystemExportCompatibilityLedgerImplementedStubbed
             DotNetN10SystemDeclaration.RuntimeImports => "System.Runtime.RuntimeImports",
             DotNetN10SystemDeclaration.Exception => "System.Exception",
             DotNetN10SystemDeclaration.UnmanagedType => "System.Runtime.InteropServices.UnmanagedType",
+            DotNetN10SystemDeclaration.InAttribute => "System.Runtime.InteropServices.InAttribute",
             _ => "invalid"
         };
     }

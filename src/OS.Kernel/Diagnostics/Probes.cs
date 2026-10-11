@@ -162,6 +162,12 @@ public static partial class Probes
     public const bool EnableM07VirtioNetProbe = false;
 #endif
 
+#if M07_ARP_RECEIVE_PROBE
+    public const bool EnableM07ArpReceiveProbe = true;
+#else
+    public const bool EnableM07ArpReceiveProbe = false;
+#endif
+
 #if M06_GPT_PARTITION_PROBE
     public const bool EnableM06GptPartitionProbe = true;
 #else

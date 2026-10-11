@@ -1909,6 +1909,7 @@ sealed class RunnerOptions
 
     public bool PciBarTestDevice { get; private set; }
     public bool VirtioNegotiationDevice { get; private set; }
+    public bool ArpReceiveFixture { get; private set; }
     public string? EthernetCapturePath { get; private set; }
     public bool VirtioBlockQueueDevice { get; private set; }
     public string? VirtioBlockBootImagePath { get; private set; }
@@ -2011,6 +2012,10 @@ sealed class RunnerOptions
                     if (options.EthernetCapturePath.IndexOfAny([',', '\r', '\n']) >= 0 || File.Exists(options.EthernetCapturePath))
                         throw new ArgumentException("--ethernet-capture requires a fresh file path without QEMU option separators.");
                     break;
+                case "--arp-receive-fixture":
+                    if (options.ArpReceiveFixture) throw new ArgumentException("--arp-receive-fixture may be specified only once.");
+                    options.ArpReceiveFixture = true;
+                    break;
                 case "--virtio-block-boot-image":
                     if (options.VirtioBlockBootImagePath is not null) throw new ArgumentException("--virtio-block-boot-image may be specified only once.");
                     options.VirtioBlockBootImagePath = RequireNonEmpty(ReadValue(args, ref i, arg), arg);
@@ -2079,6 +2084,8 @@ sealed class RunnerOptions
             throw new ArgumentException("Dedicated PCI test devices cannot share slot 6.");
         if (options.EthernetCapturePath is not null && !options.VirtioNegotiationDevice)
             throw new ArgumentException("--ethernet-capture requires the dedicated modern network fixture.");
+        if (options.ArpReceiveFixture && (!options.VirtioNegotiationDevice || options.EthernetCapturePath is null))
+            throw new ArgumentException("--arp-receive-fixture requires the captured dedicated modern network fixture.");
         return options;
     }
 

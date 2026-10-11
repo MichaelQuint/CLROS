@@ -1,5 +1,13 @@
 # Networking
 
+The #141–#144 / #635 receive-and-ARP batch is implemented but unqualified in
+[step1163](../done/step1163.md). Default-off `EnableM07ArpReceiveProbe` follows
+the original fixed-frame profile with one fresh TX/RX lifetime. It validates a
+modern 12-byte no-offload header, matches one ARP reply, and updates a caller-owned
+two-entry neighbor cache. Expiry, unresolved timeout and replacement remain
+explicit bounded controls. Full-host, native and real guest qualification are
+pending; this adds no continuing receive loop or timers.
+
 The bounded #136â€“#140 batch is qualified in [step1162](../done/step1162.md):
 4,422 full-host checks, linked native ABI/stack review, a 168-record guest receipt
 and an independent exact 60-byte frame in QEMU libpcap pass. The default-off

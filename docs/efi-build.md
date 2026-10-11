@@ -1,5 +1,19 @@
 # EFI Build
 
+## Bounded ARP receive profile under qualification
+
+Default-off `--EnableM07ArpReceiveProbe` requires `--EnableM07VirtioNetProbe`
+and its complete Diagnostic prerequisite chain. After the original fixed-frame
+receipt, epoch208 owns a fresh one-page RX/TX lifetime, transmits one padded ARP
+request and receives one matching reply. Reset, bus-master disable and a fence
+precede local staging; descriptor/DMA reclamation precedes caller publication.
+The original allocator, command and canaries must remain intact. The explicit
+15-source closure reuses address/ARP/endian primitives. Native addresses retain
+typed equality; managed object equality/hash overrides are excluded from the
+no-stdlib build, producing four expected CS0660/CS0661 shell warnings.
+[Step1163](../done/step1163.md) records focused checks only; linked native stack/ABI
+review and full-host/guest qualification are pending.
+
 ## Bounded Virtio-net profile
 
 Default-off `--EnableM07VirtioNetProbe` requires the explicit original M05

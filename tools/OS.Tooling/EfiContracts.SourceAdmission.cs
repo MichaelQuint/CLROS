@@ -3,6 +3,21 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+                [@"..\OS.Kernel\Drivers\VirtioNetHeader.cs"] = "reviewed_arp_receive_source_identity",
+                [@"..\OS.Kernel\Drivers\VirtioNetReceiveFrameClassifier.cs"] = "reviewed_arp_receive_source_identity",
+                [@"..\OS.Kernel\Drivers\VirtioNetHeaderChecksumPolicy.cs"] = "reviewed_arp_receive_source_identity",
+                [@"..\OS.Kernel\Drivers\EthernetFrameItExistingClassifier.cs"] = "reviewed_arp_receive_source_identity",
+                [@"..\OS.Kernel\Net\PacketParseStatus.cs"] = "reviewed_arp_receive_source_identity",
+                [@"..\OS.Kernel\Net\MacAddress.cs"] = "reviewed_arp_receive_source_identity",
+                [@"..\OS.Kernel\Net\Ipv4Address.cs"] = "reviewed_arp_receive_source_identity",
+                [@"..\OS.Kernel\Net\EthernetHeader.cs"] = "reviewed_arp_receive_source_identity",
+                [@"..\OS.Kernel\Net\EthernetPayloadKind.cs"] = "reviewed_arp_receive_source_identity",
+                [@"..\OS.Kernel\Net\ArpPacket.cs"] = "reviewed_arp_receive_source_identity",
+                [@"..\OS.Kernel\Net\ArpNeighborCache.cs"] = "reviewed_arp_receive_source_identity",
+                [@"..\OS.Kernel\Net\ArpNeighborResolutionTransaction.cs"] = "reviewed_arp_receive_source_identity",
+                [@"..\OS.Kernel\Net\ARPRequestReplyBoundedNeighborCache.cs"] = "reviewed_arp_receive_source_identity",
+                [@"..\OS.Kernel\Net\ARPExpiryUnresolvedNeighborTimeoutCacheReplacementTests.cs"] = "reviewed_arp_receive_source_identity",
+                [@"..\..\std\no-runtime\shared\Binary\EndianPrimitives.cs"] = "reviewed_arp_receive_source_identity",
                 [@"..\OS.Kernel\Drivers\LiveVirtioNetPCIDevice.cs"] = "reviewed_bounded_net_source_identity",
                 [@"..\OS.Kernel\Drivers\MinimalNoOffloadNoGSONoMergeableBuffer.cs"] = "reviewed_bounded_net_source_identity",
                 [@"..\OS.Kernel\Drivers\Queue.cs"] = "reviewed_bounded_net_source_identity",

@@ -2,7 +2,10 @@ namespace OS.Net;
 
 using OS.Std.Binary;
 
-public readonly struct Ipv4Address : IEquatable<Ipv4Address>
+public readonly struct Ipv4Address
+#if !NOSTDLIB_EFI
+    : IEquatable<Ipv4Address>
+#endif
 {
     private readonly uint _wireValue;
 
@@ -55,6 +58,7 @@ public readonly struct Ipv4Address : IEquatable<Ipv4Address>
         return _wireValue == other._wireValue;
     }
 
+#if !NOSTDLIB_EFI
     public override bool Equals(object? obj)
     {
         return obj is Ipv4Address other && Equals(other);
@@ -64,6 +68,7 @@ public readonly struct Ipv4Address : IEquatable<Ipv4Address>
     {
         return _wireValue.GetHashCode();
     }
+#endif
 
     public static bool operator ==(Ipv4Address left, Ipv4Address right)
     {
