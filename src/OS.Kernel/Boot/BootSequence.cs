@@ -294,6 +294,18 @@ public static class BootSequence
                 owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
             : default;
 
+    public static bool IsFrameDispatchEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04FrameDispatchProbe;
+
+    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunFrameDispatchUnwind(
+        OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping,
+        byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity,
+        byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
+        IsFrameDispatchEnabled()
+            ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
+                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, capture, mapping,
+                owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
+            : default;
+
     // Runs only after the original owned diagnostics and allocator/ACPI checks.
     // The adapter authenticates its state and halts on every return.
     public static unsafe bool RunOwnedAcpiSelection(

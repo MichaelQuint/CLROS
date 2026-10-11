@@ -24,14 +24,19 @@ internal static class RuntimeExceptionTypePredicateBindingTests
             HostCheck.True(calls.SequenceEqual(new[] { "RuntimeFailFast.Halt" }), "unselected export remains terminal " + symbol);
             HostCheck.True(method.DescendantNodes().OfType<ReturnStatementSyntax>().Single().Expression!.ToString() == "false");
         }
-        var withoutShell = Export("M04_UNHANDLED_EXCEPTION_PROBE");
-        HostCheck.True(withoutShell.DescendantNodes().OfType<InvocationExpressionSyntax>().Single().Expression.ToString() == "RuntimeFailFast.Halt");
+        foreach(string symbol in new[]{"M04_UNHANDLED_EXCEPTION_PROBE","M04_FRAME_DISPATCH_PROBE"})
+        {
+            var withoutShell = Export(symbol);
+            HostCheck.True(withoutShell.DescendantNodes().OfType<InvocationExpressionSyntax>().Single().Expression.ToString() == "RuntimeFailFast.Halt");
+        }
     }
 
     [HostTest("runtime.exception-predicate.export-argument-contract")]
     private static void ExportArgumentContract()
     {
-        var method = Export("NOSTDLIB_EFI", "M04_UNHANDLED_EXCEPTION_PROBE");
+        foreach(string symbol in new[]{"M04_UNHANDLED_EXCEPTION_PROBE","M04_FRAME_DISPATCH_PROBE"})
+        {
+        var method = Export("NOSTDLIB_EFI", symbol);
         HostCheck.True(method.ReturnType.ToString() == "bool" && method.ParameterList.Parameters.Count == 2);
         HostCheck.True(method.ParameterList.Parameters[0].Type!.ToString() == "Internal.Runtime.MethodTable*" &&
             method.ParameterList.Parameters[0].Identifier.Text == "targetType" &&
@@ -43,5 +48,6 @@ internal static class RuntimeExceptionTypePredicateBindingTests
             call.ArgumentList.Arguments[1].Expression.ToString() == "value", "target/object order must match the native helper ABI");
         HostCheck.True(method.AttributeLists.ToFullString().Contains("RuntimeExport(\"RhTypeCast_IsInstanceOfException\")", StringComparison.Ordinal));
         HostCheck.True(method.Body!.Statements.Count == 1 && method.Body.Statements[0] is ReturnStatementSyntax);
+        }
     }
 }

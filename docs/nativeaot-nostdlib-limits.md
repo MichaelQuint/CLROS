@@ -109,13 +109,23 @@ tail. Filters, group markers and ambiguous/reversed/crossing ranges are rejected
 A separate two-cleanup bridge passes instruction/ABI controls while existing
 catch/finally/rethrow object identities remain unchanged.
 
+The separate default-off `EnableM04FrameDispatchProbe` implements one returning
+finally from a strictly earlier physical frame and an outer typed catch, using
+different nonvolatile GP/XMM contexts and the actual catch-produced continuation.
+It retains the original rooted object and registered module throughout transfer,
+with registered mutable authority for its fixed cleanup scratch. The finite
+profile is qualified in [step1171](../done/step1171.md): 4,488 full-host checks,
+final native review, three 88-record frame guests and seven ancestors. Step1170
+retains development geometry and callback review. General second-pass unwinding,
+filters, collided exceptions and arbitrary rethrow remain incomplete.
+
 The separate default-off `EnableM04UnhandledExceptionProbe` has measured
 10/46/56-byte thrower/middle/catcher contributions, a nonmatching sibling clause
 and a profile-only real type-test export. Original context/module/root authority
 remains mandatory. It terminates the first pass at three bounded frames without
 second-pass cleanup. [Step1169](../done/step1169.md) qualifies 4,473 full-host
 checks, native review, three 73-record expected-terminal guests and six
-ancestors with source/process/image association. Positive multi-frame dispatch,
+ancestors with source/process/image association. General multi-frame dispatch,
 general EH and constructor cached failures remain incomplete; step1168 retains
 development evidence.
 

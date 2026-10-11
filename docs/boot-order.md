@@ -1,5 +1,12 @@
 # Boot Order
 
+`RunFrameDispatchUnwind` is gated by `EnableM04FrameDispatchProbe` and returns
+a zero result when disabled. The separate collecting-GC Diagnostic child uses
+the existing boot order and retains original module, root and stack authority
+through the real outer continuation. [Step1171](../done/step1171.md) qualifies
+the finite profile with 4,488 full-host checks, final native review, three
+88-record frame guests and seven ancestors. General EH and Gate4 remain open.
+
 `RunUnhandledExceptionUnwind` is gated by the default-off unhandled probe and
 reuses the accepted single-frame service after the collecting GC diagnostic.
 The child terminates its first pass before ordinary `boot.sequence`; it adds no

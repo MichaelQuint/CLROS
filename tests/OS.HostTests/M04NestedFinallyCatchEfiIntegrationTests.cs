@@ -20,7 +20,7 @@ internal static class M04NestedFinallyCatchEfiIntegrationTests
             !Probes.EnableM04NestedFinallyCatchProbe && !BootSequence.IsNestedFinallyCatchEnabled());
         var probe = Probes.GetM04NestedFinallyCatchProbe();
         HostCheck.True(probe.Name == Flag && !probe.EnabledByDefault && probe.Risk == ProbeRisk.Destructive);
-        HostCheck.True(Probes.ProbeCatalogCount == 42 && Probes.TryGetProbe(40,out var last) && last.Name == Flag);
+        HostCheck.True(Probes.ProbeCatalogCount == 43 && Probes.TryGetProbe(40,out var last) && last.Name == Flag);
         var result = BootSequence.RunNestedFinallyCatchUnwind(default,default,null,0,0,null,0,null,0,default);
         HostCheck.True(!result.Succeeded && result.Caller.Rip == 0 && result.Caller.Rsp == 0);
         var admission = EfiProjectAdmission.InspectStatic(Root);
@@ -36,7 +36,7 @@ internal static class M04NestedFinallyCatchEfiIntegrationTests
             var selected = EfiOptions.Parse(Arguments(Flags),build).Profile();
             HostCheck.True(Flags.All(selected.IsEnabled));
             foreach(string missing in Flags[..^1]) Reject([.. Arguments(Flags.Where(n=>n!=missing))],build);
-            foreach(string collision in new[]{"M04SimpleThrowCatch","M04SingleFinallyCatch","M04Rethrow","M04UnhandledException",
+            foreach(string collision in new[]{"M04SimpleThrowCatch","M04SingleFinallyCatch","M04Rethrow","M04UnhandledException","M04FrameDispatch",
                 "M04SeededCollectorChurn","M04ClassConstructorExecution","M04InterfaceDispatch","M04X64UnwindMetadata"})
                 Reject(Arguments([..Flags,collision]),build);
             Reject(["--boot-policy","VerifiedExit",..Arguments(Flags)],build);

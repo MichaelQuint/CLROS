@@ -30,11 +30,18 @@ Visual Studio 2026 Insiders and dotnet host builds pass.
 
 ## Progress
 
+The #646-#648 bounded physical-frame dispatch batch is [qualified](done/step1171.md):
+4,488 full-host checks, final native review, three byte-identical 88-record frame
+guests and seven ancestor regressions pass at frozen source `7168906`. Its separate
+default-off profile executes one middle-frame cleanup, an outer typed catch and
+compiled continuation using distinct caller contexts and the original exception.
+General EH, constructor cached failures, #90 and Gate4 remain incomplete.
+
 The bounded frame-search/type-predicate/unhandled batch is [qualified](done/step1169.md):
 4,473 full-host checks, native review, three 73-record expected-terminal guests
 and six ancestor captures pass with independent source/process/image association.
 The default-off profile stops after three frames and one nonmatching catch.
-Positive multi-frame dispatch, general EH, constructor cached failures, #90 and
+General multi-frame dispatch, general EH, constructor cached failures, #90 and
 Gate4 remain incomplete.
 
 The bounded typed-search/two-cleanup EH batch is [qualified](done/step1167.md):

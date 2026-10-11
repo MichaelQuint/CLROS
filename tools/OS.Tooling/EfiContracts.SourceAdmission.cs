@@ -3,6 +3,8 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"..\OS.Kernel\Runtime\BoundedExceptionFrameDispatch.cs"] = "reviewed_frame_dispatch_source_identity",
+        [@"Runtime\ExceptionFrameDispatchProbe.cs"] = "reviewed_frame_dispatch_source_identity",
         [@"Runtime\ExceptionUnhandledProbe.cs"] = "reviewed_unhandled_source_identity",
         [@"Runtime\ExceptionTypePredicateBinding.cs"] = "reviewed_unhandled_source_identity",
         [@"..\OS.Kernel\Runtime\BoundedExceptionFrameSearch.cs"] = "reviewed_unhandled_source_identity",
