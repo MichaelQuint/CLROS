@@ -2138,6 +2138,17 @@ unproved; Gates3/4/5 remain **Fail**.
 
 ## Bounded throw/catch accepted scope
 
+The #658/#659/#660 contribution-catalog batch is in development on parent #90.
+The host producer joins exact ILC map lengths to all original COFF root/funclet
+frame endpoints, retains original input digests and checks EH payload hashes.
+Code node hashes precede local fixup resolution and are not raw COFF code hashes.
+Allocation-free lookup requires the reviewed original catalog extent, retained
+module/image/unwind authority and complete row/EH validation. Readonly bytes do
+not establish compiler provenance. [Step1182](../done/step1182.md) records focused
+development checks only; the catalog-backed physical-frame guest path, combined
+full-host qualification and native admission remain pending. #90 and Gate4 stay
+open.
+
 The default-off #582 child allocates a compiler-generated derived exception
 through the original allocator, retains its explicit receipt root through
 prethrow collection, then executes a non-inlined throw into a typed base-class

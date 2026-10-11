@@ -35,6 +35,7 @@
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)InterfaceDispatchThunkGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)ExceptionHandlingThunkGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)ExceptionFilterThunkGenerator.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)EhContributionCatalogGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(MSBuildThisFileFullPath)" />
   </ItemGroup>
 
@@ -42,7 +43,7 @@
           BeforeTargets="PrepareForBuild"
           Condition="'$(MSBuildProjectFullPath)' == '$(MSBuildThisFileDirectory)OS.X64TextSerializerGenerator.csproj'">
     <Error
-      Condition="'@(Compile-&gt;'%(Identity)', '|')' != 'Amd64CoffWriter.cs|CheckedReferenceBarrierThunkGenerator.cs|ExceptionFilterThunkGenerator.cs|ExceptionHandlingThunkGenerator.cs|InstructionPublicationSerializerGenerator.cs|InterfaceDispatchThunkGenerator.cs|Program.cs'"
+      Condition="'@(Compile-&gt;'%(Identity)', '|')' != 'Amd64CoffWriter.cs|CheckedReferenceBarrierThunkGenerator.cs|EhContributionCatalogGenerator.cs|ExceptionFilterThunkGenerator.cs|ExceptionHandlingThunkGenerator.cs|InstructionPublicationSerializerGenerator.cs|InterfaceDispatchThunkGenerator.cs|Program.cs'"
       Text="CLROS_M01_034_GENERATOR_FAILED compile_closure_mismatch actual=@(Compile-&gt;'%(Identity)', '|')" />
     <Error
       Condition="'@(ProjectReference)' != '' Or '@(Reference)' != '' Or '@(PackageReference)' != ''"

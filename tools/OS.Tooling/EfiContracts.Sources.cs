@@ -97,7 +97,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Runtime\CompilerInterfaceDispatch.cs"] = "fcab48599866752748409c9ef7b900b91341dc1f09620826009a789ed092f3dd",
                 [@"..\OS.Kernel\Runtime\ExceptionTypeMatch.cs"] = "b51523326e1ecaa87e20fe43f1fb7ab1b587fcbb3f3e7c28a7d2830d6d32146e",
                 [@"..\OS.Kernel\Runtime\X64FrameUnwind.cs"] = "b7cc8b10a5c1a0e819745d31e81b4915164645b17f172063522f32167afb3733",
-                [@"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs"] = "b01c67219c897cce58c756b72849a90f8032f10a222f0b4fe9e37e91bacc4d03",
+                [@"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs"] = "72cbfcad8f35c73c95d0e55870dc449afafe48c0ea2e4c2e17d8cdddac763dab",
                 [@"..\OS.Kernel\Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs"] = "12fac853b9dc2357d25315e4bedd0e43df0af76854079b7ae030bca36aed5253",
                 [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "78ea112879b4a53691d9cf286cffda85c4af2293186d235404e28357d8d9ea0f",
                 [@"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs"] = "88053c5a7a7c46aae39e0c68d03d3dd6ab83047640e3a22455148e53023a44fe",
