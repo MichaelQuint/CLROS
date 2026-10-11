@@ -126,8 +126,11 @@ Stages 2/14 prove local scalar/decoded-row rejection with no changed live
 capture or metadata. Stages 6/8 and their validators bind ordered cleanup
 side effects to the same live parent slot; catch and continuation retain the
 original exception receipt. The parser checks complete ancestor/frame/heap
-associations and rejects unselected, duplicated or trailing records. Development
-evidence and pending qualification are in [step1166](../done/step1166.md).
+associations and rejects unselected, duplicated or trailing records. Final
+qualification is in [step1167](../done/step1167.md): 4,456 full-host checks, native
+controls, three 89-record guests and five ancestor regressions. The annotation/
+digest follow-up has six focused checks and three byte-identical fresh guests.
+Development failures remain in step1166; general EH and Gate4 remain incomplete.
 
 Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 

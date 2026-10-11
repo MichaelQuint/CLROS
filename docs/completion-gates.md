@@ -211,8 +211,10 @@ acceptances changes a completion-gate status.
 The #638-#640 batch adds a separate default-off nested-finally diagnostic:
 four decoded physical clauses, a nonmatching sibling catch before a matching
 base catch, and two exceptional cleanups before compiled continuation. Its
-development guest and strict native mutation controls pass; full-host and final
-native/ancestor qualification remain pending in [step1166](../done/step1166.md).
+full-host gate passes 4,456 checks; strict native controls, three 89-record guests
+and five ancestor regressions pass in [step1167](../done/step1167.md). The later
+annotation/digest correction passes six focused checks and three fresh guests
+with identical EFI bytes. [Step1166](../done/step1166.md) retains development failures.
 This bounded one-method profile does not complete #90 or change Gate4.
 
 #579 adds a host-only decoder for pinned NativeAOT Windows EH clauses

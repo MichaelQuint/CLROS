@@ -9,9 +9,11 @@ runtime leaves. The separate 2,020-byte COFF object has 1,624 text bytes, a
 each relocated callback, the exact 222-byte compiled fixture, its 26-byte EH
 table and five unwind rows; the original catch/finally/rethrow objects retain
 their existing identities. Seven rehashed PE/object mutation controls reject
-wrong tables, method bytes, call targets and object bytes. Focused native and
-one development guest pass; full-host and final ancestor qualification are
-pending in [step1166](../done/step1166.md). #90 and Gate4 remain incomplete.
+wrong tables, method bytes, call targets and object bytes. The 4,456-check full
+gate, three 89-record guests and five ancestor regressions pass in
+[step1167](../done/step1167.md). An annotation/digest correction passes six focused
+groups, repeats native controls and produces three byte-identical fresh guests.
+Development failures remain in step1166; #90 and Gate4 remain incomplete.
 
 ## Qualified bounded ARP receive profile
 

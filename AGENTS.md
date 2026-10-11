@@ -48,7 +48,11 @@ with the original exception and checked parent-stack side effect. The bounded
 rethrow and post-firmware UC/WC/WB mapping profiles are accepted in
 `done/step1120.md`. Rethrow reaches the outer typed handler and compiled
 continuation with the same rooted exception. General EH and arbitrary rethrow
-remain incomplete. See
+remain incomplete. The #638–#640 default-off typed-search/two-cleanup profile is
+qualified in `done/step1167.md`: 4,456 full-host checks, native controls, three
+89-record guests and five ancestor regressions pass. An annotation/digest-only
+follow-up passes six focused checks and three fresh byte-identical guests.
+#90, constructor cached failures and Gate4 remain incomplete. See
 `docs/completion-gates.md` for each scope.
 Bounded modern Virtio block binding, feature negotiation, owned DMA layout and
 queue setup are accepted in `done/step1140.md`. One default-off sector read with

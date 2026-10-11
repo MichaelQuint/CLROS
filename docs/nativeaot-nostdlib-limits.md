@@ -109,9 +109,11 @@ tail. Filters, group markers and ambiguous/reversed/crossing ranges are rejected
 A separate two-cleanup bridge passes instruction/ABI controls while existing
 catch/finally/rethrow object identities remain unchanged. The default-off
 `EnableM04NestedFinallyCatchProbe` now links a measured 222-byte method, four
-clauses and five unwind rows. One development guest completes sibling nonmatch,
-base match, two cleanups, catch and compiled continuation. Full-host and final
-native/ancestor qualification remain pending in [step1166](../done/step1166.md).
+clauses and five unwind rows. Three 89-record guests complete sibling nonmatch,
+base match, two cleanups, catch and compiled continuation. The 4,456-check full
+gate, native controls and five ancestor regressions qualify the finite batch in
+[step1167](../done/step1167.md). Its annotation/digest follow-up passes six focused
+checks and three fresh guests with identical EFI bytes; step1166 retains failures.
 Module/root, stack, compiler-contribution and transfer authority remain caller
 obligations. [Step1165](../done/step1165.md) records the host leaves; #90 and
 Gate4 remain incomplete. General nested exceptions, filters and collided unwind
