@@ -112,7 +112,7 @@ public readonly struct VirtioNetHeader
         => ParseReceivedFrame(source, HeaderLengthWithoutMergeableBuffers);
 
     /// <summary>VERSION_1 RX uses a 12-byte header even without MRG_RXBUF.
-    /// With mergeable buffers disabled, the device must report num_buffers=1.</summary>
+    /// This bounded parser requires exactly one device-reported buffer.</summary>
     public static VirtioNetReceivedFrameParseResult TryParseModernReceivedFrameNoOffload(
         ReadOnlySpan<byte> source)
         => ParseReceivedFrame(source, ModernHeaderLength);

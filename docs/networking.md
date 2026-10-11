@@ -7,6 +7,9 @@ modern 12-byte no-offload header, matches one ARP reply, and updates a caller-ow
 two-entry neighbor cache. Expiry, unresolved timeout and replacement remain
 explicit bounded controls. Full-host, native and real guest qualification are
 pending; this adds no continuing receive loop or timers.
+Its separate receive negotiation selects VERSION_1+MRG_RXBUF solely to obtain
+the device-written buffer count on this QEMU backend. The driver posts one
+buffer and requires num_buffers=1; no multi-buffer assembly is implemented.
 
 The bounded #136â€“#140 batch is qualified in [step1162](../done/step1162.md):
 4,422 full-host checks, linked native ABI/stack review, a 168-record guest receipt

@@ -10,6 +10,13 @@ guest receipt. Loss, duplicates, reordering and altered fields fail validation.
 Replies admit 42–64 bytes with zero-only padding. The observed 64-byte reply
 matches [libslirp's zero-initialized reply buffer](https://qemu.googlesource.com/libslirp/+/dfe1229fc8f707f76b3f4d09078ab5e9b5817469/src/slirp.c#864).
 These fixture addresses do not implement device configuration or DHCP.
+The receive profile negotiates VERSION_1+MRG_RXBUF (0x100008000), still requiring
+num_buffers=1. Failed capture r04 demonstrates header0 under VERSION_1 alone.
+This matches the user-backend [QEMU receive path](https://raw.githubusercontent.com/qemu/qemu/master/hw/net/virtio-net.c)
+omitting the buffer-count store unless mergeable receive is negotiated; the
+[modern specification](https://docs.oasis-open.org/virtio/virtio/v1.2/virtio-v1.2.html#x1-2810004)
+requires count1. The driver retains that check and implements no assembly of
+multiple buffers. The parent fixed-TX profile retains VERSION_1-only negotiation.
 [Step1163](../done/step1163.md) records synthetic checks; real QEMU/OVMF capture
 and native/full-host qualification remain pending.
 

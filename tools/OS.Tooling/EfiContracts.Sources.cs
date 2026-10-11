@@ -8,10 +8,10 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                [@"..\OS.Kernel\Drivers\VirtioNetHeader.cs"] = "5987df145326802969dafc5692a97cc5c2e60b22abc907661ca2ff960b26d393",
+                [@"..\OS.Kernel\Drivers\VirtioNetHeader.cs"] = "c3854e7bb278d451611e827a2a82ac44f4c16633c4dae5adf7d1b9b619a6cd85",
                 [@"..\OS.Kernel\Drivers\VirtioNetReceiveFrameClassifier.cs"] = "cb04c050d3711c59d6a90d496f4985e8d10378a6ae9de026cc55a17259c43f31",
-                [@"..\OS.Kernel\Drivers\VirtioNetHeaderChecksumPolicy.cs"] = "46327f7fba4c962692d10b53044a47c26e42cd3fa9ba45382a4ccc1dd3e86dbd",
-                [@"..\OS.Kernel\Drivers\EthernetFrameItExistingClassifier.cs"] = "86683900df1672e32800968b4b7d610d296078fe01f8652e0ce27a91a2b55350",
+                [@"..\OS.Kernel\Drivers\VirtioNetHeaderChecksumPolicy.cs"] = "efbaa8c2f45766b8969c96bd9ca5d00ce6e2172d478717a0d287c28d16a455f3",
+                [@"..\OS.Kernel\Drivers\EthernetFrameItExistingClassifier.cs"] = "84f934735be3dde1617c9c46b2979fd98e3d2b7c05fdf62e3943562a85e2c4e9",
                 [@"..\OS.Kernel\Net\PacketParseStatus.cs"] = "591abfe308d05236a327c4807705948a290b0481c444c4cee114f100971632bc",
                 [@"..\OS.Kernel\Net\MacAddress.cs"] = "123c54488934c17d12ac57983aae2cd7408e3674999697216b3e331a8558fc5e",
                 [@"..\OS.Kernel\Net\Ipv4Address.cs"] = "0423e0ce8bbf3a1f13b05cdf00ceab8216aba0d3bb45f6ba38ae3fc08aa7fc3e",
@@ -25,7 +25,7 @@ public static partial class EfiContracts
                 [@"..\..\std\no-runtime\shared\Binary\EndianPrimitives.cs"] = "6cafd95987a125e60d08ab6ba885783a90da9514fe37974424a9806adea72558",
                 [@"..\OS.Kernel\Drivers\LiveVirtioNetPCIDevice.cs"] = "8d3ce2fc12c0acfb6b6c74071b2f2aa1eebcaa10cc571be5fbfee1eaa726f637",
                 [@"..\OS.Kernel\Drivers\MinimalNoOffloadNoGSONoMergeableBuffer.cs"] = "453ceae3dcf31a96bf4f14ef605ff31c674c83da1c8c30664e9d7c8e589922ba",
-                [@"..\OS.Kernel\Drivers\Queue.cs"] = "aeb2206a618548a6dcf48f782c7802805b17a114470348ea851ff163320dc47b",
+                [@"..\OS.Kernel\Drivers\Queue.cs"] = "c8d68b3a74e7790c72764bd25b11f7a1cd1c1ad41dd7179acf7a9fe70d751608",
                 [@"..\OS.Kernel\Drivers\FixedEthernetFrameReclaimDescriptors.cs"] = "15cc3ed352a7e1b70d15c0de56f4210b63ca4d9c70972dcc3076bf7a390cd26b",
                 [@"..\OS.Kernel\Storage\NativeManifestDisk.cs"] = "1e207b3310fab42259123a1411e2a95aad62d624edba5a163fcb7e981bf9aa72",
                 [@"..\OS.Kernel\Storage\APPPKGDisk.cs"] = "00453942c44c1134e3fefe0341aed675e8136daef55cdc8a767dc44e855c4c66",
@@ -68,8 +68,8 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Drivers\VirtqueuePowerTwoConstraintsIndexWidthNegotiatedMaximum.cs"] = "22022fb0a81fec7d89e71960137a909fe0998518565f98deeddb4041d55ae7e4",
                 [@"..\OS.Kernel\Drivers\VirtioPciModernRegisterMap.cs"] = "4a169747f11fda8d4d58b5c3a6e8e60901858555c95e7173e6a3d8defcf145c3",
                 [@"..\OS.Kernel\Drivers\VirtioPciCapabilities.cs"] = "53be92183aacc4cdaef36569dce5113e0f193ea5c77c8b4a61e31e71fba6c13a",
-                [@"..\OS.Kernel\Drivers\UnsupportedDeviceFeaturesFailedFEATURESOKState.cs"] = "9252ecf3f968df9e547f466de29867be74bbb95d743cb78c4900c0890d0914b0",
-                [@"..\OS.Kernel\Drivers\ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation.cs"] = "7b7eedde908586d1d346df1404c4e32e2f5cde5e373011f63b38b6ce6c3a5c22",
+                [@"..\OS.Kernel\Drivers\UnsupportedDeviceFeaturesFailedFEATURESOKState.cs"] = "60f572ebaa559d0af563940db95104362c410d686e32a9dc1297ea2379ac59d4",
+                [@"..\OS.Kernel\Drivers\ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation.cs"] = "b025dba969040f85a8de37a0f014e90e74f1754acce124e78a0d2e0547028f9b",
                 [@"..\OS.Kernel\Drivers\CommonNotifyISRDeviceConfigurationRegions.cs"] = "fd283fa2b6e3b86ffb0f73bae2a2c4dce53c2645ac4654f878eed97e23129adc",
                 [@"..\OS.Kernel\Drivers\ModernVirtioPCICapabilitiesLiveConfigurationSpace.cs"] = "07231386b562c3032f72b087938a51b2775cdc71d5072e7b2cd2d705e2f52664",
                 [@"..\OS.Kernel\Drivers\PageAlignedDMABuffersLifetimeOwnershipTracking.cs"] = "dc1cae865f61f981e8f2aaeb07b3ed44595b66d641271ae386a4168de23bbd54",

@@ -40,17 +40,27 @@ public static unsafe class ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation
         delegate* unmanaged<void*, ulong, byte, byte> write8)
         => RunCore(common, BoundedVirtioFeatures.Version1, resetReads, context, read32, write32, read8, write8, true);
 
+    /// <summary>Separate one-buffer net receive profile; does not relax Run or
+    /// RunBlock admission. No DRIVER_OK, queue or DMA action.</summary>
+    public static VirtioNegotiationResult RunNetReceive(VirtioMappedRegion common, uint resetReads,
+        void* context, delegate* unmanaged<void*, ulong, uint*, byte> read32,
+        delegate* unmanaged<void*, ulong, uint, byte> write32,
+        delegate* unmanaged<void*, ulong, byte*, byte> read8,
+        delegate* unmanaged<void*, ulong, byte, byte> write8)
+        => RunCore(common, BoundedVirtioFeatures.NetSingleBufferReceive, resetReads,
+            context, read32, write32, read8, write8, false, true);
+
     private static VirtioNegotiationResult RunCore(VirtioMappedRegion common, ulong requested, uint resetReads,
         void* context, delegate* unmanaged<void*, ulong, uint*, byte> read32,
         delegate* unmanaged<void*, ulong, uint, byte> write32,
         delegate* unmanaged<void*, ulong, byte*, byte> read8,
-        delegate* unmanaged<void*, ulong, byte, byte> write8, bool block)
+        delegate* unmanaged<void*, ulong, byte, byte> write8, bool block, bool receive = false)
     {
         if (!common.IsValid || common.Bytes < VirtioPciModernRegisterMap.CommonConfiguration.FirstLiveQueueSetupLength || (common.VirtualStart & 3) != 0 ||
             resetReads == 0 || resetReads > 1024 || read32 == null || write32 == null || read8 == null || write8 == null)
             return new(VirtioNegotiationStatus.InvalidAccess, 0, 0, 0, false, false);
         // Reject an unsupported caller profile before touching the device.
-        if (requested != BoundedVirtioFeatures.Version1)
+        if (requested != (receive ? BoundedVirtioFeatures.NetSingleBufferReceive : BoundedVirtioFeatures.Version1))
             return new(VirtioNegotiationStatus.UnsupportedFeatures, 0, 0, 0, false, false);
         ulong address = common.VirtualStart;
         byte status = 0;
@@ -74,9 +84,11 @@ public static unsafe class ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation
         }
         if (failure == VirtioNegotiationStatus.Success)
         {
-            var choice = block ? BoundedVirtioFeatures.SelectBlock(offered, out selected) :
+            var choice = receive ? BoundedVirtioFeatures.SelectNetReceive(offered, out selected) :
+                block ? BoundedVirtioFeatures.SelectBlock(offered, out selected) :
                 BoundedVirtioFeatures.Select(offered, requested, out selected);
-            if (choice != VirtioFeatureStatus.Success) failure = VirtioNegotiationStatus.MissingVersion1;
+            if (choice != VirtioFeatureStatus.Success) failure = choice == VirtioFeatureStatus.MissingReceiveBuffers
+                ? VirtioNegotiationStatus.UnsupportedFeatures : VirtioNegotiationStatus.MissingVersion1;
         }
         for (uint i = 0; failure == VirtioNegotiationStatus.Success && i < 2; i++)
             if (write32(context, address + 8, i) != 1 || write32(context, address + 12, (uint)(selected >> (int)(i * 32))) != 1)

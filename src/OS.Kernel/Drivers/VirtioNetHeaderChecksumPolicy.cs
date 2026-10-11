@@ -12,12 +12,12 @@ public struct VirtioNetHeaderChecksumPolicyResult
     public readonly bool Succeeded => Status == VirtioNetHeaderChecksumPolicyStatus.Success && Frame.Succeeded;
 }
 
-/// <summary>Bounded modern RX policy: VERSION_1 only, one buffer, no checksum
+/// <summary>Bounded modern RX policy: VERSION_1+MRG_RXBUF, one buffer, no checksum
 /// or segmentation offload. IPv4/UDP/TCP payload checksums remain the software
 /// protocol dispatcher's responsibility; ARP has no checksum field.</summary>
 public static class VirtioNetHeaderChecksumPolicy
 {
-    public const ulong AcceptedFeatures = 1UL << 32;
+    public const ulong AcceptedFeatures = BoundedVirtioFeatures.NetSingleBufferReceive;
 
     public static VirtioNetHeaderChecksumPolicyResult Validate(
         ulong negotiatedFeatures, ReadOnlySpan<byte> receiveBuffer)

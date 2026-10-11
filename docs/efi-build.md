@@ -13,6 +13,9 @@ typed equality; managed object equality/hash overrides are excluded from the
 no-stdlib build, producing four expected CS0660/CS0661 shell warnings.
 [Step1163](../done/step1163.md) records focused checks only; linked native stack/ABI
 review and full-host/guest qualification are pending.
+The separate receive negotiation selects VERSION_1+MRG_RXBUF and requires a
+single device-reported buffer. Original fixed-TX and block negotiation entry
+points retain their original feature admission. Header0 remains rejected.
 
 ## Bounded Virtio-net profile
 

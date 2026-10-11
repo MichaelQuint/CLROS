@@ -5,6 +5,7 @@ namespace OS.Tooling;
 // Reviewed guest protocol records. Each literal is owned once; inventories reuse it.
 public static class QemuContracts
 {
+    public const ulong M07ArpReceiveFeatures = 0x100008000;
 
     public const string M03TypedAdmissionRecord = "M03_TYPED_EBS_ADMISSION default=6 missingFunction=3 missingHandle=4 simulated=5 exited=5 readyDenied=5 readyPrepare=7 unchanged=1 calls=0";
     public const string M03TypedReadyRecord = "CLROS_M03_004_READY controlled=true realExitBootServices=false states=4 calls=4 reuse=4 reentry=1 mode=0";

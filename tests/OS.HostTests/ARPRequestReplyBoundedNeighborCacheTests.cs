@@ -24,7 +24,7 @@ internal static unsafe class ARPRequestReplyBoundedNeighborCacheTests
             {
                 f.State->ReceiveSource = source; f.State->OutputSentinel = destination;
                 r = ARPRequestReplyBoundedNeighborCache.Run(f.Common, f.Notify, 4, f.Pool, f.Access, 3, 3,
-                    1UL << 32, new(2,0,0,0,0,1), new(10,0,2,15), new(10,0,2,2), ref cache, 100, output);
+                    VirtioNetHeaderChecksumPolicy.AcceptedFeatures, new(2,0,0,0,0,1), new(10,0,2,15), new(10,0,2,2), ref cache, 100, output);
             }
             HostCheck.Equal(bad == -1, r.Succeeded);
             if (bad == -1)

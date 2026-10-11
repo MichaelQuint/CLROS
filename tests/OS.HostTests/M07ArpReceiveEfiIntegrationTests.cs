@@ -87,6 +87,10 @@ internal static unsafe class M07ArpReceiveEfiIntegrationTests
         string[] polling = M05VirtqueuePollingEfiIntegrationTests.Capture();
         ulong[] Parent(string prefix) => polling.Single(l => l.StartsWith(prefix + " ", StringComparison.Ordinal))
             .Split(' ')[2..].Select(v => Convert.ToUInt64(v[2..],16)).ToArray();
+        // Offer the receive feature while the original parent still selects
+        // VERSION_1 only. Keep both negotiated receipts independent.
+        ulong[] offered = Parent("M05_VIRTIO 7"); offered[0] |= 1UL << 15;
+        polling[Array.FindIndex(polling, l => l.StartsWith("M05_VIRTIO 7 ", StringComparison.Ordinal))] = Row("M05_VIRTIO 7", offered);
         ulong page = Parent("M05_QUEUE 2")[0], command = Parent("M05_VIRTIO 9")[1];
         ulong bar = Parent("M05_VIRTIO 0")[2], notify = Parent("M05_VIRTIO 1")[1];
         ulong[][] netRows = [
@@ -96,10 +100,10 @@ internal static unsafe class M07ArpReceiveEfiIntegrationTests
             [1526,2,1,1],[notify,notify+4,4,72],[1,0,0,1],[1,7,1,3],
             [1,1,1,command],Parent("M05_QUEUE 6"),[0xd24c49dd,60,0,12]
         ];
-        ulong[][] arpRows = [netRows[0],netRows[1],netRows[4],netRows[5],netRows[6],
-            [1,0,54,1],[12,1,0,0x100000000],[1,2,0x52550a000202,100],
+        ulong[][] arpRows = [netRows[0],[netRows[1][0],QemuContracts.M07ArpReceiveFeatures,11,1],netRows[4],netRows[5],netRows[6],
+            [1,0,54,1],[12,1,0,QemuContracts.M07ArpReceiveFeatures],[1,2,0x52550a000202,100],
             [0x12345678,42,0x87654321,60],[0x7f,2,42,1],netRows[12],[1,8,1,3],netRows[11],
-            [15,0x100000000,0x0a000202,0x0a00020f]];
+            [15,QemuContracts.M07ArpReceiveFeatures,0x0a000202,0x0a00020f]];
         string[] lines = [.. polling, .. QemuContracts.M07ArpReceiveMarkers.Skip(polling.Length)];
         foreach ((string prefix, ulong[][] rows) in new[] { ("M07_NET ",netRows), ("M07_ARP ",arpRows) })
             for (int stage = 0; stage < rows.Length; stage++)

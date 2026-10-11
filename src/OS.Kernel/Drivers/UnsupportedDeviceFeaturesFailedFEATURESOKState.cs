@@ -8,7 +8,8 @@ public enum VirtioFeatureStatus : byte
     MissingVersion1 = 3,
     InvalidStatus = 4,
     FeaturesRejected = 5,
-    DeviceFailed = 6
+    DeviceFailed = 6,
+    MissingReceiveBuffers = 7
 }
 
 /// <summary>Pure admission for the bounded VERSION_1-only feature profile.</summary>
@@ -16,6 +17,20 @@ public static class BoundedVirtioFeatures
 {
     public const ulong Version1 = 1UL << 32;
     public const ulong BlockReadOnly = 1UL << 5;
+    public const ulong NetSingleBufferReceive = Version1 | (1UL << 15);
+
+    /// <summary>Explicit receive profile. MRG_RXBUF makes the device write the
+    /// buffer count; the receive adapter still posts one buffer and rejects
+    /// any count other than one. No checksum/GSO/other optional feature.</summary>
+    public static VirtioFeatureStatus SelectNetReceive(ulong offered, out ulong selected)
+    {
+        selected = 0;
+        if ((offered & Version1) == 0) return VirtioFeatureStatus.MissingVersion1;
+        if ((offered & NetSingleBufferReceive) != NetSingleBufferReceive)
+            return VirtioFeatureStatus.MissingReceiveBuffers;
+        selected = NetSingleBufferReceive;
+        return VirtioFeatureStatus.Success;
+    }
 
     /// <summary>One modern block queue: VERSION_1 and RO when offered. All other
     /// device and transport features, including MQ, packed and event-index, are declined.</summary>

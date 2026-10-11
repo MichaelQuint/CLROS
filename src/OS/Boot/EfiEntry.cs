@@ -2408,7 +2408,7 @@ public static unsafe class EfiEntry
                 CommonNotifyISRDeviceConfigurationRegions.BindNotificationPage(regions[1], caps.NotifyConfiguration.Length,
                     start + 0x3000, out var notify) != VirtioRegionStatus.Success || binding.OriginalCommand != state->QueueCommand ||
                 (binding.OriginalCommand & 0x406) != 0x402 || !WriteArpRow(state, 0, binding.Identity, 0x600, binding.OriginalCommand, start)) return false;
-            var negotiated = MinimalNoOffloadNoGSONoMergeableBuffer.Negotiate(common, 1024, null, read, write32,
+            var negotiated = ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation.RunNetReceive(common, 1024, null, read, write32,
                 &ReadVirtioStatus, &WriteVirtioStatus);
             if (!negotiated.Succeeded || negotiated.Selected != VirtioNetHeaderChecksumPolicy.AcceptedFeatures ||
                 !WriteArpRow(state, 1, negotiated.Offered, negotiated.Selected, negotiated.DeviceStatus, 1) ||
@@ -2440,7 +2440,16 @@ public static unsafe class EfiEntry
             // QEMU's user-network ARP reply is 64 zero-padded Ethernet bytes.
             if (!result.Succeeded || pool.AllocatedMask != 0 || length < 54 || length > 76 ||
                 cache.TryLookup(new Ipv4Address(10,0,2,2), out var cached) != ArpNeighborCacheStatus.Success ||
-                cached.Entry.MacAddress != result.Reply.ResolvedMac || cached.Entry.LastUpdatedTick != 100 || cache.Count != 1) return false;
+                cached.Entry.MacAddress != result.Reply.ResolvedMac || cached.Entry.LastUpdatedTick != 100 || cache.Count != 1)
+            {
+                ulong failure = (ulong)r.Status | ((ulong)r.CleanupStatus << 8) |
+                    ((ulong)result.Receive.Classification.Status << 16) | ((ulong)result.Policy.Status << 24) |
+                    ((ulong)result.Request.Status << 32) | ((ulong)result.Reply.Status << 40) | ((ulong)result.Cache.Status << 48);
+                byte* header = (byte*)page + VirtioNetQueue.ReceiveBufferOffset;
+                _ = WriteArpRow(state, 14, failure, ((ulong)result.Receive.ReceiveUsedLength << 32) | length,
+                    pool.AllocatedMask, *(ushort*)header | ((ulong)*(ushort*)(header + 10) << 16));
+                return false;
+            }
             for (int i = 54; i < length; i++) if (received[i] != 0) return false;
             uint receiveCrc = OS.Std.Hash.Crc32.InitialState, transmitCrc = OS.Std.Hash.Crc32.InitialState;
             for (uint i = 12; i < length; i++) receiveCrc = OS.Std.Hash.Crc32.UpdateByte(receiveCrc, received[(int)i]);
@@ -2493,7 +2502,7 @@ public static unsafe class EfiEntry
 
         private static bool WriteArpRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d)
         {
-            if (stage > 13) return false;
+            if (stage > 14) return false; // E is failure-only; strict success admits 0..D.
             byte* text = stackalloc byte[96]; *(ulong*)text = 0x205052415f37304dUL; uint length = 8;
             text[length++] = (byte)(stage < 10 ? '0' + stage : 'A' + stage - 10);
             ulong* values = stackalloc ulong[4]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;

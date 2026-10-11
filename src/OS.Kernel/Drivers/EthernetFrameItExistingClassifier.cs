@@ -13,7 +13,7 @@ public struct EthernetFrameReceiveResult
 /// <summary>One 60-byte TX trigger and one completed modern RX frame. A fresh
 /// exclusive page is reset and bus mastering disabled before caller storage is
 /// filled; uncertain cleanup retains backing and exposes no frame. No rearming,
-/// offload, mergeable buffers, interrupt receive, or continuing traffic.</summary>
+/// offload, multi-buffer assembly, interrupt receive, or continuing traffic.</summary>
 public static unsafe class EthernetFrameItExistingClassifier
 {
     public static EthernetFrameReceiveResult Run(VirtioMappedRegion common, VirtioMappedRegion notify,
