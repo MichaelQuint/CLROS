@@ -68,6 +68,12 @@ public static partial class Probes
     public const bool EnableM04RethrowProbe = false;
 #endif
 
+#if M04_NESTED_FINALLY_CATCH_PROBE
+    public const bool EnableM04NestedFinallyCatchProbe = true;
+#else
+    public const bool EnableM04NestedFinallyCatchProbe = false;
+#endif
+
 #if M05_OWNED_ACPI_SELECTION_PROBE
     public const bool EnableM05OwnedAcpiSelectionProbe = true;
 #else
@@ -181,7 +187,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 40;
+    public const int ProbeCatalogCount = 41;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -360,6 +366,11 @@ public static partial class Probes
         new("runtime.exception", nameof(EnableM04RethrowProbe),
             EnableM04RethrowProbe, ProbeRisk.Destructive,
             "Opts into one compiler rethrow from inner catch to outer handler; transfer requires measured admission.");
+
+    public static ProbeDefinition GetM04NestedFinallyCatchProbe() =>
+        new("runtime.exception", nameof(EnableM04NestedFinallyCatchProbe),
+            EnableM04NestedFinallyCatchProbe, ProbeRisk.Destructive,
+            "Opts into two nested compiler cleanups and typed catch search; transfer requires measured admission.");
 
     public static ProbeDefinition GetM05OwnedAcpiSelectionProbe() =>
         new("platform.acpi-selection", nameof(EnableM05OwnedAcpiSelectionProbe),
@@ -663,6 +674,9 @@ public static partial class Probes
                 return true;
             case 28:
                 definition = GetM05MonotonicClockProbe();
+                return true;
+            case 40:
+                definition = GetM04NestedFinallyCatchProbe();
                 return true;
             default:
                 definition = default;

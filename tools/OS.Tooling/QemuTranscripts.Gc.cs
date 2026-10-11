@@ -51,6 +51,41 @@ public static partial class QemuTranscripts
     }
 
     public static void AssertM04SimpleCatchRecords(IReadOnlyList<string> lines, IReadOnlyList<string> gcLines, IReadOnlyDictionary<string, ulong> heap) => AssertCatchRecords(lines, gcLines, heap, false);
+    public static void AssertM04NestedFinallyRecords(IReadOnlyList<string> lines, IReadOnlyList<string> gcLines, IReadOnlyDictionary<string,ulong> heap)
+    {
+        const string reason="m04_nested_finally";
+        Need(lines.Count==19 && lines[0]=="TEST_START m04.021.nested-finally" &&
+            lines[17]=="TEST_PASS m04.021.nested-finally" && lines[18]=="CLROS_M04_NESTED_FINALLY_READY",reason+"_count");
+        int[] stages=[0,1,2,14,3,4,5,6,7,8,9,10,11,12,13,15];
+        var rows=stages.Select((stage,i)=>(stage,values:ReadHexRecord(lines[i+1],"M04_NESTED "+stage,4))).ToDictionary(p=>p.stage,p=>p.values);
+        var image=ReadHexRecord(gcLines[0],"M04_GC_ROOT 0",4); var module=ReadHexRecord(gcLines[1],"M04_GC_ROOT 1",4);
+        var stack=ReadHexRecord(gcLines[2],"M04_GC_ROOT 7",4); var canaries=ReadHexRecord(gcLines[7],"M04_GC_ROOT 8",4);
+        var bind=rows[0];var obj=rows[1];var rejected=rows[2];var frames=rows[3];var match=rows[4];var plan=rows[5];
+        var caught=rows[10];var resume=rows[11];var continued=rows[12];var check=rows[13];var last=rows[15];
+        decimal end=(decimal)image[0]+image[1], method=(decimal)frames[2]-32;
+        Need(bind[0]==module[3] && bind[1]%8==0 && bind[1]>=image[0] && (decimal)bind[1]+65536<=end &&
+            bind[2] is >=288 and <65536 && bind[3] is >0 and <=2048 && bind[2]>=288+12*(decimal)bind[3],reason+"_snapshot");
+        Need(obj[0]%8==0 && obj[0]>=(decimal)heap["retainedStart"]+8 && (decimal)obj[0]+16<=heap["retainedEnd"] &&
+            obj[2]==9 && obj[3]==3 && obj[1]%8==0 && obj[1]>=image[0] && (decimal)obj[1]+24<=end,reason+"_original_receipt");
+        Need(method>=image[0] && method+222<=end && (decimal)frames[0]-9>=image[0] && (decimal)frames[0]+1<=end,reason+"_code_range");
+        Need(rejected[0]==frames[0] && rejected[1]==(frames[0]^1UL) && rejected[2]==frames[1] && rejected[3]==0 &&
+            rows[14][0]==(ulong)OS.Kernel.Runtime.BoundedExceptionDispatchStatus.InvalidClause && rows[14].Skip(1).All(v=>v==0),reason+"_local_rejection");
+        Need(match.SequenceEqual(new ulong[]{1,0,1,1}),reason+"_typed_search");
+        Need(frames[3]==(decimal)frames[1]+48 && plan[0]==method+101 && plan[1]==method+130 &&
+            plan[2]==method+180 && plan[3]==(decimal)frames[3]+40 && resume[0]==method+73 && resume[1]==frames[3] &&
+            resume[2]==(decimal)frames[3]+64 && resume[3]==1,reason+"_compiled_frame_association");
+        foreach(var (at,length) in new (decimal,decimal)[]{((decimal)frames[1]-864,864),(frames[3],88),(check[1],8)})
+            Need(at%8==0 && at>=(decimal)stack[0]+16400 && at+length<=stack[2],reason+"_stack_range");
+        ulong seed=(module[3]^heap["backing"])&0xffff;
+        for(int ordinal=1;ordinal<=2;ordinal++)
+        {
+            var cleanup=rows[ordinal==1?6:8];var validated=rows[ordinal==1?7:9];
+            Need(cleanup[0]==obj[0] && cleanup[1]==plan[3] && cleanup[2]==seed+1+(ulong)ordinal && cleanup[3]==(ulong)ordinal &&
+                validated[0]==plan[0] && validated[1]==plan[1] && validated[2]==cleanup[1] && validated[3]==cleanup[2],reason+"_cleanup_order");
+        }
+        Need(caught.SequenceEqual(new[]{obj[0],seed,seed+3,1UL}) && continued.SequenceEqual(new[]{obj[0],seed,seed+1,1UL}) &&
+            check[0]==10 && check[2]==canaries[1] && check[3]==canaries[2] && last.SequenceEqual(new[]{obj[0],obj[1],module[3],obj[2]}),reason+"_execution_identity");
+    }
     public static void AssertM04SingleFinallyRecords(IReadOnlyList<string> lines, IReadOnlyList<string> gcLines, IReadOnlyDictionary<string, ulong> heap) => AssertCatchRecords(lines, gcLines, heap, true);
     private static void AssertCatchRecords(IReadOnlyList<string> lines, IReadOnlyList<string> gcLines, IReadOnlyDictionary<string, ulong> heap, bool hasFinally)
     {

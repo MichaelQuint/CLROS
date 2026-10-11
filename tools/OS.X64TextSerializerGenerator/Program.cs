@@ -10,7 +10,8 @@ internal static class Program
 
     private static int Main(string[] args)
     {
-        string testName = Array.IndexOf(args, "--rethrow-inner") >= 0 || Array.IndexOf(args, "--rethrow-outer") >= 0
+        string testName = Array.IndexOf(args, "--nested-finally-catch") >= 0 ? "m04.021.nested-finally.thunk.generate"
+            : Array.IndexOf(args, "--rethrow-inner") >= 0 || Array.IndexOf(args, "--rethrow-outer") >= 0
             ? "m04.021.rethrow.thunk.generate"
             : Array.IndexOf(args, "--single-finally-catch") >= 0 ? "m04.021.finally.thunk.generate"
             : Array.IndexOf(args, "--simple-throw-catch") >= 0 ? "m04.021.thunk.generate"
@@ -35,7 +36,9 @@ internal static class Program
 
         byte[] objectBytes;
         CoffWriteError generationError;
-        bool generated = parseResult.RethrowMode != 0
+        bool generated = parseResult.NestedFinallyCatch
+            ? TryGenerateNestedFinally(out objectBytes, out generationError)
+            : parseResult.RethrowMode != 0
             ? TryGenerateRethrow(parseResult.RethrowMode == 2, out objectBytes, out generationError)
             : parseResult.SingleFinallyCatch
             ? TryGenerateSingleFinallyCatch(out objectBytes, out generationError)
@@ -63,11 +66,21 @@ internal static class Program
 
         string hash = Convert.ToHexString(SHA256.HashData(objectBytes));
         string ready = parseResult.RethrowMode != 0 ? "M04_RETHROW_THUNK_READY role=" + (parseResult.RethrowMode == 2 ? "outer" : "inner") : parseResult.SingleFinallyCatch ? "M04_SINGLE_FINALLY_THUNK_READY" : parseResult.SimpleThrowCatch ? "M04_SIMPLE_CATCH_THUNK_READY" : parseResult.InterfaceDispatch ? "M04_INTERFACE_DISPATCH_THUNK_READY" : parseResult.CheckedReferences ? "M04_CHECKED_REFERENCE_THUNKS_READY" : "X64_SERIALIZER_OBJECT_READY";
+        if (parseResult.NestedFinallyCatch) ready = "M04_NESTED_FINALLY_THUNK_READY";
         Console.WriteLine(
             $"{ready} bytes={objectBytes.Length} " +
             $"sha256={hash} state={writeResult.State}");
         Console.WriteLine($"TEST_PASS {testName}");
         return 0;
+    }
+
+    private static bool TryGenerateNestedFinally(out byte[] objectBytes, out CoffWriteError error)
+    {
+        var definition = ExceptionHandlingThunkGenerator.DefineNestedFinally();
+        byte[] buffer = new byte[8192];
+        bool success = Amd64CoffWriter.TryWrite(in definition, buffer, true, true, out int written, out error);
+        objectBytes = success ? buffer.AsSpan(0, written).ToArray() : [];
+        return success;
     }
 
     private static bool TryGenerateRethrow(bool outer, out byte[] objectBytes, out CoffWriteError error)
@@ -143,10 +156,22 @@ internal static class Program
         bool simpleThrowCatch = false;
         bool singleFinallyCatch = false;
         int rethrowMode = 0;
+        bool nestedFinallyCatch = false;
 
         for (int index = 0; index < args.Length; index++)
         {
             string option = args[index];
+            if (option == "--nested-finally-catch")
+            {
+                if (nestedFinallyCatch) return CliParseResult.Fail("argument_duplicate");
+                if (rethrowMode != 0 || singleFinallyCatch || simpleThrowCatch || interfaceDispatch || checkedReferences)
+                    return CliParseResult.Fail("argument_mode_conflict");
+                nestedFinallyCatch = true;
+                continue;
+            }
+            if (nestedFinallyCatch && option is "--rethrow-inner" or "--rethrow-outer" or "--single-finally-catch" or
+                "--simple-throw-catch" or "--interface-dispatch" or "--checked-reference-barriers")
+                return CliParseResult.Fail("argument_mode_conflict");
             if (option is "--rethrow-inner" or "--rethrow-outer")
             {
                 int mode = option == "--rethrow-inner" ? 1 : 2;
@@ -221,7 +246,7 @@ internal static class Program
             return CliParseResult.Fail("arguments_missing");
         }
 
-        return new(true, outputRoot, outputFile, null, checkedReferences, interfaceDispatch, simpleThrowCatch, singleFinallyCatch, rethrowMode);
+        return new(true, outputRoot, outputFile, null, checkedReferences, interfaceDispatch, simpleThrowCatch, singleFinallyCatch, rethrowMode, nestedFinallyCatch);
     }
 
     private static bool TryResolveOutput(
@@ -495,7 +520,8 @@ internal static class Program
         bool InterfaceDispatch = false,
         bool SimpleThrowCatch = false,
         bool SingleFinallyCatch = false,
-        int RethrowMode = 0)
+        int RethrowMode = 0,
+        bool NestedFinallyCatch = false)
     {
         public static CliParseResult Fail(string errorCode) =>
             new(false, null, null, errorCode);

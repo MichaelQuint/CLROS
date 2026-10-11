@@ -1,5 +1,18 @@
 # EFI Build
 
+## Bounded nested-finally development profile
+
+`--EnableM04NestedFinallyCatchProbe` defaults false and requires the collecting
+GC Diagnostic chain used by the existing EH profiles. It excludes their other
+runtime leaves. The separate 2,020-byte COFF object has 1,624 text bytes, a
+272-byte POD transfer and an 856-byte Win64 frame. Strict verification binds
+each relocated callback, the exact 222-byte compiled fixture, its 26-byte EH
+table and five unwind rows; the original catch/finally/rethrow objects retain
+their existing identities. Seven rehashed PE/object mutation controls reject
+wrong tables, method bytes, call targets and object bytes. Focused native and
+one development guest pass; full-host and final ancestor qualification are
+pending in [step1166](../done/step1166.md). #90 and Gate4 remain incomplete.
+
 ## Qualified bounded ARP receive profile
 
 Default-off `--EnableM07ArpReceiveProbe` requires `--EnableM07VirtioNetProbe`

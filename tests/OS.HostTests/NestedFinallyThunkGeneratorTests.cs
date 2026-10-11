@@ -59,6 +59,23 @@ internal static class NestedFinallyThunkGeneratorTests
             File.WriteAllBytes(Path.Combine(folder, "nested.text.bin"), code);
             File.WriteAllLines(Path.Combine(folder, "definition.txt"),
                 [$"TextBytes={code.Length}", $"TextSha256={Convert.ToHexString(SHA256.HashData(code))}", $"Calls={string.Join(',',calls)}", "TransferBytes=272 FrameBytes=856"]);
+            string[] output = ["--output-root", folder, "--output-file", "nested.obj"];
+            string generated = ExceptionHandlingThunkGeneratorTests.Run(root, folder, "generate", [tool, "--nested-finally-catch", .. output]);
+            Need(generated.Contains("M04_NESTED_FINALLY_THUNK_READY", StringComparison.Ordinal) &&
+                generated.Contains("TEST_PASS m04.021.nested-finally.thunk.generate", StringComparison.Ordinal), "nested CLI markers");
+            byte[] obj = File.ReadAllBytes(Path.Combine(folder, "nested.obj"));
+            Need(BinaryPrimitives.ReadUInt16LittleEndian(obj) == 0x8664 &&
+                BinaryPrimitives.ReadUInt16LittleEndian(obj.AsSpan(2)) == 1 &&
+                BinaryPrimitives.ReadUInt32LittleEndian(obj.AsSpan(36)) == code.Length &&
+                BinaryPrimitives.ReadUInt32LittleEndian(obj.AsSpan(40)) == 60 && obj.AsSpan(60,code.Length).SequenceEqual(code),
+                "serialized exact definition text");
+            _ = ExceptionHandlingThunkGeneratorTests.Run(root, folder, "duplicate", [tool, "--nested-finally-catch", "--nested-finally-catch", .. output], 2);
+            foreach (string conflict in new[] {"--rethrow-inner", "--rethrow-outer", "--single-finally-catch", "--simple-throw-catch", "--interface-dispatch", "--checked-reference-barriers"})
+            {
+                _ = ExceptionHandlingThunkGeneratorTests.Run(root, folder, "conflict-before-"+conflict[2..], [tool, conflict, "--nested-finally-catch", .. output], 2);
+                _ = ExceptionHandlingThunkGeneratorTests.Run(root, folder, "conflict-after-"+conflict[2..], [tool, "--nested-finally-catch", conflict, .. output], 2);
+            }
+            File.WriteAllText(Path.Combine(folder, "object.txt"), $"Bytes={obj.Length} SHA256={Convert.ToHexString(SHA256.HashData(obj))}\n");
         });
     }
 }

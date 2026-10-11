@@ -117,6 +117,18 @@ before `TEST_PASS m05.001`. The C# parsers reject unselected claims and malforme
 or reordered records. [Step1120](../done/step1120.md) records full-host and
 guest qualification with independent image association.
 
+`EnableM04NestedFinallyCatchProbe` is a destructive, default-off diagnostic at
+catalogue index 40. It requires the collecting GC profile and excludes the
+other catch/finally/rethrow, constructor, dispatch, churn and unwind profiles.
+Its 89 application records include 19 child lines: start; stages
+0, 1, 2, 14, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15; pass; ready.
+Stages 2/14 prove local scalar/decoded-row rejection with no changed live
+capture or metadata. Stages 6/8 and their validators bind ordered cleanup
+side effects to the same live parent slot; catch and continuation retain the
+original exception receipt. The parser checks complete ancestor/frame/heap
+associations and rejects unselected, duplicated or trailing records. Development
+evidence and pending qualification are in [step1166](../done/step1166.md).
+
 Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 
 Normal exit is a separate boot policy, not an enabled diagnostic probe. All probe properties remain false. Its 79-record stream ends with the three M03-011 completion records followed by ordinary success, all after the positive owned checks. Explicit diagnostic profiles preserve their earlier record contracts and evidence limits.

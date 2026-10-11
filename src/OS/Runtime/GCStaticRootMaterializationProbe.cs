@@ -153,7 +153,9 @@ internal static unsafe partial class RhpNewFastAllocation
             GcLine(6, s_gcOperation, s_gcCalls, b->AllocationCount, b->UsedBytes);
             GcLine(8, s_gcStack.Checks, s_gcStack.Final0, s_gcStack.Final1, s_gcStack.MinimumWitness);
             RunCollectorGraph();
-#if M04_RETHROW_PROBE
+#if M04_NESTED_FINALLY_CATCH_PROBE
+            if (BootSequence.IsNestedFinallyCatchEnabled()) RunNestedFinallyCatch();
+#elif M04_RETHROW_PROBE
             if (BootSequence.IsRethrowEnabled()) RunRethrow();
 #elif M04_SINGLE_FINALLY_CATCH_PROBE
             if (BootSequence.IsSingleFinallyCatchEnabled()) RunSimpleThrowCatch();
@@ -243,7 +245,7 @@ internal static unsafe partial class RhpNewFastAllocation
     // share the collecting owner; the six-role reference diagnostic stays separate.
     private static ulong AllocateGcValue(ulong token)
     {
-#if M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE
+#if M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE || M04_NESTED_FINALLY_CATCH_PROBE
         if (s_gcPhase == 5) return AllocateCatchException(token);
 #endif
 #if M04_INTERFACE_DISPATCH_PROBE

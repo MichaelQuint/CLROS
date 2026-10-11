@@ -10,6 +10,7 @@
     <_ClrosInterfaceDispatchObjectName>CLROS.X64.InterfaceDispatch.obj</_ClrosInterfaceDispatchObjectName>
     <_ClrosSimpleCatchObjectName>CLROS.X64.SimpleThrowCatch.obj</_ClrosSimpleCatchObjectName>
     <_ClrosSingleFinallyObjectName>CLROS.X64.SingleFinallyCatch.obj</_ClrosSingleFinallyObjectName>
+    <_ClrosNestedFinallyObjectName>CLROS.X64.NestedFinallyCatch.obj</_ClrosNestedFinallyObjectName>
     <_ClrosRethrowOuterObjectName>CLROS.X64.RethrowOuter.obj</_ClrosRethrowOuterObjectName>
     <_ClrosRethrowInnerObjectName>CLROS.X64.RethrowInner.obj</_ClrosRethrowInnerObjectName>
     <_ClrosX64SerializerCanonicalSdkDirectory>$([System.IO.Path]::GetFullPath('$(MSBuildToolsPath)\.'))</_ClrosX64SerializerCanonicalSdkDirectory>
@@ -185,6 +186,9 @@
       Condition="'$(_ClrosSingleFinallyObjectName)' != 'CLROS.X64.SingleFinallyCatch.obj' Or '$(_ClrosSingleFinallyActualSha256)' != ''"
       Text="CLROS_M04_021_FINALLY_GENERATOR_FAILED object_contract_override" />
     <Error
+      Condition="'$(_ClrosNestedFinallyObjectName)' != 'CLROS.X64.NestedFinallyCatch.obj' Or '$(_ClrosNestedFinallyActualSha256)' != ''"
+      Text="CLROS_M04_021_NESTED_FINALLY_GENERATOR_FAILED object_contract_override" />
+    <Error
       Condition="'$(_ClrosRethrowOuterObjectName)' != 'CLROS.X64.RethrowOuter.obj' Or '$(_ClrosRethrowOuterActualSha256)' != ''"
       Text="CLROS_M04_021_RETHROW_OUTER_GENERATOR_FAILED object_contract_override" />
     <Error
@@ -226,6 +230,7 @@
       <_ClrosInterfaceDispatchObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosInterfaceDispatchObjectName)</_ClrosInterfaceDispatchObject>
       <_ClrosSimpleCatchObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosSimpleCatchObjectName)</_ClrosSimpleCatchObject>
       <_ClrosSingleFinallyObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosSingleFinallyObjectName)</_ClrosSingleFinallyObject>
+      <_ClrosNestedFinallyObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosNestedFinallyObjectName)</_ClrosNestedFinallyObject>
       <_ClrosRethrowOuterObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosRethrowOuterObjectName)</_ClrosRethrowOuterObject>
       <_ClrosRethrowInnerObject>$(_ClrosX64SerializerNativeIntermediateRoot)\$(_ClrosRethrowInnerObjectName)</_ClrosRethrowInnerObject>
       <ClrosX64InstructionPublicationMap>$(_ClrosX64SerializerNativeIntermediateRoot)\OS.link.map</ClrosX64InstructionPublicationMap>
@@ -272,6 +277,9 @@
     <Error
       Condition="'$(_ClrosSingleFinallyObject)' != '$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.SingleFinallyCatch.obj'"
       Text="CLROS_M04_021_FINALLY_GENERATOR_FAILED object_path_override" />
+    <Error
+      Condition="'$(_ClrosNestedFinallyObject)' != '$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.NestedFinallyCatch.obj'"
+      Text="CLROS_M04_021_NESTED_FINALLY_GENERATOR_FAILED object_path_override" />
     <Error
       Condition="'$(_ClrosRethrowOuterObject)' != '$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.RethrowOuter.obj'"
       Text="CLROS_M04_021_RETHROW_OUTER_GENERATOR_FAILED object_path_override" />
@@ -404,6 +412,24 @@
       <LinkerArg Include="/INCLUDE:RhpThrowEx" />
       <LinkerArg Include="/INCLUDE:CLROS_Eh_GetClauseTable" />
       <FileWrites Include="$(_ClrosSingleFinallyObject)" />
+    </ItemGroup>
+    <Exec Condition="'$(EnableM04NestedFinallyCatchProbe)' == 'true'"
+      Command="&quot;$(_ClrosX64SerializerToolExecutable)&quot; --nested-finally-catch --output-root &quot;$(_ClrosX64SerializerNativeIntermediateRoot)&quot; --output-file &quot;CLROS.X64.NestedFinallyCatch.obj&quot;"
+      ConsoleToMSBuild="true" IgnoreExitCode="false" Timeout="60000" />
+    <Error Condition="'$(EnableM04NestedFinallyCatchProbe)' == 'true' And !Exists('$(_ClrosNestedFinallyObject)')"
+      Text="CLROS_M04_021_NESTED_FINALLY_GENERATOR_FAILED object_missing" />
+    <GetFileHash Condition="'$(EnableM04NestedFinallyCatchProbe)' == 'true'"
+      Files="$(_ClrosNestedFinallyObject)" Algorithm="SHA256" HashEncoding="hex">
+      <Output TaskParameter="Hash" PropertyName="_ClrosNestedFinallyActualSha256" />
+    </GetFileHash>
+    <Error Condition="'$(EnableM04NestedFinallyCatchProbe)' == 'true' And '$(_ClrosNestedFinallyActualSha256)' != '94703A587D4D96CA9196C414BCFB6BAB5FE3B9321868F35767DB62E2937A2E07'"
+      Text="CLROS_M04_021_NESTED_FINALLY_GENERATOR_FAILED object_hash_mismatch" />
+    <ItemGroup Condition="'$(EnableM04NestedFinallyCatchProbe)' == 'true'">
+      <NativeLibrary Include="$(_ClrosNestedFinallyObject)" />
+      <LinkerArg Include="&quot;$(_ClrosNestedFinallyObject)&quot;" />
+      <LinkerArg Include="/INCLUDE:RhpThrowEx" />
+      <LinkerArg Include="/INCLUDE:CLROS_Nested_Clauses" />
+      <FileWrites Include="$(_ClrosNestedFinallyObject)" />
     </ItemGroup>
     <Exec Condition="'$(EnableM04RethrowProbe)' == 'true'"
       Command="&quot;$(_ClrosX64SerializerToolExecutable)&quot; --rethrow-outer --output-root &quot;$(_ClrosX64SerializerNativeIntermediateRoot)&quot; --output-file &quot;CLROS.X64.RethrowOuter.obj&quot;"

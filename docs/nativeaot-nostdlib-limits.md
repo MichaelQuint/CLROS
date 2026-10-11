@@ -106,12 +106,16 @@ at most four decoded physical clauses, typed catch search and two strictly
 nested exceptional cleanup targets. It reuses the admitted metadata reader and
 retained-object type matcher; no partial successful plan survives an invalid
 tail. Filters, group markers and ambiguous/reversed/crossing ranges are rejected.
-A separate two-cleanup bridge definition passes instruction/ABI controls while
-existing catch/finally/rethrow object identities remain unchanged. Neither leaf
-is linked into an EFI profile or accepted for guest execution yet. Module/root,
-stack, compiler-contribution and transfer authority remain caller obligations.
-See [step1165](../done/step1165.md) for focused development evidence; #90 and
-Gate4 remain incomplete.
+A separate two-cleanup bridge passes instruction/ABI controls while existing
+catch/finally/rethrow object identities remain unchanged. The default-off
+`EnableM04NestedFinallyCatchProbe` now links a measured 222-byte method, four
+clauses and five unwind rows. One development guest completes sibling nonmatch,
+base match, two cleanups, catch and compiled continuation. Full-host and final
+native/ancestor qualification remain pending in [step1166](../done/step1166.md).
+Module/root, stack, compiler-contribution and transfer authority remain caller
+obligations. [Step1165](../done/step1165.md) records the host leaves; #90 and
+Gate4 remain incomplete. General nested exceptions, filters and collided unwind
+remain unsupported.
 
 CLROS implements a bounded no-stdlib NativeAOT subset for the EFI shell and the
 optional allocation, collection, metadata and constructor probes described

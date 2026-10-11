@@ -82,6 +82,7 @@
 		<EnableM04SimpleThrowCatchProbe Condition="'$(EnableM04SimpleThrowCatchProbe)' == ''">false</EnableM04SimpleThrowCatchProbe>
 		<EnableM04SingleFinallyCatchProbe Condition="'$(EnableM04SingleFinallyCatchProbe)' == ''">false</EnableM04SingleFinallyCatchProbe>
 		<EnableM04RethrowProbe Condition="'$(EnableM04RethrowProbe)' == ''">false</EnableM04RethrowProbe>
+		<EnableM04NestedFinallyCatchProbe Condition="'$(EnableM04NestedFinallyCatchProbe)' == ''">false</EnableM04NestedFinallyCatchProbe>
 		<EnableM05PhysicalMappingProbe Condition="'$(EnableM05PhysicalMappingProbe)' == ''">false</EnableM05PhysicalMappingProbe>
 		<EnableM05OwnedAcpiSelectionProbe Condition="'$(EnableM05OwnedAcpiSelectionProbe)' == ''">false</EnableM05OwnedAcpiSelectionProbe>
 		<EnableM05MonotonicClockProbe Condition="'$(EnableM05MonotonicClockProbe)' == ''">false</EnableM05MonotonicClockProbe>
@@ -345,6 +346,9 @@
 	<PropertyGroup Condition="'$(EnableM04RethrowProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_RETHROW_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM04NestedFinallyCatchProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_NESTED_FINALLY_CATCH_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM05OwnedAcpiSelectionProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M05_OWNED_ACPI_SELECTION_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -446,6 +450,7 @@
 			'$(EnableM04LayoutContractProbe)' == 'true' or
 			'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' or
 			'$(EnableM04RethrowProbe)' == 'true' or
+			'$(EnableM04NestedFinallyCatchProbe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastProbe)' == 'true' or
@@ -687,6 +692,8 @@
 		<Compile Include="..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs" Link="Runtime\NativeAotEhClauseMetadata.cs" />
 		<Compile Include="Runtime\ExceptionCatchProbe.cs" />
 		<Compile Include="Runtime\ExceptionRethrowProbe.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\BoundedExceptionDispatchPlan.cs" Link="Runtime\BoundedExceptionDispatchPlan.cs" />
+		<Compile Include="Runtime\ExceptionNestedFinallyProbe.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
@@ -746,6 +753,7 @@
 			'$(EnableM04LayoutContractProbe)' == 'true' or
 			'$(EnableM04ManagedHeapPageRangeProbe)' == 'true' or
 			'$(EnableM04RethrowProbe)' == 'true' or
+			'$(EnableM04NestedFinallyCatchProbe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastProbe)' == 'true' or
@@ -1939,6 +1947,9 @@
 		<Error Condition="'$(EnableM04RethrowProbe)' != '' and '$(EnableM04RethrowProbe)' != 'true' and '$(EnableM04RethrowProbe)' != 'false'" Text="m04_rethrow_switch_invalid" />
 		<Error Condition="'$(EnableM04RethrowProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_rethrow_requires_gc_profile" />
 		<Error Condition="'$(EnableM04RethrowProbe)' == 'true' and ('$(EnableM04SeededCollectorChurnProbe)' == 'true' or '$(EnableM04ClassConstructorExecutionProbe)' == 'true' or '$(EnableM04InterfaceDispatchProbe)' == 'true' or '$(EnableM04X64UnwindMetadataProbe)' == 'true' or '$(EnableM04SimpleThrowCatchProbe)' == 'true' or '$(EnableM04SingleFinallyCatchProbe)' == 'true')" Text="m04_rethrow_profile_conflict" />
+		<Error Condition="'$(EnableM04NestedFinallyCatchProbe)' != '' and '$(EnableM04NestedFinallyCatchProbe)' != 'true' and '$(EnableM04NestedFinallyCatchProbe)' != 'false'" Text="m04_nested_finally_switch_invalid" />
+		<Error Condition="'$(EnableM04NestedFinallyCatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_nested_finally_requires_gc_profile" />
+		<Error Condition="'$(EnableM04NestedFinallyCatchProbe)' == 'true' and ('$(EnableM04SeededCollectorChurnProbe)' == 'true' or '$(EnableM04ClassConstructorExecutionProbe)' == 'true' or '$(EnableM04InterfaceDispatchProbe)' == 'true' or '$(EnableM04X64UnwindMetadataProbe)' == 'true' or '$(EnableM04SimpleThrowCatchProbe)' == 'true' or '$(EnableM04SingleFinallyCatchProbe)' == 'true' or '$(EnableM04RethrowProbe)' == 'true')" Text="m04_nested_finally_profile_conflict" />
 		<Error Condition="'$(EnableM04InterfaceDispatchProbe)' != '' and '$(EnableM04InterfaceDispatchProbe)' != 'true' and '$(EnableM04InterfaceDispatchProbe)' != 'false'" Text="m04_dispatch_switch_invalid" />
 		<Error Condition="'$(EnableM04InterfaceDispatchProbe)' == 'true' and '$(EnableM04ClassConstructorExecutionProbe)' != 'true'" Text="m04_dispatch_requires_cctor_profile" />
 	</Target>

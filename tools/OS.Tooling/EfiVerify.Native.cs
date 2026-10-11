@@ -117,6 +117,7 @@ internal sealed partial class EfiVerification
         }
         VerifyCatchBridge();
         VerifyRethrowBridges();
+        VerifyNestedFinallyBridge();
     }
     private void VerifyCatchBridge()
     {
@@ -129,7 +130,7 @@ internal sealed partial class EfiVerification
         if (!finallyProbe && !simple)
         {
             foreach (string name in names)
-                if (name != "RhpThrowEx" || !profile.IsEnabled("M04Rethrow"))
+                if (name != "RhpThrowEx" || !(profile.IsEnabled("M04Rethrow") || profile.IsEnabled("M04NestedFinallyCatch")))
                     Require(Symbols(map, name).Count == 0, "simple_catch_unrequested_native_symbol", name);
             return;
         }

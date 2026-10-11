@@ -138,6 +138,14 @@ commands retain their original provenance.
 
 ## Current Status
 
+The default-off `--EnableM04NestedFinallyCatchProbe` uses the collecting GC
+Diagnostic prerequisite chain shown for rethrow above; substitute this flag
+for `--EnableM04RethrowProbe`. Its strict 89-record stream adds sibling nonmatch,
+base match, two ordered exceptional cleanups, real catch and compiled
+continuation. Development execution passes, including local scalar/decoded-row
+negative controls. Final qualification remains pending in
+[step1166](../done/step1166.md); this does not complete general EH or Gate4.
+
 The maintained smoke commands are C# 14/.NET 10 services in `OS.Tooling`.
 Build the solution once, then use the already-built tooling for repeated checks:
 
