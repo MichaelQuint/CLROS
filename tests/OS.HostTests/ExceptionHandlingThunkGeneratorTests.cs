@@ -218,26 +218,32 @@ internal static class ExceptionHandlingThunkGeneratorTests
 
     internal static void VerifyTransfer(byte[] code, int failure, bool singleFinally = false, int finallyValidator = -1,
         int continuationValidator = 810, bool rethrow = false, int selector = 329,
-        bool nestedFinally = false, int secondFinallyValidator = -1)
+        bool nestedFinally = false, int secondFinallyValidator = -1, bool frameDispatch = false)
     {
         ulong[] g = Enumerable.Range(0,16).Select(i => 0x100000UL+(ulong)i).ToArray();
         byte[][] xmm = Enumerable.Range(0,16).Select(i => Enumerable.Repeat((byte)(i+1),16).ToArray()).ToArray();
         byte[] memory = new byte[8192];
         const ulong entry = 6008, rawRip = 0x180010009, continuation = 0x18002001b, exception = 0x700000;
-        ulong frame = entry-(nestedFinally ? 856UL : 840UL), selectedSp = entry+8+48;
-        ulong selectedOffset = nestedFinally ? 304UL : 288UL, postOffset = nestedFinally ? 544UL : 528UL;
-        ulong exceptionOffset = nestedFinally ? 784UL : 768UL, entryControl = nestedFinally ? 792UL : 776UL;
-        ulong postControl = nestedFinally ? 824UL : 808UL;
+        ulong frame = entry-(frameDispatch ? 1080UL : nestedFinally ? 856UL : 840UL);
+        ulong selectedSp = entry+8+(frameDispatch ? 128UL : 48UL), cleanupSp = entry+8+48;
+        ulong selectedOffset = nestedFinally ? 304UL : 288UL;
+        ulong cleanupOffset = frameDispatch ? 528UL : selectedOffset;
+        ulong postOffset = frameDispatch ? 768UL : nestedFinally ? 544UL : 528UL;
+        ulong exceptionOffset = frameDispatch ? 1008UL : nestedFinally ? 784UL : 768UL;
+        ulong entryControl = frameDispatch ? 1016UL : nestedFinally ? 792UL : 776UL;
+        ulong postControl = frameDispatch ? 1048UL : nestedFinally ? 824UL : 808UL;
         int expectedCleanups = nestedFinally ? 2 : singleFinally ? 1 : 0;
         g[4]=entry;g[1]=rethrow ? 0xDEADC0DEUL : exception;
         ulong[] original=(ulong[])g.Clone(), selected=(ulong[])g.Clone(), post=(ulong[])g.Clone();
         int[] nv=[3,5,6,7,12,13,14,15];
         byte[][] originalXmm=xmm.Select(x=>(byte[])x.Clone()).ToArray(), selectedXmm=xmm.Select(x=>(byte[])x.Clone()).ToArray();
+        ulong[] cleanupRegisters = (ulong[])selected.Clone();
+        byte[][] cleanupXmm = xmm.Select(x=>(byte[])x.Clone()).ToArray();
         ulong flags=failure==1?0x400UL:0UL,cr4=failure==2?1UL<<23:0UL;
         uint mxcsr=0x1F80;ushort x87=0x37F;bool zero=false;int ip=0,selectCalls=0,catchCalls=0,validateCalls=0,cleanupCalls=0,cleanupValidations=0;
         const ulong cleanupTarget=0x180020080, cleanupStamp=0xF1A11;
-        ulong parentLocal=selectedSp+24;
-        byte[]? selectedBytes=null;
+        ulong parentLocal=(frameDispatch ? cleanupSp : selectedSp)+24;
+        byte[]? selectedBytes=null, cleanupBytes=null;
         void Put(ulong at,ulong v)=>BinaryPrimitives.WriteUInt64LittleEndian(memory.AsSpan(checked((int)at),8),v);
         ulong Get(ulong at)=>BinaryPrimitives.ReadUInt64LittleEndian(memory.AsSpan(checked((int)at),8));
         int I32(int at)=>BinaryPrimitives.ReadInt32LittleEndian(code.AsSpan(at,4));
@@ -307,7 +313,20 @@ internal static class ExceptionHandlingThunkGeneratorTests
                     selected[5]=selectedSp+48;Put(frame+selectedOffset+24,selected[5]);
                     for(int r=6;r<16;r++){selectedXmm[r]=Enumerable.Repeat((byte)(0x40+r),16).ToArray();selectedXmm[r].CopyTo(memory,(int)(frame+selectedOffset+80)+(r-6)*16);}
                     selectedBytes=memory.AsSpan((int)(frame+selectedOffset),240).ToArray();
-                    g[0]=failure==3?0UL:1UL;
+                    if(frameDispatch)
+                    {
+                        Put(frame+cleanupOffset,0x18003002b);Put(frame+cleanupOffset+8,cleanupSp);
+                        for(int i=0;i<nv.Length;i++)
+                        {cleanupRegisters[nv[i]]=0xC1EA0000UL+(ulong)nv[i];Put(frame+cleanupOffset+16+(ulong)i*8,cleanupRegisters[nv[i]]);}
+                        cleanupRegisters[5]=cleanupSp+64;Put(frame+cleanupOffset+24,cleanupRegisters[5]);
+                        for(int r=6;r<16;r++)
+                        {cleanupXmm[r]=Enumerable.Range(0,16).Select(b=>(byte)(0x80+r+b)).ToArray();cleanupXmm[r].CopyTo(memory,(int)(frame+cleanupOffset+80)+(r-6)*16);}
+                        cleanupBytes=memory.AsSpan((int)(frame+cleanupOffset),240).ToArray();
+                        Need(selectedSp>cleanupSp && !selectedBytes.SequenceEqual(cleanupBytes),"distinct physical catch/cleanup contexts");
+                        foreach(int r in nv)g[r]=0xBAD50000UL+(ulong)r;
+                        for(int r=6;r<16;r++)xmm[r]=new byte[16];
+                    }
+                    g[0]=failure==3?(frameDispatch?2UL:0UL):1UL;
                 }
                 else if(singleFinally && (ip==finallyValidator || nestedFinally && ip==secondFinallyValidator))
                 {
@@ -317,6 +336,7 @@ internal static class ExceptionHandlingThunkGeneratorTests
                     Need(g[1]==frame+272&&g[2]==frame+entryControl&&g[8]==frame+postControl,"finally validator arguments");
                     Need(Get(parentLocal)==cleanupStamp+(ulong)cleanupCalls-1&&Get(frame+280)==cleanupTarget&&
                         memory.AsSpan((int)(frame+selectedOffset),240).SequenceEqual(selectedBytes),"parent local changed without changing selected context");
+                    if(frameDispatch)Need(memory.AsSpan((int)(frame+cleanupOffset),240).SequenceEqual(cleanupBytes),"cleanup context remains intact after funclet");
                     Need(Get(frame+postControl)==0&&Get(frame+postControl+8)==0&&
                         BinaryPrimitives.ReadUInt32LittleEndian(memory.AsSpan((int)(frame+postControl+16)))==0x1F81&&
                         BinaryPrimitives.ReadUInt16LittleEndian(memory.AsSpan((int)(frame+postControl+20)))==0x37F,"actual cleanup controls captured");
@@ -333,6 +353,7 @@ internal static class ExceptionHandlingThunkGeneratorTests
                     Need(g[1]==continuation&&g[2]==frame+postOffset&&g[8]==frame+272&&g[9]==frame+entryControl,"validator args");
                     Need(Get(frame+postOffset)==continuation&&Get(frame+postOffset+8)==selectedSp,"actual returned continuation snapshot");
                     for(int i=0;i<nv.Length;i++)Need(Get(frame+postOffset+16+(ulong)i*8)==post[nv[i]],"postcatch snapshot");
+                    if(frameDispatch)for(int r=6;r<16;r++)Need(memory.AsSpan((int)(frame+postOffset+80)+(r-6)*16,16).SequenceEqual(selectedXmm[r]),"postcatch vector snapshot");
                     foreach(int r in nv)g[r]=0xBAD;for(int r=6;r<16;r++)xmm[r]=new byte[16];
                     g[0]=failure==6?0UL:1UL;
                 }
@@ -347,8 +368,8 @@ internal static class ExceptionHandlingThunkGeneratorTests
                         selectCalls==1&&cleanupCalls<expectedCleanups&&cleanupValidations==cleanupCalls&&catchCalls==0,
                         "ordered selected cleanup call after prior validation");
                     Need(mxcsr==0x1F80&&x87==0x37F,"original FP controls restored before each cleanup");
-                    foreach(int r in nv)Need(g[r]==selected[r],"cleanup parent context restored");
-                    for(int r=6;r<16;r++)Need(xmm[r].SequenceEqual(selectedXmm[r]),"cleanup parent XMM restored");
+                    foreach(int r in nv)Need(g[r]==(frameDispatch?cleanupRegisters[r]:selected[r]),"cleanup parent context restored");
+                    for(int r=6;r<16;r++)Need(xmm[r].SequenceEqual(frameDispatch?cleanupXmm[r]:selectedXmm[r]),"cleanup parent XMM restored");
                     cleanupCalls++;Put(parentLocal,cleanupStamp+(ulong)cleanupCalls-1);
                     foreach(int r in nv)g[r]=0xF1000000UL+(ulong)r;
                     for(int r=6;r<16;r++)xmm[r]=Enumerable.Repeat((byte)(0xA0+r),16).ToArray();

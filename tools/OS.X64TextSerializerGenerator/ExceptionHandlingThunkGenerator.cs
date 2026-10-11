@@ -27,16 +27,20 @@ public static class ExceptionHandlingThunkGenerator
 
     public static Amd64CoffObjectDefinition DefineNestedFinally() => DefineCore(true, false, false, true);
 
-    private static Amd64CoffObjectDefinition DefineCore(bool singleFinally, bool rethrowProfile, bool outer, bool nestedFinally = false)
+    public static Amd64CoffObjectDefinition DefineFrameDispatch() => DefineCore(true, false, false, false, true);
+
+    private static Amd64CoffObjectDefinition DefineCore(bool singleFinally, bool rethrowProfile, bool outer,
+        bool nestedFinally = false, bool frameDispatch = false)
     {
         // The separate nested ABI adds two target slots before the aligned context.
         // Original definitions keep their exact byte layout and object identities.
-        int FrameBytes = nestedFinally ? 856 : ExceptionHandlingThunkGenerator.FrameBytes;
+        int FrameBytes = frameDispatch ? 1080 : nestedFinally ? 856 : ExceptionHandlingThunkGenerator.FrameBytes;
         int Selected = nestedFinally ? 304 : ExceptionHandlingThunkGenerator.Selected;
-        int Post = nestedFinally ? 544 : ExceptionHandlingThunkGenerator.Post;
-        int Exception = nestedFinally ? 784 : ExceptionHandlingThunkGenerator.Exception;
-        int EntryControl = nestedFinally ? 792 : ExceptionHandlingThunkGenerator.EntryControl;
-        int PostControl = nestedFinally ? 824 : ExceptionHandlingThunkGenerator.PostControl;
+        int Cleanup = frameDispatch ? 528 : Selected;
+        int Post = frameDispatch ? 768 : nestedFinally ? 544 : ExceptionHandlingThunkGenerator.Post;
+        int Exception = frameDispatch ? 1008 : nestedFinally ? 784 : ExceptionHandlingThunkGenerator.Exception;
+        int EntryControl = frameDispatch ? 1016 : nestedFinally ? 792 : ExceptionHandlingThunkGenerator.EntryControl;
+        int PostControl = frameDispatch ? 1048 : nestedFinally ? 824 : ExceptionHandlingThunkGenerator.PostControl;
         List<byte> code = [];
         List<int> rejects = [];
         List<CoffRelocationDefinition> relocations = [];
@@ -95,11 +99,11 @@ public static class ExceptionHandlingThunkGenerator
         if (singleFinally)
         {
             // The selector admits both targets before any special call. The
-            // returning cleanup shares the handling frame, but its registers
+            // returning cleanup uses its selected physical frame. Its registers
             // and RAX are not the catch's eventual continuation state.
             for (int cleanup = 0; cleanup < (nestedFinally ? 2 : 1); cleanup++)
             {
-                Registers(true, Selected);
+                Registers(true, Cleanup);
                 Add(0xFF, 0x94, 0x24); I32(Transfer + 8 + cleanup * 8);
                 Control(PostControl, false);
                 Lea(1, Transfer); Lea(2, EntryControl); Lea(8, PostControl);
@@ -139,16 +143,25 @@ public static class ExceptionHandlingThunkGenerator
         Add(0x48, 0x8D, 0x05);
         relocations.Add(new((uint)code.Count, 4, 4)); I32(0);
         Add(0xC3); // Ordinary Win64 leaf: original linker-resolved EH contribution.
-        string selector = nestedFinally ? "CLROS_Nested_Select" : !rethrowProfile ? Select : outer ? "CLROS_Rethrow_SelectOuter" : "CLROS_Rethrow_SelectInner";
-        string validator = nestedFinally ? "CLROS_Nested_ValidateContinuation" : !rethrowProfile ? Validate : outer ? "CLROS_Rethrow_ValidateOuter" : "CLROS_Rethrow_RejectInnerReturn";
-        string getterName = nestedFinally ? "CLROS_Nested_Clauses" : !rethrowProfile ? GetClauseTable : outer ? "CLROS_Rethrow_OuterClauses" : "CLROS_Rethrow_InnerClauses";
-        string table = nestedFinally ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__NestedCatcher" : !rethrowProfile ? ClauseTable : outer
+        string selector = frameDispatch ? "CLROS_Frame_Select" : nestedFinally ? "CLROS_Nested_Select" : !rethrowProfile ? Select : outer ? "CLROS_Rethrow_SelectOuter" : "CLROS_Rethrow_SelectInner";
+        string validator = frameDispatch ? "CLROS_Frame_ValidateContinuation" : nestedFinally ? "CLROS_Nested_ValidateContinuation" : !rethrowProfile ? Validate : outer ? "CLROS_Rethrow_ValidateOuter" : "CLROS_Rethrow_RejectInnerReturn";
+        string getterName = frameDispatch ? "CLROS_Frame_CatcherClauses" : nestedFinally ? "CLROS_Nested_Clauses" : !rethrowProfile ? GetClauseTable : outer ? "CLROS_Rethrow_OuterClauses" : "CLROS_Rethrow_InnerClauses";
+        string table = frameDispatch ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__FrameCatcher" : nestedFinally ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__NestedCatcher" : !rethrowProfile ? ClauseTable : outer
             ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__RethrowOuter"
             : "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__RethrowInner";
         List<CoffSymbolDefinition> symbols =
             [new(outer ? "RhpRethrow" : Entry, 0, 1, 0x20, 2), new(selector, 0, 0, 0x20, 2), new(validator, 0, 0, 0x20, 2),
              new(getterName, getter, 1, 0x20, 2), new(table, 0, 0, 0, 2)];
-        if (singleFinally) symbols.Add(new(nestedFinally ? "CLROS_Nested_ValidateCleanup" : rethrowProfile ? "CLROS_Rethrow_ValidateFinally" : ValidateFinally, 0, 0, 0x20, 2));
+        if (singleFinally) symbols.Add(new(frameDispatch ? "CLROS_Frame_ValidateCleanup" : nestedFinally ? "CLROS_Nested_ValidateCleanup" : rethrowProfile ? "CLROS_Rethrow_ValidateFinally" : ValidateFinally, 0, 0, 0x20, 2));
+        if (frameDispatch)
+        {
+            while ((code.Count & 15) != 0) Add(0x90);
+            uint middleGetter = (uint)code.Count;
+            Add(0x48, 0x8D, 0x05);
+            relocations.Add(new((uint)code.Count, 7, 4)); I32(0); Add(0xC3);
+            symbols.Add(new("CLROS_Frame_MiddleClauses", middleGetter, 1, 0x20, 2));
+            symbols.Add(new("__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__FrameMiddle", 0, 0, 0, 2));
+        }
         return new(0x8664, 0, [new(".text", code.ToArray(), 0x60500020, relocations.ToArray())], symbols.ToArray());
     }
 
