@@ -71,7 +71,7 @@ public readonly struct NativeAotEhClauseResult
 /// The bounded unsigned decoder follows the pinned permissive runtime reader, including
 /// nonminimal widths. The compiler normally emits minimal widths; this is not LEB128.
 /// </remarks>
-public static unsafe class NativeAotEhClauseMetadata
+public static unsafe partial class NativeAotEhClauseMetadata
 {
     // CLROS policy limits, not NativeAOT encoding limits.
     public const uint MaximumClauses = 64;

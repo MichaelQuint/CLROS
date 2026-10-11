@@ -15,6 +15,72 @@ internal static unsafe class NativeAotEhClauseMetadataTests
         r.TryEndOffset == 0 && r.HandlerAddress == 0 && r.FilterAddress == 0 && r.TypeAddress == 0 &&
         !r.IsTryGroupBoundary && !r.ContainsOffset(0), reason + ": " + r.Status + " expected " + expected);
 
+    [HostTest("runtime.nativeaot-eh-catalog.lookup-authority", HostLane.Fast, 20)]
+    private static void CatalogLookup()
+    {
+        using Fixture f=new(); f.Bind(); Catalog(f,1);
+        foreach(uint pc in new uint[]{0x6000,0x6010,0x6100,0x617F,0x6200})
+        {
+            var result=Lookup(f,f.Address(pc));
+            Check(result.Succeeded && result.Bounds.RootMethodRva==0x6000 && result.Bounds.CodeBytes==0x400 &&
+                result.Bounds.EhRva==0x1600 && result.Bounds.EhBytes==f.Bounds.EhBytes && result.ClauseCount==1,"catalog root/funclet lookup");
+        }
+        CatalogFailure(Lookup(f,f.Address(0x6300)),Status.SnapshotRejected,"instruction in contribution padding");
+        CatalogFailure(Lookup(f,f.Address(0x6400)),Status.IndexOutOfRange,"half-open contribution end");
+        CatalogFailure(Lookup(f,f.Address(0x6500)),Status.IndexOutOfRange,"unlisted executable method");
+        CatalogFailure(Lookup(f,f.Address(0x1700)),Status.TargetRejected,"data PC");
+        CatalogFailure(Lookup(f,0),Status.TargetRejected,"null PC");
+        CatalogFailure(Core.LookupMethod(default,f.Capture,f.Mapping,f.Owner,Fixture.Capacity,f.Handle,f.Snapshot,Fixture.Capacity,0x1900,32,f.Address(0x6000)),Status.UnsupportedProfile,"profile");
+        using Fixture other=new(); other.Bind();
+        CatalogFailure(Core.LookupMethod(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,f.Capture,f.Mapping,f.Owner,Fixture.Capacity,f.Handle,other.Snapshot,Fixture.Capacity,0x1900,32,f.Address(0x6000)),Status.SnapshotRejected,"cross-image snapshot");
+        CatalogFailure(Core.LookupMethod(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,f.Capture,f.Mapping,other.Owner,Fixture.Capacity,f.Handle,f.Snapshot,Fixture.Capacity,0x1900,32,f.Address(0x6000)),Status.ModuleRejected,"cross-image module");
+        CatalogFailure(Core.LookupMethod(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,f.Capture,f.Mapping,f.Owner,Fixture.Capacity,f.Handle+8,f.Snapshot,Fixture.Capacity,0x1900,32,f.Address(0x6000)),Status.ModuleRejected,"stale handle");
+        _=Lookup(f,f.Address(0x6000)); long allocated=GC.GetAllocatedBytesForCurrentThread();
+        for(int i=0;i<16;i++) if(!Lookup(f,f.Address(0x6000)).Succeeded) throw new InvalidOperationException("stable lookup");
+        Check(GC.GetAllocatedBytesForCurrentThread()==allocated,"catalog lookup allocates no managed memory");
+        f.Guards(); other.Guards();
+    }
+
+    [HostTest("runtime.nativeaot-eh-catalog.hostile-complete-tail", HostLane.Fast, 21)]
+    private static void CatalogHostile()
+    {
+        using Fixture f=new(); f.Bind();
+        foreach(uint bytes in new uint[]{0,1,16,31,529,uint.MaxValue})
+            CatalogFailure(Lookup(f,f.Address(0x6000),0x1900,bytes),Status.CapacityExceeded,"capacity "+bytes);
+        Catalog(f,1);
+        foreach(uint rva in new uint[]{0,0x1901,0x1FF0,0x2000,0x6000,uint.MaxValue})
+            CatalogFailure(Lookup(f,f.Address(0x6000),rva),Status.MetadataRejected,"readonly extent "+rva);
+        foreach((uint offset,uint value,Status status) in new[]{(0U,0U,Status.MetadataRejected),(4U,2U,Status.MetadataRejected),
+            (8U,0U,Status.CapacityExceeded),(8U,33U,Status.CapacityExceeded),(12U,48U,Status.MetadataRejected),
+            (20U,0U,Status.BoundsRejected),(24U,0U,Status.BoundsRejected),(28U,0U,Status.BoundsRejected),
+            (24U,0x1900U,Status.BoundsRejected),(28U,4097U,Status.BoundsRejected)})
+        {
+            Catalog(f,1); W32(f.Image+0x1900+offset,value);
+            CatalogFailure(Lookup(f,f.Address(0x6000)),status,"header/bounds field "+offset);
+        }
+        // A valid early requested row cannot hide an invalid later catalog row.
+        Catalog(f,2); CatalogFailure(Lookup(f,f.Address(0x6000),0x1900,48),Status.BoundsRejected,"duplicate late contribution");
+        W32(f.Image+0x1920,0x6500); W32(f.Image+0x1928,0x1800);
+        CatalogFailure(Lookup(f,f.Address(0x6000),0x1900,48),Status.SnapshotRejected,"late missing runtime function");
+        Catalog(f,1); f.Image[0x1600]=0xFE;
+        CatalogFailure(Lookup(f,f.Address(0x6000)),Status.CapacityExceeded,"late malformed EH count");
+        f.Blob(Table(new Row(0,4,1,0x100))); Catalog(f,1); f.Image[0x1284]=0;
+        CatalogFailure(Lookup(f,f.Address(0x6000)),Status.TargetRejected,"unreferenced intervening method root");
+        f.Guards();
+    }
+    private static void Catalog(Fixture f,uint count)
+    {
+        byte* p=f.Image+0x1900; new Span<byte>(p,528).Clear();
+        W32(p,0x43454843); W32(p+4,1); W32(p+8,count); W32(p+12,16+count*16);
+        for(uint i=0;i<count;i++) { byte* row=p+16+i*16; W32(row,f.Bounds.RootMethodRva); W32(row+4,f.Bounds.CodeBytes); W32(row+8,f.Bounds.EhRva); W32(row+12,f.Bounds.EhBytes); }
+    }
+    private static NativeAotEhMethodLookupResult Lookup(Fixture f,ulong instruction,uint rva=0x1900,uint bytes=32) =>
+        Core.LookupMethod(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,f.Capture,f.Mapping,f.Owner,
+            Fixture.Capacity,f.Handle,f.Snapshot,Fixture.Capacity,rva,bytes,instruction);
+    private static void CatalogFailure(NativeAotEhMethodLookupResult r,Status expected,string reason) => Check(
+        r.Status==expected && !r.Succeeded && r.ClauseCount==0 && r.Bounds.RootMethodRva==0 &&
+        r.Bounds.CodeBytes==0 && r.Bounds.EhRva==0 && r.Bounds.EhBytes==0,reason+": "+r.Status+" expected "+expected);
+
     [HostTest("runtime.nativeaot-eh-clause.wire-discovery", HostLane.Fast, 0)]
     private static void WireDiscovery()
     {

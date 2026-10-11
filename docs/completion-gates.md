@@ -1,5 +1,15 @@
 # CLROS Completion Gates
 
+#658/#659/#660 are qualified in [step1184](../done/step1184.md) at frozen source `b1da5a7`:
+4525 full-host checks across 586 groups (92 Native), zero failures/timeouts/reuse and
+unchanged inputs; 21 hostile native controls; three byte-identical 92-record
+catalog guests and twelve ancestors. The producer retains exact original
+compiler code/EH bounds and fixups; whole-table lookup rejects hostile rows
+before exposing a match. The existing diagnostic consumes those bounds for two
+real callers, one cleanup, same rooted typed catch and compiled continuation.
+Measured parent/funclet ABI offsets remain finite-profile guards. Lookup acquires
+no module, mapping, roots, stack or transfer authority. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
 #141–#144/#635 are qualified in [step1164](../done/step1164.md): 4,441
 unfiltered full-host checks across 558 groups, linked native ABI/stack review,
 one 194-record ARP guest capture, independent request/reply libpcap and thirteen

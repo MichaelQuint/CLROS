@@ -1,5 +1,13 @@
 # QEMU
 
+Qualified `-EnableM04EhCatalogProbe` requires a fresh physical-frame Diagnostic.
+Its strict 92-record stream adds `M04_EH_CATALOG 0`..`2` after frame row4 and
+`CLROS_M04_EH_CATALOG_READY` after compiled cleanup/catch/continuation checks.
+[step1184](../done/step1184.md) accepts three byte-identical catalog guests and twelve ancestors.
+All 687 raw inputs and original compiler/catalog/link/loaded-PC,
+process/arguments and GPT/FAT/embedded-EFI joins pass. Original module, mapping,
+root and stack lifetime remain required. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
 The qualified `-EnableM04FilteredCatchProbe` requires a fresh source-bound
 Diagnostic EFI and its collecting-GC prerequisites. Strict parsing requires all
 88 records, `M04_FILTERS 0`..`14`, actual false then true returns, shared parent-local

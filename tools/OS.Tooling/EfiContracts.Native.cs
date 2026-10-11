@@ -42,7 +42,8 @@ public static partial class EfiContracts
         "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs", "tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs",
         "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs", "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs",
         "tools/OS.X64TextSerializerGenerator/ExceptionHandlingThunkGenerator.cs",
-        "tools/OS.X64TextSerializerGenerator/ExceptionFilterThunkGenerator.cs"
+        "tools/OS.X64TextSerializerGenerator/ExceptionFilterThunkGenerator.cs",
+        "tools/OS.X64TextSerializerGenerator/EhContributionCatalogGenerator.cs"
     ]);
     public const int MaximumRuntimeFunctionRecords = 2048, MaximumLinkResponseTokens = 4096;
     public const int SerializerObjectBytes = 336, SerializerSuccessCookie = 1397902403;

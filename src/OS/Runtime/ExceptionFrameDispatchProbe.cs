@@ -17,6 +17,15 @@ internal static unsafe partial class RhpNewFastAllocation
     // The separate bridge, compiled frame geometry and complete constant-body
     // callback stack paths were reviewed before admitting this bounded profile.
     private const bool FrameTransferAdmitted = true;
+#if M04_EH_CATALOG_PROBE
+    // Original catalog/getter/relocation, scratch lifetime and callback stack
+    // review is recorded in eh-catalog-transfer-admission-r01 before enabling.
+    private const bool CatalogTransferAdmitted = true;
+    [System.Runtime.RuntimeImport("*", "CLROS_Eh_CatalogStart")]
+    [MethodImpl(MethodImplOptions.InternalCall)] private static extern ulong FrameCatalogStart();
+    [System.Runtime.RuntimeImport("*", "CLROS_Eh_CatalogEnd")]
+    [MethodImpl(MethodImplOptions.InternalCall)] private static extern ulong FrameCatalogEnd();
+#endif
     private const uint FrameMiddleBytes = 72, FrameMiddleReturn = 25, FrameMiddleCleanup = 49, FrameMiddleTableBytes = 4;
     private const uint FrameCatchBytes = 138, FrameCatchReturn = 46, FrameWrongCatch = 75, FrameCatchHandler = 96;
     private const uint FrameContinuation = 47, FrameCatchTableBytes = 15;
@@ -27,7 +36,11 @@ internal static unsafe partial class RhpNewFastAllocation
     // Fixed caller-owned scratch avoids placing eight 256-byte cleanup records
     // beneath an already large authenticated selector frame. Phase3 serializes
     // this one-shot diagnostic; no callback may re-enter selection.
+#if M04_EH_CATALOG_PROBE
+    private struct FrameScratch { internal fixed ulong Words[512]; }
+#else
     private struct FrameScratch { internal fixed ulong Words[256]; }
+#endif
     private static FrameScratch s_frameScratch;
     private static X64UnwindContext s_frameMiddle;
     private static EhControl s_frameEntryControl;
@@ -40,7 +53,12 @@ internal static unsafe partial class RhpNewFastAllocation
     [System.Runtime.RuntimeImport("*", "RhTypeCast_IsInstanceOfException")]
     [MethodImpl(MethodImplOptions.InternalCall)]
     private static extern bool FrameRuntimeMatch(Internal.Runtime.MethodTable* target, object value);
-    [MethodImpl(MethodImplOptions.NoInlining)] private static bool FrameGeometryReady() => FrameTransferAdmitted;
+    [MethodImpl(MethodImplOptions.NoInlining)] private static bool FrameGeometryReady() =>
+#if M04_EH_CATALOG_PROBE
+        CatalogTransferAdmitted;
+#else
+        FrameTransferAdmitted;
+#endif
     [MethodImpl(MethodImplOptions.NoInlining)] private static uint FrameMiddleExtent() => FrameMiddleBytes;
     [MethodImpl(MethodImplOptions.NoInlining)] private static uint FrameCatchExtent() => FrameCatchBytes;
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -63,7 +81,11 @@ internal static unsafe partial class RhpNewFastAllocation
                 (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle, (byte*)storage, EhStorageBytes);
             if (!bound.Succeeded || bound.RequiredStorage >= EhStorageBytes || sizeof(X64UnwindContext) != 240 ||
                 sizeof(BoundedExceptionFrameTransfer) != 496 || sizeof(EhControl) != 32 ||
+#if M04_EH_CATALOG_PROBE
+                sizeof(FrameScratch) != 16 * sizeof(BoundedExceptionCleanupEntry)) RejectFrame(3);
+#else
                 sizeof(FrameScratch) != 8 * sizeof(BoundedExceptionCleanupEntry)) RejectFrame(3);
+#endif
             EhLine(0, s_gcHandle, (ulong)storage, bound.RequiredStorage, bound.FunctionCount);
         }
         SimpleCatchDerived exception = NewCatchException(s_ehSeed);
@@ -93,6 +115,9 @@ internal static unsafe partial class RhpNewFastAllocation
         EhLine(14, s_ehReceipt.ObjectReference, s_ehReceipt.MethodTableToken, s_gcHandle, s_ehReceipt.AllocationCount);
         s_ehPhase = 9; s_frameRoot = default; s_ehReceipt = default;
         EhText(1); EhText(2);
+#if M04_EH_CATALOG_PROBE
+        FrameCatalogText(true);
+#endif
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -220,12 +245,48 @@ internal static unsafe partial class RhpNewFastAllocation
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 (byte*)storage, EhStorageBytes, new((uint)(thrower - s_gcImage.Start), 10, 0, 0), 0);
             if (noEh.Status != NativeAotEhClauseStatus.NoEhInfo) return RejectFrame(17);
+#if M04_EH_CATALOG_PROBE
+            // The lower eight cleanup records retain their original lifetime. The
+            // upper half holds these three numeric rows, receipts and contexts.
+            // Phase3 serializes this one-shot selector; no GC references live here.
+            ulong rowsAddress = scratchAddress + (ulong)sizeof(BoundedExceptionCleanupEntry) * 8;
+            ulong matchesAddress = (rowsAddress + (ulong)sizeof(NativeAotEhClauseResult) * 3 + 7) & ~7UL;
+            ulong framesAddress = (matchesAddress + (ulong)sizeof(ExceptionTypeMatchResult) * 3 + 7) & ~7UL;
+            if (framesAddress + (ulong)sizeof(BoundedExceptionSearchFrame) * 3 > scratchAddress + (ulong)sizeof(FrameScratch))
+                return RejectFrame(28);
+            NativeAotEhClauseResult* rows = (NativeAotEhClauseResult*)rowsAddress;
+            ExceptionTypeMatchResult* matches = (ExceptionTypeMatchResult*)matchesAddress;
+#else
             NativeAotEhClauseResult* rows = stackalloc NativeAotEhClauseResult[3];
             ExceptionTypeMatchResult* matches = stackalloc ExceptionTypeMatchResult[3];
+#endif
             matches[0] = default;
+#if M04_EH_CATALOG_PROBE
+            ulong catalogStart = FrameCatalogStart(), catalogEnd = FrameCatalogEnd();
+            if (!BootSequence.IsEhCatalogEnabled() || catalogStart < s_gcImage.Start || catalogEnd <= catalogStart ||
+                catalogStart - s_gcImage.Start > 0x7FFFFFFFUL || catalogEnd - catalogStart > 0xFFFFFFFFUL)
+                return RejectFrame(26);
+            var middleContribution = FrameCatalogLookup((byte*)type, (byte*)storage,
+                (uint)(catalogStart - s_gcImage.Start), (uint)(catalogEnd - catalogStart), first.Caller.Rip - 1);
+            var catchContribution = FrameCatalogLookup((byte*)type, (byte*)storage,
+                (uint)(catalogStart - s_gcImage.Start), (uint)(catalogEnd - catalogStart), second.Caller.Rip - 1);
+            if (!middleContribution.Succeeded || !catchContribution.Succeeded ||
+                s_gcImage.Start + middleContribution.Bounds.RootMethodRva != middle || middleContribution.ClauseCount != 1 ||
+                s_gcImage.Start + catchContribution.Bounds.RootMethodRva != catcher || catchContribution.ClauseCount != 2)
+                return RejectFrame(27);
+            uint middleBytes = middleContribution.Bounds.CodeBytes, catchBytes = catchContribution.Bounds.CodeBytes;
+            FrameCatalogLine(0, catalogStart, catalogEnd, (uint)GcReadWord(catalogStart + 8), s_gcHandle);
+            FrameCatalogLine(1, middle, middleBytes, s_gcImage.Start + middleContribution.Bounds.EhRva, middleContribution.Bounds.EhBytes);
+            FrameCatalogLine(2, catcher, catchBytes, s_gcImage.Start + catchContribution.Bounds.EhRva, catchContribution.Bounds.EhBytes);
+            rows[0] = FrameCatalogRow((byte*)type, (byte*)storage, middleContribution.Bounds, 0);
+            rows[1] = FrameCatalogRow((byte*)type, (byte*)storage, catchContribution.Bounds, 0);
+            rows[2] = FrameCatalogRow((byte*)type, (byte*)storage, catchContribution.Bounds, 1);
+#else
+            uint middleBytes = FrameMiddleBytes, catchBytes = FrameCatchBytes;
             rows[0] = FrameReadRow((byte*)type, (byte*)storage, middle, FrameMiddleExtent(), FrameMiddleClauses(), FrameMiddleTableBytes, 0);
             rows[1] = FrameReadRow((byte*)type, (byte*)storage, catcher, FrameCatchExtent(), FrameCatcherClauses(), FrameCatchTableBytes, 0);
             rows[2] = FrameReadRow((byte*)type, (byte*)storage, catcher, FrameCatchExtent(), FrameCatcherClauses(), FrameCatchTableBytes, 1);
+#endif
             if (!rows[0].Succeeded || rows[0].Count != 1 || rows[0].Kind != NativeAotEhClauseKind.FaultOrFinally ||
                 rows[0].HandlerAddress != middle + FrameMiddleCleanup || !rows[0].ContainsOffset(FrameMiddleReturn - 1) ||
                 !rows[1].Succeeded || !rows[2].Succeeded || rows[1].Count != 2 || rows[2].Count != 2 ||
@@ -240,10 +301,14 @@ internal static unsafe partial class RhpNewFastAllocation
                 if (!matches[i].Succeeded || matches[i].Matches != (i == 2) ||
                     FrameRuntimeMatch((Internal.Runtime.MethodTable*)rows[i].TypeAddress, FrameObject(exception)) != (i == 2)) return RejectFrame(19);
             }
+#if M04_EH_CATALOG_PROBE
+            BoundedExceptionSearchFrame* frames = (BoundedExceptionSearchFrame*)framesAddress;
+#else
             BoundedExceptionSearchFrame* frames = stackalloc BoundedExceptionSearchFrame[3];
+#endif
             frames[0] = new(*captured, 8, 10, 0, 0);
-            frames[1] = new(first.Caller, FrameMiddleReturn - 1, FrameMiddleBytes, 0, 1);
-            frames[2] = new(second.Caller, FrameCatchReturn - 1, FrameCatchBytes, 1, 2);
+            frames[1] = new(first.Caller, FrameMiddleReturn - 1, middleBytes, 0, 1);
+            frames[2] = new(second.Caller, FrameCatchReturn - 1, catchBytes, 1, 2);
             BoundedExceptionCleanupEntry* scratch = (BoundedExceptionCleanupEntry*)scratchOwner;
             var savedFrame = frames[2]; frames[2] = new(savedFrame.Context, savedFrame.CodeBytes, savedFrame.CodeBytes, 1, 2);
             var badPc = BoundedExceptionFrameDispatch.Select(new(frames, 3), new(rows, 3), new(matches, 3), new(scratch, 8), out var denied);
@@ -310,6 +375,26 @@ internal static unsafe partial class RhpNewFastAllocation
             s_gcCapture, s_gcMapping, type, (ulong)sizeof(GcTypeStorage), s_gcHandle, storage, EhStorageBytes,
             new((uint)(method - s_gcImage.Start), codeBytes, (uint)(table - s_gcImage.Start), tableBytes), index);
     }
+#if M04_EH_CATALOG_PROBE
+    // Keep large by-value authority copies in one returning helper frame.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static NativeAotEhMethodLookupResult FrameCatalogLookup(byte* type, byte* storage, uint catalogRva, uint catalogBytes, ulong instruction) =>
+        NativeAotEhClauseMetadata.LookupMethod(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+            s_gcCapture, s_gcMapping, type, (ulong)sizeof(GcTypeStorage), s_gcHandle, storage, EhStorageBytes, catalogRva, catalogBytes, instruction);
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static NativeAotEhClauseResult FrameCatalogRow(byte* type, byte* storage, NativeAotEhMethodBounds bounds, uint index) =>
+        NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+            s_gcCapture, s_gcMapping, type, (ulong)sizeof(GcTypeStorage), s_gcHandle, storage, EhStorageBytes, bounds, index);
+    private static void FrameCatalogText(bool ready)
+    {
+        string text = ready ? "CLROS_M04_EH_CATALOG_READY\r\n" : "M04_EH_CATALOG ";
+        for (int i = 0; i < text.Length; i++) Write((byte)text[i]);
+    }
+    private static void FrameCatalogLine(ulong stage, ulong a, ulong b, ulong c, ulong d)
+    {
+        FrameCatalogText(false); Decimal(stage); Write(32); Hex(a); Write(32); Hex(b); Write(32); Hex(c); Write(32); Hex(d); End();
+    }
+#endif
     private static bool FrameFunction(byte* storage, ulong method, uint begin, uint end, uint allocation, uint stack, uint prolog)
     {
         var row = X64PERuntimeFunctionUnwindMetadataHostileInput.Lookup(storage, EhStorageBytes, method + begin);

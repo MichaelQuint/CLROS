@@ -124,6 +124,7 @@ public static class QemuProfiles
         else if (Enabled("M03TypedExitBootServicesCall")) Select(QemuContracts.M03TypedExitBootServicesRequiredMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "UEFI_EBS_CALLED", "UEFI_BOOT_SERVICES_EXITED"]);
         else if (Enabled("M04SingleFinallyCatch")) Select(QemuContracts.M04SingleFinallyRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04Rethrow")) Select(QemuContracts.M04RethrowRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
+        else if (Enabled("M04EhCatalog")) Select(QemuContracts.M04EhCatalogRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04FrameDispatch")) Select(QemuContracts.M04FrameDispatchRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04ConstructorFailure")) Select(QemuContracts.M04ConstructorFailureRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04FilteredCatch")) Select(QemuContracts.M04FilteredCatchRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
@@ -213,6 +214,7 @@ public static class QemuProfiles
         ("M04SingleFinallyCatch", @"^(M04_FINALLY|CLROS_M04_SINGLE_FINALLY|TEST_(START|PASS) m04\.021\.single-finally)", "m04_single_finally"),
         ("M04Rethrow", @"^(M04_RETHROW|CLROS_M04_RETHROW_READY|TEST_(START|PASS) m04\.021\.rethrow)", "m04_rethrow"),
         ("M04FrameDispatch", @"^(M04_FRAMES|CLROS_M04_021_FRAMES_READY|TEST_(START|PASS) m04\.021\.frames)", "m04_frames"),
+        ("M04EhCatalog", @"^(M04_EH_CATALOG|CLROS_M04_EH_CATALOG_READY)", "m04_eh_catalog"),
         ("M04ConstructorFailure", @"^(M04_CTOR_FAILURE|CLROS_M04_021_CTOR_FAILURE_READY|TEST_(START|PASS) m04\.021\.ctor-failure)", "m04_ctor_failure"),
         ("M04FilteredCatch", @"^(M04_FILTERS|CLROS_M04_021_FILTERS_READY|TEST_(START|PASS) m04\.021\.filters)", "m04_filters"),
         ("M04UnhandledException", @"^(M04_UNHANDLED|CLROS_M04_UNHANDLED_READY|TEST_(START|PASS|FAIL) m04\.021\.unhandled)", "m04_unhandled"),

@@ -120,6 +120,7 @@ internal sealed partial class EfiVerification
         VerifyRethrowBridges();
         VerifyNestedFinallyBridge();
         VerifyFrameDispatchBridge();
+        VerifyEhCatalog();
         VerifyConstructorFailureBridge();
         VerifyFilteredCatchBridge();
     }

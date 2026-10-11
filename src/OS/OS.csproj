@@ -85,6 +85,7 @@
 		<EnableM04NestedFinallyCatchProbe Condition="'$(EnableM04NestedFinallyCatchProbe)' == ''">false</EnableM04NestedFinallyCatchProbe>
 		<EnableM04UnhandledExceptionProbe Condition="'$(EnableM04UnhandledExceptionProbe)' == ''">false</EnableM04UnhandledExceptionProbe>
 		<EnableM04FrameDispatchProbe Condition="'$(EnableM04FrameDispatchProbe)' == ''">false</EnableM04FrameDispatchProbe>
+		<EnableM04EhCatalogProbe Condition="'$(EnableM04EhCatalogProbe)' == ''">false</EnableM04EhCatalogProbe>
 		<EnableM04ConstructorFailureProbe Condition="'$(EnableM04ConstructorFailureProbe)' == ''">false</EnableM04ConstructorFailureProbe>
 		<EnableM04FilteredCatchProbe Condition="'$(EnableM04FilteredCatchProbe)' == ''">false</EnableM04FilteredCatchProbe>
 		<EnableM05PhysicalMappingProbe Condition="'$(EnableM05PhysicalMappingProbe)' == ''">false</EnableM05PhysicalMappingProbe>
@@ -359,6 +360,9 @@
 	<PropertyGroup Condition="'$(EnableM04FrameDispatchProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_FRAME_DISPATCH_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM04EhCatalogProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_EH_CATALOG_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM04ConstructorFailureProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_CONSTRUCTOR_FAILURE_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -469,6 +473,7 @@
 			'$(EnableM04NestedFinallyCatchProbe)' == 'true' or
 			'$(EnableM04UnhandledExceptionProbe)' == 'true' or
 			'$(EnableM04FrameDispatchProbe)' == 'true' or
+			'$(EnableM04EhCatalogProbe)' == 'true' or
 			'$(EnableM04ConstructorFailureProbe)' == 'true' or
 			'$(EnableM04FilteredCatchProbe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
@@ -710,6 +715,7 @@
 		<Compile Include="..\OS.Kernel\Runtime\ExceptionTypeMatch.cs" Link="Runtime\ExceptionTypeMatch.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\X64FrameUnwind.cs" Link="Runtime\X64FrameUnwind.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs" Link="Runtime\NativeAotEhClauseMetadata.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.Catalog.cs" Link="Runtime\NativeAotEhClauseMetadata.Catalog.cs" />
 		<Compile Include="Runtime\ExceptionCatchProbe.cs" />
 		<Compile Include="Runtime\ExceptionRethrowProbe.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\BoundedExceptionDispatchPlan.cs" Link="Runtime\BoundedExceptionDispatchPlan.cs" />
@@ -786,6 +792,7 @@
 			'$(EnableM04NestedFinallyCatchProbe)' == 'true' or
 			'$(EnableM04UnhandledExceptionProbe)' == 'true' or
 			'$(EnableM04FrameDispatchProbe)' == 'true' or
+			'$(EnableM04EhCatalogProbe)' == 'true' or
 			'$(EnableM04ConstructorFailureProbe)' == 'true' or
 			'$(EnableM04FilteredCatchProbe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
@@ -1984,6 +1991,8 @@
 		<Error Condition="'$(EnableM04NestedFinallyCatchProbe)' != '' and '$(EnableM04NestedFinallyCatchProbe)' != 'true' and '$(EnableM04NestedFinallyCatchProbe)' != 'false'" Text="m04_nested_finally_switch_invalid" />
 		<Error Condition="'$(EnableM04UnhandledExceptionProbe)' != '' and '$(EnableM04UnhandledExceptionProbe)' != 'true' and '$(EnableM04UnhandledExceptionProbe)' != 'false'" Text="m04_unhandled_switch_invalid" />
 		<Error Condition="'$(EnableM04FrameDispatchProbe)' != '' and '$(EnableM04FrameDispatchProbe)' != 'true' and '$(EnableM04FrameDispatchProbe)' != 'false'" Text="m04_frames_switch_invalid" />
+		<Error Condition="'$(EnableM04EhCatalogProbe)' != '' and '$(EnableM04EhCatalogProbe)' != 'true' and '$(EnableM04EhCatalogProbe)' != 'false'" Text="m04_eh_catalog_switch_invalid" />
+		<Error Condition="'$(EnableM04EhCatalogProbe)' == 'true' and '$(EnableM04FrameDispatchProbe)' != 'true'" Text="m04_eh_catalog_requires_frame_dispatch" />
 		<Error Condition="'$(EnableM04ConstructorFailureProbe)' != '' and '$(EnableM04ConstructorFailureProbe)' != 'true' and '$(EnableM04ConstructorFailureProbe)' != 'false'" Text="m04_ctor_failure_switch_invalid" />
 		<Error Condition="'$(EnableM04FilteredCatchProbe)' != '' and '$(EnableM04FilteredCatchProbe)' != 'true' and '$(EnableM04FilteredCatchProbe)' != 'false'" Text="m04_filter_switch_invalid" />
 		<Error Condition="'$(EnableM04FilteredCatchProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_filter_requires_gc_profile" />

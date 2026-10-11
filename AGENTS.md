@@ -1,5 +1,11 @@
 # CLROS AI Agent Guide
 
+The #658/#659/#660 default-off compiler EH catalog batch is qualified in
+`done/step1184.md`: 4525 full-host checks across 586 groups (92 Native), original native review,
+three byte-identical 92-record catalog guests and twelve ancestors pass.
+Exact retained compiler contributions drive the existing two-frame cleanup/catch
+Diagnostic. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
 The #654/#655/#656 default-off filtered-catch batch is qualified in
 `done/step1181.md`: 4518 full-host checks, original native review, three
 88-record filter guests and eleven ancestors pass. Two same-range nonthrowing

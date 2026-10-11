@@ -663,6 +663,15 @@ public static class QemuContracts
         "TEST_PASS m04.021.frames", "CLROS_M04_021_FRAMES_READY",
         .. M04GcStaticRootRequiredMarkers.TakeLast(8)
     ]);
+    public static IReadOnlyList<string> M04EhCatalogRequiredMarkers { get; } = Array.AsReadOnly<string>(
+    [
+        .. M04GcStaticRootRequiredMarkers.Take(M04GcStaticRootRequiredMarkers.Count - 8),
+        "TEST_START m04.021.frames", .. Enumerable.Range(0,5).Select(stage=>"M04_FRAMES "+stage),
+        .. Enumerable.Range(0,3).Select(stage=>"M04_EH_CATALOG "+stage),
+        .. Enumerable.Range(5,10).Select(stage=>"M04_FRAMES "+stage),
+        "TEST_PASS m04.021.frames", "CLROS_M04_021_FRAMES_READY", "CLROS_M04_EH_CATALOG_READY",
+        .. M04GcStaticRootRequiredMarkers.TakeLast(8)
+    ]);
     public static IReadOnlyList<string> M04ConstructorFailureRequiredMarkers { get; } = Array.AsReadOnly<string>(
     [
         .. M04GcStaticRootRequiredMarkers.Take(M04GcStaticRootRequiredMarkers.Count - 8),

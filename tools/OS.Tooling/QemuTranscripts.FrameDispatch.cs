@@ -2,6 +2,31 @@ namespace OS.Tooling;
 
 public static partial class QemuTranscripts
 {
+    public static void AssertM04EhCatalogRecords(IReadOnlyList<string> lines, IReadOnlyList<string> frameLines,
+        IReadOnlyList<string> gcLines)
+    {
+        const string reason = "m04_eh_catalog";
+        Need(lines.Count == 4 && lines[3] == "CLROS_M04_EH_CATALOG_READY" && frameLines.Count == 18 && gcLines.Count >= 2,reason+"_count");
+        var header = ReadHexRecord(lines[0],"M04_EH_CATALOG 0",4);
+        var middle = ReadHexRecord(lines[1],"M04_EH_CATALOG 1",4);
+        var catcher = ReadHexRecord(lines[2],"M04_EH_CATALOG 2",4);
+        var image = ReadHexRecord(gcLines[0],"M04_GC_ROOT 0",4);
+        var module = ReadHexRecord(gcLines[1],"M04_GC_ROOT 1",4);
+        var first = ReadHexRecord(frameLines[4],"M04_FRAMES 3",4);
+        var second = ReadHexRecord(frameLines[5],"M04_FRAMES 4",4);
+        decimal imageEnd = (decimal)image[0]+image[1];
+        bool Inside(ulong start,ulong bytes) => start >= image[0] && bytes > 0 && (decimal)start+bytes <= imageEnd;
+        bool Overlap(ulong a,ulong an,ulong b,ulong bn) => (decimal)a+an > b && (decimal)b+bn > a;
+        Need(header[0]%4 == 0 && (decimal)header[1]-header[0] == 48 && Inside(header[0],48) &&
+            header[2] == 2 && header[3] == module[3],reason+"_original_catalog_extent");
+        Need((decimal)middle[0]+25 == first[2] && (decimal)catcher[0]+46 == second[2] &&
+            middle[1] == 72 && catcher[1] == 138 && middle[3] == 4 && catcher[3] == 15 &&
+            Inside(middle[0],middle[1]) && Inside(catcher[0],catcher[1]) &&
+            Inside(middle[2],middle[3]) && Inside(catcher[2],catcher[3]),reason+"_physical_contributions");
+        Need(!Overlap(middle[0],middle[1],catcher[0],catcher[1]) &&
+            !Overlap(middle[2],middle[3],catcher[2],catcher[3]) &&
+            !Overlap(header[0],48,middle[2],middle[3]) && !Overlap(header[0],48,catcher[2],catcher[3]),reason+"_contribution_alias");
+    }
     public static void AssertM04FrameDispatchRecords(IReadOnlyList<string> lines, IReadOnlyList<string> gcLines,
         IReadOnlyDictionary<string,ulong> heap)
     {

@@ -10,6 +10,7 @@ public static partial class EfiContracts
         [@"Runtime\ConstructorFailureProbe.cs"] = "reviewed_constructor_failure_source_identity",
         [@"..\OS.Kernel\Runtime\BoundedExceptionFrameDispatch.cs"] = "reviewed_frame_dispatch_source_identity",
         [@"Runtime\ExceptionFrameDispatchProbe.cs"] = "reviewed_frame_dispatch_source_identity",
+        [@"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.Catalog.cs"] = "reviewed_exception_catalog_source_identity",
         [@"Runtime\ExceptionUnhandledProbe.cs"] = "reviewed_unhandled_source_identity",
         [@"Runtime\ExceptionTypePredicateBinding.cs"] = "reviewed_unhandled_source_identity",
         [@"..\OS.Kernel\Runtime\BoundedExceptionFrameSearch.cs"] = "reviewed_unhandled_source_identity",

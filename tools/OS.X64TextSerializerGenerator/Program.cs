@@ -10,6 +10,8 @@ internal static class Program
 
     private static int Main(string[] args)
     {
+        if (args.Length != 0 && args[0] == "--eh-contribution-catalog")
+            return EhContributionCatalogGenerator.Run(args);
         string testName = Array.IndexOf(args, "--filtered-catch") >= 0 || Array.IndexOf(args, "--filter-invoke") >= 0 ? "m04.021.filters.thunk.generate"
             : Array.IndexOf(args, "--constructor-failure") >= 0 ? "m04.021.ctor-failure.thunk.generate"
             : Array.IndexOf(args, "--frame-dispatch") >= 0 ? "m04.021.frames.thunk.generate"

@@ -35,6 +35,7 @@
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)InterfaceDispatchThunkGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)ExceptionHandlingThunkGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)ExceptionFilterThunkGenerator.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)EhContributionCatalogGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(MSBuildThisFileFullPath)" />
   </ItemGroup>
 
@@ -42,7 +43,7 @@
           BeforeTargets="PrepareForBuild"
           Condition="'$(MSBuildProjectFullPath)' == '$(MSBuildThisFileDirectory)OS.X64TextSerializerGenerator.csproj'">
     <Error
-      Condition="'@(Compile-&gt;'%(Identity)', '|')' != 'Amd64CoffWriter.cs|CheckedReferenceBarrierThunkGenerator.cs|ExceptionFilterThunkGenerator.cs|ExceptionHandlingThunkGenerator.cs|InstructionPublicationSerializerGenerator.cs|InterfaceDispatchThunkGenerator.cs|Program.cs'"
+      Condition="'@(Compile-&gt;'%(Identity)', '|')' != 'Amd64CoffWriter.cs|CheckedReferenceBarrierThunkGenerator.cs|EhContributionCatalogGenerator.cs|ExceptionFilterThunkGenerator.cs|ExceptionHandlingThunkGenerator.cs|InstructionPublicationSerializerGenerator.cs|InterfaceDispatchThunkGenerator.cs|Program.cs'"
       Text="CLROS_M01_034_GENERATOR_FAILED compile_closure_mismatch actual=@(Compile-&gt;'%(Identity)', '|')" />
     <Error
       Condition="'@(ProjectReference)' != '' Or '@(Reference)' != '' Or '@(PackageReference)' != ''"
@@ -599,4 +600,22 @@
     </ItemGroup>
   </Target>
 
+  <!-- The input pair is emitted by this exact ILC compilation, before LinkNative. -->
+  <Target Name="IntegrateClrosEhContributionCatalog" BeforeTargets="LinkNative"
+    DependsOnTargets="IlcCompile;IntegrateClrosX64InstructionPublicationSerializer"
+    Condition="'$(EnableM04EhCatalogProbe)' == 'true'">
+    <Error Condition="'$(IlcGenerateMapFile)' != 'true' Or !Exists('$(NativeObject)') Or !Exists('$(_ClrosX64SerializerNativeIntermediateRoot)\OS.map.xml')"
+      Text="CLROS_M04_EH_CATALOG_FAILED original_compiler_inputs_missing" />
+    <Exec Command="&quot;$(_ClrosX64SerializerToolExecutable)&quot; --eh-contribution-catalog --object &quot;$(NativeObject)&quot; --map &quot;$(_ClrosX64SerializerNativeIntermediateRoot)\OS.map.xml&quot; --output &quot;$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.EhCatalog.obj&quot;"
+      ConsoleToMSBuild="true" IgnoreExitCode="false" Timeout="60000" />
+    <ItemGroup>
+      <NativeLibrary Include="$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.EhCatalog.obj" />
+      <LinkerArg Include="&quot;$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.EhCatalog.obj&quot;" />
+      <LinkerArg Include="/INCLUDE:CLROS_Eh_CatalogStart" />
+      <LinkerArg Include="/INCLUDE:CLROS_Eh_CatalogEnd" />
+      <LinkerArg Include="/INCLUDE:CLROS_Eh_Contributions" />
+      <LinkerArg Include="/INCLUDE:CLROS_Eh_ContributionsEnd" />
+      <FileWrites Include="$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.EhCatalog.obj" />
+    </ItemGroup>
+  </Target>
 </Project>

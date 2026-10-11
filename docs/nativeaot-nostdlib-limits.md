@@ -1,5 +1,13 @@
 # NativeAOT NoStdLib Limits
 
+The #658/#659/#660 compiler EH catalog batch is qualified in [step1184](../done/step1184.md):
+4525 full-host checks across 586 groups (92 Native), original native review, three 92-record
+guests and twelve ancestors. Exact original compiler contributions replace
+per-method imported clause bounds in the existing two-frame Diagnostic. Generic
+catalog extent getters, whole-table validation and preserved original compiler
+inputs are accepted only under retained module/snapshot/root/stack authority.
+Measured parent/funclet offsets remain profile guards. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
 The #654/#655/#656 filtered-catch batch is qualified in [step1181](../done/step1181.md):
 4518 full-host checks across 582 groups (90 Native), original native review, three byte-identical
 88-record guests and eleven ancestors pass at frozen source `79b59b2`. A separate
@@ -131,6 +139,14 @@ profile is qualified in [step1171](../done/step1171.md): 4,488 full-host checks,
 final native review, three 88-record frame guests and seven ancestors. Step1170
 retains development geometry and callback review. General second-pass unwinding,
 filters, collided exceptions and arbitrary rethrow remain incomplete.
+
+The default-off `EnableM04EhCatalogProbe` modifies that same finite profile.
+Exact original ILC code/EH lengths and relocated root/table RVAs replace its
+per-method bounds getters in clause admission. Lookup validates every catalog
+row, original EH stream and funclet association before publishing a match.
+The native source/relocation, 21 hostile controls and 177-node callback review
+pass in [step1183](../done/step1183.md), with a 15,856-byte upper bound below the
+original 16,400-byte floor. Full-host and guest qualification remain pending.
 
 The default-off `EnableM04ConstructorFailureProbe` is qualified
 in [step1176](../done/step1176.md). Its 40-byte POD invocation ticket
@@ -2137,6 +2153,17 @@ initialization, general GC/runtime startup and hosted .NET/Kestrel remain
 unproved; Gates3/4/5 remain **Fail**.
 
 ## Bounded throw/catch accepted scope
+
+The #658/#659/#660 contribution-catalog batch is in development on parent #90.
+The host producer joins exact ILC map lengths to all original COFF root/funclet
+frame endpoints, retains original input digests and checks EH payload hashes.
+Code node hashes precede local fixup resolution and are not raw COFF code hashes.
+Allocation-free lookup requires the reviewed original catalog extent, retained
+module/image/unwind authority and complete row/EH validation. Readonly bytes do
+not establish compiler provenance. [Step1182](../done/step1182.md) records focused
+development checks only; the catalog-backed physical-frame guest path, combined
+full-host qualification and native admission remain pending. #90 and Gate4 stay
+open.
 
 The default-off #582 child allocates a compiler-generated derived exception
 through the original allocator, retains its explicit receipt root through

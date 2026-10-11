@@ -145,10 +145,21 @@ public static class Amd64CoffWriter
         bool allowRel32ExternalData,
         out int bytesWritten,
         out CoffWriteError error)
+        => TryWriteCore(in definition, destination, allowRel32ExternalFunctions,
+            allowRel32ExternalData, false, out bytesWritten, out error);
+
+    // Explicit catalog-only opt-in. Existing callers retain their original restrictions.
+    public static bool TryWriteContributionCatalog(in Amd64CoffObjectDefinition definition,
+        Span<byte> destination, out int bytesWritten, out CoffWriteError error)
+        => TryWriteCore(in definition, destination, true, true, true, out bytesWritten, out error);
+
+    private static bool TryWriteCore(in Amd64CoffObjectDefinition definition,
+        Span<byte> destination, bool allowRel32ExternalFunctions, bool allowRel32ExternalData,
+        bool catalogRelocations, out int bytesWritten, out CoffWriteError error)
     {
         bytesWritten = 0;
 
-        if (!TryBuildPlan(in definition, allowRel32ExternalFunctions, allowRel32ExternalData, out CoffWritePlan? plan, out error))
+        if (!TryBuildPlan(in definition, allowRel32ExternalFunctions, allowRel32ExternalData, out CoffWritePlan? plan, out error, catalogRelocations))
         {
             return false;
         }
@@ -198,7 +209,8 @@ public static class Amd64CoffWriter
         bool allowRel32ExternalFunctions,
         bool allowRel32ExternalData,
         out CoffWritePlan? plan,
-        out CoffWriteError error)
+        out CoffWriteError error,
+        bool catalogRelocations = false)
     {
         plan = null;
         bool allowRel32 = allowRel32ExternalFunctions || allowRel32ExternalData;
@@ -293,8 +305,11 @@ public static class Amd64CoffWriter
                 ref readonly CoffSymbolDefinition target = ref symbols[relocation.SymbolIndex];
                 if ((rel32 && ((section.Characteristics & ImageScnCntCode) == 0 ||
                                !(allowRel32ExternalFunctions && IsUndefinedExternalFunction(in target)) &&
-                               !(allowRel32ExternalData && IsUndefinedExternalData(in target)))) ||
-                    (allowRel32 && !rel32 && target.SectionNumber == 0))
+                               !(allowRel32ExternalData && IsUndefinedExternalData(in target)) &&
+                               !(catalogRelocations && target.SectionNumber > 0 && target.SectionNumber <= sections.Length &&
+                                 target.Type == 0 && target.StorageClass == ImageSymClassExternal &&
+                                 (sections[target.SectionNumber - 1].Characteristics & (ImageScnMemExecute | ImageScnMemWrite)) == 0))) ||
+                    (allowRel32 && !rel32 && target.SectionNumber == 0 && !catalogRelocations))
                 {
                     error = CoffWriteError.InvalidRelocation;
                     return false;
