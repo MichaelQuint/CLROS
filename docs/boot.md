@@ -1,5 +1,11 @@
 # Boot
 
+The default-off `EnableM04EhCatalogProbe` modifies the existing physical-frame
+Diagnostic without adding a boot phase. It resolves exact original compiler
+contribution bounds under retained module/snapshot/root authority. Development
+controls and native review pass in [step1183](../done/step1183.md); full-host and
+guest qualification are pending.
+
 The default-off filtered-catch Diagnostic child follows the collecting-GC chain
 through `BootSequence.RunFilteredCatchUnwind`, before ordinary boot success.
 [step1181](../done/step1181.md) qualifies 4518 full-host checks across 582 groups (90 Native), native review,

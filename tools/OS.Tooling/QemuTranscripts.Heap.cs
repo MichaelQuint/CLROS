@@ -7,17 +7,17 @@ public static partial class QemuTranscripts
 {
     public static void AssertM04ManagedHeapPageRangeTranscript(string path, bool includeFixedAllocation = false, bool includeArrayAllocation = false,
         bool includeStringAllocation = false, bool includeCheckedReferences = false, bool includeGcStatics = false, bool includeSeededChurn = false,
-        bool includeClassConstructors = false, bool includeInterfaceDispatch = false, bool includeSimpleCatch = false, bool includeSingleFinally = false, bool includeRethrow = false, bool includeNestedFinally = false, bool includeUnhandled = false, bool includeFrameDispatch = false, bool includeConstructorFailure = false, bool includeFilteredCatch = false)
+        bool includeClassConstructors = false, bool includeInterfaceDispatch = false, bool includeSimpleCatch = false, bool includeSingleFinally = false, bool includeRethrow = false, bool includeNestedFinally = false, bool includeUnhandled = false, bool includeFrameDispatch = false, bool includeConstructorFailure = false, bool includeFilteredCatch = false, bool includeEhCatalog = false)
     {
         AssertManagedHeapText(Encoding.UTF8.GetString(File.ReadAllBytes(path)), includeFixedAllocation, includeArrayAllocation,
             includeStringAllocation, includeCheckedReferences, includeGcStatics, includeSeededChurn, includeClassConstructors,
-            includeInterfaceDispatch, includeSimpleCatch, includeSingleFinally, includeRethrow, includeNestedFinally, includeUnhandled, includeFrameDispatch, includeConstructorFailure, includeFilteredCatch);
+            includeInterfaceDispatch, includeSimpleCatch, includeSingleFinally, includeRethrow, includeNestedFinally, includeUnhandled, includeFrameDispatch, includeConstructorFailure, includeFilteredCatch, includeEhCatalog);
     }
 
     private static void AssertManagedHeapText(string text, bool includeFixedAllocation = false, bool includeArrayAllocation = false,
         bool includeStringAllocation = false, bool includeCheckedReferences = false, bool includeGcStatics = false, bool includeSeededChurn = false,
         bool includeClassConstructors = false, bool includeInterfaceDispatch = false, bool includeSimpleCatch = false, bool includeSingleFinally = false,
-        bool includeRethrow = false, bool includeNestedFinally = false, bool includeUnhandled = false, bool includeFrameDispatch = false, bool includeConstructorFailure = false, bool includeFilteredCatch = false)
+        bool includeRethrow = false, bool includeNestedFinally = false, bool includeUnhandled = false, bool includeFrameDispatch = false, bool includeConstructorFailure = false, bool includeFilteredCatch = false, bool includeEhCatalog = false)
     {
         Need(new[] { includeFixedAllocation, includeArrayAllocation, includeStringAllocation, includeCheckedReferences, includeGcStatics }.Count(x => x) <= 1, "m04_allocation_profile_collision");
         Need(!includeSeededChurn || includeGcStatics, "m04_churn_requires_gc_records");
@@ -36,7 +36,8 @@ public static partial class QemuTranscripts
             .. QemuContracts.M03FirstExitStageMarkers, "TEST_START m04.006", "M04_HEAP_PAGE_BOUND", "M04_HEAP_PAGE_INITIALIZED", "M04_HEAP_PAGE_RETAINED", "M04_HEAP_PAGE_CURRENT", .. QemuContracts.M04ManagedHeapPageRangeReadyMarker, "TEST_PASS m04.006",
             "TEST_START boot.sequence", "BOOT_PHASE PhaseA.Audit START", "BOOT_PHASE PhaseA.Audit PASS", "BOOT_PHASE PhaseA.Diagnostics START", "BOOT_PHASE PhaseA.Diagnostics PASS", "OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS"];
         if(includeUnhandled) expected=expected[..^8];
-        int lineCount = expected.Length + (includeFixedAllocation ? 26 : includeArrayAllocation ? 16 : includeStringAllocation ? 20 : includeCheckedReferences ? 19 : includeGcStatics ? 18 : 0) +
+        Need(!includeEhCatalog || includeFrameDispatch, "m04_eh_catalog_requires_frames");
+        int lineCount = (includeEhCatalog ? 4 : 0) + expected.Length + (includeFixedAllocation ? 26 : includeArrayAllocation ? 16 : includeStringAllocation ? 20 : includeCheckedReferences ? 19 : includeGcStatics ? 18 : 0) +
             (includeSeededChurn ? 12 : 0) + (includeClassConstructors ? 12 : 0) + (includeInterfaceDispatch ? 76 : 0) + (includeSimpleCatch ? 12 : 0) + (includeSingleFinally ? 14 : 0) + (includeRethrow ? 18 : 0) + (includeNestedFinally ? 19 : 0) + (includeUnhandled ? 11 : 0) + (includeFrameDispatch ? 18 : 0) + (includeConstructorFailure ? 22 : 0) + (includeFilteredCatch ? 18 : 0);
         const string failures = @"(?i)TEST_FAIL|OS_SMOKE_FAIL|M04_.*FAILED|BOOT_PAGE_ALLOCATOR_NOT_READY|UEFI_ACPI_RSDP_(?:MISSING|INVALID)";
         string failureText=includeUnhandled ? text.Replace(UnhandledFailure+"\r\n","",StringComparison.Ordinal).Replace(UnhandledTerminal+"\r\n","",StringComparison.Ordinal) : text;
@@ -59,7 +60,12 @@ public static partial class QemuTranscripts
         }
         Need(captured.Count == lineCount, "m04_heap_incomplete_sequence");
         string[] Remove(int at, int count) { string[] block = captured.GetRange(at, count).ToArray(); captured.RemoveRange(at, count); return block; }
-        string[] frameRecords = includeFrameDispatch ? Remove(62,18) : [];
+        string[] frameRecords = includeFrameDispatch ? Remove(62,includeEhCatalog ? 22 : 18) : [], catalogRecords = [];
+        if (includeEhCatalog)
+        {
+            catalogRecords = [.. frameRecords.Skip(6).Take(3), frameRecords[21]];
+            frameRecords = [.. frameRecords.Take(6), .. frameRecords.Skip(9).Take(12)];
+        }
         string[] constructorFailureRecords = includeConstructorFailure ? Remove(62,22) : [];
         string[] filteredCatchRecords = includeFilteredCatch ? Remove(62,18) : [];
         string[] unhandledRecords=includeUnhandled ? Remove(62,11) : [], nestedRecords = includeNestedFinally ? Remove(62,19) : [], rethrowRecords = includeRethrow ? Remove(62, 18) : [], finallyRecords = includeSingleFinally ? Remove(62, 14) : [], catchRecords = includeSimpleCatch ? Remove(62, 12) : [],
@@ -113,6 +119,7 @@ public static partial class QemuTranscripts
         if (includeRethrow) AssertM04RethrowRecords(rethrowRecords, gcRecords, retained);
         if (includeNestedFinally) AssertM04NestedFinallyRecords(nestedRecords,gcRecords,retained);
         if (includeFrameDispatch) AssertM04FrameDispatchRecords(frameRecords,gcRecords,retained);
+        if (includeEhCatalog) AssertM04EhCatalogRecords(catalogRecords,frameRecords,gcRecords);
         if (includeConstructorFailure) AssertM04ConstructorFailureRecords(constructorFailureRecords,gcRecords,retained);
         if (includeFilteredCatch) AssertM04FilteredCatchRecords(filteredCatchRecords,gcRecords,retained);
         if (includeUnhandled) AssertM04UnhandledRecords(unhandledRecords,gcRecords,retained);

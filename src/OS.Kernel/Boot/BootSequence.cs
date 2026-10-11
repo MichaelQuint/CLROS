@@ -296,6 +296,9 @@ public static class BootSequence
 
     public static bool IsFrameDispatchEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04FrameDispatchProbe;
 
+    public static bool IsEhCatalogEnabled() =>
+        IsFrameDispatchEnabled() && OS.Kernel.Diagnostics.Probes.EnableM04EhCatalogProbe;
+
     public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunFrameDispatchUnwind(
         OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping,
         byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity,

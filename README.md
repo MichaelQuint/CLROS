@@ -30,6 +30,12 @@ Visual Studio 2026 Insiders and dotnet host builds pass.
 
 ## Progress
 
+The #658/#659/#660 compiler EH catalog batch is implemented with focused native
+controls and bounded callback review in [step1183](done/step1183.md). Its default-off
+modifier uses exact compiler contribution bounds in the existing physical-frame
+Diagnostic. Full-host and guest qualification are pending; the children and #90
+remain open.
+
 The #654-#656 filtered-catch batch is [qualified](done/step1181.md):
 4518 full-host checks, original native review, three byte-identical
 88-record filter guests and eleven ancestor regressions pass. Its default-off

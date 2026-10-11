@@ -1,5 +1,14 @@
 # QEMU
 
+Development `-EnableM04EhCatalogProbe` requires the existing physical-frame
+Diagnostic. Its strict expected stream has 92 records: the original 88 plus
+`M04_EH_CATALOG 0`..`2` after frame row4 and `CLROS_M04_EH_CATALOG_READY` after the
+compiled cleanup/catch/continuation checks. Catalog extent/count/module and
+method/code/EH tuples must agree with retained physical frames. Synthetic parser
+controls pass in [step1183](../done/step1183.md); real guest execution is pending.
+Original source/compiler/catalog/link bindings, disk/embedded-EFI joins and
+complete raw process/capture receipts remain required for acceptance.
+
 The qualified `-EnableM04FilteredCatchProbe` requires a fresh source-bound
 Diagnostic EFI and its collecting-GC prerequisites. Strict parsing requires all
 88 records, `M04_FILTERS 0`..`14`, actual false then true returns, shared parent-local

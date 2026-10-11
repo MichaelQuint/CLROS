@@ -1,5 +1,12 @@
 # CLROS Completion Gates
 
+#658/#659/#660 implement a compiler contribution catalog and an opt-in modifier
+of the existing physical-frame Diagnostic in [step1183](../done/step1183.md).
+Focused native mutation, original relocation and bounded callback review pass.
+Full-host and guest qualification are pending, so all three children and #90
+remain open. This does not promote general EH, Gate4, hosted .NET/Kestrel, cloud
+or production readiness.
+
 #141–#144/#635 are qualified in [step1164](../done/step1164.md): 4,441
 unfiltered full-host checks across 558 groups, linked native ABI/stack review,
 one 194-record ARP guest capture, independent request/reply libpcap and thirteen

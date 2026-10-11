@@ -85,6 +85,11 @@ public static partial class Probes
 #else
     public const bool EnableM04FrameDispatchProbe = false;
 #endif
+#if M04_EH_CATALOG_PROBE
+    public const bool EnableM04EhCatalogProbe = true;
+#else
+    public const bool EnableM04EhCatalogProbe = false;
+#endif
 #if M04_CONSTRUCTOR_FAILURE_PROBE
     public const bool EnableM04ConstructorFailureProbe = true;
 #else
@@ -209,7 +214,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 45;
+    public const int ProbeCatalogCount = 46;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -411,6 +416,11 @@ public static partial class Probes
         new("runtime.exception", nameof(EnableM04FilteredCatchProbe),
             EnableM04FilteredCatchProbe, ProbeRisk.Destructive,
             "Selects two ordered nonthrowing compiler filters and the selected catch; exact native admission required.");
+
+    public static ProbeDefinition GetM04EhCatalogProbe() =>
+        new("runtime.exception", nameof(EnableM04EhCatalogProbe),
+            EnableM04EhCatalogProbe, ProbeRisk.Destructive,
+            "Uses reviewed compiler contribution bounds for the frame-dispatch profile; exact native admission required.");
 
     public static ProbeDefinition GetM05OwnedAcpiSelectionProbe() =>
         new("platform.acpi-selection", nameof(EnableM05OwnedAcpiSelectionProbe),
@@ -729,6 +739,9 @@ public static partial class Probes
                 return true;
             case 44:
                 definition = GetM04FilteredCatchProbe();
+                return true;
+            case 45:
+                definition = GetM04EhCatalogProbe();
                 return true;
             default:
                 definition = default;

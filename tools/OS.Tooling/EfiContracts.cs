@@ -33,8 +33,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "7a69c108df543d832f35879bd01e1f9985e83c140054dd3cc6b61f34ea7cb31a";
-    public const string CanonicalProjectSha256 = "e5a366389c87073345d8b06fcd47eb1b4ded2f4aa9335ccc4678c737477bfd29";
+    public const string ProjectSourceSha256 = "624a53b69e9315b4850a7f26de719f89ffdd5ba138680d27d0ac46e7d80e9a5a";
+    public const string CanonicalProjectSha256 = "660912f1c28f4199d0094e63ffb3092391ab94750ca0ca7a4a8262d78aeea318";
     public const string EfiEntrySourceSha256 = "d6209ddeac1dbd3634211e9c4fac57aca56ce1dd108f4e7c3e985593d619ea30";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
@@ -247,6 +247,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Runtime\ExceptionTypeMatch.cs|Runtime\ExceptionTypeMatch.cs",
         @"..\OS.Kernel\Runtime\X64FrameUnwind.cs|Runtime\X64FrameUnwind.cs",
         @"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs|Runtime\NativeAotEhClauseMetadata.cs",
+        @"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.Catalog.cs|Runtime\NativeAotEhClauseMetadata.Catalog.cs",
         @"Runtime\ExceptionCatchProbe.cs|",
         @"Runtime\ExceptionRethrowProbe.cs|",
         @"..\OS.Kernel\Runtime\BoundedExceptionDispatchPlan.cs|Runtime\BoundedExceptionDispatchPlan.cs",
@@ -296,6 +297,7 @@ public static partial class EfiContracts
         "EnableM04CheckedReferenceBarrierProbe",
         "EnableM04ClassConstructorExecutionProbe",
         "EnableM04ConstructorFailureProbe",
+        "EnableM04EhCatalogProbe",
         "EnableM04FilteredCatchProbe",
         "EnableM04FrameDispatchProbe",
         "EnableM04GcStaticRootMaterializationProbe",

@@ -132,6 +132,14 @@ final native review, three 88-record frame guests and seven ancestors. Step1170
 retains development geometry and callback review. General second-pass unwinding,
 filters, collided exceptions and arbitrary rethrow remain incomplete.
 
+The default-off `EnableM04EhCatalogProbe` modifies that same finite profile.
+Exact original ILC code/EH lengths and relocated root/table RVAs replace its
+per-method bounds getters in clause admission. Lookup validates every catalog
+row, original EH stream and funclet association before publishing a match.
+The native source/relocation, 21 hostile controls and 177-node callback review
+pass in [step1183](../done/step1183.md), with a 15,856-byte upper bound below the
+original 16,400-byte floor. Full-host and guest qualification remain pending.
+
 The default-off `EnableM04ConstructorFailureProbe` is qualified
 in [step1176](../done/step1176.md). Its 40-byte POD invocation ticket
 retains the existing 24-byte record: failure pops the active record and preserves

@@ -200,10 +200,23 @@ public static class EfiBuild
             evidence[name] = pair.Value;
         }
         AddNativeObjects(preflight.Profile, native, output, locks, evidence);
+        if (preflight.Profile.IsEnabled("M04EhCatalog"))
+        {
+            foreach (var (prefix, name, suffix) in new[] { ("ehCatalog", "CLROS.X64.EhCatalog.obj", ".eh-catalog.obj"),
+                ("ehCatalogIlc", "OS.obj", ".ilc.obj"), ("ehCatalogMap", "OS.map.xml", ".ilc.map.xml") })
+            {
+                string linked = Path.Combine(native, name), preserved = output.EfiPath + suffix;
+                var file = EfiBuildFiles.CopyCreateNew(locks, native, linked, output.Directory, preserved);
+                evidence[prefix + "LinkedObjectPath"] = linked; evidence[prefix + "ObjectPath"] = preserved;
+                evidence[prefix + "ObjectBytes"] = file.Length; evidence[prefix + "ObjectSha256"] = file.Sha256;
+            }
+        }
         EfiBuildFiles.WriteCreateNew(output.Directory, output.EvidencePath, Encoding.UTF8.GetBytes(evidence.ToJsonString(new JsonSerializerOptions { WriteIndented = true })));
         List<AuthorityFile> finalOutputs = output.Paths.Select(path => Open(path, "verifier_input", 536870912, true)).ToList();
         foreach (string path in new[] { serializerPath, Path.Combine(native, "OS.link.map"), managed }) finalOutputs.Add(Open(path, "verifier_input", 536870912, true));
         foreach (var bridge in NativeObjects(preflight.Profile)) finalOutputs.Add(Open(Path.Combine(native, bridge.FileName), "verifier_input", 536870912, true));
+        if (preflight.Profile.IsEnabled("M04EhCatalog")) foreach (string name in new[] { "CLROS.X64.EhCatalog.obj", "OS.obj", "OS.map.xml" })
+            finalOutputs.Add(Open(Path.Combine(native,name), "verifier_input", 536870912, true));
         AuthorityFiles.RequireDistinct(finalOutputs.ToArray());
         Require(finalOutputs.All(file => file.InitialIdentity.Key != log.IdentityKey), "verifier_input_log_alias");
         emit("EFI_PUBLISH_VERIFIER_INPUT_AUTHORITY status=ok inputs=" + finalOutputs.Count);

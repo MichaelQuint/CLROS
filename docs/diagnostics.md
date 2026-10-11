@@ -1,5 +1,13 @@
 # Diagnostics
 
+Development `EnableM04EhCatalogProbe` defaults false and requires
+`EnableM04FrameDispatchProbe` plus its existing collecting-GC chain. It admits
+only the finite original compiler catalog, module/snapshot and live physical
+contexts. Its registered 4 KiB POD scratch preserves the lower eight cleanup
+entries and uses the upper half for numeric rows/receipts/contexts. Native
+review retains the 16,400-byte protected stack floor. [step1183](../done/step1183.md)
+records development controls; full-host and guest acceptance remain pending.
+
 Qualified `EnableM04FilteredCatchProbe` defaults false and selects only its
 collecting-GC Diagnostic prerequisites. It owns `m04.021.filters`, fifteen
 `M04_FILTERS 0`..`14` numeric rows and `CLROS_M04_021_FILTERS_READY`. Its 88-record

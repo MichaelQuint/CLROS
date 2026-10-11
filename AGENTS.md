@@ -1,5 +1,10 @@
 # CLROS AI Agent Guide
 
+The #658/#659/#660 compiler EH catalog batch is implemented in
+`done/step1183.md`, with focused host/native controls and bounded callback review.
+Its default-off `EnableM04EhCatalogProbe` modifies the physical-frame Diagnostic.
+Full-host and real guest qualification are pending; these issues remain open.
+
 The #654/#655/#656 default-off filtered-catch batch is qualified in
 `done/step1181.md`: 4518 full-host checks, original native review, three
 88-record filter guests and eleven ancestors pass. Two same-range nonthrowing

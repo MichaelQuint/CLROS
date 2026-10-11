@@ -1,5 +1,22 @@
 # EFI Build
 
+## Compiler EH contribution catalog development
+
+`--EnableM04EhCatalogProbe` is a default-off modifier requiring the physical-frame
+Diagnostic. Its isolated producer runs after ILC and before LinkNative against
+that compilation's `OS.obj` and `OS.map.xml`. It emits readonly rows with root/EH
+ADDR32NB relocations and measured complete code/EH contribution lengths. Generic
+returning LEA/RET getters expose the catalog extent. Ordinary/legacy profiles
+retain their existing bridge identities and exclude the new object.
+
+Build evidence preserves `.eh-catalog.obj`, `.ilc.obj` and `.ilc.map.xml` beside
+the EFI, with original/preserved path, length and SHA256 bindings. Verification
+recomputes the catalog, joins original code/EH bytes and relocations to the linked
+image, and checks every linked row/getter. The compiler map's code hash is an
+intermediate object-dumper hash; it is not a raw post-fixup COFF hash. See
+[step1182](../done/step1182.md) and [step1183](../done/step1183.md). Current native
+controls and callback review pass; full-host and guest qualification are pending.
+
 ## Filtered-catch diagnostic profile
 
 `--EnableM04FilteredCatchProbe` defaults false and selects only the collecting-GC

@@ -1,5 +1,10 @@
 # Boot Order
 
+`BootSequence.IsEhCatalogEnabled()` requires both catalog and physical-frame
+switches. The modifier retains `RunFrameDispatchUnwind` and the existing phase
+order; it adds no dispatcher or boot phase. [step1183](../done/step1183.md) is
+development evidence only, with full-host/guest qualification pending.
+
 `RunFilteredCatchUnwind` is gated by `EnableM04FilteredCatchProbe` and returns a
 zero result when disabled. The separate collecting-GC Diagnostic child uses the
 existing boot order and retains original module, root and stack authority through
