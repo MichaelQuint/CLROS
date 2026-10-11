@@ -7,7 +7,8 @@ public enum CompilerClassConstructorStatus : byte
     Uninitialized = 0, Success = 1, StorageRejected = 2, ModuleRejected = 3,
     EagerTableRejected = 4, TargetRejected = 5, ContextRejected = 6,
     CapacityExceeded = 7, AlreadyBound = 8, NotBound = 9, StateChanged = 10,
-    EagerNotStarted = 11, ExecutionInProgress = 12
+    EagerNotStarted = 11, ExecutionInProgress = 12, InvocationRejected = 13,
+    InitializationFailed = 14
 }
 
 public struct CompilerClassConstructorProgress
@@ -23,10 +24,12 @@ public struct CompilerClassConstructorProgress
 /// Image-contained storage requires registered mutable-data admission. External
 /// storage retains the caller's writable-mapping/lifetime obligation. Numeric
 /// checks do not probe mappings or authenticate caller-forged/reset records.
-/// Constructors must return normally or terminate: exception unwinding/caching,
-/// contention and thread-static initialization are not implemented here.
+/// EnsureLazy constructors must return normally or terminate. The split lazy
+/// operations record a caller-reported normal return or failure; they neither
+/// execute exceptions nor authenticate exception roots/caches. Contention and
+/// thread-static initialization are not implemented here.
 /// </summary>
-public static unsafe class CompilerClassConstructorExecution
+public static unsafe partial class CompilerClassConstructorExecution
 {
     public const uint MaximumEagerConstructors = 64;
     public const uint MaximumLazyConstructors = 64;
@@ -34,7 +37,7 @@ public static unsafe class CompilerClassConstructorExecution
     public const ulong LazyRecordBytes = 24;
     private const ulong Bound = 0x4D30343032344331;
     private const uint None = 0xFFFFFFFF;
-    private const uint Running = 1, Complete = 2;
+    private const uint Running = 1, Complete = 2, Failed = 3;
 
     private struct State
     {
@@ -149,32 +152,10 @@ public static unsafe class CompilerClassConstructorExecution
     /// </summary>
     public static CompilerClassConstructorStatus EnsureLazy(byte* storage, ulong capacity, ulong contextAddress)
     {
-        CompilerClassConstructorStatus status = Validate(storage, capacity, out State* state);
-        if (status != CompilerClassConstructorStatus.Success) return status;
-        if (state->EagerPhase == 0) return CompilerClassConstructorStatus.EagerNotStarted;
-        if (!Context(state, contextAddress)) return CompilerClassConstructorStatus.ContextRejected;
-        LazyRecord* records = Lazy(state);
-        for (uint i = 0; i < state->LazyCount; i++)
-            if (records[i].Context == contextAddress)
-                return CompilerClassConstructorStatus.Success; // Validate proved completed or on active chain.
-        ulong target = *(ulong*)contextAddress;
-        if (target == 0) return CompilerClassConstructorStatus.ContextRejected;
-        if (!Executable(state, target)) return CompilerClassConstructorStatus.TargetRejected;
-        if (state->LazyCount == state->LazyCapacity) return CompilerClassConstructorStatus.CapacityExceeded;
-
-        uint index = state->LazyCount++;
-        records[index].Context = contextAddress; records[index].Target = target;
-        records[index].Parent = state->ActiveLazy; records[index].Phase = Running;
-        state->ActiveLazy = index;
-        ((delegate*<void>)target)();
-        status = Validate(storage, capacity, out state);
-        if (status != CompilerClassConstructorStatus.Success) return status;
-        if (state->ActiveLazy != index) return CompilerClassConstructorStatus.StateChanged;
-        // The real managed call returned, and owner/context/target are still exact.
-        *(ulong*)contextAddress = 0;
-        state->ActiveLazy = records[index].Parent;
-        records[index].Parent = None; records[index].Phase = Complete;
-        return CompilerClassConstructorStatus.Success;
+        CompilerClassConstructorStatus status = BeginLazy(storage, capacity, contextAddress, out var invocation);
+        if (status != CompilerClassConstructorStatus.Success || !invocation.RequiresInvocation) return status;
+        ((delegate*<void>)invocation.Target)();
+        return FinishLazy(storage, capacity, invocation, returnedNormally: true);
     }
 
     public static CompilerClassConstructorStatus Observe(byte* storage, ulong capacity,
@@ -188,7 +169,7 @@ public static unsafe class CompilerClassConstructorExecution
         LazyRecord* records = Lazy(state);
         for (uint i = 0; i < state->LazyCount; i++)
             if (records[i].Phase == Complete) progress.LazyCompleted++;
-            else progress.ActiveLazyCount++;
+            else if (records[i].Phase == Running) progress.ActiveLazyCount++;
         return CompilerClassConstructorStatus.Success;
     }
 
@@ -242,6 +223,10 @@ public static unsafe class CompilerClassConstructorExecution
             {
                 if (word != record.Target) return CompilerClassConstructorStatus.StateChanged;
                 running++;
+            }
+            else if (record.Phase == Failed)
+            {
+                if (word != record.Target || record.Parent != None) return CompilerClassConstructorStatus.StateChanged;
             }
             else return CompilerClassConstructorStatus.StateChanged;
         }

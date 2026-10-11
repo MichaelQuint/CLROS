@@ -165,7 +165,7 @@ internal static unsafe class CompilerClassConstructorExecutionTests
 
     // Ordinary retained-owner fixture: actual registration against caller-owned
     // mapped bytes. RX flags are metadata only; never call this synthetic code.
-    private sealed class Fixture : IDisposable
+    internal sealed class Fixture : IDisposable
     {
         internal const uint ImageSize = 0xC000;
         internal const ulong Capacity = 4096, OwnerCapacity = 4096;
