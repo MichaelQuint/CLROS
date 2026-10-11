@@ -8,6 +8,13 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
+                [@"..\OS.Kernel\Storage\NativeManifestDisk.cs"] = "1e207b3310fab42259123a1411e2a95aad62d624edba5a163fcb7e981bf9aa72",
+                [@"..\OS.Kernel\Storage\APPPKGDisk.cs"] = "00453942c44c1134e3fefe0341aed675e8136daef55cdc8a767dc44e855c4c66",
+                [@"..\OS.Kernel\Storage\SelectedPayloadOwnedMemory.cs"] = "3ac4ac69243353bbc23a1ad0c21da901bfeeb25361e2bcafa7d4874c5ebd2e50",
+                [@"..\OS.Kernel\Storage\MalformedDiskPackageFailureProbesRemainDiagnosableEBS.cs"] = "bb58545925a91f17dadf936c58364c61083009eeaeecd10af843e28c6d3d8388",
+                [@"..\OS.Kernel\Storage\M06DiskPackageFixture.cs"] = "1f16ce96549ded5d7f450c326b0d6122b5da3319cbc110e0a9fb0b488a079d4f",
+                [@"..\..\std\no-runtime\shared\Text\AsciiPointerMatcher.cs"] = "1d2e3444f0c2a0fa0b317e236b712f8e17df338cfc6b7b515265d9289b0c7a6b",
+                [@"..\..\std\no-runtime\shared\Memory\BoundedFileSectorCopy.cs"] = "13840adacf06d6a568e9036045f5f16c46d63c6f2476150951d0e87e57b38e02",
                 [@"..\OS.Kernel\Storage\FATClusterChainsLoopBadClusterTruncationDetection.cs"] = "77dc22e2dcaa2e5490683195a240877cbc1d5c371af0e1adf920ddfcd7cbdaad",
                 [@"..\OS.Kernel\Storage\MultiClusterDirectoryVFATLongNameSupportSeparate.cs"] = "1eb7c1da782914e3337ae9b468b86756cc10a517510fc3664d645620cffa6912",
                 [@"..\OS.Kernel\Storage\KnownFileSHAN256EquivalentKnownFixtureHash.cs"] = "e00231bbec7354521af09a44aa27b276f0a37659275a4d1c81f06cc9992b8dd3",
@@ -60,7 +67,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Runtime\X64FrameUnwind.cs"] = "b7cc8b10a5c1a0e819745d31e81b4915164645b17f172063522f32167afb3733",
                 [@"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs"] = "b01c67219c897cce58c756b72849a90f8032f10a222f0b4fe9e37e91bacc4d03",
                 [@"..\OS.Kernel\Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs"] = "12fac853b9dc2357d25315e4bedd0e43df0af76854079b7ae030bca36aed5253",
-                [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "940d72d7c61d7b98ee1ce8c16934bc162ddcdf1605a28db08e27eeec28ac93ae",
+                [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "8a235e0d9405af448db078c638830be016554e990bc725d572822131ea2e3215",
                 [@"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs"] = "88053c5a7a7c46aae39e0c68d03d3dd6ab83047640e3a22455148e53023a44fe",
                 [@"..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs"] = "305c825611db57ddfdb446e6dabc0dd234a91e3c4d4bd050e9aaaf9b8ea57cb5",
                 [@"..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs"] = "a29db3387522d066ddff2c0cc06572e909a1eeb14080caba3c680a68c902dc0d",

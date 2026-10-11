@@ -3,6 +3,13 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+                [@"..\OS.Kernel\Storage\NativeManifestDisk.cs"] = "reviewed_package_read_source_identity",
+                [@"..\OS.Kernel\Storage\APPPKGDisk.cs"] = "reviewed_package_read_source_identity",
+                [@"..\OS.Kernel\Storage\SelectedPayloadOwnedMemory.cs"] = "reviewed_package_read_source_identity",
+                [@"..\OS.Kernel\Storage\MalformedDiskPackageFailureProbesRemainDiagnosableEBS.cs"] = "reviewed_package_read_source_identity",
+                [@"..\OS.Kernel\Storage\M06DiskPackageFixture.cs"] = "reviewed_package_read_source_identity",
+                [@"..\..\std\no-runtime\shared\Text\AsciiPointerMatcher.cs"] = "reviewed_package_read_source_identity",
+                [@"..\..\std\no-runtime\shared\Memory\BoundedFileSectorCopy.cs"] = "reviewed_package_read_source_identity",
         [@"..\OS.Kernel\Storage\FATClusterChainsLoopBadClusterTruncationDetection.cs"] = "reviewed_fat_read_source_identity",
         [@"..\OS.Kernel\Storage\MultiClusterDirectoryVFATLongNameSupportSeparate.cs"] = "reviewed_fat_read_source_identity",
         [@"..\OS.Kernel\Storage\KnownFileSHAN256EquivalentKnownFixtureHash.cs"] = "reviewed_fat_read_source_identity",

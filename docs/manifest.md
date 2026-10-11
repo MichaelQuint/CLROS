@@ -1,5 +1,20 @@
 # Manifest
 
+The disk-manifest batch has a separate bounded pointer validator in
+`OS.Storage.NativeManifestDisk`, host-tested in [step1153](../done/step1153.md).
+It accepts at most 4,096 bytes of ASCII native v0 required fields and optional
+package/native-aot kind fields, with LF/CRLF and source-backed offsets.
+Environment/listen keys reject as unsupported; this does not reduce the
+existing `NativeManifestParser` host contract. Strict relative app paths reject
+absolute/drive/backslash, empty and dot/dot-dot segments.
+The default-off package profile in [step1154](../done/step1154.md) now connects
+this validator to bounded one-cluster `OS/NATIVE.MAN` reads and source-backed
+package path selection. Its active no-stdlib compile and focused host controls
+pass. [Step1155](../done/step1155.md) records strict native review and six package
+guest variants; [step1156](../done/step1156.md) accepts the bounded batch after
+4,393 unfiltered full-host checks on unchanged corrected inputs.
+Process environment and app activation remain incomplete.
+
 ## Current Status
 
 A host-side JSON manifest v0 validator exists, and a kernel-facing native manifest parser plus host-tested storage loaders now exist for the early app-launch path. The manifest loader now has an additive caller-buffer GPT readiness overload that uses CRC-validating GPT parsing with backup-GPT fallback before FAT32 reads, preserves GPT primary/backup table-source metadata plus GPT scratch and manifest required/available byte counts on caller-buffer failures, and `NativeAppSelectionLoader` composes manifest/package reads into selected-app metadata in host tests. The app-model path also has a host-tested bind-policy helper that validates a future PAL IPv4 socket-bind endpoint against the launch plan's manifest listen endpoint, a mock-only bridge that calls `OSHostSocketTable.Bind` only after that policy succeeds, a mock-only listener bridge that creates/binds/listens through `OSHostSocketTable` after policy success, and host-only PAL config-table projection for listen metadata. Full kernel app launch is not implemented. The host manifest reserves the runtime shape for native-tier apps and hosted .NET 10 workloads, including ASP.NET Minimal API/Kestrel app packages; the broad hosted-workload claim boundary remains `docs/completion-gates.md`.

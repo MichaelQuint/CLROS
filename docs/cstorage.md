@@ -1,5 +1,44 @@
 # Storage
 
+## Bounded manifest/package read and staging profile
+
+[Step1153](../done/step1153.md) implements the pure helpers for owned issues
+#130–#133 and shared integration #631. The bounded native v0 manifest validator
+admits required fields plus package/native-aot kind fields, source-backed path
+offsets and strict relative paths. Environment/listen fields remain unsupported
+in this disk validator; the existing broader host parser is unchanged.
+The package validator checks at most 8,192 bytes and 16 OSPKGv0 entries,
+including metadata bounds, reserved values, duplicates and all overlaps, then
+compares an explicit expected repository CRC32. The format has no embedded
+cryptographic hash. Payload staging revalidates package bytes and the selected
+OSAPPv0 header before copying its complete bytes and preserving entry offset.
+All source/path/destination aliases and invalid numeric ranges reject before
+writes. Shared sector copying also rejects byte-counter aliases and excludes
+final-sector padding. Failure metadata requires asserted cleanup and canary
+checks; it does not establish those assertions or emit serial output.
+
+The 29 foundation checks passed before integration. [Step1154](../done/step1154.md)
+adds explicit EFI compile inputs and the default-off `EnableM06PackageReadProbe`
+under #631, after completed GPT/FAT prerequisites in `BootSequence`. It re-reads
+the two-cluster root and one-cluster OS directory, admits one-cluster
+`OS/NATIVE.MAN` and `OS/APP.PKG` files, validates the selected package against the
+reviewed fixture CRC, and stages the complete OSAPP payload in one original
+allocator-owned RW/NX page. It compares copied bytes and restores the exact
+allocator state before success. Every sector uses a separate reset/cleanup
+lifetime with epochs134..197; fixed profile scratch is retained image storage.
+
+Focused profile, ownership, transcript/disk association, image mutation and
+failure-metadata checks pass, as does the active no-stdlib C# compile. Intact,
+manifest-version, package-checksum, package-header, truncated-chain and self-loop
+variants have separate exact expected transcripts. Only truncation/self-loop
+disk failures are admitted to controlled fault diagnostics; uncertain transport
+cleanup fails the profile. [Step1155](../done/step1155.md) records strict native
+ABI/stack review, six real package variants and seven ancestor regressions.
+[Step1156](../done/step1156.md) accepts the batch after corrected-source
+unfiltered full-host qualification: 4,393 checks across 544 groups, no reuse or
+input changes. App execution, continuing storage and Gate7 remain incomplete.
+Accepted FAT evidence remains [step1152](../done/step1152.md).
+
 ## Bounded FAT read profile
 
 The #127/#128/#129 batch and shared integration #629 are qualified in

@@ -1,5 +1,17 @@
 # NativeAOT NoStdLib Limits
 
+[Step1153](../done/step1153.md) adds host-tested shared pointer ASCII matching
+(packed tokens up to 24 bytes), bounded ASCII relative paths, and exact
+512-byte file-sector copying into caller-owned memory. These use pointer-backed
+Span's Length/fixed surface, reject null/wrapping numeric ranges and aliases
+(including the copy counter), allocate no memory and return expected failures.
+Caller-owned mapped/readable/writable backing is still required. New bounded
+manifest/package/staging helpers use that surface and became explicit EFI
+compile items in step1154. [Step1156](../done/step1156.md) admits their linked
+native bytes only for the bounded package profile, with full-host/native/guest
+review. Caller backing requirements and the broader runtime compatibility
+ledger's separate evidence boundaries remain unchanged.
+
 The qualified FAT slice in [step1152](../done/step1152.md) uses existing pointer-backed
 `Span<byte>`, with `Span<uint>` and `Span<ushort>` specializations for fixed caller
 scratch. A shared pointer `ReadUInt16LittleEndian(byte*)` overload reads exactly

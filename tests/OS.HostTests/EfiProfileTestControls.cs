@@ -17,6 +17,7 @@ internal static class EfiProfileTestControls
                     "M05_BAR_DMA_PROBE" or "M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE" => Array.Empty<string>(),
                     "M06_VIRTIO_BLOCK_READ_PROBE" => Array.Empty<string>(),
                     "M06_FAT_READ_PROBE" => ["M06_VIRTIO_BLOCK_READ_PROBE", "M06_LIVE_BLOCK_CONTRACT_PROBE", "M06_GPT_PARTITION_PROBE"],
+                    "M06_PACKAGE_READ_PROBE" => ["M06_VIRTIO_BLOCK_READ_PROBE", "M06_LIVE_BLOCK_CONTRACT_PROBE", "M06_GPT_PARTITION_PROBE", "M06_FAT_READ_PROBE"],
                     "M06_GPT_PARTITION_PROBE" => ["M06_VIRTIO_BLOCK_READ_PROBE", "M06_LIVE_BLOCK_CONTRACT_PROBE"],
                     "M06_LIVE_BLOCK_CONTRACT_PROBE" => ["M06_VIRTIO_BLOCK_READ_PROBE"],
                     "M05_VIRTQUEUE_INTERRUPT_PROBE" => ["M05_VIRTIO_NEGOTIATION_PROBE", "M05_APIC_SETUP_PROBE"],
@@ -32,6 +33,22 @@ internal static class EfiProfileTestControls
             if (methods.Count(m => m.Identifier.Text == entry) != 1 || methods.Count(m => m.Identifier.Text == body) != 1) return false;
             var invocations = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax>().ToArray();
             var calls = invocations.Where(i => i.Expression.ToString() == call).ToArray();
+            var payloadCalls = calls.Where(i => i.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
+                .FirstOrDefault()?.Identifier.Text == "StagePackagePayload").ToArray();
+            if (symbol == "M06_PACKAGE_READ_PROBE")
+            {
+                if (payloadCalls.Length != 1 || calls.Length != 2) return false;
+                var payloadEdges = invocations.Where(i => i.Expression.ToString() == "StagePackagePayload").ToArray();
+                if (payloadEdges.Length != 1 || payloadEdges[0].ArgumentList.ToString() != "(state, packageBytes, selectedPath)" ||
+                    payloadEdges[0].Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
+                        .FirstOrDefault()?.Identifier.Text != "RunPackageReadCore") return false;
+                string expectedPayload = call.EndsWith(".AllocateOnePage", StringComparison.Ordinal)
+                    ? "(before, &owner->FreeNodeValue, 1, 1, null, 0, 0, 1, 4096)"
+                    : "(owner->AllocatorStateValue, &owner->FreeNodeValue, 1, 1, null, 0, 0, allocation)";
+                if (payloadCalls[0].ArgumentList.ToString() != expectedPayload) return false;
+                admitted.Add((payloadCalls[0].Expression.SpanStart, payloadCalls[0].Expression.Span.Length));
+                calls = calls.Except(payloadCalls).ToArray();
+            }
             reason = symbol + ":call-count-owner " + calls.Length;
             if (calls.Length != 1 || calls[0].Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
                 .FirstOrDefault()?.Identifier.Text != body) return false;
@@ -39,13 +56,18 @@ internal static class EfiProfileTestControls
             {
                 var edges = invocations.Where(i => i.Expression.ToString() == body).ToArray();
                 reason = symbol + ":shared-body-caller " + edges.Length;
-                string[] expectedCallers = symbol == "M06_FAT_READ_PROBE" ? ["RunOwnedVirtioBlockRead", "RunOwnedLiveBlockContract", "ReadGptSector", entry] : symbol == "M06_GPT_PARTITION_PROBE" ? ["RunOwnedVirtioBlockRead", "RunOwnedLiveBlockContract", entry] : symbol == "M06_LIVE_BLOCK_CONTRACT_PROBE" ? ["RunOwnedVirtioBlockRead", entry] : [entry];
+                string[] expectedCallers = symbol == "M06_PACKAGE_READ_PROBE" ? ["RunOwnedVirtioBlockRead", "RunOwnedLiveBlockContract", "ReadGptSector", "ReadFatSector", entry] : symbol == "M06_FAT_READ_PROBE" ? ["RunOwnedVirtioBlockRead", "RunOwnedLiveBlockContract", "ReadGptSector", entry] : symbol == "M06_GPT_PARTITION_PROBE" ? ["RunOwnedVirtioBlockRead", "RunOwnedLiveBlockContract", entry] : symbol == "M06_LIVE_BLOCK_CONTRACT_PROBE" ? ["RunOwnedVirtioBlockRead", entry] : [entry];
                 if (!edges.Select(e => e.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
                     .FirstOrDefault()?.Identifier.Text).Order().SequenceEqual(expectedCallers.Order())) return false;
                 if (symbol == "M06_FAT_READ_PROBE" &&
                     (edges[0].ArgumentList.ToString() != "(state)" || edges[1].ArgumentList.ToString() != "(state, true)" ||
                      edges[2].ArgumentList.ToString() != "(state, false, destination, sector, reads + 4UL)" ||
                      edges[3].ArgumentList.ToString() != "(state, false, destination, sector, reads + 70UL, true)")) return false;
+                if (symbol == "M06_PACKAGE_READ_PROBE" &&
+                    (edges[0].ArgumentList.ToString() != "(state)" || edges[1].ArgumentList.ToString() != "(state, true)" ||
+                     edges[2].ArgumentList.ToString() != "(state, false, destination, sector, reads + 4UL)" ||
+                     edges[3].ArgumentList.ToString() != "(state, false, destination, sector, reads + 70UL, true)" ||
+                     edges[4].ArgumentList.ToString() != "(state, false, destination, sector, reads + 134UL, false, true)")) return false;
                 if (symbol == "M06_GPT_PARTITION_PROBE" &&
                     (edges[0].ArgumentList.ToString() != "(state)" || edges[1].ArgumentList.ToString() != "(state, true)" ||
                      edges[2].ArgumentList.ToString() != "(state, false, destination, sector, reads + 4UL)")) return false;
@@ -83,6 +105,7 @@ internal static class EfiProfileTestControls
             ("M05VirtqueuePolling", "M05VirtioNegotiation", "m05_virtqueue_polling_requires_negotiation"),
             ("M05VirtioNegotiation", "M05PciEnumeration", "m05_virtio_negotiation_requires_pci"),
             ("M06FatRead", "M06GptPartition", "m06_fat_read_requires_gpt"),
+            ("M06PackageRead", "M06FatRead", "m06_package_read_requires_fat"),
             ("M06GptPartition", "M06LiveBlockContract", "m06_gpt_partition_requires_contract"),
             ("M06LiveBlockContract", "M06VirtioBlockRead", "m06_live_block_contract_requires_read"),
             ("M06VirtioBlockRead", "M06VirtioBlockQueueSetup", "m06_block_read_requires_queue"),

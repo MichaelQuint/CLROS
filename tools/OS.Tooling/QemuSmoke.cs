@@ -69,6 +69,11 @@ public static class QemuSmoke
                     var receipt = FatImageFixture.Apply(Path.GetFullPath(options.Image, root), Path.GetFullPath(options.EfiArtifact, root));
                     output.WriteLine("M06_FAT_IMAGE_FIXTURE " + System.Text.Json.JsonSerializer.Serialize(receipt));
                 }
+                if (plan.IsEnabled("EnableM06PackageReadProbe"))
+                {
+                    var receipt = PackageImageFixture.Apply(Path.GetFullPath(options.Image, root), Path.GetFullPath(options.EfiArtifact, root), options.PackageImageVariant);
+                    output.WriteLine("M06_PACKAGE_IMAGE_FIXTURE " + System.Text.Json.JsonSerializer.Serialize(receipt));
+                }
                 if (options.GptImageVariant == "PrimaryHeaderCrcFault")
                 {
                     File.Copy(Path.GetFullPath(options.Image, root), Path.GetFullPath(gptBootImage, root), true);
@@ -105,7 +110,11 @@ public static class QemuSmoke
             if (plan.IsEnabled("EnableM05VirtioNegotiationProbe")) arguments.Add("--virtio-negotiation-device");
             if (plan.IsEnabled("EnableM06VirtioBlockQueueSetupProbe")) arguments.Add("--virtio-block-queue-device");
             if (gptBootImage.Length != 0) arguments.AddRange(["--virtio-block-boot-image", gptBootImage]);
-            foreach (var (name, values) in new[] { ("--require-marker", plan.Required), ("--require-ordered-marker", plan.Ordered), ("--require-unique-marker", plan.Unique), ("--forbid-marker", plan.Forbidden), ("--marker-preset", plan.Presets) })
+            // The runner adds every ordered marker to its required list. Avoid
+            // sending an identical list twice: long profiles otherwise exceed
+            // Windows' command-line limit without adding a requirement.
+            IReadOnlyList<string> required = plan.Required.SequenceEqual(plan.Ordered) ? [] : plan.Required;
+            foreach (var (name, values) in new[] { ("--require-marker", required), ("--require-ordered-marker", plan.Ordered), ("--require-unique-marker", plan.Unique), ("--forbid-marker", plan.Forbidden), ("--marker-preset", plan.Presets) })
                 foreach (string value in values) arguments.AddRange([name, value]);
             if (qemu.Length != 0) arguments.AddRange(["--qemu", qemu]);
             if (ovmf.Length != 0) arguments.AddRange(["--ovmf-code", ovmf]);

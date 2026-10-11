@@ -712,6 +712,28 @@ public static class QemuContracts
         "M06_FAT 06", "M06_FAT 07", "M06_FAT 08", "CLROS_M06_014_READY", "TEST_PASS m06.014"
     ]);
 
+    public static IReadOnlyList<string> M06PackageReadMarkers(string variant = "Intact")
+    {
+        if (variant is not ("Intact" or "ManifestVersion" or "PackageChecksum" or "PackageHeader" or "PackageTruncated" or "PackageLoop"))
+            throw new ArgumentOutOfRangeException(nameof(variant), variant, "package_image_variant_invalid");
+        List<string> markers = [.. M06FatReadMarkers(), "TEST_START m06.015", "M06_PKG 80", "M06_PKG 00",
+            .. Enumerable.Range(0x81, 6).Select(i => "M06_PKG " + i.ToString("X2")), "M06_PKG 01",
+            "M06_PKG 87", "M06_PKG 88", "M06_PKG 89", "M06_PKG 02",
+            "M06_PKG 8A", "M06_PKG 8B", "M06_PKG 8C"];
+        if (variant != "ManifestVersion")
+        {
+            markers.AddRange(["M06_PKG 03", "CLROS_M06_015_READY", "TEST_PASS m06.015", "TEST_START m06.016",
+                "M06_PKG 8D", "M06_PKG 8E", "M06_PKG 8F"]);
+            if (variant == "Intact")
+                markers.AddRange(["M06_PKG 04", "CLROS_M06_016_READY", "TEST_PASS m06.016", "TEST_START m06.017",
+                    "M06_PKG 05", "M06_PKG 06", "M06_PKG 07", "CLROS_M06_017_READY", "TEST_PASS m06.017"]);
+        }
+        markers.Add("TEST_START m06.018");
+        if (variant != "Intact") markers.Add("M06_PKG 08");
+        markers.AddRange(["M06_PKG 09", "CLROS_M06_018_READY", "TEST_PASS m06.018"]);
+        return markers.AsReadOnly();
+    }
+
     public static IReadOnlyList<string> M06LiveBlockContractMarkers { get; } = Array.AsReadOnly<string>(
     [
         .. M06VirtioBlockReadMarkers,
