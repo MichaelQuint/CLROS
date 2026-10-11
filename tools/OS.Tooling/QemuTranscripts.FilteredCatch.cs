@@ -13,7 +13,7 @@ public static partial class QemuTranscripts
         var module = ReadHexRecord(gcLines[1],"M04_GC_ROOT 1",4);
         var stack = ReadHexRecord(gcLines[2],"M04_GC_ROOT 7",4);
         var canaries = ReadHexRecord(gcLines[7],"M04_GC_ROOT 8",4);
-        decimal imageEnd = (decimal)image[0]+image[1], catcher = (decimal)rows[3][2]-35,
+        decimal imageEnd = (decimal)image[0]+image[1], catcher = (decimal)rows[3][2]-36,
             thrower = (decimal)rows[2][0]-9, parentRsp = rows[3][3], parentRbp = parentRsp+64, local = parentRbp-8;
         ulong seed = (module[3]^heap["backing"]) & 0xffff, original = rows[1][0];
         Need(rows[0][0] == module[3] && rows[0][1]%8 == 0 && rows[0][1] >= image[0] &&
@@ -34,7 +34,7 @@ public static partial class QemuTranscripts
             rows[8].SequenceEqual(new[]{rows[4][1],1UL,2UL,(ulong)parentRsp}),reason+"_ordered_actual_returns_and_shared_local");
         Need(rows[9].SequenceEqual(new[]{rows[4][3],1UL,(ulong)parentRbp,(ulong)local}) &&
             rows[10].SequenceEqual(new[]{original,seed+2,2UL,1UL}) &&
-            rows[11].SequenceEqual(new[]{(ulong)(catcher+36),(ulong)parentRsp,(ulong)parentRbp,1UL}) &&
+            rows[11].SequenceEqual(new[]{(ulong)(catcher+37),(ulong)parentRsp,(ulong)parentRbp,1UL}) &&
             rows[12].SequenceEqual(new[]{original,seed,seed+1,1UL}) &&
             rows[14].SequenceEqual(new[]{original,rows[1][1],2UL,1UL}),reason+"_selected_catch_and_compiled_continuation");
         foreach(var (at,bytes) in new (decimal,decimal)[]{((decimal)rows[2][2]-848,848),(parentRsp,88)})

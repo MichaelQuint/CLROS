@@ -11,7 +11,7 @@ internal static unsafe partial class RhpNewFastAllocation
     // returning ABI and original callback graph; the diagnostic defaults off.
     private const bool FilterTransferAdmitted = true;
     private const uint FilterMethodBytes = 295, FilterTableBytes = 11;
-    private const uint FilterReturnOffset = 35, FilterContinuationOffset = 36;
+    private const uint FilterReturnOffset = 36, FilterContinuationOffset = 37;
     private const uint FilterFirstOffset = 60, FilterSecondOffset = 178;
     private const uint FilterFirstHandlerOffset = 127, FilterSecondHandlerOffset = 245;
     private static ulong s_filterEntries, s_filterLocal, s_filterFirst, s_filterSecond;

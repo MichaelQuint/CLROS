@@ -18,10 +18,10 @@ internal static class FilteredCatchTranscriptTests
             rsp=stack[2]-0x1000,parentRsp=rsp+48,parentRbp=parentRsp+64,local=parentRbp-8;
         string R(int stage,params ulong[] values)=>EfiTranscriptControls.Row("M04_FILTERS",stage,values);
         string[] child=["TEST_START m04.021.filters",R(0,module[3],image[0]+0x10000,4000,300),R(1,obj,type,9,3),
-            R(2,thrower+9,(thrower+9)^1,rsp,0),R(3,thrower+9,rsp,catcher+35,parentRsp),
+            R(2,thrower+9,(thrower+9)^1,rsp,0),R(3,thrower+9,rsp,catcher+36,parentRsp),
             R(4,catcher+60,catcher+178,catcher+127,catcher+245),R(5,obj,local,seed+1,0),R(6,catcher+60,0,1,parentRsp),
             R(7,obj,local,seed+2,1),R(8,catcher+178,1,2,parentRsp),R(9,catcher+245,1,parentRbp,local),R(10,obj,seed+2,2,1),
-            R(11,catcher+36,parentRsp,parentRbp,1),R(12,obj,seed,seed+1,1),R(13,15,rsp-12000,canaries[1],canaries[2]),
+            R(11,catcher+37,parentRsp,parentRbp,1),R(12,obj,seed,seed+1,1),R(13,15,rsp-12000,canaries[1],canaries[2]),
             R(14,obj,type,2,1),"TEST_PASS m04.021.filters","CLROS_M04_021_FILTERS_READY"];
         string[] lines=[..original[..insert],..child,..original[insert..]];
         HostCheck.True(lines.Length==88,"whole inherited success transcript");

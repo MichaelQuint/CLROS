@@ -101,6 +101,15 @@ internal static class M04FilteredCatchEfiIntegrationTests
         }
         Verify(null);
         List<(int At,string Reason)> controls=[];
+        byte[] catcherCode=original.AsSpan(Offset("OS_OS_Runtime_RhpNewFastAllocation__FilterCatcher",295),295).ToArray();
+        HostCheck.True(EfiVerify.TestFilteredCatchOffsets(catcherCode,36,37) &&
+            !EfiVerify.TestFilteredCatchOffsets(catcherCode,35,36) && !EfiVerify.TestFilteredCatchOffsets(catcherCode,36,36),
+            "original call returns at +36 and both actual catch LEAs resume at +37");
+        foreach(int at in new[]{31,36,37,169,286})
+        {
+            byte[] changed=[..catcherCode];changed[at]^=1;
+            HostCheck.True(!EfiVerify.TestFilteredCatchOffsets(changed,36,37),"actual call/NOP/continuation/return-LEA mutation");
+        }
         foreach (string method in new[] { "FilterThrower","FilterCatcher","FilterDecision","FilterCatchEntered","FilterContinued","MatchRetainedExceptionType","MatchFilteredExceptionType","SelectFilteredCatch","ValidateFilteredContinuation","FilterContextMatches" })
             controls.Add((Offset("OS_OS_Runtime_RhpNewFastAllocation__"+method,1),"filters_method_bytes_mismatch"));
         controls.Add((Offset("RhTypeCast_IsInstanceOfClass",1),"filters_method_bytes_mismatch"));

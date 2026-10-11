@@ -3,6 +3,9 @@
 The owned #654/#655/#656 filtered-catch candidate is implemented in
 [step1177](../done/step1177.md); [step1178](../done/step1178.md) admits the enabled
 native candidate after original callback/stack and computed-target review.
+[Step1179](../done/step1179.md) corrects return/continuation offsets after the
+first guest rejects before filter execution. The repaired candidate still awaits
+guest and renewed full qualification.
 A separate four-row POD search validates
 same-range filter siblings and ordered return receipts; it owns no invocation,
 object root, module or stack authority. A returning wrapper preserves the
