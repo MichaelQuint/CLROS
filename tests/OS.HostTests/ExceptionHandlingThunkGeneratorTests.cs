@@ -216,14 +216,19 @@ internal static class ExceptionHandlingThunkGeneratorTests
         catch (Exception ex) { Console.WriteLine("TEST_FAIL " + name + " " + ex); throw; }
     }
 
-    private static void VerifyTransfer(byte[] code, int failure, bool singleFinally = false, int finallyValidator = -1,
-        int continuationValidator = 810, bool rethrow = false, int selector = 329)
+    internal static void VerifyTransfer(byte[] code, int failure, bool singleFinally = false, int finallyValidator = -1,
+        int continuationValidator = 810, bool rethrow = false, int selector = 329,
+        bool nestedFinally = false, int secondFinallyValidator = -1)
     {
         ulong[] g = Enumerable.Range(0,16).Select(i => 0x100000UL+(ulong)i).ToArray();
         byte[][] xmm = Enumerable.Range(0,16).Select(i => Enumerable.Repeat((byte)(i+1),16).ToArray()).ToArray();
         byte[] memory = new byte[8192];
         const ulong entry = 6008, rawRip = 0x180010009, continuation = 0x18002001b, exception = 0x700000;
-        ulong frame = entry-840, selectedSp = entry+8+48;
+        ulong frame = entry-(nestedFinally ? 856UL : 840UL), selectedSp = entry+8+48;
+        ulong selectedOffset = nestedFinally ? 304UL : 288UL, postOffset = nestedFinally ? 544UL : 528UL;
+        ulong exceptionOffset = nestedFinally ? 784UL : 768UL, entryControl = nestedFinally ? 792UL : 776UL;
+        ulong postControl = nestedFinally ? 824UL : 808UL;
+        int expectedCleanups = nestedFinally ? 2 : singleFinally ? 1 : 0;
         g[4]=entry;g[1]=rethrow ? 0xDEADC0DEUL : exception;
         ulong[] original=(ulong[])g.Clone(), selected=(ulong[])g.Clone(), post=(ulong[])g.Clone();
         int[] nv=[3,5,6,7,12,13,14,15];
@@ -238,14 +243,16 @@ internal static class ExceptionHandlingThunkGeneratorTests
         int I32(int at)=>BinaryPrimitives.ReadInt32LittleEndian(code.AsSpan(at,4));
         bool At(params byte[] b)=>code.AsSpan(ip,b.Length).SequenceEqual(b);
         Put(entry,rawRip);
-        for(int step=0;step<400;step++)
+        for(int step=0;step<600;step++)
         {
             if(At(0xEB,0xFE))
             {
                 Need(failure!=0,"successful path cannot halt");
                 Need(catchCalls==(failure>=4&&failure<=6?1:0) && validateCalls==(failure==6?1:0),"reject before next transfer boundary");
-                Need(cleanupCalls==(singleFinally&&failure>=4?1:0) &&
-                    cleanupValidations==(singleFinally&&(failure>=4&&failure<=6||failure==9)?1:0),"cleanup rejection never reaches catch");return;
+                int expectedCalls = failure <= 3 ? 0 : nestedFinally && (failure <= 6 || failure >= 10) ? 2 : singleFinally ? 1 : 0;
+                int expectedValidations = failure <= 3 || failure is 7 or 8 ? 0 : failure == 9 ? 1 :
+                    nestedFinally && failure is 10 or 11 ? 1 : nestedFinally ? 2 : singleFinally ? 1 : 0;
+                Need(cleanupCalls==expectedCalls && cleanupValidations==expectedValidations,"cleanup rejection never reaches next transfer");return;
             }
             if(At(0xFF,0xE0))
             {
@@ -253,7 +260,8 @@ internal static class ExceptionHandlingThunkGeneratorTests
                 foreach(int r in nv)Need(g[r]==post[r],"postcatch register retained "+r);
                 for(int r=6;r<16;r++)Need(xmm[r].SequenceEqual(selectedXmm[r]),"postcatch XMM retained "+r);
                 Need(mxcsr==0x1F80 && x87==0x37F && Get(entry)==rawRip&&
-                    Get(parentLocal)==(singleFinally?cleanupStamp:0),"controls, parent local and original return word");return;
+                    cleanupCalls==expectedCleanups && cleanupValidations==expectedCleanups &&
+                    Get(parentLocal)==(singleFinally?cleanupStamp+(ulong)expectedCleanups-1:0),"controls, parent local and original return word");return;
             }
             if(code[ip]==0x9c){g[4]-=8;Put(g[4],flags);ip++;continue;}
             if(code[ip]==0x58){g[0]=Get(g[4]);g[4]+=8;ip++;continue;}
@@ -287,41 +295,44 @@ internal static class ExceptionHandlingThunkGeneratorTests
                 memory.AsSpan((int)frame,32).Fill(0xCC); // each callback owns its home area
                 if(ip==selector)
                 {
-                    selectCalls++;Need(g[1]==(rethrow?0:exception)&&g[2]==frame+32&&g[8]==frame+272&&g[9]==frame+776,"selector args");
-                    Need(Get(frame+768)==(rethrow?0:exception),"rethrow does not retain or trust incoming RCX");
+                    selectCalls++;Need(g[1]==(rethrow?0:exception)&&g[2]==frame+32&&g[8]==frame+272&&g[9]==frame+entryControl,"selector args");
+                    Need(Get(frame+exceptionOffset)==(rethrow?0:exception),"original exception argument retained");
                     Need(Get(frame+32)==rawRip&&Get(frame+40)==entry+8,"raw preprolog input");
                     for(int i=0;i<nv.Length;i++)Need(Get(frame+48+(ulong)i*8)==original[nv[i]],"captured nonvolatile");
                     for(int r=6;r<16;r++)Need(memory.AsSpan((int)frame+112+(r-6)*16,16).SequenceEqual(originalXmm[r]),"captured XMM");
-                    Put(frame+272,0x180020033);Put(frame+280,rethrow?exception:singleFinally?cleanupTarget:0);Put(frame+288,0x18002001a);Put(frame+296,selectedSp);
-                    for(int i=0;i<nv.Length;i++){selected[nv[i]]+=0x10000;Put(frame+304+(ulong)i*8,selected[nv[i]]);}
-                    selected[5]=selectedSp+48;Put(frame+312,selected[5]);
-                    for(int r=6;r<16;r++){selectedXmm[r]=Enumerable.Repeat((byte)(0x40+r),16).ToArray();selectedXmm[r].CopyTo(memory,(int)frame+368+(r-6)*16);}
-                    selectedBytes=memory.AsSpan((int)frame+288,240).ToArray();
+                    Put(frame+272,0x180020033);Put(frame+280,rethrow?exception:singleFinally?cleanupTarget:0);
+                    if(nestedFinally){Put(frame+288,cleanupTarget+0x100);Put(frame+296,0);}
+                    Put(frame+selectedOffset,0x18002001a);Put(frame+selectedOffset+8,selectedSp);
+                    for(int i=0;i<nv.Length;i++){selected[nv[i]]+=0x10000;Put(frame+selectedOffset+16+(ulong)i*8,selected[nv[i]]);}
+                    selected[5]=selectedSp+48;Put(frame+selectedOffset+24,selected[5]);
+                    for(int r=6;r<16;r++){selectedXmm[r]=Enumerable.Repeat((byte)(0x40+r),16).ToArray();selectedXmm[r].CopyTo(memory,(int)(frame+selectedOffset+80)+(r-6)*16);}
+                    selectedBytes=memory.AsSpan((int)(frame+selectedOffset),240).ToArray();
                     g[0]=failure==3?0UL:1UL;
                 }
-                else if(singleFinally && ip==finallyValidator)
+                else if(singleFinally && (ip==finallyValidator || nestedFinally && ip==secondFinallyValidator))
                 {
                     cleanupValidations++;
-                    Need(cleanupCalls==1&&cleanupValidations==1&&catchCalls==0&&validateCalls==0,"cleanup validated before catch");
-                    Need(g[1]==frame+272&&g[2]==frame+776&&g[8]==frame+808,"finally validator arguments");
-                    Need(Get(parentLocal)==cleanupStamp&&Get(frame+280)==cleanupTarget&&
-                        memory.AsSpan((int)frame+288,240).SequenceEqual(selectedBytes),"parent local changed without changing selected context");
-                    Need(Get(frame+808)==0&&Get(frame+816)==0&&
-                        BinaryPrimitives.ReadUInt32LittleEndian(memory.AsSpan((int)frame+824))==0x1F81&&
-                        BinaryPrimitives.ReadUInt16LittleEndian(memory.AsSpan((int)frame+828))==0x37F,"actual cleanup controls captured");
+                    Need(cleanupCalls==cleanupValidations&&cleanupValidations<=expectedCleanups&&catchCalls==0&&validateCalls==0 &&
+                        ip==(cleanupValidations==1?finallyValidator:secondFinallyValidator),"each ordered cleanup validated before next transfer");
+                    Need(g[1]==frame+272&&g[2]==frame+entryControl&&g[8]==frame+postControl,"finally validator arguments");
+                    Need(Get(parentLocal)==cleanupStamp+(ulong)cleanupCalls-1&&Get(frame+280)==cleanupTarget&&
+                        memory.AsSpan((int)(frame+selectedOffset),240).SequenceEqual(selectedBytes),"parent local changed without changing selected context");
+                    Need(Get(frame+postControl)==0&&Get(frame+postControl+8)==0&&
+                        BinaryPrimitives.ReadUInt32LittleEndian(memory.AsSpan((int)(frame+postControl+16)))==0x1F81&&
+                        BinaryPrimitives.ReadUInt16LittleEndian(memory.AsSpan((int)(frame+postControl+20)))==0x37F,"actual cleanup controls captured");
                     // Deliberately clobber callback state independently of the
                     // cleanup. The bridge must reload the original selection.
                     foreach(int r in nv)g[r]=0xBADF0000UL+(ulong)r;
                     for(int r=6;r<16;r++)xmm[r]=Enumerable.Repeat((byte)(0xE0+r),16).ToArray();
                     mxcsr=0x5F80;x87=0x77F;
-                    g[0]=failure==9?0UL:1UL;
+                    g[0]=cleanupValidations==1&&failure==9 || cleanupValidations==2&&failure==12 ?0UL:1UL;
                 }
                 else
                 {
                     Need(ip==continuationValidator,"only admitted ordinary callbacks");validateCalls++;
-                    Need(g[1]==continuation&&g[2]==frame+528&&g[8]==frame+272&&g[9]==frame+776,"validator args");
-                    Need(Get(frame+528)==continuation&&Get(frame+536)==selectedSp,"actual returned continuation snapshot");
-                    for(int i=0;i<nv.Length;i++)Need(Get(frame+544+(ulong)i*8)==post[nv[i]],"postcatch snapshot");
+                    Need(g[1]==continuation&&g[2]==frame+postOffset&&g[8]==frame+272&&g[9]==frame+entryControl,"validator args");
+                    Need(Get(frame+postOffset)==continuation&&Get(frame+postOffset+8)==selectedSp,"actual returned continuation snapshot");
+                    for(int i=0;i<nv.Length;i++)Need(Get(frame+postOffset+16+(ulong)i*8)==post[nv[i]],"postcatch snapshot");
                     foreach(int r in nv)g[r]=0xBAD;for(int r=6;r<16;r++)xmm[r]=new byte[16];
                     g[0]=failure==6?0UL:1UL;
                 }
@@ -329,21 +340,26 @@ internal static class ExceptionHandlingThunkGeneratorTests
             }
             if(At(0xff,0x94,0x24))
             {
-                if(singleFinally && I32(ip+3)==280)
+                if(singleFinally && (I32(ip+3)==280 || nestedFinally && I32(ip+3)==288))
                 {
-                    Need(g[4]==frame&&Get(frame+280)==cleanupTarget&&selectCalls==1&&cleanupCalls==0&&catchCalls==0,"one selected cleanup call");
+                    Need(g[4]==frame && I32(ip+3)==280+cleanupCalls*8 &&
+                        Get(frame+(ulong)I32(ip+3))==cleanupTarget+(ulong)cleanupCalls*0x100 &&
+                        selectCalls==1&&cleanupCalls<expectedCleanups&&cleanupValidations==cleanupCalls&&catchCalls==0,
+                        "ordered selected cleanup call after prior validation");
+                    Need(mxcsr==0x1F80&&x87==0x37F,"original FP controls restored before each cleanup");
                     foreach(int r in nv)Need(g[r]==selected[r],"cleanup parent context restored");
                     for(int r=6;r<16;r++)Need(xmm[r].SequenceEqual(selectedXmm[r]),"cleanup parent XMM restored");
-                    cleanupCalls++;Put(parentLocal,cleanupStamp);
+                    cleanupCalls++;Put(parentLocal,cleanupStamp+(ulong)cleanupCalls-1);
                     foreach(int r in nv)g[r]=0xF1000000UL+(ulong)r;
                     for(int r=6;r<16;r++)xmm[r]=Enumerable.Repeat((byte)(0xA0+r),16).ToArray();
                     g[0]=0xDEADF100;mxcsr=0x1F81;
-                    if(failure==7)flags=0x400;if(failure==8)cr4=1UL<<23;
+                    if(cleanupCalls==1&&failure==7 || cleanupCalls==2&&failure==10)flags=0x400;
+                    if(cleanupCalls==1&&failure==8 || cleanupCalls==2&&failure==11)cr4=1UL<<23;
                     ip+=7;continue;
                 }
                 Need(I32(ip+3)==272&&g[1]==exception&&g[4]==frame,"special catch call");
-                Need(cleanupCalls==(singleFinally?1:0)&&cleanupValidations==(singleFinally?1:0)&&
-                    Get(parentLocal)==(singleFinally?cleanupStamp:0)&&mxcsr==0x1F80&&x87==0x37F,"cleanup side effect and entry FP controls before catch");
+                Need(cleanupCalls==expectedCleanups&&cleanupValidations==expectedCleanups&&
+                    Get(parentLocal)==(singleFinally?cleanupStamp+(ulong)expectedCleanups-1:0)&&mxcsr==0x1F80&&x87==0x37F,"cleanup side effects and entry FP controls before catch");
                 foreach(int r in nv)Need(g[r]==selected[r],"selected context restored");
                 for(int r=6;r<16;r++)Need(xmm[r].SequenceEqual(selectedXmm[r]),"selected XMM restored");
                 catchCalls++;
@@ -358,7 +374,7 @@ internal static class ExceptionHandlingThunkGeneratorTests
         throw new InvalidOperationException("bridge did not terminate within finite instruction budget");
     }
 
-    private static string Run(string root,string folder,string name,string[] args, int expectedExit = 0)
+    internal static string Run(string root,string folder,string name,string[] args, int expectedExit = 0)
     {
         using var process = new Process { StartInfo = new ProcessStartInfo("dotnet") { WorkingDirectory=root,UseShellExecute=false,CreateNoWindow=true,RedirectStandardOutput=true,RedirectStandardError=true } };
         foreach(string arg in args)process.StartInfo.ArgumentList.Add(arg);

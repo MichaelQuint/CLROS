@@ -197,8 +197,8 @@ internal static unsafe class NativeAotEhClauseMetadataTests
         f.Guards();
     }
 
-    private readonly record struct Row(uint Start, uint Length, uint Kind, uint Handler, uint Extra = 0);
-    private static byte[] Table(params Row[] rows) => Table(0, rows);
+    internal readonly record struct Row(uint Start, uint Length, uint Kind, uint Handler, uint Extra = 0);
+    internal static byte[] Table(params Row[] rows) => Table(0, rows);
     private static byte[] Table(int width, params Row[] rows)
     {
         List<byte> bytes = new(); Add(bytes, (uint)rows.Length, width);

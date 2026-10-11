@@ -101,6 +101,18 @@ The C# publication/verifier and 88-record guest path pass in
 [step1120](../done/step1120.md), including full-host and image qualification. Filters,
 collided exceptions, arbitrary nested rethrow and general EH remain unsupported.
 
+The next #90 batch (#638-#640) has a host-tested one-method dispatch policy:
+at most four decoded physical clauses, typed catch search and two strictly
+nested exceptional cleanup targets. It reuses the admitted metadata reader and
+retained-object type matcher; no partial successful plan survives an invalid
+tail. Filters, group markers and ambiguous/reversed/crossing ranges are rejected.
+A separate two-cleanup bridge definition passes instruction/ABI controls while
+existing catch/finally/rethrow object identities remain unchanged. Neither leaf
+is linked into an EFI profile or accepted for guest execution yet. Module/root,
+stack, compiler-contribution and transfer authority remain caller obligations.
+See [step1165](../done/step1165.md) for focused development evidence; #90 and
+Gate4 remain incomplete.
+
 CLROS implements a bounded no-stdlib NativeAOT subset for the EFI shell and the
 optional allocation, collection, metadata and constructor probes described
 below. `std/no-runtime/shared` contains compatible helper slices; it is not a

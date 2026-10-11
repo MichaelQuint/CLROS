@@ -232,7 +232,7 @@ internal static unsafe class ExceptionTypeMatchTests
         f.Unchanged(image, heap);
     }
 
-    private sealed class Fixture : IDisposable
+    internal sealed class Fixture : IDisposable
     {
         internal const ulong StateCapacity = 5520;
         internal byte* ImageStorage = (byte*)NativeMemory.AlignedAlloc(0xD000, 4096);
@@ -251,7 +251,7 @@ internal static unsafe class ExceptionTypeMatchTests
         internal ulong Sibling => Address(0x14C0);
         internal ulong Other => Address(0x1500);
 
-        internal Fixture()
+        internal Fixture(Action<nint>? prepareImage = null)
         {
             Require(ImageStorage != null && HeapStorage != null, "fixture allocation");
             new Span<byte>(ImageStorage, 0xD000).Fill(0xA5);
@@ -271,6 +271,7 @@ internal static unsafe class ExceptionTypeMatchTests
             var observation = EfiLoadedImageProtocolObservation.CaptureFromUefiBoundary(0, 0x1000, 0x2000, (ulong)Image, 0x8000);
             Capture = EfiLoadedImageRangeCapturePlan.Create(&observation, 1, 1, 4096);
             Mapping = M01LoadedImageVirtualMappingEvidence.CaptureCallerAttestedIdentity(Capture);
+            prepareImage?.Invoke((nint)Image);
             var module = TypeManagerModuleMetadataLiveNativeAOTImage.RegisterOnce(Capture, Mapping, Owner, 4096);
             Require(module.Succeeded, "original module registration " + module.Status); Handle = module.Handle;
             Type(0x1400, 0); Type(0x1440, Root); Type(0x1480, Base); Type(0x14C0, Base); Type(0x1500, 0);
