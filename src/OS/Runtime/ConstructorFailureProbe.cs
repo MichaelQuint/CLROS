@@ -390,7 +390,7 @@ internal static unsafe partial class RhpNewFastAllocation
                 !ConstructorFailureUnwind((byte*)type, (byte*)metadata, frames + 2, frames + 3, runner + 9, ConstructorFailureEnsureStack + 8) ||
                 !ConstructorFailureUnwind((byte*)type, (byte*)metadata, frames + 3, frames + 4, helper + 20, 48) ||
                 !ConstructorFailureUnwind((byte*)type, (byte*)metadata, frames + 4, frames + 5, read + 33, 64) ||
-                !ConstructorFailureUnwind((byte*)type, (byte*)metadata, frames + 5, frames + 6, outer + 16, 48) ||
+                !ConstructorFailureUnwindRead((byte*)type, (byte*)metadata, frames + 5, frames + 6, read, outer + 16) ||
                 frames[6].Rbp != frames[6].Rsp + 48 || !StackSpan(frames[6].Rsp, 72)) return RejectEh(37);
             // ILC removes the source initializer because both normal and catch
             // paths assign the result. This slot is read only after the actual
@@ -475,6 +475,21 @@ internal static unsafe partial class RhpNewFastAllocation
             row.FixedAllocationBytes == allocation && row.StackBytes == stack && row.PrologBytes == prolog &&
             row.BeginRva == method - s_gcImage.Start + begin && row.EndRva == method - s_gcImage.Start + end;
     }
+    private static bool ConstructorFailureUnwindRead(byte* type, byte* metadata, X64UnwindContext* raw,
+        X64UnwindContext* output, ulong read, ulong rip)
+    {
+        // The original Read+33 return PC is EB F0, a body branch to Read+19
+        // (MOV RAX,[RBX]). The whole original method is pinned by native
+        // admission. Interpret this one branch, which changes no stack or
+        // nonvolatile value; retain the genuine raw context in scratch.
+        byte* code = (byte*)read;
+        if (raw->Rip != read + 33 || raw->Rbx != s_constructorFailureContext + 8 ||
+            code[33] != 0xEB || code[34] != 0xF0 ||
+            code[19] != 0x48 || code[20] != 0x8B || code[21] != 0x03) return false;
+        X64UnwindContext body = *raw; body.Rip = read + 19;
+        return ConstructorFailureUnwind(type, metadata, &body, output, rip, 48);
+    }
+
     private static bool ConstructorFailureUnwind(byte* type, byte* metadata, X64UnwindContext* input,
         X64UnwindContext* output, ulong rip, uint consumed)
     {
@@ -482,7 +497,12 @@ internal static unsafe partial class RhpNewFastAllocation
             type, (ulong)sizeof(GcTypeStorage), s_gcHandle, metadata, EhStorageBytes,
             (byte*)(s_gcStack.Start + 16), s_gcStack.End - s_gcStack.Start - 16, *input);
         if (!result.Succeeded || result.InEpilog || result.Caller.Rip != rip ||
-            result.Caller.Rsp != input->Rsp + consumed || !StackSpan(result.Caller.Rsp, 8)) return false;
+            result.Caller.Rsp != input->Rsp + consumed || !StackSpan(result.Caller.Rsp, 8))
+        {
+            EhLine(90, (ulong)result.Status, result.Caller.Rip, result.Caller.Rsp, input->Rip);
+            EhLine(91, input->Rsp, rip, input->Rsp + consumed, result.InEpilog ? 1UL : 0UL);
+            return false;
+        }
         *output = result.Caller; return true;
     }
     private static bool ConstructorFailureNoEh(byte* type, byte* metadata, ulong method, uint bytes)

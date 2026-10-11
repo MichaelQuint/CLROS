@@ -10,7 +10,7 @@ public static partial class EfiContracts
             {
                 [@"..\OS.Kernel\Runtime\CompilerClassConstructorExecution.Invocation.cs"] = "0fcb494c9a2c3e0c589071be2f0e26f0b3509c4cd374b3facc5413f8cffa9cc3",
                 [@"Runtime\TypeInitializationException.cs"] = "fdafd21e4c21a7e5415bc7751dc890b5f85c11fdae84fe5bd7dd754c1663d910",
-                [@"Runtime\ConstructorFailureProbe.cs"] = "1648e26c71f67936ec9d716503e82844f6576635427fc36bd5a402c496f86544",
+                [@"Runtime\ConstructorFailureProbe.cs"] = "e56fb4b183e74ec427d0a0a929258af4fdfa7cc7c61e368ddead4163b0363595",
                 [@"..\OS.Kernel\Runtime\BoundedExceptionFrameDispatch.cs"] = "0802ab36b4e2880e49527c2d418027b930ca08a19fc19eecca0e0962f40cced6",
                 [@"Runtime\ExceptionFrameDispatchProbe.cs"] = "165ba14a366ef5534863e780c29f35346a14369b024a93633422d38c7e5e518a",
                 [@"Runtime\ExceptionUnhandledProbe.cs"] = "399f90ad72b071c1128af8b7e0513dc5b035e2682dc321fd781ef67c63717f65",

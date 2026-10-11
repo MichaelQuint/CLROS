@@ -235,7 +235,10 @@ bookkeeping, a separate two-table bridge, a real compiled constructor/wrapping
 catch pipeline, measured compiler frames and strict linked-code rejection controls.
 Original compiler geometry, computed branches and both bridge lifetimes are
 reviewed; native admission and rehashed mutation controls pass. Focused checks and
-mock transcript acceptance do not qualify actual transfers, full-host or guest execution.
+mock transcript acceptance do not qualify full-host or guest execution.
+[Step1174](../done/step1174.md) records actual constructor/wrapper transfers and
+compiled continuation in development, including one profile-local interpretation
+of the pinned Read body branch. Stable batch qualification remains pending.
 #90, #84 repeated-access cached failures, general EH and Gate4 remain incomplete.
 
 The #638-#640 batch adds a separate default-off nested-finally diagnostic:

@@ -118,6 +118,7 @@ internal static class M04ConstructorFailureEfiIntegrationTests
             "OS_OS_Runtime_RhpNewFastAllocation__CtorFailureOuter","OS_OS_Runtime_RhpNewFastAllocation__ConstructorFailureWrap"})
             controls.Add((Offset(symbol,1),"constructor_failure_method_bytes_mismatch"));
         controls.Add((Offset("OS_OS_Runtime_RhpNewFastAllocation__CtorFailureInvoke",40)+40,"constructor_failure_method_target_mismatch"));
+        controls.Add((Offset("OS_OS_Runtime_ConstructorFailureFixture__Read",35)+34,"constructor_failure_method_bytes_mismatch"));
         foreach (string symbol in new[]{"__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__CtorFailureInvoke","__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__CtorFailureOuter"})
             controls.Add((Offset(symbol,8)+4,"constructor_failure_clause_table_mismatch"));
         controls.Add((Offset("_unwind0OS_OS_Runtime_ConstructorFailureFixture___cctor",11)+10,"constructor_failure_unwind_mismatch"));

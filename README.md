@@ -37,9 +37,9 @@ default-off profile executes one middle-frame cleanup, an outer typed catch and
 compiled continuation using distinct caller contexts and the original exception.
 General EH, constructor cached failures, #90 and Gate4 remain incomplete.
 
-The #650-#652 constructor-failure batch has [reviewed native admission](done/step1173.md).
-Its diagnostic remains default-off. Focused host/native checks pass; full-host,
-actual constructor/wrapper transfers and guest qualification remain pending.
+The #650-#652 constructor-failure batch has [actual transfer calibration](done/step1174.md).
+Its diagnostic remains default-off. Both throws and compiled continuation pass
+development capture checks; full-host and stable batch qualification remain pending.
 
 The bounded frame-search/type-predicate/unhandled batch is [qualified](done/step1169.md):
 4,473 full-host checks, native review, three 73-record expected-terminal guests

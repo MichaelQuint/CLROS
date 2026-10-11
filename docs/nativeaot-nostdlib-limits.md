@@ -127,8 +127,10 @@ wrapping catch and outer `TypeInitializationException` catch, original and wrapp
 allocation roots, one checked inner-reference store, and two physical bridge
 lifetimes. The bounded wrapper exposes the original inner object and constructor
 context; type-name, message, stack-trace and general cached-failure services are
-absent. Native admission and shape rejection checks pass; actual transfers,
-full-host and guest qualification remain pending. A denied BeginLazy
+absent. Native admission and shape rejection checks pass. Actual transfers and
+compiled continuation pass development capture checks in [step1174](../done/step1174.md),
+with one interpreted pinned Read body branch and the raw context retained.
+Full-host and stable guest qualification remain pending. A denied BeginLazy
 operation is not evidence of a second real compiler access or cached rethrow.
 
 The separate default-off `EnableM04UnhandledExceptionProbe` has measured

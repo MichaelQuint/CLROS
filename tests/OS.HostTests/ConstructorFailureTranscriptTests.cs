@@ -22,7 +22,7 @@ internal static class ConstructorFailureTranscriptTests
         string[] child=["TEST_START m04.021.ctor-failure",R(0,module[3],image[0]+0x10000,4000,300),R(1,obj,type,9,3),R(2,1,1,0,0),
             R(3,context,constructor,0,0xffffffff),R(4,context,constructor,1,seed),R(5,constructor+54,rsp,invoke+28,rsp+64),
             R(6,outer+16,outerRsp,outerRsp+48,context),R(7,invoke+35,outer+40,baseType,wrapperType),R(8,obj,context,1,1),
-            R(9,0,context,constructor,1),R(10,wrapper,obj,context,4),R(11,wrapper,1,1,1),R(12,invoke+52,rsp-896,outer+40,outerRsp),
+            R(9,(ulong)CompilerClassConstructorStatus.Success,context,constructor,1),R(10,wrapper,obj,context,4),R(11,wrapper,1,1,1),R(12,invoke+52,rsp-896,outer+40,outerRsp),
             R(13,wrapper,obj,context,1),R(14,outer+20,outerRsp,outerRsp+48,1),R(15,wrapper,obj,seed+1,1),
             R(16,(ulong)CompilerClassConstructorStatus.InitializationFailed,constructor,1,0),R(17,7,rsp-12000,canaries[1],canaries[2]),
             R(18,obj,wrapper,9,10),"TEST_PASS m04.021.ctor-failure","CLROS_M04_021_CTOR_FAILURE_READY"];

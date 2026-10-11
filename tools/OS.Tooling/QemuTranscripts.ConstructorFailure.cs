@@ -42,7 +42,7 @@ public static partial class QemuTranscripts
             ((decimal)rows[12][1]-848,848),(rows[5][3],56),(rows[6][1],72)})
             Need(at%8 == 0 && at >= (decimal)stack[0]+16400 && at+bytes <= stack[2],reason+"_stack_ranges");
         Need(rows[8].SequenceEqual(new[]{original,rows[3][0],1UL,1UL}) &&
-            rows[9].SequenceEqual(new[]{0UL,rows[3][0],rows[3][1],1UL}) &&
+            rows[9].SequenceEqual(new[]{(ulong)OS.Kernel.Runtime.CompilerClassConstructorStatus.Success,rows[3][0],rows[3][1],1UL}) &&
             rows[10].SequenceEqual(new[]{wrapper,original,rows[3][0],4UL}) &&
             rows[13].SequenceEqual(new[]{wrapper,original,rows[3][0],1UL}) &&
             rows[15].SequenceEqual(new[]{wrapper,original,seed+1,1UL}) &&
