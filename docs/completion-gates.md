@@ -1,5 +1,15 @@
 # CLROS Completion Gates
 
+#134/#136–#140/#633 are qualified in [step1162](../done/step1162.md): 4,422
+unfiltered full-host checks across 552 groups, linked native ABI/stack review,
+297/297/168-record IRQ/recovery/net captures, an exact fixed Ethernet frame in
+QEMU libpcap and eleven ancestor regressions pass on unchanged implementation.
+All probes remain default off. The M06 epic criterion covers nineteen reviewed
+keyed children and bounded packaged manifest/payload reads after firmware exit;
+it is separate from Gate7. Continuing storage/networking, RX processing,
+application execution, live TCP/HTTP and hosted .NET/Kestrel remain incomplete.
+Numbered gates are unchanged.
+
 #130/#131/#132/#133/#631 are qualified in [step1156](../done/step1156.md):
 4,393 unfiltered full-host checks across 544 groups pass with unchanged inputs,
 strict native ABI/stack review, six package guest variants and seven ancestor

@@ -1,5 +1,22 @@
 # Storage
 
+## Bounded MSI-X completion and polling recovery
+
+[Step1162](../done/step1162.md) qualifies #134 and shared integration #633:
+4,422 unfiltered full-host checks, linked native ABI/stack review, two 297-record
+IRQ/recovery captures and eleven ancestor regressions pass. MSI-X is prepared
+masked before queue enable, vector zero is read back, and the checked LBA1 read
+uses either one returning IRQ or a deliberately masked bounded wait followed by
+polling recovery. Both routes restore IF/IDTR, check used-ring/status/generation
+and CRC32, disable MSI-X before reset, and restore the original allocator.
+Uncertain IRQ shutdown retains DMA backing and suppresses the payload copy.
+The probes remain default off and require package completion plus owned APIC.
+
+The M06 epic criterion is the bounded packaged manifest/payload read after
+firmware exit and reviewed completion of its nineteen keyed children. It is
+separate from Gate7: continuing storage, general workload activation and payload
+execution remain incomplete. Development history is in steps1157–1161.
+
 ## Bounded manifest/package read and staging profile
 
 [Step1153](../done/step1153.md) implements the pure helpers for owned issues

@@ -1,5 +1,12 @@
 # Repository Audit
 
+The #134/#136â€“#140/#633 bounded driver batch is qualified in
+[step1162](../done/step1162.md): 4,422 full-host checks across 552 groups pass with
+zero reuse/input changes. Linked native review, IRQ/recovery/net guests, exact
+fixed-frame libpcap and eleven ancestor captures pass. M06's bounded packaged-read
+epic criterion is separate from Gate7. Continuing drivers, RX processing,
+application execution and general network protocols remain incomplete.
+
 The #130/#131/#132/#133/#631 bounded manifest/package batch is qualified in
 [step1156](../done/step1156.md): all 4,393 full-host checks across 544 groups pass
 without reuse or input changes. Strict native review, six package variants and
@@ -452,7 +459,7 @@ Owned COM1 configuration/output has accepted bounded guest and post-exit evidenc
 
 ## Networking Status
 
-Host-tested Ethernet, ARP, ARP neighbor resolution, bounded ARP neighbor cache, IPv4, ICMP echo, UDP, DHCP message/client transaction, DNS message/resolver transaction, TCP header, active/passive TCP handshake, active-connect, established payload stream, close/reset, HTTP request/response parsing, mock HTTP GET transaction, and host-only PAL socket/config/file contracts exist under `src/OS.Kernel`. No virtio-net live RX/TX, NIC-backed DHCP/DNS/TCP/HTTP, exported socket PAL, hosted .NET 10 networking, or Kestrel behavior exists yet.
+Host-tested Ethernet, ARP, ARP neighbor resolution, bounded ARP neighbor cache, IPv4, ICMP echo, UDP, DHCP message/client transaction, DNS message/resolver transaction, TCP header, active/passive TCP handshake, active-connect, established payload stream, close/reset, HTTP request/response parsing, mock HTTP GET transaction, and host-only PAL socket/config/file contracts exist under `src/OS.Kernel`. The default-off step1162 profile proves primed live queues and one fixed TX frame. RX processing, continuing NIC-backed DHCP/DNS/TCP/HTTP, exported socket PAL, hosted .NET10 networking and Kestrel remain incomplete.
 
 ## Storage Status
 

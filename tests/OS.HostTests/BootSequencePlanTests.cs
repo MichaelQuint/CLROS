@@ -700,12 +700,14 @@ internal static class BootSequencePlanTests
              "public static unsafe bool RunOwnedApicSetup(",
              "public static unsafe bool RunOwnedVirtqueueInterrupt(",
              "public static unsafe bool RunOwnedVirtqueuePolling(",
+             "public static unsafe bool RunOwnedVirtioNet(",
              "public static unsafe bool RunOwnedVirtioNegotiation(",
              "public static unsafe bool RunOwnedVirtioBlockQueueSetup(",
              "public static unsafe bool RunOwnedVirtioBlockRead(",
              "public static unsafe bool RunOwnedGptPartition(",
              "public static unsafe bool RunOwnedFatRead(",
              "public static unsafe bool RunOwnedPackageRead(",
+             "public static unsafe bool RunOwnedBlockMsix(",
              "public static unsafe bool RunOwnedLiveBlockContract(",
              "public static unsafe bool RunOwnedMonotonicClock(",
              "public static unsafe bool RunPostFirmwarePhysicalMapping(",
@@ -764,6 +766,12 @@ internal static class BootSequencePlanTests
              "public const bool EnableM06FatReadProbe = false;",
              "public const bool EnableM06PackageReadProbe = true;",
              "public const bool EnableM06PackageReadProbe = false;",
+             "public const bool EnableM06BlockMsixProbe = true;",
+             "public const bool EnableM06BlockMsixProbe = false;",
+             "public const bool EnableM06BlockMsixPollingRecoveryProbe = true;",
+             "public const bool EnableM06BlockMsixPollingRecoveryProbe = false;",
+             "public const bool EnableM07VirtioNetProbe = true;",
+             "public const bool EnableM07VirtioNetProbe = false;",
              "public const bool EnableM06GptPartitionProbe = true;",
              "public const bool EnableM06GptPartitionProbe = false;",
              "public const bool EnableM06LiveBlockContractProbe = true;",
@@ -1926,6 +1934,25 @@ internal static class BootSequencePlanTests
             && audit.PassMarker == BootSequence.CreatePlanLine(2)
             && diagnostics.StartMarker == BootSequence.CreatePlanLine(3)
             && diagnostics.PassMarker == BootSequence.CreatePlanLine(4));
+    }
+
+    [HostTest("boot.sequence M06 block MSI-X defaults off and does not invoke callback", HostLane.Fast, 48)]
+    private static unsafe bool TestOwnedBlockMsixDefaultsOff()
+    {
+        int calls = 0;
+        return HostCheck.Result(!Probes.EnableM06BlockMsixProbe
+            && !Probes.EnableM06BlockMsixPollingRecoveryProbe
+            && !BootSequence.RunOwnedBlockMsix(true, &calls, &RecordBlockMsixCall)
+            && !BootSequence.RunOwnedBlockMsix(false, &calls, &RecordBlockMsixCall)
+            && !BootSequence.RunOwnedBlockMsix(true, null, &RecordBlockMsixCall)
+            && !BootSequence.RunOwnedBlockMsix(true, &calls, null)
+            && calls == 0);
+    }
+
+    private static unsafe bool RecordBlockMsixCall(void* context)
+    {
+        (*(int*)context)++;
+        return true;
     }
 
     private static BootHandoffRecord CreateValidOwnedHandoffRecord()

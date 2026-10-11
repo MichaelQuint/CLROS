@@ -1,5 +1,17 @@
 # Diagnostics
 
+Qualified `EnableM06BlockMsixProbe` and its masked polling-recovery control both
+default false. The main profile requires package completion and owned APIC setup;
+it owns `M06_IRQ` rows0..8 and `m06.019`. [Step1162](../done/step1162.md) accepts
+two 297-record IRQ/recovery receipts with native and full-host evidence.
+
+Qualified `EnableM07VirtioNetProbe` defaults false, requires original M05
+polling completion, and owns `M07_NET` rows0..D plus `m07.001`..`m07.005`.
+Fresh DMA epoch207 is released only after observed reset, bus-master disable,
+fence and descriptor reclamation. [Step1162](../done/step1162.md) accepts native,
+full-host, 168-record guest and exact fixed-frame libpcap evidence. RX processing
+and continuing I/O remain incomplete.
+
 The development `EnableM06PackageReadProbe` defaults false and requires FAT.
 It owns `M06_PKG` rows and `m06.015`..`m06.018` markers. Fresh sector receipts use
 epochs134..197 only after reset, bus-master disable, DMA release and allocator

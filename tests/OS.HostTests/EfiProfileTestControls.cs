@@ -18,6 +18,7 @@ internal static class EfiProfileTestControls
                     "M06_VIRTIO_BLOCK_READ_PROBE" => Array.Empty<string>(),
                     "M06_FAT_READ_PROBE" => ["M06_VIRTIO_BLOCK_READ_PROBE", "M06_LIVE_BLOCK_CONTRACT_PROBE", "M06_GPT_PARTITION_PROBE"],
                     "M06_PACKAGE_READ_PROBE" => ["M06_VIRTIO_BLOCK_READ_PROBE", "M06_LIVE_BLOCK_CONTRACT_PROBE", "M06_GPT_PARTITION_PROBE", "M06_FAT_READ_PROBE"],
+                    "M07_VIRTIO_NET_PROBE" => ["M05_VIRTIO_NEGOTIATION_PROBE", "M05_VIRTQUEUE_POLLING_PROBE"],
                     "M06_GPT_PARTITION_PROBE" => ["M06_VIRTIO_BLOCK_READ_PROBE", "M06_LIVE_BLOCK_CONTRACT_PROBE"],
                     "M06_LIVE_BLOCK_CONTRACT_PROBE" => ["M06_VIRTIO_BLOCK_READ_PROBE"],
                     "M05_VIRTQUEUE_INTERRUPT_PROBE" => ["M05_VIRTIO_NEGOTIATION_PROBE", "M05_APIC_SETUP_PROBE"],
@@ -50,6 +51,15 @@ internal static class EfiProfileTestControls
                 calls = calls.Except(payloadCalls).ToArray();
             }
             reason = symbol + ":call-count-owner " + calls.Length;
+            if (symbol == "M07_VIRTIO_NET_PROBE")
+            {
+                // Its required polling parent has its own separately admitted
+                // transaction. Admit only this child here, preserving that audit.
+                if (calls.Length != 2 || calls.Count(i => i.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
+                    .FirstOrDefault()?.Identifier.Text == "RunQueueCore") != 1) return false;
+                calls = calls.Where(i => i.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
+                    .FirstOrDefault()?.Identifier.Text == body).ToArray();
+            }
             if (calls.Length != 1 || calls[0].Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
                 .FirstOrDefault()?.Identifier.Text != body) return false;
             if (body != entry)
@@ -98,6 +108,10 @@ internal static class EfiProfileTestControls
             ("M05MonotonicClock", "M03OwnedSubsystemSurvival", "m05_clock_requires_owned_first_exit"),
             ("M05PciEnumeration", "M03FirstRealExitBootServices", "m05_pci_requires_owned_first_exit"),
             ("M05PciEnumeration", "M03OwnedSubsystemSurvival", "m05_pci_requires_owned_first_exit"),
+            ("M06BlockMsix", "M06PackageRead", "m06_block_msix_requires_package_apic"),
+            ("M06BlockMsix", "M05ApicSetup", "m06_block_msix_requires_package_apic"),
+            ("M06BlockMsixPollingRecovery", "M06BlockMsix", "m06_block_msix_polling_recovery_requires_main"),
+            ("M07VirtioNet", "M05VirtqueuePolling", "m07_virtio_net_requires_polling"),
             ("M05BarDma", "M05PciEnumeration", "m05_bar_dma_requires_pci"),
             ("M05ApicSetup", "M05PciEnumeration", "m05_apic_requires_pci"),
             ("M05VirtqueueInterrupt", "M05ApicSetup", "m05_virtqueue_interrupt_requires_apic_negotiation"),

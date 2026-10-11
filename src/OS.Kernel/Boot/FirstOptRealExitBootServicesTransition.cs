@@ -29,7 +29,7 @@ public struct FirstExitImageReferences
 #if M05_APIC_SETUP_PROBE
     public ulong LocalApicPage, IoApicPage;
 #endif
-#if M05_VIRTQUEUE_INTERRUPT_PROBE
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
     public ulong MsixPage;
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
@@ -247,7 +247,7 @@ public static unsafe class FirstExitRetainedMappings
 #if M05_APIC_SETUP_PROBE
         + 2
 #endif
-#if M05_VIRTQUEUE_INTERRUPT_PROBE
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
         + 1
 #endif
         ;
@@ -261,7 +261,7 @@ public static unsafe class FirstExitRetainedMappings
 #if M05_APIC_SETUP_PROBE
         + 2
 #endif
-#if M05_VIRTQUEUE_INTERRUPT_PROBE
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
         + 1
 #endif
         ;
@@ -360,7 +360,7 @@ public static unsafe class FirstExitRetainedMappings
         starts[allocations] = references.LocalApicPage; lengths[allocations++] = 4096;
         starts[allocations] = references.IoApicPage; lengths[allocations++] = 4096;
 #endif
-#if M05_VIRTQUEUE_INTERRUPT_PROBE
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
         if (references.MsixPage < 0x100000 || references.MsixPage >= LowEnd - 4096 || (references.MsixPage & 4095) != 0) return false;
         starts[allocations] = references.MsixPage; lengths[allocations++] = 4096;
 #endif
@@ -398,7 +398,7 @@ public static unsafe class FirstExitRetainedMappings
         pending[count++] = new SeparatePageFaultMappingRange(references.LocalApicPage, 1, Data, PageCachePolicy.Uncached);
         pending[count++] = new SeparatePageFaultMappingRange(references.IoApicPage, 1, Data, PageCachePolicy.Uncached);
 #endif
-#if M05_VIRTQUEUE_INTERRUPT_PROBE
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.MsixPage, 1, Data, PageCachePolicy.Uncached);
 #endif
         ulong totalPages = 0;
@@ -452,7 +452,7 @@ public static unsafe class FirstExitCodeBundle
 #if M05_APIC_SETUP_PROBE
     public const uint ApicObservationOffset = 4688;
 #endif
-#if M05_VIRTQUEUE_INTERRUPT_PROBE
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
     public const uint MsixInterruptOffset = 4784;
 #endif
     public const uint StackEntryOffset = 8192;
@@ -493,7 +493,7 @@ public static unsafe class FirstExitCodeBundle
 #if M05_APIC_SETUP_PROBE
             OS.Drivers.X64ApicObservation.Emit(code + ApicObservationOffset, StackEntryOffset - ApicObservationOffset) &&
 #endif
-#if M05_VIRTQUEUE_INTERRUPT_PROBE
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
             OS.Drivers.X64MsixInterrupt.Emit(code + MsixInterruptOffset, StackEntryOffset - MsixInterruptOffset) &&
 #endif
             CheckBytes(code, (ulong)arena.Fault, callback);
@@ -594,7 +594,7 @@ public static unsafe class FirstExitCodeBundle
 #if M05_APIC_SETUP_PROBE
         if (!OS.Drivers.X64ApicObservation.Validate(code + ApicObservationOffset, OS.Drivers.X64ApicObservation.Bytes)) return false;
 #endif
-#if M05_VIRTQUEUE_INTERRUPT_PROBE
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
         if (!OS.Drivers.X64MsixInterrupt.Validate(code + MsixInterruptOffset, OS.Drivers.X64MsixInterrupt.Bytes)) return false;
 #endif
         for (uint index = 4096; index < Bytes; index++)
@@ -621,7 +621,7 @@ public static unsafe class FirstExitCodeBundle
 #if M05_APIC_SETUP_PROBE
                 !Inside(index, ApicObservationOffset, OS.Drivers.X64ApicObservation.Bytes) &&
 #endif
-#if M05_VIRTQUEUE_INTERRUPT_PROBE
+#if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
                 !Inside(index, MsixInterruptOffset, OS.Drivers.X64MsixInterrupt.Bytes) &&
 #endif
                 !Inside(index, PermanentOffset, permanentBytes) && code[index] != 0) return false;

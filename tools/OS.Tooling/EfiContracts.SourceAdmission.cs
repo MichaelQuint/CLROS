@@ -3,6 +3,10 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+                [@"..\OS.Kernel\Drivers\LiveVirtioNetPCIDevice.cs"] = "reviewed_bounded_net_source_identity",
+                [@"..\OS.Kernel\Drivers\MinimalNoOffloadNoGSONoMergeableBuffer.cs"] = "reviewed_bounded_net_source_identity",
+                [@"..\OS.Kernel\Drivers\Queue.cs"] = "reviewed_bounded_net_source_identity",
+                [@"..\OS.Kernel\Drivers\FixedEthernetFrameReclaimDescriptors.cs"] = "reviewed_bounded_net_source_identity",
                 [@"..\OS.Kernel\Storage\NativeManifestDisk.cs"] = "reviewed_package_read_source_identity",
                 [@"..\OS.Kernel\Storage\APPPKGDisk.cs"] = "reviewed_package_read_source_identity",
                 [@"..\OS.Kernel\Storage\SelectedPayloadOwnedMemory.cs"] = "reviewed_package_read_source_identity",
@@ -33,6 +37,7 @@ public static partial class EfiContracts
         ["..\\OS.Kernel\\Storage\\DMASafeRequestStatusDescriptorAvailableUsedRing.cs"] = "reviewed_block_dma_source_identity",
         ["..\\OS.Kernel\\Storage\\VirtioBlkQueueN0.cs"] = "reviewed_block_queue_source_identity",
         ["..\\OS.Kernel\\Storage\\SubmitPollSectorRequest.cs"] = "reviewed_block_read_source_identity",
+        ["..\\OS.Kernel\\Storage\\PollingCompletionMSIXRemovingPollingRecoveryPath.cs"] = "reviewed_block_msix_route_source_identity",
         ["..\\OS.Kernel\\Storage\\UsedRingCompletionStatusByteTimeoutDeviceReset.cs"] = "reviewed_block_completion_source_identity",
         ["..\\OS.Kernel\\Boot\\VerifiedExitPathOptDefaultRepeatedCleanQEMU.cs"] = "reviewed_normal_exit_policy_identity",
         ["..\\OS.Kernel\\Runtime\\ObjectArrayStringEETypeMethodTableLayoutContracts.cs"] = "reviewed_layout_source_identity",

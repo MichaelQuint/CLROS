@@ -1,5 +1,16 @@
 # Boot Order
 
+Qualified `RunOwnedBlockMsix` follows package phase19 and owned APIC phase2;
+its separate default-off profile owns interrupt phases2..7 and one fresh LBA1
+lifetime with epoch198. [Step1162](../done/step1162.md) accepts returning IRQ and
+masked polling recovery; the package path below remains the prerequisite boundary.
+
+Qualified `RunOwnedVirtioNet` follows successful original polling phase20,
+negotiation phase16 and PCI phase8. Its single default-off child binds the device,
+renegotiates, primes RX, transmits/reclaims one fixed frame, and restores the
+original allocator/command before phase3. [Step1162](../done/step1162.md) accepts
+the finite frame transaction. It adds no continuing workload or receive processor.
+
 The qualified default-off `RunOwnedPackageRead` child follows successful
 `RunOwnedFatRead`. Phases15/16/17/18 cover native manifest, APP.PKG, owned payload
 staging/free and cleanup diagnostics; phase19 follows success. Each sector uses

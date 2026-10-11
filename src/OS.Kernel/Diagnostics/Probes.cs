@@ -145,6 +145,23 @@ public static partial class Probes
     public const bool EnableM06PackageReadProbe = false;
 #endif
 
+#if M06_BLOCK_MSIX_PROBE
+    public const bool EnableM06BlockMsixProbe = true;
+#else
+    public const bool EnableM06BlockMsixProbe = false;
+#endif
+#if M06_BLOCK_MSIX_POLLING_RECOVERY_PROBE
+    public const bool EnableM06BlockMsixPollingRecoveryProbe = true;
+#else
+    public const bool EnableM06BlockMsixPollingRecoveryProbe = false;
+#endif
+
+#if M07_VIRTIO_NET_PROBE
+    public const bool EnableM07VirtioNetProbe = true;
+#else
+    public const bool EnableM07VirtioNetProbe = false;
+#endif
+
 #if M06_GPT_PARTITION_PROBE
     public const bool EnableM06GptPartitionProbe = true;
 #else

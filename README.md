@@ -5,11 +5,12 @@
 
 <h1 align="center">CLROS</h1>
 
-The bounded manifest/package batch is [qualified](done/step1156.md): 4,393
-full-host checks, native review, six package guest variants and seven ancestor
-regressions pass. A default-off profile reads a native manifest and APP.PKG,
-validates the selected payload, stages it in an owned RW/NX page and frees it.
-Application execution, continuing storage and Gate7 remain incomplete.
+The bounded block MSI-X/recovery and modern-net frame batch is
+[qualified](done/step1162.md): 4,422 full-host checks, linked native review,
+297/297/168-record guest captures, exact fixed-frame libpcap and eleven ancestor
+regressions pass. The probes remain default off. Bounded packaged reads satisfy
+the M06 epic criterion; application execution, continuing storage/networking,
+RX processing and Gate7 remain incomplete.
 Visual Studio 2026 Insiders and dotnet host builds pass.
 
 <p align="center">
