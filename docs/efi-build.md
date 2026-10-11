@@ -1,5 +1,23 @@
 # EFI Build
 
+## Filtered-catch diagnostic profile
+
+`--EnableM04FilteredCatchProbe` defaults false and selects only the collecting-GC
+Diagnostic prerequisites, excluding competing EH/constructor/dispatch leaves.
+Its separate `CLROS.X64.FilteredCatch.obj` has 1,032 text bytes and an 840-byte
+throw/continuation frame; `CLROS.X64.FilterInvoke.obj` has 669 text bytes and an
+ordinary returning 328-byte Win64 frame. Parent context is read-only, selector GP
+and full XMM6-15 plus FP controls are preserved, actual EAX returns, and DF/CET
+reject. Invocation is restricted to the authenticated nonthrowing filters.
+
+Verification binds eleven original code/relocation contributions, two original
+same-range filter rows and five runtime-function extents. CALL at 31 returns 36,
+NOP at 36 precedes continuation at 37, and both catch-return LEAs resolve 37; original
+byte/relocation guards reject inconsistent scalar offsets. [step1181](../done/step1181.md) qualifies
+135 first-party callback nodes, six indirect sites, four guarded read-only computed
+methods with 47 entries, and a maximum 11,256 within 16,400 bytes. Firmware diagnostic
+internals are excluded; Filter throws, nested filters, collided unwind, arbitrary EH, cached constructor rethrow/repeated compiler access, #90/#91/#84, Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
 ## Constructor-failure diagnostic profile
 
 `--EnableM04ConstructorFailureProbe` defaults false and selects only the collecting

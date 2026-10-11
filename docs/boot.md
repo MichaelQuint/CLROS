@@ -1,5 +1,12 @@
 # Boot
 
+The default-off filtered-catch Diagnostic child follows the collecting-GC chain
+through `BootSequence.RunFilteredCatchUnwind`, before ordinary boot success.
+[step1181](../done/step1181.md) qualifies 4518 full-host checks across 582 groups (90 Native), native review,
+three 88-record guests and eleven ancestors. One real throw reaches actual false
+then true compiler filters sharing the original parent local, then only the
+second catch and compiled continuation with the same rooted exception. General EH, #90/#91/#84, Gate4 and hosted .NET/Kestrel remain incomplete.
+
 The default-off constructor-failure diagnostic follows the collecting-GC chain
 through `BootSequence.RunConstructorFailureUnwind`, before ordinary boot success.
 [Step1176](../done/step1176.md) qualifies one real constructor throw, wrapping

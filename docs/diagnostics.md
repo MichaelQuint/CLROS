@@ -1,5 +1,13 @@
 # Diagnostics
 
+Qualified `EnableM04FilteredCatchProbe` defaults false and selects only its
+collecting-GC Diagnostic prerequisites. It owns `m04.021.filters`, fifteen
+`M04_FILTERS 0`..`14` numeric rows and `CLROS_M04_021_FILTERS_READY`. Its 88-record
+transcript checks actual false/true returns, one shared parent local, second-catch
+and continuation counts, fourteen stack witnesses and both canaries.
+[step1181](../done/step1181.md) accepts three fresh guests, eleven ancestors and full-host/native evidence.
+Filter throws, nested filters, collided unwind, arbitrary EH, cached constructor rethrow/repeated compiler access, #90/#91/#84, Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
 Qualified `EnableM06BlockMsixProbe` and its masked polling-recovery control both
 default false. The main profile requires package completion and owned APIC setup;
 it owns `M06_IRQ` rows0..8 and `m06.019`. [Step1162](../done/step1162.md) accepts

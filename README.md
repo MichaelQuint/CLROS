@@ -30,6 +30,13 @@ Visual Studio 2026 Insiders and dotnet host builds pass.
 
 ## Progress
 
+The #654-#656 filtered-catch batch is [qualified](done/step1181.md):
+4518 full-host checks, original native review, three byte-identical
+88-record filter guests and eleven ancestor regressions pass. Its default-off
+diagnostic invokes real false then true compiler filters on one original parent
+local, then only the second catch and compiled continuation. Filter throws,
+nested filters, collided unwind, general EH, #90/#91/#84 and Gate4 remain incomplete.
+
 The #646-#648 bounded physical-frame dispatch batch is [qualified](done/step1171.md):
 4,488 full-host checks, final native review, three byte-identical 88-record frame
 guests and seven ancestor regressions pass at frozen source `7168906`. Its separate
@@ -203,7 +210,7 @@ disabled by default and are not all combined into one continuing kernel boot.
 | Default boot | Ordinary `VerifiedExit` completes the accepted bounded firmware-exit and owned-subsystem checks before terminal success; explicit `Diagnostic` retains firmware-visible profiles. `BootSequence.cs` owns phase ordering and `Probes.cs` owns diagnostic toggles. |
 | Owned memory and firmware handoff | Separate bounded profiles exercise an owned stack, allocator arena, paging transitions, retained memory-map/ACPI data, real firmware exit, and typed capability revocation. Bounded post-exit allocator use, copied-ACPI readback and installed descriptor/canary checks are accepted; general page reclamation and continuing platform services remain incomplete. |
 | Fault and serial diagnostics | Accepted bounded profiles cover owned descriptor/IST state, UD2, page fault, double fault, unexpected-vector panic, and direct COM1 output. Post-exit readiness reporting is accepted; general fault recovery is not. |
-| NativeAOT runtime subset | Guest evidence covers bounded fixed-object, byte/long-array and String allocation, checked reference helpers, one-module registration, static roots, nonmoving collection, compiler-generated constructors, and ordinary-instance interface dispatch. Current-image unwind metadata is accepted; one-frame restoration and EH-clause helpers retain their bounded host contracts, and one separate profile executes a real throw, typed catch and compiled continuation. This is a limited runtime subset, not the full .NET libraries, GC or exception runtime. |
+| NativeAOT runtime subset | Guest evidence covers bounded fixed-object, byte/long-array and String allocation, checked reference helpers, one-module registration, static roots, nonmoving collection, compiler-generated constructors, and ordinary-instance interface dispatch. Current-image unwind metadata is accepted; one-frame restoration and EH-clause helpers retain their bounded host contracts, and separate profiles execute real throw/catch/continuation paths, including two ordered nonthrowing compiler filters. This is a limited runtime subset, not the full .NET libraries, GC or exception runtime. |
 | Shared utilities | Host-tested ASCII/text, numeric formatting, memory, endian, checksum, and collection helpers; selected fixed conformance catalogs also execute in the EFI guest. |
 | Bounded platform and Virtio | Separate accepted diagnostics cover retained ACPI, a polled clock, UC mappings, PCI/BAR access, DMA lifetime, modern Virtio negotiation, one polling TX completion and one MSI-X TX completion. These are finite single-BSP profiles, not continuing device services or packet-delivery proof. |
 | Bounded storage | Accepted terminal diagnostics cover one-sector block reads, protective LBA0, primary/backup GPT and EFI partition selection, plus bounded FAT chains, a cross-cluster VFAT name and one fragmented known-file CRC32. Each read has a fresh negotiated lifetime; manifest/package loading and continuing storage remain incomplete. |

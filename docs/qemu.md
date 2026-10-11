@@ -1,5 +1,15 @@
 # QEMU
 
+The qualified `-EnableM04FilteredCatchProbe` requires a fresh source-bound
+Diagnostic EFI and its collecting-GC prerequisites. Strict parsing requires all
+88 records, `M04_FILTERS 0`..`14`, actual false then true returns, shared parent-local
+updates, only the second catch and compiled continuation once, fourteen stack
+witnesses and both canaries before terminal success. [step1181](../done/step1181.md) accepts three
+byte-identical guests and eleven ancestors, with exact raw/source/process/argument/
+original-linked-PC and GPT/FAT/embedded-EFI joins. Marker-only input, arbitrary
+prebuilt EFI, noise, missing/duplicate/late rows and inconsistent tuples reject.
+Filter throws, nested filters, collided unwind, arbitrary EH, cached constructor rethrow/repeated compiler access, #90/#91/#84, Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
 The qualified `EnableM07ArpReceiveProbe` extends the fixed-frame
 parent to 194 strict records: `M07_ARP 0`..`D` and `m07.006`..`m07.009`.
 Its isolated user-network fixture fixes the local MAC to `02:00:00:00:00:01`,

@@ -1,11 +1,11 @@
 # CLROS AI Agent Guide
 
-The #141–#144/#635 bounded modern RX/header/ARP batch is qualified in
-`done/step1164.md`: 4,441 full-host checks, linked native review, a 194-record
-ARP guest capture, independent request/reply libpcap and thirteen ancestor
-regressions pass. The default-off profile receives one matching reply and checks
-supplied-tick neighbor cache controls. Continuing storage/networking, application
-execution, hosted .NET/Kestrel and later completion gates remain incomplete.
+The #654/#655/#656 default-off filtered-catch batch is qualified in
+`done/step1181.md`: 4518 full-host checks, original native review, three
+88-record filter guests and eleven ancestors pass. Two same-range nonthrowing
+compiler filters share the original parent local; only the second catch and
+compiled continuation execute. General EH, #90/#91/#84, Gate4 and hosted
+.NET/Kestrel remain incomplete.
 
 This is the root operating contract for agents working in this repository. Keep
 it concise. Put subsystem detail in the relevant `docs/*.md` file and use
