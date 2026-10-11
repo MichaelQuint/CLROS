@@ -138,6 +138,18 @@ commands retain their original provenance.
 
 ## Current Status
 
+The default-off `--EnableM04NestedFinallyCatchProbe` uses the collecting GC
+Diagnostic prerequisite chain shown for rethrow above; substitute this flag
+for `--EnableM04RethrowProbe`. Its strict 89-record stream adds sibling nonmatch,
+base match, two ordered exceptional cleanups, real catch and compiled
+continuation, including local scalar/decoded-row negative controls. Final
+qualification passes 4,456 full-host checks, native controls, three fresh guests
+and ordinary/GC/catch/finally/rethrow regressions in
+[step1167](../done/step1167.md). The annotation/digest-only follow-up passes six
+focused groups and three fresh guests with the same EFI bytes. There are 89
+application records and 78 required markers; those counts are distinct.
+This does not complete general EH or Gate4; step1166 retains development failures.
+
 The maintained smoke commands are C# 14/.NET 10 services in `OS.Tooling`.
 Build the solution once, then use the already-built tooling for repeated checks:
 

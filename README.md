@@ -30,6 +30,12 @@ Visual Studio 2026 Insiders and dotnet host builds pass.
 
 ## Progress
 
+The bounded typed-search/two-cleanup EH batch is [qualified](done/step1167.md):
+4,456 full-host checks, reviewed native controls, three byte-identical 89-record
+guests and five ancestor regressions pass. The annotation/digest follow-up has
+six focused checks and three fresh guests with the same EFI bytes. General EH,
+constructor cached failures, #90 and Gate4 remain incomplete.
+
 The bounded GPT validation/backup/EFI partition batch is [accepted](done/step1150.md):
 4,336 full-host checks, native review and exact 207/208-record intact/damaged-primary
 guest captures pass. EFI partition location is established; manifest/package loading,

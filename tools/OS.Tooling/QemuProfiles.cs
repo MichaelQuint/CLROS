@@ -120,6 +120,7 @@ public static class QemuProfiles
         else if (Enabled("M03TypedExitBootServicesCall")) Select(QemuContracts.M03TypedExitBootServicesRequiredMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "UEFI_EBS_CALLED", "UEFI_BOOT_SERVICES_EXITED"]);
         else if (Enabled("M04SingleFinallyCatch")) Select(QemuContracts.M04SingleFinallyRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04Rethrow")) Select(QemuContracts.M04RethrowRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
+        else if (Enabled("M04NestedFinallyCatch")) Select(QemuContracts.M04NestedFinallyRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04SimpleThrowCatch")) Select(QemuContracts.M04SimpleCatchRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04InterfaceDispatch")) Select(QemuContracts.M04DispatchRequiredMarkers, Merge(QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, ["M04_GC_ROOT 2", "M04_GC_ROOT 255", "M04_COLLECT 255", "M04_CCTOR 255", "M04_DISPATCH 255", "TEST_FAIL", "OS_SMOKE_FAIL"]), true);
         else if (Enabled("M04ClassConstructorExecution")) Select(QemuContracts.M04CctorRequiredMarkers, Merge(QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, ["M04_GC_ROOT 2", "M04_GC_ROOT 255", "M04_COLLECT 255", "M04_CCTOR 255", "TEST_FAIL", "OS_SMOKE_FAIL"]), true);
@@ -203,6 +204,7 @@ public static class QemuProfiles
         ("M04SimpleThrowCatch", @"^(M04_CATCH|CLROS_M04_SIMPLE_CATCH|TEST_(START|PASS) m04\.021\.simple-catch)", "m04_simple_catch"),
         ("M04SingleFinallyCatch", @"^(M04_FINALLY|CLROS_M04_SINGLE_FINALLY|TEST_(START|PASS) m04\.021\.single-finally)", "m04_single_finally"),
         ("M04Rethrow", @"^(M04_RETHROW|CLROS_M04_RETHROW_READY|TEST_(START|PASS) m04\.021\.rethrow)", "m04_rethrow"),
+        ("M04NestedFinallyCatch", @"^(M04_NESTED|CLROS_M04_NESTED_FINALLY_READY|TEST_(START|PASS) m04\.021\.nested-finally)", "m04_nested_finally"),
         ("M05PhysicalMapping", @"^(M05_MAP|CLROS_M05_001_READY|TEST_(START|PASS) m05\.001)", "m05_mapping"),
         ("M05OwnedAcpiSelection", @"^(M05_ACPI|CLROS_M05_002_READY|TEST_(START|PASS) m05\.002)", "m05_acpi"),
         ("M05MonotonicClock", @"^(M05_CLOCK|CLROS_M05_003_READY|TEST_(START|PASS) m05\.003)", "m05_clock"),

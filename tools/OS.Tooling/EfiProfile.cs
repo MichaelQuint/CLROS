@@ -88,6 +88,8 @@ public sealed class EfiProfile
         Need("M04SimpleThrowCatch", "M04GcStaticRootMaterialization", "m04_simple_catch_requires_gc_profile");
         Need("M04SingleFinallyCatch", "M04GcStaticRootMaterialization", "m04_single_finally_requires_gc_profile");
         Need("M04Rethrow", "M04GcStaticRootMaterialization", "m04_rethrow_requires_gc_profile");
+        Need("M04NestedFinallyCatch", "M04GcStaticRootMaterialization", "m04_nested_finally_requires_gc_profile");
+        Set("M04NestedFinallyCatch", ["M04SeededCollectorChurn", "M04ClassConstructorExecution", "M04InterfaceDispatch", "M04X64UnwindMetadata", "M04SimpleThrowCatch", "M04SingleFinallyCatch", "M04Rethrow"], false, "m04_nested_finally_profile_conflict");
         Set("M04Rethrow", ["M04SeededCollectorChurn", "M04ClassConstructorExecution", "M04InterfaceDispatch", "M04X64UnwindMetadata", "M04SimpleThrowCatch", "M04SingleFinallyCatch"], false, "m04_rethrow_profile_conflict");
         Set("M04SimpleThrowCatch", ["M04SeededCollectorChurn", "M04ClassConstructorExecution", "M04InterfaceDispatch", "M04X64UnwindMetadata"], false, "m04_simple_catch_profile_conflict");
         Set("M04SingleFinallyCatch", ["M04SeededCollectorChurn", "M04ClassConstructorExecution", "M04InterfaceDispatch", "M04X64UnwindMetadata", "M04SimpleThrowCatch"], false, "m04_single_finally_profile_conflict");

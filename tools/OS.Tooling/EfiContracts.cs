@@ -33,8 +33,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "23d5220a962e534536ee6ee47f25a0a9669587d28bbc87813e62ca1638269eb8";
-    public const string CanonicalProjectSha256 = "1db6d58baaf0787d8693973877257dbcfa9e1803d80e8786109434cc33240d62";
+    public const string ProjectSourceSha256 = "ea0284fe1ea27acfbacc8c52692d983c5f3f3b5e1012e11caf21a80342264914";
+    public const string CanonicalProjectSha256 = "e402a3db50b7c264f1dcdb588242c8d5937cbf40a7172f1aa6f4f985087ec81f";
     public const string EfiEntrySourceSha256 = "d6209ddeac1dbd3634211e9c4fac57aca56ce1dd108f4e7c3e985593d619ea30";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
@@ -249,6 +249,8 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs|Runtime\NativeAotEhClauseMetadata.cs",
         @"Runtime\ExceptionCatchProbe.cs|",
         @"Runtime\ExceptionRethrowProbe.cs|",
+        @"..\OS.Kernel\Runtime\BoundedExceptionDispatchPlan.cs|Runtime\BoundedExceptionDispatchPlan.cs",
+        @"Runtime\ExceptionNestedFinallyProbe.cs|",
     ]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> DiagnosticProbes { get; } = Array.AsReadOnly<string>(
@@ -288,6 +290,7 @@ public static partial class EfiContracts
         "EnableM04InterfaceDispatchProbe",
         "EnableM04LayoutContractProbe",
         "EnableM04ManagedHeapPageRangeProbe",
+        "EnableM04NestedFinallyCatchProbe",
         "EnableM04RethrowProbe",
         "EnableM04RhpNewFastBeforeBindFailureProbe",
         "EnableM04RhpNewFastExhaustionFailureProbe",

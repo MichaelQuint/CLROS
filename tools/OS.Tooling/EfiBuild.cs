@@ -246,6 +246,7 @@ public static class EfiBuild
         if (profile.IsEnabled("M04InterfaceDispatch")) yield return new("interfaceDispatch", ".dispatch.obj", "CLROS.X64.InterfaceDispatch.obj", EfiContracts.InterfaceDispatchObjectBytes, EfiContracts.InterfaceDispatchObjectSha256);
         if (profile.IsEnabled("M04SimpleThrowCatch")) yield return new("simpleCatch", ".catch.obj", "CLROS.X64.SimpleThrowCatch.obj", EfiContracts.SimpleCatchObjectBytes, EfiContracts.SimpleCatchObjectSha256);
         if (profile.IsEnabled("M04SingleFinallyCatch")) yield return new("singleFinally", ".finally.obj", "CLROS.X64.SingleFinallyCatch.obj", EfiContracts.SingleFinallyObjectBytes, EfiContracts.SingleFinallyObjectSha256);
+        if (profile.IsEnabled("M04NestedFinallyCatch")) yield return new("nestedFinally", ".nested-finally.obj", "CLROS.X64.NestedFinallyCatch.obj", EfiContracts.NestedFinallyObjectBytes, EfiContracts.NestedFinallyObjectSha256);
         if (profile.IsEnabled("M04Rethrow"))
         {
             yield return new("rethrowInner", ".rethrow-inner.obj", "CLROS.X64.RethrowInner.obj", EfiContracts.RethrowInnerObjectBytes, EfiContracts.RethrowInnerObjectSha256);

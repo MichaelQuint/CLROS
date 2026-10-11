@@ -3,6 +3,8 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"..\OS.Kernel\Runtime\BoundedExceptionDispatchPlan.cs"] = "reviewed_bounded_exception_search_identity",
+        [@"Runtime\ExceptionNestedFinallyProbe.cs"] = "reviewed_nested_finally_profile_identity",
                 [@"..\OS.Kernel\Drivers\VirtioNetHeader.cs"] = "reviewed_arp_receive_source_identity",
                 [@"..\OS.Kernel\Drivers\VirtioNetReceiveFrameClassifier.cs"] = "reviewed_arp_receive_source_identity",
                 [@"..\OS.Kernel\Drivers\VirtioNetHeaderChecksumPolicy.cs"] = "reviewed_arp_receive_source_identity",

@@ -141,6 +141,7 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
         if (profile.IsEnabled("M04SimpleThrowCatch")) yield return "simpleCatch";
         if (profile.IsEnabled("M04SingleFinallyCatch")) yield return "singleFinally";
         if (profile.IsEnabled("M04Rethrow")) { yield return "rethrowInner"; yield return "rethrowOuter"; }
+        if (profile.IsEnabled("M04NestedFinallyCatch")) yield return "nestedFinally";
     }
     public static string[] LinkResponseTokens(string text)
     {
@@ -241,6 +242,7 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
         if (profile.IsEnabled("M04InterfaceDispatch")) includes.AddRange(["RhpInitialDynamicInterfaceDispatch", "CLROS_InterfaceDispatch_GetCellSection", "CLROS_InterfaceDispatch_GetInitialStub"]);
         if (profile.IsEnabled("M04SimpleThrowCatch") || profile.IsEnabled("M04SingleFinallyCatch")) includes.AddRange(["RhpThrowEx", "CLROS_Eh_GetClauseTable"]);
         if (profile.IsEnabled("M04Rethrow")) includes.AddRange(["RhpThrowEx", "RhpRethrow", "CLROS_Rethrow_InnerClauses", "CLROS_Rethrow_OuterClauses"]);
+        if (profile.IsEnabled("M04NestedFinallyCatch")) includes.AddRange(["RhpThrowEx","CLROS_Nested_Clauses"]);
         var actual = Regex.Matches(response, "(?im)^\\s*/INCLUDE:(?:\"([^\"]+)\"|([^\\s\"]+))\\s*$").Select(m => m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value).ToArray();
         Require(actual.Length == includes.Count && includes.All(n => actual.Count(a => a == n) == 1), "serializer_force_include_contract_missing");
         string mapValue = Option("MAP", "serializer_link_map_response_contract_missing"), expectedMap = Path.Combine(Path.GetDirectoryName(linkedSerializer)!, "OS.link.map");

@@ -656,6 +656,14 @@ public static class QemuContracts
         "TEST_PASS m04.021.rethrow", "CLROS_M04_RETHROW_READY",
         .. M04GcStaticRootRequiredMarkers.TakeLast(8)
     ]);
+    public static IReadOnlyList<string> M04NestedFinallyRequiredMarkers { get; } = Array.AsReadOnly<string>(
+    [
+        .. M04GcStaticRootRequiredMarkers.Take(M04GcStaticRootRequiredMarkers.Count - 8),
+        "TEST_START m04.021.nested-finally",
+        .. new[] { 0, 1, 2, 14, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15 }.Select(stage => "M04_NESTED " + stage),
+        "TEST_PASS m04.021.nested-finally", "CLROS_M04_NESTED_FINALLY_READY",
+        .. M04GcStaticRootRequiredMarkers.TakeLast(8)
+    ]);
     public static IReadOnlyList<string> M05PhysicalMappingMarkers { get; } = Array.AsReadOnly<string>(
     [
         .. M03OwnedSubsystemMarkers, "TEST_START m05.001", .. Enumerable.Range(0, 7).Select(stage => "M05_MAP " + stage),
