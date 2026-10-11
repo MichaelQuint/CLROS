@@ -11,8 +11,12 @@ logical unwind contributions and the real predicate export/call ABI. Cleanup
 and catch restore their different caller contexts; catch-produced registers
 are captured before compiled continuation. Callback stack review includes
 constant body stack reductions, with fixed profile-owned cleanup scratch.
-[Step1170](../done/step1170.md) records implementation and development review;
-full-host, final native and guest qualification remain pending.
+[Step1171](../done/step1171.md) qualifies frozen source `7168906` with 4,488
+full-host checks, 35 native mutation controls, final native review, three
+88-record frame guests and seven ancestors. The complete selector bound is
+15,456 bytes within the existing 16,400-byte protected floor. Firmware diagnostic
+internals remain outside the first-party static bound; original Diagnostic
+authority and guest canaries remain required. Step1170 retains development history.
 
 ## Bounded unhandled-exception profile
 

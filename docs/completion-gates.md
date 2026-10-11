@@ -214,14 +214,20 @@ diagnostic. [Step1169](../done/step1169.md) qualifies 4,473 full-host checks
 (567 groups, 84 Native, zero reused results), final native review, three
 73-record expected-terminal guests and six ancestor regressions with independent
 source/process/image joins. No handler or second-pass cleanup executes in this
-profile. Positive multi-frame dispatch, #90, general EH and Gate4 remain incomplete.
+profile. General multi-frame dispatch, #90, general EH and Gate4 remain incomplete.
 
-The #646-#648 bounded physical-frame dispatch batch is implemented in
-[step1170](../done/step1170.md). It composes one earlier-frame cleanup and an
-outer typed catch with distinct caller contexts and retained original authority.
-Focused checks and development geometry/stack review are not batch acceptance;
-full-host, final native and real guest qualification remain pending. #90,
-general EH and Gate4 remain incomplete.
+The #646-#648 bounded physical-frame dispatch batch is qualified in
+[step1171](../done/step1171.md) at frozen source `7168906`: 4,488 full-host checks
+across 572 groups (86 Native, zero failures/reuse, inputs unchanged), final native
+review, three byte-identical 88-record frame guests and seven ancestors pass.
+One real earlier-frame cleanup returns before an outer base catch and compiled
+continuation, with distinct caller contexts, parent locals and original rooted
+exception/module authority. All 674 raw source inputs, process outcomes, raw
+serial framing and GPT/FAT/embedded-EFI associations pass independently. The
+15,456-byte complete selector bound stays below the existing 16,400-byte protected
+floor; firmware diagnostic internals remain outside the first-party static bound.
+Step1170 retains implementation and development failures. General frame dispatch,
+#90, general EH, constructor cached failures and Gate4 remain incomplete.
 
 The #638-#640 batch adds a separate default-off nested-finally diagnostic:
 four decoded physical clauses, a nonmatching sibling catch before a matching

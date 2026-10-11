@@ -125,7 +125,10 @@ The child emits `TEST_START m04.021.frames`, 15 `M04_FRAMES` records,
 `TEST_PASS m04.021.frames` and `CLROS_M04_021_FRAMES_READY` before ordinary
 boot completion. Its strict parser binds physical frame transitions, distinct
 parent locals, cleanup/catch/continuation addresses and retained receipts.
-[Step1170](../done/step1170.md) is implementation evidence; qualification is pending.
+[Step1171](../done/step1171.md) qualifies three byte-identical 88-record frame
+guests, seven ancestors, 4,488 full-host checks and final native review. The
+earlier-frame cleanup and outer catch use distinct parent contexts; the original
+root survives compiled continuation. General EH and Gate4 remain incomplete.
 
 `EnableM04UnhandledExceptionProbe` is a separate destructive, default-off
 Diagnostic profile requiring the collecting GC chain and excluding the other EH,

@@ -3,7 +3,9 @@
 The separate default-off physical-frame dispatch diagnostic follows the collecting
 GC profile through `BootSequence.RunFrameDispatchUnwind`. It models an inner
 throw, a middle-frame finally and outer typed catch before ordinary boot success.
-[Step1170](../done/step1170.md) records implementation; qualification is pending.
+[Step1171](../done/step1171.md) qualifies 4,488 full-host checks, three 88-record
+frame guests, final native review and seven ancestor regressions. Step1170
+retains development history; general EH and Gate4 remain incomplete.
 
 The default-off unhandled EH diagnostic follows the original collecting GC
 profile through `BootSequence`'s gated unwind service. It ends before ordinary
