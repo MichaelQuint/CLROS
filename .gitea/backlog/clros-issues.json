@@ -74,7 +74,7 @@
     {
       "key": "M06",
       "title": "M06 Live Storage",
-      "state": "closed",
+      "state": "open",
       "description": "Read the packaged manifest and payload from live virtio-blk after firmware exit. Milestones carry no fabricated due date and close only from preserved evidence.",
       "exitCriteria": "Read the packaged manifest and payload from live virtio-blk after firmware exit."
     },
@@ -13260,7 +13260,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M06: Live Storage.",
-      "currentEvidence": "The nineteen keyed children #116-#134 have bounded qualification through steps1140/1143/1147/1150/1152/1156/1162. Current qualification passes4422 unchanged-input full-host checks, linked native review, IRQ/recovery guests and eleven ancestors, including packaged manifest/payload reads after firmware exit. Step1162 records the per-key reviewed-evidence audit and tracker readbacks before epic/milestone closure. This satisfies the explicit bounded M06 criterion, separately from Gate7: continuing storage, general workload activation and payload execution remain incomplete. Hosted .NET/Kestrel, cloud and production readiness are not promoted.",
+      "currentEvidence": "The nineteen keyed children #116-#134 have bounded qualification through steps1140/1143/1147/1150/1152/1156/1162. Current qualification passes4422 unchanged-input full-host checks, linked native review, IRQ/recovery guests and eleven ancestors, including packaged manifest/payload reads after firmware exit. Step1162 records nineteen closed/reviewed keyed children and the epic closure readbacks. The broader M06 milestone remains open for the separate FAT-write reference-adaptation issue #468. This satisfies the explicit bounded M06 criterion, separately from Gate7: continuing storage, general workload activation and payload execution remain incomplete. Hosted .NET/Kestrel, cloud and production readiness are not promoted.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
