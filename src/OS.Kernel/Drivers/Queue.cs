@@ -29,7 +29,8 @@ public struct VirtioNetQueueResult
         Receive.DescriptorReleased && Transmit.DescriptorReleased && ResetComplete && BusMasterDisabled && DmaReleased;
 }
 
-/// <summary>One exclusive VERSION_1-only receive/transmit pair, each size eight.
+/// <summary>One exclusive modern receive/transmit pair, each size eight. The
+/// caller's feature profile owns admission of negotiated device features.
 /// A single owned page holds disjoint rings and buffers. One 1526-byte writable
 /// RX buffer is published before DRIVER_OK; this configuration-only entry point
 /// never enables bus mastering or DRIVER_OK. The adapter supplies authenticated
@@ -162,6 +163,13 @@ public static unsafe class VirtioNetQueue
         VirtqueueDescriptorPoolState* rx, VirtqueueDescriptorPoolState* tx,
         VirtqueueDescriptorToken rxToken, VirtqueueDescriptorToken txToken, ref VirtioNetQueueResult r)
     {
+        Quiesce(common, a, resetLimit, ref r);
+        ReleaseBacking(dma, allocation, deviceOwned, rx, tx, rxToken, txToken, ref r);
+    }
+
+    internal static void Quiesce(VirtioMappedRegion common, VirtqueuePollingAccess a,
+        uint resetLimit, ref VirtioNetQueueResult r)
+    {
         r.CleanupStatus = VirtioNetQueueStatus.ResetFailed;
         byte status = 0xff;
         if (a.Write8(a.Context, common.VirtualStart + 20, 0) == 1)
@@ -176,6 +184,13 @@ public static unsafe class VirtioNetQueue
         if (!r.BusMasterDisabled) { r.CleanupStatus = VirtioNetQueueStatus.BusMasterFailed; return; }
         if (!Fence(a, ref r)) { r.CleanupStatus = VirtioNetQueueStatus.OrderingFailed; return; }
         r.CleanupStatus = VirtioNetQueueStatus.Success;
+    }
+
+    internal static void ReleaseBacking(DmaBufferPool* dma, DmaBufferAllocation allocation,
+        bool deviceOwned, VirtqueueDescriptorPoolState* rx, VirtqueueDescriptorPoolState* tx,
+        VirtqueueDescriptorToken rxToken, VirtqueueDescriptorToken txToken, ref VirtioNetQueueResult r)
+    {
+        if (r.CleanupStatus != VirtioNetQueueStatus.Success || !r.ResetComplete || !r.BusMasterDisabled) return;
         if (!Release(rx, rxToken, ref r.Receive) || !Release(tx, txToken, ref r.Transmit))
         { r.CleanupStatus = VirtioNetQueueStatus.DescriptorRejected; return; }
         if (allocation.IsInitialized)

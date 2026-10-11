@@ -19,6 +19,7 @@ internal static class EfiProfileTestControls
                     "M06_FAT_READ_PROBE" => ["M06_VIRTIO_BLOCK_READ_PROBE", "M06_LIVE_BLOCK_CONTRACT_PROBE", "M06_GPT_PARTITION_PROBE"],
                     "M06_PACKAGE_READ_PROBE" => ["M06_VIRTIO_BLOCK_READ_PROBE", "M06_LIVE_BLOCK_CONTRACT_PROBE", "M06_GPT_PARTITION_PROBE", "M06_FAT_READ_PROBE"],
                     "M07_VIRTIO_NET_PROBE" => ["M05_VIRTIO_NEGOTIATION_PROBE", "M05_VIRTQUEUE_POLLING_PROBE"],
+                    "M07_ARP_RECEIVE_PROBE" => ["M05_VIRTIO_NEGOTIATION_PROBE", "M05_VIRTQUEUE_POLLING_PROBE", "M07_VIRTIO_NET_PROBE"],
                     "M06_GPT_PARTITION_PROBE" => ["M06_VIRTIO_BLOCK_READ_PROBE", "M06_LIVE_BLOCK_CONTRACT_PROBE"],
                     "M06_LIVE_BLOCK_CONTRACT_PROBE" => ["M06_VIRTIO_BLOCK_READ_PROBE"],
                     "M05_VIRTQUEUE_INTERRUPT_PROBE" => ["M05_VIRTIO_NEGOTIATION_PROBE", "M05_APIC_SETUP_PROBE"],
@@ -51,6 +52,14 @@ internal static class EfiProfileTestControls
                 calls = calls.Except(payloadCalls).ToArray();
             }
             reason = symbol + ":call-count-owner " + calls.Length;
+            if (symbol == "M07_ARP_RECEIVE_PROBE")
+            {
+                if (calls.Length != 3 || new[] { "RunQueueCore", "RunNetCore" }.Any(parent =>
+                    calls.Count(i => i.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
+                        .FirstOrDefault()?.Identifier.Text == parent) != 1)) return false;
+                calls = calls.Where(i => i.Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
+                    .FirstOrDefault()?.Identifier.Text == body).ToArray();
+            }
             if (symbol == "M07_VIRTIO_NET_PROBE")
             {
                 // Its required polling parent has its own separately admitted
@@ -112,6 +121,7 @@ internal static class EfiProfileTestControls
             ("M06BlockMsix", "M05ApicSetup", "m06_block_msix_requires_package_apic"),
             ("M06BlockMsixPollingRecovery", "M06BlockMsix", "m06_block_msix_polling_recovery_requires_main"),
             ("M07VirtioNet", "M05VirtqueuePolling", "m07_virtio_net_requires_polling"),
+            ("M07ArpReceive", "M07VirtioNet", "m07_arp_receive_requires_net"),
             ("M05BarDma", "M05PciEnumeration", "m05_bar_dma_requires_pci"),
             ("M05ApicSetup", "M05PciEnumeration", "m05_apic_requires_pci"),
             ("M05VirtqueueInterrupt", "M05ApicSetup", "m05_virtqueue_interrupt_requires_apic_negotiation"),

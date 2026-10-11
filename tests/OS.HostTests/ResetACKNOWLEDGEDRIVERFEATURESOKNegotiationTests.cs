@@ -118,6 +118,36 @@ internal static unsafe class ResetACKNOWLEDGEDRIVERFEATURESOKNegotiationTests
         return HostCheck.Result(!device.InvalidAccess && !device.DriverOkWritten && !result.FailureStatusAttempted);
     }
 
+    [HostTest("virtio.negotiation separate single-buffer RX profile retains strict original admission", HostLane.Fast, 5)]
+    private static void SingleReceive()
+    {
+        Device device = Fresh(); device.Offered = ulong.MaxValue;
+        var result = ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation.RunNetReceive(Common, 4,
+            &device, &Read32, &Write32, &Read8, &Write8);
+        HostCheck.True(result.Succeeded && result.Selected == 0x100008000 &&
+            device.Selected == result.Selected && !device.DriverOkWritten && !device.InvalidAccess);
+        uint calls = device.Calls;
+        for (uint fail = 1; fail <= calls; fail++)
+        {
+            device = Fresh(); device.Offered = ulong.MaxValue; device.FailCall = fail;
+            result = ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation.RunNetReceive(Common, 4,
+                &device, &Read32, &Write32, &Read8, &Write8);
+            HostCheck.True(!result.Succeeded && !device.DriverOkWritten);
+        }
+        foreach (ulong offered in new ulong[] { 0, 1UL << 32, 1UL << 15 })
+        {
+            HostCheck.True(BoundedVirtioFeatures.SelectNetReceive(offered, out var selected) != VirtioFeatureStatus.Success && selected == 0);
+            device = Fresh(); device.Offered = offered;
+            result = ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation.RunNetReceive(Common, 4,
+                &device, &Read32, &Write32, &Read8, &Write8);
+            HostCheck.True(!result.Succeeded && !device.DriverOkWritten);
+        }
+        device = Fresh();
+        result = ResetACKNOWLEDGEDRIVERFEATURESOKNegotiation.Run(Common, BoundedVirtioFeatures.NetSingleBufferReceive,
+            4, &device, &Read32, &Write32, &Read8, &Write8);
+        HostCheck.True(result.Status == VirtioNegotiationStatus.UnsupportedFeatures && device.Calls == 0);
+    }
+
     [HostTest("virtio.negotiation bounds reset and rejects caller before access", HostLane.Fast, 1)]
     private static bool ResetAndAdmission()
     {

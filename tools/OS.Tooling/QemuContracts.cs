@@ -5,6 +5,7 @@ namespace OS.Tooling;
 // Reviewed guest protocol records. Each literal is owned once; inventories reuse it.
 public static class QemuContracts
 {
+    public const ulong M07ArpReceiveFeatures = 0x100008000;
 
     public const string M03TypedAdmissionRecord = "M03_TYPED_EBS_ADMISSION default=6 missingFunction=3 missingHandle=4 simulated=5 exited=5 readyDenied=5 readyPrepare=7 unchanged=1 calls=0";
     public const string M03TypedReadyRecord = "CLROS_M03_004_READY controlled=true realExitBootServices=false states=4 calls=4 reuse=4 reentry=1 mode=0";
@@ -772,6 +773,13 @@ public static class QemuContracts
         .. Enumerable.Range(2, 12).Select(i => "M07_NET " + i.ToString("X", System.Globalization.CultureInfo.InvariantCulture)),
         "CLROS_M07_003_READY", "TEST_PASS m07.003", "CLROS_M07_004_READY", "TEST_PASS m07.004",
         "CLROS_M07_005_READY", "TEST_PASS m07.005"
+    ]);
+    public static IReadOnlyList<string> M07ArpReceiveMarkers { get; } = Array.AsReadOnly<string>(
+    [
+        .. M07VirtioNetMarkers,
+        .. Enumerable.Range(6, 4).Select(i => "TEST_START m07.00" + i),
+        .. Enumerable.Range(0, 14).Select(i => "M07_ARP " + i.ToString("X", System.Globalization.CultureInfo.InvariantCulture)),
+        .. Enumerable.Range(6, 4).SelectMany(i => new[] { "CLROS_M07_00" + i + "_READY", "TEST_PASS m07.00" + i })
     ]);
     public static IReadOnlyList<string> M06BlockMsixMarkers { get; } = Array.AsReadOnly<string>(
     [

@@ -1,5 +1,24 @@
 # EFI Build
 
+## Qualified bounded ARP receive profile
+
+Default-off `--EnableM07ArpReceiveProbe` requires `--EnableM07VirtioNetProbe`
+and its complete Diagnostic prerequisite chain. After the original fixed-frame
+receipt, epoch208 owns a fresh one-page RX/TX lifetime, transmits one padded ARP
+request and receives one matching reply. Reset, bus-master disable and a fence
+precede local staging; descriptor/DMA reclamation precedes caller publication.
+The original allocator, command and canaries must remain intact. The explicit
+15-source closure reuses address/ARP/endian primitives. Native addresses retain
+typed equality; managed object equality/hash overrides are excluded from the
+no-stdlib build, producing four expected CS0660/CS0661 shell warnings.
+[Step1164](../done/step1164.md) records 4,441 full-host checks, linked native
+stack/ABI review, a 194-record ARP guest capture, independent request/reply
+libpcap and thirteen ancestor regressions. Continuing RX and timers remain
+incomplete; [step1163](../done/step1163.md) retains implementation failures.
+The separate receive negotiation selects VERSION_1+MRG_RXBUF and requires a
+single device-reported buffer. Original fixed-TX and block negotiation entry
+points retain their original feature admission. Header0 remains rejected.
+
 ## Bounded Virtio-net profile
 
 Default-off `--EnableM07VirtioNetProbe` requires the explicit original M05
@@ -9,7 +28,7 @@ BAR, renegotiates VERSION_1 only, then uses a fresh one-page DMA lifetime (epoch
 for primed RX plus one fixed-frame TX/reclaim. Source, pointer, fence and allocator
 admission remain strict. [Step1162](../done/step1162.md) accepts linked native
 stack/ABI review, 4,422 full-host checks, 168 guest records and the exact fixed
-frame in independent libpcap. RX processing and continuing I/O remain incomplete.
+frame in independent libpcap. Finite ARP reception is qualified above; continuing I/O remains incomplete.
 
 ## Bounded block MSI-X profile
 

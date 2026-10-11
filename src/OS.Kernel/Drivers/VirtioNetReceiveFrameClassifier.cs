@@ -10,16 +10,25 @@ public enum VirtioNetReceiveFrameClassifierStatus
     UnsupportedChecksumOffload = 3,
     UnsupportedOffloadFlags = 4,
     UnsupportedGenericSegmentationOffload = 5,
-    UnsupportedPayload = 6
+    UnsupportedPayload = 6,
+    UnsupportedReceiveBufferCount = 7
 }
 
 public static class VirtioNetReceiveFrameClassifier
 {
     public static VirtioNetReceiveFrameClassificationResult Classify(
         ReadOnlySpan<byte> receiveBuffer)
+        => ClassifyParsed(receiveBuffer,
+            VirtioNetHeader.TryParseReceivedFrameNoOffload(receiveBuffer));
+
+    public static VirtioNetReceiveFrameClassificationResult ClassifyModern(
+        ReadOnlySpan<byte> receiveBuffer)
+        => ClassifyParsed(receiveBuffer,
+            VirtioNetHeader.TryParseModernReceivedFrameNoOffload(receiveBuffer));
+
+    private static VirtioNetReceiveFrameClassificationResult ClassifyParsed(
+        ReadOnlySpan<byte> receiveBuffer, VirtioNetReceivedFrameParseResult virtioResult)
     {
-        VirtioNetReceivedFrameParseResult virtioResult =
-            VirtioNetHeader.TryParseReceivedFrameNoOffload(receiveBuffer);
         if (!virtioResult.Succeeded)
         {
             VirtioNetReceiveFrameClassifierStatus status =
@@ -84,6 +93,8 @@ public static class VirtioNetReceiveFrameClassifier
                 VirtioNetReceiveFrameClassifierStatus.UnsupportedOffloadFlags,
             VirtioNetHeaderStatus.UnsupportedGenericSegmentationOffload =>
                 VirtioNetReceiveFrameClassifierStatus.UnsupportedGenericSegmentationOffload,
+            VirtioNetHeaderStatus.UnsupportedReceiveBufferCount =>
+                VirtioNetReceiveFrameClassifierStatus.UnsupportedReceiveBufferCount,
             _ => VirtioNetReceiveFrameClassifierStatus.MissingEthernetHeader
         };
     }
@@ -98,7 +109,8 @@ public static class VirtioNetReceiveFrameClassifier
                     PacketParseStatus.BufferTooSmall,
             VirtioNetHeaderStatus.UnsupportedChecksumOffload or
                 VirtioNetHeaderStatus.UnsupportedOffloadFlags or
-                VirtioNetHeaderStatus.UnsupportedGenericSegmentationOffload =>
+                VirtioNetHeaderStatus.UnsupportedGenericSegmentationOffload or
+                VirtioNetHeaderStatus.UnsupportedReceiveBufferCount =>
                     PacketParseStatus.UnsupportedOperation,
             _ => PacketParseStatus.Success
         };

@@ -1,6 +1,9 @@
 namespace OS.Net;
 
-public readonly struct MacAddress : IEquatable<MacAddress>
+public readonly struct MacAddress
+#if !NOSTDLIB_EFI
+    : IEquatable<MacAddress>
+#endif
 {
     public const int Length = 6;
 
@@ -86,6 +89,7 @@ public readonly struct MacAddress : IEquatable<MacAddress>
             && Octet5 == other.Octet5;
     }
 
+#if !NOSTDLIB_EFI
     public override bool Equals(object? obj)
     {
         return obj is MacAddress other && Equals(other);
@@ -102,6 +106,7 @@ public readonly struct MacAddress : IEquatable<MacAddress>
         hash.Add(Octet5);
         return hash.ToHashCode();
     }
+#endif
 
     public static bool operator ==(MacAddress left, MacAddress right)
     {

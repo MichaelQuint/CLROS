@@ -425,6 +425,10 @@ namespace System
 
 namespace System.Runtime.InteropServices
 {
+    // CS0518 from ref-readonly pointer views requires this metadata identity.
+    // It supplies no parameter marshalling or interop services.
+    public sealed class InAttribute : System.Attribute { }
+
     // Required modreq identity for the C# unmanaged generic constraint.
     // No marshalling API or enum values are implemented by this shell contract.
     public enum UnmanagedType { }

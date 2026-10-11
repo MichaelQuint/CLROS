@@ -1,5 +1,19 @@
 # NativeAOT NoStdLib Limits
 
+The qualified ARP batch in [step1164](../done/step1164.md) extends the shared
+pointer-backed unmanaged Span subset with bounds-checked indexing, Slice,
+Clear and conversion to a pointer-backed ReadOnlySpan. The read-only view
+supports Length, indexing, Slice and pinning. Host mirrors throw for invalid
+bounds; native invalid bounds use the existing fail-fast halt. Caller-owned
+mapping and lifetime remain required. Arrays, strings, enumeration, general
+copy/marshalling and moving-GC interior references are unsupported. The empty
+`InAttribute` supplies the compiler identity for ref-readonly metadata only.
+The linked ARP paths pass native ABI/stack review, a real 194-record guest
+capture, 4,441 full-host checks and thirteen ancestor regressions. Its diagnostic
+bound is 12,760 bytes. Current block ancestors conservatively bound diagnostics
+at 30,456 bytes, including the shared negotiation frame growth; all fit the
+owned 32KiB stack. This does not qualify a general Span/BCL or runtime surface.
+
 [Step1162](../done/step1162.md) accepts the four explicit modern-net EFI compile
 inputs and block MSI-X/recovery integration with strict source/pointer admission.
 Linked native POD ABI, unwind, dynamic scratch and complete callbacks are reviewed:
@@ -466,7 +480,7 @@ Boundary rules:
 
 `std/no-runtime/shared/DotNetN10SystemExportCompatibilityLedgerImplementedStubbed.cs`
 is the allocation-free declaration/export classification companion to that
-planning ledger. Its 50 append-only declaration identities bind current
+planning ledger. Its 51 append-only declaration identities bind current
 `MinimalRuntime.cs` declarations, distinguish generic arities, and carry stable
 unknown, narrowly-implemented, stubbed, or forbidden support states. Its 21
 export identities preserve source order: four link-only transition no-ops,
@@ -475,7 +489,9 @@ eleven fail-fast type-cast helpers plus `RhpFallbackFailFast`, the audited
 appended SZ-array and string exports. The guarded empty Exception identity
 is classified as Stubbed and adds no general exception services. The appended
 empty UnmanagedType identity is also Stubbed; it supplies only the unmanaged
-constraint modreq identity and no marshalling constants or services. The fixed allocator
+constraint modreq identity and no marshalling constants or services. Identity51,
+empty InAttribute, is Stubbed and supplies only ref-readonly compiler metadata.
+The fixed allocator
 defaults to self-contained failure; its opt-in adapter is implemented and
 artifact-tested in step946, with bounded real guest acceptance in step949.
 Step952 adds the array host contract and focused artifact checks; step954
