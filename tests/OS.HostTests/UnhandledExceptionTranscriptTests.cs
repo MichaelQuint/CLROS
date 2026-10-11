@@ -1,4 +1,5 @@
 using OS.Tooling;
+using OS.Tools.QemuRunner;
 
 internal static class UnhandledExceptionTranscriptTests
 {
@@ -35,6 +36,13 @@ internal static class UnhandledExceptionTranscriptTests
         }
         string Text(string[] rows)=>string.Join("\r\n",rows)+"\r\n";
         Check("valid",Text(lines),true);
+        HostCheck.True(QemuTranscripts.EvaluateM04UnhandledCapture(Text(lines),out string prefix)==1);
+        var plan=QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run","--build-efi",..Arguments]));
+        var state=new SerialMarkerStateMachine(plan.Required,plan.Forbidden,
+            successTerminalMarker:UnhandledExceptionCapture.PrerequisiteTerminal,orderedMarkers:plan.Ordered,uniqueMarkers:plan.Unique);
+        HostCheck.True(state.Feed(System.Text.Encoding.ASCII.GetBytes(prefix)).Succeeded && state.Complete(false).Passed,"selected expected-terminal prefix");
+        state=new SerialMarkerStateMachine(plan.Required,plan.Forbidden,orderedMarkers:plan.Ordered,uniqueMarkers:plan.Unique);
+        HostCheck.True(state.Feed(System.Text.Encoding.ASCII.GetBytes(prefix)).Succeeded && !state.Complete(false).Passed,"ordinary success terminal still required");
         for(int stage=2;stage<8;stage++) for(int field=0;field<4;field++)
         {
             if(stage==7 && field==1) continue; // minimum witness admits a bounded interval

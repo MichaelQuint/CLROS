@@ -746,6 +746,7 @@ static int RunExpectedUnexpectedVectorPanic(RunnerOptions options, string qemu, 
                 // Only the independently classified exact last panic record is excluded.
                 // Generic required/ordered/unique/forbidden handling still checks the prefix.
                 var state = new SerialMarkerStateMachine(options.RequiredMarkers, options.ForbiddenMarkers,
+                    successTerminalMarker: unhandled ? UnhandledExceptionCapture.PrerequisiteTerminal : SerialMarkerStateMachine.DefaultSuccessTerminalMarker,
                     orderedMarkers: options.OrderedMarkers, uniqueMarkers: options.UniqueMarkers);
                 var feed = state.Feed(Encoding.ASCII.GetBytes(prerequisites));
                 prefixResult = state.Complete(false);
@@ -2479,6 +2480,7 @@ public static class UnhandledExceptionCapture
     public const string Failure = "TEST_FAIL m04.021.unhandled unhandled-exception";
     public const string Terminal = "OS_SMOKE_FAIL subsystem=runtime reason=unhandled-exception";
     public const int RecordCount = 73;
+    public const string PrerequisiteTerminal = "M04_UNHANDLED 7";
 
     // Runner framing and exact terminal; OS.Tooling independently admits every
     // prerequisite numeric association before treating exit 19 as qualification.
