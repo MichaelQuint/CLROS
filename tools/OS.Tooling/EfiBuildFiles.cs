@@ -100,7 +100,7 @@ public sealed record EfiOutputPlan(string Directory, string EfiPath, string MapP
         List<string> paths = [efi, efi + ".link.map", efi + ".link.rsp", efi + ".link.json", efi + ".serializer.obj"];
         if (profile is null || profile.IsEnabled("M04CheckedReferenceBarrier") || profile.IsEnabled("M04GcStaticRootMaterialization")) paths.Add(efi + ".references.obj");
         if (profile is null || profile.IsEnabled("M04InterfaceDispatch")) paths.Add(efi + ".dispatch.obj");
-        if (profile is null || profile.IsEnabled("M04SimpleThrowCatch")) paths.Add(efi + ".catch.obj");
+        if (profile is null || profile.IsEnabled("M04SimpleThrowCatch") || profile.IsEnabled("M04UnhandledException")) paths.Add(efi + ".catch.obj");
         if (profile is null || profile.IsEnabled("M04SingleFinallyCatch")) paths.Add(efi + ".finally.obj");
         if (profile is null || profile.IsEnabled("M04Rethrow")) paths.AddRange([efi + ".rethrow-inner.obj", efi + ".rethrow-outer.obj"]);
         if (profile is null || profile.IsEnabled("M04NestedFinallyCatch")) paths.Add(efi + ".nested-finally.obj");

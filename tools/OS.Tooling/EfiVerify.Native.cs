@@ -121,6 +121,7 @@ internal sealed partial class EfiVerification
     }
     private void VerifyCatchBridge()
     {
+        if (profile.IsEnabled("M04UnhandledException")) { VerifyUnhandledBridge(); return; }
         bool finallyProbe = profile.IsEnabled("M04SingleFinallyCatch"), simple = profile.IsEnabled("M04SimpleThrowCatch");
         List<string> names = ["RhpThrowEx", "CLROS_Eh_GetClauseTable", "CLROS_Eh_Select", "CLROS_Eh_ValidateContinuation", "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__Catcher"];
         if (finallyProbe) names.AddRange(["CLROS_Eh_ValidateFinally", "OS_OS_Runtime_RhpNewFastAllocation__Catcher", "??_7OS_OS_Runtime_SimpleCatchBase@@6B@"]);

@@ -108,6 +108,13 @@ retained-object type matcher; no partial successful plan survives an invalid
 tail. Filters, group markers and ambiguous/reversed/crossing ranges are rejected.
 A separate two-cleanup bridge passes instruction/ABI controls while existing
 catch/finally/rethrow object identities remain unchanged. The default-off
+The separate default-off `EnableM04UnhandledExceptionProbe` has measured
+10/46/56-byte thrower/middle/catcher contributions, a nonmatching sibling clause
+and a profile-only real type-test export. Original context/module/root authority
+remains mandatory. It terminates the first pass at three bounded frames without
+second-pass cleanup. Native/focused development evidence in
+[step1168](../done/step1168.md) is not full-host or guest acceptance.
+
 `EnableM04NestedFinallyCatchProbe` now links a measured 222-byte method, four
 clauses and five unwind rows. Three 89-record guests complete sibling nonmatch,
 base match, two cleanups, catch and compiled continuation. The 4,456-check full

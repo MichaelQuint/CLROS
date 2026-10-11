@@ -1,5 +1,11 @@
 # Boot Order
 
+`RunUnhandledExceptionUnwind` is gated by the default-off unhandled probe and
+reuses the accepted single-frame service after the collecting GC diagnostic.
+The child terminates its first pass before ordinary `boot.sequence`; it adds no
+boot phase or second-pass cleanup. [Step1168](../done/step1168.md) is development
+evidence; full-host/guest qualification remains pending.
+
 Qualified `RunOwnedBlockMsix` follows package phase19 and owned APIC phase2;
 its separate default-off profile owns interrupt phases2..7 and one fresh LBA1
 lifetime with epoch198. [Step1162](../done/step1162.md) accepts returning IRQ and

@@ -117,6 +117,20 @@ before `TEST_PASS m05.001`. The C# parsers reject unselected claims and malforme
 or reordered records. [Step1120](../done/step1120.md) records full-host and
 guest qualification with independent image association.
 
+`EnableM04UnhandledExceptionProbe` is a separate destructive, default-off
+Diagnostic profile requiring the collecting GC chain and excluding the other EH,
+constructor, dispatch, churn and unwind leaves. A real compiled throw crosses
+two original native caller frames. One decoded sibling catch does not match the
+retained object; the real `RhTypeCast_IsInstanceOfException` export checks same,
+base, sibling and null inputs under original module/root authority. No handler or
+second-pass cleanup runs. The expected terminal is exactly
+`TEST_FAIL m04.021.unhandled unhandled-exception`, followed by
+`OS_SMOKE_FAIL subsystem=runtime reason=unhandled-exception`. Its 73 application
+records require the complete GC prefix, eight numeric child stages and no later
+boot continuation. Geometry/native publication and focused controls are
+development evidence in [step1168](../done/step1168.md); full-host and real guest
+qualification remain pending. This does not complete #90 or Gate4.
+
 `EnableM04NestedFinallyCatchProbe` is a destructive, default-off diagnostic at
 catalogue index 40. It requires the collecting GC profile and excludes the
 other catch/finally/rethrow, constructor, dispatch, churn and unwind profiles.

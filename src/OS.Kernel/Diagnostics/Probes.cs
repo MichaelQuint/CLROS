@@ -74,6 +74,12 @@ public static partial class Probes
     public const bool EnableM04NestedFinallyCatchProbe = false;
 #endif
 
+#if M04_UNHANDLED_EXCEPTION_PROBE
+    public const bool EnableM04UnhandledExceptionProbe = true;
+#else
+    public const bool EnableM04UnhandledExceptionProbe = false;
+#endif
+
 #if M05_OWNED_ACPI_SELECTION_PROBE
     public const bool EnableM05OwnedAcpiSelectionProbe = true;
 #else
@@ -187,7 +193,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 41;
+    public const int ProbeCatalogCount = 42;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -371,6 +377,11 @@ public static partial class Probes
         new("runtime.exception", nameof(EnableM04NestedFinallyCatchProbe),
             EnableM04NestedFinallyCatchProbe, ProbeRisk.Destructive,
             "Opts into two nested compiler cleanups and typed catch search; transfer requires measured admission.");
+
+    public static ProbeDefinition GetM04UnhandledExceptionProbe() =>
+        new("runtime.exception", nameof(EnableM04UnhandledExceptionProbe),
+            EnableM04UnhandledExceptionProbe, ProbeRisk.Destructive,
+            "Ends a bounded multi-frame unhandled search at its owned diagnostic boundary; native admission required.");
 
     public static ProbeDefinition GetM05OwnedAcpiSelectionProbe() =>
         new("platform.acpi-selection", nameof(EnableM05OwnedAcpiSelectionProbe),
@@ -677,6 +688,9 @@ public static partial class Probes
                 return true;
             case 40:
                 definition = GetM04NestedFinallyCatchProbe();
+                return true;
+            case 41:
+                definition = GetM04UnhandledExceptionProbe();
                 return true;
             default:
                 definition = default;

@@ -18,7 +18,7 @@ public static partial class QemuTranscripts
             RequireEmptyNativeError(runner.StandardError, Path.GetFullPath(options.SummaryLog + ".stderr.log", root));
         string[] lines = runner.StandardOutput.Replace("\r\n", "\n", StringComparison.Ordinal).Split('\n');
         if (lines.Length != 0 && lines[^1] == "") lines = lines[..^1];
-        if (runner.ExitCode != 0 && !Enabled("M02UnexpectedVectorPanic") && !Enabled("M03OwnedSubsystemPanic"))
+        if (runner.ExitCode != 0 && !Enabled("M02UnexpectedVectorPanic") && !Enabled("M03OwnedSubsystemPanic") && !Enabled("M04UnhandledException"))
         {
             if (Enabled("M03FirmwareEntropySeed") && options.FirmwareRngSource == "missing") AssertM03FirmwareEntropyTranscript(path, true);
             return runner.ExitCode;
@@ -97,8 +97,8 @@ public static partial class QemuTranscripts
         Need(File.ReadAllBytes(Path.GetFullPath(options.SummaryLog, root)).AsSpan().SequenceEqual(expectedBytes), "qemu_runner_summary_bytes");
     }
 
-    public static void AssertM04SimpleCatchSelection(string text, bool enabled, bool finallyEnabled = false, bool rethrowEnabled = false, bool nestedEnabled = false)
-        => Need(enabled || !Regex.IsMatch(Classify(text), finallyEnabled || rethrowEnabled || nestedEnabled ? @"(?i)M04_CATCH|CLROS_M04_SIMPLE_CATCH_READY|m04\.021\.simple-catch" : @"(?i)M04_CATCH|CLROS_M04_SIMPLE_CATCH_READY|m04\.021"), "m04_simple_catch_unselected_record");
+    public static void AssertM04SimpleCatchSelection(string text, bool enabled, bool finallyEnabled = false, bool rethrowEnabled = false, bool nestedEnabled = false, bool unhandledEnabled = false)
+        => Need(enabled || !Regex.IsMatch(Classify(text), finallyEnabled || rethrowEnabled || nestedEnabled || unhandledEnabled ? @"(?i)M04_CATCH|CLROS_M04_SIMPLE_CATCH_READY|m04\.021\.simple-catch" : @"(?i)M04_CATCH|CLROS_M04_SIMPLE_CATCH_READY|m04\.021"), "m04_simple_catch_unselected_record");
     public static void AssertM04SingleFinallySelection(string text, bool enabled)
         => Need(enabled || !Regex.IsMatch(Classify(text), @"(?i)M04_FINALLY|CLROS_M04_SINGLE_FINALLY_READY|m04\.021\.single-finally"), "m04_single_finally_unselected_record");
     public static void AssertM04InterfaceDispatchSelection(string text, bool enabled)
@@ -109,7 +109,7 @@ public static partial class QemuTranscripts
     {
         string candidate = Classify(text);
         bool Enabled(string name) => plan.IsEnabled("Enable" + name + "Probe");
-        AssertM04SimpleCatchSelection(text, Enabled("M04SimpleThrowCatch"), Enabled("M04SingleFinallyCatch"), Enabled("M04Rethrow"), Enabled("M04NestedFinallyCatch"));
+        AssertM04SimpleCatchSelection(text, Enabled("M04SimpleThrowCatch"), Enabled("M04SingleFinallyCatch"), Enabled("M04Rethrow"), Enabled("M04NestedFinallyCatch"), Enabled("M04UnhandledException"));
         AssertM04SingleFinallySelection(text, Enabled("M04SingleFinallyCatch"));
         AssertM04InterfaceDispatchSelection(text, Enabled("M04InterfaceDispatch"));
         AssertM04X64UnwindMetadataSelection(text, Enabled("M04X64UnwindMetadata"));
@@ -125,6 +125,7 @@ public static partial class QemuTranscripts
             ("M04SimpleThrowCatch", "M04_CATCH|CLROS_M04_SIMPLE_CATCH|m04\\.021\\.simple-catch"),
             ("M04SingleFinallyCatch", "M04_FINALLY|CLROS_M04_SINGLE_FINALLY|m04\\.021\\.single-finally"),
             ("M04Rethrow", @"M04_RETHROW|CLROS_M04_RETHROW_READY|m04\.021\.rethrow"),
+            ("M04UnhandledException", @"M04_UNHANDLED|CLROS_M04_UNHANDLED_READY|m04\.021\.unhandled|OS_SMOKE_FAILsubsystem=runtimereason=unhandled-exception"),
             ("M04NestedFinallyCatch", @"M04_NESTED|CLROS_M04_NESTED_FINALLY_READY|m04\.021\.nested-finally"),
             ("M05PhysicalMapping", @"M05_MAP|CLROS_M05_001_READY|m05\.001"),
             ("M05OwnedAcpiSelection", @"M05_ACPI|CLROS_M05_002_READY|m05\.002"),

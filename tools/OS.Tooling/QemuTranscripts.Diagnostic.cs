@@ -5,6 +5,12 @@ public static partial class QemuTranscripts
     private static void ValidateDiagnosticTranscript(string root, QemuSmokeOptions options, QemuSmokePlan plan, ProcessResult runner, string[] lines)
     {
         string path = Path.GetFullPath(options.SerialLog, root);
+        if(plan.IsEnabled("EnableM04UnhandledExceptionProbe"))
+        {
+            AssertM04ManagedHeapPageRangeTranscript(path,includeGcStatics:true,includeUnhandled:true);
+            AssertExpectedPanicRunner(root,options,plan,runner,lines,false,unhandled:true);
+            return;
+        }
         if (plan.IsEnabled("EnableM03MemoryMapCaptureProbe"))
         { Need(runner.StandardError.Length == 0, "qemu_runner_stderr_not_empty"); AssertM03MemoryMapCaptureTranscript(path); AssertM03MemoryMapCaptureRunnerResult(lines); return; }
         if (plan.IsEnabled("EnableM04LayoutContractProbe") && !plan.IsEnabled("EnableM04ManagedHeapPageRangeProbe"))
