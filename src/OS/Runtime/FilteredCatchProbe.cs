@@ -7,9 +7,9 @@ namespace OS.Runtime;
 
 internal static unsafe partial class RhpNewFastAllocation
 {
-    // Closed until original ILC filter/catch code, ABI, metadata and complete
-    // callback stack have been independently measured and admitted.
-    private const bool FilterTransferAdmitted = false;
+    // Bounded admission uses the independently pinned ILC code/EH/unwind,
+    // returning ABI and original callback graph; the diagnostic defaults off.
+    private const bool FilterTransferAdmitted = true;
     private const uint FilterMethodBytes = 295, FilterTableBytes = 11;
     private const uint FilterReturnOffset = 35, FilterContinuationOffset = 36;
     private const uint FilterFirstOffset = 60, FilterSecondOffset = 178;
