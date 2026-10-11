@@ -229,16 +229,19 @@ floor; firmware diagnostic internals remain outside the first-party static bound
 Step1170 retains implementation and development failures. General frame dispatch,
 #90, general EH, constructor cached failures and Gate4 remain incomplete.
 
-The #650-#652 constructor-failure batch has native admission evidence in
-[step1173](../done/step1173.md), following closed development in step1172. It supplies bounded Begin/Finish invocation
-bookkeeping, a separate two-table bridge, a real compiled constructor/wrapping
-catch pipeline, measured compiler frames and strict linked-code rejection controls.
-Original compiler geometry, computed branches and both bridge lifetimes are
-reviewed; native admission and rehashed mutation controls pass. Focused checks and
-mock transcript acceptance do not qualify full-host or guest execution.
-[Step1174](../done/step1174.md) records actual constructor/wrapper transfers and
-compiled continuation in development, including one profile-local interpretation
-of the pinned Read body branch. Stable batch qualification remains pending.
+The #650-#652 default-off constructor-failure batch is qualified in
+[step1176](../done/step1176.md) at frozen source `660a05e`: 4,502 full-host checks
+across 577 groups (88 Native, zero failures/reuse, inputs unchanged), 16 PE and one
+bridge-object rejection controls, three byte-identical 92-record guests and ten
+ancestor captures pass. All 679 raw source inputs and transcript/process/GPT/FAT/
+embedded-EFI joins pass. One real compiled constructor throw reaches its inner
+catch, failed bookkeeping preserves the nonzero constructor word, and a rooted
+TypeInitializationException retains the original object before a genuine wrapper
+throw, outer typed catch and compiled continuation. Seven finite read-only tables
+and both bridge lifetimes are reviewed; first-party stack depth is 12,216 within
+16,400 bytes, excluding firmware internals. Only the pinned Read body branch is
+interpreted on a local context copy; generic unwinding is unchanged. Later BeginLazy
+refusal proves no reinvocation through that operation, not a second compiler access.
 #90, #84 repeated-access cached failures, general EH and Gate4 remain incomplete.
 
 The #638-#640 batch adds a separate default-off nested-finally diagnostic:
