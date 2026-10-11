@@ -14,7 +14,8 @@ internal static unsafe partial class RhpNewFastAllocation
 {
     // Measured at nested-eh-native-layout-r01/r03 and checked by strict PE
     // code/clause/unwind controls. Direct callback paths including the bridge
-    // use at most 10,056 bytes below entry; the existing 16,400-byte stack floor
+    // use at most 10,072 bytes below captured thrower RSP, including both CALL
+    // return slots; the existing 16,400-byte stack floor
     // also retains the inherited diagnostic firmware writer margin. Only this
     // exact four-row fixture may transfer; default profiles compile it out.
     private const bool NestedTransferAdmitted = true;
