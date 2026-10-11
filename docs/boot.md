@@ -1,5 +1,11 @@
 # Boot
 
+The pending caller-window candidate in [step1185](../done/step1185.md) reuses the
+existing default-off catalog Diagnostic and boot phase. One bounded assembler
+unfolds actual caller contexts and catalog rows before existing typed matching
+and dispatch. Three `M04_CALLER_WINDOW` records associate actual return RIP/RSP,
+protected offsets and contiguous row slices. Full-host and guest acceptance are pending.
+
 The default-off `EnableM04EhCatalogProbe` modifies the existing physical-frame
 Diagnostic without adding a boot phase. Exact original compiler contributions
 resolve under retained module/snapshot/root authority. [step1184](../done/step1184.md) qualifies

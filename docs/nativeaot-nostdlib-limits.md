@@ -1,5 +1,14 @@
 # NativeAOT NoStdLib Limits
 
+`BoundedExceptionCallerWindow` is implemented but not yet fully qualified
+([step1185](../done/step1185.md)). It assembles up to four physical contexts and
+sixteen decoded rows without allocation. Actual RIP stays unchanged; RIP minus
+one selects protected membership. Exact EH contribution lengths come from the
+compiler catalog; zero-row frames require an authenticated NativeAOT no-EH root.
+Admitted outputs are cleared on late failure. Image-resident output storage
+requires independent MutableData admission and separation from retained owners,
+snapshot and readable stack. The helper supplies no roots, lifetime or CPU authority.
+
 The #658/#659/#660 compiler EH catalog batch is qualified in [step1184](../done/step1184.md):
 4525 full-host checks across 586 groups (92 Native), original native review, three 92-record
 guests and twelve ancestors. Exact original compiler contributions replace

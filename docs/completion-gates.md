@@ -1,5 +1,11 @@
 # CLROS Completion Gates
 
+The #662/#663/#664 caller-window candidate is implemented in [step1185](../done/step1185.md).
+Seven independent mapped-input checks, focused catalog checks and closed-gate native
+review pass. Complete full-host and fresh guest qualification are pending; these
+issues and parent #90 remain open. The existing catalog Diagnostic now assembles
+its finite window through `BoundedExceptionCallerWindow`; general EH is unchanged.
+
 #658/#659/#660 are qualified in [step1184](../done/step1184.md) at frozen source `b1da5a7`:
 4525 full-host checks across 586 groups (92 Native), zero failures/timeouts/reuse and
 unchanged inputs; 21 hostile native controls; three byte-identical 92-record
