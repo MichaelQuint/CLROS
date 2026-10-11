@@ -30,6 +30,12 @@ Visual Studio 2026 Insiders and dotnet host builds pass.
 
 ## Progress
 
+The #646-#648 bounded physical-frame dispatch batch is implemented in
+[step1170](done/step1170.md), with qualification still pending. Its separate
+default-off profile composes one middle-frame cleanup with an outer typed catch
+and compiled continuation using distinct caller contexts. Focused host checks
+and development native review do not complete #90 or Gate4.
+
 The bounded frame-search/type-predicate/unhandled batch is [qualified](done/step1169.md):
 4,473 full-host checks, native review, three 73-record expected-terminal guests
 and six ancestor captures pass with independent source/process/image association.

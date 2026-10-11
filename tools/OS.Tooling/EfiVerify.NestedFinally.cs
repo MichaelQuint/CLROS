@@ -43,7 +43,7 @@ internal sealed partial class EfiVerification
         {
             Require(!response.Contains(objectName, StringComparison.OrdinalIgnoreCase) &&
                 !Regex.IsMatch(map, @"(?m)^\s*[0-9A-Fa-f]{4}:[0-9A-Fa-f]{8}\s+(?:CLROS_Nested_\S+|OS_OS_Runtime_RhpNewFastAllocation__Nested\S+|__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__NestedCatcher)\s+") &&
-                (profile.IsEnabled("M04UnhandledException") || Symbols(map,"??_7OS_OS_Runtime_SimpleCatchSibling@@6B@").Count==0),
+                (profile.IsEnabled("M04UnhandledException") || profile.IsEnabled("M04FrameDispatch") || Symbols(map,"??_7OS_OS_Runtime_SimpleCatchSibling@@6B@").Count==0),
                 "nested_finally_unrequested_native_input");
             return;
         }

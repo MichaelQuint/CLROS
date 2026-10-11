@@ -117,6 +117,16 @@ before `TEST_PASS m05.001`. The C# parsers reject unselected claims and malforme
 or reordered records. [Step1120](../done/step1120.md) records full-host and
 guest qualification with independent image association.
 
+`EnableM04FrameDispatchProbe` is a separate destructive, default-off Diagnostic
+leaf at catalog index42, requiring the original collecting-GC chain. It executes
+one middle-frame finally, one outer typed base catch after a sibling nonmatch,
+and the real compiled continuation with the same explicitly retained exception.
+The child emits `TEST_START m04.021.frames`, 15 `M04_FRAMES` records,
+`TEST_PASS m04.021.frames` and `CLROS_M04_021_FRAMES_READY` before ordinary
+boot completion. Its strict parser binds physical frame transitions, distinct
+parent locals, cleanup/catch/continuation addresses and retained receipts.
+[Step1170](../done/step1170.md) is implementation evidence; qualification is pending.
+
 `EnableM04UnhandledExceptionProbe` is a separate destructive, default-off
 Diagnostic profile requiring the collecting GC chain and excluding the other EH,
 constructor, dispatch, churn and unwind leaves. A real compiled throw crosses

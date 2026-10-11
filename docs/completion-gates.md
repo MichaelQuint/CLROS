@@ -216,6 +216,13 @@ diagnostic. [Step1169](../done/step1169.md) qualifies 4,473 full-host checks
 source/process/image joins. No handler or second-pass cleanup executes in this
 profile. Positive multi-frame dispatch, #90, general EH and Gate4 remain incomplete.
 
+The #646-#648 bounded physical-frame dispatch batch is implemented in
+[step1170](../done/step1170.md). It composes one earlier-frame cleanup and an
+outer typed catch with distinct caller contexts and retained original authority.
+Focused checks and development geometry/stack review are not batch acceptance;
+full-host, final native and real guest qualification remain pending. #90,
+general EH and Gate4 remain incomplete.
+
 The #638-#640 batch adds a separate default-off nested-finally diagnostic:
 four decoded physical clauses, a nonmatching sibling catch before a matching
 base catch, and two exceptional cleanups before compiled continuation. Its

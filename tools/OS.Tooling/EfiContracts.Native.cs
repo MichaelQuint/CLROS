@@ -21,6 +21,8 @@ public static partial class EfiContracts
     public const string InterfaceDispatchObjectSha256 = "228630b0ad4d6ab298414fda0fcf07e76cb4699a63339fa59ba331afdc3aeb61";
     public const string SimpleCatchObjectSha256 = "dd32dc30808c3b6dd42981df652b95f62236bdc8c45c1daa3dde32bab1c981ab";
     public const string SingleFinallyObjectSha256 = "d24da7653745da1d37f1fc9d286a2e370c32b687a0415e90fc626a597326025a";
+    public const int FrameDispatchObjectBytes = 1869;
+    public const string FrameDispatchObjectSha256 = "356bcddd67d7e11c70e46bb235452fc58d66608907df0f8688a0dd2bcd6b6e96";
     public const int NestedFinallyObjectBytes = 2020;
     public const string NestedFinallyObjectSha256 = "94703a587d4d96ca9196c414bcfb6bab5fe3b9321868f35767db62e2937a2e07";
     public const int RethrowInnerObjectBytes = 1732, RethrowOuterObjectBytes = 1382;

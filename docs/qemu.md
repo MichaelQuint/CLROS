@@ -138,6 +138,13 @@ commands retain their original provenance.
 
 ## Current Status
 
+The default-off `--EnableM04FrameDispatchProbe` uses the collecting-GC
+Diagnostic chain and requires a fresh built image. Its returning profile selects
+the complete inherited sequence plus 18 frame child records and ordinary
+`OS_SMOKE_PASS`. Raw order, numeric associations, process outcome and source/
+disk/embedded-EFI joins must all pass before acceptance. [Step1170](../done/step1170.md)
+records implementation only; no frame guest has yet been accepted.
+
 The default-off `--EnableM04UnhandledExceptionProbe` substitutes for the rethrow
 leaf in its collecting GC Diagnostic command. It requires a fresh original
 capture and forbids custom markers, presets and raw observations. A separately

@@ -54,6 +54,10 @@ qualified in `done/step1167.md`: 4,456 full-host checks, native controls, three
 follow-up passes six focused checks and three fresh byte-identical guests.
 #90, constructor cached failures and Gate4 remain incomplete. See
 `docs/completion-gates.md` for each scope.
+The #646-#648 bounded physical-frame dispatch batch is implemented in
+`done/step1170.md`; full-host and guest qualification remain pending. The separate
+default-off `M04FrameDispatch` profile admits one earlier-frame cleanup and outer
+typed catch with distinct caller contexts. #90, general EH and Gate4 remain open.
 The #642–#644 default-off frame-search/type-predicate/unhandled batch is qualified
 in `done/step1169.md`: 4,473 full-host checks, native review, three 73-record
 expected-terminal guests and six ancestor captures pass. It stops after three

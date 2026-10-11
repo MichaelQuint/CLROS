@@ -141,6 +141,7 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
         if (profile.IsEnabled("M04SimpleThrowCatch")) yield return "simpleCatch";
         if (profile.IsEnabled("M04SingleFinallyCatch")) yield return "singleFinally";
         if (profile.IsEnabled("M04Rethrow")) { yield return "rethrowInner"; yield return "rethrowOuter"; }
+        if (profile.IsEnabled("M04FrameDispatch")) yield return "frameDispatch";
         if (profile.IsEnabled("M04NestedFinallyCatch")) yield return "nestedFinally";
         if (profile.IsEnabled("M04UnhandledException")) yield return "simpleCatch";
     }
@@ -243,6 +244,7 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
         if (profile.IsEnabled("M04InterfaceDispatch")) includes.AddRange(["RhpInitialDynamicInterfaceDispatch", "CLROS_InterfaceDispatch_GetCellSection", "CLROS_InterfaceDispatch_GetInitialStub"]);
         if (profile.IsEnabled("M04SimpleThrowCatch") || profile.IsEnabled("M04SingleFinallyCatch")) includes.AddRange(["RhpThrowEx", "CLROS_Eh_GetClauseTable"]);
         if (profile.IsEnabled("M04Rethrow")) includes.AddRange(["RhpThrowEx", "RhpRethrow", "CLROS_Rethrow_InnerClauses", "CLROS_Rethrow_OuterClauses"]);
+        if (profile.IsEnabled("M04FrameDispatch")) includes.AddRange(["RhpThrowEx","CLROS_Frame_CatcherClauses","CLROS_Frame_MiddleClauses","RhTypeCast_IsInstanceOfException"]);
         if (profile.IsEnabled("M04NestedFinallyCatch")) includes.AddRange(["RhpThrowEx","CLROS_Nested_Clauses"]);
         if (profile.IsEnabled("M04UnhandledException")) includes.AddRange(["RhpThrowEx","CLROS_Eh_GetClauseTable","RhTypeCast_IsInstanceOfException"]);
         var actual = Regex.Matches(response, "(?im)^\\s*/INCLUDE:(?:\"([^\"]+)\"|([^\\s\"]+))\\s*$").Select(m => m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value).ToArray();

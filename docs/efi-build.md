@@ -1,5 +1,19 @@
 # EFI Build
 
+## Bounded physical-frame dispatch profile
+
+`--EnableM04FrameDispatchProbe` defaults false and requires the collecting-GC
+Diagnostic prerequisites while excluding the other EH, constructor, dispatch,
+churn and standalone unwind leaves. Its separate 1,869-byte COFF object has
+1,352 text bytes, a 496-byte POD transfer and 1,080-byte bridge frame. Strict
+verification binds the original 10/72/138-byte methods, two EH tables, six
+logical unwind contributions and the real predicate export/call ABI. Cleanup
+and catch restore their different caller contexts; catch-produced registers
+are captured before compiled continuation. Callback stack review includes
+constant body stack reductions, with fixed profile-owned cleanup scratch.
+[Step1170](../done/step1170.md) records implementation and development review;
+full-host, final native and guest qualification remain pending.
+
 ## Bounded unhandled-exception profile
 
 `--EnableM04UnhandledExceptionProbe` uses the collecting GC Diagnostic chain.

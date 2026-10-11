@@ -1,5 +1,10 @@
 # Boot
 
+The separate default-off physical-frame dispatch diagnostic follows the collecting
+GC profile through `BootSequence.RunFrameDispatchUnwind`. It models an inner
+throw, a middle-frame finally and outer typed catch before ordinary boot success.
+[Step1170](../done/step1170.md) records implementation; qualification is pending.
+
 The default-off unhandled EH diagnostic follows the original collecting GC
 profile through `BootSequence`'s gated unwind service. It ends before ordinary
 `boot.sequence` after a real throw and two bounded native frame recoveries.

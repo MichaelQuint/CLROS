@@ -109,6 +109,15 @@ tail. Filters, group markers and ambiguous/reversed/crossing ranges are rejected
 A separate two-cleanup bridge passes instruction/ABI controls while existing
 catch/finally/rethrow object identities remain unchanged.
 
+The separate default-off `EnableM04FrameDispatchProbe` implements one returning
+finally from a strictly earlier physical frame and an outer typed catch, using
+different nonvolatile GP/XMM contexts and the actual catch-produced continuation.
+It retains the original rooted object and registered module throughout transfer,
+with registered mutable authority for its fixed cleanup scratch. Development
+geometry and callback review are recorded in [step1170](../done/step1170.md);
+full-host and guest acceptance remain pending. General second-pass unwinding,
+filters, collided exceptions and arbitrary rethrow remain incomplete.
+
 The separate default-off `EnableM04UnhandledExceptionProbe` has measured
 10/46/56-byte thrower/middle/catcher contributions, a nonmatching sibling clause
 and a profile-only real type-test export. Original context/module/root authority

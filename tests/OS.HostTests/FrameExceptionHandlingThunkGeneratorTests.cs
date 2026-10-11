@@ -68,6 +68,44 @@ internal static class FrameExceptionHandlingThunkGeneratorTests
             File.WriteAllLines(Path.Combine(folder, "definition.txt"),
                 [$"TextBytes={code.Length}", $"TextSha256={Convert.ToHexString(SHA256.HashData(code))}",
                  $"Calls={string.Join(',',calls)}", "TransferBytes=496 FrameBytes=1080"]);
+            VerifyCli(root, tool, folder, code);
         });
+    }
+
+    private static void VerifyCli(string root, string tool, string folder, byte[] modeledCode)
+    {
+        const string marker = "m04.021.frames.thunk.generate", file = "frame.obj";
+        string hash = OS.Tooling.EfiContracts.FrameDispatchObjectSha256.ToUpperInvariant(), path = Path.Combine(folder, file);
+        string[] outputArguments = ["--output-root", folder, "--output-file", file];
+        string emitted = ExceptionHandlingThunkGeneratorTests.Run(root, folder, "frame-emit",
+            [tool, "--frame-dispatch", .. outputArguments]);
+        byte[] original = File.ReadAllBytes(path);
+        Need(original.Length == OS.Tooling.EfiContracts.FrameDispatchObjectBytes && Convert.ToHexString(SHA256.HashData(original)) == hash,
+            "complete pinned frame-dispatch COFF identity");
+        Need(original.AsSpan(60, modeledCode.Length).SequenceEqual(modeledCode), "CLI emits the separately reviewed bridge definition");
+        string Expected(string state) => "TEST_START " + marker + "\nM04_FRAME_DISPATCH_THUNK_READY bytes=" + original.Length +
+            " sha256=" + hash + " state=" + state + "\nTEST_PASS " + marker;
+        static string Normalize(string value) => value.Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd('\n');
+        Need(Normalize(emitted) == Expected("created"), "exact frame CLI publication markers");
+        string repeated = ExceptionHandlingThunkGeneratorTests.Run(root, folder, "frame-repeat",
+            [tool, "--frame-dispatch", .. outputArguments]);
+        Need(Normalize(repeated) == Expected("unchanged") && File.ReadAllBytes(path).SequenceEqual(original), "repeat complete object unchanged");
+        (string[] Modes, string Reason)[] rejected =
+        [
+            (["--frame-dispatch", "--frame-dispatch"], "argument_duplicate"),
+            (["--frame-dispatch", "--nested-finally-catch"], "argument_mode_conflict"),
+            (["--nested-finally-catch", "--frame-dispatch"], "argument_mode_conflict"),
+            (["--frame-dispatch", "--rethrow-inner"], "argument_mode_conflict"),
+            (["--frame-dispatch", "false"], "argument_unknown"),
+            (["--frame-dispatch", "--unknown"], "argument_unknown"),
+            (["--frame-dispatch", "--output-file"], "argument_value_missing")
+        ];
+        for (int i = 0; i < rejected.Length; i++)
+        {
+            string result = ExceptionHandlingThunkGeneratorTests.Run(root, folder, "frame-reject-" + i,
+                [tool, .. rejected[i].Modes, .. outputArguments], expectedExit: 2);
+            Need(Normalize(result) == "TEST_START " + marker + "\nTEST_FAIL " + marker + " " + rejected[i].Reason &&
+                File.ReadAllBytes(path).SequenceEqual(original), "rejection preserves complete output " + i);
+        }
     }
 }
