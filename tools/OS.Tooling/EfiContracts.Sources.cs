@@ -8,6 +8,9 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
+                [@"Runtime\ExceptionUnhandledProbe.cs"] = "399f90ad72b071c1128af8b7e0513dc5b035e2682dc321fd781ef67c63717f65",
+                [@"Runtime\ExceptionTypePredicateBinding.cs"] = "e9c7bb0e2f7ee07ccb835d2be22c276768ee879f2adac2d1115750aeb04641a9",
+                [@"..\OS.Kernel\Runtime\BoundedExceptionFrameSearch.cs"] = "f8d9e2aa1d131a3cfcb118942b1a9a3704c5311aec983221f5562f9a50563700",
                 [@"..\OS.Kernel\Runtime\BoundedExceptionDispatchPlan.cs"] = "03b9b2d10b73849a8384a49be8be26f36e83cf321d1856ce78f514f23c9406c9",
                 [@"Runtime\ExceptionNestedFinallyProbe.cs"] = "a0bd2e68cc890229098257458cc235992316f36ed774ba9ae6c55bc02c24dfbe",
                 [@"..\OS.Kernel\Drivers\VirtioNetHeader.cs"] = "c3854e7bb278d451611e827a2a82ac44f4c16633c4dae5adf7d1b9b619a6cd85",
@@ -43,7 +46,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Storage\PrimaryGPTIndependentlyBoundsCRC.cs"] = "6fcbb597b66c5b82b9dbbcb72fdd699a35dce43659d176da671c23ac5e48ad67",
                 [@"..\OS.Kernel\Storage\ExerciseBackupGPTFallbackLiveDisk.cs"] = "60cba6a8ab65e8536c468685e4eef6ad92aed9de6588b5d97182ae635a97114c",
                 [@"..\OS.Kernel\Storage\FAT32ApplicationEFIPartition.cs"] = "18de6f91194ad12fe9c170f661a740b60432a291a8a8edf670874115b1365511",
-                [@"Runtime\MinimalRuntime.cs"] = "e6b22850b60920eb03f883d3c1c287cffc51f7bdaf92ace622108e63d28bce78",
+                [@"Runtime\MinimalRuntime.cs"] = "5ffa78aeb3ca755448b5dc0f6b359c141a8fdd0722066ab333f8b2549be38430",
                 [@"..\OS.Kernel\Storage\LBAN0Guest.cs"] = "ebd79048784e3a5ee0e26a10a5631c37ad2ae7158113e155f8455b2a2fc1665c",
                 [@"..\OS.Kernel\Storage\LiveDeviceExistingIReadOnlyBlockDeviceContract.cs"] = "e1e284aee0b8fb6ab89f027a6cd5027dfc272765e0133d940bb8d546eb35f27e",
                 [@"..\OS.Kernel\Storage\BlockDeviceRead.cs"] = "c446008121b72eaa5c30e7674d0b51f276bfb93831841b740599dfa5a556d551",
@@ -89,7 +92,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Runtime\X64FrameUnwind.cs"] = "b7cc8b10a5c1a0e819745d31e81b4915164645b17f172063522f32167afb3733",
                 [@"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs"] = "b01c67219c897cce58c756b72849a90f8032f10a222f0b4fe9e37e91bacc4d03",
                 [@"..\OS.Kernel\Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs"] = "12fac853b9dc2357d25315e4bedd0e43df0af76854079b7ae030bca36aed5253",
-                [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "4883c91a2c75d40f9047123ee8bebfb535f8c2df3c57ab21f764a4a970e45a40",
+                [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "031d5c8cfc2c196d783aece68db48c19086de8a76252fcb497890a13cd06cb39",
                 [@"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs"] = "88053c5a7a7c46aae39e0c68d03d3dd6ab83047640e3a22455148e53023a44fe",
                 [@"..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs"] = "305c825611db57ddfdb446e6dabc0dd234a91e3c4d4bd050e9aaaf9b8ea57cb5",
                 [@"..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs"] = "5685b36e42a63096dcbd252bd07c4e9dab02258d667ed908088c9e45ff2789a4",

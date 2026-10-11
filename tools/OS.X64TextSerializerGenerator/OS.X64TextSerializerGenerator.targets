@@ -377,23 +377,26 @@
       <LinkerArg Include="/INCLUDE:CLROS_InterfaceDispatch_GetCellSection" />
       <LinkerArg Include="/INCLUDE:CLROS_InterfaceDispatch_GetInitialStub" />
     </ItemGroup>
-    <Exec Condition="'$(EnableM04SimpleThrowCatchProbe)' == 'true'"
+    <Exec Condition="('$(EnableM04SimpleThrowCatchProbe)' == 'true' Or '$(EnableM04UnhandledExceptionProbe)' == 'true')"
       Command="&quot;$(_ClrosX64SerializerToolExecutable)&quot; --simple-throw-catch --output-root &quot;$(_ClrosX64SerializerNativeIntermediateRoot)&quot; --output-file &quot;CLROS.X64.SimpleThrowCatch.obj&quot;"
       ConsoleToMSBuild="true" IgnoreExitCode="false" Timeout="60000" />
-    <Error Condition="'$(EnableM04SimpleThrowCatchProbe)' == 'true' And !Exists('$(_ClrosSimpleCatchObject)')"
+    <Error Condition="('$(EnableM04SimpleThrowCatchProbe)' == 'true' Or '$(EnableM04UnhandledExceptionProbe)' == 'true') And !Exists('$(_ClrosSimpleCatchObject)')"
       Text="CLROS_M04_021_GENERATOR_FAILED object_missing" />
-    <GetFileHash Condition="'$(EnableM04SimpleThrowCatchProbe)' == 'true'"
+    <GetFileHash Condition="('$(EnableM04SimpleThrowCatchProbe)' == 'true' Or '$(EnableM04UnhandledExceptionProbe)' == 'true')"
       Files="$(_ClrosSimpleCatchObject)" Algorithm="SHA256" HashEncoding="hex">
       <Output TaskParameter="Hash" PropertyName="_ClrosSimpleCatchActualSha256" />
     </GetFileHash>
-    <Error Condition="'$(EnableM04SimpleThrowCatchProbe)' == 'true' And '$(_ClrosSimpleCatchActualSha256)' != 'DD32DC30808C3B6DD42981DF652B95F62236BDC8C45C1DAA3DDE32BAB1C981AB'"
+    <Error Condition="('$(EnableM04SimpleThrowCatchProbe)' == 'true' Or '$(EnableM04UnhandledExceptionProbe)' == 'true') And '$(_ClrosSimpleCatchActualSha256)' != 'DD32DC30808C3B6DD42981DF652B95F62236BDC8C45C1DAA3DDE32BAB1C981AB'"
       Text="CLROS_M04_021_GENERATOR_FAILED object_hash_mismatch" />
-    <ItemGroup Condition="'$(EnableM04SimpleThrowCatchProbe)' == 'true'">
+    <ItemGroup Condition="('$(EnableM04SimpleThrowCatchProbe)' == 'true' Or '$(EnableM04UnhandledExceptionProbe)' == 'true')">
       <NativeLibrary Include="$(_ClrosSimpleCatchObject)" />
       <LinkerArg Include="&quot;$(_ClrosSimpleCatchObject)&quot;" />
       <LinkerArg Include="/INCLUDE:RhpThrowEx" />
       <LinkerArg Include="/INCLUDE:CLROS_Eh_GetClauseTable" />
       <FileWrites Include="$(_ClrosSimpleCatchObject)" />
+    </ItemGroup>
+    <ItemGroup Condition="'$(EnableM04UnhandledExceptionProbe)' == 'true'">
+      <LinkerArg Include="/INCLUDE:RhTypeCast_IsInstanceOfException" />
     </ItemGroup>
     <Exec Condition="'$(EnableM04SingleFinallyCatchProbe)' == 'true'"
       Command="&quot;$(_ClrosX64SerializerToolExecutable)&quot; --single-finally-catch --output-root &quot;$(_ClrosX64SerializerNativeIntermediateRoot)&quot; --output-file &quot;CLROS.X64.SingleFinallyCatch.obj&quot;"

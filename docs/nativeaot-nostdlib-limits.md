@@ -101,13 +101,24 @@ The C# publication/verifier and 88-record guest path pass in
 [step1120](../done/step1120.md), including full-host and image qualification. Filters,
 collided exceptions, arbitrary nested rethrow and general EH remain unsupported.
 
-The next #90 batch (#638-#640) has a host-tested one-method dispatch policy:
+The accepted #90 batch (#638-#640) has a bounded one-method dispatch policy:
 at most four decoded physical clauses, typed catch search and two strictly
 nested exceptional cleanup targets. It reuses the admitted metadata reader and
 retained-object type matcher; no partial successful plan survives an invalid
 tail. Filters, group markers and ambiguous/reversed/crossing ranges are rejected.
 A separate two-cleanup bridge passes instruction/ABI controls while existing
-catch/finally/rethrow object identities remain unchanged. The default-off
+catch/finally/rethrow object identities remain unchanged.
+
+The separate default-off `EnableM04UnhandledExceptionProbe` has measured
+10/46/56-byte thrower/middle/catcher contributions, a nonmatching sibling clause
+and a profile-only real type-test export. Original context/module/root authority
+remains mandatory. It terminates the first pass at three bounded frames without
+second-pass cleanup. [Step1169](../done/step1169.md) qualifies 4,473 full-host
+checks, native review, three 73-record expected-terminal guests and six
+ancestors with source/process/image association. Positive multi-frame dispatch,
+general EH and constructor cached failures remain incomplete; step1168 retains
+development evidence.
+
 `EnableM04NestedFinallyCatchProbe` now links a measured 222-byte method, four
 clauses and five unwind rows. Three 89-record guests complete sibling nonmatch,
 base match, two cleanups, catch and compiled continuation. The 4,456-check full

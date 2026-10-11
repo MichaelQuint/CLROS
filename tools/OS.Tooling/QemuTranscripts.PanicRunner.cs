@@ -7,15 +7,15 @@ namespace OS.Tooling;
 public static partial class QemuTranscripts
 {
     public static void AssertExpectedPanicRunner(string root, QemuSmokeOptions options, QemuSmokePlan plan,
-        ProcessResult runner, IReadOnlyList<string> original, bool ownedSubsystem)
+        ProcessResult runner, IReadOnlyList<string> original, bool ownedSubsystem, bool unhandled = false)
     {
         Need(runner.ExitCode == 19 && runner.StandardError.Length == 0 && original.Count == 18 && plan.Presets.Count == 0 && original.All(l => !Controls.IsMatch(l)), "qemu_panic_runner_inventory");
         Match q = Regex.Match(original[0], @"\AQEMU_DISCOVERY result=(.+) checked=(.+)\z"), o = Regex.Match(original[1], @"\AOVMF_DISCOVERY result=(.+) checked=(.+)\z");
         Need(q.Success && o.Success && q.Groups[1].Value != "not_found" && o.Groups[1].Value != "not_found", "qemu_panic_discovery");
         string[] lines = original.Skip(2).ToArray();
-        string[] required = (ownedSubsystem ? plan.Required : new[] { "OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS" }.Concat(plan.Required)).Distinct(StringComparer.Ordinal).ToArray();
+        string[] required = (ownedSubsystem || unhandled ? plan.Required : new[] { "OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS" }.Concat(plan.Required)).Distinct(StringComparer.Ordinal).ToArray();
         string[] forbidden = new[] { "OS_SMOKE_FAIL", "TEST_FAIL" }.Concat(plan.Forbidden).Distinct(StringComparer.Ordinal).ToArray();
-        string profile = ownedSubsystem ? "m03.owned-subsystem" : "m02.unexpected-vector", reason = ownedSubsystem ? "expected_owned_subsystem_panic" : "expected_unexpected_vector_panic";
+        string profile = unhandled ? "m04.unhandled-exception" : ownedSubsystem ? "m03.owned-subsystem" : "m02.unexpected-vector", reason = unhandled ? "expected_unhandled_exception" : ownedSubsystem ? "expected_owned_subsystem_panic" : "expected_unexpected_vector_panic";
         string Format(IReadOnlyList<string> values) => values.Count == 0 ? "none" : string.Join(';', values);
         string[] expected = ["TEST_START qemu.smoke", "IMAGE_ARTIFACT " + options.Image, "SERIAL_LOG " + options.SerialLog, "OVMF_CODE " + o.Groups[1].Value,
             "WORKLOAD_PROFILE " + options.WorkloadProfile, "MARKER_PRESETS none", "REQUIRED_MARKERS " + string.Join(';', required),
@@ -31,8 +31,9 @@ public static partial class QemuTranscripts
         Need(quiet >= 750, "qemu_panic_quiet");
         byte[] raw = File.ReadAllBytes(Path.GetFullPath(options.SerialLog, root));
         string serial = DecodeUtf8(raw);
-        int invalid = ownedSubsystem ? raw.Count(b => b is not (9 or 10 or 13) && (b < 32 || b > 126)) : 0;
-        Need(lines[11] == $"SERIAL_MARKER_STREAM status=ExpectedPanic terminal=ExpectedPanic bytes={raw.Length} lines={(ownedSubsystem ? 79 : QemuContracts.M02UnexpectedCaptureRecordCount)} invalidBytes={invalid} invalidLines={(ownedSubsystem ? 1 : 0)} orderedSeen={plan.Ordered.Count} outOfOrder=0 uniqueSeen={plan.Unique.Count} duplicateUnique=0", "qemu_panic_stream_accounting");
+        int invalid = ownedSubsystem || unhandled ? raw.Count(b => b is not (9 or 10 or 13) && (b < 32 || b > 126)) : 0;
+        int invalidLines=unhandled ? serial.Split("\r\n",StringSplitOptions.None).Count(l=>Controls.IsMatch(l)) : ownedSubsystem ? 1 : 0;
+        Need(lines[11] == $"SERIAL_MARKER_STREAM status=ExpectedPanic terminal=ExpectedPanic bytes={raw.Length} lines={(unhandled ? UnhandledRecordCount : ownedSubsystem ? 79 : QemuContracts.M02UnexpectedCaptureRecordCount)} invalidBytes={invalid} invalidLines={invalidLines} orderedSeen={plan.Ordered.Count} outOfOrder=0 uniqueSeen={plan.Unique.Count} duplicateUnique=0", "qemu_panic_stream_accounting");
         byte[] summaryBytes = File.ReadAllBytes(Path.GetFullPath(options.SummaryLog, root));
         string summary = DecodeUtf8(summaryBytes);
         Need(summaryBytes.Length <= 1048576 && !Regex.IsMatch(summary, @"[^\x20-\x7e\r\n]|(?<!\r)\n|\r(?!\n)"), "qemu_panic_summary_delimiter");

@@ -1,5 +1,12 @@
 # Boot
 
+The default-off unhandled EH diagnostic follows the original collecting GC
+profile through `BootSequence`'s gated unwind service. It ends before ordinary
+`boot.sequence` after a real throw and two bounded native frame recoveries.
+[Step1169](../done/step1169.md) qualifies 4,473 full-host checks, three 73-record
+expected-terminal guests and six ancestors. See [diagnostics](diagnostics.md) for the exact
+expected terminal and authority limits.
+
 [Step1162](../done/step1162.md) qualifies the default-off block MSI-X/recovery
 child after package/APIC completion and modern-net fixed-frame child after the
 original polling profile. Both complete finite transactions and restore their

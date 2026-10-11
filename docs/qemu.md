@@ -138,6 +138,20 @@ commands retain their original provenance.
 
 ## Current Status
 
+The default-off `--EnableM04UnhandledExceptionProbe` substitutes for the rethrow
+leaf in its collecting GC Diagnostic command. It requires a fresh original
+capture and forbids custom markers, presets and raw observations. A separately
+selected expected-panic runner accepts only the exact 73-record terminal stream
+described in [diagnostics](diagnostics.md), waits at least 750 ms without further
+bytes, terminates QEMU and preserves expected-terminal exit19. `OS.Tooling`
+independently checks all prerequisite/child associations and exact runner/summary
+records before returning success. No `OS_SMOKE_PASS` or boot continuation is
+admitted. [Step1169](../done/step1169.md) qualifies three fresh 73-record
+expected-terminal captures, six ordinary/GC/catch/finally/rethrow/nested
+ancestors and the 4,473-check full-host gate, including independent raw,
+process, source and GPT/FAT/EFI payload joins. Development failures remain
+recorded in [step1168](../done/step1168.md) and step1169.
+
 The default-off `--EnableM04NestedFinallyCatchProbe` uses the collecting GC
 Diagnostic prerequisite chain shown for rethrow above; substitute this flag
 for `--EnableM04RethrowProbe`. Its strict 89-record stream adds sibling nonmatch,

@@ -95,7 +95,7 @@ try
         return qemu.Path is null ? 3 : 6;
     }
 
-    if (options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic)
+    if (options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic || options.ExpectedUnhandledException)
     {
         return RunExpectedUnexpectedVectorPanic(options, qemu.Path, ovmf.Path);
     }
@@ -694,9 +694,11 @@ catch (ArgumentException ex)
 static int RunExpectedUnexpectedVectorPanic(RunnerOptions options, string qemu, string ovmf)
 {
     bool owned = options.ExpectedOwnedSubsystemPanic;
-    string profile = owned ? "m03.owned-subsystem" : "m02.unexpected-vector";
-    string acceptedReason = owned ? "expected_owned_subsystem_panic" : "expected_unexpected_vector_panic";
-    int Evaluate(string text, out string prefix) => owned
+    bool unhandled = options.ExpectedUnhandledException;
+    string profile = unhandled ? "m04.unhandled-exception" : owned ? "m03.owned-subsystem" : "m02.unexpected-vector";
+    string acceptedReason = unhandled ? "expected_unhandled_exception" : owned ? "expected_owned_subsystem_panic" : "expected_unexpected_vector_panic";
+    int Evaluate(string text, out string prefix) => unhandled
+        ? UnhandledExceptionCapture.Evaluate(text,out prefix) : owned
         ? OwnedSubsystemPanicCapture.Evaluate(text, out prefix)
         : UnexpectedVectorPanicCapture.Evaluate(text, out prefix);
     Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(options.SerialLogPath)) ?? ".");
@@ -744,6 +746,7 @@ static int RunExpectedUnexpectedVectorPanic(RunnerOptions options, string qemu, 
                 // Only the independently classified exact last panic record is excluded.
                 // Generic required/ordered/unique/forbidden handling still checks the prefix.
                 var state = new SerialMarkerStateMachine(options.RequiredMarkers, options.ForbiddenMarkers,
+                    successTerminalMarker: unhandled ? UnhandledExceptionCapture.PrerequisiteTerminal : SerialMarkerStateMachine.DefaultSuccessTerminalMarker,
                     orderedMarkers: options.OrderedMarkers, uniqueMarkers: options.UniqueMarkers);
                 var feed = state.Feed(Encoding.ASCII.GetBytes(prerequisites));
                 prefixResult = state.Complete(false);
@@ -769,8 +772,8 @@ static int RunExpectedUnexpectedVectorPanic(RunnerOptions options, string qemu, 
         bool accepted = failure is null;
         Console.WriteLine("SERIAL_MARKER_STREAM status=" + (accepted ? "ExpectedPanic" : "Rejected") +
             " terminal=" + (accepted ? "ExpectedPanic" : "Rejected") + " bytes=" + Encoding.UTF8.GetByteCount(serial) +
-            " lines=" + (accepted ? owned ? 79 : OS.Tooling.QemuContracts.M02UnexpectedCaptureRecordCount : 0) + " invalidBytes=" + (accepted ? owned ? OwnedSubsystemPanicCapture.InvalidBytes(serial).ToString(System.Globalization.CultureInfo.InvariantCulture) : "0" : "unknown") +
-            " invalidLines=" + (accepted ? owned ? "1" : "0" : "unknown") + " orderedSeen=" + prefixResult.OrderedSeenCount +
+            " lines=" + (accepted ? unhandled ? UnhandledExceptionCapture.RecordCount : owned ? 79 : OS.Tooling.QemuContracts.M02UnexpectedCaptureRecordCount : 0) + " invalidBytes=" + (accepted ? owned || unhandled ? OwnedSubsystemPanicCapture.InvalidBytes(serial).ToString(System.Globalization.CultureInfo.InvariantCulture) : "0" : "unknown") +
+            " invalidLines=" + (accepted ? unhandled ? serial.Split("\r\n",StringSplitOptions.None).Count(l=>System.Text.RegularExpressions.Regex.IsMatch(l,@"[\x00-\x1f\x7f-\uffff]")).ToString(System.Globalization.CultureInfo.InvariantCulture) : owned ? "1" : "0" : "unknown") + " orderedSeen=" + prefixResult.OrderedSeenCount +
             " outOfOrder=" + prefixResult.OutOfOrderOccurrenceCount + " uniqueSeen=" + prefixResult.UniqueSeenCount +
             " duplicateUnique=" + prefixResult.DuplicateUniqueOccurrenceCount);
         Console.WriteLine("SERIAL_MARKER_DRAIN milliseconds=750 observedMilliseconds=" + measuredQuiet);
@@ -1933,6 +1936,7 @@ sealed class RunnerOptions
     public bool ExpectedUnexpectedVectorPanic { get; private set; }
 
     public bool ExpectedOwnedSubsystemPanic { get; private set; }
+    public bool ExpectedUnhandledException { get; private set; }
 
     public bool DryRun { get; private set; }
 
@@ -1972,6 +1976,10 @@ sealed class RunnerOptions
                 case "--expect-owned-subsystem-panic":
                     if (options.ExpectedOwnedSubsystemPanic) throw new ArgumentException("--expect-owned-subsystem-panic may be specified only once.");
                     options.ExpectedOwnedSubsystemPanic = true;
+                    break;
+                case "--expect-unhandled-exception":
+                    if (options.ExpectedUnhandledException) throw new ArgumentException("--expect-unhandled-exception may be specified only once.");
+                    options.ExpectedUnhandledException = true;
                     break;
                 case "--dry-run":
                     options.DryRun = true;
@@ -2218,9 +2226,9 @@ sealed class RunnerOptions
             throw new ArgumentException("--dry-run and preflight are mutually exclusive.");
         }
 
-        if (ExpectedUnexpectedVectorPanic && ExpectedOwnedSubsystemPanic)
+        if (new[]{ExpectedUnexpectedVectorPanic,ExpectedOwnedSubsystemPanic,ExpectedUnhandledException}.Count(x=>x)>1)
             throw new ArgumentException("Expected-panic profiles are mutually exclusive.");
-        if ((ExpectedUnexpectedVectorPanic || ExpectedOwnedSubsystemPanic) && (httpProbeConfigured || string.IsNullOrWhiteSpace(SummaryLogPath) || MarkerPresets.Count != 0))
+        if ((ExpectedUnexpectedVectorPanic || ExpectedOwnedSubsystemPanic || ExpectedUnhandledException) && (httpProbeConfigured || string.IsNullOrWhiteSpace(SummaryLogPath) || MarkerPresets.Count != 0))
             throw new ArgumentException("Expected unexpected-vector panic requires a summary log and forbids HTTP probing or marker presets.");
 
         ValidateArtifactPathSeparation();
@@ -2467,6 +2475,51 @@ sealed class MalformedHttpResponseException : Exception
 
 // This finite parser belongs only to the explicit expected-panic experiment.
 // Generic serial marker completion/failure behavior remains unchanged.
+public static class UnhandledExceptionCapture
+{
+    public const string Failure = "TEST_FAIL m04.021.unhandled unhandled-exception";
+    public const string Terminal = "OS_SMOKE_FAIL subsystem=runtime reason=unhandled-exception";
+    public const int RecordCount = 73;
+    public const string PrerequisiteTerminal = "M04_UNHANDLED 7";
+
+    // Runner framing and exact terminal; OS.Tooling independently admits every
+    // prerequisite numeric association before treating exit 19 as qualification.
+    public static int Evaluate(string text, out string prerequisites)
+    {
+        prerequisites="";
+        if(text.Length>SerialMarkerStateMachine.DefaultByteCapacity) return -1;
+        const string first="TEST_START efi.main";
+        int begin;
+        if(text.StartsWith(first,StringComparison.Ordinal)) begin=0;
+        else
+        {
+            if(first.StartsWith(text,StringComparison.Ordinal) || text.Length<OS.Tooling.QemuContracts.FirmwarePrefixBytes) return 0;
+            begin=OS.Tooling.QemuContracts.FirmwarePrefixBytes;
+            byte[] prefix=Encoding.ASCII.GetBytes(text[..begin]);
+            if(Convert.ToHexString(SHA256.HashData(prefix))!=OS.Tooling.QemuContracts.FirmwarePrefixSha256) return -1;
+        }
+        string body=text[begin..];
+        for(int i=0;i<body.Length;i++)
+        {
+            char c=body[i];
+            if(c=='\r') { if(i+1<body.Length && body[i+1]!='\n') return -1; }
+            else if(c=='\n') { if(i==0 || body[i-1]!='\r') return -1; }
+            else if(c<32 || c>126) return -1;
+        }
+        string[] lines=body.Split("\r\n",StringSplitOptions.None);
+        int complete=lines.Length-1;
+        if(complete>RecordCount || complete==RecordCount && lines[^1].Length!=0) return -1;
+        if(complete>0 && lines[0]!=first) return -1;
+        if(complete< RecordCount) return 0;
+        if(lines[62]!="TEST_START m04.021.unhandled" || lines[71]!=Failure || lines[72]!=Terminal) return -1;
+        for(int i=0;i<8;i++) if(!System.Text.RegularExpressions.Regex.IsMatch(lines[63+i],"\\AM04_UNHANDLED "+i+"(?: 0x[0-9A-F]{16}){4}\\z")) return -1;
+        for(int i=0;i<71;i++) if(lines[i].StartsWith("TEST_FAIL",StringComparison.Ordinal) || lines[i].StartsWith("OS_SMOKE_FAIL",StringComparison.Ordinal) ||
+            lines[i]=="OS_SMOKE_PASS" || lines[i]=="TEST_START boot.sequence") return -1;
+        prerequisites=text[..^(Failure.Length+Terminal.Length+4)];
+        return 1;
+    }
+}
+
 public static class UnexpectedVectorPanicCapture
 {
     private const string PreambleBase64 = "G1syShtbMDE7MDFIG1s9M2gbWzJKG1swMTswMUgbWzJKG1swMTswMUgbWz0zaBtbMkobWzAxOzAxSBtbMkobWzAxOzAxSBtbPTNoG1syShtbMDE7MDFIQmRzRHhlOiBsb2FkaW5nIEJvb3QwMDAxICJVRUZJIFFFTVUgSEFSRERJU0sgUU0wMDAxMyAiIGZyb20gUGNpUm9vdCgweDApL1BjaSgweDIsMHgwKS9TYXRhKDB4MCwweEZGRkYsMHgwKQ0KQmRzRHhlOiBzdGFydGluZyBCb290MDAwMSAiVUVGSSBRRU1VIEhBUkRESVNLIFFNMDAwMTMgIiBmcm9tIFBjaVJvb3QoMHgwKS9QY2koMHgyLDB4MCkvU2F0YSgweDAsMHhGRkZGLDB4MCkNCg==";

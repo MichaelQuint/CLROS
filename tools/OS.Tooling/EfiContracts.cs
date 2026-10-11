@@ -33,8 +33,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "ea0284fe1ea27acfbacc8c52692d983c5f3f3b5e1012e11caf21a80342264914";
-    public const string CanonicalProjectSha256 = "e402a3db50b7c264f1dcdb588242c8d5937cbf40a7172f1aa6f4f985087ec81f";
+    public const string ProjectSourceSha256 = "8075cb75f2ecef5f610c78884a7ffa0e0e07df7c3ca1eeae0c7f846bef3f1219";
+    public const string CanonicalProjectSha256 = "696b5fe96691099072aab5defddbcb2ab2695a1449008865c3112c9c445e3e4a";
     public const string EfiEntrySourceSha256 = "d6209ddeac1dbd3634211e9c4fac57aca56ce1dd108f4e7c3e985593d619ea30";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
@@ -251,6 +251,9 @@ public static partial class EfiContracts
         @"Runtime\ExceptionRethrowProbe.cs|",
         @"..\OS.Kernel\Runtime\BoundedExceptionDispatchPlan.cs|Runtime\BoundedExceptionDispatchPlan.cs",
         @"Runtime\ExceptionNestedFinallyProbe.cs|",
+        @"Runtime\ExceptionTypePredicateBinding.cs|",
+        @"Runtime\ExceptionUnhandledProbe.cs|",
+        @"..\OS.Kernel\Runtime\BoundedExceptionFrameSearch.cs|Runtime\BoundedExceptionFrameSearch.cs",
     ]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> DiagnosticProbes { get; } = Array.AsReadOnly<string>(
@@ -307,6 +310,7 @@ public static partial class EfiContracts
         "EnableM04SzArrayAllocationExhaustionProbe",
         "EnableM04SzArrayAllocationProbe",
         "EnableM04TypeManagerModuleRegistrationProbe",
+        "EnableM04UnhandledExceptionProbe",
         "EnableM04X64UnwindMetadataProbe",
         "EnableM05ApicSetupProbe",
         "EnableM05BarDmaProbe",
