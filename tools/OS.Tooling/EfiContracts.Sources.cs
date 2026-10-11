@@ -40,7 +40,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Storage\MinimalVirtioBlkFeatureSet.cs"] = "6092e62ba5113d1bb970e64e510af6a23793911c02769cfccf350f57be457b03",
                 [@"..\OS.Kernel\Storage\DMASafeRequestStatusDescriptorAvailableUsedRing.cs"] = "982cce06c6eecccdc74879f53b92210e7a6e6ecc54c323c75ddad8e166d7e40d",
                 [@"..\OS.Kernel\Storage\VirtioBlkQueueN0.cs"] = "9a3eb8a1bc52a4f6f5e5e51b10f4a21a742465c06fbbf8e26e60f6ac4450c449",
-                [@"..\OS.Kernel\Storage\SubmitPollSectorRequest.cs"] = "c9c5bfe0f4904a6561b4e573feb3acf3cadc627eb158b18cfbf502e20713eb6a",
+                [@"..\OS.Kernel\Storage\SubmitPollSectorRequest.cs"] = "44268613dca4066c0ea705a636756c45483ca965d0076622ce92f8f4fa8ebae3",
                 [@"..\OS.Kernel\Storage\PollingCompletionMSIXRemovingPollingRecoveryPath.cs"] = "10596bfe1fee23f0d0613490e6e526a28f6d9955d368c136ace4d09d604a6082",
                 [@"..\OS.Kernel\Storage\UsedRingCompletionStatusByteTimeoutDeviceReset.cs"] = "1c5f3cf5204020a06067a12e00208755c2d3a8cfb27c237860648a76e86fd6a7",
                 [@"..\OS.Kernel\Drivers\MSIMSIXSetupInterruptDrivenVirtqueueCompletion.cs"] = "6361b833531757ea1ea0b67921ddbd801c7244ab615946f583caca838c786845",

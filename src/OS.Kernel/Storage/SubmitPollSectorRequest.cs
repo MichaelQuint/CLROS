@@ -134,6 +134,10 @@ public static unsafe class SubmitPollSectorRequest
         WriteDescriptor(bytes + 16, address + VirtioBlkDmaLayout.DataOffset, 512, 3, 2);
         WriteDescriptor(bytes + 32, address + VirtioBlkDmaLayout.StatusOffset, 1, 2, 0);
         ushort* available = (ushort*)(bytes + layout.Rings.AvailableRing.Offset);
+        // A prepared MSI-X transaction needs completion delivery. The default
+        // polling path retains NO_INTERRUPT; masked recovery is controlled by
+        // the admitted MSI-X function mask, not by suppressing the ring event.
+        available[0] = r.InterruptPrepared ? (ushort)0 : (ushort)1;
         available[2] = 0;
         if (!Fence(a, ref r)) return VirtioBlkReadStatus.OrderingFailed;
         if (access.BusMasterOn(a.Context) != 1) return VirtioBlkReadStatus.BusMasterFailed;

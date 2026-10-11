@@ -2022,8 +2022,9 @@ public static unsafe class EfiEntry
 #endif
             if (r.CompletionRoute != expected || !r.Succeeded || !AuditInterruptMappings(state) ||
                 !FirstExitOwnedArena.ValidateInstalledDescriptors(ref state->Arena, (ulong)state->Memory.Code) ||
-                BoundedXApicSetup.CheckQuiescent(state->ApicTopology.LocalApicAddress, ApicAccess(state)) != XApicSetupStatus.Success ||
-                !WriteBlockMsixRow(state, 0, (ulong)r.CompletionRoute, state->BlockMsix.Control, state->InterruptPhase, r.Capacity) ||
+                BoundedXApicSetup.CheckQuiescent(state->ApicTopology.LocalApicAddress, ApicAccess(state)) != XApicSetupStatus.Success)
+            { _ = WriteBlockLiteral(state, 19, 3); return false; }
+            if (!WriteBlockMsixRow(state, 0, (ulong)r.CompletionRoute, state->BlockMsix.Control, state->InterruptPhase, r.Capacity) ||
                 !WriteBlockMsixRow(state, 1, r.Sector, r.BytesRead, r.UsedId, r.UsedLength) ||
                 !WriteBlockMsixRow(state, 2, p.MessageAddress, p.MessageData, state->MsixRegions.Table.PhysicalStart, state->MsixRegions.Pba.PhysicalStart) ||
                 !WriteBlockMsixRow(state, 3, c->Count, c->SpuriousCount, c->BeforeEoiIsr, c->AfterEoiIsr) ||

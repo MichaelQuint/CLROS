@@ -12,6 +12,7 @@ internal static unsafe class SubmitPollSectorRequestTests
         HostCheck.True(!default(VirtioBlkReadResult).Succeeded);
         using var f = new BlockReadFixture(); var r = f.Run();
         HostCheck.True(r.Succeeded && r.Published && r.Notified && r.BytesRead == 512);
+        HostCheck.Equal((ushort)1, *(ushort*)(f.State->Data + 128));
         HostCheck.True(r.Sector == BlockReadFixture.Sector && r.Capacity == BlockReadFixture.Capacity && r.CapacityReads == 1);
         HostCheck.True(r.NotifyOffset == 3 && r.NotifyAddress == BlockReadFixture.Notify + 12 && r.Generation == 7);
         HostCheck.True(r.UsedIndex == 1 && r.UsedId == 0 && r.UsedLength == 513 && r.DeviceStatus == 0 && r.Polls == 1);
@@ -105,6 +106,7 @@ internal static unsafe class SubmitPollSectorRequestTests
             HostCheck.True(r.Succeeded && r.InterruptAttempted && r.InterruptPrepared && r.InterruptStopped &&
                 r.CompletionRoute == route && f.State->InterruptWaited && f.State->InterruptStopped &&
                 r.Polls == f.State->Delay + 1 && f.Pool->AllocatedMask == 0);
+            HostCheck.Equal((ushort)0, *(ushort*)(f.State->Data + 128));
             f.Check();
         }
         using (var f = new BlockReadFixture())
@@ -466,7 +468,7 @@ internal sealed unsafe class BlockReadFixture : IDisposable
                 BinaryPrimitives.ReadUInt16LittleEndian(descriptor[12..]) == (i == 0 ? 1 : i == 1 ? 3 : 2) &&
                 BinaryPrimitives.ReadUInt16LittleEndian(descriptor[14..]) == (i == 0 ? 1 : i == 1 ? 2 : 0);
         }
-        good &= bytes.Slice(48, 80).IndexOfAnyExcept((byte)0) < 0 && bytes[128] == 1 && bytes[129] == 0 &&
+        good &= bytes.Slice(48, 80).IndexOfAnyExcept((byte)0) < 0 && bytes[128] == (d->InterruptPrepared ? 0 : 1) && bytes[129] == 0 &&
             BinaryPrimitives.ReadUInt16LittleEndian(bytes[130..]) == 1 && bytes.Slice(132, 124).IndexOfAnyExcept((byte)0) < 0 &&
             BinaryPrimitives.ReadUInt64LittleEndian(bytes[256..]) == 0 && BinaryPrimitives.ReadUInt64LittleEndian(bytes[264..]) == d->ExpectedSector &&
             bytes[272] == 0xff && bytes.Slice(273).IndexOfAnyExcept((byte)0) < 0;
