@@ -1,10 +1,11 @@
 # CLROS AI Agent Guide
 
-The #130/#131/#132/#133/#631 default-off bounded manifest/package batch is
-qualified in `done/step1156.md`: 4,393 full-host checks, native review, six package
-guest variants and seven ancestor regressions pass. It validates one native
-manifest and APP.PKG, stages the selected payload in an owned RW/NX page and
-frees it. Application execution, continuing storage and Gate7 remain incomplete.
+The #134/#136–#140/#633 bounded driver batch is qualified in `done/step1162.md`:
+4,422 full-host checks, linked native review, 297/297/168-record IRQ/recovery/net
+captures, exact fixed-frame libpcap and eleven ancestor regressions pass. Probes
+remain default off. M06's bounded packaged-read epic criterion is separate from
+Gate7; application execution, continuing storage/networking and RX processing
+remain incomplete.
 
 This is the root operating contract for agents working in this repository. Keep
 it concise. Put subsystem detail in the relevant `docs/*.md` file and use

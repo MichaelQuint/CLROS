@@ -1,22 +1,21 @@
 # Storage
 
-## MSI-X completion development
+## Bounded MSI-X completion and polling recovery
 
-The development integration in [step1158](../done/step1158.md) prepares masked
-MSI-X before queue enable, maps/readbacks vector zero, waits with restored IF/IDTR,
-then validates the original used-ring/status/generation receipt. A deliberately
-masked variant follows bounded polling recovery. Shutdown precedes reset; uncertain
-IRQ shutdown retains DMA backing and suppresses the payload copy. Both active
-no-stdlib C# variants compile; focused synthetic controls pass. Native, full-host
-and real guest qualification are pending, so #134 remains open/claimed.
+[Step1162](../done/step1162.md) qualifies #134 and shared integration #633:
+4,422 unfiltered full-host checks, linked native ABI/stack review, two 297-record
+IRQ/recovery captures and eleven ancestor regressions pass. MSI-X is prepared
+masked before queue enable, vector zero is read back, and the checked LBA1 read
+uses either one returning IRQ or a deliberately masked bounded wait followed by
+polling recovery. Both routes restore IF/IDTR, check used-ring/status/generation
+and CRC32, disable MSI-X before reset, and restore the original allocator.
+Uncertain IRQ shutdown retains DMA backing and suppresses the payload copy.
+The probes remain default off and require package completion plus owned APIC.
 
-The next claimed batch is #134 and #136–#140 with shared integration #633.
-[Step1157](../done/step1157.md) adds a host-tested wait-receipt classifier for
-#134. It preserves the accepted one-interrupt validator and permits polling
-recovery only for a complete bounded wait with no interrupt/spurious event,
-restored IF/IDTR and asserted delivery masking. This metadata selects no I/O
-completion and proves no live masking, queue operation or cleanup. Hardware
-integration, native review and batch full-host/guest qualification remain pending.
+The M06 epic criterion is the bounded packaged manifest/payload read after
+firmware exit and reviewed completion of its nineteen keyed children. It is
+separate from Gate7: continuing storage, general workload activation and payload
+execution remain incomplete. Development history is in steps1157–1161.
 
 ## Bounded manifest/package read and staging profile
 

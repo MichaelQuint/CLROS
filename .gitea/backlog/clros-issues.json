@@ -74,7 +74,7 @@
     {
       "key": "M06",
       "title": "M06 Live Storage",
-      "state": "open",
+      "state": "closed",
       "description": "Read the packaged manifest and payload from live virtio-blk after firmware exit. Milestones carry no fabricated due date and close only from preserved evidence.",
       "exitCriteria": "Read the packaged manifest and payload from live virtio-blk after firmware exit."
     },
@@ -13246,12 +13246,12 @@
         "M05-019"
       ],
       "labels": [
-        "agent:blocked",
         "priority:p1",
         "type:epic",
         "evidence:qemu",
         "component:storage",
-        "phase:m06-storage"
+        "phase:m06-storage",
+        "agent:done"
       ],
       "priority": "priority:p1",
       "ownedPaths": [],
@@ -13260,7 +13260,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M06: Live Storage.",
-      "currentEvidence": "Bounded binding/queue, sector transport, block-contract/LBA0, GPT and FAT prerequisites remain accepted through steps1140/1143/1147/1150/1152. The #130/#131/#132/#133/#631 bounded manifest/package/staging/fault batch is qualified in step1156 with 4393 unchanged-input full-host checks, strict native review, six package variants and seven ancestor captures. #134 is the remaining MSI-X block completion and polling recovery slice. General workload activation, continuing storage and M06/Gate7 remain incomplete; epic and milestone stay open.",
+      "currentEvidence": "The nineteen keyed children #116-#134 have bounded qualification through steps1140/1143/1147/1150/1152/1156/1162. Current qualification passes4422 unchanged-input full-host checks, linked native review, IRQ/recovery guests and eleven ancestors, including packaged manifest/payload reads after firmware exit. Step1162 records the per-key reviewed-evidence audit and tracker readbacks before epic/milestone closure. This satisfies the explicit bounded M06 criterion, separately from Gate7: continuing storage, general workload activation and payload execution remain incomplete. Hosted .NET/Kestrel, cloud and production readiness are not promoted.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -13287,7 +13287,10 @@
       "requiredCommands": [
         "dotnet build .\\CLROS.slnx --nologo -m:1",
         "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling --no-build -- repo check",
+        "dotnet run --project tools/OS.Tooling --no-build -- contracts check",
+        "dotnet run --project tools/OS.Tooling --no-build -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short"
       ],
@@ -13296,7 +13299,7 @@
         "docs/image-builder.md"
       ],
       "evidenceBoundary": "The epic records coordination only; it proves none of Live Storage until every child and exit criterion passes.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M06-001",
@@ -14946,7 +14949,7 @@
         "M05-021"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14973,7 +14976,7 @@
       ],
       "collisionLane": null,
       "summary": "Convert polling completion to MSI-X without removing the polling recovery path.",
-      "currentEvidence": "Development integration in done/step1158.md under #633: default-off block IRQ and intentionally masked polling-recovery paths are wired to package/APIC prerequisites. Both active no-stdlib C# variants compile; transaction, receipt, profile, synthetic image/replay and dry-run controls pass. Native/ABI/stack, full-host and real guest qualification remain pending; this issue stays claimed/open. Accepted prerequisites remain step1156; continuing storage/M06/Gate7 remain incomplete.",
+      "currentEvidence": "Qualified in done/step1162.md on implementation80ad75951561454b3df31528833d80a18a330a56: 4422 unfiltered full-host checks across552 groups pass with zero reuse/input changes; strict publication, linked native ABI/stack review and eleven ancestor regressions pass. Two297-record IRQ/masked-recovery guests validate a fresh LBA1 read, restored IF/IDTR, CRC0975360F and reset/bus-off/fence/allocator cleanup. Probes remain default off; no continuing storage, application execution or Gate7 completion. PR634 carries the scoped batch. PE import policy and hosted-runtime exception behavior are outside this device slice; hosted .NET/Kestrel, cloud and production gates remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Convert polling completion to MSI-X without removing the polling recovery path.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15016,17 +15019,21 @@
       "requiredCommands": [
         "dotnet build .\\CLROS.slnx --nologo -m:1",
         "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling --no-build -- repo check",
+        "dotnet run --project tools/OS.Tooling --no-build -- contracts check",
+        "dotnet run --project tools/OS.Tooling --no-build -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M06_019_READY\""
+        "dotnet run --project tools/OS.Tooling --no-build -- qemu smoke -BuildEfi -BootPolicy Diagnostic -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableAcpiPhysicalDiscoveryProbe -EnableM03FirstRealExitBootServicesProbe -EnableM03OwnedSubsystemSurvivalProbe -EnableM05PciEnumerationProbe -EnableM05ApicSetupProbe -EnableM06VirtioBlockQueueSetupProbe -EnableM06VirtioBlockReadProbe -EnableM06LiveBlockContractProbe -EnableM06GptPartitionProbe -EnableM06FatReadProbe -EnableM06PackageReadProbe -EnableM06BlockMsixProbe -EfiArtifact artifacts/efi/m06-msix.EFI -Image artifacts/images/m06-msix.raw -SerialLog \"<fresh-m06-msix-serial.log>\" -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30",
+        "dotnet run --project tools/OS.Tooling --no-build -- qemu smoke -BuildEfi -BootPolicy Diagnostic -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableAcpiPhysicalDiscoveryProbe -EnableM03FirstRealExitBootServicesProbe -EnableM03OwnedSubsystemSurvivalProbe -EnableM05PciEnumerationProbe -EnableM05ApicSetupProbe -EnableM06VirtioBlockQueueSetupProbe -EnableM06VirtioBlockReadProbe -EnableM06LiveBlockContractProbe -EnableM06GptPartitionProbe -EnableM06FatReadProbe -EnableM06PackageReadProbe -EnableM06BlockMsixProbe -EnableM06BlockMsixPollingRecoveryProbe -EfiArtifact artifacts/efi/m06-msix-recovery.EFI -Image artifacts/images/m06-msix-recovery.raw -SerialLog \"<fresh-m06-msix-recovery-serial.log>\" -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30"
       ],
       "documentationPaths": [
         "docs/cstorage.md",
         "docs/image-builder.md"
       ],
       "evidenceBoundary": "This issue proves only \"Convert polling completion to MSI-X without removing the polling recovery path.\" It does not by itself prove the M06 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-EPIC",
@@ -15051,7 +15058,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M07: Live Networking.",
-      "currentEvidence": "Common queue prerequisite #112 is accepted in step1133; networking children remain open. One terminal modern TX queue completion is accepted, without packet-delivery or receive proof. Packet/checksum/ARP/DHCP/TCP/HTTP slices remain host-tested; no general live virtio-net packet path is accepted.",
+      "currentEvidence": "The first five keyed children #136-#140 qualify bounded modern-net PCI/VERSION_1-only features, primed RX/TX and one fixed-frame TX/reclaim in step1162:4422 full-host checks, linked native review,168 guest records, exact QEMU libpcap frame and eleven ancestors. RX processing, continuing I/O and live DHCP/DNS/TCP/HTTP remain incomplete; the remaining twenty keyed children, epic and milestone stay open. General networking, Gate8 and hosted .NET/Kestrel remain unproved.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -15093,7 +15100,7 @@
         "M05-019"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -15120,7 +15127,7 @@
       ],
       "collisionLane": null,
       "summary": "Bind one live virtio-net PCI device.",
-      "currentEvidence": "Development step1159 connects default-off modern-net binding and VERSION_1-only features to one primed RX0/TX1 pair and fixed-frame TX/reclaim. Eighteen distinct focused checks and active no-stdlib C# compilation pass; strict transcript/libpcap/freshness controls are implemented. Native/full-host/real guest/wire qualification remains pending. Issues remain open/claimed; no RX processing or continuing driver is claimed.",
+      "currentEvidence": "Qualified in done/step1162.md on implementation80ad75951561454b3df31528833d80a18a330a56: 4422 unfiltered full-host checks across552 groups pass with zero reuse/input changes; strict publication, linked native ABI/stack review and eleven ancestor regressions pass. A168-record modern-net guest and independent176-byte libpcap (two records, one exact60-byte frame, CRCD24C49DD) prove VERSION_1-only binding, primed RX0/TX1 and fixed-frame TX/reclaim with allocator/command restoration. Probe remains default off; no RX processing, continuing network driver or live DHCP/DNS/TCP/HTTP. PR634 carries the scoped batch. PE import policy and hosted-runtime exception behavior are outside this device slice; hosted .NET/Kestrel, cloud and production gates remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Bind one live virtio-net PCI device.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15158,17 +15165,20 @@
       "requiredCommands": [
         "dotnet build .\\CLROS.slnx --nologo -m:1",
         "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling --no-build -- repo check",
+        "dotnet run --project tools/OS.Tooling --no-build -- contracts check",
+        "dotnet run --project tools/OS.Tooling --no-build -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_001_READY\""
+        "dotnet run --project tools/OS.Tooling --no-build -- qemu smoke -BuildEfi -BootPolicy Diagnostic -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableAcpiPhysicalDiscoveryProbe -EnableM03FirstRealExitBootServicesProbe -EnableM03OwnedSubsystemSurvivalProbe -EnableM05PciEnumerationProbe -EnableM05VirtioNegotiationProbe -EnableM05VirtqueuePollingProbe -EnableM07VirtioNetProbe -EfiArtifact artifacts/efi/m07-fixed-frame.EFI -Image artifacts/images/m07-fixed-frame.raw -SerialLog \"<fresh-m07-fixed-frame-serial.log>\" -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30"
       ],
       "documentationPaths": [
         "docs/networking.md",
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Bind one live virtio-net PCI device.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-002",
@@ -15179,7 +15189,7 @@
         "M07-001"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -15206,7 +15216,7 @@
       ],
       "collisionLane": null,
       "summary": "Negotiate a minimal no-offload, no-GSO, no-mergeable-buffer feature set.",
-      "currentEvidence": "Development step1159 connects default-off modern-net binding and VERSION_1-only features to one primed RX0/TX1 pair and fixed-frame TX/reclaim. Eighteen distinct focused checks and active no-stdlib C# compilation pass; strict transcript/libpcap/freshness controls are implemented. Native/full-host/real guest/wire qualification remains pending. Issues remain open/claimed; no RX processing or continuing driver is claimed.",
+      "currentEvidence": "Qualified in done/step1162.md on implementation80ad75951561454b3df31528833d80a18a330a56: 4422 unfiltered full-host checks across552 groups pass with zero reuse/input changes; strict publication, linked native ABI/stack review and eleven ancestor regressions pass. A168-record modern-net guest and independent176-byte libpcap (two records, one exact60-byte frame, CRCD24C49DD) prove VERSION_1-only binding, primed RX0/TX1 and fixed-frame TX/reclaim with allocator/command restoration. Probe remains default off; no RX processing, continuing network driver or live DHCP/DNS/TCP/HTTP. PR634 carries the scoped batch. PE import policy and hosted-runtime exception behavior are outside this device slice; hosted .NET/Kestrel, cloud and production gates remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Negotiate a minimal no-offload, no-GSO, no-mergeable-buffer feature set.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15244,17 +15254,20 @@
       "requiredCommands": [
         "dotnet build .\\CLROS.slnx --nologo -m:1",
         "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling --no-build -- repo check",
+        "dotnet run --project tools/OS.Tooling --no-build -- contracts check",
+        "dotnet run --project tools/OS.Tooling --no-build -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_002_READY\""
+        "dotnet run --project tools/OS.Tooling --no-build -- qemu smoke -BuildEfi -BootPolicy Diagnostic -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableAcpiPhysicalDiscoveryProbe -EnableM03FirstRealExitBootServicesProbe -EnableM03OwnedSubsystemSurvivalProbe -EnableM05PciEnumerationProbe -EnableM05VirtioNegotiationProbe -EnableM05VirtqueuePollingProbe -EnableM07VirtioNetProbe -EfiArtifact artifacts/efi/m07-fixed-frame.EFI -Image artifacts/images/m07-fixed-frame.raw -SerialLog \"<fresh-m07-fixed-frame-serial.log>\" -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30"
       ],
       "documentationPaths": [
         "docs/networking.md",
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Negotiate a minimal no-offload, no-GSO, no-mergeable-buffer feature set.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-003",
@@ -15265,7 +15278,7 @@
         "M07-002"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -15292,7 +15305,7 @@
       ],
       "collisionLane": null,
       "summary": "Allocate and program one receive queue.",
-      "currentEvidence": "Development step1159 connects default-off modern-net binding and VERSION_1-only features to one primed RX0/TX1 pair and fixed-frame TX/reclaim. Eighteen distinct focused checks and active no-stdlib C# compilation pass; strict transcript/libpcap/freshness controls are implemented. Native/full-host/real guest/wire qualification remains pending. Issues remain open/claimed; no RX processing or continuing driver is claimed.",
+      "currentEvidence": "Qualified in done/step1162.md on implementation80ad75951561454b3df31528833d80a18a330a56: 4422 unfiltered full-host checks across552 groups pass with zero reuse/input changes; strict publication, linked native ABI/stack review and eleven ancestor regressions pass. A168-record modern-net guest and independent176-byte libpcap (two records, one exact60-byte frame, CRCD24C49DD) prove VERSION_1-only binding, primed RX0/TX1 and fixed-frame TX/reclaim with allocator/command restoration. Probe remains default off; no RX processing, continuing network driver or live DHCP/DNS/TCP/HTTP. PR634 carries the scoped batch. PE import policy and hosted-runtime exception behavior are outside this device slice; hosted .NET/Kestrel, cloud and production gates remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Allocate and program one receive queue.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15330,17 +15343,20 @@
       "requiredCommands": [
         "dotnet build .\\CLROS.slnx --nologo -m:1",
         "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling --no-build -- repo check",
+        "dotnet run --project tools/OS.Tooling --no-build -- contracts check",
+        "dotnet run --project tools/OS.Tooling --no-build -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_003_READY\""
+        "dotnet run --project tools/OS.Tooling --no-build -- qemu smoke -BuildEfi -BootPolicy Diagnostic -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableAcpiPhysicalDiscoveryProbe -EnableM03FirstRealExitBootServicesProbe -EnableM03OwnedSubsystemSurvivalProbe -EnableM05PciEnumerationProbe -EnableM05VirtioNegotiationProbe -EnableM05VirtqueuePollingProbe -EnableM07VirtioNetProbe -EfiArtifact artifacts/efi/m07-fixed-frame.EFI -Image artifacts/images/m07-fixed-frame.raw -SerialLog \"<fresh-m07-fixed-frame-serial.log>\" -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30"
       ],
       "documentationPaths": [
         "docs/networking.md",
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Allocate and program one receive queue.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-004",
@@ -15351,7 +15367,7 @@
         "M07-003"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -15378,7 +15394,7 @@
       ],
       "collisionLane": null,
       "summary": "Allocate and program one transmit queue.",
-      "currentEvidence": "Development step1159 connects default-off modern-net binding and VERSION_1-only features to one primed RX0/TX1 pair and fixed-frame TX/reclaim. Eighteen distinct focused checks and active no-stdlib C# compilation pass; strict transcript/libpcap/freshness controls are implemented. Native/full-host/real guest/wire qualification remains pending. Issues remain open/claimed; no RX processing or continuing driver is claimed.",
+      "currentEvidence": "Qualified in done/step1162.md on implementation80ad75951561454b3df31528833d80a18a330a56: 4422 unfiltered full-host checks across552 groups pass with zero reuse/input changes; strict publication, linked native ABI/stack review and eleven ancestor regressions pass. A168-record modern-net guest and independent176-byte libpcap (two records, one exact60-byte frame, CRCD24C49DD) prove VERSION_1-only binding, primed RX0/TX1 and fixed-frame TX/reclaim with allocator/command restoration. Probe remains default off; no RX processing, continuing network driver or live DHCP/DNS/TCP/HTTP. PR634 carries the scoped batch. PE import policy and hosted-runtime exception behavior are outside this device slice; hosted .NET/Kestrel, cloud and production gates remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Allocate and program one transmit queue.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15416,17 +15432,20 @@
       "requiredCommands": [
         "dotnet build .\\CLROS.slnx --nologo -m:1",
         "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling --no-build -- repo check",
+        "dotnet run --project tools/OS.Tooling --no-build -- contracts check",
+        "dotnet run --project tools/OS.Tooling --no-build -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_004_READY\""
+        "dotnet run --project tools/OS.Tooling --no-build -- qemu smoke -BuildEfi -BootPolicy Diagnostic -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableAcpiPhysicalDiscoveryProbe -EnableM03FirstRealExitBootServicesProbe -EnableM03OwnedSubsystemSurvivalProbe -EnableM05PciEnumerationProbe -EnableM05VirtioNegotiationProbe -EnableM05VirtqueuePollingProbe -EnableM07VirtioNetProbe -EfiArtifact artifacts/efi/m07-fixed-frame.EFI -Image artifacts/images/m07-fixed-frame.raw -SerialLog \"<fresh-m07-fixed-frame-serial.log>\" -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30"
       ],
       "documentationPaths": [
         "docs/networking.md",
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Allocate and program one transmit queue.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-005",
@@ -15437,7 +15456,7 @@
         "M07-004"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:tooling",
         "evidence:qemu",
@@ -15464,7 +15483,7 @@
       ],
       "collisionLane": null,
       "summary": "Transmit one fixed Ethernet frame and reclaim descriptors.",
-      "currentEvidence": "Development step1159 connects default-off modern-net binding and VERSION_1-only features to one primed RX0/TX1 pair and fixed-frame TX/reclaim. Eighteen distinct focused checks and active no-stdlib C# compilation pass; strict transcript/libpcap/freshness controls are implemented. Native/full-host/real guest/wire qualification remains pending. Issues remain open/claimed; no RX processing or continuing driver is claimed.",
+      "currentEvidence": "Qualified in done/step1162.md on implementation80ad75951561454b3df31528833d80a18a330a56: 4422 unfiltered full-host checks across552 groups pass with zero reuse/input changes; strict publication, linked native ABI/stack review and eleven ancestor regressions pass. A168-record modern-net guest and independent176-byte libpcap (two records, one exact60-byte frame, CRCD24C49DD) prove VERSION_1-only binding, primed RX0/TX1 and fixed-frame TX/reclaim with allocator/command restoration. Probe remains default off; no RX processing, continuing network driver or live DHCP/DNS/TCP/HTTP. PR634 carries the scoped batch. PE import policy and hosted-runtime exception behavior are outside this device slice; hosted .NET/Kestrel, cloud and production gates remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Transmit one fixed Ethernet frame and reclaim descriptors.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15502,17 +15521,20 @@
       "requiredCommands": [
         "dotnet build .\\CLROS.slnx --nologo -m:1",
         "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
+        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling --no-build -- repo check",
+        "dotnet run --project tools/OS.Tooling --no-build -- contracts check",
+        "dotnet run --project tools/OS.Tooling --no-build -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_005_READY\""
+        "dotnet run --project tools/OS.Tooling --no-build -- qemu smoke -BuildEfi -BootPolicy Diagnostic -EnableM01LoadedImageStackProbe -EnableM01LiveAllocatorProbe -EnableAcpiPhysicalDiscoveryProbe -EnableM03FirstRealExitBootServicesProbe -EnableM03OwnedSubsystemSurvivalProbe -EnableM05PciEnumerationProbe -EnableM05VirtioNegotiationProbe -EnableM05VirtqueuePollingProbe -EnableM07VirtioNetProbe -EfiArtifact artifacts/efi/m07-fixed-frame.EFI -Image artifacts/images/m07-fixed-frame.raw -SerialLog \"<fresh-m07-fixed-frame-serial.log>\" -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30"
       ],
       "documentationPaths": [
         "docs/networking.md",
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Transmit one fixed Ethernet frame and reclaim descriptors.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-006",

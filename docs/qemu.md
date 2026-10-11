@@ -1,21 +1,23 @@
 # QEMU
 
-The development block MSI-X profile inserts the accepted APIC marker chain after
+The qualified block MSI-X profile inserts the accepted APIC marker chain after
 PCI enumeration and before package/storage receipts, then emits `M06_IRQ 0`..`8`
 and `m06.019`. Its strict parser distinguishes one IRQ from a complete masked wait,
 checks IF/IDTR restoration, used-ring completion and all cleanup flags, and binds
 the parent package/LBA1 CRCs to the image. Synthetic replay and runner dry-run
-checks pass in [step1158](../done/step1158.md). No new guest capture is accepted yet.
+checks pass in [step1158](../done/step1158.md). [Step1162](../done/step1162.md)
+accepts two strict 297-record IRQ/recovery captures and eleven ancestor regressions.
 
-The development `EnableM07VirtioNetProbe` appends `M07_NET 0`..`D` and
+The qualified `EnableM07VirtioNetProbe` appends `M07_NET 0`..`D` and
 `m07.001`..`m07.005` after the original M05 polling chain. Its parser checks each
 row, exact disjoint ring/buffer locations, VERSION_1-only features, used entry,
 allocator/command restoration and fixed-frame CRC32. The smoke runner adds
 `filter-dump` on `n0`, writing a fresh `<SerialLog>.pcap`; an existing capture path
 is rejected. The compiled bounded libpcap reader requires exactly one independent
 60-byte frame (no virtio header), permitting unrelated firmware traffic.
-[Step1159](../done/step1159.md) records synthetic/compile evidence; real QEMU and
-external frame acceptance remains pending. RX processing is outside this profile.
+[Step1162](../done/step1162.md) accepts 168 strict guest records and one exact
+60-byte frame with CRC32 D24C49DD in a 176-byte, two-record libpcap. This proves
+QEMU backend observation; physical-wire delivery and RX processing remain unproved.
 
 The [block queue profile](efi-build.md#bounded-virtio-block-queue-profile) selects
 `--virtio-block-queue-device`: one modern read-only `virtio-blk-pci` boot disk at

@@ -1,25 +1,26 @@
 # EFI Build
 
-## Virtio-net development profile
+## Bounded Virtio-net profile
 
 Default-off `--EnableM07VirtioNetProbe` requires the explicit original M05
 negotiation/polling chain, owned first exit, Diagnostic policy, fresh EFI/image
 build and exclusive modern network device at slot6. It binds the retained audited
 BAR, renegotiates VERSION_1 only, then uses a fresh one-page DMA lifetime (epoch207)
 for primed RX plus one fixed-frame TX/reclaim. Source, pointer, fence and allocator
-admission remain strict. [Step1159](../done/step1159.md) records active no-stdlib
-C# compilation and focused tests only; native stack/ABI/full-host/guest and packet
-capture qualification follows at the stable batch boundary.
+admission remain strict. [Step1162](../done/step1162.md) accepts linked native
+stack/ABI review, 4,422 full-host checks, 168 guest records and the exact fixed
+frame in independent libpcap. RX processing and continuing I/O remain incomplete.
 
-## Block MSI-X development profile
+## Bounded block MSI-X profile
 
 The default-off `--EnableM06BlockMsixProbe` requires the complete explicit
 package-read chain plus `--EnableM05ApicSetupProbe`, Diagnostic policy and a fresh
 intact image. `--EnableM06BlockMsixPollingRecoveryProbe` additionally requires the
 main flag and deliberately keeps delivery masked during the bounded wait. Existing
-network negotiation/polling/IRQ profiles conflict. Both active no-stdlib C# variants
-compile in [step1158](../done/step1158.md); this is not native or boot qualification.
-Strict native/ABI/stack review and real guest captures follow at the stable batch.
+network negotiation/polling/IRQ profiles conflict. [Step1162](../done/step1162.md)
+accepts strict native publication/ABI/stack review, full-host checks and separate
+297-record returning-IRQ and masked-recovery guests. Continuing storage and
+Gate7 remain incomplete.
 
 ## Bounded package read profile
 

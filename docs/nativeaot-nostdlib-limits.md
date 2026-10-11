@@ -1,5 +1,12 @@
 # NativeAOT NoStdLib Limits
 
+[Step1162](../done/step1162.md) accepts the four explicit modern-net EFI compile
+inputs and block MSI-X/recovery integration with strict source/pointer admission.
+Linked native POD ABI, unwind, dynamic scratch and complete callbacks are reviewed:
+block diagnostic bound 30,440, transient 22,000 and net diagnostic 11,720 bytes remain
+within the owned 32KiB stack. Graph aids alone confer no acceptance. This finite
+device qualification does not expand general runtime or hosted exception support.
+
 [Step1153](../done/step1153.md) adds host-tested shared pointer ASCII matching
 (packed tokens up to 24 bytes), bounded ASCII relative paths, and exact
 512-byte file-sector copying into caller-owned memory. These use pointer-backed

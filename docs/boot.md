@@ -1,5 +1,11 @@
 # Boot
 
+[Step1162](../done/step1162.md) qualifies the default-off block MSI-X/recovery
+child after package/APIC completion and modern-net fixed-frame child after the
+original polling profile. Both complete finite transactions and restore their
+original allocator/command. Their exact order remains in `BootSequence`; neither
+starts a continuing workload or receive processor.
+
 The default-off `RunOwnedPackageRead` child follows completed FAT phases. Its
 phases15..18 validate bounded native manifest/package files, stage/free one owned
 RW/NX payload and audit cleanup; phase19 follows success. Finite malformed
