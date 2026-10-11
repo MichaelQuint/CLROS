@@ -93,6 +93,72 @@ internal static unsafe class SubmitPollSectorRequestTests
         }
     }
 
+    [HostTest("virtio.blk.read interrupt and masked recovery preserve completion validation and cleanup")]
+    private static void InterruptRoutes()
+    {
+        foreach (var route in new[] { BlockCompletionRoute.Interrupt, BlockCompletionRoute.PollingRecovery })
+        {
+            using var f = new BlockReadFixture();
+            f.State->InterruptRoute = (byte)route;
+            f.State->Delay = route == BlockCompletionRoute.Interrupt ? 0U : 2U;
+            var r = f.Run(f.InterruptAccess);
+            HostCheck.True(r.Succeeded && r.InterruptAttempted && r.InterruptPrepared && r.InterruptStopped &&
+                r.CompletionRoute == route && f.State->InterruptWaited && f.State->InterruptStopped &&
+                r.Polls == f.State->Delay + 1 && f.Pool->AllocatedMask == 0);
+            f.Check();
+        }
+        using (var f = new BlockReadFixture())
+        {
+            f.State->InterruptRoute = (byte)BlockCompletionRoute.Interrupt; f.State->Delay = 1;
+            var r = f.Run(f.InterruptAccess);
+            HostCheck.True(r.Status == VirtioBlkReadStatus.Timeout && r.Polls == 1 && r.InterruptStopped && r.Queue.DmaReleased);
+            f.Unchanged(); f.Check();
+        }
+    }
+
+    [HostTest("virtio.blk.read partial interrupt callback sets reject before hardware effects")]
+    private static void InterruptAdmission()
+    {
+        for (int present = 1; present < 7; present++)
+        {
+            using var f = new BlockReadFixture(); var a = f.InterruptAccess;
+            if ((present & 1) == 0) a.PrepareInterrupt = null;
+            if ((present & 2) == 0) a.WaitInterrupt = null;
+            if ((present & 4) == 0) a.StopInterrupt = null;
+            var r = f.Run(a);
+            HostCheck.True(r.Status == VirtioBlkReadStatus.InvalidAccess && f.State->Calls == 0 && !r.InterruptAttempted);
+            f.Unchanged(); f.Check();
+        }
+    }
+
+    [HostTest("virtio.blk.read failed prepare or invalid wait shuts down before cleanup and never copies")]
+    private static void InterruptFailures()
+    {
+        for (int fault = 0; fault < 4; fault++)
+        {
+            using var f = new BlockReadFixture();
+            f.State->FailInterruptPrepare = fault == 0;
+            f.State->InterruptRoute = fault == 1 ? (byte)0 : fault == 2 ? (byte)BlockCompletionRoute.InvalidWait : (byte)255;
+            var r = f.Run(f.InterruptAccess);
+            HostCheck.Equal(fault == 0 ? VirtioBlkReadStatus.InterruptPrepareFailed : VirtioBlkReadStatus.InterruptWaitFailed, r.Status);
+            HostCheck.True(r.InterruptAttempted && r.InterruptStopped && f.State->InterruptStopped && r.Queue.ResetComplete &&
+                r.Queue.BusMasterDisabled && f.Pool->AllocatedMask == 0 && (fault != 0 || !r.Published));
+            f.Unchanged(); f.Check();
+        }
+    }
+
+    [HostTest("virtio.blk.read uncertain interrupt shutdown retains device DMA and suppresses payload")]
+    private static void InterruptShutdown()
+    {
+        using var f = new BlockReadFixture();
+        f.State->InterruptRoute = (byte)BlockCompletionRoute.Interrupt; f.State->FailInterruptStop = true;
+        var r = f.Run(f.InterruptAccess);
+        HostCheck.True(r.Status == VirtioBlkReadStatus.InterruptShutdownFailed && r.BytesRead == 0 &&
+            !r.InterruptStopped && !r.Queue.DmaReleased && r.Queue.ResetComplete && r.Queue.BusMasterDisabled && f.Pool->AllocatedMask == 1);
+        HostCheck.Equal(DmaBufferStatus.Exhausted, PageAlignedDmaBuffers.TryAllocate(f.Pool, 1, out _));
+        f.Unchanged(); f.Check();
+    }
+
     [HostTest("virtio.blk.read protects DMA and output from MMIO and metadata overlap")]
     private static void Aliases()
     {
@@ -153,7 +219,8 @@ internal sealed unsafe class BlockReadFixture : IDisposable
         internal uint Calls, FailCall, Fences, FailFence, BusOffCalls, FailBusOff, GenerationReads, PollReads, Delay,
             UsedId, UsedLength, WriteMask, ReadMask;
         internal ushort Selected, Size, Enabled, ConfigVector, QueueVector, NotifyOffset, UsedIndex;
-        internal byte Status, CompletionStatus;
+        internal byte Status, CompletionStatus, InterruptRoute;
+        internal bool InterruptPrepared, InterruptWaited, InterruptStopped, FailInterruptPrepare, FailInterruptStop;
         internal bool FailAfterWrite, FailedCallback, BadAccess, BadOrder, BusEnabled, Notified, ChainChecked,
             IndexObserved, Acquired, ResetRequested, ResetObserved, CleanupBusOff, CleanupFence, ResetStuck,
             GenerationChurn, ChurnOnce, ChangeBeforePublish, ChangeAfterCompletion, NeverComplete, ProtectiveMbr;
@@ -172,6 +239,10 @@ internal sealed unsafe class BlockReadFixture : IDisposable
     internal VirtioBlkReadAccess Access => new() { Queue = new() { Context = State, Read8 = &Read8,
         Write8 = &Write8, Read16 = &Read16, Write16 = &Write16, Read32 = &Read32, Write32 = &Write32,
         Fence = &Fence, BusMasterOff = &BusOff }, BusMasterOn = &BusOn };
+    internal VirtioBlkReadAccess InterruptAccess
+    {
+        get { var a = Access; a.PrepareInterrupt = &PrepareInterrupt; a.WaitInterrupt = &WaitInterrupt; a.StopInterrupt = &StopInterrupt; return a; }
+    }
     internal BlockReadFixture(ulong physical = Physical)
     {
         new Span<byte>(backing, 12288).Fill(0xa5); new Span<byte>(destination, 544).Fill(0xa5);
@@ -219,6 +290,30 @@ internal sealed unsafe class BlockReadFixture : IDisposable
     }
     private static byte End(FakeDevice* d) => d->Calls == d->FailCall ? (byte)0 : (byte)1;
     private static byte Bad(FakeDevice* d) { d->BadAccess = true; return 0; }
+    [UnmanagedCallersOnly]
+    private static byte PrepareInterrupt(void* context, VirtioMappedRegion common)
+    {
+        var d = (FakeDevice*)context;
+        if (common.VirtualStart != Common || d->Status != 11 || d->BusEnabled || d->Enabled != 0 ||
+            d->Selected != 0xffff || d->Pool->AllocatedMask != 0) d->BadOrder = true;
+        d->InterruptPrepared = true; return d->FailInterruptPrepare ? (byte)0 : (byte)1;
+    }
+    [UnmanagedCallersOnly]
+    private static byte WaitInterrupt(void* context, uint limit)
+    {
+        var d = (FakeDevice*)context;
+        if (!d->InterruptPrepared || d->InterruptStopped || !d->Notified || d->Status != 15 ||
+            !d->BusEnabled || limit == 0 || d->PollReads != 0 || d->Pool->AllocatedMask != 1) d->BadOrder = true;
+        d->InterruptWaited = true; return d->InterruptRoute;
+    }
+    [UnmanagedCallersOnly]
+    private static byte StopInterrupt(void* context)
+    {
+        var d = (FakeDevice*)context;
+        if (!d->InterruptPrepared || d->ResetRequested || d->InterruptStopped ||
+            (d->Notified && d->Pool->AllocatedMask != 1)) d->BadOrder = true;
+        d->InterruptStopped = true; return d->FailInterruptStop ? (byte)0 : (byte)1;
+    }
     [UnmanagedCallersOnly]
     private static byte Read8(void* context, ulong address, byte* value)
     {
@@ -286,12 +381,12 @@ internal sealed unsafe class BlockReadFixture : IDisposable
         var d = (FakeDevice*)context; if (!Begin(d, true)) return 0;
         if (address == Common + 22 && value == 0) d->Selected = 0;
         else if (address == Common + 16 && value == 0xffff) d->ConfigVector = 0xffff;
-        else if (address == Common + 26 && value == 0xffff) d->QueueVector = 0xffff;
+        else if (address == Common + 26 && (value == 0xffff || (value == 0 && d->InterruptPrepared))) d->QueueVector = (ushort)value;
         else if (address == Common + 24 && value == 8) d->Size = 8;
         else if (address == Common + 28 && value == 1)
         {
             if (d->ReadMask != 63 || d->Fences != 1 || d->Pool->AllocatedMask != 1 || d->BusEnabled ||
-                d->ConfigVector != 0xffff || d->QueueVector != 0xffff || *(ushort*)(d->Data + 130) != 0) d->BadOrder = true;
+                d->ConfigVector != 0xffff || d->QueueVector != (d->InterruptPrepared ? 0 : 0xffff) || *(ushort*)(d->Data + 130) != 0) d->BadOrder = true;
             d->Enabled = 1;
         }
         else if ((address == Notify || address == Notify + 12) && value == 0)

@@ -96,6 +96,8 @@
 		<EnableM06LiveBlockContractProbe Condition="'$(EnableM06LiveBlockContractProbe)' == ''">false</EnableM06LiveBlockContractProbe>
 		<EnableM06GptPartitionProbe Condition="'$(EnableM06GptPartitionProbe)' == ''">false</EnableM06GptPartitionProbe>
 		<EnableM06PackageReadProbe Condition="'$(EnableM06PackageReadProbe)' == ''">false</EnableM06PackageReadProbe>
+		<EnableM06BlockMsixProbe Condition="'$(EnableM06BlockMsixProbe)' == ''">false</EnableM06BlockMsixProbe>
+		<EnableM06BlockMsixPollingRecoveryProbe Condition="'$(EnableM06BlockMsixPollingRecoveryProbe)' == ''">false</EnableM06BlockMsixPollingRecoveryProbe>
 		<EnableM06FatReadProbe Condition="'$(EnableM06FatReadProbe)' == ''">false</EnableM06FatReadProbe>
 		<EnableM04InterfaceDispatchProbe Condition="'$(EnableM04InterfaceDispatchProbe)' == ''">false</EnableM04InterfaceDispatchProbe>
 	</PropertyGroup>
@@ -374,6 +376,12 @@
 	<PropertyGroup Condition="'$(EnableM06PackageReadProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M06_PACKAGE_READ_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM06BlockMsixProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M06_BLOCK_MSIX_PROBE</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM06BlockMsixPollingRecoveryProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M06_BLOCK_MSIX_POLLING_RECOVERY_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM06FatReadProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M06_FAT_READ_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -460,6 +468,8 @@
 			'$(EnableM06LiveBlockContractProbe)' == 'true' or
 			'$(EnableM06GptPartitionProbe)' == 'true' or
 			'$(EnableM06PackageReadProbe)' == 'true' or
+			'$(EnableM06BlockMsixProbe)' == 'true' or
+			'$(EnableM06BlockMsixPollingRecoveryProbe)' == 'true' or
 			'$(EnableM06FatReadProbe)' == 'true' or
 			'$(EnableUefiGoneSimulationProbe)' == 'true')">Diagnostic</ClrosBootPolicy>
 		<ClrosBootPolicy Condition="'$(ClrosBootPolicy)' == ''">VerifiedExit</ClrosBootPolicy>
@@ -596,6 +606,7 @@
 		<Compile Include="..\OS.Kernel\Storage\DMASafeRequestStatusDescriptorAvailableUsedRing.cs" Link="Storage\DMASafeRequestStatusDescriptorAvailableUsedRing.cs" />
 		<Compile Include="..\OS.Kernel\Storage\VirtioBlkQueueN0.cs" Link="Storage\VirtioBlkQueueN0.cs" />
 		<Compile Include="..\OS.Kernel\Storage\SubmitPollSectorRequest.cs" Link="Storage\SubmitPollSectorRequest.cs" />
+		<Compile Include="..\OS.Kernel\Storage\PollingCompletionMSIXRemovingPollingRecoveryPath.cs" Link="Storage\PollingCompletionMSIXRemovingPollingRecoveryPath.cs" />
 		<Compile Include="..\OS.Kernel\Storage\UsedRingCompletionStatusByteTimeoutDeviceReset.cs" Link="Storage\UsedRingCompletionStatusByteTimeoutDeviceReset.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\Memory\SystemSpanPointer.cs" Link="Std\Memory\SystemSpanPointer.cs" />
 		<Compile Include="..\OS.Kernel\Storage\IReadOnlyBlockDevice.cs" Link="Storage\IReadOnlyBlockDevice.cs" />
@@ -736,6 +747,8 @@
 			'$(EnableM06LiveBlockContractProbe)' == 'true' or
 			'$(EnableM06GptPartitionProbe)' == 'true' or
 			'$(EnableM06PackageReadProbe)' == 'true' or
+			'$(EnableM06BlockMsixProbe)' == 'true' or
+			'$(EnableM06BlockMsixPollingRecoveryProbe)' == 'true' or
 			'$(EnableM06FatReadProbe)' == 'true' or
 			'$(EnableUefiGoneSimulationProbe)' == 'true')" Text="clros_boot_policy_probe_conflict" />
 	</Target>
@@ -1867,13 +1880,18 @@
 		<Error Condition="'$(EnableM06GptPartitionProbe)' == 'true' and '$(EnableM06LiveBlockContractProbe)' != 'true'" Text="m06_gpt_partition_requires_contract" />
 		<Error Condition="'$(EnableM06PackageReadProbe)' != 'true' and '$(EnableM06PackageReadProbe)' != 'false'" Text="m06_package_read_switch_invalid" />
 		<Error Condition="'$(EnableM06PackageReadProbe)' == 'true' and '$(EnableM06FatReadProbe)' != 'true'" Text="m06_package_read_requires_fat" />
+		<Error Condition="'$(EnableM06BlockMsixProbe)' != 'true' and '$(EnableM06BlockMsixProbe)' != 'false'" Text="m06_block_msix_switch_invalid" />
+		<Error Condition="'$(EnableM06BlockMsixPollingRecoveryProbe)' != 'true' and '$(EnableM06BlockMsixPollingRecoveryProbe)' != 'false'" Text="m06_block_msix_polling_recovery_switch_invalid" />
+		<Error Condition="'$(EnableM06BlockMsixProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM06PackageReadProbe)' != 'true' or '$(EnableM05ApicSetupProbe)' != 'true')" Text="m06_block_msix_requires_package_apic" />
+		<Error Condition="'$(EnableM06BlockMsixProbe)' == 'true' and ('$(EnableM05VirtioNegotiationProbe)' == 'true' or '$(EnableM05VirtqueuePollingProbe)' == 'true' or '$(EnableM05VirtqueueInterruptProbe)' == 'true')" Text="m06_block_msix_profile_conflict" />
+		<Error Condition="'$(EnableM06BlockMsixPollingRecoveryProbe)' == 'true' and '$(EnableM06BlockMsixProbe)' != 'true'" Text="m06_block_msix_polling_recovery_requires_main" />
 		<Error Condition="'$(EnableM06FatReadProbe)' != 'true' and '$(EnableM06FatReadProbe)' != 'false'" Text="m06_fat_read_switch_invalid" />
 		<Error Condition="'$(EnableM06FatReadProbe)' == 'true' and '$(EnableM06GptPartitionProbe)' != 'true'" Text="m06_fat_read_requires_gpt" />
 		<Error Condition="'$(EnableM06VirtioBlockReadProbe)' != 'true' and '$(EnableM06VirtioBlockReadProbe)' != 'false'" Text="m06_block_read_switch_invalid" />
 		<Error Condition="'$(EnableM06VirtioBlockReadProbe)' == 'true' and '$(EnableM06VirtioBlockQueueSetupProbe)' != 'true'" Text="m06_block_read_requires_queue" />
 		<Error Condition="'$(EnableM06VirtioBlockQueueSetupProbe)' != 'true' and '$(EnableM06VirtioBlockQueueSetupProbe)' != 'false'" Text="m06_block_queue_switch_invalid" />
 		<Error Condition="'$(EnableM06VirtioBlockQueueSetupProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM05PciEnumerationProbe)' != 'true')" Text="m06_block_queue_requires_pci" />
-		<Error Condition="'$(EnableM06VirtioBlockQueueSetupProbe)' == 'true' and ('$(EnableM05BarDmaProbe)' == 'true' or '$(EnableM05VirtioNegotiationProbe)' == 'true' or '$(EnableM05ApicSetupProbe)' == 'true' or '$(EnableM05VirtqueuePollingProbe)' == 'true' or '$(EnableM05VirtqueueInterruptProbe)' == 'true')" Text="m06_block_queue_profile_conflict" />
+		<Error Condition="'$(EnableM06VirtioBlockQueueSetupProbe)' == 'true' and ('$(EnableM05BarDmaProbe)' == 'true' or '$(EnableM05VirtioNegotiationProbe)' == 'true' or ('$(EnableM05ApicSetupProbe)' == 'true' and '$(EnableM06BlockMsixProbe)' != 'true') or '$(EnableM05VirtqueuePollingProbe)' == 'true' or '$(EnableM05VirtqueueInterruptProbe)' == 'true')" Text="m06_block_queue_profile_conflict" />
 		<Error Condition="'$(EnableM05VirtqueuePollingProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM05VirtioNegotiationProbe)' != 'true')" Text="m05_virtqueue_polling_requires_negotiation" />
 		<Error Condition="'$(EnableM05VirtioNegotiationProbe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM05PciEnumerationProbe)' != 'true')" Text="m05_virtio_negotiation_requires_pci" />
 		<Error Condition="'$(EnableM05BarDmaProbe)' == 'true' and '$(EnableM05VirtioNegotiationProbe)' == 'true'" Text="m05_bar_dma_profile_conflict" />

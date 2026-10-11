@@ -1,5 +1,12 @@
 # QEMU
 
+The development block MSI-X profile inserts the accepted APIC marker chain after
+PCI enumeration and before package/storage receipts, then emits `M06_IRQ 0`..`8`
+and `m06.019`. Its strict parser distinguishes one IRQ from a complete masked wait,
+checks IF/IDTR restoration, used-ring completion and all cleanup flags, and binds
+the parent package/LBA1 CRCs to the image. Synthetic replay and runner dry-run
+checks pass in [step1158](../done/step1158.md). No new guest capture is accepted yet.
+
 The [block queue profile](efi-build.md#bounded-virtio-block-queue-profile) selects
 `--virtio-block-queue-device`: one modern read-only `virtio-blk-pci` boot disk at
 slot 6, exclusive with the network diagnostic fixture. Ordinary runner arguments

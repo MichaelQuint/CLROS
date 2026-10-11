@@ -5,7 +5,7 @@ namespace OS.Tooling;
 public static partial class QemuTranscripts
 {
     public static void AssertM03AcpiBootstrapTranscript(string path, bool firstRealExit = false, bool firmwareRevocation = false,
-        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false, bool apicSetup = false, bool virtqueueInterrupt = false, bool virtioBlockQueueSetup = false, bool virtioBlockRead = false, bool liveBlockContract = false, bool gptPartition = false, bool primaryHeaderFault = false, bool fatRead = false, bool packageRead = false, string packageVariant = "Intact")
+        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false, bool apicSetup = false, bool virtqueueInterrupt = false, bool virtioBlockQueueSetup = false, bool virtioBlockRead = false, bool liveBlockContract = false, bool gptPartition = false, bool primaryHeaderFault = false, bool fatRead = false, bool packageRead = false, string packageVariant = "Intact", bool blockMsix = false, bool blockMsixPollingRecovery = false)
     {
         Need(!ownedSurvival || firstRealExit && !firmwareRevocation, "m03_owned_profile_invalid");
         Need(!ownedPanic || ownedSurvival, "m03_owned_profile_invalid");
@@ -20,15 +20,23 @@ public static partial class QemuTranscripts
         Need(!virtqueuePolling || virtioNegotiation, "m05_queue_requires_negotiation");
         Need(!apicSetup || pciEnumeration && !barDma && !virtqueuePolling && (!virtioNegotiation || virtqueueInterrupt), "m05_apic_profile_invalid");
         Need(!virtqueueInterrupt || apicSetup && virtioNegotiation && !virtqueuePolling, "m05_irq_profile_invalid");
-        Need(!virtioBlockQueueSetup || pciEnumeration && !barDma && !virtioNegotiation && !apicSetup && !virtqueuePolling && !virtqueueInterrupt, "m06_block_queue_profile_invalid");
+        Need(!virtioBlockQueueSetup || pciEnumeration && !barDma && !virtioNegotiation && (!apicSetup || blockMsix) && !virtqueuePolling && !virtqueueInterrupt, "m06_block_queue_profile_invalid");
         Need(!virtioBlockRead || virtioBlockQueueSetup, "m06_block_read_requires_queue");
         Need(!liveBlockContract || virtioBlockRead, "m06_live_block_contract_requires_read");
         Need(!gptPartition || liveBlockContract, "m06_gpt_partition_requires_contract");
         Need(!primaryHeaderFault || gptPartition, "m06_gpt_fault_requires_profile");
         Need(!fatRead || (gptPartition && !primaryHeaderFault), "m06_fat_requires_intact_gpt");
         Need(!packageRead || fatRead, "m06_package_requires_fat");
-        string terminal = packageRead ? "TEST_PASS m06.018\r\n" : fatRead ? "TEST_PASS m06.014\r\n" : gptPartition ? "TEST_PASS m06.011\r\n" : liveBlockContract ? "TEST_PASS m06.008\r\n" : virtioBlockRead ? "TEST_PASS m06.006\r\n" : virtioBlockQueueSetup ? "TEST_PASS m06.004\r\n" : virtqueueInterrupt ? "TEST_PASS m05.021\r\n" : apicSetup ? "TEST_PASS m05.020\r\n" : virtqueuePolling ? "TEST_PASS m05.019\r\n" : virtioNegotiation ? "TEST_PASS m05.015\r\n" : barDma ? "TEST_PASS m05.011\r\n" : pciEnumeration ? "TEST_PASS m05.007\r\n" : monotonicClock ? "TEST_PASS m05.003\r\n" : ownedAcpiSelection ? "TEST_PASS m05.002\r\n" : physicalMapping ? "TEST_PASS m05.001\r\n" : normalBoot || !firstRealExit ? "OS_SMOKE_PASS\r\n" : ownedPanic ? "" : ownedSurvival ? "TEST_PASS m03.010\r\n" : firmwareRevocation ? "TEST_PASS m03.008\r\n" : "TEST_PASS m03.009\r\n";
+        string terminal = blockMsix ? "TEST_PASS m06.019\r\n" : packageRead ? "TEST_PASS m06.018\r\n" : fatRead ? "TEST_PASS m06.014\r\n" : gptPartition ? "TEST_PASS m06.011\r\n" : liveBlockContract ? "TEST_PASS m06.008\r\n" : virtioBlockRead ? "TEST_PASS m06.006\r\n" : virtioBlockQueueSetup ? "TEST_PASS m06.004\r\n" : virtqueueInterrupt ? "TEST_PASS m05.021\r\n" : apicSetup ? "TEST_PASS m05.020\r\n" : virtqueuePolling ? "TEST_PASS m05.019\r\n" : virtioNegotiation ? "TEST_PASS m05.015\r\n" : barDma ? "TEST_PASS m05.011\r\n" : pciEnumeration ? "TEST_PASS m05.007\r\n" : monotonicClock ? "TEST_PASS m05.003\r\n" : ownedAcpiSelection ? "TEST_PASS m05.002\r\n" : physicalMapping ? "TEST_PASS m05.001\r\n" : normalBoot || !firstRealExit ? "OS_SMOKE_PASS\r\n" : ownedPanic ? "" : ownedSurvival ? "TEST_PASS m03.010\r\n" : firmwareRevocation ? "TEST_PASS m03.008\r\n" : "TEST_PASS m03.009\r\n";
         string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi", virtioBlockQueueSetup && !primaryHeaderFault);
+        Need(!blockMsix || packageRead && apicSetup && !normalBoot && packageVariant == "Intact" && !primaryHeaderFault, "m06_block_msix_profile_invalid");
+        Need(!blockMsixPollingRecovery || blockMsix, "m06_block_msix_recovery_requires_main");
+        if (blockMsix)
+        {
+            AssertM06BlockMsixRecords(lines, blockMsixPollingRecovery);
+            lines = NormalizeM06BlockMsixRecords(lines);
+            apicSetup = false; // The inserted APIC records were checked above.
+        }
         IReadOnlyList<string> expected = packageRead ? QemuContracts.M06PackageReadMarkers(packageVariant) : fatRead ? QemuContracts.M06FatReadMarkers() : gptPartition ? QemuContracts.M06GptPartitionMarkers(primaryHeaderFault) : liveBlockContract ? QemuContracts.M06LiveBlockContractMarkers : virtioBlockRead ? QemuContracts.M06VirtioBlockReadMarkers : virtioBlockQueueSetup ? QemuContracts.M06VirtioBlockQueueSetupMarkers : virtqueueInterrupt ? QemuContracts.M05VirtqueueInterruptMarkers : apicSetup ? QemuContracts.M05ApicSetupMarkers : virtqueuePolling ? QemuContracts.M05VirtqueuePollingMarkers : virtioNegotiation ? QemuContracts.M05VirtioNegotiationMarkers : barDma ? QemuContracts.M05BarDmaMarkers : pciEnumeration ? QemuContracts.M05PciEnumerationMarkers : monotonicClock ? QemuContracts.M05MonotonicClockMarkers : ownedAcpiSelection ? QemuContracts.M05OwnedAcpiSelectionMarkers : physicalMapping ? QemuContracts.M05PhysicalMappingMarkers : normalBoot ? QemuContracts.M03NormalVerifiedExitMarkers : ownedPanic ? QemuContracts.M03OwnedSubsystemPanicMarkers :
             ownedSurvival ? QemuContracts.M03OwnedSubsystemMarkers : firmwareRevocation ? QemuContracts.M03RevocationRequiredMarkers :
             firstRealExit ? QemuContracts.M03FirstExitRequiredMarkers : QemuContracts.M03AcpiBootstrapRequiredMarkers;

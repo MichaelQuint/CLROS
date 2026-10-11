@@ -1,5 +1,15 @@
 # EFI Build
 
+## Block MSI-X development profile
+
+The default-off `--EnableM06BlockMsixProbe` requires the complete explicit
+package-read chain plus `--EnableM05ApicSetupProbe`, Diagnostic policy and a fresh
+intact image. `--EnableM06BlockMsixPollingRecoveryProbe` additionally requires the
+main flag and deliberately keeps delivery masked during the bounded wait. Existing
+network negotiation/polling/IRQ profiles conflict. Both active no-stdlib C# variants
+compile in [step1158](../done/step1158.md); this is not native or boot qualification.
+Strict native/ABI/stack review and real guest captures follow at the stable batch.
+
 ## Bounded package read profile
 
 Add `--EnableM06PackageReadProbe` to the complete FAT/GPT command below, with

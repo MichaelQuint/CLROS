@@ -33,6 +33,7 @@ public static partial class EfiContracts
         ["..\\OS.Kernel\\Storage\\DMASafeRequestStatusDescriptorAvailableUsedRing.cs"] = "reviewed_block_dma_source_identity",
         ["..\\OS.Kernel\\Storage\\VirtioBlkQueueN0.cs"] = "reviewed_block_queue_source_identity",
         ["..\\OS.Kernel\\Storage\\SubmitPollSectorRequest.cs"] = "reviewed_block_read_source_identity",
+        ["..\\OS.Kernel\\Storage\\PollingCompletionMSIXRemovingPollingRecoveryPath.cs"] = "reviewed_block_msix_route_source_identity",
         ["..\\OS.Kernel\\Storage\\UsedRingCompletionStatusByteTimeoutDeviceReset.cs"] = "reviewed_block_completion_source_identity",
         ["..\\OS.Kernel\\Boot\\VerifiedExitPathOptDefaultRepeatedCleanQEMU.cs"] = "reviewed_normal_exit_policy_identity",
         ["..\\OS.Kernel\\Runtime\\ObjectArrayStringEETypeMethodTableLayoutContracts.cs"] = "reviewed_layout_source_identity",

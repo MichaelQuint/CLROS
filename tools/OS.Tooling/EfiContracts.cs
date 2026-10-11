@@ -12,7 +12,8 @@ public static partial class EfiContracts
          "EnableM05VirtqueuePollingProbe", "EnableM05ApicSetupProbe", "EnableM05VirtqueueInterruptProbe",
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
-        "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe"]);
+        "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe",
+        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -30,9 +31,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "70147f6081cb26e84dd4dbfe57e9ab3f469dfcb06ccde0e2e1cc761314372925";
-    public const string CanonicalProjectSha256 = "59c451241be9e81d245af7ef8a78b259a6a17b7fa0c2d84bef232a95a6c55b98";
-    public const string EfiEntrySourceSha256 = "180d92019b88e61e31c051cb826ceacf7ac24defc4547a65b600f5346c3d73ec";
+    public const string ProjectSourceSha256 = "2e094a44a5ccab06b4e94363c79125b9673ebac0e3c031743c913517c877844d";
+    public const string CanonicalProjectSha256 = "fe0f28ab9a1b2e138aba8c4b4248f5704c0c288f6dbfa9da4547ef9954126e1f";
+    public const string EfiEntrySourceSha256 = "810bad402c2515355c7ec198e6a9518d7606d6963c0ae5b6cce893d8389463f4";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -175,6 +176,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Storage\DMASafeRequestStatusDescriptorAvailableUsedRing.cs|Storage\DMASafeRequestStatusDescriptorAvailableUsedRing.cs",
         @"..\OS.Kernel\Storage\VirtioBlkQueueN0.cs|Storage\VirtioBlkQueueN0.cs",
         @"..\OS.Kernel\Storage\SubmitPollSectorRequest.cs|Storage\SubmitPollSectorRequest.cs",
+        @"..\OS.Kernel\Storage\PollingCompletionMSIXRemovingPollingRecoveryPath.cs|Storage\PollingCompletionMSIXRemovingPollingRecoveryPath.cs",
         @"..\OS.Kernel\Storage\UsedRingCompletionStatusByteTimeoutDeviceReset.cs|Storage\UsedRingCompletionStatusByteTimeoutDeviceReset.cs",
         @"..\..\std\no-runtime\shared\Memory\SystemSpanPointer.cs|Std\Memory\SystemSpanPointer.cs",
         @"..\OS.Kernel\Storage\IReadOnlyBlockDevice.cs|Storage\IReadOnlyBlockDevice.cs",
@@ -291,6 +293,8 @@ public static partial class EfiContracts
         "EnableM05VirtioNegotiationProbe",
         "EnableM05VirtqueueInterruptProbe",
         "EnableM05VirtqueuePollingProbe",
+        "EnableM06BlockMsixPollingRecoveryProbe",
+        "EnableM06BlockMsixProbe",
         "EnableM06FatReadProbe",
         "EnableM06GptPartitionProbe",
         "EnableM06LiveBlockContractProbe",

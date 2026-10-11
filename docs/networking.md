@@ -1,5 +1,13 @@
 # Networking
 
+The claimed #136–#140 development batch begins with host-tested modern PCI
+binding and a VERSION_1-only feature policy in [step1158](../done/step1158.md).
+It preserves exact snapshot/BDF/command/capability declarations and drops every
+optional offered bit, including MAC, offloads, GSO and mergeable buffers. These
+new helpers are not connected to an accepted live network profile. RX/TX queue
+integration and fixed-frame wire/reclaim evidence remain pending; all leaves
+remain open. Existing bounded M05 TX completion is separate prerequisite evidence.
+
 ## Current Status
 
 Networking is at the packet-primitive stage. The repository now has host-tested Ethernet + ARP + ARP neighbor resolution transaction + bounded ARP neighbor cache + ARP reply cache updater + ARP receive-dispatch cache updater + IPv4 neighbor route planner and caller-owned IPv4 neighbor route diagnostic marker formatting + network receive dispatch metadata + ICMP receive dispatch metadata + UDP receive dispatch metadata + UDP transmit frame planning with checksum generation + IPv4 + ICMPv4 echo packet + IPv4 ICMP echo frame + UDP encode/decode helpers, an IPv4 transport pseudo-header checksum helper, DHCPv4 message/client/UDP-frame primitives, DNS message primitives, mock-driven DHCP and DNS client transaction state machines, DHCP lease configuration metadata, DHCP/DNS UDP transaction planners, a TCP header primitive, mock-driven TCP active-open and passive-open handshake state machines, a caller-driven active TCP connect transaction, TCP-over-Ethernet/IPv4 active-connect frame planning with outbound SYN/final-ACK checksum generation and passive-open frame planning with outbound SYN-ACK checksum generation, a passive-open-to-listener-backlog bridge, a listener-backlog-to-mock-accept-queue bridge, a caller-owned established TCP payload stream primitive, an established-stream-to-mock-socket inbound bridge, a TCP close/reset transition planner, an HTTP/1.1 GET request builder, an HTTP/1.1 request parser, an HTTP/1.1 response writer, an HTTP/1.1 static response transaction, an HTTP/1.1 response parser, a mock-stream HTTP GET client transaction, an HTTP GET over TCP/IPv4 frame planner with outbound request checksum generation, inbound response checksum validation, and caller-owned plan diagnostic marker formatting under `src/OS.Kernel/Net`, host-tested Azure WireServer and AWS IMDSv2 request metadata planners under `src/OS.Kernel/Cloud`, and a host-only mock PAL socket table that covers connected-handle partial send/receive/poll/shutdown/peer-close/peer-reset behavior plus Kestrel-oriented socket options and endpoint queries. There is still no network device driver or real packet I/O.

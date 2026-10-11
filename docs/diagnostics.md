@@ -1,5 +1,10 @@
 # Diagnostics
 
+Development `EnableM06BlockMsixProbe` and its masked polling-recovery control both
+default false. The main profile requires package completion and owned APIC setup;
+it owns `M06_IRQ` rows0..8 and `m06.019`. [Step1158](../done/step1158.md) records
+focused/compile evidence, without native, full-host or guest acceptance.
+
 The development `EnableM06PackageReadProbe` defaults false and requires FAT.
 It owns `M06_PKG` rows and `m06.015`..`m06.018` markers. Fresh sector receipts use
 epochs134..197 only after reset, bus-master disable, DMA release and allocator

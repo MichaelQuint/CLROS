@@ -103,7 +103,7 @@ internal static unsafe class M06PackageReadEfiIntegrationTests
     }
 
     // Independently assembled bounded host fixture; this is no guest evidence.
-    private static (string[] Lines, byte[] Disk) Capture(string variant)
+    internal static (string[] Lines, byte[] Disk) Capture(string variant)
     {
         var (prefix, disk) = M06FatReadEfiIntegrationTests.Capture();
         const uint os = 9, manifest = 14, package = 15;

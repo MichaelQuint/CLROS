@@ -73,6 +73,11 @@ public static partial class QemuTranscripts
     public static void AssertM06PackageReadImage(string serialPath, string imagePath, string variant = "Intact")
     {
         string[] lines = FirmwareProtocol(serialPath, "TEST_PASS m06.018\r\n", true, false, "m06_package", true);
+        AssertM06PackageReadImage(lines, imagePath, variant);
+    }
+
+    internal static void AssertM06PackageReadImage(IReadOnlyList<string> lines, string imagePath, string variant)
+    {
         AssertM06PackageReadRecords(lines, variant);
         ulong[] Row(int stage) => PackageRow(lines, stage);
         using var disk = File.OpenRead(imagePath);

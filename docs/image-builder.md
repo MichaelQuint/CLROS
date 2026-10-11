@@ -1,5 +1,10 @@
 # Image Builder
 
+The development block MSI-X profile requires a newly built intact package image;
+all package fault variants reject before runner admission. Synthetic controls bind
+the parent package and new LBA1 checksum receipts to the same disk bytes in
+[step1158](../done/step1158.md). Real guest/image qualification is pending.
+
 The bounded disk-manifest/package/staging batch has host-tested validators in
 [step1153](../done/step1153.md). Its independently authored test packages use the
 existing OSPKGv0 table and OSAPPv0 payload formats. CRC32 is an explicit expected

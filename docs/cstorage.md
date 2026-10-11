@@ -2,6 +2,14 @@
 
 ## MSI-X completion development
 
+The development integration in [step1158](../done/step1158.md) prepares masked
+MSI-X before queue enable, maps/readbacks vector zero, waits with restored IF/IDTR,
+then validates the original used-ring/status/generation receipt. A deliberately
+masked variant follows bounded polling recovery. Shutdown precedes reset; uncertain
+IRQ shutdown retains DMA backing and suppresses the payload copy. Both active
+no-stdlib C# variants compile; focused synthetic controls pass. Native, full-host
+and real guest qualification are pending, so #134 remains open/claimed.
+
 The next claimed batch is #134 and #136–#140 with shared integration #633.
 [Step1157](../done/step1157.md) adds a host-tested wait-receipt classifier for
 #134. It preserves the accepted one-interrupt validator and permits polling

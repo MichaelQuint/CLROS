@@ -7,7 +7,7 @@ public enum VirtioBlkReadStatus : byte
     Uninitialized, Success, InvalidAccess, InvalidDestination, ReadFailed, WriteFailed,
     ConfigurationChanged, InvalidCapacity, SectorOutOfRange, QueueRejected, InvalidNotify,
     StatusRejected, OrderingFailed, BusMasterFailed, InvalidCompletion, DeviceIoError,
-    UnsupportedRequest, Timeout
+    UnsupportedRequest, Timeout, InterruptPrepareFailed, InterruptWaitFailed, InterruptShutdownFailed
 }
 
 /// <summary>Queue access plus an explicit bus-master enable/readback callback.
@@ -17,6 +17,13 @@ public unsafe struct VirtioBlkReadAccess
 {
     public VirtioBlkQueueAccess Queue;
     public delegate* unmanaged<void*, byte> BusMasterOn;
+    // All null preserves polling. Otherwise all three must be present. Prepare
+    // admits and masks MSI-X before queue vector zero is configured. Wait masks
+    // delivery and restores IF/IDTR before returning an authenticated route.
+    // Stop disables/readbacks MSI-X, including after a failed Prepare or Wait.
+    public delegate* unmanaged<void*, VirtioMappedRegion, byte> PrepareInterrupt;
+    public delegate* unmanaged<void*, uint, byte> WaitInterrupt;
+    public delegate* unmanaged<void*, byte> StopInterrupt;
 }
 
 public struct VirtioBlkReadResult
@@ -28,11 +35,13 @@ public struct VirtioBlkReadResult
     public ushort NotifyOffset, UsedIndex;
     public byte Generation, DeviceStatus;
     public bool Published, Notified;
+    public bool InterruptAttempted, InterruptPrepared, InterruptStopped;
+    public BlockCompletionRoute CompletionRoute;
     public readonly bool Succeeded => Status == VirtioBlkReadStatus.Success && Queue.Succeeded && BytesRead == 512;
 }
 
 /// <summary>Exactly one 512-byte IN request on a fresh queue zero. Requires
-/// VERSION_1 (and RO when offered), FEATURES_OK=11, MSI-X disabled, no optional
+/// VERSION_1 (and RO when offered), FEATURES_OK=11, initially MSI-X disabled, no optional
 /// ring/block features, and firmware DMA already quiesced. Uses descriptors 0-2
 /// exactly once. Reset is the sole lifetime boundary; no queue reuse or writes.
 /// Destination and pool metadata are exclusive mapped RAM, without hidden
@@ -56,7 +65,9 @@ public static unsafe class SubmitPollSectorRequest
             (notifyMultiplier != 0 && (notifyMultiplier < 2 || (notifyMultiplier & (notifyMultiplier - 1)) != 0)) ||
             pollLimit == 0 || pollLimit > 1000000 || resetLimit == 0 || resetLimit > 1024 ||
             a.Read8 == null || a.Write8 == null || a.Read16 == null || a.Write16 == null ||
-            a.Read32 == null || a.Write32 == null || a.Fence == null || a.BusMasterOff == null || access.BusMasterOn == null)
+            a.Read32 == null || a.Write32 == null || a.Fence == null || a.BusMasterOff == null || access.BusMasterOn == null ||
+            ((access.PrepareInterrupt != null || access.WaitInterrupt != null || access.StopInterrupt != null) &&
+             (access.PrepareInterrupt == null || access.WaitInterrupt == null || access.StopInterrupt == null)))
             return r;
         if (dma->Self != (ulong)dma || dma->Slots == null || dma->Count == 0 || dma->Count > 64) return r;
         if (destinationBytes < 512 || (ulong)destination < 4096 ||
@@ -69,7 +80,15 @@ public static unsafe class SubmitPollSectorRequest
         bool deviceOwned = false;
         r.Status = Execute(common, notify, device, notifyMultiplier, dma, access, destination,
             pollLimit, expectedCapacity, ref allocation, ref deviceOwned, ref r);
-        VirtioBlkQueueN0.Cleanup(common, dma, a, resetLimit, allocation, deviceOwned, ref r.Queue);
+        if (r.InterruptAttempted)
+        {
+            r.InterruptStopped = access.StopInterrupt(a.Context) == 1;
+            if (!r.InterruptStopped) r.Status = VirtioBlkReadStatus.InterruptShutdownFailed;
+        }
+        // Reset and bus-master-off still run after uncertain interrupt shutdown,
+        // but backing/token ownership is retained; no payload copy is permitted.
+        VirtioBlkQueueN0.Cleanup(common, dma, a, resetLimit,
+            r.InterruptAttempted && !r.InterruptStopped ? default : allocation, deviceOwned, ref r.Queue);
         if (r.Status == VirtioBlkReadStatus.Success && r.Queue.Succeeded)
         {
             byte* source = (byte*)(r.Queue.Layout.Range.CpuVirtualAddress + VirtioBlkDmaLayout.DataOffset);
@@ -91,8 +110,14 @@ public static unsafe class SubmitPollSectorRequest
         if (status != VirtioBlkReadStatus.Success) return status;
         if (expectedCapacity != 0 && r.Capacity != expectedCapacity) return VirtioBlkReadStatus.ConfigurationChanged;
         if (r.Sector >= r.Capacity) return VirtioBlkReadStatus.SectorOutOfRange;
+        if (access.PrepareInterrupt != null)
+        {
+            r.InterruptAttempted = true; // A failed callback may have written hardware.
+            r.InterruptPrepared = access.PrepareInterrupt(a.Context, common) == 1;
+            if (!r.InterruptPrepared) return VirtioBlkReadStatus.InterruptPrepareFailed;
+        }
         r.Queue.Status = VirtioBlkQueueN0.Configure(common, dma, a, ref allocation, ref deviceOwned,
-            ref r.Queue, notify, device, (ulong)destination);
+            ref r.Queue, notify, device, (ulong)destination, r.InterruptPrepared ? (ushort)0 : (ushort)0xffff);
         if (r.Queue.Status != VirtioBlkQueueStatus.Success) return VirtioBlkReadStatus.QueueRejected;
         ushort offset = 0;
         if (a.Read16(a.Context, common.VirtualStart + 30, &offset) != 1) return VirtioBlkReadStatus.ReadFailed;
@@ -126,6 +151,15 @@ public static unsafe class SubmitPollSectorRequest
         if (!Fence(a, ref r)) return VirtioBlkReadStatus.OrderingFailed;
         if (a.Write16(a.Context, r.NotifyAddress, 0) != 1) return VirtioBlkReadStatus.WriteFailed;
         r.Notified = true;
+        if (r.InterruptPrepared)
+        {
+            r.CompletionRoute = (BlockCompletionRoute)access.WaitInterrupt(a.Context, pollLimit);
+            if (r.CompletionRoute != BlockCompletionRoute.Interrupt && r.CompletionRoute != BlockCompletionRoute.PollingRecovery)
+                return VirtioBlkReadStatus.InterruptWaitFailed;
+            // IRQ is notification, not completion. Acquire and validate the same
+            // used ring/status/generation; recovery keeps the original poll bound.
+            if (r.CompletionRoute == BlockCompletionRoute.Interrupt) pollLimit = 1;
+        }
         return UsedRingCompletionStatusByteTimeoutDeviceReset.Poll(common, a, pollLimit, ref r);
     }
 

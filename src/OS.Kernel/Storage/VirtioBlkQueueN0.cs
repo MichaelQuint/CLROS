@@ -9,7 +9,9 @@ public enum VirtioBlkQueueStatus : byte
 }
 
 /// <summary>Exclusive nonthrowing MMIO access; 1 means success. BusMasterOff must
-/// disable and read back PCI bus mastering and INTx, with MSI-X already disabled.
+/// disable and read back PCI bus mastering and INTx. Queue-only use requires
+/// MSI-X disabled; an admitted IRQ adapter may instead hold delivery masked
+/// during configuration and must disable it before cleanup/token release.
 /// Fence is the admitted real DMA/MMIO fence. Numeric callbacks are not proof of
 /// those properties; the platform adapter owns mappings and device authority.</summary>
 public unsafe struct VirtioBlkQueueAccess
@@ -37,8 +39,9 @@ public struct VirtioBlkQueueResult
 
 /// <summary>One modern block queue, size eight, no negotiated MQ/event-index/
 /// indirect/packed features. Requires completed FEATURES_OK (11), firmware DMA
-/// already quiesced and MSI-X disabled. Configures/readbacks queue zero while
-/// bus mastering stays off; never sets DRIVER_OK, publishes or notifies. Resets
+/// already quiesced and MSI-X initially disabled. Configures/readbacks queue zero while
+/// bus mastering stays off; an admitted MSI-X adapter may supply vector zero
+/// after preparing delivery masking. Never sets DRIVER_OK, publishes or notifies. Resets
 /// and releases its exact DMA token only after observed quiescence and a fence.
 /// The adapter retains the original backing when cleanup is uncertain.</summary>
 public static unsafe class VirtioBlkQueueN0
@@ -91,7 +94,8 @@ public static unsafe class VirtioBlkQueueN0
 
     internal static VirtioBlkQueueStatus Configure(VirtioMappedRegion common, DmaBufferPool* dma,
         VirtioBlkQueueAccess a, ref DmaBufferAllocation allocation, ref bool deviceOwned, ref VirtioBlkQueueResult r,
-        VirtioMappedRegion notify = default, VirtioMappedRegion device = default, ulong destination = 0)
+        VirtioMappedRegion notify = default, VirtioMappedRegion device = default, ulong destination = 0,
+        ushort msixVector = 0xffff)
     {
         ulong c = common.VirtualStart;
         if (a.BusMasterOff(a.Context) != 1) return VirtioBlkQueueStatus.BusMasterFailed;
@@ -122,7 +126,7 @@ public static unsafe class VirtioBlkQueueN0
         if (!Fence(a, ref r)) return VirtioBlkQueueStatus.OrderingFailed;
         var rings = r.Layout.Rings;
         ulong d = range.DeviceAddress;
-        if (a.Write16(a.Context, c + 16, 0xffff) != 1 || a.Write16(a.Context, c + 26, 0xffff) != 1 ||
+        if (a.Write16(a.Context, c + 16, 0xffff) != 1 || a.Write16(a.Context, c + 26, msixVector) != 1 ||
             a.Write16(a.Context, c + 24, r.Size) != 1 ||
             !WriteAddress(a, c + 32, d + rings.DescriptorTable.Offset) ||
             !WriteAddress(a, c + 40, d + rings.AvailableRing.Offset) ||
@@ -132,7 +136,7 @@ public static unsafe class VirtioBlkQueueN0
         if (a.Read16(a.Context, c + 24, &size) != 1 || a.Read16(a.Context, c + 16, &configVector) != 1 ||
             a.Read16(a.Context, c + 26, &queueVector) != 1 || !ReadAddress(a, c + 32, out descriptor) ||
             !ReadAddress(a, c + 40, out available) || !ReadAddress(a, c + 48, out used)) return VirtioBlkQueueStatus.ReadFailed;
-        if (size != r.Size || configVector != 0xffff || queueVector != 0xffff ||
+        if (size != r.Size || configVector != 0xffff || queueVector != msixVector ||
             descriptor != d + rings.DescriptorTable.Offset || available != d + rings.AvailableRing.Offset ||
             used != d + rings.UsedRing.Offset) return VirtioBlkQueueStatus.ReadbackMismatch;
         status = Status(c, a);

@@ -1,5 +1,10 @@
 # Boot Order
 
+Development `RunOwnedBlockMsix` follows package phase19 and owned APIC phase2;
+its separate default-off profile owns interrupt phases2..7 and one fresh LBA1
+lifetime with epoch198. [Step1158](../done/step1158.md) records focused/compile
+evidence only. The accepted package path below remains the prerequisite boundary.
+
 The qualified default-off `RunOwnedPackageRead` child follows successful
 `RunOwnedFatRead`. Phases15/16/17/18 cover native manifest, APP.PKG, owned payload
 staging/free and cleanup diagnostics; phase19 follows success. Each sector uses

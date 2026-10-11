@@ -55,13 +55,17 @@ public sealed class EfiProfile
         Set("M05OwnedAcpiSelection", ["M03OwnedSubsystemPanic", "M03FirmwareAdapterRevocation", "M05PhysicalMapping"], false, "m05_acpi_profile_conflict");
         Set("M05MonotonicClock", ["M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival"], true, "m05_clock_requires_owned_first_exit");
         Set("M05PciEnumeration", ["M03FirstRealExitBootServices", "M03OwnedSubsystemSurvival"], true, "m05_pci_requires_owned_first_exit");
+        Set("M06BlockMsix", ["M06PackageRead", "M05ApicSetup"], true, "m06_block_msix_requires_package_apic");
+        Set("M06BlockMsix", ["M05VirtioNegotiation", "M05VirtqueuePolling", "M05VirtqueueInterrupt"], false, "m06_block_msix_profile_conflict");
+        Need("M06BlockMsixPollingRecovery", "M06BlockMsix", "m06_block_msix_polling_recovery_requires_main");
         Set("M06PackageRead", ["M06FatRead"], true, "m06_package_read_requires_fat");
         Set("M06FatRead", ["M06GptPartition"], true, "m06_fat_read_requires_gpt");
         Set("M06GptPartition", ["M06LiveBlockContract"], true, "m06_gpt_partition_requires_contract");
         Set("M06LiveBlockContract", ["M06VirtioBlockRead"], true, "m06_live_block_contract_requires_read");
         Set("M06VirtioBlockRead", ["M06VirtioBlockQueueSetup"], true, "m06_block_read_requires_queue");
         Set("M06VirtioBlockQueueSetup", ["M05PciEnumeration"], true, "m06_block_queue_requires_pci");
-        Set("M06VirtioBlockQueueSetup", ["M05BarDma", "M05VirtioNegotiation", "M05ApicSetup", "M05VirtqueuePolling", "M05VirtqueueInterrupt"], false, "m06_block_queue_profile_conflict");
+        Set("M06VirtioBlockQueueSetup", ["M05BarDma", "M05VirtioNegotiation", "M05VirtqueuePolling", "M05VirtqueueInterrupt"], false, "m06_block_queue_profile_conflict");
+        if (!IsEnabled("M06BlockMsix")) Conflict("M06VirtioBlockQueueSetup", "M05ApicSetup", "m06_block_queue_profile_conflict");
         Set("M05BarDma", ["M05PciEnumeration"], true, "m05_bar_dma_requires_pci");
         Set("M05ApicSetup", ["M05PciEnumeration"], true, "m05_apic_requires_pci");
         Set("M05ApicSetup", ["M05BarDma", "M05VirtqueuePolling"], false, "m05_apic_profile_conflict");
