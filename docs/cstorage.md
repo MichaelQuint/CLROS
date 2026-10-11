@@ -1,5 +1,15 @@
 # Storage
 
+## MSI-X completion development
+
+The next claimed batch is #134 and #136–#140 with shared integration #633.
+[Step1157](../done/step1157.md) adds a host-tested wait-receipt classifier for
+#134. It preserves the accepted one-interrupt validator and permits polling
+recovery only for a complete bounded wait with no interrupt/spurious event,
+restored IF/IDTR and asserted delivery masking. This metadata selects no I/O
+completion and proves no live masking, queue operation or cleanup. Hardware
+integration, native review and batch full-host/guest qualification remain pending.
+
 ## Bounded manifest/package read and staging profile
 
 [Step1153](../done/step1153.md) implements the pure helpers for owned issues

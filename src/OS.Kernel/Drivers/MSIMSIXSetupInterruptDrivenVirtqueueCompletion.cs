@@ -93,15 +93,33 @@ public static unsafe class X64MsixInterrupt
     public static bool ValidateCompletion(MsixInterruptContext* c, ulong code, ulong originalIdt,
         ulong temporaryIdt, ulong localApic, uint limit, uint returned)
     {
+        return ValidWait(c, code, originalIdt, temporaryIdt, localApic, limit) && returned == 1 &&
+            c->Count == 1 && c->SpuriousCount == 0 && c->BeforeEoiIsr == 1 && c->AfterEoiIsr == 0 &&
+            (c->InterruptedFlags & 0x202) == 0x202 && c->InterruptedRip >= code + InterruptStart &&
+            c->InterruptedRip <= code + InterruptEnd;
+    }
+
+    // A timeout is recoverable only after the leaf ran its entire bounded wait
+    // and restored IF/IDTR. A failed admission or unexpected interrupt is not
+    // a timeout receipt. The adapter must mask delivery and audit live state.
+    public static bool ValidatePollingRecovery(MsixInterruptContext* c, ulong code, ulong originalIdt,
+        ulong temporaryIdt, ulong localApic, uint limit, uint returned)
+    {
+        return ValidWait(c, code, originalIdt, temporaryIdt, localApic, limit) && returned == 0 &&
+            c->Iterations == limit && c->Count == 0 && c->SpuriousCount == 0 &&
+            c->InterruptedRip == 0 && c->InterruptedFlags == 0 && c->BeforeEoiIsr == 0 && c->AfterEoiIsr == 0;
+    }
+
+    private static bool ValidWait(MsixInterruptContext* c, ulong code, ulong originalIdt,
+        ulong temporaryIdt, ulong localApic, uint limit)
+    {
         if (c == null || ((ulong)c & 7) != 0 || (ulong)c > ~0UL - (ulong)sizeof(MsixInterruptContext) ||
             !Range(code, Bytes) || !Range(originalIdt, 4096) || !Range(temporaryIdt, 4096) ||
             (originalIdt < temporaryIdt + 4096 && temporaryIdt < originalIdt + 4096) ||
             localApic < 0x100000 || localApic > 0xfffff000 || (localApic & 4095) != 0 ||
-            c->EoiAddress != localApic + 0xb0 || limit == 0 || limit > MaximumIterations || returned != 1 ||
-            c->Count != 1 || c->SpuriousCount != 0 || c->BeforeEoiIsr != 1 || c->AfterEoiIsr != 0 ||
+            c->EoiAddress != localApic + 0xb0 || limit == 0 || limit > MaximumIterations ||
             c->Iterations == 0 || c->Iterations > limit || (c->EntryFlags & 0x202) != 2 ||
-            (c->ExitFlags & 0x202) != 2 || (c->InterruptedFlags & 0x202) != 0x202 ||
-            c->InterruptedRip < code + InterruptStart || c->InterruptedRip > code + InterruptEnd) return false;
+            (c->ExitFlags & 0x202) != 2) return false;
         return Idtr(c->OriginalIdtr, originalIdt) && Idtr(c->RestoredIdtr, originalIdt) && Idtr(c->TemporaryIdtr, temporaryIdt);
     }
     private static bool Idtr(byte* bytes, ulong address)

@@ -14946,7 +14946,7 @@
         "M05-021"
       ],
       "labels": [
-        "agent:ready",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14973,7 +14973,7 @@
       ],
       "collisionLane": null,
       "summary": "Convert polling completion to MSI-X without removing the polling recovery path.",
-      "currentEvidence": "Prerequisites #133 and #114 are accepted. The bounded manifest/package/staging/fault batch is qualified in step1156 with 4393 unchanged-input full-host checks and native/guest review. This issue is ready for one bounded MSI-X block completion with polling recovery; it has no accepted implementation or guest proof. General workload activation, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Development host foundation in done/step1157.md under shared integration #633: restored wait receipts classify one interrupt or an exact no-interrupt bounded polling recovery, only after asserted delivery masking. New classifier3 and existing MSI-X9 focused checks pass with a clean host build. No actual IRQ, block completion, live masking/cleanup, native, full-host or guest qualification yet. #134 and #136-#140 remain claimed/open. Accepted prerequisites remain step1156; continuing storage, M06/Gate7 and hosted/cloud/production evidence remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Convert polling completion to MSI-X without removing the polling recovery path.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -15093,7 +15093,7 @@
         "M05-019"
       ],
       "labels": [
-        "agent:ready",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -15179,7 +15179,7 @@
         "M07-001"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -15265,7 +15265,7 @@
         "M07-002"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -15351,7 +15351,7 @@
         "M07-003"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -15437,7 +15437,7 @@
         "M07-004"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p1",
         "type:tooling",
         "evidence:qemu",

@@ -38,7 +38,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Storage\VirtioBlkQueueN0.cs"] = "017cb12981f22e294540b3f52e133b760b563cbb6e2a062c9f9def6a9a7ccabd",
                 [@"..\OS.Kernel\Storage\SubmitPollSectorRequest.cs"] = "f64fe67a0b0ae3624bafe02a7507fc3058290d298ba8514a14ad864717407065",
                 [@"..\OS.Kernel\Storage\UsedRingCompletionStatusByteTimeoutDeviceReset.cs"] = "1c5f3cf5204020a06067a12e00208755c2d3a8cfb27c237860648a76e86fd6a7",
-                [@"..\OS.Kernel\Drivers\MSIMSIXSetupInterruptDrivenVirtqueueCompletion.cs"] = "fbf3154045b6eb04f9c587354d066774bba9fba8e5fef2d34f30d27deaeae652",
+                [@"..\OS.Kernel\Drivers\MSIMSIXSetupInterruptDrivenVirtqueueCompletion.cs"] = "6361b833531757ea1ea0b67921ddbd801c7244ab615946f583caca838c786845",
                 [@"..\OS.Kernel\Drivers\MADTLocalAPICIOAPICSeparatelyPollingProof.cs"] = "2cd2580a97d2afff95061c0fe87acdbb916f70f03185ca5ccd3794e0f6f1c2e0",
                 [@"..\..\std\no-runtime\shared\Memory\MemoryOrder.cs"] = "c26985ed287bda9192fb5cac309242b4da6b77866f6b0d71b518281f183b724f",
                 [@"..\OS.Kernel\Drivers\VirtqueueSplitRingPlan.cs"] = "3634f2372fda144886de555a65d9395dfa339b39d9a4b4b2c9a88db785220291",
