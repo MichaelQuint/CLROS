@@ -54,6 +54,11 @@ qualified in `done/step1167.md`: 4,456 full-host checks, native controls, three
 follow-up passes six focused checks and three fresh byte-identical guests.
 #90, constructor cached failures and Gate4 remain incomplete. See
 `docs/completion-gates.md` for each scope.
+The #642–#644 default-off frame-search/type-predicate/unhandled batch is qualified
+in `done/step1169.md`: 4,473 full-host checks, native review, three 73-record
+expected-terminal guests and six ancestor captures pass. It stops after three
+frames and one nonmatching catch without cleanup or handler transfer. Positive
+multi-frame dispatch, general EH, constructor cached failures and Gate4 remain incomplete.
 Bounded modern Virtio block binding, feature negotiation, owned DMA layout and
 queue setup are accepted in `done/step1140.md`. One default-off sector read with
 checked completion and reset/allocator cleanup is accepted in `done/step1143.md`.

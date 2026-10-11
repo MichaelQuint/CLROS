@@ -208,11 +208,13 @@ throw/catch/continuation using its own retained root and native-image authority.
 profile adds only the bounded cleanup execution described below. None of these
 acceptances changes a completion-gate status.
 
-The #642-#644 development batch adds bounded multi-frame host search, a
+The #642-#644 batch adds bounded multi-frame host search, a
 profile-only retained-object type-test export and a default-off unhandled
-diagnostic. Strict compiler/native geometry and focused controls do not establish
-guest or full-host acceptance. [Step1168](../done/step1168.md) retains the current
-development boundary. #90, general EH and Gate4 remain incomplete.
+diagnostic. [Step1169](../done/step1169.md) qualifies 4,473 full-host checks
+(567 groups, 84 Native, zero reused results), final native review, three
+73-record expected-terminal guests and six ancestor regressions with independent
+source/process/image joins. No handler or second-pass cleanup executes in this
+profile. Positive multi-frame dispatch, #90, general EH and Gate4 remain incomplete.
 
 The #638-#640 batch adds a separate default-off nested-finally diagnostic:
 four decoded physical clauses, a nonmatching sibling catch before a matching

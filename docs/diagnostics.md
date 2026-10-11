@@ -127,9 +127,11 @@ second-pass cleanup runs. The expected terminal is exactly
 `TEST_FAIL m04.021.unhandled unhandled-exception`, followed by
 `OS_SMOKE_FAIL subsystem=runtime reason=unhandled-exception`. Its 73 application
 records require the complete GC prefix, eight numeric child stages and no later
-boot continuation. Geometry/native publication and focused controls are
-development evidence in [step1168](../done/step1168.md); full-host and real guest
-qualification remain pending. This does not complete #90 or Gate4.
+boot continuation. [Step1169](../done/step1169.md) qualifies 4,473 full-host
+checks, reviewed native code/stack, three fresh 73-record expected-terminal
+guests and six ancestor regressions with independent source/process/image
+association. [Step1168](../done/step1168.md) retains development history.
+Positive multi-frame handler transfer, #90 and Gate4 remain incomplete.
 
 `EnableM04NestedFinallyCatchProbe` is a destructive, default-off diagnostic at
 catalogue index 40. It requires the collecting GC profile and excludes the

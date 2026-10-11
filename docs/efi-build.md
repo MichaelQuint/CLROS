@@ -1,14 +1,15 @@
 # EFI Build
 
-## Bounded unhandled-exception development profile
+## Bounded unhandled-exception profile
 
 `--EnableM04UnhandledExceptionProbe` uses the collecting GC Diagnostic chain.
 The existing 1,350-byte simple bridge remains byte-identical. Strict verification
 binds the original 10/46/56-byte thrower/middle/catcher, one eight-byte sibling
 EH table, four unwind rows and the actual type-test export/call ABI. Callback
-stack review and guest admission remain separate gates. See
-[diagnostics](diagnostics.md) and [step1168](../done/step1168.md); full-host and
-guest qualification are pending.
+stack review and guest admission remain separate gates. The 4,473-check full
+host gate, final native review, three 73-record guests and six ancestors qualify
+this finite profile in [step1169](../done/step1169.md). See
+[diagnostics](diagnostics.md) for its expected terminal and authority limits.
 
 ## Bounded nested-finally development profile
 

@@ -146,8 +146,11 @@ described in [diagnostics](diagnostics.md), waits at least 750 ms without furthe
 bytes, terminates QEMU and preserves expected-terminal exit19. `OS.Tooling`
 independently checks all prerequisite/child associations and exact runner/summary
 records before returning success. No `OS_SMOKE_PASS` or boot continuation is
-admitted. Native development evidence is in [step1168](../done/step1168.md);
-real guest and full-host qualification are pending.
+admitted. [Step1169](../done/step1169.md) qualifies three fresh 73-record
+expected-terminal captures, six ordinary/GC/catch/finally/rethrow/nested
+ancestors and the 4,473-check full-host gate, including independent raw,
+process, source and GPT/FAT/EFI payload joins. Development failures remain
+recorded in [step1168](../done/step1168.md) and step1169.
 
 The default-off `--EnableM04NestedFinallyCatchProbe` uses the collecting GC
 Diagnostic prerequisite chain shown for rethrow above; substitute this flag

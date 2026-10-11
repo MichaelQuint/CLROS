@@ -30,6 +30,13 @@ Visual Studio 2026 Insiders and dotnet host builds pass.
 
 ## Progress
 
+The bounded frame-search/type-predicate/unhandled batch is [qualified](done/step1169.md):
+4,473 full-host checks, native review, three 73-record expected-terminal guests
+and six ancestor captures pass with independent source/process/image association.
+The default-off profile stops after three frames and one nonmatching catch.
+Positive multi-frame dispatch, general EH, constructor cached failures, #90 and
+Gate4 remain incomplete.
+
 The bounded typed-search/two-cleanup EH batch is [qualified](done/step1167.md):
 4,456 full-host checks, reviewed native controls, three byte-identical 89-record
 guests and five ancestor regressions pass. The annotation/digest follow-up has
