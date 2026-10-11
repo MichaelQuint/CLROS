@@ -1,5 +1,16 @@
 # NativeAOT NoStdLib Limits
 
+The owned #654/#655/#656 filtered-catch candidate is implemented with admission
+closed in [step1177](../done/step1177.md). A separate four-row POD search validates
+same-range filter siblings and ordered return receipts; it owns no invocation,
+object root, module or stack authority. A returning wrapper preserves the
+selector's full nonvolatiles and calls one authenticated nonthrowing compiler
+filter under the original parent context. The default-off child, original
+compiler EH/code/unwind pins and bounded rooted class predicate pass focused
+host/native controls. Filter execution in a guest, full qualification, filter
+throws, nested filters and collided unwind remain unproved. Existing typed and
+cleanup planners still reject filters; parent #90 and general EH remain open.
+
 The qualified ARP batch in [step1164](../done/step1164.md) extends the shared
 pointer-backed unmanaged Span subset with bounds-checked indexing, Slice,
 Clear and conversion to a pointer-backed ReadOnlySpan. The read-only view

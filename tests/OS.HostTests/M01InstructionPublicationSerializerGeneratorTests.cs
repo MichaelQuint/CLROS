@@ -679,6 +679,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             "CheckedReferenceBarrierThunkGenerator.cs",
             "InterfaceDispatchThunkGenerator.cs",
             "ExceptionHandlingThunkGenerator.cs",
+            "ExceptionFilterThunkGenerator.cs",
             "InstructionPublicationSerializerGenerator.cs"
         ];
 

@@ -10,7 +10,7 @@ internal static class M04ConstructorFailureEfiIntegrationTests
     private static readonly string[] Flags = [.. RuntimeProfilePortTests.RethrowFlags[..^1], "M04ConstructorFailure"];
     private static readonly string[] Competitors = ["M04SeededCollectorChurn", "M04ClassConstructorExecution", "M04InterfaceDispatch",
         "M04X64UnwindMetadata", "M04SimpleThrowCatch", "M04SingleFinallyCatch", "M04Rethrow", "M04NestedFinallyCatch",
-        "M04UnhandledException", "M04FrameDispatch"];
+        "M04UnhandledException", "M04FrameDispatch", "M04FilteredCatch"];
 
     [HostTest("m04.021.ctor-failure.efi exact required profile and missing prerequisites", HostLane.Fast, 0)]
     private static void Prerequisites()
@@ -47,7 +47,8 @@ internal static class M04ConstructorFailureEfiIntegrationTests
                     "M04X64UnwindMetadata" => ["M04TypeManagerModuleRegistration"],
                     _ => []
                 };
-                Reject(Arguments([.. Flags, .. prerequisites, collision]), build, "m04_ctor_failure_profile_conflict");
+                Reject(Arguments([.. Flags, .. prerequisites, collision]), build,
+                    collision == "M04FilteredCatch" ? "m04_filter_profile_conflict" : "m04_ctor_failure_profile_conflict");
             }
             Reject(["--boot-policy", "VerifiedExit", .. Arguments(Flags)], build, "clros_boot_policy_probe_conflict");
         }

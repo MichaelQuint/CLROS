@@ -144,6 +144,7 @@ internal static class EfiProfileTestControls
             ("M04UnhandledException", "M04GcStaticRootMaterialization", "m04_unhandled_requires_gc_profile"),
             ("M04FrameDispatch", "M04GcStaticRootMaterialization", "m04_frames_requires_gc_profile"),
             ("M04ConstructorFailure", "M04GcStaticRootMaterialization", "m04_ctor_failure_requires_gc_profile"),
+            ("M04FilteredCatch", "M04GcStaticRootMaterialization", "m04_filter_requires_gc_profile"),
             ("M04SeededCollectorChurn", "M04GcStaticRootMaterialization", "m04_churn_requires_gc_profile")
         }) if (Has(child) && !Has(parent)) return reason;
         return null;

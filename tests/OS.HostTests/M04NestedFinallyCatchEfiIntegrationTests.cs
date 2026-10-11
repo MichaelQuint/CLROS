@@ -36,7 +36,7 @@ internal static class M04NestedFinallyCatchEfiIntegrationTests
             var selected = EfiOptions.Parse(Arguments(Flags),build).Profile();
             HostCheck.True(Flags.All(selected.IsEnabled));
             foreach(string missing in Flags[..^1]) Reject([.. Arguments(Flags.Where(n=>n!=missing))],build);
-            foreach(string collision in new[]{"M04SimpleThrowCatch","M04SingleFinallyCatch","M04Rethrow","M04UnhandledException","M04FrameDispatch","M04ConstructorFailure",
+            foreach(string collision in new[]{"M04SimpleThrowCatch","M04SingleFinallyCatch","M04Rethrow","M04UnhandledException","M04FrameDispatch","M04ConstructorFailure","M04FilteredCatch",
                 "M04SeededCollectorChurn","M04ClassConstructorExecution","M04InterfaceDispatch","M04X64UnwindMetadata"})
                 Reject(Arguments([..Flags,collision]),build);
             Reject(["--boot-policy","VerifiedExit",..Arguments(Flags)],build);

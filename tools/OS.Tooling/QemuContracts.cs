@@ -670,6 +670,13 @@ public static class QemuContracts
         "TEST_PASS m04.021.ctor-failure", "CLROS_M04_021_CTOR_FAILURE_READY",
         .. M04GcStaticRootRequiredMarkers.TakeLast(8)
     ]);
+    public static IReadOnlyList<string> M04FilteredCatchRequiredMarkers { get; } = Array.AsReadOnly<string>(
+    [
+        .. M04GcStaticRootRequiredMarkers.Take(M04GcStaticRootRequiredMarkers.Count - 8),
+        "TEST_START m04.021.filters", .. Enumerable.Range(0,15).Select(stage=>"M04_FILTERS "+stage),
+        "TEST_PASS m04.021.filters", "CLROS_M04_021_FILTERS_READY",
+        .. M04GcStaticRootRequiredMarkers.TakeLast(8)
+    ]);
     public static IReadOnlyList<string> M04UnhandledRequiredMarkers { get; } = Array.AsReadOnly<string>(
     [
         .. M04GcStaticRootRequiredMarkers.Take(M04GcStaticRootRequiredMarkers.Count - 8),

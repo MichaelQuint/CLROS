@@ -3,6 +3,8 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"..\OS.Kernel\Runtime\BoundedExceptionFilterSearch.cs"] = "reviewed_filtered_catch_source_identity",
+        [@"Runtime\FilteredCatchProbe.cs"] = "reviewed_filtered_catch_source_identity",
         [@"..\OS.Kernel\Runtime\CompilerClassConstructorExecution.Invocation.cs"] = "reviewed_constructor_failure_source_identity",
         [@"Runtime\TypeInitializationException.cs"] = "reviewed_constructor_failure_source_identity",
         [@"Runtime\ConstructorFailureProbe.cs"] = "reviewed_constructor_failure_source_identity",

@@ -34,8 +34,11 @@ public static class ExceptionHandlingThunkGenerator
     public static Amd64CoffObjectDefinition DefineConstructorFailure() =>
         DefineCore(false, false, false, constructorFailure: true);
 
+    public static Amd64CoffObjectDefinition DefineFilteredCatch() =>
+        DefineCore(false, false, false, filteredCatch: true);
+
     private static Amd64CoffObjectDefinition DefineCore(bool singleFinally, bool rethrowProfile, bool outer,
-        bool nestedFinally = false, bool frameDispatch = false, bool constructorFailure = false)
+        bool nestedFinally = false, bool frameDispatch = false, bool constructorFailure = false, bool filteredCatch = false)
     {
         // The separate nested ABI adds two target slots before the aligned context.
         // Original definitions keep their exact byte layout and object identities.
@@ -148,10 +151,10 @@ public static class ExceptionHandlingThunkGenerator
         Add(0x48, 0x8D, 0x05);
         relocations.Add(new((uint)code.Count, 4, 4)); I32(0);
         Add(0xC3); // Ordinary Win64 leaf: original linker-resolved EH contribution.
-        string selector = constructorFailure ? "CLROS_CctorFailure_Select" : frameDispatch ? "CLROS_Frame_Select" : nestedFinally ? "CLROS_Nested_Select" : !rethrowProfile ? Select : outer ? "CLROS_Rethrow_SelectOuter" : "CLROS_Rethrow_SelectInner";
-        string validator = constructorFailure ? "CLROS_CctorFailure_ValidateContinuation" : frameDispatch ? "CLROS_Frame_ValidateContinuation" : nestedFinally ? "CLROS_Nested_ValidateContinuation" : !rethrowProfile ? Validate : outer ? "CLROS_Rethrow_ValidateOuter" : "CLROS_Rethrow_RejectInnerReturn";
-        string getterName = constructorFailure ? "CLROS_CctorFailure_InvokeClauses" : frameDispatch ? "CLROS_Frame_CatcherClauses" : nestedFinally ? "CLROS_Nested_Clauses" : !rethrowProfile ? GetClauseTable : outer ? "CLROS_Rethrow_OuterClauses" : "CLROS_Rethrow_InnerClauses";
-        string table = constructorFailure ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__CtorFailureInvoke" : frameDispatch ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__FrameCatcher" : nestedFinally ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__NestedCatcher" : !rethrowProfile ? ClauseTable : outer
+        string selector = filteredCatch ? "CLROS_Filter_Select" : constructorFailure ? "CLROS_CctorFailure_Select" : frameDispatch ? "CLROS_Frame_Select" : nestedFinally ? "CLROS_Nested_Select" : !rethrowProfile ? Select : outer ? "CLROS_Rethrow_SelectOuter" : "CLROS_Rethrow_SelectInner";
+        string validator = filteredCatch ? "CLROS_Filter_ValidateContinuation" : constructorFailure ? "CLROS_CctorFailure_ValidateContinuation" : frameDispatch ? "CLROS_Frame_ValidateContinuation" : nestedFinally ? "CLROS_Nested_ValidateContinuation" : !rethrowProfile ? Validate : outer ? "CLROS_Rethrow_ValidateOuter" : "CLROS_Rethrow_RejectInnerReturn";
+        string getterName = filteredCatch ? "CLROS_Filter_Clauses" : constructorFailure ? "CLROS_CctorFailure_InvokeClauses" : frameDispatch ? "CLROS_Frame_CatcherClauses" : nestedFinally ? "CLROS_Nested_Clauses" : !rethrowProfile ? GetClauseTable : outer ? "CLROS_Rethrow_OuterClauses" : "CLROS_Rethrow_InnerClauses";
+        string table = filteredCatch ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__FilterCatcher" : constructorFailure ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__CtorFailureInvoke" : frameDispatch ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__FrameCatcher" : nestedFinally ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__NestedCatcher" : !rethrowProfile ? ClauseTable : outer
             ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__RethrowOuter"
             : "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__RethrowInner";
         List<CoffSymbolDefinition> symbols =

@@ -153,7 +153,9 @@ internal static unsafe partial class RhpNewFastAllocation
             GcLine(6, s_gcOperation, s_gcCalls, b->AllocationCount, b->UsedBytes);
             GcLine(8, s_gcStack.Checks, s_gcStack.Final0, s_gcStack.Final1, s_gcStack.MinimumWitness);
             RunCollectorGraph();
-#if M04_CONSTRUCTOR_FAILURE_PROBE
+#if M04_FILTERED_CATCH_PROBE
+            if (BootSequence.IsFilteredCatchEnabled()) RunFilteredCatch();
+#elif M04_CONSTRUCTOR_FAILURE_PROBE
             if (BootSequence.IsConstructorFailureEnabled()) RunConstructorFailure();
 #elif M04_FRAME_DISPATCH_PROBE
             if (BootSequence.IsFrameDispatchEnabled()) RunFrameDispatch();
@@ -251,7 +253,7 @@ internal static unsafe partial class RhpNewFastAllocation
     // share the collecting owner; the six-role reference diagnostic stays separate.
     private static ulong AllocateGcValue(ulong token)
     {
-#if M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE || M04_NESTED_FINALLY_CATCH_PROBE || M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE
+#if M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE || M04_NESTED_FINALLY_CATCH_PROBE || M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE || M04_FILTERED_CATCH_PROBE
 #if M04_CONSTRUCTOR_FAILURE_PROBE
         if (s_gcPhase == 5 && s_ehPhase != 1) return AllocateConstructorFailureWrapper(token);
 #endif
