@@ -9,7 +9,8 @@ manifest/package stage. The exact chosen image variant determines the permitted
 failure kind/code. [Step1154](../done/step1154.md) records focused host controls and
 active no-stdlib compilation. [Step1155](../done/step1155.md) records the completed
 cleanup audit correction, strict native review, six package guest variants and
-seven ancestor regressions; renewed full-host qualification remains pending.
+seven ancestor regressions; [step1156](../done/step1156.md) accepts the bounded
+profile after 4,393 unfiltered full-host checks on unchanged corrected inputs.
 
 The qualified `EnableM06FatReadProbe` defaults false and requires the GPT profile.
 It owns `M06_FAT` records and `m06.012`..`m06.014` markers. The reviewed inventory

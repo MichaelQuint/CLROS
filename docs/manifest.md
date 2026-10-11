@@ -11,8 +11,8 @@ The default-off package profile in [step1154](../done/step1154.md) now connects
 this validator to bounded one-cluster `OS/NATIVE.MAN` reads and source-backed
 package path selection. Its active no-stdlib compile and focused host controls
 pass. [Step1155](../done/step1155.md) records strict native review and six package
-guest variants; renewed full-host qualification of the corrected source remains
-pending.
+guest variants; [step1156](../done/step1156.md) accepts the bounded batch after
+4,393 unfiltered full-host checks on unchanged corrected inputs.
 Process environment and app activation remain incomplete.
 
 ## Current Status

@@ -1,5 +1,11 @@
 # Boot Order
 
+The qualified default-off `RunOwnedPackageRead` child follows successful
+`RunOwnedFatRead`. Phases15/16/17/18 cover native manifest, APP.PKG, owned payload
+staging/free and cleanup diagnostics; phase19 follows success. Each sector uses
+a fresh reset/cleanup lifetime. [Step1156](../done/step1156.md) records combined
+native, full-host and guest evidence. The payload is never executed.
+
 The qualified `RunOwnedFatRead` child follows successful `RunOwnedGptPartition`.
 Its finite phases12/13/14 cover root FAT chain, directory/VFAT and file checksum;
 phase15 follows success. Each sector completes cleanup before another read.

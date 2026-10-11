@@ -5,11 +5,12 @@
 
 <h1 align="center">CLROS</h1>
 
-The bounded FAT read batch is [qualified](done/step1152.md): 4,357 full-host
-checks, native review, a 241-record guest capture and six ancestor regressions
-pass. CLROS reads one cross-cluster VFAT name and fragmented known file with
-repository CRC32. Manifest/package loading, continuing storage and Gate7 remain
-incomplete. Visual Studio 2026 Insiders and dotnet host builds pass.
+The bounded manifest/package batch is [qualified](done/step1156.md): 4,393
+full-host checks, native review, six package guest variants and seven ancestor
+regressions pass. A default-off profile reads a native manifest and APP.PKG,
+validates the selected payload, stages it in an owned RW/NX page and frees it.
+Application execution, continuing storage and Gate7 remain incomplete.
+Visual Studio 2026 Insiders and dotnet host builds pass.
 
 <p align="center">
   <strong>A C#-first NativeAOT operating system for minimal cloud workloads.</strong>

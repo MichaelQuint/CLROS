@@ -13260,7 +13260,7 @@
       ],
       "collisionLane": null,
       "summary": "Tracking epic for M06: Live Storage.",
-      "currentEvidence": "Bounded binding/queue #116-#119 is accepted in step1140; read/completion #120/#121 in step1143; block-contract/LBA0 #122/#123 in step1147; GPT validation/backup fallback/EFI partition location #124/#125/#126 with integration #627 in step1150. The bounded FAT chains, cross-cluster directory/VFAT and known-file CRC32 batch #127/#128/#129/#629 is qualified in step1152: all 4,357 full-host checks, native review, real 241-record FAT and six ancestor captures pass with exact source/sector/image association. #130 is the next ready native-manifest disk slice. Manifest/package loading, payload staging, storage error profiles, MSI-X continuing storage and the M06 exit criterion remain incomplete; epic and milestone stay open.",
+      "currentEvidence": "Bounded binding/queue, sector transport, block-contract/LBA0, GPT and FAT prerequisites remain accepted through steps1140/1143/1147/1150/1152. The #130/#131/#132/#133/#631 bounded manifest/package/staging/fault batch is qualified in step1156 with 4393 unchanged-input full-host checks, strict native review, six package variants and seven ancestor captures. #134 is the remaining MSI-X block completion and polling recovery slice. General workload activation, continuing storage and M06/Gate7 remain incomplete; epic and milestone stay open.",
       "implementationNotes": [
         "This issue is a tracker only and must not be claimed as implementation work.",
         "Child issues define exclusive file ownership, dependencies, markers, commands, and evidence boundaries.",
@@ -14581,7 +14581,7 @@
         "M06-014"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14608,7 +14608,7 @@
       ],
       "collisionLane": null,
       "summary": "Read and validate the native manifest from disk.",
-      "currentEvidence": "Development qualification checkpoint in done/step1155.md: the default-off bounded manifest/APP.PKG read and owned RW/NX payload staging profile now passes strict native ABI/stack review, six real package variants and seven ancestor regressions. Windows runner handoff and completed cleanup audit corrections pass 194 focused checks and a clean solution build. Full-host r03 passed 4392 checks before those corrections; renewed unfiltered qualification of the corrected source remains pending. Issues stay claimed/open. No payload execution, continuing storage, M06/Gate7, hosted .NET/Kestrel, cloud-provider or production acceptance.",
+      "currentEvidence": "Qualified in done/step1156.md on corrected code 013cff607b6012fcc01b86fc03c89ccd30496782: 4393 unfiltered full-host checks across 544 groups pass without reuse or input changes, alongside strict native ABI/stack review, six real package variants and seven ancestor regressions. The default-off profile reads bounded native manifest/APP.PKG files, validates the selected payload, stages it in one original allocator-owned RW/NX page, frees it and diagnoses finite malformed inputs after EBS. PR #632 carries the scoped batch. No payload execution, general workload activation, continuing storage, M06/Gate7, hosted .NET/Kestrel, cloud-provider or production acceptance.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read and validate the native manifest from disk.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14661,7 +14661,7 @@
         "docs/image-builder.md"
       ],
       "evidenceBoundary": "This issue proves only \"Read and validate the native manifest from disk.\" It does not by itself prove the M06 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M06-016",
@@ -14672,7 +14672,7 @@
         "M06-015"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14699,7 +14699,7 @@
       ],
       "collisionLane": null,
       "summary": "Read and validate APP.PKG from disk.",
-      "currentEvidence": "Development qualification checkpoint in done/step1155.md: the default-off bounded manifest/APP.PKG read and owned RW/NX payload staging profile now passes strict native ABI/stack review, six real package variants and seven ancestor regressions. Windows runner handoff and completed cleanup audit corrections pass 194 focused checks and a clean solution build. Full-host r03 passed 4392 checks before those corrections; renewed unfiltered qualification of the corrected source remains pending. Issues stay claimed/open. No payload execution, continuing storage, M06/Gate7, hosted .NET/Kestrel, cloud-provider or production acceptance.",
+      "currentEvidence": "Qualified in done/step1156.md on corrected code 013cff607b6012fcc01b86fc03c89ccd30496782: 4393 unfiltered full-host checks across 544 groups pass without reuse or input changes, alongside strict native ABI/stack review, six real package variants and seven ancestor regressions. The default-off profile reads bounded native manifest/APP.PKG files, validates the selected payload, stages it in one original allocator-owned RW/NX page, frees it and diagnoses finite malformed inputs after EBS. PR #632 carries the scoped batch. No payload execution, general workload activation, continuing storage, M06/Gate7, hosted .NET/Kestrel, cloud-provider or production acceptance.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Read and validate APP.PKG from disk.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14752,7 +14752,7 @@
         "docs/image-builder.md"
       ],
       "evidenceBoundary": "This issue proves only \"Read and validate APP.PKG from disk.\" It does not by itself prove the M06 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M06-017",
@@ -14763,7 +14763,7 @@
         "M06-016"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14790,7 +14790,7 @@
       ],
       "collisionLane": null,
       "summary": "Stage the selected payload into owned memory.",
-      "currentEvidence": "Development qualification checkpoint in done/step1155.md: the default-off bounded manifest/APP.PKG read and owned RW/NX payload staging profile now passes strict native ABI/stack review, six real package variants and seven ancestor regressions. Windows runner handoff and completed cleanup audit corrections pass 194 focused checks and a clean solution build. Full-host r03 passed 4392 checks before those corrections; renewed unfiltered qualification of the corrected source remains pending. Issues stay claimed/open. No payload execution, continuing storage, M06/Gate7, hosted .NET/Kestrel, cloud-provider or production acceptance.",
+      "currentEvidence": "Qualified in done/step1156.md on corrected code 013cff607b6012fcc01b86fc03c89ccd30496782: 4393 unfiltered full-host checks across 544 groups pass without reuse or input changes, alongside strict native ABI/stack review, six real package variants and seven ancestor regressions. The default-off profile reads bounded native manifest/APP.PKG files, validates the selected payload, stages it in one original allocator-owned RW/NX page, frees it and diagnoses finite malformed inputs after EBS. PR #632 carries the scoped batch. No payload execution, general workload activation, continuing storage, M06/Gate7, hosted .NET/Kestrel, cloud-provider or production acceptance.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Stage the selected payload into owned memory.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14843,7 +14843,7 @@
         "docs/image-builder.md"
       ],
       "evidenceBoundary": "This issue proves only \"Stage the selected payload into owned memory.\" It does not by itself prove the M06 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M06-018",
@@ -14854,7 +14854,7 @@
         "M06-017"
       ],
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14881,7 +14881,7 @@
       ],
       "collisionLane": "lane:probes",
       "summary": "Add malformed disk/package failure probes that remain diagnosable after EBS.",
-      "currentEvidence": "Development qualification checkpoint in done/step1155.md: the default-off bounded manifest/APP.PKG read and owned RW/NX payload staging profile now passes strict native ABI/stack review, six real package variants and seven ancestor regressions. Windows runner handoff and completed cleanup audit corrections pass 194 focused checks and a clean solution build. Full-host r03 passed 4392 checks before those corrections; renewed unfiltered qualification of the corrected source remains pending. Issues stay claimed/open. No payload execution, continuing storage, M06/Gate7, hosted .NET/Kestrel, cloud-provider or production acceptance.",
+      "currentEvidence": "Qualified in done/step1156.md on corrected code 013cff607b6012fcc01b86fc03c89ccd30496782: 4393 unfiltered full-host checks across 544 groups pass without reuse or input changes, alongside strict native ABI/stack review, six real package variants and seven ancestor regressions. The default-off profile reads bounded native manifest/APP.PKG files, validates the selected payload, stages it in one original allocator-owned RW/NX page, frees it and diagnoses finite malformed inputs after EBS. PR #632 carries the scoped batch. No payload execution, general workload activation, continuing storage, M06/Gate7, hosted .NET/Kestrel, cloud-provider or production acceptance.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Add malformed disk/package failure probes that remain diagnosable after EBS.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
@@ -14934,7 +14934,7 @@
         "docs/image-builder.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add malformed disk/package failure probes that remain diagnosable after EBS.\" It does not by itself prove the M06 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M06-019",
@@ -14946,7 +14946,7 @@
         "M05-021"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -14973,7 +14973,7 @@
       ],
       "collisionLane": null,
       "summary": "Convert polling completion to MSI-X without removing the polling recovery path.",
-      "currentEvidence": "Bounded sector transport is accepted in step1143, the live block contract/LBA0 in step1147, primary/backup GPT plus EFI partition selection in step1150, and bounded FAT chains, cross-cluster VFAT and one known-file CRC32 read in step1152. This issue has no accepted live implementation or guest proof. Native-manifest/package loading, payload staging, continuing storage and M06/Gate7 remain incomplete.",
+      "currentEvidence": "Prerequisites #133 and #114 are accepted. The bounded manifest/package/staging/fault batch is qualified in step1156 with 4393 unchanged-input full-host checks and native/guest review. This issue is ready for one bounded MSI-X block completion with polling recovery; it has no accepted implementation or guest proof. General workload activation, continuing storage and M06/Gate7 remain incomplete.",
       "implementationNotes": [
         "Implement exactly one bounded slice: Convert polling completion to MSI-X without removing the polling recovery path.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",

@@ -1,6 +1,6 @@
 # Image Builder
 
-The next disk-manifest/package/staging batch has host-tested validators in
+The bounded disk-manifest/package/staging batch has host-tested validators in
 [step1153](../done/step1153.md). Its independently authored test packages use the
 existing OSPKGv0 table and OSAPPv0 payload formats. CRC32 is an explicit expected
 fixture checksum, not an embedded or cryptographic package hash.
@@ -15,8 +15,9 @@ flushed bytes and hashes are read back. Repeat application is rejected.
 `PackageHeader`, `PackageTruncated` or `PackageLoop` only with the package profile.
 Dry runs do not mutate images. The underlying image builder commands are unchanged.
 Focused host mutation/preservation checks and all six real guest variants pass.
-[Step1155](../done/step1155.md) records native and ancestor review; renewed
-full-host qualification of the corrected source remains pending.
+[Step1155](../done/step1155.md) records native and ancestor review;
+[step1156](../done/step1156.md) accepts the bounded batch after 4,393 unfiltered
+full-host checks on unchanged corrected inputs. These are smoke fixtures.
 
 ## FAT smoke fixture
 

@@ -1,6 +1,6 @@
 # EFI Build
 
-## Package read profile awaiting qualification
+## Bounded package read profile
 
 Add `--EnableM06PackageReadProbe` to the complete FAT/GPT command below, with
 `--BuildEfi`, a fresh image and `--GptImageVariant Intact`. The flag defaults
@@ -11,8 +11,9 @@ ending `TEST_PASS m06.018` and associations to the actual disk bytes.
 Use distinct artifact paths. [Step1154](../done/step1154.md) records implementation,
 focused host controls and no-stdlib compilation. [Step1155](../done/step1155.md)
 records the Windows runner handoff correction, strict native/stack review, six
-package guest variants and seven ancestor regressions. Renewed full-host
-qualification of the corrected source remains pending.
+package guest variants and seven ancestor regressions. [Step1156](../done/step1156.md)
+accepts the bounded batch after 4,393 unfiltered full-host checks on unchanged
+corrected inputs. Ordinary boot retains its existing VerifiedExit behavior.
 
 ## FAT read profile
 

@@ -1,6 +1,6 @@
 # Storage
 
-## Manifest/package batch: implementation awaiting qualification
+## Bounded manifest/package read and staging profile
 
 [Step1153](../done/step1153.md) implements the pure helpers for owned issues
 #130–#133 and shared integration #631. The bounded native v0 manifest validator
@@ -34,10 +34,10 @@ variants have separate exact expected transcripts. Only truncation/self-loop
 disk failures are admitted to controlled fault diagnostics; uncertain transport
 cleanup fails the profile. [Step1155](../done/step1155.md) records strict native
 ABI/stack review, six real package variants and seven ancestor regressions.
-The corrected source still requires renewed full-host qualification. The issues
-stay claimed/open; app execution, continuing storage
-and Gate7 remain incomplete. Accepted FAT evidence is still
-[step1152](../done/step1152.md).
+[Step1156](../done/step1156.md) accepts the batch after corrected-source
+unfiltered full-host qualification: 4,393 checks across 544 groups, no reuse or
+input changes. App execution, continuing storage and Gate7 remain incomplete.
+Accepted FAT evidence remains [step1152](../done/step1152.md).
 
 ## Bounded FAT read profile
 
