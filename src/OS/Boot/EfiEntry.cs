@@ -2437,7 +2437,8 @@ public static unsafe class EfiEntry
                 &pool, access, 1000000, 1024, negotiated.Selected, new MacAddress(2,0,0,0,0,1),
                 new Ipv4Address(10,0,2,15), new Ipv4Address(10,0,2,2), ref cache, 100, received);
             var r = result.Receive.Queue; uint length = result.Receive.CapturedBytes;
-            if (!result.Succeeded || pool.AllocatedMask != 0 || length < 54 || length > 72 ||
+            // QEMU's user-network ARP reply is 64 zero-padded Ethernet bytes.
+            if (!result.Succeeded || pool.AllocatedMask != 0 || length < 54 || length > 76 ||
                 cache.TryLookup(new Ipv4Address(10,0,2,2), out var cached) != ArpNeighborCacheStatus.Success ||
                 cached.Entry.MacAddress != result.Reply.ResolvedMac || cached.Entry.LastUpdatedTick != 100 || cache.Count != 1) return false;
             for (int i = 54; i < length; i++) if (received[i] != 0) return false;

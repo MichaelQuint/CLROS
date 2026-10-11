@@ -26,6 +26,16 @@ internal static class QemuEthernetCaptureTests
         Bad(Capture(Frame(), request, reply, reply), expected);
         Bad(Capture(Frame(), request, reply), expected with { RequestCrc32 = expected.RequestCrc32 ^ 1 });
         Bad(Capture(Frame(), request, reply), expected with { ReceiveCrc32 = expected.ReceiveCrc32 ^ 1 });
+        byte[] padded = new byte[64]; reply.CopyTo(padded,0);
+        var paddedExpected = expected with { ReceiveBytes = 64, ReceiveCrc32 = ReferenceCrc(padded) };
+        HostCheck.True(QemuEthernetCapture.InspectArp(Capture(Frame(), request, padded), paddedExpected).Replies == 1);
+        for (int i = 42; i < padded.Length; i++)
+        {
+            byte[] changed = (byte[])padded.Clone(); changed[i] = 1;
+            Bad(Capture(Frame(), request, changed), paddedExpected with { ReceiveCrc32 = ReferenceCrc(changed) });
+        }
+        byte[] oversized = new byte[65]; reply.CopyTo(oversized,0);
+        Bad(Capture(Frame(), request, oversized), expected with { ReceiveBytes = 65, ReceiveCrc32 = ReferenceCrc(oversized) });
         for (int i = 0; i < reply.Length; i++)
         {
             byte[] changed = (byte[])reply.Clone(); changed[i] ^= 1;

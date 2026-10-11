@@ -88,7 +88,7 @@ public static class QemuEthernetCapture
 
     private static bool IsArp(ReadOnlySpan<byte> frame, bool reply, QemuArpReceiveReceipt expected)
     {
-        if (frame.Length != (reply ? expected.ReceiveBytes : 60) || frame.Length < 42 || frame.Length > 60) return false;
+        if (frame.Length != (reply ? expected.ReceiveBytes : 60) || frame.Length < 42 || frame.Length > 64) return false;
         ReadOnlySpan<byte> localMac = [2,0,0,0,0,1];
         Span<byte> peerMac = stackalloc byte[6];
         for (int i = 0; i < 6; i++) peerMac[i] = (byte)(expected.PeerMac >> ((5 - i) * 8));

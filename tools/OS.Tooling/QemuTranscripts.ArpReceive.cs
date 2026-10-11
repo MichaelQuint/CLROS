@@ -28,7 +28,7 @@ public static partial class QemuTranscripts
         Need(Row(3).SequenceEqual(PrefixRow(parent, "M07_NET 5", 4)) &&
             Row(4).SequenceEqual(PrefixRow(parent, "M07_NET 6", 4)), "m07_arp_ring_layout");
         ulong[] used = Row(5), cache = Row(7), crc = Row(8), waits = Row(11);
-        Need(used[0] == 1 && used[1] == 0 && used[2] >= 54 && used[2] <= 72 && used[3] == 1, "m07_arp_receive_used");
+        Need(used[0] == 1 && used[1] == 0 && used[2] >= 54 && used[2] <= 76 && used[3] == 1, "m07_arp_receive_used");
         Need(Row(6).SequenceEqual(new ulong[] { 12, 1, 0, 0x100000000 }), "m07_arp_modern_no_offload");
         Need(cache[0] == 1 && cache[1] == 2 && cache[2] > 0 && cache[2] < 0xffffffffffff &&
             (cache[2] & 0x010000000000) == 0 && cache[3] == 100, "m07_arp_bounded_cache");

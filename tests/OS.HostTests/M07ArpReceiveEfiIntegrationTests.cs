@@ -44,6 +44,15 @@ internal static unsafe class M07ArpReceiveEfiIntegrationTests
         string[] lines = Capture();
         var receipt = QemuTranscripts.AssertM07ArpReceiveRecords(lines);
         HostCheck.True(receipt.ReceiveBytes == 42 && receipt.PeerMac == 0x52550a000202);
+        string[] padded = (string[])lines.Clone();
+        int usedRow = Array.FindIndex(padded, l => l.StartsWith("M07_ARP 5 ", StringComparison.Ordinal));
+        int crcRow = Array.FindIndex(padded, l => l.StartsWith("M07_ARP 8 ", StringComparison.Ordinal));
+        padded[usedRow] = Row("M07_ARP 5", [1,0,76,1]);
+        padded[crcRow] = Row("M07_ARP 8", [receipt.ReceiveCrc32,64,receipt.RequestCrc32,60]);
+        HostCheck.True(QemuTranscripts.AssertM07ArpReceiveRecords(padded).ReceiveBytes == 64);
+        padded[usedRow] = Row("M07_ARP 5", [1,0,77,1]);
+        padded[crcRow] = Row("M07_ARP 8", [receipt.ReceiveCrc32,65,receipt.RequestCrc32,60]);
+        Reject(() => QemuTranscripts.AssertM07ArpReceiveRecords(padded));
         string directory = Path.Combine(Path.GetTempPath(), "clros-m07-arp-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
         try

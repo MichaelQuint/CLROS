@@ -7,6 +7,8 @@ local IPv4 to `10.0.2.15` and gateway to `10.0.2.2`. The bounded libpcap checker
 requires the independently checked parent frame before exactly one 60-byte ARP
 request and one matching reply, then binds both Ethernet CRC32 values to the
 guest receipt. Loss, duplicates, reordering and altered fields fail validation.
+Replies admit 42–64 bytes with zero-only padding. The observed 64-byte reply
+matches [libslirp's zero-initialized reply buffer](https://qemu.googlesource.com/libslirp/+/dfe1229fc8f707f76b3f4d09078ab5e9b5817469/src/slirp.c#864).
 These fixture addresses do not implement device configuration or DHCP.
 [Step1163](../done/step1163.md) records synthetic checks; real QEMU/OVMF capture
 and native/full-host qualification remain pending.
