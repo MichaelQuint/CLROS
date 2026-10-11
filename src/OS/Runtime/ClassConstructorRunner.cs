@@ -1,4 +1,4 @@
-#if NOSTDLIB_EFI && M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE
+#if NOSTDLIB_EFI && (M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE)
 namespace System.Runtime.CompilerServices;
 
 // Compiler metadata modifier required by the volatile pointer field below.
@@ -19,7 +19,7 @@ internal sealed class EagerStaticClassConstructionAttribute : Attribute { }
 internal static unsafe class ClassConstructorRunner
 {
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static nint CheckStaticClassConstructionReturnNonGCStaticBase(
+    internal static nint CheckStaticClassConstructionReturnNonGCStaticBase(
         StaticClassConstructionContext* context, nint nonGcStaticBase)
     {
         EnsureClassConstructorRun(context);

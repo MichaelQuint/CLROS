@@ -147,6 +147,15 @@ accepts three byte-identical 88-record frame guests and seven ancestor captures
 at frozen source `7168906`, with all 674 raw source inputs and embedded EFI
 payloads independently associated. General EH and Gate4 remain incomplete.
 
+The default-off `--EnableM04ConstructorFailureProbe` uses the collecting-GC
+Diagnostic chain and excludes other runtime leaves. Its inherited sequence plus
+22 constructor-failure child records totals 92 application records with ordinary
+boot success. [Step1176](../done/step1176.md) qualifies three byte-identical fresh
+captures and ten ancestors, with 679 raw source inputs and independent raw/process/
+GPT/FAT/embedded-EFI joins. Constructor and interface-dispatch ancestors contain
+82 and 158 records respectively; dispatch includes twelve constructor records.
+Repeated compiler access/cached rethrow, #90/#84 and Gate4 remain incomplete.
+
 The default-off `--EnableM04UnhandledExceptionProbe` substitutes for the rethrow
 leaf in its collecting GC Diagnostic command. It requires a fresh original
 capture and forbids custom markers, presets and raw observations. A separately

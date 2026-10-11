@@ -33,8 +33,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "65f13d8eec744631d787e5b2764a56e1a4e402e5debcb6f8a108e9a8557441fe";
-    public const string CanonicalProjectSha256 = "1096cff1940d23d47eb42887642be7e947e5c1c5ee73b808dee8a655345034f2";
+    public const string ProjectSourceSha256 = "0fcec32c0cbc06d79752be5e112a7f439c661c2de33318a85ddd52f4557729b3";
+    public const string CanonicalProjectSha256 = "964ea36f3ae1ba1a0906dc5344a0d46e4fa4c479904eec2b1d0c95e9c06c52dd";
     public const string EfiEntrySourceSha256 = "d6209ddeac1dbd3634211e9c4fac57aca56ce1dd108f4e7c3e985593d619ea30";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
@@ -255,6 +255,9 @@ public static partial class EfiContracts
         @"Runtime\ExceptionUnhandledProbe.cs|",
         @"..\OS.Kernel\Runtime\BoundedExceptionFrameSearch.cs|Runtime\BoundedExceptionFrameSearch.cs",
         @"Runtime\ExceptionFrameDispatchProbe.cs|",
+        @"Runtime\ConstructorFailureProbe.cs|",
+        @"Runtime\TypeInitializationException.cs|",
+        @"..\OS.Kernel\Runtime\CompilerClassConstructorExecution.Invocation.cs|Runtime\CompilerClassConstructorExecution.Invocation.cs",
         @"..\OS.Kernel\Runtime\BoundedExceptionFrameDispatch.cs|Runtime\BoundedExceptionFrameDispatch.cs",
     ]);
 
@@ -290,6 +293,7 @@ public static partial class EfiContracts
         "EnableM04ArithmeticConformanceProbe",
         "EnableM04CheckedReferenceBarrierProbe",
         "EnableM04ClassConstructorExecutionProbe",
+        "EnableM04ConstructorFailureProbe",
         "EnableM04FrameDispatchProbe",
         "EnableM04GcStaticRootMaterializationProbe",
         "EnableM04IndependentEndianConformanceProbe",

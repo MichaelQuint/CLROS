@@ -1,4 +1,4 @@
-#if NOSTDLIB_EFI && (M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE)
+#if NOSTDLIB_EFI && (M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE)
 using OS.Kernel.Runtime;
 using System.Runtime.CompilerServices;
 
@@ -9,6 +9,11 @@ internal static unsafe partial class RhpNewFastAllocation
     // Only the profile's original caller-owned allocation/root and retained
     // module may reach this export. This does not install general cast services
     // or extend any lifetime; dispatch contains no allocation or collection.
+#if M04_CONSTRUCTOR_FAILURE_PROBE
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static bool MatchRetainedExceptionType(ulong targetType, object value) =>
+        MatchConstructorFailureExceptionType(targetType, value);
+#else
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static bool MatchRetainedExceptionType(ulong targetType, object value)
     {
@@ -52,5 +57,6 @@ internal static unsafe partial class RhpNewFastAllocation
             return match.Matches;
         }
     }
+#endif
 }
 #endif

@@ -22,7 +22,7 @@ internal static class M04CompilerClassConstructorExecutionEfiIntegrationTests
             "'$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '$(EnableM04SeededCollectorChurnProbe)' == 'true'" })
             Need(project.Descendants("Error").Count(x => (string?)x.Attribute("Condition") == edge) == 1, "exact profile edge");
         string helper = File.ReadAllText(Path.Combine(Root, "src/OS/Runtime/ClassConstructorRunner.cs"));
-        Need(helper.StartsWith("#if NOSTDLIB_EFI && M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE", StringComparison.Ordinal) &&
+        Need(helper.StartsWith("#if NOSTDLIB_EFI && (M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE)", StringComparison.Ordinal) &&
             helper.Contains("public volatile nint cctorMethodAddress;", StringComparison.Ordinal), "profile-only exact pointer context");
         foreach (string name in new[] { "CheckStaticClassConstructionReturnNonGCStaticBase", "CheckStaticClassConstructionReturnGCStaticBase", "EnsureClassConstructorRun" })
             Need(helper.Contains(name + "(", StringComparison.Ordinal), "pinned managed helper " + name);

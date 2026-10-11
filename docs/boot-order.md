@@ -1,5 +1,11 @@
 # Boot Order
 
+`RunConstructorFailureUnwind` is gated by the default-off constructor-failure
+probe and returns a zero result when disabled. Its separate collecting-GC child
+uses the existing boot order and retains roots, module and stack authority through
+both genuine throws and the outer compiled continuation. [Step1176](../done/step1176.md)
+qualifies that finite profile; it adds no boot phase or general unwind branch support.
+
 `RunFrameDispatchUnwind` is gated by `EnableM04FrameDispatchProbe` and returns
 a zero result when disabled. The separate collecting-GC Diagnostic child uses
 the existing boot order and retains original module, root and stack authority

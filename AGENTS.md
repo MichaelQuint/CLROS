@@ -54,6 +54,13 @@ qualified in `done/step1167.md`: 4,456 full-host checks, native controls, three
 follow-up passes six focused checks and three fresh byte-identical guests.
 #90, constructor cached failures and Gate4 remain incomplete. See
 `docs/completion-gates.md` for each scope.
+The #650-#652 default-off constructor-failure batch is qualified in
+`done/step1176.md`: 4,502 full-host checks, native review, three 92-record guests
+and ten ancestors pass. One real constructor throw is wrapped and genuinely
+thrown to an outer typed catch and compiled continuation. Only one pinned Read
+body branch is interpreted locally; general unwinding is unchanged. Repeated
+compiler access/cached rethrow, #90/#84 and Gate4 remain incomplete.
+
 The #646-#648 bounded physical-frame dispatch batch is qualified in
 `done/step1171.md`: 4,488 full-host checks, final native review, three 88-record
 frame guests and seven ancestors pass. The separate default-off `M04FrameDispatch`

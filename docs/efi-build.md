@@ -1,5 +1,24 @@
 # EFI Build
 
+## Constructor-failure diagnostic profile
+
+`--EnableM04ConstructorFailureProbe` defaults false and selects only the collecting
+GC Diagnostic prerequisites, excluding all other EH/constructor/dispatch/churn/
+unwind leaves. Its separate 1,545-byte COFF has 1,048 text bytes, two EH getters,
+an 840-byte bridge and a 256-byte POD transfer. Verification binds nine original
+compiler code contributions and their linked relocation targets, two eight-byte
+typed EH tables, runtime-function extents, unwind records, wrapper layout and the
+actual type-test export. [Step1176](../done/step1176.md) qualifies the 220-node
+first-party callback graph, seven read-only jump tables and both bridge lifetimes:
+the maximum stack depth is 12,216 bytes within the 16,400-byte budget. Firmware
+diagnostic internals remain outside that static bound. Native admission and 16
+rehashed PE controls plus one object mutation pass, along with 4,502 full-host
+checks, three 92-record guests and ten ancestors. The profile checks the original
+Read+33 `EB F0` and Read+19 `MOV RAX,[RBX]`, then interprets only that branch on a
+local POD context copy; generic unwinding and the raw context are unchanged.
+Steps1172-1175 retain closed development, calibration and guard-repair evidence.
+Repeated real compiler access/cached rethrow, #90/#84 and Gate4 remain incomplete.
+
 ## Bounded physical-frame dispatch profile
 
 `--EnableM04FrameDispatchProbe` defaults false and requires the collecting-GC

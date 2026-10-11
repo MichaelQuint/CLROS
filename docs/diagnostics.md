@@ -130,6 +130,16 @@ guests, seven ancestors, 4,488 full-host checks and final native review. The
 earlier-frame cleanup and outer catch use distinct parent contexts; the original
 root survives compiled continuation. General EH and Gate4 remain incomplete.
 
+`EnableM04ConstructorFailureProbe` is a destructive, default-off collecting-GC
+Diagnostic child excluding other EH/constructor/dispatch/churn/unwind leaves.
+It emits `TEST_START m04.021.ctor-failure`, nineteen `M04_CTOR_FAILURE` rows,
+`TEST_PASS m04.021.ctor-failure` and `CLROS_M04_021_CTOR_FAILURE_READY` before
+ordinary boot success. The strict parser associates actual constructor/inner/outer
+frames, original and wrapper objects, checked inner-reference store, rooted
+collection, failed completion word and guest canaries. [Step1176](../done/step1176.md)
+qualifies three 92-record guests, ten ancestors and 4,502 full-host checks.
+Later BeginLazy refusal does not prove repeated real compiler access/cached rethrow.
+
 `EnableM04UnhandledExceptionProbe` is a separate destructive, default-off
 Diagnostic profile requiring the collecting GC chain and excluding the other EH,
 constructor, dispatch, churn and unwind leaves. A real compiled throw crosses

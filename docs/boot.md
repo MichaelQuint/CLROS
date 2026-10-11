@@ -1,5 +1,12 @@
 # Boot
 
+The default-off constructor-failure diagnostic follows the collecting-GC chain
+through `BootSequence.RunConstructorFailureUnwind`, before ordinary boot success.
+[Step1176](../done/step1176.md) qualifies one real constructor throw, wrapping
+catch, genuine wrapper throw and outer typed catch/compiled continuation with
+4,502 full-host checks, native review, three 92-record guests and ten ancestors.
+Repeated compiler access/cached rethrow, #90/#84 and Gate4 remain incomplete.
+
 The separate default-off physical-frame dispatch diagnostic follows the collecting
 GC profile through `BootSequence.RunFrameDispatchUnwind`. It models an inner
 throw, a middle-frame finally and outer typed catch before ordinary boot success.

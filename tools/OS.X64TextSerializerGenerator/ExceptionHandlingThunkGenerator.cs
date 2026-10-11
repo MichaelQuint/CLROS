@@ -29,8 +29,13 @@ public static class ExceptionHandlingThunkGenerator
 
     public static Amd64CoffObjectDefinition DefineFrameDispatch() => DefineCore(true, false, false, false, true);
 
+    // Both real throws enter this bridge. The profile's selector must distinguish
+    // the constructor exception from the later wrapper under retained authority.
+    public static Amd64CoffObjectDefinition DefineConstructorFailure() =>
+        DefineCore(false, false, false, constructorFailure: true);
+
     private static Amd64CoffObjectDefinition DefineCore(bool singleFinally, bool rethrowProfile, bool outer,
-        bool nestedFinally = false, bool frameDispatch = false)
+        bool nestedFinally = false, bool frameDispatch = false, bool constructorFailure = false)
     {
         // The separate nested ABI adds two target slots before the aligned context.
         // Original definitions keep their exact byte layout and object identities.
@@ -143,24 +148,24 @@ public static class ExceptionHandlingThunkGenerator
         Add(0x48, 0x8D, 0x05);
         relocations.Add(new((uint)code.Count, 4, 4)); I32(0);
         Add(0xC3); // Ordinary Win64 leaf: original linker-resolved EH contribution.
-        string selector = frameDispatch ? "CLROS_Frame_Select" : nestedFinally ? "CLROS_Nested_Select" : !rethrowProfile ? Select : outer ? "CLROS_Rethrow_SelectOuter" : "CLROS_Rethrow_SelectInner";
-        string validator = frameDispatch ? "CLROS_Frame_ValidateContinuation" : nestedFinally ? "CLROS_Nested_ValidateContinuation" : !rethrowProfile ? Validate : outer ? "CLROS_Rethrow_ValidateOuter" : "CLROS_Rethrow_RejectInnerReturn";
-        string getterName = frameDispatch ? "CLROS_Frame_CatcherClauses" : nestedFinally ? "CLROS_Nested_Clauses" : !rethrowProfile ? GetClauseTable : outer ? "CLROS_Rethrow_OuterClauses" : "CLROS_Rethrow_InnerClauses";
-        string table = frameDispatch ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__FrameCatcher" : nestedFinally ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__NestedCatcher" : !rethrowProfile ? ClauseTable : outer
+        string selector = constructorFailure ? "CLROS_CctorFailure_Select" : frameDispatch ? "CLROS_Frame_Select" : nestedFinally ? "CLROS_Nested_Select" : !rethrowProfile ? Select : outer ? "CLROS_Rethrow_SelectOuter" : "CLROS_Rethrow_SelectInner";
+        string validator = constructorFailure ? "CLROS_CctorFailure_ValidateContinuation" : frameDispatch ? "CLROS_Frame_ValidateContinuation" : nestedFinally ? "CLROS_Nested_ValidateContinuation" : !rethrowProfile ? Validate : outer ? "CLROS_Rethrow_ValidateOuter" : "CLROS_Rethrow_RejectInnerReturn";
+        string getterName = constructorFailure ? "CLROS_CctorFailure_InvokeClauses" : frameDispatch ? "CLROS_Frame_CatcherClauses" : nestedFinally ? "CLROS_Nested_Clauses" : !rethrowProfile ? GetClauseTable : outer ? "CLROS_Rethrow_OuterClauses" : "CLROS_Rethrow_InnerClauses";
+        string table = constructorFailure ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__CtorFailureInvoke" : frameDispatch ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__FrameCatcher" : nestedFinally ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__NestedCatcher" : !rethrowProfile ? ClauseTable : outer
             ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__RethrowOuter"
             : "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__RethrowInner";
         List<CoffSymbolDefinition> symbols =
             [new(outer ? "RhpRethrow" : Entry, 0, 1, 0x20, 2), new(selector, 0, 0, 0x20, 2), new(validator, 0, 0, 0x20, 2),
              new(getterName, getter, 1, 0x20, 2), new(table, 0, 0, 0, 2)];
         if (singleFinally) symbols.Add(new(frameDispatch ? "CLROS_Frame_ValidateCleanup" : nestedFinally ? "CLROS_Nested_ValidateCleanup" : rethrowProfile ? "CLROS_Rethrow_ValidateFinally" : ValidateFinally, 0, 0, 0x20, 2));
-        if (frameDispatch)
+        if (frameDispatch || constructorFailure)
         {
             while ((code.Count & 15) != 0) Add(0x90);
             uint middleGetter = (uint)code.Count;
             Add(0x48, 0x8D, 0x05);
-            relocations.Add(new((uint)code.Count, 7, 4)); I32(0); Add(0xC3);
-            symbols.Add(new("CLROS_Frame_MiddleClauses", middleGetter, 1, 0x20, 2));
-            symbols.Add(new("__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__FrameMiddle", 0, 0, 0, 2));
+            relocations.Add(new((uint)code.Count, (uint)symbols.Count + 1, 4)); I32(0); Add(0xC3);
+            symbols.Add(new(constructorFailure ? "CLROS_CctorFailure_OuterClauses" : "CLROS_Frame_MiddleClauses", middleGetter, 1, 0x20, 2));
+            symbols.Add(new(constructorFailure ? "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__CtorFailureOuter" : "__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__FrameMiddle", 0, 0, 0, 2));
         }
         return new(0x8664, 0, [new(".text", code.ToArray(), 0x60500020, relocations.ToArray())], symbols.ToArray());
     }
