@@ -26,7 +26,7 @@ namespace System
 #pragma warning restore 169
     }
 
-#if M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE || M04_NESTED_FINALLY_CATCH_PROBE || M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE
+#if M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE || M04_NESTED_FINALLY_CATCH_PROBE || M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE
     // CS0234 from the real throw/catch profile requires this compiler identity.
     // Only the scalar fixture hierarchy is supported: no messages, stack trace,
     // nested exception, constructor failure or general exception services.
@@ -397,7 +397,7 @@ namespace System
             [RuntimeExport("RhTypeCast_IsInstanceOfException")]
             public static bool IsInstanceOfException(Internal.Runtime.MethodTable* targetType, object value)
             {
-#if NOSTDLIB_EFI && (M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE)
+#if NOSTDLIB_EFI && (M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE)
                 return OS.Runtime.RhpNewFastAllocation.MatchRetainedExceptionType((ulong)targetType, value);
 #else
                 RuntimeFailFast.Halt();

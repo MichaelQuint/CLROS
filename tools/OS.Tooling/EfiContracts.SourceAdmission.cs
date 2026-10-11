@@ -3,6 +3,9 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"..\OS.Kernel\Runtime\CompilerClassConstructorExecution.Invocation.cs"] = "reviewed_constructor_failure_source_identity",
+        [@"Runtime\TypeInitializationException.cs"] = "reviewed_constructor_failure_source_identity",
+        [@"Runtime\ConstructorFailureProbe.cs"] = "reviewed_constructor_failure_source_identity",
         [@"..\OS.Kernel\Runtime\BoundedExceptionFrameDispatch.cs"] = "reviewed_frame_dispatch_source_identity",
         [@"Runtime\ExceptionFrameDispatchProbe.cs"] = "reviewed_frame_dispatch_source_identity",
         [@"Runtime\ExceptionUnhandledProbe.cs"] = "reviewed_unhandled_source_identity",

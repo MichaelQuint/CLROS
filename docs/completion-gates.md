@@ -229,6 +229,14 @@ floor; firmware diagnostic internals remain outside the first-party static bound
 Step1170 retains implementation and development failures. General frame dispatch,
 #90, general EH, constructor cached failures and Gate4 remain incomplete.
 
+The #650-#652 constructor-failure batch has closed development evidence in
+[step1172](../done/step1172.md). It supplies bounded Begin/Finish invocation
+bookkeeping, a separate two-table bridge, a real compiled constructor/wrapping
+catch pipeline, measured compiler frames and strict linked-code rejection controls.
+Both runtime and final native admission remain closed. Focused checks and mock
+transcript acceptance do not qualify actual transfers, full-host or guest execution.
+#90, #84 repeated-access cached failures, general EH and Gate4 remain incomplete.
+
 The #638-#640 batch adds a separate default-off nested-finally diagnostic:
 four decoded physical clauses, a nonmatching sibling catch before a matching
 base catch, and two exceptional cleanups before compiled continuation. Its

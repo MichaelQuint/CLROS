@@ -53,7 +53,8 @@ internal sealed partial class EfiVerification
         BindProfile(profile.IsEnabled("M06PackageRead"), "m06_package_read", "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__RunOwnedPackageRead");
         BindProfile(profile.IsEnabled("M07ArpReceive"), "m07_arp_receive", "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__RunOwnedArpReceive");
         BindProfile(profile.IsEnabled("M03FirmwareAdapterRevocation"), "firmware_revocation", new[] { "ReportRevokedAdapters", "AdapterConsole", "AdapterMemoryMap", "AdapterFileSystem", "AdapterTimer", "AdapterRandom", "AdapterConfiguration", "AdapterPhysicalMemory", "AdapterFramebuffer" }.Select(n => "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__" + n).ToArray());
-        BindProfile(profile.IsEnabled("M04ClassConstructorExecution"), "compiler_cctor", "OS_OS_Runtime_RhpNewFastAllocation__BindAndRunCompilerClassConstructors", "OS_OS_Runtime_RhpNewFastAllocation__CctorDirectRead", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__EnsureClassConstructorRun", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnNonGCStaticBase", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnGCStaticBase");
+        BindProfile(profile.IsEnabled("M04ClassConstructorExecution"), "compiler_cctor", "OS_OS_Runtime_RhpNewFastAllocation__BindAndRunCompilerClassConstructors", "OS_OS_Runtime_RhpNewFastAllocation__CctorDirectRead", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnGCStaticBase");
+        BindProfile(profile.IsEnabled("M04ClassConstructorExecution") || profile.IsEnabled("M04ConstructorFailure"), "compiler_cctor", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__EnsureClassConstructorRun", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnNonGCStaticBase");
         Require(!Regex.IsMatch(map, @"ClassConstructorRunner__[^\s]*ThreadStatic"), "compiler_cctor_thread_static_unsupported");
         foreach (string symbol in new[] { "Enter", "Diagnose", "Fault" }.Select(n => "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__" + n))
         {
@@ -119,6 +120,7 @@ internal sealed partial class EfiVerification
         VerifyRethrowBridges();
         VerifyNestedFinallyBridge();
         VerifyFrameDispatchBridge();
+        VerifyConstructorFailureBridge();
     }
     private void VerifyCatchBridge()
     {
@@ -132,7 +134,7 @@ internal sealed partial class EfiVerification
         if (!finallyProbe && !simple)
         {
             foreach (string name in names)
-                if (name != "RhpThrowEx" || !(profile.IsEnabled("M04Rethrow") || profile.IsEnabled("M04NestedFinallyCatch") || profile.IsEnabled("M04FrameDispatch")))
+                if (name != "RhpThrowEx" || !(profile.IsEnabled("M04Rethrow") || profile.IsEnabled("M04NestedFinallyCatch") || profile.IsEnabled("M04FrameDispatch") || profile.IsEnabled("M04ConstructorFailure")))
                     Require(Symbols(map, name).Count == 0, "simple_catch_unrequested_native_symbol", name);
             return;
         }

@@ -119,6 +119,18 @@ final native review, three 88-record frame guests and seven ancestors. Step1170
 retains development geometry and callback review. General second-pass unwinding,
 filters, collided exceptions and arbitrary rethrow remain incomplete.
 
+The default-off `EnableM04ConstructorFailureProbe` is implemented with a closed
+transfer gate in [step1172](../done/step1172.md). Its 40-byte POD invocation ticket
+retains the existing 24-byte record: failure pops the active record and preserves
+the nonzero compiler constructor word. The diagnostic has a real compiled throw,
+wrapping catch and outer `TypeInitializationException` catch, original and wrapper
+allocation roots, one checked inner-reference store, and two physical bridge
+lifetimes. The bounded wrapper exposes the original inner object and constructor
+context; type-name, message, stack-trace and general cached-failure services are
+absent. Native shape rejection checks pass, but final callback admission, actual
+transfers, full-host and guest qualification remain pending. A denied BeginLazy
+operation is not evidence of a second real compiler access or cached rethrow.
+
 The separate default-off `EnableM04UnhandledExceptionProbe` has measured
 10/46/56-byte thrower/middle/catcher contributions, a nonmatching sibling clause
 and a profile-only real type-test export. Original context/module/root authority

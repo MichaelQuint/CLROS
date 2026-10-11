@@ -153,7 +153,9 @@ internal static unsafe partial class RhpNewFastAllocation
             GcLine(6, s_gcOperation, s_gcCalls, b->AllocationCount, b->UsedBytes);
             GcLine(8, s_gcStack.Checks, s_gcStack.Final0, s_gcStack.Final1, s_gcStack.MinimumWitness);
             RunCollectorGraph();
-#if M04_FRAME_DISPATCH_PROBE
+#if M04_CONSTRUCTOR_FAILURE_PROBE
+            if (BootSequence.IsConstructorFailureEnabled()) RunConstructorFailure();
+#elif M04_FRAME_DISPATCH_PROBE
             if (BootSequence.IsFrameDispatchEnabled()) RunFrameDispatch();
 #elif M04_UNHANDLED_EXCEPTION_PROBE
             if (BootSequence.IsUnhandledExceptionEnabled()) RunUnhandledException();
@@ -249,7 +251,10 @@ internal static unsafe partial class RhpNewFastAllocation
     // share the collecting owner; the six-role reference diagnostic stays separate.
     private static ulong AllocateGcValue(ulong token)
     {
-#if M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE || M04_NESTED_FINALLY_CATCH_PROBE || M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE
+#if M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE || M04_NESTED_FINALLY_CATCH_PROBE || M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE
+#if M04_CONSTRUCTOR_FAILURE_PROBE
+        if (s_gcPhase == 5 && s_ehPhase != 1) return AllocateConstructorFailureWrapper(token);
+#endif
         if (s_gcPhase == 5) return AllocateCatchException(token);
 #endif
 #if M04_INTERFACE_DISPATCH_PROBE
@@ -280,6 +285,10 @@ internal static unsafe partial class RhpNewFastAllocation
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static uint ApplyGcReference(ulong operation, ulong destination, ulong operand, ulong bytes)
     {
+#if M04_CONSTRUCTOR_FAILURE_PROBE
+        if (s_gcPhase == 5 && s_ehPhase == 8)
+            return ApplyConstructorFailureReference(operation, destination, operand, bytes);
+#endif
         if (s_gcPhase == 4) return ApplyCollectorReference(operation, destination, operand, bytes);
         // Admit only the two actual scalar stores. No bulk, stack, array or
         // foreign-reference route falls through to an unchecked memory write.

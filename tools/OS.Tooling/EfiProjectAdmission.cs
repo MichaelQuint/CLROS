@@ -87,6 +87,7 @@ public static class EfiProjectAdmission
         string[] outputNames = ["_ClrosX64SerializerGeneratorProjectSha256", "_ClrosX64SerializerToolsPropsSha256", "_ClrosX64SerializerRootPropsSha256", "_ClrosX64SerializerRootTargetsSha256", "_ClrosX64SerializerActualSha256", "_ClrosCheckedReferenceActualSha256", "_ClrosInterfaceDispatchActualSha256", "_ClrosSimpleCatchActualSha256", "_ClrosSingleFinallyActualSha256", "_ClrosRethrowInnerActualSha256", "_ClrosRethrowOuterActualSha256"];
         outputNames = [.. outputNames, "_ClrosNestedFinallyActualSha256"];
         outputNames = [.. outputNames, "_ClrosFrameDispatchActualSha256"];
+        outputNames = [.. outputNames, "_ClrosConstructorFailureActualSha256"];
         var outputs = Elements(targets, "//Output"); Require(outputs.Length == outputNames.Length, "serializer_targets_output_injection");
         foreach (string name in outputNames) Require(outputs.Count(n => n.ParentNode?.Name == "GetFileHash" && n.Attributes.Count == 2 && n.GetAttribute("TaskParameter") == "Hash" && n.GetAttribute("PropertyName") == name && Elements(n, "*").Length == 0) == 1, "serializer_targets_output_injection", name);
         XmlDocument generator, tools;

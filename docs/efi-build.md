@@ -1,5 +1,19 @@
 # EFI Build
 
+## Closed constructor-failure development profile
+
+`--EnableM04ConstructorFailureProbe` defaults false and selects only the collecting
+GC Diagnostic prerequisites, excluding all other EH/constructor/dispatch/churn/
+unwind leaves. Its separate 1,545-byte COFF has 1,048 text bytes, two EH getters,
+an 840-byte bridge and a 256-byte POD transfer. Verification binds nine original
+compiler code contributions and their linked relocation targets, two eight-byte
+typed EH tables, runtime-function extents, unwind records, wrapper layout and the
+actual type-test export. The intact candidate deliberately fails with
+`constructor_failure_callback_stack_not_reviewed`; runtime transfer admission
+also remains false. [Step1172](../done/step1172.md) records focused host/native
+rejections, development failures and remaining review. This profile cannot yet
+produce accepted publication or guest evidence.
+
 ## Bounded physical-frame dispatch profile
 
 `--EnableM04FrameDispatchProbe` defaults false and requires the collecting-GC
