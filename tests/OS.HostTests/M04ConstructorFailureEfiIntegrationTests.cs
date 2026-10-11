@@ -81,14 +81,14 @@ internal static class M04ConstructorFailureEfiIntegrationTests
         }
     }
 
-    [HostTest("m04.021.ctor-failure.efi closed native geometry and rehashed rejection controls", HostLane.Native, 3)]
-    private static void ClosedNative()
+    [HostTest("m04.021.ctor-failure.efi native geometry and rehashed rejection controls", HostLane.Native, 3)]
+    private static void NativeAdmission()
     {
-        string root = HostToolProcess.FindRepositoryRoot(), name = "ctor-failure-closed-" + Guid.NewGuid().ToString("N"),
+        string root = HostToolProcess.FindRepositoryRoot(), name = "ctor-failure-admission-" + Guid.NewGuid().ToString("N"),
             artifact = Path.Combine(root,"artifacts/efi",name+".EFI"), log = Path.Combine(root,"artifacts/ctor-failure-native",name+".log");
         using StringWriter output = new();
         int code = EfiBuild.Run(["--EfiOutputPath",artifact,"--LogPath",log,..Arguments(Flags)],output);
-        HostCheck.True(code != 0 && output.ToString().Contains("constructor_failure_callback_stack_not_reviewed",StringComparison.Ordinal),
+        HostCheck.True(code == 0,
             output.ToString().Length > 4000 ? output.ToString()[^4000..] : output.ToString());
         byte[] original = File.ReadAllBytes(artifact);
         string evidencePath = artifact+".link.json", originalEvidence = File.ReadAllText(evidencePath), map = File.ReadAllText(artifact+".link.map");
@@ -100,14 +100,14 @@ internal static class M04ConstructorFailureEfiIntegrationTests
             return EfiPeImage.Hex(rows[0].Groups[3].Value,"fixture address")-image.ImageBase;
         }
         int Offset(string symbol,int bytes) => image.Resolve(Address(symbol),(ulong)bytes,"fixture backing","fixture ambiguity").Offset;
-        void Verify(string expected)
+        void Verify(string? expected)
         {
             string? failure = null;
             try { EfiVerify.Verify(EfiOptions.Parse(["--EfiArtifact",artifact,..Arguments(Flags)],false)); }
             catch (ToolFailure rejected) { failure = rejected.Reason; }
             HostCheck.True(failure == expected,"expected="+expected+" actual="+failure);
         }
-        Verify("constructor_failure_callback_stack_not_reviewed");
+        Verify(null);
         var controls = new List<(int At,string Reason)>();
         controls.Add((Offset("?__NONGCSTATICS@OS_OS_Runtime_ConstructorFailureFixture@@",8)-8,"constructor_failure_context_initializer_mismatch"));
         foreach (string symbol in new[] {"OS_OS_Runtime_ConstructorFailureFixture___cctor","OS_OS_Runtime_ConstructorFailureFixture__Read",
@@ -135,8 +135,8 @@ internal static class M04ConstructorFailureEfiIntegrationTests
         string sidecar = artifact+".ctor-failure.obj"; byte[] bridge = File.ReadAllBytes(sidecar);
         try { byte[] changed = [..bridge]; changed[0]^=1; File.WriteAllBytes(sidecar,changed); Verify("constructor_failure_object_identity_mismatch"); }
         finally { File.WriteAllBytes(sidecar,bridge); }
-        Verify("constructor_failure_callback_stack_not_reviewed");
-        File.WriteAllText(log+".controls",controls.Count+" rehashed PE controls and one object mutation rejected; originals restored. Closed development gate remains rejected; no native transfer/guest acceptance.\n");
+        Verify(null);
+        File.WriteAllText(log+".controls",controls.Count+" rehashed PE controls and one object mutation rejected; originals restored and native geometry admitted again. No actual transfer/guest acceptance.\n");
     }
 
     private static string[] Arguments(IEnumerable<string> names) => names.Select(name => "--Enable" + name + "Probe").ToArray();

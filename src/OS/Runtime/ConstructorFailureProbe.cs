@@ -20,9 +20,9 @@ internal static class ConstructorFailureFixture
 
 internal static unsafe partial class RhpNewFastAllocation
 {
-    // Original compiler geometry, EH records, callback stack and both real
-    // transfers must be reviewed before this gate can be enabled.
-    private const bool ConstructorFailureTransferAdmitted = false;
+    // The original compiler geometry, EH records, computed branches and both
+    // bridge lifetimes have been reviewed. Guest acceptance remains separate.
+    private const bool ConstructorFailureTransferAdmitted = true;
     private struct ConstructorFailureStorage { internal fixed ulong Words[1024]; }
     private struct ConstructorFailureRoots { internal RhpNewFastResult Original, Wrapper; }
     private struct ConstructorFailureScratch { internal fixed ulong Words[210]; }
@@ -38,8 +38,7 @@ internal static unsafe partial class RhpNewFastAllocation
     private static X64UnwindContext s_constructorFailureFirstCapture, s_constructorFailureInvokeContext, s_constructorFailureOuterContext;
     private static EhControl s_constructorFailureControl;
     private static ulong s_constructorFailureFirstTransfer;
-    // Provisional helper geometry remains behind the closed gate until the
-    // final compiler output and complete callback stack are independently read.
+    // Original reviewed compiler geometry; native admission rejects changes.
     private const uint ConstructorFailureEnsureBytes = 505, ConstructorFailureEnsureReturn = 494;
     private const uint ConstructorFailureEnsureAllocation = 128, ConstructorFailureEnsureStack = 136;
 
