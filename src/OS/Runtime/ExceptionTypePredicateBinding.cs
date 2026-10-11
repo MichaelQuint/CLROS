@@ -1,4 +1,4 @@
-#if NOSTDLIB_EFI && (M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE)
+#if NOSTDLIB_EFI && (M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE || M04_FILTERED_CATCH_PROBE)
 using OS.Kernel.Runtime;
 using System.Runtime.CompilerServices;
 
@@ -13,6 +13,10 @@ internal static unsafe partial class RhpNewFastAllocation
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static bool MatchRetainedExceptionType(ulong targetType, object value) =>
         MatchConstructorFailureExceptionType(targetType, value);
+#elif M04_FILTERED_CATCH_PROBE
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    internal static bool MatchRetainedExceptionType(ulong targetType, object value) =>
+        MatchFilteredExceptionType(targetType, value);
 #else
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static bool MatchRetainedExceptionType(ulong targetType, object value)

@@ -90,6 +90,11 @@ public static partial class Probes
 #else
     public const bool EnableM04ConstructorFailureProbe = false;
 #endif
+#if M04_FILTERED_CATCH_PROBE
+    public const bool EnableM04FilteredCatchProbe = true;
+#else
+    public const bool EnableM04FilteredCatchProbe = false;
+#endif
 
 #if M05_OWNED_ACPI_SELECTION_PROBE
     public const bool EnableM05OwnedAcpiSelectionProbe = true;
@@ -204,7 +209,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 44;
+    public const int ProbeCatalogCount = 45;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -402,6 +407,10 @@ public static partial class Probes
         new("runtime.exception", nameof(EnableM04ConstructorFailureProbe),
             EnableM04ConstructorFailureProbe, ProbeRisk.Destructive,
             "Selects one compiled constructor failure, wrapping catch and outer typed catch; exact native admission required.");
+    public static ProbeDefinition GetM04FilteredCatchProbe() =>
+        new("runtime.exception", nameof(EnableM04FilteredCatchProbe),
+            EnableM04FilteredCatchProbe, ProbeRisk.Destructive,
+            "Selects two ordered nonthrowing compiler filters and the selected catch; exact native admission required.");
 
     public static ProbeDefinition GetM05OwnedAcpiSelectionProbe() =>
         new("platform.acpi-selection", nameof(EnableM05OwnedAcpiSelectionProbe),
@@ -717,6 +726,9 @@ public static partial class Probes
                 return true;
             case 43:
                 definition = GetM04ConstructorFailureProbe();
+                return true;
+            case 44:
+                definition = GetM04FilteredCatchProbe();
                 return true;
             default:
                 definition = default;

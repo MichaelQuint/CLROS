@@ -1,5 +1,11 @@
 # Boot Order
 
+`RunFilteredCatchUnwind` is gated by `EnableM04FilteredCatchProbe` and returns a
+zero result when disabled. The separate collecting-GC Diagnostic child uses the
+existing boot order and retains original module, root and stack authority through
+the actual filters, selected second catch and compiled continuation.
+[step1181](../done/step1181.md) qualifies this finite profile; it adds no boot phase or general EH support.
+
 `RunConstructorFailureUnwind` is gated by the default-off constructor-failure
 probe and returns a zero result when disabled. Its separate collecting-GC child
 uses the existing boot order and retains roots, module and stack authority through

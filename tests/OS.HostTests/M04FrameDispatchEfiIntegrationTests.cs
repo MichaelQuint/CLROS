@@ -118,7 +118,7 @@ internal static class M04FrameDispatchEfiIntegrationTests
                 Reject(Arguments(Flags.Where(name => name != missing)), build,
                     missing == "M04GcStaticRootMaterialization" ? "m04_frames_requires_gc_profile" : null);
             foreach (string collision in new[] { "M04SeededCollectorChurn", "M04ClassConstructorExecution", "M04InterfaceDispatch",
-                "M04X64UnwindMetadata", "M04SimpleThrowCatch", "M04SingleFinallyCatch", "M04Rethrow", "M04NestedFinallyCatch", "M04UnhandledException" })
+                "M04X64UnwindMetadata", "M04SimpleThrowCatch", "M04SingleFinallyCatch", "M04Rethrow", "M04NestedFinallyCatch", "M04UnhandledException", "M04FilteredCatch" })
             {
                 string[] prerequisites = collision switch
                 {
@@ -126,7 +126,8 @@ internal static class M04FrameDispatchEfiIntegrationTests
                     "M04X64UnwindMetadata" => ["M04TypeManagerModuleRegistration"],
                     _ => []
                 };
-                Reject(Arguments([.. Flags, .. prerequisites, collision]), build, "m04_frames_profile_conflict");
+                Reject(Arguments([.. Flags, .. prerequisites, collision]), build,
+                    collision == "M04FilteredCatch" ? "m04_filter_profile_conflict" : "m04_frames_profile_conflict");
             }
             Reject(["--boot-policy", "VerifiedExit", .. Arguments(Flags)], build, "clros_boot_policy_probe_conflict");
         }

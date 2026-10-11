@@ -229,6 +229,19 @@ floor; firmware diagnostic internals remain outside the first-party static bound
 Step1170 retains implementation and development failures. General frame dispatch,
 #90, general EH, constructor cached failures and Gate4 remain incomplete.
 
+The #654-#656 default-off filtered-catch batch is qualified in [step1181](../done/step1181.md)
+at frozen source `79b59b2`: 4518 full-host checks across 582 groups (90 Native), zero failures/reuse,
+inputs unchanged; sixteen rehashed PE and two original-object rejection controls;
+three byte-identical 88-record guests and eleven ancestors. All 684 raw source
+inputs and fourteen raw/process/argument/original-linked-PC/GPT/FAT/embedded-EFI
+joins pass. Actual filter 0 returns false, filter 1 returns true and both update one
+original parent local. Only the second catch and compiled continuation execute
+once with the same rooted exception. Numeric search receipts own no invocation,
+root, module or stack authority. Eleven original code/relocation pins, four finite
+read-only computed methods (47 entries), 135 callback nodes and both returning/
+transfer lifetimes are reviewed. First-party depth 11,256 within 16,400 excludes
+firmware diagnostic internals. Filter throws, nested filters, collided unwind, arbitrary EH, cached constructor rethrow/repeated compiler access, #90/#91/#84, Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
 The #650-#652 default-off constructor-failure batch is qualified in
 [step1176](../done/step1176.md) at frozen source `660a05e`: 4,502 full-host checks
 across 577 groups (88 Native, zero failures/reuse, inputs unchanged), 16 PE and one

@@ -21,6 +21,14 @@ internal static class M04CompilerClassConstructorExecutionEfiIntegrationTests
             "'$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'",
             "'$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '$(EnableM04SeededCollectorChurnProbe)' == 'true'" })
             Need(project.Descendants("Error").Count(x => (string?)x.Attribute("Condition") == edge) == 1, "exact profile edge");
+        string[] selected = [.. RuntimeProfilePortTests.RethrowFlags[..^1], "M04ClassConstructorExecution", "M04FilteredCatch"];
+        foreach (bool build in new[] { false, true })
+        {
+            string? reason = null;
+            try { _ = OS.Tooling.EfiOptions.Parse(selected.Select(name => "--Enable" + name + "Probe").ToArray(), build).Profile(); }
+            catch (OS.Tooling.ToolFailure failure) { reason = failure.Reason; }
+            Need(reason == "m04_filter_profile_conflict", "filtered catch excludes the original constructor leaf");
+        }
         string helper = File.ReadAllText(Path.Combine(Root, "src/OS/Runtime/ClassConstructorRunner.cs"));
         Need(helper.StartsWith("#if NOSTDLIB_EFI && (M04_CLASS_CONSTRUCTOR_EXECUTION_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE)", StringComparison.Ordinal) &&
             helper.Contains("public volatile nint cctorMethodAddress;", StringComparison.Ordinal), "profile-only exact pointer context");

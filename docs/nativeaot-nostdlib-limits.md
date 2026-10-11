@@ -1,5 +1,18 @@
 # NativeAOT NoStdLib Limits
 
+The #654/#655/#656 filtered-catch batch is qualified in [step1181](../done/step1181.md):
+4518 full-host checks across 582 groups (90 Native), original native review, three byte-identical
+88-record guests and eleven ancestors pass at frozen source `79b59b2`. A separate
+four-row POD search validates the complete same-range table and ordered receipt
+prefix; zero is false and signed nonzero is true. The helper owns no invocation,
+root, module or stack authority. A returning 328-byte wrapper preserves selector
+GP/full XMM6-15/FP controls and invokes an authenticated nonthrowing compiler filter
+under the original parent context. Actual false then true filters share one
+parent local, then only the second catch and compiled continuation execute.
+Existing typed/cleanup planners still reject filters. Filter throws, nested filters, collided unwind, arbitrary EH, cached constructor rethrow/repeated compiler access, #90/#91/#84, Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+Steps1177-1180 retain candidate, offset-guard and parser-count development history;
+the final step also preserves the cancelled input-change full run.
+
 The qualified ARP batch in [step1164](../done/step1164.md) extends the shared
 pointer-backed unmanaged Span subset with bounds-checked indexing, Slice,
 Clear and conversion to a pointer-backed ReadOnlySpan. The read-only view
@@ -565,7 +578,7 @@ allocation, GC, dispatch, exception or runtime-completion requirements.
 | Interface dispatch | Bounded ordinary-instance dispatch accepted | Step1063 accepts the finite M04-016 native/guest slice and same-image rejection control. General ledger entry `InterfaceDispatch` remains incomplete; unsupported shapes and EFI type-cast helpers still fail fast |
 | Class constructors | Bounded eager/lazy execution accepted | Steps1053/1063 accept actual M04-024 invocation over the retained TypeManager owner, profile-only compiler helpers and same-thread reentry. The general `ClassConstructors` ledger remains deferred: exceptions, cached failure/rethrow and cross-thread initialization are unsupported. Earlier host planning contracts alone do not execute constructors. |
 | Thread statics | Deferred | Ledger entry `ThreadStatics`; no TLS bootstrap or NativeAOT thread-static base helper exists |
-| Exception handling/unwind | General support deferred; finite throw/catch development | Ledger entry `ExceptionUnwind` remains incomplete. Step1066 records one disabled profile executing a real typed catch and continuation. Finally, filters, rethrow and general EH remain unsupported |
+| Exception handling/unwind | General support deferred; separately qualified bounded diagnostics | Ledger entry `ExceptionUnwind` remains incomplete. Step1181 accepts two ordered nonthrowing compiler filters, a selected catch and compiled continuation; earlier steps cover bounded catch/finally/rethrow. General EH, filter throws, nested filters and collided unwind remain incomplete |
 | Module initialization | Deferred | Ledger entry `ModuleInitialization`; no kernel/runtime module initialization helper behavior is implemented |
 | TypeManager/RTR scans | Deferred | Ledger entry `TypeManagerRtrScans`; step989 accepts one bounded current-image module and slot-derived consumer in QEMU, while general registry/scanning and hosted runtime support remain unaccepted |
 | GC stack roots | Deferred | Ledger entry `GcStackRoots`; stack-root registration/scanning helpers are not implemented |

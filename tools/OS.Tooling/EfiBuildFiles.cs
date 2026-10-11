@@ -103,6 +103,7 @@ public sealed record EfiOutputPlan(string Directory, string EfiPath, string MapP
         if (profile is null || profile.IsEnabled("M04SimpleThrowCatch") || profile.IsEnabled("M04UnhandledException")) paths.Add(efi + ".catch.obj");
         if (profile is null || profile.IsEnabled("M04SingleFinallyCatch")) paths.Add(efi + ".finally.obj");
         if (profile is null || profile.IsEnabled("M04Rethrow")) paths.AddRange([efi + ".rethrow-inner.obj", efi + ".rethrow-outer.obj"]);
+        if (profile is null || profile.IsEnabled("M04FilteredCatch")) { paths.Add(efi + ".filter-catch.obj"); paths.Add(efi + ".filter-invoke.obj"); }
         if (profile is null || profile.IsEnabled("M04ConstructorFailure")) paths.Add(efi + ".ctor-failure.obj");
         if (profile is null || profile.IsEnabled("M04FrameDispatch")) paths.Add(efi + ".frames.obj");
         if (profile is null || profile.IsEnabled("M04NestedFinallyCatch")) paths.Add(efi + ".nested-finally.obj");

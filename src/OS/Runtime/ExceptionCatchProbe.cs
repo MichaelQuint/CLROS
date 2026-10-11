@@ -1,4 +1,4 @@
-#if NOSTDLIB_EFI && (M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE || M04_NESTED_FINALLY_CATCH_PROBE || M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE)
+#if NOSTDLIB_EFI && (M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE || M04_NESTED_FINALLY_CATCH_PROBE || M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE || M04_FILTERED_CATCH_PROBE)
 using OS.Boot;
 using OS.Kernel.Runtime;
 using System.Runtime.CompilerServices;
@@ -70,7 +70,7 @@ internal static unsafe partial class RhpNewFastAllocation
     private static EhControl s_ehEntryControl;
 #endif
 
-#if !M04_RETHROW_PROBE && !M04_NESTED_FINALLY_CATCH_PROBE && !M04_UNHANDLED_EXCEPTION_PROBE && !M04_FRAME_DISPATCH_PROBE && !M04_CONSTRUCTOR_FAILURE_PROBE
+#if !M04_RETHROW_PROBE && !M04_NESTED_FINALLY_CATCH_PROBE && !M04_UNHANDLED_EXCEPTION_PROBE && !M04_FRAME_DISPATCH_PROBE && !M04_CONSTRUCTOR_FAILURE_PROBE && !M04_FILTERED_CATCH_PROBE
     [System.Runtime.RuntimeImport("*", "CLROS_Eh_GetClauseTable")]
     [MethodImpl(MethodImplOptions.InternalCall)]
     private static extern ulong EhClauseTable();
@@ -128,7 +128,7 @@ internal static unsafe partial class RhpNewFastAllocation
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static SimpleCatchDerived NewCatchException(ulong payload) => new(payload);
-#if !M04_RETHROW_PROBE && !M04_NESTED_FINALLY_CATCH_PROBE && !M04_UNHANDLED_EXCEPTION_PROBE && !M04_FRAME_DISPATCH_PROBE && !M04_CONSTRUCTOR_FAILURE_PROBE
+#if !M04_RETHROW_PROBE && !M04_NESTED_FINALLY_CATCH_PROBE && !M04_UNHANDLED_EXCEPTION_PROBE && !M04_FRAME_DISPATCH_PROBE && !M04_CONSTRUCTOR_FAILURE_PROBE && !M04_FILTERED_CATCH_PROBE
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void Thrower(System.Exception value) { throw value; }
     [MethodImpl(MethodImplOptions.NoInlining)]
@@ -248,7 +248,7 @@ internal static unsafe partial class RhpNewFastAllocation
     [MethodImpl(MethodImplOptions.NoInlining)] private static ulong EhBaseType() => (ulong)Internal.Runtime.MethodTable.Of<SimpleCatchBase>();
     [MethodImpl(MethodImplOptions.NoInlining)] private static bool EhGeometryReady() => EhTransferAdmitted;
 
-#if !M04_RETHROW_PROBE && !M04_NESTED_FINALLY_CATCH_PROBE && !M04_UNHANDLED_EXCEPTION_PROBE && !M04_FRAME_DISPATCH_PROBE && !M04_CONSTRUCTOR_FAILURE_PROBE
+#if !M04_RETHROW_PROBE && !M04_NESTED_FINALLY_CATCH_PROBE && !M04_UNHANDLED_EXCEPTION_PROBE && !M04_FRAME_DISPATCH_PROBE && !M04_CONSTRUCTOR_FAILURE_PROBE && !M04_FILTERED_CATCH_PROBE
 #if M04_SINGLE_FINALLY_CATCH_PROBE
     [System.Runtime.RuntimeExport("CLROS_Eh_Select")]
     private static uint SelectCatch(ulong exception, X64UnwindContext* captured, EhTransfer* transfer, EhControl* control)
@@ -505,7 +505,12 @@ internal static unsafe partial class RhpNewFastAllocation
     private static void EhText(uint kind)
     {
         // Constant string access is already supported by the admitted shell.
-#if M04_CONSTRUCTOR_FAILURE_PROBE
+#if M04_FILTERED_CATCH_PROBE
+        string text = kind == 0 ? "TEST_START m04.021.filters\r\n" :
+            kind == 1 ? "TEST_PASS m04.021.filters\r\n" :
+            kind == 2 ? "CLROS_M04_021_FILTERS_READY\r\n" :
+            kind == 3 ? "TEST_FAIL m04.021.filters " : "M04_FILTERS ";
+#elif M04_CONSTRUCTOR_FAILURE_PROBE
         string text = kind == 0 ? "TEST_START m04.021.ctor-failure\r\n" :
             kind == 1 ? "TEST_PASS m04.021.ctor-failure\r\n" :
             kind == 2 ? "CLROS_M04_021_CTOR_FAILURE_READY\r\n" :

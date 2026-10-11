@@ -121,6 +121,7 @@ internal sealed partial class EfiVerification
         VerifyNestedFinallyBridge();
         VerifyFrameDispatchBridge();
         VerifyConstructorFailureBridge();
+        VerifyFilteredCatchBridge();
     }
     private void VerifyCatchBridge()
     {
@@ -134,7 +135,7 @@ internal sealed partial class EfiVerification
         if (!finallyProbe && !simple)
         {
             foreach (string name in names)
-                if (name != "RhpThrowEx" || !(profile.IsEnabled("M04Rethrow") || profile.IsEnabled("M04NestedFinallyCatch") || profile.IsEnabled("M04FrameDispatch") || profile.IsEnabled("M04ConstructorFailure")))
+                if (name != "RhpThrowEx" || !(profile.IsEnabled("M04Rethrow") || profile.IsEnabled("M04NestedFinallyCatch") || profile.IsEnabled("M04FrameDispatch") || profile.IsEnabled("M04ConstructorFailure") || profile.IsEnabled("M04FilteredCatch")))
                     Require(Symbols(map, name).Count == 0, "simple_catch_unrequested_native_symbol", name);
             return;
         }

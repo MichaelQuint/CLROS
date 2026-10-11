@@ -21,6 +21,10 @@ public static partial class EfiContracts
     public const string InterfaceDispatchObjectSha256 = "228630b0ad4d6ab298414fda0fcf07e76cb4699a63339fa59ba331afdc3aeb61";
     public const string SimpleCatchObjectSha256 = "dd32dc30808c3b6dd42981df652b95f62236bdc8c45c1daa3dde32bab1c981ab";
     public const string SingleFinallyObjectSha256 = "d24da7653745da1d37f1fc9d286a2e370c32b687a0415e90fc626a597326025a";
+    public const int FilteredCatchObjectBytes = 1361;
+    public const string FilteredCatchObjectSha256 = "16fc99408418187da12bab063932e8c0489dd7fc1e0dadb986136f700d0859a3";
+    public const int FilterInvokeObjectBytes = 771;
+    public const string FilterInvokeObjectSha256 = "e6d84f39a3f159edefaa7a68dd552bf34ccbfa39efbe61f5acdfaa80b838b8a1";
     public const int ConstructorFailureObjectBytes = 1545;
     public const string ConstructorFailureObjectSha256 = "6f17a868dbbccfbaaf0dc46527f8da2c2c92487a7075995eb42df7d6cb019240";
     public const int FrameDispatchObjectBytes = 1869;
@@ -37,7 +41,8 @@ public static partial class EfiContracts
         "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj", "tools/OS.X64TextSerializerGenerator/Program.cs",
         "tools/OS.X64TextSerializerGenerator/Amd64CoffWriter.cs", "tools/OS.X64TextSerializerGenerator/CheckedReferenceBarrierThunkGenerator.cs",
         "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs", "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs",
-        "tools/OS.X64TextSerializerGenerator/ExceptionHandlingThunkGenerator.cs"
+        "tools/OS.X64TextSerializerGenerator/ExceptionHandlingThunkGenerator.cs",
+        "tools/OS.X64TextSerializerGenerator/ExceptionFilterThunkGenerator.cs"
     ]);
     public const int MaximumRuntimeFunctionRecords = 2048, MaximumLinkResponseTokens = 4096;
     public const int SerializerObjectBytes = 336, SerializerSuccessCookie = 1397902403;
