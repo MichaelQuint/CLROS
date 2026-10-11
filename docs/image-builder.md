@@ -14,8 +14,9 @@ flushed bytes and hashes are read back. Repeat application is rejected.
 `--PackageImageVariant` selects `Intact`, `ManifestVersion`, `PackageChecksum`,
 `PackageHeader`, `PackageTruncated` or `PackageLoop` only with the package profile.
 Dry runs do not mutate images. The underlying image builder commands are unchanged.
-Focused host mutation/preservation checks pass; real guest qualification remains
-pending.
+Focused host mutation/preservation checks and all six real guest variants pass.
+[Step1155](../done/step1155.md) records native and ancestor review; renewed
+full-host qualification of the corrected source remains pending.
 
 ## FAT smoke fixture
 

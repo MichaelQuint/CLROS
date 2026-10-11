@@ -9,8 +9,10 @@ false and requires the completed FAT profile. `--PackageImageVariant` accepts
 `PackageTruncated` and `PackageLoop`; each requires its own exact transcript
 ending `TEST_PASS m06.018` and associations to the actual disk bytes.
 Use distinct artifact paths. [Step1154](../done/step1154.md) records implementation,
-focused host controls and no-stdlib compilation, with linked-native/stack,
-full-host and real guest qualification still pending.
+focused host controls and no-stdlib compilation. [Step1155](../done/step1155.md)
+records the Windows runner handoff correction, strict native/stack review, six
+package guest variants and seven ancestor regressions. Renewed full-host
+qualification of the corrected source remains pending.
 
 ## FAT read profile
 

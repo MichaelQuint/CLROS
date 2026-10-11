@@ -1959,9 +1959,16 @@ public static unsafe class EfiEntry
         private static bool WritePackageCleanup(Storage* state)
         {
             byte status = 0xff;
+            ushort command = 0xffff;
             var read8 = (delegate* unmanaged<void*, ulong, byte*, byte>)&ReadVirtioStatus;
-            return state->BlockReadPhase == 7 && FirstExitOwnedArena.ValidateCanaries(state->Arena) &&
-                BlockDisableBusMaster(state) == 1 && read8(null, state->BlockCommon.VirtualStart + 20, &status) == 1 && status == 0 &&
+            var read16 = (delegate* unmanaged<void*, ulong, ushort*, byte>)&ReadBlockWord;
+            // Transport cleanup already disabled bus mastering and reset the
+            // device. Audit the completed state through retained PCI/MMIO reads.
+            return state->BlockPhase == 5 && state->BlockReadPhase == 7 && state->PackagePhase == 18 &&
+                FirstExitOwnedArena.ValidateCanaries(state->Arena) &&
+                read16(null, state->PciWindow.Start + 0x30004, &command) == 1 &&
+                command == state->BlockCommand && (command & 4) == 0 &&
+                read8(null, state->BlockCommon.VirtualStart + 20, &status) == 1 && status == 0 &&
                 WritePackageRow(state, 9, 1, status, 1, 1);
         }
 

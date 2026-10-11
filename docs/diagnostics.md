@@ -7,7 +7,9 @@ restoration. Controlled malformed-input success requires a known typed failure,
 completed cleanup and valid canaries; it does not pass the interrupted positive
 manifest/package stage. The exact chosen image variant determines the permitted
 failure kind/code. [Step1154](../done/step1154.md) records focused host controls and
-active no-stdlib compilation; native, full-host and guest qualification is pending.
+active no-stdlib compilation. [Step1155](../done/step1155.md) records the completed
+cleanup audit correction, strict native review, six package guest variants and
+seven ancestor regressions; renewed full-host qualification remains pending.
 
 The qualified `EnableM06FatReadProbe` defaults false and requires the GPT profile.
 It owns `M06_FAT` records and `m06.012`..`m06.014` markers. The reviewed inventory

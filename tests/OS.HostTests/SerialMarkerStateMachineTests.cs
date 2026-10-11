@@ -408,6 +408,13 @@ internal static class SerialMarkerStateMachineTests
         bool countRejected = Throws<ArgumentOutOfRangeException>(
             () => new SerialMarkerStateMachine(tooManyMarkers, []));
         _ = new SerialMarkerStateMachine(tooManyMarkers[..^1], []);
+        _ = new SerialMarkerStateMachine([], [], orderedMarkers: tooManyMarkers[..^1], uniqueMarkers: tooManyMarkers[..^1]);
+        countRejected &= Throws<ArgumentOutOfRangeException>(
+            () => new SerialMarkerStateMachine([], [], orderedMarkers: tooManyMarkers));
+        countRejected &= Throws<ArgumentOutOfRangeException>(
+            () => new SerialMarkerStateMachine([], [], uniqueMarkers: tooManyMarkers));
+        countRejected &= Throws<ArgumentOutOfRangeException>(
+            () => new SerialMarkerStateMachine(tooManyMarkers[..^1], [], orderedMarkers: ["EXTRA_MARKER"]));
         bool duplicateRejected = Throws<ArgumentException>(
             () => new SerialMarkerStateMachine(["MARKER", "MARKER"], []));
         bool overlapRejected = Throws<ArgumentException>(

@@ -32,8 +32,10 @@ failure-metadata checks pass, as does the active no-stdlib C# compile. Intact,
 manifest-version, package-checksum, package-header, truncated-chain and self-loop
 variants have separate exact expected transcripts. Only truncation/self-loop
 disk failures are admitted to controlled fault diagnostics; uncertain transport
-cleanup fails the profile. Full-host, linked-native/stack and real guest evidence
-remain pending. The issues stay claimed/open; app execution, continuing storage
+cleanup fails the profile. [Step1155](../done/step1155.md) records strict native
+ABI/stack review, six real package variants and seven ancestor regressions.
+The corrected source still requires renewed full-host qualification. The issues
+stay claimed/open; app execution, continuing storage
 and Gate7 remain incomplete. Accepted FAT evidence is still
 [step1152](../done/step1152.md).
 

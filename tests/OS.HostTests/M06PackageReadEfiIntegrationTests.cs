@@ -11,6 +11,18 @@ internal static unsafe class M06PackageReadEfiIntegrationTests
     internal static readonly string[] Flags = [.. M06FatReadEfiIntegrationTests.Flags, "--EnableM06PackageReadProbe"];
     private static readonly string[] Variants = ["Intact", "ManifestVersion", "PackageChecksum", "PackageHeader", "PackageTruncated", "PackageLoop"];
 
+    [HostTest("m06.package.efi hands the complete long marker contract to the real runner")]
+    private static void RunnerHandoff()
+    {
+        string[] args = ["qemu", "smoke", "--DryRun", "--BuildEfi", .. Flags];
+        var result = HostToolProcess.RunTool(args);
+        HostCheck.True(result.ExitCode == 0, result.Error + result.Output);
+        string markers = string.Join(";", QemuContracts.M06PackageReadMarkers("Intact"));
+        foreach (string prefix in new[] { "REQUIRED_MARKERS ", "ORDERED_MARKERS ", "UNIQUE_MARKERS " })
+            HostCheck.True(result.Output.Contains(prefix + markers, StringComparison.Ordinal), prefix);
+        HostCheck.True(result.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal));
+    }
+
     [HostTest("m06.package.efi defaults off and requires FAT fresh image and exact fault ownership")]
     private static void Profile()
     {

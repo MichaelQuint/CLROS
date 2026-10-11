@@ -10,7 +10,9 @@ absolute/drive/backslash, empty and dot/dot-dot segments.
 The default-off package profile in [step1154](../done/step1154.md) now connects
 this validator to bounded one-cluster `OS/NATIVE.MAN` reads and source-backed
 package path selection. Its active no-stdlib compile and focused host controls
-pass; linked native, full-host and guest qualification remain pending.
+pass. [Step1155](../done/step1155.md) records strict native review and six package
+guest variants; renewed full-host qualification of the corrected source remains
+pending.
 Process environment and app activation remain incomplete.
 
 ## Current Status
