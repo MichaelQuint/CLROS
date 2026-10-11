@@ -6,13 +6,16 @@ native candidate after original callback/stack and computed-target review.
 [Step1179](../done/step1179.md) corrects return/continuation offsets after the
 first guest rejects before filter execution. The repaired candidate still awaits
 guest and renewed full qualification.
+[Step1180](../done/step1180.md) records one real successful bounded guest path
+whose strict runner rejected an incorrect stack-check-count expectation; that
+expectation is corrected, and accepted qualification remains pending.
 A separate four-row POD search validates
 same-range filter siblings and ordered return receipts; it owns no invocation,
 object root, module or stack authority. A returning wrapper preserves the
 selector's full nonvolatiles and calls one authenticated nonthrowing compiler
 filter under the original parent context. The default-off child, original
 compiler EH/code/unwind pins and bounded rooted class predicate pass focused
-host/native controls. Filter execution in a guest, full qualification, filter
+host/native controls. Full qualification, filter
 throws, nested filters and collided unwind remain unproved. Existing typed and
 cleanup planners still reject filters; parent #90 and general EH remain open.
 

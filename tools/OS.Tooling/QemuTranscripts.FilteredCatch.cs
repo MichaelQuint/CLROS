@@ -39,7 +39,8 @@ public static partial class QemuTranscripts
             rows[14].SequenceEqual(new[]{original,rows[1][1],2UL,1UL}),reason+"_selected_catch_and_compiled_continuation");
         foreach(var (at,bytes) in new (decimal,decimal)[]{((decimal)rows[2][2]-848,848),(parentRsp,88)})
             Need(at%8 == 0 && at >= (decimal)stack[0]+16400 && at+bytes <= stack[2],reason+"_stack_ranges");
-        Need(rows[13][0] == 15 && rows[13][1]%8 == 0 && rows[13][1] >= (decimal)stack[0]+16 &&
+        // Bind, selector, four checks per filter, catch, validator, continuation and final check: fourteen.
+        Need(rows[13][0] == 14 && rows[13][1]%8 == 0 && rows[13][1] >= (decimal)stack[0]+16 &&
             rows[13][1] < (decimal)rows[2][2]-848 && rows[13][2] == canaries[1] && rows[13][3] == canaries[2],reason+"_canaries");
     }
 }
