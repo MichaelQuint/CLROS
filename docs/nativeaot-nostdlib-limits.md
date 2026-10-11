@@ -1,5 +1,13 @@
 # NativeAOT NoStdLib Limits
 
+The #658/#659/#660 compiler EH catalog batch is qualified in [step1184](../done/step1184.md):
+4525 full-host checks across 586 groups (92 Native), original native review, three 92-record
+guests and twelve ancestors. Exact original compiler contributions replace
+per-method imported clause bounds in the existing two-frame Diagnostic. Generic
+catalog extent getters, whole-table validation and preserved original compiler
+inputs are accepted only under retained module/snapshot/root/stack authority.
+Measured parent/funclet offsets remain profile guards. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
 The #654/#655/#656 filtered-catch batch is qualified in [step1181](../done/step1181.md):
 4518 full-host checks across 582 groups (90 Native), original native review, three byte-identical
 88-record guests and eleven ancestors pass at frozen source `79b59b2`. A separate

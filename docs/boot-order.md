@@ -2,8 +2,8 @@
 
 `BootSequence.IsEhCatalogEnabled()` requires both catalog and physical-frame
 switches. The modifier retains `RunFrameDispatchUnwind` and the existing phase
-order; it adds no dispatcher or boot phase. [step1183](../done/step1183.md) is
-development evidence only, with full-host/guest qualification pending.
+order. [step1184](../done/step1184.md) qualifies the finite two-caller diagnostic, with no new
+boot phase or general dispatcher. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
 
 `RunFilteredCatchUnwind` is gated by `EnableM04FilteredCatchProbe` and returns a
 zero result when disabled. The separate collecting-GC Diagnostic child uses the
