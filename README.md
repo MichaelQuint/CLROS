@@ -5,6 +5,12 @@
 
 <h1 align="center">CLROS</h1>
 
+The default-off bounded CPL3/syscall boundary is [qualified](done/step1201.md):
+4,619 full-host checks, scoped original native review, three mechanical ELF
+write/exit guests, four controlled-negative guests and seven ancestors pass.
+This proves one checked user excursion and restoration; real NativeAOT Hello,
+threads/TLS/futex/signals, continuing services and CLROS Kestrel remain incomplete.
+
 The bounded modern RX/header/ARP batch is [qualified](done/step1164.md):
 4,441 full-host checks, linked native review, a 194-record ARP guest capture,
 independent request/reply libpcap and thirteen ancestor regressions pass. The

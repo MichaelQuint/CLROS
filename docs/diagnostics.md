@@ -1,5 +1,15 @@
 # Diagnostics
 
+Qualified `EnableM16005Probe` defaults false and requires the package, protected
+startup and owned service children. [step1201](../done/step1201.md) binds one
+mechanical CPL3 ELF to checked write/exit/errno and complete owned-baseline
+restoration. `M16_005_ARMED`, repeated CALL/WRITE rows, RESTORE, EXIT and
+`CLROS_M16_005_READY` form the positive child stream. Exit 42 is required;
+fixture challenge failure exits 99 and cannot qualify. HLT, supervisor-page
+read, hostile RSP and RW/NX return captures retain ordinary smoke failure and
+use `AssertLinuxSyscallNegativeCapture` for separate exact negative acceptance.
+The original package/startup/service/owned validators remain mandatory.
+
 Qualified `EnableM04NormalFinallyProbe` defaults false and requires collecting
 GC, with other EH/catalog/churn/constructor/interface profiles excluded. It owns
 `TEST_START/PASS m04.021.normal-finally`, fifteen `M04_NORMAL_FINALLY 0`..`14`

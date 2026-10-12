@@ -1060,43 +1060,60 @@ public static unsafe class EfiEntry
             var plan = LinuxUserTransitionPlan(state, state->LinuxInitialStack.StackPointer);
             byte* code = (byte*)state->LinuxSyscallCode; byte* data = (byte*)state->LinuxSyscallData;
             byte* cpu = state->Memory.Code + FirstExitCodeBundle.ClockAccessOffset;
-            if (!X64OwnedClockAccess.Validate(cpu, X64OwnedClockAccess.Bytes)) return false;
+            if (!X64OwnedClockAccess.Validate(cpu, X64OwnedClockAccess.Bytes)) return LinuxSyscallAdmissionFailure(state, "clock-code");
             uint* cpuidWords = stackalloc uint[4];
             var cpuid = (delegate* unmanaged<uint, uint, uint*, void>)(cpu + X64OwnedClockAccess.CpuidOffset);
             cpuid(1, 0, cpuidWords);
-            if (((cpuidWords[1] >> 16) & 255) != 1) return false; // bounded one-logical-CPU profile
+            // CPUID.1 EBX[23:16] is valid only when EDX.HTT is set.
+            if (!X64LinuxUserTransition.SingleLogicalProcessor(cpuidWords[1], cpuidWords[3]))
+                return LinuxSyscallAdmissionFailure(state, "logical-cpu", cpuidWords[1]);
             cpuid(0x80000000, 0, cpuidWords);
-            if (cpuidWords[0] < 0x80000001) return false;
+            if (cpuidWords[0] < 0x80000001) return LinuxSyscallAdmissionFailure(state, "extended-cpuid", cpuidWords[0]);
             cpuid(0x80000001, 0, cpuidWords);
-            if ((cpuidWords[3] & 0x20100800) != 0x20100800 ||
-                !X64LinuxUserTransition.ValidateReadBack(code, X64LinuxUserTransition.CodeBytes, plan) ||
+            if ((cpuidWords[3] & 0x20100800) != 0x20100800) return LinuxSyscallAdmissionFailure(state, "syscall-nx-lm", cpuidWords[3]);
+            if (!X64LinuxUserTransition.ValidateReadBack(code, X64LinuxUserTransition.CodeBytes, plan) ||
                 !X64UserAddressSpace.Audit((X64UserMappingRange*)state->LinuxUserRanges, state->LinuxUserRangeCount,
                     (ulong*)state->LinuxUserTables, state->LinuxUserTables, X64UserAddressSpace.MaximumTables,
                     state->Memory.Tables.Preconditions, state->LinuxUserRoot) ||
                 !LinuxSupervisorLeaf(state, plan.CodeAddress, true, false) ||
                 !LinuxSupervisorLeaf(state, plan.Dispatcher, true, false) ||
                 !LinuxSupervisorLeaf(state, plan.FaultReporter, true, false) ||
-                !LinuxSupervisorLeaf(state, plan.CallbackContext, false, true)) return false;
+                !LinuxSupervisorLeaf(state, plan.CallbackContext, false, true)) return LinuxSyscallAdmissionFailure(state, "code-root-callbacks");
             for (uint page = 0; page < X64LinuxUserTransition.DataPages; page++)
             {
                 ulong address = plan.ContextAddress + page * Page;
                 if (page == 3)
                 {
                     if (!X64UserAddressSpace.TryReadLeaf((ulong*)state->LinuxUserTables, state->LinuxUserTables,
-                        X64UserAddressSpace.MaximumTables, address, out ulong guard) || guard != 0) return false;
+                        X64UserAddressSpace.MaximumTables, address, out ulong guard) || guard != 0) return LinuxSyscallAdmissionFailure(state, "guard", page);
                 }
-                else if (!LinuxSupervisorLeaf(state, address, false, true)) return false;
+                else if (!LinuxSupervisorLeaf(state, address, false, true)) return LinuxSyscallAdmissionFailure(state, "context-stack", page);
             }
             ulong* original = state->LinuxSyscallOriginal;
             for (uint i = 0; i < X64LinuxUserTransition.ObservationWords; i++) original[i] = 0;
             var observe = (delegate* unmanaged<ulong*, void>)(code + X64LinuxUserTransition.ObserveOffset);
             observe(original);
             if (original[1] != (ulong)state->Memory.Entries || original[4] != 8 || original[5] != 16 || original[6] != 24 ||
-                !X64LinuxUserTransition.AdmitCpu(original[0], original[2], original[10], (uint)original[7], (uint)original[9], original[3]) ||
-                *(ushort*)(original + 17) != *(ushort*)state->Arena.Descriptors->Gdtr || *(ulong*)((byte*)(original + 17) + 2) != (ulong)state->Arena.Descriptors->Gdt ||
+                !X64LinuxUserTransition.AdmitCpu(original[0], original[2], original[10], (uint)original[7], (uint)original[9], original[3]))
+            {
+                if (!LinuxText(state, "M16_005_CPU cr0=") || !LinuxNumber(state, original[0]) ||
+                !LinuxText(state, " cr4=") || !LinuxNumber(state, original[2]) ||
+                !LinuxText(state, " efer=") || !LinuxNumber(state, original[10]) ||
+                !LinuxText(state, " flags=") || !LinuxNumber(state, original[3]) ||
+                !LinuxText(state, " cs=") || !LinuxNumber(state, original[4]) ||
+                !LinuxText(state, " ss=") || !LinuxNumber(state, original[5]) ||
+                !LinuxText(state, " tr=") || !LinuxNumber(state, original[6]) || !LinuxText(state, "\r\n")) return false;
+                return LinuxSyscallAdmissionFailure(state, "cpu-controls");
+            }
+            if (*(ushort*)(original + 17) != *(ushort*)state->Arena.Descriptors->Gdtr || *(ulong*)((byte*)(original + 17) + 2) != (ulong)state->Arena.Descriptors->Gdt ||
                 *(ushort*)(original + 19) != 4095 || *(ulong*)((byte*)(original + 19) + 2) != (ulong)state->Arena.Descriptors->FinalIdt ||
                 !X64LinuxUserTransition.Prepare(data, X64LinuxUserTransition.DataBytes, plan,
-                    state->Arena.Descriptors->Gdt, 4096, state->Arena.Descriptors->FinalIdt, 4096)) return false;
+                    state->Arena.Descriptors->Gdt, 4096, state->Arena.Descriptors->FinalIdt, 4096)) return LinuxSyscallAdmissionFailure(state, "descriptor-context");
+            ulong fsBase = original[14], gsBase = original[15];
+            ((delegate* unmanaged<void>)(code + X64LinuxUserTransition.EstablishSegmentsOffset))();
+            observe(original);
+            if (original[23] != 0 || original[24] != 0 || original[14] != fsBase || original[15] != gsBase)
+                return LinuxSyscallAdmissionFailure(state, "owned-fs-gs");
             state->LinuxSyscallPlan = plan;
             LinuxSyscallAdmission admission = new()
             {
@@ -1107,7 +1124,7 @@ public static unsafe class EfiEntry
             if (LinuxSyscallGateway.Begin(ref state->LinuxSyscallState, admission, access) != LinuxSyscallGateStatus.Active ||
                 !LinuxText(state, "M16_005_ARMED root=") || !LinuxNumber(state, plan.UserRoot) ||
                 !LinuxText(state, " cs=59 ss=51 kernelStack=") || !LinuxNumber(state, plan.ContextAddress + X64LinuxUserTransition.DataBytes) ||
-                !LinuxText(state, " guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse\r\n")) return false;
+                !LinuxText(state, " guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null\r\n")) return false;
             state->LinuxSyscallPhase = 4;
             byte returned = ((delegate* unmanaged<byte>)code)();
             ulong* after = stackalloc ulong[(int)X64LinuxUserTransition.ObservationWords];
@@ -1130,6 +1147,13 @@ public static unsafe class EfiEntry
                 LinuxText(state, " bytes=") && LinuxNumber(state, state->LinuxSyscallState.BytesWritten) &&
                 LinuxText(state, " writes=") && LinuxNumber(state, state->LinuxSyscallWrites) &&
                 LinuxText(state, "\r\nCLROS_M16_005_READY\r\nTEST_PASS m16-005\r\n");
+        }
+
+        private static bool LinuxSyscallAdmissionFailure(Storage* state, string stage, ulong detail = 0)
+        {
+            _ = LinuxText(state, "TEST_FAIL m16-005 admission stage="); _ = LinuxText(state, stage);
+            _ = LinuxText(state, " detail="); _ = LinuxNumber(state, detail); _ = LinuxText(state, "\r\n");
+            return false;
         }
 
         [System.Runtime.InteropServices.UnmanagedCallersOnly]

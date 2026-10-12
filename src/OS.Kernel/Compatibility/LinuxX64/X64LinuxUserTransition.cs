@@ -23,6 +23,7 @@ public static unsafe class X64LinuxUserTransition
     public const uint CodeBytes = 4096, DataPages = 20, DataBytes = DataPages * 4096;
     public const uint SyscallOffset = 0x600, GpOffset = 0xc00, PfOffset = 0xd00, ExitOffset = 0xe00;
     public const uint ObserveOffset = 0x400, ObservationWords = 25;
+    public const uint EstablishSegmentsOffset = 0xb00;
     public const uint GpPointerOffset = 0xff0, PfPointerOffset = 0xff8;
     public const uint FrameOffset = 0x100, KernelFxOffset = 0x200, UserFxOffset = 0x400;
     public const uint GdtOffset = 0x600, IdtOffset = 0x1000, ScratchOffset = 0x2000;
@@ -35,6 +36,9 @@ public static unsafe class X64LinuxUserTransition
 
     // Baseline four-level paging, no FSGSBASE/PCID/SMEP/SMAP/XSAVE/CET/LA57.
     // The owner separately verifies a single active CPU and disabled interrupts.
+    public static bool SingleLogicalProcessor(uint ebx, uint edx) =>
+        (edx & 0x10000000) == 0 || ((ebx >> 16) & 255) == 1;
+
     public static bool AdmitCpu(ulong cr0, ulong cr4, ulong efer, uint basicEdx, uint extendedEdx, ulong flags) =>
         (cr0 & 0x80000001) == 0x80000001 && (cr0 & 0xc) == 0 &&
         (cr4 & ~0x7ffUL) == 0 && (cr4 & 0x220) == 0x220 &&
@@ -172,6 +176,19 @@ public static unsafe class X64LinuxUserTransition
             if (register != 4 && register != 14) w.Load(register, SavedOffset(register));
         w.Load(0, ValueOffset); w.Load(14, SavedOffset(14));
         w.Bytes(0xf8010f, 3); w.Bytes(0xcf48, 2); // SWAPGS; validated IRETQ, no SYSRET window
+
+        w.Pad(EstablishSegmentsOffset);
+        // CPL0 leaf used once before the excursion baseline: firmware may leave
+        // cached FS/GS selectors absent from the owned GDT. Establish owned NULL
+        // selectors while retaining both 64-bit bases and caller flags.
+        w.Bytes(0xfa1e0ff3, 4); w.Bytes(0x9c, 1);
+        for (uint segment = 0; segment < 2; segment++)
+        {
+            w.ReadMsr(0xc0000100 + segment); w.Bytes(0xc08949, 3); // R8 = old base
+            w.Bytes(0xc031, 2); w.Bytes(segment == 0 ? 0xe08eUL : 0xe88eUL, 2);
+            w.Bytes(0xc0894c, 3); w.WriteMsr(0xc0000100 + segment);
+        }
+        w.Bytes(0xc39d, 2);
 
         w.Pad(GpOffset); Fault(ref w, plan, 13, GpPointerOffset);
         w.Pad(PfOffset); Fault(ref w, plan, 14, PfPointerOffset);

@@ -8,7 +8,7 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs"] = "48ac97600a5f83b3928363774a1e2663bac1f7ee541d351d336ccd0204cf0e3b",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs"] = "47a9b2f70119f1a6544f7c9c58f81c0bb9048a232de1037fb2a096816de89417",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs"] = "5662fa7912315f6129c5889549d62c8c4bce80b5eef1052f74b9b46e8ede7362",
                 [@"..\OS.Kernel\Boot\BootSequence.cs"] = "0dbfbe967e639c0b24ed92e24a523126a54bd15b74ad5429cc52af522afa216d",
                 [@"..\..\std\no-runtime\shared\Text\AsciiArgumentSplitter.cs"] = "9869438fcd0e465ca21c90f0e9de36b0a9b826c24885de36e44df653c5ea7be5",

@@ -2,16 +2,27 @@
 
 ## NativeAOT-first application boundary
 
-M16-005/#683 and supplemental #699 are in development in
-[step1201](../done/step1201.md). The checked write/exit dispatcher and C# x64
-transition emitter have host controls. The default-off EFI allocation, dispatch
-and restoration paths compile, and source/profile preflight passes. Native review
-and guest CPL3/syscall/fault qualification remain pending. No Linux app launch is accepted.
+M16-005/#683 and supplemental #699 are qualified in
+[step1201](../done/step1201.md): 4,619 full-host checks across 604 groups
+(94 Native), scoped original native review, three write/exit guests, four
+controlled-negative guests and seven ancestors pass. The default-off profile
+enters one mechanical ELF at CPL3, dispatches checked Linux write/exit/errno,
+and restores its owned kernel baseline. Real NativeAOT Hello, upstream guest
+runtime behavior, general processes and CLROS Kestrel remain unqualified.
+
+The mechanical M16-005 ELF fixtures exercise privilege, syscall and restoration
+mechanics only; they do not substitute for #685's real NativeAOT Hello workload.
+Before capturing the kernel baseline, the owned adapter establishes NULL FS/GS
+selectors and independently checks that their 64-bit MSR bases are preserved.
+The excursion restores that owned baseline; inherited firmware selector caches
+outside the owned GDT are not a restoration target. Negative captures keep the
+ordinary smoke result failed and require a separate exact challenge/restoration
+validator, including package identity and the existing parent validators.
 
 The qualified loader/service children in [step1200](../done/step1200.md) add
 host-checked copy, startup-stack and protected-root mechanics plus an EFI read-back
 path. 4,603 full-host checks, native review, three real combined package guests,
-standalone children, five ancestors and missing-RNG rollback pass. The source does not enter the ELF,
+standalone children, five ancestors and missing-RNG rollback pass. Those loader/service profiles do not enter the ELF,
 set an application TLS thread pointer, register app GC roots in the kernel, or
 prove upstream application GC/EH, syscalls or CLROS Kestrel execution.
 

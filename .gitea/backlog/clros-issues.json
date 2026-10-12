@@ -31409,9 +31409,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p0",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:ready",
+        "agent:done",
         "priority:p0",
         "type:implementation",
         "evidence:qemu",
@@ -31423,7 +31423,7 @@
         "M16-003",
         "M16-004"
       ],
-      "currentEvidence": "Ready after M16-003/M16-004 qualification in done/step1200.md. Genuine post-exit owned service time and protected ELF/initial-stack read-back pass; application entry, privilege isolation and Linux syscall write/exit remain unimplemented and require this ticket's own evidence.",
+      "currentEvidence": "Qualified in done/step1201.md: 4619 full-host checks across 604 groups (94 Native), complete/successful/unchanged-input receipt, scoped original native review, three 121-record mechanical CPL3 write/exit guests, four 112-record controlled-negative guests and seven affected ancestors pass. Owned-baseline restoration includes descriptors, SS, MSRs, FS/GS, x87/SSE and stack. General processes, threads/TLS/futex/signals, real NativeAOT Hello (#685), upstream guest runtime GC/EH, CLROS Kestrel, numbered gates, cloud and production remain unproved.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Implement CPL3 entry, dedicated kernel stacks, safe syscall return and Linux RAX/RDI/RSI/RDX/R10/R8/R9 calling convention bridged to the pinned kernel ABI. Preserve FS/GS, flags and required SIMD state. Validate canonical RIP/RSP and user ranges; copy-in/out across page boundaries. Use the existing C# native-object emitter, not committed native source.",
@@ -31502,7 +31502,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p0",
         "type:implementation",
         "evidence:qemu",
@@ -31513,7 +31513,7 @@
       "dependencyKeys": [
         "M16-005"
       ],
-      "currentEvidence": "Planning only. No Linux-compatible guest executable, continuing application service, or Kestrel evidence exists.",
+      "currentEvidence": "Ready after M16-005 qualification in done/step1201.md. One mechanical CPL3 write/exit/errno excursion and controlled faults restore the owned kernel baseline. Measured virtual-memory/startup syscall implementation, real upstream NativeAOT Hello, thread/TLS/futex behavior and CLROS Kestrel remain unproved.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Implement the qualified mmap/munmap/mprotect/brk and startup query subset, clock/time and entropy contracts. Translate Linux errno at the adapter boundary without changing OSHostStatus. Return real available CPU/memory facts; optional unsupported calls use the measured errno/fallback behavior. Enforce reservation limits, zero-fill and W^X; no successful no-op mappings or entropy.",

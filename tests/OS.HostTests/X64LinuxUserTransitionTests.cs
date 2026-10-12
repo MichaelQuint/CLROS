@@ -127,6 +127,11 @@ internal static unsafe class X64LinuxUserTransitionTests
             HostCheck.True(observer.IndexOf(new byte[] {0x66,0x0f,0,0xc8,0x48,0x89,0x87,0x30,0,0,0}) >= 0);
             HostCheck.True(observer.IndexOf(new byte[] {0x0f,1,0x87,0x88,0,0,0,0x0f,1,0x8f,0x98,0,0,0}) >= 0);
             HostCheck.True(observer.IndexOf(new byte[] {0x5f,0x5b,0xc3}) >= 0);
+            ReadOnlySpan<byte> establish = new(code + 0xb00, 0x100);
+            HostCheck.True(establish[..5].SequenceEqual(new byte[] {0xf3,0x0f,0x1e,0xfa,0x9c}));
+            HostCheck.True(establish.IndexOf(new byte[] {0x49,0x89,0xc0,0x31,0xc0,0x8e,0xe0,0x4c,0x89,0xc0}) >= 0);
+            HostCheck.True(establish.IndexOf(new byte[] {0x49,0x89,0xc0,0x31,0xc0,0x8e,0xe8,0x4c,0x89,0xc0}) >= 0);
+            HostCheck.True(establish.IndexOf(new byte[] {0x0f,0x30,0x9d,0xc3}) >= 0);
             ReadOnlySpan<byte> entry = new(code + 0x600, 0x600);
             byte[] switchBytes = [0x0f,0x01,0xf8, 0x65,0x48,0x89,0x24,0x25,8,0,0,0,
                 0x65,0x48,0x8b,0x24,0x25,0,0,0,0, 0x65,0x4c,0x89,0x34,0x25,0xb0,1,0,0];
@@ -181,6 +186,10 @@ internal static unsafe class X64LinuxUserTransitionTests
     [HostTest("m16-005 transition code capacity corruption and unsupported CPU controls fail closed", HostLane.Fast, 4)]
     private static void ReadBackAndCpu()
     {
+        HostCheck.True(X64LinuxUserTransition.SingleLogicalProcessor(0x800, 0x07000000));
+        HostCheck.True(X64LinuxUserTransition.SingleLogicalProcessor(0x10800, 0x17000000));
+        HostCheck.True(!X64LinuxUserTransition.SingleLogicalProcessor(0x800, 0x17000000));
+        HostCheck.True(!X64LinuxUserTransition.SingleLogicalProcessor(0x20800, 0x17000000));
         byte* code = Allocate(4096);
         try
         {
@@ -210,7 +219,7 @@ internal static unsafe class X64LinuxUserTransitionTests
         string[] tail =
         [
             "TEST_START m16-005",
-            "M16_005_ARMED root=3145728 cs=59 ss=51 kernelStack=2179072 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse",
+            "M16_005_ARMED root=3145728 cs=59 ss=51 kernelStack=2179072 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null",
             "M16_005_WRITE fd=2 bytes=5 data=HELLO",
             "M16_005_CALL nr=1 a0=2 a1=4202496 a2=5 a3=16 a4=32 a5=48 rip=4194560 rsp=1879048176 flags=2 valueBits=5 action=1 status=1",
             "M16_005_CALL nr=231 a0=42 a1=0 a2=0 a3=0 a4=0 a5=0 rip=4194576 rsp=1879048176 flags=2 valueBits=0 action=2 status=2",
@@ -218,7 +227,7 @@ internal static unsafe class X64LinuxUserTransitionTests
             "M16_005_EXIT code=42 calls=2 bytes=5 writes=1", "CLROS_M16_005_READY", "TEST_PASS m16-005"
         ];
         HostCheck.True(QemuTranscripts.ValidateLinuxSyscallTail([.. parents, .. tail]).SequenceEqual(parents));
-        for (int variant = 0; variant < 9; variant++)
+        for (int variant = 0; variant < 10; variant++)
         {
             string[] bad = (string[])tail.Clone();
             switch (variant)
@@ -231,7 +240,10 @@ internal static unsafe class X64LinuxUserTransitionTests
                 case 5: bad[6] = bad[6].Replace("bytes=5", "bytes=6"); break;
                 case 6: bad[5] = bad[5].Replace("ss=true", "ss=false"); break;
                 case 7: bad[3] = bad[3].Replace("flags=2", "flags=514"); break;
-                default: bad[2] = bad[2].Replace("HELLO", "HELL"); break;
+                case 8: bad[2] = bad[2].Replace("HELLO", "HELL"); break;
+                default:
+                    bad[4] = bad[4].Replace("a0=42", "a0=99");
+                    bad[6] = bad[6].Replace("code=42", "code=99"); break;
             }
             bool rejected = false;
             try { _ = QemuTranscripts.ValidateLinuxSyscallTail([.. parents, .. bad]); }

@@ -1,10 +1,13 @@
 # CLROS Completion Gates
 
-M16-005/#683 and supplemental #699 are in development in
-[step1201](../done/step1201.md). Checked syscall dispatch, privilege-transition
-bytes and conditional owned mappings have focused host controls. EFI integration,
-original native callback review, CPL3/write/exit/fault guests and stable-batch full
-qualification remain pending. No accepted completion or numbered gate advances.
+M16-005/#683 and supplemental #699 are qualified in
+[step1201](../done/step1201.md): 4,619 full-host checks across 604 groups
+(94 Native), scoped original native review, three 121-record write/exit guests,
+four 112-record controlled-negative guests and seven ancestors pass. Acceptance
+is one mechanical ELF excursion at CPL3, checked Linux write/exit/errno and
+complete owned-baseline restoration. General processes, threads/TLS/futex/signals,
+real NativeAOT Hello (#685), upstream guest GC/EH and CLROS Kestrel remain open.
+No numbered gate advances from this bounded diagnostic slice.
 
 M16-001/#679 host payload qualification is accepted in
 [step1198](../done/step1198.md): three real static Linux x64 NativeAOT payloads,

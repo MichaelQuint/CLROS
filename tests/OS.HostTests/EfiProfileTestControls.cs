@@ -267,6 +267,10 @@ internal static class EfiProfileTestControls
             HostCheck.True(ServiceProfileRejected(build, ["--boot-policy", "VerifiedExit", "--EnableM16005Probe"], "clros_boot_policy_probe_conflict"));
             HostCheck.True(!EfiOptions.Parse(["--EnableM16005Probe:false"], build).Profile().IsEnabled("M16005"));
         }
+        var smoke = QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run", "--build-efi", "--EnableM16005Probe"]));
+        foreach (string repeated in new[] { "M16_005_CALL", "M16_005_WRITE" })
+            HostCheck.True(smoke.Required.Contains(repeated) && smoke.Ordered.Contains(repeated) && !smoke.Unique.Contains(repeated));
+        HostCheck.True(smoke.Unique.Contains("M16_005_EXIT") && smoke.Unique.Contains("M16_005_RESTORE"));
     }
 
     private static bool ServiceProfileRejected(bool build, string[] args, string reason)

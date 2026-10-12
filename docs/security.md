@@ -1,5 +1,13 @@
 # Security
 
+The default-off [M16-005 diagnostic](../done/step1201.md) qualifies one mechanical
+CPL3 boundary: immutable user/supervisor mappings, complete bounded write-buffer
+preflight, dedicated guarded kernel stack, checked return state, HLT/supervisor
+fault containment and kernel restoration. It establishes owned NULL FS/GS
+selectors before preserving its baseline. This single-CPU, IRQ-off x87/SSE
+excursion supplies no general process isolation, scheduler, signal handling,
+continuing quotas, arbitrary NativeAOT workload or production-security proof.
+
 The [NativeAOT-first profile](workload-profiles.md) admits only manifest-bound
 immutable executables and explicitly authorized endpoints/resources.
 Its planned Linux adapter does not authorize a shell, SSH, arbitrary exec,

@@ -1,13 +1,20 @@
 # Boot
 
-M16-005 is under development in [step1201](../done/step1201.md). Its conditional
+M16-005 is qualified in [step1201](../done/step1201.md). Its default-off conditional
 retention plan reserves a syscall code page and a twenty-page data/stack range,
 maps code RX and data RW/NX, and omits data page 3 as the kernel stack guard.
 The EFI adapter now allocates/releases these pages before exit, seals their
 ownership ledger, emits code before RX publication and prepares mapped context
 after exit without touching the guard. Startup and service stop precede the
-checked user boundary. Its complete no-stdlib C# path compiles and preflight
-passes; native publication and real CPL3/syscall/fault qualification remain pending.
+checked user boundary. Full-host/native review, three real mechanical CPL3
+write/exit guests, four controlled-negative guests and seven ancestors pass.
+This is one IRQ-off, single-CPU excursion with x87/SSE state, not a scheduler,
+general process model, upstream NativeAOT runtime or continuing workload.
+
+M16-005 establishes owned NULL FS/GS selectors before its original-state snapshot,
+preserves both MSR bases across that setup, and compares hardware state after the
+user excursion against this owned baseline. Firmware selector caches may refer
+outside the owned GDT and are not reloaded during cleanup.
 
 Qualified children `EnableM16003Probe` and `EnableM16004Probe` default off and
 imply the staged-package/owned-exit parent through the compiled tooling profile.
