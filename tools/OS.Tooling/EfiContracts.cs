@@ -33,8 +33,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "dbc0258934159d32a22db329e8011e00bc1114f4d08a5b54ee3eab38e5bf9cd3";
-    public const string CanonicalProjectSha256 = "b19ce6a9f4c0cfc0b881ff45fbba19fca5c40c8770844dbece9950f9053b0ec3";
+    public const string ProjectSourceSha256 = "e62a212e644b813ad7eb23e5b8a3185560bebec934e7881bee5dd8c45cc63a15";
+    public const string CanonicalProjectSha256 = "a740a3320f2eeb619175e3406b28756f1508cc12fe2ee01639e8e1afa976b932";
     public const string EfiEntrySourceSha256 = "d6209ddeac1dbd3634211e9c4fac57aca56ce1dd108f4e7c3e985593d619ea30";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
@@ -257,6 +257,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Runtime\BoundedExceptionFrameSearch.cs|Runtime\BoundedExceptionFrameSearch.cs",
         @"..\OS.Kernel\Runtime\BoundedExceptionCallerWindow.cs|Runtime\BoundedExceptionCallerWindow.cs",
         @"Runtime\ExceptionFrameDispatchProbe.cs|",
+        @"Runtime\NormalFinallyProbe.cs|",
         @"Runtime\ConstructorFailureProbe.cs|",
         @"Runtime\FilteredCatchProbe.cs|",
         @"..\OS.Kernel\Runtime\BoundedExceptionFilterSearch.cs|Runtime\BoundedExceptionFilterSearch.cs",

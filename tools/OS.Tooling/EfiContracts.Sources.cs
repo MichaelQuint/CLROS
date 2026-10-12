@@ -16,6 +16,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Runtime\BoundedExceptionFrameDispatch.cs"] = "0802ab36b4e2880e49527c2d418027b930ca08a19fc19eecca0e0962f40cced6",
                 [@"..\OS.Kernel\Runtime\BoundedExceptionCallerWindow.cs"] = "3794f6f2e1c38fb6ad423b2a0d6dc6b0b88c4b5072a1a02e97ab515edb71a213",
                 [@"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.Catalog.cs"] = "07d8a383229cfd4b675bd7e6e6b070cfad9e51e7c94351890bfd87929cd1bd76",
+                [@"Runtime\NormalFinallyProbe.cs"] = "23bc6f85297afe4697e8ffbd735e082487469bef2ba609584d32db4b4efd187b",
                 [@"Runtime\ExceptionFrameDispatchProbe.cs"] = "aadde4b402b547fcfadafb8042fb3e898dd68509c5e627b63f2f81371a39c2da",
                 [@"Runtime\ExceptionUnhandledProbe.cs"] = "399f90ad72b071c1128af8b7e0513dc5b035e2682dc321fd781ef67c63717f65",
                 [@"Runtime\ExceptionTypePredicateBinding.cs"] = "ce382a55a8ab40fcd071789a9d22f37b981c6712d2e66fbdbbd5715cbdc91d26",

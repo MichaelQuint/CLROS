@@ -1,5 +1,16 @@
 # NativeAOT NoStdLib Limits
 
+#674–#676 remain in development. [step1190](../done/step1190.md) records one
+inactive compiler fixture: ILC10.0.12 emits a normal-path call to its own finally
+funclet when the root has `MethodImpl` NoOptimization (`0x40`). Without that flag,
+the compiler clones the normal finally into the root. Original COFF/map and
+linked PE review establish 173 code bytes, 11 EH bytes, three frame records and
+the same-root catch continuation. The catalog producer can select one exact
+method after validating every original contribution, including omitted ones.
+The temporary frame-profile anchor has been removed. Dedicated probe/bridge
+wiring, strict normal-profile ABI controls, native callback review and real
+normal-finally guest qualification remain incomplete; #90/Gate4 stay open.
+
 #670–#672 qualify host prerequisites for one future normal-path-finally fixture
 in [step1189](../done/step1189.md): 4,539 full-host checks across 588 groups (92
 Native), unchanged inputs, native callback/stack review and four affected guest

@@ -9,6 +9,7 @@ public static partial class EfiContracts
         [@"Runtime\TypeInitializationException.cs"] = "reviewed_constructor_failure_source_identity",
         [@"Runtime\ConstructorFailureProbe.cs"] = "reviewed_constructor_failure_source_identity",
         [@"..\OS.Kernel\Runtime\BoundedExceptionFrameDispatch.cs"] = "reviewed_frame_dispatch_source_identity",
+        [@"Runtime\NormalFinallyProbe.cs"] = "reviewed_normal_finally_source_identity",
         [@"Runtime\ExceptionFrameDispatchProbe.cs"] = "reviewed_frame_dispatch_source_identity",
         [@"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.Catalog.cs"] = "reviewed_exception_catalog_source_identity",
         [@"..\OS.Kernel\Runtime\BoundedExceptionCallerWindow.cs"] = "reviewed_caller_window_source_identity",
