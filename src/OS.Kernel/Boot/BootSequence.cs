@@ -208,6 +208,29 @@ public static class BootSequence
         void* context, delegate*<void*, bool> verify) =>
         OS.Kernel.Diagnostics.Probes.EnableM16002Probe && ownedChecksComplete && firmwareRevoked && context != null && verify != null && verify(context);
 
+    public static bool IsWorkloadServiceLoopEnabled() =>
+        OS.Kernel.Diagnostics.Probes.EnableM16003Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe;
+
+    /// <summary>
+    /// One explicit owned service boundary after package verification and revoked
+    /// firmware authority. The caller retains its context and callback lifetime;
+    /// disabled or incomplete admission returns false without invoking the callback.
+    /// </summary>
+    public static unsafe bool RunOwnedWorkloadServiceLoop(bool packageReady, bool firmwareRevoked,
+        void* context, delegate*<void*, bool> run) =>
+        IsWorkloadServiceLoopEnabled() && packageReady && firmwareRevoked && context != null && run != null && run(context);
+
+    /// <summary>Prepare startup only while the staged parent has firmware authority.</summary>
+    public static unsafe bool PrepareLinuxElfStartup(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16004Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe &&
+        firmwareAvailable && context != null && prepare != null && prepare(context);
+
+    /// <summary>Run startup only after package verification and firmware revocation.</summary>
+    public static unsafe bool RunOwnedLinuxElfStartup(bool packageReady, bool firmwareRevoked,
+        void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16004Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe &&
+        packageReady && firmwareRevoked && context != null && run != null && run(context);
+
     /// <summary>
     /// Terminal boot boundary, after the original M01 allocator and copied
     /// ACPI. The ordinary policy defers success markers until owned post-exit checks.

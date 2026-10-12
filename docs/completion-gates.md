@@ -18,6 +18,17 @@ Linux syscall execution or numbered gate completion is claimed.
 
 ## NativeAOT-first gate interpretation (2026-10-12)
 
+M16-003/#681 and M16-004/#682 are qualified in
+[step1200](../done/step1200.md): bounded timed service, copied-capability denial,
+ELF copy/BSS checks, Linux entry-stack construction, user/supervisor page tables
+and a fixed CR3 read-back bridge. Focused host checks and combined EFI C# compilation
+pass. Final full-host qualification passes 4,603 checks across 601 groups
+(94 Native), with a complete/successful/unchanged-input receipt and zero reuse.
+Native review, live timing/mapping read-back, three combined package guests,
+standalone children, five affected ancestors and missing-RNG rollback pass.
+This accepts the bounded slices; no numbered gate advances. ELF entry, thread
+TLS, application syscalls, guest GC/EH and CLROS Kestrel remain unproved.
+
 The [workload decision](workload-profiles.md) changes implementation order,
 not evidence status. M16 qualifies the Linux ELF/upstream NativeAOT foundation;
 M10 then qualifies local `SingleMinimalApi` Kestrel; M14 qualifies two isolated

@@ -31222,9 +31222,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p0",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:ready",
+        "agent:done",
         "priority:p0",
         "type:implementation",
         "evidence:qemu",
@@ -31237,7 +31237,7 @@
         "M03-007",
         "M05-021"
       ],
-      "currentEvidence": "Ready after M16-002 staging qualification in done/step1199.md. Live tracker acceptance markers and closed states verify M03-007/#64 and M05-021/#114. The continuing bounded service loop remains unimplemented; immutable staged data is not ELF entry or guest runtime/Kestrel evidence.",
+      "currentEvidence": "Qualified in done/step1200.md: 4603 full-host checks across 601 groups (94 Native), complete/successful/unchanged-input receipt, original native review, three 107-record combined package guests, standalone 100/90-record children, five affected ancestors and missing-RNG rollback pass. ELF entry, thread TLS, guest application GC/EH, syscalls, CLROS Kestrel, numbered gates, cloud and production remain unproved.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Add an explicit workload boot phase rather than altering ordinary terminal diagnostics. Preserve owned serial, mappings, allocator and clock. Run a cooperative bounded service pump until scheduler integration replaces its wait primitive; this pump is not a substitute for application OS threads. Keep failures observable without invoking revoked firmware adapters.",
@@ -31263,7 +31263,7 @@
       "ownedPaths": [
         "src/OS.Kernel/Boot/WorkloadServiceLoop.cs",
         "tests/OS.HostTests/WorkloadServiceLoopTests.cs",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -31314,9 +31314,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p0",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:ready",
+        "agent:done",
         "priority:p0",
         "type:implementation",
         "evidence:qemu",
@@ -31327,7 +31327,7 @@
       "dependencyKeys": [
         "M16-002"
       ],
-      "currentEvidence": "Ready after M16-002 staging qualification in done/step1199.md. Exact immutable static ELF bytes survive exit; load geometry, TLS, Linux initial stack, protected executable mappings and application entry remain unimplemented and require this ticket's own evidence.",
+      "currentEvidence": "Qualified in done/step1200.md: 4603 full-host checks across 601 groups (94 Native), complete/successful/unchanged-input receipt, original native review, three 107-record combined package guests, standalone 100/90-record children, five affected ancestors and missing-RNG rollback pass. ELF entry, thread TLS, guest application GC/EH, syscalls, CLROS Kestrel, numbered gates, cloud and production remain unproved.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Implement bounded ELF64 ET_EXEC/PT_LOAD/PT_TLS validation and mapping at the admitted fixed address, BSS zeroing, W^X/NX, guard stack, argc/argv/envp/auxv (including real PHDR, page size and entropy). Reject PT_INTERP, dynamic dependencies and unsupported geometry. Separate user and supervisor mappings from the outset; zero all newly exposed pages. Do not register application GC roots in the kernel runtime.",
@@ -31358,7 +31358,7 @@
       "ownedPaths": [
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxElfLoader.cs",
         "tests/OS.HostTests/LinuxElfLoaderTests.cs",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -31411,7 +31411,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p0",
         "type:implementation",
         "evidence:qemu",
@@ -31423,7 +31423,7 @@
         "M16-003",
         "M16-004"
       ],
-      "currentEvidence": "Planning only. No Linux-compatible guest executable, continuing application service, or Kestrel evidence exists.",
+      "currentEvidence": "Ready after M16-003/M16-004 qualification in done/step1200.md. Genuine post-exit owned service time and protected ELF/initial-stack read-back pass; application entry, privilege isolation and Linux syscall write/exit remain unimplemented and require this ticket's own evidence.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Implement CPL3 entry, dedicated kernel stacks, safe syscall return and Linux RAX/RDI/RSI/RDX/R10/R8/R9 calling convention bridged to the pinned kernel ABI. Preserve FS/GS, flags and required SIMD state. Validate canonical RIP/RSP and user ranges; copy-in/out across page boundaries. Use the existing C# native-object emitter, not committed native source.",

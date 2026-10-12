@@ -9,6 +9,9 @@ using OS.Kernel.Memory;
 #if (M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
 using OS.Kernel.Diagnostics;
 using OS.Kernel.Platform;
+#if M16_004_PROBE
+using OS.Kernel.Compatibility.LinuxX64;
+#endif
 #if M05_PCI_ENUMERATION_PROBE
 using OS.Drivers;
 #endif
@@ -49,6 +52,14 @@ public static unsafe class EfiEntry
     private static class M03FirstExitAdapter
     {
         private const ulong Page = 4096, TablePages = 55;
+#if M16_002_PROBE
+        private const uint LinuxLedgerCapacity =
+#if M16_004_PROBE
+            11;
+#else
+            9;
+#endif
+#endif
         // Conservative reservations, not native-stack evidence. The linked
         // callback graph and firmware path still require review before enablement.
         private const ulong EntryStackBudget = 128 * 1024, DiagnosticStackBudget = 32 * 1024;
@@ -68,7 +79,17 @@ public static unsafe class EfiEntry
             internal uint LinuxBytes, LinuxPages, LinuxClosedHandles, LinuxReadCalls, LinuxLedgerCount, LinuxOwnedPhase;
             internal fixed byte LinuxPackageHash[32];
             internal OS.Manifest.LinuxElfPackageView LinuxView;
-            internal fixed ulong LinuxLedger[9 * 8];
+            internal fixed ulong LinuxLedger[(int)LinuxLedgerCapacity * 8];
+#endif
+#if M16_004_PROBE
+            internal ulong LinuxImageBacking, LinuxImagePages, LinuxUserTables;
+            internal uint LinuxStartupPhase, LinuxUserRangeCount, LinuxHwcap;
+            internal LinuxElfLoadPlan LinuxImagePlan;
+            internal LinuxElfStartupPlan LinuxInitialStack;
+            internal X64UserAddressSpaceResult LinuxUserRoot;
+            internal fixed ulong LinuxUserRanges[(int)X64UserAddressSpace.MaximumRanges * 4];
+            internal FirmwareEntropyCapture.State LinuxEntropy;
+            internal FirmwareEntropyCapture.Buffer LinuxEntropyScratch, LinuxEntropyRetained;
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
             internal ulong MappingPhase, MappingCr0;
@@ -142,10 +163,14 @@ public static unsafe class EfiEntry
 #endif
 #endif
 #endif
-#if M05_MONOTONIC_CLOCK_PROBE
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
             internal ulong ClockPhase;
             internal HpetMmioDescription HpetDescription;
             internal OwnedMonotonicClockState Clock;
+#endif
+#if M16_003_PROBE
+            internal uint ServicePhase;
+            internal WorkloadServiceLoopState ServiceLoop;
 #endif
 #if (M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
             internal OwnedAllocatorRoundTripState OwnedAllocator;
@@ -155,7 +180,7 @@ public static unsafe class EfiEntry
             internal ulong PanicGuard, UnexpectedGuardValue;
 #endif
 #endif
-#if M03_FIRMWARE_ADAPTER_REVOCATION_PROBE
+#if M03_FIRMWARE_ADAPTER_REVOCATION_PROBE || M16_003_PROBE
             internal FirmwareAdapterAuthority AdapterAuthority;
             internal AdapterHandles OriginalHandles, CopiedHandles;
             internal EfiSimpleTextOutputProtocol* AdapterConsole;
@@ -198,6 +223,11 @@ public static unsafe class EfiEntry
             {
                 if (!Prepare(state, services))
                 {
+#if M16_004_PROBE
+                    bool startupReleased = ReleaseLinuxStartup(state, services);
+                    string startupRejection = startupReleased ? "M16_004_PREPARE_REJECTED owned-backing=released\r\n" : "M16_004_PREPARE_REJECTED owned-backing=reserved-release-failed\r\n";
+                    for (int i = 0; i < startupRejection.Length; i++) Write(console, serial, (byte)startupRejection[i]);
+#endif
 #if M16_002_PROBE
                     bool released = state->LinuxPackage == 0;
                     if (!released && services != null && services->FreePages != null && services->FreePages(state->LinuxPackage, state->LinuxPages) == 0)
@@ -283,7 +313,7 @@ public static unsafe class EfiEntry
                 if (!PrepareMsixMapping(state, out references.MsixPage)) return false;
 #endif
 #endif
-#if M05_MONOTONIC_CLOCK_PROBE
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
                 var selected = OwnedACPIDirectorySelectMADTHPETMCFG.Select(
                     copied->Bytes + 16, workspace->TotalBytes, workspace->Descriptors, 30);
                 if (!selected.Succeeded || !OwnedMonotonicClock.TryReadDescription(
@@ -308,6 +338,14 @@ public static unsafe class EfiEntry
             if (!BootSequence.StageLinuxElfPackage(state->Phase == 2, state, &ReadLinuxPackage)) return false;
             references.LinuxPackageStart = state->LinuxPackage;
             references.LinuxPackagePages = state->LinuxPages;
+#endif
+#if M16_004_PROBE
+            state->PreparationCheckpoint = 36;
+            if (!BootSequence.PrepareLinuxElfStartup(state->Phase == 2, state, &PrepareLinuxStartup)) return false;
+            references.LinuxBackingStart = state->LinuxImageBacking;
+            references.LinuxBackingPages = state->LinuxImagePages;
+            references.LinuxUserTablesStart = state->LinuxUserTables;
+            references.LinuxUserTablePages = X64UserAddressSpace.MaximumTables;
 #endif
             state->PreparationCheckpoint = 40;
             if (!Allocate(services, 1, 3, image, imageBytes, allocator, out ulong code) ||
@@ -399,7 +437,7 @@ public static unsafe class EfiEntry
                     state->Memory.Entries, TablePages * 512).Succeeded ||
                 X64InstructionPublication.Serialize() != X64InstructionPublication.ExpectedSuccessCookie ||
                 !state->Arena.Fault->Backend.ConfigureDefault().Succeeded) return false;
-#if M03_FIRMWARE_ADAPTER_REVOCATION_PROBE
+#if M03_FIRMWARE_ADAPTER_REVOCATION_PROBE || M16_003_PROBE
             state->PreparationCheckpoint = 95;
             if (!PrepareAdapters(state, services)) return false;
 #endif
@@ -409,7 +447,7 @@ public static unsafe class EfiEntry
             return true;
         }
 
-#if M03_FIRMWARE_ADAPTER_REVOCATION_PROBE
+#if M03_FIRMWARE_ADAPTER_REVOCATION_PROBE || M16_003_PROBE
         private struct AdapterHandles
         {
             internal FirmwareConsoleCapability Console;
@@ -424,7 +462,7 @@ public static unsafe class EfiEntry
 
         private static bool PrepareAdapters(Storage* state, EfiBootServices* services)
         {
-            if (!BootSequence.IsFirmwareAdapterRevocationEnabled() || state->SystemTable->ConOut == null ||
+            if ((!BootSequence.IsFirmwareAdapterRevocationEnabled() && !BootSequence.IsWorkloadServiceLoopEnabled()) || state->SystemTable->ConOut == null ||
                 state->SystemTable->ConOut->OutputString == null) return false;
             state->AdapterConsole = state->SystemTable->ConOut;
             state->AdapterServices = services;
@@ -505,34 +543,40 @@ public static unsafe class EfiEntry
         {
             if (state->Diagnostic.Status != FirstExitDiagnosticStatus.Completed || AdapterEntryCount(state) != 1 ||
                 !WriteAdapterMarker(state, 0, 0)) return false;
-            byte* output = stackalloc byte[128];
             for (uint index = 0; index < 8; index++)
             {
-                for (int j = 0; j < 128; j++) output[j] = 0xa5;
-                FirmwareAdapterCallResult result;
-                // These output addresses are on the original owned stack. A
-                // denial must precede even range validation, not just the call.
-                switch (index)
-                {
-                    case 0: result = state->CopiedHandles.Console.Write((char*)output, 1); break;
-                    case 1: result = state->CopiedHandles.MemoryMap.Capture(output, 64, (FirmwareAdapterMemoryMapInfo*)(output + 64)); break;
-                    case 2: result = state->CopiedHandles.FileSystem.Read(1, 0, output, 64, (ulong*)(output + 64)); break;
-                    case 3: result = state->CopiedHandles.Timer.Read((ulong*)output); break;
-                    case 4: result = state->CopiedHandles.Random.Fill(output, 64); break;
-                    case 5: result = state->CopiedHandles.ConfigurationTable.Find(0, 0, (ulong*)output); break;
-                    case 6: result = state->CopiedHandles.PhysicalMemory.Read(0, output, 64); break;
-                    default: result = state->CopiedHandles.Framebuffer.Snapshot((FirmwareAdapterFramebufferInfo*)output); break;
-                }
-                bool preserved = result.Status == FirmwareAdapterStatus.ServicesUnavailable && !result.Succeeded &&
-                    result.FirmwareStatus == 0 && AdapterEntryCount(state) == 1;
-                for (int j = 0; j < 128; j++) if (output[j] != 0xa5) preserved = false;
-                for (int j = 0; j < sizeof(AdapterHandles); j++)
-                    if (((byte*)&state->OriginalHandles)[j] != ((byte*)&state->CopiedHandles)[j]) preserved = false;
-                if (!preserved || !FirstExitOwnedArena.ValidateCanaries(state->Arena))
+                if (!DenyCopiedFirmwareAdapter(state, index))
                 { _ = WriteAdapterMarker(state, 4, 0); return false; }
                 if (!WriteAdapterMarker(state, 1, index)) return false;
             }
             return WriteAdapterMarker(state, 2, 0) && WriteAdapterMarker(state, 3, 0);
+        }
+
+        private static bool DenyCopiedFirmwareAdapter(Storage* state, uint index)
+        {
+            if (index >= 8 || AdapterEntryCount(state) != 1) return false;
+            byte* output = stackalloc byte[128];
+            for (int j = 0; j < 128; j++) output[j] = 0xa5;
+            // Denial precedes output-range checks and the retained first-party
+            // provider thunk. All addresses here belong to the original stack.
+            FirmwareAdapterCallResult result = index switch
+            {
+                0 => state->CopiedHandles.Console.Write((char*)output, 1),
+                1 => state->CopiedHandles.MemoryMap.Capture(output, 64, (FirmwareAdapterMemoryMapInfo*)(output + 64)),
+                2 => state->CopiedHandles.FileSystem.Read(1, 0, output, 64, (ulong*)(output + 64)),
+                3 => state->CopiedHandles.Timer.Read((ulong*)output),
+                4 => state->CopiedHandles.Random.Fill(output, 64),
+                5 => state->CopiedHandles.ConfigurationTable.Find(0, 0, (ulong*)output),
+                6 => state->CopiedHandles.PhysicalMemory.Read(0, output, 64),
+                _ => state->CopiedHandles.Framebuffer.Snapshot((FirmwareAdapterFramebufferInfo*)output)
+            };
+            bool denied = result.Status == FirmwareAdapterStatus.ServicesUnavailable && !result.Succeeded &&
+                result.FirmwareStatus == 0 && AdapterEntryCount(state) == 1;
+            if (!denied) return false;
+            for (int j = 0; j < 128; j++) if (output[j] != 0xa5) return false;
+            for (int j = 0; j < sizeof(AdapterHandles); j++)
+                if (((byte*)&state->OriginalHandles)[j] != ((byte*)&state->CopiedHandles)[j]) return false;
+            return FirstExitOwnedArena.ValidateCanaries(state->Arena);
         }
 
         private static bool WriteAdapterMarker(Storage* state, uint marker, uint index)
@@ -665,11 +709,15 @@ public static unsafe class EfiEntry
         private static bool SealLinuxLedger(Storage* state, ulong code, ulong data, ulong tables)
         {
             BootReservedRange* ledger = (BootReservedRange*)state->LinuxLedger;
-            if ((ulong)sizeof(BootReservedRange) > 64 || !M01StageTwoAdapter.CopyOriginalExitReservations(ledger, 9, out uint count) || count != 5) return false;
+            if ((ulong)sizeof(BootReservedRange) > 64 || !M01StageTwoAdapter.CopyOriginalExitReservations(ledger, LinuxLedgerCapacity, out uint count) || count != 5) return false;
             if (!LinuxReservation(BootReservationKind.LinuxElfPackage, state->LinuxPackage, state->LinuxPages, ledger + count++) ||
                 !LinuxReservation(BootReservationKind.Cr3TransitionStub, code, FirstExitCodeBundle.Bytes / 4096, ledger + count++) ||
                 !LinuxReservation(BootReservationKind.DiagnosticState, data, FirstExitOwnedArena.PageCount, ledger + count++) ||
                 !LinuxReservation(BootReservationKind.PageTableArena, tables, TablePages, ledger + count++)) return false;
+#if M16_004_PROBE
+            if (!LinuxReservation(BootReservationKind.LinuxElfBacking, state->LinuxImageBacking, state->LinuxImagePages, ledger + count++) ||
+                !LinuxReservation(BootReservationKind.LinuxElfUserTables, state->LinuxUserTables, X64UserAddressSpace.MaximumTables, ledger + count++)) return false;
+#endif
             for (uint i = 1; i < count; i++)
             {
                 var current = ledger[i]; uint at = i;
@@ -680,7 +728,7 @@ public static unsafe class EfiEntry
                 }
                 ledger[at] = current;
             }
-            if (!BootReservationTableValidator.Validate(ledger, count, 9).Succeeded) return false;
+            if (!BootReservationTableValidator.Validate(ledger, count, LinuxLedgerCapacity).Succeeded) return false;
             state->LinuxLedgerCount = count; return true;
         }
         private static bool LinuxReservation(BootReservationKind kind, ulong address, ulong pages, BootReservedRange* output)
@@ -690,15 +738,224 @@ public static unsafe class EfiEntry
             *output = value; return true;
         }
 
+#if M16_004_PROBE
+        private static bool PrepareLinuxStartup(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->Phase != 2 || state->LinuxStartupPhase != 0 || !state->LinuxView.Succeeded) return false;
+            state->LinuxStartupPhase = 1;
+            var view = state->LinuxView;
+            if (LinuxElfLoader.Validate((byte*)state->LinuxPackage + view.PayloadOffset, view.PayloadBytes,
+                view.Manifest.MemoryBytes, view.Manifest.StackBytes, out state->LinuxImagePlan) != LinuxElfLoadStatus.Ready) return false;
+            ulong pages = (state->LinuxImagePlan.ImageBytes + view.Manifest.StackBytes) / Page;
+            // Keep the accepted identity-builder's 4096-page per-range cap.
+            // All three pinned payloads fit; larger host-admitted images reject.
+            if (pages == 0 || pages > 4096) return false;
+            state->LinuxImagePages = pages;
+            EfiBootServices* services = state->SystemTable->BootServices;
+            if (!AllocateLinuxStartup(services, pages, out state->LinuxImageBacking) ||
+                !AllocateLinuxStartup(services, X64UserAddressSpace.MaximumTables, out state->LinuxUserTables) ||
+                !Disjoint(state->LinuxImageBacking, pages * Page, state->LinuxUserTables, X64UserAddressSpace.MaximumTables * Page) ||
+                !Disjoint(state->LinuxImageBacking, pages * Page, state->LinuxPackage, state->LinuxPages * Page) ||
+                !Disjoint(state->LinuxUserTables, X64UserAddressSpace.MaximumTables * Page, state->LinuxPackage, state->LinuxPages * Page)) return false;
+            var entropy = &state->LinuxEntropy;
+            bool begun = FirmwareEntropyCapture.Begin(entropy, &state->LinuxEntropyScratch, &state->LinuxEntropyRetained, state->SystemTable);
+            bool captured = begun && FirmwareEntropyCapture.Acquire(entropy);
+            entropy->SystemTable = null; entropy->BootServices = null; entropy->Locate = null;
+            entropy->Rng = null; entropy->GetRng = null;
+            if (!captured || entropy->Phase != 3 || entropy->PublishedBytes != 32 ||
+                !FirmwareEntropyCapture.Guards(&state->LinuxEntropyScratch) || !FirmwareEntropyCapture.Guards(&state->LinuxEntropyRetained) ||
+                !FirmwareEntropyCapture.Zero(state->LinuxEntropyScratch.Data, 0, 64)) return false;
+            for (ulong i = 0; i < pages * Page; i++) ((byte*)state->LinuxImageBacking)[i] = 0;
+            if (!X64UserAddressSpace.Clear((ulong*)state->LinuxUserTables, X64UserAddressSpace.MaximumTables)) return false;
+            state->LinuxStartupPhase = 2; return true;
+        }
+
+        private static bool AllocateLinuxStartup(EfiBootServices* services, ulong pages, out ulong address)
+        {
+            address = 0;
+            if (services == null || services->AllocatePages == null || services->FreePages == null || pages == 0 || pages > 4096) return false;
+            ulong candidate = 0xffffffff;
+            if (services->AllocatePages(1, 2, pages, &candidate) != 0) return false;
+            address = candidate;
+            if (candidate < Page || (candidate & 4095) != 0 || candidate > 0x100000000UL - pages * Page ||
+                !M01StageOneAdapter.TryGetOriginalTypeManagerImage(out var capture, out _) ||
+                capture.Range.ImageBase.TryGetRawValueForUefiBoundary(out ulong image) != AddressValueStatus.Success ||
+                !M01StageTwoAdapter.TryGetOriginalExitAllocator(out _, out var allocator)) return false;
+            return Disjoint(candidate, pages * Page, image, capture.Range.ImageSize) &&
+                Disjoint(candidate, pages * Page, allocator.Start, allocator.PageCount * Page);
+        }
+
+        private static bool ReleaseLinuxStartup(Storage* state, EfiBootServices* services)
+        {
+            ScrubLinuxEntropy(state); bool okay = true;
+            if (state->LinuxUserTables != 0)
+            {
+                if (services != null && services->FreePages != null && services->FreePages(state->LinuxUserTables, X64UserAddressSpace.MaximumTables) == 0) state->LinuxUserTables = 0;
+                else okay = false;
+            }
+            if (state->LinuxImageBacking != 0)
+            {
+                if (services != null && services->FreePages != null && services->FreePages(state->LinuxImageBacking, state->LinuxImagePages) == 0) state->LinuxImageBacking = 0;
+                else okay = false;
+            }
+            state->LinuxStartupPhase = 7; return okay;
+        }
+
+        private static bool ScrubLinuxEntropy(Storage* state)
+        {
+            state->LinuxEntropy.SystemTable = null; state->LinuxEntropy.BootServices = null; state->LinuxEntropy.Locate = null;
+            state->LinuxEntropy.Rng = null; state->LinuxEntropy.GetRng = null;
+            for (int i = 0; i < 64; i++) { state->LinuxEntropyScratch.Data[i] = 0; state->LinuxEntropyRetained.Data[i] = 0; }
+            return FirmwareEntropyCapture.Zero(state->LinuxEntropyScratch.Data, 0, 64) && FirmwareEntropyCapture.Zero(state->LinuxEntropyRetained.Data, 0, 64);
+        }
+
+        private static bool RunOwnedLinuxStartup(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->LinuxStartupPhase != 2 || state->LinuxOwnedPhase != 2 || state->OwnedPhase != 2 ||
+                state->Diagnostic.Status != FirstExitDiagnosticStatus.Completed ||
+                state->Arena.Transition->Mode != FirmwareServicesMode.BootServicesExited ||
+                !state->Arena.Transition->RetainedFirmwareCallbacksCleared || !state->Arena.Binding->RetainedPointersCleared ||
+                state->LinuxEntropy.SystemTable != null || state->LinuxEntropy.BootServices != null || state->LinuxEntropy.Locate != null ||
+                state->LinuxEntropy.Rng != null || state->LinuxEntropy.GetRng != null || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            state->LinuxStartupPhase = 3;
+            if (!LinuxText(state, "TEST_START m16-004\r\n")) return false;
+            var view = state->LinuxView;
+            byte* elf = (byte*)state->LinuxPackage + view.PayloadOffset;
+            byte* manifest = (byte*)state->LinuxPackage + view.ManifestOffset;
+            byte* bridge = state->Memory.Code + FirstExitCodeBundle.LinuxReadBackOffset;
+            byte* cpu = state->Memory.Code + FirstExitCodeBundle.ClockAccessOffset;
+            if (!X64LinuxElfReadBackBridge.Validate(bridge, X64LinuxElfReadBackBridge.Bytes) ||
+                !X64OwnedClockAccess.Validate(cpu, X64OwnedClockAccess.Bytes)) return FailLinuxStartup(state);
+            var cpuid = (delegate* unmanaged<uint, uint, uint*, void>)(cpu + X64OwnedClockAccess.CpuidOffset);
+            uint* words = stackalloc uint[4]; cpuid(0, 0, words);
+            if (words[0] < 1) return FailLinuxStartup(state);
+            cpuid(1, 0, words); state->LinuxHwcap = words[3];
+            if (LinuxElfMapping.Materialize(elf, view.PayloadBytes, view.Manifest.MemoryBytes, view.Manifest.StackBytes,
+                (byte*)state->LinuxImageBacking, (uint)state->LinuxImagePlan.ImageBytes, out state->LinuxImagePlan) != LinuxElfMaterializeStatus.Ready ||
+                LinuxElfStartup.Build(manifest, view.ManifestBytes, elf, view.PayloadBytes, state->LinuxEntropyRetained.Data, 32,
+                    (byte*)(state->LinuxImageBacking + state->LinuxImagePlan.ImageBytes), view.Manifest.StackBytes,
+                    0x70000000UL - view.Manifest.StackBytes, state->LinuxHwcap, out state->LinuxInitialStack) != LinuxElfStartupStatus.Ready ||
+                !BuildLinuxUserRanges(state)) return FailLinuxStartup(state);
+            state->LinuxUserRoot = X64UserAddressSpace.Build((X64UserMappingRange*)state->LinuxUserRanges, state->LinuxUserRangeCount,
+                (ulong*)state->LinuxUserTables, state->LinuxUserTables, X64UserAddressSpace.MaximumTables, state->Memory.Tables.Preconditions);
+            if (!state->LinuxUserRoot.Succeeded) return FailLinuxStartup(state);
+            var readCr3 = (delegate* unmanaged<ulong>)(bridge + X64LinuxElfReadBackBridge.ReadCr3Offset);
+            ulong original = readCr3();
+            if (original != (ulong)state->Memory.Entries) return FailLinuxStartup(state);
+            state->LinuxStartupPhase = 4;
+            var enter = (delegate* unmanaged<ulong, void*, delegate* unmanaged<void*, byte>, byte>)bridge;
+            byte readBack = enter(state->LinuxUserRoot.Root, state, &ReadLinuxUserRoot);
+            if (readCr3() != original) return false; // No clearing while this root could still be active.
+            if (readBack != 1 || state->LinuxStartupPhase != 5 || !ScrubLinuxEntropy(state) ||
+                !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return FailLinuxStartup(state);
+            state->LinuxStartupPhase = 6;
+            return LinuxText(state, "M16_004_IMAGE base=") && LinuxNumber(state, state->LinuxImagePlan.ImageStart) &&
+                LinuxText(state, " bytes=") && LinuxNumber(state, state->LinuxImagePlan.ImageBytes) &&
+                LinuxText(state, " loads=") && LinuxNumber(state, state->LinuxImagePlan.LoadCount) &&
+                LinuxText(state, " entry=") && LinuxNumber(state, state->LinuxImagePlan.Entry) &&
+                LinuxText(state, " phdr=") && LinuxNumber(state, state->LinuxImagePlan.ProgramHeaders) &&
+                LinuxText(state, " tlsFile=") && LinuxNumber(state, state->LinuxImagePlan.TlsFileBytes) &&
+                LinuxText(state, " tlsMemory=") && LinuxNumber(state, state->LinuxImagePlan.TlsMemoryBytes) &&
+                LinuxText(state, "\r\nM16_004_STACK start=") && LinuxNumber(state, state->LinuxInitialStack.StackStart) &&
+                LinuxText(state, " bytes=") && LinuxNumber(state, state->LinuxInitialStack.StackBytes) &&
+                LinuxText(state, " sp=") && LinuxNumber(state, state->LinuxInitialStack.StackPointer) &&
+                LinuxText(state, " argc=") && LinuxNumber(state, state->LinuxInitialStack.ArgumentCount) &&
+                LinuxText(state, " envc=") && LinuxNumber(state, state->LinuxInitialStack.EnvironmentCount) &&
+                LinuxText(state, " random=") && LinuxNumber(state, state->LinuxInitialStack.RandomAddress) &&
+                LinuxText(state, " entropyBytes=32 seedCleared=32\r\nM16_004_TABLES root=") && LinuxNumber(state, state->LinuxUserRoot.Root) &&
+                LinuxText(state, " used=") && LinuxNumber(state, state->LinuxUserRoot.UsedTables) &&
+                LinuxText(state, " leaves=") && LinuxNumber(state, state->LinuxUserRoot.LeafPages) &&
+                LinuxText(state, " ranges=") && LinuxNumber(state, state->LinuxUserRangeCount) &&
+                LinuxText(state, "\r\nM16_004_READBACK old=") && LinuxNumber(state, original) &&
+                LinuxText(state, " restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false\r\nCLROS_M16_004_READY\r\nTEST_PASS m16-004\r\n");
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte ReadLinuxUserRoot(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->LinuxStartupPhase != 4 || (ulong)state != state->Memory.References.AdapterState ||
+                !state->LinuxUserRoot.Succeeded || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return 0;
+            var readCr3 = (delegate* unmanaged<ulong>)(state->Memory.Code + FirstExitCodeBundle.LinuxReadBackOffset + X64LinuxElfReadBackBridge.ReadCr3Offset);
+            if (readCr3() != state->LinuxUserRoot.Root ||
+                !X64UserAddressSpace.Audit((X64UserMappingRange*)state->LinuxUserRanges, state->LinuxUserRangeCount,
+                    (ulong*)state->LinuxUserTables, state->LinuxUserTables, X64UserAddressSpace.MaximumTables, state->Memory.Tables.Preconditions, state->LinuxUserRoot) ||
+                !X64UserAddressSpace.TryReadLeaf((ulong*)state->LinuxUserTables, state->LinuxUserTables, X64UserAddressSpace.MaximumTables,
+                    state->LinuxInitialStack.StackStart - Page, out ulong guard) || guard != 0) return 0;
+            var view = state->LinuxView;
+            byte* elf = (byte*)state->LinuxPackage + view.PayloadOffset;
+            if (!LinuxElfMapping.ValidateMappedLoads(elf, view.PayloadBytes, view.Manifest.MemoryBytes, view.Manifest.StackBytes, state->LinuxImagePlan) ||
+                !LinuxElfStartup.ValidateReadBack((byte*)state->LinuxPackage + view.ManifestOffset, view.ManifestBytes, elf, view.PayloadBytes,
+                    state->LinuxEntropyRetained.Data, 32, (byte*)state->LinuxInitialStack.StackStart, view.Manifest.StackBytes,
+                    state->LinuxInitialStack.StackStart, state->LinuxHwcap, state->LinuxInitialStack)) return 0;
+            state->LinuxStartupPhase = 5; return 1;
+        }
+
+        private static bool FailLinuxStartup(Storage* state)
+        {
+            // After exit these pages remain reserved by the original owner. Clear
+            // contents and unpublish the candidate; do not pretend they are freed.
+            if (state->LinuxImageBacking != 0) LinuxElfMapping.Clear((byte*)state->LinuxImageBacking, (uint)(state->LinuxImagePages * Page));
+            if (state->LinuxUserTables != 0) X64UserAddressSpace.Clear((ulong*)state->LinuxUserTables, X64UserAddressSpace.MaximumTables);
+            state->LinuxUserRoot = default; state->LinuxInitialStack = default; state->LinuxStartupPhase = 7;
+            ScrubLinuxEntropy(state); _ = LinuxText(state, "TEST_FAIL m16-004 owned-startup-validation\r\n"); return false;
+        }
+
+        private static bool BuildLinuxUserRanges(Storage* state)
+        {
+            if (sizeof(X64UserMappingRange) != 32) return false;
+            X64UserMappingRange* target = (X64UserMappingRange*)state->LinuxUserRanges;
+            for (uint i = 0; i < X64UserAddressSpace.MaximumRanges; i++) target[i] = default;
+            SeparatePageFaultMappingRange* retained = stackalloc SeparatePageFaultMappingRange[(int)FirstExitRetainedMappings.MaximumRanges];
+            if (!FirstExitRetainedMappings.WriteInstalledRanges(ref state->Arena, state->Memory.Code, state->Memory.Capture,
+                state->Memory.Mapping, state->Memory.References, state->Memory.Allocator, state->Memory.Tables, retained,
+                FirstExitRetainedMappings.MaximumRanges, out ulong count)) return false;
+            uint written = 0;
+            for (ulong i = 0; i < count; i++)
+            {
+                var r = retained[i];
+                // No physical RW image/stack alias in the user root. Its table
+                // arena is supplied as supervisor RW/NX by the builder itself.
+                if (r.Start == state->LinuxImageBacking || r.Start == state->LinuxUserTables) continue;
+                if (written == X64UserAddressSpace.MaximumRanges) return false;
+                target[written++] = new X64UserMappingRange
+                { VirtualStart = r.Start, PhysicalStart = r.Start, Pages = r.PageCount, Protection = r.Protection, Cache = r.CachePolicy, User = false };
+            }
+            if (written + state->LinuxImagePlan.LoadCount + 2 > X64UserAddressSpace.MaximumRanges) return false;
+            target[written++] = new X64UserMappingRange
+            { VirtualStart = (ulong)state->Memory.Entries, PhysicalStart = (ulong)state->Memory.Entries, Pages = TablePages,
+                Protection = PageProtection.Read | PageProtection.Write, Cache = PageCachePolicy.WriteBack, User = false };
+            for (uint i = 0; i < state->LinuxImagePlan.LoadCount; i++)
+            {
+                uint row = i * 5;
+                ulong address = state->LinuxImagePlan.Loads[row], memory = state->LinuxImagePlan.Loads[row + 3], flags = state->LinuxImagePlan.Loads[row + 4];
+                ulong start = address & ~4095UL, end = (address + memory + 4095) & ~4095UL;
+                PageProtection protection = PageProtection.Read;
+                if ((flags & 2) != 0) protection |= PageProtection.Write;
+                if ((flags & 1) != 0) protection |= PageProtection.Execute;
+                target[written++] = new X64UserMappingRange
+                { VirtualStart = start, PhysicalStart = state->LinuxImageBacking + start - state->LinuxImagePlan.ImageStart,
+                    Pages = (end - start) / Page, Protection = protection, Cache = PageCachePolicy.WriteBack, User = true };
+            }
+            var manifest = state->LinuxView.Manifest;
+            target[written++] = new X64UserMappingRange
+            { VirtualStart = 0x70000000UL - manifest.StackBytes, PhysicalStart = state->LinuxImageBacking + state->LinuxImagePlan.ImageBytes,
+                Pages = manifest.StackBytes / Page, Protection = PageProtection.Read | PageProtection.Write, Cache = PageCachePolicy.WriteBack, User = true };
+            state->LinuxUserRangeCount = written; return true;
+        }
+#endif
+
         private static bool VerifyLinuxPackage(void* owner)
         {
             Storage* state = (Storage*)owner;
             if (state->LinuxOwnedPhase != 0) return false;
             state->LinuxOwnedPhase = 1;
             if (!LinuxText(state, "TEST_START m16-002\r\n")) return false;
-            bool okay = state->LinuxPackage != 0 && state->LinuxClosedHandles == 2 && state->LinuxLedgerCount == 9 &&
+            bool okay = state->LinuxPackage != 0 && state->LinuxClosedHandles == 2 && state->LinuxLedgerCount == LinuxLedgerCapacity &&
                 state->Memory.References.LinuxPackageStart == state->LinuxPackage && state->Memory.References.LinuxPackagePages == state->LinuxPages &&
-                BootReservationTableValidator.Validate((BootReservedRange*)state->LinuxLedger, 9, 9).Succeeded;
+                BootReservationTableValidator.Validate((BootReservedRange*)state->LinuxLedger, LinuxLedgerCapacity, LinuxLedgerCapacity).Succeeded;
             var view = OS.Manifest.LinuxElfPackage.Validate((byte*)state->LinuxPackage, state->LinuxBytes);
             byte* packageHash = stackalloc byte[32];
             okay = okay && OS.Std.Hash.Sha256.TryCompute((byte*)state->LinuxPackage, state->LinuxBytes, packageHash, 32);
@@ -725,6 +982,7 @@ public static unsafe class EfiEntry
         }
         private static bool LinuxText(Storage* state, string text) { for (int i = 0; i < text.Length; i++) if (!LinuxByte(state, (byte)text[i])) return false; return true; }
         private static bool LinuxNumber(Storage* state, uint n) { if (n >= 10 && !LinuxNumber(state, n / 10)) return false; return LinuxByte(state, (byte)('0' + n % 10)); }
+        private static bool LinuxNumber(Storage* state, ulong n) { if (n >= 10 && !LinuxNumber(state, n / 10)) return false; return LinuxByte(state, (byte)('0' + n % 10)); }
         private static bool LinuxByte(Storage* state, byte b)
         {
             var backend = state->Arena.Fault->Backend;
@@ -801,6 +1059,17 @@ public static unsafe class EfiEntry
                     _ = BootSequence.RunOwnedLinuxElfPackage(state->OwnedPhase == 2,
                         transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
                         state->Arena.Binding->RetainedPointersCleared, state, &VerifyLinuxPackage);
+#endif
+
+#if M16_004_PROBE
+                    if (!BootSequence.RunOwnedLinuxElfStartup(state->LinuxOwnedPhase == 2,
+                        transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
+                        state->Arena.Binding->RetainedPointersCleared, state, &RunOwnedLinuxStartup)) return;
+#endif
+#if M16_003_PROBE
+                    if (!BootSequence.RunOwnedWorkloadServiceLoop(state->LinuxOwnedPhase == 2,
+                        transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
+                        state->Arena.Binding->RetainedPointersCleared, state, &RunOwnedWorkloadServiceLoop)) return;
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE
                     _ = BootSequence.RunOwnedMonotonicClock(state->OwnedPhase == 2, state, &RunOwnedMonotonicClock);
@@ -3213,6 +3482,96 @@ public static unsafe class EfiEntry
         }
 #endif
 
+#if M16_003_PROBE
+        private static bool RunOwnedWorkloadServiceLoop(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->ServicePhase != 0 || state->LinuxOwnedPhase != 2 || state->OwnedPhase != 2 ||
+                state->Diagnostic.Status != FirstExitDiagnosticStatus.Completed ||
+                state->Arena.Transition->Mode != FirmwareServicesMode.BootServicesExited ||
+                !state->Arena.Transition->RetainedFirmwareCallbacksCleared ||
+                !state->Arena.Binding->RetainedPointersCleared || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            state->ServicePhase = 1;
+            // Provider pointers are unnecessary once the original arena epoch has
+            // revoked these copied handles. Keep only first-party denied thunks.
+            state->AdapterConsole = null; state->AdapterServices = null;
+            if (!LinuxText(state, "TEST_START m16-003\r\n") ||
+                !StartOwnedHpet(state, out OwnedHpetAccess hpet, out OwnedTscAccess tsc) ||
+                state->Clock.PeriodFemtoseconds == 0 ||
+                1000000000000000UL % state->Clock.PeriodFemtoseconds != 0)
+            { _ = LinuxText(state, "TEST_FAIL m16-003 clock_admission\r\n"); return false; }
+            if (!LinuxText(state, "M16_003_CLOCK frequency=") || !LinuxNumber(state, state->Clock.FrequencyHz) ||
+                !LinuxText(state, " period=") || !LinuxNumber(state, state->Clock.PeriodFemtoseconds) ||
+                !LinuxText(state, " recoveries=") || !LinuxNumber(state, state->Clock.RecoveryAttempts) ||
+                !LinuxText(state, " source=owned-hpet\r\n")) return false;
+            var request = new WorkloadServiceLoopRequest
+            {
+                FrequencyHz = state->Clock.FrequencyHz, IntervalMilliseconds = 1,
+                MinimumIterations = 3, MaximumIterations = 4, PollLimit = 4096,
+                FirmwareExited = true, RetainedPointersCleared = true,
+                OwnedMappingsValidated = true
+            };
+            var callbacks = new WorkloadServiceLoopCallbacks
+            { Context = state, ReadClock = &ServiceReadClock, Service = &ServiceIteration, Stop = &ServiceStop };
+            if (WorkloadServiceLoop.Run(ref state->ServiceLoop, request, callbacks) != WorkloadServiceStatus.Stopped ||
+                state->ServiceLoop.Iterations != 4 || state->ServiceLoop.LastTicks <= state->ServiceLoop.FirstTicks ||
+                !FirstExitOwnedArena.ValidateCanaries(state->Arena))
+            {
+                _ = LinuxText(state, "TEST_FAIL m16-003 service_state status=") &&
+                    LinuxNumber(state, (uint)state->ServiceLoop.Status) &&
+                    LinuxText(state, " iterations=") && LinuxNumber(state, state->ServiceLoop.Iterations) &&
+                    LinuxText(state, " reads=") && LinuxNumber(state, state->ServiceLoop.ClockReads) &&
+                    LinuxText(state, " first=") && LinuxNumber(state, state->ServiceLoop.FirstTicks) &&
+                    LinuxText(state, " last=") && LinuxNumber(state, state->ServiceLoop.LastTicks) &&
+                    LinuxText(state, " clockStatus=") && LinuxNumber(state, (uint)state->Clock.Status) &&
+                    LinuxText(state, " recoveries=") && LinuxNumber(state, state->Clock.RecoveryAttempts) &&
+                    LinuxText(state, "\r\n");
+                return false;
+            }
+            state->ServicePhase = 2;
+            return LinuxText(state, "M16_003_STOP iterations=4 reads=") && LinuxNumber(state, state->ServiceLoop.ClockReads) &&
+                LinuxText(state, " first=") && LinuxNumber(state, state->ServiceLoop.FirstTicks) &&
+                LinuxText(state, " last=") && LinuxNumber(state, state->ServiceLoop.LastTicks) &&
+                LinuxText(state, " interval=") && LinuxNumber(state, state->ServiceLoop.IntervalTicks) &&
+                LinuxText(state, " firmware=revoked providers=1 shutdown=owned-controller\r\nCLROS_M16_003_READY\r\nTEST_PASS m16-003\r\n");
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte ServiceReadClock(void* context, ulong* ticks)
+        {
+            Storage* state = (Storage*)context;
+            if (state->ServicePhase != 1 || ticks == null || state->AdapterConsole != null || state->AdapterServices != null ||
+                !OwnedMonotonicClock.Read(ref state->Clock) || state->Clock.Source != OwnedClockSource.Hpet ||
+                state->Clock.RecoveryAttempts > 1 || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return 0;
+            *ticks = state->Clock.Ticks; return 1;
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte ServiceIteration(void* context, WorkloadServiceLoopState* original, uint iteration, ulong ticks)
+        {
+            Storage* state = (Storage*)context;
+            if (state->ServicePhase != 1 || original != &state->ServiceLoop || iteration == 0 || iteration > 4 ||
+                ticks != state->Clock.Ticks || !LinuxText(state, "M16_003_ITERATION index=") ||
+                !LinuxNumber(state, iteration) || !LinuxText(state, " ticks=") || !LinuxNumber(state, ticks) ||
+                !LinuxText(state, "\r\n")) return 0;
+            if (iteration == 4 && !WorkloadServiceLoop.RequestShutdown(ref *original)) return 0;
+            return 1;
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte ServiceStop(void* context, uint iterations, ulong ticks)
+        {
+            Storage* state = (Storage*)context;
+            if (state->ServicePhase != 1 || iterations != 4 || ticks != state->Clock.Ticks ||
+                state->AdapterConsole != null || state->AdapterServices != null) return 0;
+            for (uint index = 0; index < 8; index++)
+                if (!DenyCopiedFirmwareAdapter(state, index) || !LinuxText(state, "M16_003_FIRMWARE_DENIED index=") ||
+                    !LinuxNumber(state, index) || !LinuxText(state, " status=ServicesUnavailable providers=1 outputs=unchanged\r\n")) return 0;
+            return 1;
+        }
+#endif
+
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
 #if M05_MONOTONIC_CLOCK_PROBE
         private static bool RunOwnedMonotonicClock(void* context)
         {
@@ -3228,6 +3587,27 @@ public static unsafe class EfiEntry
 
         private static bool RunClockCore(Storage* state)
         {
+            if (!StartOwnedHpet(state, out OwnedHpetAccess hpet, out OwnedTscAccess tsc) ||
+                !ReadClockProgress(state, out ulong first) || !ReadClockProgress(state, out ulong second)) return false;
+            ulong capabilities = hpet.Read(hpet.Context, 0);
+            bool tscAvailable = OwnedMonotonicClock.TryTscFrequency(tsc, out ulong tscFrequency) && tsc.Read != null;
+            if (!tscAvailable) tscFrequency = 0;
+            var invalidPeriod = MonotonicHpetTscClockMath.DecodeHpetCapabilities(0);
+            var ambiguous = MonotonicHpetTscClockMath.Accumulate(0, 0x80000000, 32, 0);
+            bool invalidTscRefused = !OwnedMonotonicClock.TryTscFrequency(default, out ulong invalidFrequency) && invalidFrequency == 0;
+            if (invalidPeriod.Status != MonotonicClockMathStatus.InvalidPeriod ||
+                ambiguous.Status != MonotonicClockMathStatus.AmbiguousDelta || !invalidTscRefused ||
+                !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            return WriteClockRow(state, 0, state->HpetDescription.Address, capabilities, state->Clock.PeriodFemtoseconds, state->Clock.CounterWidth) &&
+                WriteClockRow(state, 1, (ulong)state->Clock.Source, state->Clock.FrequencyHz, state->Clock.RecoveryAttempts, (ulong)state->Clock.HpetStatus) &&
+                WriteClockRow(state, 2, first, second, tscAvailable ? 1UL : 0UL, tscFrequency) &&
+                WriteClockRow(state, 3, (ulong)invalidPeriod.Status, (ulong)ambiguous.Status, 1, 1);
+        }
+#endif
+
+        private static bool StartOwnedHpet(Storage* state, out OwnedHpetAccess hpet, out OwnedTscAccess tsc)
+        {
+            hpet = default; tsc = default;
             fixed (AcpiBootstrapWorkspace* workspace = &s_acpiBootstrap)
             fixed (AcpiBootstrapOwnedBuffer* copied = &s_acpiBootstrapOwned)
             {
@@ -3243,28 +3623,14 @@ public static unsafe class EfiEntry
             }
             byte* access = state->Memory.Code + FirstExitCodeBundle.ClockAccessOffset;
             if (!X64OwnedClockAccess.Validate(access, X64OwnedClockAccess.Bytes)) return false;
-            OwnedTscAccess tsc = ReadClockCpu(access);
-            OwnedHpetAccess hpet = new OwnedHpetAccess
+            tsc = ReadClockCpu(access);
+            hpet = new OwnedHpetAccess
             {
                 Context = (void*)state->HpetDescription.Address, HardwareId = state->HpetDescription.HardwareId,
                 Read = (delegate* unmanaged<void*, uint, ulong>)(access + X64OwnedClockAccess.ReadOffset),
                 Write = (delegate* unmanaged<void*, uint, ulong, void>)(access + X64OwnedClockAccess.WriteOffset)
             };
-            if (!OwnedMonotonicClock.Start(ref state->Clock, hpet, tsc) || state->Clock.Source != OwnedClockSource.Hpet ||
-                !ReadClockProgress(state, out ulong first) || !ReadClockProgress(state, out ulong second)) return false;
-            ulong capabilities = hpet.Read(hpet.Context, 0);
-            bool tscAvailable = OwnedMonotonicClock.TryTscFrequency(tsc, out ulong tscFrequency) && tsc.Read != null;
-            if (!tscAvailable) tscFrequency = 0;
-            var invalidPeriod = MonotonicHpetTscClockMath.DecodeHpetCapabilities(0);
-            var ambiguous = MonotonicHpetTscClockMath.Accumulate(0, 0x80000000, 32, 0);
-            bool invalidTscRefused = !OwnedMonotonicClock.TryTscFrequency(default, out ulong invalidFrequency) && invalidFrequency == 0;
-            if (invalidPeriod.Status != MonotonicClockMathStatus.InvalidPeriod ||
-                ambiguous.Status != MonotonicClockMathStatus.AmbiguousDelta || !invalidTscRefused ||
-                !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
-            return WriteClockRow(state, 0, state->HpetDescription.Address, capabilities, state->Clock.PeriodFemtoseconds, state->Clock.CounterWidth) &&
-                WriteClockRow(state, 1, (ulong)state->Clock.Source, state->Clock.FrequencyHz, state->Clock.RecoveryAttempts, (ulong)state->Clock.HpetStatus) &&
-                WriteClockRow(state, 2, first, second, tscAvailable ? 1UL : 0UL, tscFrequency) &&
-                WriteClockRow(state, 3, (ulong)invalidPeriod.Status, (ulong)ambiguous.Status, 1, 1);
+            return OwnedMonotonicClock.Start(ref state->Clock, hpet, tsc) && state->Clock.Source == OwnedClockSource.Hpet;
         }
 
         private static bool ReadClockProgress(Storage* state, out ulong ticks)
@@ -3300,6 +3666,7 @@ public static unsafe class EfiEntry
             return tsc;
         }
 
+#if M05_MONOTONIC_CLOCK_PROBE
         private static bool WriteClockRow(Storage* state, uint stage, ulong a, ulong b, ulong c, ulong d)
         {
             if (stage > 3) return false;
@@ -3329,6 +3696,7 @@ public static unsafe class EfiEntry
             else { words[0] = 0x4941465f54534554UL; words[1] = 0x30302e35306d204cUL; words[2] = 0x5f6b636f6c632033UL; words[3] = 0xa0d6574617473UL; bytes = 31; }
             return WriteOwnedBytes(state, (byte*)words, bytes);
         }
+#endif
 #endif
 
 #if M05_OWNED_ACPI_SELECTION_PROBE
@@ -3821,7 +4189,7 @@ public static unsafe class EfiEntry
                 (observation.Ia32Efer & 0xd00) != 0xd00 || (observation.Rflags & 0x24702) != 0x202) return false;
             ulong pat = 0;
             ((delegate* unmanaged<ulong*, void>)(code + 192))(&pat);
-#if M05_MONOTONIC_CLOCK_PROBE || M05_PCI_ENUMERATION_PROBE
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M05_PCI_ENUMERATION_PROBE
             byte uncached = 255;
             for (byte i = 0; i < 8; i++) if (((pat >> (i * 8)) & 255) == 0) { uncached = i; break; }
             if (uncached == 255 || X64PatMappingToken.TryCreate(pat, 0, uncached, 255, out var cache) != X64PageTableEntryStatus.Success) return false;
@@ -4469,7 +4837,7 @@ public static unsafe class EfiEntry
     }
 #endif
 
-#if M03_FIRMWARE_ENTROPY_SEED_PROBE
+#if M03_FIRMWARE_ENTROPY_SEED_PROBE || M16_004_PROBE
     // One pre-EBS acquisition. The host Span/interface contract is deliberately
     // separate; this EFI boundary has only numeric values and admitted pointers.
     internal static class FirmwareEntropyCapture

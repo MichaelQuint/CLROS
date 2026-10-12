@@ -109,9 +109,20 @@ by clean app exit and a failed post-shutdown probe. This qualifies the Linux
 host feasibility gate only. [Step1199](../done/step1199.md) implements #680's
 versioned immutable package/staging profile; three final-source guests pass
 data retention and digest checks after firmware exit, together with two rejection
-controls, two boot regressions and 4,565 full-host checks. Continuing services, ELF entry and guest application/runtime/
+controls, two boot regressions and 4,565 full-host checks. ELF entry and guest application/runtime/
 Kestrel gates remain open. M16-003 owns the bounded service loop; M16-004 owns
 ELF mappings, TLS and Linux initial stack construction.
+
+[Step1200](../done/step1200.md) qualifies both children with 4,603 full-host checks,
+native review, three combined package guests, standalone children, five affected
+ancestors and missing-RNG rollback.
+The loader separates kernel and user
+leaves, omits the physical RW image alias from the user root, zeroes BSS/padding,
+and constructs argv/envp/auxv from the versioned manifest, actual PHDR and borrowed
+firmware entropy. Its current live backing cap is 4096 pages, preserving the
+existing kernel identity-map limits. TLS template geometry is admitted; thread TLS,
+application entry and syscall execution remain M16-005 onward. No guest runtime or
+Kestrel evidence follows from loading and read-back alone.
 
 ### Pinned payload requirements and trace limits
 

@@ -1,5 +1,17 @@
 # Boot
 
+Qualified children `EnableM16003Probe` and `EnableM16004Probe` default off and
+imply the staged-package/owned-exit parent through the compiled tooling profile.
+The service child uses owned HPET time and denied copied firmware handles before
+controlled stop. The loader child reserves backing/entropy before exit and builds
+the protected image/stack afterward, with a candidate-root read-back and restoration
+path. When combined, loader read-back precedes service shutdown. These paths are
+qualified by 4,603 full-host checks, native review, three combined package guests,
+standalone children, five affected ancestors and missing-RNG rollback; see
+[step1200](../done/step1200.md). HPET initialization permits its existing single
+recovery, whose count is recorded before the timed iterations.
+Ordinary `VerifiedExit` keeps both children disabled.
+
 The default-off `EnableM16002Probe` profile qualified in
 [step1199](../done/step1199.md) stages `OS/APP.PKG` through original-device UEFI
 Simple File System handles before the final memory-map/exit window. Both file
