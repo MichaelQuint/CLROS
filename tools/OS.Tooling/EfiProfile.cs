@@ -19,6 +19,15 @@ public sealed class EfiProfile
             if (!flags.ContainsKey(pair.Key)) throw new ToolFailure("diagnostic_probe_unknown", "property=" + pair.Key);
             flags[pair.Key] = pair.Value;
         }
+        if (flags["EnableM16005Probe"])
+        {
+            foreach (string parent in new[] { "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe" })
+            {
+                if (explicitlySelected.TryGetValue(parent, out bool enabled) && !enabled)
+                    throw new ToolFailure("m16_005_explicit_false_prerequisite", parent);
+                flags[parent] = true;
+            }
+        }
         if (flags["EnableM16003Probe"])
         {
             if (explicitlySelected.TryGetValue("EnableM16002Probe", out bool parent) && !parent)
@@ -40,7 +49,7 @@ public sealed class EfiProfile
                 flags[name] = true;
             }
             foreach (var flag in flags)
-                if (flag.Value && flag.Key != "EnableM16002Probe" && flag.Key != "EnableM16003Probe" && flag.Key != "EnableM16004Probe" && !required.Contains(flag.Key))
+                if (flag.Value && flag.Key != "EnableM16002Probe" && flag.Key != "EnableM16003Probe" && flag.Key != "EnableM16004Probe" && flag.Key != "EnableM16005Probe" && !required.Contains(flag.Key))
                     throw new ToolFailure("m16_002_profile_conflict", flag.Key);
         }
         bool diagnostic = flags.Values.Any(v => v);

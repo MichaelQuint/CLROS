@@ -3,8 +3,9 @@
 ## Start here
 
 1. Read `docs/workload-profiles.md` for the current NativeAOT-first decision.
-2. Refresh the LAN tracker; start with [M16-001 / #679](http://192.168.4.35:3000/admin/CLROS/issues/679)
-   (pinned payload qualification).
+2. Refresh the LAN tracker and select the first unfinished dependency-compatible
+   NativeAOT-first ticket. M16-001/#679 through M16-005/#683 are qualified;
+   the next slice is [M16-006 / #684](http://192.168.4.35:3000/admin/CLROS/issues/684).
    Use exact dependencies and acceptance from the managed issue, not numeric
    milestone order or a generic "smallest ready" optional ticket.
 3. Preserve existing work. Pick one cohesive implementation slice, reuse the
@@ -16,6 +17,15 @@
 5. The shared host project is `src/OS.Std.NoRuntime.Shared`. Its audited
    implementation source remains under `std/no-runtime/shared` and appears as
    linked files. Do not duplicate those types or move EFI source paths casually.
+
+The #683/#699 default-off CPL3/syscall batch is qualified in `done/step1201.md`:
+4,619 full-host checks across 604 groups (94 Native), original scoped native
+review, three 121-record write/exit guests, four 112-record controlled-negative
+guests and seven ancestors pass. A C#-authored mechanical ELF checks actual
+selectors, errno, cross-page write, GPR/flag/FS/GS/SSE preservation and exit 42.
+Owned NULL FS/GS selectors are established before the restoration baseline.
+General processes, threads/TLS/futex/signals, real NativeAOT Hello (#685), guest
+application GC/EH, Kestrel, numbered gates, cloud and production remain incomplete.
 
 The #662/#663/#664 default-off caller-window batch is qualified in
 `done/step1187.md`: 4532 full-host checks across 587 groups (92 Native), original native review,

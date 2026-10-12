@@ -103,9 +103,9 @@ internal static class EfiProfileTestControls
     // Independent expectations shared by cross-profile rejection fixtures.
     internal static string? MissingParentReason(IReadOnlyCollection<string> selected)
     {
-        if (selected.Contains("EnableM16002Probe") || selected.Contains("EnableM16003Probe") || selected.Contains("EnableM16004Probe"))
+        if (selected.Contains("EnableM16002Probe") || selected.Contains("EnableM16003Probe") || selected.Contains("EnableM16004Probe") || selected.Contains("EnableM16005Probe"))
         {
-            string[] allowed = ["EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
+            string[] allowed = ["EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
                 "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
             if (selected.Any(name => !allowed.Contains(name))) return "m16_002_profile_conflict";
         }
@@ -203,7 +203,7 @@ internal static class EfiProfileTestControls
     {
         string[] parents = ["EnableM16002Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
             "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
-        string[] allowed = [.. parents, "EnableM16003Probe", "EnableM16004Probe"];
+        string[] allowed = [.. parents, "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe"];
         foreach (bool build in new[] { true, false })
         {
             foreach (string[] args in new string[][]
@@ -247,6 +247,30 @@ internal static class EfiProfileTestControls
             HostCheck.True(ServiceProfileRejected(build, ["--boot-policy", "VerifiedExit", "--EnableM16004Probe"],
                 "clros_boot_policy_probe_conflict"));
         }
+    }
+
+    [HostTest("efi.profile syscall child requires startup service and preserves default and explicit exclusions")]
+    private static void SyscallChildRouting()
+    {
+        string[] parents = ["EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM01LoadedImageStackProbe",
+            "EnableM01LiveAllocatorProbe", "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
+        foreach (bool build in new[] { true, false })
+        {
+            var profile = EfiOptions.Parse(["--EnableM16005Probe"], build).Profile();
+            HostCheck.Equal("Diagnostic", profile.BootPolicy);
+            HostCheck.True(profile.IsEnabled("M16005") && parents.All(profile.IsEnabled));
+            HostCheck.True(profile.Flags.Where(x => x.Value).All(x => parents.Contains(x.Key) || x.Key == "EnableM16005Probe"));
+            foreach (string parent in parents)
+                HostCheck.True(ServiceProfileRejected(build, ["--EnableM16005Probe", "--" + parent + ":false"],
+                    parent is "EnableM16002Probe" or "EnableM16003Probe" or "EnableM16004Probe" ? "m16_005_explicit_false_prerequisite" : "m16_002_explicit_false_prerequisite"));
+            HostCheck.True(ServiceProfileRejected(build, ["--EnableM16005Probe", "--EnableM05MonotonicClockProbe"], "m16_002_profile_conflict"));
+            HostCheck.True(ServiceProfileRejected(build, ["--boot-policy", "VerifiedExit", "--EnableM16005Probe"], "clros_boot_policy_probe_conflict"));
+            HostCheck.True(!EfiOptions.Parse(["--EnableM16005Probe:false"], build).Profile().IsEnabled("M16005"));
+        }
+        var smoke = QemuProfiles.Create(QemuSmokeOptions.Parse(["--dry-run", "--build-efi", "--EnableM16005Probe"]));
+        foreach (string repeated in new[] { "M16_005_CALL", "M16_005_WRITE" })
+            HostCheck.True(smoke.Required.Contains(repeated) && smoke.Ordered.Contains(repeated) && !smoke.Unique.Contains(repeated));
+        HostCheck.True(smoke.Unique.Contains("M16_005_EXIT") && smoke.Unique.Contains("M16_005_RESTORE"));
     }
 
     private static bool ServiceProfileRejected(bool build, string[] args, string reason)

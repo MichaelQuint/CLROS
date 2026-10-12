@@ -13,7 +13,7 @@ public static partial class EfiContracts
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
         "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe",
-        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe"]);
+        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -33,9 +33,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "4dd51bf9b83a3dd47cd1cb02996de94b001d8e31fef1b713061c615cd192717a";
-    public const string CanonicalProjectSha256 = "8bac7986d8daab9d3ce7c609a0a3ae075f4f863803c15a1d525e67f13c7d7268";
-    public const string EfiEntrySourceSha256 = "28b68c9e9b39aa2d0f948af00619f4b7a39befdafe1c4f56b93a418bedc74af2";
+    public const string ProjectSourceSha256 = "c237460b7c4ca515667bd9a57fb5a13c8eb759be185ee3b6dc81fd70fcf7590c";
+    public const string CanonicalProjectSha256 = "b08671ecadca73ec935251acf21b938a0d35876ac2dc45a6bda6d873639a5779";
+    public const string EfiEntrySourceSha256 = "2daef3c5b8e96fc7f655c8f4fd2f9e35544ef8081de95ad35ab66fb7cdc5189e";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -273,6 +273,8 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfStartup.cs|Compatibility\LinuxX64\LinuxElfStartup.cs",
         @"..\OS.Kernel\Memory\X64UserAddressSpace.cs|Memory\X64UserAddressSpace.cs",
         @"..\..\std\no-runtime\shared\Text\AsciiArgumentSplitter.cs|Std\Text\AsciiArgumentSplitter.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs|Compatibility\LinuxX64\LinuxSyscallGateway.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs|Compatibility\LinuxX64\X64LinuxUserTransition.cs",
     ]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> DiagnosticProbes { get; } = Array.AsReadOnly<string>(
@@ -358,6 +360,7 @@ public static partial class EfiContracts
         "EnableM16002Probe",
         "EnableM16003Probe",
         "EnableM16004Probe",
+        "EnableM16005Probe",
         "EnableUefiGoneSimulationProbe",
     ]);
 }

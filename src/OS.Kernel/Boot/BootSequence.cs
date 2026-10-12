@@ -231,6 +231,18 @@ public static class BootSequence
         OS.Kernel.Diagnostics.Probes.EnableM16004Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe &&
         packageReady && firmwareRevoked && context != null && run != null && run(context);
 
+    /// <summary>Prepare the user boundary while staged-package and startup firmware authority remain available.</summary>
+    public static unsafe bool PrepareLinuxUserBoundary(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16005Probe && OS.Kernel.Diagnostics.Probes.EnableM16004Probe &&
+        OS.Kernel.Diagnostics.Probes.EnableM16002Probe && firmwareAvailable && context != null && prepare != null && prepare(context);
+
+    /// <summary>Run the syscall boundary only after startup, service stop and firmware revocation.</summary>
+    public static unsafe bool RunOwnedLinuxSyscalls(bool startupReady, bool serviceStopped, bool firmwareRevoked,
+        void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16005Probe && OS.Kernel.Diagnostics.Probes.EnableM16004Probe &&
+        OS.Kernel.Diagnostics.Probes.EnableM16003Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe &&
+        startupReady && serviceStopped && firmwareRevoked && context != null && run != null && run(context);
+
     /// <summary>
     /// Terminal boot boundary, after the original M01 allocator and copied
     /// ACPI. The ordinary policy defers success markers until owned post-exit checks.

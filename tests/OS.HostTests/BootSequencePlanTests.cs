@@ -691,6 +691,8 @@ internal static class BootSequencePlanTests
              "public static unsafe bool RunOwnedWorkloadServiceLoop(bool packageReady, bool firmwareRevoked,",
              "public static unsafe bool PrepareLinuxElfStartup(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>",
              "public static unsafe bool RunOwnedLinuxElfStartup(bool packageReady, bool firmwareRevoked,",
+             "public static unsafe bool PrepareLinuxUserBoundary(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>",
+             "public static unsafe bool RunOwnedLinuxSyscalls(bool startupReady, bool serviceStopped, bool firmwareRevoked,",
              "public static unsafe OS.Boot.FirstExitReturn RunFirstRealExitBootServicesTransition(",
              "private static bool IsFirstRealExitBootServicesEnabled() =>",
              "public static unsafe OS.Kernel.Runtime.CompilerClassConstructorStatus RunCompilerClassConstructors(",
@@ -738,6 +740,8 @@ internal static class BootSequencePlanTests
              "public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch("])
             && HasGuardedSurface("src/OS.Kernel/Diagnostics/Probes.cs", 2,
             ["public static partial class Probes",
+             "public const bool EnableM16005Probe = true;",
+             "public const bool EnableM16005Probe = false;",
              "public const bool EnableM16004Probe = true;",
              "public const bool EnableM16004Probe = false;",
              "public const bool EnableM16003Probe = true;",
@@ -2038,6 +2042,56 @@ internal static class BootSequencePlanTests
     {
         (*(int*)context)++;
         return true;
+    }
+
+    [HostTest("boot.sequence Linux syscalls default off and reject incomplete authority", HostLane.Fast, 51)]
+    private static unsafe bool TestLinuxSyscallsDefaultsOff()
+    {
+        int calls = 0;
+        return HostCheck.Result(!Probes.EnableM16005Probe
+            && Probes.TryGetProbe(Probes.ProbeCatalogCount - 1, out var probe)
+            && probe.Group == "app.linux-syscalls" && probe.Name == "EnableM16005Probe" && !probe.EnabledByDefault && probe.Risk == ProbeRisk.Destructive
+            && !BootSequence.PrepareLinuxUserBoundary(true, &calls, &RecordLinuxSyscallCall)
+            && !BootSequence.PrepareLinuxUserBoundary(false, &calls, &RecordLinuxSyscallCall)
+            && !BootSequence.PrepareLinuxUserBoundary(true, null, &RecordLinuxSyscallCall)
+            && !BootSequence.PrepareLinuxUserBoundary(true, &calls, null)
+            && !BootSequence.RunOwnedLinuxSyscalls(true, true, true, &calls, &RecordLinuxSyscallCall)
+            && !BootSequence.RunOwnedLinuxSyscalls(false, true, true, &calls, &RecordLinuxSyscallCall)
+            && !BootSequence.RunOwnedLinuxSyscalls(true, false, true, &calls, &RecordLinuxSyscallCall)
+            && !BootSequence.RunOwnedLinuxSyscalls(true, true, false, &calls, &RecordLinuxSyscallCall)
+            && !BootSequence.RunOwnedLinuxSyscalls(true, true, true, null, &RecordLinuxSyscallCall)
+            && !BootSequence.RunOwnedLinuxSyscalls(true, true, true, &calls, null)
+            && calls == 0);
+    }
+
+    private static unsafe bool RecordLinuxSyscallCall(void* context)
+    {
+        (*(int*)context)++;
+        return true;
+    }
+
+    [HostTest("boot.sequence Linux syscall source order follows startup and service stop", HostLane.Fast, 52)]
+    private static bool TestLinuxSyscallSourceOrder()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        string source = Regex.Replace(File.ReadAllText(Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs")),
+            @"\s+", string.Empty, RegexOptions.CultureInvariant);
+        string[] calls =
+        [
+            "BootSequence.StageLinuxElfPackage(", "BootSequence.PrepareLinuxElfStartup(",
+            "BootSequence.PrepareLinuxUserBoundary(", "BootSequence.RunFirstRealExitBootServicesTransition(",
+            "BootSequence.RunOwnedLinuxElfPackage(", "BootSequence.RunOwnedLinuxElfStartup(",
+            "BootSequence.RunOwnedWorkloadServiceLoop(", "BootSequence.RunOwnedLinuxSyscalls("
+        ];
+        int previous = -1;
+        foreach (string call in calls)
+        {
+            int at = source.IndexOf(call, StringComparison.Ordinal);
+            if (at <= previous || source.IndexOf(call, at + call.Length, StringComparison.Ordinal) >= 0)
+                return HostCheck.Result(false, "Linux syscall preparation/owned call order: " + call);
+            previous = at;
+        }
+        return HostCheck.Result(true);
     }
 
     private static BootHandoffRecord CreateValidOwnedHandoffRecord()

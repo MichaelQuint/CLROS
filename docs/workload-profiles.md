@@ -21,6 +21,11 @@ an upstream .NET application runtime, Kestrel, isolated application processes,
 scheduling and an app supervisor remain unqualified. See completion-gates.md
 for the accepted boundaries; bounded diagnostics do not establish app hosting.
 
+[Step1201](../done/step1201.md) accepts one default-off mechanical ELF CPL3
+write/exit excursion and controlled faults with full owned-state restoration.
+It does not qualify the upstream NativeAOT Hello milestone, thread/TLS/futex
+services, application GC/EH, a continuing workload or CLROS Kestrel.
+
 ## Decision
 
 **Superseded ordering (2026-10-12):** the NativeAOT-first decision below is

@@ -1,5 +1,16 @@
 # EFI Build
 
+Qualified `--EnableM16005Probe` selects the default-off mechanical CPL3 syscall
+Diagnostic and automatically requires M16-002/003/004. QEMU acceptance requires
+`qemu smoke -BuildEfi -EnableM16005Probe -LinuxElfPackage <fixture.pkg>` with a
+fresh original image/capture. [step1201](../done/step1201.md) records canonical
+C#-authored fixtures, native source/object/map identities, positive and separate
+expected-negative receipts, full-host and ancestor evidence. The 4-KiB C# byte
+bundle and twenty-page supervisor allocation provide checked IRETQ, dedicated
+stack/guard and x87/SSE restoration under the admitted single-CPU, IRQ-off
+baseline. Extended-state workloads, general processes and upstream apps remain
+outside this qualification.
+
 Qualified `--EnableM04NormalFinallyProbe` is a default-off collecting-GC
 Diagnostic. [step1195](../done/step1195.md) pins ILC10.0.12 WinX64 and one
 `NormalCatcher` with `MethodImpl` NoOptimization (`0x40`), 173 original code
