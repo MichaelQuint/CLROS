@@ -1,5 +1,15 @@
 # NativeAOT NoStdLib Limits
 
+#670–#672 implement host prerequisites for one future normal-path-finally fixture
+in [step1188](../done/step1188.md), pending stable-batch qualification. A plain
+handler funclet's own unwind restores the same-root parent GP/XMM context, preserves
+actual RIP and finds the exact exited clause from complete original catalog/EH
+metadata. The existing planner can skip that clause and earlier clauses in both
+search and cleanup while validating every row and typed receipt. The encoded kind
+does not distinguish fault from finally; compiler/call-site evidence must establish
+normal-finally invocation. These helpers acquire no lifetime or CPU authority and
+prove no normal-finally guest execution. #90/Gate4 remains incomplete.
+
 `BoundedExceptionCallerWindow` is qualified in [step1187](../done/step1187.md): 4532 full-host checks across 587 groups (92 Native),
 original native review, three 95-record guests and twelve ancestors. It assembles
 up to four physical contexts and sixteen decoded rows without allocation. Actual

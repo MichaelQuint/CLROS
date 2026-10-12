@@ -1,5 +1,12 @@
 # CLROS Completion Gates
 
+#670–#672 have focused host development evidence in [step1188](../done/step1188.md)
+for plain-funclet parent recovery and dispatch selection after an exited cleanup.
+Full-host/native regression qualification is pending. This establishes no new
+guest profile, actual normal-finally throw/transfer, invocation history, lifetime
+authority, general EH or #90/Gate4 completion. A separately owned pinned compiler
+fixture and measured ABI review are required before any guest admission.
+
 #662/#663/#664 are qualified in [step1187](../done/step1187.md) at frozen source `655d76f`:
 4532 full-host checks across 587 groups (92 Native), complete/successful/unchanged-input receipts,
 zero failures/timeouts/reuse, 21 hostile native controls, three byte-identical

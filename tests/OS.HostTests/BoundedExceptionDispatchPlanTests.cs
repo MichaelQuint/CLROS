@@ -137,7 +137,7 @@ internal static unsafe class BoundedExceptionDispatchPlanTests
         f.Owner.Unchanged(image, heap);
     }
 
-    private sealed class Fixture : IDisposable
+    internal sealed class Fixture : IDisposable
     {
         internal readonly ExceptionTypeMatchTests.Fixture Owner = new(PrepareImage);
         private readonly byte* snapshot = (byte*)NativeMemory.AllocZeroed(0x4000);
