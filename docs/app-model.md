@@ -2,6 +2,15 @@
 
 ## NativeAOT-first application boundary
 
+The next slice is [M16-006/#684](http://192.168.4.35:3000/admin/CLROS/issues/684)
+for measured Linux memory/startup services, followed by #685 descriptors and
+immutable file views. These slices use mechanical fixtures. #686 adds mechanical
+threads/TLS/futex and real per-thread signal-mask inheritance/restoration.
+M16-009/#687 owns first pinned NativeAOT Hello acceptance after signal
+startup/delivery, before focused suspension checks; Hello itself starts runtime
+threads before printing. #688 repeats Hello and qualifies the comprehensive
+runtime exerciser. See the canonical [workload roadmap](workload-profiles.md).
+
 M16-005/#683 and supplemental #699 are qualified in
 [step1201](../done/step1201.md): 4,619 full-host checks across 604 groups
 (94 Native), scoped original native review, three write/exit guests, four
@@ -11,7 +20,7 @@ and restores its owned kernel baseline. Real NativeAOT Hello, upstream guest
 runtime behavior, general processes and CLROS Kestrel remain unqualified.
 
 The mechanical M16-005 ELF fixtures exercise privilege, syscall and restoration
-mechanics only; they do not substitute for #685's real NativeAOT Hello workload.
+mechanics only; they do not substitute for #687's real NativeAOT Hello workload.
 Before capturing the kernel baseline, the owned adapter establishes NULL FS/GS
 selectors and independently checks that their 64-bit MSR bases are preserved.
 The excursion restores that owned baseline; inherited firmware selector caches
@@ -41,15 +50,36 @@ The versioned Linux ELF package in [step1199](../done/step1199.md) now has a
 default-off M16-002 staging profile. Three final-source guests retain exact
 Hello/runtime/Minimal API package bytes across firmware exit as read-only/NX data,
 with closed file handles, validated ledger and a bounded immutable file copy.
-Full-host qualification passes all 4,565 checks. ELF mappings/startup/user entry,
-continuing services, Linux adapters and the upstream guest runtime remain future
-work. A normal NativeAOT executable must not be treated as raw OSAPPv0 bytes or
+Full-host qualification passes all 4,565 checks. Later steps above qualify bounded
+ELF mappings, startup construction and mechanical user entry; continuing runtime
+services and the upstream guest runtime remain incomplete. A normal NativeAOT
+executable must not be treated as raw OSAPPv0 bytes or
 share the kernel collector. Existing native contracts below retain their
 historical ABI and evidence.
 
+The memory adapter must distinguish sparse virtual reservations from committed
+pages and physical-memory quotas. The pinned Hello trace reserves more than
+4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to
+reproduce that request. Preserve the qualified payload, or record and retrace
+an explicit bounded runtime configuration before changing its requirements.
+See [the measured memory requirement](workload-profiles.md#pinned-payload-requirements-and-trace-limits).
+
+Stock Linux/musl remains the primary application target. The host-only
+[custom Kestrel transport comparison #702](http://192.168.4.35:3000/admin/CLROS/issues/702)
+may inform the network boundary;
+[WASI HTTP #703](http://192.168.4.35:3000/admin/CLROS/issues/703)
+with a custom ASP.NET `IServer` is a separate optional target and does not run
+Kestrel. Both are supplemental research without milestones or critical-path
+dependencies; neither qualifies guest execution. The
+[Kestrel ledger](kestrel.md#transport-decision-experiments) owns that distinction.
+
 ## Current Status
 
-The native-tier app model is in early host-tested planning. The long-term first-class workload target is .NET 10 applications, with ASP.NET Minimal API apps as the primary cloud scenario. Kestrel support is mandatory, but it depends on hosted runtime, sockets, timers, threading/scheduler, and network stack prerequisites that are not implemented yet. Broad hosted-workload claim boundaries are tracked in `docs/completion-gates.md`.
+The legacy OSAPPv0 native-tier app model described below is in early host-tested
+planning. The separate Linux ELF path above is the current first-class .NET 10
+application target. Kestrel support is mandatory, but upstream runtime,
+sockets, timers, threading/scheduler and continuing network prerequisites remain
+incomplete. Broad workload claim boundaries are tracked in `docs/completion-gates.md`.
 
 `docs/workload-profiles.md` defines the application workload profiles used by the backlog. `SingleMinimalApi` is the near-term default and deliberately keeps the first hosted target to one Minimal API/Kestrel workload without requiring a process table or per-app address spaces. `MultiMinimalApi` is a later profile that requires process/isolation/supervisor semantics and is not implemented today.
 
@@ -720,8 +750,8 @@ The selected app launch descriptor resolves metadata and validates only the smal
 
 ## Next Steps
 
-1. Allocate or reserve the validated app-selection scratch buffers in the boot path, then wire the virtio-blk selection preflight and app-selection readiness helper into the real boot path once block-device package reads can supply live manifest/package/descriptor prerequisites.
-2. Define app ABI and entrypoint.
-3. Extend package builder integration for app binaries/config, including multi-file config and a complete executable-format contract beyond the current native payload header and range plan.
-4. Connect `NativeAppLaunchPlan`, `NativeAppLaunchDescriptor`, `NativeAppPayloadMappingPlanner`, `NativeAppPayloadStagingPlanner`, `NativeAppPackageStagingReadinessPlanner`, `NativeAppExecutableMemoryPlan`, `NativeAppInvocationPlanner`, `NativeAppLifecyclePlanner`, `NativeAppExitStatusFormatter`, and `NativeAppExitLogObserver` to the future app launcher and supervisor log ingestion path.
-5. Keep `MinimalApiSmoke` aligned with `kestrel.smoke.package.v0` and the `SingleMinimalApi` claim rules before wiring any package builder, manifest conversion, or guest launch path for hosted .NET.
+1. Implement #684 memory/startup services, including sparse reservation, genuine protection/commit behavior and cleanup; then #685 descriptor/immutable-file services with mechanical fixtures.
+2. Implement #686 mechanical threads/TLS/futex and per-thread signal masks; #687 adds signal startup/delivery, qualifies the unchanged pinned Hello and then exercises suspension. #688 repeats Hello and adds the runtime exerciser. Do not move upstream application GC/EH into the kernel.
+3. Connect continuing NIC/TCP and Linux socket/readiness services to the pinned Minimal API payload and qualify external Kestrel traffic under the [workload roadmap](workload-profiles.md).
+4. Add private address spaces, descriptors/config, resource budgets and supervisor lifecycle for two applications, proving one survives the other's failure.
+5. Preserve the legacy OSAPPv0 planners and `kestrel.smoke.package.v0` tooling as separate contracts. CoreCLR/framework-dependent launch and broader storage/package selection remain later work.

@@ -8680,7 +8680,7 @@
         "M03-006"
       ],
       "labels": [
-        "agent:ready",
+        "agent:done",
         "priority:p1",
         "type:implementation",
         "evidence:qemu",
@@ -8709,7 +8709,7 @@
       ],
       "collisionLane": "lane:efi-entry",
       "summary": "Perform the first opt-in real ExitBootServices call under firmware CR3, then permanently adopt the reviewed owned hierarchy before any post-firmware marker or callback.",
-      "currentEvidence": "Step1010 accepts #63; prerequisites #333 and#56 are already closed. The first real ExitBootServices/permanent-owned-CR3 path is now ready to implement. Final capture and exit must run under firmware CR3; successful return must immediately adopt the reviewed owned mappings and use owned COM1 with no firmware callback or fallback. This boundary remains unimplemented/unproved.",
+      "currentEvidence": "Accepted bounded default-off firmware exit in done/step1051.md at e64e9dc1bd1f66ca522bd22aafe8bcd3388428ff: 3814 full-host checks and fresh 21/82/61-record default/churn/first-exit captures. The first-exit profile calls ExitBootServices under firmware CR3, then adopts permanent owned CR3/descriptors and terminal owned COM1 without firmware fallback. Live #64 is already closed with reviewed evidence comment 16025; this reconciles the stale manifest, not new execution evidence or broader firmware/runtime acceptance.",
       "implementationNotes": [
         "Implement exactly one bounded live slice: perform the first opt-in real ExitBootServices transition and the immediately following permanent owned-CR3 adoption.",
         "Require reviewed closure of the M01-026 reversible CR3 proof, M02-016 owned COM1/descriptors/failure-classification proof, and M03-006 bounded stale-map-key retry before this issue may be claimed.",
@@ -8770,7 +8770,7 @@
         "docs/efi-build.md"
       ],
       "evidenceBoundary": "This issue proves only one opt-in local-QEMU path in which ExitBootServices succeeds under firmware CR3 and the reviewed owned hierarchy is then adopted permanently before owned post-EBS diagnostics. It does not prove all firmware adapters are invalidated (M03-008), the final stable M03 marker contract/repeatability (M03-009 through M03-011), devices, applications, hosted .NET, Kestrel, cloud support, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M03-008",
@@ -19353,7 +19353,7 @@
         "tests/OS.HostTests/X64ThreadContextTests.cs",
         "docs/pal.md",
         "docs/app-model.md",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -19453,7 +19453,7 @@
         "tests/OS.HostTests/ReadyQueueTests.cs",
         "docs/pal.md",
         "docs/app-model.md",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -19553,7 +19553,7 @@
         "tests/OS.HostTests/DeadlineQueueTests.cs",
         "docs/pal.md",
         "docs/app-model.md",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -19653,7 +19653,7 @@
         "tests/OS.HostTests/ThreadContextSwitchTests.cs",
         "docs/pal.md",
         "docs/app-model.md",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -19753,7 +19753,7 @@
         "tests/OS.HostTests/SchedulerTimerTests.cs",
         "docs/pal.md",
         "docs/app-model.md",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -19853,7 +19853,7 @@
         "tests/OS.HostTests/KernelThreadTests.cs",
         "docs/pal.md",
         "docs/app-model.md",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -19953,7 +19953,7 @@
         "tests/OS.HostTests/KernelEventTests.cs",
         "docs/pal.md",
         "docs/app-model.md",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -20053,7 +20053,7 @@
         "tests/OS.HostTests/KernelLockTests.cs",
         "docs/pal.md",
         "docs/app-model.md",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -20135,7 +20135,7 @@
       "milestone": "M09",
       "parentKey": "M09-EPIC",
       "dependencyKeys": [
-        "M09-008"
+        "M09-006"
       ],
       "labels": [
         "agent:blocked",
@@ -20153,7 +20153,7 @@
         "tests/OS.HostTests/WaitAddressTests.cs",
         "docs/pal.md",
         "docs/app-model.md",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -20175,16 +20175,13 @@
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged. Use Linux application FS/TLS and pinned full CPU state in addition to kernel GS. Do not make custom application GC/EH or a CoreCLR port prerequisite.",
         "Use concise cohesive types in the owned Threading file, documenting ownership, execution context, pre/postconditions and unsupported behavior on public/unsafe entry points. Before adding a type inspect existing Runtime/Threading/Pal contracts and reuse its state representation. Do not copy old generated filename prose into new type names.",
-        "Implement exactly one bounded slice: Implement wait-on-address with collision, wake-one, wake-all, and timeout tests.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Exercise a valid aligned, non-overflowing case for: Implement wait-on-address with collision, wake-one, wake-all, and timeout tests.",
-        "Failure cases: Cover zero/default addresses, size overflow, end-address wrap, misalignment, overlap, exhaustion, stale ownership, double release, and prohibited writable-executable state as applicable.",
-        "Explicitly inapplicable here: Packet loss, disk path traversal, and cloud resource cleanup are outside this address/memory slice.",
         "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog.",
+        "Use M09-006 scheduler ready/parked queues and its timer substrate directly for atomic compare-and-park/wake/deadline/cancellation. M09-007/008 event and mutex PAL APIs are separate consumers, not an evidenced prerequisite for musl futexes. Any newly demonstrated kernel dependency must be stated and tested, not inferred from numeric milestone order."
       ],
       "referenceInfluences": [
         {
@@ -20199,14 +20196,10 @@
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Implement wait-on-address with collision, wake-one, wake-all, and timeout tests.",
-        "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
-        "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
-        "Affected canonical documentation is updated without promoting unsupported completion gates.",
-        "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Exercise a valid aligned, non-overflowing case for: Implement wait-on-address with collision, wake-one, wake-all, and timeout tests.",
-        "Applicable failure cases are asserted: Cover zero/default addresses, size overflow, end-address wrap, misalignment, overlap, exhaustion, stale ownership, double release, and prohibited writable-executable state as applicable.",
-        "The evidence report explicitly records these non-goals: Packet loss, disk path traversal, and cloud resource cleanup are outside this address/memory slice."
+        "Host tests and mechanical multi-thread guests prove atomic compare-and-park on aligned wait addresses, collision-safe wait keys, wake-one/all, monotonic deadlines and cancellation/exit cleanup over the M09-006 scheduler queues.",
+        "Exercise a value change between check/park, wake before/after park, spurious wake, deadline/wake races, capacity exhaustion, cross-owner aliases and stale address reuse without lost wakeups or stranded waiters. Invalid inputs leave queues and ownership unchanged.",
+        "Do not require separate OSHost event/semaphore/mutex services from M09-007/008 to implement this scheduler primitive. M16-008 translates the measured Linux futex ABI and errno; this issue owns the underlying wait lifecycle.",
+        "Record exact source/image hashes, focused/full-host checks and current post-exit guest evidence with affected ancestor regressions in a new done step. Host callbacks alone are not scheduling proof."
       ],
       "requiredMarkers": [
         "TEST_START m09.009",
@@ -20231,7 +20224,7 @@
     },
     {
       "key": "M09-010",
-      "title": "[M09-010] Materialize per-thread statics and required GS/TLS state.",
+      "title": "[M09-010] Preserve application FS/TLS and kernel GS across thread switches",
       "milestone": "M09",
       "parentKey": "M09-EPIC",
       "dependencyKeys": [
@@ -20253,7 +20246,7 @@
         "tests/OS.HostTests/ThreadLocalStorageTests.cs",
         "docs/pal.md",
         "docs/app-model.md",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -20262,7 +20255,11 @@
         "tools/OS.Tooling/EfiProfile.cs",
         "tools/OS.Tooling/QemuSmokeOptions.cs",
         "tools/OS.Tooling/QemuProfiles.cs",
-        "docs/completion-gates.md"
+        "docs/completion-gates.md",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs"
       ],
       "forbiddenPaths": [
         "README.md",
@@ -20270,21 +20267,20 @@
         "done/** (reserve a new step only after implementation evidence exists)"
       ],
       "collisionLane": "lane:nativeaot-integration",
-      "summary": "Materialize per-thread statics and required GS/TLS state.",
+      "summary": "Preserve per-thread application TLS bases and owned kernel CPU state; upstream NativeAOT owns managed thread statics",
       "currentEvidence": "PAL tables and readiness contracts are host-tested; scheduler exports and hosted CoreCLR execution are unproven.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged. Use Linux application FS/TLS and pinned full CPU state in addition to kernel GS. Do not make custom application GC/EH or a CoreCLR port prerequisite.",
         "Use concise cohesive types in the owned Threading file, documenting ownership, execution context, pre/postconditions and unsupported behavior on public/unsafe entry points. Before adding a type inspect existing Runtime/Threading/Pal contracts and reuse its state representation. Do not copy old generated filename prose into new type names.",
-        "Implement exactly one bounded slice: Materialize per-thread statics and required GS/TLS state.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Complete the valid lifecycle or ABI transition required by: Materialize per-thread statics and required GS/TLS state.",
         "Failure cases: Cover invalid/zero/stale handles, capacity exhaustion, double close, ownership violation, wait race, timeout, cancellation, wake-one/wake-all ordering, timer wrap, unsupported ABI version/size, and shutdown while parked as applicable.",
         "Explicitly inapplicable here: Disk CRC and packet checksum failures are outside this scheduler/PAL slice.",
         "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog.",
+        "Own saved FS/TLS bases and kernel GS state during thread switches, not a second managed thread-static implementation. Use a mechanical fixture here; real managed ThreadStatic isolation follows upstream NativeAOT startup in M16-009/010."
       ],
       "referenceInfluences": [
         {
@@ -20299,14 +20295,9 @@
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Materialize per-thread statics and required GS/TLS state.",
-        "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
-        "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
-        "Affected canonical documentation is updated without promoting unsupported completion gates.",
-        "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Complete the valid lifecycle or ABI transition required by: Materialize per-thread statics and required GS/TLS state.",
-        "Applicable failure cases are asserted: Cover invalid/zero/stale handles, capacity exhaustion, double close, ownership violation, wait race, timeout, cancellation, wake-one/wake-all ordering, timer wrap, unsupported ABI version/size, and shutdown while parked as applicable.",
-        "The evidence report explicitly records these non-goals: Disk CRC and packet checksum failures are outside this scheduler/PAL slice."
+        "A mechanical multi-thread guest switches distinct FS/TLS state while preserving owned kernel GS and admitted FP/SIMD state; verify no cross-thread data leakage, invalid-base privilege escalation or stale state after exit/reuse.",
+        "Keep Linux application TLS ownership distinct from the kernel ABI. M16-008 adapts clone/arch_prctl/set_tid_address; upstream NativeAOT implements managed [ThreadStatic] and ThreadLocal values, qualified later by M16-010.",
+        "Record current source/image hashes, full-host and affected native/guest evidence, cleanup/failure cases and exact unsupported scope in a reserved done step; host declarations alone do not qualify context switching."
       ],
       "requiredMarkers": [
         "TEST_START m09.010",
@@ -20353,7 +20344,7 @@
         "tests/OS.HostTests/NativeAotSuspensionSmokeTests.cs",
         "docs/pal.md",
         "docs/app-model.md",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -20362,7 +20353,17 @@
         "tools/OS.Tooling/EfiProfile.cs",
         "tools/OS.Tooling/QemuSmokeOptions.cs",
         "tools/OS.Tooling/QemuProfiles.cs",
-        "docs/completion-gates.md"
+        "docs/completion-gates.md",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "apps/NativeAotSuspensionSmoke/Program.cs",
+        "apps/NativeAotSuspensionSmoke/NativeAotSuspensionSmoke.csproj",
+        "apps/NativeAotThreadPoolSmoke/Program.cs",
+        "apps/NativeAotThreadPoolSmoke/NativeAotThreadPoolSmoke.csproj",
+        "tools/OS.Tooling/NativeAotThreadingGuest.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotThreading.cs"
       ],
       "forbiddenPaths": [
         "README.md",
@@ -20371,21 +20372,18 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Verify upstream NativeAOT GC suspension across CLROS application threads",
-      "currentEvidence": "PAL tables and readiness contracts are host-tested; scheduler exports and hosted CoreCLR execution are unproven.",
+      "currentEvidence": "Planning only. M16-009 must first qualify real signals, unchanged pinned Hello and a focused suspension fixture; no upstream application GC/ThreadPool guest acceptance exists yet.",
       "implementationNotes": [
         "Consume M16-009 signal/suspension services. Verify upstream runtime root scanning/safe points; do not implement a second application collector in the kernel.",
         "Use concise cohesive types in the owned Threading file, documenting ownership, execution context, pre/postconditions and unsupported behavior on public/unsafe entry points. Before adding a type inspect existing Runtime/Threading/Pal contracts and reuse its state representation. Do not copy old generated filename prose into new type names.",
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged. Use Linux application FS/TLS and pinned full CPU state in addition to kernel GS. Do not make custom application GC/EH or a CoreCLR port prerequisite.",
-        "Implement exactly one bounded slice: Add GC safe points, suspension, root scanning, and resume across parked threads.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Execute or validate the well-formed runtime/application case required by: Add GC safe points, suspension, root scanning, and resume across parked threads.",
-        "Failure cases: Cover null/default values, size/count overflow, malformed metadata, missing import, relocation overflow, overlapping sections, W+X, root loss, write-barrier omission, cctor recursion/failure, bad cast, unwind corruption, and nonzero exit as applicable.",
-        "Explicitly inapplicable here: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them.",
         "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog.",
+        "Reuse the separately Linux-qualified M16-009 suspension fixture for GC-only work; add a separately pinned ThreadPool/timer fixture for M09-012. Do not require the original all-in-one NativeAotRuntimeSmoke to exit before its later Task/timer services exist; M16-010 repeats that comprehensive payload. Every new fixture/publish/configuration has its own Linux syscall/source inventory."
       ],
       "referenceInfluences": [
         {
@@ -20397,17 +20395,17 @@
           "path": "references/SharpOS-main/done/step076.md",
           "use": "test-only",
           "notes": "Historical hosted-runtime evidence only; the required external fork is absent."
+        },
+        {
+          "use": "test-only",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/coreclr/nativeaot/Runtime/unix/PalUnix.cpp",
+          "notes": "Actual shipping runtime suspension/thread ABI. Reuse M16-009 services; do not implement an application collector in the kernel."
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Add GC safe points, suspension, root scanning, and resume across parked threads.",
-        "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
-        "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
-        "Affected canonical documentation is updated without promoting unsupported completion gates.",
-        "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Execute or validate the well-formed runtime/application case required by: Add GC safe points, suspension, root scanning, and resume across parked threads.",
-        "Applicable failure cases are asserted: Cover null/default values, size/count overflow, malformed metadata, missing import, relocation overflow, overlapping sections, W+X, root loss, write-barrier omission, cctor recursion/failure, bad cast, unwind corruption, and nonzero exit as applicable.",
-        "The evidence report explicitly records these non-goals: DHCP loss and provider cleanup are outside this runtime/application slice unless the title explicitly crosses them."
+        "Using the M16-009 runnable suspension-only fixture, force upstream NativeAOT collections with running and parked managed threads, live roots and repeated suspend/resume cycles. Verify roots survive and all threads resume without deadlock or kernel-lock reentrancy.",
+        "Cover thread exit during suspension, wait interruption, capacity failure, repeated lifetime cleanup and lost-wakeup negatives. Root scanning, safe points and write barriers remain upstream application runtime responsibilities; do not build a second kernel collector.",
+        "Three fresh post-exit guest captures associate exact source/payload/image hashes and reject missing, stale or failure markers. M16-010 owns the broader runtime/EH matrix; no ThreadPool prerequisite is introduced here."
       ],
       "requiredMarkers": [
         "TEST_START m09.011",
@@ -20416,12 +20414,13 @@
         "CLROS_M09_011_READY"
       ],
       "requiredCommands": [
-        "dotnet build .\\CLROS.slnx --nologo -m:1",
-        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter NativeAotSuspensionSmokeTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
-        "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M09_011_READY\""
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "Implement and record a default-off QEMU/OVMF profile for this exact fixture, then run three fresh captures requiring CLROS_M09_011_READY; retain source/publish/image hashes and affected ancestor regressions. A dry run or ordinary diagnostic profile is not acceptance."
       ],
       "documentationPaths": [
         "docs/pal.md",
@@ -20454,7 +20453,7 @@
         "tests/OS.HostTests/NativeAotThreadPoolSmokeTests.cs",
         "docs/pal.md",
         "docs/app-model.md",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -20463,7 +20462,17 @@
         "tools/OS.Tooling/EfiProfile.cs",
         "tools/OS.Tooling/QemuSmokeOptions.cs",
         "tools/OS.Tooling/QemuProfiles.cs",
-        "docs/completion-gates.md"
+        "docs/completion-gates.md",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "apps/NativeAotSuspensionSmoke/Program.cs",
+        "apps/NativeAotSuspensionSmoke/NativeAotSuspensionSmoke.csproj",
+        "apps/NativeAotThreadPoolSmoke/Program.cs",
+        "apps/NativeAotThreadPoolSmoke/NativeAotThreadPoolSmoke.csproj",
+        "tools/OS.Tooling/NativeAotThreadingGuest.cs",
+        "tools/OS.Tooling/QemuTranscripts.NativeAotThreading.cs"
       ],
       "forbiddenPaths": [
         "README.md",
@@ -20472,20 +20481,17 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Add ThreadPool, work queue, Task.Run, timer, and Task.Delay guest smokes.",
-      "currentEvidence": "PAL tables and readiness contracts are host-tested; scheduler exports and hosted CoreCLR execution are unproven.",
+      "currentEvidence": "Planning only. M16-009 must first qualify real signals, unchanged pinned Hello and a focused suspension fixture; no upstream application GC/ThreadPool guest acceptance exists yet.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged. Use Linux application FS/TLS and pinned full CPU state in addition to kernel GS. Do not make custom application GC/EH or a CoreCLR port prerequisite.",
         "Use concise cohesive types in the owned Threading file, documenting ownership, execution context, pre/postconditions and unsupported behavior on public/unsafe entry points. Before adding a type inspect existing Runtime/Threading/Pal contracts and reuse its state representation. Do not copy old generated filename prose into new type names.",
-        "Implement exactly one bounded slice: Add ThreadPool, work queue, Task.Run, timer, and Task.Delay guest smokes.",
         "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
         "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
         "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Complete one bounded valid device transaction for: Add ThreadPool, work queue, Task.Run, timer, and Task.Delay guest smokes.",
-        "Failure cases: Cover absent device/capability, cyclic capability list, invalid BAR/range, unsupported features, zero or non-power-of-two queue size, descriptor exhaustion/double use, ordering violation, timeout, bad status, reset, and stale DMA ownership as applicable.",
-        "Explicitly inapplicable here: PE import policy and hosted-runtime exception behavior are outside this device slice.",
         "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog.",
+        "Reuse the separately Linux-qualified M16-009 suspension fixture for GC-only work; add a separately pinned ThreadPool/timer fixture for M09-012. Do not require the original all-in-one NativeAotRuntimeSmoke to exit before its later Task/timer services exist; M16-010 repeats that comprehensive payload. Every new fixture/publish/configuration has its own Linux syscall/source inventory."
       ],
       "referenceInfluences": [
         {
@@ -20497,17 +20503,17 @@
           "path": "references/SharpOS-main/done/step076.md",
           "use": "test-only",
           "notes": "Historical hosted-runtime evidence only; the required external fork is absent."
+        },
+        {
+          "use": "test-only",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/coreclr/nativeaot/Runtime/unix/PalUnix.cpp",
+          "notes": "Actual shipping runtime suspension/thread ABI. Reuse M16-009 services; do not implement an application collector in the kernel."
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Add ThreadPool, work queue, Task.Run, timer, and Task.Delay guest smokes.",
-        "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
-        "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
-        "Affected canonical documentation is updated without promoting unsupported completion gates.",
-        "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Complete one bounded valid device transaction for: Add ThreadPool, work queue, Task.Run, timer, and Task.Delay guest smokes.",
-        "Applicable failure cases are asserted: Cover absent device/capability, cyclic capability list, invalid BAR/range, unsupported features, zero or non-power-of-two queue size, descriptor exhaustion/double use, ordering violation, timeout, bad status, reset, and stale DMA ownership as applicable.",
-        "The evidence report explicitly records these non-goals: PE import policy and hosted-runtime exception behavior are outside this device slice."
+        "A separately pinned NativeAOT guest fixture proves Task.Run work completion, actual ThreadPool worker progress, monotonic timers, Task.Delay ordering and cancellation using M16-008/009 scheduler/signal services.",
+        "Exercise cancellation before/during waits, bounded concurrent work, timer teardown, worker exit and repeated process cleanup with no stranded waiters, stale callback execution or resource leaks. Report real failures without synthetic task completions or busy-loop timing success.",
+        "Three fresh post-exit guest captures associate exact source/payload/image hashes and reject missing, stale or failure markers. M16-010 repeats the original comprehensive runtime payload after this slice; device/DMA transaction tests are not this ticket's acceptance."
       ],
       "requiredMarkers": [
         "TEST_START m09.012",
@@ -20516,12 +20522,13 @@
         "CLROS_M09_012_READY"
       ],
       "requiredCommands": [
-        "dotnet build .\\CLROS.slnx --nologo -m:1",
-        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter NativeAotThreadPoolSmokeTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
-        "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M09_012_READY\""
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "Implement and record a default-off QEMU/OVMF profile for this exact fixture, then run three fresh captures requiring CLROS_M09_012_READY; retain source/publish/image hashes and affected ancestor regressions. A dry run or ordinary diagnostic profile is not acceptance."
       ],
       "documentationPaths": [
         "docs/pal.md",
@@ -22256,15 +22263,6 @@
       ],
       "priority": "priority:p0",
       "ownedPaths": [
-        "src/OS/EfiEntry.cs",
-        "src/OS/OS.csproj",
-        "src/OS.Kernel/Boot/BootSequence.cs",
-        "src/OS.Kernel/Diagnostics/Probes.cs",
-        "tools/OS.Tooling/EfiContracts.cs",
-        "tools/OS.Tooling/EfiOptions.cs",
-        "tools/OS.Tooling/EfiProfile.cs",
-        "tools/OS.Tooling/QemuSmokeOptions.cs",
-        "tools/OS.Tooling/QemuProfiles.cs",
         "docs/completion-gates.md",
         "tools/OS.Tooling/NativeAotPayload.cs",
         "tools/OS.QemuRunner/Program.cs",
@@ -22289,7 +22287,8 @@
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Claim lane:nativeaot-integration before shared boot/app/tooling edits. Keep live profile defaults off, add explicit source admission, and record the actual supported runnable command and expected markers.",
-        "Read docs/workload-profiles.md, docs/kestrel.md and docs/reference-map.md; source pointers are in referenceInfluences."
+        "Read docs/workload-profiles.md, docs/kestrel.md and docs/reference-map.md; source pointers are in referenceInfluences.",
+        "This is a host application/publish/package slice. It does not own EFI entry/probe/profile changes; consume the qualified versioned ELF tooling and defer live integration to M10-004 onward."
       ],
       "referenceInfluences": [
         {
@@ -22299,7 +22298,7 @@
         },
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_networking.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_networking.c",
           "notes": "Socket/epoll behavior reference; pin exact shipping runtime source in M16-001."
         }
       ],
@@ -22348,15 +22347,6 @@
       ],
       "priority": "priority:p0",
       "ownedPaths": [
-        "src/OS/EfiEntry.cs",
-        "src/OS/OS.csproj",
-        "src/OS.Kernel/Boot/BootSequence.cs",
-        "src/OS.Kernel/Diagnostics/Probes.cs",
-        "tools/OS.Tooling/EfiContracts.cs",
-        "tools/OS.Tooling/EfiOptions.cs",
-        "tools/OS.Tooling/EfiProfile.cs",
-        "tools/OS.Tooling/QemuSmokeOptions.cs",
-        "tools/OS.Tooling/QemuProfiles.cs",
         "docs/completion-gates.md",
         "tools/OS.Tooling/NativeAotPayload.cs",
         "tools/OS.QemuRunner/Program.cs",
@@ -22381,7 +22371,8 @@
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Claim lane:nativeaot-integration before shared boot/app/tooling edits. Keep live profile defaults off, add explicit source admission, and record the actual supported runnable command and expected markers.",
-        "Read docs/workload-profiles.md, docs/kestrel.md and docs/reference-map.md; source pointers are in referenceInfluences."
+        "Read docs/workload-profiles.md, docs/kestrel.md and docs/reference-map.md; source pointers are in referenceInfluences.",
+        "This is a host application/publish/package slice. It does not own EFI entry/probe/profile changes; consume the qualified versioned ELF tooling and defer live integration to M10-004 onward."
       ],
       "referenceInfluences": [
         {
@@ -22391,7 +22382,7 @@
         },
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_networking.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_networking.c",
           "notes": "Socket/epoll behavior reference; pin exact shipping runtime source in M16-001."
         }
       ],
@@ -22440,15 +22431,6 @@
       ],
       "priority": "priority:p0",
       "ownedPaths": [
-        "src/OS/EfiEntry.cs",
-        "src/OS/OS.csproj",
-        "src/OS.Kernel/Boot/BootSequence.cs",
-        "src/OS.Kernel/Diagnostics/Probes.cs",
-        "tools/OS.Tooling/EfiContracts.cs",
-        "tools/OS.Tooling/EfiOptions.cs",
-        "tools/OS.Tooling/EfiProfile.cs",
-        "tools/OS.Tooling/QemuSmokeOptions.cs",
-        "tools/OS.Tooling/QemuProfiles.cs",
         "docs/completion-gates.md",
         "tools/OS.Tooling/NativeAotPayload.cs",
         "tools/OS.QemuRunner/Program.cs",
@@ -22473,7 +22455,8 @@
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
         "Claim lane:nativeaot-integration before shared boot/app/tooling edits. Keep live profile defaults off, add explicit source admission, and record the actual supported runnable command and expected markers.",
-        "Read docs/workload-profiles.md, docs/kestrel.md and docs/reference-map.md; source pointers are in referenceInfluences."
+        "Read docs/workload-profiles.md, docs/kestrel.md and docs/reference-map.md; source pointers are in referenceInfluences.",
+        "This is a host application/publish/package slice. It does not own EFI entry/probe/profile changes; consume the qualified versioned ELF tooling and defer live integration to M10-004 onward."
       ],
       "referenceInfluences": [
         {
@@ -22483,7 +22466,7 @@
         },
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_networking.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_networking.c",
           "notes": "Socket/epoll behavior reference; pin exact shipping runtime source in M16-001."
         }
       ],
@@ -22533,7 +22516,7 @@
       ],
       "priority": "priority:p0",
       "ownedPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -22576,7 +22559,7 @@
         },
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_networking.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_networking.c",
           "notes": "Socket/epoll behavior reference; pin exact shipping runtime source in M16-001."
         }
       ],
@@ -22625,7 +22608,7 @@
       ],
       "priority": "priority:p0",
       "ownedPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -22668,7 +22651,7 @@
         },
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_networking.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_networking.c",
           "notes": "Socket/epoll behavior reference; pin exact shipping runtime source in M16-001."
         }
       ],
@@ -22718,7 +22701,7 @@
       ],
       "priority": "priority:p0",
       "ownedPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -22761,7 +22744,7 @@
         },
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_networking.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_networking.c",
           "notes": "Socket/epoll behavior reference; pin exact shipping runtime source in M16-001."
         }
       ],
@@ -22811,7 +22794,7 @@
       ],
       "priority": "priority:p0",
       "ownedPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -22854,7 +22837,7 @@
         },
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_networking.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_networking.c",
           "notes": "Socket/epoll behavior reference; pin exact shipping runtime source in M16-001."
         }
       ],
@@ -22903,7 +22886,7 @@
       ],
       "priority": "priority:p0",
       "ownedPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -22946,7 +22929,7 @@
         },
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_networking.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_networking.c",
           "notes": "Socket/epoll behavior reference; pin exact shipping runtime source in M16-001."
         }
       ],
@@ -22995,7 +22978,7 @@
       ],
       "priority": "priority:p0",
       "ownedPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -23038,7 +23021,7 @@
         },
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_networking.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_networking.c",
           "notes": "Socket/epoll behavior reference; pin exact shipping runtime source in M16-001."
         }
       ],
@@ -23088,7 +23071,7 @@
       ],
       "priority": "priority:p0",
       "ownedPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -23131,7 +23114,7 @@
         },
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_networking.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_networking.c",
           "notes": "Socket/epoll behavior reference; pin exact shipping runtime source in M16-001."
         }
       ],
@@ -23180,7 +23163,7 @@
       ],
       "priority": "priority:p0",
       "ownedPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -23223,7 +23206,7 @@
         },
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_networking.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_networking.c",
           "notes": "Socket/epoll behavior reference; pin exact shipping runtime source in M16-001."
         }
       ],
@@ -23272,7 +23255,7 @@
       ],
       "priority": "priority:p0",
       "ownedPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -23315,7 +23298,7 @@
         },
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_networking.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_networking.c",
           "notes": "Socket/epoll behavior reference; pin exact shipping runtime source in M16-001."
         }
       ],
@@ -23364,7 +23347,7 @@
       ],
       "priority": "priority:p0",
       "ownedPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -23407,7 +23390,7 @@
         },
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_networking.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_networking.c",
           "notes": "Socket/epoll behavior reference; pin exact shipping runtime source in M16-001."
         }
       ],
@@ -23458,7 +23441,7 @@
       ],
       "priority": "priority:p0",
       "ownedPaths": [
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -23501,7 +23484,7 @@
         },
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_networking.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_networking.c",
           "notes": "Socket/epoll behavior reference; pin exact shipping runtime source in M16-001."
         }
       ],
@@ -31423,7 +31406,7 @@
         "M16-003",
         "M16-004"
       ],
-      "currentEvidence": "Qualified in done/step1201.md: 4619 full-host checks across 604 groups (94 Native), complete/successful/unchanged-input receipt, scoped original native review, three 121-record mechanical CPL3 write/exit guests, four 112-record controlled-negative guests and seven affected ancestors pass. Owned-baseline restoration includes descriptors, SS, MSRs, FS/GS, x87/SSE and stack. General processes, threads/TLS/futex/signals, real NativeAOT Hello (#685), upstream guest runtime GC/EH, CLROS Kestrel, numbered gates, cloud and production remain unproved.",
+      "currentEvidence": "Qualified in done/step1201.md: 4619 full-host checks across 604 groups (94 Native), complete/successful/unchanged-input receipt, scoped original native review, three 121-record mechanical CPL3 write/exit guests, four 112-record controlled-negative guests and seven affected ancestors pass. Owned-baseline restoration includes descriptors, SS, MSRs, FS/GS, x87/SSE and stack. General processes, threads/TLS/futex/signals, real NativeAOT Hello (#687), upstream guest runtime GC/EH, CLROS Kestrel, numbered gates, cloud and production remain unproved.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Implement CPL3 entry, dedicated kernel stacks, safe syscall return and Linux RAX/RDI/RSI/RDX/R10/R8/R9 calling convention bridged to the pinned kernel ABI. Preserve FS/GS, flags and required SIMD state. Validate canonical RIP/RSP and user ranges; copy-in/out across page boundaries. Use the existing C# native-object emitter, not committed native source.",
@@ -31522,24 +31505,49 @@
         "Wire the actual guest behavior through BootSequence and Probes, with the matching EFI include, runner/profile and serial contract. Reuse existing C# native-bridge generation; do not commit assembly or C/C++. Qualify full-host and affected native/guest regressions before closure.",
         "This ticket must add a runner/build switch -EnableM16006Probe and wire its full prerequisite profile; the command below is the required future interface, not an already implemented option. Require post-exit execution and keep the ordinary diagnostic path unchanged.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog.",
+        "Start from the M16-001 accepted SDK 10.0.401 / runtime and ILCompiler 10.0.12 / musl 1.2.6 payload and source inventory in done/step1198.md. Hello trace NativeAotHello-trace.3144 line 66 requests mmap(NULL, 8234266624, PROT_NONE, ...), before output at lines 225-227. The qualified mechanical root and syscall range currently end at 0x100000000 (4 GiB). This is a real virtual-address mismatch, not a requirement to allocate 8 GiB of physical RAM.",
+        "Separate sparse virtual reservations from committed physical pages, page-table cost and per-process quotas. A PROT_NONE reservation must retain address ownership with inaccessible holes without allocating a leaf/backing page per reserved page. Audit low-4GiB assumptions in X64UserAddressSpace, LinuxSyscallGateway, X64LinuxUserTransition, LinuxElfStartup and EFI read-back/copy validation together. Keep physical-root/backing validation distinct from user virtual bounds, and retain canonical-address, supervisor exclusion, W^X, overflow, zero-fill and rollback checks.",
+        "Choose and record either a safe larger admitted user VA layout supporting the unchanged pinned payload, or an explicit smaller GC configuration / genuine runtime allocation fallback that is republished when necessary and retraced on Linux. Preserve original payload hashes/evidence; changed settings are a separately identified qualification, never an unannounced replacement. A host trace is prerequisite evidence, not CLROS runtime acceptance.",
+        "Qualify memory/startup semantics with a C#-authored mechanical CPL3 fixture. Separately attempt the accepted upstream payload and record its first unsupported syscall/fault; lack of Hello output at the later thread/signal boundary does not block this memory slice. Do not add fake successful thread/signal calls or broaden kernel EH to reach main.",
+        "Preserve the accepted M16-005 one-use/64-call diagnostic policy. If the actual upstream entry attempt exceeds it, add an explicit bounded continuing-workload call/lifetime policy and tests; do not silently disable gateway limits or change the accepted diagnostic contract."
       ],
       "referenceInfluences": [
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/coreclr/nativeaot/Runtime/unix/PalUnix.cpp",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/coreclr/nativeaot/Runtime/unix/PalUnix.cpp",
           "notes": "Read this exact locus first; pin upstream revision/local SHA256 and license before selective adaptation. Never import reference build outputs."
         },
         {
           "use": "test-only",
           "path": "src/OS.Kernel/Memory",
           "notes": "Read this exact locus first; pin upstream revision/local SHA256 and license before selective adaptation. Never import reference build outputs."
+        },
+        {
+          "use": "test-only",
+          "path": "src/OS.Kernel/Memory/X64UserAddressSpace.cs",
+          "notes": "Existing low-4GiB mapping/admission/audit, 128 table-page and 32768 mapped-leaf limits; reuse protections while separating sparse virtual ranges from committed leaves."
+        },
+        {
+          "use": "test-only",
+          "path": "src/OS.Kernel/Compatibility/LinuxX64/LinuxSyscallGateway.cs",
+          "notes": "UserEnd, return-frame and copy-range checks must agree with the chosen user VA layout; physical roots remain independently validated."
+        },
+        {
+          "use": "test-only",
+          "path": "tools/OS.Tooling/LinuxSyscallProofFixture.cs",
+          "notes": "Reuse the existing C#-authored mechanical ELF and controlled-negative guest evidence pattern; do not mistake it for NativeAOT runtime execution."
+        },
+        {
+          "use": "test-only",
+          "path": "done/step1198.md",
+          "notes": "Accepted Linux-host payload, source inventory, hashes, strace provenance and exact toolchain. Retained evidence is under nativeaot-payload/evidence/nativeaot-linux-r02, not a tracked runtime dependency."
         }
       ],
       "ownedPaths": [
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxMemoryServices.cs",
         "tests/OS.HostTests/LinuxMemoryServicesTests.cs",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -31548,7 +31556,30 @@
         "tools/OS.Tooling/EfiProfile.cs",
         "tools/OS.Tooling/QemuSmokeOptions.cs",
         "tools/OS.Tooling/QemuProfiles.cs",
-        "docs/completion-gates.md"
+        "docs/completion-gates.md",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxStartupServices.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSyscallGateway.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/X64LinuxUserTransition.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxElfStartup.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxElfMapping.cs",
+        "src/OS.Kernel/Memory/X64UserAddressSpace.cs",
+        "src/OS.Kernel/Boot/FirstOptRealExitBootServicesTransition.cs",
+        "tests/OS.HostTests/LinuxStartupServicesTests.cs",
+        "tests/OS.HostTests/LinuxSyscallGatewayTests.cs",
+        "tests/OS.HostTests/X64LinuxUserTransitionTests.cs",
+        "tests/OS.HostTests/LinuxElfStartupTests.cs",
+        "tests/OS.HostTests/LinuxElfMappingTests.cs",
+        "tests/OS.HostTests/X64UserAddressSpaceTests.cs",
+        "tools/OS.Tooling/LinuxMemoryProofFixture.cs",
+        "tests/OS.HostTests/LinuxMemoryProofFixtureTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxMemory.cs",
+        "tests/OS.HostTests/LinuxMemoryTranscriptTests.cs",
+        "docs/workload-profiles.md",
+        "docs/app-model.md"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -31556,9 +31587,11 @@
         "done/** (reserve a new step; preserve history)"
       ],
       "acceptanceCriteria": [
-        "Guest reserves/commits/protects/releases memory with guard faults, alignment and exhaustion tests. Runtime startup advances using genuine memory/clock/random data. Unsupported flags leave mappings and accounting unchanged.",
+        "Post-exit CPL3 guest reserves/commits/protects/releases memory with genuine clock/random/startup results. Prove sparse reservation accounting independently of committed-page quotas, inaccessible PROT_NONE/guard holes, zero-fill on first use/reuse, partial-range split/release, alignment, overflow, W^X and exhaustion/rollback. Unsupported flags leave mappings/accounting unchanged.",
         "Reject malformed, unsupported, stale and resource-exhausted inputs without unchecked access, false success or leaked ownership. Include independent negative cases relevant to this ticket.",
-        "Record exact build/profile commands, hashes, logs, failures and evidence boundary in a new reserved done step and issue evidence comment. No readiness or production claim from host tests or synthetic transcripts."
+        "Record exact build/profile commands, hashes, logs, failures and evidence boundary in a new reserved done step and issue evidence comment. No readiness or production claim from host tests or synthetic transcripts.",
+        "Replay the 8,234,266,624-byte reservation in the admitted larger VA range with bounded physical backing, or attach an explicit freshly traced smaller configuration / real fallback and prove its complete memory sequence fits the chosen layout. Test high user pointers, syscall copy-in/out and return validation consistently, with kernel/table/stack access denied. Increasing a bound alone is not acceptance.",
+        "Retain existing M16-004/005 positive and controlled-negative guests. Record the actual upstream entry attempt and honest next unsupported boundary separately from mechanical success. First successful pinned NativeAOT Hello belongs to M16-009 after threads/signals, not this ticket."
       ],
       "requiredMarkers": [
         "TEST_START m16-006",
@@ -31573,7 +31606,8 @@
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
         "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16006Probe -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 60 -RequireMarker CLROS_M16_006_READY"
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16006Probe -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 60 -RequireMarker CLROS_M16_006_READY",
+        "Run focused X64UserAddressSpaceTests, LinuxSyscallGatewayTests and X64LinuxUserTransitionTests after the range change; qualify affected M16-004/005 guests and the actual pinned upstream entry attempt separately."
       ],
       "documentationPaths": [
         "docs/workload-profiles.md",
@@ -31603,7 +31637,7 @@
       "dependencyKeys": [
         "M16-006"
       ],
-      "currentEvidence": "Planning only. No Linux-compatible guest executable, continuing application service, or Kestrel evidence exists.",
+      "currentEvidence": "M16-005 qualifies a mechanical CPL3 write/exit boundary only. Descriptor/file services are unimplemented. The accepted Linux Hello trace creates Finalizer and SigHandler threads before printing, so first Hello acceptance follows M16-008/009, not this foundation ticket.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Implement fd0/1/2 policy, bounded read/write/writev/close/fstat/openat/lseek as measured by the qualified closure, immutable package paths and required /proc observations derived from actual mappings/resources. Optional absent paths return ENOENT; no fabricated Linux host files. No shell, execve/fork, arbitrary executable opens or remote acquisition. Define descriptor ownership/generation for later socket and process isolation.",
@@ -31612,24 +31646,31 @@
         "Wire the actual guest behavior through BootSequence and Probes, with the matching EFI include, runner/profile and serial contract. Reuse existing C# native-bridge generation; do not commit assembly or C/C++. Qualify full-host and affected native/guest regressions before closure.",
         "This ticket must add a runner/build switch -EnableM16007Probe and wire its full prerequisite profile; the command below is the required future interface, not an already implemented option. Require post-exit execution and keep the ordinary diagnostic path unchanged.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog.",
+        "First unchanged pinned Hello belongs to M16-009 after the real thread/signal prerequisites. Reuse LinuxSyscallProofFixture and its live CPL3 capture pattern for this earlier descriptor slice; no thread/signaling stubs, handwritten fake Hello marker or kernel-EH expansion to satisfy acceptance.",
+        "Include the measured fcntl descriptor duplication/FD_CLOEXEC flags, pipe2(O_CLOEXEC), pread64 and ioctl behavior. Hello creates its signal pipe before stdout (trace.3144 lines 191-196); this cannot be deferred to epoll. Own bounded pipe descriptors/buffers and mechanical nonblocking read/write/EOF/close here. M16-008 adds scheduler-backed blocking/wakeup; M16-009 adds signal interruption/restart. Never report successful blocking I/O while dropping bytes or omitting wakeup."
       ],
       "referenceInfluences": [
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_io.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_io.c",
           "notes": "Read this exact locus first; pin upstream revision/local SHA256 and license before selective adaptation. Never import reference build outputs."
         },
         {
           "use": "test-only",
           "path": "src/OS.Kernel/Pal/OSHostAbi.cs",
           "notes": "Read this exact locus first; pin upstream revision/local SHA256 and license before selective adaptation. Never import reference build outputs."
+        },
+        {
+          "use": "test-only",
+          "path": "tools/OS.Tooling/LinuxSyscallProofFixture.cs",
+          "notes": "Mechanical CPL3 fixture pattern for genuine fd/syscall acceptance without starting the upstream runtime prematurely."
         }
       ],
       "ownedPaths": [
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.cs",
         "tests/OS.HostTests/LinuxDescriptorServicesTests.cs",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -31638,7 +31679,18 @@
         "tools/OS.Tooling/EfiProfile.cs",
         "tools/OS.Tooling/QemuSmokeOptions.cs",
         "tools/OS.Tooling/QemuProfiles.cs",
-        "docs/completion-gates.md"
+        "docs/completion-gates.md",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSyscallGateway.cs",
+        "tools/OS.Tooling/LinuxDescriptorProofFixture.cs",
+        "tests/OS.HostTests/LinuxDescriptorProofFixtureTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxDescriptors.cs",
+        "tests/OS.HostTests/LinuxDescriptorTranscriptTests.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxPipe.cs",
+        "tests/OS.HostTests/LinuxPipeTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -31646,9 +31698,10 @@
         "done/** (reserve a new step; preserve history)"
       ],
       "acceptanceCriteria": [
-        "Real Hello logs and exits with preserved code. Path traversal, stale/reused descriptors, invalid vector buffers and package write attempts fail with exact errors and no leak. This alone does not qualify GC/threaded runtime support.",
+        "A C#-authored mechanical CPL3 ELF fixture exercises fd0/1/2 policy, read/write/writev/close/fstat/openat/lseek, immutable package/proc views and preserved exit code after firmware exit. Path traversal, stale/reused descriptors, invalid vector buffers, partial I/O and package write attempts fail with exact errors and no leak. This qualifies descriptor behavior only; do not require or claim upstream NativeAOT Hello here.",
         "Reject malformed, unsupported, stale and resource-exhausted inputs without unchecked access, false success or leaked ownership. Include independent negative cases relevant to this ticket.",
-        "Record exact build/profile commands, hashes, logs, failures and evidence boundary in a new reserved done step and issue evidence comment. No readiness or production claim from host tests or synthetic transcripts."
+        "Record exact build/profile commands, hashes, logs, failures and evidence boundary in a new reserved done step and issue evidence comment. No readiness or production claim from host tests or synthetic transcripts.",
+        "Mechanical pipe/descriptor cases prove duplicate/close ownership, close-on-exec flag reporting, byte ordering, partial I/O, EAGAIN when empty/full under O_NONBLOCK, EOF after writer close, and EPIPE behavior under the explicitly admitted signal policy. Blocking pipe calls remain explicitly unsupported until M16-008; do not require upstream signal-thread startup here."
       ],
       "requiredMarkers": [
         "TEST_START m16-007",
@@ -31705,24 +31758,32 @@
         "Wire the actual guest behavior through BootSequence and Probes, with the matching EFI include, runner/profile and serial contract. Reuse existing C# native-bridge generation; do not commit assembly or C/C++. Qualify full-host and affected native/guest regressions before closure.",
         "This ticket must add a runner/build switch -EnableM16008Probe and wire its full prerequisite profile; the command below is the required future interface, not an already implemented option. Require post-exit execution and keep the ordinary diagnostic path unchanged.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog.",
+        "Read pinned musl 1.2.6 pthread_create.c before implementing clone: signal registration/masking precedes thread creation. This slice owns real per-thread rt_sigprocmask state/query/update/inheritance and clone restore semantics; expose explicit unsupported delivery boundaries. M16-009 owns complete sigaction, altstack, pending delivery, signal frames and sigreturn. Do not silently accept/discard delivery or claim unmodified pthread/.NET startup from the mechanical clone fixture.",
+        "Use C#-authored mechanical ELF cases to qualify the scheduler adapter independently of full runtime startup. First real NativeAOT Hello follows in M16-009; M16-010 repeats real pthread/.NET lifecycles with upstream runtime code.",
+        "Connect M16-007 pipe read/write to scheduler-backed blocking and wake-on-write/read/close, with bounded buffer ownership and shutdown cleanup. The .NET SigHandler is blocked in a real pipe read in trace.3146; no busy-loop or synthetic completion. Signal-induced EINTR/restart belongs to M16-009."
       ],
       "referenceInfluences": [
         {
           "use": "test-only",
-          "path": "https://git.musl-libc.org/cgit/musl/tree/src/thread/pthread_create.c?h=v1.2.5",
+          "path": "https://git.musl-libc.org/cgit/musl/tree/src/thread/pthread_create.c?h=v1.2.6",
           "notes": "Read this exact locus first; pin upstream revision/local SHA256 and license before selective adaptation. Never import reference build outputs."
         },
         {
           "use": "test-only",
           "path": "references/expressos-master/Source/ExpressOS.Kernel/Syscalls/Futex.cs",
           "notes": "Read this exact locus first; pin upstream revision/local SHA256 and license before selective adaptation. Never import reference build outputs."
+        },
+        {
+          "use": "test-only",
+          "path": "https://git.musl-libc.org/cgit/musl/tree/src/thread/pthread_sigmask.c?h=v1.2.6",
+          "notes": "Exact mask size/reserved-signal and inheritance semantics; preserve real state instead of successful no-ops."
         }
       ],
       "ownedPaths": [
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.cs",
         "tests/OS.HostTests/LinuxThreadServicesTests.cs",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -31731,7 +31792,21 @@
         "tools/OS.Tooling/EfiProfile.cs",
         "tools/OS.Tooling/QemuSmokeOptions.cs",
         "tools/OS.Tooling/QemuProfiles.cs",
-        "docs/completion-gates.md"
+        "docs/completion-gates.md",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSignalMask.cs",
+        "tests/OS.HostTests/LinuxSignalMaskTests.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSyscallGateway.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/X64LinuxUserTransition.cs",
+        "tools/OS.Tooling/LinuxThreadProofFixture.cs",
+        "tests/OS.HostTests/LinuxThreadProofFixtureTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxThreads.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxPipe.cs",
+        "tests/OS.HostTests/LinuxPipeTests.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -31739,9 +31814,10 @@
         "done/** (reserve a new step; preserve history)"
       ],
       "acceptanceCriteria": [
-        "Real upstream pthread/.NET threads create, use distinct TLS, wait, time out, join and exit. Concurrent wake/exit/reuse and wrong-value waits pass bounded stress with no stranded waiters or leaked stacks.",
+        "A mechanical CPL3 multi-thread fixture creates distinct stacks/FS TLS, compares-and-sleeps/wakes, times out, joins and exits with correct TID/clear-child-TID semantics. Cover concurrent wake/exit/reuse, wrong-value waits and bounded stress without stranded waiters or leaked stacks. Prove actual per-thread signal-mask state, clone inheritance and parent/child restoration; do not require an upstream .NET thread fixture before M16-009 provides full signals.",
         "Reject malformed, unsupported, stale and resource-exhausted inputs without unchecked access, false success or leaked ownership. Include independent negative cases relevant to this ticket.",
-        "Record exact build/profile commands, hashes, logs, failures and evidence boundary in a new reserved done step and issue evidence comment. No readiness or production claim from host tests or synthetic transcripts."
+        "Record exact build/profile commands, hashes, logs, failures and evidence boundary in a new reserved done step and issue evidence comment. No readiness or production claim from host tests or synthetic transcripts.",
+        "Mechanical threads block and wake on pipe readability/capacity/peer close without lost wakeups, stranded waiters or stale descriptor reuse. Blocked waits release kernel locks and process exit cancels/cleans their ownership."
       ],
       "requiredMarkers": [
         "TEST_START m16-008",
@@ -31767,8 +31843,8 @@
     },
     {
       "key": "M16-009",
-      "title": "[M16-009] Deliver Linux signals and qualify NativeAOT thread suspension",
-      "summary": "Deliver Linux signals and qualify NativeAOT thread suspension",
+      "title": "[M16-009] Deliver Linux signals and run the first pinned NativeAOT Hello",
+      "summary": "Complete signal startup/delivery, run the unchanged pinned Hello, then qualify focused NativeAOT suspension",
       "milestone": "M16",
       "parentKey": "M16-EPIC",
       "priority": "priority:p0",
@@ -31789,30 +31865,42 @@
       "currentEvidence": "Planning only. No Linux-compatible guest executable, continuing application service, or Kestrel evidence exists.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
-        "Implement the measured rt_sigaction/rt_sigprocmask/sigaltstack/tgkill/rt_sigreturn contract, pending delivery and genuine user signal frames. Validate restored user context, full admitted FP/SIMD state and masks; never allow sigreturn to grant privilege. Route synchronous faults and runtime activation with the exact .NET10/musl ABI. Support scheduler safe delivery without holding kernel locks across user callbacks.",
+        "Build on M16-008 per-thread mask state and M16-007/008 real pipe descriptors/blocking I/O. Implement measured rt_sigaction/rt_sigprocmask/sigaltstack/tgkill/rt_sigreturn, pending delivery and genuine user signal frames, including interrupted pipe waits and EINTR/restart semantics. Validate restored context, admitted FP/SIMD state and masks; sigreturn must never grant privilege. Cover the actual System.Native signal-dispatch thread and its wake/shutdown behavior. Route synchronous faults/runtime activation with the exact .NET 10.0.12 / musl 1.2.6 ABI; do not hold kernel locks across user callbacks.",
         "Use existing contracts before introducing new abstractions. New paths below are intended implementation files, not claims that these files already exist. Shared integration writes require this ticket's recorded lane ownership. All runtime probes remain default-off.",
         "Read README.md, docs/documentation-map.md, docs/workload-profiles.md, docs/nativeaot-nostdlib-limits.md, docs/boot.md, docs/efi-build.md, docs/completion-gates.md, the latest done step, and local AGENTS overrides.",
         "Wire the actual guest behavior through BootSequence and Probes, with the matching EFI include, runner/profile and serial contract. Reuse existing C# native-bridge generation; do not commit assembly or C/C++. Qualify full-host and affected native/guest regressions before closure.",
         "This ticket must add a runner/build switch -EnableM16009Probe and wire its full prerequisite profile; the command below is the required future interface, not an already implemented option. Require post-exit execution and keep the ordinary diagnostic path unchanged.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog.",
+        "Ordered integration: qualify signal ABI with mechanical negative cases, run the unchanged M16-001 Hello (or separately qualified explicitly configured variant), then run the focused runtime suspension fixture. The accepted Linux trace creates .NET Finalizer and .NET SigHandler before stdout; model both real lifetimes. M09-011/012 own subsequent GC stress and ThreadPool/timer checks, and M16-010 is the comprehensive runtime regression gate.",
+        "Create a separately pinned C# suspension-only fixture for the focused runtime check and qualify its Linux publish/syscall inventory. Existing NativeAotRuntimeSmoke runs Task/timer tests unconditionally; it cannot be this earlier fixture's complete-exit prerequisite. Preserve its original payload for M16-010 and unchanged Hello for the first application proof."
       ],
       "referenceInfluences": [
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/coreclr/nativeaot/Runtime/unix/UnixSignals.cpp",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/coreclr/nativeaot/Runtime/unix/UnixSignals.cpp",
           "notes": "Read this exact locus first; pin upstream revision/local SHA256 and license before selective adaptation. Never import reference build outputs."
         },
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/coreclr/nativeaot/Runtime/unix/PalUnix.cpp",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/coreclr/nativeaot/Runtime/unix/PalUnix.cpp",
           "notes": "Read this exact locus first; pin upstream revision/local SHA256 and license before selective adaptation. Never import reference build outputs."
+        },
+        {
+          "use": "test-only",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_signal.c",
+          "notes": "System.Native creates a real signal-dispatch thread/pipe before Hello stdout. Inventory pipe, fcntl, poll and wake/shutdown behavior from the pinned payload, not just NativeAOT UnixSignals.cpp."
+        },
+        {
+          "use": "test-only",
+          "path": "apps/NativeAotHello/Program.cs",
+          "notes": "Run the accepted app unchanged; retain its original publish identity from done/step1198.md."
         }
       ],
       "ownedPaths": [
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxSignalServices.cs",
         "tests/OS.HostTests/LinuxSignalServicesTests.cs",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -31821,7 +31909,23 @@
         "tools/OS.Tooling/EfiProfile.cs",
         "tools/OS.Tooling/QemuSmokeOptions.cs",
         "tools/OS.Tooling/QemuProfiles.cs",
-        "docs/completion-gates.md"
+        "docs/completion-gates.md",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSignalMask.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxDescriptorServices.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSyscallGateway.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/X64LinuxUserTransition.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxPipe.cs",
+        "tests/OS.HostTests/LinuxPipeTests.cs",
+        "tools/OS.Tooling/NativeAotHelloGuest.cs",
+        "tests/OS.HostTests/NativeAotHelloGuestTests.cs",
+        "tools/OS.Tooling/QemuTranscripts.LinuxSignals.cs",
+        "apps/NativeAotSuspensionSmoke/Program.cs",
+        "apps/NativeAotSuspensionSmoke/NativeAotSuspensionSmoke.csproj"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -31829,6 +31933,7 @@
         "done/** (reserve a new step; preserve history)"
       ],
       "acceptanceCriteria": [
+        "Three fresh post-firmware-exit CLROS guests run the exact qualified NativeAOT Hello payload, preserve its actual stdout and exit code, and reclaim finalizer/signal threads, stacks, TLS and descriptors. Record payload/configuration/kernel/image hashes and serial logs; reject stale/missing/failure markers. No synthetic Hello output, successful no-op thread/signal calls or undocumented publish/configuration changes.",
         "Upstream NativeAOT suspends and resumes other threads during GC; signal masking, nested delivery as required, interrupted waits, alternate-stack exhaustion and malicious return frames are tested. An application fault terminates its context without corrupting kernel state.",
         "Reject malformed, unsupported, stale and resource-exhausted inputs without unchecked access, false success or leaked ownership. Include independent negative cases relevant to this ticket.",
         "Record exact build/profile commands, hashes, logs, failures and evidence boundary in a new reserved done step and issue evidence comment. No readiness or production claim from host tests or synthetic transcripts."
@@ -31886,25 +31991,31 @@
         "Wire the actual guest behavior through BootSequence and Probes, with the matching EFI include, runner/profile and serial contract. Reuse existing C# native-bridge generation; do not commit assembly or C/C++. Qualify full-host and affected native/guest regressions before closure.",
         "This ticket must add a runner/build switch -EnableM16010Probe and wire its full prerequisite profile; the command below is the required future interface, not an already implemented option. Require post-exit execution and keep the ordinary diagnostic path unchanged.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog.",
+        "M16-009 owns the first real pinned Hello; repeat it here as a regression before the larger runtime matrix. This capstone follows M09-011/012 stress, and must not become a hidden implementation prerequisite for their already runnable focused fixtures."
       ],
       "referenceInfluences": [
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/coreclr/nativeaot/Runtime",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/coreclr/nativeaot/Runtime",
           "notes": "Read this exact locus first; pin upstream revision/local SHA256 and license before selective adaptation. Never import reference build outputs."
         },
         {
           "use": "test-only",
           "path": "apps/MinimalApiSmoke/Program.cs",
           "notes": "Read this exact locus first; pin upstream revision/local SHA256 and license before selective adaptation. Never import reference build outputs."
+        },
+        {
+          "use": "test-only",
+          "path": "apps/NativeAotHello/Program.cs",
+          "notes": "First qualified in M16-009; rerun with identical payload/config identity in this runtime regression batch."
         }
       ],
       "ownedPaths": [
         "apps/NativeAotRuntimeSmoke/Program.cs",
         "tests/OS.HostTests/NativeAotRuntimeGuestTests.cs",
         "tools/OS.Tooling/NativeAotRuntimeGuest.cs",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -31913,7 +32024,12 @@
         "tools/OS.Tooling/EfiProfile.cs",
         "tools/OS.Tooling/QemuSmokeOptions.cs",
         "tools/OS.Tooling/QemuProfiles.cs",
-        "docs/completion-gates.md"
+        "docs/completion-gates.md",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs",
+        "apps/NativeAotRuntimeSmoke/NativeAotRuntimeSmoke.csproj"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -31923,7 +32039,8 @@
       "acceptanceCriteria": [
         "Three fresh guests run the normal compiler-generated runtime tests, including forced collections with parked/running threads and repeated process lifetime cleanup. Associate source/publish/kernel/image hashes and reject missing/failure markers anywhere in capture.",
         "Reject malformed, unsupported, stale and resource-exhausted inputs without unchecked access, false success or leaked ownership. Include independent negative cases relevant to this ticket.",
-        "Record exact build/profile commands, hashes, logs, failures and evidence boundary in a new reserved done step and issue evidence comment. No readiness or production claim from host tests or synthetic transcripts."
+        "Record exact build/profile commands, hashes, logs, failures and evidence boundary in a new reserved done step and issue evidence comment. No readiness or production claim from host tests or synthetic transcripts.",
+        "Repeat unchanged Hello and real upstream pthread/.NET create/join/TLS/wait/timeout/exit and resource-reuse cases after the GC/ThreadPool/signal services have qualified. Keep kernel diagnostic EH evidence separate from application compiler-generated EH."
       ],
       "requiredMarkers": [
         "TEST_START m16-010",
@@ -31967,7 +32084,8 @@
       ],
       "dependencyKeys": [
         "M16-007",
-        "M07-018"
+        "M07-018",
+        "M16-010"
       ],
       "currentEvidence": "Planning only. No Linux-compatible guest executable, continuing application service, or Kestrel evidence exists.",
       "implementationNotes": [
@@ -31978,12 +32096,14 @@
         "Wire the actual guest behavior through BootSequence and Probes, with the matching EFI include, runner/profile and serial contract. Reuse existing C# native-bridge generation; do not commit assembly or C/C++. Qualify full-host and affected native/guest regressions before closure.",
         "This ticket must add a runner/build switch -EnableM16011Probe and wire its full prerequisite profile; the command below is the required future interface, not an already implemented option. Require post-exit execution and keep the ordinary diagnostic path unchanged.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog.",
+        "The actual System.Net.Sockets guest fixture requires qualified upstream runtime services (M16-010), not only mechanical descriptor and TCP contracts. Keep this dependency even if lower-level socket mechanics can be tested earlier.",
+        "Before implementing the full networking adapter, read supplemental host study #702 (http://192.168.4.35:3000/admin/CLROS/issues/702) if evidence is available. It compares a custom IConnectionListenerFactory transport while preserving real Kestrel. It is not a dependency: stock sockets/epoll remain the default unless a recorded architecture decision accepts the measured alternative and updates affected tickets. Optional WASI HTTP #703 is a different server profile and cannot satisfy Kestrel acceptance."
       ],
       "referenceInfluences": [
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_networking.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_networking.c",
           "notes": "Read this exact locus first; pin upstream revision/local SHA256 and license before selective adaptation. Never import reference build outputs."
         },
         {
@@ -32000,7 +32120,7 @@
       "ownedPaths": [
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxSocketServices.cs",
         "tests/OS.HostTests/LinuxSocketServicesTests.cs",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -32009,7 +32129,11 @@
         "tools/OS.Tooling/EfiProfile.cs",
         "tools/OS.Tooling/QemuSmokeOptions.cs",
         "tools/OS.Tooling/QemuProfiles.cs",
-        "docs/completion-gates.md"
+        "docs/completion-gates.md",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",
@@ -32074,24 +32198,26 @@
         "Wire the actual guest behavior through BootSequence and Probes, with the matching EFI include, runner/profile and serial contract. Reuse existing C# native-bridge generation; do not commit assembly or C/C++. Qualify full-host and affected native/guest regressions before closure.",
         "This ticket must add a runner/build switch -EnableM16012Probe and wire its full prerequisite profile; the command below is the required future interface, not an already implemented option. Require post-exit execution and keep the ordinary diagnostic path unchanged.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog.",
+        "Real SocketAsyncEngine acceptance inherits M16-010 through M16-011. Thread creation alone is insufficient; upstream startup, signals and runtime services must already be qualified.",
+        "Before implementing the full networking adapter, read supplemental host study #702 (http://192.168.4.35:3000/admin/CLROS/issues/702) if evidence is available. It compares a custom IConnectionListenerFactory transport while preserving real Kestrel. It is not a dependency: stock sockets/epoll remain the default unless a recorded architecture decision accepts the measured alternative and updates affected tickets. Optional WASI HTTP #703 is a different server profile and cannot satisfy Kestrel acceptance."
       ],
       "referenceInfluences": [
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/native/libs/System.Native/pal_networking.c",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/native/libs/System.Native/pal_networking.c",
           "notes": "Read this exact locus first; pin upstream revision/local SHA256 and license before selective adaptation. Never import reference build outputs."
         },
         {
           "use": "test-only",
-          "path": "https://github.com/dotnet/runtime/blob/v10.0.0/src/libraries/System.Net.Sockets/src/System/Net/Sockets/SocketAsyncEngine.Unix.cs",
+          "path": "https://github.com/dotnet/runtime/blob/v10.0.12/src/libraries/System.Net.Sockets/src/System/Net/Sockets/SocketAsyncEngine.Unix.cs",
           "notes": "Read this exact locus first; pin upstream revision/local SHA256 and license before selective adaptation. Never import reference build outputs."
         }
       ],
       "ownedPaths": [
         "src/OS.Kernel/Compatibility/LinuxX64/LinuxEpollServices.cs",
         "tests/OS.HostTests/LinuxEpollServicesTests.cs",
-        "src/OS/EfiEntry.cs",
+        "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
         "src/OS.Kernel/Diagnostics/Probes.cs",
@@ -32100,7 +32226,11 @@
         "tools/OS.Tooling/EfiProfile.cs",
         "tools/OS.Tooling/QemuSmokeOptions.cs",
         "tools/OS.Tooling/QemuProfiles.cs",
-        "docs/completion-gates.md"
+        "docs/completion-gates.md",
+        "tools/OS.Tooling/EfiContracts.Admission.cs",
+        "tools/OS.Tooling/EfiContracts.SourceAdmission.cs",
+        "tools/OS.Tooling/EfiContracts.Sources.cs",
+        "tools/OS.Tooling/QemuTranscripts.Run.cs"
       ],
       "forbiddenPaths": [
         "references/** (read-only)",

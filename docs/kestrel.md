@@ -4,15 +4,57 @@
 
 The [current workload decision](workload-profiles.md) makes M16 NativeAOT
 services, continuing M07 TCP and M10 actual Kestrel the critical path.
+M16-001/#679 through M16-005/#683 have bounded qualification; the next slice
+is [M16-006/#684](http://192.168.4.35:3000/admin/CLROS/issues/684).
+Mechanical ELF startup/write/exit does not run the upstream runtime.
+M16-008/#686 uses mechanical thread/TLS/futex fixtures with real per-thread
+signal-mask inheritance/restoration. M16-009/#687 qualifies the first pinned
+Hello after signal startup/delivery, before focused suspension checks.
+M16-010/#688 repeats Hello and qualifies the comprehensive runtime exerciser;
+#689's real System.Net.Sockets fixture follows that runtime qualification.
 CoreCLR-specific #204-#212 are deferred. The legacy hosted package/TPA contract
-below remains a future target, not the first-web payload format. M16-002
-versions the ELF package without reinterpreting existing OSAPPv0 or
+below remains a future target, not the first-web payload format. M16-002's
+qualified ELF package preserves the meaning of existing OSAPPv0 and
 `kestrel.smoke.package.v0` host evidence.
 First acceptance uses one upstream static NativeAOT Minimal API, HTTP/1.1
 IPv4 port8080 and /healthz body `OS_MINIMAL_API_OK`, with the unchanged
 Kestrel evidence markers. Three fresh post-exit boots, external probes,
 request churn/async/cancellation/shutdown and a negative probe after guest
 termination are required. No guest Kestrel execution is currently qualified.
+
+## Transport decision experiments
+
+The primary route uses the pinned static `linux-musl-x64` payload and Kestrel's
+stock socket transport. The host-only
+[comparison #702](http://192.168.4.35:3000/admin/CLROS/issues/702)
+may replace that transport via
+[`IConnectionListenerFactory`](https://github.com/dotnet/aspnetcore/blob/v10.0.12/src/Servers/Connections.Abstractions/src/IConnectionListenerFactory.cs)
+and `ConnectionContext`/`IDuplexPipe` while retaining the real Kestrel HTTP engine
+and Minimal API pipeline. Compare external `/healthz`, partial I/O, cancellation,
+backpressure, disconnect/shutdown and the resulting runtime/syscall inventory.
+Record whether the adapter reduces the required CLROS socket/epoll surface before
+changing the architecture; a host adapter is not a guest TCP implementation.
+
+Replacing transport does not eliminate runtime threads, GC or timers. In the
+pinned .NET 10 Kestrel source,
+[`Heartbeat`](https://github.com/dotnet/aspnetcore/blob/v10.0.12/src/Servers/Kestrel/Core/src/Internal/Infrastructure/Heartbeat.cs)
+starts a dedicated thread and waits on an event. A custom native runtime target
+therefore needs measured runtime services as well as its transport adapter.
+
+[WASI HTTP #703](http://192.168.4.35:3000/admin/CLROS/issues/703)
+is an optional separate experiment. Current
+[`componentize-dotnet`](https://github.com/bytecodealliance/componentize-dotnet/tree/f6bfc5a9a5a25728aeec959be60c8f737278a183)
+targets .NET 10+ AOT WASI 0.2 components with experimental NativeAOT-LLVM tooling.
+A custom ASP.NET `IServer` dispatching WASI HTTP requests may preserve Minimal
+API routing, but replaces Kestrel and cannot satisfy this milestone. WASI
+asynchronous sockets exist, yet both the pinned
+[Mono WASI build](https://github.com/dotnet/runtime/blob/v10.0.12/src/mono/CMakeLists.txt#L344)
+and the reviewed
+[NativeAOT-LLVM WASI thread implementation](https://github.com/dotnet/runtimelab/blob/527a565752062b20bb9693eea6c884b34ecce7bf/src/native/libs/System.Native/pal_threading_wasi.c#L63)
+lack thread creation needed by unmodified Kestrel. Component publication, a host
+engine run or a custom `IServer` response is not CLROS Kestrel evidence.
+Both research tickets are supplemental, have no milestone, and add no
+critical-path dependencies to the NativeAOT-first implementation sequence.
 
 ## Current Status
 
@@ -33,8 +75,8 @@ captured. A local QEMU/libvirt smoke, an AWS Nitro VM smoke, and an Azure
 Hyper-V VM smoke are separate claim gates.
 
 Local QEMU/libvirt Kestrel evidence requires the `SingleMinimalApi` guest to
-boot locally, load the packaged `kestrel.smoke.package.v0` payload, start the
-hosted .NET 10 app target, bind Kestrel to the manifest endpoint, and return
+boot locally, load the versioned Linux ELF package, start the pinned upstream
+.NET 10 NativeAOT app, bind Kestrel to the manifest endpoint, and return
 the expected `GET /healthz` response through the QEMU/libvirt network path.
 
 AWS Nitro Kestrel evidence requires the same `SingleMinimalApi` guest Kestrel
@@ -61,9 +103,9 @@ negotiation, NetVSC network support, and StorVSC storage support.
 The first acceptable Kestrel proof is:
 
 1. Build a packaged ASP.NET Minimal API application targeting .NET 10.
-2. Package it into an OS image with an explicit manifest entry for the hosted runtime kind, app path, arguments, environment, listen endpoint, and logging.
-3. Boot OS in QEMU or libvirt.
-4. Initialize the hosted .NET 10 runtime through the documented PAL/CoreCLR boundary.
+2. Package the pinned static Linux ELF into a CLROS image with explicit app identity, arguments, environment/config, listen endpoint and logging.
+3. Boot CLROS in QEMU or libvirt and leave firmware boot services.
+4. Enter the protected application context through the qualified Linux ABI; the payload initializes its own upstream .NET 10 runtime, GC and EH.
 5. Launch the packaged Minimal API app inside the guest.
 6. Bind a Kestrel endpoint from the manifest or app configuration.
 7. Serve a deterministic HTTP response over the OS network path.
@@ -83,7 +125,11 @@ TEST_FAIL kestrel.smoke reason=<code>
 
 Contract id: `kestrel.smoke.package.v0`.
 
-This is the exact first in-guest ASP.NET Minimal API/Kestrel smoke package contract. It is documentation/test-contract evidence only until a later issue implements package production, hosted runtime launch, exported PAL functions, guest networking, and runner HTTP verification.
+This is the retained framework-dependent hosted smoke package contract. The
+NativeAOT-first milestone uses the separately versioned Linux ELF package;
+do not reinterpret this contract or require its CoreCLR/TPA work first. The
+sections below retain host tooling and future hosted-runtime requirements,
+not guest execution evidence.
 
 Fixture identity:
 
@@ -585,11 +631,8 @@ The first Kestrel proof depends on several major unfinished areas. Until those a
 
 ## Next Steps
 
-1. Map reserved hosted manifest fields to a future hosted launch plan only after PAL, runtime, scheduler, storage, and network prerequisites exist.
-2. Keep the host-build Minimal API fixture aligned with `kestrel.smoke.package.v0`, including `OS_SMOKE_EXPECTED_BODY` config propagation, before promoting it to guest smoke evidence.
-3. Point the QEMU runner HTTP probe at the guest `kestrel.smoke` endpoint after guest sockets and hosted Kestrel startup exist.
-4. Extend PAL socket and package-file mock tests toward the exact hosted runtime adapter status paths before attempting app-level Kestrel HTTP smoke.
-5. Extend the existing host-only active/passive handshake, listen/accept,
-   payload and close contracts toward real timers, retransmission and live NIC
-   integration before claiming guest sockets or Kestrel.
-6. Add guest-side smoke markers only when the hosted runtime can launch a packaged app.
+1. Implement #684 memory/startup services, then #685 descriptors with mechanical fixtures; preserve sparse virtual reservation and physical-commit accounting as described in [the workload roadmap](workload-profiles.md#pinned-payload-requirements-and-trace-limits).
+2. Qualify #686 mechanical threads/TLS/futex and per-thread signal masks; #687 implements signal startup/delivery, runs the first pinned Hello and then checks suspension. #688 repeats Hello and adds full runtime exercise. Keep application runtime ownership separate from kernel helpers.
+3. Integrate continuing NIC/TCP (#691 and its dependencies), then M16 socket/epoll services and the unchanged upstream Minimal API payload. The optional transport comparison informs this integration without replacing its acceptance.
+4. Capture three fresh guest boots, external `/healthz` traffic, request churn/cancellation/shutdown and a failed probe after termination before claiming Kestrel. Follow the exact tracker dependencies and evidence markers.
+5. Preserve `kestrel.smoke.package.v0` and its host checks for later framework-dependent hosting; those contracts do not block the NativeAOT-first path.
