@@ -139,6 +139,7 @@ public static class NativeAotPayload
         Dictionary<string, string> hashes = HashInputs(root, inputs);
         await File.WriteAllTextAsync(Path.Combine(destination, "inputs.json"), JsonSerializer.Serialize(hashes));
         var commands = new List<object>();
+        var nativeInputs = new Dictionary<string, string>(StringComparer.Ordinal);
         async Task<string> Run(string name, string executable, string[] arguments, TimeSpan? timeout = null)
         {
             string log = Path.Combine(destination, name);
@@ -156,6 +157,19 @@ public static class NativeAotPayload
             await Run("kernel", "uname", ["-a"]);
             await Run("packages", "apk", ["info", "-vv"]);
             await Run("cpu", "cat", ["/proc/cpuinfo"]);
+            foreach (string name in new[] { "dotnet", "clang", "ld", "gcc", "strace", "readelf", "nm", "setsid" })
+            {
+                string? path = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator)
+                    .Select(directory => Path.Combine(directory, name)).FirstOrDefault(File.Exists);
+                Require(path is not null, "native_tool_missing_" + name);
+                AddNativeInput(nativeInputs, path!);
+            }
+            foreach (string library in new[] { "libc.a", "libz.a", "libstdc++.a", "libgcc.a", "libgcc_eh.a", "crt1.o", "crti.o", "crtn.o" })
+            {
+                string path = (await Run("library-" + library, "gcc", ["-print-file-name=" + library])).Trim();
+                Require(Path.IsPathFullyQualified(path) && File.Exists(path), "static_dependency_missing_" + library);
+                AddNativeInput(nativeInputs, path);
+            }
             var inspections = new Dictionary<string, Inspection>();
             foreach (string app in apps)
             {
@@ -168,6 +182,26 @@ public static class NativeAotPayload
                     "-p:EnableDiagnostics=false", "-p:DebuggerSupport=false", "-p:RuntimeFrameworkVersion=" + RuntimeVersion,
                     "-p:TargetLatestRuntimePatch=false", "-p:UseSharedCompilation=false", "-nr:false"], TimeSpan.FromMinutes(45));
                 string executable = Path.Combine(publish, app);
+                string assetsPath = Path.Combine(root, "apps", app, "obj", "project.assets.json");
+                File.Copy(assetsPath, Path.Combine(destination, app + "-assets.json"));
+                using (JsonDocument assets = JsonDocument.Parse(await File.ReadAllTextAsync(assetsPath)))
+                {
+                    foreach (JsonProperty package in assets.RootElement.GetProperty("libraries").EnumerateObject())
+                    {
+                        if (package.Value.GetProperty("type").GetString() != "package") continue;
+                        if (package.Name.Contains("ilcompiler/", StringComparison.OrdinalIgnoreCase) ||
+                            package.Name.Contains("runtime.nativeaot.", StringComparison.OrdinalIgnoreCase))
+                            Require(package.Name.EndsWith("/" + RuntimeVersion, StringComparison.Ordinal), "native_runtime_pin_mismatch");
+                        string relative = package.Value.GetProperty("path").GetString()!;
+                        string? directory = assets.RootElement.GetProperty("packageFolders").EnumerateObject()
+                            .Select(folder => Path.Combine(folder.Name, relative)).FirstOrDefault(Directory.Exists);
+                        Require(directory is not null, "native_package_missing");
+                        foreach (string input in Directory.EnumerateFiles(directory!, "*", SearchOption.AllDirectories))
+                            AddNativeInput(nativeInputs, input);
+                    }
+                }
+                foreach (string input in Directory.EnumerateFiles(Path.Combine(root, "apps", app, "obj"), "*.rsp", SearchOption.AllDirectories))
+                    File.Copy(input, Path.Combine(destination, app + "-" + Path.GetFileName(input)), overwrite: false);
                 inspections.Add(app, InspectFile(executable));
                 output.WriteLine("NATIVEAOT_PAYLOAD_INSPECTED " + app);
                 await Run(app + "-elf", "readelf", ["-h", "-l", "-d", "-n", "-W", executable]);
@@ -187,6 +221,7 @@ public static class NativeAotPayload
             Require(currentApps.SequenceEqual(inputs.Where(path => path.StartsWith("apps/"))) &&
                 ToolingBuildInputs.Validate(root).Count == 0 &&
                 HashInputs(root, inputs).OrderBy(x => x.Key).SequenceEqual(hashes.OrderBy(x => x.Key)), "source_inputs_changed");
+            Require(nativeInputs.All(input => HashFile(input.Key) == input.Value), "native_inputs_changed");
             await File.WriteAllTextAsync(Path.Combine(destination, "inspection.json"), JsonSerializer.Serialize(inspections));
             string[] syscalls = Directory.GetFiles(destination, "*-trace.*").SelectMany(File.ReadLines)
                 .Select(line => Regex.Match(line, "^([a-zA-Z0-9_]+)\\("))
@@ -199,6 +234,7 @@ public static class NativeAotPayload
         finally
         {
             await File.WriteAllTextAsync(Path.Combine(destination, "commands.json"), JsonSerializer.Serialize(commands));
+            await File.WriteAllTextAsync(Path.Combine(destination, "native-inputs.json"), JsonSerializer.Serialize(nativeInputs));
         }
     }
 
@@ -320,6 +356,16 @@ public static class NativeAotPayload
 
     private static Dictionary<string, string> HashInputs(string root, string[] paths) =>
         paths.ToDictionary(path => path, path => Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root, path)))));
+    private static void AddNativeInput(Dictionary<string, string> inputs, string path)
+    {
+        string resolved = File.ResolveLinkTarget(path, true)?.FullName ?? Path.GetFullPath(path);
+        if (!inputs.ContainsKey(resolved)) inputs.Add(resolved, HashFile(resolved));
+    }
+    private static string HashFile(string path)
+    {
+        using var file = File.OpenRead(path);
+        return Convert.ToHexString(SHA256.HashData(file));
+    }
     private static bool Fits(ulong offset, ulong length, ulong available) => offset <= available && length <= available - offset;
     private static ulong PageStart(ulong address) => address & ~4095UL;
     private static ulong PageEnd(Segment row) => (row.Address + row.MemorySize + 4095) & ~4095UL;
