@@ -3,9 +3,11 @@
 M16-005 is under development in [step1201](../done/step1201.md). Its conditional
 retention plan reserves a syscall code page and a twenty-page data/stack range,
 maps code RX and data RW/NX, and omits data page 3 as the kernel stack guard.
-The dispatcher/emitter host controls do not prove EFI allocation, CPL3 entry,
-syscall execution or fault isolation; integration and guest qualification remain
-pending.
+The EFI adapter now allocates/releases these pages before exit, seals their
+ownership ledger, emits code before RX publication and prepares mapped context
+after exit without touching the guard. Startup and service stop precede the
+checked user boundary. Its complete no-stdlib C# path compiles and preflight
+passes; native publication and real CPL3/syscall/fault qualification remain pending.
 
 Qualified children `EnableM16003Probe` and `EnableM16004Probe` default off and
 imply the staged-package/owned-exit parent through the compiled tooling profile.

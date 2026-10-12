@@ -4,8 +4,9 @@
 
 M16-005/#683 and supplemental #699 are in development in
 [step1201](../done/step1201.md). The checked write/exit dispatcher and C# x64
-transition emitter have host controls; EFI integration, native review and guest
-CPL3/syscall/fault qualification remain pending. No Linux app launch is accepted.
+transition emitter have host controls. The default-off EFI allocation, dispatch
+and restoration paths compile, and source/profile preflight passes. Native review
+and guest CPL3/syscall/fault qualification remain pending. No Linux app launch is accepted.
 
 The qualified loader/service children in [step1200](../done/step1200.md) add
 host-checked copy, startup-stack and protected-root mechanics plus an EFI read-back

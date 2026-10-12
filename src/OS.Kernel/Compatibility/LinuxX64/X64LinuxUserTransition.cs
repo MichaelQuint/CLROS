@@ -63,9 +63,11 @@ public static unsafe class X64LinuxUserTransition
                 (gate[4] & ~7) != 0 || gate[5] != 0x8e || *(uint*)(gate + 12) != 0) return false;
         }
         if (GateAddress(originalIdt + 13 * 16) != plan.OriginalGp || GateAddress(originalIdt + 14 * 16) != plan.OriginalPf) return false;
-        // No mutation before complete input validation. Guard bytes are cleared
-        // before publication; no emitted instruction touches the unmapped guard.
-        for (uint i = 0; i < DataBytes; i++) data[i] = 0;
+        // No mutation before complete input validation. The owner clears the
+        // whole allocation before publication. Preparation may run after the
+        // guard has been unmapped, so it never reads or writes that page.
+        for (uint i = 0; i < DataBytes; i++)
+            if (i < GuardOffset || i >= StackOffset) data[i] = 0;
         *(ulong*)data = plan.ContextAddress + DataBytes;
         *(ulong*)(data + 8) = plan.UserRsp; *(ulong*)(data + 0x18) = plan.UserRip;
         *(ulong*)(data + 0x28) = plan.UserRoot; *(ulong*)(data + 0x30) = plan.Dispatcher;
@@ -188,7 +190,8 @@ public static unsafe class X64LinuxUserTransition
         w.Load(0, 0x78); w.WriteMsr(0xc0000082);
         w.Load(0, 0x80); w.WriteMsr(0xc0000084);
         w.Load(0, 0x68); w.WriteMsr(0xc0000080);
-        w.Fx(true, KernelFxOffset); w.Set(PhaseOffset, 2); w.Load(4, 0x10);
+        w.Fx(true, KernelFxOffset); w.Fx(false, UserFxOffset); // independent post-restore hardware image
+        w.Set(PhaseOffset, 2); w.Load(4, 0x10);
         w.Bytes(0x5c415d415e415f41, 8); w.Bytes(0x5b5d5e5f, 4); // nonvolatile GPRs
         w.Bytes(0x9d, 1); w.Bytes(0x00000001b8, 5); w.Bytes(0xc3, 1); // restore flags; return 1 (cleanup only)
         w.Pad(GpPointerOffset); w.Bytes(plan.OriginalGp, 8); w.Bytes(plan.OriginalPf, 8);

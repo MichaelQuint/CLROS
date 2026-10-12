@@ -54,10 +54,14 @@ public static unsafe class EfiEntry
         private const ulong Page = 4096, TablePages = 55;
 #if M16_002_PROBE
         private const uint LinuxLedgerCapacity =
+#if M16_005_PROBE
+            13;
+#else
 #if M16_004_PROBE
             11;
 #else
             9;
+#endif
 #endif
 #endif
         // Conservative reservations, not native-stack evidence. The linked
@@ -90,6 +94,13 @@ public static unsafe class EfiEntry
             internal fixed ulong LinuxUserRanges[(int)X64UserAddressSpace.MaximumRanges * 4];
             internal FirmwareEntropyCapture.State LinuxEntropy;
             internal FirmwareEntropyCapture.Buffer LinuxEntropyScratch, LinuxEntropyRetained;
+#endif
+#if M16_005_PROBE
+            internal ulong LinuxSyscallCode, LinuxSyscallData;
+            internal uint LinuxSyscallPhase, LinuxSyscallExitCode, LinuxSyscallFaults, LinuxSyscallWrites, LinuxSyscallFailed;
+            internal X64LinuxUserTransitionPlan LinuxSyscallPlan;
+            internal LinuxSyscallGateState LinuxSyscallState;
+            internal fixed ulong LinuxSyscallOriginal[(int)X64LinuxUserTransition.ObservationWords];
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
             internal ulong MappingPhase, MappingCr0;
@@ -223,6 +234,11 @@ public static unsafe class EfiEntry
             {
                 if (!Prepare(state, services))
                 {
+#if M16_005_PROBE
+                    bool syscallReleased = ReleaseLinuxUserBoundary(state, services);
+                    string syscallRejection = syscallReleased ? "M16_005_PREPARE_REJECTED owned-backing=released\r\n" : "M16_005_PREPARE_REJECTED owned-backing=reserved-release-failed\r\n";
+                    for (int i = 0; i < syscallRejection.Length; i++) Write(console, serial, (byte)syscallRejection[i]);
+#endif
 #if M16_004_PROBE
                     bool startupReleased = ReleaseLinuxStartup(state, services);
                     string startupRejection = startupReleased ? "M16_004_PREPARE_REJECTED owned-backing=released\r\n" : "M16_004_PREPARE_REJECTED owned-backing=reserved-release-failed\r\n";
@@ -347,6 +363,12 @@ public static unsafe class EfiEntry
             references.LinuxUserTablesStart = state->LinuxUserTables;
             references.LinuxUserTablePages = X64UserAddressSpace.MaximumTables;
 #endif
+#if M16_005_PROBE
+            state->PreparationCheckpoint = 37;
+            if (!BootSequence.PrepareLinuxUserBoundary(state->Phase == 2, state, &PrepareLinuxUserBoundary)) return false;
+            references.LinuxSyscallCodeStart = state->LinuxSyscallCode;
+            references.LinuxSyscallDataStart = state->LinuxSyscallData;
+#endif
             state->PreparationCheckpoint = 40;
             if (!Allocate(services, 1, 3, image, imageBytes, allocator, out ulong code) ||
                 !Allocate(services, 2, FirstExitOwnedArena.PageCount, image, imageBytes, allocator, out ulong data) ||
@@ -387,6 +409,11 @@ public static unsafe class EfiEntry
                 !FirstExitCodeBundle.Materialize((byte*)code, FirstExitCodeBundle.Bytes,
                     ref state->Arena, capture, mapping, references.FaultCallback) ||
                 PhysicalAddress.TryCreateFromUefiBoundary(tables, out var root) != AddressValueStatus.Success) return false;
+#if M16_005_PROBE
+            state->LinuxSyscallPlan = LinuxUserTransitionPlan(state, 0x70000000);
+            if (!X64LinuxUserTransition.Emit((byte*)state->LinuxSyscallCode, X64LinuxUserTransition.CodeBytes, state->LinuxSyscallPlan) ||
+                !X64LinuxUserTransition.ValidateReadBack((byte*)state->LinuxSyscallCode, X64LinuxUserTransition.CodeBytes, state->LinuxSyscallPlan)) return false;
+#endif
 
             state->PreparationCheckpoint = 70;
             state->Memory = new FirstExitDiagnosticMemory
@@ -718,6 +745,10 @@ public static unsafe class EfiEntry
             if (!LinuxReservation(BootReservationKind.LinuxElfBacking, state->LinuxImageBacking, state->LinuxImagePages, ledger + count++) ||
                 !LinuxReservation(BootReservationKind.LinuxElfUserTables, state->LinuxUserTables, X64UserAddressSpace.MaximumTables, ledger + count++)) return false;
 #endif
+#if M16_005_PROBE
+            if (!LinuxReservation(BootReservationKind.LinuxSyscallCode, state->LinuxSyscallCode, 1, ledger + count++) ||
+                !LinuxReservation(BootReservationKind.LinuxSyscallData, state->LinuxSyscallData, X64LinuxUserTransition.DataPages, ledger + count++)) return false;
+#endif
             for (uint i = 1; i < count; i++)
             {
                 var current = ledger[i]; uint at = i;
@@ -947,6 +978,241 @@ public static unsafe class EfiEntry
         }
 #endif
 
+#if M16_005_PROBE
+        private static bool PrepareLinuxUserBoundary(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->Phase != 2 || state->LinuxStartupPhase != 2 || state->LinuxSyscallPhase != 0) return false;
+            state->LinuxSyscallPhase = 1;
+            EfiBootServices* services = state->SystemTable->BootServices;
+            if (!AllocateLinuxStartup(services, 1, out state->LinuxSyscallCode) ||
+                !AllocateLinuxStartup(services, X64LinuxUserTransition.DataPages, out state->LinuxSyscallData) ||
+                !Disjoint(state->LinuxSyscallCode, Page, state->LinuxSyscallData, X64LinuxUserTransition.DataBytes)) return false;
+            ulong* starts = stackalloc ulong[3]; ulong* bytes = stackalloc ulong[3];
+            starts[0] = state->LinuxPackage; bytes[0] = state->LinuxPages * Page;
+            starts[1] = state->LinuxImageBacking; bytes[1] = state->LinuxImagePages * Page;
+            starts[2] = state->LinuxUserTables; bytes[2] = X64UserAddressSpace.MaximumTables * Page;
+            for (uint i = 0; i < 3; i++)
+                if (!Disjoint(state->LinuxSyscallCode, Page, starts[i], bytes[i]) ||
+                    !Disjoint(state->LinuxSyscallData, X64LinuxUserTransition.DataBytes, starts[i], bytes[i])) return false;
+            for (uint i = 0; i < X64LinuxUserTransition.CodeBytes; i++) ((byte*)state->LinuxSyscallCode)[i] = 0;
+            for (uint i = 0; i < X64LinuxUserTransition.DataBytes; i++) ((byte*)state->LinuxSyscallData)[i] = 0;
+            state->LinuxSyscallPhase = 2; return true;
+        }
+
+        private static bool ReleaseLinuxUserBoundary(Storage* state, EfiBootServices* services)
+        {
+            bool okay = true;
+            if (state->LinuxSyscallCode != 0)
+            {
+                if (services != null && services->FreePages != null && services->FreePages(state->LinuxSyscallCode, 1) == 0) state->LinuxSyscallCode = 0;
+                else okay = false;
+            }
+            if (state->LinuxSyscallData != 0)
+            {
+                if (services != null && services->FreePages != null && services->FreePages(state->LinuxSyscallData, X64LinuxUserTransition.DataPages) == 0) state->LinuxSyscallData = 0;
+                else okay = false;
+            }
+            state->LinuxSyscallPhase = 7; return okay;
+        }
+
+        private static ulong LinuxGateHandler(byte* gate) =>
+            *(ushort*)gate | ((ulong)*(ushort*)(gate + 6) << 16) | ((ulong)*(uint*)(gate + 8) << 32);
+
+        private static X64LinuxUserTransitionPlan LinuxUserTransitionPlan(Storage* state, ulong rsp) => new()
+        {
+            CodeAddress = state->LinuxSyscallCode, ContextAddress = state->LinuxSyscallData,
+            UserRoot = state->LinuxUserTables, UserRip = state->LinuxImagePlan.Entry, UserRsp = rsp,
+            Dispatcher = (ulong)(delegate* unmanaged<void*, LinuxSyscallFrame*, byte>)&DispatchLinuxSyscall,
+            FaultReporter = (ulong)(delegate* unmanaged<void*, byte*, byte>)&ReportLinuxUserFault,
+            CallbackContext = (ulong)state, TssRsp0Address = (ulong)(state->Arena.Descriptors->Tss + 4),
+            OriginalGp = LinuxGateHandler(state->Arena.Descriptors->FinalIdt + 13 * 16),
+            OriginalPf = LinuxGateHandler(state->Arena.Descriptors->FinalIdt + 14 * 16)
+        };
+
+        private static bool LinuxSupervisorLeaf(Storage* state, ulong address, bool executable, bool writable)
+        {
+            if (!X64UserAddressSpace.TryReadLeaf((ulong*)state->LinuxUserTables, state->LinuxUserTables,
+                X64UserAddressSpace.MaximumTables, address, out ulong leaf) || (leaf & 5) != 1) return false;
+            return ((leaf & 2) != 0) == writable && ((leaf & 0x8000000000000000) == 0) == executable;
+        }
+
+        private static bool LinuxSyscallAuthority(Storage* state)
+        {
+            byte* bridge = state->Memory.Code + FirstExitCodeBundle.LinuxReadBackOffset;
+            if (!X64LinuxElfReadBackBridge.Validate(bridge, X64LinuxElfReadBackBridge.Bytes) ||
+                ((delegate* unmanaged<ulong>)(bridge + X64LinuxElfReadBackBridge.ReadCr3Offset))() != state->LinuxUserRoot.Root) return false;
+            return state->LinuxSyscallPhase == 4 && state->LinuxSyscallPlan.UserRoot == state->LinuxUserRoot.Root &&
+                state->Arena.Transition->Mode == FirmwareServicesMode.BootServicesExited &&
+                state->Arena.Transition->RetainedFirmwareCallbacksCleared && state->Arena.Binding->RetainedPointersCleared;
+        }
+
+        private static bool RunOwnedLinuxSyscalls(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->Phase != 4 || state->LinuxSyscallPhase != 2 || state->LinuxStartupPhase != 6 ||
+                !state->ServiceLoop.IsStopped || state->LinuxOwnedPhase != 2 || !state->LinuxUserRoot.Succeeded ||
+                state->Arena.Transition->Mode != FirmwareServicesMode.BootServicesExited ||
+                !state->Arena.Transition->RetainedFirmwareCallbacksCleared || !state->Arena.Binding->RetainedPointersCleared ||
+                !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            state->LinuxSyscallPhase = 3;
+            if (!LinuxText(state, "TEST_START m16-005\r\n")) return false;
+            var plan = LinuxUserTransitionPlan(state, state->LinuxInitialStack.StackPointer);
+            byte* code = (byte*)state->LinuxSyscallCode; byte* data = (byte*)state->LinuxSyscallData;
+            byte* cpu = state->Memory.Code + FirstExitCodeBundle.ClockAccessOffset;
+            if (!X64OwnedClockAccess.Validate(cpu, X64OwnedClockAccess.Bytes)) return false;
+            uint* cpuidWords = stackalloc uint[4];
+            var cpuid = (delegate* unmanaged<uint, uint, uint*, void>)(cpu + X64OwnedClockAccess.CpuidOffset);
+            cpuid(1, 0, cpuidWords);
+            if (((cpuidWords[1] >> 16) & 255) != 1) return false; // bounded one-logical-CPU profile
+            cpuid(0x80000000, 0, cpuidWords);
+            if (cpuidWords[0] < 0x80000001) return false;
+            cpuid(0x80000001, 0, cpuidWords);
+            if ((cpuidWords[3] & 0x20100800) != 0x20100800 ||
+                !X64LinuxUserTransition.ValidateReadBack(code, X64LinuxUserTransition.CodeBytes, plan) ||
+                !X64UserAddressSpace.Audit((X64UserMappingRange*)state->LinuxUserRanges, state->LinuxUserRangeCount,
+                    (ulong*)state->LinuxUserTables, state->LinuxUserTables, X64UserAddressSpace.MaximumTables,
+                    state->Memory.Tables.Preconditions, state->LinuxUserRoot) ||
+                !LinuxSupervisorLeaf(state, plan.CodeAddress, true, false) ||
+                !LinuxSupervisorLeaf(state, plan.Dispatcher, true, false) ||
+                !LinuxSupervisorLeaf(state, plan.FaultReporter, true, false) ||
+                !LinuxSupervisorLeaf(state, plan.CallbackContext, false, true)) return false;
+            for (uint page = 0; page < X64LinuxUserTransition.DataPages; page++)
+            {
+                ulong address = plan.ContextAddress + page * Page;
+                if (page == 3)
+                {
+                    if (!X64UserAddressSpace.TryReadLeaf((ulong*)state->LinuxUserTables, state->LinuxUserTables,
+                        X64UserAddressSpace.MaximumTables, address, out ulong guard) || guard != 0) return false;
+                }
+                else if (!LinuxSupervisorLeaf(state, address, false, true)) return false;
+            }
+            ulong* original = state->LinuxSyscallOriginal;
+            for (uint i = 0; i < X64LinuxUserTransition.ObservationWords; i++) original[i] = 0;
+            var observe = (delegate* unmanaged<ulong*, void>)(code + X64LinuxUserTransition.ObserveOffset);
+            observe(original);
+            if (original[1] != (ulong)state->Memory.Entries || original[4] != 8 || original[5] != 16 || original[6] != 24 ||
+                !X64LinuxUserTransition.AdmitCpu(original[0], original[2], original[10], (uint)original[7], (uint)original[9], original[3]) ||
+                *(ushort*)(original + 17) != *(ushort*)state->Arena.Descriptors->Gdtr || *(ulong*)((byte*)(original + 17) + 2) != (ulong)state->Arena.Descriptors->Gdt ||
+                *(ushort*)(original + 19) != 4095 || *(ulong*)((byte*)(original + 19) + 2) != (ulong)state->Arena.Descriptors->FinalIdt ||
+                !X64LinuxUserTransition.Prepare(data, X64LinuxUserTransition.DataBytes, plan,
+                    state->Arena.Descriptors->Gdt, 4096, state->Arena.Descriptors->FinalIdt, 4096)) return false;
+            state->LinuxSyscallPlan = plan;
+            LinuxSyscallAdmission admission = new()
+            {
+                UserRoot = plan.UserRoot, MaximumCalls = LinuxSyscallGateway.MaximumCalls, MaximumWrite = LinuxSyscallGateway.MaximumWrite,
+                Scratch = data + X64LinuxUserTransition.ScratchOffset, ScratchBytes = 4096, FirmwareExited = true, OwnedBoundaryValidated = true
+            };
+            LinuxSyscallAccess access = new() { Context = state, PageAccess = &LinuxUserPageAccess, CopyFromUser = &CopyLinuxUserBytes, Write = &WriteLinuxUserBytes };
+            if (LinuxSyscallGateway.Begin(ref state->LinuxSyscallState, admission, access) != LinuxSyscallGateStatus.Active ||
+                !LinuxText(state, "M16_005_ARMED root=") || !LinuxNumber(state, plan.UserRoot) ||
+                !LinuxText(state, " cs=59 ss=51 kernelStack=") || !LinuxNumber(state, plan.ContextAddress + X64LinuxUserTransition.DataBytes) ||
+                !LinuxText(state, " guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse\r\n")) return false;
+            state->LinuxSyscallPhase = 4;
+            byte returned = ((delegate* unmanaged<byte>)code)();
+            ulong* after = stackalloc ulong[(int)X64LinuxUserTransition.ObservationWords];
+            for (uint i = 0; i < X64LinuxUserTransition.ObservationWords; i++) after[i] = 0;
+            observe(after);
+            bool restored = returned == 1 && *(ulong*)(data + X64LinuxUserTransition.PhaseOffset) == 2 &&
+                *(ulong*)(state->Arena.Descriptors->Tss + 4) == *(ulong*)(data + 0xd0) &&
+                (after[3] & 0x74700) == (original[3] & 0x74700) && FirstExitOwnedArena.ValidateCanaries(state->Arena);
+            for (uint i = 0; i < X64LinuxUserTransition.ObservationWords; i++) if (i != 3 && after[i] != original[i]) restored = false;
+            for (uint i = 0; i < 512; i++) if (data[X64LinuxUserTransition.KernelFxOffset + i] != data[X64LinuxUserTransition.UserFxOffset + i]) restored = false;
+            if (!restored || !LinuxText(state, "M16_005_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true\r\n")) return false;
+            state->LinuxSyscallPhase = 6;
+            if (state->LinuxSyscallFaults != 0 || state->LinuxSyscallFailed != 0 || state->LinuxSyscallState.Status != LinuxSyscallGateStatus.Exited)
+            {
+                _ = LinuxText(state, "TEST_FAIL m16-005 user-boundary-terminated status=");
+                _ = LinuxNumber(state, (uint)state->LinuxSyscallState.Status); _ = LinuxText(state, "\r\n"); return false;
+            }
+            return LinuxText(state, "M16_005_EXIT code=") && LinuxNumber(state, state->LinuxSyscallExitCode) &&
+                LinuxText(state, " calls=") && LinuxNumber(state, state->LinuxSyscallState.Calls) &&
+                LinuxText(state, " bytes=") && LinuxNumber(state, state->LinuxSyscallState.BytesWritten) &&
+                LinuxText(state, " writes=") && LinuxNumber(state, state->LinuxSyscallWrites) &&
+                LinuxText(state, "\r\nCLROS_M16_005_READY\r\nTEST_PASS m16-005\r\n");
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte DispatchLinuxSyscall(void* context, LinuxSyscallFrame* frame)
+        {
+            Storage* state = (Storage*)context;
+            if ((ulong)context != state->Memory.References.AdapterState || frame != (LinuxSyscallFrame*)(state->LinuxSyscallData + X64LinuxUserTransition.FrameOffset) ||
+                !LinuxSyscallAuthority(state)) return 0;
+            var result = LinuxSyscallGateway.Dispatch(ref state->LinuxSyscallState, *frame);
+            byte* data = (byte*)state->LinuxSyscallData;
+            *(long*)(data + X64LinuxUserTransition.ValueOffset) = result.Value;
+            *(ulong*)(data + X64LinuxUserTransition.OutcomeOffset) = (ulong)result.Action;
+            if (result.Action == LinuxSyscallAction.Terminate && state->LinuxSyscallState.Status == LinuxSyscallGateStatus.Exited)
+                state->LinuxSyscallExitCode = result.ExitCode;
+            if (!LinuxText(state, "M16_005_CALL nr=") || !LinuxNumber(state, frame->Number) ||
+                !LinuxText(state, " a0=") || !LinuxNumber(state, frame->Argument0) ||
+                !LinuxText(state, " a1=") || !LinuxNumber(state, frame->Argument1) ||
+                !LinuxText(state, " a2=") || !LinuxNumber(state, frame->Argument2) ||
+                !LinuxText(state, " a3=") || !LinuxNumber(state, frame->Argument3) ||
+                !LinuxText(state, " a4=") || !LinuxNumber(state, frame->Argument4) ||
+                !LinuxText(state, " a5=") || !LinuxNumber(state, frame->Argument5) ||
+                !LinuxText(state, " rip=") || !LinuxNumber(state, frame->Rip) ||
+                !LinuxText(state, " rsp=") || !LinuxNumber(state, frame->Rsp) ||
+                !LinuxText(state, " flags=") || !LinuxNumber(state, frame->Rflags) ||
+                !LinuxText(state, " valueBits=") || !LinuxNumber(state, unchecked((ulong)result.Value)) ||
+                !LinuxText(state, " action=") || !LinuxNumber(state, (uint)result.Action) ||
+                !LinuxText(state, " status=") || !LinuxNumber(state, (uint)state->LinuxSyscallState.Status) ||
+                !LinuxText(state, "\r\n")) { state->LinuxSyscallFailed = 1; return 0; }
+            return result.Action == LinuxSyscallAction.Return ? (byte)1 : (byte)2;
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte LinuxUserPageAccess(void* context, ulong address)
+        {
+            Storage* state = (Storage*)context;
+            if (!LinuxSyscallAuthority(state) || !X64UserAddressSpace.TryReadLeaf((ulong*)state->LinuxUserTables, state->LinuxUserTables,
+                X64UserAddressSpace.MaximumTables, address, out ulong leaf) || (leaf & 5) != 5) return 0;
+            return (byte)(1 | ((leaf & 2) != 0 ? 2 : 0) | ((leaf & 0x8000000000000000) == 0 ? 4 : 0));
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte CopyLinuxUserBytes(void* context, ulong source, byte* destination, uint bytes)
+        {
+            Storage* state = (Storage*)context;
+            if (!LinuxSyscallAuthority(state) || destination != (byte*)(state->LinuxSyscallData + X64LinuxUserTransition.ScratchOffset) ||
+                bytes == 0 || bytes > 4096) return 0;
+            // Dispatch has preflighted every page; mappings cannot change in this
+            // single-CPU, IRQ-off boundary and the scratch has no user alias.
+            for (uint i = 0; i < bytes; i++) destination[i] = ((byte*)source)[i];
+            return 1;
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte WriteLinuxUserBytes(void* context, uint descriptor, byte* source, uint bytes)
+        {
+            Storage* state = (Storage*)context;
+            if (!LinuxSyscallAuthority(state) || (descriptor != 1 && descriptor != 2) ||
+                source != (byte*)(state->LinuxSyscallData + X64LinuxUserTransition.ScratchOffset) || bytes == 0 || bytes > 4096 ||
+                !LinuxText(state, "M16_005_WRITE fd=") || !LinuxNumber(state, descriptor) ||
+                !LinuxText(state, " bytes=") || !LinuxNumber(state, bytes) || !LinuxText(state, " data=")) return 0;
+            for (uint i = 0; i < bytes; i++) if (!LinuxByte(state, source[i])) return 0;
+            if (!LinuxText(state, "\r\n")) return 0;
+            state->LinuxSyscallWrites++; return 1;
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte ReportLinuxUserFault(void* context, byte* data)
+        {
+            Storage* state = (Storage*)context;
+            if (!LinuxSyscallAuthority(state) || data != (byte*)state->LinuxSyscallData || state->LinuxSyscallFaults != 0 ||
+                *(ushort*)(data + X64LinuxUserTransition.FaultSelectorsOffset) != X64LinuxUserTransition.UserCs ||
+                *(ushort*)(data + X64LinuxUserTransition.FaultSelectorsOffset + 2) != X64LinuxUserTransition.UserSs) return 0;
+            state->LinuxSyscallFaults = 1;
+            bool written = LinuxText(state, "M16_005_FAULT vector=") && LinuxNumber(state, *(ulong*)(data + X64LinuxUserTransition.VectorOffset)) &&
+                LinuxText(state, " error=") && LinuxNumber(state, *(ulong*)(data + X64LinuxUserTransition.ErrorOffset)) &&
+                LinuxText(state, " rip=") && LinuxNumber(state, *(ulong*)(data + 0x138)) &&
+                LinuxText(state, " rsp=") && LinuxNumber(state, *(ulong*)(data + 0x140)) &&
+                LinuxText(state, " cr2=") && LinuxNumber(state, *(ulong*)(data + X64LinuxUserTransition.FaultAddressOffset)) &&
+                LinuxText(state, " cs=59 ss=51 disposition=terminate\r\n");
+            return written ? (byte)1 : (byte)0;
+        }
+#endif
+
         private static bool VerifyLinuxPackage(void* owner)
         {
             Storage* state = (Storage*)owner;
@@ -1070,6 +1336,11 @@ public static unsafe class EfiEntry
                     if (!BootSequence.RunOwnedWorkloadServiceLoop(state->LinuxOwnedPhase == 2,
                         transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
                         state->Arena.Binding->RetainedPointersCleared, state, &RunOwnedWorkloadServiceLoop)) return;
+#endif
+#if M16_005_PROBE
+                    if (!BootSequence.RunOwnedLinuxSyscalls(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
+                        transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
+                        state->Arena.Binding->RetainedPointersCleared, state, &RunOwnedLinuxSyscalls)) return;
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE
                     _ = BootSequence.RunOwnedMonotonicClock(state->OwnedPhase == 2, state, &RunOwnedMonotonicClock);

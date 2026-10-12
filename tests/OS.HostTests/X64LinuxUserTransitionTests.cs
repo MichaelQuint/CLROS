@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using OS.Kernel.Compatibility.LinuxX64;
+using OS.Tooling;
 
 internal static unsafe class X64LinuxUserTransitionTests
 {
@@ -34,7 +35,7 @@ internal static unsafe class X64LinuxUserTransitionTests
         {
             Descriptors(gdt, idt); byte[] originalGdt = new ReadOnlySpan<byte>(gdt, 4096).ToArray();
             byte[] originalIdt = new ReadOnlySpan<byte>(idt, 4096).ToArray();
-            var plan = Plan();
+            var plan = Plan(); new Span<byte>(data, (int)X64LinuxUserTransition.DataBytes).Fill(0xa5);
             long before = GC.GetAllocatedBytesForCurrentThread();
             bool prepared = X64LinuxUserTransition.Prepare(data, X64LinuxUserTransition.DataBytes, plan, gdt, 4096, idt, 4096);
             long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
@@ -68,7 +69,9 @@ internal static unsafe class X64LinuxUserTransitionTests
             HostCheck.Equal((ushort)0x37f, *(ushort*)(data + 0x400));
             HostCheck.Equal(0x1f80U, *(uint*)(data + 0x418));
             HostCheck.True(new ReadOnlySpan<byte>(data + 0x420, 480).IndexOfAnyExcept((byte)0) == -1);
-            HostCheck.True(new ReadOnlySpan<byte>(data + 0x2000, (int)X64LinuxUserTransition.DataBytes - 0x2000).IndexOfAnyExcept((byte)0) == -1);
+            HostCheck.True(new ReadOnlySpan<byte>(data + 0x2000, 4096).IndexOfAnyExcept((byte)0) == -1);
+            HostCheck.True(new ReadOnlySpan<byte>(data + 0x3000, 4096).IndexOfAnyExcept((byte)0xa5) == -1);
+            HostCheck.True(new ReadOnlySpan<byte>(data + 0x4000, (int)X64LinuxUserTransition.DataBytes - 0x4000).IndexOfAnyExcept((byte)0) == -1);
             HostCheck.Equal(96, sizeof(LinuxSyscallFrame));
         }
         finally { NativeMemory.AlignedFree(data); NativeMemory.AlignedFree(gdt); NativeMemory.AlignedFree(idt); }
@@ -197,5 +200,52 @@ internal static unsafe class X64LinuxUserTransitionTests
             HostCheck.True(!X64LinuxUserTransition.AdmitCpu(0x80000001, 0x220, 0xd00, 0x07000000, 0x20100800, 0x202));
         }
         finally { NativeMemory.AlignedFree(code); }
+    }
+
+    [HostTest("m16-005 syscall transcript binds write result exit accounting and rejects forged or partial receipts", HostLane.Fast, 5)]
+    private static void TranscriptControls()
+    {
+        int parentCount = QemuContracts.M03OwnedSubsystemMarkers.Count + 7 + 7 + 17;
+        string[] parents = Enumerable.Range(0, parentCount).Select(i => "parent " + i).ToArray();
+        string[] tail =
+        [
+            "TEST_START m16-005",
+            "M16_005_ARMED root=3145728 cs=59 ss=51 kernelStack=2179072 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse",
+            "M16_005_WRITE fd=2 bytes=5 data=HELLO",
+            "M16_005_CALL nr=1 a0=2 a1=4202496 a2=5 a3=16 a4=32 a5=48 rip=4194560 rsp=1879048176 flags=2 valueBits=5 action=1 status=1",
+            "M16_005_CALL nr=231 a0=42 a1=0 a2=0 a3=0 a4=0 a5=0 rip=4194576 rsp=1879048176 flags=2 valueBits=0 action=2 status=2",
+            "M16_005_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true",
+            "M16_005_EXIT code=42 calls=2 bytes=5 writes=1", "CLROS_M16_005_READY", "TEST_PASS m16-005"
+        ];
+        HostCheck.True(QemuTranscripts.ValidateLinuxSyscallTail([.. parents, .. tail]).SequenceEqual(parents));
+        for (int variant = 0; variant < 9; variant++)
+        {
+            string[] bad = (string[])tail.Clone();
+            switch (variant)
+            {
+                case 0: bad[3] = bad[3].Replace("valueBits=5", "valueBits=0"); break;
+                case 1: bad[3] = bad[3].Replace("a0=2", "a0=1"); break;
+                case 2: bad[3] = bad[3].Replace("a2=5", "a2=6"); break;
+                case 3: bad[4] = bad[4].Replace("action=2", "action=1"); break;
+                case 4: bad[6] = bad[6].Replace("calls=2", "calls=3"); break;
+                case 5: bad[6] = bad[6].Replace("bytes=5", "bytes=6"); break;
+                case 6: bad[5] = bad[5].Replace("ss=true", "ss=false"); break;
+                case 7: bad[3] = bad[3].Replace("flags=2", "flags=514"); break;
+                default: bad[2] = bad[2].Replace("HELLO", "HELL"); break;
+            }
+            bool rejected = false;
+            try { _ = QemuTranscripts.ValidateLinuxSyscallTail([.. parents, .. bad]); }
+            catch (ToolFailure) { rejected = true; }
+            HostCheck.True(rejected, "transcript corruption " + variant);
+        }
+        string unsupported = "M16_005_CALL nr=999 a0=0 a1=0 a2=0 a3=0 a4=0 a5=0 rip=4194544 rsp=1879048176 flags=2 valueBits=18446744073709551578 action=1 status=1";
+        string[] withUnsupported = [tail[0], tail[1], unsupported, .. tail[2..]];
+        withUnsupported[^3] = withUnsupported[^3].Replace("calls=2", "calls=3");
+        HostCheck.True(QemuTranscripts.ValidateLinuxSyscallTail([.. parents, .. withUnsupported]).SequenceEqual(parents));
+        withUnsupported[2] = unsupported.Replace("18446744073709551578", "0");
+        bool wrongErrnoRejected = false;
+        try { _ = QemuTranscripts.ValidateLinuxSyscallTail([.. parents, .. withUnsupported]); }
+        catch (ToolFailure) { wrongErrnoRejected = true; }
+        HostCheck.True(wrongErrnoRejected);
     }
 }
