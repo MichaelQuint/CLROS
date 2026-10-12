@@ -12,7 +12,8 @@ public enum BoundedExceptionDispatchStatus : byte
     UnsupportedClause = 5,
     InvalidTypeMatch = 6,
     InvalidNesting = 7,
-    NoMatchingCatch = 8
+    NoMatchingCatch = 8,
+    InvalidStart = 9
 }
 
 public readonly struct BoundedExceptionDispatchResult
@@ -43,8 +44,10 @@ public readonly struct BoundedExceptionDispatchResult
 /// CPU transfer. All image, allocation, stack and compiler-shape authority must remain stable
 /// through consumption and continuation. Control PC is the already checked return PC minus one.
 /// Containing ranges must be ordered inner to outer; equal ranges admit typed catch siblings
-/// only. Filters, boundary markers, cloned/equal-range cleanups and collided/rethrow starts
-/// are unsupported. Kind 1 is fault OR finally: this plan applies only to exceptional unwind.
+/// only. Filters, boundary markers, cloned/equal-range cleanups and general collided/rethrow
+/// starts are unsupported. The narrow normal-finally entry skips an independently authenticated
+/// exited cleanup and all earlier clauses in both passes. Kind 1 is fault OR finally: this plan
+/// applies only to exceptional unwind.
 /// No successful partial plan is exposed, including after a matching catch in an invalid tail.
 /// </remarks>
 public static class BoundedExceptionDispatchPlan
@@ -53,11 +56,28 @@ public static class BoundedExceptionDispatchPlan
     public const uint MaximumCleanups = 2;
 
     public static BoundedExceptionDispatchResult Select(ReadOnlySpan<NativeAotEhClauseResult> clauses,
-        ReadOnlySpan<ExceptionTypeMatchResult> matches, uint protectedOffset)
+        ReadOnlySpan<ExceptionTypeMatchResult> matches, uint protectedOffset) =>
+        SelectCore(clauses, matches, protectedOffset, false, 0);
+
+    /// <summary>Searches after one exited normal finally without re-entering that clause or earlier clauses.</summary>
+    /// <remarks>
+    /// Caller pairs the complete rows/typed receipts to the SAME retained exception and method
+    /// and independently authenticates the exited clause and restored parent context (for example
+    /// with RecoverNormalFinallyParent). Numeric indices alone do not prove that pairing or
+    /// invocation history. All rows, including skipped rows and the tail, retain full validation.
+    /// Original indices are preserved. This is policy only, with no CPU transfer authority.
+    /// </remarks>
+    public static BoundedExceptionDispatchResult SelectAfterExitedFinally(ReadOnlySpan<NativeAotEhClauseResult> clauses,
+        ReadOnlySpan<ExceptionTypeMatchResult> matches, uint protectedOffset, uint exitedClauseIndex) =>
+        SelectCore(clauses, matches, protectedOffset, true, exitedClauseIndex);
+
+    private static BoundedExceptionDispatchResult SelectCore(ReadOnlySpan<NativeAotEhClauseResult> clauses,
+        ReadOnlySpan<ExceptionTypeMatchResult> matches, uint protectedOffset, bool skipExited, uint exitedClauseIndex)
     {
         if (clauses.Length == 0) return new(BoundedExceptionDispatchStatus.Empty);
         if (clauses.Length > MaximumClauses) return new(BoundedExceptionDispatchStatus.CapacityExceeded);
         if (matches.Length != clauses.Length) return new(BoundedExceptionDispatchStatus.InvalidTypeMatch);
+        if (skipExited && exitedClauseIndex >= (uint)clauses.Length) return new(BoundedExceptionDispatchStatus.InvalidStart);
 
         int selected = -1;
         // Validate the complete input before publishing any handler or cleanup address.
@@ -84,9 +104,11 @@ public static class BoundedExceptionDispatchPlan
                     (equal && (inner.Kind != NativeAotEhClauseKind.Typed || row.Kind != NativeAotEhClauseKind.Typed)))
                     return new(BoundedExceptionDispatchStatus.InvalidNesting);
             }
-            if (!row.ContainsOffset(protectedOffset)) continue;
+            if (!row.ContainsOffset(protectedOffset) || (skipExited && (uint)i <= exitedClauseIndex)) continue;
             if (selected < 0 && row.Kind == NativeAotEhClauseKind.Typed && matches[i].Matches) selected = i;
         }
+        if (skipExited && clauses[(int)exitedClauseIndex].Kind != NativeAotEhClauseKind.FaultOrFinally)
+            return new(BoundedExceptionDispatchStatus.InvalidStart);
         if (selected < 0) return new(BoundedExceptionDispatchStatus.NoMatchingCatch);
 
         uint count = 0;
@@ -94,6 +116,7 @@ public static class BoundedExceptionDispatchPlan
         var caught = clauses[selected];
         for (int i = 0; i < selected; i++)
         {
+            if (skipExited && (uint)i <= exitedClauseIndex) continue;
             var cleanup = clauses[i];
             if (cleanup.Kind != NativeAotEhClauseKind.FaultOrFinally || !cleanup.ContainsOffset(protectedOffset)) continue;
             if (cleanup.TryStartOffset < caught.TryStartOffset || cleanup.TryEndOffset > caught.TryEndOffset ||

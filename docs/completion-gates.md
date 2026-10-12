@@ -1,5 +1,18 @@
 # CLROS Completion Gates
 
+#670–#672 are qualified as host prerequisites in [step1189](../done/step1189.md)
+at frozen source `056280a`: 4,539 full-host checks across 588 groups (92 Native),
+complete/successful/unchanged-input receipt, zero failures/timeouts/reuse, native
+review and four affected guest regressions. All 689 raw inputs, original
+compiler/catalog/link/loaded-PC/process/argument/GPT/FAT/embedded-EFI joins pass.
+The 183-node/eight-indirect callback graph retains its direct edges after the
+planner rename; three frame measurements change, while the maximum stays
+15,904/16,400 first-party bytes, excluding firmware internals. Plain-funclet
+parent recovery and selection after an exited cleanup acquire no lifetime or CPU
+authority. A separately owned pinned compiler fixture and ABI review must precede
+normal-finally guest admission. General EH, #90/Gate4, hosted .NET/Kestrel, cloud
+and production remain incomplete.
+
 #662/#663/#664 are qualified in [step1187](../done/step1187.md) at frozen source `655d76f`:
 4532 full-host checks across 587 groups (92 Native), complete/successful/unchanged-input receipts,
 zero failures/timeouts/reuse, 21 hostile native controls, three byte-identical
