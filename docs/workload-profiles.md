@@ -98,12 +98,38 @@ blocker and review a changed strategy before speculative compatibility work.
 Linux-host success is not CLROS guest evidence. Never implement successful
 no-op threads, mappings, protection or entropy.
 
-[Step1197](../done/step1197.md) records the current implementation candidate:
-Hello and a bounded upstream-runtime exerciser, immutable configuration and
-HTTP/1.1 in the existing real Minimal API, and C# static-payload qualification
-tooling. Focused supplied-byte and Windows managed checks do not satisfy the
-pending Linux publish/run/source-review gate. #679 and integration #693 remain
-open; dependent M16 work is not admitted by this candidate.
+[Step1198](../done/step1198.md) qualifies M16-001's pinned static Hello, runtime
+exerciser and real Minimal API on Alpine3.24.2, SDK10.0.401/runtime10.0.12.
+All three are x64 ET_EXEC with four disjoint load ranges, TLS, no interpreter
+or dynamic section; upstream application GC/EH remains separate from the kernel.
+Fifty-four observed syscall names across22 thread/process trace files, 675 source
+and258 native input hashes, headers/symbols/compiler responses and actual auxv
+are retained. External Windows HTTP returns exact `OS_MINIMAL_API_OK`, followed
+by clean app exit and a failed post-shutdown probe. This qualifies the Linux
+host feasibility gate only. #680's immutable package/staging work is next;
+all continuing CLROS services and guest application/runtime/Kestrel gates remain open.
+
+### Pinned payload requirements and trace limits
+
+The tested CPU is QEMU `qemu64`, one CPU, with SSE/SSE2/SSE3, FXSAVE, NX and
+long mode; no AVX is advertised. Preserve this measured target and upstream
+CPUID dispatch before broadening CPU claims. GNU notes record a 1.5 MiB stack;
+they are not an exhaustive CPU specification. The runtime/ILC/package inventories
+in step1198 are the exact build input evidence.
+
+| Contract family | Observed and source-backed requirement |
+| --- | --- |
+| ELF/startup | Actual auxv supplies PHDR0x400040, PHENT56, PHNUM11, ENTRY0x4014EE, PAGESZ4096, identity/security, RANDOM, platform/exec-name and vDSO values. musl1.2.6 reads argv/envp/auxv, TLS and stack-canary entropy before main; missing TLS/thread-pointer initialization is fatal. Guest startup is unimplemented. |
+| Memory/order | mmap/mprotect/munmap/mremap/madvise/brk and resource queries appear. GC queries/registers expedited membarrier. Its source has a protection/dirty-page barrier fallback; success no-ops cannot satisfy it. Trace failures include real ENOMEM/EFAULT/EINVAL and permitted discovery ENOENT. |
+| Threads/TLS/signals | clone, arch_prctl, set_tid_address, futex and realtime signal masks/handlers/return appear. musl thread setup owns stack/TLS and translates clone failure to EAGAIN with cleanup. NativeAOT thread attachment/key failures may fail fast; GC suspension must preserve the full signal context and errno. |
+| Files/descriptors | Immutable config plus proc/sys CPU/memory discovery use open/read/stat/readlink/getdents/lseek/pread, pipe/fcntl/ioctl and close. Missing optional discovery paths and ENOTTY are observed; descriptor identities, bounds and errno semantics remain necessary. |
+| Sockets/readiness | socket/bind/listen/accept4, sendto/recvfrom, setsockopt/shutdown and epoll create/control/wait appear. System.Native uses edge-triggered readiness, retries EINTR, maps HUP to read/write progress and returns actual socket errors. A successful trace covers neither every error nor a CLROS TCP implementation. |
+| Time/termination | pthread timed waits need monotonic deadlines, spurious-wakeup handling and genuine timeout behavior; syscall tracing misses uncontended user-space operations and vDSO time reads. exit/exit_group and SIGTERM shutdown are observed. |
+
+Source/error review is a requirement inventory, not execution of those failure
+branches. Optional TLS/crypto/dynamic loading, wider APIs/CPU shapes and hostile
+long-running load remain outside this fixed HTTP/1.1 qualification. Unknown
+syscalls must fail honestly; tracing never becomes a complete successful-no-op ABI.
 
 First web requires three fresh post-firmware-exit boots, external HTTP200
 with exact body `OS_MINIMAL_API_OK`, repeated/concurrent connections,

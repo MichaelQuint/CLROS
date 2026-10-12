@@ -11,8 +11,10 @@ the Windows EFI toolchain does not by itself provide Linux publishing.
 The M16-001 NativeAOT payload tooling requires an explicit Linux musl builder.
 Use SDK `10.0.401` and runtime/ILC `10.0.12`, clang/binutils, musl development
 libraries, static zlib/C++ dependencies and strace. Windows inspection and
-managed fixture runs are development checks; Linux static publication and
-execution remain pending in [step1197](../done/step1197.md).
+managed fixture runs are development checks. [Step1198](../done/step1198.md)
+qualifies all three static Linux payloads on the task-local Alpine builder;
+[step1197](../done/step1197.md) preserves development and bootstrap failures.
+Put `/opt/dotnet` and all Alpine system directories, including `/sbin`, on PATH.
 
 ```text
 dotnet run --project tools/OS.Tooling -- nativeaot payload inspect <ELF-file>

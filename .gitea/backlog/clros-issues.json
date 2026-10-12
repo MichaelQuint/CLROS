@@ -31040,9 +31040,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p0",
       "collisionLane": null,
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p0",
         "type:implementation",
         "evidence:host",
@@ -31050,7 +31050,7 @@
         "phase:m16-nativeaot"
       ],
       "dependencyKeys": [],
-      "currentEvidence": "Planning only. No Linux-compatible guest executable, continuing application service, or Kestrel evidence exists.",
+      "currentEvidence": "Qualified host-only in done/step1198.md: SDK10.0.401/runtime10.0.12 static x64 ET_EXEC Hello/runtime/real Minimal API pass on Alpine3.24.2, including GC/EH/thread/TLS/timer, attributed HTTP and shutdown. All ELF/TLS/native/auxv/source/trace inventories are retained; source error paths supplement 54 observed syscalls. No CLROS guest application/runtime/Kestrel or gate completion.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Provision an explicit Linux builder (none is established on this Windows host); use C# tooling to invoke pinned SDK/native tools. Publish static non-PIE linux-musl-x64 with invariant globalization, workstation GC and no diagnostic transport. Keep CreateSlimBuilder/real Kestrel; disable configuration watching and unused integrations explicitly. Start from SDK10.0.401/runtime10.0.12 if available as a matched Linux set; record failure and a reviewed replacement pin if unavailable. Inventory ELF PT_LOAD/PT_TLS/entry/auxv, native libraries, symbols, CPU requirements and syscalls with strace across startup, forced GC, threads, requests and shutdown. Combine traces with source/error-path review; traces alone are not an exhaustive specification.",
@@ -31127,7 +31127,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p0",
         "type:implementation",
         "evidence:qemu",

@@ -1,10 +1,12 @@
 # CLROS Completion Gates
 
-M16-001/#679 payload qualification is being implemented in
-[step1197](../done/step1197.md). Supplied-byte ELF checks and managed fixture
-runs are development evidence. Linux static publication, upstream startup/
-native dependency/source review and traced execution remain pending. No gate
-status changes and no CLROS application/Kestrel execution is proven.
+M16-001/#679 host payload qualification is accepted in
+[step1198](../done/step1198.md): three real static Linux x64 NativeAOT payloads,
+upstream GC/EH/thread/TLS/timer exercise and real Kestrel HTTP/config/shutdown
+on the Linux builder, with exact source/native/ELF/auxv/trace evidence and a
+bounded source/error-path inventory. This completes the host feasibility slice
+only. No numbered gate changes and no CLROS application/runtime/Kestrel execution
+is proven; immutable ELF staging and continuing services remain required.
 
 ## NativeAOT-first gate interpretation (2026-10-12)
 
