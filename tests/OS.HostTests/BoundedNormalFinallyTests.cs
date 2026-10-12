@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using OS.Kernel.Runtime;
+using OS.Tooling;
 using Row = NativeAotEhClauseMetadataTests.Row;
 using Status = OS.Kernel.Runtime.NativeAotNormalFinallyStatus;
 using PlanStatus = OS.Kernel.Runtime.BoundedExceptionDispatchStatus;
@@ -161,6 +162,30 @@ internal static unsafe class BoundedNormalFinallyTests
         PlanFailed(BoundedExceptionDispatchPlan.SelectAfterExitedFinally(rows, matches, 25, 1), PlanStatus.InvalidClause);
         rows = f.Rows(new(20, 6, 0, 0x100, 0x1440), new(10, 36, 1, 0x200), new(20, 26, 0, 0x300, 0x1440));
         PlanFailed(BoundedExceptionDispatchPlan.SelectAfterExitedFinally(rows, f.Matches(rows), 25, 1), PlanStatus.InvalidNesting);
+    }
+
+    [HostTest("runtime.normal-finally.exact-source-admission-controls", HostLane.Fast, 6)]
+    private static void SourceAdmissionControls()
+    {
+        const string include = @"..\OS.Kernel\Runtime\BoundedExceptionDispatchPlan.cs";
+        string source = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS.Kernel/Runtime/BoundedExceptionDispatchPlan.cs"));
+        Need(EfiSourceAdmission.Inspect(source, include).Succeeded, "reviewed planner source admitted");
+        string normalized = source.Replace("\r\n", "\n", StringComparison.Ordinal);
+        Need(EfiSourceAdmission.Inspect(normalized.Replace("\n", "\r\n", StringComparison.Ordinal), include).Succeeded,
+            "semantic pin admits CRLF/LF equivalence; raw provenance stays independent");
+        foreach (string anchor in new[] {
+            "if (!row.ContainsOffset(protectedOffset) || (skipExited && (uint)i <= exitedClauseIndex)) continue;",
+            "if (skipExited && (uint)i <= exitedClauseIndex) continue;",
+            "if (!row.Succeeded || row.Index != (uint)i || row.Count != (uint)clauses.Length)" })
+        {
+            Need(source.Contains(anchor, StringComparison.Ordinal), "required negative-control anchor");
+            var rejected = EfiSourceAdmission.Inspect(source.Replace(anchor, "if (false)", StringComparison.Ordinal), include);
+            Need(!rejected.Succeeded && rejected.Reason == "forbidden_active_source" &&
+                rejected.Detail.EndsWith(":reviewed_bounded_exception_search_identity", StringComparison.Ordinal),
+                "search/cleanup skip or complete-row weakening stays rejected");
+        }
+        Need(!EfiContracts.CompileItems.Any(item => item.Contains("NativeAotEhClauseMetadata.NormalFinally.cs", StringComparison.Ordinal)),
+            "new parent recovery remains outside EFI source admission");
     }
 
     private sealed class Fixture : IDisposable
