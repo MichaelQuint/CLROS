@@ -1,5 +1,25 @@
 # CLROS Completion Gates
 
+#674–#676 qualify one default-off `EnableM04NormalFinallyProbe` Diagnostic in
+[step1195](../done/step1195.md) at frozen source `6acb593`: one compiler-called
+finally throws the original rooted exception, own-funclet unwind recovers the
+same-root parent, and the outer typed catch reaches the original compiled
+continuation. Already exited/earlier clauses are skipped in both dispatch passes.
+The live parent-local witness, exactly-one counters, full required GP/XMM and
+Win64 control state, seven stack checks and original canaries pass. The explicit
+root remains retained through continuation; expired parent locals are not read.
+
+4,546 full-host checks across 592 groups (94 Native) have a complete/successful/
+unchanged-input receipt, zero failures/timeouts/reuse and terminal
+`TEST_PASS host.tests`. Current review covers 170 callback nodes, seven indirect
+sites, 13 bounded body allocations and 57 targets in five readonly switch tables;
+the first-party bound is 14,592/16,400 bytes, excluding firmware internals.
+Three real 88-record guests, nine affected ancestors, 61 native identity/ABI
+controls and 339 synthetic transcript controls pass. Each capture binds all 693
+raw inputs and original compiler/catalog/link/loaded-PC/process/argument/GPT/FAT/
+embedded-EFI evidence. Firmware services remain active in this Diagnostic.
+General EH, collided unwind, arbitrary methods, dynamic module lifetimes, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
 #670–#672 are qualified as host prerequisites in [step1189](../done/step1189.md)
 at frozen source `056280a`: 4,539 full-host checks across 588 groups (92 Native),
 complete/successful/unchanged-input receipt, zero failures/timeouts/reuse, native

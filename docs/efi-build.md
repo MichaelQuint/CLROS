@@ -1,5 +1,19 @@
 # EFI Build
 
+Qualified `--EnableM04NormalFinallyProbe` is a default-off collecting-GC
+Diagnostic. [step1195](../done/step1195.md) pins ILC10.0.12 WinX64 and one
+`NormalCatcher` with `MethodImpl` NoOptimization (`0x40`), 173 original code
+bytes and 11 EH bytes. Its normal call returns at root61; the finally throw
+returns at root115; the outer catch starts at root121 and continues at root62.
+The isolated catalog selects that exact root after validating every original
+contribution. The retained bridge instructions have four distinct normal-profile
+symbol identities. Original source/COFF/map/linked geometry, clause kinds,
+parent locals, unwind and required GP/XMM/control ABI are verified; 61 native
+controls preserve fail-closed admission. Current native callback/allocation/
+indirect/stack/lifetime review must precede guest execution. Three matching
+frozen guests and nine affected ancestors pass in the cited qualification.
+General EH, collided unwind, arbitrary methods, dynamic module lifetimes, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
 ## Qualified compiler EH contribution catalog
 
 `--EnableM04EhCatalogProbe` is a default-off modifier requiring the physical-frame

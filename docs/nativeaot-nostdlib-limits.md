@@ -1,26 +1,24 @@
 # NativeAOT NoStdLib Limits
 
-#674–#676 have a successful development guest in [step1192](../done/step1192.md):
-one normal-called finally throws, the same rooted exception reaches the outer
-typed catch and compiled continuation, and all88 application records pass.
-The rebuilt COFF/map/EFI matched current native review before QEMU started.
-339 synthetic transcript controls and61 native identity/ABI checks pass.
-This is working-tree development evidence. Full-host, three frozen final guests,
-affected ancestors, final source/process/disk joins and reviewed merge/closure
-remain pending; #90/Gate4, general EH and hosted-runtime readiness are incomplete.
+#674–#676 qualify one default-off `EnableM04NormalFinallyProbe` Diagnostic in
+[step1195](../done/step1195.md) at frozen source `6acb593`: one compiler-called
+finally throws the original rooted exception, own-funclet unwind recovers the
+same-root parent, and the outer typed catch reaches the original compiled
+continuation. Already exited/earlier clauses are skipped in both dispatch passes.
+The live parent-local witness, exactly-one counters, full required GP/XMM and
+Win64 control state, seven stack checks and original canaries pass. The explicit
+root remains retained through continuation; expired parent locals are not read.
 
-#674–#676 remain in development. [step1191](../done/step1191.md) initially wired a
-default-off GC-dependent normal-finally profile, explicit one-method compiler
-catalog, own-frame parent recovery, exited-clause selection, retained matcher
-and the accepted catch-transfer instructions with distinct symbols. Runtime
-transfer was false, QEMU planning rejected the profile and artifact verification
-ended at `normal_finally_transfer_review_pending` after the strict new ABI checks.
-That draft compiled/linked; source/native review measured 170 callback nodes,
-13 bounded body-allocation sites and 57 targets in five readonly compiler
-switch tables. The measured first-party maximum is 14,592/16,400 stack bytes;
-firmware internals are excluded. Focused checks passed. Step1192 adds numeric
-transcript/native mutation controls and bounded development admission. Frozen
-full-host and final guest qualification remain incomplete; #90/Gate4 stay open.
+4,546 full-host checks across 592 groups (94 Native) have a complete/successful/
+unchanged-input receipt, zero failures/timeouts/reuse and terminal
+`TEST_PASS host.tests`. Current review covers 170 callback nodes, seven indirect
+sites, 13 bounded body allocations and 57 targets in five readonly switch tables;
+the first-party bound is 14,592/16,400 bytes, excluding firmware internals.
+Three real 88-record guests, nine affected ancestors, 61 native identity/ABI
+controls and 339 synthetic transcript controls pass. Each capture binds all 693
+raw inputs and original compiler/catalog/link/loaded-PC/process/argument/GPT/FAT/
+embedded-EFI evidence. Firmware services remain active in this Diagnostic.
+General EH, collided unwind, arbitrary methods, dynamic module lifetimes, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
 
 [step1190](../done/step1190.md) records the initial inactive compiler fixture:
 ILC10.0.12 emits a normal-path call to its own finally
@@ -30,9 +28,9 @@ linked PE review establish 173 code bytes, 11 EH bytes, three frame records and
 the same-root catch continuation. The catalog producer can select one exact
 method after validating every original contribution, including omitted ones.
 The temporary frame-profile anchor has been removed. Its measurements remain
-development evidence; the later draft integration is described above.
+development evidence; final qualification is recorded above.
 
-#670–#672 qualify host prerequisites for one future normal-path-finally fixture
+#670–#672 qualified the earlier host prerequisites for a normal-path-finally fixture
 in [step1189](../done/step1189.md): 4,539 full-host checks across 588 groups (92
 Native), unchanged inputs, native callback/stack review and four affected guest
 regressions. A plain handler funclet's own unwind restores the same-root parent
@@ -40,10 +38,10 @@ GP/XMM context, preserves actual RIP and identifies the exact exited clause from
 complete original catalog/EH metadata. The existing planner skips that clause and
 earlier clauses in both passes while validating every row and typed receipt.
 The encoded kind cannot distinguish fault from finally or prove invocation
-history. Parent recovery remains outside EFI; the new skip entry has no native
-caller. Existing catalog/nested/frame/unhandled captures are regression evidence
-only. No normal-finally guest transfer, lifetime/CPU authority or #90/Gate4
-completion is proven.
+history. At that prerequisite-only snapshot parent recovery was outside EFI and
+the skip entry had no native caller. Existing catalog/nested/frame/unhandled captures are regression evidence
+only for that prerequisite batch. It proved no normal-finally CPU transfer;
+step1195 qualifies the separate fixture above. #90/Gate4 remain incomplete.
 
 `BoundedExceptionCallerWindow` is qualified in [step1187](../done/step1187.md): 4532 full-host checks across 587 groups (92 Native),
 original native review, three 95-record guests and twelve ancestors. It assembles

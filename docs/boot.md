@@ -1,5 +1,14 @@
 # Boot
 
+The default-off collecting-GC Diagnostic child
+`BootSequence.RunNormalFinallyUnwind` owns `EnableM04NormalFinallyProbe` before
+ordinary boot success. [step1195](../done/step1195.md) qualifies one normal-call
+finally throw, own-frame recovery, outer typed catch and compiled continuation
+with the same explicitly rooted object: three 88-record guests and nine affected
+ancestors. Firmware services remain active; the profile supplies no continuing
+workload or firmware-page reclamation.
+General EH, collided unwind, arbitrary methods, dynamic module lifetimes, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
 The default-off `EnableM04EhCatalogProbe` retains the existing physical-frame
 Diagnostic and phase. `BoundedExceptionCallerWindow` unfolds three actual contexts
 and decodes complete original catalog rows before existing typed matching and

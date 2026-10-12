@@ -1,5 +1,20 @@
 # QEMU
 
+Qualified `-EnableM04NormalFinallyProbe` uses the collecting-GC Diagnostic
+prerequisites and excludes every other EH/catalog profile. Before QEMU,
+[step1195](../done/step1195.md) joins the freshly rebuilt original COFF/map/EFI
+hashes to current native safety review. Three real captures each have 88 complete
+application records and the normal-finally start, fifteen numeric rows, pass and
+ready markers. Strict framing/numeric review binds compiler-called finally,
+thrower/own-unwind/root/catch/continuation PCs, same rooted exception, exactly-one
+counters, live parent stamp and canaries. Nine affected ancestor profiles pass:
+catalog95, nested89, frames88, expected-unhandled73, filters88,
+constructor-failure92, rethrow88, single-finally84 and simple-catch82.
+All 693 raw-source, original compiler/catalog/link/loaded-PC/process/arguments/
+GPT/FAT/embedded-EFI joins pass. Synthetic controls prove parser rejection only;
+the preserved failed full runs in steps1193/1194 are not acceptance evidence.
+General EH, collided unwind, arbitrary methods, dynamic module lifetimes, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
 Qualified `-EnableM04EhCatalogProbe` requires a fresh physical-frame Diagnostic.
 The strict 95-record stream adds `M04_EH_CATALOG 0`..`2` then
 `M04_CALLER_WINDOW 0`..`2` after frame row4. Window records join actual return
