@@ -70,7 +70,9 @@ internal static class BootReservationTableValidatorTests
             ("BootHandoff", BootReservationKind.BootHandoff, 12),
             ("FramebufferMetadata", BootReservationKind.FramebufferMetadata, 13),
             ("PageProtectionProbe", BootReservationKind.PageProtectionProbe, 14),
-            ("LinuxElfPackage", BootReservationKind.LinuxElfPackage, 15)
+            ("LinuxElfPackage", BootReservationKind.LinuxElfPackage, 15),
+            ("LinuxElfBacking", BootReservationKind.LinuxElfBacking, 16),
+            ("LinuxElfUserTables", BootReservationKind.LinuxElfUserTables, 17)
         ];
 
         if (Enum.GetUnderlyingType(typeof(BootReservationKind)) != typeof(byte))

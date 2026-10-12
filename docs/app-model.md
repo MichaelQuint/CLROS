@@ -2,6 +2,13 @@
 
 ## NativeAOT-first application boundary
 
+The qualified loader/service children in [step1200](../done/step1200.md) add
+host-checked copy, startup-stack and protected-root mechanics plus an EFI read-back
+path. 4,603 full-host checks, native review, three real combined package guests,
+standalone children, five ancestors and missing-RNG rollback pass. The source does not enter the ELF,
+set an application TLS thread pointer, register app GC roots in the kernel, or
+prove upstream application GC/EH, syscalls or CLROS Kestrel execution.
+
 The host qualification in [step1198](../done/step1198.md) accepts separate
 Hello and runtime fixtures plus static ELF inspection/publication tooling.
 The runtime fixture uses upstream GC/EH, threads/TLS, ThreadPool/tasks and timers;

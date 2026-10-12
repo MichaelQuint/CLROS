@@ -5,6 +5,7 @@ public sealed class EfiOptions
     private readonly Dictionary<string, List<string>> values = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, bool> Probes { get; } = new(StringComparer.Ordinal);
     public string Root { get; private set; } = Repository.FindRoot();
+    /// <summary>Resolve staged-package children and diagnostic ancestors while retaining explicit-false prerequisite rejection.</summary>
     public EfiProfile Profile(Action<string>? emit = null) => EfiProfile.Create(Get("BootPolicy", ""), Probes, emit);
     private static string Key(string name) => name.TrimStart('-').Replace("-", "", StringComparison.Ordinal);
     public string Get(string name, string fallback = "") => values.TryGetValue(Key(name), out var found) ? found[^1] : fallback;

@@ -687,6 +687,10 @@ internal static class BootSequencePlanTests
             ["public static class BootSequence",
              "public static unsafe bool StageLinuxElfPackage(bool firmwareAvailable, void* context, delegate*<void*, bool> stage) =>",
              "public static unsafe bool RunOwnedLinuxElfPackage(bool ownedChecksComplete, bool firmwareRevoked,",
+             "public static bool IsWorkloadServiceLoopEnabled() =>",
+             "public static unsafe bool RunOwnedWorkloadServiceLoop(bool packageReady, bool firmwareRevoked,",
+             "public static unsafe bool PrepareLinuxElfStartup(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>",
+             "public static unsafe bool RunOwnedLinuxElfStartup(bool packageReady, bool firmwareRevoked,",
              "public static unsafe OS.Boot.FirstExitReturn RunFirstRealExitBootServicesTransition(",
              "private static bool IsFirstRealExitBootServicesEnabled() =>",
              "public static unsafe OS.Kernel.Runtime.CompilerClassConstructorStatus RunCompilerClassConstructors(",
@@ -734,6 +738,10 @@ internal static class BootSequencePlanTests
              "public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch("])
             && HasGuardedSurface("src/OS.Kernel/Diagnostics/Probes.cs", 2,
             ["public static partial class Probes",
+             "public const bool EnableM16004Probe = true;",
+             "public const bool EnableM16004Probe = false;",
+             "public const bool EnableM16003Probe = true;",
+             "public const bool EnableM16003Probe = false;",
              "public const bool EnableM16002Probe = true;",
              "public const bool EnableM16002Probe = false;",
              "public const bool EnableM04SeededCollectorChurnProbe = true;",
@@ -1984,6 +1992,49 @@ internal static class BootSequencePlanTests
     }
 
     private static unsafe bool RecordBlockMsixCall(void* context)
+    {
+        (*(int*)context)++;
+        return true;
+    }
+
+    [HostTest("boot.sequence workload service defaults off and rejects incomplete authority", HostLane.Fast, 49)]
+    private static unsafe bool TestWorkloadServiceLoopDefaultsOff()
+    {
+        int calls = 0;
+        return HostCheck.Result(!Probes.EnableM16003Probe
+            && !BootSequence.IsWorkloadServiceLoopEnabled()
+            && !BootSequence.RunOwnedWorkloadServiceLoop(true, true, &calls, &RecordWorkloadServiceCall)
+            && !BootSequence.RunOwnedWorkloadServiceLoop(false, true, &calls, &RecordWorkloadServiceCall)
+            && !BootSequence.RunOwnedWorkloadServiceLoop(true, false, &calls, &RecordWorkloadServiceCall)
+            && !BootSequence.RunOwnedWorkloadServiceLoop(true, true, null, &RecordWorkloadServiceCall)
+            && !BootSequence.RunOwnedWorkloadServiceLoop(true, true, &calls, null)
+            && calls == 0);
+    }
+
+    private static unsafe bool RecordWorkloadServiceCall(void* context)
+    {
+        (*(int*)context)++;
+        return true;
+    }
+
+    [HostTest("boot.sequence Linux ELF startup defaults off and rejects incomplete authority", HostLane.Fast, 50)]
+    private static unsafe bool TestLinuxElfStartupDefaultsOff()
+    {
+        int calls = 0;
+        return HostCheck.Result(!Probes.EnableM16004Probe
+            && !BootSequence.PrepareLinuxElfStartup(true, &calls, &RecordLinuxElfStartupCall)
+            && !BootSequence.PrepareLinuxElfStartup(false, &calls, &RecordLinuxElfStartupCall)
+            && !BootSequence.PrepareLinuxElfStartup(true, null, &RecordLinuxElfStartupCall)
+            && !BootSequence.PrepareLinuxElfStartup(true, &calls, null)
+            && !BootSequence.RunOwnedLinuxElfStartup(true, true, &calls, &RecordLinuxElfStartupCall)
+            && !BootSequence.RunOwnedLinuxElfStartup(false, true, &calls, &RecordLinuxElfStartupCall)
+            && !BootSequence.RunOwnedLinuxElfStartup(true, false, &calls, &RecordLinuxElfStartupCall)
+            && !BootSequence.RunOwnedLinuxElfStartup(true, true, null, &RecordLinuxElfStartupCall)
+            && !BootSequence.RunOwnedLinuxElfStartup(true, true, &calls, null)
+            && calls == 0);
+    }
+
+    private static unsafe bool RecordLinuxElfStartupCall(void* context)
     {
         (*(int*)context)++;
         return true;

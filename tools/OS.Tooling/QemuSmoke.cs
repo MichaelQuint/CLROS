@@ -118,7 +118,7 @@ public static class QemuSmoke
             if (plan.IsEnabled("EnableM02UnexpectedVectorPanicProbe")) arguments.Add("--expect-unexpected-vector-panic");
             if (plan.IsEnabled("EnableM03OwnedSubsystemPanicProbe")) arguments.Add("--expect-owned-subsystem-panic");
             if (plan.IsEnabled("EnableM04UnhandledExceptionProbe")) arguments.Add("--expect-unhandled-exception");
-            if (plan.IsEnabled("EnableM03FirmwareEntropySeedProbe")) arguments.AddRange(["--firmware-rng-source", options.FirmwareRngSource]);
+            if (plan.IsEnabled("EnableM03FirmwareEntropySeedProbe") || plan.IsEnabled("EnableM16004Probe")) arguments.AddRange(["--firmware-rng-source", options.FirmwareRngSource]);
             if (plan.IsEnabled("EnableM05BarDmaProbe")) arguments.Add("--pci-bar-test-device");
             if (plan.IsEnabled("EnableM05VirtioNegotiationProbe")) arguments.Add("--virtio-negotiation-device");
             if (plan.IsEnabled("EnableM07VirtioNetProbe")) arguments.AddRange(["--ethernet-capture", Path.GetFullPath(options.SerialLog + ".pcap", root)]);

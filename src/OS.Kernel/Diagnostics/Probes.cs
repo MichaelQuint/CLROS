@@ -2,6 +2,16 @@ namespace OS.Kernel.Diagnostics;
 
 public static partial class Probes
 {
+#if M16_004_PROBE
+    public const bool EnableM16004Probe = true;
+#else
+    public const bool EnableM16004Probe = false;
+#endif
+#if M16_003_PROBE
+    public const bool EnableM16003Probe = true;
+#else
+    public const bool EnableM16003Probe = false;
+#endif
 #if M16_002_PROBE
     public const bool EnableM16002Probe = true;
 #else
@@ -224,7 +234,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 48;
+    public const int ProbeCatalogCount = 50;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -468,6 +478,14 @@ public static partial class Probes
     public static ProbeDefinition GetM16002Probe() =>
         new("app.linux-elf", nameof(EnableM16002Probe), EnableM16002Probe,
             ProbeRisk.Destructive, "Immutable pre-exit Linux ELF package staging; no executable entry.");
+
+    public static ProbeDefinition GetM16003Probe() =>
+        new("workload.service-loop", nameof(EnableM16003Probe), EnableM16003Probe,
+            ProbeRisk.Destructive, "Bounded owned service loop after staged package verification and firmware revocation.");
+
+    public static ProbeDefinition GetM16004Probe() =>
+        new("app.linux-elf-startup", nameof(EnableM16004Probe), EnableM16004Probe,
+            ProbeRisk.Destructive, "Bounded owned Linux ELF mapping and startup after staged package verification.");
 
     public static ProbeDefinition GetM06GptPartitionProbe() =>
         new("storage.gpt-partition", nameof(EnableM06GptPartitionProbe), EnableM06GptPartitionProbe,
@@ -767,6 +785,12 @@ public static partial class Probes
                 return true;
             case 47:
                 definition = GetM16002Probe();
+                return true;
+            case 48:
+                definition = GetM16003Probe();
+                return true;
+            case 49:
+                definition = GetM16004Probe();
                 return true;
             default:
                 definition = default;

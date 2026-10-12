@@ -103,9 +103,9 @@ internal static class EfiProfileTestControls
     // Independent expectations shared by cross-profile rejection fixtures.
     internal static string? MissingParentReason(IReadOnlyCollection<string> selected)
     {
-        if (selected.Contains("EnableM16002Probe"))
+        if (selected.Contains("EnableM16002Probe") || selected.Contains("EnableM16003Probe") || selected.Contains("EnableM16004Probe"))
         {
-            string[] allowed = ["EnableM16002Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
+            string[] allowed = ["EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
                 "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
             if (selected.Any(name => !allowed.Contains(name))) return "m16_002_profile_conflict";
         }
@@ -156,6 +156,104 @@ internal static class EfiProfileTestControls
             ("M04SeededCollectorChurn", "M04GcStaticRootMaterialization", "m04_churn_requires_gc_profile")
         }) if (Has(child) && !Has(parent)) return reason;
         return null;
+    }
+
+    [HostTest("efi.profile service child resolves staged parent and preserves explicit exclusions")]
+    private static void ServiceChildRouting()
+    {
+        string[] parents = ["EnableM16002Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
+            "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
+        foreach (bool build in new[] { true, false })
+        {
+            var profile = EfiOptions.Parse(["--EnableM16003Probe"], build).Profile();
+            HostCheck.Equal("Diagnostic", profile.BootPolicy);
+            HostCheck.True(profile.IsEnabled("M16003") && parents.All(profile.IsEnabled));
+            HostCheck.True(!profile.IsEnabled("M05MonotonicClock") && !profile.IsEnabled("M03FirmwareAdapterRevocation"));
+            foreach (string parent in parents)
+                HostCheck.True(ServiceProfileRejected(build, ["--EnableM16003Probe", "--" + parent + ":false"],
+                    parent == "EnableM16002Probe" ? "m16_003_explicit_false_prerequisite" : "m16_002_explicit_false_prerequisite"),
+                    "explicit false: " + parent);
+            foreach (string conflict in new[] { "EnableM05MonotonicClockProbe", "EnableM03FirmwareAdapterRevocationProbe" })
+            {
+                HostCheck.True(ServiceProfileRejected(build, ["--EnableM16003Probe", "--" + conflict], "m16_002_profile_conflict"));
+                HostCheck.True(ServiceProfileRejected(build, ["--EnableM16002Probe", "--" + conflict], "m16_002_profile_conflict"),
+                    "legacy parent conflict: " + conflict);
+            }
+        }
+    }
+
+    [HostTest("efi.profile service child defaults off and preserves ordinary VerifiedExit")]
+    private static void ServiceChildDefaultPolicy()
+    {
+        foreach (bool build in new[] { true, false })
+        {
+            foreach (string[] args in new string[][] { [], ["--EnableM16003Probe:false"] })
+            {
+                var profile = EfiOptions.Parse(args, build).Profile();
+                HostCheck.Equal("VerifiedExit", profile.BootPolicy);
+                HostCheck.True(!profile.IsEnabled("M16003") && !profile.IsEnabled("M16002"));
+            }
+            HostCheck.True(ServiceProfileRejected(build, ["--boot-policy", "VerifiedExit", "--EnableM16003Probe"],
+                "clros_boot_policy_probe_conflict"));
+        }
+    }
+
+    [HostTest("efi.profile startup child resolves parent and admits either or both M16 children")]
+    private static void StartupChildRouting()
+    {
+        string[] parents = ["EnableM16002Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
+            "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
+        string[] allowed = [.. parents, "EnableM16003Probe", "EnableM16004Probe"];
+        foreach (bool build in new[] { true, false })
+        {
+            foreach (string[] args in new string[][]
+            {
+                ["--EnableM16004Probe"],
+                ["--EnableM16002Probe", "--EnableM16004Probe"],
+                ["--EnableM16003Probe", "--EnableM16004Probe"],
+                ["--EnableM16004Probe", "--EnableM16003Probe:false"]
+            })
+            {
+                var profile = EfiOptions.Parse(args, build).Profile();
+                HostCheck.Equal("Diagnostic", profile.BootPolicy);
+                HostCheck.True(profile.IsEnabled("M16004") && parents.All(profile.IsEnabled));
+                HostCheck.Equal(args.Contains("--EnableM16003Probe"), profile.IsEnabled("M16003"));
+                HostCheck.True(profile.Flags.Where(flag => flag.Value).All(flag => allowed.Contains(flag.Key)));
+            }
+            foreach (string parent in parents)
+                HostCheck.True(ServiceProfileRejected(build, ["--EnableM16004Probe", "--" + parent + ":false"],
+                    parent == "EnableM16002Probe" ? "m16_004_explicit_false_prerequisite" : "m16_002_explicit_false_prerequisite"),
+                    "startup explicit false: " + parent);
+            foreach (string conflict in EfiContracts.DiagnosticProbes.Except(allowed))
+                HostCheck.True(ServiceProfileRejected(build, ["--EnableM16004Probe", "--" + conflict], "m16_002_profile_conflict"),
+                    "startup profile conflict: " + conflict);
+        }
+    }
+
+    [HostTest("efi.profile startup child defaults off and preserves ordinary VerifiedExit")]
+    private static void StartupChildDefaultPolicy()
+    {
+        foreach (bool build in new[] { true, false })
+        {
+            foreach (string[] args in new string[][]
+            {
+                [], ["--EnableM16004Probe:false"], ["--EnableM16003Probe:false", "--EnableM16004Probe:false"]
+            })
+            {
+                var profile = EfiOptions.Parse(args, build).Profile();
+                HostCheck.Equal("VerifiedExit", profile.BootPolicy);
+                HostCheck.True(!profile.IsEnabled("M16002") && !profile.IsEnabled("M16003") && !profile.IsEnabled("M16004"));
+            }
+            HostCheck.True(ServiceProfileRejected(build, ["--boot-policy", "VerifiedExit", "--EnableM16004Probe"],
+                "clros_boot_policy_probe_conflict"));
+        }
+    }
+
+    private static bool ServiceProfileRejected(bool build, string[] args, string reason)
+    {
+        try { _ = EfiOptions.Parse(args, build).Profile(); }
+        catch (ToolFailure error) { return error.Message.Contains(reason, StringComparison.Ordinal); }
+        return false;
     }
 
     // The reviewed prerequisite order of the returning M01/M02 profiles.

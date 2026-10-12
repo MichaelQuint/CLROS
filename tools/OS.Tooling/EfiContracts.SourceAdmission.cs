@@ -3,6 +3,13 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"..\..\std\no-runtime\shared\Text\AsciiArgumentSplitter.cs"] = "reviewed_m16_startup_service_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfStartup.cs"] = "reviewed_m16_startup_service_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfMapping.cs"] = "reviewed_m16_startup_service_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfLoader.cs"] = "reviewed_m16_startup_service_source_identity",
+        [@"..\OS.Kernel\Memory\X64UserAddressSpace.cs"] = "reviewed_m16_startup_service_source_identity",
+        [@"..\OS.Kernel\Memory\BootReservedRange.cs"] = "reviewed_m16_startup_service_source_identity",
+        [@"..\OS.Kernel\Boot\WorkloadServiceLoop.cs"] = "reviewed_m16_startup_service_source_identity",
         [@"..\..\std\no-runtime\shared\Hash\Sha256.cs"] = "reviewed_m16_002_source_identity",
         [@"..\OS.Kernel\Manifest\LinuxElfPackage.cs"] = "reviewed_m16_002_source_identity",
         [@"..\OS.Kernel\Runtime\BoundedExceptionFilterSearch.cs"] = "reviewed_filtered_catch_source_identity",

@@ -52,7 +52,14 @@ internal sealed partial class EfiVerification
         BindProfile(profile.IsEnabled("M03OwnedSubsystemPanic"), "owned_subsystem_panic", "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__ReadOwnedGuard");
         BindProfile(profile.IsEnabled("M06PackageRead"), "m06_package_read", "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__RunOwnedPackageRead");
         BindProfile(profile.IsEnabled("M07ArpReceive"), "m07_arp_receive", "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__RunOwnedArpReceive");
-        BindProfile(profile.IsEnabled("M03FirmwareAdapterRevocation"), "firmware_revocation", new[] { "ReportRevokedAdapters", "AdapterConsole", "AdapterMemoryMap", "AdapterFileSystem", "AdapterTimer", "AdapterRandom", "AdapterConfiguration", "AdapterPhysicalMemory", "AdapterFramebuffer" }.Select(n => "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__" + n).ToArray());
+        BindProfile(profile.IsEnabled("M03FirmwareAdapterRevocation"), "firmware_revocation", "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__ReportRevokedAdapters");
+        BindProfile(profile.IsEnabled("M03FirmwareAdapterRevocation") || profile.IsEnabled("M16003"), "firmware_revocation",
+            new[] { "AdapterConsole", "AdapterMemoryMap", "AdapterFileSystem", "AdapterTimer", "AdapterRandom", "AdapterConfiguration", "AdapterPhysicalMemory", "AdapterFramebuffer" }
+                .Select(n => "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__" + n).ToArray());
+        BindProfile(profile.IsEnabled("M16003"), "m16_service", new[] { "RunOwnedWorkloadServiceLoop", "ServiceReadClock", "ServiceIteration", "ServiceStop" }
+            .Select(n => "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__" + n).ToArray());
+        BindProfile(profile.IsEnabled("M16004"), "m16_startup", new[] { "PrepareLinuxStartup", "RunOwnedLinuxStartup", "ReadLinuxUserRoot" }
+            .Select(n => "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__" + n).ToArray());
         BindProfile(profile.IsEnabled("M04ClassConstructorExecution"), "compiler_cctor", "OS_OS_Runtime_RhpNewFastAllocation__BindAndRunCompilerClassConstructors", "OS_OS_Runtime_RhpNewFastAllocation__CctorDirectRead", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnGCStaticBase");
         BindProfile(profile.IsEnabled("M04ClassConstructorExecution") || profile.IsEnabled("M04ConstructorFailure"), "compiler_cctor", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__EnsureClassConstructorRun", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnNonGCStaticBase");
         Require(!Regex.IsMatch(map, @"ClassConstructorRunner__[^\s]*ThreadStatic"), "compiler_cctor_thread_static_unsupported");
