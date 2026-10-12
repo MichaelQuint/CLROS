@@ -101,10 +101,9 @@ internal sealed partial class EfiVerification
         byte[] exported = image.Copy(p.Offset, 5, "normal_finally_predicate_truncated");
         Require(exported[0] == 0xe9, "normal_finally_predicate_export_shape");
         Rel32(exported, 1, predicate, retained, "normal_finally_predicate_export_call");
-        emit($"EFI_ARTIFACT_NORMAL_FINALLY_THUNK bytes={EfiContracts.NormalFinallyObjectBytes} text=1032 clauses=2 runtimeRows=3 normalCall=56 parentReturn=61 continuation=62 originalCatalogJoined=true transferAccepted=false callbackStackAccepted=false");
-        // Initial integration can be compiled and inspected, but cannot become
-        // an admitted EFI artifact until the complete new strict ABI controls
-        // and native safety review are implemented. Runtime and QEMU also deny it.
-        throw new ToolFailure("normal_finally_transfer_review_pending");
+        // This verifier admits the exact instructions and original joins.
+        // Separate current-image callback/stack/lifetime review precedes every
+        // guest run; a verified artifact alone is not that review or boot proof.
+        emit($"EFI_ARTIFACT_NORMAL_FINALLY_THUNK bytes={EfiContracts.NormalFinallyObjectBytes} text=1032 clauses=2 runtimeRows=3 normalCall=56 parentReturn=61 continuation=62 originalCatalogJoined=true transferAccepted=true callbackStackAccepted=false");
     }
 }

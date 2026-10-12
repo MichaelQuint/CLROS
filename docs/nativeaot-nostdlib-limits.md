@@ -1,5 +1,14 @@
 # NativeAOT NoStdLib Limits
 
+#674–#676 have a successful development guest in [step1192](../done/step1192.md):
+one normal-called finally throws, the same rooted exception reaches the outer
+typed catch and compiled continuation, and all88 application records pass.
+The rebuilt COFF/map/EFI matched current native review before QEMU started.
+339 synthetic transcript controls and61 native identity/ABI checks pass.
+This is working-tree development evidence. Full-host, three frozen final guests,
+affected ancestors, final source/process/disk joins and reviewed merge/closure
+remain pending; #90/Gate4, general EH and hosted-runtime readiness are incomplete.
+
 #674–#676 remain in development. [step1191](../done/step1191.md) wires a
 default-off GC-dependent normal-finally profile, explicit one-method compiler
 catalog, own-frame parent recovery, exited-clause selection, retained matcher

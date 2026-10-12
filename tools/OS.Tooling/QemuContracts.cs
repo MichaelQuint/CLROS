@@ -656,6 +656,13 @@ public static class QemuContracts
         "TEST_PASS m04.021.rethrow", "CLROS_M04_RETHROW_READY",
         .. M04GcStaticRootRequiredMarkers.TakeLast(8)
     ]);
+    public static IReadOnlyList<string> M04NormalFinallyRequiredMarkers { get; } = Array.AsReadOnly<string>(
+    [
+        .. M04GcStaticRootRequiredMarkers.Take(M04GcStaticRootRequiredMarkers.Count - 8),
+        "TEST_START m04.021.normal-finally", .. Enumerable.Range(0,15).Select(stage=>"M04_NORMAL_FINALLY "+stage),
+        "TEST_PASS m04.021.normal-finally", "CLROS_M04_021_NORMAL_FINALLY_READY",
+        .. M04GcStaticRootRequiredMarkers.TakeLast(8)
+    ]);
     public static IReadOnlyList<string> M04FrameDispatchRequiredMarkers { get; } = Array.AsReadOnly<string>(
     [
         .. M04GcStaticRootRequiredMarkers.Take(M04GcStaticRootRequiredMarkers.Count - 8),

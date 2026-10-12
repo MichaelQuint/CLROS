@@ -12,9 +12,11 @@ internal sealed class NormalCatchSibling : SimpleCatchBase
 
 internal static unsafe partial class RhpNewFastAllocation
 {
-    // Compiler geometry from step1190. Transfer stays closed until the complete
-    // new native callback/stack/lifetime review and strict ABI controls pass.
-    private const bool NormalTransferAdmitted = false;
+    // Geometry from step1190 and scoped native/identity controls in #674–#676.
+    // The reviewed six callback roots fit 14,592 first-party bytes below the
+    // captured thrower, within the retained 16,400-byte floor. Republish and
+    // review each changed image before guest execution; general EH is absent.
+    private const bool NormalTransferAdmitted = true;
     private const uint NormalCodeBytes = 173, NormalTableBytes = 11;
     private const uint NormalFinallyOffset = 89, NormalCatchOffset = 121;
     private const uint NormalThrowReturn = 9, NormalFinallyReturn = 115;
