@@ -30,11 +30,13 @@ Visual Studio 2026 Insiders and dotnet host builds pass.
 
 ## Progress
 
-The #658/#659/#660 compiler EH catalog batch is [qualified](done/step1184.md)
-at frozen source `b1da5a7`: 4525 full-host checks across 586 groups (92 Native),
-original native review, three 92-record catalog guests and twelve ancestors pass.
-Retained compiler contribution bounds drive two real caller frames, one cleanup,
-the same rooted exception's typed catch and compiled continuation. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+The #662/#663/#664 default-off caller-window batch is qualified in
+[step1187](done/step1187.md): 4532 full-host checks across 587 groups (92 Native), original native review,
+three byte-identical 95-record guests and twelve ancestors pass. One no-EH frame
+and two real callers feed the existing cleanup/typed dispatch planner. Actual
+return RIP is retained; exact EH lengths come from the original compiler catalog.
+Measured parent/funclet ABI and retained lifetime guards remain. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+Frozen executable/guard source: `655d76f`.
 
 The #654-#656 filtered-catch batch is [qualified](done/step1181.md):
 4518 full-host checks, original native review, three byte-identical

@@ -1,20 +1,14 @@
 # CLROS Completion Gates
 
-The #662/#663/#664 caller-window candidate is implemented in [step1185](../done/step1185.md).
-Seven independent mapped-input checks, focused catalog checks and closed-gate native
-review pass. Complete full-host and fresh guest qualification are pending; these
-issues and parent #90 remain open. The existing catalog Diagnostic now assembles
-its finite window through `BoundedExceptionCallerWindow`; general EH is unchanged.
-
-#658/#659/#660 are qualified in [step1184](../done/step1184.md) at frozen source `b1da5a7`:
-4525 full-host checks across 586 groups (92 Native), zero failures/timeouts/reuse and
-unchanged inputs; 21 hostile native controls; three byte-identical 92-record
-catalog guests and twelve ancestors. The producer retains exact original
-compiler code/EH bounds and fixups; whole-table lookup rejects hostile rows
-before exposing a match. The existing diagnostic consumes those bounds for two
-real callers, one cleanup, same rooted typed catch and compiled continuation.
-Measured parent/funclet ABI offsets remain finite-profile guards. Lookup acquires
-no module, mapping, roots, stack or transfer authority. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+#662/#663/#664 are qualified in [step1187](../done/step1187.md) at frozen source `655d76f`:
+4532 full-host checks across 587 groups (92 Native), complete/successful/unchanged-input receipts,
+zero failures/timeouts/reuse, 21 hostile native controls, three byte-identical
+95-record guests and twelve ancestors. The assembler preserves actual RIP and
+progressing contexts, exact catalog EH lengths, authenticated zero-row no-EH
+frames and cleared admitted outputs on late failure. One cleanup, same rooted
+typed catch and compiled continuation execute under measured ABI/lifetime guards.
+The 183-node callback graph remains within 15,904/16,400 first-party stack bytes;
+firmware internals are excluded. The helper acquires no lifetime or CPU authority. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
 
 #141–#144/#635 are qualified in [step1164](../done/step1164.md): 4,441
 unfiltered full-host checks across 558 groups, linked native ABI/stack review,

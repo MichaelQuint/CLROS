@@ -14,10 +14,11 @@ the EFI, with original/preserved path, length and SHA256 bindings. Verification
 recomputes the catalog, joins original code/EH bytes and relocations to the linked
 image, and checks every linked row/getter. The compiler map's code hash is an
 intermediate object-dumper hash; it is not a raw post-fixup COFF hash. See
-[step1182](../done/step1182.md) and [step1183](../done/step1183.md). [step1184](../done/step1184.md) qualifies 4525 full-host checks across 586 groups (92 Native), 21 hostile
-controls, three byte-identical 92-record catalog guests and twelve ancestors.
-Callback depth 15,856 fits the unchanged 16,400-byte first-party floor. Firmware
-diagnostic internals are excluded. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+[step1182](../done/step1182.md) and [step1183](../done/step1183.md). [step1187](../done/step1187.md) qualifies 4532 full-host checks across 587 groups (92 Native), 21 hostile native controls,
+three byte-identical 95-record caller-window guests and twelve ancestors. The
+183-node callback graph has a 15,904-byte bound within the retained 16,400-byte
+first-party floor; firmware internals are excluded. Exact compiler contributions
+feed the finite assembler and existing matcher/dispatch planner. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
 
 Freeze the source commit before the final host build. Native generator fixtures
 may rebuild the shared tool; committing after that build changes its embedded
