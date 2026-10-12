@@ -1,5 +1,11 @@
 # Manifest
 
+The [NativeAOT-first roadmap](workload-profiles.md) schedules M16-002 to add
+an explicit versioned Linux ELF compatibility profile, executable digest,
+arguments/environment, endpoint policy and resource limits. This format is
+not implemented yet. Existing OSAPPv0/native and hosted package formats below
+must not be silently reinterpreted as stock Linux NativeAOT executables.
+
 The disk-manifest batch has a separate bounded pointer validator in
 `OS.Storage.NativeManifestDisk`, host-tested in [step1153](../done/step1153.md).
 It accepts at most 4,096 bytes of ASCII native v0 required fields and optional

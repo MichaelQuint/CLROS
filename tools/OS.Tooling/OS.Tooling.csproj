@@ -19,7 +19,7 @@
        these same patterns, so adding a source never escapes a no-build check. -->
   <PropertyGroup>
     <_ToolingRepositoryRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)..\..'))</_ToolingRepositoryRoot>
-    <_ToolingInputPatterns>tools/**/*.cs;tools/**/*.csproj;tools/**/*.props;tools/**/*.targets;src/OS.Kernel/**/*.cs;src/OS.Kernel/**/*.csproj;src/OS.Kernel/**/*.props;src/OS.Kernel/**/*.targets;std/**/*.cs;std/**/*.csproj;std/**/*.props;std/**/*.targets;CLROS.slnx;global.json;Directory.Build.props;Directory.Build.targets</_ToolingInputPatterns>
+    <_ToolingInputPatterns>tools/**/*.cs;tools/**/*.csproj;tools/**/*.props;tools/**/*.targets;src/OS.Kernel/**/*.cs;src/OS.Kernel/**/*.csproj;src/OS.Kernel/**/*.props;src/OS.Kernel/**/*.targets;src/OS.Std.NoRuntime.Shared/**/*.cs;src/OS.Std.NoRuntime.Shared/**/*.csproj;src/OS.Std.NoRuntime.Shared/**/*.props;src/OS.Std.NoRuntime.Shared/**/*.targets;std/**/*.cs;std/**/*.csproj;std/**/*.props;std/**/*.targets;CLROS.slnx;global.json;Directory.Build.props;Directory.Build.targets</_ToolingInputPatterns>
     <_ToolingAbsolutePatterns>$(_ToolingRepositoryRoot)$(_ToolingInputPatterns.Replace(';', ';$(_ToolingRepositoryRoot)'))</_ToolingAbsolutePatterns>
     <_ToolingManifestPatterns>GLOB|$(_ToolingInputPatterns.Replace(';', ';GLOB|'))</_ToolingManifestPatterns>
   </PropertyGroup>

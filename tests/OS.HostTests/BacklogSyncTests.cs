@@ -48,12 +48,50 @@ internal static class BacklogSyncTests
         HostCheck.True(rejected);
     }
 
+    [HostTest("gitea scoped sync preserves unselected issues and full dependency graph")]
+    internal static void Scoped()
+    {
+        var fixture = new Fixture();
+        var selected = fixture.Manifest.SelectIssues("M00-001");
+        HostCheck.Equal(1, selected.Issues.Count);
+        HostCheck.Equal(3, selected.IssueByKey.Count);
+        string untouched = fixture.Issues[2].ToJsonString();
+        using StringWriter output = new();
+        HostCheck.Equal(0, BacklogSync.ReconcileAsync(selected, true, fixture.Api, output).GetAwaiter().GetResult());
+        HostCheck.Equal(untouched, fixture.Issues[2].ToJsonString());
+        HostCheck.True(fixture.Calls.Where(x => x.Method != "GET").All(x => x.Path.StartsWith("/repos/admin/CLROS/issues/2", StringComparison.Ordinal)));
+        fixture.Calls.Clear();
+        HostCheck.Equal(0, BacklogSync.ReconcileAsync(selected, false, fixture.Api, output).GetAwaiter().GetResult());
+        HostCheck.True(fixture.Calls.All(x => x.Method == "GET"));
+        bool rejected = false;
+        try { fixture.Manifest.SelectIssues("M99-999"); } catch (InvalidDataException) { rejected = true; }
+        HostCheck.True(rejected);
+    }
+
+    [HostTest("gitea wrong repository identity rejects before writes")]
+    internal static void Identity()
+    {
+        foreach (var identity in new[] { (10, "admin/CLROS"), (9, "other/CLROS") })
+        {
+            var fixture = new Fixture { RepositoryId = identity.Item1, RepositoryName = identity.Item2 };
+            using StringWriter output = new();
+            bool rejected = false;
+            try { BacklogSync.ReconcileAsync(fixture.Manifest, true, fixture.Api, output).GetAwaiter().GetResult(); }
+            catch (InvalidDataException) { rejected = true; }
+            HostCheck.True(rejected);
+            HostCheck.Equal(1, fixture.Calls.Count);
+            HostCheck.True(fixture.Calls.All(x => x.Method == "GET"));
+        }
+    }
+
     private sealed class Fixture
     {
         public BacklogManifest Manifest { get; }
         public List<JsonObject> Issues { get; } = [];
         public List<(string Method, string Path, JsonObject? Body)> Calls { get; } = [];
         public bool Reviewed { get; init; } = true;
+        public int RepositoryId { get; init; } = 9;
+        public string RepositoryName { get; init; } = "admin/CLROS";
         public bool DropLabelReplacement { get; init; }
         private readonly List<JsonObject> labels = [];
         private readonly JsonObject milestone = new() { ["id"] = 7, ["title"] = "Fixture", ["description"] = "Current", ["state"] = "open", ["due_on"] = null };
@@ -90,7 +128,9 @@ internal static class BacklogSyncTests
             JsonNode? result;
             string clean = path.Split('?')[0];
             JsonArray Array(IEnumerable<JsonObject> values) => new(values.Select(x => x.DeepClone()).ToArray());
-            if (method == "GET" && clean.EndsWith("/comments", StringComparison.Ordinal))
+            if (method == "GET" && clean == "/repos/admin/CLROS")
+                result = new JsonObject { ["id"] = RepositoryId, ["full_name"] = RepositoryName };
+            else if (method == "GET" && clean.EndsWith("/comments", StringComparison.Ordinal))
             {
                 int number = int.Parse(clean.Split('/')[^2]); string key = BacklogPolicy.HiddenKey(Text(Issues.Single(x => Number(x, "number") == number), "body"));
                 result = Reviewed ? new JsonArray(new JsonObject { ["body"] = BacklogContracts.EvidenceMarker(key) }) : new JsonArray();

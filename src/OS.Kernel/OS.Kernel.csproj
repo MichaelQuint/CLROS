@@ -10,7 +10,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\..\std\no-runtime\shared\OS.Std.NoRuntime.Shared.csproj" />
+		<ProjectReference Include="..\OS.Std.NoRuntime.Shared\OS.Std.NoRuntime.Shared.csproj" />
 	</ItemGroup>
 
 </Project>

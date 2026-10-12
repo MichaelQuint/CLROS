@@ -1,5 +1,10 @@
 # PAL Design
 
+Current implementation order is the NativeAOT-first decision in
+`docs/workload-profiles.md`: a separate Linux x64 syscall adapter over
+common C# services. Preserve the OSHost_* ABI described here for existing
+contracts and future ports; CoreCLR is no longer a prerequisite for Kestrel.
+
 ## Current Status
 
 Design baseline only.

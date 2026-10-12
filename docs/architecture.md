@@ -1,5 +1,11 @@
 # Architecture
 
+The [NativeAOT-first decision](workload-profiles.md#nativeaot-first-execution-roadmap-2026-10-12)
+is the current implementation order: upstream static Linux NativeAOT payload,
+restricted C# Linux adapter, continuing services and real Kestrel, then two
+protected local processes before providers. It supersedes older CoreCLR-first
+ordering below. Kernel and application heaps/GC/EH remain separate.
+
 The default-off block profile adds a bounded post-firmware binding, negotiation,
 queue-zero setup and reset transaction after owned PCI enumeration. It is
 accepted in [step1140](../done/step1140.md); continuing storage

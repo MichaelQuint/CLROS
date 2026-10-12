@@ -30,6 +30,13 @@ Visual Studio 2026 Insiders and dotnet host builds pass.
 
 ## Progress
 
+**Current direction:** [NativeAOT first](docs/workload-profiles.md#nativeaot-first-execution-roadmap-2026-10-12).
+Run a pinned musl-linked .NET 10 Minimal API over a restricted Linux x64
+syscall ABI implemented in C#, then two protected local application processes.
+Upstream application GC/EH stays in the payload. CoreCLR/framework-dependent
+hosting and provider qualification follow later. This roadmap adds no guest
+application or security acceptance.
+
 The #662/#663/#664 default-off caller-window batch is qualified in
 [step1187](done/step1187.md): 4532 full-host checks across 587 groups (92 Native), original native review,
 three byte-identical 95-record guests and twelve ancestors pass. One no-EH frame

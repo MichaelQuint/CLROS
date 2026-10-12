@@ -1,5 +1,17 @@
 # CLROS Completion Gates
 
+## NativeAOT-first gate interpretation (2026-10-12)
+
+The [workload decision](workload-profiles.md) changes implementation order,
+not evidence status. M16 qualifies the Linux ELF/upstream NativeAOT foundation;
+M10 then qualifies local `SingleMinimalApi` Kestrel; M14 qualifies two isolated
+local apps before AWS/Azure. CoreCLR is a later independent hosted target.
+General custom kernel EH/Gate4 is not a blanket dependency for the separate
+upstream application runtime. Kernel paths still require their own supported
+runtime operations. No existing gate changes to Pass in this migration.
+Historical CoreCLR/TPA wording below applies to that future route; NativeAOT
+acceptance must satisfy the explicit first-web contract in workload profiles.
+
 #674–#676 qualify one default-off `EnableM04NormalFinallyProbe` Diagnostic in
 [step1195](../done/step1195.md) at frozen source `6acb593`: one compiler-called
 finally throws the original rooted exception, own-funclet unwind recovers the
