@@ -24,8 +24,18 @@ review, three 121-record write/exit guests, four 112-record controlled-negative
 guests and seven ancestors pass. A C#-authored mechanical ELF checks actual
 selectors, errno, cross-page write, GPR/flag/FS/GS/SSE preservation and exit 42.
 Owned NULL FS/GS selectors are established before the restoration baseline.
-General processes, threads/TLS/futex/signals, real NativeAOT Hello (#685), guest
+General processes, threads/TLS/futex/signals, real NativeAOT Hello (#687), guest
 application GC/EH, Kestrel, numbered gates, cloud and production remain incomplete.
+
+The corrected handoff is recorded in `done/step1202.md`. #684 must distinguish
+sparse virtual reservations from committed pages: the pinned Hello reserves
+8,234,266,624 bytes with `PROT_NONE`, beyond the current 4-GiB user range.
+#685 qualifies mechanical descriptors/pipes; #686 qualifies mechanical
+threads/TLS/futex, blocking pipes and real per-thread masks; #687 adds signal
+delivery and runs the first unchanged pinned Hello before focused suspension.
+#688 repeats Hello and qualifies the full runtime after GC/ThreadPool checks.
+Stock Linux/musl remains primary. Host transport and optional WASI HTTP studies
+are separate research, not dependencies of #684 or substitutes for guest Kestrel.
 
 The #662/#663/#664 default-off caller-window batch is qualified in
 `done/step1187.md`: 4532 full-host checks across 587 groups (92 Native), original native review,

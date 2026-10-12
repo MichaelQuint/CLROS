@@ -50,8 +50,11 @@ selects `MultiMinimalApi`.
 
 ## NativeAOT-first execution roadmap (2026-10-12)
 
-Accepted architecture direction only: no guest application/runtime acceptance.
-Start with [M16-001 / #679](http://192.168.4.35:3000/admin/CLROS/issues/679).
+Accepted architecture direction only: no upstream guest application/runtime
+acceptance. M16-001/#679 through M16-005/#683 are qualified within the bounded
+evidence below. The next dependency-compatible slice is
+[M16-006 / #684](http://192.168.4.35:3000/admin/CLROS/issues/684), measured Linux
+memory/startup services. Refresh the tracker before implementation.
 The [foundation epic #678](http://192.168.4.35:3000/admin/CLROS/issues/678)
 links #679-#690; [#691](http://192.168.4.35:3000/admin/CLROS/issues/691)
 owns the continuing NIC service. Tracker migration and cleanup evidence are in
@@ -73,8 +76,8 @@ are a distinct adapter over common kernel services, not changes to that ABI.
 | Stage | Managed keys / existing issues | Required result |
 | --- | --- | --- |
 | Publish first | M16-001 | Linux builder; static Hello, runtime exerciser and real Minimal API; ELF/native dependency and syscall/source review. |
-| Load and continue | M16-002 through M16-007 | Immutable staging, continuing post-exit loop, ELF64 startup, user/syscall boundary, genuine memory and descriptor services. |
-| Threads and runtime | #183-#194, M16-008 through M16-010 | Scheduler/TLS/futex/signals, upstream GC suspension, normal app EH/ThreadPool/timers and guest qualification. |
+| Load and continue | M16-002 through M16-007 | Immutable staging, continuing post-exit loop, mechanical ELF64 startup/user boundary, genuine memory and descriptor services; no upstream runtime acceptance. |
+| Threads and runtime | #183-#194, M16-008 through M16-010 | Scheduler/TLS/futex, signal ABI and first real pinned Hello in M16-009/#687; focused suspension and comprehensive app GC/EH/ThreadPool/timer qualification follow. |
 | Continuing network | M07-026, #148-#153 | Persistent Virtio RX/TX ownership, ARP and passive TCP with timing/retransmission/partial I/O/close. |
 | Socket integration | M16-011, M16-012 | Linux sockets and actual epoll readiness used by System.Net.Sockets. |
 | First web acceptance | #214-#227 | Real guest Kestrel /healthz with independent external HTTP evidence. |
@@ -86,6 +89,20 @@ for HTTP/custom application EH; local multi-process work no longer waits for
 AWS/Azure. The durable dependency source is
 `.gitea/backlog/clros-issues.json`. Accepted bounded diagnostics remain valid;
 their existence does not prove continuing services.
+
+M16-007/#685 qualifies descriptor and immutable-file behavior with mechanical
+fixtures. It must not require real NativeAOT Hello before M16-008/#686 threads
+and M16-009/#687 signals exist: the pinned Hello trace starts finalizer and
+signal-handler threads before writing its greeting. #686 uses mechanical
+clone/TLS/futex fixtures and preserves each thread's signal mask; it does not
+require a .NET thread fixture. After implementing signal startup/delivery,
+#687 owns the unchanged pinned Hello's first guest execution before focused
+suspension qualification. M16-010/#688 repeats Hello as a regression and adds
+the comprehensive runtime exerciser. Mechanical ELF entry/write/exit remains
+separate evidence; #689's real System.Net.Sockets fixture follows #688.
+Basic pipe descriptors/nonblocking behavior belong to #685; blocking wait/wake
+belongs to #686 and signal interruption/restart to #687. Futex work follows the
+M09-006 wait core; general event/mutex tickets M09-007/M09-008 are not prerequisites.
 
 Initial profile: x86-64 QEMU/OVMF, one vCPU, static non-PIE Linux executable,
 invariant globalization, workstation GC, HTTP/1.1 IPv4, explicit static IP,
@@ -125,9 +142,10 @@ The loader separates kernel and user
 leaves, omits the physical RW image alias from the user root, zeroes BSS/padding,
 and constructs argv/envp/auxv from the versioned manifest, actual PHDR and borrowed
 firmware entropy. Its current live backing cap is 4096 pages, preserving the
-existing kernel identity-map limits. TLS template geometry is admitted; thread TLS,
-application entry and syscall execution remain M16-005 onward. No guest runtime or
-Kestrel evidence follows from loading and read-back alone.
+existing kernel identity-map limits. TLS template geometry is admitted; the later
+step1201 profile qualifies mechanical application entry and write/exit syscalls.
+Thread TLS and upstream application startup remain incomplete. No guest runtime
+or Kestrel evidence follows from loading, read-back or mechanical entry alone.
 
 ### Pinned payload requirements and trace limits
 
@@ -139,7 +157,7 @@ in step1198 are the exact build input evidence.
 
 | Contract family | Observed and source-backed requirement |
 | --- | --- |
-| ELF/startup | Actual auxv supplies PHDR0x400040, PHENT56, PHNUM11, ENTRY0x4014EE, PAGESZ4096, identity/security, RANDOM, platform/exec-name and vDSO values. musl1.2.6 reads argv/envp/auxv, TLS and stack-canary entropy before main; missing TLS/thread-pointer initialization is fatal. Guest startup is unimplemented. |
+| ELF/startup | Actual auxv supplies PHDR0x400040, PHENT56, PHNUM11, ENTRY0x4014EE, PAGESZ4096, identity/security, RANDOM, platform/exec-name and vDSO values. musl1.2.6 reads argv/envp/auxv, TLS and stack-canary entropy before main; missing TLS/thread-pointer initialization is fatal. Mechanical startup is qualified; upstream NativeAOT guest startup is not. |
 | Memory/order | mmap/mprotect/munmap/mremap/madvise/brk and resource queries appear. GC queries/registers expedited membarrier. Its source has a protection/dirty-page barrier fallback; success no-ops cannot satisfy it. Trace failures include real ENOMEM/EFAULT/EINVAL and permitted discovery ENOENT. |
 | Threads/TLS/signals | clone, arch_prctl, set_tid_address, futex and realtime signal masks/handlers/return appear. musl thread setup owns stack/TLS and translates clone failure to EAGAIN with cleanup. NativeAOT thread attachment/key failures may fail fast; GC suspension must preserve the full signal context and errno. |
 | Files/descriptors | Immutable config plus proc/sys CPU/memory discovery use open/read/stat/readlink/getdents/lseek/pread, pipe/fcntl/ioctl and close. Missing optional discovery paths and ENOTTY are observed; descriptor identities, bounds and errno semantics remain necessary. |
@@ -150,6 +168,37 @@ Source/error review is a requirement inventory, not execution of those failure
 branches. Optional TLS/crypto/dynamic loading, wider APIs/CPU shapes and hostile
 long-running load remain outside this fixed HTTP/1.1 qualification. Unknown
 syscalls must fail honestly; tracing never becomes a complete successful-no-op ABI.
+
+M16-006 must separate reserved virtual address space from committed physical
+pages and their quotas. The pinned Hello's step1198 trace reserves
+8,234,266,624 bytes with `PROT_NONE`, beyond the current loader's low-4-GiB
+user range. Sparse reservation must not allocate one backing page per reserved
+page. Preserve the qualified payload and model its measured reservation,
+commit/protect/decommit and failure behavior, or explicitly change the bounded
+runtime configuration and repeat publish/trace/source qualification. The trace
+alone does not prove which smaller-reservation fallback the runtime can use;
+silent payload/configuration changes or successful no-op mappings are invalid.
+
+### Transport decision experiments
+
+Stock `linux-musl-x64` with real Kestrel remains the primary route. The host-only
+[custom transport comparison #702](http://192.168.4.35:3000/admin/CLROS/issues/702)
+may retain Kestrel's HTTP engine while replacing its socket transport
+through `IConnectionListenerFactory`; compare the pinned application's behavior,
+dependency inventory and required CLROS services before adopting it. This can
+change networking integration, but does not remove upstream GC/EH, memory,
+threading or timer requirements. The experiment is not guest acceptance and
+does not block #684. See [the Kestrel ledger](kestrel.md#transport-decision-experiments).
+
+[WASI HTTP research #703](http://192.168.4.35:3000/admin/CLROS/issues/703)
+is a separate optional route using a component host and a custom ASP.NET
+`IServer`. It must not be reported as Kestrel or satisfy the
+existing first-web gate. Publishing a .NET 10 WASI component and invoking it on
+a host do not prove a freestanding CLROS engine, runtime or network boundary.
+Both tickets are supplemental research with no milestone and no critical-path
+dependency; their results inform a later explicit architecture decision.
+
+### Guest acceptance
 
 First web requires three fresh post-firmware-exit boots, external HTTP200
 with exact body `OS_MINIMAL_API_OK`, repeated/concurrent connections,
@@ -342,7 +391,8 @@ The following are not required for `SingleMinimalApi`:
 
 ## Non-Goals
 
-- This ADR does not introduce a POSIX/Linux compatibility layer.
+- This ADR does not require general POSIX/Linux compatibility beyond the
+  measured restricted Linux application ABI described above.
 - This ADR does not require `fork()`.
 - This ADR does not claim microkernel behavior.
 - This ADR does not claim Azure, AWS, or provider boot support.
