@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 
 const string AppId = "minimal.api.smoke";
 const string ContractId = "kestrel.smoke.package.v0";
@@ -7,7 +8,12 @@ const string DefaultExpectedBody = "OS_MINIMAL_API_OK";
 const string ExpectedBodyKey = "OS_SMOKE_EXPECTED_BODY";
 const string DefaultListenEndpoint = "http://0.0.0.0:8080";
 
+// The qualification profile uses immutable configuration and HTTP/1.1 only.
+// Set this before default configuration providers are created, so no watcher starts.
+Environment.SetEnvironmentVariable("DOTNET_HOSTBUILDER__RELOADCONFIGONCHANGE", "false");
 var builder = WebApplication.CreateSlimBuilder(args);
+builder.WebHost.ConfigureKestrel(options =>
+    options.ConfigureEndpointDefaults(endpoint => endpoint.Protocols = HttpProtocols.Http1));
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.TypeInfoResolverChain.Insert(0, KestrelSmokeJsonContext.Default);

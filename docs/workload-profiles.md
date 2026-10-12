@@ -98,6 +98,13 @@ blocker and review a changed strategy before speculative compatibility work.
 Linux-host success is not CLROS guest evidence. Never implement successful
 no-op threads, mappings, protection or entropy.
 
+[Step1197](../done/step1197.md) records the current implementation candidate:
+Hello and a bounded upstream-runtime exerciser, immutable configuration and
+HTTP/1.1 in the existing real Minimal API, and C# static-payload qualification
+tooling. Focused supplied-byte and Windows managed checks do not satisfy the
+pending Linux publish/run/source-review gate. #679 and integration #693 remain
+open; dependent M16 work is not admitted by this candidate.
+
 First web requires three fresh post-firmware-exit boots, external HTTP200
 with exact body `OS_MINIMAL_API_OK`, repeated/concurrent connections,
 async/cancellation and clean shutdown. Preserve source/compiler/kernel/app/

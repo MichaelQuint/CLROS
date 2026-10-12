@@ -1,5 +1,11 @@
 # CLROS Completion Gates
 
+M16-001/#679 payload qualification is being implemented in
+[step1197](../done/step1197.md). Supplied-byte ELF checks and managed fixture
+runs are development evidence. Linux static publication, upstream startup/
+native dependency/source review and traced execution remain pending. No gate
+status changes and no CLROS application/Kestrel execution is proven.
+
 ## NativeAOT-first gate interpretation (2026-10-12)
 
 The [workload decision](workload-profiles.md) changes implementation order,

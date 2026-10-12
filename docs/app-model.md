@@ -2,6 +2,14 @@
 
 ## NativeAOT-first application boundary
 
+The host qualification candidate in [step1197](../done/step1197.md) adds separate
+Hello and runtime fixtures plus static ELF inspection/publication tooling.
+The runtime fixture uses upstream GC/EH, threads/TLS, ThreadPool/tasks and timers;
+the Minimal API retains real `CreateSlimBuilder`/Kestrel with configuration
+watching disabled before provider creation and HTTP/1.1 endpoint defaults.
+Windows managed checks pass; Linux static payload and complete requirement
+review remain pending. These files add no executable staging or guest launch.
+
 The [current decision](workload-profiles.md) adds a planned versioned Linux
 ELF64 profile alongside legacy OSAPPv0. M16 owns immutable pre-exit staging,
 ELF/startup/user boundary, Linux adapters and upstream application runtime.
