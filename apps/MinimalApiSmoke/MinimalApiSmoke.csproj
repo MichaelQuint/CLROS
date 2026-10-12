@@ -7,6 +7,10 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <InvariantGlobalization>true</InvariantGlobalization>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <EventSourceSupport>false</EventSourceSupport>
+    <EnableDiagnostics>false</EnableDiagnostics>
+    <DebuggerSupport>false</DebuggerSupport>
     <NoDefaultLaunchSettingsFile>True</NoDefaultLaunchSettingsFile>
   </PropertyGroup>
 
