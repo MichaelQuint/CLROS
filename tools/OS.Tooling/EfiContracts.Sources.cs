@@ -8,6 +8,8 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
+                [@"..\..\std\no-runtime\shared\Hash\Sha256.cs"] = "d077a2be744f1b6c4826c2741fe8131b1c7ead99fe65aa451a8fb2870c8c6a4c",
+                [@"..\OS.Kernel\Manifest\LinuxElfPackage.cs"] = "316e968b2c2427a183d05909f8b82d988ff4ff6908c39cb7e419978d833424d3",
                 [@"..\OS.Kernel\Runtime\BoundedExceptionFilterSearch.cs"] = "53ebf1995f0fb412f5ac34e17821e6bbbae1415b815e3ab5598e513dac020c8f",
                 [@"Runtime\FilteredCatchProbe.cs"] = "32a0fa64d1ec46f8655baced3db93dbd1cb954c97aa8626439ce46bcb9ed19af",
                 [@"..\OS.Kernel\Runtime\CompilerClassConstructorExecution.Invocation.cs"] = "0fcb494c9a2c3e0c589071be2f0e26f0b3509c4cd374b3facc5413f8cffa9cc3",
@@ -103,10 +105,10 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Runtime\X64FrameUnwind.cs"] = "b7cc8b10a5c1a0e819745d31e81b4915164645b17f172063522f32167afb3733",
                 [@"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs"] = "72cbfcad8f35c73c95d0e55870dc449afafe48c0ea2e4c2e17d8cdddac763dab",
                 [@"..\OS.Kernel\Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs"] = "12fac853b9dc2357d25315e4bedd0e43df0af76854079b7ae030bca36aed5253",
-                [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "4225eae4a3daac1fcb3d12ca7dbcae913381cbd36d1d806db6a9b58e57b7d20b",
+                [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "df42233c975b5a33959312230f57fe874c9b11d37eea86f85dafdb8833b9722e",
                 [@"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs"] = "88053c5a7a7c46aae39e0c68d03d3dd6ab83047640e3a22455148e53023a44fe",
                 [@"..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs"] = "305c825611db57ddfdb446e6dabc0dd234a91e3c4d4bd050e9aaaf9b8ea57cb5",
-                [@"..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs"] = "5685b36e42a63096dcbd252bd07c4e9dab02258d667ed908088c9e45ff2789a4",
+                [@"..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs"] = "67bf9a6703f0ee1c86e64a3ea8fc2fa07a90a539381997c39605a6f65dd11789",
                 [@"..\..\std\no-runtime\shared\Hash\Crc32.cs"] = "228540b7c150ea26100ea9f509772ee89bbe10a45ef2c4d8e95a4b250c56333e",
                 [@"..\..\std\no-runtime\shared\DeterministicRandom32.cs"] = "6ca5e3e3e839017ca27fb73884b7665315b3e2df3c1f49a5fe012a3e56c2ae33",
                 [@"..\OS.Kernel\Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs"] = "f708e1192e6964dc43f5cdda86caee6656dbc155c3699be71566381b9725fc5c",

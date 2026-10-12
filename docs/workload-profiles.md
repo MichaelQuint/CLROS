@@ -106,8 +106,12 @@ Fifty-four observed syscall names across22 thread/process trace files, 675 sourc
 and258 native input hashes, headers/symbols/compiler responses and actual auxv
 are retained. External Windows HTTP returns exact `OS_MINIMAL_API_OK`, followed
 by clean app exit and a failed post-shutdown probe. This qualifies the Linux
-host feasibility gate only. #680's immutable package/staging work is next;
-all continuing CLROS services and guest application/runtime/Kestrel gates remain open.
+host feasibility gate only. [Step1199](../done/step1199.md) implements #680's
+versioned immutable package/staging profile; three final-source guests pass
+data retention and digest checks after firmware exit, together with two rejection
+controls, two boot regressions and 4,565 full-host checks. Continuing services, ELF entry and guest application/runtime/
+Kestrel gates remain open. M16-003 owns the bounded service loop; M16-004 owns
+ELF mappings, TLS and Linux initial stack construction.
 
 ### Pinned payload requirements and trace limits
 

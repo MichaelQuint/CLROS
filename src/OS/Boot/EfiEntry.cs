@@ -63,6 +63,13 @@ public static unsafe class EfiEntry
             internal ulong PreparationCheckpoint;
             internal uint TableMemoryType;
             internal fixed ulong PageMetadata[(int)TablePages * 3]; // 24 bytes per page, naturally aligned
+#if M16_002_PROBE
+            internal ulong LinuxPackage;
+            internal uint LinuxBytes, LinuxPages, LinuxClosedHandles, LinuxReadCalls, LinuxLedgerCount, LinuxOwnedPhase;
+            internal fixed byte LinuxPackageHash[32];
+            internal OS.Manifest.LinuxElfPackageView LinuxView;
+            internal fixed ulong LinuxLedger[9 * 8];
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
             internal ulong MappingPhase, MappingCr0;
 #endif
@@ -191,6 +198,16 @@ public static unsafe class EfiEntry
             {
                 if (!Prepare(state, services))
                 {
+#if M16_002_PROBE
+                    bool released = state->LinuxPackage == 0;
+                    if (!released && services != null && services->FreePages != null && services->FreePages(state->LinuxPackage, state->LinuxPages) == 0)
+                    { state->LinuxPackage = 0; released = true; }
+                    string rejection = released ? "M16_002_STAGE_REJECTED executable=false backing=released\r\n" : "M16_002_STAGE_REJECTED executable=false backing=reserved-release-failed\r\n";
+                    for (int i = 0; i < rejection.Length; i++) Write(console, serial, (byte)rejection[i]);
+                    string handles = "M16_002_REJECTION_HANDLES closed=";
+                    for (int i = 0; i < handles.Length; i++) Write(console, serial, (byte)handles[i]);
+                    WriteUnsignedDecimal(console, serial, state->LinuxClosedHandles); WriteCrLf(console, serial);
+#endif
                     // Only this pre-entry branch may use firmware output. Partial
                     // allocations remain reserved until VM teardown on failure.
                     state->Phase = 5;
@@ -286,6 +303,12 @@ public static unsafe class EfiEntry
                 !FirstExitImageMappings.Contains(ranges, count, references.CopiedAcpi, references.CopiedAcpiBytes, PageProtection.Read | PageProtection.Write) ||
                 !FirstExitImageMappings.Contains(ranges, count, references.AllocatorState, references.AllocatorStateBytes, PageProtection.Read | PageProtection.Write)) return false;
             ulong image = ranges[0].Start, imageBytes = capture.Range.ImageSize;
+#if M16_002_PROBE
+            state->PreparationCheckpoint = 35;
+            if (!BootSequence.StageLinuxElfPackage(state->Phase == 2, state, &ReadLinuxPackage)) return false;
+            references.LinuxPackageStart = state->LinuxPackage;
+            references.LinuxPackagePages = state->LinuxPages;
+#endif
             state->PreparationCheckpoint = 40;
             if (!Allocate(services, 1, 3, image, imageBytes, allocator, out ulong code) ||
                 !Allocate(services, 2, FirstExitOwnedArena.PageCount, image, imageBytes, allocator, out ulong data) ||
@@ -296,6 +319,14 @@ public static unsafe class EfiEntry
                 !Disjoint(code, FirstExitCodeBundle.Bytes, stackProbePage, Page) ||
                 !Disjoint(data, FirstExitOwnedArena.Bytes, stackProbePage, Page) ||
                 !Disjoint(tables, TablePages * Page, stackProbePage, Page)) return false;
+
+#if M16_002_PROBE
+            if (!Disjoint(state->LinuxPackage, state->LinuxPages * Page, code, FirstExitCodeBundle.Bytes) ||
+                !Disjoint(state->LinuxPackage, state->LinuxPages * Page, data, FirstExitOwnedArena.Bytes) ||
+                !Disjoint(state->LinuxPackage, state->LinuxPages * Page, tables, TablePages * Page) ||
+                !Disjoint(state->LinuxPackage, state->LinuxPages * Page, stackProbePage, Page) ||
+                !SealLinuxLedger(state, code, data, tables)) return false;
+#endif
 
 #if M05_PHYSICAL_MAPPING_PROBE
             if (!Allocate(services, 2, 1023, image, imageBytes, allocator, out ulong scratch) ||
@@ -554,6 +585,159 @@ public static unsafe class EfiEntry
             return true;
         }
 
+#if M16_002_PROBE
+        // UEFI 2.11 sections 13.4/13.5. These interfaces are stack-local and
+        // consumed/closed before the final memory-map and ExitBootServices window.
+        private struct LinuxLoadedImage { internal uint Revision; internal void* Parent; internal EfiSystemTable* Table; internal void* Device; }
+        private struct LinuxFileSystem { internal ulong Revision; internal delegate* unmanaged<LinuxFileSystem*, LinuxFile**, ulong> OpenVolume; }
+        private struct LinuxFile
+        {
+            internal ulong Revision;
+            internal delegate* unmanaged<LinuxFile*, LinuxFile**, ushort*, ulong, ulong, ulong> Open;
+            internal delegate* unmanaged<LinuxFile*, ulong> Close;
+            internal void* Delete;
+            internal delegate* unmanaged<LinuxFile*, ulong*, void*, ulong> Read;
+            internal void* Write, GetPosition, SetPosition;
+            internal delegate* unmanaged<LinuxFile*, EfiGuid*, ulong*, void*, ulong> GetInfo;
+            internal void* SetInfo, Flush;
+        }
+        private static EfiGuid LinuxGuid(uint first, ushort second, byte fifth) => new EfiGuid
+        { Data1 = first, Data2 = second, Data3 = 0x11d2, Data4_0 = 0x8e, Data4_1 = fifth,
+          Data4_2 = 0, Data4_3 = 0xa0, Data4_4 = 0xc9, Data4_5 = 0x69, Data4_6 = 0x72, Data4_7 = 0x3b };
+
+        private static bool ReadLinuxPackage(void* owner)
+        {
+            Storage* state = (Storage*)owner;
+            if (state->Phase != 2 || state->LinuxPackage != 0) return false;
+            LinuxFile* root = null; LinuxFile* file = null;
+            bool okay = ReadLinuxFile(state, &root, &file);
+            bool closed = true;
+            if (file != null) { if (file->Close == null || file->Close(file) != 0) closed = false; else state->LinuxClosedHandles++; file = null; }
+            if (root != null) { if (root->Close == null || root->Close(root) != 0) closed = false; else state->LinuxClosedHandles++; root = null; }
+            return okay && closed && state->LinuxClosedHandles == 2;
+        }
+
+        private static bool ReadLinuxFile(Storage* state, LinuxFile** root, LinuxFile** file)
+        {
+            var services = state->SystemTable->BootServices;
+            if (services == null || services->HandleProtocol == null || services->AllocatePages == null || services->FreePages == null) return false;
+            EfiGuid loadedId = new EfiGuid { Data1 = 0x5b1b31a1, Data2 = 0x9562, Data3 = 0x11d2,
+                Data4_0 = 0x8e, Data4_1 = 0x3f, Data4_2 = 0, Data4_3 = 0xa0, Data4_4 = 0xc9, Data4_5 = 0x69, Data4_6 = 0x72, Data4_7 = 0x3b };
+            LinuxLoadedImage* loaded = null;
+            if (services->HandleProtocol(state->ImageHandle, &loadedId, (void**)&loaded) != 0 || loaded == null || loaded->Device == null || loaded->Table != state->SystemTable) return false;
+            EfiGuid fsId = LinuxGuid(0x964e5b22, 0x6459, 0x39); LinuxFileSystem* fs = null;
+            if (services->HandleProtocol(loaded->Device, &fsId, (void**)&fs) != 0 || fs == null || fs->Revision < 0x10000 || fs->OpenVolume == null ||
+                fs->OpenVolume(fs, root) != 0 || *root == null || (*root)->Open == null || (*root)->Close == null) return false;
+            ushort* path = stackalloc ushort[12]; string name = "\\OS\\APP.PKG";
+            for (int i = 0; i < 11; i++) path[i] = name[i]; path[11] = 0;
+            if ((*root)->Open(*root, file, path, 1, 0) != 0 || *file == null || (*file)->Close == null || (*file)->Read == null || (*file)->GetInfo == null) return false;
+            EfiGuid infoId = LinuxGuid(0x09576e92, 0x6d3f, 0x39); byte* info = stackalloc byte[512]; ulong infoBytes = 512;
+            if ((*file)->GetInfo(*file, &infoId, &infoBytes, info) != 0 || infoBytes < 82 || infoBytes > 512 ||
+                *(ulong*)info < 82 || *(ulong*)info > infoBytes || (*(ulong*)(info + 72) & 0x10) != 0) return false;
+            ulong bytes = *(ulong*)(info + 8);
+            if (bytes < OS.Manifest.LinuxElfPackage.HeaderBytes || bytes > OS.Manifest.LinuxElfPackage.MaximumBytes) return false;
+            ulong pages = (bytes + 4095) / 4096, candidate = 0xffffffff;
+            if (services->AllocatePages(1, 2, pages, &candidate) != 0) return false;
+            state->LinuxPackage = candidate; state->LinuxPages = (uint)pages;
+            if (candidate < 4096 || (candidate & 4095) != 0 || candidate >= 0x100000000UL - pages * 4096 ||
+                !M01StageOneAdapter.TryGetOriginalTypeManagerImage(out var capture, out _) ||
+                capture.Range.ImageBase.TryGetRawValueForUefiBoundary(out ulong image) != AddressValueStatus.Success ||
+                !M01StageTwoAdapter.TryGetOriginalExitAllocator(out _, out var allocator) ||
+                !Disjoint(candidate, pages * 4096, image, capture.Range.ImageSize) ||
+                !Disjoint(candidate, pages * 4096, allocator.Start, allocator.PageCount * 4096)) return false;
+            byte* buffer = (byte*)candidate;
+            for (ulong i = 0; i < pages * 4096; i++) buffer[i] = 0;
+            ulong written = 0;
+            while (written < bytes)
+            {
+                ulong request = bytes - written; if (request > 65536) request = 65536;
+                ulong actual = request;
+                if (++state->LinuxReadCalls > 4096 || (*file)->Read(*file, &actual, buffer + written) != 0 || actual == 0 || actual > request) return false;
+                written += actual;
+            }
+            byte extra = 0; ulong end = 1;
+            if ((*file)->Read(*file, &end, &extra) != 0 || end != 0) return false;
+            state->LinuxBytes = (uint)bytes;
+            state->LinuxView = OS.Manifest.LinuxElfPackage.Validate(buffer, (uint)bytes);
+            return state->LinuxView.Succeeded && OS.Std.Hash.Sha256.TryCompute(buffer, (uint)bytes, state->LinuxPackageHash, 32);
+        }
+
+        private static bool SealLinuxLedger(Storage* state, ulong code, ulong data, ulong tables)
+        {
+            BootReservedRange* ledger = (BootReservedRange*)state->LinuxLedger;
+            if ((ulong)sizeof(BootReservedRange) > 64 || !M01StageTwoAdapter.CopyOriginalExitReservations(ledger, 9, out uint count) || count != 5) return false;
+            if (!LinuxReservation(BootReservationKind.LinuxElfPackage, state->LinuxPackage, state->LinuxPages, ledger + count++) ||
+                !LinuxReservation(BootReservationKind.Cr3TransitionStub, code, FirstExitCodeBundle.Bytes / 4096, ledger + count++) ||
+                !LinuxReservation(BootReservationKind.DiagnosticState, data, FirstExitOwnedArena.PageCount, ledger + count++) ||
+                !LinuxReservation(BootReservationKind.PageTableArena, tables, TablePages, ledger + count++)) return false;
+            for (uint i = 1; i < count; i++)
+            {
+                var current = ledger[i]; uint at = i;
+                while (at > 0)
+                {
+                    if (current.PhysicalStart.TryCompareTo(ledger[at - 1].PhysicalStart, out int order) != AddressValueStatus.Success) return false;
+                    if (order >= 0) break; ledger[at] = ledger[at - 1]; at--;
+                }
+                ledger[at] = current;
+            }
+            if (!BootReservationTableValidator.Validate(ledger, count, 9).Succeeded) return false;
+            state->LinuxLedgerCount = count; return true;
+        }
+        private static bool LinuxReservation(BootReservationKind kind, ulong address, ulong pages, BootReservedRange* output)
+        {
+            if (PhysicalAddress.TryCreateFromUefiBoundary(address, out var physical) != AddressValueStatus.Success ||
+                BootReservedRange.TryCreate(kind, physical, pages, out var value) != BootReservedRangeStatus.Success) return false;
+            *output = value; return true;
+        }
+
+        private static bool VerifyLinuxPackage(void* owner)
+        {
+            Storage* state = (Storage*)owner;
+            if (state->LinuxOwnedPhase != 0) return false;
+            state->LinuxOwnedPhase = 1;
+            if (!LinuxText(state, "TEST_START m16-002\r\n")) return false;
+            bool okay = state->LinuxPackage != 0 && state->LinuxClosedHandles == 2 && state->LinuxLedgerCount == 9 &&
+                state->Memory.References.LinuxPackageStart == state->LinuxPackage && state->Memory.References.LinuxPackagePages == state->LinuxPages &&
+                BootReservationTableValidator.Validate((BootReservedRange*)state->LinuxLedger, 9, 9).Succeeded;
+            var view = OS.Manifest.LinuxElfPackage.Validate((byte*)state->LinuxPackage, state->LinuxBytes);
+            byte* packageHash = stackalloc byte[32];
+            okay = okay && OS.Std.Hash.Sha256.TryCompute((byte*)state->LinuxPackage, state->LinuxBytes, packageHash, 32);
+            for (uint i = 0; i < 32; i++) if (okay && packageHash[i] != state->LinuxPackageHash[i]) okay = false;
+            okay = okay && view.Succeeded && view.PayloadOffset == state->LinuxView.PayloadOffset && view.PayloadBytes == state->LinuxView.PayloadBytes;
+            byte* sample = stackalloc byte[64]; uint actual = 0;
+            okay = okay && OS.Manifest.LinuxElfPackage.ReadFile((byte*)state->LinuxPackage, state->LinuxBytes,
+                (byte*)state->LinuxPackage + view.ManifestOffset + view.Manifest.Path.Offset, view.Manifest.Path.Length, 0, sample, 64, out actual) == OS.Manifest.LinuxElfStatus.Success && actual == 64;
+            for (uint i = 0; i < actual; i++) if (sample[i] != ((byte*)state->LinuxPackage)[view.PayloadOffset + i]) okay = false;
+            if (!okay) { _ = LinuxText(state, "TEST_FAIL m16-002 owned-package-validation\r\n"); return false; }
+            if (!LinuxText(state, "M16_002_STAGED bytes=") || !LinuxNumber(state, state->LinuxBytes) || !LinuxText(state, " payload=") || !LinuxNumber(state, view.PayloadBytes) ||
+                !LinuxText(state, " pages=") || !LinuxNumber(state, state->LinuxPages) || !LinuxText(state, " handlesClosed=2 reads=") || !LinuxNumber(state, state->LinuxReadCalls) || !LinuxText(state, "\r\nM16_002_DIGEST ")) return false;
+            byte* digest = (byte*)state->LinuxPackage + view.ManifestOffset + view.Manifest.Digest.Offset;
+            for (uint i = 0; i < 64; i++) if (!LinuxByte(state, digest[i])) return false;
+            if (!LinuxText(state, "\r\nM16_002_PACKAGE_DIGEST ")) return false;
+            for (uint i = 0; i < 32; i++)
+            {
+                uint high = (uint)packageHash[i] >> 4, low = (uint)packageHash[i] & 15;
+                if (!LinuxByte(state, (byte)(high < 10 ? '0' + high : 'a' + high - 10)) || !LinuxByte(state, (byte)(low < 10 ? '0' + low : 'a' + low - 10))) return false;
+            }
+            bool reported = LinuxText(state, "\r\nM16_002_OWNED firmware=exited package=read-only-nx ledger=valid fileBytes=64 entry=false\r\nCLROS_M16_002_READY\r\nTEST_PASS m16-002\r\n");
+            if (reported) state->LinuxOwnedPhase = 2;
+            return reported;
+        }
+        private static bool LinuxText(Storage* state, string text) { for (int i = 0; i < text.Length; i++) if (!LinuxByte(state, (byte)text[i])) return false; return true; }
+        private static bool LinuxNumber(Storage* state, uint n) { if (n >= 10 && !LinuxNumber(state, n / 10)) return false; return LinuxByte(state, (byte)('0' + n % 10)); }
+        private static bool LinuxByte(Storage* state, byte b)
+        {
+            var backend = state->Arena.Fault->Backend;
+            for (int i = 0; i < PanicSafeFormattingSerialReportingOwnedCom1.DefaultTransmitReadyPollLimit; i++)
+            {
+                var read = backend.ReadByte(Com1OwnedPortIoBackend.LineStatusRegisterPort);
+                if (!read.Succeeded) return false;
+                if ((read.Value & PanicSafeFormattingSerialReportingOwnedCom1.TransmitHoldingRegisterEmptyMask) != 0) return backend.WriteByte(Com1OwnedPortIoBackend.DataRegisterPort, b).Succeeded;
+            }
+            return false;
+        }
+#endif
+
         private static bool Disjoint(ulong a, ulong an, ulong b, ulong bn)
             => a <= ulong.MaxValue - an && b <= ulong.MaxValue - bn && (a + an <= b || b + bn <= a);
 
@@ -613,6 +797,11 @@ public static unsafe class EfiEntry
 #if (M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
                 if (ReportOwnedSubsystems(state))
                 {
+#if M16_002_PROBE
+                    _ = BootSequence.RunOwnedLinuxElfPackage(state->OwnedPhase == 2,
+                        transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
+                        state->Arena.Binding->RetainedPointersCleared, state, &VerifyLinuxPackage);
+#endif
 #if M05_MONOTONIC_CLOCK_PROBE
                     _ = BootSequence.RunOwnedMonotonicClock(state->OwnedPhase == 2, state, &RunOwnedMonotonicClock);
 #endif
@@ -22555,6 +22744,20 @@ public static unsafe class EfiEntry
                 return true;
             }
         }
+#if M16_002_PROBE
+        internal static bool CopyOriginalExitReservations(BootReservedRange* destination, uint capacity, out uint count)
+        {
+            count = 0;
+            if (destination == null || capacity < 5 || !s_staticState.IsCompleted) return false;
+            fixed (M01StageTwoReservationLedgerBuffer* ledger = &s_reservationLedger)
+            {
+                BootReservedRange* source = &ledger->Range0;
+                if (!BootReservationTableValidator.Validate(source, 5, 5).Succeeded) return false;
+                for (uint i = 0; i < 5; i++) destination[i] = source[i];
+            }
+            count = 5; return true;
+        }
+#endif
 #endif
 #if M04_MANAGED_HEAP_PAGE_RANGE_PROBE
         private static ManagedHeapPageRangeState s_heapState;

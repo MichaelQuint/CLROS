@@ -84,6 +84,12 @@ public readonly struct NativeManifestParseResult
 
 public static class NativeManifestParser
 {
+    // Explicit v1 entry point keeps all legacy v0 consumers/rejections unchanged.
+    public static unsafe LinuxElfManifest ParseLinuxElf(ReadOnlySpan<byte> source)
+    {
+        fixed (byte* bytes = source) return LinuxElfPackage.ParseManifest(bytes, (uint)source.Length);
+    }
+
     public const int MaximumInputLength = 4096;
     public const int MaximumAppNameLength = 64;
     public const int MaximumAppPathLength = 128;

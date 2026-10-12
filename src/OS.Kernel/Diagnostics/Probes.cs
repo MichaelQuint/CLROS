@@ -2,6 +2,11 @@ namespace OS.Kernel.Diagnostics;
 
 public static partial class Probes
 {
+#if M16_002_PROBE
+    public const bool EnableM16002Probe = true;
+#else
+    public const bool EnableM16002Probe = false;
+#endif
 #if M04_SEEDED_COLLECTOR_CHURN_PROBE
     public const bool EnableM04SeededCollectorChurnProbe = true;
 #else
@@ -219,7 +224,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 47;
+    public const int ProbeCatalogCount = 48;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -459,6 +464,10 @@ public static partial class Probes
     public static ProbeDefinition GetM06VirtioBlockReadProbe() =>
         new("storage.virtio-block-read", nameof(EnableM06VirtioBlockReadProbe), EnableM06VirtioBlockReadProbe,
             ProbeRisk.Destructive, "Reads one sector through an owned queue, validates completion and resets before release.");
+
+    public static ProbeDefinition GetM16002Probe() =>
+        new("app.linux-elf", nameof(EnableM16002Probe), EnableM16002Probe,
+            ProbeRisk.Destructive, "Immutable pre-exit Linux ELF package staging; no executable entry.");
 
     public static ProbeDefinition GetM06GptPartitionProbe() =>
         new("storage.gpt-partition", nameof(EnableM06GptPartitionProbe), EnableM06GptPartitionProbe,
@@ -755,6 +764,9 @@ public static partial class Probes
                 return true;
             case 46:
                 definition = GetM04NormalFinallyProbe();
+                return true;
+            case 47:
+                definition = GetM16002Probe();
                 return true;
             default:
                 definition = default;

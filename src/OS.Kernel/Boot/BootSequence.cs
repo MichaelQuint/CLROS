@@ -201,6 +201,13 @@ public enum NativeAppArgumentHandoffReadinessStatus
 #endif
 public static class BootSequence
 {
+    public static unsafe bool StageLinuxElfPackage(bool firmwareAvailable, void* context, delegate*<void*, bool> stage) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16002Probe && firmwareAvailable && context != null && stage != null && stage(context);
+
+    public static unsafe bool RunOwnedLinuxElfPackage(bool ownedChecksComplete, bool firmwareRevoked,
+        void* context, delegate*<void*, bool> verify) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16002Probe && ownedChecksComplete && firmwareRevoked && context != null && verify != null && verify(context);
+
     /// <summary>
     /// Terminal boot boundary, after the original M01 allocator and copied
     /// ACPI. The ordinary policy defers success markers until owned post-exit checks.

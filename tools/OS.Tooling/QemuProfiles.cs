@@ -32,6 +32,8 @@ public static class QemuProfiles
         bool normal = profile.BootPolicy == "VerifiedExit";
         bool build = options.BuildEfi || normal && !options.Explicit.Contains("BuildEfi");
         bool firstExit = Enabled("M03FirstRealExitBootServices");
+        Require(options.LinuxElfImageVariant is "Intact" or "DigestFault" or "Oversized", "m16_002_image_variant");
+        Require(options.LinuxElfImageVariant == "Intact" || Enabled("M16002"), "m16_002_variant_requires_profile");
         bool owned = Enabled("M03OwnedSubsystemSurvival");
         bool ownedPanic = Enabled("M03OwnedSubsystemPanic");
         bool original = build && !options.SkipImageBuild && options.M01RawObservationLog.Length == 0 && !options.RequireNativeAppMarkers;
@@ -44,7 +46,13 @@ public static class QemuProfiles
             if (forbidPresets) Require(options.MarkerPreset.Count == 0, reason + "_forbids_override parameter=MarkerPreset");
         }
         if (normal) Original("m03_normal", true, true, true);
-        if (firstExit) Original("m03_first_exit", true, true, true);
+        if (firstExit && !Enabled("M16002")) Original("m03_first_exit", true, true, true);
+        if (Enabled("M16002"))
+        {
+            Original("m16_002", false, true, true);
+            foreach (string key in new[] { "RequireOrderedMarker", "RequireUniqueMarker", "ForbidMarker" }) Require(!options.Explicit.Contains(key), "m16_002_forbids_override parameter=" + key);
+            Require(!options.Explicit.Contains("RequireMarker") || options.RequireMarker.All(x => x == "CLROS_M16_002_READY"), "m16_002_marker_override");
+        }
         foreach (var item in new (string Flag, string Reason)[]
         {
             ("M03TypedExitBootServicesCall", "m03_typed_ebs"), ("M04TypeManagerModuleRegistration", "m04_type_manager"),
@@ -117,6 +125,7 @@ public static class QemuProfiles
         else if (Enabled("M05VirtioNegotiation")) Select(QemuContracts.M05VirtioNegotiationMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05BarDma")) Select(QemuContracts.M05BarDmaMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05PciEnumeration")) Select(QemuContracts.M05PciEnumerationMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M16002")) Select([.. QemuContracts.M03OwnedSubsystemMarkers, "TEST_START m16-002", "M16_002_STAGED", "M16_002_DIGEST", "M16_002_PACKAGE_DIGEST", "M16_002_OWNED", "CLROS_M16_002_READY", "TEST_PASS m16-002"], ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8", "M16_002_STAGE_REJECTED"], true);
         else if (owned) { Select(ownedPanic ? QemuContracts.M03OwnedSubsystemPanicMarkers : QemuContracts.M03OwnedSubsystemMarkers,
             ownedPanic ? ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "CLROS_M03_010_READY", "TEST_PASS m03.010"] : ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true); }
         else if (Enabled("M03FirmwareAdapterRevocation")) Select(QemuContracts.M03RevocationRequiredMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL"], true);
@@ -203,6 +212,7 @@ public static class QemuProfiles
     private static readonly (string Flag, string Pattern, string Reason)[] Ownership =
     [
         ("NormalBoot", @"^(CLROS_M03_011_READY|TEST_(START|PASS) m03\.011)", "m03_normal"),
+        ("M16002", @"^(M16_002_|CLROS_M16_002_READY|TEST_(START|PASS) m16-002)", "m16_002"),
         ("M03FirstRealExitBootServices", @"^(M03_EBS_|M03_PERMANENT_|M03_POST_EBS_|CLROS_M03_007|TEST_(START|PASS) m03\.00[79])", "m03_first_exit"),
         ("M03OwnedSubsystemSurvival", @"^(M03_OWNED|CLROS_M03_010|TEST_(START|PASS) m03\.010)", "m03_owned"),
         ("M03FirmwareAdapterRevocation", @"^(M03_ADAPTER_|CLROS_M03_008|TEST_(START|PASS) m03\.008)", "m03_revocation"),

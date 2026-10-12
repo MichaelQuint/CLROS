@@ -1,10 +1,46 @@
 # Manifest
 
-The [NativeAOT-first roadmap](workload-profiles.md) schedules M16-002 to add
-an explicit versioned Linux ELF compatibility profile, executable digest,
-arguments/environment, endpoint policy and resource limits. This format is
-not implemented yet. Existing OSAPPv0/native and hosted package formats below
+M16-002 implements the [NativeAOT-first roadmap](workload-profiles.md) package
+boundary: an explicit versioned Linux ELF profile, executable digest,
+arguments/environment, endpoint policy and resource limits. The format is
+qualified in [step1199](../done/step1199.md) for immutable data staging only.
+Existing OSAPPv0/native and hosted package formats below
 must not be silently reinterpreted as stock Linux NativeAOT executables.
+
+## Linux ELF package version 1
+
+`NativeManifestParser.ParseLinuxElf` is an explicit entry point; `Parse` remains
+v0-only. The no-stdlib consumer uses the same `LinuxElfPackage` pointer parser.
+Metadata borrows stable caller bytes; default results fail. Printable ASCII,
+LF/CRLF, optional final newline and first-`=` value splitting are supported.
+Unknown/missing/duplicate fields, unsafe paths and malformed inputs reject.
+
+Required fields are `format=clros-linux-elf`, `version=1`,
+`profile=linux-musl-x64-static-v1`, `app.path`, `args`, `digest`, `memory`,
+`stack`, `threads`, `descriptors` and `listen`. Paths are relative ASCII
+segments without empty/dot/dot-dot segments, drives or backslashes (128 bytes).
+Args are at most 256 bytes, quote-balanced with no backslash escaping; they are
+retained raw, not materialized into argv. Up to 16 `env.KEY=value` fields retain
+offsets: uppercase identifier keys at most 64 bytes, values at most 256 bytes,
+duplicate keys rejected. `listen` is canonical numeric IPv4:port; hostnames,
+IPv6, leading-zero numbers and port 0 reject. Endpoint admission is not networking.
+
+`digest` is 64 lowercase SHA-256 hex digits over the exact ELF bytes.
+`memory` is page-aligned 4096..1 GiB, `stack` page-aligned 4096..8 MiB and no larger
+than memory, `threads` 1..64 and `descriptors` 1..1024. These are declared process
+limits; runtime enforcement belongs to the later loader/process/syscall slices.
+Static ELF identity/program-table bounds, no interpreter/dynamic segment, no
+executable stack, W^X load flags, bounded memory and file-backed entry are checked
+before staging. Full load geometry, TLS materialization and entry remain M16-004.
+
+The envelope is at most 16 MiB: a 64-byte little-endian header, manifest at most 4096
+bytes, then one ELF. Header offsets: magic `CLRELF01` at 0; uint32 version 1 at 8,
+profile 1 at 12, header length 64 at 16, manifest length at 20; uint64 ELF length
+at 24; bytes 32..63 must be zero. Exact total length excludes gaps/trailers.
+Neither legacy OSAPPv0 nor ordinary package launch automatically consumes it.
+`ReadFile` exposes only the manifest's exact executable path, copies bounded
+bytes to exclusive caller storage, returns EOF honestly and rejects aliases.
+It revalidates the digest; there is no writable namespace or app execution.
 
 The disk-manifest batch has a separate bounded pointer validator in
 `OS.Storage.NativeManifestDisk`, host-tested in [step1153](../done/step1153.md).

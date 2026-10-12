@@ -68,7 +68,7 @@ internal static class RepositoryRecoveryTests
 
         using JsonDocument document = JsonDocument.Parse(File.ReadAllText(manifestPath));
         JsonElement target = document.RootElement.GetProperty("target");
-        return target.GetProperty("baseUrl").GetString() == "http://localhost:3000"
+        return target.GetProperty("baseUrl").GetString() == OS.Tooling.BacklogContracts.BaseUrl
             && target.GetProperty("owner").GetString() == "admin"
             && target.GetProperty("repository").GetString() == "CLROS"
             && document.RootElement.GetProperty("milestones").GetArrayLength() == OS.Tooling.BacklogContracts.Children.Count
@@ -156,7 +156,7 @@ internal static class RepositoryRecoveryTests
 
         string rootGuide = File.ReadAllText(Path.Combine(root, "AGENTS.md"));
         return rootGuide.Contains("The project name is `CLROS`.", StringComparison.Ordinal)
-            && rootGuide.Contains("http://localhost:3000/admin/CLROS", StringComparison.Ordinal)
+            && rootGuide.Contains(OS.Tooling.BacklogContracts.BaseUrl + "/admin/CLROS", StringComparison.Ordinal)
             && rootGuide.Contains("`OS` remains the stable assembly", StringComparison.Ordinal);
     }
 

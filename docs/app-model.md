@@ -10,15 +10,18 @@ watching disabled before provider creation and HTTP/1.1 endpoint defaults.
 Windows managed checks and all three pinned static Linux payload runs pass.
 The [requirement inventory](workload-profiles.md#pinned-payload-requirements-and-trace-limits)
 combines actual ELF/auxv/native/source/trace evidence and source error paths;
-it does not claim exhaustive failure execution. These files add no executable
-staging or CLROS guest launch. Versioned ELF packaging/staging is the next slice.
+it does not claim exhaustive failure execution. This host qualification adds no
+CLROS guest application launch.
 
-The [current decision](workload-profiles.md) adds a planned versioned Linux
-ELF64 profile alongside legacy OSAPPv0. M16 owns immutable pre-exit staging,
-ELF/startup/user boundary, Linux adapters and upstream application runtime.
-These are unimplemented; a normal NativeAOT executable must not be treated
-as raw OSAPPv0 bytes or share the kernel collector. Existing native contracts
-below retain their historical ABI and evidence.
+The versioned Linux ELF package in [step1199](../done/step1199.md) now has a
+default-off M16-002 staging profile. Three final-source guests retain exact
+Hello/runtime/Minimal API package bytes across firmware exit as read-only/NX data,
+with closed file handles, validated ledger and a bounded immutable file copy.
+Full-host qualification passes all 4,565 checks. ELF mappings/startup/user entry,
+continuing services, Linux adapters and the upstream guest runtime remain future
+work. A normal NativeAOT executable must not be treated as raw OSAPPv0 bytes or
+share the kernel collector. Existing native contracts below retain their
+historical ABI and evidence.
 
 ## Current Status
 

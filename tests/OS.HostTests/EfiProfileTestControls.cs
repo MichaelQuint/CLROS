@@ -103,6 +103,12 @@ internal static class EfiProfileTestControls
     // Independent expectations shared by cross-profile rejection fixtures.
     internal static string? MissingParentReason(IReadOnlyCollection<string> selected)
     {
+        if (selected.Contains("EnableM16002Probe"))
+        {
+            string[] allowed = ["EnableM16002Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
+                "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
+            if (selected.Any(name => !allowed.Contains(name))) return "m16_002_profile_conflict";
+        }
         bool Has(string name) => selected.Contains("Enable" + name + "Probe", StringComparer.Ordinal);
         foreach (var (child, parent, reason) in new (string, string, string)[]
         {

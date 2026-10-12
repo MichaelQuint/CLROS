@@ -6,7 +6,15 @@ upstream GC/EH/thread/TLS/timer exercise and real Kestrel HTTP/config/shutdown
 on the Linux builder, with exact source/native/ELF/auxv/trace evidence and a
 bounded source/error-path inventory. This completes the host feasibility slice
 only. No numbered gate changes and no CLROS application/runtime/Kestrel execution
-is proven; immutable ELF staging and continuing services remain required.
+is proven; continuing services and ELF entry remain required.
+
+M16-002/#680 staging is qualified in [step1199](../done/step1199.md). Three
+final-source guests pass exact package/ELF digest checks and read-only/NX data
+retention after real exit, with two closed file handles and a validated ledger.
+All 4,565 full-host checks across 594 groups (94 Native), two pre-exit rejection
+controls and two affected boot regressions pass with unchanged inputs and no
+failures/timeouts/reuse. No ELF entry, continuing workload,
+Linux syscall execution or numbered gate completion is claimed.
 
 ## NativeAOT-first gate interpretation (2026-10-12)
 

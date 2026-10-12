@@ -89,6 +89,7 @@
 		<EnableM04EhCatalogProbe Condition="'$(EnableM04EhCatalogProbe)' == ''">false</EnableM04EhCatalogProbe>
 		<EnableM04ConstructorFailureProbe Condition="'$(EnableM04ConstructorFailureProbe)' == ''">false</EnableM04ConstructorFailureProbe>
 		<EnableM04FilteredCatchProbe Condition="'$(EnableM04FilteredCatchProbe)' == ''">false</EnableM04FilteredCatchProbe>
+		<EnableM16002Probe Condition="'$(EnableM16002Probe)' == ''">false</EnableM16002Probe>
 		<EnableM05PhysicalMappingProbe Condition="'$(EnableM05PhysicalMappingProbe)' == ''">false</EnableM05PhysicalMappingProbe>
 		<EnableM05OwnedAcpiSelectionProbe Condition="'$(EnableM05OwnedAcpiSelectionProbe)' == ''">false</EnableM05OwnedAcpiSelectionProbe>
 		<EnableM05MonotonicClockProbe Condition="'$(EnableM05MonotonicClockProbe)' == ''">false</EnableM05MonotonicClockProbe>
@@ -346,6 +347,9 @@
 	<PropertyGroup Condition="'$(EnableM04SimpleThrowCatchProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_SIMPLE_THROW_CATCH_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM16002Probe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M16_002_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM04SingleFinallyCatchProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_SINGLE_FINALLY_CATCH_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -481,6 +485,7 @@
 			'$(EnableM04NormalFinallyProbe)' == 'true' or
 			'$(EnableM04ConstructorFailureProbe)' == 'true' or
 			'$(EnableM04FilteredCatchProbe)' == 'true' or
+			'$(EnableM16002Probe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastProbe)' == 'true' or
@@ -738,6 +743,8 @@
 		<Compile Include="Runtime\TypeInitializationException.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\CompilerClassConstructorExecution.Invocation.cs" Link="Runtime\CompilerClassConstructorExecution.Invocation.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\BoundedExceptionFrameDispatch.cs" Link="Runtime\BoundedExceptionFrameDispatch.cs" />
+		<Compile Include="..\OS.Kernel\Manifest\LinuxElfPackage.cs" Link="Manifest\LinuxElfPackage.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Hash\Sha256.cs" Link="Std\Hash\Sha256.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
@@ -804,6 +811,7 @@
 			'$(EnableM04NormalFinallyProbe)' == 'true' or
 			'$(EnableM04ConstructorFailureProbe)' == 'true' or
 			'$(EnableM04FilteredCatchProbe)' == 'true' or
+			'$(EnableM16002Probe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastProbe)' == 'true' or
@@ -1939,6 +1947,9 @@
 		<Error Condition="'$(EnableM03OwnedSubsystemSurvivalProbe)' != '' and '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true' and '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'false'" Text="m03_owned_switch_invalid EnableM03OwnedSubsystemSurvivalProbe" />
 		<Error Condition="'$(EnableM03OwnedSubsystemPanicProbe)' != '' and '$(EnableM03OwnedSubsystemPanicProbe)' != 'true' and '$(EnableM03OwnedSubsystemPanicProbe)' != 'false'" Text="m03_owned_switch_invalid EnableM03OwnedSubsystemPanicProbe" />
 		<Error Condition="'$(EnableM03OwnedSubsystemSurvivalProbe)' == 'true' and '$(EnableM03FirstRealExitBootServicesProbe)' != 'true'" Text="m03_owned_requires_first_exit" />
+		<Error Condition="'$(EnableM16002Probe)' != 'true' and '$(EnableM16002Probe)' != 'false'" Text="m16_002_switch_invalid" />
+		<Error Condition="'$(EnableM16002Probe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM03FirstRealExitBootServicesProbe)' != 'true' or '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true')" Text="m16_002_requires_owned_first_exit" />
+		<Error Condition="'$(EnableM16002Probe)' == 'true' and ('$(EnableM03OwnedSubsystemPanicProbe)' == 'true' or '$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' or '$(EnableM05PciEnumerationProbe)' == 'true' or '$(EnableM05MonotonicClockProbe)' == 'true' or '$(EnableM05OwnedAcpiSelectionProbe)' == 'true' or '$(EnableM05PhysicalMappingProbe)' == 'true')" Text="m16_002_profile_conflict" />
 		<Error Condition="'$(EnableM03OwnedSubsystemPanicProbe)' == 'true' and '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true'" Text="m03_owned_panic_requires_survival" />
 		<Error Condition="'$(EnableM03OwnedSubsystemSurvivalProbe)' == 'true' and '$(EnableM03FirmwareAdapterRevocationProbe)' == 'true'" Text="m03_owned_revocation_conflict" />
 		<Error Condition="'$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_cctor_requires_gc_profile" />
