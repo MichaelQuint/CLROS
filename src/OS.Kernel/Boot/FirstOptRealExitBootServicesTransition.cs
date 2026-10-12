@@ -2,7 +2,7 @@ using OS.Kernel.Platform;
 using OS.Kernel.Diagnostics;
 using OS.Kernel.Memory;
 using OS.Std.Hash;
-#if M16_004_PROBE
+#if M16_004_PROBE || M16_005_PROBE
 using OS.Kernel.Compatibility.LinuxX64;
 #endif
 
@@ -24,6 +24,9 @@ public struct FirstExitImageReferences
 #endif
 #if M16_004_PROBE
     public ulong LinuxBackingStart, LinuxBackingPages, LinuxUserTablesStart, LinuxUserTablePages;
+#endif
+#if M16_005_PROBE
+    public ulong LinuxSyscallCodeStart, LinuxSyscallDataStart;
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
     // Original retained ACPI HPET GAS, admitted against the owned firmware map.
@@ -247,6 +250,9 @@ public static unsafe class FirstExitRetainedMappings
 #if M16_004_PROBE
         + 2
 #endif
+#if M16_005_PROBE
+        + 3
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
         + 1
 #endif
@@ -271,6 +277,9 @@ public static unsafe class FirstExitRetainedMappings
         + 1
 #endif
 #if M16_004_PROBE
+        + 2
+#endif
+#if M16_005_PROBE
         + 2
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE || M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M05_PCI_ENUMERATION_PROBE
@@ -401,6 +410,16 @@ public static unsafe class FirstExitRetainedMappings
         if (references.MsixPage < 0x100000 || references.MsixPage >= LowEnd - 4096 || (references.MsixPage & 4095) != 0) return false;
         starts[allocations] = references.MsixPage; lengths[allocations++] = 4096;
 #endif
+#if M16_005_PROBE
+        if (references.LinuxSyscallCodeStart < 4096 || (references.LinuxSyscallCodeStart & 4095) != 0 ||
+            references.LinuxSyscallCodeStart > 0x100000000UL - X64LinuxUserTransition.CodeBytes ||
+            references.LinuxSyscallDataStart < 4096 || (references.LinuxSyscallDataStart & 4095) != 0 ||
+            references.LinuxSyscallDataStart > 0x100000000UL - X64LinuxUserTransition.DataBytes) return false;
+        // Ownership includes the unmapped guard, so no other retained allocation
+        // may occupy any page of the original twenty-page syscall data backing.
+        starts[allocations] = references.LinuxSyscallCodeStart; lengths[allocations++] = X64LinuxUserTransition.CodeBytes;
+        starts[allocations] = references.LinuxSyscallDataStart; lengths[allocations++] = X64LinuxUserTransition.DataBytes;
+#endif
         for (int i = 0; i < allocations; i++) for (int j = 0; j < i; j++)
             if (FirstExitDescriptors.Overlaps(starts[i], lengths[i], starts[j], lengths[j])) return false;
 
@@ -416,6 +435,12 @@ public static unsafe class FirstExitRetainedMappings
 #if M16_004_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.LinuxBackingStart, references.LinuxBackingPages, Data);
         pending[count++] = new SeparatePageFaultMappingRange(references.LinuxUserTablesStart, references.LinuxUserTablePages, Data);
+#endif
+#if M16_005_PROBE
+        pending[count++] = new SeparatePageFaultMappingRange(references.LinuxSyscallCodeStart, X64LinuxUserTransition.CodeBytes / 4096, Code);
+        pending[count++] = new SeparatePageFaultMappingRange(references.LinuxSyscallDataStart, X64LinuxUserTransition.GuardOffset / 4096, Data);
+        pending[count++] = new SeparatePageFaultMappingRange(references.LinuxSyscallDataStart + X64LinuxUserTransition.StackOffset,
+            (X64LinuxUserTransition.DataBytes - X64LinuxUserTransition.StackOffset) / 4096, Data);
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.MappingScratchStart, 512, Data);

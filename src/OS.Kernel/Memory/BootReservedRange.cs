@@ -23,7 +23,9 @@ public enum BootReservationKind : byte
     PageProtectionProbe = 14,
     LinuxElfPackage = 15,
     LinuxElfBacking = 16,
-    LinuxElfUserTables = 17
+    LinuxElfUserTables = 17,
+    LinuxSyscallCode = 18,
+    LinuxSyscallData = 19
 }
 
 /// <summary>
@@ -274,6 +276,8 @@ public readonly struct BootReservedRange
             || kind == BootReservationKind.LinuxElfPackage
             || kind == BootReservationKind.LinuxElfBacking
             || kind == BootReservationKind.LinuxElfUserTables
+            || kind == BootReservationKind.LinuxSyscallCode
+            || kind == BootReservationKind.LinuxSyscallData
             ? BootReservedRangeStatus.Success
             : BootReservedRangeStatus.UnknownKind;
     }

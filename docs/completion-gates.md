@@ -1,5 +1,11 @@
 # CLROS Completion Gates
 
+M16-005/#683 and supplemental #699 are in development in
+[step1201](../done/step1201.md). Checked syscall dispatch, privilege-transition
+bytes and conditional owned mappings have focused host controls. EFI integration,
+original native callback review, CPL3/write/exit/fault guests and stable-batch full
+qualification remain pending. No accepted completion or numbered gate advances.
+
 M16-001/#679 host payload qualification is accepted in
 [step1198](../done/step1198.md): three real static Linux x64 NativeAOT payloads,
 upstream GC/EH/thread/TLS/timer exercise and real Kestrel HTTP/config/shutdown

@@ -72,7 +72,9 @@ internal static class BootReservationTableValidatorTests
             ("PageProtectionProbe", BootReservationKind.PageProtectionProbe, 14),
             ("LinuxElfPackage", BootReservationKind.LinuxElfPackage, 15),
             ("LinuxElfBacking", BootReservationKind.LinuxElfBacking, 16),
-            ("LinuxElfUserTables", BootReservationKind.LinuxElfUserTables, 17)
+            ("LinuxElfUserTables", BootReservationKind.LinuxElfUserTables, 17),
+            ("LinuxSyscallCode", BootReservationKind.LinuxSyscallCode, 18),
+            ("LinuxSyscallData", BootReservationKind.LinuxSyscallData, 19)
         ];
 
         if (Enum.GetUnderlyingType(typeof(BootReservationKind)) != typeof(byte))
@@ -485,7 +487,9 @@ internal static class BootReservationTableValidatorTests
             Reservation(BootReservationKind.PageTableArena, 0x0050_0000, 8),
             Reservation(BootReservationKind.Cr3TransitionStub, 0x0060_0000, 1),
             Reservation(BootReservationKind.PageProtectionProbe, 0x0070_0000, 1),
-            Reservation(BootReservationKind.AcpiSnapshot, 0x0080_0000, 2)
+            Reservation(BootReservationKind.AcpiSnapshot, 0x0080_0000, 2),
+            Reservation(BootReservationKind.LinuxSyscallCode, 0x0090_0000, 1),
+            Reservation(BootReservationKind.LinuxSyscallData, 0x00a0_0000, 20)
         ];
 
         BootReservationTableValidationResult result = Validate(
@@ -509,7 +513,7 @@ internal static class BootReservationTableValidatorTests
         BootReservationTableValidationResult partialResult = Validate(
             partialWithoutStack);
 
-        const ulong expectedPages = 54;
+        const ulong expectedPages = 75;
         return result.Succeeded
             && result.Status == BootReservationTableStatus.Success
             && result.RangeStatus == BootReservedRangeStatus.Success

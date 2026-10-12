@@ -1,5 +1,12 @@
 # Boot
 
+M16-005 is under development in [step1201](../done/step1201.md). Its conditional
+retention plan reserves a syscall code page and a twenty-page data/stack range,
+maps code RX and data RW/NX, and omits data page 3 as the kernel stack guard.
+The dispatcher/emitter host controls do not prove EFI allocation, CPL3 entry,
+syscall execution or fault isolation; integration and guest qualification remain
+pending.
+
 Qualified children `EnableM16003Probe` and `EnableM16004Probe` default off and
 imply the staged-package/owned-exit parent through the compiled tooling profile.
 The service child uses owned HPET time and denied copied firmware handles before
