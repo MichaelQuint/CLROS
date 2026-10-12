@@ -1094,10 +1094,13 @@ The pinned `references/uACPI-2cb5e71ef583` is an isolated inspection input,
 with [source findings](fork-diff.md#uacpi-deep-static-review-2026-10-11) and an
 [issue crosswalk](reference-map.md#uacpi-selection-and-issue-crosswalk-2026-10-11).
 Optional host-only GAS metadata (#665), FADT metadata (#666), resource-template
-framing (#667) and deferred C# AML research (#668) are planned, not implemented.
+framing (#667) and C# AML research (#668, ready for research only) are planned,
+not implemented.
 They preserve the accepted bounded ACPI/HPET/ECAM/APIC profiles and add no
-milestone prerequisite. The reference is outside first-party build/image inputs;
-general AML, continuing device discovery/controller services and Gate 6 remain
+milestone prerequisite or change to the
+[NativeAOT-first roadmap](workload-profiles.md#nativeaot-first-execution-roadmap-2026-10-12).
+The reference is outside first-party build/image inputs. General AML,
+continuing device discovery/controller services and Gate 6 remain
 incomplete. [Step1186](../done/step1186.md) records this documentation/backlog
 review, without native or guest acceptance.
 

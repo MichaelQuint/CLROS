@@ -526,8 +526,14 @@ research: a bounded no-I/O integer host experiment first, then separate
 device/resource capabilities and retained table ownership. The initial scheduling
 blocker #662/#663/#664 is qualified in step1187 and closed. A 2026-10-12 tracker
 read-back marks #668 ready and unassigned for research only; former catalog
-children #658/#659/#660 are qualified/closed in step1184. Hardware execution has stronger service
-dependencies than research readiness. No native uACPI library is linked.
+children #658/#659/#660 are qualified/closed in step1184. Hardware execution has
+stronger service dependencies than research readiness. No native uACPI library
+is linked.
+
+These optional reference issues do not replace the current
+[NativeAOT-first implementation order](workload-profiles.md#nativeaot-first-execution-roadmap-2026-10-12).
+The M09 service references above identify future hardware-AML requirements;
+they do not reinstate the older CoreCLR-first sequence.
 
 ### Tests and unmerged fixes
 

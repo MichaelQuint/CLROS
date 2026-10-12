@@ -477,10 +477,11 @@ ready and #666 remains blocked by #665; hardware AML dependencies are unchanged.
 
 All four are unassigned `priority:p3` supplemental issues with no milestone
 assignment, outside `.gitea/backlog/clros-issues.json`. They do not extend existing
-M05/Kestrel acceptance criteria or displace currently owned work. #658/#659/#660
-are already qualified/closed in [step1184](../done/step1184.md); the AML issue
-names the current caller-window batch rather than carrying forward that stale
-blocker. Creation and exact body/label/state/assignment read-backs are recorded
+M05/Kestrel acceptance criteria or alter the
+[NativeAOT-first roadmap](workload-profiles.md#nativeaot-first-execution-roadmap-2026-10-12).
+#658/#659/#660 are already qualified/closed in [step1184](../done/step1184.md).
+The AML issue's completed caller-window scheduling blocker is removed; real
+hardware dependencies remain separate. Creation and exact body/label/state/assignment read-backs are recorded
 in [step1186](../done/step1186.md).
 
 ## Tests
