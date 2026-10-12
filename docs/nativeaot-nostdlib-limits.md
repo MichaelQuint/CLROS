@@ -9,18 +9,18 @@ This is working-tree development evidence. Full-host, three frozen final guests,
 affected ancestors, final source/process/disk joins and reviewed merge/closure
 remain pending; #90/Gate4, general EH and hosted-runtime readiness are incomplete.
 
-#674–#676 remain in development. [step1191](../done/step1191.md) wires a
+#674–#676 remain in development. [step1191](../done/step1191.md) initially wired a
 default-off GC-dependent normal-finally profile, explicit one-method compiler
 catalog, own-frame parent recovery, exited-clause selection, retained matcher
 and the accepted catch-transfer instructions with distinct symbols. Runtime
-transfer is false, QEMU planning rejects the profile and artifact verification
-ends at `normal_finally_transfer_review_pending` after the strict new ABI checks.
-The draft compiles/links; source/native review measures 170 callback nodes,
+transfer was false, QEMU planning rejected the profile and artifact verification
+ended at `normal_finally_transfer_review_pending` after the strict new ABI checks.
+That draft compiled/linked; source/native review measured 170 callback nodes,
 13 bounded body-allocation sites and 57 targets in five readonly compiler
 switch tables. The measured first-party maximum is 14,592/16,400 stack bytes;
-firmware internals are excluded. Focused checks pass. Numeric guest transcript
-validation, complete native mutation controls, final admission, frozen full-host
-and real guest qualification remain incomplete; #90/Gate4 stay open.
+firmware internals are excluded. Focused checks passed. Step1192 adds numeric
+transcript/native mutation controls and bounded development admission. Frozen
+full-host and final guest qualification remain incomplete; #90/Gate4 stay open.
 
 [step1190](../done/step1190.md) records the initial inactive compiler fixture:
 ILC10.0.12 emits a normal-path call to its own finally
