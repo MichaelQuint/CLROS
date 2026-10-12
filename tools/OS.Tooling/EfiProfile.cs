@@ -19,6 +19,30 @@ public sealed class EfiProfile
             if (!flags.ContainsKey(pair.Key)) throw new ToolFailure("diagnostic_probe_unknown", "property=" + pair.Key);
             flags[pair.Key] = pair.Value;
         }
+        if (flags["EnableM16003Probe"])
+        {
+            if (explicitlySelected.TryGetValue("EnableM16002Probe", out bool parent) && !parent)
+                throw new ToolFailure("m16_003_explicit_false_prerequisite", "EnableM16002Probe");
+            flags["EnableM16002Probe"] = true;
+        }
+        if (flags["EnableM16004Probe"])
+        {
+            if (explicitlySelected.TryGetValue("EnableM16002Probe", out bool parent) && !parent)
+                throw new ToolFailure("m16_004_explicit_false_prerequisite", "EnableM16002Probe");
+            flags["EnableM16002Probe"] = true;
+        }
+        if (flags["EnableM16002Probe"])
+        {
+            string[] required = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
+            foreach (string name in required)
+            {
+                if (explicitlySelected.TryGetValue(name, out bool enabled) && !enabled) throw new ToolFailure("m16_002_explicit_false_prerequisite", name);
+                flags[name] = true;
+            }
+            foreach (var flag in flags)
+                if (flag.Value && flag.Key != "EnableM16002Probe" && flag.Key != "EnableM16003Probe" && flag.Key != "EnableM16004Probe" && !required.Contains(flag.Key))
+                    throw new ToolFailure("m16_002_profile_conflict", flag.Key);
+        }
         bool diagnostic = flags.Values.Any(v => v);
         if (string.IsNullOrEmpty(bootPolicy)) bootPolicy = diagnostic ? "Diagnostic" : "VerifiedExit";
         if (!bootPolicy.Equals("VerifiedExit", StringComparison.OrdinalIgnoreCase) && !bootPolicy.Equals("Diagnostic", StringComparison.OrdinalIgnoreCase)) throw new ToolFailure("clros_boot_policy_invalid");
@@ -93,6 +117,8 @@ public sealed class EfiProfile
         Set("M04FilteredCatch", ["M04ConstructorFailure", "M04SeededCollectorChurn", "M04ClassConstructorExecution", "M04InterfaceDispatch", "M04X64UnwindMetadata", "M04SimpleThrowCatch", "M04SingleFinallyCatch", "M04Rethrow", "M04NestedFinallyCatch", "M04UnhandledException", "M04FrameDispatch"], false, "m04_filter_profile_conflict");
         Need("M04ConstructorFailure", "M04GcStaticRootMaterialization", "m04_ctor_failure_requires_gc_profile");
         Set("M04ConstructorFailure", ["M04SeededCollectorChurn", "M04ClassConstructorExecution", "M04InterfaceDispatch", "M04X64UnwindMetadata", "M04SimpleThrowCatch", "M04SingleFinallyCatch", "M04Rethrow", "M04NestedFinallyCatch", "M04UnhandledException", "M04FrameDispatch"], false, "m04_ctor_failure_profile_conflict");
+        Need("M04NormalFinally", "M04GcStaticRootMaterialization", "m04_normal_finally_requires_gc_profile");
+        Set("M04NormalFinally", ["M04SeededCollectorChurn", "M04ClassConstructorExecution", "M04InterfaceDispatch", "M04X64UnwindMetadata", "M04SimpleThrowCatch", "M04SingleFinallyCatch", "M04Rethrow", "M04NestedFinallyCatch", "M04UnhandledException", "M04FrameDispatch", "M04ConstructorFailure", "M04FilteredCatch", "M04EhCatalog"], false, "m04_normal_finally_profile_conflict");
         Need("M04EhCatalog", "M04FrameDispatch", "m04_eh_catalog_requires_frame_dispatch");
         Need("M04FrameDispatch", "M04GcStaticRootMaterialization", "m04_frames_requires_gc_profile");
         Set("M04FrameDispatch", ["M04SeededCollectorChurn", "M04ClassConstructorExecution", "M04InterfaceDispatch", "M04X64UnwindMetadata", "M04SimpleThrowCatch", "M04SingleFinallyCatch", "M04Rethrow", "M04NestedFinallyCatch", "M04UnhandledException"], false, "m04_frames_profile_conflict");

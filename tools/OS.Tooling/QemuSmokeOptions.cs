@@ -17,6 +17,8 @@ public sealed class QemuSmokeOptions
     public string WorkloadProfile { get; set; } = "SingleMinimalApi";
     public string GptImageVariant { get; set; } = "Intact";
     public string PackageImageVariant { get; set; } = "Intact";
+    public string LinuxElfPackage { get; set; } = "artifacts/packages/linux-elf.pkg";
+    public string LinuxElfImageVariant { get; set; } = "Intact";
     public string DiskFormat { get; set; } = "raw";
     public int TimeoutSeconds { get; set; } = 30;
     public bool DryRun { get; set; }
@@ -48,7 +50,7 @@ public sealed class QemuSmokeOptions
             ["dryrun"] = "DryRun", ["buildefi"] = "BuildEfi", ["skipimagebuild"] = "SkipImageBuild",
             ["requirenativeappmarkers"] = "RequireNativeAppMarkers", ["requiremarker"] = "RequireMarker",
             ["requireorderedmarker"] = "RequireOrderedMarker", ["requireuniquemarker"] = "RequireUniqueMarker",
-            ["forbidmarker"] = "ForbidMarker", ["markerpreset"] = "MarkerPreset"
+            ["forbidmarker"] = "ForbidMarker", ["markerpreset"] = "MarkerPreset", ["linuxelfpackage"] = "LinuxElfPackage", ["linuxelfimagevariant"] = "LinuxElfImageVariant"
         };
         foreach (string flag in EfiContracts.DiagnosticProbes) names.Add(Key(flag), flag);
         for (int i = 0; i < arguments.Length; i++)
@@ -77,6 +79,8 @@ public sealed class QemuSmokeOptions
                 case "WorkloadProfile": result.WorkloadProfile = value; break;
                 case "GptImageVariant": result.GptImageVariant = value; break;
                 case "PackageImageVariant": result.PackageImageVariant = value; break;
+                case "LinuxElfPackage": result.LinuxElfPackage = value; break;
+                case "LinuxElfImageVariant": result.LinuxElfImageVariant = value; break;
                 case "DiskFormat": result.DiskFormat = value.ToLowerInvariant(); break;
                 case "TimeoutSeconds": result.TimeoutSeconds = int.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture); break;
                 case "DryRun": result.DryRun = bit; break;

@@ -19,9 +19,15 @@ public static class QemuSmoke
             return result;
         }
         QemuCaptureSession? capture = null;
+        FileStream? linuxInput = null;
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
+            if (plan.IsEnabled("EnableM16002Probe") && !options.DryRun)
+            {
+                linuxInput = new FileStream(Path.GetFullPath(options.LinuxElfPackage, root), FileMode.Open, FileAccess.Read, FileShare.Read);
+                if (linuxInput.Length < 64 || linuxInput.Length > OS.Manifest.LinuxElfPackage.MaximumBytes) throw new ToolFailure("m16_002_package_input_size");
+            }
             output.WriteLine("QEMU_SCRIPT_BOOT_POLICY policy=" + plan.BootPolicy);
             output.WriteLine("WORKLOAD_PROFILE " + options.WorkloadProfile);
             output.WriteLine("TEST_PASS workload.profile.tooling " + (options.WorkloadProfile == "SingleMinimalApi" ? "default single" : "propagates multi"));
@@ -61,13 +67,19 @@ public static class QemuSmoke
                 }
                 if (!options.SkipImageBuild)
                 {
-                    var image = await Run("OS.ImageBuilder", ["create-raw", "--workload-profile", options.WorkloadProfile, "--efi", options.EfiArtifact, "--output", options.Image]);
+                    string[] package = plan.IsEnabled("EnableM16002Probe") ? ["--package", options.LinuxElfPackage] : [];
+                    var image = await Run("OS.ImageBuilder", ["create-raw", "--workload-profile", options.WorkloadProfile, "--efi", options.EfiArtifact, "--output", options.Image, .. package]);
                     if (image.ExitCode != 0) return image.ExitCode;
                 }
                 if (plan.IsEnabled("EnableM06FatReadProbe"))
                 {
                     var receipt = FatImageFixture.Apply(Path.GetFullPath(options.Image, root), Path.GetFullPath(options.EfiArtifact, root));
                     output.WriteLine("M06_FAT_IMAGE_FIXTURE " + System.Text.Json.JsonSerializer.Serialize(receipt));
+                }
+                if (plan.IsEnabled("EnableM16002Probe") && options.LinuxElfImageVariant != "Intact")
+                {
+                    var receipt = LinuxElfImageFixture.Apply(Path.GetFullPath(options.Image, root), Path.GetFullPath(options.EfiArtifact, root), Path.GetFullPath(options.LinuxElfPackage, root), options.LinuxElfImageVariant);
+                    output.WriteLine("M16_002_IMAGE_FIXTURE " + System.Text.Json.JsonSerializer.Serialize(receipt));
                 }
                 if (plan.IsEnabled("EnableM06PackageReadProbe"))
                 {
@@ -106,7 +118,7 @@ public static class QemuSmoke
             if (plan.IsEnabled("EnableM02UnexpectedVectorPanicProbe")) arguments.Add("--expect-unexpected-vector-panic");
             if (plan.IsEnabled("EnableM03OwnedSubsystemPanicProbe")) arguments.Add("--expect-owned-subsystem-panic");
             if (plan.IsEnabled("EnableM04UnhandledExceptionProbe")) arguments.Add("--expect-unhandled-exception");
-            if (plan.IsEnabled("EnableM03FirmwareEntropySeedProbe")) arguments.AddRange(["--firmware-rng-source", options.FirmwareRngSource]);
+            if (plan.IsEnabled("EnableM03FirmwareEntropySeedProbe") || plan.IsEnabled("EnableM16004Probe")) arguments.AddRange(["--firmware-rng-source", options.FirmwareRngSource]);
             if (plan.IsEnabled("EnableM05BarDmaProbe")) arguments.Add("--pci-bar-test-device");
             if (plan.IsEnabled("EnableM05VirtioNegotiationProbe")) arguments.Add("--virtio-negotiation-device");
             if (plan.IsEnabled("EnableM07VirtioNetProbe")) arguments.AddRange(["--ethernet-capture", Path.GetFullPath(options.SerialLog + ".pcap", root)]);
@@ -141,7 +153,7 @@ public static class QemuSmoke
         }
         catch (Exception error) when (error is ToolFailure or ArgumentException or IOException or InvalidOperationException)
         { output.WriteLine("TEST_FAIL qemu.smoke " + error.Message); return 1; }
-        finally { capture?.Dispose(); }
+        finally { capture?.Dispose(); linuxInput?.Dispose(); }
     }
 
     public static string? ResolveExecutable(string? requested)

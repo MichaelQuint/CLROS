@@ -1,5 +1,25 @@
 # Image Builder
 
+Linux ELF v1 package/staging is qualified in
+[step1199](../done/step1199.md) for immutable data retention only.
+Build from a qualified static ELF and the explicit [v1 manifest](manifest.md):
+
+```text
+dotnet run --project tools/OS.ImageBuilder -- build-linux-elf-package --manifest <v1-line-manifest> --input <static-ELF> --output artifacts/packages/linux-elf.pkg
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16002Probe -LinuxElfPackage artifacts/packages/linux-elf.pkg -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 60 -RequireMarker CLROS_M16_002_READY
+```
+
+The package command bounds inputs, checks digest/profile, reserves a new output
+and reads back exact bytes. The existing raw builder places it as `OS/APP.PKG`.
+The staging runner owns its complete prerequisite profile and locks package input
+through capture. The exact seven-record tail binds both package and ELF SHA-256
+to the source file and preserves strict parent firmware/exit/owned checks.
+`-LinuxElfImageVariant DigestFault|Oversized` admits original EFI/package bytes
+and both contiguous FAT copies, then changes only one payload byte or the package
+directory size. Receipts record input/output hashes, offset and changed-byte count.
+These variants must reject before execution; a failed smoke is rejection evidence,
+never a positive staging pass. Ordinary image/package behavior is preserved.
+
 The qualified block MSI-X profile requires a newly built intact package image;
 all package fault variants reject before runner admission. Synthetic controls bind
 the parent package and new LBA1 checksum receipts to the same disk bytes in

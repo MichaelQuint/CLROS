@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<LangVersion>14.0</LangVersion>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+		<DefaultItemExcludes>$(DefaultItemExcludes);bin/**;obj/**;artifacts/**</DefaultItemExcludes>
+	</PropertyGroup>
+
+	<!-- Keep the audited source-linked EFI paths stable while exposing the host
+	     validation project alongside OS and OS.Kernel in the solution. -->
+	<ItemGroup>
+		<Compile Include="../../std/no-runtime/shared/**/*.cs"
+		         Exclude="../../std/no-runtime/shared/**/bin/**;../../std/no-runtime/shared/**/obj/**;../../std/no-runtime/shared/**/artifacts/**"
+		         Link="%(RecursiveDir)%(Filename)%(Extension)" />
+	</ItemGroup>
+</Project>

@@ -1,6 +1,34 @@
 # Host Requirements
 
+The shared host-validation project now lives under
+`src/OS.Std.NoRuntime.Shared`, alongside OS and OS.Kernel. It links existing
+audited source from `std/no-runtime/shared`. Existing solution commands
+remain valid. M16-001 separately establishes a pinned Linux NativeAOT builder;
+the Windows EFI toolchain does not by itself provide Linux publishing.
+
 ## Current Status
+
+The M16-001 NativeAOT payload tooling requires an explicit Linux musl builder.
+Use SDK `10.0.401` and runtime/ILC `10.0.12`, clang/binutils, musl development
+libraries, static zlib/C++ dependencies and strace. Windows inspection and
+managed fixture runs are development checks. [Step1198](../done/step1198.md)
+qualifies all three static Linux payloads on the task-local Alpine builder;
+[step1197](../done/step1197.md) preserves development and bootstrap failures.
+Put `/opt/dotnet` and all Alpine system directories, including `/sbin`, on PATH.
+
+```text
+dotnet run --project tools/OS.Tooling -- nativeaot payload inspect <ELF-file>
+dotnet run --project tools/OS.Tooling -- nativeaot payload qualify --output <fresh-directory>
+```
+
+The qualifier publishes Hello, the runtime exerciser and the real Minimal API
+with explicit static/non-PIE/invariant/workstation-GC/diagnostics-off settings.
+It records commands, input/image hashes, native versions, readelf/nm inventories,
+strace startup/GC/thread/HTTP/shutdown evidence and an external process HTTP check.
+Its syscall list is observed coverage, requiring separate source/error-path,
+auxv and CPU review before issue acceptance. Output must be fresh; failed outputs
+remain evidence and must not be reused as successful qualification. Inspection
+has its own marker and never substitutes for `TEST_PASS m16-001`.
 
 The repository currently builds on Windows with .NET 10. The normal solution build is managed-code host tooling, while the EFI shell publish also requires the Windows NativeAOT platform linker stack.
 

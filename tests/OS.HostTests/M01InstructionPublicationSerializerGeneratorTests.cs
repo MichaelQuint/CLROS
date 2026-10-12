@@ -680,6 +680,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             "InterfaceDispatchThunkGenerator.cs",
             "ExceptionHandlingThunkGenerator.cs",
             "ExceptionFilterThunkGenerator.cs",
+            "NormalFinallyThunkGenerator.cs",
             "EhContributionCatalogGenerator.cs",
             "InstructionPublicationSerializerGenerator.cs"
         ];

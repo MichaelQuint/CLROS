@@ -1,5 +1,27 @@
 # CLROS Reference Map
 
+## NativeAOT-first implementation source index
+
+The [current roadmap](workload-profiles.md) uses the following exact loci.
+Record upstream revision, local raw SHA256, license/notice and adaptation
+boundary in the implementing ticket. These sources are guidance, not CLROS
+acceptance; do not link projects or prebuilt binaries from references.
+
+| Work | Source | Use and limitation |
+| --- | --- | --- |
+| ELF loader (M16-004) | `references/SharpOS-main/OS/src/Kernel/Elf/ElfParser.cs`, `ElfLoader.cs` | Selective C# adaptation under recorded SharpOS grant; audit startup ABI and rollback. Historical ELF does not establish Linux compatibility. |
+| ELF independent inspection (M16-001/004) | `references/elfsharp-master/ELFSharp/ELF/ELFReader.cs` | Host inspection/test vectors; its managed allocation/stream surface is unsuitable inside the freestanding loader. |
+| Linux dispatch (M16-005) | `references/SharpMetal-b29c452f7d6c/src/kernel/Posix/PosixSyscallDispatch.cs` | MIT source/design starting point. Its small dispatch and global buffers are not a complete/thread-safe Linux runtime. |
+| Thread wait/wake (M16-008) | `references/expressos-master/Source/ExpressOS.Kernel/Syscalls/Futex.cs` | Concept/tests pending exact provenance. Linux-helper delegation cannot be inherited. |
+| Scheduler tests (#183-#194) | `references/ProtonOS-c4f6db236c0c/src/kernel/Threading/Scheduler.cs`, `Thread.cs` | Independently author tests; no AGPL implementation import. Reject guessed stack/module bounds and wrong FS/GS assumptions. |
+| Continuing NIC (M07-026) | `references/SharpMetal-b29c452f7d6c/src/servers/drivers/net.virtio/VirtioNetDriver.cs` | Reuse CLROS's accepted driver groundwork first; audit all length/ownership/reset paths. |
+| Wire-format oracle (#148-#153) | `references/PacketDotNet-8752306350ee/Test/PacketType/TcpPacketTest.cs` | Independent packet vectors/checks, not a replacement live network stack. |
+| Runtime/platform contract (M16) | Official dotnet/runtime `src/coreclr/nativeaot/Runtime/unix/PalUnix.cpp`, `UnixSignals.cpp`, `src/native/libs/System.Native/pal_networking.c`; musl `src/thread/pthread_create.c` | Pin the actual shipping runtime/musl revisions in M16-001. Preserve genuine memory/thread/signal/epoll semantics, including failure paths. |
+
+The former blanket prohibition on studying a POSIX adapter is superseded
+only for the restricted M16 Linux ABI. Existing licensing/build firewalls
+and exclusions for shells, user administration and broad compatibility remain.
+
 ## Current Status
 
 The local `references/` directory contains 40 external project snapshots: the

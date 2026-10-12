@@ -32,6 +32,8 @@ public static class QemuProfiles
         bool normal = profile.BootPolicy == "VerifiedExit";
         bool build = options.BuildEfi || normal && !options.Explicit.Contains("BuildEfi");
         bool firstExit = Enabled("M03FirstRealExitBootServices");
+        Require(options.LinuxElfImageVariant is "Intact" or "DigestFault" or "Oversized", "m16_002_image_variant");
+        Require(options.LinuxElfImageVariant == "Intact" || Enabled("M16002"), "m16_002_variant_requires_profile");
         bool owned = Enabled("M03OwnedSubsystemSurvival");
         bool ownedPanic = Enabled("M03OwnedSubsystemPanic");
         bool original = build && !options.SkipImageBuild && options.M01RawObservationLog.Length == 0 && !options.RequireNativeAppMarkers;
@@ -44,7 +46,16 @@ public static class QemuProfiles
             if (forbidPresets) Require(options.MarkerPreset.Count == 0, reason + "_forbids_override parameter=MarkerPreset");
         }
         if (normal) Original("m03_normal", true, true, true);
-        if (firstExit) Original("m03_first_exit", true, true, true);
+        if (firstExit && !Enabled("M16002")) Original("m03_first_exit", true, true, true);
+        if (Enabled("M16002"))
+        {
+            Original("m16_002", false, true, true);
+            foreach (string key in new[] { "RequireOrderedMarker", "RequireUniqueMarker", "ForbidMarker" }) Require(!options.Explicit.Contains(key), "m16_002_forbids_override parameter=" + key);
+            string terminal = Enabled("M16003") ? "CLROS_M16_003_READY" : Enabled("M16004") ? "CLROS_M16_004_READY" : "CLROS_M16_002_READY";
+            Require(!options.Explicit.Contains("RequireMarker") || options.RequireMarker.All(x => x == terminal), "m16_002_marker_override");
+            Require(!Enabled("M16003") || options.LinuxElfImageVariant == "Intact", "m16_003_requires_intact_package");
+            Require(!Enabled("M16004") || options.LinuxElfImageVariant == "Intact", "m16_004_requires_intact_package");
+        }
         foreach (var item in new (string Flag, string Reason)[]
         {
             ("M03TypedExitBootServicesCall", "m03_typed_ebs"), ("M04TypeManagerModuleRegistration", "m04_type_manager"),
@@ -54,6 +65,7 @@ public static class QemuProfiles
         if (Enabled("M04CheckedReferenceBarrier")) Original("m04_checked_reference");
         if (Enabled("M04GcStaticRootMaterialization")) Original("m04_gc_static");
         if (Enabled("M04FrameDispatch")) Original("m04_frames",true,true,true);
+        if (Enabled("M04NormalFinally")) Original("m04_normal_finally",true,true,true);
         if (Enabled("M04ConstructorFailure")) Original("m04_ctor_failure",true,true,true);
         if (Enabled("M04FilteredCatch")) Original("m04_filters",true,true,true);
         if (Enabled("M04UnhandledException")) Original("m04_unhandled",true,true,true);
@@ -67,8 +79,13 @@ public static class QemuProfiles
         Require(options.M01RawObservationLog.Length == 0 || Enabled("M01OwnedPaging"), "m01_raw_observation_log_requires_owned_paging_probe");
         bool terminalProfile = Enabled("M02OwnedGdtTssTerminal") || Enabled("M02Ud2VectorState") || Enabled("M02PageFaultCr2ErrorCode") || Enabled("M02DoubleFaultIst") || Enabled("M02UnexpectedVectorPanic") || Enabled("M04UnhandledException");
         Require(options.M01RawObservationLog.Length == 0 || !terminalProfile, "m01_raw_observation_log_forbidden_terminal_profile");
-        Require(!options.Explicit.Contains("FirmwareRngSource") || Enabled("M03FirmwareEntropySeed"), "firmware_rng_source_requires_entropy_profile");
+        Require(!options.Explicit.Contains("FirmwareRngSource") || Enabled("M03FirmwareEntropySeed") || Enabled("M16004"), "firmware_rng_source_requires_entropy_profile");
         if (Enabled("M03FirmwareEntropySeed")) Require(options.FirmwareRngSource is "virtio" or "missing", "m03_firmware_entropy_requires_exact_source");
+        if (Enabled("M16004"))
+        {
+            if (!options.Explicit.Contains("FirmwareRngSource")) options.FirmwareRngSource = "virtio";
+            Require(options.FirmwareRngSource is "virtio" or "missing", "m16_004_requires_exact_entropy_source");
+        }
         if (Enabled("M02UnexpectedVectorPanic")) Require(options.MarkerPreset.Count == 0, "m02_unexpected_vector_panic_forbids_marker_preset");
         if (Enabled("AcpiPhysicalDiscovery") && !firstExit)
         {
@@ -116,6 +133,7 @@ public static class QemuProfiles
         else if (Enabled("M05VirtioNegotiation")) Select(QemuContracts.M05VirtioNegotiationMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05BarDma")) Select(QemuContracts.M05BarDmaMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05PciEnumeration")) Select(QemuContracts.M05PciEnumerationMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M16002")) Select([.. QemuContracts.M03OwnedSubsystemMarkers, "TEST_START m16-002", "M16_002_STAGED", "M16_002_DIGEST", "M16_002_PACKAGE_DIGEST", "M16_002_OWNED", "CLROS_M16_002_READY", "TEST_PASS m16-002", .. Enabled("M16004") ? QemuTranscripts.M16LinuxStartupMarkers : [], .. Enabled("M16003") ? QemuTranscripts.M16ServiceLoopMarkers : []], ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8", "M16_002_STAGE_REJECTED"], true);
         else if (owned) { Select(ownedPanic ? QemuContracts.M03OwnedSubsystemPanicMarkers : QemuContracts.M03OwnedSubsystemMarkers,
             ownedPanic ? ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "CLROS_M03_010_READY", "TEST_PASS m03.010"] : ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true); }
         else if (Enabled("M03FirmwareAdapterRevocation")) Select(QemuContracts.M03RevocationRequiredMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL"], true);
@@ -125,6 +143,7 @@ public static class QemuProfiles
         else if (Enabled("M04SingleFinallyCatch")) Select(QemuContracts.M04SingleFinallyRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04Rethrow")) Select(QemuContracts.M04RethrowRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04EhCatalog")) Select(QemuContracts.M04EhCatalogRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
+        else if (Enabled("M04NormalFinally")) Select(QemuContracts.M04NormalFinallyRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04FrameDispatch")) Select(QemuContracts.M04FrameDispatchRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04ConstructorFailure")) Select(QemuContracts.M04ConstructorFailureRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04FilteredCatch")) Select(QemuContracts.M04FilteredCatchRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
@@ -195,12 +214,15 @@ public static class QemuProfiles
         Require(required.Length != 0, "qemu_required_markers_empty");
         string[] presets = Markers(options.MarkerPreset).Select(OS.Tools.QemuRunner.SmokeMarkerPreset.Normalize).Distinct(StringComparer.Ordinal).ToArray();
         return new(profile.BootPolicy, profile.Flags, Array.AsReadOnly(required), Array.AsReadOnly(ordered), Array.AsReadOnly(unique),
-            Array.AsReadOnly(forbidden), Array.AsReadOnly(presets), build, normal || firstExit || Enabled("M02OwnedGdtTssTerminal") || Enabled("M04X64UnwindMetadata") || Enabled("M04UnhandledException") || Enabled("M04FrameDispatch") || Enabled("M04ConstructorFailure") || Enabled("M04FilteredCatch"));
+            Array.AsReadOnly(forbidden), Array.AsReadOnly(presets), build, normal || firstExit || Enabled("M02OwnedGdtTssTerminal") || Enabled("M04X64UnwindMetadata") || Enabled("M04UnhandledException") || Enabled("M04FrameDispatch") || Enabled("M04NormalFinally") || Enabled("M04ConstructorFailure") || Enabled("M04FilteredCatch"));
     }
 
     private static readonly (string Flag, string Pattern, string Reason)[] Ownership =
     [
         ("NormalBoot", @"^(CLROS_M03_011_READY|TEST_(START|PASS) m03\.011)", "m03_normal"),
+        ("M16002", @"^(M16_002_|CLROS_M16_002_READY|TEST_(START|PASS) m16-002)", "m16_002"),
+        ("M16003", @"^(M16_003_|CLROS_M16_003_READY|TEST_(START|PASS) m16-003)", "m16_003"),
+        ("M16004", @"^(M16_004_|CLROS_M16_004_READY|TEST_(START|PASS) m16-004)", "m16_004"),
         ("M03FirstRealExitBootServices", @"^(M03_EBS_|M03_PERMANENT_|M03_POST_EBS_|CLROS_M03_007|TEST_(START|PASS) m03\.00[79])", "m03_first_exit"),
         ("M03OwnedSubsystemSurvival", @"^(M03_OWNED|CLROS_M03_010|TEST_(START|PASS) m03\.010)", "m03_owned"),
         ("M03FirmwareAdapterRevocation", @"^(M03_ADAPTER_|CLROS_M03_008|TEST_(START|PASS) m03\.008)", "m03_revocation"),
@@ -214,6 +236,7 @@ public static class QemuProfiles
         ("M04SingleFinallyCatch", @"^(M04_FINALLY|CLROS_M04_SINGLE_FINALLY|TEST_(START|PASS) m04\.021\.single-finally)", "m04_single_finally"),
         ("M04Rethrow", @"^(M04_RETHROW|CLROS_M04_RETHROW_READY|TEST_(START|PASS) m04\.021\.rethrow)", "m04_rethrow"),
         ("M04FrameDispatch", @"^(M04_FRAMES|CLROS_M04_021_FRAMES_READY|TEST_(START|PASS) m04\.021\.frames)", "m04_frames"),
+        ("M04NormalFinally", @"^(M04_NORMAL_FINALLY|CLROS_M04_021_NORMAL_FINALLY_READY|TEST_(START|PASS) m04\.021\.normal-finally)", "m04_normal_finally"),
         ("M04EhCatalog", @"^(M04_EH_CATALOG|M04_CALLER_WINDOW|CLROS_M04_EH_CATALOG_READY)", "m04_eh_catalog"),
         ("M04ConstructorFailure", @"^(M04_CTOR_FAILURE|CLROS_M04_021_CTOR_FAILURE_READY|TEST_(START|PASS) m04\.021\.ctor-failure)", "m04_ctor_failure"),
         ("M04FilteredCatch", @"^(M04_FILTERS|CLROS_M04_021_FILTERS_READY|TEST_(START|PASS) m04\.021\.filters)", "m04_filters"),

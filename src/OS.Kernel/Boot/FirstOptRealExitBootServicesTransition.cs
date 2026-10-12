@@ -2,6 +2,9 @@ using OS.Kernel.Platform;
 using OS.Kernel.Diagnostics;
 using OS.Kernel.Memory;
 using OS.Std.Hash;
+#if M16_004_PROBE
+using OS.Kernel.Compatibility.LinuxX64;
+#endif
 
 namespace OS.Boot;
 
@@ -16,7 +19,13 @@ public struct FirstExitImageReferences
     // Optional in host-only compositions. The EFI adapter must retain its
     // original installed NativeAOT stack-probe page, outside the loaded image.
     public ulong RuntimeSupportCode, RuntimeSupportCodeBytes;
-#if M05_MONOTONIC_CLOCK_PROBE
+#if M16_002_PROBE
+    public ulong LinuxPackageStart, LinuxPackagePages;
+#endif
+#if M16_004_PROBE
+    public ulong LinuxBackingStart, LinuxBackingPages, LinuxUserTablesStart, LinuxUserTablePages;
+#endif
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
     // Original retained ACPI HPET GAS, admitted against the owned firmware map.
     public ulong HpetDevicePage;
 #endif
@@ -232,10 +241,16 @@ public static unsafe class FirstExitRetainedMappings
 {
     public const ulong MaximumRanges = FirstExitImageMappings.MaximumSections + 1 +
         FirstExitOwnedArena.MappingRangeCount + 3
+#if M16_002_PROBE
+        + 1
+#endif
+#if M16_004_PROBE
+        + 2
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
         + 1
 #endif
-#if M05_MONOTONIC_CLOCK_PROBE || M05_PCI_ENUMERATION_PROBE
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M05_PCI_ENUMERATION_PROBE
         + 1
 #endif
 #if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
@@ -252,7 +267,13 @@ public static unsafe class FirstExitRetainedMappings
 #endif
         ;
     private const int MaximumAllocations = 6
-#if M05_PHYSICAL_MAPPING_PROBE || M05_MONOTONIC_CLOCK_PROBE || M05_PCI_ENUMERATION_PROBE
+#if M16_002_PROBE
+        + 1
+#endif
+#if M16_004_PROBE
+        + 2
+#endif
+#if M05_PHYSICAL_MAPPING_PROBE || M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M05_PCI_ENUMERATION_PROBE
         + 1
 #endif
 #if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
@@ -328,6 +349,22 @@ public static unsafe class FirstExitRetainedMappings
         starts[4] = root; lengths[4] = tables.ArenaPageCount * 4096;
         int allocations = references.RuntimeSupportCode == 0 ? 5 : 6;
         starts[5] = references.RuntimeSupportCode; lengths[5] = references.RuntimeSupportCodeBytes;
+#if M16_002_PROBE
+        if (references.RuntimeSupportCode == 0 || references.LinuxPackageStart < 4096 ||
+            (references.LinuxPackageStart & 4095) != 0 || references.LinuxPackagePages == 0 || references.LinuxPackagePages > 4096 ||
+            references.LinuxPackageStart >= LowEnd - references.LinuxPackagePages * 4096) return false;
+        starts[6] = references.LinuxPackageStart; lengths[6] = references.LinuxPackagePages * 4096; allocations = 7;
+#endif
+#if M16_004_PROBE
+        if (references.LinuxBackingStart < 4096 || (references.LinuxBackingStart & 4095) != 0 ||
+            references.LinuxBackingPages == 0 || references.LinuxBackingPages > 4096 ||
+            references.LinuxBackingStart > 0x100000000UL - references.LinuxBackingPages * 4096 ||
+            references.LinuxUserTablesStart < 4096 || (references.LinuxUserTablesStart & 4095) != 0 ||
+            references.LinuxUserTablePages != X64UserAddressSpace.MaximumTables ||
+            references.LinuxUserTablesStart > 0x100000000UL - references.LinuxUserTablePages * 4096) return false;
+        starts[allocations] = references.LinuxBackingStart; lengths[allocations++] = references.LinuxBackingPages * 4096;
+        starts[allocations] = references.LinuxUserTablesStart; lengths[allocations++] = references.LinuxUserTablePages * 4096;
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
         if (references.RuntimeSupportCode == 0 || references.MappingScratchBacking < 0x100000 ||
             (references.MappingScratchBacking & 4095) != 0 || references.MappingScratchBackingPages != 1023 ||
@@ -338,10 +375,10 @@ public static unsafe class FirstExitRetainedMappings
         starts[6] = references.MappingScratchBacking; lengths[6] = 1023 * 4096;
         allocations = 7;
 #endif
-#if M05_MONOTONIC_CLOCK_PROBE
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
         if (references.RuntimeSupportCode == 0 || references.HpetDevicePage < 0x100000 ||
             references.HpetDevicePage > 0xfffff000 || (references.HpetDevicePage & 4095) != 0) return false;
-        starts[6] = references.HpetDevicePage; lengths[6] = 4096; allocations = 7;
+        starts[allocations] = references.HpetDevicePage; lengths[allocations++] = 4096;
 #endif
 #if M05_PCI_ENUMERATION_PROBE
         if (references.RuntimeSupportCode == 0 || references.EcamStart < 0x100000 ||
@@ -373,10 +410,17 @@ public static unsafe class FirstExitRetainedMappings
         pending[count++] = new SeparatePageFaultMappingRange((ulong)code, FirstExitCodeBundle.Bytes / 4096, Code);
         pending[count++] = allocator;
         if (references.RuntimeSupportCode != 0) pending[count++] = new SeparatePageFaultMappingRange(references.RuntimeSupportCode, 1, Code);
+#if M16_002_PROBE
+        pending[count++] = new SeparatePageFaultMappingRange(references.LinuxPackageStart, references.LinuxPackagePages, PageProtection.Read);
+#endif
+#if M16_004_PROBE
+        pending[count++] = new SeparatePageFaultMappingRange(references.LinuxBackingStart, references.LinuxBackingPages, Data);
+        pending[count++] = new SeparatePageFaultMappingRange(references.LinuxUserTablesStart, references.LinuxUserTablePages, Data);
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.MappingScratchStart, 512, Data);
 #endif
-#if M05_MONOTONIC_CLOCK_PROBE
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.HpetDevicePage, 1, Data, PageCachePolicy.Uncached);
 #endif
 #if M05_PCI_ENUMERATION_PROBE
@@ -431,8 +475,11 @@ public static unsafe class FirstExitCodeBundle
     public const uint FaultOffset = 4096;
     public const uint Out8Offset = 4352;
     public const uint In8Offset = 4368;
-#if M05_MONOTONIC_CLOCK_PROBE
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
     public const uint ClockAccessOffset = 4608;
+#endif
+#if M16_004_PROBE
+    public const uint LinuxReadBackOffset = 4800;
 #endif
 #if M05_PCI_ENUMERATION_PROBE
     public const uint PciReadOffset = 4608;
@@ -472,8 +519,11 @@ public static unsafe class FirstExitCodeBundle
             PortIoStubPlan.In8.Emit(code + In8Offset, PortIoStubPlan.In8RequiredByteLength).Succeeded &&
             FirstExitOwnedStackStub.Emit(code + StackEntryOffset, PermanentOffset - StackEntryOffset, out _) &&
             FirstExitPermanentCr3Stub.Emit(code + PermanentOffset, Bytes - PermanentOffset, out _) &&
-#if M05_MONOTONIC_CLOCK_PROBE
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
             X64OwnedClockAccess.Emit(code + ClockAccessOffset, StackEntryOffset - ClockAccessOffset) &&
+#endif
+#if M16_004_PROBE
+            X64LinuxElfReadBackBridge.Emit(code + LinuxReadBackOffset, StackEntryOffset - LinuxReadBackOffset) &&
 #endif
 #if M05_PCI_ENUMERATION_PROBE
             OS.Drivers.X64PciConfigurationRead.Emit(code + PciReadOffset, StackEntryOffset - PciReadOffset) &&
@@ -571,8 +621,11 @@ public static unsafe class FirstExitCodeBundle
             !Equal(scratch, code + StackEntryOffset, entryBytes) ||
             !FirstExitPermanentCr3Stub.Emit(scratch, 1024, out uint permanentBytes) ||
             !Equal(scratch, code + PermanentOffset, permanentBytes)) return false;
-#if M05_MONOTONIC_CLOCK_PROBE
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
         if (!X64OwnedClockAccess.Validate(code + ClockAccessOffset, X64OwnedClockAccess.Bytes)) return false;
+#endif
+#if M16_004_PROBE
+        if (!X64LinuxElfReadBackBridge.Validate(code + LinuxReadBackOffset, X64LinuxElfReadBackBridge.Bytes)) return false;
 #endif
 #if M05_PCI_ENUMERATION_PROBE
         if (!OS.Drivers.X64PciConfigurationRead.Validate(code + PciReadOffset, OS.Drivers.X64PciConfigurationRead.Bytes)) return false;
@@ -600,8 +653,11 @@ public static unsafe class FirstExitCodeBundle
         for (uint index = 4096; index < Bytes; index++)
             if (!Inside(index, FaultOffset, faultBytes) && !Inside(index, Out8Offset, PortIoStubPlan.Out8RequiredByteLength) &&
                 !Inside(index, In8Offset, PortIoStubPlan.In8RequiredByteLength) && !Inside(index, StackEntryOffset, entryBytes) &&
-#if M05_MONOTONIC_CLOCK_PROBE
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
                 !Inside(index, ClockAccessOffset, X64OwnedClockAccess.Bytes) &&
+#endif
+#if M16_004_PROBE
+                !Inside(index, LinuxReadBackOffset, X64LinuxElfReadBackBridge.Bytes) &&
 #endif
 #if M05_PCI_ENUMERATION_PROBE
                 !Inside(index, PciReadOffset, OS.Drivers.X64PciConfigurationRead.Bytes) &&

@@ -1,5 +1,30 @@
 # Issue Labels
 
+## Current NativeAOT-first workflow
+
+Canonical target is now `http://192.168.4.35:3000/admin/CLROS`, repository ID9.
+The compiled synchronizer verifies identity before any tracker write, uses
+secure environment credentials (including CODEX_GITEA_USERNAME/PASSWORD),
+and rejects other endpoints. The previous loopback-only description below is
+historical. No credentials belong in manifests or command lines.
+
+M16 is the NativeAOT Linux ABI foundation, feeding M10 first-web and M14 local
+multi-process qualification. Milestone numbers do not define execution order.
+Use `docs/workload-profiles.md` for the architecture and source index.
+For a scoped change use:
+
+```text
+dotnet run --project tools/OS.Tooling -- backlog sync --issuekeys M16-001
+dotnet run --project tools/OS.Tooling -- backlog sync --issuekeys M16-001 --apply
+```
+
+Selection limits issue writes while retaining the complete dependency and
+ownership graph; relevant label/milestone definitions are reconciled too.
+Reviewed closure evidence still gates status. Declared closed historical
+ownership no longer reserves files forever; open/reopen work must remain
+collision-safe. Run a second preview and require zero proposed changes.
+Do not bulk-apply unrelated historical body changes when updating one batch.
+
 ## Current Status
 
 The October 8 M03 reconciliation in [step1095](../done/step1095.md) aligns

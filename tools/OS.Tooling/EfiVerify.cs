@@ -87,7 +87,7 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
         responseTimer.Stop();
         List<string> names = [.. EfiContracts.EvidenceProperties];
         foreach (string prefix in NativeObjectPrefixes()) foreach (string suffix in new[] { "LinkedObjectPath", "ObjectPath", "ObjectBytes", "ObjectSha256" }) names.Add(prefix + suffix);
-        if (profile.IsEnabled("M04EhCatalog")) foreach (string prefix in new[] { "ehCatalog", "ehCatalogIlc", "ehCatalogMap" })
+        if (profile.IsEnabled("M04EhCatalog") || profile.IsEnabled("M04NormalFinally")) foreach (string prefix in new[] { "ehCatalog", "ehCatalogIlc", "ehCatalogMap" })
             foreach (string suffix in new[] { "LinkedObjectPath", "ObjectPath", "ObjectBytes", "ObjectSha256" }) names.Add(prefix + suffix);
         foreach (string name in names) Require(evidence.ContainsKey(name), "link_evidence_property_missing", "property=" + name);
         Shape(evidence, names, "link_evidence_property_set_invalid");
@@ -143,6 +143,7 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
         if (profile.IsEnabled("M04SimpleThrowCatch")) yield return "simpleCatch";
         if (profile.IsEnabled("M04SingleFinallyCatch")) yield return "singleFinally";
         if (profile.IsEnabled("M04Rethrow")) { yield return "rethrowInner"; yield return "rethrowOuter"; }
+        if (profile.IsEnabled("M04NormalFinally")) yield return "normalFinally";
         if (profile.IsEnabled("M04FrameDispatch")) yield return "frameDispatch";
         if (profile.IsEnabled("M04FilteredCatch")) { yield return "filteredCatch"; yield return "filterInvoke"; }
         if (profile.IsEnabled("M04ConstructorFailure")) yield return "constructorFailure";
@@ -248,8 +249,9 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
         if (profile.IsEnabled("M04InterfaceDispatch")) includes.AddRange(["RhpInitialDynamicInterfaceDispatch", "CLROS_InterfaceDispatch_GetCellSection", "CLROS_InterfaceDispatch_GetInitialStub"]);
         if (profile.IsEnabled("M04SimpleThrowCatch") || profile.IsEnabled("M04SingleFinallyCatch")) includes.AddRange(["RhpThrowEx", "CLROS_Eh_GetClauseTable"]);
         if (profile.IsEnabled("M04Rethrow")) includes.AddRange(["RhpThrowEx", "RhpRethrow", "CLROS_Rethrow_InnerClauses", "CLROS_Rethrow_OuterClauses"]);
+        if (profile.IsEnabled("M04NormalFinally")) includes.AddRange(["RhpThrowEx","CLROS_NormalFinally_Clauses","RhTypeCast_IsInstanceOfException"]);
         if (profile.IsEnabled("M04FrameDispatch")) includes.AddRange(["RhpThrowEx","CLROS_Frame_CatcherClauses","CLROS_Frame_MiddleClauses","RhTypeCast_IsInstanceOfException"]);
-        if (profile.IsEnabled("M04EhCatalog")) includes.AddRange(["CLROS_Eh_CatalogStart","CLROS_Eh_CatalogEnd","CLROS_Eh_Contributions","CLROS_Eh_ContributionsEnd"]);
+        if (profile.IsEnabled("M04EhCatalog") || profile.IsEnabled("M04NormalFinally")) includes.AddRange(["CLROS_Eh_CatalogStart","CLROS_Eh_CatalogEnd","CLROS_Eh_Contributions","CLROS_Eh_ContributionsEnd"]);
         if (profile.IsEnabled("M04FilteredCatch")) includes.AddRange(["RhpThrowEx","CLROS_Filter_Clauses","CLROS_Filter_Invoke","RhTypeCast_IsInstanceOfClass"]);
         if (profile.IsEnabled("M04ConstructorFailure")) includes.AddRange(["RhpThrowEx","CLROS_CctorFailure_InvokeClauses","CLROS_CctorFailure_OuterClauses","RhTypeCast_IsInstanceOfException"]);
         if (profile.IsEnabled("M04NestedFinallyCatch")) includes.AddRange(["RhpThrowEx","CLROS_Nested_Clauses"]);

@@ -1,9 +1,14 @@
 # Boot Order
 
-`BootSequence.IsEhCatalogEnabled()` requires both catalog and physical-frame
-switches. The modifier retains `RunFrameDispatchUnwind` and the existing phase
-order. [step1184](../done/step1184.md) qualifies the finite two-caller diagnostic, with no new
-boot phase or general dispatcher. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+`BootSequence.StageLinuxElfPackage` and `RunOwnedLinuxElfPackage` are explicit
+default-off M16-002 boundaries. Firmware staging precedes the final map/exit
+window; owned verification follows original post-exit subsystem checks and requires
+revoked firmware authority. See [step1199](../done/step1199.md) for accepted
+staging evidence. No application entry phase is added.
+
+`BootSequence.IsEhCatalogEnabled()` requires catalog and physical-frame switches.
+The caller-window modifier keeps the existing phase order and legacy unwind path;
+no new phase is introduced. [step1187](../done/step1187.md) qualifies the finite three-context diagnostic. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
 
 `RunFilteredCatchUnwind` is gated by `EnableM04FilteredCatchProbe` and returns a
 zero result when disabled. The separate collecting-GC Diagnostic child uses the

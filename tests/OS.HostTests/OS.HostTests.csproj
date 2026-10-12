@@ -20,7 +20,7 @@
 		<Compile Include="..\..\src\OS\Runtime\ExceptionRethrowProbe.cs" Link="EfiAdapters\ExceptionRethrowProbe.cs" />
 		<ProjectReference Include="..\..\tools\OS.Tooling\OS.Tooling.csproj" />
 		<ProjectReference Include="..\..\src\OS.Kernel\OS.Kernel.csproj" />
-		<ProjectReference Include="..\..\std\no-runtime\shared\OS.Std.NoRuntime.Shared.csproj" />
+		<ProjectReference Include="..\..\src\OS.Std.NoRuntime.Shared\OS.Std.NoRuntime.Shared.csproj" />
 		<ProjectReference Include="..\..\tools\OS.ImageBuilder\OS.ImageBuilder.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
 		<ProjectReference Include="..\..\tools\OS.LibvirtRunner\OS.LibvirtRunner.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />
 		<ProjectReference Include="..\..\tools\OS.ManifestTool\OS.ManifestTool.csproj" ReferenceOutputAssembly="false" PrivateAssets="all" />

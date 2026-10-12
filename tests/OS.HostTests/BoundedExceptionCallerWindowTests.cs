@@ -215,7 +215,7 @@ internal static unsafe class BoundedExceptionCallerWindowTests
         int cleared = Math.Min(16, rows.Length); Zero(rows.Slice(0, cleared)); Tail(rows, cleared);
     }
 
-    private sealed class Fixture : IDisposable
+    internal sealed class Fixture : IDisposable
     {
         internal const int ImageBytes = 0x8000;
         internal const ulong Capacity = 0x4000, StackBytes = 0x800;

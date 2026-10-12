@@ -201,6 +201,36 @@ public enum NativeAppArgumentHandoffReadinessStatus
 #endif
 public static class BootSequence
 {
+    public static unsafe bool StageLinuxElfPackage(bool firmwareAvailable, void* context, delegate*<void*, bool> stage) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16002Probe && firmwareAvailable && context != null && stage != null && stage(context);
+
+    public static unsafe bool RunOwnedLinuxElfPackage(bool ownedChecksComplete, bool firmwareRevoked,
+        void* context, delegate*<void*, bool> verify) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16002Probe && ownedChecksComplete && firmwareRevoked && context != null && verify != null && verify(context);
+
+    public static bool IsWorkloadServiceLoopEnabled() =>
+        OS.Kernel.Diagnostics.Probes.EnableM16003Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe;
+
+    /// <summary>
+    /// One explicit owned service boundary after package verification and revoked
+    /// firmware authority. The caller retains its context and callback lifetime;
+    /// disabled or incomplete admission returns false without invoking the callback.
+    /// </summary>
+    public static unsafe bool RunOwnedWorkloadServiceLoop(bool packageReady, bool firmwareRevoked,
+        void* context, delegate*<void*, bool> run) =>
+        IsWorkloadServiceLoopEnabled() && packageReady && firmwareRevoked && context != null && run != null && run(context);
+
+    /// <summary>Prepare startup only while the staged parent has firmware authority.</summary>
+    public static unsafe bool PrepareLinuxElfStartup(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16004Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe &&
+        firmwareAvailable && context != null && prepare != null && prepare(context);
+
+    /// <summary>Run startup only after package verification and firmware revocation.</summary>
+    public static unsafe bool RunOwnedLinuxElfStartup(bool packageReady, bool firmwareRevoked,
+        void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16004Probe && OS.Kernel.Diagnostics.Probes.EnableM16002Probe &&
+        packageReady && firmwareRevoked && context != null && run != null && run(context);
+
     /// <summary>
     /// Terminal boot boundary, after the original M01 allocator and copied
     /// ACPI. The ordinary policy defers success markers until owned post-exit checks.
@@ -289,6 +319,18 @@ public static class BootSequence
         byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity,
         byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
         IsUnhandledExceptionEnabled()
+            ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
+                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, capture, mapping,
+                owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
+            : default;
+
+    public static bool IsNormalFinallyEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04NormalFinallyProbe;
+
+    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunNormalFinallyUnwind(
+        OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping,
+        byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity,
+        byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
+        IsNormalFinallyEnabled()
             ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
                 OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, capture, mapping,
                 owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)

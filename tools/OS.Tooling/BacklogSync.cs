@@ -7,41 +7,6 @@ using static OS.Tooling.BacklogManifest;
 
 namespace OS.Tooling;
 
-public sealed record BacklogSyncOptions
-{
-    public bool Apply { get; init; }
-    public bool Offline { get; init; }
-    public bool SelfTest { get; init; }
-    public string ManifestPath { get; init; } = "";
-    public string BaseUrl { get; init; } = BacklogContracts.BaseUrl;
-    public string Owner { get; init; } = BacklogContracts.Owner;
-    public string Repository { get; init; } = BacklogContracts.Repository;
-    public static BacklogSyncOptions Parse(string[] args)
-    {
-        BacklogSyncOptions value = new();
-        for (int i = 0; i < args.Length; i++)
-        {
-            string Next() => ++i < args.Length ? args[i] : throw new ArgumentException("missing_option_value");
-            value = CommandOptions.Key(args[i]) switch
-            {
-                "apply" => value with { Apply = true }, "offline" => value with { Offline = true }, "selftest" => value with { SelfTest = true },
-                "manifestpath" => value with { ManifestPath = Next() }, "baseurl" => value with { BaseUrl = Next() },
-                "owner" => value with { Owner = Next() }, "repository" => value with { Repository = Next() },
-                _ => throw new ArgumentException("unknown_option " + args[i])
-            };
-        }
-        value.Validate(); return value;
-    }
-    public void Validate()
-    {
-        if (BaseUrl.TrimEnd('/') != BacklogContracts.BaseUrl || Owner != BacklogContracts.Owner || Repository != BacklogContracts.Repository)
-            throw new ArgumentException("Refusing non-canonical target. Expected " + BacklogContracts.BaseUrl + "/" + BacklogContracts.Owner + "/" + BacklogContracts.Repository + ".");
-        if (Apply && (Offline || SelfTest)) throw new ArgumentException("offline/self-test cannot be combined with apply");
-    }
-}
-
-public delegate Task<JsonNode?> BacklogApi(string method, string path, JsonObject? body, CancellationToken cancellation);
-
 /// <summary>Manifest-driven reconciliation. Remote writes occur only with an explicit --apply option.</summary>
 public static class BacklogSync
 {
@@ -63,6 +28,11 @@ public static class BacklogSync
             {
                 BacklogSelfTest.Run(manifest, output);
                 output.WriteLine("TEST_PASS gitea.backlog.sync"); return 0;
+            }
+            if (options.IssueKeys.Length != 0)
+            {
+                manifest = manifest.SelectIssues(options.IssueKeys);
+                output.WriteLine("SYNC_SELECTION " + string.Join(',', manifest.Issues.Select(x => Text(x, "key"))));
             }
             output.WriteLine("SYNC_MODE " + (options.Apply ? "apply" : "preview"));
             if (options.Offline)
@@ -90,6 +60,10 @@ public static class BacklogSync
     public static async Task<BacklogRemoteState> ReadRemoteAsync(BacklogManifest manifest, BacklogApi api, TextWriter output, CancellationToken cancellation)
     {
         BacklogRemoteState state = new();
+        var repository = await api("GET", RepoPath, null, cancellation);
+        if (Number(repository, "id") != BacklogContracts.RepositoryId || Text(repository, "full_name") != "admin/CLROS")
+            throw new InvalidDataException("Refusing tracker repository identity mismatch.");
+        output.WriteLine("SYNC_REPOSITORY_VERIFIED id=9 full_name=admin/CLROS");
         foreach (var item in await CollectionAsync(api, RepoPath + "/labels", cancellation))
             if (!state.Labels.TryAdd(Text(item, "name"), item)) throw new InvalidDataException("Remote tracker contains duplicate label names");
         foreach (var item in await CollectionAsync(api, RepoPath + "/milestones?state=all", cancellation))
@@ -105,7 +79,7 @@ public static class BacklogSync
             if (key.Length != 0 && !state.Issues.TryAdd(key, item)) throw new InvalidDataException("Remote tracker contains duplicate hidden key '" + key + "' on more than one issue.");
         }
         int requested = 0;
-        foreach (var issue in manifest.Issues)
+        foreach (var issue in manifest.IssueByKey.Values)
         {
             string key = Text(issue, "key");
             if (Text(issue, "desiredState") != "closed" || !state.Issues.TryGetValue(key, out var live)) continue;
@@ -287,6 +261,11 @@ public static class BacklogSync
         else
         {
             string? username = Environment.GetEnvironmentVariable("CLROS_GITEA_USERNAME"), password = Environment.GetEnvironmentVariable("CLROS_GITEA_PASSWORD");
+            if (string.IsNullOrWhiteSpace(username) && string.IsNullOrWhiteSpace(password))
+            {
+                username = Environment.GetEnvironmentVariable("CODEX_GITEA_USERNAME");
+                password = Environment.GetEnvironmentVariable("CODEX_GITEA_PASSWORD");
+            }
             if (!string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password)) client.DefaultRequestHeaders.Authorization = new("Basic", Convert.ToBase64String(Encoding.UTF8.GetBytes(username + ":" + password)));
             else if (requireAuthentication) { client.Dispose(); throw new InvalidOperationException("Authenticated Gitea access is required for --apply. Configure the local-gitea tea login or set CLROS_GITEA_TOKEN."); }
         }
@@ -317,7 +296,7 @@ public static class BacklogSync
     private static string Scalar(string value) => value.Length >= 2 && (value[0] == '"' && value[^1] == '"' || value[0] == '\'' && value[^1] == '\'') ? value[1..^1] : value;
     private static async Task<JsonNode?> SendAsync(HttpClient client, string method, string path, JsonObject? body, CancellationToken cancellation)
     {
-        if (method is not ("GET" or "POST" or "PUT" or "PATCH") || !path.StartsWith(RepoPath + "/", StringComparison.Ordinal) || path.Contains("..", StringComparison.Ordinal)) throw new InvalidOperationException("Invalid Gitea request scope");
+        if (method is not ("GET" or "POST" or "PUT" or "PATCH") || !(path.StartsWith(RepoPath + "/", StringComparison.Ordinal) || method == "GET" && path == RepoPath) || path.Contains("..", StringComparison.Ordinal)) throw new InvalidOperationException("Invalid Gitea request scope");
         using HttpRequestMessage request = new(new HttpMethod(method), new Uri(BacklogContracts.BaseUrl + "/api/v1" + path));
         if (body is not null) request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json");
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellation);

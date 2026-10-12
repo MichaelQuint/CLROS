@@ -69,7 +69,10 @@ internal static class BootReservationTableValidatorTests
             ("Cr3TransitionStub", BootReservationKind.Cr3TransitionStub, 11),
             ("BootHandoff", BootReservationKind.BootHandoff, 12),
             ("FramebufferMetadata", BootReservationKind.FramebufferMetadata, 13),
-            ("PageProtectionProbe", BootReservationKind.PageProtectionProbe, 14)
+            ("PageProtectionProbe", BootReservationKind.PageProtectionProbe, 14),
+            ("LinuxElfPackage", BootReservationKind.LinuxElfPackage, 15),
+            ("LinuxElfBacking", BootReservationKind.LinuxElfBacking, 16),
+            ("LinuxElfUserTables", BootReservationKind.LinuxElfUserTables, 17)
         ];
 
         if (Enum.GetUnderlyingType(typeof(BootReservationKind)) != typeof(byte))
@@ -354,7 +357,7 @@ internal static class BootReservationTableValidatorTests
             1,
             out BootReservedRange uninitializedKindRange);
         BootReservedRangeStatus unknownKind = BootReservedRange.TryCreate(
-            (BootReservationKind)15,
+            (BootReservationKind)0xfe,
             aligned,
             1,
             out BootReservedRange unknownKindRange);
@@ -415,7 +418,7 @@ internal static class BootReservationTableValidatorTests
         (BootReservedRange Range, BootReservedRangeStatus Expected)[] cases =
         [
             (default, BootReservedRangeStatus.UninitializedKind),
-            (Raw((BootReservationKind)15, start, end, 1, 4096), BootReservedRangeStatus.UnknownKind),
+            (Raw((BootReservationKind)0xfe, start, end, 1, 4096), BootReservedRangeStatus.UnknownKind),
             (Raw(BootReservationKind.LoadedImage, default, end, 1, 4096), BootReservedRangeStatus.InvalidPhysicalStart),
             (Raw(BootReservationKind.LoadedImage, UnalignedAddress(0x1001), end, 1, 4096), BootReservedRangeStatus.MisalignedPhysicalStart),
             (Raw(BootReservationKind.LoadedImage, start, end, 0, 0), BootReservedRangeStatus.InvalidPageCount),

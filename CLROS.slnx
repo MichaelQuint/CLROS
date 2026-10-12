@@ -9,11 +9,7 @@
   <Folder Name="/src/">
     <Project Path="src/OS.Kernel/OS.Kernel.csproj" />
     <Project Path="src/OS/OS.csproj" />
-  </Folder>
-  <Folder Name="/std/" />
-  <Folder Name="/std/no-runtime/" />
-  <Folder Name="/std/no-runtime/shared/">
-    <Project Path="std/no-runtime/shared/OS.Std.NoRuntime.Shared.csproj" />
+    <Project Path="src/OS.Std.NoRuntime.Shared/OS.Std.NoRuntime.Shared.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OS.HostTests/OS.HostTests.csproj" />

@@ -1,5 +1,12 @@
 # License and Provenance Audit
 
+The NativeAOT-first architecture permits pinned upstream runtime/libc/native
+dependencies built outside first-party kernel/std/apps and packaged with app
+payloads. This does not waive per-component notices, source obligations or
+the reference-build firewall. M16-001 must record exact compiler/runtime/musl
+and native dependency versions, immutable sources and hashes; M16-002 carries
+that provenance into the image. No upstream native source is imported here.
+
 ## Current Status
 
 The project owner has authorized agents to inspect and use the reference

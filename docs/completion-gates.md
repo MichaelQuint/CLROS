@@ -1,20 +1,86 @@
 # CLROS Completion Gates
 
-The #662/#663/#664 caller-window candidate is implemented in [step1185](../done/step1185.md).
-Seven independent mapped-input checks, focused catalog checks and closed-gate native
-review pass. Complete full-host and fresh guest qualification are pending; these
-issues and parent #90 remain open. The existing catalog Diagnostic now assembles
-its finite window through `BoundedExceptionCallerWindow`; general EH is unchanged.
+M16-001/#679 host payload qualification is accepted in
+[step1198](../done/step1198.md): three real static Linux x64 NativeAOT payloads,
+upstream GC/EH/thread/TLS/timer exercise and real Kestrel HTTP/config/shutdown
+on the Linux builder, with exact source/native/ELF/auxv/trace evidence and a
+bounded source/error-path inventory. This completes the host feasibility slice
+only. No numbered gate changes and no CLROS application/runtime/Kestrel execution
+is proven; continuing services and ELF entry remain required.
 
-#658/#659/#660 are qualified in [step1184](../done/step1184.md) at frozen source `b1da5a7`:
-4525 full-host checks across 586 groups (92 Native), zero failures/timeouts/reuse and
-unchanged inputs; 21 hostile native controls; three byte-identical 92-record
-catalog guests and twelve ancestors. The producer retains exact original
-compiler code/EH bounds and fixups; whole-table lookup rejects hostile rows
-before exposing a match. The existing diagnostic consumes those bounds for two
-real callers, one cleanup, same rooted typed catch and compiled continuation.
-Measured parent/funclet ABI offsets remain finite-profile guards. Lookup acquires
-no module, mapping, roots, stack or transfer authority. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+M16-002/#680 staging is qualified in [step1199](../done/step1199.md). Three
+final-source guests pass exact package/ELF digest checks and read-only/NX data
+retention after real exit, with two closed file handles and a validated ledger.
+All 4,565 full-host checks across 594 groups (94 Native), two pre-exit rejection
+controls and two affected boot regressions pass with unchanged inputs and no
+failures/timeouts/reuse. No ELF entry, continuing workload,
+Linux syscall execution or numbered gate completion is claimed.
+
+## NativeAOT-first gate interpretation (2026-10-12)
+
+M16-003/#681 and M16-004/#682 are qualified in
+[step1200](../done/step1200.md): bounded timed service, copied-capability denial,
+ELF copy/BSS checks, Linux entry-stack construction, user/supervisor page tables
+and a fixed CR3 read-back bridge. Focused host checks and combined EFI C# compilation
+pass. Final full-host qualification passes 4,603 checks across 601 groups
+(94 Native), with a complete/successful/unchanged-input receipt and zero reuse.
+Native review, live timing/mapping read-back, three combined package guests,
+standalone children, five affected ancestors and missing-RNG rollback pass.
+This accepts the bounded slices; no numbered gate advances. ELF entry, thread
+TLS, application syscalls, guest GC/EH and CLROS Kestrel remain unproved.
+
+The [workload decision](workload-profiles.md) changes implementation order,
+not evidence status. M16 qualifies the Linux ELF/upstream NativeAOT foundation;
+M10 then qualifies local `SingleMinimalApi` Kestrel; M14 qualifies two isolated
+local apps before AWS/Azure. CoreCLR is a later independent hosted target.
+General custom kernel EH/Gate4 is not a blanket dependency for the separate
+upstream application runtime. Kernel paths still require their own supported
+runtime operations. No existing gate changes to Pass in this migration.
+Historical CoreCLR/TPA wording below applies to that future route; NativeAOT
+acceptance must satisfy the explicit first-web contract in workload profiles.
+
+#674–#676 qualify one default-off `EnableM04NormalFinallyProbe` Diagnostic in
+[step1195](../done/step1195.md) at frozen source `6acb593`: one compiler-called
+finally throws the original rooted exception, own-funclet unwind recovers the
+same-root parent, and the outer typed catch reaches the original compiled
+continuation. Already exited/earlier clauses are skipped in both dispatch passes.
+The live parent-local witness, exactly-one counters, full required GP/XMM and
+Win64 control state, seven stack checks and original canaries pass. The explicit
+root remains retained through continuation; expired parent locals are not read.
+
+4,546 full-host checks across 592 groups (94 Native) have a complete/successful/
+unchanged-input receipt, zero failures/timeouts/reuse and terminal
+`TEST_PASS host.tests`. Current review covers 170 callback nodes, seven indirect
+sites, 13 bounded body allocations and 57 targets in five readonly switch tables;
+the first-party bound is 14,592/16,400 bytes, excluding firmware internals.
+Three real 88-record guests, nine affected ancestors, 61 native identity/ABI
+controls and 339 synthetic transcript controls pass. Each capture binds all 693
+raw inputs and original compiler/catalog/link/loaded-PC/process/argument/GPT/FAT/
+embedded-EFI evidence. Firmware services remain active in this Diagnostic.
+General EH, collided unwind, arbitrary methods, dynamic module lifetimes, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
+#670–#672 are qualified as host prerequisites in [step1189](../done/step1189.md)
+at frozen source `056280a`: 4,539 full-host checks across 588 groups (92 Native),
+complete/successful/unchanged-input receipt, zero failures/timeouts/reuse, native
+review and four affected guest regressions. All 689 raw inputs, original
+compiler/catalog/link/loaded-PC/process/argument/GPT/FAT/embedded-EFI joins pass.
+The 183-node/eight-indirect callback graph retains its direct edges after the
+planner rename; three frame measurements change, while the maximum stays
+15,904/16,400 first-party bytes, excluding firmware internals. Plain-funclet
+parent recovery and selection after an exited cleanup acquire no lifetime or CPU
+authority. A separately owned pinned compiler fixture and ABI review must precede
+normal-finally guest admission. General EH, #90/Gate4, hosted .NET/Kestrel, cloud
+and production remain incomplete.
+
+#662/#663/#664 are qualified in [step1187](../done/step1187.md) at frozen source `655d76f`:
+4532 full-host checks across 587 groups (92 Native), complete/successful/unchanged-input receipts,
+zero failures/timeouts/reuse, 21 hostile native controls, three byte-identical
+95-record guests and twelve ancestors. The assembler preserves actual RIP and
+progressing contexts, exact catalog EH lengths, authenticated zero-row no-EH
+frames and cleared admitted outputs on late failure. One cleanup, same rooted
+typed catch and compiled continuation execute under measured ABI/lifetime guards.
+The 183-node callback graph remains within 15,904/16,400 first-party stack bytes;
+firmware internals are excluded. The helper acquires no lifetime or CPU authority. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
 
 #141–#144/#635 are qualified in [step1164](../done/step1164.md): 4,441
 unfiltered full-host checks across 558 groups, linked native ABI/stack review,

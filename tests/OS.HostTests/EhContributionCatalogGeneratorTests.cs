@@ -16,10 +16,18 @@ internal static class EhContributionCatalogGeneratorTests
             _=ExceptionHandlingThunkGeneratorTests.Run(root,folder,"build",["build","tools/OS.X64TextSerializerGenerator","--nologo","-m:1"]);
             Assembly assembly=Assembly.LoadFile(Path.Combine(root,"tools/OS.X64TextSerializerGenerator/bin/Debug/net10.0/OS.X64TextSerializerGenerator.dll"));
             MethodInfo generate=assembly.GetType("OS.X64TextSerializerGenerator.EhContributionCatalogGenerator",true)!.GetMethod("Generate")!;
+            MethodInfo selected=assembly.GetType("OS.X64TextSerializerGenerator.EhContributionCatalogGenerator",true)!.GetMethod("GenerateForMethod")!;
+            MethodInfo run=assembly.GetType("OS.X64TextSerializerGenerator.EhContributionCatalogGenerator",true)!.GetMethod("Run")!;
             byte[] Generate(byte[] obj,string map)=>(byte[])generate.Invoke(null,[obj,map])!;
+            byte[] Select(byte[] obj,string map,string method)=>(byte[])selected.Invoke(null,[obj,map,method])!;
             void Reject(byte[] obj,string map,string why)
             {
                 try { _=Generate(obj,map); throw new InvalidOperationException("accepted "+why); }
+                catch(TargetInvocationException e) when(e.InnerException is InvalidDataException or System.Xml.XmlException) { }
+            }
+            void RejectSelection(byte[] obj,string map,string method,string why)
+            {
+                try { _=Select(obj,map,method); throw new InvalidOperationException("accepted selection "+why); }
                 catch(TargetInvocationException e) when(e.InnerException is InvalidDataException or System.Xml.XmlException) { }
             }
             var input=Input(); byte[] saved=[..input.Object]; byte[] output=Generate(input.Object,input.Map);
@@ -71,6 +79,42 @@ internal static class EhContributionCatalogGeneratorTests
                 W32(crossing,fixup,0); Reject(crossing,map,"fixup intersects contribution start");
                 W32(crossing,fixup,codeContribution?24U:4U); Reject(crossing,map,"fixup intersects contribution end");
             }
+            var pair=InputPair(); byte[] pairSaved=[..pair.Object], all=Generate(pair.Object,pair.Map);
+            Need(U32(all,(int)U32(all,80)+8)==2,"default retains both original contributions");
+            foreach(string method in new[]{"OS_Test__First","OS_Test__Second"})
+            {
+                byte[] one=Select(pair.Object,pair.Map,method);
+                Need(U32(one,(int)U32(one,80)+8)==1 && U32(one,12)==6,"one explicit selected contribution");
+                Need(one.SequenceEqual(Select(pair.Object,pair.Map,method)) && pair.Object.SequenceEqual(pairSaved),"selected deterministic without mutation");
+                Need(Encoding.ASCII.GetString(one).Contains(method+'\0',StringComparison.Ordinal),"selected exact external identity");
+            }
+            foreach(string method in new[]{"", "OS_Test__Missing", "OS_Test__First\n", new string('x',4097)})
+                RejectSelection(pair.Object,pair.Map,method,"invalid or absent identity");
+            // Select First, then corrupt only the omitted Second. Every input row
+            // remains subject to the same hash, extent, relocation and alias gates.
+            byte[] omittedBad=[..pair.Object]; omittedBad[208]^=1;
+            RejectSelection(omittedBad,pair.Map,"OS_Test__First","omitted EH hash");
+            omittedBad=[..pair.Object]; W32(omittedBad,276,25);
+            RejectSelection(omittedBad,pair.Map,"OS_Test__First","omitted code extent");
+            omittedBad=[..pair.Object]; W16(omittedBad,352,4);
+            RejectSelection(omittedBad,pair.Map,"OS_Test__First","omitted pdata relocation");
+            omittedBad=[..pair.Object]; W32(omittedBad,466,0);
+            RejectSelection(omittedBad,pair.Map,"OS_Test__First","omitted root alias");
+            string objPath=Path.Combine(folder,"pair.obj"), mapPath=Path.Combine(folder,"pair.map.xml"), outputPath=Path.Combine(folder,"selected.obj");
+            File.WriteAllBytes(objPath,pair.Object); File.WriteAllText(mapPath,pair.Map);
+            (int Exit,string Text) Run(string[] args)
+            {
+                TextWriter prior=Console.Out; using StringWriter output=new();
+                try {Console.SetOut(output); return ((int)run.Invoke(null,[args])!,output.ToString());}
+                finally {Console.SetOut(prior);}
+            }
+            string[] args=["--eh-contribution-catalog","--object",objPath,"--map",mapPath,"--output",outputPath];
+            Need(Run(args).Exit==0&&File.ReadAllBytes(outputPath).SequenceEqual(all),"legacy CLI keeps both methods");
+            Need(Run([..args,"--method","OS_Test__First"]).Exit==0,"explicit method CLI");
+            byte[] selectedSaved=File.ReadAllBytes(outputPath);
+            Need(selectedSaved.SequenceEqual(Select(pair.Object,pair.Map,"OS_Test__First")),"CLI/API selected bytes agree");
+            foreach(var failed in new[]{Run([..args,"--method","OS_Test__Missing"]),Run([..args,"--unexpected","OS_Test__First"])})
+                Need(failed.Exit==1&&failed.Text.Contains("TEST_FAIL m04.021.eh-catalog.generate",StringComparison.Ordinal)&&File.ReadAllBytes(outputPath).SequenceEqual(selectedSaved),"failed CLI leaves prior output intact");
             Console.WriteLine("EH_CATALOG_GENERATOR_VECTORS_PASS");
         });
     }
@@ -101,6 +145,37 @@ internal static class EhContributionCatalogGeneratorTests
         string codeHash=Convert.ToHexString(SHA256.HashData(b.AsSpan(140,24))), ehHash=Convert.ToHexString(SHA256.HashData(b.AsSpan(172,4)));
         string map=$"<ObjectNodes><MethodCode Name=\"{method}\" Length=\"24\" Hash=\"{codeHash}\"/><MethodExceptionHandlingInfo Name=\"{eh}\" Length=\"4\" Hash=\"{ehHash}\"/></ObjectNodes>";
         return(b,map,codeHash,ehHash);
+    }
+    private static (byte[] Object,string Map) InputPair()
+    {
+        // Independent two-method compiler fixture; root and funclet ranges are
+        // recorded separately for each method, with original unresolved RVAs.
+        string[] names=["OS_Test__First","__ehinfo_OS_Test__First","unwindFirst",
+            "OS_Test__Second","__ehinfo_OS_Test__Second","unwindSecond"];
+        byte[] strings=Encoding.ASCII.GetBytes(string.Join('\0',names)+'\0');
+        byte[] b=new byte[516+strings.Length]; W16(b,0,0x8664); W16(b,2,3); W32(b,8,404); W32(b,12,6);
+        void Section(int n,string name,uint size,uint raw,uint reloc,ushort count,uint flags)
+        { int at=20+n*40; Encoding.ASCII.GetBytes(name).CopyTo(b,at); W32(b,at+16,size); W32(b,at+20,raw); W32(b,at+24,reloc); W16(b,at+32,count); W32(b,at+36,flags); }
+        Section(0,".text",64,140,0,0,0x60500020); Section(1,".rdata",32,204,0,0,0x40300040);
+        Section(2,".pdata",48,236,284,12,0x40300040); b.AsSpan(140,64).Fill(0x90);
+        new byte[]{2,0,4,16,2,0,4,16}.CopyTo(b,204);
+        uint nameOffset=4;
+        for(int i=0;i<6;i++)
+        {
+            int at=404+i*18; W32(b,at+4,nameOffset); nameOffset+=(uint)names[i].Length+1;
+            W32(b,at+8,i switch{3=>32,4=>4,2=>8,5=>16,_=>0}); W16(b,at+12,(ushort)(i%3==0?1:2)); b[at+16]=(byte)(i%3==2?3:2);
+        }
+        for(int method=0;method<2;method++) for(int frame=0;frame<2;frame++)
+        {
+            int row=method*2+frame, at=236+row*12;
+            W32(b,at,(uint)(frame*16)); W32(b,at+4,(uint)(frame*16+8)); W32(b,at+8,(uint)(frame*4));
+            for(int word=0;word<3;word++)
+            { int fixup=284+(row*3+word)*10; W32(b,fixup,(uint)(row*12+word*4)); W32(b,fixup+4,(uint)(method*3+(word==2?2:0))); W16(b,fixup+8,3); }
+        }
+        W32(b,512,(uint)(4+strings.Length)); strings.CopyTo(b,516);
+        string map="<ObjectNodes>";
+        for(int i=0;i<2;i++) map+=$"<MethodCode Name=\"{names[i*3]}\" Length=\"24\" Hash=\"{Convert.ToHexString(SHA256.HashData(b.AsSpan(140+i*32,24)))}\"/><MethodExceptionHandlingInfo Name=\"{names[i*3+1]}\" Length=\"4\" Hash=\"{Convert.ToHexString(SHA256.HashData(b.AsSpan(204+i*4,4)))}\"/>";
+        return(b,map+"</ObjectNodes>");
     }
     private static ushort S16(byte[] b,int at)=>BinaryPrimitives.ReadUInt16LittleEndian(b.AsSpan(at));
     private static uint U32(byte[] b,int at)=>BinaryPrimitives.ReadUInt32LittleEndian(b.AsSpan(at));

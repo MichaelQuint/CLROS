@@ -1,12 +1,27 @@
 # QEMU
 
+Qualified `-EnableM04NormalFinallyProbe` uses the collecting-GC Diagnostic
+prerequisites and excludes every other EH/catalog profile. Before QEMU,
+[step1195](../done/step1195.md) joins the freshly rebuilt original COFF/map/EFI
+hashes to current native safety review. Three real captures each have 88 complete
+application records and the normal-finally start, fifteen numeric rows, pass and
+ready markers. Strict framing/numeric review binds compiler-called finally,
+thrower/own-unwind/root/catch/continuation PCs, same rooted exception, exactly-one
+counters, live parent stamp and canaries. Nine affected ancestor profiles pass:
+catalog95, nested89, frames88, expected-unhandled73, filters88,
+constructor-failure92, rethrow88, single-finally84 and simple-catch82.
+All 693 raw-source, original compiler/catalog/link/loaded-PC/process/arguments/
+GPT/FAT/embedded-EFI joins pass. Synthetic controls prove parser rejection only;
+the preserved failed full runs in steps1193/1194 are not acceptance evidence.
+General EH, collided unwind, arbitrary methods, dynamic module lifetimes, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
 Qualified `-EnableM04EhCatalogProbe` requires a fresh physical-frame Diagnostic.
-Its strict 92-record stream adds `M04_EH_CATALOG 0`..`2` after frame row4 and
-`CLROS_M04_EH_CATALOG_READY` after compiled cleanup/catch/continuation checks.
-[step1184](../done/step1184.md) accepts three byte-identical catalog guests and twelve ancestors.
-All 687 raw inputs and original compiler/catalog/link/loaded-PC,
-process/arguments and GPT/FAT/embedded-EFI joins pass. Original module, mapping,
-root and stack lifetime remain required. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+The strict 95-record stream adds `M04_EH_CATALOG 0`..`2` then
+`M04_CALLER_WINDOW 0`..`2` after frame row4. Window records join actual return
+RIP/RSP, protected offsets and contiguous row slices. Catalog readiness follows
+real cleanup/catch/continuation checks. [step1187](../done/step1187.md) qualifies three byte-identical
+guests and twelve ancestors, with all 688 raw inputs and original
+compiler/catalog/link/loaded-PC/process/arguments/GPT/FAT/embedded-EFI joins. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
 
 The qualified `-EnableM04FilteredCatchProbe` requires a fresh source-bound
 Diagnostic EFI and its collecting-GC prerequisites. Strict parsing requires all

@@ -1,10 +1,28 @@
 # CLROS AI Agent Guide
 
-The #658/#659/#660 default-off compiler EH catalog batch is qualified in
-`done/step1184.md`: 4525 full-host checks across 586 groups (92 Native), original native review,
-three byte-identical 92-record catalog guests and twelve ancestors pass.
-Exact retained compiler contributions drive the existing two-frame cleanup/catch
-Diagnostic. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+## Start here
+
+1. Read `docs/workload-profiles.md` for the current NativeAOT-first decision.
+2. Refresh the LAN tracker; start with [M16-001 / #679](http://192.168.4.35:3000/admin/CLROS/issues/679)
+   (pinned payload qualification).
+   Use exact dependencies and acceptance from the managed issue, not numeric
+   milestone order or a generic "smallest ready" optional ticket.
+3. Preserve existing work. Pick one cohesive implementation slice, reuse the
+   ticket's exact source references, run focused checks first, then qualify
+   the stable guest batch. Do not expand general kernel EH without a need.
+4. Keep one main public type per new file where practical. Document public and
+   unsafe APIs with purpose, ownership/lifetime, execution context, failure
+   behavior and unsupported cases; avoid boilerplate comments.
+5. The shared host project is `src/OS.Std.NoRuntime.Shared`. Its audited
+   implementation source remains under `std/no-runtime/shared` and appears as
+   linked files. Do not duplicate those types or move EFI source paths casually.
+
+The #662/#663/#664 default-off caller-window batch is qualified in
+`done/step1187.md`: 4532 full-host checks across 587 groups (92 Native), original native review,
+three byte-identical 95-record guests and twelve ancestors pass. One no-EH frame
+and two real callers feed the existing cleanup/typed dispatch planner. Actual
+return RIP is retained; exact EH lengths come from the original compiler catalog.
+Measured parent/funclet ABI and retained lifetime guards remain. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
 
 The #654/#655/#656 default-off filtered-catch batch is qualified in
 `done/step1181.md`: 4518 full-host checks, original native review, three
@@ -168,8 +186,12 @@ differ from this root guide.
   kernel/boot/runtime paths unless the current issue implements and tests the
   required runtime support.
 - Use status structs/results for kernel-facing failure paths.
-- Do not add POSIX/Linux compatibility unless a documented PAL/CoreCLR
-  integration step explicitly requires it.
+- The NativeAOT-first decision in `docs/workload-profiles.md` authorizes a
+  restricted Linux x64 application syscall adapter in C#. Keep Linux errno/fd
+  semantics separate from the stable `OSHost_*` contracts.
+- Pinned upstream runtime/libc dependencies may be built externally and
+  packaged with apps; do not import reference projects or native source into
+  first-party kernel/std/apps.
 - Future PAL/CoreCLR work crosses a flat `OSHost_*` ABI: POD structs, explicit
   lengths, opaque handles, status codes, and no managed references, exceptions,
   C++ objects, WinAPI handles, or POSIX descriptors across the boundary.
@@ -260,16 +282,14 @@ C# APIs; fast success is not native, guest, or full acceptance evidence.
 
 Use the Gitea API when instructed or when doing backlog maintenance.
 
-- Repository: `http://localhost:3000/admin/CLROS`
-- API base: `http://localhost:3000/api/v1/repos/admin/CLROS`
+- Repository: `http://192.168.4.35:3000/admin/CLROS`
+- API base: `http://192.168.4.35:3000/api/v1/repos/admin/CLROS` (repository ID 9)
 
-These loopback addresses identify Gitea on the current source computer. On
-another machine, verify the intended server and `admin/CLROS` repository
-against the final handoff before any tracker operation. The destination
-machine's own `localhost` Gitea is a different server. The default handoff
-continues to use the source server at `192.168.4.35`; verify that address
-on arrival. Existing loopback-only helpers and backlog synchronization run
-on the source host unless endpoint support is explicitly reviewed. See
+Verify the server and repository identity before tracker writes. This machine's
+`localhost` Gitea is a different server. The compiled backlog tool verifies the
+LAN repository and supports `--issuekeys` for scoped reconciliation; preview
+before `--apply` and read back afterward. Legacy loopback-only helpers must not
+be used from this host. See [issue workflow](docs/issue-labels.md) and
 [Windows handoff](docs/windows-handoff.md).
 
 Rules:
@@ -290,21 +310,13 @@ Rules:
 
 ## Implementation Order
 
-Default order unless issue state proves a dependency is done:
-
-1. Audit and baseline.
-2. Diagnostics first.
-3. `std/no-runtime` base.
-4. Runtime correctness.
-5. PAL and UEFI encapsulation.
-6. Platform/drivers.
-7. Storage.
-8. Networking.
-9. Native-tier app model.
-10. Cloud image tooling.
-11. Security/hardening.
-12. Hosted .NET 10, Minimal API, Kestrel.
-13. Roslyn/PowerShell hosted-tier expansion.
+Current order: `docs/workload-profiles.md` and the M16/M10/M14 dependency graph.
+Qualify a pinned Linux NativeAOT payload first, then continuing post-exit
+execution, ELF/user boundary, scheduler and upstream runtime, live TCP/sockets,
+and real Kestrel. Two isolated local apps follow before provider qualification.
+CoreCLR/framework-dependent hosting and Roslyn/PowerShell are later targets.
+Do not make broad custom kernel EH or optional platform work a first-web
+prerequisite without a demonstrated kernel requirement.
 
 Kestrel is mandatory, but do not jump to it before boot, runtime, PAL,
 scheduler/threading, storage, and networking prerequisites are represented by

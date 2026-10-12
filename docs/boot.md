@@ -1,16 +1,41 @@
 # Boot
 
-The pending caller-window candidate in [step1185](../done/step1185.md) reuses the
-existing default-off catalog Diagnostic and boot phase. One bounded assembler
-unfolds actual caller contexts and catalog rows before existing typed matching
-and dispatch. Three `M04_CALLER_WINDOW` records associate actual return RIP/RSP,
-protected offsets and contiguous row slices. Full-host and guest acceptance are pending.
+Qualified children `EnableM16003Probe` and `EnableM16004Probe` default off and
+imply the staged-package/owned-exit parent through the compiled tooling profile.
+The service child uses owned HPET time and denied copied firmware handles before
+controlled stop. The loader child reserves backing/entropy before exit and builds
+the protected image/stack afterward, with a candidate-root read-back and restoration
+path. When combined, loader read-back precedes service shutdown. These paths are
+qualified by 4,603 full-host checks, native review, three combined package guests,
+standalone children, five affected ancestors and missing-RNG rollback; see
+[step1200](../done/step1200.md). HPET initialization permits its existing single
+recovery, whose count is recorded before the timed iterations.
+Ordinary `VerifiedExit` keeps both children disabled.
 
-The default-off `EnableM04EhCatalogProbe` modifies the existing physical-frame
-Diagnostic without adding a boot phase. Exact original compiler contributions
-resolve under retained module/snapshot/root authority. [step1184](../done/step1184.md) qualifies
-4525 full-host checks across 586 groups (92 Native), original native review,
-three 92-record guests and twelve ancestors. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+The default-off `EnableM16002Probe` profile qualified in
+[step1199](../done/step1199.md) stages `OS/APP.PKG` through original-device UEFI
+Simple File System handles before the final memory-map/exit window. Both file
+handles close before transition. The bounded LoaderData allocation joins a
+validated reservation ledger (append-only `LinuxElfPackage` kind 15) and the
+existing permanent mapping plan as read-only/NX. Post-exit BootSequence verifies
+the package/ELF hashes, ledger and read-only file copy through owned COM1.
+Three payload captures, two pre-exit rejection controls, two affected boot
+regressions and 4,565 full-host checks pass. It stages data and never enters an ELF application.
+
+The default-off collecting-GC Diagnostic child
+`BootSequence.RunNormalFinallyUnwind` owns `EnableM04NormalFinallyProbe` before
+ordinary boot success. [step1195](../done/step1195.md) qualifies one normal-call
+finally throw, own-frame recovery, outer typed catch and compiled continuation
+with the same explicitly rooted object: three 88-record guests and nine affected
+ancestors. Firmware services remain active; the profile supplies no continuing
+workload or firmware-page reclamation.
+General EH, collided unwind, arbitrary methods, dynamic module lifetimes, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
+The default-off `EnableM04EhCatalogProbe` retains the existing physical-frame
+Diagnostic and phase. `BoundedExceptionCallerWindow` unfolds three actual contexts
+and decodes complete original catalog rows before existing typed matching and
+dispatch. [step1187](../done/step1187.md) qualifies 4532 full-host checks across 587 groups (92 Native), native review,
+three 95-record guests and twelve ancestors at `655d76f`. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
 
 The default-off filtered-catch Diagnostic child follows the collecting-GC chain
 through `BootSequence.RunFilteredCatchUnwind`, before ordinary boot success.

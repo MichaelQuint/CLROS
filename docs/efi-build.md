@@ -1,5 +1,19 @@
 # EFI Build
 
+Qualified `--EnableM04NormalFinallyProbe` is a default-off collecting-GC
+Diagnostic. [step1195](../done/step1195.md) pins ILC10.0.12 WinX64 and one
+`NormalCatcher` with `MethodImpl` NoOptimization (`0x40`), 173 original code
+bytes and 11 EH bytes. Its normal call returns at root61; the finally throw
+returns at root115; the outer catch starts at root121 and continues at root62.
+The isolated catalog selects that exact root after validating every original
+contribution. The retained bridge instructions have four distinct normal-profile
+symbol identities. Original source/COFF/map/linked geometry, clause kinds,
+parent locals, unwind and required GP/XMM/control ABI are verified; 61 native
+controls preserve fail-closed admission. Current native callback/allocation/
+indirect/stack/lifetime review must precede guest execution. Three matching
+frozen guests and nine affected ancestors pass in the cited qualification.
+General EH, collided unwind, arbitrary methods, dynamic module lifetimes, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
 ## Qualified compiler EH contribution catalog
 
 `--EnableM04EhCatalogProbe` is a default-off modifier requiring the physical-frame
@@ -14,10 +28,11 @@ the EFI, with original/preserved path, length and SHA256 bindings. Verification
 recomputes the catalog, joins original code/EH bytes and relocations to the linked
 image, and checks every linked row/getter. The compiler map's code hash is an
 intermediate object-dumper hash; it is not a raw post-fixup COFF hash. See
-[step1182](../done/step1182.md) and [step1183](../done/step1183.md). [step1184](../done/step1184.md) qualifies 4525 full-host checks across 586 groups (92 Native), 21 hostile
-controls, three byte-identical 92-record catalog guests and twelve ancestors.
-Callback depth 15,856 fits the unchanged 16,400-byte first-party floor. Firmware
-diagnostic internals are excluded. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+[step1182](../done/step1182.md) and [step1183](../done/step1183.md). [step1187](../done/step1187.md) qualifies 4532 full-host checks across 587 groups (92 Native), 21 hostile native controls,
+three byte-identical 95-record caller-window guests and twelve ancestors. The
+183-node callback graph has a 15,904-byte bound within the retained 16,400-byte
+first-party floor; firmware internals are excluded. Exact compiler contributions
+feed the finite assembler and existing matcher/dispatch planner. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
 
 Freeze the source commit before the final host build. Native generator fixtures
 may rebuild the shared tool; committing after that build changes its embedded

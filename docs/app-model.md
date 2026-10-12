@@ -1,5 +1,35 @@
 # App Model
 
+## NativeAOT-first application boundary
+
+The qualified loader/service children in [step1200](../done/step1200.md) add
+host-checked copy, startup-stack and protected-root mechanics plus an EFI read-back
+path. 4,603 full-host checks, native review, three real combined package guests,
+standalone children, five ancestors and missing-RNG rollback pass. The source does not enter the ELF,
+set an application TLS thread pointer, register app GC roots in the kernel, or
+prove upstream application GC/EH, syscalls or CLROS Kestrel execution.
+
+The host qualification in [step1198](../done/step1198.md) accepts separate
+Hello and runtime fixtures plus static ELF inspection/publication tooling.
+The runtime fixture uses upstream GC/EH, threads/TLS, ThreadPool/tasks and timers;
+the Minimal API retains real `CreateSlimBuilder`/Kestrel with configuration
+watching disabled before provider creation and HTTP/1.1 endpoint defaults.
+Windows managed checks and all three pinned static Linux payload runs pass.
+The [requirement inventory](workload-profiles.md#pinned-payload-requirements-and-trace-limits)
+combines actual ELF/auxv/native/source/trace evidence and source error paths;
+it does not claim exhaustive failure execution. This host qualification adds no
+CLROS guest application launch.
+
+The versioned Linux ELF package in [step1199](../done/step1199.md) now has a
+default-off M16-002 staging profile. Three final-source guests retain exact
+Hello/runtime/Minimal API package bytes across firmware exit as read-only/NX data,
+with closed file handles, validated ledger and a bounded immutable file copy.
+Full-host qualification passes all 4,565 checks. ELF mappings/startup/user entry,
+continuing services, Linux adapters and the upstream guest runtime remain future
+work. A normal NativeAOT executable must not be treated as raw OSAPPv0 bytes or
+share the kernel collector. Existing native contracts below retain their
+historical ABI and evidence.
+
 ## Current Status
 
 The native-tier app model is in early host-tested planning. The long-term first-class workload target is .NET 10 applications, with ASP.NET Minimal API apps as the primary cloud scenario. Kestrel support is mandatory, but it depends on hosted runtime, sockets, timers, threading/scheduler, and network stack prerequisites that are not implemented yet. Broad hosted-workload claim boundaries are tracked in `docs/completion-gates.md`.

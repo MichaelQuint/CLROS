@@ -103,7 +103,7 @@ internal static class GiteaBacklogManifestTests
         using JsonDocument document = JsonDocument.Parse(json);
         JsonElement root = document.RootElement;
         if (root.GetProperty("schemaVersion").GetInt32() != 1 ||
-            root.GetProperty("target").GetProperty("baseUrl").GetString() != "http://localhost:3000" ||
+            root.GetProperty("target").GetProperty("baseUrl").GetString() != BacklogContracts.BaseUrl ||
             root.GetProperty("target").GetProperty("owner").GetString() != "admin" ||
             root.GetProperty("target").GetProperty("repository").GetString() != "CLROS" ||
             root.GetProperty("policy").GetProperty("closureEvidenceMarkerFormat").GetString() !=
@@ -206,7 +206,12 @@ internal static class GiteaBacklogManifestTests
             HostCheck.Result(DependenciesEqual(issueByKey["M06-019"], "M06-018", "M05-021")) &&
             HostCheck.Result(DependenciesEqual(issueByKey["M07-001"], "M05-019")) &&
             HostCheck.Result(DependenciesEqual(issueByKey["M07-024"], "M07-023", "M05-021")) &&
-            HostCheck.Result(DependenciesEqual(issueByKey["M09-001"], "M04-023", "M06-019", "M07-025", "M08-019")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M16-001"])) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M09-001"], "M16-003")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M10-001"], "M16-001")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M14-001"], "M10-014")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M12-001"], "M14-016")) &&
+            HostCheck.Result(DependenciesEqual(issueByKey["M13-001"], "M14-016")) &&
             HostCheck.Result(DependenciesEqual(issueByKey["M12-018"], "M12-016")) &&
             HostCheck.Result(DependenciesEqual(issueByKey["M13-018"], "M13-016")) &&
             HostCheck.Result(DependenciesEqual(issueByKey["M15-014"], "M15-009"));
@@ -3384,6 +3389,10 @@ internal static class GiteaBacklogManifestTests
     private static void AddUnserializedM00Overlap(JsonObject root)
     {
         JsonObject target = FindIssue(root, "M00-010");
+        target["desiredState"] = "reopen";
+        foreach (JsonObject other in root["issues"]!.AsArray().Select(x => x!.AsObject()))
+            if (other["ownedPaths"]!.AsArray().Any(x => x!.GetValue<string>() == "docs/reference-map.md"))
+                other["desiredState"] = "reopen";
         JsonArray ownedPaths = target["ownedPaths"]?.AsArray()
             ?? throw new InvalidOperationException("M00-010 ownedPaths missing");
         ownedPaths.Add("docs/reference-map.md");

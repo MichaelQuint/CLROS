@@ -85,9 +85,13 @@
 		<EnableM04NestedFinallyCatchProbe Condition="'$(EnableM04NestedFinallyCatchProbe)' == ''">false</EnableM04NestedFinallyCatchProbe>
 		<EnableM04UnhandledExceptionProbe Condition="'$(EnableM04UnhandledExceptionProbe)' == ''">false</EnableM04UnhandledExceptionProbe>
 		<EnableM04FrameDispatchProbe Condition="'$(EnableM04FrameDispatchProbe)' == ''">false</EnableM04FrameDispatchProbe>
+		<EnableM04NormalFinallyProbe Condition="'$(EnableM04NormalFinallyProbe)' == ''">false</EnableM04NormalFinallyProbe>
 		<EnableM04EhCatalogProbe Condition="'$(EnableM04EhCatalogProbe)' == ''">false</EnableM04EhCatalogProbe>
 		<EnableM04ConstructorFailureProbe Condition="'$(EnableM04ConstructorFailureProbe)' == ''">false</EnableM04ConstructorFailureProbe>
 		<EnableM04FilteredCatchProbe Condition="'$(EnableM04FilteredCatchProbe)' == ''">false</EnableM04FilteredCatchProbe>
+		<EnableM16002Probe Condition="'$(EnableM16002Probe)' == ''">false</EnableM16002Probe>
+		<EnableM16003Probe Condition="'$(EnableM16003Probe)' == ''">false</EnableM16003Probe>
+		<EnableM16004Probe Condition="'$(EnableM16004Probe)' == ''">false</EnableM16004Probe>
 		<EnableM05PhysicalMappingProbe Condition="'$(EnableM05PhysicalMappingProbe)' == ''">false</EnableM05PhysicalMappingProbe>
 		<EnableM05OwnedAcpiSelectionProbe Condition="'$(EnableM05OwnedAcpiSelectionProbe)' == ''">false</EnableM05OwnedAcpiSelectionProbe>
 		<EnableM05MonotonicClockProbe Condition="'$(EnableM05MonotonicClockProbe)' == ''">false</EnableM05MonotonicClockProbe>
@@ -345,6 +349,15 @@
 	<PropertyGroup Condition="'$(EnableM04SimpleThrowCatchProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_SIMPLE_THROW_CATCH_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM16002Probe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M16_002_PROBE</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM16003Probe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M16_003_PROBE</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM16004Probe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M16_004_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM04SingleFinallyCatchProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_SINGLE_FINALLY_CATCH_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -359,6 +372,9 @@
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM04FrameDispatchProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_FRAME_DISPATCH_PROBE</DefineConstants>
+	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM04NormalFinallyProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_NORMAL_FINALLY_PROBE</DefineConstants>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM04EhCatalogProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_EH_CATALOG_PROBE</DefineConstants>
@@ -474,8 +490,12 @@
 			'$(EnableM04UnhandledExceptionProbe)' == 'true' or
 			'$(EnableM04FrameDispatchProbe)' == 'true' or
 			'$(EnableM04EhCatalogProbe)' == 'true' or
+			'$(EnableM04NormalFinallyProbe)' == 'true' or
 			'$(EnableM04ConstructorFailureProbe)' == 'true' or
 			'$(EnableM04FilteredCatchProbe)' == 'true' or
+			'$(EnableM16002Probe)' == 'true' or
+			'$(EnableM16003Probe)' == 'true' or
+			'$(EnableM16004Probe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastProbe)' == 'true' or
@@ -725,12 +745,22 @@
 		<Compile Include="..\OS.Kernel\Runtime\BoundedExceptionFrameSearch.cs" Link="Runtime\BoundedExceptionFrameSearch.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\BoundedExceptionCallerWindow.cs" Link="Runtime\BoundedExceptionCallerWindow.cs" />
 		<Compile Include="Runtime\ExceptionFrameDispatchProbe.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.NormalFinally.cs" Link="Runtime\NativeAotEhClauseMetadata.NormalFinally.cs" />
+		<Compile Include="Runtime\NormalFinallyProbe.cs" />
 		<Compile Include="Runtime\ConstructorFailureProbe.cs" />
 		<Compile Include="Runtime\FilteredCatchProbe.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\BoundedExceptionFilterSearch.cs" Link="Runtime\BoundedExceptionFilterSearch.cs" />
 		<Compile Include="Runtime\TypeInitializationException.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\CompilerClassConstructorExecution.Invocation.cs" Link="Runtime\CompilerClassConstructorExecution.Invocation.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\BoundedExceptionFrameDispatch.cs" Link="Runtime\BoundedExceptionFrameDispatch.cs" />
+		<Compile Include="..\OS.Kernel\Manifest\LinuxElfPackage.cs" Link="Manifest\LinuxElfPackage.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Hash\Sha256.cs" Link="Std\Hash\Sha256.cs" />
+		<Compile Include="..\OS.Kernel\Boot\WorkloadServiceLoop.cs" Link="Boot\WorkloadServiceLoop.cs" />
+		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxElfLoader.cs" Link="Compatibility\LinuxX64\LinuxElfLoader.cs" />
+		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxElfMapping.cs" Link="Compatibility\LinuxX64\LinuxElfMapping.cs" />
+		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxElfStartup.cs" Link="Compatibility\LinuxX64\LinuxElfStartup.cs" />
+		<Compile Include="..\OS.Kernel\Memory\X64UserAddressSpace.cs" Link="Memory\X64UserAddressSpace.cs" />
+		<Compile Include="..\..\std\no-runtime\shared\Text\AsciiArgumentSplitter.cs" Link="Std\Text\AsciiArgumentSplitter.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
@@ -794,8 +824,12 @@
 			'$(EnableM04UnhandledExceptionProbe)' == 'true' or
 			'$(EnableM04FrameDispatchProbe)' == 'true' or
 			'$(EnableM04EhCatalogProbe)' == 'true' or
+			'$(EnableM04NormalFinallyProbe)' == 'true' or
 			'$(EnableM04ConstructorFailureProbe)' == 'true' or
 			'$(EnableM04FilteredCatchProbe)' == 'true' or
+			'$(EnableM16002Probe)' == 'true' or
+			'$(EnableM16003Probe)' == 'true' or
+			'$(EnableM16004Probe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastProbe)' == 'true' or
@@ -1931,6 +1965,13 @@
 		<Error Condition="'$(EnableM03OwnedSubsystemSurvivalProbe)' != '' and '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true' and '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'false'" Text="m03_owned_switch_invalid EnableM03OwnedSubsystemSurvivalProbe" />
 		<Error Condition="'$(EnableM03OwnedSubsystemPanicProbe)' != '' and '$(EnableM03OwnedSubsystemPanicProbe)' != 'true' and '$(EnableM03OwnedSubsystemPanicProbe)' != 'false'" Text="m03_owned_switch_invalid EnableM03OwnedSubsystemPanicProbe" />
 		<Error Condition="'$(EnableM03OwnedSubsystemSurvivalProbe)' == 'true' and '$(EnableM03FirstRealExitBootServicesProbe)' != 'true'" Text="m03_owned_requires_first_exit" />
+		<Error Condition="'$(EnableM16002Probe)' != 'true' and '$(EnableM16002Probe)' != 'false'" Text="m16_002_switch_invalid" />
+		<Error Condition="'$(EnableM16003Probe)' != 'true' and '$(EnableM16003Probe)' != 'false'" Text="m16_003_switch_invalid" />
+		<Error Condition="'$(EnableM16004Probe)' != 'true' and '$(EnableM16004Probe)' != 'false'" Text="m16_004_switch_invalid" />
+		<Error Condition="'$(EnableM16003Probe)' == 'true' and '$(EnableM16002Probe)' != 'true'" Text="m16_003_requires_staged_parent" />
+		<Error Condition="'$(EnableM16004Probe)' == 'true' and '$(EnableM16002Probe)' != 'true'" Text="m16_004_requires_staged_parent" />
+		<Error Condition="'$(EnableM16002Probe)' == 'true' and ('$(ClrosBootPolicy)' != 'Diagnostic' or '$(EnableM03FirstRealExitBootServicesProbe)' != 'true' or '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true')" Text="m16_002_requires_owned_first_exit" />
+		<Error Condition="'$(EnableM16002Probe)' == 'true' and ('$(EnableM03OwnedSubsystemPanicProbe)' == 'true' or '$(EnableM03FirmwareAdapterRevocationProbe)' == 'true' or '$(EnableM05PciEnumerationProbe)' == 'true' or '$(EnableM05MonotonicClockProbe)' == 'true' or '$(EnableM05OwnedAcpiSelectionProbe)' == 'true' or '$(EnableM05PhysicalMappingProbe)' == 'true')" Text="m16_002_profile_conflict" />
 		<Error Condition="'$(EnableM03OwnedSubsystemPanicProbe)' == 'true' and '$(EnableM03OwnedSubsystemSurvivalProbe)' != 'true'" Text="m03_owned_panic_requires_survival" />
 		<Error Condition="'$(EnableM03OwnedSubsystemSurvivalProbe)' == 'true' and '$(EnableM03FirmwareAdapterRevocationProbe)' == 'true'" Text="m03_owned_revocation_conflict" />
 		<Error Condition="'$(EnableM04ClassConstructorExecutionProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_cctor_requires_gc_profile" />
@@ -1991,6 +2032,9 @@
 		<Error Condition="'$(EnableM04RethrowProbe)' == 'true' and ('$(EnableM04SeededCollectorChurnProbe)' == 'true' or '$(EnableM04ClassConstructorExecutionProbe)' == 'true' or '$(EnableM04InterfaceDispatchProbe)' == 'true' or '$(EnableM04X64UnwindMetadataProbe)' == 'true' or '$(EnableM04SimpleThrowCatchProbe)' == 'true' or '$(EnableM04SingleFinallyCatchProbe)' == 'true')" Text="m04_rethrow_profile_conflict" />
 		<Error Condition="'$(EnableM04NestedFinallyCatchProbe)' != '' and '$(EnableM04NestedFinallyCatchProbe)' != 'true' and '$(EnableM04NestedFinallyCatchProbe)' != 'false'" Text="m04_nested_finally_switch_invalid" />
 		<Error Condition="'$(EnableM04UnhandledExceptionProbe)' != '' and '$(EnableM04UnhandledExceptionProbe)' != 'true' and '$(EnableM04UnhandledExceptionProbe)' != 'false'" Text="m04_unhandled_switch_invalid" />
+		<Error Condition="'$(EnableM04NormalFinallyProbe)' != '' and '$(EnableM04NormalFinallyProbe)' != 'true' and '$(EnableM04NormalFinallyProbe)' != 'false'" Text="m04_normal_finally_switch_invalid" />
+		<Error Condition="'$(EnableM04NormalFinallyProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_normal_finally_requires_gc_profile" />
+		<Error Condition="'$(EnableM04NormalFinallyProbe)' == 'true' and ('$(EnableM04SeededCollectorChurnProbe)' == 'true' or '$(EnableM04ClassConstructorExecutionProbe)' == 'true' or '$(EnableM04InterfaceDispatchProbe)' == 'true' or '$(EnableM04X64UnwindMetadataProbe)' == 'true' or '$(EnableM04SimpleThrowCatchProbe)' == 'true' or '$(EnableM04SingleFinallyCatchProbe)' == 'true' or '$(EnableM04RethrowProbe)' == 'true' or '$(EnableM04NestedFinallyCatchProbe)' == 'true' or '$(EnableM04UnhandledExceptionProbe)' == 'true' or '$(EnableM04FrameDispatchProbe)' == 'true' or '$(EnableM04ConstructorFailureProbe)' == 'true' or '$(EnableM04FilteredCatchProbe)' == 'true' or '$(EnableM04EhCatalogProbe)' == 'true')" Text="m04_normal_finally_profile_conflict" />
 		<Error Condition="'$(EnableM04FrameDispatchProbe)' != '' and '$(EnableM04FrameDispatchProbe)' != 'true' and '$(EnableM04FrameDispatchProbe)' != 'false'" Text="m04_frames_switch_invalid" />
 		<Error Condition="'$(EnableM04EhCatalogProbe)' != '' and '$(EnableM04EhCatalogProbe)' != 'true' and '$(EnableM04EhCatalogProbe)' != 'false'" Text="m04_eh_catalog_switch_invalid" />
 		<Error Condition="'$(EnableM04EhCatalogProbe)' == 'true' and '$(EnableM04FrameDispatchProbe)' != 'true'" Text="m04_eh_catalog_requires_frame_dispatch" />

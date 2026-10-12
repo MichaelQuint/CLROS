@@ -5,7 +5,8 @@ namespace OS.Tooling;
 /// <summary>Reviewed backlog inventory. Update this single inventory when accepting a new slice.</summary>
 public static class BacklogContracts
 {
-    public const string BaseUrl = "http://localhost:3000";
+    public const string BaseUrl = "http://192.168.4.35:3000";
+    public const int RepositoryId = 9;
     public const string Owner = "admin";
     public const string Repository = "CLROS";
     public const string ManagedStart = "<!-- clros-managed-start -->";
@@ -15,9 +16,10 @@ public static class BacklogContracts
     public static IReadOnlyDictionary<string, int> Children { get; } = new ReadOnlyDictionary<string, int>(new Dictionary<string, int>(StringComparer.Ordinal)
     {
         ["M00"] = 23, ["M01"] = 36, ["M02"] = 20, ["M03"] = 11,
-        ["M04"] = 24, ["M05"] = 21, ["M06"] = 19, ["M07"] = 25,
+        ["M04"] = 24, ["M05"] = 21, ["M06"] = 19, ["M07"] = 26,
         ["M08"] = 20, ["M09"] = 30, ["M10"] = 14, ["M11"] = 18,
-        ["M12"] = 18, ["M13"] = 18, ["M14"] = 18, ["M15"] = 15
+        ["M12"] = 18, ["M13"] = 18, ["M14"] = 18, ["M15"] = 15,
+        ["M16"] = 12
     });
     public static int ChildCount => Children.Values.Sum();
     public static int IssueCount => Children.Count + ChildCount;

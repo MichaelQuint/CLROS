@@ -27,7 +27,8 @@ public static class EhContributionCatalogGenerator
         Console.WriteLine("TEST_START " + test);
         try
         {
-            if (args.Length != 7 || args[1] != "--object" || args[3] != "--map" || args[5] != "--output")
+            if (args.Length is not (7 or 9) || args[1] != "--object" || args[3] != "--map" || args[5] != "--output" ||
+                (args.Length == 9 && args[7] != "--method"))
                 throw new InvalidDataException("arguments");
             foreach (string input in new[]{args[2], args[4]})
                 if (new FileInfo(input).Length is <= 0 or > MaximumInputBytes) throw new InvalidDataException("input_capacity");
@@ -35,7 +36,7 @@ public static class EhContributionCatalogGenerator
             if (output.Equals(Path.GetFullPath(args[2]), StringComparison.OrdinalIgnoreCase) ||
                 output.Equals(Path.GetFullPath(args[4]), StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("output_alias");
             byte[] obj = File.ReadAllBytes(args[2]), mapRaw = File.ReadAllBytes(args[4]); string map = File.ReadAllText(args[4]);
-            byte[] generated = Generate(obj, map);
+            byte[] generated = args.Length == 7 ? Generate(obj, map) : GenerateForMethod(obj, map, args[8]);
             // The producer never changes its inputs. The integration/native verifier retain these hashes.
             if (!SHA256.HashData(obj).AsSpan().SequenceEqual(SHA256.HashData(File.ReadAllBytes(args[2]))) ||
                 !SHA256.HashData(mapRaw).AsSpan().SequenceEqual(SHA256.HashData(File.ReadAllBytes(args[4])))) throw new InvalidDataException("input_changed");
@@ -50,7 +51,17 @@ public static class EhContributionCatalogGenerator
         { Console.WriteLine("TEST_FAIL " + test + " " + (e is InvalidDataException ? e.Message : e.GetType().Name)); return 1; }
     }
 
-    public static byte[] Generate(byte[] obj, string map)
+    public static byte[] Generate(byte[] obj, string map) => GenerateCore(obj, map, null);
+
+    /// <summary>Validate every original contribution before selecting one exact compiler method.</summary>
+    public static byte[] GenerateForMethod(byte[] obj, string map, string method)
+    {
+        if (string.IsNullOrEmpty(method) || method.Length > 4096 || method.Any(c => c is < (char)32 or > (char)126))
+            Fail("selected_method_name");
+        return GenerateCore(obj, map, method);
+    }
+
+    private static byte[] GenerateCore(byte[] obj, string map, string? selectedMethod)
     {
         if (obj.Length is < 20 or > MaximumInputBytes || map.Length is <= 0 or > MaximumInputBytes) Fail("input_capacity");
         if (U16(obj, 0) != 0x8664 || U16(obj, 16) != 0 || U16(obj, 18) != 0 || U32(obj, 4) != 0) Fail("coff_header");
@@ -115,6 +126,13 @@ public static class EhContributionCatalogGenerator
                 if (other.Name != code.Name && symbols.TryGetValue(other.Name, out Symbol otherSymbol) &&
                     Overlaps(method, code.Length, otherSymbol, other.Length)) Fail("code_overlap");
             contributions.Add(new(code, table, method, data));
+        }
+        // Selection never exempts omitted rows from original input, extent, relocation,
+        // hash or alias checks above. The default still catalogs every validated row.
+        if (selectedMethod is not null)
+        {
+            contributions = contributions.Where(c => c.Code.Name == selectedMethod).ToList();
+            if (contributions.Count != 1) Fail("selected_method_missing");
         }
         byte[] payload = new byte[16 + contributions.Count * 16]; W32(payload, 0, Magic); W32(payload, 4, 1);
         W32(payload, 8, (uint)contributions.Count); W32(payload, 12, (uint)payload.Length);
