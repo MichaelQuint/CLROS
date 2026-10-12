@@ -6,7 +6,7 @@ internal static unsafe class LinuxMemoryServicesTests
 {
     private const ulong Root = 0x1000000, Pool = 0x2000000, Start = 0x100000000, Reservation = 8234266624;
     private const uint TablePages = 16, PoolPages = 16;
-    private sealed class Owner : IDisposable
+    internal sealed class Owner : IDisposable
     {
         public readonly LinuxMemoryServices.State* State;
         public readonly LinuxMemoryServices.Admission Memory;
@@ -223,5 +223,57 @@ internal static unsafe class LinuxMemoryServicesTests
         HostCheck.True(owner.State->ReservedBytes == 128 * 4096 && owner.State->BackedPages == PoolPages);
         for (uint i = 0; i < PoolPages; i++) HostCheck.Equal((byte)(i + 1), *owner.At(Start + i * 4096));
         HostCheck.True(LinuxMemoryServices.Audit(owner.State));
+    }
+
+    [HostTest("m16-006 mremap preserves old bytes zeroes growth and distinguishes guards from stack probes", HostLane.Fast, 7)]
+    private static void Remapping()
+    {
+        using var owner = new Owner(); owner.Begin();
+        HostCheck.Equal((long)Start, Map(owner, Start, 4096, 3));
+        *owner.At(Start) = 0x51;
+        new Span<byte>(owner.Memory.Pool + 4096, 4096).Fill(0x7b);
+        HostCheck.Equal((long)Start, LinuxMemoryServices.Remap(owner.State, Start, 4096, 8192, 0));
+        HostCheck.True(*owner.At(Start) == 0x51 && owner.State->BackedPages == 2 &&
+            new ReadOnlySpan<byte>(owner.At(Start + 4096), 4096).IndexOfAnyExcept((byte)0) == -1);
+        HostCheck.Equal((long)Start, LinuxMemoryServices.Remap(owner.State, Start, 8192, 4096, 0));
+        HostCheck.True(owner.State->BackedPages == 1 && owner.Leaf(Start + 4096) == 0 && *owner.At(Start) == 0x51);
+        HostCheck.Equal((long)Start + 4096, Map(owner, Start + 4096, 4096, 0));
+        byte[] tables = owner.Tables();
+        HostCheck.Equal(-12L, LinuxMemoryServices.Remap(owner.State, Start, 4096, 8192, 0));
+        HostCheck.Equal(-14L, LinuxMemoryServices.Remap(owner.State, Start + 0x10000, 4096, 8192, 0));
+        HostCheck.Equal(-12L, LinuxMemoryServices.Remap(owner.State, 0x400000, 4096, 8192, 0));
+        HostCheck.Equal(-14L, LinuxMemoryServices.Remap(owner.State, 0x3ff000, 4096, 8192, 0));
+        HostCheck.Equal(-22L, LinuxMemoryServices.Remap(owner.State, Start, 4096, 8192, 1));
+        HostCheck.True(tables.AsSpan().SequenceEqual(owner.Tables()) && *owner.At(Start) == 0x51);
+    }
+
+    [HostTest("m16-006 dump exclusion splits and persists across protection with real policy state", HostLane.Fast, 8)]
+    private static void DumpPolicy()
+    {
+        using var owner = new Owner(); owner.Begin();
+        HostCheck.Equal((long)Start, Map(owner, Start, 3 * 4096, 3)); *owner.At(Start + 4096) = 0x62;
+        HostCheck.True(!LinuxMemoryServices.IsDumpExcluded(owner.State, Start, 3 * 4096));
+        HostCheck.Equal(0L, LinuxMemoryServices.Advise(owner.State, Start + 4096, 4096, 16));
+        HostCheck.True(LinuxMemoryServices.IsDumpExcluded(owner.State, Start + 4096, 4096) &&
+            !LinuxMemoryServices.IsDumpExcluded(owner.State, Start, 3 * 4096) && *owner.At(Start + 4096) == 0x62);
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, Start + 4096, 4096, 1));
+        HostCheck.True(LinuxMemoryServices.IsDumpExcluded(owner.State, Start + 4096, 4096));
+        HostCheck.Equal(0L, LinuxMemoryServices.Advise(owner.State, Start + 4096, 4096, 17));
+        HostCheck.True(!LinuxMemoryServices.IsDumpExcluded(owner.State, Start + 4096, 4096) && *owner.At(Start + 4096) == 0x62);
+    }
+
+    [HostTest("m16-006 static root adoption rejects stale root before touching pool or state", HostLane.Fast, 9)]
+    private static void Adoption()
+    {
+        using var owner = new Owner();
+        var root = X64UserAddressSpace.Build(owner.Memory.StaticRanges, owner.Memory.StaticCount, owner.Memory.Tables,
+            owner.Memory.RootPhysical, owner.Memory.TablePages, owner.Memory.Conditions);
+        HostCheck.True(root.Succeeded);
+        owner.Memory.Tables[0] ^= 4;
+        HostCheck.True(!LinuxMemoryServices.Adopt(owner.State, owner.Memory, root));
+        HostCheck.True(owner.State->Root.Status == X64UserAddressSpaceStatus.Uninitialized &&
+            new ReadOnlySpan<byte>(owner.Memory.Pool, (int)PoolPages * 4096).IndexOfAnyExcept((byte)0xa5) == -1);
+        owner.Memory.Tables[0] ^= 4;
+        HostCheck.True(LinuxMemoryServices.Adopt(owner.State, owner.Memory, root) && LinuxMemoryServices.Audit(owner.State));
     }
 }

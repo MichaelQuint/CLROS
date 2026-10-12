@@ -27,6 +27,7 @@ public struct FirstExitImageReferences
 #endif
 #if M16_005_PROBE
     public ulong LinuxSyscallCodeStart, LinuxSyscallDataStart;
+    public ulong LinuxMemoryPoolStart, LinuxMemoryPoolPages, LinuxMemoryCandidateStart;
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
     // Original retained ACPI HPET GAS, admitted against the owned firmware map.
@@ -253,6 +254,9 @@ public static unsafe class FirstExitRetainedMappings
 #if M16_005_PROBE
         + 3
 #endif
+#if M16_006_PROBE
+        + 2
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
         + 1
 #endif
@@ -280,6 +284,9 @@ public static unsafe class FirstExitRetainedMappings
         + 2
 #endif
 #if M16_005_PROBE
+        + 2
+#endif
+#if M16_006_PROBE
         + 2
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE || M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M05_PCI_ENUMERATION_PROBE
@@ -420,6 +427,15 @@ public static unsafe class FirstExitRetainedMappings
         starts[allocations] = references.LinuxSyscallCodeStart; lengths[allocations++] = X64LinuxUserTransition.CodeBytes;
         starts[allocations] = references.LinuxSyscallDataStart; lengths[allocations++] = X64LinuxUserTransition.DataBytes;
 #endif
+#if M16_006_PROBE
+        if (references.LinuxMemoryPoolPages == 0 || references.LinuxMemoryPoolPages > LinuxMemoryServices.MaximumPoolPages ||
+            references.LinuxMemoryPoolStart < 4096 || (references.LinuxMemoryPoolStart & 4095) != 0 ||
+            references.LinuxMemoryPoolStart > 0x100000000UL - references.LinuxMemoryPoolPages * 4096 ||
+            references.LinuxMemoryCandidateStart < 4096 || (references.LinuxMemoryCandidateStart & 4095) != 0 ||
+            references.LinuxMemoryCandidateStart > 0x100000000UL - X64UserAddressSpace.MaximumTables * 4096UL) return false;
+        starts[allocations] = references.LinuxMemoryPoolStart; lengths[allocations++] = references.LinuxMemoryPoolPages * 4096;
+        starts[allocations] = references.LinuxMemoryCandidateStart; lengths[allocations++] = X64UserAddressSpace.MaximumTables * 4096UL;
+#endif
         for (int i = 0; i < allocations; i++) for (int j = 0; j < i; j++)
             if (FirstExitDescriptors.Overlaps(starts[i], lengths[i], starts[j], lengths[j])) return false;
 
@@ -441,6 +457,10 @@ public static unsafe class FirstExitRetainedMappings
         pending[count++] = new SeparatePageFaultMappingRange(references.LinuxSyscallDataStart, X64LinuxUserTransition.GuardOffset / 4096, Data);
         pending[count++] = new SeparatePageFaultMappingRange(references.LinuxSyscallDataStart + X64LinuxUserTransition.StackOffset,
             (X64LinuxUserTransition.DataBytes - X64LinuxUserTransition.StackOffset) / 4096, Data);
+#endif
+#if M16_006_PROBE
+        pending[count++] = new SeparatePageFaultMappingRange(references.LinuxMemoryPoolStart, references.LinuxMemoryPoolPages, Data);
+        pending[count++] = new SeparatePageFaultMappingRange(references.LinuxMemoryCandidateStart, X64UserAddressSpace.MaximumTables, Data);
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.MappingScratchStart, 512, Data);
@@ -521,7 +541,10 @@ public static unsafe class FirstExitCodeBundle
     public const uint MappingWritePatOffset = 4832;
     public const uint MappingReadCapabilitiesOffset = 5120;
 #endif
-#if M05_APIC_SETUP_PROBE
+#if M16_006_PROBE
+    // Clock occupies 4608..4703; Linux read-back occupies 4800..4839.
+    public const uint ApicObservationOffset = 4848;
+#elif M05_APIC_SETUP_PROBE
     public const uint ApicObservationOffset = 4688;
 #endif
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
@@ -565,7 +588,7 @@ public static unsafe class FirstExitCodeBundle
             X64PhysicalMappingPublication.EmitWritePat(code + MappingWritePatOffset, MappingReadCapabilitiesOffset - MappingWritePatOffset) &&
             X64PhysicalMappingPublication.EmitReadCapabilities(code + MappingReadCapabilitiesOffset, StackEntryOffset - MappingReadCapabilitiesOffset) &&
 #endif
-#if M05_APIC_SETUP_PROBE
+#if M05_APIC_SETUP_PROBE || M16_006_PROBE
             OS.Drivers.X64ApicObservation.Emit(code + ApicObservationOffset, StackEntryOffset - ApicObservationOffset) &&
 #endif
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
@@ -669,7 +692,7 @@ public static unsafe class FirstExitCodeBundle
             !X64PhysicalMappingPublication.EmitReadCapabilities(scratch, 1024) ||
             !Equal(scratch, code + MappingReadCapabilitiesOffset, X64PhysicalMappingPublication.ReadCapabilitiesBytes)) return false;
 #endif
-#if M05_APIC_SETUP_PROBE
+#if M05_APIC_SETUP_PROBE || M16_006_PROBE
         if (!OS.Drivers.X64ApicObservation.Validate(code + ApicObservationOffset, OS.Drivers.X64ApicObservation.Bytes)) return false;
 #endif
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
@@ -699,7 +722,7 @@ public static unsafe class FirstExitCodeBundle
                 !Inside(index, MappingWritePatOffset, X64PhysicalMappingPublication.WritePatBytes) &&
                 !Inside(index, MappingReadCapabilitiesOffset, X64PhysicalMappingPublication.ReadCapabilitiesBytes) &&
 #endif
-#if M05_APIC_SETUP_PROBE
+#if M05_APIC_SETUP_PROBE || M16_006_PROBE
                 !Inside(index, ApicObservationOffset, OS.Drivers.X64ApicObservation.Bytes) &&
 #endif
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE

@@ -184,8 +184,13 @@ The in-progress backend in [step1203](../done/step1203.md) admits a bounded
 Focused host checks replay the exact large reservation with no new tables or
 backing, then commit distant islands, trim/release ranges and replace committed
 pages with anonymous `PROT_NONE`. The pinned payload/configuration is unchanged.
-Host memory checks do not satisfy M16-006's guest acceptance; its EFI adapter,
-startup services and actual upstream entry attempt remain pending.
+The default-off EFI adapter and genuine bounded startup services are implemented
+in [step1204](../done/step1204.md). A 34-call mechanical guest passes the large
+reservation, partial commit/protection/replacement/release, high copy, startup
+queries, live monotonic time, fresh entropy and real single-context barriers.
+Repeated and negative captures, original native review, full-host/ancestor
+qualification and the actual unchanged upstream entry attempt remain pending.
+This development capture does not establish NativeAOT Hello or issue acceptance.
 
 ### Transport decision experiments
 

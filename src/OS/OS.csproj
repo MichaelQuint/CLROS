@@ -93,6 +93,7 @@
 		<EnableM16003Probe Condition="'$(EnableM16003Probe)' == ''">false</EnableM16003Probe>
 		<EnableM16004Probe Condition="'$(EnableM16004Probe)' == ''">false</EnableM16004Probe>
 		<EnableM16005Probe Condition="'$(EnableM16005Probe)' == ''">false</EnableM16005Probe>
+		<EnableM16006Probe Condition="'$(EnableM16006Probe)' == ''">false</EnableM16006Probe>
 		<EnableM05PhysicalMappingProbe Condition="'$(EnableM05PhysicalMappingProbe)' == ''">false</EnableM05PhysicalMappingProbe>
 		<EnableM05OwnedAcpiSelectionProbe Condition="'$(EnableM05OwnedAcpiSelectionProbe)' == ''">false</EnableM05OwnedAcpiSelectionProbe>
 		<EnableM05MonotonicClockProbe Condition="'$(EnableM05MonotonicClockProbe)' == ''">false</EnableM05MonotonicClockProbe>
@@ -362,6 +363,9 @@
 	<PropertyGroup Condition="'$(EnableM16005Probe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M16_005_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM16006Probe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M16_006_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM04SingleFinallyCatchProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_SINGLE_FINALLY_CATCH_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -501,6 +505,7 @@
 			'$(EnableM16003Probe)' == 'true' or
 			'$(EnableM16004Probe)' == 'true' or
 			'$(EnableM16005Probe)' == 'true' or
+			'$(EnableM16006Probe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastProbe)' == 'true' or
@@ -768,6 +773,7 @@
 		<Compile Include="..\..\std\no-runtime\shared\Text\AsciiArgumentSplitter.cs" Link="Std\Text\AsciiArgumentSplitter.cs" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs" Link="Compatibility\LinuxX64\LinuxSyscallGateway.cs" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxMemoryServices.cs" Link="Compatibility\LinuxX64\LinuxMemoryServices.cs" />
+		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxStartupServices.cs" Link="Compatibility\LinuxX64\LinuxStartupServices.cs" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs" Link="Compatibility\LinuxX64\X64LinuxUserTransition.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
@@ -839,6 +845,7 @@
 			'$(EnableM16003Probe)' == 'true' or
 			'$(EnableM16004Probe)' == 'true' or
 			'$(EnableM16005Probe)' == 'true' or
+			'$(EnableM16006Probe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastProbe)' == 'true' or
@@ -1978,6 +1985,8 @@
 		<Error Condition="'$(EnableM16003Probe)' != 'true' and '$(EnableM16003Probe)' != 'false'" Text="m16_003_switch_invalid" />
 		<Error Condition="'$(EnableM16004Probe)' != 'true' and '$(EnableM16004Probe)' != 'false'" Text="m16_004_switch_invalid" />
 		<Error Condition="'$(EnableM16005Probe)' != 'true' and '$(EnableM16005Probe)' != 'false'" Text="m16_005_switch_invalid" />
+		<Error Condition="'$(EnableM16006Probe)' != 'true' and '$(EnableM16006Probe)' != 'false'" Text="m16_006_switch_invalid" />
+		<Error Condition="'$(EnableM16006Probe)' == 'true' and '$(EnableM16005Probe)' != 'true'" Text="m16_006_requires_syscall_parent" />
 		<Error Condition="'$(EnableM16005Probe)' == 'true' and ('$(EnableM16004Probe)' != 'true' or '$(EnableM16003Probe)' != 'true' or '$(EnableM16002Probe)' != 'true')" Text="m16_005_requires_startup_service_parent" />
 		<Error Condition="'$(EnableM16003Probe)' == 'true' and '$(EnableM16002Probe)' != 'true'" Text="m16_003_requires_staged_parent" />
 		<Error Condition="'$(EnableM16004Probe)' == 'true' and '$(EnableM16002Probe)' != 'true'" Text="m16_004_requires_staged_parent" />

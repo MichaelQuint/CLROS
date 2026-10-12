@@ -8,7 +8,7 @@ internal static unsafe class LinuxSyscallGatewayTests
         public byte* User;
         public byte* Output;
         public uint Copies, Writes, Bytes, Descriptor;
-        public bool MissingSecond, CopyFails, SinkFails, High;
+        public bool MissingSecond, CopyFails, SinkFails, High, RemovedCode;
     }
     private static LinuxSyscallFrame Frame() => new()
     { Number = 1, Argument0 = 1, Argument1 = 0x402000, Argument2 = 16, Rip = 0x400100, Rsp = 0x70001000, Rflags = 2 };
@@ -21,8 +21,8 @@ internal static unsafe class LinuxSyscallGatewayTests
     {
         Model* model = (Model*)context;
         if (model->High && page >= 0x100000000 && page <= 0x170000000) page -= 0x100000000;
-        return page switch { 0x400000 => 5, 0x402000 => 1, 0x403000 => model->MissingSecond ? (byte)0 : (byte)3,
-            0x70000000 => 3, 0x500000 => 7, _ => 0 };
+        return page switch { 0x400000 => model->RemovedCode ? (byte)0 : (byte)5, 0x402000 => 1, 0x403000 => model->MissingSecond ? (byte)0 : (byte)3,
+            0x70000000 => 3, 0x500000 => 7, 0x600000 => 5, _ => 0 };
     }
     [UnmanagedCallersOnly]
     private static byte Copy(void* context, ulong source, byte* destination, uint bytes)
@@ -42,6 +42,28 @@ internal static unsafe class LinuxSyscallGatewayTests
         model->Descriptor = descriptor; model->Bytes = bytes;
         for (uint i = 0; i < bytes; i++) model->Output[i] = source[i];
         return 1;
+    }
+
+    [UnmanagedCallersOnly]
+    private static long Startup(void* context, LinuxSyscallFrame* frame)
+    {
+        ((Model*)context)->RemovedCode = true;
+        frame->Rip = 0x600100; // A different valid RX page cannot replace the captured return being checked.
+        return 0;
+    }
+    [HostTest("m16-006 explicit extension preserves diagnostic admission and rechecks original return after unmapping", HostLane.Fast, 5)]
+    private static void Extension()
+    {
+        byte* scratch = stackalloc byte[64]; Model model = new() { High = true };
+        var admission = Admission(scratch); var access = Access(&model); access.Startup = &Startup;
+        LinuxSyscallGateState invalid = default;
+        HostCheck.Equal(LinuxSyscallGateStatus.InvalidAdmission, LinuxSyscallGateway.Begin(ref invalid, admission, access));
+        admission.EnableStartup = true; LinuxSyscallGateState state = default;
+        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref state, admission, access));
+        var frame = Frame(); frame.Number = 11;
+        HostCheck.Equal(LinuxSyscallAction.Terminate, LinuxSyscallGateway.Dispatch(ref state, frame).Action);
+        HostCheck.True(state.Status == LinuxSyscallGateStatus.InvalidReturn && state.Calls == 1 &&
+            new ReadOnlySpan<byte>(scratch, 64).IndexOfAnyExcept((byte)0) == -1);
     }
 
     [HostTest("m16-006 high syscall buffers returns TLS and physical-root rejection use distinct bounds", HostLane.Fast, 4)]

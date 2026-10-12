@@ -60,8 +60,9 @@ public static unsafe class LinuxMemoryServices
     private struct Region
     {
         public ulong Start, Bytes, Backing;
+        public ulong FreshFrom;
         public uint Protection;
-        public bool Fresh;
+        public bool Fresh, NoDump;
     }
 
     /// <summary>
@@ -70,12 +71,28 @@ public static unsafe class LinuxMemoryServices
     /// A failed begin leaves state, pool and target tables unchanged.
     /// </summary>
     public static bool Begin(State* state, Admission memory)
+        => Initialize(state, memory, default, false);
+
+    /// <summary>
+    /// Adopt an already audited static target root while it is inactive. The
+    /// original root must exactly match the borrowed static inventory. Rejection
+    /// preserves it and the pool; success starts empty dynamic ownership.
+    /// </summary>
+    public static bool Adopt(State* state, Admission memory, X64UserAddressSpaceResult original)
+        => Initialize(state, memory, original, true);
+
+    private static bool Initialize(State* state, Admission memory, X64UserAddressSpaceResult original, bool adopt)
     {
         if (!Storage(state, memory) || state->Initialized != 0 || state->Count != 0 ||
             state->ReservedBytes != 0 || state->BackedPages != 0 || state->Root.Status != X64UserAddressSpaceStatus.Uninitialized)
             return false;
         for (uint i = 0; i < MaximumRegions * 4; i++) if (state->Regions[i] != 0) return false;
-        for (uint i = 0; i < memory.TablePages * 512; i++) if (memory.Tables[i] != 0) return false;
+        if (adopt)
+        {
+            if (!X64UserAddressSpace.Audit(memory.StaticRanges, memory.StaticCount, memory.Tables,
+                memory.RootPhysical, memory.TablePages, memory.Conditions, original)) return false;
+        }
+        else for (uint i = 0; i < memory.TablePages * 512; i++) if (memory.Tables[i] != 0) return false;
         for (uint i = 0; i < memory.StaticCount; i++)
             if (memory.StaticRanges[i].Pages > 32768 ||
                 Overlap(memory.StaticRanges[i].PhysicalStart, memory.StaticRanges[i].Pages * Page, memory.PoolPhysical, memory.PoolPages * Page) ||
@@ -173,12 +190,14 @@ public static unsafe class LinuxMemoryServices
     /// MADV_DONTNEED discards anonymous content. Inaccessible ranges return their
     /// backing to the pool; accessible ranges are eagerly zeroed because demand
     /// faults are not yet supported. No promise of physical reclamation is made
-    /// for accessible ranges. Other advice values fail with EINVAL.
+    /// for accessible ranges. DONTDUMP/DODUMP retain actual per-interval dump
+    /// exclusion policy for later exporters; they do not claim a dump service.
+    /// Other advice values fail with EINVAL.
     /// </summary>
     public static long Advise(State* state, ulong address, ulong bytes, uint advice)
     {
         if (!Valid(state)) return Fault;
-        if (advice != 4 || !Round(bytes, out bytes) || !Range(address, bytes)) return Invalid;
+        if ((advice != 4 && advice != 16 && advice != 17) || !Round(bytes, out bytes) || !Range(address, bytes)) return Invalid;
         Region* candidate = stackalloc Region[(int)WorkingRegions];
         uint count = CopyRegions(state, candidate);
         if (!Covered(candidate, count, address, bytes)) return NoMemory;
@@ -187,10 +206,71 @@ public static unsafe class LinuxMemoryServices
         for (uint i = 0; i < count; i++)
             if (candidate[i].Start >= address && candidate[i].Start < address + bytes)
             {
-                if (candidate[i].Protection == 0) candidate[i].Backing = 0;
+                if (advice == 16 || advice == 17) candidate[i].NoDump = advice == 16;
+                else if (candidate[i].Protection == 0) candidate[i].Backing = 0;
                 else if (candidate[i].Backing != 0) candidate[i].Fresh = true;
             }
         return Apply(state, candidate, count);
+    }
+
+    /// <summary>
+    /// Query this owner's retained dump-exclusion policy over complete dynamic
+    /// reservation coverage. Unknown, stale or mixed/included ranges return false.
+    /// </summary>
+    public static bool IsDumpExcluded(State* state, ulong address, ulong bytes)
+    {
+        if (!Valid(state) || !Range(address, bytes)) return false;
+        Region* regions = stackalloc Region[(int)MaximumRegions]; uint count = CopyRegions(state, regions);
+        if (!Covered(regions, count, address, bytes)) return false;
+        for (uint i = 0; i < count; i++) if (Overlap(address, bytes, regions[i].Start, regions[i].Bytes) && !regions[i].NoDump) return false;
+        return true;
+    }
+
+    /// <summary>
+    /// In-place mremap without move/fixed flags. One complete dynamic interval
+    /// may shrink or grow into a free adjacent VA/backing extent, retaining its
+    /// bytes and zero-filling new pages. Immutable startup mappings cannot grow:
+    /// mapped stack probes return ENOMEM and absent guards EFAULT. This supports
+    /// musl's genuine stack-bound discovery without an endless synthetic failure.
+    /// </summary>
+    public static long Remap(State* state, ulong address, ulong oldBytes, ulong newBytes, ulong flags)
+    {
+        if (!Valid(state)) return Fault;
+        if (flags != 0 || !Round(oldBytes, out oldBytes) || !Round(newBytes, out newBytes) ||
+            address < Page || (address & 4095) != 0 || address >= X64UserAddressSpace.UserEnd ||
+            oldBytes > X64UserAddressSpace.UserEnd - address || newBytes > X64UserAddressSpace.UserEnd - address) return Invalid;
+        Region* candidate = stackalloc Region[(int)WorkingRegions]; uint count = CopyRegions(state, candidate);
+        for (uint i = 0; i < count; i++)
+        {
+            Region r = candidate[i];
+            if (address < r.Start || address - r.Start >= r.Bytes) continue;
+            if (oldBytes > r.Bytes - (address - r.Start)) return Fault;
+            if (oldBytes == newBytes) return (long)address;
+            if (address != r.Start || oldBytes != r.Bytes) return NoMemory;
+            if (newBytes > oldBytes)
+            {
+                if (Intersects(candidate, count, address + oldBytes, newBytes - oldBytes)) return NoMemory;
+                if (r.Backing != 0)
+                {
+                    if (newBytes > state->Memory.PoolPages * Page ||
+                        r.Backing - state->Memory.PoolPhysical > state->Memory.PoolPages * Page - newBytes) return NoMemory;
+                    for (uint j = 0; j < count; j++) if (j != i && candidate[j].Backing != 0 &&
+                        Overlap(r.Backing + oldBytes, newBytes - oldBytes, candidate[j].Backing, candidate[j].Bytes)) return NoMemory;
+                }
+            }
+            if (newBytes > oldBytes && r.Backing != 0)
+            { candidate[i].Fresh = true; candidate[i].FreshFrom = oldBytes; }
+            candidate[i].Bytes = newBytes;
+            return Apply(state, candidate, count) == 0 ? (long)address : NoMemory;
+        }
+        for (uint i = 0; i < state->Memory.StaticCount; i++)
+        {
+            var r = state->Memory.StaticRanges[i];
+            if (!r.User || address < r.VirtualStart || address - r.VirtualStart >= r.Pages * Page) continue;
+            if (oldBytes > r.Pages * Page - (address - r.VirtualStart)) return Fault;
+            return oldBytes == newBytes ? (long)address : NoMemory;
+        }
+        return Fault;
     }
 
     /// <summary>
@@ -204,6 +284,7 @@ public static unsafe class LinuxMemoryServices
     {
         if (state == null || ((ulong)state & 7) != 0 || state->Initialized != 1 ||
             !Storage(state, state->Memory) || state->Count > MaximumRegions) return false;
+        for (uint i = 0; i < state->Count; i++) if ((state->Regions[i * 4 + 3] & ~0x107UL) != 0) return false;
         Region* regions = stackalloc Region[(int)MaximumRegions];
         uint count = CopyRegions(state, regions);
         if (!Accounting(state->Memory, regions, count, out ulong reserved, out uint backed) ||
@@ -234,7 +315,7 @@ public static unsafe class LinuxMemoryServices
             bool held = false, fresh = false;
             for (uint i = 0; i < count; i++)
                 if (regions[i].Backing != 0 && physical >= regions[i].Backing && physical - regions[i].Backing < regions[i].Bytes)
-                { held = true; fresh = regions[i].Fresh; break; }
+                { held = true; fresh = regions[i].Fresh && physical - regions[i].Backing >= regions[i].FreshFrom; break; }
             if (!held || fresh) Clear(memory.Pool + page * Page, Page);
         }
         CopyTables(memory);
@@ -242,7 +323,7 @@ public static unsafe class LinuxMemoryServices
         {
             Region r = i < count ? regions[i] : default;
             state->Regions[i * 4] = r.Start; state->Regions[i * 4 + 1] = r.Bytes;
-            state->Regions[i * 4 + 2] = r.Backing; state->Regions[i * 4 + 3] = r.Protection;
+            state->Regions[i * 4 + 2] = r.Backing; state->Regions[i * 4 + 3] = r.Protection | (r.NoDump ? 0x100UL : 0UL);
         }
         state->Count = count; state->ReservedBytes = reserved; state->BackedPages = backed; state->Root = root;
         return 0;
@@ -336,13 +417,14 @@ public static unsafe class LinuxMemoryServices
     }
 
     private static Region Slice(Region r, ulong start, ulong bytes) => new()
-    { Start = start, Bytes = bytes, Backing = r.Backing == 0 ? 0 : r.Backing + start - r.Start, Protection = r.Protection, Fresh = r.Fresh };
+    { Start = start, Bytes = bytes, Backing = r.Backing == 0 ? 0 : r.Backing + start - r.Start, Protection = r.Protection, Fresh = r.Fresh,
+        FreshFrom = start - r.Start >= r.FreshFrom ? 0 : r.FreshFrom - (start - r.Start), NoDump = r.NoDump };
     private static bool Append(Region* regions, ref uint count, Region r)
     { if (count == WorkingRegions) return false; regions[count++] = r; return true; }
     private static uint CopyRegions(State* state, Region* output)
     {
         for (uint i = 0; i < state->Count; i++) output[i] = new() { Start = state->Regions[i * 4], Bytes = state->Regions[i * 4 + 1],
-            Backing = state->Regions[i * 4 + 2], Protection = (uint)state->Regions[i * 4 + 3] };
+            Backing = state->Regions[i * 4 + 2], Protection = (uint)(state->Regions[i * 4 + 3] & ~0x100UL), NoDump = (state->Regions[i * 4 + 3] & 0x100) != 0 };
         return state->Count;
     }
     private static void Sort(Region* regions, uint count)
@@ -360,6 +442,7 @@ public static unsafe class LinuxMemoryServices
             {
                 Region* previous = regions + written - 1;
                 if (previous->Start + previous->Bytes == r.Start && previous->Protection == r.Protection && previous->Fresh == r.Fresh &&
+                    previous->FreshFrom == r.FreshFrom && previous->NoDump == r.NoDump &&
                     (previous->Backing == 0 && r.Backing == 0 || previous->Backing != 0 && previous->Backing + previous->Bytes == r.Backing))
                 { previous->Bytes += r.Bytes; continue; }
             }

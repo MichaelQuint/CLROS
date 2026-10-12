@@ -19,10 +19,20 @@ reload/publish CR3 before resuming user code. Accessible `MADV_DONTNEED` ranges
 are eagerly zeroed without claiming physical reclamation; inaccessible ranges
 release their backing. Demand faults, file/shared mappings and SMP are unsupported.
 
-These APIs are not wired into the EFI syscall adapter yet. Startup/time/entropy,
-the default-off M16-006 profile, native review, real mechanical memory guests,
-affected ancestor regressions and the pinned upstream entry attempt remain
-required before #684 closure. The one-use/64-call M16-005 policy is unchanged.
+The default-off M16-006 adapter now dispatches under the original kernel root,
+copies high user pointers through audited physical aliases, then reloads the
+mutated user root before checked IRET. Startup services supply observed HPET
+monotonic time, retained-map memory facts, a MADT/native-validated single CPU,
+bounded brk ownership and separately captured consumable entropy. Unsupported
+wall-clock and entropy refill requests fail explicitly. Dump policy is retained;
+in-place mremap preserves bytes and real musl stack probes receive bounded
+ENOMEM/EFAULT results. No thread/signal behavior is fabricated.
+
+[Step1204](../done/step1204.md) records the implementation and development
+qualification. A mechanical 34-call guest passes; repeated/negative guests,
+full-host checks, original native review, affected ancestors and the pinned
+upstream entry attempt remain required before #684 closure. The one-use/64-call
+M16-005 policy is unchanged. These APIs do not qualify an upstream runtime.
 
 The next slice is [M16-006/#684](http://192.168.4.35:3000/admin/CLROS/issues/684)
 for measured Linux memory/startup services, followed by #685 descriptors and

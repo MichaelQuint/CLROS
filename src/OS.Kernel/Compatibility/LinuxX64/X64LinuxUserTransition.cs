@@ -4,6 +4,7 @@ public struct X64LinuxUserTransitionPlan
 {
     public ulong CodeAddress, ContextAddress, UserRoot, UserRip, UserRsp, UserFs, UserGs;
     public ulong Dispatcher, FaultReporter, CallbackContext, TssRsp0Address, OriginalGp, OriginalPf;
+    public ulong KernelRoot; // Zero retains the byte-identical M16-005 dispatcher path.
 }
 
 /// <summary>
@@ -24,12 +25,16 @@ public static unsafe class X64LinuxUserTransition
     public const uint SyscallOffset = 0x600, GpOffset = 0xc00, PfOffset = 0xd00, ExitOffset = 0xe00;
     public const uint ObserveOffset = 0x400, ObservationWords = 25;
     public const uint EstablishSegmentsOffset = 0xb00;
+    public const uint MemoryBarrierOffset = 0xaf0;
     public const uint GpPointerOffset = 0xff0, PfPointerOffset = 0xff8;
     public const uint FrameOffset = 0x100, KernelFxOffset = 0x200, UserFxOffset = 0x400;
     public const uint GdtOffset = 0x600, IdtOffset = 0x1000, ScratchOffset = 0x2000;
     public const uint GuardOffset = 0x3000, StackOffset = 0x4000;
     public const uint OutcomeOffset = 0xe0, ValueOffset = 0xe8, VectorOffset = 0xf0, ErrorOffset = 0xf8;
     public const uint FaultAddressOffset = 0x1d8, PhaseOffset = 0x1f0, FaultSelectorsOffset = 0x1f8, SavedSsOffset = 0x1fc;
+    // Private GDT occupies 600h..63Fh; this distinct qword is outside saved
+    // registers, segment selectors, both FXSAVE areas and the IDT at 1000h.
+    public const uint KernelRootOffset = 0x640;
     public const ushort UserCs = 0x3b, UserSs = 0x33;
     public const ulong Star = 0x0028000800000000, Fmask = 0x74700;
     private const ulong End = 0x100000000, PointerEnd = 0x0000800000000000;
@@ -78,6 +83,7 @@ public static unsafe class X64LinuxUserTransition
         *(ulong*)(data + 0x38) = plan.FaultReporter; *(ulong*)(data + 0x58) = plan.UserFs;
         *(ulong*)(data + 0x60) = plan.UserGs; *(ulong*)(data + 0xc8) = plan.TssRsp0Address;
         *(ulong*)(data + 0xd8) = plan.CallbackContext;
+        *(ulong*)(data + KernelRootOffset) = plan.KernelRoot;
         *(ulong*)(data + 0x1e0) = plan.OriginalGp; *(ulong*)(data + 0x1e8) = plan.OriginalPf;
         *(ushort*)(data + 0x98) = 63; *(ulong*)(data + 0x9a) = plan.ContextAddress + GdtOffset;
         *(ushort*)(data + 0xb8) = 4095; *(ulong*)(data + 0xba) = plan.ContextAddress + IdtOffset;
@@ -136,6 +142,8 @@ public static unsafe class X64LinuxUserTransition
         w.Immediate(0, Star); w.WriteVerifyMsr(0xc0000081);
         w.Immediate(0, plan.CodeAddress + SyscallOffset); w.WriteVerifyMsr(0xc0000082);
         w.Immediate(0, Fmask); w.WriteVerifyMsr(0xc0000084);
+        if (plan.KernelRoot != 0)
+        { w.Load(0, 0x20); w.CompareField(0, KernelRootOffset); w.Branch(0x85, ExitOffset); }
         w.Fx(true, UserFxOffset);
         w.Load(0, 0x28); w.Bytes(0xd8220f, 3); // publish admitted user CR3
         w.Load(4, 0); w.Set(PhaseOffset, 1);
@@ -165,9 +173,11 @@ public static unsafe class X64LinuxUserTransition
         w.ReadMsr(0xc0000102); w.Store(0, 0x158); // SWAPGS placed user GS here
         w.Fx(false, UserFxOffset); w.Fx(true, KernelFxOffset); w.Bytes(0xfc, 1);
         w.Bytes(0xd8200f, 3); w.CompareField(0, 0x28); w.Branch(0x85, ExitOffset);
+        if (plan.KernelRoot != 0) { w.Load(0, 0x20); w.Bytes(0xd8220f, 3); }
         w.Load(1, 0xd8); w.Lea(2, FrameOffset); w.Call(0x30);
         w.Bytes(0x013c, 2); // cmp al,1: only validated returns may resume
         w.Branch(0x85, ExitOffset);
+        if (plan.KernelRoot != 0) { w.Load(0, 0x28); w.Bytes(0xd8220f, 3); }
         w.Load(0, 0x150); w.WriteMsr(0xc0000100);
         w.Load(0, 0x158); w.WriteMsr(0xc0000102);
         w.Bytes(0x336a, 2); w.PushField(0x140); w.PushField(0x148); w.Bytes(0x3b6a, 2); w.PushField(0x138);
@@ -177,6 +187,11 @@ public static unsafe class X64LinuxUserTransition
         w.Load(0, ValueOffset); w.Load(14, SavedOffset(14));
         w.Bytes(0xf8010f, 3); w.Bytes(0xcf48, 2); // SWAPGS; validated IRETQ, no SYSRET window
 
+        if (plan.KernelRoot != 0)
+        {
+            w.Pad(MemoryBarrierOffset); w.Bytes(0xfa1e0ff3, 4); // CPL0 single-CPU process fence.
+            w.Bytes(0xf0ae0f, 3); w.Bytes(0x00000001b8, 5); w.Bytes(0xc3, 1); // MFENCE; mov eax,1; ret.
+        }
         w.Pad(EstablishSegmentsOffset);
         // CPL0 leaf used once before the excursion baseline: firmware may leave
         // cached FS/GS selectors absent from the owned GDT. Establish owned NULL
@@ -258,6 +273,8 @@ public static unsafe class X64LinuxUserTransition
         10 => 0x198, 12 => 0x1a0, 13 => 0x1a8, 14 => 0x1b0, 15 => 0x1b8, 1 => 0x1c0, 11 => 0x1c8, _ => 0 };
 
     private static bool Admit(X64LinuxUserTransitionPlan p) =>
+        (p.KernelRoot == 0 || PageRange(p.KernelRoot, 4096) && p.KernelRoot != p.UserRoot &&
+            !Overlap(p.KernelRoot, 4096, p.CodeAddress, CodeBytes) && !Overlap(p.KernelRoot, 4096, p.ContextAddress, DataBytes)) &&
         PageRange(p.CodeAddress, CodeBytes) && PageRange(p.ContextAddress, DataBytes) &&
         PageRange(p.UserRoot, 4096) && !Overlap(p.CodeAddress, CodeBytes, p.ContextAddress, DataBytes) &&
         !Overlap(p.UserRoot, 4096, p.CodeAddress, CodeBytes) && !Overlap(p.UserRoot, 4096, p.ContextAddress, DataBytes) &&

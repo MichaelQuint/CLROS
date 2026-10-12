@@ -2,10 +2,11 @@
 
 M16-006/#684 has an in-progress sparse memory backend and high user VA checks
 in [step1203](../done/step1203.md). Focused host evidence covers real backing
-zero-fill, page-table encodings, quotas and rollback. EFI syscall publication,
-startup/time/entropy, native/full-host/guest qualification and the unchanged
-pinned upstream entry attempt remain incomplete. No gate or issue acceptance
-advances from this implementation step.
+zero-fill, page-table encodings, quotas and rollback. [Step1204](../done/step1204.md)
+adds the default-off EFI memory/startup path and its first passing 34-call
+mechanical guest. Original native review, full-host checks, repeated/negative
+guests, ancestors and the unchanged pinned upstream entry attempt remain
+incomplete. No gate or issue acceptance advances from development evidence.
 
 M16-005/#683 and supplemental #699 are qualified in
 [step1201](../done/step1201.md): 4,619 full-host checks across 604 groups
