@@ -294,6 +294,18 @@ public static class BootSequence
                 owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
             : default;
 
+    public static bool IsNormalFinallyEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04NormalFinallyProbe;
+
+    public static unsafe OS.Kernel.Runtime.X64FrameUnwindResult RunNormalFinallyUnwind(
+        OS.Boot.EfiLoadedImageRangeCapturePlan capture, OS.Boot.M01LoadedImageVirtualMappingEvidence mapping,
+        byte* owner, ulong ownerCapacity, ulong handle, byte* metadata, ulong metadataCapacity,
+        byte* stack, ulong stackBytes, OS.Kernel.Runtime.X64UnwindContext input) =>
+        IsNormalFinallyEnabled()
+            ? OS.Kernel.Runtime.X64FrameUnwind.UnwindOne(
+                OS.Kernel.Runtime.NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, capture, mapping,
+                owner, ownerCapacity, handle, metadata, metadataCapacity, stack, stackBytes, input)
+            : default;
+
     public static bool IsFrameDispatchEnabled() => OS.Kernel.Diagnostics.Probes.EnableM04FrameDispatchProbe;
 
     public static bool IsEhCatalogEnabled() =>

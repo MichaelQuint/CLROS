@@ -1,15 +1,27 @@
 # NativeAOT NoStdLib Limits
 
-#674–#676 remain in development. [step1190](../done/step1190.md) records one
-inactive compiler fixture: ILC10.0.12 emits a normal-path call to its own finally
+#674–#676 remain in development. [step1191](../done/step1191.md) wires a
+default-off GC-dependent normal-finally profile, explicit one-method compiler
+catalog, own-frame parent recovery, exited-clause selection, retained matcher
+and the accepted catch-transfer instructions with distinct symbols. Runtime
+transfer is false, QEMU planning rejects the profile and artifact verification
+ends at `normal_finally_transfer_review_pending` after the strict new ABI checks.
+The draft compiles/links; source/native review measures 170 callback nodes,
+13 bounded body-allocation sites and 57 targets in five readonly compiler
+switch tables. The measured first-party maximum is 14,592/16,400 stack bytes;
+firmware internals are excluded. Focused checks pass. Numeric guest transcript
+validation, complete native mutation controls, final admission, frozen full-host
+and real guest qualification remain incomplete; #90/Gate4 stay open.
+
+[step1190](../done/step1190.md) records the initial inactive compiler fixture:
+ILC10.0.12 emits a normal-path call to its own finally
 funclet when the root has `MethodImpl` NoOptimization (`0x40`). Without that flag,
 the compiler clones the normal finally into the root. Original COFF/map and
 linked PE review establish 173 code bytes, 11 EH bytes, three frame records and
 the same-root catch continuation. The catalog producer can select one exact
 method after validating every original contribution, including omitted ones.
-The temporary frame-profile anchor has been removed. Dedicated probe/bridge
-wiring, strict normal-profile ABI controls, native callback review and real
-normal-finally guest qualification remain incomplete; #90/Gate4 stay open.
+The temporary frame-profile anchor has been removed. Its measurements remain
+development evidence; the later draft integration is described above.
 
 #670–#672 qualify host prerequisites for one future normal-path-finally fixture
 in [step1189](../done/step1189.md): 4,539 full-host checks across 588 groups (92

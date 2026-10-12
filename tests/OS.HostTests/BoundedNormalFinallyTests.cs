@@ -184,8 +184,18 @@ internal static unsafe class BoundedNormalFinallyTests
                 rejected.Detail.EndsWith(":reviewed_bounded_exception_search_identity", StringComparison.Ordinal),
                 "search/cleanup skip or complete-row weakening stays rejected");
         }
-        Need(!EfiContracts.CompileItems.Any(item => item.Contains("NativeAotEhClauseMetadata.NormalFinally.cs", StringComparison.Ordinal)),
-            "new parent recovery remains outside EFI source admission");
+        const string parentInclude = @"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.NormalFinally.cs";
+        Need(EfiContracts.CompileItems.Count(item => item.StartsWith(parentInclude + "|", StringComparison.Ordinal)) == 1,
+            "parent recovery has one explicit reviewed EFI include");
+        string parentSource = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS.Kernel/Runtime/NativeAotEhClauseMetadata.NormalFinally.cs"));
+        Need(EfiSourceAdmission.Inspect(parentSource, parentInclude).Succeeded, "exact parent source admitted");
+        foreach (string anchor in new[] { "funclet.FunctionIndex != callByte.FunctionIndex", "root.FunctionIndex != protectedByte.FunctionIndex", "if (row.Kind != NativeAotEhClauseKind.FaultOrFinally || row.IsTryGroupBoundary)" })
+        {
+            Need(parentSource.Contains(anchor, StringComparison.Ordinal), "parent source control anchor");
+            var rejected = EfiSourceAdmission.Inspect(parentSource.Replace(anchor, "if (false)", StringComparison.Ordinal), parentInclude);
+            Need(!rejected.Succeeded && rejected.Detail.EndsWith(":reviewed_normal_finally_parent_source_identity", StringComparison.Ordinal),
+                "parent identity and clause weakening rejected");
+        }
     }
 
     private sealed class Fixture : IDisposable

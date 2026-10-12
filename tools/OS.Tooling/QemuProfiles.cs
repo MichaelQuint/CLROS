@@ -28,6 +28,7 @@ public static class QemuProfiles
             emit?.Invoke("QEMU_SCRIPT_M02_OWNED_COM1_READY_PREREQUISITES m01LoadedImageStack=true m01LiveAllocator=true m01OwnedPaging=true");
         }
         EfiProfile profile = EfiProfile.Create(options.BootPolicy, flags, emit);
+        Require(!profile.IsEnabled("M04NormalFinally"), "qemu_normal_finally_transfer_not_admitted");
         bool Enabled(string name) => profile.IsEnabled("Enable" + name + "Probe");
         bool normal = profile.BootPolicy == "VerifiedExit";
         bool build = options.BuildEfi || normal && !options.Explicit.Contains("BuildEfi");

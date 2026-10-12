@@ -200,7 +200,7 @@ public static class EfiBuild
             evidence[name] = pair.Value;
         }
         AddNativeObjects(preflight.Profile, native, output, locks, evidence);
-        if (preflight.Profile.IsEnabled("M04EhCatalog"))
+        if ((preflight.Profile.IsEnabled("M04EhCatalog") || preflight.Profile.IsEnabled("M04NormalFinally")))
         {
             foreach (var (prefix, name, suffix) in new[] { ("ehCatalog", "CLROS.X64.EhCatalog.obj", ".eh-catalog.obj"),
                 ("ehCatalogIlc", "OS.obj", ".ilc.obj"), ("ehCatalogMap", "OS.map.xml", ".ilc.map.xml") })
@@ -215,7 +215,7 @@ public static class EfiBuild
         List<AuthorityFile> finalOutputs = output.Paths.Select(path => Open(path, "verifier_input", 536870912, true)).ToList();
         foreach (string path in new[] { serializerPath, Path.Combine(native, "OS.link.map"), managed }) finalOutputs.Add(Open(path, "verifier_input", 536870912, true));
         foreach (var bridge in NativeObjects(preflight.Profile)) finalOutputs.Add(Open(Path.Combine(native, bridge.FileName), "verifier_input", 536870912, true));
-        if (preflight.Profile.IsEnabled("M04EhCatalog")) foreach (string name in new[] { "CLROS.X64.EhCatalog.obj", "OS.obj", "OS.map.xml" })
+        if ((preflight.Profile.IsEnabled("M04EhCatalog") || preflight.Profile.IsEnabled("M04NormalFinally"))) foreach (string name in new[] { "CLROS.X64.EhCatalog.obj", "OS.obj", "OS.map.xml" })
             finalOutputs.Add(Open(Path.Combine(native,name), "verifier_input", 536870912, true));
         AuthorityFiles.RequireDistinct(finalOutputs.ToArray());
         Require(finalOutputs.All(file => file.InitialIdentity.Key != log.IdentityKey), "verifier_input_log_alias");
@@ -265,6 +265,7 @@ public static class EfiBuild
             yield return new("filterInvoke", ".filter-invoke.obj", "CLROS.X64.FilterInvoke.obj", EfiContracts.FilterInvokeObjectBytes, EfiContracts.FilterInvokeObjectSha256);
         }
         if (profile.IsEnabled("M04ConstructorFailure")) yield return new("constructorFailure", ".ctor-failure.obj", "CLROS.X64.ConstructorFailure.obj", EfiContracts.ConstructorFailureObjectBytes, EfiContracts.ConstructorFailureObjectSha256);
+        if (profile.IsEnabled("M04NormalFinally")) yield return new("normalFinally", ".normal-finally.obj", "CLROS.X64.NormalFinally.obj", EfiContracts.NormalFinallyObjectBytes, EfiContracts.NormalFinallyObjectSha256);
         if (profile.IsEnabled("M04FrameDispatch")) yield return new("frameDispatch", ".frames.obj", "CLROS.X64.FrameDispatch.obj", EfiContracts.FrameDispatchObjectBytes, EfiContracts.FrameDispatchObjectSha256);
         if (profile.IsEnabled("M04NestedFinallyCatch")) yield return new("nestedFinally", ".nested-finally.obj", "CLROS.X64.NestedFinallyCatch.obj", EfiContracts.NestedFinallyObjectBytes, EfiContracts.NestedFinallyObjectSha256);
         if (profile.IsEnabled("M04Rethrow"))

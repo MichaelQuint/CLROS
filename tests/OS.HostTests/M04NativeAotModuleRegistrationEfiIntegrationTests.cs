@@ -175,7 +175,7 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
                 Need(errors.Count(x=>x=="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$("+Flag+")' == 'true'")==1,"exact incoming first-exit conflict");
                 continue;
             }
-            if(other=="EnableM04SeededCollectorChurnProbe"||other=="EnableM04ClassConstructorExecutionProbe"||other=="EnableM04InterfaceDispatchProbe"||other=="EnableM04SimpleThrowCatchProbe"||other=="EnableM04SingleFinallyCatchProbe"||other=="EnableM04RethrowProbe"||other=="EnableM04NestedFinallyCatchProbe"||other=="EnableM04UnhandledExceptionProbe"||other=="EnableM04FrameDispatchProbe"||other=="EnableM04ConstructorFailureProbe"||other=="EnableM04FilteredCatchProbe"||other=="EnableM04EhCatalogProbe"){
+            if(other=="EnableM04SeededCollectorChurnProbe"||other=="EnableM04ClassConstructorExecutionProbe"||other=="EnableM04InterfaceDispatchProbe"||other=="EnableM04SimpleThrowCatchProbe"||other=="EnableM04SingleFinallyCatchProbe"||other=="EnableM04RethrowProbe"||other=="EnableM04NestedFinallyCatchProbe"||other=="EnableM04UnhandledExceptionProbe"||other=="EnableM04FrameDispatchProbe"||other=="EnableM04ConstructorFailureProbe"||other=="EnableM04FilteredCatchProbe"||other=="EnableM04EhCatalogProbe"||other=="EnableM04NormalFinallyProbe"){
                 string gcChild=other;
                 if(other=="EnableM04EhCatalogProbe"){
                     Need(errors.Count(x=>x=="'$(EnableM04EhCatalogProbe)' == 'true' and '$(EnableM04FrameDispatchProbe)' != 'true'")==1,"exact inherited catalog prerequisite");

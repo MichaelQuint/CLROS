@@ -85,6 +85,11 @@ public static partial class Probes
 #else
     public const bool EnableM04FrameDispatchProbe = false;
 #endif
+#if M04_NORMAL_FINALLY_PROBE
+    public const bool EnableM04NormalFinallyProbe = true;
+#else
+    public const bool EnableM04NormalFinallyProbe = false;
+#endif
 #if M04_EH_CATALOG_PROBE
     public const bool EnableM04EhCatalogProbe = true;
 #else
@@ -214,7 +219,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 46;
+    public const int ProbeCatalogCount = 47;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -416,6 +421,11 @@ public static partial class Probes
         new("runtime.exception", nameof(EnableM04FilteredCatchProbe),
             EnableM04FilteredCatchProbe, ProbeRisk.Destructive,
             "Selects two ordered nonthrowing compiler filters and the selected catch; exact native admission required.");
+
+    public static ProbeDefinition GetM04NormalFinallyProbe() =>
+        new("runtime.exception", nameof(EnableM04NormalFinallyProbe),
+            EnableM04NormalFinallyProbe, ProbeRisk.Destructive,
+            "Selects one throw from a normally called finally; exact native admission required.");
 
     public static ProbeDefinition GetM04EhCatalogProbe() =>
         new("runtime.exception", nameof(EnableM04EhCatalogProbe),
@@ -742,6 +752,9 @@ public static partial class Probes
                 return true;
             case 45:
                 definition = GetM04EhCatalogProbe();
+                return true;
+            case 46:
+                definition = GetM04NormalFinallyProbe();
                 return true;
             default:
                 definition = default;
