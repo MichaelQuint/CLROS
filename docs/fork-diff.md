@@ -442,6 +442,116 @@ No runtime helper, boot ordering, ABI, project dependency, image, firmware or
 completion gate changes. Source-level findings need independent reproduction
 when the corresponding CLROS implementation issue is taken up.
 
+## uACPI deep static review (2026-10-11)
+
+**Decision: add an isolated source/design/test reference.** The installed
+`references/uACPI-2cb5e71ef583` pins upstream
+`2cb5e71ef58393839e1988ef9a8f1d8ba2845a8d` (6.1.1), with all 168 raw files
+verified against Git blobs. Provenance, MIT notice and bundled-tool exclusions
+are in [the license ledger](license-audit.md#uacpi-snapshot-provenance-2026-10-11);
+[the issue crosswalk](reference-map.md#uacpi-selection-and-issue-crosswalk-2026-10-11)
+records four optional follow-ups. This review changes no runtime or gate status.
+
+The inspection covers 19 library compilation units, public/platform headers,
+CMake/Meson source inventories, 77 ASL test cases, C API/resource/barebones
+runners, generated test cases and CI. Source presence is distinct from executed
+coverage: no upstream build, test, benchmark, firmware dump download or guest run
+was performed. CMake, clang and iASL were absent from the review shell's PATH.
+README speed/compatibility claims were not independently measured.
+
+### Table ownership and firmware policy
+
+`source/tables.c` maps headers and complete tables, records origin/reference
+state, and supports early caller-provided metadata storage. Barebones mode
+needs only RSDP lookup, mapping/unmapping and logging. This offers staged
+initialization comparisons, but CLROS already retains five bounded bootstrap
+tables and selects owned MADT/HPET/MCFG after exit (#59/#539/#95/#606).
+FADT handling adds useful length/revision/legacy/extended/reset metadata ideas;
+[#666](http://192.168.4.35:3000/admin/CLROS/issues/666) selects host parsing only.
+
+Preserve CLROS's strict validation. Upstream bad-checksum rejection is
+configurable; root iteration masks off incomplete pointer bytes and skips null
+entries; its generic subtable walker can succeed after warning about trailing
+bytes. FADT handling rewrites revision metadata and prefers legacy FACS for a
+firmware quirk. These are compatibility choices, not CLROS policy. Independent
+malformed fixtures and the ACPI specification must govern adaptations.
+
+### GAS and resource framing
+
+`source/io.c` separates GAS mapping from access and distinguishes SystemMemory
+from SystemIO. [#665](http://192.168.4.35:3000/admin/CLROS/issues/665) uses this
+for raw metadata and a pure register validator. A static concern in
+`gas_get_access_bit_width` multiplies nonzero `access_size` by eight when the
+first width branch does not apply. Encodings 3/4 then produce 24/32 bits,
+while [ACPI 6.6 GAS](https://uefi.org/specs/ACPI/6.6/05_ACPI_Software_Programming_Model.html#generic-address-structure)
+defines 32/64. This is not an executed upstream defect; independently authored
+encoding/offset cases must prevent importing that arithmetic.
+
+`source/resources.c` checks small/large resource lengths, payload bounds,
+fixed/variable forms and EndTag presence. Its richer native/resource conversion
+allocates buffers and applies item-specific compatibility behavior.
+`tests/runner/resource_tests.c` supplies encoding/round-trip ideas; agreement
+between related encoders is not an independent oracle.
+[#667](http://192.168.4.35:3000/admin/CLROS/issues/667) is limited to framing,
+EndTag/checksum and atomic caller-owned descriptor output. It does not evaluate
+`_CRS`, decode every resource semantic or activate devices.
+
+### AML execution, lifetimes and hardware authority
+
+`source/interpreter.c` uses explicit execution/call-frame arrays, opcode handler
+tables and parse programs rather than native recursion for AML method calls.
+Its defaults include 256 method frames and a 30-second loop timeout.
+`source/types.c` and `source/shareable.c` manage references and non-recursive
+object teardown; `source/namespace.c` resolves names/object identity. These
+inform a bounded C# interpreter. Loop timeouts alone do not bound instruction
+count, namespace growth, allocation or every execution path.
+
+`source/opregion.c` and `source/default_handlers.c` expose address-space/field
+operations and PCI bridge/configuration behavior. `source/utilities.c` has
+`_STA` and `_PRT` helpers; resource evaluation includes `_CRS`. This model goes
+beyond MADT/MCFG scanning and introduces firmware-requested I/O and writes.
+CLROS must retain required DSDT/SSDT bytes before firmware exit and admit
+explicit owned capabilities before activating operation-region access.
+
+The full `include/uacpi/kernel_api.h` boundary requires allocation/free,
+monotonic time, stall/sleep, thread identity, mutex/event/spinlock semantics,
+interrupt disable/restore and installation, PCI/port I/O, deferred work and
+work/IRQ drain. `source/event.c`/`source/notify.c` use these for SCI/GPE/fixed
+events and notifications. Reduced-hardware mode removes parts of this machinery
+but does not provide CLROS services or eliminate every interpreter dependency.
+Existing M09 #188/#189/#190/#194/#198 cover relevant future services.
+
+[#668](http://192.168.4.35:3000/admin/CLROS/issues/668) requests staged C# AML
+research: a bounded no-I/O integer host experiment first, then separate
+device/resource capabilities and retained table ownership. The initial scheduling
+blocker #662/#663/#664 is qualified in step1187 and closed. A 2026-10-12 tracker
+read-back marks #668 ready and unassigned for research only; former catalog
+children #658/#659/#660 are qualified/closed in step1184. Hardware execution has stronger service
+dependencies than research readiness. No native uACPI library is linked.
+
+### Tests and unmerged fixes
+
+The full C runner uses host threading/runtime adapters; the barebones runner
+maps synthetic table pointers directly and proves no physical mapping.
+CI covers Windows/Linux, 32/64-bit and OpenWatcom, with a separate reduced-
+hardware/configuration compilation check. GCC/clang runner builds enable
+address/undefined sanitizers; MSVC explicitly omits ASan. The Python harness
+can clone external firmware dumps and invokes iASL/CMake. None ran here.
+
+Upstream [PR #166](https://github.com/uACPI/uACPI/pull/166), reviewed separately
+at head `e60f36fe89e020a50a847fe1f7c1a47af1d81731`, proposes 59-file changes.
+Its negative cases address event/notify wait-under-lock deadlocks, GPE context
+lifetime, field/operation-region replacement during callbacks, failed handler
+allocation, package reference cycles and MSVC atomic compare/exchange ordering.
+It also proposes counting-semaphore and preallocated-work-item kernel API
+changes. These are independent rejection/lifetime test themes; the unmerged
+implementation is absent from the installed master pin. That pin's callback API
+must not be described as settled future CLROS architecture.
+
+The first-party result is documentation, provenance and four verified
+supplemental issues. Parser implementation, native/guest integration, general
+AML/device discovery and completion-gate changes remain separate work.
+
 ## Validation
 
 ```powershell

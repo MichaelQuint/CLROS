@@ -15,8 +15,9 @@ name ending in `-main` or `-master` is not a verified revision.
 
 Ten additional snapshots acquired on 2026-10-06 preserve immutable commit
 identity and upstream license files. Their separate ledger below supersedes
-the unknown-revision default only for those new directories. There are now 39
-local snapshots; none is a first-party build input.
+the unknown-revision default only for those new directories. The pinned uACPI
+addition on 2026-10-11 has its own ledger below. There are now 40 local
+snapshots; none is a first-party build input.
 
 Therefore:
 
@@ -305,6 +306,56 @@ No reference artifact satisfies a CLROS completion gate. Before any future
 source adaptation, add the exact file hash, author/notices and copied-versus-
 reimplemented boundary to the implementing issue and done step.
 
+## uACPI snapshot provenance (2026-10-11)
+
+| Field | Verified value |
+| --- | --- |
+| Upstream | [uACPI/uACPI](https://github.com/uACPI/uACPI) |
+| Installed directory | `references/uACPI-2cb5e71ef583` |
+| Commit/version | `2cb5e71ef58393839e1988ef9a8f1d8ba2845a8d`; header/Meson version 6.1.1 |
+| Git tree | `392c2ec30ef709e55ed30d9e43cb1777200c8cc4` |
+| Archive method | `git -c core.autocrlf=false archive --format=zip --output=<outside-snapshot.zip> 2cb5e71ef58393839e1988ef9a8f1d8ba2845a8d` from the verified upstream checkout |
+| Archive SHA-256 | `d54bd41c8b6b98cf4a12012c0d6b2ce75b1a66261788b0bcdaba97c67852dfbe` |
+| File inventory | 168 regular files; all raw-byte Git blob IDs match the pinned tree; 100644/100755 source modes recorded; no gitlinks or `.git` metadata |
+| Library notice | `LICENSE`: MIT; copyright 2022-2026 Daniil Tatianin |
+| License SHA-256 | `4df79580512f5c0f701d18fe4d87cb05383a214b9f64d85abe0d55200fd98f3f` |
+| Current reuse | Source/design study and independently authored C# tests/contracts; no code/binary import into CLROS |
+
+This is a local Git-generated archive hash, not a claim about GitHub's codeload
+ZIP bytes. The initial export inherited Windows `core.autocrlf=true` and was
+rejected when raw file verification detected CRLF conversion. It was moved to
+ignored artifacts. The installed export explicitly disables conversion and
+matches every original blob; no snapshot source was patched or normalized.
+Windows does not expose Unix executable bits as such; original Git modes remain
+in the receipt, while byte identity is verified independently.
+
+Reviewed source fingerprints (paths relative to the snapshot):
+
+| Path | Original-byte SHA-256 |
+| --- | --- |
+| `include/uacpi/kernel_api.h` | `fc7edc48faadff1f405dc3ca336e978e39e6b9f9a751621a55d5d9530d338dea` |
+| `include/uacpi/platform/config.h` | `5c8e35795e7edb46b58157754185020654048f2c9c59079a29834b0a962c6ac2` |
+| `source/tables.c` | `862b82d083627a82c0ebec4537a352a16de1d44c8d25c64f49a8ec6ce8e9a41c` |
+| `source/io.c` | `3fedf3e5cccdcac67eb82bc9a66f7a86cf399256cebdc774b3605a358b882731` |
+| `source/interpreter.c` | `028e5c88ef4bec83f9af692f3a4aae6805352f4fd1b9883c27f050f7171df528` |
+| `source/resources.c` | `1393e6cd32911b585c5b63eb15c6eabe47aed20a66c0f7b8cba201f060dbc540` |
+
+The upstream tree includes `.github/workflows/acpica-pre-regression.zip`, a
+bundled ACPICA test-tool archive. The library's MIT notice does not establish
+that tool's redistribution terms. It remains isolated reference material;
+no bundled binary was executed, imported into first-party artifacts, or cleared
+for redistribution. The test runner can fetch external ACPI dumps; that fetch
+was not performed and those dumps are not part of this snapshot's provenance.
+
+The 2026-10-11 review separately inspected unmerged upstream PR #166 at head
+`e60f36fe89e020a50a847fe1f7c1a47af1d81731` against the installed master pin.
+Its proposed changes are not installed or represented as accepted library
+behavior. Full per-file hashes/blob IDs, archive and issue read-backs are retained
+under `artifacts/reference-research-20261011-uacpi`; see [step1186](../done/step1186.md).
+Any future substantial adaptation still needs exact affected CLROS files,
+authorship/notices and a copied-versus-reimplemented boundary. First-party source
+remains C# 14/.NET 10 and every reference remains outside the build/image.
+
 ## First-Party and Distribution Rules
 
 - First-party kernel/std/app source remains C#; do not commit `.c`, `.cpp`,
@@ -331,7 +382,7 @@ Until dedicated tooling exists, validate this document with:
 
 ```powershell
 $references = Get-ChildItem .\references -Directory
-if ($references.Count -ne 39) { throw "reference inventory changed" }
+if ($references.Count -ne 40) { throw "reference inventory changed" }
 
 $repositoriesWithGitMetadata = $references |
   Where-Object { Test-Path (Join-Path $_.FullName ".git") }
