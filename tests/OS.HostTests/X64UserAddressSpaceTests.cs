@@ -25,6 +25,40 @@ internal static unsafe class X64UserAddressSpaceTests
         return tables + page * 512 + ((va >> 12) & 511);
     }
 
+    [HostTest("m16-006 high user leaves cross PDPT boundaries while physical and supervisor bounds remain low", HostLane.Fast, 3)]
+    private static void HighAddresses()
+    {
+        var ranges = Ranges(); var conditions = Conditions();
+        ranges[2].VirtualStart = 0x13ffff000; // Last page in PDPT[4], then PDPT[5].
+        ranges[3].VirtualStart = X64UserAddressSpace.UserEnd - 4096;
+        ulong* tables = (ulong*)NativeMemory.AlignedAlloc(Pages * 4096, 4096);
+        try
+        {
+            fixed (X64UserMappingRange* r = ranges)
+            {
+                new Span<ulong>(tables, (int)Pages * 512).Clear();
+                var result = X64UserAddressSpace.Build(r, 4, tables, Root, Pages, conditions);
+                HostCheck.True(result.Succeeded && X64UserAddressSpace.Audit(r, 4, tables, Root, Pages, conditions, result));
+                HostCheck.Equal(0x300005UL, *Leaf(tables, 0x13ffff000));
+                HostCheck.Equal(0x301005UL, *Leaf(tables, 0x140000000));
+                HostCheck.Equal(0x8000000000500007UL, *Leaf(tables, X64UserAddressSpace.UserEnd - 4096));
+                HostCheck.True(X64UserAddressSpace.TryReadLeaf(tables, Root, Pages, 0x100000000, out ulong hole) && hole == 0);
+                // A foreign high table pointer and an out-of-policy PDPT leaf
+                // cannot be admitted by broadening user virtual bounds.
+                uint pdpt = (uint)(((tables[0] & 0x000ffffffffff000) - Root) / 4096);
+                tables[pdpt * 512 + 64] = tables[pdpt * 512 + 5];
+                HostCheck.True(!X64UserAddressSpace.Audit(r, 4, tables, Root, Pages, conditions, result));
+                new Span<ulong>(tables, (int)Pages * 512).Clear();
+                ranges[2].User = false;
+                HostCheck.Equal(X64UserAddressSpaceStatus.InvalidRange, X64UserAddressSpace.Build(r, 4, tables, Root, Pages, conditions).Status);
+                ranges[2].User = true; ranges[2].PhysicalStart = 0x100000000;
+                HostCheck.Equal(X64UserAddressSpaceStatus.InvalidRange, X64UserAddressSpace.Build(r, 4, tables, Root, Pages, conditions).Status);
+                HostCheck.True(!X64UserAddressSpace.TryReadLeaf(tables, 0x100000000, Pages, 0x400000, out _));
+            }
+        }
+        finally { NativeMemory.AlignedFree(tables); }
+    }
+
     [HostTest("m16-004 independent user supervisor NX page encodings and absent guards", HostLane.Fast, 0)]
     private static void Encodings()
     {
@@ -48,7 +82,7 @@ internal static unsafe class X64UserAddressSpaceTests
                 HostCheck.Equal(0x8000000001000003UL, *Leaf(tables, Root));
                 foreach (ulong va in new ulong[] { 0, 0x402000, 0x6fffe000, 0x80000000 })
                     HostCheck.True(X64UserAddressSpace.TryReadLeaf(tables, Root, Pages, va, out ulong leaf) && leaf == 0);
-                HostCheck.True(!X64UserAddressSpace.TryReadLeaf(tables, Root, Pages, 0x100000000, out _));
+                HostCheck.True(!X64UserAddressSpace.TryReadLeaf(tables, Root, Pages, X64UserAddressSpace.UserEnd, out _));
             }
         }
         finally { NativeMemory.AlignedFree(tables); }

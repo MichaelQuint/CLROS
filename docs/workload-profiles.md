@@ -179,6 +179,14 @@ runtime configuration and repeat publish/trace/source qualification. The trace
 alone does not prove which smaller-reservation fallback the runtime can use;
 silent payload/configuration changes or successful no-op mappings are invalid.
 
+The in-progress backend in [step1203](../done/step1203.md) admits a bounded
+64-GiB user VA layout while retaining low-4-GiB physical/root constraints.
+Focused host checks replay the exact large reservation with no new tables or
+backing, then commit distant islands, trim/release ranges and replace committed
+pages with anonymous `PROT_NONE`. The pinned payload/configuration is unchanged.
+Host memory checks do not satisfy M16-006's guest acceptance; its EFI adapter,
+startup services and actual upstream entry attempt remain pending.
+
 ### Transport decision experiments
 
 Stock `linux-musl-x64` with real Kestrel remains the primary route. The host-only

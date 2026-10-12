@@ -261,8 +261,9 @@ public static unsafe class X64LinuxUserTransition
         PageRange(p.CodeAddress, CodeBytes) && PageRange(p.ContextAddress, DataBytes) &&
         PageRange(p.UserRoot, 4096) && !Overlap(p.CodeAddress, CodeBytes, p.ContextAddress, DataBytes) &&
         !Overlap(p.UserRoot, 4096, p.CodeAddress, CodeBytes) && !Overlap(p.UserRoot, 4096, p.ContextAddress, DataBytes) &&
-        p.UserRip >= 4096 && p.UserRip < End && p.UserRsp >= 4104 && p.UserRsp <= End &&
-        (p.UserFs == 0 || p.UserFs >= 4096 && p.UserFs < End) && (p.UserGs == 0 || p.UserGs >= 4096 && p.UserGs < End) &&
+        p.UserRip >= 4096 && p.UserRip < LinuxSyscallGateway.UserEnd && p.UserRsp >= 4104 && p.UserRsp <= LinuxSyscallGateway.UserEnd &&
+        (p.UserFs == 0 || p.UserFs >= 4096 && p.UserFs < LinuxSyscallGateway.UserEnd) &&
+        (p.UserGs == 0 || p.UserGs >= 4096 && p.UserGs < LinuxSyscallGateway.UserEnd) &&
         Address(p.Dispatcher) && Address(p.FaultReporter) && Address(p.CallbackContext) &&
         p.TssRsp0Address >= 4100 && p.TssRsp0Address <= End - 100 && (p.TssRsp0Address & 15) == 4 &&
         Address(p.OriginalGp) && Address(p.OriginalPf);

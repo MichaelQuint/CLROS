@@ -8,14 +8,15 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs"] = "47a9b2f70119f1a6544f7c9c58f81c0bb9048a232de1037fb2a096816de89417",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs"] = "5662fa7912315f6129c5889549d62c8c4bce80b5eef1052f74b9b46e8ede7362",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxMemoryServices.cs"] = "822a09702bd7e97692eb3025e26ddcacde9156d7ed4db102d5e6a8afd23e4f71",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs"] = "3904ce9f5c4ebb5a7f0f3e889818d922fec99470d657a8b30183cbd1e266f565",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs"] = "22280cfa2c90b7c0c386abf23cec1dc5b55e31cd3c1943e092abd31a21819da7",
                 [@"..\OS.Kernel\Boot\BootSequence.cs"] = "0dbfbe967e639c0b24ed92e24a523126a54bd15b74ad5429cc52af522afa216d",
                 [@"..\..\std\no-runtime\shared\Text\AsciiArgumentSplitter.cs"] = "9869438fcd0e465ca21c90f0e9de36b0a9b826c24885de36e44df653c5ea7be5",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfStartup.cs"] = "d06a619c2fdbf9c7c06f52c8f386757a40459386daf72de7b7dfebb4ae7e23a4",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfStartup.cs"] = "5fd400d94887ab5aaf64531ff58ca1484d56b308b2e30d8541ffced86a7a0396",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfMapping.cs"] = "a8ae3f3bb4cb5f4b7e442ba95e8c43717abeb982f7a640a65c01a79a4ac5a15d",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfLoader.cs"] = "7f8453247506d53c3de0808fa301b8e5b7adad440a1333ea6713904d14a6bdab",
-                [@"..\OS.Kernel\Memory\X64UserAddressSpace.cs"] = "2739d5f76f4cbffa120567e4656276b9f1ffb4402b9bc727bd062681a627bb61",
+                [@"..\OS.Kernel\Memory\X64UserAddressSpace.cs"] = "c84975fc4c9d46b8faf168f69fc96a0334146f52a8e65c803b6a2db21e59a163",
                 [@"..\OS.Kernel\Memory\BootReservedRange.cs"] = "364f1916a8a76d52ad180e67fe7dc4cbba534c97201cacdfe58bc29459816718",
                 [@"..\OS.Kernel\Boot\WorkloadServiceLoop.cs"] = "231060bd0c1cac4dbf589997eaed900fd6bab5e3844ef6c553b41303f79bfc46",
                 [@"..\..\std\no-runtime\shared\Hash\Sha256.cs"] = "d077a2be744f1b6c4826c2741fe8131b1c7ead99fe65aa451a8fb2870c8c6a4c",

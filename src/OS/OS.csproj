@@ -767,6 +767,7 @@
 		<Compile Include="..\OS.Kernel\Memory\X64UserAddressSpace.cs" Link="Memory\X64UserAddressSpace.cs" />
 		<Compile Include="..\..\std\no-runtime\shared\Text\AsciiArgumentSplitter.cs" Link="Std\Text\AsciiArgumentSplitter.cs" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs" Link="Compatibility\LinuxX64\LinuxSyscallGateway.cs" />
+		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxMemoryServices.cs" Link="Compatibility\LinuxX64\LinuxMemoryServices.cs" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs" Link="Compatibility\LinuxX64\X64LinuxUserTransition.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />

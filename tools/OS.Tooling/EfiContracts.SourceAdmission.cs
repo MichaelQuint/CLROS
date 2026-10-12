@@ -3,6 +3,7 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxMemoryServices.cs"] = "reviewed_m16_linux_memory_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs"] = "reviewed_m16_linux_syscall_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs"] = "reviewed_m16_linux_syscall_source_identity",
         [@"..\OS.Kernel\Boot\BootSequence.cs"] = "reviewed_m16_linux_syscall_source_identity",

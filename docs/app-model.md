@@ -2,6 +2,28 @@
 
 ## NativeAOT-first application boundary
 
+M16-006/#684 is in progress. [Step1203](../done/step1203.md) records its
+host-tested sparse anonymous-memory backend and high-address checks. The user
+VA policy now ends at 64 GiB; physical backing, kernel identity mappings and
+table roots remain below 4 GiB. Dynamic mappings use the 4..64-GiB window,
+separate virtual and physical quotas, at most 64 ownership extents, 4096 pool
+pages and the existing 128-table-page/32768-leaf limits. A reservation has no
+backing or leaf cost until commitment.
+
+`LinuxMemoryServices` builds and audits candidate tables before publishing
+memory state. Anonymous fixed replacement discards backing; `mprotect(NONE)`
+retains contents. Partial operations split ownership, freed/reused pages are
+zeroed, and failures preserve the live root and accounting. Its caller must
+run on a separate kernel root while the target user root is inactive, then
+reload/publish CR3 before resuming user code. Accessible `MADV_DONTNEED` ranges
+are eagerly zeroed without claiming physical reclamation; inaccessible ranges
+release their backing. Demand faults, file/shared mappings and SMP are unsupported.
+
+These APIs are not wired into the EFI syscall adapter yet. Startup/time/entropy,
+the default-off M16-006 profile, native review, real mechanical memory guests,
+affected ancestor regressions and the pinned upstream entry attempt remain
+required before #684 closure. The one-use/64-call M16-005 policy is unchanged.
+
 The next slice is [M16-006/#684](http://192.168.4.35:3000/admin/CLROS/issues/684)
 for measured Linux memory/startup services, followed by #685 descriptors and
 immutable file views. These slices use mechanical fixtures. #686 adds mechanical

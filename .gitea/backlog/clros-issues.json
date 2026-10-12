@@ -31485,7 +31485,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:ready",
+        "agent:claimed",
         "priority:p0",
         "type:implementation",
         "evidence:qemu",
@@ -31496,7 +31496,7 @@
       "dependencyKeys": [
         "M16-005"
       ],
-      "currentEvidence": "Ready after M16-005 qualification in done/step1201.md. One mechanical CPL3 write/exit/errno excursion and controlled faults restore the owned kernel baseline. Measured virtual-memory/startup syscall implementation, real upstream NativeAOT Hello, thread/TLS/futex behavior and CLROS Kestrel remain unproved.",
+      "currentEvidence": "Claimed by codex after M16-005 qualification. In-progress sparse anonymous-memory backend and low-64GiB user VA/high-pointer host checks are recorded in done/step1203.md. EFI memory syscall publication, startup/time/entropy, native/full-host/guest qualification and the pinned upstream entry attempt remain pending. Real upstream NativeAOT Hello, thread/TLS/futex behavior and CLROS Kestrel remain unproved.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Implement the qualified mmap/munmap/mprotect/brk and startup query subset, clock/time and entropy contracts. Translate Linux errno at the adapter boundary without changing OSHostStatus. Return real available CPU/memory facts; optional unsupported calls use the measured errno/fallback behavior. Enforce reservation limits, zero-fill and W^X; no successful no-op mappings or entropy.",

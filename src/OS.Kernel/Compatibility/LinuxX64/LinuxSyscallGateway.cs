@@ -54,7 +54,7 @@ public unsafe struct LinuxSyscallGateState
 }
 
 /// <summary>
-/// One-use checked write/exit dispatcher for the declared low-4GiB, single-CPU
+/// One-use checked write/exit dispatcher for the declared low-64GiB, single-CPU
 /// boundary. Admission declarations and callback simulations are host contracts,
 /// not CPL3 evidence. The native owner proves selectors/MSRs, dedicated kernel
 /// stack, FS/GS/FP preservation, current root and immutable user mappings. It
@@ -64,7 +64,7 @@ public unsafe struct LinuxSyscallGateState
 /// </summary>
 public static unsafe class LinuxSyscallGateway
 {
-    public const ulong UserEnd = 0x100000000, UserRflagsMask = 0x200cd7;
+    public const ulong UserEnd = OS.Kernel.Memory.X64UserAddressSpace.UserEnd, UserRflagsMask = 0x200cd7;
     public const uint MaximumCalls = 64, MaximumWrite = 4096;
     private const long BadDescriptor = -9, Fault = -14, Invalid = -22, Unsupported = -38;
 
@@ -73,7 +73,7 @@ public static unsafe class LinuxSyscallGateway
     {
         if (state.StatusValue != LinuxSyscallGateStatus.Uninitialized) return LinuxSyscallGateStatus.AlreadyConsumed;
         if (state.CallsValue != 0 || state.BytesValue != 0 || !admission.FirmwareExited || !admission.OwnedBoundaryValidated ||
-            admission.UserRoot < 4096 || admission.UserRoot >= UserEnd || (admission.UserRoot & 4095) != 0 ||
+            admission.UserRoot < 4096 || admission.UserRoot >= OS.Kernel.Memory.X64UserAddressSpace.PhysicalEnd || (admission.UserRoot & 4095) != 0 ||
             admission.MaximumCalls == 0 || admission.MaximumCalls > MaximumCalls ||
             admission.MaximumWrite == 0 || admission.MaximumWrite > MaximumWrite ||
             admission.Scratch == null || admission.ScratchBytes < admission.MaximumWrite || admission.ScratchBytes > MaximumWrite ||
