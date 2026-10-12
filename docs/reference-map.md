@@ -24,17 +24,19 @@ and exclusions for shells, user administration and broad compatibility remain.
 
 ## Current Status
 
-The local `references/` directory contains 39 external project snapshots: the
+The local `references/` directory contains 40 external project snapshots: the
 29 originally supplied archives and ten immutable GitHub snapshots added on
-2026-10-06. They are inspection inputs, excluded from `CLROS.slnx`, and cannot
-supply completion-gate evidence. The new research and issue crosswalk are
-[below](#github-discovery-and-selection-2026-10-06).
+2026-10-06, plus the pinned uACPI snapshot added on 2026-10-11. They are
+inspection inputs, excluded from `CLROS.slnx`, and cannot supply completion-gate
+evidence. The October 6 research is [below](#github-discovery-and-selection-2026-10-06);
+the [uACPI review](#uacpi-selection-and-issue-crosswalk-2026-10-11) adds four
+supplemental future issues.
 
 All snapshots lack `.git` metadata. The original 29 archive names did not
 identify verified revisions and omitted top-level license files; the later
 SharpOS/nativeaot-patcher investigations establish specific exceptions. The
-ten new directories encode a commit prefix, preserve upstream license files,
-and were verified against immutable GitHub trees and archive hashes. See
+eleven pinned additions encode a commit prefix, preserve upstream license files,
+and were verified against immutable Git trees and archive hashes. See
 `docs/license-audit.md` for full commits, license scope and archive provenance.
 Missing or incompatible license evidence permits conceptual study and
 independently authored tests only, not source import.
@@ -438,20 +440,66 @@ at the pinned revision. DiscUtils is the actual exFAT implementation reference.
 Graphics does not imply a GUI, default shell, remote administration or cloud GPU
 support. Detailed static findings are in [the comparison](fork-diff.md#redpandaos-deep-static-review-2026-10-06).
 
+## uACPI selection and issue crosswalk (2026-10-11)
+
+**Selected as an isolated source/design/test reference:**
+`references/uACPI-2cb5e71ef583`, upstream [uACPI](https://github.com/uACPI/uACPI),
+commit `2cb5e71ef58393839e1988ef9a8f1d8ba2845a8d` (6.1.1). All 168 installed
+files match their pinned Git blobs. The [license ledger](license-audit.md#uacpi-snapshot-provenance-2026-10-11)
+records the exact archive method/hash and source fingerprints. The library is
+MIT-licensed; bundled test tools require separate treatment. The snapshot
+remains ignored, unmodified and outside every first-party build/image input.
+
+The [deep static comparison](fork-diff.md#uacpi-deep-static-review-2026-10-11)
+covers table ownership, FADT/GAS metadata, resource descriptors, interpreter
+frames/object lifetimes, operation regions, events, CI and tests. Its strongest
+new uses are small independent C# parsing contracts and future AML research.
+Do not adopt permissive firmware fallbacks or regard upstream test/benchmark
+claims as CLROS evidence.
+
+The all-state tracker refresh inspected 458 issues before this addition and
+found no matching uACPI/FADT/GAS/resource-template/AML work. Existing #59/#539
+retention, #95/#606 selection, #96/#608 clock, #98/#610 ECAM and #113/#619 APIC
+profiles are closed bounded work; do not reopen or duplicate them. #251 remains
+the later AWS/Nitro discovery proof, without an added AML prerequisite.
+
+| Supplemental issue | Source locus and next behavior | Initial state |
+| --- | --- | --- |
+| [#665](http://192.168.4.35:3000/admin/CLROS/issues/665) | `include/uacpi/acpi.h`, `source/io.c`: host-only raw GAS decoding and register metadata; independently test encoded access widths. | Open, `agent:ready` |
+| [#666](http://192.168.4.35:3000/admin/CLROS/issues/666) | `source/tables.c`: host-only FADT length/revision/legacy/extended/reset metadata, without following pointers or operating hardware. | Open, `agent:blocked` by #665 |
+| [#667](http://192.168.4.35:3000/admin/CLROS/issues/667) | `source/resources.c`, `tests/runner/resource_tests.c`: small/large resource framing, EndTag/checksum and caller-output bounds. | Open, `agent:ready` |
+| [#668](http://192.168.4.35:3000/admin/CLROS/issues/668) | Interpreter, namespace, object, operation-region and event sources: staged C# AML/device-discovery research and explicit authority/service dependencies. | Open, `agent:blocked` while owned #662/#663/#664 await qualification |
+
+The table records creation states on 2026-10-11. A 2026-10-12 phase-handoff
+read-back verifies #662/#663/#664 qualified in step1187, merged and closed.
+#668 is now `agent:ready` and unassigned for research only. #665/#667 remain
+ready and #666 remains blocked by #665; hardware AML dependencies are unchanged.
+
+All four are unassigned `priority:p3` supplemental issues with no milestone
+assignment, outside `.gitea/backlog/clros-issues.json`. They do not extend existing
+M05/Kestrel acceptance criteria or alter the
+[NativeAOT-first roadmap](workload-profiles.md#nativeaot-first-execution-roadmap-2026-10-12).
+#658/#659/#660 are already qualified/closed in [step1184](../done/step1184.md).
+The AML issue's completed caller-window scheduling blocker is removed; real
+hardware dependencies remain separate. Creation and exact body/label/state/assignment read-backs are recorded
+in [step1186](../done/step1186.md).
+
 ## Tests
 
 Documentation-only changes run:
 
 ```powershell
 $directories = Get-ChildItem .\references -Directory
-if ($directories.Count -ne 39) { throw "reference inventory changed" }
+if ($directories.Count -ne 40) { throw "reference inventory changed" }
 Test-Path .\references\SharpOS-main\done\step143.md
 Test-Path .\references\nativeaot-patcher-main\src\Cosmos.Kernel.HAL\Devices\Virtio
+Test-Path .\references\uACPI-2cb5e71ef583\LICENSE
 dotnet run --project tools/OS.Tooling -- repo check
+dotnet run --project tools/OS.Tooling -- contracts check
 git diff --check
 ```
 
-The naming/source-firewall script scans the solution plus first-party project,
+The compiled naming/source-firewall command scans the solution plus first-party project,
 props, and targets files and fails for any build-time reference import. It
 does not build reference projects or turn them into first-party evidence.
 

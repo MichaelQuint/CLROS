@@ -1088,6 +1088,22 @@ The virtio-net queue plan, driver queue bring-up plan, queue MMIO setup planner/
 
 The virtio-blk request layout, device-config parser/register-window fake reader, queue-0 MMIO setup command planner, queue setup register-window planner/fake executor/setup-barrier executor, read-session setup gate, read transaction planning, virtqueue split-ring layout, descriptor-chain publication metadata, descriptor-chain writer, descriptor free-list, descriptor ownership/reclaim, publish-planner, reclaim-planner, queue cursor, read-queue planner, read-queue completion planner, block-result projector, notification metadata, notify-offset, notify register-window, fake notify execution, barrier-gated fake notify execution, read-notify readiness composition, read-notify completion composition, read-notify block-result projection, read pipeline composition, read pipeline adapter, and read-session contracts are not block-driver evidence. The config reader can fake-read capacity from caller-owned BAR-window bytes into caller-owned scratch storage, the queue setup planner can emit future common-configuration command records from caller-provided queue metadata, the queue setup register-window planner can bind those commands to checked common-configuration access metadata, the queue setup register-window executor can fake-execute those accesses over caller-owned common BAR-window bytes, the setup-barrier executor can reject missing setup-write visibility before the fake `queue_enable` write, the read-session setup gate can refuse descriptor publication unless that setup-barrier execution succeeded and attempted `queue_enable`, the writer can materialize planned descriptors into a caller-owned memory span, and the publish/reclaim/ownership/cursor/read-queue planners can validate block ranges, select reusable caller-owned descriptors, publish one read chain, parse one caller-owned completion, advance caller-owned available/used indexes, transition state between `Free` and `InFlight`, project completion to `BlockReadResult` metadata, derive future notify-write metadata, compute the checked notify relative offset, bind that offset to future register-window access metadata, fake-execute that access over caller-owned bytes, require explicit barrier-readiness metadata after successful host-tested publication/completion provenance, compose read publication through barrier-gated fake notify execution, gate completion/reclaim on successful read-notify readiness, map gated completion into future `BlockReadResult` metadata, compose those pieces into one host-tested read pipeline, reject undersized caller-owned buffers before adapter delegation mutates queue/cursor/descriptor state, and carry cursor state across repeated adapter reads, but the stack still does not negotiate features with a live device, map BARs, allocate DMA-safe buffers, configure a live queue, publish descriptors to a live device-owned virtqueue, notify the device, process interrupts, wait for hardware, own a full runtime descriptor allocator, or read sectors from a disk.
 
+## uACPI reference and future ACPI work
+
+The pinned `references/uACPI-2cb5e71ef583` is an isolated inspection input,
+with [source findings](fork-diff.md#uacpi-deep-static-review-2026-10-11) and an
+[issue crosswalk](reference-map.md#uacpi-selection-and-issue-crosswalk-2026-10-11).
+Optional host-only GAS metadata (#665), FADT metadata (#666), resource-template
+framing (#667) and C# AML research (#668, ready for research only) are planned,
+not implemented.
+They preserve the accepted bounded ACPI/HPET/ECAM/APIC profiles and add no
+milestone prerequisite or change to the
+[NativeAOT-first roadmap](workload-profiles.md#nativeaot-first-execution-roadmap-2026-10-12).
+The reference is outside first-party build/image inputs. General AML,
+continuing device discovery/controller services and Gate 6 remain
+incomplete. [Step1186](../done/step1186.md) records this documentation/backlog
+review, without native or guest acceptance.
+
 ## Next Steps
 
 1. Implement serial logging and panic-safe writer using the existing COM1 writer, configuration, port-I/O operation/stub byte-plan, backend readiness, executable-stub memory, and panic reporter contracts.
