@@ -8,19 +8,25 @@ semantics only. It does not add runtime, process, network, storage, hosted
 
 ## Context
 
-OS has two related but different workload targets:
+CLROS has two related but different workload targets:
 
 - A near-term cloud appliance target that runs one configured ASP.NET Minimal
   API workload.
 - A later provider platform target that can run multiple isolated ASP.NET
   Minimal API workloads on one guest.
 
-The current implementation is still host-tested readiness contracts plus local
-EFI/QEMU boot markers. No hosted .NET 10 runtime, CoreCLR path, Kestrel path,
-live storage, live network, process table, per-process address space, scheduler,
-or app supervisor exists today.
+The current implementation includes host-tested contracts and accepted bounded
+EFI/QEMU firmware-exit, storage and network diagnostics. Continuing services,
+an upstream .NET application runtime, Kestrel, isolated application processes,
+scheduling and an app supervisor remain unqualified. See completion-gates.md
+for the accepted boundaries; bounded diagnostics do not establish app hosting.
 
 ## Decision
+
+**Superseded ordering (2026-10-12):** the NativeAOT-first decision below is
+authoritative. Older hosted-runtime descriptions preserve historical contracts,
+not a requirement to finish CoreCLR before Kestrel or cloud providers before
+local process isolation.
 
 Define two workload profiles:
 
@@ -28,7 +34,7 @@ Define two workload profiles:
   targets one configured ASP.NET Minimal API/Kestrel workload and intentionally
   excludes multi-process requirements such as a process table, per-process
   address spaces, per-app isolation, and a multi-app supervisor. It still
-  requires the Kestrel prerequisites: hosted runtime boundary, package/config
+  requires the Kestrel prerequisites: NativeAOT runtime boundary, package/config
   access, sockets, timers, threading/synchronization, and live network I/O.
 - `MultiMinimalApi`: the later multi-app platform profile. It requires real
   process, isolation, scheduler, and supervisor semantics before it can be
@@ -37,7 +43,80 @@ Define two workload profiles:
 `SingleMinimalApi` is the default implementation path until a specific issue
 selects `MultiMinimalApi`.
 
+## NativeAOT-first execution roadmap (2026-10-12)
+
+Accepted architecture direction only: no guest application/runtime acceptance.
+Start with [M16-001 / #679](http://192.168.4.35:3000/admin/CLROS/issues/679).
+The [foundation epic #678](http://192.168.4.35:3000/admin/CLROS/issues/678)
+links #679-#690; [#691](http://192.168.4.35:3000/admin/CLROS/issues/691)
+owns the continuing NIC service. Tracker migration and cleanup evidence are in
+[step1196](../done/step1196.md).
+
+Run one pinned upstream .NET 10 NativeAOT Minimal API through a restricted
+Linux x64 syscall ABI implemented in the C# kernel, then two separately
+packaged applications in hardware-protected processes. Preserve the upstream
+runtime, GC, EH and musl inside each application payload. Kernel and application
+heaps, roots, metadata and exception machinery remain separate.
+
+Use the existing `linux-musl-x64` target and controlled publish recipe before
+considering a custom RID/runtime fork. First-party kernel/std/apps remain
+C#14/.NET10; attributed upstream native dependencies may be built externally
+and packaged with apps. Reference snapshots remain read-only, outside build
+inputs. Preserve `OSHost_*` and OSHostStatus; Linux register/errno/fd semantics
+are a distinct adapter over common kernel services, not changes to that ABI.
+
+| Stage | Managed keys / existing issues | Required result |
+| --- | --- | --- |
+| Publish first | M16-001 | Linux builder; static Hello, runtime exerciser and real Minimal API; ELF/native dependency and syscall/source review. |
+| Load and continue | M16-002 through M16-007 | Immutable staging, continuing post-exit loop, ELF64 startup, user/syscall boundary, genuine memory and descriptor services. |
+| Threads and runtime | #183-#194, M16-008 through M16-010 | Scheduler/TLS/futex/signals, upstream GC suspension, normal app EH/ThreadPool/timers and guest qualification. |
+| Continuing network | M07-026, #148-#153 | Persistent Virtio RX/TX ownership, ARP and passive TCP with timing/retransmission/partial I/O/close. |
+| Socket integration | M16-011, M16-012 | Linux sockets and actual epoll readiness used by System.Net.Sockets. |
+| First web acceptance | #214-#227 | Real guest Kestrel /healthz with independent external HTTP evidence. |
+| Two applications | #286-#301 | Separate page tables/private resources/quotas; one app fails while the other keeps serving. |
+| Later targets | M12/M13, CoreCLR-specific #204-#212 | Provider devices/qualification and framework-dependent workloads; Roslyn/PowerShell remain later. |
+
+Numeric milestone order is not execution order. Scheduling no longer waits
+for HTTP/custom application EH; local multi-process work no longer waits for
+AWS/Azure. The durable dependency source is
+`.gitea/backlog/clros-issues.json`. Accepted bounded diagnostics remain valid;
+their existence does not prove continuing services.
+
+Initial profile: x86-64 QEMU/OVMF, one vCPU, static non-PIE Linux executable,
+invariant globalization, workstation GC, HTTP/1.1 IPv4, explicit static IP,
+port8080 and immutable package/config. Start one user-mode context with
+protected kernel mappings; cross-process isolation is the mandatory next
+milestone. General writable storage, DHCP/DNS/outbound fetch, TLS, SMP,
+ASLR and provider drivers are not first-web prerequisites.
+
+M16-001 is a feasibility gate: publish/inspect ET_EXEC, PT_LOAD/PT_TLS,
+startup/auxv and native dependencies; prove no PT_INTERP or DT_NEEDED.
+Exercise startup, forced GC, threads, requests and shutdown under tracing,
+then inspect upstream error paths because tracing is not an exhaustive syscall
+specification. If the static closure cannot be built, preserve the exact
+blocker and review a changed strategy before speculative compatibility work.
+Linux-host success is not CLROS guest evidence. Never implement successful
+no-op threads, mappings, protection or entropy.
+
+First web requires three fresh post-firmware-exit boots, external HTTP200
+with exact body `OS_MINIMAL_API_OK`, repeated/concurrent connections,
+async/cancellation and clean shutdown. Preserve source/compiler/kernel/app/
+package/image/serial/packet/HTTP hashes. After terminating the guest the probe
+must fail. Require `TEST_START kestrel.smoke`, `KESTREL_APP_START`,
+`KESTREL_BIND_READY`, `HTTP_PROBE_PASS`, `TEST_PASS kestrel.smoke`;
+missing/failure markers invalidate the run. Kernel-authored HTTP is not Kestrel.
+
+The next gate requires distinct address spaces and private descriptors/config,
+budgets, endpoint authorization and supervisor lifecycle. Fault, terminate and
+exhaust one app while probing the other; verify cross-process pointer/handle
+rejection, cleanup and bounded restart. Two servers sharing one process do not
+qualify. No shell/SSH reduces exposed functionality, but is not proof of
+resistance to application exploits or superiority over hardened Linux/Windows.
+
 ## Build Selector
+
+The build selector itself remains unchanged. See the current roadmap above
+for the implementation and evidence required before either profile is usable.
 
 Issue #249 adds a build-time selector named `OSWorkloadProfile`. It is a
 compile-time contract only. It selects constants and host-testable capability

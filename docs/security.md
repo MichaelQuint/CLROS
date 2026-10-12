@@ -1,5 +1,15 @@
 # Security
 
+The [NativeAOT-first profile](workload-profiles.md) admits only manifest-bound
+immutable executables and explicitly authorized endpoints/resources.
+Its planned Linux adapter does not authorize a shell, SSH, arbitrary exec,
+remote workload acquisition or a general POSIX environment.
+Qualification must test user/kernel protection, W^X, hostile pointers and
+signal contexts, descriptor ownership, quotas and cross-process failures.
+No shell is attack-surface reduction, not proof that app exploits cannot
+occur or that CLROS is more secure than hardened Linux/Windows. No new
+security mechanism is implemented by this architecture change.
+
 ## Current Status
 
 Security is policy baseline only.

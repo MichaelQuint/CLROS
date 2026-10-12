@@ -1,6 +1,18 @@
 # Documentation Map
 
+The NativeAOT-first architecture and ordered issue roadmap are canonical in
+`docs/workload-profiles.md`; `.gitea/backlog/clros-issues.json` owns exact
+dependencies and ticket acceptance. Existing app-model, PAL, manifest,
+Kestrel, security and completion-gate docs describe their boundaries.
+Do not create another competing roadmap or restore CoreCLR-first ordering
+from older historical evidence.
+
 ## Current Status
+
+The shared no-runtime host project lives at
+`src/OS.Std.NoRuntime.Shared/OS.Std.NoRuntime.Shared.csproj`; linked source
+remains at its audited `std/no-runtime/shared` paths. Its source-local guide
+still governs implementation. This layout change does not change EFI sources.
 
 Repository documentation is the source of truth for code-coupled behavior,
 build/run instructions, ABI contracts, completion gates, subsystem status, and

@@ -63,7 +63,7 @@ public sealed class BacklogManifest
             string key = Text(issue, "key");
             foreach (string field in BacklogContracts.RequiredIssueFields)
                 if (!issue.ContainsKey(field)) Fail("Issue '" + key + "' is missing required field '" + field + "'.");
-            if (!Regex.IsMatch(key, @"^M(?:0[0-9]|1[0-5])-(?:EPIC|[0-9]{3})$")) Fail("Invalid issue key '" + key + "'.");
+            if (!Regex.IsMatch(key, @"^M(?:0[0-9]|1[0-6])-(?:EPIC|[0-9]{3})$")) Fail("Invalid issue key '" + key + "'.");
             if (!issueByKey.TryAdd(key, issue)) Fail("Duplicate issue key '" + key + "'.");
             string milestone = Text(issue, "milestone");
             if (!milestoneByKey.ContainsKey(milestone)) Fail("Issue '" + key + "' references unknown milestone '" + milestone + "'.");
@@ -114,6 +114,9 @@ public sealed class BacklogManifest
             for (int i = 0; i < list.Count; i++) for (int j = i + 1; j < list.Count; j++)
             {
                 var left = list[i]; var right = list[j]; string a = Text(left, "key"), b = Text(right, "key"), lane = Text(left, "collisionLane");
+                // Accepted historical work has no current write ownership. Reopened work
+                // participates again; its old ownedPaths remain in the evidence ledger.
+                if (Text(left, "desiredState") == "closed" || Text(right, "desiredState") == "closed") continue;
                 if (closureByKey[a].Contains(b) || closureByKey[b].Contains(a) || lane.Length != 0 && lane == Text(right, "collisionLane")) continue;
                 if (Text(left, "milestone") == "M00" && Text(right, "milestone") == "M00" || !new[] { "docs/", "artifacts/", "done/" }.Any(x => path.StartsWith(x, StringComparison.Ordinal)))
                     Fail("Issues '" + a + "' and '" + b + "' have unserialized owned-path overlap '" + path + "'. Add a dependency or a shared collision lane.");
@@ -122,6 +125,20 @@ public sealed class BacklogManifest
         { string key = "M00-" + number.ToString("D3"); if (!closureByKey["M01-001"].Contains(key)) Fail("M01-001 must remain transitively blocked by recovery issue '" + key + "'."); }
         return new() { Source = source, Issues = issues, Labels = labels, Milestones = milestones, IssueByKey = issueByKey, MilestoneByKey = milestoneByKey,
             LabelByName = labelByName, Dependencies = closureByKey };
+    }
+
+    // Keep the full dependency/ownership graph when limiting which objects may be written.
+    public BacklogManifest SelectIssues(string keys)
+    {
+        var selected = keys.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
+        if (selected.Count == 0 || selected.Any(x => !IssueByKey.ContainsKey(x)))
+            throw new InvalidDataException("Issue selection must contain known manifest keys.");
+        var issues = Issues.Where(x => selected.Contains(Text(x, "key"))).ToArray();
+        var milestones = issues.Select(x => Text(x, "milestone")).ToHashSet(StringComparer.Ordinal);
+        var labels = issues.SelectMany(x => Strings(x, "labels")).ToHashSet(StringComparer.Ordinal);
+        return new() { Source = Source, Issues = issues, Milestones = Milestones.Where(x => milestones.Contains(Text(x, "key"))).ToArray(),
+            Labels = Labels.Where(x => labels.Contains(Text(x, "name"))).ToArray(), IssueByKey = IssueByKey,
+            MilestoneByKey = MilestoneByKey, LabelByName = LabelByName, Dependencies = Dependencies };
     }
 
     public static string Text(JsonNode? node, string key, string fallback = "") => node is JsonObject value && value[key] is JsonValue item && item.TryGetValue<string>(out string? text) ? text : fallback;

@@ -1,4 +1,18 @@
-# Hosted .NET 10 Minimal API and Kestrel Ledger
+# .NET 10 Minimal API and Kestrel Ledger
+
+## NativeAOT-first milestone
+
+The [current workload decision](workload-profiles.md) makes M16 NativeAOT
+services, continuing M07 TCP and M10 actual Kestrel the critical path.
+CoreCLR-specific #204-#212 are deferred. The legacy hosted package/TPA contract
+below remains a future target, not the first-web payload format. M16-002
+versions the ELF package without reinterpreting existing OSAPPv0 or
+`kestrel.smoke.package.v0` host evidence.
+First acceptance uses one upstream static NativeAOT Minimal API, HTTP/1.1
+IPv4 port8080 and /healthz body `OS_MINIMAL_API_OK`, with the unchanged
+Kestrel evidence markers. Three fresh post-exit boots, external probes,
+request churn/async/cancellation/shutdown and a negative probe after guest
+termination are required. No guest Kestrel execution is currently qualified.
 
 ## Current Status
 

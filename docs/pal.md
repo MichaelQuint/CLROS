@@ -1,5 +1,11 @@
 # PAL
 
+The NativeAOT-first Linux adapter in [workload profiles](workload-profiles.md)
+is an authorized additional application ABI. It preserves `OSHost_*` and
+status/POD contracts; Linux errno, fd and register semantics stay in the
+adapter. Older prohibitions below describe the original CoreCLR-port route,
+not a prohibition on the newly selected M16 work. No live exports are added.
+
 ## Current Status
 
 No first-party hosted-tier PAL implementation exists. The canonical CLROS

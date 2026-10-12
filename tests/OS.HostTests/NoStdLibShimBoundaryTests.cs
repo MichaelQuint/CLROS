@@ -104,7 +104,7 @@ internal static class NoStdLibShimBoundaryTests
         string[] projectPaths =
         [
             Path.Combine(root, "src", "OS.Kernel", "OS.Kernel.csproj"),
-            Path.Combine(root, "std", "no-runtime", "shared", "OS.Std.NoRuntime.Shared.csproj")
+            Path.Combine(root, "src", "OS.Std.NoRuntime.Shared", "OS.Std.NoRuntime.Shared.csproj")
         ];
 
         foreach (string projectPath in projectPaths)

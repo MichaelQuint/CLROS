@@ -1,5 +1,11 @@
 # Host Requirements
 
+The shared host-validation project now lives under
+`src/OS.Std.NoRuntime.Shared`, alongside OS and OS.Kernel. It links existing
+audited source from `std/no-runtime/shared`. Existing solution commands
+remain valid. M16-001 separately establishes a pinned Linux NativeAOT builder;
+the Windows EFI toolchain does not by itself provide Linux publishing.
+
 ## Current Status
 
 The repository currently builds on Windows with .NET 10. The normal solution build is managed-code host tooling, while the EFI shell publish also requires the Windows NativeAOT platform linker stack.

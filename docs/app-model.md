@@ -1,5 +1,14 @@
 # App Model
 
+## NativeAOT-first application boundary
+
+The [current decision](workload-profiles.md) adds a planned versioned Linux
+ELF64 profile alongside legacy OSAPPv0. M16 owns immutable pre-exit staging,
+ELF/startup/user boundary, Linux adapters and upstream application runtime.
+These are unimplemented; a normal NativeAOT executable must not be treated
+as raw OSAPPv0 bytes or share the kernel collector. Existing native contracts
+below retain their historical ABI and evidence.
+
 ## Current Status
 
 The native-tier app model is in early host-tested planning. The long-term first-class workload target is .NET 10 applications, with ASP.NET Minimal API apps as the primary cloud scenario. Kestrel support is mandatory, but it depends on hosted runtime, sockets, timers, threading/scheduler, and network stack prerequisites that are not implemented yet. Broad hosted-workload claim boundaries are tracked in `docs/completion-gates.md`.

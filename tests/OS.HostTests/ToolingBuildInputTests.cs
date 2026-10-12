@@ -66,7 +66,7 @@ internal static class ToolingBuildInputTests
         }
         string repository = HostToolProcess.FindRepositoryRoot();
         var inventory = ToolingBuildInputs.SourceInputs(repository);
-        foreach (string relative in new[] { "tools/OS.Tooling/Program.cs", "tools/OS.Tooling/OS.Tooling.csproj", "tools/OS.QemuRunner/OS.QemuRunner.csproj", "src/OS.Kernel/OS.Kernel.csproj", "std/no-runtime/shared/OS.Std.NoRuntime.Shared.csproj", "global.json", "Directory.Build.props", "Directory.Build.targets" })
+        foreach (string relative in new[] { "tools/OS.Tooling/Program.cs", "tools/OS.Tooling/OS.Tooling.csproj", "tools/OS.QemuRunner/OS.QemuRunner.csproj", "src/OS.Kernel/OS.Kernel.csproj", "src/OS.Std.NoRuntime.Shared/OS.Std.NoRuntime.Shared.csproj", "global.json", "Directory.Build.props", "Directory.Build.targets" })
             HostCheck.True(inventory.Contains(Path.GetFullPath(Path.Combine(repository, relative)), StringComparer.OrdinalIgnoreCase), "compiled inventory includes " + relative);
         var xml = System.Xml.Linq.XDocument.Load(Path.Combine(repository, "tools/OS.Tooling/OS.Tooling.csproj"));
         string patterns = xml.Descendants("_ToolingInputPatterns").Single().Value;
