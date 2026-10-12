@@ -37,7 +37,7 @@ public static partial class QemuTranscripts
             "TEST_START boot.sequence", "BOOT_PHASE PhaseA.Audit START", "BOOT_PHASE PhaseA.Audit PASS", "BOOT_PHASE PhaseA.Diagnostics START", "BOOT_PHASE PhaseA.Diagnostics PASS", "OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS"];
         if(includeUnhandled) expected=expected[..^8];
         Need(!includeEhCatalog || includeFrameDispatch, "m04_eh_catalog_requires_frames");
-        int lineCount = (includeEhCatalog ? 4 : 0) + expected.Length + (includeFixedAllocation ? 26 : includeArrayAllocation ? 16 : includeStringAllocation ? 20 : includeCheckedReferences ? 19 : includeGcStatics ? 18 : 0) +
+        int lineCount = (includeEhCatalog ? 7 : 0) + expected.Length + (includeFixedAllocation ? 26 : includeArrayAllocation ? 16 : includeStringAllocation ? 20 : includeCheckedReferences ? 19 : includeGcStatics ? 18 : 0) +
             (includeSeededChurn ? 12 : 0) + (includeClassConstructors ? 12 : 0) + (includeInterfaceDispatch ? 76 : 0) + (includeSimpleCatch ? 12 : 0) + (includeSingleFinally ? 14 : 0) + (includeRethrow ? 18 : 0) + (includeNestedFinally ? 19 : 0) + (includeUnhandled ? 11 : 0) + (includeFrameDispatch ? 18 : 0) + (includeConstructorFailure ? 22 : 0) + (includeFilteredCatch ? 18 : 0);
         const string failures = @"(?i)TEST_FAIL|OS_SMOKE_FAIL|M04_.*FAILED|BOOT_PAGE_ALLOCATOR_NOT_READY|UEFI_ACPI_RSDP_(?:MISSING|INVALID)";
         string failureText=includeUnhandled ? text.Replace(UnhandledFailure+"\r\n","",StringComparison.Ordinal).Replace(UnhandledTerminal+"\r\n","",StringComparison.Ordinal) : text;
@@ -60,11 +60,11 @@ public static partial class QemuTranscripts
         }
         Need(captured.Count == lineCount, "m04_heap_incomplete_sequence");
         string[] Remove(int at, int count) { string[] block = captured.GetRange(at, count).ToArray(); captured.RemoveRange(at, count); return block; }
-        string[] frameRecords = includeFrameDispatch ? Remove(62,includeEhCatalog ? 22 : 18) : [], catalogRecords = [];
+        string[] frameRecords = includeFrameDispatch ? Remove(62,includeEhCatalog ? 25 : 18) : [], catalogRecords = [];
         if (includeEhCatalog)
         {
-            catalogRecords = [.. frameRecords.Skip(6).Take(3), frameRecords[21]];
-            frameRecords = [.. frameRecords.Take(6), .. frameRecords.Skip(9).Take(12)];
+            catalogRecords = [.. frameRecords.Skip(6).Take(6), frameRecords[24]];
+            frameRecords = [.. frameRecords.Take(6), .. frameRecords.Skip(12).Take(12)];
         }
         string[] constructorFailureRecords = includeConstructorFailure ? Remove(62,22) : [];
         string[] filteredCatchRecords = includeFilteredCatch ? Remove(62,18) : [];

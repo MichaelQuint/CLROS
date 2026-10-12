@@ -6,7 +6,7 @@ public static partial class QemuTranscripts
         IReadOnlyList<string> gcLines)
     {
         const string reason = "m04_eh_catalog";
-        Need(lines.Count == 4 && lines[3] == "CLROS_M04_EH_CATALOG_READY" && frameLines.Count == 18 && gcLines.Count >= 2,reason+"_count");
+        Need(lines.Count == 7 && lines[6] == "CLROS_M04_EH_CATALOG_READY" && frameLines.Count == 18 && gcLines.Count >= 2,reason+"_count");
         var header = ReadHexRecord(lines[0],"M04_EH_CATALOG 0",4);
         var middle = ReadHexRecord(lines[1],"M04_EH_CATALOG 1",4);
         var catcher = ReadHexRecord(lines[2],"M04_EH_CATALOG 2",4);
@@ -26,6 +26,12 @@ public static partial class QemuTranscripts
         Need(!Overlap(middle[0],middle[1],catcher[0],catcher[1]) &&
             !Overlap(middle[2],middle[3],catcher[2],catcher[3]) &&
             !Overlap(header[0],48,middle[2],middle[3]) && !Overlap(header[0],48,catcher[2],catcher[3]),reason+"_contribution_alias");
+        var initial = ReadHexRecord(lines[3],"M04_CALLER_WINDOW 0",4);
+        var caller = ReadHexRecord(lines[4],"M04_CALLER_WINDOW 1",4);
+        var outer = ReadHexRecord(lines[5],"M04_CALLER_WINDOW 2",4);
+        Need(initial.SequenceEqual(new[]{first[0],first[1],8UL,0UL}) &&
+            caller.SequenceEqual(new[]{first[2],first[3],24UL,1UL}) &&
+            outer.SequenceEqual(new[]{second[2],second[3],45UL,0x100000002UL}),reason+"_caller_window_association");
     }
     public static void AssertM04FrameDispatchRecords(IReadOnlyList<string> lines, IReadOnlyList<string> gcLines,
         IReadOnlyDictionary<string,ulong> heap)

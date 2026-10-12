@@ -41,7 +41,7 @@ internal static class EhCatalogEfiIntegrationTests
         string root=HostToolProcess.FindRepositoryRoot();
         var admitted=EfiProjectAdmission.InspectStatic(root);
         HostCheck.True(admitted.Succeeded,admitted.Reason+":"+admitted.Detail);
-        foreach (string relative in new[]{@"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.Catalog.cs",@"Runtime\ExceptionFrameDispatchProbe.cs"})
+        foreach (string relative in new[]{@"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.Catalog.cs",@"..\OS.Kernel\Runtime\BoundedExceptionCallerWindow.cs",@"Runtime\ExceptionFrameDispatchProbe.cs"})
         {
             string path=Path.GetFullPath(Path.Combine(root,"src/OS",relative)), source=File.ReadAllText(path);
             HostCheck.True(EfiSourceAdmission.Inspect(source,relative).Succeeded,"exact reviewed source "+relative);

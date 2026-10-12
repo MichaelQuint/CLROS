@@ -1,10 +1,10 @@
 # Boot
 
-The default-off `EnableM04EhCatalogProbe` modifies the existing physical-frame
-Diagnostic without adding a boot phase. Exact original compiler contributions
-resolve under retained module/snapshot/root authority. [step1184](../done/step1184.md) qualifies
-4525 full-host checks across 586 groups (92 Native), original native review,
-three 92-record guests and twelve ancestors. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+The default-off `EnableM04EhCatalogProbe` retains the existing physical-frame
+Diagnostic and phase. `BoundedExceptionCallerWindow` unfolds three actual contexts
+and decodes complete original catalog rows before existing typed matching and
+dispatch. [step1187](../done/step1187.md) qualifies 4532 full-host checks across 587 groups (92 Native), native review,
+three 95-record guests and twelve ancestors at `655d76f`. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
 
 The default-off filtered-catch Diagnostic child follows the collecting-GC chain
 through `BootSequence.RunFilteredCatchUnwind`, before ordinary boot success.

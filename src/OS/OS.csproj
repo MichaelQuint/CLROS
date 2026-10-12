@@ -723,6 +723,7 @@
 		<Compile Include="Runtime\ExceptionTypePredicateBinding.cs" />
 		<Compile Include="Runtime\ExceptionUnhandledProbe.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\BoundedExceptionFrameSearch.cs" Link="Runtime\BoundedExceptionFrameSearch.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\BoundedExceptionCallerWindow.cs" Link="Runtime\BoundedExceptionCallerWindow.cs" />
 		<Compile Include="Runtime\ExceptionFrameDispatchProbe.cs" />
 		<Compile Include="Runtime\ConstructorFailureProbe.cs" />
 		<Compile Include="Runtime\FilteredCatchProbe.cs" />
