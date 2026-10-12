@@ -1,5 +1,15 @@
 # Boot
 
+The default-off `EnableM16002Probe` profile qualified in
+[step1199](../done/step1199.md) stages `OS/APP.PKG` through original-device UEFI
+Simple File System handles before the final memory-map/exit window. Both file
+handles close before transition. The bounded LoaderData allocation joins a
+validated reservation ledger (append-only `LinuxElfPackage` kind 15) and the
+existing permanent mapping plan as read-only/NX. Post-exit BootSequence verifies
+the package/ELF hashes, ledger and read-only file copy through owned COM1.
+Three payload captures, two pre-exit rejection controls, two affected boot
+regressions and 4,565 full-host checks pass. It stages data and never enters an ELF application.
+
 The default-off collecting-GC Diagnostic child
 `BootSequence.RunNormalFinallyUnwind` owns `EnableM04NormalFinallyProbe` before
 ordinary boot success. [step1195](../done/step1195.md) qualifies one normal-call

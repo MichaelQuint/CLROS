@@ -1,5 +1,14 @@
 # NativeAOT NoStdLib Limits
 
+M16-002 adds `OS.Std.Hash.Sha256.TryCompute`: allocation-free,
+one-shot SHA-256 over trusted caller pointers, at most 128 MiB, with 32-byte caller
+output. Invalid/null nonempty input, small output, overflow and overlap fail
+before writing. Padding/standard vectors and independent .NET comparisons pass.
+No incremental hashing, file/stream overloads, HMAC/signature API or certification
+is supplied. Kernel use is the 16 MiB data-only Linux ELF staging profile; it does
+not initialize upstream app GC/EH or a hosted runtime. See
+[step1199](../done/step1199.md) for qualified profile evidence.
+
 #674–#676 qualify one default-off `EnableM04NormalFinallyProbe` Diagnostic in
 [step1195](../done/step1195.md) at frozen source `6acb593`: one compiler-called
 finally throws the original rooted exception, own-funclet unwind recovers the

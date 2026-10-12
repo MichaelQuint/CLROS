@@ -16,6 +16,9 @@ public struct FirstExitImageReferences
     // Optional in host-only compositions. The EFI adapter must retain its
     // original installed NativeAOT stack-probe page, outside the loaded image.
     public ulong RuntimeSupportCode, RuntimeSupportCodeBytes;
+#if M16_002_PROBE
+    public ulong LinuxPackageStart, LinuxPackagePages;
+#endif
 #if M05_MONOTONIC_CLOCK_PROBE
     // Original retained ACPI HPET GAS, admitted against the owned firmware map.
     public ulong HpetDevicePage;
@@ -232,6 +235,9 @@ public static unsafe class FirstExitRetainedMappings
 {
     public const ulong MaximumRanges = FirstExitImageMappings.MaximumSections + 1 +
         FirstExitOwnedArena.MappingRangeCount + 3
+#if M16_002_PROBE
+        + 1
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
         + 1
 #endif
@@ -252,6 +258,9 @@ public static unsafe class FirstExitRetainedMappings
 #endif
         ;
     private const int MaximumAllocations = 6
+#if M16_002_PROBE
+        + 1
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE || M05_MONOTONIC_CLOCK_PROBE || M05_PCI_ENUMERATION_PROBE
         + 1
 #endif
@@ -328,6 +337,12 @@ public static unsafe class FirstExitRetainedMappings
         starts[4] = root; lengths[4] = tables.ArenaPageCount * 4096;
         int allocations = references.RuntimeSupportCode == 0 ? 5 : 6;
         starts[5] = references.RuntimeSupportCode; lengths[5] = references.RuntimeSupportCodeBytes;
+#if M16_002_PROBE
+        if (references.RuntimeSupportCode == 0 || references.LinuxPackageStart < 4096 ||
+            (references.LinuxPackageStart & 4095) != 0 || references.LinuxPackagePages == 0 || references.LinuxPackagePages > 4096 ||
+            references.LinuxPackageStart >= LowEnd - references.LinuxPackagePages * 4096) return false;
+        starts[6] = references.LinuxPackageStart; lengths[6] = references.LinuxPackagePages * 4096; allocations = 7;
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
         if (references.RuntimeSupportCode == 0 || references.MappingScratchBacking < 0x100000 ||
             (references.MappingScratchBacking & 4095) != 0 || references.MappingScratchBackingPages != 1023 ||
@@ -373,6 +388,9 @@ public static unsafe class FirstExitRetainedMappings
         pending[count++] = new SeparatePageFaultMappingRange((ulong)code, FirstExitCodeBundle.Bytes / 4096, Code);
         pending[count++] = allocator;
         if (references.RuntimeSupportCode != 0) pending[count++] = new SeparatePageFaultMappingRange(references.RuntimeSupportCode, 1, Code);
+#if M16_002_PROBE
+        pending[count++] = new SeparatePageFaultMappingRange(references.LinuxPackageStart, references.LinuxPackagePages, PageProtection.Read);
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.MappingScratchStart, 512, Data);
 #endif

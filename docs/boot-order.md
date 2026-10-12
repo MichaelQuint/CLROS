@@ -1,5 +1,11 @@
 # Boot Order
 
+`BootSequence.StageLinuxElfPackage` and `RunOwnedLinuxElfPackage` are explicit
+default-off M16-002 boundaries. Firmware staging precedes the final map/exit
+window; owned verification follows original post-exit subsystem checks and requires
+revoked firmware authority. See [step1199](../done/step1199.md) for accepted
+staging evidence. No application entry phase is added.
+
 `BootSequence.IsEhCatalogEnabled()` requires catalog and physical-frame switches.
 The caller-window modifier keeps the existing phase order and legacy unwind path;
 no new phase is introduced. [step1187](../done/step1187.md) qualifies the finite three-context diagnostic. General EH, arbitrary methods, dynamic module lifetimes, collided unwind, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.

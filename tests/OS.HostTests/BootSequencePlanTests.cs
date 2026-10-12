@@ -685,6 +685,8 @@ internal static class BootSequencePlanTests
         // imports, catalogs and presenters must stay inside the existing guards.
         return HasGuardedSurface("src/OS.Kernel/Boot/BootSequence.cs", 3,
             ["public static class BootSequence",
+             "public static unsafe bool StageLinuxElfPackage(bool firmwareAvailable, void* context, delegate*<void*, bool> stage) =>",
+             "public static unsafe bool RunOwnedLinuxElfPackage(bool ownedChecksComplete, bool firmwareRevoked,",
              "public static unsafe OS.Boot.FirstExitReturn RunFirstRealExitBootServicesTransition(",
              "private static bool IsFirstRealExitBootServicesEnabled() =>",
              "public static unsafe OS.Kernel.Runtime.CompilerClassConstructorStatus RunCompilerClassConstructors(",
@@ -732,6 +734,8 @@ internal static class BootSequencePlanTests
              "public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch("])
             && HasGuardedSurface("src/OS.Kernel/Diagnostics/Probes.cs", 2,
             ["public static partial class Probes",
+             "public const bool EnableM16002Probe = true;",
+             "public const bool EnableM16002Probe = false;",
              "public const bool EnableM04SeededCollectorChurnProbe = true;",
              "public const bool EnableM04SeededCollectorChurnProbe = false;",
              "public const bool EnableM03FirstRealExitBootServicesProbe = true;",
