@@ -157,6 +157,8 @@ internal static unsafe partial class RhpNewFastAllocation
             if (BootSequence.IsFilteredCatchEnabled()) RunFilteredCatch();
 #elif M04_CONSTRUCTOR_FAILURE_PROBE
             if (BootSequence.IsConstructorFailureEnabled()) RunConstructorFailure();
+#elif M04_NORMAL_FINALLY_PROBE
+            if (BootSequence.IsNormalFinallyEnabled()) RunNormalFinally();
 #elif M04_FRAME_DISPATCH_PROBE
             if (BootSequence.IsFrameDispatchEnabled()) RunFrameDispatch();
 #elif M04_UNHANDLED_EXCEPTION_PROBE
@@ -253,7 +255,7 @@ internal static unsafe partial class RhpNewFastAllocation
     // share the collecting owner; the six-role reference diagnostic stays separate.
     private static ulong AllocateGcValue(ulong token)
     {
-#if M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE || M04_NESTED_FINALLY_CATCH_PROBE || M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE || M04_FILTERED_CATCH_PROBE
+#if M04_SIMPLE_THROW_CATCH_PROBE || M04_SINGLE_FINALLY_CATCH_PROBE || M04_RETHROW_PROBE || M04_NESTED_FINALLY_CATCH_PROBE || M04_UNHANDLED_EXCEPTION_PROBE || M04_FRAME_DISPATCH_PROBE || M04_CONSTRUCTOR_FAILURE_PROBE || M04_FILTERED_CATCH_PROBE || M04_NORMAL_FINALLY_PROBE
 #if M04_CONSTRUCTOR_FAILURE_PROBE
         if (s_gcPhase == 5 && s_ehPhase != 1) return AllocateConstructorFailureWrapper(token);
 #endif

@@ -22,6 +22,8 @@ public static partial class EfiContracts
     public const string SimpleCatchObjectSha256 = "dd32dc30808c3b6dd42981df652b95f62236bdc8c45c1daa3dde32bab1c981ab";
     public const string SingleFinallyObjectSha256 = "d24da7653745da1d37f1fc9d286a2e370c32b687a0415e90fc626a597326025a";
     public const int FilteredCatchObjectBytes = 1361;
+    public const int NormalFinallyObjectBytes = 1382;
+    public const string NormalFinallyObjectSha256 = "b2d9ef13e71861812b082000698e772b83c3bcdc6a4e38695c6ef2df437a56c8";
     public const string FilteredCatchObjectSha256 = "16fc99408418187da12bab063932e8c0489dd7fc1e0dadb986136f700d0859a3";
     public const int FilterInvokeObjectBytes = 771;
     public const string FilterInvokeObjectSha256 = "e6d84f39a3f159edefaa7a68dd552bf34ccbfa39efbe61f5acdfaa80b838b8a1";
@@ -43,6 +45,7 @@ public static partial class EfiContracts
         "tools/OS.X64TextSerializerGenerator/InstructionPublicationSerializerGenerator.cs", "tools/OS.X64TextSerializerGenerator/InterfaceDispatchThunkGenerator.cs",
         "tools/OS.X64TextSerializerGenerator/ExceptionHandlingThunkGenerator.cs",
         "tools/OS.X64TextSerializerGenerator/ExceptionFilterThunkGenerator.cs",
+        "tools/OS.X64TextSerializerGenerator/NormalFinallyThunkGenerator.cs",
         "tools/OS.X64TextSerializerGenerator/EhContributionCatalogGenerator.cs"
     ]);
     public const int MaximumRuntimeFunctionRecords = 2048, MaximumLinkResponseTokens = 4096;

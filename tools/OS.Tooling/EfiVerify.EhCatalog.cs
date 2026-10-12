@@ -12,7 +12,8 @@ internal sealed partial class EfiVerification
     private void VerifyEhCatalog()
     {
         const string objectName = "CLROS.X64.EhCatalog.obj";
-        if (!profile.IsEnabled("M04EhCatalog"))
+        bool normal = profile.IsEnabled("M04NormalFinally");
+        if (!profile.IsEnabled("M04EhCatalog") && !normal)
         {
             Require(!response.Contains(objectName, StringComparison.OrdinalIgnoreCase) &&
                 !Regex.IsMatch(map, @"(?m)^\s*[0-9A-Fa-f]{4}:[0-9A-Fa-f]{8}\s+CLROS_Eh_(?:CatalogStart|CatalogEnd|Contributions|ContributionsEnd)\s+"),
@@ -46,8 +47,12 @@ internal sealed partial class EfiVerification
         AuthorityFiles.RequireDistinct(catalog, original, originalMap);
         byte[] originalBytes = original.ReadBytes(MaximumTextBytes, "eh_catalog_ilc_read");
         byte[] expected;
-        try { expected = EhContributionCatalogGenerator.Generate(originalBytes,
-            originalMap.ReadUtf8(MaximumTextBytes, "eh_catalog_map_read")); }
+        try
+        {
+            string originalText = originalMap.ReadUtf8(MaximumTextBytes, "eh_catalog_map_read");
+            expected = normal ? EhContributionCatalogGenerator.GenerateForMethod(originalBytes, originalText,
+                "OS_OS_Runtime_RhpNewFastAllocation__NormalCatcher") : EhContributionCatalogGenerator.Generate(originalBytes, originalText);
+        }
         catch (Exception error) when (error is InvalidDataException or System.Xml.XmlException or OverflowException or FormatException)
         { throw new ToolFailure("eh_catalog_original_inputs_rejected", error.GetType().Name); }
         Require(catalog.ReadBytes(MaximumTextBytes, "eh_catalog_read").AsSpan().SequenceEqual(expected), "eh_catalog_recomputed_object_mismatch");
@@ -57,7 +62,8 @@ internal sealed partial class EfiVerification
             symbolOffset = checked((int)U32(8)), symbolCount = checked((int)U32(12));
         byte[] payload = expected.AsSpan(dataOffset, dataBytes).ToArray();
         uint count = BinaryPrimitives.ReadUInt32LittleEndian(payload.AsSpan(8,4));
-        Require(count == 2 && symbolCount == 4 + count * 2 && dataBytes == 16 + count * 16, "eh_catalog_frame_contribution_count");
+        Require(count == (normal ? 1U : 2U) && symbolCount == 4 + count * 2 && dataBytes == 16 + count * 16,
+            normal ? "eh_catalog_normal_contribution_count" : "eh_catalog_frame_contribution_count");
         string Name(byte[] bytes,int symbols,int total,int index)
         {
             int at = symbols + index * 18;
@@ -128,13 +134,15 @@ internal sealed partial class EfiVerification
             string method = SymbolName(4+i*2), eh = SymbolName(5+i*2);
             const string methodPrefix = "OS_OS_Runtime_RhpNewFastAllocation__";
             Require(eh == "__ehinfo_" + method && methods.Add(method) &&
-                (method == methodPrefix + "FrameMiddle" || method == methodPrefix + "FrameCatcher"), "eh_catalog_frame_method_set");
+                (normal ? method == methodPrefix + "NormalCatcher" : method == methodPrefix + "FrameMiddle" || method == methodPrefix + "FrameCatcher"),
+                normal ? "eh_catalog_normal_method_set" : "eh_catalog_frame_method_set");
             ulong root = Address(method,"OS.obj","eh_catalog"), table = Address(eh,"OS.obj","eh_catalog");
             int at=16+i*16;
             uint codeBytes=BinaryPrimitives.ReadUInt32LittleEndian(payload.AsSpan(at+4,4)),
                 ehBytes=BinaryPrimitives.ReadUInt32LittleEndian(payload.AsSpan(at+12,4));
-            Require(codeBytes == (method.EndsWith("FrameMiddle",StringComparison.Ordinal) ? 72U : 138U) &&
-                ehBytes == (method.EndsWith("FrameMiddle",StringComparison.Ordinal) ? 4U : 15U), "eh_catalog_frame_geometry");
+            Require(codeBytes == (normal ? 173U : method.EndsWith("FrameMiddle",StringComparison.Ordinal) ? 72U : 138U) &&
+                ehBytes == (normal ? 11U : method.EndsWith("FrameMiddle",StringComparison.Ordinal) ? 4U : 15U),
+                normal ? "eh_catalog_normal_geometry" : "eh_catalog_frame_geometry");
             image.Resolve(root-image.ImageBase,codeBytes,"eh_catalog_code_not_backed","eh_catalog_code_ambiguous").Section.RequireCode("eh_catalog_code_permissions");
             image.Resolve(table-image.ImageBase,ehBytes,"eh_catalog_eh_not_backed","eh_catalog_eh_ambiguous").Section.RequireReadOnlyData("eh_catalog_eh_permissions");
             JoinOriginalContribution(method,root,codeBytes,false);

@@ -106,7 +106,8 @@ public sealed record EfiOutputPlan(string Directory, string EfiPath, string MapP
         if (profile is null || profile.IsEnabled("M04FilteredCatch")) { paths.Add(efi + ".filter-catch.obj"); paths.Add(efi + ".filter-invoke.obj"); }
         if (profile is null || profile.IsEnabled("M04ConstructorFailure")) paths.Add(efi + ".ctor-failure.obj");
         if (profile is null || profile.IsEnabled("M04FrameDispatch")) paths.Add(efi + ".frames.obj");
-        if (profile is null || profile.IsEnabled("M04EhCatalog")) paths.AddRange([efi + ".eh-catalog.obj", efi + ".ilc.obj", efi + ".ilc.map.xml"]);
+        if (profile is null || profile.IsEnabled("M04NormalFinally")) paths.Add(efi + ".normal-finally.obj");
+        if (profile is null || profile.IsEnabled("M04EhCatalog") || profile.IsEnabled("M04NormalFinally")) paths.AddRange([efi + ".eh-catalog.obj", efi + ".ilc.obj", efi + ".ilc.map.xml"]);
         if (profile is null || profile.IsEnabled("M04NestedFinallyCatch")) paths.Add(efi + ".nested-finally.obj");
         foreach (string path in paths)
         {

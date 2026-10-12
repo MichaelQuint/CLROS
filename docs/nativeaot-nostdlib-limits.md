@@ -1,6 +1,36 @@
 # NativeAOT NoStdLib Limits
 
-#670–#672 qualify host prerequisites for one future normal-path-finally fixture
+#674–#676 qualify one default-off `EnableM04NormalFinallyProbe` Diagnostic in
+[step1195](../done/step1195.md) at frozen source `6acb593`: one compiler-called
+finally throws the original rooted exception, own-funclet unwind recovers the
+same-root parent, and the outer typed catch reaches the original compiled
+continuation. Already exited/earlier clauses are skipped in both dispatch passes.
+The live parent-local witness, exactly-one counters, full required GP/XMM and
+Win64 control state, seven stack checks and original canaries pass. The explicit
+root remains retained through continuation; expired parent locals are not read.
+
+4,546 full-host checks across 592 groups (94 Native) have a complete/successful/
+unchanged-input receipt, zero failures/timeouts/reuse and terminal
+`TEST_PASS host.tests`. Current review covers 170 callback nodes, seven indirect
+sites, 13 bounded body allocations and 57 targets in five readonly switch tables;
+the first-party bound is 14,592/16,400 bytes, excluding firmware internals.
+Three real 88-record guests, nine affected ancestors, 61 native identity/ABI
+controls and 339 synthetic transcript controls pass. Each capture binds all 693
+raw inputs and original compiler/catalog/link/loaded-PC/process/argument/GPT/FAT/
+embedded-EFI evidence. Firmware services remain active in this Diagnostic.
+General EH, collided unwind, arbitrary methods, dynamic module lifetimes, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
+[step1190](../done/step1190.md) records the initial inactive compiler fixture:
+ILC10.0.12 emits a normal-path call to its own finally
+funclet when the root has `MethodImpl` NoOptimization (`0x40`). Without that flag,
+the compiler clones the normal finally into the root. Original COFF/map and
+linked PE review establish 173 code bytes, 11 EH bytes, three frame records and
+the same-root catch continuation. The catalog producer can select one exact
+method after validating every original contribution, including omitted ones.
+The temporary frame-profile anchor has been removed. Its measurements remain
+development evidence; final qualification is recorded above.
+
+#670–#672 qualified the earlier host prerequisites for a normal-path-finally fixture
 in [step1189](../done/step1189.md): 4,539 full-host checks across 588 groups (92
 Native), unchanged inputs, native callback/stack review and four affected guest
 regressions. A plain handler funclet's own unwind restores the same-root parent
@@ -8,10 +38,10 @@ GP/XMM context, preserves actual RIP and identifies the exact exited clause from
 complete original catalog/EH metadata. The existing planner skips that clause and
 earlier clauses in both passes while validating every row and typed receipt.
 The encoded kind cannot distinguish fault from finally or prove invocation
-history. Parent recovery remains outside EFI; the new skip entry has no native
-caller. Existing catalog/nested/frame/unhandled captures are regression evidence
-only. No normal-finally guest transfer, lifetime/CPU authority or #90/Gate4
-completion is proven.
+history. At that prerequisite-only snapshot parent recovery was outside EFI and
+the skip entry had no native caller. Existing catalog/nested/frame/unhandled captures are regression evidence
+only for that prerequisite batch. It proved no normal-finally CPU transfer;
+step1195 qualifies the separate fixture above. #90/Gate4 remain incomplete.
 
 `BoundedExceptionCallerWindow` is qualified in [step1187](../done/step1187.md): 4532 full-host checks across 587 groups (92 Native),
 original native review, three 95-record guests and twelve ancestors. It assembles

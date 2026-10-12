@@ -54,6 +54,7 @@ public static class QemuProfiles
         if (Enabled("M04CheckedReferenceBarrier")) Original("m04_checked_reference");
         if (Enabled("M04GcStaticRootMaterialization")) Original("m04_gc_static");
         if (Enabled("M04FrameDispatch")) Original("m04_frames",true,true,true);
+        if (Enabled("M04NormalFinally")) Original("m04_normal_finally",true,true,true);
         if (Enabled("M04ConstructorFailure")) Original("m04_ctor_failure",true,true,true);
         if (Enabled("M04FilteredCatch")) Original("m04_filters",true,true,true);
         if (Enabled("M04UnhandledException")) Original("m04_unhandled",true,true,true);
@@ -125,6 +126,7 @@ public static class QemuProfiles
         else if (Enabled("M04SingleFinallyCatch")) Select(QemuContracts.M04SingleFinallyRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04Rethrow")) Select(QemuContracts.M04RethrowRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04EhCatalog")) Select(QemuContracts.M04EhCatalogRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
+        else if (Enabled("M04NormalFinally")) Select(QemuContracts.M04NormalFinallyRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04FrameDispatch")) Select(QemuContracts.M04FrameDispatchRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04ConstructorFailure")) Select(QemuContracts.M04ConstructorFailureRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
         else if (Enabled("M04FilteredCatch")) Select(QemuContracts.M04FilteredCatchRequiredMarkers, QemuContracts.M04ManagedHeapPageRangeForbiddenMarkers, true);
@@ -195,7 +197,7 @@ public static class QemuProfiles
         Require(required.Length != 0, "qemu_required_markers_empty");
         string[] presets = Markers(options.MarkerPreset).Select(OS.Tools.QemuRunner.SmokeMarkerPreset.Normalize).Distinct(StringComparer.Ordinal).ToArray();
         return new(profile.BootPolicy, profile.Flags, Array.AsReadOnly(required), Array.AsReadOnly(ordered), Array.AsReadOnly(unique),
-            Array.AsReadOnly(forbidden), Array.AsReadOnly(presets), build, normal || firstExit || Enabled("M02OwnedGdtTssTerminal") || Enabled("M04X64UnwindMetadata") || Enabled("M04UnhandledException") || Enabled("M04FrameDispatch") || Enabled("M04ConstructorFailure") || Enabled("M04FilteredCatch"));
+            Array.AsReadOnly(forbidden), Array.AsReadOnly(presets), build, normal || firstExit || Enabled("M02OwnedGdtTssTerminal") || Enabled("M04X64UnwindMetadata") || Enabled("M04UnhandledException") || Enabled("M04FrameDispatch") || Enabled("M04NormalFinally") || Enabled("M04ConstructorFailure") || Enabled("M04FilteredCatch"));
     }
 
     private static readonly (string Flag, string Pattern, string Reason)[] Ownership =
@@ -214,6 +216,7 @@ public static class QemuProfiles
         ("M04SingleFinallyCatch", @"^(M04_FINALLY|CLROS_M04_SINGLE_FINALLY|TEST_(START|PASS) m04\.021\.single-finally)", "m04_single_finally"),
         ("M04Rethrow", @"^(M04_RETHROW|CLROS_M04_RETHROW_READY|TEST_(START|PASS) m04\.021\.rethrow)", "m04_rethrow"),
         ("M04FrameDispatch", @"^(M04_FRAMES|CLROS_M04_021_FRAMES_READY|TEST_(START|PASS) m04\.021\.frames)", "m04_frames"),
+        ("M04NormalFinally", @"^(M04_NORMAL_FINALLY|CLROS_M04_021_NORMAL_FINALLY_READY|TEST_(START|PASS) m04\.021\.normal-finally)", "m04_normal_finally"),
         ("M04EhCatalog", @"^(M04_EH_CATALOG|M04_CALLER_WINDOW|CLROS_M04_EH_CATALOG_READY)", "m04_eh_catalog"),
         ("M04ConstructorFailure", @"^(M04_CTOR_FAILURE|CLROS_M04_021_CTOR_FAILURE_READY|TEST_(START|PASS) m04\.021\.ctor-failure)", "m04_ctor_failure"),
         ("M04FilteredCatch", @"^(M04_FILTERS|CLROS_M04_021_FILTERS_READY|TEST_(START|PASS) m04\.021\.filters)", "m04_filters"),

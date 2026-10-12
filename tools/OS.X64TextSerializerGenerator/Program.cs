@@ -12,7 +12,8 @@ internal static class Program
     {
         if (args.Length != 0 && args[0] == "--eh-contribution-catalog")
             return EhContributionCatalogGenerator.Run(args);
-        string testName = Array.IndexOf(args, "--filtered-catch") >= 0 || Array.IndexOf(args, "--filter-invoke") >= 0 ? "m04.021.filters.thunk.generate"
+        string testName = Array.IndexOf(args, "--normal-finally") >= 0 ? "m04.021.normal-finally.thunk.generate"
+            : Array.IndexOf(args, "--filtered-catch") >= 0 || Array.IndexOf(args, "--filter-invoke") >= 0 ? "m04.021.filters.thunk.generate"
             : Array.IndexOf(args, "--constructor-failure") >= 0 ? "m04.021.ctor-failure.thunk.generate"
             : Array.IndexOf(args, "--frame-dispatch") >= 0 ? "m04.021.frames.thunk.generate"
             : Array.IndexOf(args, "--nested-finally-catch") >= 0 ? "m04.021.nested-finally.thunk.generate"
@@ -41,7 +42,9 @@ internal static class Program
 
         byte[] objectBytes;
         CoffWriteError generationError;
-        bool generated = parseResult.FilterMode != 0
+        bool generated = parseResult.NormalFinally
+            ? TryGenerateNormalFinally(out objectBytes, out generationError)
+            : parseResult.FilterMode != 0
             ? TryGenerateFilter(parseResult.FilterMode == 2, out objectBytes, out generationError)
             : parseResult.ConstructorFailure
             ? TryGenerateConstructorFailure(out objectBytes, out generationError)
@@ -81,11 +84,24 @@ internal static class Program
         if (parseResult.FrameDispatch) ready = "M04_FRAME_DISPATCH_THUNK_READY";
         if (parseResult.ConstructorFailure) ready = "M04_CCTOR_FAILURE_THUNK_READY";
         if (parseResult.FilterMode != 0) ready = parseResult.FilterMode == 2 ? "M04_FILTER_INVOKE_THUNK_READY" : "M04_FILTERED_CATCH_THUNK_READY";
+        if (parseResult.NormalFinally) ready = "M04_NORMAL_FINALLY_THUNK_READY";
         Console.WriteLine(
             $"{ready} bytes={objectBytes.Length} " +
             $"sha256={hash} state={writeResult.State}");
         Console.WriteLine($"TEST_PASS {testName}");
         return 0;
+    }
+
+    private static bool TryGenerateNormalFinally(out byte[] objectBytes, out CoffWriteError error)
+    {
+        var definition=NormalFinallyThunkGenerator.Define();
+        byte[] buffer=new byte[8192];
+        bool success=Amd64CoffWriter.TryWrite(in definition,buffer,true,true,out int written,out error);
+        objectBytes=success?buffer.AsSpan(0,written).ToArray():[];
+        if (success && (written != 1382 || Convert.ToHexString(SHA256.HashData(objectBytes)) !=
+            "B2D9EF13E71861812B082000698E772B83C3BCDC6A4E38695C6EF2DF437A56C8"))
+        { error=CoffWriteError.InternalInvariant; return false; }
+        return success;
     }
 
     private static bool TryGenerateFilter(bool invoke, out byte[] objectBytes, out CoffWriteError error)
@@ -206,10 +222,20 @@ internal static class Program
         bool frameDispatch = false;
         bool constructorFailure = false;
         int filterMode = 0;
+        bool normalFinally = false;
 
         for (int index = 0; index < args.Length; index++)
         {
             string option = args[index];
+            if (option == "--normal-finally")
+            {
+                if (normalFinally) return CliParseResult.Fail("argument_duplicate");
+                if (filterMode != 0 || constructorFailure || frameDispatch || nestedFinallyCatch || rethrowMode != 0 || singleFinallyCatch || simpleThrowCatch || interfaceDispatch || checkedReferences)
+                    return CliParseResult.Fail("argument_mode_conflict");
+                normalFinally = true; continue;
+            }
+            if (normalFinally && option is "--filtered-catch" or "--filter-invoke" or "--constructor-failure" or "--frame-dispatch" or "--nested-finally-catch" or "--rethrow-inner" or "--rethrow-outer" or "--single-finally-catch" or "--simple-throw-catch" or "--interface-dispatch" or "--checked-reference-barriers")
+                return CliParseResult.Fail("argument_mode_conflict");
             if (option is "--filtered-catch" or "--filter-invoke")
             {
                 int mode = option == "--filtered-catch" ? 1 : 2;
@@ -325,7 +351,7 @@ internal static class Program
             return CliParseResult.Fail("arguments_missing");
         }
 
-        return new(true, outputRoot, outputFile, null, checkedReferences, interfaceDispatch, simpleThrowCatch, singleFinallyCatch, rethrowMode, nestedFinallyCatch, frameDispatch, constructorFailure, filterMode);
+        return new(true, outputRoot, outputFile, null, checkedReferences, interfaceDispatch, simpleThrowCatch, singleFinallyCatch, rethrowMode, nestedFinallyCatch, frameDispatch, constructorFailure, filterMode, normalFinally);
     }
 
     private static bool TryResolveOutput(
@@ -603,7 +629,8 @@ internal static class Program
         bool NestedFinallyCatch = false,
         bool FrameDispatch = false,
         bool ConstructorFailure = false,
-        int FilterMode = 0)
+        int FilterMode = 0,
+        bool NormalFinally = false)
     {
         public static CliParseResult Fail(string errorCode) =>
             new(false, null, null, errorCode);

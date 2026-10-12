@@ -1,5 +1,15 @@
 # Diagnostics
 
+Qualified `EnableM04NormalFinallyProbe` defaults false and requires collecting
+GC, with other EH/catalog/churn/constructor/interface profiles excluded. It owns
+`TEST_START/PASS m04.021.normal-finally`, fifteen `M04_NORMAL_FINALLY 0`..`14`
+rows and `CLROS_M04_021_NORMAL_FINALLY_READY`: eighteen child records inside the
+strict 88-record application stream. [step1195](../done/step1195.md) binds real
+throw/finally/root/catch/continuation PCs, one invocation of each operation,
+same rooted exception, live parent stamp, seven stack checks and both canaries.
+The reviewed first-party bound is 14,592/16,400 bytes; firmware internals are excluded.
+General EH, collided unwind, arbitrary methods, dynamic module lifetimes, #90/Gate4, hosted .NET/Kestrel, cloud and production remain incomplete.
+
 Qualified `EnableM04EhCatalogProbe` defaults false and requires frame dispatch
 and collecting GC. The 4-KiB registered mutable POD scratch holds lower cleanup
 entries and disjoint upper rows/receipts/contexts. [step1187](../done/step1187.md) qualifies the finite

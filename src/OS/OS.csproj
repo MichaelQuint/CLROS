@@ -85,6 +85,7 @@
 		<EnableM04NestedFinallyCatchProbe Condition="'$(EnableM04NestedFinallyCatchProbe)' == ''">false</EnableM04NestedFinallyCatchProbe>
 		<EnableM04UnhandledExceptionProbe Condition="'$(EnableM04UnhandledExceptionProbe)' == ''">false</EnableM04UnhandledExceptionProbe>
 		<EnableM04FrameDispatchProbe Condition="'$(EnableM04FrameDispatchProbe)' == ''">false</EnableM04FrameDispatchProbe>
+		<EnableM04NormalFinallyProbe Condition="'$(EnableM04NormalFinallyProbe)' == ''">false</EnableM04NormalFinallyProbe>
 		<EnableM04EhCatalogProbe Condition="'$(EnableM04EhCatalogProbe)' == ''">false</EnableM04EhCatalogProbe>
 		<EnableM04ConstructorFailureProbe Condition="'$(EnableM04ConstructorFailureProbe)' == ''">false</EnableM04ConstructorFailureProbe>
 		<EnableM04FilteredCatchProbe Condition="'$(EnableM04FilteredCatchProbe)' == ''">false</EnableM04FilteredCatchProbe>
@@ -360,6 +361,9 @@
 	<PropertyGroup Condition="'$(EnableM04FrameDispatchProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_FRAME_DISPATCH_PROBE</DefineConstants>
 	</PropertyGroup>
+	<PropertyGroup Condition="'$(EnableM04NormalFinallyProbe)' == 'true'">
+		<DefineConstants>$(DefineConstants);M04_NORMAL_FINALLY_PROBE</DefineConstants>
+	</PropertyGroup>
 	<PropertyGroup Condition="'$(EnableM04EhCatalogProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_EH_CATALOG_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -474,6 +478,7 @@
 			'$(EnableM04UnhandledExceptionProbe)' == 'true' or
 			'$(EnableM04FrameDispatchProbe)' == 'true' or
 			'$(EnableM04EhCatalogProbe)' == 'true' or
+			'$(EnableM04NormalFinallyProbe)' == 'true' or
 			'$(EnableM04ConstructorFailureProbe)' == 'true' or
 			'$(EnableM04FilteredCatchProbe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
@@ -725,6 +730,8 @@
 		<Compile Include="..\OS.Kernel\Runtime\BoundedExceptionFrameSearch.cs" Link="Runtime\BoundedExceptionFrameSearch.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\BoundedExceptionCallerWindow.cs" Link="Runtime\BoundedExceptionCallerWindow.cs" />
 		<Compile Include="Runtime\ExceptionFrameDispatchProbe.cs" />
+		<Compile Include="..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.NormalFinally.cs" Link="Runtime\NativeAotEhClauseMetadata.NormalFinally.cs" />
+		<Compile Include="Runtime\NormalFinallyProbe.cs" />
 		<Compile Include="Runtime\ConstructorFailureProbe.cs" />
 		<Compile Include="Runtime\FilteredCatchProbe.cs" />
 		<Compile Include="..\OS.Kernel\Runtime\BoundedExceptionFilterSearch.cs" Link="Runtime\BoundedExceptionFilterSearch.cs" />
@@ -794,6 +801,7 @@
 			'$(EnableM04UnhandledExceptionProbe)' == 'true' or
 			'$(EnableM04FrameDispatchProbe)' == 'true' or
 			'$(EnableM04EhCatalogProbe)' == 'true' or
+			'$(EnableM04NormalFinallyProbe)' == 'true' or
 			'$(EnableM04ConstructorFailureProbe)' == 'true' or
 			'$(EnableM04FilteredCatchProbe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
@@ -1991,6 +1999,9 @@
 		<Error Condition="'$(EnableM04RethrowProbe)' == 'true' and ('$(EnableM04SeededCollectorChurnProbe)' == 'true' or '$(EnableM04ClassConstructorExecutionProbe)' == 'true' or '$(EnableM04InterfaceDispatchProbe)' == 'true' or '$(EnableM04X64UnwindMetadataProbe)' == 'true' or '$(EnableM04SimpleThrowCatchProbe)' == 'true' or '$(EnableM04SingleFinallyCatchProbe)' == 'true')" Text="m04_rethrow_profile_conflict" />
 		<Error Condition="'$(EnableM04NestedFinallyCatchProbe)' != '' and '$(EnableM04NestedFinallyCatchProbe)' != 'true' and '$(EnableM04NestedFinallyCatchProbe)' != 'false'" Text="m04_nested_finally_switch_invalid" />
 		<Error Condition="'$(EnableM04UnhandledExceptionProbe)' != '' and '$(EnableM04UnhandledExceptionProbe)' != 'true' and '$(EnableM04UnhandledExceptionProbe)' != 'false'" Text="m04_unhandled_switch_invalid" />
+		<Error Condition="'$(EnableM04NormalFinallyProbe)' != '' and '$(EnableM04NormalFinallyProbe)' != 'true' and '$(EnableM04NormalFinallyProbe)' != 'false'" Text="m04_normal_finally_switch_invalid" />
+		<Error Condition="'$(EnableM04NormalFinallyProbe)' == 'true' and '$(EnableM04GcStaticRootMaterializationProbe)' != 'true'" Text="m04_normal_finally_requires_gc_profile" />
+		<Error Condition="'$(EnableM04NormalFinallyProbe)' == 'true' and ('$(EnableM04SeededCollectorChurnProbe)' == 'true' or '$(EnableM04ClassConstructorExecutionProbe)' == 'true' or '$(EnableM04InterfaceDispatchProbe)' == 'true' or '$(EnableM04X64UnwindMetadataProbe)' == 'true' or '$(EnableM04SimpleThrowCatchProbe)' == 'true' or '$(EnableM04SingleFinallyCatchProbe)' == 'true' or '$(EnableM04RethrowProbe)' == 'true' or '$(EnableM04NestedFinallyCatchProbe)' == 'true' or '$(EnableM04UnhandledExceptionProbe)' == 'true' or '$(EnableM04FrameDispatchProbe)' == 'true' or '$(EnableM04ConstructorFailureProbe)' == 'true' or '$(EnableM04FilteredCatchProbe)' == 'true' or '$(EnableM04EhCatalogProbe)' == 'true')" Text="m04_normal_finally_profile_conflict" />
 		<Error Condition="'$(EnableM04FrameDispatchProbe)' != '' and '$(EnableM04FrameDispatchProbe)' != 'true' and '$(EnableM04FrameDispatchProbe)' != 'false'" Text="m04_frames_switch_invalid" />
 		<Error Condition="'$(EnableM04EhCatalogProbe)' != '' and '$(EnableM04EhCatalogProbe)' != 'true' and '$(EnableM04EhCatalogProbe)' != 'false'" Text="m04_eh_catalog_switch_invalid" />
 		<Error Condition="'$(EnableM04EhCatalogProbe)' == 'true' and '$(EnableM04FrameDispatchProbe)' != 'true'" Text="m04_eh_catalog_requires_frame_dispatch" />

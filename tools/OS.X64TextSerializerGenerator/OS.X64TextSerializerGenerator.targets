@@ -36,6 +36,7 @@
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)ExceptionHandlingThunkGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)ExceptionFilterThunkGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)EhContributionCatalogGenerator.cs" />
+    <_ClrosX64SerializerGeneratorInput Include="$(_ClrosX64SerializerGeneratorDirectory)NormalFinallyThunkGenerator.cs" />
     <_ClrosX64SerializerGeneratorInput Include="$(MSBuildThisFileFullPath)" />
   </ItemGroup>
 
@@ -43,7 +44,7 @@
           BeforeTargets="PrepareForBuild"
           Condition="'$(MSBuildProjectFullPath)' == '$(MSBuildThisFileDirectory)OS.X64TextSerializerGenerator.csproj'">
     <Error
-      Condition="'@(Compile-&gt;'%(Identity)', '|')' != 'Amd64CoffWriter.cs|CheckedReferenceBarrierThunkGenerator.cs|EhContributionCatalogGenerator.cs|ExceptionFilterThunkGenerator.cs|ExceptionHandlingThunkGenerator.cs|InstructionPublicationSerializerGenerator.cs|InterfaceDispatchThunkGenerator.cs|Program.cs'"
+      Condition="'@(Compile-&gt;'%(Identity)', '|')' != 'Amd64CoffWriter.cs|CheckedReferenceBarrierThunkGenerator.cs|EhContributionCatalogGenerator.cs|ExceptionFilterThunkGenerator.cs|ExceptionHandlingThunkGenerator.cs|InstructionPublicationSerializerGenerator.cs|InterfaceDispatchThunkGenerator.cs|NormalFinallyThunkGenerator.cs|Program.cs'"
       Text="CLROS_M01_034_GENERATOR_FAILED compile_closure_mismatch actual=@(Compile-&gt;'%(Identity)', '|')" />
     <Error
       Condition="'@(ProjectReference)' != '' Or '@(Reference)' != '' Or '@(PackageReference)' != ''"
@@ -603,10 +604,12 @@
   <!-- The input pair is emitted by this exact ILC compilation, before LinkNative. -->
   <Target Name="IntegrateClrosEhContributionCatalog" BeforeTargets="LinkNative"
     DependsOnTargets="IlcCompile;IntegrateClrosX64InstructionPublicationSerializer"
-    Condition="'$(EnableM04EhCatalogProbe)' == 'true'">
+    Condition="'$(EnableM04EhCatalogProbe)' == 'true' Or '$(EnableM04NormalFinallyProbe)' == 'true'">
     <Error Condition="'$(IlcGenerateMapFile)' != 'true' Or !Exists('$(NativeObject)') Or !Exists('$(_ClrosX64SerializerNativeIntermediateRoot)\OS.map.xml')"
       Text="CLROS_M04_EH_CATALOG_FAILED original_compiler_inputs_missing" />
-    <Exec Command="&quot;$(_ClrosX64SerializerToolExecutable)&quot; --eh-contribution-catalog --object &quot;$(NativeObject)&quot; --map &quot;$(_ClrosX64SerializerNativeIntermediateRoot)\OS.map.xml&quot; --output &quot;$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.EhCatalog.obj&quot;"
+    <Exec Condition="'$(EnableM04NormalFinallyProbe)' != 'true'" Command="&quot;$(_ClrosX64SerializerToolExecutable)&quot; --eh-contribution-catalog --object &quot;$(NativeObject)&quot; --map &quot;$(_ClrosX64SerializerNativeIntermediateRoot)\OS.map.xml&quot; --output &quot;$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.EhCatalog.obj&quot;"
+      ConsoleToMSBuild="true" IgnoreExitCode="false" Timeout="60000" />
+    <Exec Condition="'$(EnableM04NormalFinallyProbe)' == 'true'" Command="&quot;$(_ClrosX64SerializerToolExecutable)&quot; --eh-contribution-catalog --object &quot;$(NativeObject)&quot; --map &quot;$(_ClrosX64SerializerNativeIntermediateRoot)\OS.map.xml&quot; --output &quot;$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.EhCatalog.obj&quot; --method OS_OS_Runtime_RhpNewFastAllocation__NormalCatcher"
       ConsoleToMSBuild="true" IgnoreExitCode="false" Timeout="60000" />
     <ItemGroup>
       <NativeLibrary Include="$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.EhCatalog.obj" />
@@ -616,6 +619,21 @@
       <LinkerArg Include="/INCLUDE:CLROS_Eh_Contributions" />
       <LinkerArg Include="/INCLUDE:CLROS_Eh_ContributionsEnd" />
       <FileWrites Include="$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.EhCatalog.obj" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="IntegrateClrosNormalFinally" BeforeTargets="LinkNative"
+    DependsOnTargets="IlcCompile;IntegrateClrosX64InstructionPublicationSerializer"
+    Condition="'$(EnableM04NormalFinallyProbe)' == 'true'">
+    <Exec Command="&quot;$(_ClrosX64SerializerToolExecutable)&quot; --normal-finally --output-root &quot;$(_ClrosX64SerializerNativeIntermediateRoot)&quot; --output-file CLROS.X64.NormalFinally.obj"
+      ConsoleToMSBuild="true" IgnoreExitCode="false" Timeout="60000" />
+    <ItemGroup>
+      <NativeLibrary Include="$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.NormalFinally.obj" />
+      <LinkerArg Include="&quot;$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.NormalFinally.obj&quot;" />
+      <LinkerArg Include="/INCLUDE:RhpThrowEx" />
+      <LinkerArg Include="/INCLUDE:CLROS_NormalFinally_Clauses" />
+      <LinkerArg Include="/INCLUDE:RhTypeCast_IsInstanceOfException" />
+      <FileWrites Include="$(_ClrosX64SerializerNativeIntermediateRoot)\CLROS.X64.NormalFinally.obj" />
     </ItemGroup>
   </Target>
 </Project>

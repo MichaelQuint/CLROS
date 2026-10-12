@@ -81,7 +81,7 @@ public static unsafe partial class NativeAotEhClauseMetadata
         if (method.Bounds.RootMethodRva != root.BeginRva ||
             method.ClauseCount == 0 || method.ClauseCount > BoundedExceptionDispatchPlan.MaximumClauses)
             return new(NativeAotNormalFinallyStatus.ParentRejected);
-        uint exited = uint.MaxValue;
+        uint exited = ~0U;
         for (uint i = 0; i < method.ClauseCount; i++)
         {
             var row = ReadClause(profile, capture, mapping, moduleOwner, moduleCapacity, moduleHandle,
@@ -90,10 +90,10 @@ public static unsafe partial class NativeAotEhClauseMetadata
             if (row.HandlerAddress != address + funclet.BeginRva) continue;
             if (row.Kind != NativeAotEhClauseKind.FaultOrFinally || row.IsTryGroupBoundary)
                 return new(NativeAotNormalFinallyStatus.ClauseRejected);
-            if (exited != uint.MaxValue) return new(NativeAotNormalFinallyStatus.AmbiguousClause);
+            if (exited != ~0U) return new(NativeAotNormalFinallyStatus.AmbiguousClause);
             exited = i;
         }
-        if (exited == uint.MaxValue) return new(NativeAotNormalFinallyStatus.ClauseRejected);
+        if (exited == ~0U) return new(NativeAotNormalFinallyStatus.ClauseRejected);
         return new(parent, method.Bounds, (uint)(parent.Rip - 1 - address - method.Bounds.RootMethodRva), exited);
     }
 }
