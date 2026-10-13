@@ -8,6 +8,8 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
+                [@"..\OS.Kernel\Threading\X64ThreadContext.cs"] = "ac030297621b3d4159369ce1e67468567b280fbc06e781fdd6b22a9c79aee030",
+                [@"..\OS.Kernel\Threading\ThreadContextSwitch.cs"] = "2d97a2848ac542498aa7d1924f3d35d6b4645b92b55864529f44c61e5dfb0b35",
                 [@"..\..\std\no-runtime\shared\Ascii.cs"] = "c642f5b645ee332e1984ddba3d80e1dd42d09700c5d90aa185ca7c5e74567417",
                 [@"..\..\std\no-runtime\shared\Memory\BufferOperations.cs"] = "60bc8468c8b838dc79b14abdeede4904edf0165ae182addee3d802b93c83b49e",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.cs"] = "6630c47532cc58d81a6aa63111f064e09f2e4711bcc794872a6b515e611b623a",
@@ -18,7 +20,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxMemoryServices.cs"] = "0840aa7c9af95ebd05fb9bd269b99eff5ea166f6c7ea694c0aaeacd6a358d4dd",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs"] = "69bfc5611338fc5c709db4eed928a0072800c98050d1dbca7a1cc566d9f4b2e8",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs"] = "368fae2decfc7fea54922da4ac0aa744431b5dae0ebb88180b3223e9596d1e3a",
-                [@"..\OS.Kernel\Boot\BootSequence.cs"] = "5c1c509a797068bf37e131ebf96dbd3de0552f1a0ca5247415981b997cc4c65b",
+                [@"..\OS.Kernel\Boot\BootSequence.cs"] = "f8c37c5a9bde3ed6498f4057a3658abb939cc17e45aba96dc9818b9192bb980f",
                 [@"..\..\std\no-runtime\shared\Text\AsciiArgumentSplitter.cs"] = "9869438fcd0e465ca21c90f0e9de36b0a9b826c24885de36e44df653c5ea7be5",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfStartup.cs"] = "5fd400d94887ab5aaf64531ff58ca1484d56b308b2e30d8541ffced86a7a0396",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfMapping.cs"] = "a8ae3f3bb4cb5f4b7e442ba95e8c43717abeb982f7a640a65c01a79a4ac5a15d",
@@ -123,10 +125,10 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Runtime\X64FrameUnwind.cs"] = "b7cc8b10a5c1a0e819745d31e81b4915164645b17f172063522f32167afb3733",
                 [@"..\OS.Kernel\Runtime\NativeAotEhClauseMetadata.cs"] = "72cbfcad8f35c73c95d0e55870dc449afafe48c0ea2e4c2e17d8cdddac763dab",
                 [@"..\OS.Kernel\Runtime\X64PERuntimeFunctionUnwindMetadataHostileInput.cs"] = "12fac853b9dc2357d25315e4bedd0e43df0af76854079b7ae030bca36aed5253",
-                [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "84cb4c1a8bd69dda2f87b9560b78a040e527bb9f04635d59a9c3f921b71dfaf5",
+                [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "50f2a4067d5f7cd959f28e152d2a9fa39f5020ef5db7fbd8a3a71352a50cdd1d",
                 [@"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs"] = "88053c5a7a7c46aae39e0c68d03d3dd6ab83047640e3a22455148e53023a44fe",
-                [@"..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs"] = "305c825611db57ddfdb446e6dabc0dd234a91e3c4d4bd050e9aaaf9b8ea57cb5",
-                [@"..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs"] = "ee07eee1bafdd6dea15aee5f988e5c7892a807d66e0062213f5f332d606cb55a",
+                [@"..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs"] = "dbc6af34a459554a25e1e3dfdbab8112609e0d8194d969fdd54c820d70f9647d",
+                [@"..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs"] = "7945bc0c11a0788b8c4031f31b56f4c0ea795e73a86c1dc107fe0d15db166c88",
                 [@"..\..\std\no-runtime\shared\Hash\Crc32.cs"] = "228540b7c150ea26100ea9f509772ee89bbe10a45ef2c4d8e95a4b250c56333e",
                 [@"..\..\std\no-runtime\shared\DeterministicRandom32.cs"] = "6ca5e3e3e839017ca27fb73884b7665315b3e2df3c1f49a5fe012a3e56c2ae33",
                 [@"..\OS.Kernel\Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs"] = "f708e1192e6964dc43f5cdda86caee6656dbc155c3699be71566381b9725fc5c",

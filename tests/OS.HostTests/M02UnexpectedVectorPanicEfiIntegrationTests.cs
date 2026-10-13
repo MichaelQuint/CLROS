@@ -234,7 +234,11 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
         Require(defaults.Select(x=>x.Name.LocalName).Order(StringComparer.Ordinal).SequenceEqual(EfiContracts.ProjectDefaultProbes.Order(StringComparer.Ordinal)) && defaults.All(x=>x.Value=="false") && defaults.Count(x=>x.Name.LocalName==Flag)==1,"complete literal false defaults");
         foreach(string addedFlag in new[]{"EnableM03FirstRealExitBootServicesProbe","EnableM04SeededCollectorChurnProbe","EnableM03FirmwareAdapterRevocationProbe","EnableM04ClassConstructorExecutionProbe","EnableM04InterfaceDispatchProbe","EnableM04X64UnwindMetadataProbe","EnableM03OwnedSubsystemSurvivalProbe","EnableM03OwnedSubsystemPanicProbe","EnableM04SimpleThrowCatchProbe","EnableM04SingleFinallyCatchProbe"})
             Require(defaults.Count(x=>x.Name.LocalName==addedFlag && x.Value=="false")==1,"one literal false default "+addedFlag);
-        var errors=project.Descendants("Error").Where(x=>x.Attribute("Condition")!.Value.Contains("$("+Flag+")",StringComparison.Ordinal)).ToArray();
+        // The cooperative profile owns a separate exclusion category; retain
+        // every original condition and check that category in the M09 fixture.
+        var errors=project.Descendants("Error").Where(x=>
+            !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_004_",StringComparison.Ordinal) &&
+            x.Attribute("Condition")!.Value.Contains("$("+Flag+")",StringComparison.Ordinal)).ToArray();
         Require(errors.Length==76,"eight prerequisites, both directions of 33 conflicts, one first-exit conflict and normal-policy conflict");
         Require(errors.Count(x=>x.Attribute("Condition")?.Value=="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'")==1,"exact incoming first-exit conflict");
         foreach(string prerequisite in Prerequisites)Require(errors.Count(x=>x.Attribute("Condition")?.Value=="'$("+Flag+")' == 'true' and '$("+prerequisite+")' != 'true'")==1,"exact prerequisite "+prerequisite);

@@ -148,6 +148,44 @@ stalled ticks, malformed/aliased output, owner misuse and zero warmed allocation
 Actual timer/interrupt/wake and concurrent-owner proof remain later work;
 hardware wake/preemption belongs to #187 and HPET recovery remains #96's scope.
 
+### Qualified bounded cooperative transfer (#186/#719)
+
+[Step1213](../done/step1213.md) records eight focused checks for the read-only
+`Threading/ThreadContextSwitch.cs` admission layer. It checks the single-CPU
+CPL0 IRQ-off policy, independently retained ownership/root/CPU observations,
+generation-tagged identities, disjoint guarded stack extents and complete
+M09-001 contexts. Resume RIP must equal the independently retained entry or
+instruction after CALL. Entry and captured-call stacks have distinct Win64
+alignment/shadow-space requirements; FS/user-GS bases must be zero or owned.
+
+The owner must actually verify mappings, guards and lifetime before supplying
+those observations. A copied key or proof field grants no authority. Admission
+rejects malformed, stale or aliased inputs without mutation or allocation.
+Those admission checks alone establish no running thread or scheduler acceptance.
+
+[Step1214](../done/step1214.md) adds a fixed C#-authored capture/restore stub
+emitter, with twelve focused checks including independent register/address/ABI
+byte vectors. It saves all GPRs before scratch use, captures the CALL continuation
+and FP state, publishes completion last, admits on a separate stack, then
+restores through an owned indirect JMP. It writes no parked return slot.
+At that checkpoint manual source review was clean; compiled-native inspection
+and execution were pending. [#719](http://192.168.4.35:3000/admin/CLROS/issues/719) owns additional
+shared profile/resource/transcript wiring for the subsequent qualification.
+
+[Step1215](../done/step1215.md) records the default-off `EnableM09004Probe`
+development profile. One actual post-exit guest completes seventeen transfers
+across distinct guarded stacks, checks all GPRs, flags, FS/GS, eight nonempty
+x87 registers and sixteen XMM registers, then compares the complete original
+context against an independent restoration witness. It restores pool mappings,
+scrubs twenty borrowed pages and releases their allocator receipts in reverse.
+The retained thirty-two-page backing is not reclaimed firmware memory. Thirty-four
+focused checks passed at that checkpoint. [Step1218](../done/step1218.md) joins
+4,742 full-host checks, current original native review, three fresh
+99-application-record/17-transfer guests and seven ancestors. The earlier
+101-record count included two firmware startup lines. This is bounded mechanical
+execution, without timer/preemption, Linux threads/signals, upstream runtime,
+Hello or Kestrel acceptance.
+
 ## Current Status
 
 No first-party hosted-tier PAL implementation exists. The canonical CLROS

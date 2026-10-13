@@ -19,6 +19,19 @@ public sealed class EfiProfile
             if (!flags.ContainsKey(pair.Key)) throw new ToolFailure("diagnostic_probe_unknown", "property=" + pair.Key);
             flags[pair.Key] = pair.Value;
         }
+        if (flags["EnableM09004Probe"])
+        {
+            string[] required = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
+            foreach (string name in required)
+            {
+                if (explicitlySelected.TryGetValue(name, out bool enabled) && !enabled)
+                    throw new ToolFailure("m09_004_explicit_false_prerequisite", name);
+                flags[name] = true;
+            }
+            foreach (var flag in flags)
+                if (flag.Value && flag.Key != "EnableM09004Probe" && !required.Contains(flag.Key))
+                    throw new ToolFailure("m09_004_profile_conflict", flag.Key);
+        }
         if (flags["EnableM16007Probe"])
         {
             if (explicitlySelected.TryGetValue("EnableM16006Probe", out bool parent) && !parent)

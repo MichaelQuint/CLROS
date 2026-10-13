@@ -1,3 +1,6 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OS.Tooling;
 
 internal static class EfiProfileTestControls
@@ -8,6 +11,31 @@ internal static class EfiProfileTestControls
     {
         reason = string.Empty;
         var admitted = new SortedSet<(int Start, int Length)>();
+        // The cooperative profile borrows ordinary retained pages, independently
+        // of the DMA profiles below. Admit its exact owner/receipt arguments and
+        // ordered post-exit edge; leave every other raw occurrence visible.
+        {
+            if (!TryGetCooperativeSource(source, out var root, out var owner, out reason)) return false;
+            var invocations = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax>().ToArray();
+            var calls = invocations.Where(i => i.Expression.ToString() == call).ToArray();
+            string expected = call.EndsWith(".AllocateOnePage", StringComparison.Ordinal)
+                ? "(allocator,&node,1,1,null,0,0,1,Page)"
+                : "(allocator,&node,1,1,null,0,0,receipts[count-1])";
+            static string Tokens(Microsoft.CodeAnalysis.SyntaxNode node) => string.Concat(node.DescendantTokens().Select(token => token.Text));
+            reason = "M09_004_PROBE:allocator-owner-receipt";
+            if (calls.Length != 1 || Tokens(calls[0].ArgumentList) != expected ||
+                calls[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Span != owner.Span) return false;
+            if (call.EndsWith(".AllocateOnePage", StringComparison.Ordinal))
+            {
+                var receipts = owner.DescendantNodes().OfType<LocalDeclarationStatementSyntax>()
+                    .Where(d => d.Declaration.Variables.Any(v => v.Identifier.Text == "receipts")).ToArray();
+                reason = "M09_004_PROBE:receipt-storage";
+                if (receipts.Length != 1 || Tokens(receipts[0]) !=
+                    "BootPageAllocatorOnePageResult*receipts=stackallocBootPageAllocatorOnePageResult[20];") return false;
+                admitted.Add((receipts[0].SpanStart, receipts[0].Span.Length));
+            }
+            admitted.Add((calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
+        }
         foreach (var (symbol, entry, body) in EfiContracts.OwnedDmaAllocatorProfiles)
         {
             string[] symbols = ["M01_LOADED_IMAGE_STACK_PROBE", "M01_LIVE_ALLOCATOR_PROBE", "ACPI_PHYSICAL_DISCOVERY_PROBE",
@@ -100,9 +128,77 @@ internal static class EfiProfileTestControls
         return true;
     }
 
+    // Admit only the guarded, one-node retained pool transaction. Keep all other
+    // materializer references visible to the caller's whole-source firewall.
+    internal static bool RemoveOwnedCooperativeMaterializer(ref string source, out string reason)
+    {
+        if (!TryGetCooperativeSource(source, out var root, out var owner, out reason)) return false;
+        var calls = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
+            .Where(i => i.Expression.ToString() == "BootPageAllocatorStateMaterializer.Materialize").ToArray();
+        reason = "M09_004_PROBE:materializer-owner-arguments";
+        if (calls.Length != 1 || Tokens(calls[0].ArgumentList) !=
+            "(&node,1,1,1,0,Page,32,32*Page,&allocator,1)" ||
+            calls[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Span != owner.Span) return false;
+        var declarations = owner.DescendantNodes().OfType<LocalDeclarationStatementSyntax>().ToArray();
+        string[] expected = ["ulongpool=state->CooperativePool;",
+            "BootPageFreeListNodenode=new(0,0,pool,pool+32*Page,32,32*Page,-1);",
+            "BootPageAllocatorStateallocator=default;"];
+        reason = "M09_004_PROBE:materializer-pool";
+        int previous = owner.SpanStart;
+        foreach (string declaration in expected)
+        {
+            var matches = declarations.Where(d => Tokens(d) == declaration).ToArray();
+            if (matches.Length != 1 || matches[0].SpanStart <= previous || matches[0].SpanStart >= calls[0].SpanStart) return false;
+            previous = matches[0].SpanStart;
+        }
+        reason = "M09_004_PROBE:materializer-failure-arm";
+        if (calls[0].Parent is not MemberAccessExpressionSyntax succeeded || succeeded.Name.Identifier.Text != "Succeeded" ||
+            succeeded.Parent is not PrefixUnaryExpressionSyntax condition || !condition.IsKind(SyntaxKind.LogicalNotExpression) ||
+            condition.Parent is not IfStatementSyntax branch || branch.Condition != condition || branch.Else is not null ||
+            Tokens(branch.Statement) != "{_=CooperativeMarker(state,3);returnfalse;}") return false;
+        source = source.Remove(calls[0].Expression.SpanStart, calls[0].Expression.Span.Length);
+        reason = string.Empty;
+        return true;
+    }
+
+    private static string Tokens(SyntaxNode node) => string.Concat(node.DescendantTokens().Select(token => token.Text));
+
+    // The owner must exist only with M09 enabled, behind the original ordered
+    // post-exit call. Sharing this admission keeps both narrow removals aligned.
+    private static bool TryGetCooperativeSource(string source, out SyntaxNode root, out MethodDeclarationSyntax owner, out string reason)
+    {
+        string[] symbols = ["M01_LOADED_IMAGE_STACK_PROBE", "M01_LIVE_ALLOCATOR_PROBE", "ACPI_PHYSICAL_DISCOVERY_PROBE",
+            "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE", "M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE", "M09_004_PROBE"];
+        var tree = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(preprocessorSymbols: symbols));
+        root = tree.GetRoot(); owner = null!;
+        reason = "M09_004_PROBE:syntax";
+        if (tree.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error)) return false;
+        var owners = root.DescendantNodes().OfType<MethodDeclarationSyntax>().Where(m => m.Identifier.Text == "RunCooperativeSwitch").ToArray();
+        reason = "M09_004_PROBE:conditional-owner";
+        if (owners.Length != 1) return false;
+        var disabled = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(preprocessorSymbols: symbols[..^1]));
+        if (disabled.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error) || disabled.GetRoot().DescendantNodes()
+            .OfType<MethodDeclarationSyntax>().Any(m => m.Identifier.Text == "RunCooperativeSwitch")) return false;
+        owner = owners[0];
+        var edges = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
+            .Where(i => i.Expression.ToString() == "BootSequence.RunOwnedCooperativeSwitch").ToArray();
+        reason = "M09_004_PROBE:ordered-owned-edge";
+        if (edges.Length != 1 || edges[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Identifier.Text != "Diagnose" ||
+            Tokens(edges[0].ArgumentList) != "(state->OwnedPhase==2,transition->Mode==FirmwareServicesMode.BootServicesExited&&transition->RetainedFirmwareCallbacksCleared&&state->Arena.Binding->RetainedPointersCleared,state,&RunCooperativeSwitch)") return false;
+        reason = string.Empty;
+        return true;
+    }
+
     // Independent expectations shared by cross-profile rejection fixtures.
     internal static string? MissingParentReason(IReadOnlyCollection<string> selected)
     {
+        if (selected.Contains("EnableM09004Probe"))
+        {
+            string[] parents = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
+                "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
+            if (selected.Any(name => name != "EnableM09004Probe" && !parents.Contains(name))) return "m09_004_profile_conflict";
+            if (parents.Any(name => !selected.Contains(name))) return "m09_004_requires_owned_first_exit";
+        }
         if (selected.Contains("EnableM16002Probe") || selected.Contains("EnableM16003Probe") || selected.Contains("EnableM16004Probe") || selected.Contains("EnableM16005Probe") || selected.Contains("EnableM16006Probe") || selected.Contains("EnableM16007Probe"))
         {
             string[] allowed = ["EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
@@ -225,7 +321,8 @@ internal static class EfiProfileTestControls
                     parent == "EnableM16002Probe" ? "m16_004_explicit_false_prerequisite" : "m16_002_explicit_false_prerequisite"),
                     "startup explicit false: " + parent);
             foreach (string conflict in EfiContracts.DiagnosticProbes.Except(allowed))
-                HostCheck.True(ServiceProfileRejected(build, ["--EnableM16004Probe", "--" + conflict], "m16_002_profile_conflict"),
+                HostCheck.True(ServiceProfileRejected(build, ["--EnableM16004Probe", "--" + conflict],
+                    conflict == "EnableM09004Probe" ? "m09_004_profile_conflict" : "m16_002_profile_conflict"),
                     "startup profile conflict: " + conflict);
         }
     }

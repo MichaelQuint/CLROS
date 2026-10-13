@@ -46,7 +46,14 @@ public static class QemuProfiles
             if (forbidPresets) Require(options.MarkerPreset.Count == 0, reason + "_forbids_override parameter=MarkerPreset");
         }
         if (normal) Original("m03_normal", true, true, true);
-        if (firstExit && !Enabled("M16002")) Original("m03_first_exit", true, true, true);
+        if (firstExit && !Enabled("M16002") && !Enabled("M09004")) Original("m03_first_exit", true, true, true);
+        if (Enabled("M09004"))
+        {
+            Original("m09_004", false, true, true);
+            foreach (string key in new[] { "RequireOrderedMarker", "RequireUniqueMarker", "ForbidMarker" })
+                Require(!options.Explicit.Contains(key), "m09_004_forbids_override parameter=" + key);
+            Require(!options.Explicit.Contains("RequireMarker") || options.RequireMarker.All(x => x == "CLROS_M09_004_READY"), "m09_004_marker_override");
+        }
         if (Enabled("M16002"))
         {
             Original("m16_002", false, true, true);
@@ -133,6 +140,12 @@ public static class QemuProfiles
         else if (Enabled("M05VirtioNegotiation")) Select(QemuContracts.M05VirtioNegotiationMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05BarDma")) Select(QemuContracts.M05BarDmaMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05PciEnumeration")) Select(QemuContracts.M05PciEnumerationMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M09004"))
+        {
+            string[] records = [.. QemuContracts.M03OwnedSubsystemMarkers, .. QemuTranscripts.M09CooperativeMarkers];
+            Select(records, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8", "M09_004_REJECT"], true,
+                records.Where(x => x != "M09_004_TRANSFER").ToArray());
+        }
         else if (Enabled("M16002"))
         {
             string[] records = [.. QemuContracts.M03OwnedSubsystemMarkers, "TEST_START m16-002", "M16_002_STAGED", "M16_002_DIGEST", "M16_002_PACKAGE_DIGEST", "M16_002_OWNED", "CLROS_M16_002_READY", "TEST_PASS m16-002", .. Enabled("M16004") ? QemuTranscripts.M16LinuxStartupMarkers : [], .. Enabled("M16003") ? QemuTranscripts.M16ServiceLoopMarkers : [], .. Enabled("M16007") ? QemuTranscripts.M16LinuxDescriptorMarkers : Enabled("M16006") ? QemuTranscripts.M16LinuxMemoryMarkers : Enabled("M16005") ? QemuTranscripts.M16LinuxSyscallMarkers : []];
@@ -231,6 +244,7 @@ public static class QemuProfiles
         ("M16005", @"^(M16_005_|CLROS_M16_005_READY|TEST_(START|PASS) m16-005)", "m16_005"),
         ("M16006", @"^(M16_006_|CLROS_M16_006_READY|TEST_(START|PASS) m16-006)", "m16_006"),
         ("M16007", @"^(M16_007_|CLROS_M16_007_READY|TEST_(START|PASS) m16-007)", "m16_007"),
+        ("M09004", @"^(M09_004_|CLROS_M09_004_READY|TEST_(START|PASS) m09\.004)", "m09_004"),
         ("M03FirstRealExitBootServices", @"^(M03_EBS_|M03_PERMANENT_|M03_POST_EBS_|CLROS_M03_007|TEST_(START|PASS) m03\.00[79])", "m03_first_exit"),
         ("M03OwnedSubsystemSurvival", @"^(M03_OWNED|CLROS_M03_010|TEST_(START|PASS) m03\.010)", "m03_owned"),
         ("M03FirmwareAdapterRevocation", @"^(M03_ADAPTER_|CLROS_M03_008|TEST_(START|PASS) m03\.008)", "m03_revocation"),

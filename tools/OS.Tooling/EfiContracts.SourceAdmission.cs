@@ -3,6 +3,8 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"..\OS.Kernel\Threading\X64ThreadContext.cs"] = "reviewed_m09_saved_context_source_identity",
+        [@"..\OS.Kernel\Threading\ThreadContextSwitch.cs"] = "reviewed_m09_cooperative_source_identity",
         [@"..\..\std\no-runtime\shared\CompatibilityStatus.cs"] = "reviewed_existing_shared_compatibility_status",
         [@"..\..\std\no-runtime\shared\Ascii.cs"] = "reviewed_shared_ascii_unmanaged_subset",
         [@"..\..\std\no-runtime\shared\Memory\BufferOperations.cs"] = "reviewed_shared_overlap_safe_copy",

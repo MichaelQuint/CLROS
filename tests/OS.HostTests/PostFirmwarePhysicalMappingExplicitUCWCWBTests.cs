@@ -22,6 +22,7 @@ internal static unsafe class PostFirmwarePhysicalMappingExplicitUCWCWBTests
         Run("identity audit rejects aliases and bad ownership", IdentityImageRejection);
         Run("MTRR WB coverage and unsupported environment", MtrrCoverage);
         Run("native emission bounds and readback", NativeEmission);
+        Run("separate canonical-zero guard publication bytes and rejection", GuardNativeEmission);
         Console.WriteLine("TEST_PASS m05.001.split-preparation");
     }
 
@@ -291,6 +292,48 @@ internal static unsafe class PostFirmwarePhysicalMappingExplicitUCWCWBTests
             && !X64PhysicalMappingPublication.EmitReadMsr(code, 13), "MSR bytes");
         Require(X64PhysicalMappingPublication.EmitReadCapabilities(code, 55)
             && !X64PhysicalMappingPublication.EmitReadCapabilities(code, 54), "CPUID bytes");
+    }
+
+    private static void GuardNativeEmission()
+    {
+        byte* code = stackalloc byte[1024];
+        new Span<byte>(code, 1024).Fill(0xa5);
+        HostCheck.Equal(174U, X64PhysicalMappingPublication.GuardRequiredBytes);
+        foreach ((ulong Pointer, uint Capacity) bad in new (ulong, uint)[]
+        {
+            (0, 174), ((ulong)code + 1, 173), (1, 174),
+            (0x0000800000000000 - 174, 174), (ulong.MaxValue - 7, 174)
+        })
+        {
+            Require(!X64PhysicalMappingPublication.EmitGuardPublication((byte*)bad.Pointer, bad.Capacity), "guard malformed output admitted");
+            Require(!X64PhysicalMappingPublication.ValidateGuardPublication((byte*)bad.Pointer, bad.Capacity), "guard malformed readback admitted");
+            Require(new ReadOnlySpan<byte>(code, 1024).ToArray().All(b => b == 0xa5), "guard rejection wrote bytes");
+        }
+        Require(X64PhysicalMappingPublication.EmitGuardPublication(code + 1, 174) &&
+            X64PhysicalMappingPublication.ValidateGuardPublication(code + 1, 174), "guard emission/readback");
+        Require(code[0] == 0xa5 && code[175] == 0xa5, "guard output bounds");
+        // Independent x64 vectors: exact-zero skips, nonzero present tests,
+        // expected-value refusal and the complete revoke/flush/install tail.
+        byte[] expectedTail = Convert.FromHexString(
+            "4885D27409F6C2010F8433000000" +
+            "4D85C0740A41F6C0010F8424000000" +
+            "4839110F851B000000" +
+            "0FAEF04989D24983E2FE4C89110F22D84C89010F09B801000000C331C0C3");
+        Require(new ReadOnlySpan<byte>(code + 107, 68).SequenceEqual(expectedTail), "guard independent instruction vector");
+        foreach (int branch in new[] { 9, 22, 36, 52, 66, 78, 87, 100, 114, 129, 138 })
+        {
+            Require(code[1 + branch] == 0x0f && (code[2 + branch] is 0x84 or 0x85), "guard rejection opcode");
+            int displacement = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(new ReadOnlySpan<byte>(code + 3 + branch, 4));
+            Require(branch + 6 + displacement == 171, "guard refusal must precede all live writes");
+        }
+        code[111] ^= 1; // First exact-zero short skip displacement.
+        Require(!X64PhysicalMappingPublication.ValidateGuardPublication(code + 1, 174), "guard short-branch mutation admitted");
+        Require(X64PhysicalMappingPublication.Emit(code + 256, 164), "original publisher emission");
+        byte[] originalGuards = Convert.FromHexString("F6C2010F842E00000041F6C0010F8424000000");
+        Require(new ReadOnlySpan<byte>(code + 362, 19).SequenceEqual(originalGuards), "original present-only guards changed");
+        Require(!X64PhysicalMappingPublication.ValidateGuardPublication(code + 256, 174), "old publisher admitted as guard variant");
+        Require(X64PhysicalMappingPublication.EmitGuardPublication(code + 1, 174) &&
+            !X64PhysicalMappingPublication.ValidateReadBack(code + 1, 174), "guard variant admitted as old publisher");
     }
 
     private static void MtrrCoverage()

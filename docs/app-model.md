@@ -81,8 +81,21 @@ FIFO cancellation and returns peek/dequeue results by value. #185's deadline
 queue is qualified in [step1212](../done/step1212.md) with ten focused checks:
 stable ties, checked nonwrapping ticks, no early expiration, bounded output,
 cancellation/rearm/reuse and byte-preserving failure. Ticks and lifetime/wake
-authority remain injected/externally owned. #186's actual cooperative-transfer
-slice follows; no thread has run from these host queues.
+authority remain injected/externally owned. #186's read-only cooperative-switch
+admission layer has eight focused checks in [step1213](../done/step1213.md).
+It checks complete contexts, exact retained continuation, guarded stack bounds,
+CPU policy and current ownership before transfer. Those initial checks alone
+did not qualify capture/restore or guest execution.
+Its fixed capture/restore byte emitter now passes twelve focused checks in
+[step1214](../done/step1214.md), including independent GPR/FP/ABI/continuation
+vectors and output-preserving plan rejection. At that checkpoint the bytes had not executed;
+manual source review was separate from original compiled-native inspection.
+Integration child #719 owns the additional shared wiring. Step1215 preserves
+the first development guest. [Step1218](../done/step1218.md) qualifies 4,742
+full-host checks, current original native review, three fresh 99-record guests
+with seventeen transfers and complete context/pool restoration, and seven
+ancestors. Real interrupt/preemption and lifecycle remain #187/#188 work.
+The host queues are not connected to continuing guest scheduling.
 See [PAL deadline ownership](pal.md#deadline-queue-host-contract-185).
 M16-009/#687 owns first pinned NativeAOT Hello acceptance after signal
 startup/delivery, before focused suspension checks; Hello itself starts runtime

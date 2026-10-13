@@ -19,6 +19,9 @@ public struct FirstExitImageReferences
     // Optional in host-only compositions. The EFI adapter must retain its
     // original installed NativeAOT stack-probe page, outside the loaded image.
     public ulong RuntimeSupportCode, RuntimeSupportCodeBytes;
+#if M09_004_PROBE
+    public ulong CooperativePoolStart, CooperativePoolPages;
+#endif
 #if M16_002_PROBE
     public ulong LinuxPackageStart, LinuxPackagePages;
 #endif
@@ -246,6 +249,9 @@ public static unsafe class FirstExitRetainedMappings
 {
     public const ulong MaximumRanges = FirstExitImageMappings.MaximumSections + 1 +
         FirstExitOwnedArena.MappingRangeCount + 3
+#if M09_004_PROBE
+        + 1
+#endif
 #if M16_002_PROBE
         + 1
 #endif
@@ -281,6 +287,9 @@ public static unsafe class FirstExitRetainedMappings
 #endif
         ;
     private const int MaximumAllocations = 6
+#if M09_004_PROBE
+        + 1
+#endif
 #if M16_002_PROBE
         + 1
 #endif
@@ -449,6 +458,13 @@ public static unsafe class FirstExitRetainedMappings
             references.LinuxDescriptorStart > 0x100000000UL - references.LinuxDescriptorPages * 4096) return false;
         starts[allocations] = references.LinuxDescriptorStart; lengths[allocations++] = references.LinuxDescriptorPages * 4096;
 #endif
+#if M09_004_PROBE
+        if (references.CooperativePoolPages != OS.Kernel.Threading.ThreadContextSwitch.PoolPages ||
+            references.CooperativePoolStart < 4096 || (references.CooperativePoolStart & 4095) != 0 ||
+            references.CooperativePoolStart > 0x100000000UL - OS.Kernel.Threading.ThreadContextSwitch.PoolPages * 4096UL) return false;
+        starts[allocations] = references.CooperativePoolStart;
+        lengths[allocations++] = OS.Kernel.Threading.ThreadContextSwitch.PoolPages * 4096UL;
+#endif
         for (int i = 0; i < allocations; i++) for (int j = 0; j < i; j++)
             if (FirstExitDescriptors.Overlaps(starts[i], lengths[i], starts[j], lengths[j])) return false;
 
@@ -477,6 +493,10 @@ public static unsafe class FirstExitRetainedMappings
 #endif
 #if M16_007_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.LinuxDescriptorStart, references.LinuxDescriptorPages, Data);
+#endif
+#if M09_004_PROBE
+        pending[count++] = new SeparatePageFaultMappingRange(references.CooperativePoolStart,
+            references.CooperativePoolPages, Data, PageCachePolicy.WriteBack);
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.MappingScratchStart, 512, Data);
@@ -566,6 +586,10 @@ public static unsafe class FirstExitCodeBundle
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
     public const uint MsixInterruptOffset = 4784;
 #endif
+#if M09_004_PROBE
+    public const uint CooperativeObserveOffset = 6000, CooperativeFxOffset = 6512;
+    public const uint CooperativeSegmentsOffset = 6544, CooperativePublishOffset = 6720;
+#endif
     public const uint StackEntryOffset = 8192;
     public const uint PermanentOffset = 8448;
     private const ulong LowEnd = 0x0000800000000000;
@@ -609,6 +633,15 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
             OS.Drivers.X64MsixInterrupt.Emit(code + MsixInterruptOffset, StackEntryOffset - MsixInterruptOffset) &&
+#endif
+#if M09_004_PROBE
+            OS.Kernel.Threading.ThreadContextSwitch.EmitObserver(code + CooperativeObserveOffset,
+                OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes) &&
+            OS.Kernel.Threading.ThreadContextSwitch.EmitFxSnapshot(code + CooperativeFxOffset,
+                OS.Kernel.Threading.ThreadContextSwitch.FxSnapshotBytes) &&
+            OS.Kernel.Threading.ThreadContextSwitch.EmitOwnedSegments(code + CooperativeSegmentsOffset,
+                OS.Kernel.Threading.ThreadContextSwitch.OwnedSegmentsBytes) &&
+            X64PhysicalMappingPublication.EmitGuardPublication(code + CooperativePublishOffset, StackEntryOffset - CooperativePublishOffset) &&
 #endif
             CheckBytes(code, (ulong)arena.Fault, callback);
         if (!emitted)
@@ -667,7 +700,18 @@ public static unsafe class FirstExitCodeBundle
             arena.Fault->Phase != phase || arena.Fault->Reserved != 0) return false;
         return FirstExitTerminalFaultStub.RequiredBytes > 0 && FirstExitTerminalFaultStub.RequiredBytes <= Out8Offset - FaultOffset &&
             FirstExitOwnedStackStub.RequiredBytes > 0 && FirstExitOwnedStackStub.RequiredBytes <= PermanentOffset - StackEntryOffset &&
-            FirstExitPermanentCr3Stub.RequiredBytes > 0 && FirstExitPermanentCr3Stub.RequiredBytes <= 1024;
+            FirstExitPermanentCr3Stub.RequiredBytes > 0 && FirstExitPermanentCr3Stub.RequiredBytes <= 1024
+#if M09_004_PROBE
+            && OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes > 0 &&
+                OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes <= CooperativeFxOffset - CooperativeObserveOffset
+            && OS.Kernel.Threading.ThreadContextSwitch.FxSnapshotBytes > 0 &&
+                OS.Kernel.Threading.ThreadContextSwitch.FxSnapshotBytes <= CooperativeSegmentsOffset - CooperativeFxOffset
+            && OS.Kernel.Threading.ThreadContextSwitch.OwnedSegmentsBytes > 0 &&
+                OS.Kernel.Threading.ThreadContextSwitch.OwnedSegmentsBytes <= CooperativePublishOffset - CooperativeSegmentsOffset
+            && X64PhysicalMappingPublication.GuardRequiredBytes > 0 &&
+                X64PhysicalMappingPublication.GuardRequiredBytes <= StackEntryOffset - CooperativePublishOffset
+#endif
+            ;
     }
 
     private static bool CheckBytes(byte* code, ulong context, ulong callback)
@@ -714,6 +758,15 @@ public static unsafe class FirstExitCodeBundle
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
         if (!OS.Drivers.X64MsixInterrupt.Validate(code + MsixInterruptOffset, OS.Drivers.X64MsixInterrupt.Bytes)) return false;
 #endif
+#if M09_004_PROBE
+        if (!OS.Kernel.Threading.ThreadContextSwitch.EmitObserver(scratch, OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes) ||
+            !Equal(scratch, code + CooperativeObserveOffset, OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes) ||
+            !OS.Kernel.Threading.ThreadContextSwitch.EmitFxSnapshot(scratch, OS.Kernel.Threading.ThreadContextSwitch.FxSnapshotBytes) ||
+            !Equal(scratch, code + CooperativeFxOffset, OS.Kernel.Threading.ThreadContextSwitch.FxSnapshotBytes) ||
+            !OS.Kernel.Threading.ThreadContextSwitch.EmitOwnedSegments(scratch, OS.Kernel.Threading.ThreadContextSwitch.OwnedSegmentsBytes) ||
+            !Equal(scratch, code + CooperativeSegmentsOffset, OS.Kernel.Threading.ThreadContextSwitch.OwnedSegmentsBytes) ||
+            !X64PhysicalMappingPublication.ValidateGuardPublication(code + CooperativePublishOffset, X64PhysicalMappingPublication.GuardRequiredBytes)) return false;
+#endif
         for (uint index = 4096; index < Bytes; index++)
             if (!Inside(index, FaultOffset, faultBytes) && !Inside(index, Out8Offset, PortIoStubPlan.Out8RequiredByteLength) &&
                 !Inside(index, In8Offset, PortIoStubPlan.In8RequiredByteLength) && !Inside(index, StackEntryOffset, entryBytes) &&
@@ -743,6 +796,12 @@ public static unsafe class FirstExitCodeBundle
 #endif
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
                 !Inside(index, MsixInterruptOffset, OS.Drivers.X64MsixInterrupt.Bytes) &&
+#endif
+#if M09_004_PROBE
+                !Inside(index, CooperativeObserveOffset, OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes) &&
+                !Inside(index, CooperativeFxOffset, OS.Kernel.Threading.ThreadContextSwitch.FxSnapshotBytes) &&
+                !Inside(index, CooperativeSegmentsOffset, OS.Kernel.Threading.ThreadContextSwitch.OwnedSegmentsBytes) &&
+                !Inside(index, CooperativePublishOffset, X64PhysicalMappingPublication.GuardRequiredBytes) &&
 #endif
                 !Inside(index, PermanentOffset, permanentBytes) && code[index] != 0) return false;
         return true;

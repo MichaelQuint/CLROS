@@ -1,5 +1,12 @@
 # CLROS Completion Gates
 
+M09-004/#186 and #719 are qualified in [step1218](../done/step1218.md):
+4,742 full-host checks, current original native review, three fresh default-off
+99-record/17-transfer post-exit guests and seven ancestors pass. Original
+context and owned-pool restoration precede success. This adds no numbered gate,
+Linux threading, unchanged Hello, upstream runtime or Kestrel
+acceptance.
+
 M16-007/#685 and supplemental #707 are qualified in [step1208](../done/step1208.md):
 4,679 full-host checks across 613 fixtures (94 Native), eight original native
 bodies, three 173-record descriptor guests, three 175-record pipe guests and
