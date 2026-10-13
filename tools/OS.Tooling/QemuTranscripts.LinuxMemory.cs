@@ -36,13 +36,13 @@ public static partial class QemuTranscripts
             (10,va+4096,8192,3,0,0,-12), (10,va+4096,4096,7,0,0,-22),
             (9,0,4096,3,0x800022,~0UL,-22), (9,va+4096,4096,0,0x100022,~0UL,-17),
             (9,0,16781312,3,0x22,~0UL,-12), (28,va+4096,4096,16,0,0,0), (28,va+4096,4096,17,0,0,0),
-            (11,va,4096,0,0,0,0), (11,va,huge,0,0,0,0),
             (204,0,8,0x401100,0,0,8), (99,0x401180,0,0,0,0,0),
             (228,1,0x401120,0,0,0,0), (228,1,0x401130,0,0,0,0),
-            (318,0x401140,16,0,0,0,16), (318,0x401150,16,0,0,0,16), (318,0x401140,16,1,0,0,-11),
+            (318,va+4224,16,0,0,0,16), (318,0x401150,16,0,0,0,16), (318,0x401140,16,1,0,0,-11),
             (12,0,0,0,0,0,(long)heap), (12,heap+8192,0,0,0,0,(long)heap+8192),
             (12,0,0,0,0,0,(long)heap+8192), (12,heap,0,0,0,0,(long)heap),
-            (25,0,4096,8192,0,0,-12), (25,0x6ffef000,4096,8192,0,0,-14), (231,42,0,0,0,0,0)
+            (25,0,4096,8192,0,0,-12), (25,0x6ffef000,4096,8192,0,0,-14),
+            (11,va,4096,0,0,0,0), (11,va,huge,0,0,0,0), (231,42,0,0,0,0,0)
         ];
         uint ordinal = 0, barriers = 0, calls = 0, writes = 0; bool pendingWrite = false;
         byte[] elf = LinuxMemoryProofFixture.CreateElf("Memory");
@@ -68,7 +68,7 @@ public static partial class QemuTranscripts
             if (row["nr"] == 324)
             {
                 ulong command = barriers == 0 ? 0UL : barriers == 1 ? 16UL : 8UL;
-                Need(ordinal == 19 && barriers < 3 && row["a0"] == command && row["a1"] == 0 && row["a2"] == 0 &&
+                Need(ordinal == 17 && barriers < 3 && row["a0"] == command && row["a1"] == 0 && row["a2"] == 0 &&
                     row["a3"] == 0 && row["a4"] == 0 && row["valueBits"] == (barriers == 0 ? 24UL : 0UL) &&
                     row["action"] == 1 && row["status"] == 1 && !pendingWrite, "m16_006_process_barrier");
                 barriers++; continue;

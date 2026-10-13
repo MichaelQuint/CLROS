@@ -191,6 +191,8 @@ queries, live monotonic time, fresh entropy and real single-context barriers.
 Repeated and negative captures, original native review, full-host/ancestor
 qualification and the actual unchanged upstream entry attempt remain pending.
 This development capture does not establish NativeAOT Hello or issue acceptance.
+The follow-up in [step1205](../done/step1205.md) exercises high-address copy-out
+through getrandom and verifies it in CPL3, preserving the 34-call diagnostic cap.
 
 ### Transport decision experiments
 

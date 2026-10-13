@@ -32,7 +32,9 @@ ENOMEM/EFAULT results. No thread/signal behavior is fabricated.
 qualification. A mechanical 34-call guest passes; repeated/negative guests,
 full-host checks, original native review, affected ancestors and the pinned
 upstream entry attempt remain required before #684 closure. The one-use/64-call
-M16-005 policy is unchanged. These APIs do not qualify an upstream runtime.
+M16-005 policy is unchanged. [Step1205](../done/step1205.md) adds live high-address
+getrandom copy-out to the existing 34-call fixture; all three strengthened guests
+pass. These APIs do not qualify an upstream runtime.
 
 The next slice is [M16-006/#684](http://192.168.4.35:3000/admin/CLROS/issues/684)
 for measured Linux memory/startup services, followed by #685 descriptors and

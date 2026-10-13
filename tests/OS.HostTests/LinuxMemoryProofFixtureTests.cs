@@ -48,7 +48,7 @@ internal static unsafe class LinuxMemoryProofFixtureTests
         byte[] elf = LinuxMemoryProofFixture.CreateElf("Memory");
         ReadOnlySpan<byte> code = elf.AsSpan(0x200, 0xd00);
         ulong[] calls = Calls(code);
-        ulong[] expected = [9, 10, 10, 10, 9, 10, 1, 11, 10, 10, 9, 9, 9, 28, 28, 11, 11, 204, 99, 324, 324, 324, 228, 228, 318, 318, 318, 12, 12, 12, 12, 25, 25, 231];
+        ulong[] expected = [9, 10, 10, 10, 9, 10, 1, 11, 10, 10, 9, 9, 9, 28, 28, 204, 99, 324, 324, 324, 228, 228, 318, 318, 318, 12, 12, 12, 12, 25, 25, 11, 11, 231];
         HostCheck.True(calls.SequenceEqual(expected) && calls.Length == 34 && calls.Length <= 64);
         HostCheck.True(code[..70].SequenceEqual(new byte[] { 0x48, 0xb8, 9, 0, 0, 0, 0, 0, 0, 0,
             0x48, 0xbf, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -60,6 +60,8 @@ internal static unsafe class LinuxMemoryProofFixtureTests
         HostCheck.True(code.IndexOf(new byte[] { 0xf3, 0x48, 0xaf }) >= 0 && code.IndexOf(new byte[] { 0xfc, 0xf3, 0xa4 }) >= 0);
         HostCheck.True(code.IndexOf(new byte[] { 0x48, 0x89, 0xe7, 0x48, 0x81, 0xe7, 0, 0xf0, 0xff, 0xff }) >= 0);
         HostCheck.True(code.IndexOf(new byte[] { 0x48, 0x85, 0xc0, 0x0f, 0x84 }) >= 0);
+        HostCheck.True(code.IndexOf(new byte[] { 0x48, 0xb8, 0x3e, 1, 0, 0, 0, 0, 0, 0,
+            0x48, 0xbf, 0x80, 0x10, 0, 0, 1, 0, 0, 0 }) >= 0);
         byte[] witness = Encoding.ASCII.GetBytes(LinuxMemoryProofFixture.Witness);
         HostCheck.Equal(24, witness.Length);
         HostCheck.True(elf.AsSpan(0x1200, witness.Length).SequenceEqual(witness));

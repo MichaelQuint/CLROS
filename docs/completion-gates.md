@@ -7,6 +7,8 @@ adds the default-off EFI memory/startup path and its first passing 34-call
 mechanical guest. Original native review, full-host checks, repeated/negative
 guests, ancestors and the unchanged pinned upstream entry attempt remain
 incomplete. No gate or issue acceptance advances from development evidence.
+[Step1205](../done/step1205.md) adds three passing high-address getrandom output
+guests. Full-host acceptance remains pending after the host reboot interruption.
 
 M16-005/#683 and supplemental #699 are qualified in
 [step1201](../done/step1201.md): 4,619 full-host checks across 604 groups

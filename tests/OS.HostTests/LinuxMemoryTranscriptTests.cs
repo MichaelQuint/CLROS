@@ -37,7 +37,8 @@ internal static class LinuxMemoryTranscriptTests
             ("ss=true", "ss=false"), ("backed=0", "backed=1"), ("entropyRemaining=0", "entropyRemaining=32"),
             ("calls=34", "calls=33"), ("TEST_PASS m16-006", "TEST_PASS m16-005"),
             ("valueBits=18446744073709551604", "valueBits=0"), ("a0=16 a1=0", "a0=32 a1=0"),
-            ("a1=4294975480", "a1=4294967296"), ("flags=2", "flags=12290")
+            ("a1=4294975480", "a1=4294967296"), ("flags=2", "flags=12290"),
+            ("nr=318 a0=4294971520", "nr=318 a0=4198720")
         })
         {
             string[] altered = rows.Select(r => r.Replace(change.Old, change.New, StringComparison.Ordinal)).ToArray();
@@ -84,8 +85,8 @@ internal static class LinuxMemoryTranscriptTests
         rows[86] = "M16_004_TABLES root=1048576 used=12 leaves=500 ranges=10";
         rows.AddRange(["TEST_START m16-006", "M16_006_POLICY physical=268435456 available=134217728 poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel",
             "M16_005_ARMED root=1048576 cs=59 ss=51 kernelStack=2097152 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null"]);
-        long[] values = [4294967296, 0, 0, 0, 4294971392, 0, 24, 0, -12, -22, -22, -17, -12, 0, 0, 0, 0,
-            8, 0, 24, 0, 0, 0, 0, 16, 16, -11, 17179869184, 17179877376, 17179877376, 17179869184, -12, -14, 0];
+        long[] values = [4294967296, 0, 0, 0, 4294971392, 0, 24, 0, -12, -22, -22, -17, -12, 0, 0,
+            8, 0, 24, 0, 0, 0, 0, 16, 16, -11, 17179869184, 17179877376, 17179877376, 17179869184, -12, -14, 0, 0, 0];
         byte[] elf = LinuxMemoryProofFixture.CreateElf("Memory");
         ulong[] registers = new ulong[16]; int call = 0;
         for (int offset = 0x200; offset < 0xf00; offset++)
@@ -98,7 +99,7 @@ internal static class LinuxMemoryTranscriptTests
             else if (elf[offset] == 0x0f && elf[offset + 1] == 5)
             {
                 ulong number = registers[0];
-                if (number == 25 && call == 31) registers[7] = 0x6ffff000;
+                if (number == 25 && call == 29) registers[7] = 0x6ffff000;
                 if (number == 1) rows.Add("M16_005_WRITE fd=1 bytes=24 data=" + LinuxMemoryProofFixture.Witness);
                 bool exit = number == 231;
                 rows.Add($"M16_005_CALL nr={number} a0={registers[7]} a1={registers[6]} a2={registers[2]} a3={registers[10]} a4={registers[8]} a5={registers[9]} rip={0x400000UL + (uint)offset + 2} rsp=1879044096 flags=2 valueBits={unchecked((ulong)values[call++])} action={(exit ? 2 : 1)} status={(exit ? 2 : 1)}");

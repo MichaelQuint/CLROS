@@ -92,8 +92,6 @@ public static class LinuxMemoryProofFixture
             w.Map(0, 4096UL * 4096 + 4096, 3, 0x22); w.CompareRax(-12);
             w.Syscall(28, FirstPage, 4096, 16); w.CompareRax(0);
             w.Syscall(28, FirstPage, 4096, 17); w.CompareRax(0);
-            w.Syscall(11, DynamicBase, 4096, 0); w.CompareRax(0);
-            w.Syscall(11, DynamicBase, HugeReservation, 0); w.CompareRax(0);
 
             w.Syscall(204, 0, 8, ImageBase + AffinityOffset); w.CompareRax(8);
             w.Rip(0x058b48, 3, AffinityOffset); w.CompareRax(1);
@@ -110,7 +108,13 @@ public static class LinuxMemoryProofFixture
             int secondsAdvanced = w.ForwardBranch(0x87);
             w.Rip(0x058b48, 3, SecondTimeOffset + 8); w.Op(0xe8394c, 3); w.BranchFailure(0x82);
             w.PatchBranch(secondsAdvanced);
-            w.Syscall(318, ImageBase + FirstRandomOffset, 16, 0); w.CompareRax(16);
+            // Keep this high committed page alive through startup queries. The
+            // kernel copies fresh bytes out through its owned physical alias;
+            // CPL3 then copies them back to the low data witness for comparison.
+            const ulong highRandom = FirstPage + 128;
+            w.Syscall(318, highRandom, 16, 0); w.CompareRax(16);
+            w.Immediate(7, ImageBase + FirstRandomOffset); w.Immediate(6, highRandom); w.Immediate(1, 16);
+            w.Op(0xfc, 1); w.Op(0xa4f3, 2);
             w.Syscall(318, ImageBase + SecondRandomOffset, 16, 0); w.CompareRax(16);
             w.NonzeroPair(FirstRandomOffset); w.NonzeroPair(SecondRandomOffset);
             w.Rip(0x058b48, 3, FirstRandomOffset); w.Rip(0x053348, 3, SecondRandomOffset); w.Op(0xc28948, 3);
@@ -125,6 +129,8 @@ public static class LinuxMemoryProofFixture
             w.Immediate(6, 4096); w.Immediate(2, 8192); w.Immediate(10, 0); w.Immediate(8, 0); w.Op(0x050f, 2); w.Calls++;
             w.CompareRax(-12);
             w.Syscall(25, StackStart - 4096, 4096, 8192, 0, 0); w.CompareRax(-14);
+            w.Syscall(11, DynamicBase, 4096, 0); w.CompareRax(0);
+            w.Syscall(11, DynamicBase, HugeReservation, 0); w.CompareRax(0);
             w.Syscall(231, 42, 0, 0); w.JumpFailure();
             if (w.Calls != MemoryCalls) throw new ToolFailure("m16_006_fixture_call_inventory");
         }
