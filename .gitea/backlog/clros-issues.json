@@ -31483,9 +31483,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p0",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p0",
         "type:implementation",
         "evidence:qemu",
@@ -31496,7 +31496,7 @@
       "dependencyKeys": [
         "M16-005"
       ],
-      "currentEvidence": "Claimed by codex after M16-005 qualification. In-progress sparse anonymous-memory backend and low-64GiB user VA/high-pointer host checks are recorded in done/step1203.md. EFI memory syscall publication, startup/time/entropy, native/full-host/guest qualification and the pinned upstream entry attempt remain pending. Real upstream NativeAOT Hello, thread/TLS/futex behavior and CLROS Kestrel remain unproved.",
+      "currentEvidence": "Qualified in done/step1205.md: 4,646 fresh full-host checks across 608 fixtures (94 Native), original scoped native review, three 150-record high-output guests, two controlled memory negatives and twelve ancestors pass. Sparse 64-GiB user reservations retain independent low-4-GiB physical/table bounds and bounded backing; high copy-in/out, actual monotonic time, fresh entropy and owned restoration are proved mechanically. The unchanged pinned upstream payload stops at unsupported ARCH_SET_FS before Hello. Descriptors/pipes, threads/TLS/futex/signals, upstream GC/EH/ThreadPool and Kestrel remain incomplete.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Implement the qualified mmap/munmap/mprotect/brk and startup query subset, clock/time and entropy contracts. Translate Linux errno at the adapter boundary without changing OSHostStatus. Return real available CPU/memory facts; optional unsupported calls use the measured errno/fallback behavior. Enforce reservation limits, zero-fill and W^X; no successful no-op mappings or entropy.",
@@ -31626,7 +31626,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:ready",
         "priority:p0",
         "type:implementation",
         "evidence:qemu",
@@ -31637,7 +31637,7 @@
       "dependencyKeys": [
         "M16-006"
       ],
-      "currentEvidence": "M16-005 qualifies a mechanical CPL3 write/exit boundary only. Descriptor/file services are unimplemented. The accepted Linux Hello trace creates Finalizer and SigHandler threads before printing, so first Hello acceptance follows M16-008/009, not this foundation ticket.",
+      "currentEvidence": "Dependency-compatible after the bounded M16-006 memory/startup qualification in done/step1205.md. Descriptor, immutable startup-file and pipe services remain unimplemented. Implement mechanical fd/pipe fixtures here; scheduler-backed blocking I/O belongs to M16-008/#686 and signals plus first unchanged Hello to M16-009/#687. No upstream runtime acceptance is claimed.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Implement fd0/1/2 policy, bounded read/write/writev/close/fstat/openat/lseek as measured by the qualified closure, immutable package paths and required /proc observations derived from actual mappings/resources. Optional absent paths return ENOENT; no fabricated Linux host files. No shell, execve/fork, arbitrary executable opens or remote acquisition. Define descriptor ownership/generation for later socket and process isolation.",

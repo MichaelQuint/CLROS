@@ -1,14 +1,16 @@
 # CLROS Completion Gates
 
-M16-006/#684 has an in-progress sparse memory backend and high user VA checks
-in [step1203](../done/step1203.md). Focused host evidence covers real backing
-zero-fill, page-table encodings, quotas and rollback. [Step1204](../done/step1204.md)
-adds the default-off EFI memory/startup path and its first passing 34-call
-mechanical guest. Original native review, full-host checks, repeated/negative
-guests, ancestors and the unchanged pinned upstream entry attempt remain
-incomplete. No gate or issue acceptance advances from development evidence.
-[Step1205](../done/step1205.md) adds three passing high-address getrandom output
-guests. Full-host acceptance remains pending after the host reboot interruption.
+M16-006/#684 and supplemental #706 are qualified in
+[step1205](../done/step1205.md): 4,646 full-host checks across 608 fixtures
+(94 Native), original scoped native review, three 150-record high-output guests,
+two controlled memory negatives and twelve ancestor captures pass. The sparse
+64-GiB user VA policy retains independent low-4-GiB physical/table bounds and
+bounded backing; real memory/startup callbacks prove high copy-in/out, live HPET
+monotonic time, fresh firmware RNG bytes and owned restoration after exit 42.
+The unchanged upstream entry attempt stops at unsupported ARCH_SET_FS and a
+controlled CPL3 fault. No NativeAOT Hello, upstream GC/EH/ThreadPool, descriptors/
+pipes, threads/TLS/futex/signals, Kestrel, numbered gate, cloud or production
+completion advances from this bounded qualification.
 
 M16-005/#683 and supplemental #699 are qualified in
 [step1201](../done/step1201.md): 4,619 full-host checks across 604 groups

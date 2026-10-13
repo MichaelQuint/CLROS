@@ -51,10 +51,10 @@ selects `MultiMinimalApi`.
 ## NativeAOT-first execution roadmap (2026-10-12)
 
 Accepted architecture direction only: no upstream guest application/runtime
-acceptance. M16-001/#679 through M16-005/#683 are qualified within the bounded
+acceptance. M16-001/#679 through M16-006/#684 are qualified within the bounded
 evidence below. The next dependency-compatible slice is
-[M16-006 / #684](http://192.168.4.35:3000/admin/CLROS/issues/684), measured Linux
-memory/startup services. Refresh the tracker before implementation.
+[M16-007 / #685](http://192.168.4.35:3000/admin/CLROS/issues/685), measured Linux
+descriptors and immutable startup views. Refresh the tracker before implementation.
 The [foundation epic #678](http://192.168.4.35:3000/admin/CLROS/issues/678)
 links #679-#690; [#691](http://192.168.4.35:3000/admin/CLROS/issues/691)
 owns the continuing NIC service. Tracker migration and cleanup evidence are in
@@ -169,9 +169,9 @@ branches. Optional TLS/crypto/dynamic loading, wider APIs/CPU shapes and hostile
 long-running load remain outside this fixed HTTP/1.1 qualification. Unknown
 syscalls must fail honestly; tracing never becomes a complete successful-no-op ABI.
 
-M16-006 must separate reserved virtual address space from committed physical
+M16-006 separates reserved virtual address space from committed physical
 pages and their quotas. The pinned Hello's step1198 trace reserves
-8,234,266,624 bytes with `PROT_NONE`, beyond the current loader's low-4-GiB
+8,234,266,624 bytes with `PROT_NONE`, beyond the earlier loader's low-4-GiB
 user range. Sparse reservation must not allocate one backing page per reserved
 page. Preserve the qualified payload and model its measured reservation,
 commit/protect/decommit and failure behavior, or explicitly change the bounded
@@ -188,11 +188,13 @@ The default-off EFI adapter and genuine bounded startup services are implemented
 in [step1204](../done/step1204.md). A 34-call mechanical guest passes the large
 reservation, partial commit/protection/replacement/release, high copy, startup
 queries, live monotonic time, fresh entropy and real single-context barriers.
-Repeated and negative captures, original native review, full-host/ancestor
-qualification and the actual unchanged upstream entry attempt remain pending.
-This development capture does not establish NativeAOT Hello or issue acceptance.
-The follow-up in [step1205](../done/step1205.md) exercises high-address copy-out
-through getrandom and verifies it in CPL3, preserving the 34-call diagnostic cap.
+Original scoped native review, two controlled memory negatives, twelve ancestors
+and the unchanged upstream entry attempt are recorded in step1204. The follow-up
+in [step1205](../done/step1205.md) qualifies 4,646 full-host checks across 608
+fixtures (94 Native) and three fresh 150-record guests. It exercises high-address
+copy-out through getrandom and verifies it in CPL3, preserving the 34-call
+fixture and one-use/64-call gateway policy. The unchanged payload stops at
+unsupported ARCH_SET_FS before Hello; no upstream runtime acceptance is claimed.
 
 ### Transport decision experiments
 

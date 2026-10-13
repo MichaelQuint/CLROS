@@ -4,8 +4,8 @@
 
 1. Read `docs/workload-profiles.md` for the current NativeAOT-first decision.
 2. Refresh the LAN tracker and select the first unfinished dependency-compatible
-   NativeAOT-first ticket. M16-001/#679 through M16-005/#683 are qualified;
-   the next slice is [M16-006 / #684](http://192.168.4.35:3000/admin/CLROS/issues/684).
+   NativeAOT-first ticket. M16-001/#679 through M16-006/#684 are qualified;
+   the next slice is [M16-007 / #685](http://192.168.4.35:3000/admin/CLROS/issues/685).
    Use exact dependencies and acceptance from the managed issue, not numeric
    milestone order or a generic "smallest ready" optional ticket.
 3. Preserve existing work. Pick one cohesive implementation slice, reuse the
@@ -18,6 +18,17 @@
    implementation source remains under `std/no-runtime/shared` and appears as
    linked files. Do not duplicate those types or move EFI source paths casually.
 
+The #684/#706 default-off memory/startup batch is qualified in `done/step1205.md`:
+4,646 full-host checks across 608 fixtures (94 Native), original scoped native
+review, three 150-record high-output guests, two controlled memory negatives and
+twelve ancestors pass. Sparse user reservations reach 64 GiB; physical/table
+bounds remain below 4 GiB. A mechanical ELF replays the 8,234,266,624-byte
+reservation with bounded backing and proves high copy-in/out, live monotonic
+time, fresh entropy and owned restoration. The unchanged upstream payload stops
+at unsupported ARCH_SET_FS, before Hello. Descriptors/pipes, threads/TLS/futex/
+signals, upstream GC/EH/ThreadPool, Kestrel, numbered/cloud/production gates remain
+incomplete.
+
 The #683/#699 default-off CPL3/syscall batch is qualified in `done/step1201.md`:
 4,619 full-host checks across 604 groups (94 Native), original scoped native
 review, three 121-record write/exit guests, four 112-record controlled-negative
@@ -27,9 +38,9 @@ Owned NULL FS/GS selectors are established before the restoration baseline.
 General processes, threads/TLS/futex/signals, real NativeAOT Hello (#687), guest
 application GC/EH, Kestrel, numbered gates, cloud and production remain incomplete.
 
-The corrected handoff is recorded in `done/step1202.md`. #684 must distinguish
+The corrected handoff is recorded in `done/step1202.md`. #684 distinguishes
 sparse virtual reservations from committed pages: the pinned Hello reserves
-8,234,266,624 bytes with `PROT_NONE`, beyond the current 4-GiB user range.
+8,234,266,624 bytes with `PROT_NONE`, beyond the earlier 4-GiB user range.
 #685 qualifies mechanical descriptors/pipes; #686 qualifies mechanical
 threads/TLS/futex, blocking pipes and real per-thread masks; #687 adds signal
 delivery and runs the first unchanged pinned Hello before focused suspension.
