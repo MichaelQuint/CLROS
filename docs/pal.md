@@ -17,6 +17,59 @@ profile or establish execution. The managed issues contain exact source
 references, failure cases and focused commands. Coordinate edits to this shared
 document with the current integration owner.
 
+### Saved-context host contract (#183)
+
+[Step1210](../done/step1210.md) records nine focused checks for
+`Threading/X64ThreadContext.cs`. This is a 688-byte unmanaged value in a live,
+caller-owned buffer whose address must be 16-byte aligned. Natural CLR struct
+alignment does not provide that guarantee. All scalar fields below are eight
+bytes; the final field is a 512-byte FXSAVE64 image.
+
+| Field | Byte offset |
+|---|---:|
+| Private completion version / reserved | 0 / 8 |
+| RAX / RBX / RCX / RDX | 16 / 24 / 32 / 40 |
+| RSI / RDI / RBP / RSP | 48 / 56 / 64 / 72 |
+| R8 / R9 / R10 / R11 | 80 / 88 / 96 / 104 |
+| R12 / R13 / R14 / R15 | 112 / 120 / 128 / 136 |
+| RIP / RFLAGS / FS base / user-GS base | 144 / 152 / 160 / 168 |
+| FXSAVE64 image | 176 |
+
+Within the FP image, x87 control is at 0, MXCSR at 24, MXCSR_MASK at 28,
+eight 16-byte x87/MMX slots start at 32, and sixteen 16-byte XMM slots start
+at 160. Initial controls are x87 `0x027f` (Win64 double precision, masked
+exceptions) and MXCSR `0x1f80`. The caller supplies an independently trusted
+CPU MXCSR_MASK observation: zero uses Intel's `0xffbf` fallback; a nonzero
+mask must fit 16 bits and permit the initial MXCSR. The saved mask must equal
+that observation, and saved MXCSR cannot set bits outside its effective mask.
+The image cannot authorize additional features by widening its own mask.
+These rules follow the [Intel SDM](https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html)
+(volume 1, sections 10.5.1 and 11.6.6) and the
+[Win64 calling convention](https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention?view=msvc-170).
+
+`Initialize`, read-only `Validate`, and overlap-safe `Copy` use status results,
+exclusive ownership and no allocation. Shape checks reject null, short,
+misaligned, overflowing or noncanonical declared buffers before access;
+valid-looking pointers still require the caller to provide mapped storage.
+RIP/RSP must be nonzero four-level canonical addresses; FS/user-GS may be zero.
+Both canonical halves are structurally admitted. RFLAGS requires bit 1 and
+permits only `0x00250fd7`; IOPL, NT, virtual-mode and reserved bits are rejected.
+All fallible checks precede the destination copy, so failure preserves every
+destination byte. The private version/reserved pair marks software completion
+under exclusive ownership; it is neither concurrent publication nor restore
+authority. Captured x87/data bytes are opaque state, not fresh initialization.
+
+Thread values include FS and user-GS bases. Selectors, address-space root,
+kernel-GS and TSS remain with the trusted CPU/transition owner, which must
+separately admit executable mappings, privilege, stack ABI/ownership, TLS
+lifetimes and CPU features before restore. Cooperative Win64 calls preserve
+callee-saved registers; asynchronous interruption requires all interrupted
+state. SYSCALL transforms RCX/R11 into return RIP/RFLAGS; the existing M16
+syscall frame and normalized fault frame retain their distinct formats.
+This ticket executes no FXSAVE/FXRSTOR, privileged transfer or live FS/TLS
+setup. Actual switching, interrupt preservation, Linux threads and later
+runtime acceptance remain deferred.
+
 Actual cooperative transfer belongs to #186, hardware interrupt wake/preemption
 to #187, and thread lifecycle to #188. These retain default-off guest profiles,
 original native review and final-source qualification. A cooperative ABI context

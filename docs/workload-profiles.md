@@ -55,9 +55,11 @@ acceptance. M16-001/#679 through M16-007/#685 are qualified within the bounded
 evidence below. [Step1208](../done/step1208.md) closes the live openat coverage gap
 identified in [step1207](../done/step1207.md). #708/#711's reproduced
 `brk`/fixed-mapping ownership defect is repaired and qualified in step1209.
-The next subsystem is the host-only scheduler layout/queue foundation #183-#185,
-starting with #183. #186-#188 retain actual switching/interrupt/lifecycle guest
-proof. Exact managed dependencies still control the sequence before #686.
+The host-only saved-context layout #183 is qualified in
+[step1210](../done/step1210.md) with nine focused checks. The next foundations
+are #184's FIFO ready queue, then #185's deadline queue. #186-#188 retain actual
+switching/interrupt/lifecycle guest proof. Exact managed dependencies still
+control the sequence before #686; the layout does not establish execution.
 The #708/#711 qualification in [step1209](../done/step1209.md) adds explicit
 heap reservation ownership. General fixed mappings and unmaps still operate;
 they relinquish heap ownership, so brk cannot silently reclaim a replacement
