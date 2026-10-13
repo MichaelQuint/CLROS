@@ -1,6 +1,6 @@
 # EFI Build
 
-## Hardware timer development profile
+## Qualified hardware timer profile
 
 `dotnet run --project tools/OS.Tooling -- efi build -BootPolicy Diagnostic -EnableM09005Probe`
 selects exactly the loaded-stack, allocator, ACPI, first-exit, owned-subsystem,
@@ -9,9 +9,11 @@ The static source inventory admits all declared links; evaluated inventories
 include the two context links for M09004 or M09005 and four timer/handle links
 only for M09005. Normal/profile-off builds exclude all six conditional links.
 The extracted OSHostHandle retains its existing managed ABI; it grants no
-ownership authority. [Step1222](../done/step1222.md) preserves development
-failures and the first live four-tick capture. Final batch qualification is
-pending; this is no upstream runtime or Kestrel acceptance.
+ownership authority. Step1222 preserves development failures; step1223 repairs
+all 16 evaluated-receipt consumers and input-change cancellation. Step1224
+qualifies 4,776 full-host checks, six original native bodies, three fresh
+four-tick/115-record timer guests and ten ancestors. This adds no upstream
+runtime, unchanged Hello or Kestrel acceptance.
 
 ## Qualified cooperative-transfer profile
 

@@ -1,6 +1,6 @@
 # QEMU
 
-## Hardware timer development capture
+## Qualified hardware timer capture
 
 `-BootPolicy Diagnostic -BuildEfi -EnableM09005Probe -TimeoutSeconds 30 -RequireMarker CLROS_M09_005_READY`
 requires a fresh original build and the minimal APIC/owned-exit parents.
@@ -11,8 +11,12 @@ The worker never calls, yields or returns; IRETQ from a real IRQ resumes it or
 redirects to the captured original continuation. Owned IST4 preserves the three
 existing fault stacks. RF is admitted only in the actual interrupt frame;
 deferred returns retain the whole saved flags image. Synthetic rows test parser
-admission only. One development guest passes in [step1222](../done/step1222.md);
-final full/native/three-guest/ancestor qualification is pending.
+admission only. Step1222 retains development failures. Step1224 joins 4,776
+full-host checks, six original native bodies, three fresh 115-application-record
+guests with four IRQs each, and ten ancestors. Raw transport counts 117 include
+two firmware startup lines; progress counters vary between captures. All three
+fresh builds have identical original object, EFI and map bytes, with complete
+context/descriptor/APIC/mapping restoration and 22-page release before success.
 
 ## Qualified cooperative-transfer capture
 

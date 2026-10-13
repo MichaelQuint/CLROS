@@ -19665,7 +19665,7 @@
         "M09-004"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:pal",
@@ -19697,8 +19697,8 @@
         "done/** (reserve a new step only after implementation evidence exists)"
       ],
       "collisionLane": "lane:nativeaot-integration",
-      "summary": "Select and document an owned hardware interrupt source and prove actual interrupt-driven wake/preemption of a non-yielding mechanical context after firmware exit. Polling a clock or injecting host callbacks is insufficient.",
-      "currentEvidence": "Existing M16 user/syscall transitions and PAL contracts are source references only. This scheduler slice remains unimplemented and open; its own acceptance is required.",
+      "summary": "A default-off local-APIC one-shot profile interrupts a non-yielding single-BSP CPL0 mechanical worker after firmware exit, defers across bounded publication phases, and restores the original queued context and owned resources.",
+      "currentEvidence": "Qualified in done/step1224.md on frozen implementation 0b35aad: 4,776 unfiltered full-host checks across 622 fixtures (94 Native), current six-body original COFF review, three fresh 115-application-record timer guests with four E1 interrupts and full context/IF/APIC/IDT/TSS/mapping restoration plus 22-page release, and ten original ancestors pass. All 67 primary focused artifact/publisher/inventory/runner/resume controls pass. Children #721/#723-#726 retain exact integration and fixture/cancellation ownership. Steps1222-1223 preserve earlier failures. PR722 and tracker/master read-back own final merge/closure; lifecycle #188 remains before #686, with no unchanged Hello, upstream runtime, Kestrel or later gate acceptance.",
       "implementationNotes": [
         "Read docs/workload-profiles.md, docs/pal.md and work/PAL/pal-design.md first. Preserve the NativeAOT-first boundary: upstream applications own their GC/EH; this work does not port CoreCLR or extend general kernel EH.",
         "Use C# 14/.NET 10, caller-owned bounded storage, explicit status results and no hidden allocation, exceptions or reflection in kernel paths. Keep one main public type per file where practical and document lifetime, execution context, failure atomicity and unsupported behavior.",
@@ -19745,7 +19745,7 @@
         "docs/app-model.md"
       ],
       "evidenceBoundary": "Bounded mechanical guest scheduler behavior only. No upstream NativeAOT runtime/GC/ThreadPool, CoreCLR, Kestrel, SMP, cloud or production acceptance is implied.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M09-006",

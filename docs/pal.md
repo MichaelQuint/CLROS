@@ -1,14 +1,15 @@
 # PAL
 
-M09-005/#187 and integration children #721/#723/#724/#725 are in development in
-[step1222](../done/step1222.md). The default-off hardware timer profile now
-executes a non-yielding mechanical worker after firmware exit. One development
-guest acknowledges four E1 interrupts across allocation, initialization,
-publication and safe wake; original context, descriptors, mappings and all
-22 borrowed pages are restored before success. Two later development captures
-also pass the final live IDT/TSS read-back checks. Joined full/native/guest/
-ancestor qualification remains pending.
-This adds no Linux threading, upstream GC/runtime, Hello, Kestrel or gate.
+M09-005/#187 and children #721/#723-#726 are qualified in
+[step1224](../done/step1224.md): 4,776 full-host checks across 622 fixtures,
+six original native bodies, three fresh 115-record timer guests and ten
+ancestors pass. Four E1 interrupts defer a non-yielding mechanical worker through
+allocation, initialization and publication before a safe deadline wake.
+Independent context/descriptor checks, APIC/IF/mapping restoration and release
+of all 22 borrowed pages precede success. Steps1222-1223 retain development
+failures and the evaluated-inventory/cancellation repair.
+Thread lifecycle remains #188 before #686. This adds no Linux threading,
+upstream GC/runtime, unchanged Hello, Kestrel or numbered gate.
 
 The NativeAOT-first Linux adapter in [workload profiles](workload-profiles.md)
 is an authorized additional application ABI. It preserves `OSHost_*` and
@@ -122,7 +123,9 @@ Host tests cover FIFO/full/empty/wrap, repeated capacities1/2/3/17/257,
 cancellation, duplicate/stale generations, owner misuse, incomplete context
 preparation at every eight-byte checkpoint, alias rejection/exact adjacency
 and warmed allocation. Observations occur between complete serialized calls;
-interruption inside an operation and real preemption remain #187's guest work.
+these host checks do not permit interruption inside a queue operation.
+Step1224 qualifies a separate bounded timer owner, with complete operations
+serialized and identity/context lifetime independently admitted.
 
 ### Deadline-queue host contract (#185)
 
@@ -155,10 +158,10 @@ lifetime/context before publishing a wake. The queue creates no threads and
 reads no platform timer. Host tests cover stable order, no early expiration,
 capacity/drain/refill, cancellation/rearm/reuse, ulong boundary/overflow,
 stalled ticks, malformed/aliased output, owner misuse and zero warmed allocation.
-Actual timer/interrupt/wake and concurrent-owner proof remain later work;
-hardware wake/preemption belongs to #187 and HPET recovery remains #96's scope.
+Step1224 qualifies actual timer wake/preemption for one mechanical owner.
+General concurrent-owner proof remains incomplete; HPET recovery remains #96.
 
-### Timer control development (#187)
+### Qualified bounded timer control (#187)
 
 [Step1219](../done/step1219.md) adds the caller-owned `SchedulerTimer` control
 layer with twelve focused host checks. The selected source is the legacy local
@@ -174,8 +177,8 @@ plans, every changed code/padding byte and zero warmed allocation. Fifteen saved
 GPRs plus hardware oldRSP precede scratch use; aligned x87/SSE and FS/GS capture
 precede the neutral-FP C# callback. Return requires byte1, complete frame, CS8/SS16
 and verified restored FS/GS bases; only IRETQ restores the admitted return flags.
-The emitter is not installed or executed. The callback still needs independent
-live mapping/CPU/lifetime and complete return-frame admission.
+At that checkpoint the emitter was not installed or executed. The callback
+requires independent live mapping/CPU/lifetime and complete return admission.
 [Step1221](../done/step1221.md) keeps that frame on natural sequential fields,
 avoiding new interop attributes in the no-stdlib surface; all five offset/byte
 checks pass after the compatibility change.
@@ -193,12 +196,19 @@ the owner must independently admit its live context and commit the wake.
 
 Restore masks/stops before checking quiescence and restoring the original
 divider/masked LVT. Partial writes and pending interrupt failures retain the
-hardware borrow and external IDT/stack/mapping lifetimes. The tests simulate
-MMIO and expiration; no hardware interrupt has executed through this layer.
-Live GPR/FS/GS/x87/SSE interrupt capture, actual non-yielding context preemption,
-IDT/TSS/IF restoration, original native review and final-source guest/full-host
-qualification remain #187 work. This adds no scheduler or upstream runtime
-acceptance, and does not reinterpret the qualified cooperative context ABI.
+hardware borrow and external IDT/stack/mapping lifetimes. The original twelve
+host checks simulate MMIO and expiration. Step1224 joins live capture of all
+GPRs, FS/GS, x87/XMM and flags, actual non-yielding mechanical preemption,
+original native review and final-source full/guest/ancestor qualification.
+The EFI owner installs a checked cloned IDT and unused IST4 while retaining
+fault IST1-3. It cancels one expired identity, wakes the original surviving
+deadline only at a safe boundary, independently compares the restored context,
+then restores IDTR/IST4/APIC/IF and mappings before scrubbing and releasing all
+22 borrowed pages. RF is admitted only in the actual IRQ frame; CALL-captured
+cooperative contexts retain their original flags contract.
+This is single-BSP CPL0 mechanical execution. General lifecycle, SMP,
+XSAVE/AVX/CET, Linux TLS/futex/signals and upstream GC/runtime remain incomplete.
+It does not broaden the qualified cooperative context ABI.
 
 ### Qualified bounded cooperative transfer (#186/#719)
 

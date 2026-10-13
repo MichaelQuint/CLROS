@@ -7,13 +7,17 @@ context and owned-pool restoration precede success. This adds no numbered gate,
 Linux threading, unchanged Hello, upstream runtime or Kestrel
 acceptance.
 
-M09-005/#187 has development evidence in [step1222](../done/step1222.md).
-Twenty-six focused checks and a native publish pass; one development guest
-executes four actual APIC IRQs, defers a non-yielding worker at three publication
-phases and resumes/restores the original context and owned resources. The final
-IDT/TSS read-back change has not yet joined full-host, original native review,
-three fresh final-source guests and retained ancestors. #187/#721/#723/#724
-remain open. No numbered gate, upstream runtime, Hello or Kestrel is accepted.
+M09-005/#187 and children #721/#723-#726 are qualified in
+[step1224](../done/step1224.md): 4,776 full-host checks across 622 fixtures
+(94 Native), six original native bodies, three fresh 115-application-record
+timer guests and ten ancestors pass on frozen implementation `0b35aad`.
+Four actual APIC IRQs defer a non-yielding worker through allocation,
+initialization and publication, then wake the surviving original identity at
+tick four. Context, IF, IDT/TSS, APIC, mappings and all 22 borrowed pages are
+restored before success. Profile-specific receipt corrections and input-change
+cancellation join this qualification; earlier failures remain in steps1222-1223.
+Thread lifecycle remains #188, before #686. No numbered gate, upstream runtime,
+unchanged Hello or Kestrel is accepted.
 
 M16-007/#685 and supplemental #707 are qualified in [step1208](../done/step1208.md):
 4,679 full-host checks across 613 fixtures (94 Native), eight original native

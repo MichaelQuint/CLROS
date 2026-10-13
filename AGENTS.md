@@ -10,8 +10,10 @@
    with external ownership/serialization and host-only boundaries retained.
    #186/#719 cooperative transfer is qualified in step1218: 4,742 full-host
    checks, original native review, three 99-record/17-transfer guests and seven
-   ancestors pass. The next slice is #187's actual hardware interrupt wake/
-   preemption; #188 lifecycle remains before #686. Review step1207 preserves
+   ancestors pass. #187 and children #721/#723-#726 are qualified in step1224:
+   4,776 full-host checks, six original native bodies, three 115-record timer
+   guests and ten ancestors pass. The next slice is #188 lifecycle before #686.
+   Review step1207 preserves
    the original defect and corrected scheduler boundaries.
    Use exact dependencies and acceptance from the managed issue, not numeric
    milestone order or a generic "smallest ready" optional ticket.
