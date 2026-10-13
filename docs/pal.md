@@ -148,6 +148,23 @@ stalled ticks, malformed/aliased output, owner misuse and zero warmed allocation
 Actual timer/interrupt/wake and concurrent-owner proof remain later work;
 hardware wake/preemption belongs to #187 and HPET recovery remains #96's scope.
 
+### Cooperative-switch admission development (#186)
+
+[Step1213](../done/step1213.md) records eight focused checks for the read-only
+`Threading/ThreadContextSwitch.cs` admission layer. It checks the single-CPU
+CPL0 IRQ-off policy, independently retained ownership/root/CPU observations,
+generation-tagged identities, disjoint guarded stack extents and complete
+M09-001 contexts. Resume RIP must equal the independently retained entry or
+instruction after CALL. Entry and captured-call stacks have distinct Win64
+alignment/shadow-space requirements; FS/user-GS bases must be zero or owned.
+
+The owner must actually verify mappings, guards and lifetime before supplying
+those observations. A copied key or proof field grants no authority. Admission
+rejects malformed, stale or aliased inputs without mutation or allocation.
+Native capture/restore, default-off profile wiring, original-context cleanup,
+full-host/native review and actual guest transfers remain unfinished. #186 is
+open; these checks establish no running thread or scheduler acceptance.
+
 ## Current Status
 
 No first-party hosted-tier PAL implementation exists. The canonical CLROS
