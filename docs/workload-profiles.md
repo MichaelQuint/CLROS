@@ -55,6 +55,14 @@ acceptance. M16-001/#679 through M16-006/#684 are qualified within the bounded
 evidence below. The next dependency-compatible slice is
 [M16-007 / #685](http://192.168.4.35:3000/admin/CLROS/issues/685), measured Linux
 descriptors and immutable startup views. Refresh the tracker before implementation.
+The review in [step1207](../done/step1207.md) records two open follow-ups:
+#685/#707 need an actual CPL3 `openat` fixture before descriptor acceptance;
+[#708](http://192.168.4.35:3000/admin/CLROS/issues/708) repairs a reproduced
+`brk`/fixed-mapping ownership defect before unchanged Hello/runtime acceptance.
+The memory qualification above remains its historical bounded evidence, not
+proof that every mixed Linux memory operation is correct. Coordinate #708 with
+the current integration-lane owner. Scheduler layout/queue foundations #183-#185
+are host-only; #186-#188 retain actual switching/interrupt/lifecycle guest proof.
 The [foundation epic #678](http://192.168.4.35:3000/admin/CLROS/issues/678)
 links #679-#690; [#691](http://192.168.4.35:3000/admin/CLROS/issues/691)
 owns the continuing NIC service. Tracker migration and cleanup evidence are in
