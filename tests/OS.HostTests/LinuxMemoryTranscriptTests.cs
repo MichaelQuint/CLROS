@@ -79,15 +79,61 @@ internal static class LinuxMemoryTranscriptTests
 
     // Synthetic tail only: deliberately dummy parent rows cannot prove firmware,
     // ELF loading or startup. The complete public validator checks those separately.
-    private static string[] SyntheticRows()
+    [HostTest("m16-006 heap transcripts reject stolen growth altered errno fault target and missing restoration", HostLane.Fast, 3)]
+    private static void HeapOwnershipTails()
+    {
+        foreach (string variant in new[] { "HeapOwnership", "HeapOwnershipFault" })
+        {
+            bool negative = variant == "HeapOwnershipFault";
+            string[] rows = SyntheticRows(variant); byte[] package = LinuxMemoryProofFixture.CreatePackage(variant);
+            void Validate(string[] input)
+            {
+                HostCheck.Equal(107, negative ? QemuTranscripts.ValidateLinuxMemoryNegativeTail(input, package, variant).Length
+                    : QemuTranscripts.ValidateLinuxMemoryTail(input, package).Length);
+            }
+            Validate(rows);
+            foreach ((string Old, string New) change in new (string, string)[]
+            {
+                ("valueBits=17179869184", "valueBits=17179877376"), ("a0=17179877376", "a0=17179881472"),
+                ("a2=1", "a2=3"), ("ss=true", "ss=false"), ("flags=2", "flags=12290"),
+                ("status=1", "status=2"), ("a4=18446744073709551615", "a4=0")
+            })
+                HostCheck.True(Rejected(() => Validate(rows.Select(r => r.Replace(change.Old, change.New, StringComparison.Ordinal)).ToArray())));
+            if (negative)
+            {
+                foreach ((string Old, string New) change in new (string, string)[]
+                    { ("error=7", "error=4"), ("cr2=17179873280", "cr2=4294971392"),
+                      ("cs=59", "cs=8"), ("vector=14", "vector=13"), ("disposition=terminate", "disposition=continue") })
+                    HostCheck.True(Rejected(() => Validate(rows.Select(r => r.Replace(change.Old, change.New, StringComparison.Ordinal)).ToArray())));
+                HostCheck.True(Rejected(() => QemuTranscripts.ValidateLinuxMemoryTail(rows, package)));
+            }
+            else
+            {
+                foreach ((string Old, string New) change in new (string, string)[]
+                    { ("valueBits=18446744073709551599", "valueBits=0"), ("entropyRemaining=32", "entropyRemaining=0"),
+                      ("calls=22", "calls=21"), ("backed=0", "backed=1"), ("data=M16_MEMORY_HIGH_COPY_OK!", "data=forged") })
+                    HostCheck.True(Rejected(() => Validate(rows.Select(r => r.Replace(change.Old, change.New, StringComparison.Ordinal)).ToArray())));
+            }
+            HostCheck.True(Rejected(() => Validate([.. rows, "extra"])));
+            HostCheck.True(Rejected(() => Validate(rows[1..])));
+            package[^1] ^= 1; HostCheck.True(Rejected(() => Validate(rows)));
+        }
+    }
+
+    private static string[] SyntheticRows(string variant = "Memory")
     {
         List<string> rows = Enumerable.Repeat("synthetic-parent", 107).ToList();
         rows[86] = "M16_004_TABLES root=1048576 used=12 leaves=500 ranges=10";
         rows.AddRange(["TEST_START m16-006", "M16_006_POLICY physical=268435456 available=134217728 poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel",
             "M16_005_ARMED root=1048576 cs=59 ss=51 kernelStack=2097152 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null"]);
-        long[] values = [4294967296, 0, 0, 0, 4294971392, 0, 24, 0, -12, -22, -22, -17, -12, 0, 0,
+        bool ownership = variant != "Memory", negative = variant == "HeapOwnershipFault";
+        long[] values = negative ? [4294967296,17179869184,17179873280,0,17179869184,17179869184] : ownership ?
+            [4294967296,17179869184,17179877376,0,17179873297,17179873280,17179877376,17179869184,
+             17179873280,0,17179869184,-17,17179869184,0,17179869184,17179869184,17179869184,24,
+             17179873280,17179869184,0,0] :
+            [4294967296, 0, 0, 0, 4294971392, 0, 24, 0, -12, -22, -22, -17, -12, 0, 0,
             8, 0, 24, 0, 0, 0, 0, 16, 16, -11, 17179869184, 17179877376, 17179877376, 17179869184, -12, -14, 0, 0, 0];
-        byte[] elf = LinuxMemoryProofFixture.CreateElf("Memory");
+        byte[] elf = LinuxMemoryProofFixture.CreateElf(variant);
         ulong[] registers = new ulong[16]; int call = 0;
         for (int offset = 0x200; offset < 0xf00; offset++)
         {
@@ -106,9 +152,16 @@ internal static class LinuxMemoryTranscriptTests
                 offset++;
             }
         }
-        HostCheck.Equal(34, call);
-        rows.AddRange(["M16_005_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true",
-            "M16_005_EXIT code=42 calls=34 bytes=24 writes=1", "M16_006_MEMORY reserved=2097152 backed=0 tables=12 entropyRemaining=0",
+        HostCheck.Equal(values.Length, call);
+        if (negative)
+        {
+            int store = elf.AsSpan(0x200, 0xd00).LastIndexOf(new byte[] { 0x48,0x89,0x10 });
+            rows.Add($"M16_005_FAULT vector=14 error=7 rip={0x400200UL+(uint)store} rsp=1879044096 cr2=17179873280 cs=59 ss=51 disposition=terminate");
+        }
+        rows.Add("M16_005_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
+        if (negative) rows.Add("TEST_FAIL m16-006 user-boundary-terminated status=1");
+        else rows.AddRange([$"M16_005_EXIT code=42 calls={call} bytes=24 writes=1",
+            $"M16_006_MEMORY reserved=2097152 backed=0 tables=12 entropyRemaining={(ownership ? 32 : 0)}",
             "CLROS_M16_006_READY", "TEST_PASS m16-006"]);
         return rows.ToArray();
     }

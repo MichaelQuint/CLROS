@@ -5,9 +5,11 @@
 1. Read `docs/workload-profiles.md` for the current NativeAOT-first decision.
 2. Refresh the LAN tracker and select the first unfinished dependency-compatible
    NativeAOT-first ticket. M16-001/#679 through M16-007/#685 are qualified;
-   the next correctness slice is [#708](http://192.168.4.35:3000/admin/CLROS/issues/708),
-   brk/fixed-map ownership repair before unchanged Hello/runtime acceptance.
-   Review step1207 preserves that defect and corrected host-only scheduler foundations.
+   #708/#711's brk/fixed-map ownership repair is qualified in step1209.
+   The next subsystem is the host-only scheduler foundation #183-#185, starting
+   with #183's saved-context layout. #186-#188 retain actual switching,
+   interrupt and lifecycle guest proof before #686. Review step1207 preserves
+   the original defect and corrected scheduler boundaries.
    Use exact dependencies and acceptance from the managed issue, not numeric
    milestone order or a generic "smallest ready" optional ticket.
 3. Preserve existing work. Pick one cohesive implementation slice, reuse the
@@ -19,6 +21,17 @@
 5. The shared host project is `src/OS.Std.NoRuntime.Shared`. Its audited
    implementation source remains under `std/no-runtime/shared` and appears as
    linked files. Do not duplicate those types or move EFI source paths casually.
+
+The #708/#711 ownership repair is qualified in `done/step1209.md`: 4,688 fresh
+full-host checks across 613 fixtures (94 Native), original scoped ownership/ABI
+review, three 138-record mixed-operation guests, one 119-record readonly foreign
+heap fault control and five fresh memory/descriptor ancestors pass. Heap tags
+survive owned protection/advice/shrink/regrow; fixed replacements and holes
+relinquish ownership, and subsequent brk changes fail closed before publication.
+The exact foreign page remains read-only: actual CPL3 write faults with PF/error7,
+then owned restoration succeeds. General Linux memory compatibility, unchanged
+Hello/runtime, GC/EH/ThreadPool, Kestrel and numbered/cloud/production gates remain
+incomplete.
 
 The #684/#706 default-off memory/startup batch is qualified in `done/step1205.md`:
 4,646 full-host checks across 608 fixtures (94 Native), original scoped native
