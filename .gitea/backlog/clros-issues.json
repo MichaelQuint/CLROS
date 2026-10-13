@@ -19570,7 +19570,7 @@
         "M09-003"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:pal",
@@ -19603,7 +19603,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "A default-off post-ExitBootServices profile transfers between two actual mechanical execution contexts on distinct owned guarded stacks and proves repeated bidirectional progress.",
-      "currentEvidence": "Existing M16 user/syscall transitions and PAL contracts are source references only. This scheduler slice remains unimplemented and open; its own acceptance is required.",
+      "currentEvidence": "Qualified in done/step1218.md on frozen implementation16cbee1:4742 unfiltered full-host checks across618 fixtures (94 Native), current original six-body native review, three fresh99-application-record guests with17 transfers and complete original-context/pool restoration, and seven original ancestors pass. Integration child #719 owns shared wiring. The earlier101 transport-line count included two firmware startup lines. PR720 and exact tracker/master read-back retain the reviewed merge/closure boundary; no later runtime or gate acceptance is added.",
       "implementationNotes": [
         "Read docs/workload-profiles.md, docs/pal.md and work/PAL/pal-design.md first. Preserve the NativeAOT-first boundary: upstream applications own their GC/EH; this work does not port CoreCLR or extend general kernel EH.",
         "Use C# 14/.NET 10, caller-owned bounded storage, explicit status results and no hidden allocation, exceptions or reflection in kernel paths. Keep one main public type per file where practical and document lifetime, execution context, failure atomicity and unsupported behavior.",
@@ -19654,7 +19654,7 @@
         "docs/app-model.md"
       ],
       "evidenceBoundary": "Bounded mechanical guest scheduler behavior only. No upstream NativeAOT runtime/GC/ThreadPool, CoreCLR, Kestrel, SMP, cloud or production acceptance is implied.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M09-005",

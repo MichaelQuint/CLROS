@@ -1,27 +1,28 @@
 # EFI Build
 
-## Cooperative-transfer development profile
+## Qualified cooperative-transfer profile
 
 `dotnet run --project tools/OS.Tooling -- efi build -BootPolicy Diagnostic -EnableM09004Probe`
 selects a default-off mechanical cooperative diagnostic and its five original
 loaded-stack/live-allocator/ACPI/real-exit/owned-survival prerequisites. Explicitly
 disabled parents and unrelated diagnostic leaves are rejected. The build links
 the audited M09 saved context and transfer emitter explicitly; normal EFI
-no-stdlib rules remain in force. [Step1215](../done/step1215.md) records a successful
-development publish and one actual guest; full/repeat/ancestor
-qualification is pending. No Linux threading or upstream workload acceptance.
+no-stdlib rules remain in force. [Step1215](../done/step1215.md) preserves the
+development publish/guest. [Step1218](../done/step1218.md) qualifies 4,742
+full-host checks, current original native review, three fresh 99-record guests
+and seven ancestors. Linux threading and upstream workloads remain incomplete.
 
 [Step1216](../done/step1216.md) appends those explicit links to the unconditional
 inventory, preserving all prior source indices and every evaluated profile's
 235-file closure. The cooperative execution flag remains default-off. Seven
-affected legacy fixtures and the contract audit pass; full qualification remains pending.
+affected legacy fixtures and the contract audit passed at that checkpoint.
 
 [Step1217](../done/step1217.md) repairs the legacy allocator source firewalls
 without admitting unrelated references. The cooperative owner, twenty receipts,
 one-node/32-page materialization and ordered post-exit callback are checked
 explicitly. Direct MSBuild selection of the cooperative flag now chooses
 `Diagnostic`, consistently with the command-line tools. Ordinary builds retain
-`VerifiedExit`; full and final guest qualification remain pending.
+`VerifiedExit`; the complete qualification is recorded in step1218.
 
 Qualified `--EnableM16005Probe` selects the default-off mechanical CPL3 syscall
 Diagnostic and automatically requires M16-002/003/004. QEMU acceptance requires

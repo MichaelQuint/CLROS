@@ -1,10 +1,10 @@
 # CLROS Completion Gates
 
-M09-004/#186 and #719 remain in qualification. [Step1215](../done/step1215.md)
-records thirty-four focused checks and one actual default-off seventeen-transfer
-post-exit guest with complete context and owned-pool restoration. Full-host,
-repeated captures and ancestors remain pending; scoped original native review is recorded. This adds
-no numbered gate, Linux threading, unchanged Hello, upstream runtime or Kestrel
+M09-004/#186 and #719 are qualified in [step1218](../done/step1218.md):
+4,742 full-host checks, current original native review, three fresh default-off
+99-record/17-transfer post-exit guests and seven ancestors pass. Original
+context and owned-pool restoration precede success. This adds no numbered gate,
+Linux threading, unchanged Hello, upstream runtime or Kestrel
 acceptance.
 
 M16-007/#685 and supplemental #707 are qualified in [step1208](../done/step1208.md):

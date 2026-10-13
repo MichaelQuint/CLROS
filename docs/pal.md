@@ -148,7 +148,7 @@ stalled ticks, malformed/aliased output, owner misuse and zero warmed allocation
 Actual timer/interrupt/wake and concurrent-owner proof remain later work;
 hardware wake/preemption belongs to #187 and HPET recovery remains #96's scope.
 
-### Cooperative-switch admission development (#186)
+### Qualified bounded cooperative transfer (#186/#719)
 
 [Step1213](../done/step1213.md) records eight focused checks for the read-only
 `Threading/ThreadContextSwitch.cs` admission layer. It checks the single-CPU
@@ -170,7 +170,7 @@ and FP state, publishes completion last, admits on a separate stack, then
 restores through an owned indirect JMP. It writes no parked return slot.
 At that checkpoint manual source review was clean; compiled-native inspection
 and execution were pending. [#719](http://192.168.4.35:3000/admin/CLROS/issues/719) owns additional
-shared profile/resource/transcript wiring. Both issues remain open.
+shared profile/resource/transcript wiring for the subsequent qualification.
 
 [Step1215](../done/step1215.md) records the default-off `EnableM09004Probe`
 development profile. One actual post-exit guest completes seventeen transfers
@@ -179,8 +179,10 @@ x87 registers and sixteen XMM registers, then compares the complete original
 context against an independent restoration witness. It restores pool mappings,
 scrubs twenty borrowed pages and releases their allocator receipts in reverse.
 The retained thirty-two-page backing is not reclaimed firmware memory. Thirty-four
-focused checks pass; full-host qualification, repeat
-captures and ancestor regressions remain pending. This is bounded mechanical
+focused checks passed at that checkpoint. [Step1218](../done/step1218.md) joins
+4,742 full-host checks, current original native review, three fresh
+99-application-record/17-transfer guests and seven ancestors. The earlier
+101-record count included two firmware startup lines. This is bounded mechanical
 execution, without timer/preemption, Linux threads/signals, upstream runtime,
 Hello or Kestrel acceptance.
 

@@ -1,6 +1,6 @@
 # QEMU
 
-## Cooperative-transfer development capture
+## Qualified cooperative-transfer capture
 
 `-BootPolicy Diagnostic -BuildEfi -EnableM09004Probe -TimeoutSeconds 30 -RequireMarker CLROS_M09_004_READY`
 requires an original fresh build/capture; marker replacement, alternate presets
@@ -8,8 +8,10 @@ and unrelated leaves are rejected. The M09 tail follows the original owned
 post-exit parent: allocation, seventeen ordered transfers, restoration, cleanup,
 ready and pass. Validation binds exact continuation offsets and worker stacks,
 original restoration and twenty scrubbed/released pages. Synthetic transcript
-tests exercise parser rejection only. [Step1215](../done/step1215.md) records one
-actual development guest; full/repeat/ancestor acceptance is pending.
+tests exercise parser rejection only. [Step1215](../done/step1215.md) preserves
+development evidence; [step1218](../done/step1218.md) qualifies three fresh
+99-application-record/17-transfer captures, current native review, full-host and
+seven ancestors. The raw transport counter includes two firmware startup lines.
 
 Qualified `-EnableM04NormalFinallyProbe` uses the collecting-GC Diagnostic
 prerequisites and excludes every other EH/catalog profile. Before QEMU,
