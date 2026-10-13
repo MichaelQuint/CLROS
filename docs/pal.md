@@ -114,13 +114,47 @@ preparation at every eight-byte checkpoint, alias rejection/exact adjacency
 and warmed allocation. Observations occur between complete serialized calls;
 interruption inside an operation and real preemption remain #187's guest work.
 
+### Deadline-queue host contract (#185)
+
+[Step1212](../done/step1212.md) qualifies `Threading/DeadlineQueue.cs` with ten
+focused checks. A fixed positive capacity borrows an eight-byte-aligned buffer
+of 16-byte identity/deadline entries. Default state is uninitialized. One
+canonical owner keeps the buffer live and serializes complete operations,
+clock/lifetime lookup and subsequent wake publication against all other
+accesses, including ticks. The owner key is a misuse guard, not synchronization.
+
+Schedule accepts only a current generation-tagged identity, rejects duplicates
+and pending reuse of its slot, and inserts at checked `now + delay`. Absolute
+deadlines use one nonwrapping ulong epoch; decreasing/wrapped ticks and addition
+overflow fail without changing entries, count or observed time. Delay0 is due
+immediately. Equal deadlines retain insertion order. Rearm validates everything
+before removal, works when full and counts as a new insertion after equal
+deadlines. Exact cancellation retains order and never removes another generation.
+
+Peek returns the earliest entry by value. Bounded drain returns only entries
+with deadline <= injected now, writes at most the requested positive limit
+into a disjoint caller-owned output buffer and clears released slots. Owner,
+time, size, range and output/slot/metadata alias checks precede all writes.
+Rejected calls preserve output and queue bytes. A successful zero-count drain
+may still have pending entries: `HasPending` and Peek retain that truth when
+ticks stall. Default drain results are not success evidence. Empty Release
+ends the borrow without freeing caller storage; a new epoch needs a fresh borrow.
+
+The external owner pins pending identities and separately validates current
+lifetime/context before publishing a wake. The queue creates no threads and
+reads no platform timer. Host tests cover stable order, no early expiration,
+capacity/drain/refill, cancellation/rearm/reuse, ulong boundary/overflow,
+stalled ticks, malformed/aliased output, owner misuse and zero warmed allocation.
+Actual timer/interrupt/wake and concurrent-owner proof remain later work;
+hardware wake/preemption belongs to #187 and HPET recovery remains #96's scope.
+
 ## Current Status
 
 No first-party hosted-tier PAL implementation exists. The canonical CLROS
 boundary is documented here and in `work/PAL/pal-design.md`. The upstream
 reference design is available at `references/SharpOS-main/work/PAL/pal-design.md`.
 
-Current work is limited to boundary design, Kestrel-critical ABI contract definition, mock socket/package/config/timer/wait/app-log/random tables and facades, host-only socket and timer/wait bridge composition, platform-interface preparation for UEFI encapsulation, and host-only saved-context/ready-queue contracts. It is not hosted CoreCLR integration, it does not run .NET 10 applications, and it must not introduce a WinAPI/POSIX compatibility surface.
+Current work is limited to boundary design, Kestrel-critical ABI contract definition, mock socket/package/config/timer/wait/app-log/random tables and facades, host-only socket and timer/wait bridge composition, platform-interface preparation for UEFI encapsulation, and host-only saved-context, ready-queue and deadline-queue contracts. It is not hosted CoreCLR integration, it does not run .NET 10 applications, and it must not introduce a WinAPI/POSIX compatibility surface.
 
 ## Implemented Behavior
 
