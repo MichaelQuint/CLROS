@@ -269,6 +269,17 @@ worker and writes an incomplete, unsuccessful receipt. Terminal success requires
 paired case markers, a clean exit, and no failures. Logs and an updated `results.json`, including
 the selected inventory, live under `artifacts/logs/host-tests/<run>/`.
 
+Input checks run before each fixture launch/reuse and after every result,
+including failed and non-cacheable native fixtures. A mismatch cancels queued
+work, drains active workers through the same bounded cleanup, and immediately
+invalidates this run's checkpoint entries. Late worker completion cannot restore
+those entries. The final receipt remains unsuccessful and records the input
+failure. Boundary checks compare file metadata, hash changed files, and check
+the repository/source inventory and environment; they do not replace the exact
+byte checks after cacheable passes and at completion. Edits that preserve file
+metadata may only be caught by those exact checks. Stop the run before editing
+or rebuilding; rebuild before resuming its retained failed receipt.
+
 On the qualified Windows host, each child starts suspended, enters its owned
 job, and then begins execution. Only its three standard-stream handles are
 inherited. Root exit, cancellation, timeout, output overflow and capture failure
@@ -284,8 +295,11 @@ runs reject changed, missing, or newly added source
 inputs and check them again before reporting success. Rebuild
 after changing inputs. `--list` only inspects metadata and does not run tests.
 
-`tools/OS.Tooling/EfiContracts.cs` owns shared reviewed EFI expectations. Compile
-counts and the inventory digest derive from its ordered inventory. Content
+`tools/OS.Tooling/EfiContracts.cs` owns shared reviewed EFI expectations. Static
+source admission checks its complete ordered inventory. Evaluated receipt counts
+and digests use `EfiProjectAdmission.ExpectedCompileItems` with the fixture's
+requested profile: conditional cooperative/timer links are included only when
+enabled. Expected profiles must not be inferred from the receipt under test. Content
 checks normalize CRLF to LF; actual build/artifact provenance still uses raw
 bytes. A contract audit reports all mismatches and never updates expectations.
 

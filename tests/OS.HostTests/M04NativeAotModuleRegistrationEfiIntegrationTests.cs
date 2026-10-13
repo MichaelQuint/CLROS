@@ -291,7 +291,7 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
     [HostTest("m04.011.efi default and enabled no-stdlib artifacts", HostLane.Native, 4)]
     private static void TestArtifacts()
     {
-        string root=Root();var project=XDocument.Load(Path.Combine(root,"src/OS/OS.csproj"));int compile=project.Descendants("Compile").Count();
+        string root=Root();
         foreach(bool enabled in new[]{false,true})
         {
             string directory=Scratch(enabled?"enabled":"default"),artifact=Path.Combine(root,"artifacts/efi/issue544-"+Guid.NewGuid().ToString("N")+".EFI");
@@ -300,7 +300,14 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
             foreach(var pair in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,pair.Item1),Path.Combine(directory,pair.Item2));
             using var json=JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var evaluation=json.RootElement.GetProperty("postRestoreEvaluation");
-            Need(evaluation.GetProperty("compileCount").GetInt32()==compile,"actual evaluated Compile membership");
+            string[] expectedCompileItems = OS.Tooling.EfiProjectAdmission.ExpectedCompileItems(
+                OS.Tooling.EfiProfile.Create("Diagnostic", new Dictionary<string, bool>
+                {
+                    [Flag] = enabled,
+                    ["EnableM01LoadedImageStackProbe"] = enabled
+                }));
+            Need(evaluation.GetProperty("compileCount").GetInt32()==expectedCompileItems.Length,"complete evaluated compile inventory");
+            Need(evaluation.GetProperty("compileSha256").GetString()==OS.Tooling.EfiEvidence.HashLines(expectedCompileItems),"ordered evaluated compile inventory");
             foreach(var input in json.RootElement.GetProperty("sourceClosureInputs").EnumerateArray())Need(string.Equals(Hash(Path.Combine(root,input.GetProperty("path").GetString()!)),input.GetProperty("sha256").GetString(),StringComparison.OrdinalIgnoreCase),"actual raw source identity");
             foreach(var property in evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)))
                 Need(property.Value.GetString()==(enabled&&(property.Name==Flag||property.Name=="EnableM01LoadedImageStackProbe")?"true":"false"),"actual profile "+property.Name);

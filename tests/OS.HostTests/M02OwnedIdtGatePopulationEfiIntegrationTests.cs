@@ -1246,6 +1246,8 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
             File.ReadAllText(artifactPath + ".link.json"));
         JsonElement evidence = document.RootElement;
         JsonElement evaluation = evidence.GetProperty("postRestoreEvaluation");
+        string[] expectedCompileItems = OS.Tooling.EfiProjectAdmission.ExpectedCompileItems(
+            OS.Tooling.EfiProfile.Create(null, new Dictionary<string, bool> { ["EnableM02OwnedIdtGatePopulationProbe"] = enabled }));
         JsonElement properties = evaluation.GetProperty("properties");
         JsonElement sourceInputs = evidence.GetProperty("sourceClosureInputs");
         JsonElement[] inputElements = sourceInputs.EnumerateArray().ToArray();
@@ -1280,9 +1282,9 @@ internal static class M02OwnedIdtGatePopulationEfiIntegrationTests
             && evidence.GetProperty("entrySourceSha256").GetString() ==
                 Sha256File(Path.Combine(root, "src", "OS", "Boot", "EfiEntry.cs"))
                     .ToLowerInvariant()
-            && evaluation.GetProperty("compileCount").GetInt32() == OS.Tooling.EfiContracts.CompileItems.Count
+            && evaluation.GetProperty("compileCount").GetInt32() == expectedCompileItems.Length
             && evaluation.GetProperty("compileSha256").GetString() ==
-                CompileClosureSha256
+                OS.Tooling.EfiEvidence.HashLines(expectedCompileItems)
             && evaluation.GetProperty("projectReferenceCount").GetInt32() == 0
             && evaluation.GetProperty("referenceCount").GetInt32() == 0
             && properties.GetProperty("TargetFramework").GetString() == "net10.0"

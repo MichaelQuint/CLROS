@@ -1384,6 +1384,8 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
             File.ReadAllText(artifactPath + ".link.json"));
         JsonElement evidence = document.RootElement;
         JsonElement evaluation = evidence.GetProperty("postRestoreEvaluation");
+        string[] expectedCompileItems = OS.Tooling.EfiProjectAdmission.ExpectedCompileItems(
+            OS.Tooling.EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM02Ud2VectorStateProbe"] = enabled }));
         JsonElement properties = evaluation.GetProperty("properties");
         JsonElement[] inputElements = evidence
             .GetProperty("sourceClosureInputs")
@@ -1426,9 +1428,9 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
             && evidence.GetProperty("entrySourceSha256").GetString() ==
                 expected.EntrySha256
             && evaluation.GetProperty("compileCount").GetInt32() ==
-                expected.CompileCount
+                expectedCompileItems.Length
             && evaluation.GetProperty("compileSha256").GetString() ==
-                expected.CompileSha256
+                OS.Tooling.EfiEvidence.HashLines(expectedCompileItems)
             && evaluation.GetProperty("projectReferenceCount").GetInt32() == 0
             && evaluation.GetProperty("referenceCount").GetInt32() == 0
             && evaluation.GetProperty("analyzerCount").GetInt32() == 2

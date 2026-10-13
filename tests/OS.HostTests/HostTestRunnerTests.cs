@@ -187,17 +187,26 @@ internal static class HostTestRunnerTests
     {
         TaskCompletionSource bothStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
         TaskCompletionSource releaseSecond = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        TaskCompletionSource failedFirst = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task? firstWorker = null;
         int started = 0, finished = 0;
-        Task run = HostWorkerScheduler.RunAsync(new[] { 0, 1, 2 }, _ => false, 2, async (_, item) =>
+        Task run = HostWorkerScheduler.RunAsync(new[] { 0, 1, 2 }, _ => false, 2, (_, item) =>
+        {
+            Task worker = Worker(item);
+            if (item == 0) firstWorker = worker;
+            return worker;
+        });
+        async Task Worker(int item)
         {
             if (Interlocked.Increment(ref started) == 2) bothStarted.SetResult();
             await bothStarted.Task;
-            if (item == 0) { failedFirst.SetResult(); throw new IOException("controlled receipt failure"); }
+            if (item == 0) throw new IOException("controlled receipt failure");
             await releaseSecond.Task;
             Interlocked.Increment(ref finished);
-        });
-        await failedFirst.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        // Observe the actual fault before releasing the sibling. A signal just
+        // before throw lets that sibling finish first and legitimately admit #3.
+        try { await firstWorker!.WaitAsync(TimeSpan.FromSeconds(10)); throw new InvalidOperationException("worker did not fail"); }
+        catch (IOException error) when (error.Message == "controlled receipt failure") { }
         HostCheck.True(!run.IsCompleted, "scheduler must retain ownership of the second worker");
         releaseSecond.SetResult();
         try { await run; throw new InvalidOperationException("scheduler swallowed the failure"); }
@@ -266,6 +275,128 @@ internal static class HostTestRunnerTests
             return Task.CompletedTask;
         }, cancellation.Token).GetAwaiter().GetResult();
         HostCheck.True(entered.SequenceEqual(new[] { 0 }));
+    }
+
+    [HostTest("runner input changes cancel failed fresh and reused fixtures before another native launch")]
+    private static void ChangedFixtureInputs() => ChangedFixtureInputsAsync().GetAwaiter().GetResult();
+
+    private static async Task ChangedFixtureInputsAsync()
+    {
+        string directory = Path.Combine(HostToolProcess.FindRepositoryRoot(), "artifacts", "host-input-controls", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        string source = Path.Combine(directory, "input.cs");
+        foreach (var variant in new (bool Failed, bool Fresh, bool Reused)[] { (true, true, false), (false, true, false), (false, false, true) })
+        {
+            File.WriteAllText(source, "original");
+            var files = new Dictionary<string, string> { [source] = HostRunCheckpoint.HashFile(source) };
+            using CancellationTokenSource cancellation = new();
+            int launched = 0, invalidated = 0;
+            var guard = new HostRunInputGuard(() => HostTestFingerprint.FilesMatch(files), cancellation, _ => invalidated++);
+            HostTestRunner.FixtureResult? changed = null;
+            bool complete = await HostWorkerScheduler.RunPhasesAsync(new[] { 0, 1 }, _ => true, 1, async item =>
+            {
+                changed = await HostTestRunner.RunWithInputChecks("native-" + item, guard, () =>
+                {
+                    launched++;
+                    File.WriteAllText(source, "modified");
+                    return Task.FromResult(new HostTestRunner.FixtureResult("native-" + item, "Native", variant.Failed ? 1 : 0,
+                        false, 0, "unused", 1, variant.Failed ? 0 : 1, variant.Failed ? 1 : 0, null) { Reused = variant.Reused });
+                }, result => !HostRunCheckpoint.Passed(result) || variant.Fresh || HostTestFingerprint.FilesMatch(files));
+            }, () => true, cancellation.Token);
+            HostCheck.True(!complete && cancellation.IsCancellationRequested);
+            HostCheck.Equal(1, launched);
+            HostCheck.Equal(1, invalidated);
+            HostCheck.True(changed is not null && changed.ExitCode == 1 && changed.Error == "inputs_changed_during_fixture");
+            HostCheck.Equal(variant.Failed ? 1 : 0, changed!.Failed);
+            File.WriteAllText(source, "original");
+            HostCheck.True(!guard.Check("after_restoration"), "restoration cannot rehabilitate a changed run");
+            HostCheck.Equal(1, invalidated);
+        }
+    }
+
+    [HostTest("runner unchanged inputs preserve ordinary native failure continuation")]
+    private static void OrdinaryNativeFailure() => OrdinaryNativeFailureAsync().GetAwaiter().GetResult();
+
+    private static async Task OrdinaryNativeFailureAsync()
+    {
+        using CancellationTokenSource cancellation = new();
+        var guard = new HostRunInputGuard(() => true, cancellation, _ => throw new InvalidOperationException("unexpected invalidation"));
+        int launched = 0;
+        bool complete = await HostWorkerScheduler.RunPhasesAsync(new[] { 0, 1 }, _ => true, 1, async item =>
+        {
+            var result = await HostTestRunner.RunWithInputChecks("native-" + item, guard, () =>
+            {
+                launched++;
+                return Task.FromResult(new HostTestRunner.FixtureResult("native-" + item, "Native", 1, false, 0, "unused", 1, 0, 1, "ordinary_failure"));
+            });
+            HostCheck.Equal("ordinary_failure", result!.Error);
+        }, () => true, cancellation.Token);
+        HostCheck.True(complete && !cancellation.IsCancellationRequested && guard.Failure is null);
+        HostCheck.Equal(2, launched);
+    }
+
+    [HostTest("runner input change before launch prevents both execution and cache reuse")]
+    private static void ChangedBeforeLaunch()
+    {
+        foreach (bool reused in new[] { false, true })
+        {
+            using CancellationTokenSource cancellation = new();
+            int entered = 0, invalidated = 0;
+            var guard = new HostRunInputGuard(() => false, cancellation, _ => invalidated++);
+            var result = HostTestRunner.RunWithInputChecks("before", guard, () =>
+            {
+                entered++;
+                return Task.FromResult(new HostTestRunner.FixtureResult("before", "Native", 0, false, 0, "unused", 1, 1, 0, null) { Reused = reused });
+            }).GetAwaiter().GetResult();
+            HostCheck.True(result is null && cancellation.IsCancellationRequested);
+            HostCheck.Equal(0, entered);
+            HostCheck.Equal(1, invalidated);
+            HostCheck.Equal("inputs_changed before_fixture before", guard.Failure);
+        }
+    }
+
+    [HostTest("runner retains exact post-pass validation when the cheap boundary check passes")]
+    private static void ExactInputValidation()
+    {
+        using CancellationTokenSource cancellation = new();
+        int exactChecks = 0;
+        var guard = new HostRunInputGuard(() => true, cancellation, _ => { });
+        var result = HostTestRunner.RunWithInputChecks("exact", guard,
+            () => Task.FromResult(new HostTestRunner.FixtureResult("exact", "Fast", 0, false, 0, "unused", 1, 1, 0, null)),
+            _ => { exactChecks++; return false; }).GetAwaiter().GetResult();
+        HostCheck.True(cancellation.IsCancellationRequested && result!.ExitCode == 1);
+        HostCheck.Equal(1, exactChecks);
+    }
+
+    [HostTest("runner input cancellation drains active workers before releasing the native barrier")]
+    private static void InputCancellationDrain() => InputCancellationDrainAsync().GetAwaiter().GetResult();
+
+    private static async Task InputCancellationDrainAsync()
+    {
+        using CancellationTokenSource cancellation = new();
+        TaskCompletionSource bothStarted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource cancelled = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        TaskCompletionSource releaseOther = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var registration = cancellation.Token.Register(() => cancelled.TrySetResult());
+        int started = 0, drained = 0, changed = 0;
+        var guard = new HostRunInputGuard(() => Volatile.Read(ref changed) == 0, cancellation, _ => { });
+        Task run = HostWorkerScheduler.RunAsync(new[] { 0, 1, 2 }, item => item == 2, 2, async (_, item) =>
+        {
+            await HostTestRunner.RunWithInputChecks("worker-" + item, guard, async () =>
+            {
+                if (Interlocked.Increment(ref started) == 2) bothStarted.TrySetResult();
+                await bothStarted.Task;
+                if (item == 0) Interlocked.Exchange(ref changed, 1);
+                else { await cancelled.Task; await releaseOther.Task; Interlocked.Increment(ref drained); }
+                return new("worker-" + item, "Fast", 1, false, 0, "unused", 1, 0, 1, "controlled_failure");
+            });
+        }, cancellation.Token);
+        await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        HostCheck.True(!run.IsCompleted, "run must retain worker ownership through bounded cleanup");
+        releaseOther.TrySetResult();
+        await run.WaitAsync(TimeSpan.FromSeconds(10));
+        HostCheck.Equal(2, started);
+        HostCheck.Equal(1, drained);
     }
 
     [HostTest("runner rejects invalid parallel worker counts")]
