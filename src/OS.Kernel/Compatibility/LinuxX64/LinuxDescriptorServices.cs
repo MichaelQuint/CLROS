@@ -18,6 +18,7 @@ public static unsafe class LinuxDescriptorServices
 {
     public const uint MaximumDescriptors = 32, MaximumViews = 8, MaximumPipes = 4;
     public const uint MaximumPath = 256, MaximumVectors = 16, MaximumIo = 65536, SnapshotBytes = 8192;
+    public const uint MaximumViewBytes = OS.Manifest.LinuxElfPackage.MaximumBytes;
     public const uint NonBlock = 0x800, CloseOnExec = 0x80000;
     private const uint LargeFile = 0x8000, NoFollow = 0x20000;
     private const long Missing = -2, Io = -5, BadDescriptor = -9, Fault = -14, Denied = -13;
@@ -613,7 +614,7 @@ public static unsafe class LinuxDescriptorServices
             View v = a.Views[i];
             if (!Extent(v.Path, v.PathBytes) || v.PathBytes < 6 || v.PathBytes >= MaximumPath ||
                 !AsciiPointerMatcher.Matches(v.Path, 5, 5, 0x2f7070612f) ||
-                !AsciiPointerMatcher.IsRelativePath(v.Path + 1, v.PathBytes - 1) || v.Bytes > MaximumIo * 16UL ||
+                !AsciiPointerMatcher.IsRelativePath(v.Path + 1, v.PathBytes - 1) || v.Bytes > MaximumViewBytes ||
                 !Extent(v.Data, v.Bytes, true) || v.Inode < 256) return false;
             for (uint j = 0; j < 12; j++)
                 if (Overlap((ulong)v.Path, v.PathBytes, extents[j * 2], extents[j * 2 + 1]) ||

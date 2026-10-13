@@ -37,9 +37,19 @@ proves high-address getrandom copy-out in CPL3 as well as high cross-page copy-i
 The one-use/64-call M16-005 policy is unchanged. The upstream payload stops at
 ARCH_SET_FS before Hello; these APIs do not qualify an upstream runtime.
 
-The next slice is [M16-007/#685](http://192.168.4.35:3000/admin/CLROS/issues/685)
-for measured descriptors, immutable file views and bounded pipes, using mechanical
-fixtures. #686 adds mechanical threads/TLS/futex, scheduler-backed blocking pipes
+M16-007/#685 remains in progress in [step1206](../done/step1206.md). Its
+default-off child retains sixteen descriptors, two 4KiB pipes and separate 8KiB
+scratch in an owned supervisor RW/NX arena. The immutable /app/ view reads the
+original declared package ELF, including bytes beyond 1MiB, rather than its
+mutable user mapping. Proc snapshots use actual retained-map facts and VMAs.
+Duplicate fds share cursors/status and final-close endpoint ownership; fd flags
+and internal generation tokens remain separate. Stdin is EOF and output uses
+owned serial channels. Blocking pipe calls fail ENOSYS; EPIPE requires the
+explicit mechanical ignored-SIGPIPE policy. The gateway keeps its 64-call bound
+and checks returns before resuming CPL3. Host, EFI build and two development
+guests pass; full/native/repeated guest qualification remains pending.
+
+#686 adds mechanical threads/TLS/futex, scheduler-backed blocking pipes
 and real per-thread signal-mask inheritance/restoration.
 M16-009/#687 owns first pinned NativeAOT Hello acceptance after signal
 startup/delivery, before focused suspension checks; Hello itself starts runtime

@@ -28,6 +28,7 @@ public struct FirstExitImageReferences
 #if M16_005_PROBE
     public ulong LinuxSyscallCodeStart, LinuxSyscallDataStart;
     public ulong LinuxMemoryPoolStart, LinuxMemoryPoolPages, LinuxMemoryCandidateStart;
+    public ulong LinuxDescriptorStart, LinuxDescriptorPages;
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
     // Original retained ACPI HPET GAS, admitted against the owned firmware map.
@@ -257,6 +258,9 @@ public static unsafe class FirstExitRetainedMappings
 #if M16_006_PROBE
         + 2
 #endif
+#if M16_007_PROBE
+        + 1
+#endif
 #if M05_PHYSICAL_MAPPING_PROBE
         + 1
 #endif
@@ -288,6 +292,9 @@ public static unsafe class FirstExitRetainedMappings
 #endif
 #if M16_006_PROBE
         + 2
+#endif
+#if M16_007_PROBE
+        + 1
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE || M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M05_PCI_ENUMERATION_PROBE
         + 1
@@ -436,6 +443,12 @@ public static unsafe class FirstExitRetainedMappings
         starts[allocations] = references.LinuxMemoryPoolStart; lengths[allocations++] = references.LinuxMemoryPoolPages * 4096;
         starts[allocations] = references.LinuxMemoryCandidateStart; lengths[allocations++] = X64UserAddressSpace.MaximumTables * 4096UL;
 #endif
+#if M16_007_PROBE
+        if (references.LinuxDescriptorPages == 0 || references.LinuxDescriptorPages > 64 ||
+            references.LinuxDescriptorStart < 4096 || (references.LinuxDescriptorStart & 4095) != 0 ||
+            references.LinuxDescriptorStart > 0x100000000UL - references.LinuxDescriptorPages * 4096) return false;
+        starts[allocations] = references.LinuxDescriptorStart; lengths[allocations++] = references.LinuxDescriptorPages * 4096;
+#endif
         for (int i = 0; i < allocations; i++) for (int j = 0; j < i; j++)
             if (FirstExitDescriptors.Overlaps(starts[i], lengths[i], starts[j], lengths[j])) return false;
 
@@ -461,6 +474,9 @@ public static unsafe class FirstExitRetainedMappings
 #if M16_006_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.LinuxMemoryPoolStart, references.LinuxMemoryPoolPages, Data);
         pending[count++] = new SeparatePageFaultMappingRange(references.LinuxMemoryCandidateStart, X64UserAddressSpace.MaximumTables, Data);
+#endif
+#if M16_007_PROBE
+        pending[count++] = new SeparatePageFaultMappingRange(references.LinuxDescriptorStart, references.LinuxDescriptorPages, Data);
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.MappingScratchStart, 512, Data);

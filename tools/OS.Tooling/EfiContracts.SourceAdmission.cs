@@ -3,6 +3,13 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"..\..\std\no-runtime\shared\CompatibilityStatus.cs"] = "reviewed_existing_shared_compatibility_status",
+        [@"..\..\std\no-runtime\shared\Ascii.cs"] = "reviewed_shared_ascii_unmanaged_subset",
+        [@"..\..\std\no-runtime\shared\Memory\BufferOperations.cs"] = "reviewed_shared_overlap_safe_copy",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.cs"] = "reviewed_m16_linux_descriptors_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxPipe.cs"] = "reviewed_m16_linux_pipe_source_identity",
+        [@"..\..\std\no-runtime\shared\Text\AsciiTextBuilder.cs"] = "reviewed_m16_proc_formatter_source_identity",
+        [@"..\..\std\no-runtime\shared\Text\AsciiDecimalFormatter.cs"] = "reviewed_m16_proc_formatter_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxMemoryServices.cs"] = "reviewed_m16_linux_memory_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxStartupServices.cs"] = "reviewed_m16_linux_startup_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs"] = "reviewed_m16_linux_syscall_source_identity",

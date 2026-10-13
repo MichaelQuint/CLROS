@@ -29,6 +29,11 @@ at unsupported ARCH_SET_FS, before Hello. Descriptors/pipes, threads/TLS/futex/
 signals, upstream GC/EH/ThreadPool, Kestrel, numbered/cloud/production gates remain
 incomplete.
 
+The #685/#707 descriptor/pipe child is implemented in `done/step1206.md` with
+passing focused host checks, EFI build and two development guests. It remains
+open/claimed pending full-host, original native review and repeated final-source
+qualification. Blocking pipes belong to #686; first unchanged Hello to #687.
+
 The #683/#699 default-off CPL3/syscall batch is qualified in `done/step1201.md`:
 4,619 full-host checks across 604 groups (94 Native), original scoped native
 review, three 121-record write/exit guests, four 112-record controlled-negative

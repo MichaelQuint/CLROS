@@ -91,7 +91,9 @@ AWS/Azure. The durable dependency source is
 their existence does not prove continuing services.
 
 M16-007/#685 qualifies descriptor and immutable-file behavior with mechanical
-fixtures. It must not require real NativeAOT Hello before M16-008/#686 threads
+fixtures. Its default-off descriptor/pipe child is implemented with passing host,
+EFI build and development guest checks in [step1206](../done/step1206.md);
+final qualification is pending. It must not require real NativeAOT Hello before M16-008/#686 threads
 and M16-009/#687 signals exist: the pinned Hello trace starts finalizer and
 signal-handler threads before writing its greeting. #686 uses mechanical
 clone/TLS/futex fixtures and preserves each thread's signal mask; it does not

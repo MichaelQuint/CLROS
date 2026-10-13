@@ -34,6 +34,8 @@ public unsafe struct LinuxSyscallAccess
     // Explicit M16-006 extension only; executes on the separately owned kernel
     // root, publishes no transfer, and returns a Linux value/negative errno.
     public delegate* unmanaged<void*, LinuxSyscallFrame*, long> Startup;
+    // Explicit M16-007 fd extension; owns its separate retained tables/scratch.
+    public delegate* unmanaged<void*, LinuxSyscallFrame*, long> Descriptors;
 }
 
 public unsafe struct LinuxSyscallAdmission
@@ -44,6 +46,7 @@ public unsafe struct LinuxSyscallAdmission
     public uint ScratchBytes;
     public bool FirmwareExited, OwnedBoundaryValidated;
     public bool EnableStartup;
+    public bool EnableDescriptors;
 }
 
 public unsafe struct LinuxSyscallGateState
@@ -84,7 +87,9 @@ public static unsafe class LinuxSyscallGateway
             (ulong)admission.Scratch > ~0UL - admission.ScratchBytes || access.Context == null ||
             access.PageAccess == null || access.CopyFromUser == null || access.Write == null)
             return LinuxSyscallGateStatus.InvalidAdmission;
-        if (admission.EnableStartup != (access.Startup != null)) return LinuxSyscallGateStatus.InvalidAdmission;
+        if (admission.EnableStartup != (access.Startup != null) ||
+            admission.EnableDescriptors != (access.Descriptors != null) ||
+            admission.EnableDescriptors && !admission.EnableStartup) return LinuxSyscallGateStatus.InvalidAdmission;
         fixed (LinuxSyscallGateState* original = &state)
             if ((ulong)admission.Scratch < (ulong)original + (uint)sizeof(LinuxSyscallGateState) &&
                 (ulong)original < (ulong)admission.Scratch + admission.ScratchBytes)
@@ -107,6 +112,21 @@ public static unsafe class LinuxSyscallGateway
             // Linux takes the low int argument; wait-status encoding is a later
             // process contract. Retain the original int bits without fabricating it.
             return new(LinuxSyscallAction.Terminate, exitCode: unchecked((uint)frame.Argument0));
+        }
+        if (state.Admission.EnableDescriptors && DescriptorCall(frame.Number))
+        {
+            LinuxSyscallFrame returnFrame = frame;
+            long value = state.Access.Descriptors(state.Access.Context, &frame);
+            Clear(state.Admission.Scratch, state.Admission.ScratchBytes);
+            if (!ValidateReturn(returnFrame, state.Access)) return Stop(ref state, LinuxSyscallGateStatus.InvalidReturn);
+            // With descriptors enabled this counter includes every successful
+            // write/writev prefix, including pipes and duplicated output fds.
+            if ((frame.Number == 1 || frame.Number == 20) && value > 0)
+            {
+                if (value > LinuxDescriptorServices.MaximumIo) return Stop(ref state, LinuxSyscallGateStatus.SinkFailed);
+                state.BytesValue += (uint)value; // At most 64 * 65536.
+            }
+            return new(LinuxSyscallAction.Return, value);
         }
         if (frame.Number != 1)
         {
@@ -161,4 +181,5 @@ public static unsafe class LinuxSyscallGateway
     private static LinuxSyscallResult Stop(ref LinuxSyscallGateState state, LinuxSyscallGateStatus status)
     { Clear(state.Admission.Scratch, state.Admission.ScratchBytes); state.StatusValue = status; return new(LinuxSyscallAction.Terminate); }
     private static void Clear(byte* bytes, uint count) { for (uint i = 0; i < count; i++) bytes[i] = 0; }
+    private static bool DescriptorCall(ulong number) => number is 0 or 1 or 2 or 3 or 5 or 8 or 16 or 17 or 20 or 22 or 72 or 257 or 293;
 }

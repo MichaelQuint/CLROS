@@ -694,6 +694,8 @@ internal static class BootSequencePlanTests
              "public static unsafe bool PrepareLinuxUserBoundary(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>",
              "public static unsafe bool RunOwnedLinuxSyscalls(bool startupReady, bool serviceStopped, bool firmwareRevoked,",
              "public static unsafe bool PrepareLinuxMemory(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>",
+             "public static unsafe bool PrepareLinuxDescriptors(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>",
+             "public static unsafe bool RunOwnedLinuxDescriptors(bool startupReady, bool serviceStopped, bool firmwareRevoked,",
              "public static unsafe bool RunOwnedLinuxMemory(bool startupReady, bool serviceStopped, bool firmwareRevoked,",
              "public static unsafe OS.Boot.FirstExitReturn RunFirstRealExitBootServicesTransition(",
              "private static bool IsFirstRealExitBootServicesEnabled() =>",
@@ -742,6 +744,8 @@ internal static class BootSequencePlanTests
              "public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch("])
             && HasGuardedSurface("src/OS.Kernel/Diagnostics/Probes.cs", 2,
             ["public static partial class Probes",
+             "public const bool EnableM16007Probe = true;",
+             "public const bool EnableM16007Probe = false;",
              "public const bool EnableM16006Probe = true;",
              "public const bool EnableM16006Probe = false;",
              "public const bool EnableM16005Probe = true;",

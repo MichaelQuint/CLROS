@@ -150,6 +150,7 @@ public static class Ascii
         return true;
     }
 
+#if !NOSTDLIB_EFI
     public static bool EqualsIgnoreCase(string? left, string? right)
     {
         if (ReferenceEquals(left, right))
@@ -172,4 +173,5 @@ public static class Ascii
 
         return true;
     }
+#endif
 }

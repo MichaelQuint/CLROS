@@ -383,4 +383,22 @@ internal static unsafe class LinuxDescriptorServicesTests
         HostCheck.True(new ReadOnlySpan<byte>(owner.Admission.Scratch, 8192).IndexOfAnyExcept((byte)0) == -1);
         HostCheck.True(Services.End(owner.State));
     }
+
+    [HostTest("m16-007 immutable payload views retain package size bounds beyond one MiB", HostLane.Fast, 13)]
+    private static void LargePayloadView()
+    {
+        using var owner = new Owner(); const uint bytes = 2 * 1024 * 1024;
+        byte* payload = (byte*)NativeMemory.Alloc(bytes);
+        try
+        {
+            new Span<byte>(payload, (int)bytes).Clear(); payload[bytes - 1] = 0x6d;
+            owner.Admission.Views[0].Data = payload; owner.Admission.Views[0].Bytes = bytes;
+            owner.Begin(); uint fd = (uint)owner.Open();
+            HostCheck.Equal(1L, owner.Call(17, fd, Output, 1, bytes - 1)); HostCheck.Equal((byte)0x6d, *owner.Memory.At(Output));
+            HostCheck.Equal(0L, owner.Call(5, fd, Output)); HostCheck.Equal((ulong)bytes, *(ulong*)(owner.Memory.At(Output) + 48));
+            HostCheck.Equal(0L, owner.Call(17, fd, Output, 1, bytes));
+            HostCheck.True(Services.End(owner.State));
+        }
+        finally { NativeMemory.Free(payload); }
+    }
 }
