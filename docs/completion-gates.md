@@ -1,16 +1,18 @@
 # CLROS Completion Gates
 
-M16-007/#685 and supplemental #707 have initial evidence in [step1206](../done/step1206.md):
+M16-007/#685 and supplemental #707 are qualified in [step1208](../done/step1208.md):
 4,679 full-host checks across 613 fixtures (94 Native), eight original native
 bodies, three 173-record descriptor guests, three 175-record pipe guests and
-fifteen ancestors pass. Duplicates share cursor/status and last-close endpoint
+fifteen retained ancestors pass. Duplicates share cursor/status and last-close endpoint
 ownership; fd flags and generation tokens are separate. Immutable file reads use
 the original declared package ELF; proc snapshots derive from actual owned facts
 and VMAs. CPL3 fixtures check exact fd/pipe errors, ordering and partial I/O,
-exit 42, owned restoration and measured buffer/endpoint release. The live fixtures
-omit openat, so issue acceptance remains pending; see step1207. Blocking pipes,
+exit 42, owned restoration and measured buffer/endpoint release. Three actual
+openat routes cover payload open, traversal rejection and CLOEXEC reopen. The
+initial omission remains in step1206 and its review in step1207. Separate #708
+brk/fixed-map ownership repair remains required before Hello/runtime acceptance. Blocking pipes,
 threading/TLS/futex (#686), signals and first unchanged Hello (#687), Kestrel and
-all numbered gates remain incomplete.
+remaining numbered gates remain incomplete.
 
 M16-006/#684 and supplemental #706 are qualified in
 [step1205](../done/step1205.md): 4,646 full-host checks across 608 fixtures

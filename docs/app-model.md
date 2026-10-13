@@ -37,7 +37,7 @@ proves high-address getrandom copy-out in CPL3 as well as high cross-page copy-i
 The one-use/64-call M16-005 policy is unchanged. The upstream payload stops at
 ARCH_SET_FS before Hello; these APIs do not qualify an upstream runtime.
 
-M16-007/#685 and #707 have initial evidence in [step1206](../done/step1206.md). Their
+M16-007/#685 and #707 are qualified in [step1208](../done/step1208.md). Their
 default-off child retains sixteen descriptors, two 4KiB pipes and separate 8KiB
 scratch in an owned supervisor RW/NX arena. The immutable /app/ view reads the
 original declared package ELF, including bytes beyond 1MiB, rather than its
@@ -48,8 +48,10 @@ owned serial channels. Blocking pipe calls fail ENOSYS; EPIPE requires the
 explicit mechanical ignored-SIGPIPE policy. The gateway keeps its 64-call bound
 and checks returns before resuming CPL3. 4,679 full-host checks across 613
 fixtures (94 Native), eight original native bodies, six repeated descriptor/pipe
-guests and fifteen ancestors pass. Live openat coverage is missing; acceptance
-remains pending. Step1207 also records #708's brk/fixed-map ownership defect.
+guests and fifteen retained ancestors pass. The descriptor witness executes three
+actual openat routes: payload open, traversal rejection and CLOEXEC reopen.
+Step1206 preserves the initial omission; step1207 records its review and #708's
+still-open brk/fixed-map ownership defect before unchanged Hello/runtime acceptance.
 This is bounded mechanical behavior; it does
 not qualify an unchanged upstream runtime or a continuing workload.
 
@@ -800,7 +802,7 @@ The selected app launch descriptor resolves metadata and validates only the smal
 
 ## Next Steps
 
-1. Implement #684 memory/startup services, including sparse reservation, genuine protection/commit behavior and cleanup; then #685 descriptor/immutable-file services with mechanical fixtures.
+1. Repair #708's reproduced brk/fixed-map ownership defect while preserving #684's sparse reservations and #685's qualified mechanical descriptors/pipes.
 2. Implement #686 mechanical threads/TLS/futex and per-thread signal masks; #687 adds signal startup/delivery, qualifies the unchanged pinned Hello and then exercises suspension. #688 repeats Hello and adds the runtime exerciser. Do not move upstream application GC/EH into the kernel.
 3. Connect continuing NIC/TCP and Linux socket/readiness services to the pinned Minimal API payload and qualify external Kestrel traffic under the [workload roadmap](workload-profiles.md).
 4. Add private address spaces, descriptors/config, resource budgets and supervisor lifecycle for two applications, proving one survives the other's failure.
