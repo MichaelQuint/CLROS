@@ -9,21 +9,22 @@ the original declared package ELF; proc snapshots derive from actual owned facts
 and VMAs. CPL3 fixtures check exact fd/pipe errors, ordering and partial I/O,
 exit 42, owned restoration and measured buffer/endpoint release. Three actual
 openat routes cover payload open, traversal rejection and CLOEXEC reopen. The
-initial omission remains in step1206 and its review in step1207. Separate #708
-brk/fixed-map ownership repair remains required before Hello/runtime acceptance. Blocking pipes,
+initial omission remains in step1206 and its review in step1207. Step1209 qualifies
+the separate #708 brk/fixed-map ownership repair. Blocking pipes,
 threading/TLS/futex (#686), signals and first unchanged Hello (#687), Kestrel and
 remaining numbered gates remain incomplete.
 
-#708/#711 have an ownership repair checkpoint in
+#708/#711 are qualified in
 [step1209](../done/step1209.md). The exact MAP_FIXED/read-only sentinel regression
 fails before repair and passes afterward. Twelve startup, ten memory and fourteen
 descriptor checks pass. Tagged sparse heap ownership survives protection/advice
 and owned shrink/regrow; foreign replacements and holes fail closed before brk
-publication. Eight additional fixture/parser controls and two development guests
-pass, including the actual foreign read-only PF/error7 after rejected growth.
-Scoped original native ownership/ABI review passes; frozen full-host, three fresh
-qualification guests and affected ancestors remain pending. No gate or upstream
-runtime acceptance follows.
+publication. Eight additional fixture/parser controls pass. The frozen full-host
+gate executes 4,688 checks across 613 fixtures (94 Native), with unchanged inputs
+and no reuse. Original scoped ownership/ABI review, three fresh 138-record mixed
+guests, one 119-record actual foreign read-only PF/error7 control and five fresh
+memory/descriptor ancestors pass with complete parents and owned restoration.
+No numbered gate or upstream runtime acceptance follows from this repair.
 
 M16-006/#684 and supplemental #706 are qualified in
 [step1205](../done/step1205.md): 4,646 full-host checks across 608 fixtures

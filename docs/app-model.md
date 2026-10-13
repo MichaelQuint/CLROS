@@ -50,10 +50,20 @@ and checks returns before resuming CPL3. 4,679 full-host checks across 613
 fixtures (94 Native), eight original native bodies, six repeated descriptor/pipe
 guests and fifteen retained ancestors pass. The descriptor witness executes three
 actual openat routes: payload open, traversal rejection and CLOEXEC reopen.
-Step1206 preserves the initial omission; step1207 records its review and #708's
-still-open brk/fixed-map ownership defect before unchanged Hello/runtime acceptance.
+Step1206 preserves the initial omission; step1207 records its review and the
+original brk/fixed-map ownership defect later repaired by #708/#711 in step1209.
 This is bounded mechanical behavior; it does
 not qualify an unchanged upstream runtime or a continuing workload.
+
+The ownership repair in [step1209](../done/step1209.md) tags sparse heap regions
+separately from general mmap reservations. Fixed replacement/unmap relinquishes
+that tag; brk cannot reclaim a foreign page or hole, including a PROT_NONE
+replacement. Growth/shrink validates the entire old/new active prefix before
+publication. Owned shrink decommits complete pages; same-page changes retain
+protection/backing. 4,688 fresh full-host checks, original scoped ownership/ABI
+review, three mixed-operation guests, an actual foreign-readonly write fault and
+five fresh memory/descriptor ancestors qualify this bounded policy. Unchanged
+Hello/runtime and general Linux compatibility remain incomplete.
 
 #686 adds mechanical threads/TLS/futex, scheduler-backed blocking pipes
 and real per-thread signal-mask inheritance/restoration. Its scheduler chain is
@@ -802,8 +812,8 @@ The selected app launch descriptor resolves metadata and validates only the smal
 
 ## Next Steps
 
-1. Repair #708's reproduced brk/fixed-map ownership defect while preserving #684's sparse reservations and #685's qualified mechanical descriptors/pipes.
-2. Implement #686 mechanical threads/TLS/futex and per-thread signal masks; #687 adds signal startup/delivery, qualifies the unchanged pinned Hello and then exercises suspension. #688 repeats Hello and adds the runtime exerciser. Do not move upstream application GC/EH into the kernel.
+1. Implement host-only scheduler foundations #183-#185, starting with #183's x64 saved-context layout. Preserve the qualified #708 ownership repair, #684 sparse reservations and #685 mechanical descriptors/pipes. Host layout/queues do not establish execution.
+2. Qualify actual context switching, interrupt and lifecycle work #186-#188 and synchronization #191/#192 before #686 mechanical threads/TLS/futex and per-thread signal masks. #687 adds signal startup/delivery, qualifies the unchanged pinned Hello and then exercises suspension. #688 repeats Hello and adds the runtime exerciser. Do not move upstream application GC/EH into the kernel.
 3. Connect continuing NIC/TCP and Linux socket/readiness services to the pinned Minimal API payload and qualify external Kestrel traffic under the [workload roadmap](workload-profiles.md).
 4. Add private address spaces, descriptors/config, resource budgets and supervisor lifecycle for two applications, proving one survives the other's failure.
 5. Preserve the legacy OSAPPv0 planners and `kestrel.smoke.package.v0` tooling as separate contracts. CoreCLR/framework-dependent launch and broader storage/package selection remain later work.
