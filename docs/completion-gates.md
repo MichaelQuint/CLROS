@@ -1,5 +1,14 @@
 # CLROS Completion Gates
 
+M16-007/#685 is in progress in [step1206](../done/step1206.md). The retained
+descriptor/immutable-view backend and nonblocking pipe ring pass 13 descriptor
+and nine pipe host cases. Duplicates share cursor/status and last-close endpoint
+ownership; fd flags and generation tokens are separate. Proc snapshots derive
+from actual owned resources and VMAs. EFI dispatch/profile integration, original
+native review and mechanical CPL3 acceptance remain pending. Blocking pipes,
+threading/TLS/futex (#686), signals and first unchanged Hello (#687), Kestrel and
+all numbered gates remain incomplete.
+
 M16-006/#684 and supplemental #706 are qualified in
 [step1205](../done/step1205.md): 4,646 full-host checks across 608 fixtures
 (94 Native), original scoped native review, three 150-record high-output guests,
@@ -18,7 +27,7 @@ M16-005/#683 and supplemental #699 are qualified in
 four 112-record controlled-negative guests and seven ancestors pass. Acceptance
 is one mechanical ELF excursion at CPL3, checked Linux write/exit/errno and
 complete owned-baseline restoration. General processes, threads/TLS/futex/signals,
-real NativeAOT Hello (#685), upstream guest GC/EH and CLROS Kestrel remain open.
+real NativeAOT Hello (#687), upstream guest GC/EH and CLROS Kestrel remain open.
 No numbered gate advances from this bounded diagnostic slice.
 
 M16-001/#679 host payload qualification is accepted in

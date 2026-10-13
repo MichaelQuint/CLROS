@@ -31626,7 +31626,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:ready",
+        "agent:claimed",
         "priority:p0",
         "type:implementation",
         "evidence:qemu",
@@ -31637,7 +31637,7 @@
       "dependencyKeys": [
         "M16-006"
       ],
-      "currentEvidence": "Dependency-compatible after the bounded M16-006 memory/startup qualification in done/step1205.md. Descriptor, immutable startup-file and pipe services remain unimplemented. Implement mechanical fd/pipe fixtures here; scheduler-backed blocking I/O belongs to M16-008/#686 and signals plus first unchanged Hello to M16-009/#687. No upstream runtime acceptance is claimed.",
+      "currentEvidence": "Claimed by codex after reviewed M16-006 qualification. Step1206 records the retained descriptor/immutable-view backend and bounded nonblocking pipes: host build passes without warnings/errors; 13 descriptor and nine pipe cases pass with complete, successful, unchanged-input receipts and no reuse. Shared cursors/status, per-fd flags, generation tokens, transactional copy-out, actual proc snapshots and pipe ownership/error paths are host-tested. Pinned runtime/musl sources and Linux x64 open flag behavior were reviewed. EFI/profile integration, original native review and CPL3 qualification remain pending; this issue is not accepted. Blocking I/O remains #686; signals and first unchanged Hello remain #687.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Implement fd0/1/2 policy, bounded read/write/writev/close/fstat/openat/lseek as measured by the qualified closure, immutable package paths and required /proc observations derived from actual mappings/resources. Optional absent paths return ENOENT; no fabricated Linux host files. No shell, execve/fork, arbitrary executable opens or remote acquisition. Define descriptor ownership/generation for later socket and process isolation.",
