@@ -1,13 +1,13 @@
 # CLROS Completion Gates
 
-M16-007/#685 is in progress in [step1206](../done/step1206.md). The retained
-descriptor/immutable-view backend and nonblocking pipe ring pass 14 descriptor
-and nine pipe host cases. Duplicates share cursor/status and last-close endpoint
-ownership; fd flags and generation tokens are separate. Proc snapshots derive
-from actual owned resources and VMAs. Default-off EFI dispatch/profile integration
-builds, 24 descriptor integration cases pass, and both mechanical development
-guests restore owned state after exit 42. Full-host, scoped original native review
-and repeated final-source guest qualification remain pending. Blocking pipes,
+M16-007/#685 and supplemental #707 are qualified in [step1206](../done/step1206.md):
+4,679 full-host checks across 613 fixtures (94 Native), eight original native
+bodies, three 173-record descriptor guests, three 175-record pipe guests and
+fifteen ancestors pass. Duplicates share cursor/status and last-close endpoint
+ownership; fd flags and generation tokens are separate. Immutable file reads use
+the original declared package ELF; proc snapshots derive from actual owned facts
+and VMAs. CPL3 fixtures check exact fd/pipe errors, ordering and partial I/O,
+exit 42, owned restoration and measured buffer/endpoint release. Blocking pipes,
 threading/TLS/futex (#686), signals and first unchanged Hello (#687), Kestrel and
 all numbered gates remain incomplete.
 

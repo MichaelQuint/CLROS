@@ -51,10 +51,11 @@ selects `MultiMinimalApi`.
 ## NativeAOT-first execution roadmap (2026-10-12)
 
 Accepted architecture direction only: no upstream guest application/runtime
-acceptance. M16-001/#679 through M16-006/#684 are qualified within the bounded
-evidence below. The next dependency-compatible slice is
-[M16-007 / #685](http://192.168.4.35:3000/admin/CLROS/issues/685), measured Linux
-descriptors and immutable startup views. Refresh the tracker before implementation.
+acceptance. M16-001/#679 through M16-007/#685 are qualified within the bounded
+evidence below. The next dependency-compatible foundation is
+[M09-001 / #183](http://192.168.4.35:3000/admin/CLROS/issues/183), the x64
+thread context. M16-008/#686 awaits #188/#191/#192. Refresh the tracker and
+correct #183's unrelated network acceptance boilerplate before implementation.
 The [foundation epic #678](http://192.168.4.35:3000/admin/CLROS/issues/678)
 links #679-#690; [#691](http://192.168.4.35:3000/admin/CLROS/issues/691)
 owns the continuing NIC service. Tracker migration and cleanup evidence are in
@@ -91,9 +92,9 @@ AWS/Azure. The durable dependency source is
 their existence does not prove continuing services.
 
 M16-007/#685 qualifies descriptor and immutable-file behavior with mechanical
-fixtures. Its default-off descriptor/pipe child is implemented with passing host,
-EFI build and development guest checks in [step1206](../done/step1206.md);
-final qualification is pending. It must not require real NativeAOT Hello before M16-008/#686 threads
+fixtures. Its default-off descriptor/pipe child is qualified with 4,679 full-host
+checks, original native review, six repeated guests and fifteen ancestors in
+[step1206](../done/step1206.md). It must not require real NativeAOT Hello before M16-008/#686 threads
 and M16-009/#687 signals exist: the pinned Hello trace starts finalizer and
 signal-handler threads before writing its greeting. #686 uses mechanical
 clone/TLS/futex fixtures and preserves each thread's signal mask; it does not
