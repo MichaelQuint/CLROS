@@ -60,6 +60,15 @@ The memory qualification above remains its historical bounded evidence, not
 proof that every mixed Linux memory operation is correct. Coordinate #708 with
 the current integration-lane owner. Scheduler layout/queue foundations #183-#185
 are host-only; #186-#188 retain actual switching/interrupt/lifecycle guest proof.
+The #708/#711 host checkpoint in [step1209](../done/step1209.md) adds explicit
+heap reservation ownership. General fixed mappings and unmaps still operate;
+they relinquish heap ownership, so brk cannot silently reclaim a replacement
+or hole. Changes require the entire old/new active heap prefix to remain owned.
+Shrink decommits complete pages while retaining sparse ownership and dump policy;
+same-page changes retain existing protection/backing. Failed growth/shrink leaves
+break, live metadata, tables, backing and unrelated bytes unchanged. Focused host
+checks pass; mechanical mixed-operation/fault guests and fresh native/full
+qualification remain pending. Historical memory acceptance is not renewed yet.
 The [foundation epic #678](http://192.168.4.35:3000/admin/CLROS/issues/678)
 links #679-#690; [#691](http://192.168.4.35:3000/admin/CLROS/issues/691)
 owns the continuing NIC service. Refresh the tracker before implementation.

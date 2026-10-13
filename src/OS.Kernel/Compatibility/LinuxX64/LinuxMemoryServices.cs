@@ -62,7 +62,7 @@ public static unsafe class LinuxMemoryServices
         public ulong Start, Bytes, Backing;
         public ulong FreshFrom;
         public uint Protection;
-        public bool Fresh, NoDump;
+        public bool Fresh, NoDump, Heap;
     }
 
     /// <summary>
@@ -111,11 +111,24 @@ public static unsafe class LinuxMemoryServices
     /// <summary>
     /// mmap for MAP_PRIVATE|MAP_ANONYMOUS, optional MAP_NORESERVE and the two
     /// fixed-address forms. MAP_FIXED replaces only this owner's dynamic ranges;
-    /// NOREPLACE returns EEXIST. Hints may fall back to first-fit. Length rounds
+    /// NOREPLACE returns EEXIST. Replacing a heap reservation relinquishes its
+    /// heap ownership; later brk cannot claim that independent mapping. Hints
+    /// may fall back to first-fit. Length rounds
     /// up to 4KiB. PROT_NONE consumes virtual quota only; accessible pages get
     /// real zero-filled backing. Unknown flags/protections fail before mutation.
     /// </summary>
     public static long Map(State* state, ulong address, ulong bytes, uint protection, ulong flags, ulong descriptor, ulong offset)
+        => MapCore(state, address, bytes, protection, flags, descriptor, offset, false);
+
+    /// <summary>
+    /// Startup-only reservation of the admitted heap with no physical backing.
+    /// Retain the inactive-root/exclusive-owner preconditions of Map. General
+    /// mmap cannot create this ownership tag. Failure preserves live state.
+    /// </summary>
+    internal static long ReserveHeap(State* state, ulong address, ulong bytes)
+        => MapCore(state, address, bytes, 0, 0x100022, ~0UL, 0, true);
+
+    private static long MapCore(State* state, ulong address, ulong bytes, uint protection, ulong flags, ulong descriptor, ulong offset, bool heap)
     {
         if (!Valid(state)) return Fault;
         const ulong fixedFlag = 0x10, noReplace = 0x100000, noReserve = 0x4000;
@@ -146,11 +159,50 @@ public static unsafe class LinuxMemoryServices
             }
         }
         if (count == WorkingRegions) return NoMemory;
-        Region added = new() { Start = address, Bytes = bytes, Protection = protection };
+        Region added = new() { Start = address, Bytes = bytes, Protection = protection, Heap = heap };
         if (protection != 0 && !Allocate(state->Memory, candidate, count, ref added)) return NoMemory;
         candidate[count++] = added;
         Sort(candidate, count);
         return Apply(state, candidate, count) == 0 ? (long)address : NoMemory;
+    }
+
+    /// <summary>
+    /// Adjust the startup owner's admitted break while its target root is
+    /// inactive. The caller checks its heap limit. Require retained heap
+    /// ownership over the entire old/new active prefix before committing or
+    /// decommitting pages; holes and separately replaced mappings fail closed.
+    /// Shrink releases backing but retains sparse tagged reservations. All
+    /// fallible work precedes publication; failure preserves live state/data.
+    /// Same-page changes retain existing protection and backing.
+    /// </summary>
+    internal static long ResizeHeap(State* state, ulong heapStart, ulong current, ulong requested)
+    {
+        if (!Valid(state)) return Fault;
+        if (heapStart < DynamicStart || (heapStart & 4095) != 0 || current < heapStart || requested < heapStart ||
+            current > X64UserAddressSpace.UserEnd || requested > X64UserAddressSpace.UserEnd) return Invalid;
+        if (current == requested) return 0;
+        ulong oldEnd = (current + 4095) & ~4095UL, newEnd = (requested + 4095) & ~4095UL;
+        Region* candidate = stackalloc Region[(int)WorkingRegions];
+        uint count = CopyRegions(state, candidate);
+        ulong end = oldEnd > newEnd ? oldEnd : newEnd;
+        if (!Covered(candidate, count, heapStart, end - heapStart, true)) return NoMemory;
+        if (oldEnd == newEnd) return 0;
+        bool grow = newEnd > oldEnd;
+        ulong start = grow ? oldEnd : newEnd, bytes = grow ? newEnd - oldEnd : oldEnd - newEnd;
+        // Force boundary isolation even when an owned PROT_NONE fragment
+        // retains backing after mprotect. Shrink must release only its extent.
+        if (!Split(candidate, ref count, start, bytes, 0, false, true)) return NoMemory;
+        for (uint i = 0; i < count; i++)
+            if (candidate[i].Start >= start && candidate[i].Start < start + bytes)
+            {
+                candidate[i].Protection = grow ? 3U : 0U;
+                if (!grow) { candidate[i].Backing = 0; candidate[i].Fresh = false; candidate[i].FreshFrom = 0; }
+            }
+        if (grow)
+            for (uint i = 0; i < count; i++)
+                if (candidate[i].Protection != 0 && candidate[i].Backing == 0 &&
+                    !Allocate(state->Memory, candidate, count, ref candidate[i])) return NoMemory;
+        return Apply(state, candidate, count);
     }
 
     /// <summary>
@@ -284,7 +336,7 @@ public static unsafe class LinuxMemoryServices
     {
         if (state == null || ((ulong)state & 7) != 0 || state->Initialized != 1 ||
             !Storage(state, state->Memory) || state->Count > MaximumRegions) return false;
-        for (uint i = 0; i < state->Count; i++) if ((state->Regions[i * 4 + 3] & ~0x107UL) != 0) return false;
+        for (uint i = 0; i < state->Count; i++) if ((state->Regions[i * 4 + 3] & ~0x307UL) != 0) return false;
         Region* regions = stackalloc Region[(int)MaximumRegions];
         uint count = CopyRegions(state, regions);
         if (!Accounting(state->Memory, regions, count, out ulong reserved, out uint backed) ||
@@ -323,7 +375,8 @@ public static unsafe class LinuxMemoryServices
         {
             Region r = i < count ? regions[i] : default;
             state->Regions[i * 4] = r.Start; state->Regions[i * 4 + 1] = r.Bytes;
-            state->Regions[i * 4 + 2] = r.Backing; state->Regions[i * 4 + 3] = r.Protection | (r.NoDump ? 0x100UL : 0UL);
+            state->Regions[i * 4 + 2] = r.Backing;
+            state->Regions[i * 4 + 3] = r.Protection | (r.NoDump ? 0x100UL : 0UL) | (r.Heap ? 0x200UL : 0UL);
         }
         state->Count = count; state->ReservedBytes = reserved; state->BackedPages = backed; state->Root = root;
         return 0;
@@ -418,13 +471,14 @@ public static unsafe class LinuxMemoryServices
 
     private static Region Slice(Region r, ulong start, ulong bytes) => new()
     { Start = start, Bytes = bytes, Backing = r.Backing == 0 ? 0 : r.Backing + start - r.Start, Protection = r.Protection, Fresh = r.Fresh,
-        FreshFrom = start - r.Start >= r.FreshFrom ? 0 : r.FreshFrom - (start - r.Start), NoDump = r.NoDump };
+        FreshFrom = start - r.Start >= r.FreshFrom ? 0 : r.FreshFrom - (start - r.Start), NoDump = r.NoDump, Heap = r.Heap };
     private static bool Append(Region* regions, ref uint count, Region r)
     { if (count == WorkingRegions) return false; regions[count++] = r; return true; }
     private static uint CopyRegions(State* state, Region* output)
     {
         for (uint i = 0; i < state->Count; i++) output[i] = new() { Start = state->Regions[i * 4], Bytes = state->Regions[i * 4 + 1],
-            Backing = state->Regions[i * 4 + 2], Protection = (uint)(state->Regions[i * 4 + 3] & ~0x100UL), NoDump = (state->Regions[i * 4 + 3] & 0x100) != 0 };
+            Backing = state->Regions[i * 4 + 2], Protection = (uint)(state->Regions[i * 4 + 3] & 7),
+            NoDump = (state->Regions[i * 4 + 3] & 0x100) != 0, Heap = (state->Regions[i * 4 + 3] & 0x200) != 0 };
         return state->Count;
     }
     private static void Sort(Region* regions, uint count)
@@ -442,7 +496,7 @@ public static unsafe class LinuxMemoryServices
             {
                 Region* previous = regions + written - 1;
                 if (previous->Start + previous->Bytes == r.Start && previous->Protection == r.Protection && previous->Fresh == r.Fresh &&
-                    previous->FreshFrom == r.FreshFrom && previous->NoDump == r.NoDump &&
+                    previous->FreshFrom == r.FreshFrom && previous->NoDump == r.NoDump && previous->Heap == r.Heap &&
                     (previous->Backing == 0 && r.Backing == 0 || previous->Backing != 0 && previous->Backing + previous->Bytes == r.Backing))
                 { previous->Bytes += r.Bytes; continue; }
             }
@@ -450,11 +504,15 @@ public static unsafe class LinuxMemoryServices
         }
         return written;
     }
-    private static bool Covered(Region* regions, uint count, ulong address, ulong bytes)
+    private static bool Covered(Region* regions, uint count, ulong address, ulong bytes, bool heap = false)
     {
         ulong cursor = address;
         for (uint i = 0; i < count && cursor < address + bytes; i++)
-        { if (regions[i].Start > cursor) return false; if (regions[i].Start + regions[i].Bytes > cursor) cursor = regions[i].Start + regions[i].Bytes; }
+        {
+            if (regions[i].Start > cursor) return false;
+            if (regions[i].Start + regions[i].Bytes > cursor)
+            { if (heap && !regions[i].Heap) return false; cursor = regions[i].Start + regions[i].Bytes; }
+        }
         return cursor >= address + bytes;
     }
     private static bool Intersects(Region* regions, uint count, ulong address, ulong bytes)

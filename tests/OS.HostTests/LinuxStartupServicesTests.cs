@@ -14,12 +14,14 @@ internal static unsafe class LinuxStartupServicesTests
     }
     private sealed class Owner : IDisposable
     {
-        public readonly LinuxMemoryServicesTests.Owner Memory = new();
+        public readonly LinuxMemoryServicesTests.Owner Memory;
         public readonly LinuxStartupServices.State* State;
         public readonly Model* Context;
         public readonly byte* Entropy;
-        public Owner()
+        public Owner() : this(new LinuxMemoryServicesTests.Owner()) { }
+        public Owner(LinuxMemoryServicesTests.Owner memory)
         {
+            Memory = memory;
             Memory.Begin();
             HostCheck.Equal((long)Output, LinuxMemoryServices.Map(Memory.State, Output, 4096, 3, 0x100022, ulong.MaxValue, 0));
             State = (LinuxStartupServices.State*)NativeMemory.AlignedAlloc((nuint)sizeof(LinuxStartupServices.State), 16); *State = default;
@@ -35,9 +37,33 @@ internal static unsafe class LinuxStartupServicesTests
             ProcessId = 1, Entropy = Entropy, CapturedEntropyBytes = 32, SingleCpuValidated = true, FirmwareExited = true
         };
         public void Begin() => HostCheck.True(LinuxStartupServices.Begin(State, Admission()));
-        public long Call(ulong number, ulong a0 = 0, ulong a1 = 0, ulong a2 = 0, ulong a3 = 0) =>
-            LinuxStartupServices.Dispatch(State, new() { Number = number, Argument0 = a0, Argument1 = a1, Argument2 = a2, Argument3 = a3 });
+        public long Call(ulong number, ulong a0 = 0, ulong a1 = 0, ulong a2 = 0, ulong a3 = 0, ulong a4 = 0, ulong a5 = 0) =>
+            LinuxStartupServices.Dispatch(State, new() { Number = number, Argument0 = a0, Argument1 = a1, Argument2 = a2,
+                Argument3 = a3, Argument4 = a4, Argument5 = a5 });
         public void Dispose() { Memory.Dispose(); NativeMemory.AlignedFree(State); NativeMemory.AlignedFree(Context); NativeMemory.Free(Entropy); }
+    }
+    private sealed class Snapshot
+    {
+        private readonly byte[] tables, memory, startup, pool;
+        public Snapshot(Owner owner)
+        {
+            tables = owner.Memory.Tables();
+            memory = new ReadOnlySpan<byte>(owner.Memory.State, sizeof(LinuxMemoryServices.State)).ToArray();
+            startup = new ReadOnlySpan<byte>(owner.State, sizeof(LinuxStartupServices.State)).ToArray();
+            pool = new ReadOnlySpan<byte>(owner.Memory.Memory.Pool, checked((int)owner.Memory.Memory.PoolPages * 4096)).ToArray();
+        }
+        public void AssertUnchanged(Owner owner) => HostCheck.True(tables.AsSpan().SequenceEqual(owner.Memory.Tables()) &&
+            memory.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.Memory.State, sizeof(LinuxMemoryServices.State))) &&
+            startup.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.State, sizeof(LinuxStartupServices.State))) &&
+            pool.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.Memory.Memory.Pool, pool.Length)));
+    }
+    private static void BrkRejected(Owner owner, ulong requested)
+    {
+        var snapshot = new Snapshot(owner); ulong current = owner.State->Break;
+        long before = GC.GetAllocatedBytesForCurrentThread();
+        long result = owner.Call(12, requested), allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        HostCheck.Equal((long)current, result); HostCheck.Equal(0L, allocated);
+        snapshot.AssertUnchanged(owner); HostCheck.True(LinuxMemoryServices.Audit(owner.Memory.State));
     }
     [UnmanagedCallersOnly]
     private static byte Permissions(void* context, ulong page)
@@ -160,5 +186,148 @@ internal static unsafe class LinuxStartupServicesTests
         HostCheck.True(owner.Memory.State->ReservedBytes == reserved && owner.State->RemainingEntropy == 0);
         owner.Context->FailClock = false; owner.Begin();
         HostCheck.True(!LinuxStartupServices.Begin(owner.State, owner.Admission()));
+    }
+
+    [HostTest("m16-006 brk rejects separately owned fixed mapping without mutation", HostLane.Fast, 5)]
+    private static void HeapFixedReplacement()
+    {
+        using var owner = new Owner(); owner.Begin();
+        ulong initial = (ulong)owner.Call(12), page = initial + 4096;
+        HostCheck.Equal((long)Heap, (long)initial);
+        HostCheck.Equal((long)page, owner.Call(9, page, 4096, 3, 0x32, ulong.MaxValue));
+        *owner.Memory.At(page) = 0x5a;
+        HostCheck.Equal(0L, owner.Call(10, page, 4096, 1));
+        ulong leaf = owner.Memory.Leaf(page);
+        BrkRejected(owner, initial + 8192);
+        HostCheck.Equal(leaf, owner.Memory.Leaf(page));
+        HostCheck.Equal((byte)0x5a, *owner.Memory.At(page));
+    }
+
+    [HostTest("m16-006 partial fixed overlap poisons active heap prefix but noreplace is transactional", HostLane.Fast, 6)]
+    private static void HeapPartialReplacement()
+    {
+        using var owner = new Owner(); owner.Begin();
+        var before = new Snapshot(owner);
+        HostCheck.Equal(-17L, owner.Call(9, Heap, 4096, 3, 0x100022, ulong.MaxValue));
+        before.AssertUnchanged(owner);
+        HostCheck.Equal((long)Heap + 8192, owner.Call(12, Heap + 8192));
+        *owner.Memory.At(Heap + 4096) = 0x66;
+        HostCheck.Equal((long)Heap - 4096, owner.Call(9, Heap - 4096, 8192, 3, 0x32, ulong.MaxValue));
+        *owner.Memory.At(Heap - 4096) = 0x71; *owner.Memory.At(Heap) = 0x72;
+        HostCheck.Equal(0L, owner.Call(10, Heap - 4096, 8192, 1));
+        BrkRejected(owner, Heap + 12288); BrkRejected(owner, Heap + 4096); BrkRejected(owner, Heap);
+        HostCheck.Equal((byte)0x71, *owner.Memory.At(Heap - 4096));
+        HostCheck.Equal((byte)0x72, *owner.Memory.At(Heap));
+        HostCheck.Equal((byte)0x66, *owner.Memory.At(Heap + 4096));
+    }
+
+    [HostTest("m16-006 heap holes and independent none replacements never regain brk ownership", HostLane.Fast, 7)]
+    private static void HeapHoles()
+    {
+        using var owner = new Owner(); owner.Begin();
+        HostCheck.Equal(0L, owner.Call(11, Heap + 4096, 4096));
+        HostCheck.Equal((long)Heap + 4096, owner.Call(12, Heap + 4096));
+        BrkRejected(owner, Heap + 8192);
+        HostCheck.Equal((long)Heap + 4096, owner.Call(9, Heap + 4096, 4096, 0, 0x100022, ulong.MaxValue));
+        BrkRejected(owner, Heap + 8192);
+        HostCheck.Equal(0L, owner.Call(10, Heap + 4096, 4096, 3));
+        *owner.Memory.At(Heap + 4096) = 0x51;
+        HostCheck.Equal(0L, owner.Call(10, Heap + 4096, 4096, 1));
+        HostCheck.Equal((long)Heap, owner.Call(12, Heap));
+        HostCheck.Equal((long)Heap + 4096, owner.Call(12, Heap + 4096));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Heap), 4096).IndexOfAnyExcept((byte)0) == -1);
+        BrkRejected(owner, Heap + 8192);
+        HostCheck.Equal((byte)0x51, *owner.Memory.At(Heap + 4096));
+    }
+
+    [HostTest("m16-006 owned protected heap shrink releases only complete pages and regrows zero", HostLane.Fast, 8)]
+    private static void HeapProtectedShrink()
+    {
+        using var owner = new Owner(); owner.Begin();
+        HostCheck.Equal((long)Heap + 12288, owner.Call(12, Heap + 12288));
+        new Span<byte>(owner.Memory.At(Heap), 12288).Fill(0x4f);
+        HostCheck.Equal(0L, owner.Call(10, Heap, 12288, 0));
+        HostCheck.Equal((long)Heap + 4096, owner.Call(12, Heap + 4096));
+        HostCheck.Equal(2U, owner.Memory.State->BackedPages); // Output plus the retained first heap page.
+        HostCheck.Equal(0L, owner.Call(10, Heap, 4096, 1));
+        HostCheck.Equal((byte)0x4f, *owner.Memory.At(Heap));
+        ulong first = owner.Memory.Leaf(Heap);
+        HostCheck.Equal((long)Heap + 12288, owner.Call(12, Heap + 12288));
+        HostCheck.Equal(first, owner.Memory.Leaf(Heap));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Heap + 4096), 8192).IndexOfAnyExcept((byte)0) == -1);
+        HostCheck.Equal((long)Heap, owner.Call(12, Heap));
+        HostCheck.Equal((long)Heap + 1, owner.Call(12, Heap + 1));
+        HostCheck.Equal(0L, owner.Call(10, Heap, 4096, 1)); first = owner.Memory.Leaf(Heap);
+        HostCheck.Equal((long)Heap + 2, owner.Call(12, Heap + 2)); HostCheck.Equal(first, owner.Memory.Leaf(Heap));
+        HostCheck.Equal((long)Heap, owner.Call(9, Heap, 4096, 1, 0x32, ulong.MaxValue));
+        BrkRejected(owner, Heap + 3); BrkRejected(owner, Heap);
+    }
+
+    [HostTest("m16-006 heap ownership survives dump advice and never coalesces independent neighbor", HostLane.Fast, 9)]
+    private static void HeapPolicyFlags()
+    {
+        using var owner = new Owner(); owner.Begin();
+        HostCheck.Equal((long)Heap - 4096, owner.Call(9, Heap - 4096, 4096, 0, 0x100022, ulong.MaxValue));
+        HostCheck.Equal((long)Heap + 1, owner.Call(12, Heap + 1));
+        HostCheck.Equal(0L, owner.Call(28, Heap, 4096, 16));
+        HostCheck.Equal(0L, owner.Call(10, Heap, 4096, 0));
+        HostCheck.Equal(0L, owner.Call(28, Heap, 4096, 4));
+        HostCheck.Equal((long)Heap + 8192, owner.Call(12, Heap + 8192));
+        HostCheck.Equal(0L, owner.Call(10, Heap, 4096, 1));
+        HostCheck.True(LinuxMemoryServices.IsDumpExcluded(owner.Memory.State, Heap, 4096));
+        HostCheck.Equal((long)Heap, owner.Call(12, Heap));
+        HostCheck.Equal((long)Heap + 8192, owner.Call(12, Heap + 8192));
+        HostCheck.True(LinuxMemoryServices.IsDumpExcluded(owner.Memory.State, Heap, 4096));
+        HostCheck.True(!LinuxMemoryServices.IsDumpExcluded(owner.Memory.State, Heap + 4096, 4096));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Heap), 8192).IndexOfAnyExcept((byte)0) == -1);
+        BrkRejected(owner, ulong.MaxValue); BrkRejected(owner, Heap - 1); BrkRejected(owner, Heap + 2 * 1024 * 1024 + 1);
+    }
+
+    [HostTest("m16-006 brk end-of-user-window arithmetic and byte changes retain owned pages", HostLane.Fast, 10)]
+    private static void HeapEndOfWindow()
+    {
+        using var owner = new Owner(); var admission = owner.Admission();
+        ulong end = LinuxSyscallGateway.UserEnd, start = end - 8192;
+        admission.HeapStart = start; admission.HeapBytes = 8192;
+        HostCheck.True(LinuxStartupServices.Begin(owner.State, admission));
+        HostCheck.Equal((long)end - 1, owner.Call(12, end - 1));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(start), 8192).IndexOfAnyExcept((byte)0) == -1);
+        HostCheck.Equal((long)end, owner.Call(12, end)); BrkRejected(owner, end + 1);
+        HostCheck.Equal((long)start + 1, owner.Call(12, start + 1));
+        *owner.Memory.At(start) = 0x65; ulong leaf = owner.Memory.Leaf(start);
+        HostCheck.Equal((long)start + 2, owner.Call(12, start + 2));
+        HostCheck.Equal(leaf, owner.Memory.Leaf(start)); HostCheck.Equal((byte)0x65, *owner.Memory.At(start));
+        HostCheck.True(LinuxMemoryServices.Audit(owner.Memory.State));
+    }
+
+    [HostTest("m16-006 brk table region and reservation quota failures publish no partial ownership", HostLane.Fast, 11)]
+    private static void HeapPublicationFailures()
+    {
+        using var baseline = new Owner();
+        using var tableLimited = new Owner(new LinuxMemoryServicesTests.Owner(baseline.Memory.State->Root.UsedTables));
+        tableLimited.Begin(); BrkRejected(tableLimited, Heap + 4096);
+        using var physical = new Owner(); physical.Begin();
+        HostCheck.Equal(0L, physical.Call(28, Heap + 4096, 4096, 16));
+        // Distinct dump-policy fragments allocate candidate backing before the
+        // final fragment exhausts the pool. No partial allocation may publish.
+        BrkRejected(physical, Heap + physical.Memory.Memory.PoolPages * 4096UL);
+        using var owner = new Owner(); owner.Begin();
+        for (uint i = 0; i < LinuxMemoryServices.MaximumRegions - 2; i++)
+        {
+            ulong address = Output + 0x1000000 + i * 8192;
+            HostCheck.Equal((long)address, owner.Call(9, address, 4096, 0, 0x100022, ulong.MaxValue));
+        }
+        var full = new Snapshot(owner);
+        HostCheck.Equal(-12L, owner.Call(9, Output + 0x2000000, 4096, 0, 0x100022, ulong.MaxValue));
+        full.AssertUnchanged(owner); BrkRejected(owner, Heap + 4096);
+        using var quota = new Owner(new LinuxMemoryServicesTests.Owner(quota: 4096));
+        var empty = new Snapshot(quota);
+        HostCheck.True(!LinuxStartupServices.Begin(quota.State, quota.Admission()));
+        empty.AssertUnchanged(quota);
+        using var conflict = new Owner();
+        HostCheck.Equal((long)Heap, LinuxMemoryServices.Map(conflict.Memory.State, Heap, 4096, 0, 0x100022, ulong.MaxValue, 0));
+        var foreign = new Snapshot(conflict);
+        HostCheck.True(!LinuxStartupServices.Begin(conflict.State, conflict.Admission()));
+        foreign.AssertUnchanged(conflict);
     }
 }

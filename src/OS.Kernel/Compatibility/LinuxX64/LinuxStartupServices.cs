@@ -80,7 +80,7 @@ public static unsafe class LinuxStartupServices
         for (uint i = 0; i < EntropyBytes; i++) if (admission.Entropy[i] != 0) nonzero = true;
         ulong ticks = 0;
         if (!nonzero || admission.ReadClock(admission.User.Context, &ticks) != 1) return false;
-        if (LinuxMemoryServices.Map(admission.Memory, admission.HeapStart, admission.HeapBytes, 0, 0x100022, ~0UL, 0) != (long)admission.HeapStart) return false;
+        if (LinuxMemoryServices.ReserveHeap(admission.Memory, admission.HeapStart, admission.HeapBytes) != (long)admission.HeapStart) return false;
         state->Owner = admission; state->CurrentBreak = admission.HeapStart; state->LastTicks = ticks; state->Initialized = 1;
         return true;
     }
@@ -137,9 +137,7 @@ public static unsafe class LinuxStartupServices
         var a = state->Owner; ulong current = state->CurrentBreak;
         if (requested == 0) return (long)current;
         if (requested < a.HeapStart || requested > a.HeapStart + a.HeapBytes) return (long)current;
-        ulong oldEnd = (current + 4095) & ~4095UL, newEnd = (requested + 4095) & ~4095UL;
-        if (newEnd > oldEnd && LinuxMemoryServices.Protect(a.Memory, oldEnd, newEnd - oldEnd, 3) != 0) return (long)current;
-        if (newEnd < oldEnd && LinuxMemoryServices.Map(a.Memory, newEnd, oldEnd - newEnd, 0, 0x32, ~0UL, 0) != (long)newEnd) return (long)current;
+        if (LinuxMemoryServices.ResizeHeap(a.Memory, a.HeapStart, current, requested) != 0) return (long)current;
         state->CurrentBreak = requested; return (long)requested;
     }
 
