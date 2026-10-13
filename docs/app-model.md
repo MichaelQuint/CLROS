@@ -67,7 +67,13 @@ Hello/runtime and general Linux compatibility remain incomplete.
 
 #686 adds mechanical threads/TLS/futex, scheduler-backed blocking pipes
 and real per-thread signal-mask inheritance/restoration. Its scheduler chain is
-#183 through #188, then #191/#192; #183 is the next ready foundation.
+#183 through #188, then #191/#192. #183's saved-context host contract is
+qualified in [step1210](../done/step1210.md): nine focused checks verify the
+actual 688-byte layout, caller-supplied 16-byte alignment, legal FP controls,
+trusted MXCSR mask, complete snapshots, malformed-input rejection and unchanged
+output on failure. It executes no save/restore instructions or thread switch.
+The next foundation is #184's FIFO ready queue, followed by #185's deadline
+queue. See [PAL context ownership](pal.md#saved-context-host-contract-183).
 M16-009/#687 owns first pinned NativeAOT Hello acceptance after signal
 startup/delivery, before focused suspension checks; Hello itself starts runtime
 threads before printing. #688 repeats Hello and qualifies the comprehensive
