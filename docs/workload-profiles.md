@@ -67,8 +67,9 @@ or hole. Changes require the entire old/new active heap prefix to remain owned.
 Shrink decommits complete pages while retaining sparse ownership and dump policy;
 same-page changes retain existing protection/backing. Failed growth/shrink leaves
 break, live metadata, tables, backing and unrelated bytes unchanged. Focused host
-checks pass; mechanical mixed-operation/fault guests and fresh native/full
-qualification remain pending. Historical memory acceptance is not renewed yet.
+checks and development mixed-operation/fault guests pass. Scoped original native
+ownership/ABI review passes; frozen full-host/three fresh guests and affected
+ancestors remain pending. Historical memory acceptance is not renewed yet.
 The [foundation epic #678](http://192.168.4.35:3000/admin/CLROS/issues/678)
 links #679-#690; [#691](http://192.168.4.35:3000/admin/CLROS/issues/691)
 owns the continuing NIC service. Refresh the tracker before implementation.

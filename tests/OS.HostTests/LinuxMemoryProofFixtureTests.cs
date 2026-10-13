@@ -73,7 +73,7 @@ internal static unsafe class LinuxMemoryProofFixtureTests
     [HostTest("m16-006 controlled faults follow actual sparse ownership and target distinct absent leaves", HostLane.Fast, 2)]
     private static void NegativeVariants()
     {
-        foreach (string variant in LinuxMemoryProofFixture.Variants.Skip(1))
+        foreach (string variant in new[] { "GuardFault", "ProtNoneFault" })
         {
             byte[] elf = LinuxMemoryProofFixture.CreateElf(variant);
             ReadOnlySpan<byte> code = elf.AsSpan(0x200, 0xd00);
@@ -86,6 +86,25 @@ internal static unsafe class LinuxMemoryProofFixtureTests
             byte[] positive = LinuxMemoryProofFixture.CreateElf("Memory");
             HostCheck.True(!positive.AsSpan().SequenceEqual(elf));
         }
+    }
+
+    [HostTest("m16-006 heap witness executes mixed ownership and foreign readonly write challenge", HostLane.Fast, 3)]
+    private static void HeapOwnershipVariants()
+    {
+        byte[] positive = LinuxMemoryProofFixture.CreateElf("HeapOwnership");
+        byte[] negative = LinuxMemoryProofFixture.CreateElf("HeapOwnershipFault");
+        HostCheck.True(Calls(positive.AsSpan(0x200, 0xd00)).SequenceEqual(new ulong[]
+            { 9,12,12,10,12,12,12,12,9,10,12,9,12,11,12,9,12,1,9,12,11,231 }));
+        HostCheck.True(Calls(negative.AsSpan(0x200, 0xd00)).SequenceEqual(new ulong[] { 9,12,9,10,12,12 }));
+        HostCheck.True(positive.AsSpan(0x200, 0xd00).IndexOf(new byte[] { 0xf3,0x48,0xaf }) >= 0);
+        // The terminal challenge is a real store of a different sentinel after
+        // all six syscalls. The same store before mprotect cannot qualify it.
+        int store = negative.AsSpan(0x200, 0xd00).LastIndexOf(new byte[] { 0x48,0x89,0x10 });
+        int lastCall = negative.AsSpan(0x200, 0xd00).LastIndexOf(new byte[] { 0x0f,5 });
+        HostCheck.True(store > lastCall);
+        HostCheck.Equal(0xa5UL, BinaryPrimitives.ReadUInt64LittleEndian(negative.AsSpan(0x200 + store - 8)));
+        HostCheck.True(Calls(negative.AsSpan(0xf00, 80)).SequenceEqual(new ulong[] { 231 }));
+        HostCheck.True(!positive.AsSpan().SequenceEqual(negative));
     }
 
     // Independent small inventory reader: only MOV RAX,imm64 identifies syscall

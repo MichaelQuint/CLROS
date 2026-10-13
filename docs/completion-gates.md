@@ -14,13 +14,16 @@ brk/fixed-map ownership repair remains required before Hello/runtime acceptance.
 threading/TLS/futex (#686), signals and first unchanged Hello (#687), Kestrel and
 remaining numbered gates remain incomplete.
 
-#708/#711 have a host-only ownership repair checkpoint in
+#708/#711 have an ownership repair checkpoint in
 [step1209](../done/step1209.md). The exact MAP_FIXED/read-only sentinel regression
 fails before repair and passes afterward. Twelve startup, ten memory and fourteen
 descriptor checks pass. Tagged sparse heap ownership survives protection/advice
 and owned shrink/regrow; foreign replacements and holes fail closed before brk
-publication. Mixed-operation/fault guest evidence and original native/full
-qualification are pending; no gate or upstream runtime acceptance follows.
+publication. Eight additional fixture/parser controls and two development guests
+pass, including the actual foreign read-only PF/error7 after rejected growth.
+Scoped original native ownership/ABI review passes; frozen full-host, three fresh
+qualification guests and affected ancestors remain pending. No gate or upstream
+runtime acceptance follows.
 
 M16-006/#684 and supplemental #706 are qualified in
 [step1205](../done/step1205.md): 4,646 full-host checks across 608 fixtures

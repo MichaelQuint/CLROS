@@ -12,12 +12,14 @@ namespace OS.Tooling;
 /// </summary>
 public static class LinuxMemoryProofFixture
 {
-    public static IReadOnlyList<string> Variants { get; } = Array.AsReadOnly<string>(["Memory", "GuardFault", "ProtNoneFault"]);
+    public static IReadOnlyList<string> Variants { get; } = Array.AsReadOnly<string>(
+        ["Memory", "GuardFault", "ProtNoneFault", "HeapOwnership", "HeapOwnershipFault"]);
     public const string Witness = "M16_MEMORY_HIGH_COPY_OK!";
     public const ulong HugeReservation = 8234266624, DynamicBase = 0x100000000, HeapBase = 0x400000000;
     public const ulong ImageBase = 0x400000, DataBase = 0x401000, StackStart = 0x6fff0000;
     public const ulong GuardFaultAddress = DynamicBase, ProtNoneFaultAddress = DynamicBase + 4096;
     public const uint MemoryCalls = 34;
+    public const uint HeapOwnershipCalls = 22, HeapOwnershipFaultCalls = 6;
     private const int FailureOffset = 0xf00, WitnessOffset = 0x1200;
     private const int AffinityOffset = 0x1100, FirstTimeOffset = 0x1120, SecondTimeOffset = 0x1130;
     private const int FirstRandomOffset = 0x1140, SecondRandomOffset = 0x1150, SystemInfoOffset = 0x1180;
@@ -44,7 +46,8 @@ public static class LinuxMemoryProofFixture
     }
 
     /// <summary>Build a fresh non-PIE static x64 ELF. Memory returns exit 42
-    /// after 34 actual calls; negatives fault after owning a sparse mapping.
+    /// after 34 actual calls; HeapOwnership checks mixed allocator ownership.
+    /// Negatives challenge absent leaves or a foreign page's retained protection.
     /// Every failed user assertion transfers to a distinct exit-99 path.</summary>
     public static byte[] CreateElf(string variant)
     {
@@ -63,7 +66,60 @@ public static class LinuxMemoryProofFixture
         Encoding.ASCII.GetBytes(Witness).CopyTo(elf, WitnessOffset);
         Writer w = new(elf, 0x200);
         w.Map(0, HugeReservation, 0, 0x22); w.CompareRegister(0, DynamicBase);
-        if (variant != "Memory")
+        if (variant == "HeapOwnership")
+        {
+            w.Syscall(12, 0, 0, 0); w.CompareRegister(0, HeapBase);
+            w.Syscall(12, HeapBase + 8192, 0, 0); w.CompareRegister(0, HeapBase + 8192);
+            w.ZeroRegion(HeapBase, 8192);
+            w.Immediate(0, HeapBase); w.Immediate(2, 0x5a); w.Op(0x108948, 3);
+            w.Syscall(10, HeapBase, 4096, 1); w.CompareRax(0);
+            w.Syscall(12, HeapBase + 4113, 0, 0); w.CompareRegister(0, HeapBase + 4113);
+            w.ReadCompare(HeapBase, 0x5a);
+            w.Syscall(12, HeapBase + 4096, 0, 0); w.CompareRegister(0, HeapBase + 4096);
+            w.ReadCompare(HeapBase, 0x5a);
+            w.Syscall(12, HeapBase + 8192, 0, 0); w.CompareRegister(0, HeapBase + 8192);
+            w.ZeroRegion(HeapBase + 4096, 4096);
+            w.Syscall(12, HeapBase, 0, 0); w.CompareRegister(0, HeapBase);
+
+            const ulong foreign = HeapBase + 4096, buffer = foreign + 128;
+            w.Map(foreign, 4096, 3, 0x32); w.CompareRegister(0, foreign);
+            w.Immediate(0, foreign); w.Immediate(2, 0x5a); w.Op(0x108948, 3);
+            w.Immediate(7, buffer); w.Immediate(6, ImageBase + WitnessOffset); w.Immediate(1, (ulong)Witness.Length);
+            w.Op(0xfc, 1); w.Op(0xa4f3, 2);
+            w.Syscall(10, foreign, 4096, 1); w.CompareRax(0);
+            w.Syscall(12, HeapBase + 8192, 0, 0); w.CompareRegister(0, HeapBase);
+            w.ReadCompare(foreign, 0x5a);
+            w.Map(foreign, 4096, 0, 0x100022); w.CompareRax(-17);
+            w.ReadCompare(foreign, 0x5a);
+            w.Syscall(12, 0, 0, 0); w.CompareRegister(0, HeapBase);
+            w.Syscall(11, HeapBase, 4096, 0); w.CompareRax(0);
+            w.Syscall(12, HeapBase + 4096, 0, 0); w.CompareRegister(0, HeapBase);
+            w.Map(HeapBase, 4096, 0, 0x32); w.CompareRegister(0, HeapBase);
+            w.Syscall(12, HeapBase + 4096, 0, 0); w.CompareRegister(0, HeapBase);
+            w.ReadCompare(foreign, 0x5a);
+            w.Syscall(1, 1, buffer, (ulong)Witness.Length); w.CompareRax(Witness.Length);
+            // Release foreign backing while retaining independent reservations.
+            w.Map(foreign, 4096, 0, 0x32); w.CompareRegister(0, foreign);
+            w.Syscall(12, HeapBase + 8192, 0, 0); w.CompareRegister(0, HeapBase);
+            w.Syscall(11, DynamicBase, HugeReservation, 0); w.CompareRax(0);
+            w.Syscall(231, 42, 0, 0); w.JumpFailure();
+            if (w.Calls != HeapOwnershipCalls) throw new ToolFailure("m16_006_heap_call_inventory");
+        }
+        else if (variant == "HeapOwnershipFault")
+        {
+            const ulong foreign = HeapBase + 4096;
+            w.Syscall(12, 0, 0, 0); w.CompareRegister(0, HeapBase);
+            w.Map(foreign, 4096, 3, 0x32); w.CompareRegister(0, foreign);
+            w.Immediate(0, foreign); w.Immediate(2, 0x5a); w.Op(0x108948, 3);
+            w.Syscall(10, foreign, 4096, 1); w.CompareRax(0);
+            w.Syscall(12, HeapBase + 8192, 0, 0); w.CompareRegister(0, HeapBase);
+            w.Syscall(12, 0, 0, 0); w.CompareRegister(0, HeapBase);
+            // Actual CPL3 write to the foreign read-only leaf must fault. A
+            // restored writable permission instead reaches failure exit 99.
+            w.Immediate(0, foreign); w.Immediate(2, 0xa5); w.Op(0x108948, 3); w.JumpFailure();
+            if (w.Calls != HeapOwnershipFaultCalls) throw new ToolFailure("m16_006_heap_fault_call_inventory");
+        }
+        else if (variant != "Memory")
         {
             if (variant == "GuardFault") { w.Syscall(10, FirstPage, 4096, 3); w.CompareRax(0); }
             w.Immediate(0, variant == "GuardFault" ? GuardFaultAddress : ProtNoneFaultAddress);

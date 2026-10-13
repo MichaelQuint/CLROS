@@ -29,7 +29,7 @@ public static partial class QemuTranscripts
         Need(!packageRead || fatRead, "m06_package_requires_fat");
         Need(!workloadServiceLoop || linuxElfPackagePath.Length != 0 && firstRealExit && ownedSurvival && !normalBoot && !firmwareRevocation && !monotonicClock, "m16_003_profile_invalid");
         bool negativeMemory = linuxMemoryNegativeVariant.Length != 0;
-        Need(!negativeMemory || linuxMemory && linuxMemoryNegativeVariant is "GuardFault" or "ProtNoneFault", "m16_006_negative_profile");
+        Need(!negativeMemory || linuxMemory && linuxMemoryNegativeVariant is "GuardFault" or "ProtNoneFault" or "HeapOwnershipFault", "m16_006_negative_profile");
         bool negativeSyscall = linuxSyscallNegativeVariant.Length != 0;
         Need(!linuxDescriptors || linuxMemory && !negativeMemory && !negativeSyscall, "m16_007_profile_invalid");
         Need(!linuxMemory || linuxSyscalls && linuxStartup && workloadServiceLoop && !negativeSyscall, "m16_006_profile_invalid");
