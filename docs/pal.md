@@ -165,6 +165,15 @@ Native capture/restore, default-off profile wiring, original-context cleanup,
 full-host/native review and actual guest transfers remain unfinished. #186 is
 open; these checks establish no running thread or scheduler acceptance.
 
+[Step1214](../done/step1214.md) adds a fixed C#-authored capture/restore stub
+emitter, with twelve focused checks including independent register/address/ABI
+byte vectors. It saves all GPRs before scratch use, captures the CALL continuation
+and FP state, publishes completion last, admits on a separate stack, then
+restores through an owned indirect JMP. It writes no parked return slot.
+Manual source review is clean; compiled-native inspection and execution remain
+pending. [#719](http://192.168.4.35:3000/admin/CLROS/issues/719) owns additional
+shared profile/resource/transcript wiring. Both issues remain open.
+
 ## Current Status
 
 No first-party hosted-tier PAL implementation exists. The canonical CLROS

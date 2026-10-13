@@ -193,4 +193,169 @@ internal static unsafe class ThreadContextSwitchTests
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         HostCheck.True(passed); HostCheck.Equal(0L, allocated);
     }
+
+    private static ThreadContextSwitch.StubPlan Stub(Buffer arena, out ThreadContextSwitch.Owner owner,
+        out ThreadContextSwitch.Descriptor source, out ThreadContextSwitch.Descriptor destination, bool below = false)
+    {
+        owner = Owner(arena); owner.CodeStart = below ? (ulong)arena.Bytes - 65536 : (ulong)arena.Bytes + 65536;
+        source = Descriptor(arena.First, 1, 0x900000);
+        destination = Descriptor(arena.Second, 2, 0xa00000, ThreadContextSwitch.ResumeKind.Entry);
+        source.ResumeRip = owner.CodeStart + 0x110; source.Context->Rip = source.ResumeRip;
+        destination.ResumeRip = owner.CodeStart + 0x120; destination.Context->Rip = destination.ResumeRip;
+        X64ThreadContext* helper = (X64ThreadContext*)(arena.Bytes + 2048);
+        HostCheck.Equal(X64ThreadContext.Status.Ok, X64ThreadContext.Initialize(helper, 688,
+            owner.CodeStart + 0x130, 0xb01fc0, owner.ObservedMxcsrMask));
+        return new() { CodeOffset = 1024, AdmissionCallback = 0x2000000,
+            CallbackContext = (ulong)arena.Bytes + 3072, CallbackBytes = 128,
+            HelperFx = (ulong)helper->FxSave, JumpSlot = (ulong)arena.Bytes + 3200, RejectRip = owner.CodeStart + 0xe00 };
+    }
+    private static ulong Target(ReadOnlySpan<byte> code, ulong instructionAddress, int displacementOffset, int instructionBytes) =>
+        unchecked((ulong)((long)instructionAddress + instructionBytes + BitConverter.ToInt32(code.Slice(displacementOffset, 4))));
+
+    [HostTest("m09.004 emitter independent RIP-relative GPR FP ABI and exact jump byte vectors", HostLane.Fast, 8)]
+    private static void EmitVectors()
+    {
+        foreach (bool below in new[] { false, true })
+        {
+            using Buffer arena = new(); using Buffer code = new();
+            var plan = Stub(arena, out var owner, out var source, out var destination, below);
+            byte[] unchanged = arena.Snapshot(); ulong address = owner.CodeStart + plan.CodeOffset;
+            HostCheck.True(ThreadContextSwitch.EmitStub(code.Bytes, 4096, owner, source, destination, plan));
+            HostCheck.True(ThreadContextSwitch.VerifyStub(code.Bytes, 4096, owner, source, destination, plan));
+            ReadOnlySpan<byte> bytes = new(code.Bytes, 1024);
+            HostCheck.True(bytes[..3].SequenceEqual(new byte[] { 0x48, 0xc7, 0x05 }));
+            HostCheck.Equal((ulong)source.Context, Target(bytes, address, 3, 11));
+            HostCheck.Equal(0, BitConverter.ToInt32(bytes.Slice(7, 4)));
+            // Architectural register order differs from the context field order.
+            uint[] offsets = { 16, 32, 40, 24, 72, 64, 48, 56, 80, 88, 96, 104, 112, 120, 128, 136 };
+            for (int register = 0; register < 16; register++)
+            {
+                int position = 11 + register * 7;
+                HostCheck.Equal(register < 8 ? (byte)0x48 : (byte)0x4c, bytes[position]);
+                HostCheck.Equal((byte)0x89, bytes[position + 1]);
+                HostCheck.Equal((byte)(5 | ((register & 7) << 3)), bytes[position + 2]);
+                HostCheck.Equal((ulong)source.Context + offsets[register], Target(bytes[position..], address + (uint)position, 3, 7));
+            }
+            HostCheck.True(bytes.Slice(123, 5).SequenceEqual(new byte[] { 0x4c, 0x8d, 0x5c, 0x24, 8 }));
+            HostCheck.Equal((ulong)source.Context + 72, Target(bytes[128..], address + 128, 3, 7));
+            HostCheck.True(bytes.Slice(135, 4).SequenceEqual(new byte[] { 0x4c, 0x8b, 0x1c, 0x24 }));
+            HostCheck.Equal((ulong)source.Context + 144, Target(bytes[139..], address + 139, 3, 7));
+            int captureFp = bytes.IndexOf(new byte[] { 0x48, 0x0f, 0xae, 0x05 });
+            HostCheck.True(captureFp > 146);
+            HostCheck.Equal((ulong)source.Context + 176, Target(bytes[captureFp..], address + (uint)captureFp, 4, 8));
+            int helper = bytes.IndexOf(new byte[] { 0xfc, 0x48, 0x0f, 0xae, 0x0d });
+            HostCheck.True(helper > captureFp);
+            HostCheck.Equal(plan.HelperFx, Target(bytes[(helper + 1)..], address + (uint)helper + 1, 4, 8));
+            HostCheck.True(bytes.IndexOf(new byte[] { 0x48, 0x83, 0xec, 32, 0x41, 0xff, 0xd3, 0x48, 0x83, 0xc4, 32 }) > helper);
+            int end = 1024; while (bytes[end - 1] == 0xcc) end--;
+            HostCheck.Equal((byte)0xff, bytes[end - 6]); HostCheck.Equal((byte)0x25, bytes[end - 5]);
+            HostCheck.Equal(plan.JumpSlot, Target(bytes[(end - 6)..], address + (uint)end - 6, 2, 6));
+            HostCheck.Equal((byte)0x9d, bytes[end - 119]); // POPFQ followed solely by16 MOVs and indirect JMP.
+            int[] restoreOrder = { 0, 1, 2, 3, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 4, 11 };
+            for (int index = 0; index < restoreOrder.Length; index++)
+            {
+                int register = restoreOrder[index], position = end - 118 + index * 7;
+                HostCheck.Equal(register < 8 ? (byte)0x48 : (byte)0x4c, bytes[position]);
+                HostCheck.Equal((byte)0x8b, bytes[position + 1]);
+                HostCheck.Equal((byte)(5 | ((register & 7) << 3)), bytes[position + 2]);
+                HostCheck.Equal((ulong)destination.Context + offsets[register], Target(bytes[position..], address + (uint)position, 3, 7));
+            }
+            HostCheck.True(bytes.Slice(end - 13, 3).SequenceEqual(new byte[] { 0x4c, 0x8b, 0x1d }));
+            HostCheck.Equal((ulong)destination.Context + 104, Target(bytes[(end - 13)..], address + (uint)end - 13, 3, 7));
+            HostCheck.True(bytes.Slice(end - 20, 3).SequenceEqual(new byte[] { 0x48, 0x8b, 0x25 }));
+            HostCheck.Equal((ulong)destination.Context + 72, Target(bytes[(end - 20)..], address + (uint)end - 20, 3, 7));
+            HostCheck.True(unchanged.SequenceEqual(arena.Snapshot()));
+            HostCheck.True(new ReadOnlySpan<byte>(code.Bytes + 1024, 3072).ToArray().All(value => value == 0xa5));
+        }
+    }
+
+    [HostTest("m09.004 emitter rejects invalid aliased incomplete and unreachable plans before output writes", HostLane.Fast, 9)]
+    private static void EmitRejection()
+    {
+        using Buffer arena = new(); using Buffer code = new();
+        var original = Stub(arena, out var owner, out var source, out var destination);
+        byte[] unchanged = code.Snapshot();
+        for (int field = 0; field < 10; field++)
+        {
+            var plan = original;
+            switch (field)
+            {
+                case 0: plan.CallbackContext = (ulong)source.Context; break;
+                case 1: plan.HelperFx += 8; break;
+                case 2: plan.JumpSlot = (ulong)destination.Context; break;
+                case 3: plan.CallbackBytes = 0; break;
+                case 4: plan.RejectRip = owner.CodeStart + plan.CodeOffset; break;
+                case 5: plan.CodeOffset = 4090; break;
+                case 6: plan.AdmissionCallback = 0; break;
+                case 7: plan.JumpSlot = plan.CallbackContext; break;
+                case 8: plan.CallbackBytes = 1025; break;
+                case 9: plan.AdmissionCallback = owner.CodeStart + plan.CodeOffset; break;
+            }
+            HostCheck.True(!ThreadContextSwitch.EmitStub(code.Bytes, 4096, owner, source, destination, plan));
+            HostCheck.True(unchanged.SequenceEqual(code.Snapshot()));
+        }
+        HostCheck.True(!ThreadContextSwitch.EmitStub(code.Bytes, 1023, owner, source, destination, original));
+        byte[] arenaUnchanged = arena.Snapshot();
+        HostCheck.True(!ThreadContextSwitch.EmitStub(arena.Bytes, 4096, owner, source, destination, original));
+        HostCheck.True(arenaUnchanged.SequenceEqual(arena.Snapshot()));
+        var entrySource = source; entrySource.Kind = ThreadContextSwitch.ResumeKind.Entry;
+        source.Context->Rsp -= 8;
+        HostCheck.True(!ThreadContextSwitch.EmitStub(code.Bytes, 4096, owner, entrySource, destination, original));
+        source.Context->Rsp += 8;
+        ulong sourceRip = source.ResumeRip, destinationRip = destination.ResumeRip;
+        source.ResumeRip = owner.CodeStart + original.CodeOffset; source.Context->Rip = source.ResumeRip;
+        HostCheck.True(!ThreadContextSwitch.EmitStub(code.Bytes, 4096, owner, source, destination, original));
+        source.ResumeRip = sourceRip; source.Context->Rip = sourceRip;
+        destination.ResumeRip = owner.CodeStart + original.CodeOffset; destination.Context->Rip = destination.ResumeRip;
+        HostCheck.True(!ThreadContextSwitch.EmitStub(code.Bytes, 4096, owner, source, destination, original));
+        destination.ResumeRip = destinationRip; destination.Context->Rip = destinationRip;
+        byte* helperFx = (byte*)original.HelperFx;
+        helperFx[4] = 1;
+        HostCheck.True(!ThreadContextSwitch.EmitStub(code.Bytes, 4096, owner, source, destination, original));
+        helperFx[4] = 0;
+        *(uint*)(helperFx + 28) ^= 1;
+        HostCheck.True(!ThreadContextSwitch.EmitStub(code.Bytes, 4096, owner, source, destination, original));
+        *(uint*)(helperFx + 28) ^= 1;
+        HostCheck.True(unchanged.SequenceEqual(code.Snapshot()));
+        foreach (bool below in new[] { false, true })
+        {
+            var far = owner; far.CodeStart = below ? owner.ContextArena - 0x100000000 : owner.ContextArena + 0x100000000;
+            source.ResumeRip = far.CodeStart + 0x110; source.Context->Rip = source.ResumeRip;
+            destination.ResumeRip = far.CodeStart + 0x120; destination.Context->Rip = destination.ResumeRip;
+            var plan = original; plan.RejectRip = far.CodeStart + 0xe00;
+            HostCheck.True(!ThreadContextSwitch.EmitStub(code.Bytes, 4096, far, source, destination, plan));
+            HostCheck.True(unchanged.SequenceEqual(code.Snapshot()));
+        }
+    }
+
+    [HostTest("m09.004 emitter compare detects changed executable and padding bytes without mutation", HostLane.Fast, 10)]
+    private static void EmitIdentity()
+    {
+        using Buffer arena = new(); using Buffer code = new();
+        var plan = Stub(arena, out var owner, out var source, out var destination);
+        HostCheck.True(ThreadContextSwitch.EmitStub(code.Bytes, 4096, owner, source, destination, plan));
+        foreach (int position in new[] { 0, 2, 3, 10, 11, 123, 500, 1023 })
+        {
+            code.Bytes[position] ^= 1; byte[] changed = code.Snapshot();
+            HostCheck.True(!ThreadContextSwitch.VerifyStub(code.Bytes, 4096, owner, source, destination, plan));
+            HostCheck.True(changed.SequenceEqual(code.Snapshot())); code.Bytes[position] ^= 1;
+        }
+        HostCheck.True(ThreadContextSwitch.VerifyStub(code.Bytes, 4096, owner, source, destination, plan));
+    }
+
+    [HostTest("m09.004 emitter warmed output and comparison allocate no managed storage", HostLane.Fast, 11)]
+    private static void EmitAllocation()
+    {
+        using Buffer arena = new(); using Buffer code = new();
+        var plan = Stub(arena, out var owner, out var source, out var destination);
+        for (int i = 0; i < 100; i++) _ = ThreadContextSwitch.EmitStub(code.Bytes, 4096, owner, source, destination, plan);
+        long before = GC.GetAllocatedBytesForCurrentThread(); bool passed = true;
+        for (int i = 0; i < 100; i++)
+        {
+            passed &= ThreadContextSwitch.EmitStub(code.Bytes, 4096, owner, source, destination, plan);
+            passed &= ThreadContextSwitch.VerifyStub(code.Bytes, 4096, owner, source, destination, plan);
+        }
+        long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        HostCheck.True(passed); HostCheck.Equal(0L, allocated);
+    }
 }

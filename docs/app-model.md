@@ -86,6 +86,11 @@ admission layer has eight focused checks in [step1213](../done/step1213.md).
 It checks complete contexts, exact retained continuation, guarded stack bounds,
 CPU policy and current ownership before transfer. Native capture/restore,
 profile wiring, cleanup and actual guest proof remain unfinished; #186 is open.
+Its fixed capture/restore byte emitter now passes twelve focused checks in
+[step1214](../done/step1214.md), including independent GPR/FP/ABI/continuation
+vectors and output-preserving plan rejection. The bytes have not executed;
+manual source review is separate from the pending original compiled-native
+inspection. Integration child #719 owns the additional shared wiring.
 No thread has run from these host queues.
 See [PAL deadline ownership](pal.md#deadline-queue-host-contract-185).
 M16-009/#687 owns first pinned NativeAOT Hello acceptance after signal
