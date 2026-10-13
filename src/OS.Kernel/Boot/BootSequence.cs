@@ -260,6 +260,24 @@ public static class BootSequence
         OS.Kernel.Diagnostics.Probes.EnableM16007Probe && OS.Kernel.Diagnostics.Probes.EnableM16006Probe &&
         firmwareAvailable && context != null && prepare != null && prepare(context);
 
+    /// <summary>Reserve the dedicated cooperative diagnostic pool while firmware
+    /// authority remains available. The callback owns preparation/failure cleanup;
+    /// this ordered default-off phase allocates nothing and returns false on refusal.</summary>
+    public static unsafe bool PrepareCooperativeSwitch(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
+        OS.Kernel.Diagnostics.Probes.EnableM09004Probe && OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe &&
+        OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe && firmwareAvailable &&
+        context != null && prepare != null && prepare(context);
+
+    /// <summary>Execute the bounded cooperative diagnostic only after original
+    /// owned subsystem checks and firmware revocation. Its trusted callback must
+    /// prove live resource/CPU ownership, restoration and complete cleanup before
+    /// success. Failure returns false; no thread, timer or transfer is fabricated.</summary>
+    public static unsafe bool RunOwnedCooperativeSwitch(bool ownedChecksComplete, bool firmwareRevoked,
+        void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM09004Probe && OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe &&
+        OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe && ownedChecksComplete && firmwareRevoked &&
+        context != null && run != null && run(context);
+
     /// <summary>Run descriptor syscalls only through the original post-exit
     /// memory/user boundary after startup, service stop and revocation.</summary>
     public static unsafe bool RunOwnedLinuxDescriptors(bool startupReady, bool serviceStopped, bool firmwareRevoked,

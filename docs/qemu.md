@@ -1,5 +1,16 @@
 # QEMU
 
+## Cooperative-transfer development capture
+
+`-BootPolicy Diagnostic -BuildEfi -EnableM09004Probe -TimeoutSeconds 30 -RequireMarker CLROS_M09_004_READY`
+requires an original fresh build/capture; marker replacement, alternate presets
+and unrelated leaves are rejected. The M09 tail follows the original owned
+post-exit parent: allocation, seventeen ordered transfers, restoration, cleanup,
+ready and pass. Validation binds exact continuation offsets and worker stacks,
+original restoration and twenty scrubbed/released pages. Synthetic transcript
+tests exercise parser rejection only. [Step1215](../done/step1215.md) records one
+actual development guest; full/repeat/ancestor acceptance is pending.
+
 Qualified `-EnableM04NormalFinallyProbe` uses the collecting-GC Diagnostic
 prerequisites and excludes every other EH/catalog profile. Before QEMU,
 [step1195](../done/step1195.md) joins the freshly rebuilt original COFF/map/EFI

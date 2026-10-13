@@ -6,12 +6,14 @@ internal static unsafe class ThreadContextSwitchTests
 {
     private sealed class Buffer : IDisposable
     {
-        public readonly byte* Bytes = (byte*)NativeMemory.AlignedAlloc(4096, 4096);
+        public readonly byte* Bytes;
+        private readonly int _length;
         public X64ThreadContext* First => (X64ThreadContext*)Bytes;
         public X64ThreadContext* Second => (X64ThreadContext*)(Bytes + 1024);
-        public Buffer() => new Span<byte>(Bytes, 4096).Fill(0xa5);
+        public Buffer(int pages = 1)
+        { _length = pages * 4096; Bytes = (byte*)NativeMemory.AlignedAlloc((nuint)_length, 4096); new Span<byte>(Bytes, _length).Fill(0xa5); }
         public void Dispose() => NativeMemory.AlignedFree(Bytes);
-        public byte[] Snapshot() => new ReadOnlySpan<byte>(Bytes, 4096).ToArray();
+        public byte[] Snapshot() => new ReadOnlySpan<byte>(Bytes, _length).ToArray();
     }
     private static ThreadContextSwitch.Owner Owner(Buffer buffer) => new()
     {
@@ -357,5 +359,142 @@ internal static unsafe class ThreadContextSwitchTests
         }
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
         HostCheck.True(passed); HostCheck.Equal(0L, allocated);
+    }
+
+    private static ThreadContextSwitch.ProgramPlan Program(Buffer arena)
+    {
+        var owner = Owner(arena); owner.ContextArenaBytes = 8192; owner.CodeStart = (ulong)arena.Bytes + 65536; owner.CodeBytes = 8192;
+        var original = Descriptor((X64ThreadContext*)arena.Bytes, 1, 0xb00000);
+        var first = Descriptor((X64ThreadContext*)(arena.Bytes + 768), 2, 0x900000, ThreadContextSwitch.ResumeKind.Entry);
+        var second = Descriptor((X64ThreadContext*)(arena.Bytes + 1536), 3, 0xa00000, ThreadContextSwitch.ResumeKind.Entry);
+        original.ResumeRip = owner.CodeStart + 26; original.Context->Rip = original.ResumeRip;
+        first.ResumeRip = owner.CodeStart + 0x200; first.Context->Rip = first.ResumeRip;
+        second.ResumeRip = owner.CodeStart + 0x300; second.Context->Rip = second.ResumeRip;
+        byte* helper = arena.Bytes + 3072; new Span<byte>(helper, 512).Clear();
+        *(ushort*)helper = 0x027f; *(uint*)(helper + 24) = 0x1f80; *(uint*)(helper + 28) = owner.ObservedMxcsrMask;
+        return new() { Owner = owner, Original = original, A = first, B = second,
+            Witness = (X64ThreadContext*)(arena.Bytes + 2304), BCount = (ulong)arena.Bytes + 4104,
+            FlagScratch = (ulong)arena.Bytes + 4112, Cycles = 8,
+            RecoveryCallback = 0x2000100, TerminalCallback = 0x2000200,
+            Stub = new() { AdmissionCallback = 0x2000000, CallbackContext = (ulong)arena.Bytes + 4096,
+                CallbackBytes = 2048, HelperFx = (ulong)helper, JumpSlot = (ulong)arena.Bytes + 6144,
+                RejectRip = owner.CodeStart + 0x600 } };
+    }
+
+    [HostTest("m09.004 program independent original and repeated worker continuation vectors", HostLane.Fast, 12)]
+    private static void ProgramVectors()
+    {
+        using Buffer arena = new(2); using Buffer code = new(2); var p = Program(arena);
+        byte[] before = arena.Snapshot();
+        HostCheck.True(ThreadContextSwitch.EmitProgram(code.Bytes, 8192, p));
+        HostCheck.True(ThreadContextSwitch.VerifyProgram(code.Bytes, 8192, p));
+        ReadOnlySpan<byte> bytes = new(code.Bytes, 8192); ulong address = p.Owner.CodeStart;
+        // Direct CALLs point at four independently fixed stubs; instruction after
+        // each is retained by native admission, never inferred from a parked slot.
+        foreach (var call in new[] { (21, 0x800), (0x204, 0xc00), (0x31f, 0x1400), (0x357, 0x1000) })
+        {
+            HostCheck.Equal((byte)0xe8, bytes[call.Item1]);
+            HostCheck.Equal(address + (uint)call.Item2, Target(bytes[call.Item1..], address + (uint)call.Item1, 1, 5));
+        }
+        HostCheck.True(bytes.Slice(0x304, 3).SequenceEqual(new byte[] { 0x9c, 0x8f, 0x05 }));
+        HostCheck.Equal(p.FlagScratch, Target(bytes[0x305..], address + 0x305, 2, 6));
+        HostCheck.True(bytes.Slice(0x30b, 2).SequenceEqual(new byte[] { 0x83, 0x3d }));
+        HostCheck.Equal(p.BCount, Target(bytes[0x30b..], address + 0x30b, 2, 7));
+        HostCheck.Equal((byte)7, bytes[0x311]);
+        HostCheck.True(bytes.Slice(0x312, 2).SequenceEqual(new byte[] { 0x0f, 0x82 }));
+        HostCheck.Equal(address + 0x350, Target(bytes[0x312..], address + 0x312, 2, 6));
+        HostCheck.Equal((ulong)p.Witness, Target(bytes[26..], address + 26, 3, 11));
+        uint[] offsets = { 16, 32, 40, 24, 72, 64, 48, 56, 80, 88, 96, 104, 112, 120, 128, 136 };
+        for (int register = 0; register < 16; register++)
+        {
+            int position = 37 + register * 7;
+            HostCheck.Equal((byte)0x89, bytes[position + 1]);
+            HostCheck.Equal((ulong)p.Witness + offsets[register], Target(bytes[position..], address + (uint)position, 3, 7));
+        }
+        foreach (int offset in new[] { 0x800, 0xc00, 0x1000, 0x1400 })
+            HostCheck.True(bytes.Slice(offset, 3).SequenceEqual(new byte[] { 0x48, 0xc7, 0x05 }));
+        HostCheck.True(before.SequenceEqual(arena.Snapshot()));
+        code.Bytes[0x1fff] ^= 1; HostCheck.True(!ThreadContextSwitch.VerifyProgram(code.Bytes, 8192, p));
+    }
+
+    [HostTest("m09.004 program rejects witness control callback cycle and output aliases atomically", HostLane.Fast, 13)]
+    private static void ProgramRejection()
+    {
+        using Buffer arena = new(2); using Buffer code = new(2); var original = Program(arena);
+        byte[] unchanged = code.Snapshot();
+        for (int field = 0; field < 8; field++)
+        {
+            var p = original;
+            switch (field)
+            {
+                case 0: p.Witness = p.Original.Context; break;
+                case 1: p.BCount = p.FlagScratch; break;
+                case 2: p.FlagScratch = p.Stub.JumpSlot; break;
+                case 3: p.RecoveryCallback = p.Owner.CodeStart; break;
+                case 4: p.TerminalCallback = 0; break;
+                case 5: p.Cycles = 1; break;
+                case 6: p.Cycles = 17; break;
+                case 7: p.Stub.RejectRip++; break;
+            }
+            HostCheck.True(!ThreadContextSwitch.EmitProgram(code.Bytes, 8192, p));
+            HostCheck.True(unchanged.SequenceEqual(code.Snapshot()));
+        }
+        HostCheck.True(!ThreadContextSwitch.EmitProgram(code.Bytes, 8191, original));
+        byte[] arenaUnchanged = arena.Snapshot();
+        HostCheck.True(!ThreadContextSwitch.EmitProgram(arena.Bytes, 8192, original));
+        HostCheck.True(arenaUnchanged.SequenceEqual(arena.Snapshot()));
+    }
+
+    [HostTest("m09.004 byte planning does not turn missing live mapping proof into restore admission", HostLane.Fast, 14)]
+    private static void PlanningProof()
+    {
+        using Buffer arena = new(2); using Buffer code = new(2); var p = Program(arena);
+        p.Owner.GuardsVerified = false; p.Owner.MappingsVerified = false;
+        HostCheck.True(ThreadContextSwitch.EmitProgram(code.Bytes, 8192, p));
+        HostCheck.Equal(ThreadContextSwitch.Status.InvalidOwner, ThreadContextSwitch.Admit(p.Owner, p.Original, p.A));
+        HostCheck.Equal(ThreadContextSwitch.Status.InvalidOwner, ThreadContextSwitch.AdmitResume(p.Owner, p.Original));
+        p.Owner.GuardsVerified = true; p.Owner.MappingsVerified = true;
+        HostCheck.Equal(ThreadContextSwitch.Status.Ok, ThreadContextSwitch.AdmitResume(p.Owner, p.Original));
+    }
+
+    [HostTest("m09.004 privileged helper independent encodings separate observation and FX authority", HostLane.Fast, 15)]
+    private static void HelperVectors()
+    {
+        using Buffer code = new();
+        HostCheck.True(ThreadContextSwitch.EmitObserver(code.Bytes, 4096));
+        ReadOnlySpan<byte> bytes = new(code.Bytes, 512);
+        HostCheck.True(bytes[..9].SequenceEqual(new byte[] { 0xf3, 0x0f, 0x1e, 0xfa, 0x9c, 0x53, 0x49, 0x89, 0xc8 }));
+        for (int word = 0; word < 19; word++)
+        {
+            byte[] store = { 0x49, 0x89, 0x80, (byte)(word * 8), 0, 0, 0 };
+            HostCheck.True(bytes.IndexOf(store) >= 0);
+        }
+        HostCheck.True(bytes.IndexOf(new byte[] { 0x0f, 0xae }) < 0);
+        HostCheck.True(bytes.IndexOf(new byte[] { 0x5b, 0x9d, 0xc3 }) >= 0);
+        HostCheck.True(ThreadContextSwitch.EmitFxSnapshot(code.Bytes, 4096));
+        HostCheck.True(new ReadOnlySpan<byte>(code.Bytes, 5).SequenceEqual(new byte[] { 0x48, 0x0f, 0xae, 1, 0xc3 }));
+        HostCheck.True(ThreadContextSwitch.EmitOwnedSegments(code.Bytes, 4096));
+        bytes = new(code.Bytes, 96);
+        HostCheck.True(bytes.IndexOf(new byte[] { 0x8e, 0xe0 }) >= 0 && bytes.IndexOf(new byte[] { 0x8e, 0xe8 }) >= 0);
+        HostCheck.True(bytes.IndexOf(new byte[] { 0x9d, 0xc3 }) >= 0);
+        byte[] unchanged = code.Snapshot();
+        HostCheck.True(!ThreadContextSwitch.EmitObserver(code.Bytes, 511));
+        HostCheck.True(!ThreadContextSwitch.EmitFxSnapshot(code.Bytes + 1, 16));
+        HostCheck.True(!ThreadContextSwitch.EmitOwnedSegments(code.Bytes, 95));
+        HostCheck.True(unchanged.SequenceEqual(code.Snapshot()));
+    }
+
+    [HostTest("m09.004 mechanical program warmed generation and verification allocate no managed storage", HostLane.Fast, 16)]
+    private static void ProgramAllocation()
+    {
+        using Buffer arena = new(2); using Buffer code = new(2); var p = Program(arena);
+        for (int i = 0; i < 50; i++) _ = ThreadContextSwitch.EmitProgram(code.Bytes, 8192, p);
+        long before = GC.GetAllocatedBytesForCurrentThread(); bool passed = true;
+        for (int i = 0; i < 50; i++)
+        {
+            passed &= ThreadContextSwitch.EmitProgram(code.Bytes, 8192, p);
+            passed &= ThreadContextSwitch.VerifyProgram(code.Bytes, 8192, p);
+        }
+        HostCheck.True(passed); HostCheck.Equal(0L, GC.GetAllocatedBytesForCurrentThread() - before);
     }
 }

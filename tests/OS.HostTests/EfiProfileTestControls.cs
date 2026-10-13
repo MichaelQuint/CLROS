@@ -8,6 +8,34 @@ internal static class EfiProfileTestControls
     {
         reason = string.Empty;
         var admitted = new SortedSet<(int Start, int Length)>();
+        // The cooperative profile borrows ordinary retained pages, independently
+        // of the DMA profiles below. Admit its exact owner/receipt arguments and
+        // ordered post-exit edge; leave every other raw occurrence visible.
+        {
+            string[] symbols = ["M01_LOADED_IMAGE_STACK_PROBE", "M01_LIVE_ALLOCATOR_PROBE", "ACPI_PHYSICAL_DISCOVERY_PROBE",
+                "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE", "M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE", "M09_004_PROBE"];
+            var tree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(source,
+                new Microsoft.CodeAnalysis.CSharp.CSharpParseOptions(preprocessorSymbols: symbols));
+            reason = "M09_004_PROBE:syntax";
+            if (tree.GetDiagnostics().Any(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)) return false;
+            var root = tree.GetRoot();
+            var invocations = root.DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.InvocationExpressionSyntax>().ToArray();
+            var calls = invocations.Where(i => i.Expression.ToString() == call).ToArray();
+            string expected = call.EndsWith(".AllocateOnePage", StringComparison.Ordinal)
+                ? "(allocator,&node,1,1,null,0,0,1,Page)"
+                : "(allocator,&node,1,1,null,0,0,receipts[count-1])";
+            static string Tokens(Microsoft.CodeAnalysis.SyntaxNode node) => string.Concat(node.DescendantTokens().Select(token => token.Text));
+            reason = "M09_004_PROBE:allocator-owner-receipt";
+            if (calls.Length != 1 || Tokens(calls[0].ArgumentList) != expected ||
+                calls[0].Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
+                    .FirstOrDefault()?.Identifier.Text != "RunCooperativeSwitch") return false;
+            var edges = invocations.Where(i => i.Expression.ToString() == "BootSequence.RunOwnedCooperativeSwitch").ToArray();
+            reason = "M09_004_PROBE:ordered-owned-edge";
+            if (edges.Length != 1 || edges[0].Ancestors().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.MethodDeclarationSyntax>()
+                .FirstOrDefault()?.Identifier.Text != "Diagnose" || Tokens(edges[0].ArgumentList) !=
+                "(state->OwnedPhase==2,transition->Mode==FirmwareServicesMode.BootServicesExited&&transition->RetainedFirmwareCallbacksCleared&&state->Arena.Binding->RetainedPointersCleared,state,&RunCooperativeSwitch)") return false;
+            admitted.Add((calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
+        }
         foreach (var (symbol, entry, body) in EfiContracts.OwnedDmaAllocatorProfiles)
         {
             string[] symbols = ["M01_LOADED_IMAGE_STACK_PROBE", "M01_LIVE_ALLOCATOR_PROBE", "ACPI_PHYSICAL_DISCOVERY_PROBE",
@@ -103,6 +131,13 @@ internal static class EfiProfileTestControls
     // Independent expectations shared by cross-profile rejection fixtures.
     internal static string? MissingParentReason(IReadOnlyCollection<string> selected)
     {
+        if (selected.Contains("EnableM09004Probe"))
+        {
+            string[] parents = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
+                "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
+            if (selected.Any(name => name != "EnableM09004Probe" && !parents.Contains(name))) return "m09_004_profile_conflict";
+            if (parents.Any(name => !selected.Contains(name))) return "m09_004_requires_owned_first_exit";
+        }
         if (selected.Contains("EnableM16002Probe") || selected.Contains("EnableM16003Probe") || selected.Contains("EnableM16004Probe") || selected.Contains("EnableM16005Probe") || selected.Contains("EnableM16006Probe") || selected.Contains("EnableM16007Probe"))
         {
             string[] allowed = ["EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
@@ -225,7 +260,8 @@ internal static class EfiProfileTestControls
                     parent == "EnableM16002Probe" ? "m16_004_explicit_false_prerequisite" : "m16_002_explicit_false_prerequisite"),
                     "startup explicit false: " + parent);
             foreach (string conflict in EfiContracts.DiagnosticProbes.Except(allowed))
-                HostCheck.True(ServiceProfileRejected(build, ["--EnableM16004Probe", "--" + conflict], "m16_002_profile_conflict"),
+                HostCheck.True(ServiceProfileRejected(build, ["--EnableM16004Probe", "--" + conflict],
+                    conflict == "EnableM09004Probe" ? "m09_004_profile_conflict" : "m16_002_profile_conflict"),
                     "startup profile conflict: " + conflict);
         }
     }

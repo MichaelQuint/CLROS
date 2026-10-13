@@ -85,13 +85,17 @@ authority remain injected/externally owned. #186's read-only cooperative-switch
 admission layer has eight focused checks in [step1213](../done/step1213.md).
 It checks complete contexts, exact retained continuation, guarded stack bounds,
 CPU policy and current ownership before transfer. Native capture/restore,
-profile wiring, cleanup and actual guest proof remain unfinished; #186 is open.
+and the later qualification requirements remain separate; #186 is open.
 Its fixed capture/restore byte emitter now passes twelve focused checks in
 [step1214](../done/step1214.md), including independent GPR/FP/ABI/continuation
-vectors and output-preserving plan rejection. The bytes have not executed;
+vectors and output-preserving plan rejection. At that checkpoint the bytes had not executed;
 manual source review is separate from the pending original compiled-native
 inspection. Integration child #719 owns the additional shared wiring.
-No thread has run from these host queues.
+The default-off mechanical profile now has one actual seventeen-transfer guest
+with complete original-context and owned-resource restoration in
+[step1215](../done/step1215.md). Thirty-four focused checks pass; full-host,
+repeated captures and ancestors remain pending; scoped original native review is recorded.
+The host queues are not connected to continuing guest scheduling.
 See [PAL deadline ownership](pal.md#deadline-queue-host-contract-185).
 M16-009/#687 owns first pinned NativeAOT Hello acceptance after signal
 startup/delivery, before focused suspension checks; Hello itself starts runtime

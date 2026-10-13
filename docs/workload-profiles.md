@@ -60,7 +60,10 @@ The host-only saved-context layout #183 is qualified in
 FIFO queue is qualified in [step1211](../done/step1211.md) with nine focused
 checks. #185's injected-tick deadline queue is qualified in
 [step1212](../done/step1212.md) with ten focused checks. The next slice is #186's
-actual cooperative transfer. #186-#188 retain actual
+cooperative-transfer qualification. [Step1215](../done/step1215.md) records
+thirty-four focused checks and one actual default-off seventeen-transfer guest
+with complete original-context and pool restoration; full/repeat/ancestor
+qualification remains pending. #186-#188 retain actual
 switching/interrupt/lifecycle guest proof. Exact managed dependencies still
 control the sequence before #686; these foundations do not establish execution.
 The #708/#711 qualification in [step1209](../done/step1209.md) adds explicit

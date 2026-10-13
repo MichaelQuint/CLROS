@@ -21,6 +21,7 @@ public enum PhysicalMappingUsage : byte
 public static unsafe class X64PhysicalMappingPublication
 {
     public const uint RequiredBytes = 164;
+    public const uint GuardRequiredBytes = 174;
     public const uint ReadMsrBytes = 14;
     public const uint ReadCapabilitiesBytes = 55;
     public static uint WritePatBytes => EncodeWritePat(null, 0);
@@ -38,6 +39,33 @@ public static unsafe class X64PhysicalMappingPublication
         byte* expected = stackalloc byte[(int)RequiredBytes];
         if (Encode(expected) != RequiredBytes) return false;
         for (uint i = 0; i < RequiredBytes; i++) if (code[i] != expected[i]) return false;
+        return true;
+    }
+
+    /// <summary>
+    /// Separate publication ABI for canonical absent guards. Exactly zero is
+    /// allowed on either side; every nonzero word must be present. The trusted
+    /// adapter still decodes the complete word, owns the entry/current root and
+    /// keeps all executing code, stack and tables outside the affected page.
+    /// Caller supplies a writable buffer of at least GuardRequiredBytes; a
+    /// rejected span returns false before mutation. Emission is allocation-free
+    /// and grants no execution authority. Original Emit stays present-only.
+    /// </summary>
+    public static bool EmitGuardPublication(byte* destination, uint capacity)
+    {
+        if (EncodeGuard(null) != GuardRequiredBytes || !Admit(destination, capacity, GuardRequiredBytes)) return false;
+        return EncodeGuard(destination) == GuardRequiredBytes;
+    }
+
+    /// <summary>Read-only identity check over a caller-owned readable span that
+    /// stays live for this call. Returns false for rejected spans or byte changes
+    /// without mutation; grants no execution or table-write authority.</summary>
+    public static bool ValidateGuardPublication(byte* code, uint capacity)
+    {
+        if (!Admit(code, capacity, GuardRequiredBytes)) return false;
+        byte* expected = stackalloc byte[(int)GuardRequiredBytes];
+        if (EncodeGuard(expected) != GuardRequiredBytes) return false;
+        for (uint i = 0; i < GuardRequiredBytes; i++) if (code[i] != expected[i]) return false;
         return true;
     }
 
@@ -195,6 +223,42 @@ public static unsafe class X64PhysicalMappingPublication
         Op(code, ref p, 0x00000001b8, 5);           // mov eax,1
         Op(code, ref p, 0xc3, 1);                   // ret
         Op(code, ref p, 0xc3c031, 3);               // fail: xor eax,eax; ret
+        return p;
+    }
+
+    private static uint EncodeGuard(byte* code)
+    {
+        const uint failure = GuardRequiredBytes - 3;
+        uint p = 0;
+        ControlGuards(code, ref p, failure);
+        Op(code, ref p, 0xd8200f, 3);               // mov rax,cr3
+        Op(code, ref p, 0xc8394c, 3);               // cmp rax,r9 (owned root)
+        Branch(code, ref p, 0x85, failure);
+        Op(code, ref p, 0xc98548, 3);               // test rcx,rcx
+        Branch(code, ref p, 0x84, failure);
+        Op(code, ref p, 0x00000007c1f748, 7);       // test rcx,7
+        Branch(code, ref p, 0x85, failure);
+        Op(code, ref p, 0xd28548, 3);               // test rdx,rdx
+        Op(code, ref p, 0x0974, 2);                 // zero skips present-only check
+        Op(code, ref p, 0x01c2f6, 3);               // nonzero old word must be present
+        Branch(code, ref p, 0x84, failure);
+        Op(code, ref p, 0xc0854d, 3);               // test r8,r8
+        Op(code, ref p, 0x0a74, 2);                 // zero skips present-only check
+        Op(code, ref p, 0x01c0f641, 4);             // nonzero new word must be present
+        Branch(code, ref p, 0x84, failure);
+        Op(code, ref p, 0x113948, 3);               // cmp [rcx],rdx (exact expected word)
+        Branch(code, ref p, 0x85, failure);
+        // No failure return follows a write. Revoke, invalidate and install
+        // while the independently owned code/stack/table pages stay mapped.
+        Op(code, ref p, 0xf0ae0f, 3);               // mfence
+        Op(code, ref p, 0xd28949, 3);               // mov r10,rdx
+        Op(code, ref p, 0xfee28349, 4);             // and r10,-2
+        Op(code, ref p, 0x11894c, 3);               // clear present
+        Op(code, ref p, 0xd8220f, 3);               // reload current root
+        Op(code, ref p, 0x01894c, 3);               // install replacement, including zero
+        Op(code, ref p, 0x090f, 2);                 // wbinvd
+        Op(code, ref p, 0x00000001b8, 5); Op(code, ref p, 0xc3, 1);
+        Op(code, ref p, 0xc3c031, 3);
         return p;
     }
 

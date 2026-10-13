@@ -161,18 +161,28 @@ alignment/shadow-space requirements; FS/user-GS bases must be zero or owned.
 The owner must actually verify mappings, guards and lifetime before supplying
 those observations. A copied key or proof field grants no authority. Admission
 rejects malformed, stale or aliased inputs without mutation or allocation.
-Native capture/restore, default-off profile wiring, original-context cleanup,
-full-host/native review and actual guest transfers remain unfinished. #186 is
-open; these checks establish no running thread or scheduler acceptance.
+Those admission checks alone establish no running thread or scheduler acceptance.
 
 [Step1214](../done/step1214.md) adds a fixed C#-authored capture/restore stub
 emitter, with twelve focused checks including independent register/address/ABI
 byte vectors. It saves all GPRs before scratch use, captures the CALL continuation
 and FP state, publishes completion last, admits on a separate stack, then
 restores through an owned indirect JMP. It writes no parked return slot.
-Manual source review is clean; compiled-native inspection and execution remain
-pending. [#719](http://192.168.4.35:3000/admin/CLROS/issues/719) owns additional
+At that checkpoint manual source review was clean; compiled-native inspection
+and execution were pending. [#719](http://192.168.4.35:3000/admin/CLROS/issues/719) owns additional
 shared profile/resource/transcript wiring. Both issues remain open.
+
+[Step1215](../done/step1215.md) records the default-off `EnableM09004Probe`
+development profile. One actual post-exit guest completes seventeen transfers
+across distinct guarded stacks, checks all GPRs, flags, FS/GS, eight nonempty
+x87 registers and sixteen XMM registers, then compares the complete original
+context against an independent restoration witness. It restores pool mappings,
+scrubs twenty borrowed pages and releases their allocator receipts in reverse.
+The retained thirty-two-page backing is not reclaimed firmware memory. Thirty-four
+focused checks pass; full-host qualification, repeat
+captures and ancestor regressions remain pending. This is bounded mechanical
+execution, without timer/preemption, Linux threads/signals, upstream runtime,
+Hello or Kestrel acceptance.
 
 ## Current Status
 

@@ -17,8 +17,12 @@ public static unsafe class ThreadContextSwitch
         InvalidContinuation, InvalidFlags, InvalidTls
     }
     public enum ResumeKind : byte { Entry = 1, CapturedCall = 2 }
-    public const uint Page = 4096;
-    public const uint StubBytes = 1024;
+    public const uint Page = 4096, PoolPages = 32;
+    public const uint StubBytes = 1024, ProgramBytes = 8192;
+    public const uint OriginalResumeOffset = 26, WorkerAEntryOffset = 0x200, WorkerAResumeOffset = 0x209;
+    public const uint WorkerBEntryOffset = 0x300, WorkerBResumeOffset = 0x35c, WorkerBFinalResumeOffset = 0x324;
+    public const uint RecoveryOffset = 0x600, TerminalOffset = 0x780, FirstStubOffset = 0x800;
+    public const uint ObserverBytes = 512, FxSnapshotBytes = 16, OwnedSegmentsBytes = 96, ObservationWords = 19;
     public const ulong AdmittedFlags = 0x00200cd7; // Arithmetic, DF, ID, mandatory bit1; no IF/TF/RF/AC/privilege bits.
 
     /// <summary>
@@ -75,10 +79,209 @@ public static unsafe class ThreadContextSwitch
     }
 
     /// <summary>
+    /// One original driver and two mechanical workers with fixed code labels.
+    /// The callback owns bounded progress and pins the three descriptors/control
+    /// extents. Witness is separate live context-sized storage written by the
+    /// resumed driver before it changes any GPR. BCount and FlagScratch lie in
+    /// callback control storage; the latter retains actual restored flags across
+    /// B's bounded branch, without substituting expected flags. RecoveryCallback
+    /// returns byte1 only after fresh original-context admission, records failure
+    /// and preserves context storage. TerminalCallback is owned no-return failure
+    /// reporting. Both callback addresses need separate RX/image admission.
+    /// These declarations grant no transfer or resource-cleanup authority.
+    /// </summary>
+    public struct ProgramPlan
+    {
+        public Owner Owner;
+        public Descriptor Original, A, B;
+        public StubPlan Stub;
+        public X64ThreadContext* Witness;
+        public ulong BCount, FlagScratch, RecoveryCallback, TerminalCallback;
+        public byte Cycles;
+    }
+
+    /// <summary>
+    /// Emit the fixed original-driver/worker/recovery program into unpublished
+    /// writable caller storage. Planning permits incomplete live mapping proof;
+    /// execution must wait for real RX/RW-NX/guard/CPU/ownership admission. All
+    /// inputs and every dry encoding pass precede any output mutation. No context,
+    /// control count or parked return slot is changed here. Code capacity is8192
+    /// and all embedded data/recovery displacements must fit signed32 bits.
+    /// This program supplies cooperative mechanics only, not timer/preemption,
+    /// lifecycle, synchronization, CPL3, SMP or upstream runtime support.
+    /// </summary>
+    public static bool EmitProgram(byte* output, uint capacity, ProgramPlan plan)
+    {
+        if (!ProgramInputs(output, capacity, plan) || !EncodeProgram(null, plan, false)) return false;
+        return EncodeProgram(output, plan, false);
+    }
+
+    /// <summary>Read-only identity check against the retained mechanical plan.
+    /// Updated entry/captured descriptors may describe the same fixed code after
+    /// execution. Matching bytes is not live mapping or transfer evidence.</summary>
+    public static bool VerifyProgram(byte* output, uint capacity, ProgramPlan plan) =>
+        ProgramInputs(output, capacity, plan) && EncodeProgram(output, plan, true);
+
+    private static bool ProgramInputs(byte* output, uint capacity, ProgramPlan p)
+    {
+        Owner o = p.Owner; ulong witness = (ulong)p.Witness;
+        if (!CodeBuffer(output, capacity, ProgramBytes) || o.CodeBytes < ProgramBytes ||
+            p.Cycles < 2 || p.Cycles > 16 || p.Original.Kind != ResumeKind.CapturedCall ||
+            p.Original.ResumeRip != o.CodeStart + OriginalResumeOffset ||
+            !ProgramContinuation(o, p.A, true) || !ProgramContinuation(o, p.B, false) ||
+            AdmitCore(o, p.Original, p.A, false) != Status.Ok || AdmitCore(o, p.Original, p.B, false) != Status.Ok ||
+            AdmitCore(o, p.A, p.B, false) != Status.Ok ||
+            (witness & 15) != 0 || !Contains(o.ContextArena, o.ContextArenaBytes, witness, X64ThreadContext.Bytes) ||
+            p.Stub.RejectRip != o.CodeStart + RecoveryOffset ||
+            p.RecoveryCallback == 0 || !Canonical(p.RecoveryCallback) || p.TerminalCallback == 0 || !Canonical(p.TerminalCallback) ||
+            Contains(o.CodeStart, ProgramBytes, p.RecoveryCallback, 1) || Contains(o.CodeStart, ProgramBytes, p.TerminalCallback, 1) ||
+            (p.BCount & 3) != 0 || (p.FlagScratch & 7) != 0 ||
+            !Contains(p.Stub.CallbackContext, p.Stub.CallbackBytes, p.BCount, 4) ||
+            !Contains(p.Stub.CallbackContext, p.Stub.CallbackBytes, p.FlagScratch, 8) || Overlap(p.BCount, 4, p.FlagScratch, 8) ||
+            Overlap((ulong)output, ProgramBytes, o.ContextArena, o.ContextArenaBytes) ||
+            Overlap((ulong)output, ProgramBytes, p.Original.StackGuardStart, p.Original.StackBytes) ||
+            Overlap((ulong)output, ProgramBytes, p.A.StackGuardStart, p.A.StackBytes) ||
+            Overlap((ulong)output, ProgramBytes, p.B.StackGuardStart, p.B.StackBytes) ||
+            Overlap((ulong)output, ProgramBytes, o.SwitchStackGuardStart, o.SwitchStackBytes) ||
+            Overlap(witness, X64ThreadContext.Bytes, (ulong)p.Original.Context, p.Original.ContextBytes) ||
+            Overlap(witness, X64ThreadContext.Bytes, (ulong)p.A.Context, p.A.ContextBytes) ||
+            Overlap(witness, X64ThreadContext.Bytes, (ulong)p.B.Context, p.B.ContextBytes) ||
+            Overlap(witness, X64ThreadContext.Bytes, p.Stub.CallbackContext, p.Stub.CallbackBytes) ||
+            Overlap(witness, X64ThreadContext.Bytes, p.Stub.HelperFx, 512) ||
+            Overlap(witness, X64ThreadContext.Bytes, p.Stub.JumpSlot, 8)) return false;
+        for (uint index = 0; index < 4; index++)
+        {
+            uint offset = FirstStubOffset + index * StubBytes;
+            StubPlan stub = p.Stub; stub.CodeOffset = offset;
+            Descriptor from = index == 0 ? p.Original : index == 1 ? p.A : p.B;
+            Descriptor to = index == 0 ? p.A : index == 1 ? p.B : index == 2 ? p.A : p.Original;
+            if (!StubInputs(output + offset, capacity - offset, o, from, to, stub, true)) return false;
+        }
+        return true;
+    }
+    private static bool ProgramContinuation(Owner owner, Descriptor value, bool first) =>
+        value.Kind == ResumeKind.Entry
+            ? value.ResumeRip == owner.CodeStart + (first ? WorkerAEntryOffset : WorkerBEntryOffset)
+            : value.Kind == ResumeKind.CapturedCall && (value.ResumeRip == owner.CodeStart +
+                (first ? WorkerAResumeOffset : WorkerBResumeOffset) || (!first && value.ResumeRip == owner.CodeStart + WorkerBFinalResumeOffset));
+    private static bool EncodeProgram(byte* output, ProgramPlan p, bool compare)
+    {
+        ulong code = p.Owner.CodeStart, witness = (ulong)p.Witness;
+        StubWriter w = new(output, code, compare, FirstStubOffset);
+        w.Bytes(0xfa1e0ff3, 4); w.Bytes(0x9c, 1);
+        w.Bytes(0x57565553, 4); w.Bytes(0x5741564155415441, 8); // outer Win64 nonvolatile GPRs/flags
+        w.Bytes(0x20ec8348, 4); w.Call(code + FirstStubOffset); // return offset26
+        w.Set(witness, 0);
+        for (uint register = 0; register < 16; register++) w.Memory(false, register, witness + RegisterOffset(register));
+        w.Immediate(11, code + OriginalResumeOffset); w.Memory(false, 11, witness + X64ThreadContext.RipOffset);
+        w.Bytes(0x5b419c, 3); w.Memory(false, 11, witness + X64ThreadContext.RflagsOffset);
+        w.Fx(false, witness + X64ThreadContext.FxSaveOffset);
+        w.ReadMsr(0xc0000100); w.Memory(false, 0, witness + X64ThreadContext.FsBaseOffset);
+        w.ReadMsr(0xc0000101); w.Memory(false, 0, witness + X64ThreadContext.UserGsBaseOffset);
+        w.Set(witness + X64ThreadContext.ReservedOffset, 0); w.Set(witness, 1);
+        w.Bytes(0x20c48348, 4); w.Bytes(0x5c415d415e415f41, 8); w.Bytes(0x5b5d5e5f, 4);
+        w.Bytes(0x9d, 1); w.Bytes(0x00000001b8, 5); w.Bytes(0xc3, 1);
+
+        w.Pad(WorkerAEntryOffset); w.Bytes(0x28ec8348, 4); // entry8mod16 -> cooperative CALL0mod16
+        w.Call(code + FirstStubOffset + StubBytes); w.Jump(code + WorkerAEntryOffset + 4);
+        w.Pad(WorkerBEntryOffset); w.Bytes(0x28ec8348, 4);
+        w.Bytes(0x9c, 1); w.PopMemory(p.FlagScratch); // actual flags before count branch; no GPR scratch
+        w.CompareByteLimit(p.BCount, (byte)(p.Cycles - 1)); w.Below(code + 0x350);
+        w.PushMemory(p.FlagScratch); w.Bytes(0x9d, 1);
+        w.Call(code + FirstStubOffset + 3 * StubBytes); w.Jump(code + RecoveryOffset);
+        w.Pad(0x350); w.PushMemory(p.FlagScratch); w.Bytes(0x9d, 1);
+        w.Call(code + FirstStubOffset + 2 * StubBytes); w.Jump(code + WorkerBEntryOffset + 4);
+
+        w.Pad(RecoveryOffset); w.Bytes(0xfc, 1); w.Fx(true, p.Stub.HelperFx);
+        w.Immediate(1, p.Stub.CallbackContext); w.Immediate(2, (ulong)p.Original.Context);
+        w.Immediate(11, p.RecoveryCallback);
+        w.Bytes(0x20ec8348, 4); w.Bytes(0xd3ff41, 3); w.Bytes(0x20c48348, 4);
+        w.Bytes(0x013c, 2); w.Reject(code + TerminalOffset);
+        Restore(ref w, (ulong)p.Original.Context, p.Stub.JumpSlot, code + TerminalOffset);
+        w.Pad(TerminalOffset); w.Bytes(0xfc, 1); w.Fx(true, p.Stub.HelperFx);
+        w.Immediate(1, p.Stub.CallbackContext); w.Immediate(11, p.TerminalCallback);
+        w.Bytes(0x20ec8348, 4); w.Bytes(0xd3ff41, 3); w.Bytes(0x0b0f, 2); // no-return owner report; UD2 on violation
+        w.Pad(); if (!w.Valid) return false;
+        for (uint index = 0; index < 4; index++)
+        {
+            uint offset = FirstStubOffset + index * StubBytes; StubPlan stub = p.Stub; stub.CodeOffset = offset;
+            Descriptor from = index == 0 ? p.Original : index == 1 ? p.A : p.B;
+            Descriptor to = index == 0 ? p.A : index == 1 ? p.B : index == 2 ? p.A : p.Original;
+            StubWriter part = new(output == null ? null : output + offset, code + offset, compare);
+            if (!EncodeStub(ref part, p.Owner, from, to, stub)) return false;
+        }
+        StubWriter tail = new(output == null ? null : output + 0x1800, code + 0x1800, compare, ProgramBytes - 0x1800);
+        tail.Pad(); return tail.Valid;
+    }
+
+    /// <summary>Emit a CPL0 Win64 void(ulong[19]*) CPU/selector/MSR observation
+    /// leaf. The owner pins mapped output before calling. It preserves RBX/flags,
+    /// executes no FX instruction and changes no CPU control state. Unsupported
+    /// CPU facts are rejected by subsequent admission, not normalized to success.</summary>
+    public static bool EmitObserver(byte* output, uint capacity)
+    {
+        if (!CodeBuffer(output, capacity, ObserverBytes)) return false;
+        StubWriter w = new(output, (ulong)output, false, ObserverBytes);
+        w.Bytes(0xfa1e0ff3, 4); w.Bytes(0x539c, 2); w.Bytes(0xc88949, 3); // flags/RBX; r8=output
+        w.Bytes(0xc0200f, 3); ObservationStore(ref w, 0);
+        w.Bytes(0xd8200f, 3); ObservationStore(ref w, 1);
+        w.Bytes(0xe0200f, 3); ObservationStore(ref w, 2);
+        w.Bytes(0x0824448b48, 5); ObservationStore(ref w, 3);
+        w.Bytes(0xc031, 2); w.Bytes(0xc88c66, 3); ObservationStore(ref w, 4);
+        w.Bytes(0xc031, 2); w.Bytes(0xd08c66, 3); ObservationStore(ref w, 5);
+        w.Bytes(0xc031, 2); w.Bytes(0xc8000f66, 4); ObservationStore(ref w, 6);
+        w.Bytes(0x00000001b8, 5); w.Bytes(0xc931, 2); w.Bytes(0xa20f, 2);
+        w.Bytes(0xd089, 2); ObservationStore(ref w, 7); w.Bytes(0xd889, 2); ObservationStore(ref w, 8);
+        w.Bytes(0x80000000b8, 5); w.Bytes(0xc931, 2); w.Bytes(0xa20f, 2); ObservationStore(ref w, 9);
+        w.Bytes(0x80000001b8, 5); w.Bytes(0xc931, 2); w.Bytes(0xa20f, 2); w.Bytes(0xd089, 2); ObservationStore(ref w, 10);
+        w.ReadMsr(0xc0000080); ObservationStore(ref w, 11);
+        for (uint index = 0; index < 3; index++) { w.ReadMsr(0xc0000100 + index); ObservationStore(ref w, 12 + index); }
+        for (uint index = 0; index < 4; index++)
+        {
+            w.Bytes(0xc031, 2); w.Bytes(index == 0 ? 0xe08c66UL : index == 1 ? 0xe88c66UL : index == 2 ? 0xd88c66UL : 0xc08c66UL, 3);
+            ObservationStore(ref w, 15 + index);
+        }
+        w.Bytes(0xc39d5b, 3); w.Pad(); return w.Valid;
+    }
+    private static void ObservationStore(ref StubWriter w, uint word)
+    { w.Bytes(0x808949, 3); w.Bytes(word * 8, 4); } // mov [r8+disp32],rax
+    /// <summary>Emit a Win64 CPL0 void(aligned512-byte-output*) FXSAVE64 leaf.
+    /// The owner must first admit CPU FXSR/CR0/CR4 and the writable mapped output;
+    /// no callback, allocation or CPU-control change occurs. It preserves flags.</summary>
+    public static bool EmitFxSnapshot(byte* output, uint capacity)
+    {
+        if (!CodeBuffer(output, capacity, FxSnapshotBytes)) return false;
+        StubWriter w = new(output, (ulong)output, false, FxSnapshotBytes);
+        w.Bytes(0x01ae0f48, 4); w.Bytes(0xc3, 1); w.Pad(); return w.Valid;
+    }
+    /// <summary>Emit a CPL0 Win64 leaf establishing owned NULL FS/GS selectors
+    /// while preserving their full bases and caller flags. The trusted owner must
+    /// admit the current GDT/MSRs and call once before the restoration baseline;
+    /// this is not restoration of old firmware selector caches.</summary>
+    public static bool EmitOwnedSegments(byte* output, uint capacity)
+    {
+        if (!CodeBuffer(output, capacity, OwnedSegmentsBytes)) return false;
+        StubWriter w = new(output, (ulong)output, false, OwnedSegmentsBytes);
+        w.Bytes(0xfa1e0ff3, 4); w.Bytes(0x9c, 1);
+        for (uint index = 0; index < 2; index++)
+        {
+            w.ReadMsr(0xc0000100 + index); w.Bytes(0xc08949, 3); w.Bytes(0xc031, 2);
+            w.Bytes(index == 0 ? 0xe08eUL : 0xe88eUL, 2); w.Bytes(0xc0894c, 3);
+            w.Bytes(0xb9, 1); w.Bytes(0xc0000100 + index, 4); w.Bytes(0xc28948, 3); w.Bytes(0x20eac148, 4); w.Bytes(0x300f, 2);
+        }
+        w.Bytes(0xc39d, 2); w.Pad(); return w.Valid;
+    }
+    private static bool CodeBuffer(byte* output, uint capacity, uint bytes) =>
+        capacity >= bytes && ((ulong)output & 15) == 0 && Range((ulong)output, bytes);
+
+    /// <summary>
     /// Emit bounded CPL0 cooperative capture/admission/restore bytes into live
     /// writable unpublished storage. Code uses the declared execution address,
     /// which may differ from the output alias. All validation and a dry encoding
-    /// precede mutation. The owner must publish RX code, RW/NX data and guarded
+    /// precede mutation. Emission checks declared shapes and observed CPU values;
+    /// it does not require completed live mapping/guard proof before writing
+    /// unpublished writable code. Admit/AdmitResume still require that proof.
+    /// The owner must publish RX code, RW/NX data and guarded
     /// stacks under the admitted root, enter only by CALL on the declared source
     /// stack with IRQs off, and verify callback/recovery code before execution.
     /// This writes no context or parked return slot and executes no instruction.
@@ -109,9 +312,10 @@ public static unsafe class ThreadContextSwitch
     }
 
     private static bool StubInputs(byte* output, uint capacity, Owner owner, Descriptor source,
-        Descriptor destination, StubPlan plan)
+        Descriptor destination, StubPlan plan, bool allowInitialEntrySource = false)
     {
-        if (Admit(owner, source, destination) != Status.Ok || source.Kind != ResumeKind.CapturedCall ||
+        if (AdmitCore(owner, source, destination, false) != Status.Ok ||
+            (!allowInitialEntrySource && source.Kind != ResumeKind.CapturedCall) ||
             capacity < StubBytes || ((ulong)output & 15) != 0 || !Range((ulong)output, StubBytes) ||
             Overlap((ulong)output, StubBytes, owner.ContextArena, owner.ContextArenaBytes) ||
             Overlap((ulong)output, StubBytes, source.StackGuardStart, source.StackBytes) ||
@@ -162,9 +366,14 @@ public static unsafe class ThreadContextSwitch
         w.Immediate(11, plan.AdmissionCallback);
         w.Bytes(0x20ec8348, 4); w.Bytes(0xd3ff41, 3); w.Bytes(0x20c48348, 4); // Win64 shadow, CALL r11.
         w.Bytes(0x013c, 2); w.Reject(plan.RejectRip); // Exactly byte1 means fresh admission.
-        w.Memory(true, 0, to + X64ThreadContext.RipOffset); w.Memory(false, 0, plan.JumpSlot);
-        w.Memory(true, 0, to + X64ThreadContext.FsBaseOffset); w.WriteVerifyMsr(0xc0000100, plan.RejectRip);
-        w.Memory(true, 0, to + X64ThreadContext.UserGsBaseOffset); w.WriteVerifyMsr(0xc0000101, plan.RejectRip);
+        Restore(ref w, to, plan.JumpSlot, plan.RejectRip);
+        w.Pad(); return w.Valid;
+    }
+    private static void Restore(ref StubWriter w, ulong to, ulong jumpSlot, ulong rejectRip)
+    {
+        w.Memory(true, 0, to + X64ThreadContext.RipOffset); w.Memory(false, 0, jumpSlot);
+        w.Memory(true, 0, to + X64ThreadContext.FsBaseOffset); w.WriteVerifyMsr(0xc0000100, rejectRip);
+        w.Memory(true, 0, to + X64ThreadContext.UserGsBaseOffset); w.WriteVerifyMsr(0xc0000101, rejectRip);
         w.Fx(true, to + X64ThreadContext.FxSaveOffset);
         w.Bytes(0x35ff, 2); w.Displacement(to + X64ThreadContext.RflagsOffset, 4); w.Bytes(0x9d, 1);
         // Only MOV/JMP follows restored flags. RSP and scratch r11 are restored
@@ -172,8 +381,7 @@ public static unsafe class ThreadContextSwitch
         for (uint register = 0; register < 16; register++)
             if (register != 4 && register != 11) w.Memory(true, register, to + RegisterOffset(register));
         w.Memory(true, 4, to + X64ThreadContext.RspOffset); w.Memory(true, 11, to + X64ThreadContext.R11Offset);
-        w.Bytes(0x25ff, 2); w.Displacement(plan.JumpSlot, 4);
-        w.Pad(); return w.Valid;
+        w.Bytes(0x25ff, 2); w.Displacement(jumpSlot, 4);
     }
     private static uint RegisterOffset(uint register) => register switch
     {
@@ -187,23 +395,33 @@ public static unsafe class ThreadContextSwitch
     {
         private byte* _output;
         private ulong _address;
+        private uint _limit;
         private bool _compare, _valid;
         private uint _position;
-        public StubWriter(byte* output, ulong address, bool compare)
-        { _output = output; _address = address; _compare = compare; _valid = true; _position = 0; }
-        public bool Valid => _valid && _position == StubBytes;
+        public StubWriter(byte* output, ulong address, bool compare, uint limit = StubBytes)
+        { _output = output; _address = address; _compare = compare; _limit = limit; _valid = true; _position = 0; }
+        public bool Valid => _valid && _position == _limit;
         public void Bytes(ulong value, int count)
         {
             for (int i = 0; i < count; i++, _position++)
             {
-                if (_position >= StubBytes) { _valid = false; continue; }
+                if (_position >= _limit) { _valid = false; continue; }
                 byte next = (byte)(value >> (i * 8));
                 if (_output == null) continue;
                 if (_compare) { if (_output[_position] != next) _valid = false; }
                 else _output[_position] = next;
             }
         }
-        public void Pad() { while (_position < StubBytes) Bytes(0xcc, 1); }
+        public void Pad() => Pad(_limit);
+        public void Pad(uint target)
+        { if (_position > target || target > _limit) _valid = false; while (_position < target && _position < _limit) Bytes(0xcc, 1); }
+        public void Call(ulong target) { Bytes(0xe8, 1); Displacement(target, 4); }
+        public void Jump(ulong target) { Bytes(0xe9, 1); Displacement(target, 4); }
+        public void Below(ulong target) { Bytes(0x820f, 2); Displacement(target, 4); }
+        public void PushMemory(ulong target) { Bytes(0x35ff, 2); Displacement(target, 4); }
+        public void PopMemory(ulong target) { Bytes(0x058f, 2); Displacement(target, 4); }
+        public void CompareByteLimit(ulong target, byte limit)
+        { Bytes(0x3d83, 2); Displacement(target, 5); Bytes(limit, 1); } // cmp dword [rip+disp32],imm8
         public void Displacement(ulong target, uint trailingBytes)
         {
             ulong next = _address + _position + trailingBytes;
@@ -239,10 +457,18 @@ public static unsafe class ThreadContextSwitch
     /// No hardware read, mapping or privileged instruction occurs. Rejection
     /// changes no input; valid-looking pointers still require mapped storage.
     /// </summary>
-    public static Status AdmitOwner(Owner owner)
+    public static Status AdmitOwner(Owner owner) => OwnerShape(owner, true);
+
+    /// <summary>Validate declared ranges and independently observed CPU/root
+    /// values before emitting or publishing a plan. Live guard/mapping proof is
+    /// intentionally not established here; resume admission still requires it.</summary>
+    public static Status AdmitPlan(Owner owner) => OwnerShape(owner, false);
+
+    private static Status OwnerShape(Owner owner, bool requireMappingProof)
     {
         if (!owner.Initialized) return Status.Uninitialized;
-        if (owner.Key == 0 || owner.Key != owner.CurrentKey || !owner.GuardsVerified || !owner.MappingsVerified)
+        if (owner.Key == 0 || owner.Key != owner.CurrentKey ||
+            (requireMappingProof && (!owner.GuardsVerified || !owner.MappingsVerified)))
             return Status.InvalidOwner;
         if (!Root(owner.Root) || owner.Root != owner.CurrentRoot) return Status.InvalidRoot;
         if (owner.CpuCount != 1 || owner.Cs != 8 || owner.Ss != 16 || owner.Tr != 24 || owner.Fs != 0 || owner.Gs != 0 ||
@@ -273,8 +499,22 @@ public static unsafe class ThreadContextSwitch
     /// admission result; never count Ok as execution evidence.
     /// </summary>
     public static Status Admit(Owner owner, Descriptor source, Descriptor destination)
+        => AdmitCore(owner, source, destination, true);
+
+    /// <summary>Read-only admission of one complete resume context for the trusted
+    /// original-context recovery path. The same live ownership/mapping/CPU proof
+    /// is required; this neither captures nor authorizes execution on its own.</summary>
+    public static Status AdmitResume(Owner owner, Descriptor value)
     {
         Status status = AdmitOwner(owner);
+        if (status != Status.Ok) return status;
+        status = Shape(owner, value);
+        return status != Status.Ok ? status : Values(owner, value);
+    }
+
+    private static Status AdmitCore(Owner owner, Descriptor source, Descriptor destination, bool requireMappingProof)
+    {
+        Status status = OwnerShape(owner, requireMappingProof);
         if (status != Status.Ok) return status;
         status = Shape(owner, source);
         if (status != Status.Ok) return status;

@@ -1,5 +1,16 @@
 # EFI Build
 
+## Cooperative-transfer development profile
+
+`dotnet run --project tools/OS.Tooling -- efi build -BootPolicy Diagnostic -EnableM09004Probe`
+selects a default-off mechanical cooperative diagnostic and its five original
+loaded-stack/live-allocator/ACPI/real-exit/owned-survival prerequisites. Explicitly
+disabled parents and unrelated diagnostic leaves are rejected. The build links
+the audited M09 saved context and transfer emitter explicitly; normal EFI
+no-stdlib rules remain in force. [Step1215](../done/step1215.md) records a successful
+development publish and one actual guest; full/repeat/ancestor
+qualification is pending. No Linux threading or upstream workload acceptance.
+
 Qualified `--EnableM16005Probe` selects the default-off mechanical CPL3 syscall
 Diagnostic and automatically requires M16-002/003/004. QEMU acceptance requires
 `qemu smoke -BuildEfi -EnableM16005Probe -LinuxElfPackage <fixture.pkg>` with a

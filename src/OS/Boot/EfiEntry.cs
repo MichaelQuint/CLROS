@@ -1,5 +1,10 @@
 global using System;
 
+#if M09_004_PROBE
+using Cooperative = OS.Kernel.Threading.ThreadContextSwitch;
+using SavedContext = OS.Kernel.Threading.X64ThreadContext;
+#endif
+
 #if M04_LAYOUT_CONTRACT_PROBE
 using OS.Kernel.Runtime;
 #endif
@@ -91,6 +96,10 @@ public static unsafe class EfiEntry
             internal ulong PreparationCheckpoint;
             internal uint TableMemoryType;
             internal fixed ulong PageMetadata[(int)TablePages * 3]; // 24 bytes per page, naturally aligned
+#if M09_004_PROBE
+            internal ulong CooperativePool;
+            internal uint CooperativePhase;
+#endif
 #if M16_002_PROBE
             internal ulong LinuxPackage;
             internal uint LinuxBytes, LinuxPages, LinuxClosedHandles, LinuxReadCalls, LinuxLedgerCount, LinuxOwnedPhase;
@@ -375,6 +384,12 @@ public static unsafe class EfiEntry
                 !FirstExitImageMappings.Contains(ranges, count, references.CopiedAcpi, references.CopiedAcpiBytes, PageProtection.Read | PageProtection.Write) ||
                 !FirstExitImageMappings.Contains(ranges, count, references.AllocatorState, references.AllocatorStateBytes, PageProtection.Read | PageProtection.Write)) return false;
             ulong image = ranges[0].Start, imageBytes = capture.Range.ImageSize;
+#if M09_004_PROBE
+            state->PreparationCheckpoint = 34;
+            if (!BootSequence.PrepareCooperativeSwitch(state->Phase == 2, state, &PrepareCooperativePool)) return false;
+            references.CooperativePoolStart = state->CooperativePool;
+            references.CooperativePoolPages = OS.Kernel.Threading.ThreadContextSwitch.PoolPages;
+#endif
 #if M16_002_PROBE
             state->PreparationCheckpoint = 35;
             if (!BootSequence.StageLinuxElfPackage(state->Phase == 2, state, &ReadLinuxPackage)) return false;
@@ -697,6 +712,163 @@ public static unsafe class EfiEntry
             address = candidate;
             return true;
         }
+
+#if M09_004_PROBE
+        // Pre-exit reservation only. Retain every successful firmware allocation
+        // before validating its extent; this slice supplies no post-exit release.
+        private static bool PrepareCooperativePool(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state == null || state->Phase != 2 || state->CooperativePool != 0 || state->SystemTable == null ||
+                !M01StageOneAdapter.TryGetOriginalTypeManagerImage(out var capture, out _) ||
+                capture.Range.ImageBase.TryGetRawValueForUefiBoundary(out ulong image) != AddressValueStatus.Success ||
+                !M01StageTwoAdapter.TryGetOriginalExitAllocator(out _, out var allocator)) return false;
+            EfiBootServices* services = state->SystemTable->BootServices;
+            if (services == null || services->AllocatePages == null) return false;
+            ulong candidate = 0xffffffff;
+            ulong pages = OS.Kernel.Threading.ThreadContextSwitch.PoolPages, bytes = pages * Page;
+            if (services->AllocatePages(1, 2, pages, &candidate) != 0) return false;
+            state->CooperativePool = candidate;
+            if (candidate < Page || (candidate & (Page - 1)) != 0 || candidate > 0x100000000UL - bytes ||
+                !Disjoint(candidate, bytes, image, capture.Range.ImageSize) ||
+                !Disjoint(candidate, bytes, allocator.Start, allocator.PageCount * Page)) return false;
+            for (ulong i = 0; i < bytes; i++) ((byte*)candidate)[i] = 0;
+            return true;
+        }
+
+        // Private IRQ-off owner path. The out target is a distinct caller local.
+        // Strict decoding admits supervisor WB tables with RW/NX-clear parents;
+        // all targets stay in the original retained arena, never a foreign table.
+        private static bool CooperativeFindLeaf(Storage* state, ulong address, out ulong* leaf)
+        {
+            leaf = null;
+            fixed (Storage* retained = &s_storage) if (state != retained) return false;
+            if (state->Phase != 4 || !state->Arena.IsReady ||
+                state->Arena.Transition->Mode != FirmwareServicesMode.BootServicesExited ||
+                !state->Arena.Transition->RetainedFirmwareCallbacksCleared || !state->Arena.Binding->RetainedPointersCleared)
+                return false;
+            FirstExitDiagnosticMemory memory = state->Memory;
+            ulong pool = state->CooperativePool, poolBytes = Cooperative.PoolPages * Page;
+            if (pool < Page || (pool & (Page - 1)) != 0 || pool > 0x100000000UL - poolBytes ||
+                memory.References.CooperativePoolStart != pool || memory.References.CooperativePoolPages != Cooperative.PoolPages ||
+                address < pool || address - pool >= poolBytes || (address & (Page - 1)) != 0 ||
+                memory.Tables.ArenaPageCount != TablePages || memory.PageCapacity != TablePages || memory.EntryCapacity != TablePages * 512 ||
+                memory.Pages != (X64PageTableImagePage*)state->PageMetadata ||
+                memory.Tables.ArenaStart.TryGetRawValueForHardwareRegisterBoundary(out ulong root) != AddressValueStatus.Success ||
+                root != (ulong)memory.Entries || root < Page || root > 0x100000000UL - TablePages * Page || (root & (Page - 1)) != 0 ||
+                !Disjoint(pool, poolBytes, root, TablePages * Page) ||
+                !Disjoint(pool, poolBytes, (ulong)memory.Code, FirstExitCodeBundle.Bytes) ||
+                !Disjoint(pool, poolBytes, (ulong)state, (ulong)sizeof(Storage)) ||
+                !Disjoint(pool, poolBytes, (ulong)state->Arena.Storage, FirstExitOwnedArena.Bytes) ||
+                SeparateDisabledDefaultPageFaultPageTables.ValidateRequest(memory.Tables) != SeparatePageFaultPageTableStatus.Success ||
+                !FirstExitCodeBundle.ValidateInstalledReadBack(memory.Code, FirstExitCodeBundle.Bytes, ref state->Arena,
+                    memory.Capture, memory.Mapping, memory.References.FaultCallback) || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            ulong* observed = stackalloc ulong[(int)Cooperative.ObservationWords];
+            ((delegate* unmanaged<ulong*, void>)(memory.Code + FirstExitCodeBundle.CooperativeObserveOffset))(observed);
+            if (observed[1] != root || (observed[0] & 0x8001000dUL) != 0x80010001UL || (observed[0] & 0x60000000UL) != 0 ||
+                (observed[2] & ~0x7ffUL) != 0 || (observed[2] & 0x220UL) != 0x220UL || (observed[2] & 0x80UL) != 0 ||
+                (observed[3] & 2) == 0 || (observed[3] & ~Cooperative.AdmittedFlags) != 0 || (observed[3] & 0x400UL) != 0 ||
+                observed[4] != 8 || observed[5] != 16 || observed[6] != 24 ||
+                (observed[7] & 0x07000000UL) != 0x07000000UL ||
+                ((observed[7] & 0x10000000UL) != 0 && ((observed[8] >> 16) & 255) != 1) ||
+                observed[9] < 0x80000001UL || (observed[10] & 0x20100000UL) != 0x20100000UL ||
+                (observed[11] & 0xd00UL) != 0xd00UL || observed[15] != 0 || observed[16] != 0 ||
+                observed[17] != 16 || observed[18] != 16) return false;
+            ulong table = root, visited = 0;
+            for (int level = 4; level >= 1; level--)
+            {
+                ulong page = (table - root) / Page, bit = 1UL << (int)page;
+                if ((visited & bit) != 0) return false;
+                visited |= bit;
+                ulong* slot = memory.Entries + page * 512 + ((address >> (12 + 9 * (level - 1))) & 511);
+                var decoded = X64PageTableEntry.TryDecode((X64PageTableLevel)level, *slot, memory.Tables.Preconditions);
+                if (!decoded.Succeeded) return false;
+                if (level == 1)
+                {
+                    if (decoded.Kind != X64PageTableEntryKind.Unmapped &&
+                        (decoded.Kind != X64PageTableEntryKind.Leaf || decoded.PageSizeBytes != Page || decoded.CachePolicy != PageCachePolicy.WriteBack ||
+                        decoded.PhysicalAddress.TryGetRawValueForHardwareRegisterBoundary(out ulong physical) != AddressValueStatus.Success || physical != address)) return false;
+                    leaf = slot;
+                    return true;
+                }
+                if (decoded.Kind != X64PageTableEntryKind.TablePointer || decoded.CachePolicy != PageCachePolicy.WriteBack ||
+                    decoded.PhysicalAddress.TryGetRawValueForHardwareRegisterBoundary(out ulong next) != AddressValueStatus.Success ||
+                    next < root || next - root >= TablePages * Page || (next & (Page - 1)) != 0) return false;
+                table = next;
+            }
+            return false;
+        }
+
+        // Originals and out flag are distinct caller locals on the retained main
+        // stack. A complete validated snapshot precedes any publication. False may
+        // leave a partial layout; the caller restores whenever originalsCaptured.
+        private static bool CooperativeSetPoolMappings(Storage* state, ulong* original, bool publish, out bool originalsCaptured)
+        {
+            originalsCaptured = false;
+            fixed (Storage* retained = &s_storage) if (state != retained) return false;
+            const ulong savedBytes = Cooperative.PoolPages * 8UL;
+            if (original == null || ((ulong)original & 7) != 0 ||
+                !FirstExitOwnedArena.InMainStack(state->Arena, (ulong)original, savedBytes)) return false;
+            ulong* captured = stackalloc ulong[(int)Cooperative.PoolPages];
+            ulong* replacement = stackalloc ulong[(int)Cooperative.PoolPages];
+            ulong** slots = stackalloc ulong*[(int)Cooperative.PoolPages];
+            ulong root = (ulong)state->Memory.Entries;
+            for (uint page = 0; page < Cooperative.PoolPages; page++)
+            {
+                ulong address = state->CooperativePool + page * Page;
+                if (!CooperativeFindLeaf(state, address, out slots[page])) return false;
+                ulong saved = publish ? *slots[page] : original[page];
+                var baseline = X64PageTableEntry.TryDecode(X64PageTableLevel.Pte, saved, state->Memory.Tables.Preconditions);
+                if (!baseline.Succeeded || baseline.Kind != X64PageTableEntryKind.Leaf ||
+                    baseline.Protection != (PageProtection.Read | PageProtection.Write) || baseline.CachePolicy != PageCachePolicy.WriteBack ||
+                    baseline.PhysicalAddress.TryGetRawValueForHardwareRegisterBoundary(out ulong physical) != AddressValueStatus.Success || physical != address) return false;
+                captured[page] = saved;
+                bool guard = page is 4 or 13 or 14 or 16 or 17 or 19;
+                var code = X64PageTableEntry.TryReencodeLeafProtection(X64PageTableLevel.Pte, saved,
+                    PageProtection.Read | PageProtection.Execute, X64HardwareStatePolicy.Preserve, state->Memory.Tables.Preconditions);
+                if (page < 2 && !code.Succeeded) return false;
+                ulong published = guard ? 0 : page < 2 ? code.Entry.RawValue : saved;
+                ulong current = *slots[page];
+                if (!publish && (current & ~0x60UL) != (saved & ~0x60UL) &&
+                    (guard ? current != 0 : (current & ~0x60UL) != (published & ~0x60UL))) return false;
+                replacement[page] = publish ? published : saved;
+            }
+            if (publish) for (uint page = 0; page < Cooperative.PoolPages; page++) original[page] = captured[page];
+            originalsCaptured = true;
+            var update = (delegate* unmanaged<ulong*, ulong, ulong, ulong, uint>)(state->Memory.Code + FirstExitCodeBundle.CooperativePublishOffset);
+            for (uint page = 0; page < Cooperative.PoolPages; page++)
+            {
+                ulong expected = *slots[page], desired = replacement[page];
+                if (expected == desired) continue;
+                if (update(slots[page], expected, desired, root) != 1) return false;
+                ulong actual = *slots[page];
+                if (desired == 0 ? actual != 0 : (actual & ~0x60UL) != (desired & ~0x60UL)) return false;
+            }
+            return CooperativeAuditPool(state, publish);
+        }
+
+        // Audit actual retained PTEs and live CR3, not range declarations. WB is
+        // decoded against the retained PAT token; unchanged live PAT/MTRR policy
+        // and complete-operation serialization remain the trusted owner's duty.
+        private static bool CooperativeAuditPool(Storage* state, bool published)
+        {
+            fixed (Storage* retained = &s_storage) if (state != retained) return false;
+            for (uint page = 0; page < Cooperative.PoolPages; page++)
+            {
+                ulong address = state->CooperativePool + page * Page;
+                if (!CooperativeFindLeaf(state, address, out ulong* leaf)) return false;
+                ulong raw = *leaf;
+                bool guard = published && page is 4 or 13 or 14 or 16 or 17 or 19;
+                if (guard) { if (raw != 0) return false; continue; }
+                var decoded = X64PageTableEntry.TryDecode(X64PageTableLevel.Pte, raw, state->Memory.Tables.Preconditions);
+                PageProtection expected = published && page < 2 ? PageProtection.Read | PageProtection.Execute : PageProtection.Read | PageProtection.Write;
+                if (!decoded.Succeeded || decoded.Kind != X64PageTableEntryKind.Leaf || decoded.Protection != expected ||
+                    decoded.CachePolicy != PageCachePolicy.WriteBack || decoded.PageSizeBytes != Page ||
+                    decoded.PhysicalAddress.TryGetRawValueForHardwareRegisterBoundary(out ulong physical) != AddressValueStatus.Success || physical != address) return false;
+            }
+            return true;
+        }
+#endif
 
 #if M16_002_PROBE
         // UEFI 2.11 sections 13.4/13.5. These interfaces are stack-local and
@@ -1752,6 +1924,332 @@ public static unsafe class EfiEntry
             return true;
         }
 
+#if M09_004_PROBE
+        private struct CooperativeControl
+        {
+            internal Storage* State;
+            internal Cooperative.ProgramPlan Plan;
+            internal uint Phase, ACount, BCount, Transfers;
+            internal ulong BranchFlags;
+            internal fixed ulong Cpu[19];
+        }
+
+        // The dedicated pool is retained backing, not reclaimed firmware pages.
+        // Borrow exactly20 pages through the existing allocator and unwind every
+        // successful receipt in reverse, from the original guarded entry stack.
+        private static bool RunCooperativeSwitch(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (!CooperativeAuthority(state) || state->CooperativePhase != 0 || !CooperativeMarker(state, 0)) return false;
+            if (!FirstExitCodeBundle.ValidateInstalledReadBack(state->Memory.Code, FirstExitCodeBundle.Bytes, ref state->Arena,
+                state->Memory.Capture, state->Memory.Mapping, state->Memory.References.FaultCallback)) return false;
+            // Establish the profile's owned NULL selectors before the first
+            // CPU/mapping audit. The helper preserves both base MSRs and flags.
+            ((delegate* unmanaged<void>)(state->Memory.Code + FirstExitCodeBundle.CooperativeSegmentsOffset))();
+            if (!CooperativeAuditPool(state, false) || !CooperativeAuditOriginalMappings(state))
+            { _ = CooperativeRow(state, 4, 10, 0, 0, 0); _ = CooperativeMarker(state, 3); return false; }
+            state->CooperativePhase = 1;
+            ulong pool = state->CooperativePool;
+            BootPageFreeListNode node = new(0, 0, pool, pool + 32 * Page, 32, 32 * Page, -1);
+            BootPageAllocatorState allocator = default;
+            if (!BootPageAllocatorStateMaterializer.Materialize(&node, 1, 1, 1, 0, Page, 32, 32 * Page, &allocator, 1).Succeeded)
+            { _ = CooperativeMarker(state, 3); return false; }
+            BootPageAllocatorState initial = allocator; BootPageFreeListNode initialNode = node;
+            BootPageAllocatorOnePageResult* receipts = stackalloc BootPageAllocatorOnePageResult[20];
+            ulong* originalEntries = stackalloc ulong[32]; for (int i = 0; i < 32; i++) originalEntries[i] = 0;
+            uint borrowed = 0; bool addresses = true;
+            for (; borrowed < 20; borrowed++)
+            {
+                var receipt = BootPageAllocatorMutator.AllocateOnePage(allocator, &node, 1, 1, null, 0, 0, 1, Page);
+                if (!receipt.Succeeded) break;
+                allocator = receipt.AfterState; receipts[borrowed] = receipt;
+                addresses &= receipt.PhysicalStart.TryGetRawValueForHardwareRegisterBoundary(out ulong address) == AddressValueStatus.Success &&
+                    address == pool + borrowed * Page && receipt.PageCount == 1 && receipt.ByteLength == Page;
+            }
+            CooperativeControl* control = null;
+            bool prepared = borrowed == 20 && addresses && CooperativePrepareProgram(state, out control) &&
+                CooperativeRow(state, 1, pool, 32, borrowed, allocator.FreePageCount);
+            bool captured = false, published = false, transferred = false, restoredContext = false;
+            if (prepared)
+            {
+                published = CooperativeSetPoolMappings(state, originalEntries, true, out captured) && CooperativeAuditPool(state, true);
+                if (published)
+                {
+                    control->Plan.Owner.GuardsVerified = true; control->Plan.Owner.MappingsVerified = true;
+                    state->CooperativePhase = 2;
+                    bool admitted = Cooperative.Admit(control->Plan.Owner, control->Plan.Original, control->Plan.A) == Cooperative.Status.Ok;
+                    transferred = admitted && ((delegate* unmanaged<uint>)pool)() == 1;
+                    restoredContext = transferred && control->Phase == 3 && control->ACount == 8 && control->BCount == 8 && control->Transfers == 17 &&
+                        Cooperative.AdmitResume(control->Plan.Owner, control->Plan.Original) == Cooperative.Status.Ok &&
+                        CooperativeEqualContexts(control->Plan.Original.Context, control->Plan.Witness) &&
+                        Cooperative.VerifyProgram((byte*)pool, Cooperative.ProgramBytes, control->Plan) && CooperativeAuditPool(state, true);
+                    if (restoredContext) restoredContext = CooperativeRow(state, 2, 0xffff, control->Plan.Original.Context->Rflags,
+                        control->Plan.Witness->Rsp, control->Plan.Witness->Rip);
+                }
+            }
+            // Restore live permissions/TLB before touching released guards or
+            // making code writable. Never free resources after failed restoration.
+            bool mappings = captured
+                ? CooperativeSetPoolMappings(state, originalEntries, false, out _) && CooperativeAuditPool(state, false)
+                : CooperativeAuditPool(state, false);
+            bool zero = mappings;
+            if (mappings)
+            {
+                for (ulong offset = 0; offset < borrowed * Page; offset++) ((byte*)pool)[offset] = 0;
+                for (ulong offset = 0; offset < borrowed * Page; offset++) zero &= ((byte*)pool)[offset] == 0;
+                for (uint count = borrowed; count > 0; count--)
+                {
+                    var freed = BootPageAllocatorMutator.FreeOnePage(allocator, &node, 1, 1, null, 0, 0, receipts[count - 1]);
+                    if (!freed.Succeeded) { zero = false; break; }
+                    allocator = freed.AfterState;
+                }
+            }
+            bool released = mappings && zero && CooperativeAllocatorEqual(initial, allocator, initialNode, node) &&
+                CooperativeAuditOriginalMappings(state) && FirstExitOwnedArena.ValidateCanaries(state->Arena);
+            bool success = prepared && published && transferred && restoredContext && released;
+            if (released) released = CooperativeRow(state, 3, allocator.FreePageCount, allocator.AllocatedPageCount, 1, borrowed * Page);
+            state->CooperativePhase = success && released ? 4U : 5U;
+            if (!success || !released) { _ = CooperativeRow(state, 4, prepared ? 1UL : 0, published ? 1UL : 0, transferred ? 1UL : 0, released ? 1UL : 0); _ = CooperativeMarker(state, 3); return false; }
+            return CooperativeMarker(state, 1) && CooperativeMarker(state, 2);
+        }
+
+        private static bool CooperativeAuthority(Storage* state) => state != null && state->Phase == 4 && state->OwnedPhase == 2 &&
+            state->Arena.IsReady && state->Diagnostic.Status == FirstExitDiagnosticStatus.Completed && state->CooperativePool != 0 &&
+            state->Memory.References.CooperativePoolStart == state->CooperativePool && state->Memory.References.CooperativePoolPages == 32 &&
+            state->Arena.Transition->Mode == FirmwareServicesMode.BootServicesExited && state->Arena.Transition->RetainedFirmwareCallbacksCleared &&
+            state->Arena.Binding->RetainedPointersCleared && FirstExitOwnedArena.ValidateCanaries(state->Arena);
+
+        // Use the original installed-range audit before publication and after
+        // restoration, when the dedicated pool has its original RW/NX leaves.
+        private static bool CooperativeAuditOriginalMappings(Storage* state)
+        {
+            SeparatePageFaultMappingRange* ranges = stackalloc SeparatePageFaultMappingRange[(int)FirstExitRetainedMappings.MaximumRanges];
+            return FirstExitRetainedMappings.WriteInstalledRanges(ref state->Arena, state->Memory.Code, state->Memory.Capture,
+                    state->Memory.Mapping, state->Memory.References, state->Memory.Allocator, state->Memory.Tables,
+                    ranges, FirstExitRetainedMappings.MaximumRanges, out ulong count) &&
+                SeparateDisabledDefaultPageFaultPageTables.AuditRetainedAccessedImage(state->Memory.Tables, ranges, count,
+                    FirstExitRetainedMappings.MaximumRanges, state->Memory.Pages, state->Memory.PageCapacity,
+                    state->Memory.Entries, state->Memory.EntryCapacity).Succeeded;
+        }
+
+        private static bool CooperativeSingleCpu(Storage* state, ulong* cpu)
+        {
+            if (((uint)cpu[7] & 0x10000000) != 0 && (((uint)cpu[8] >> 16) & 255) != 1) return false;
+            fixed (AcpiBootstrapWorkspace* workspace = &s_acpiBootstrap)
+            fixed (AcpiBootstrapOwnedBuffer* copied = &s_acpiBootstrapOwned)
+            {
+                if (!ReadBackAcpiBootstrap(workspace, copied->Bytes, AcpiOwnedPayloadCapacity)) return false;
+                var selected = OwnedACPIDirectorySelectMADTHPETMCFG.Select(copied->Bytes + 16, workspace->TotalBytes, workspace->Descriptors, 30);
+                return selected.Succeeded && OS.Drivers.MADTLocalAPICIOAPICSeparatelyPollingProof.Parse(copied->Bytes + 16 + selected.Madt.Offset,
+                    selected.Madt.Length, (uint)cpu[8] >> 24, out _) == OS.Drivers.MadtPollingStatus.Success;
+            }
+        }
+
+        private static bool CooperativeObserve(CooperativeControl* control, bool initial)
+        {
+            Storage* state = control->State;
+            if (!CooperativeAuthority(state)) return false;
+            ulong* cpu = control->Cpu;
+            ((delegate* unmanaged<ulong*, void>)(state->Memory.Code + FirstExitCodeBundle.CooperativeObserveOffset))(cpu);
+            if (cpu[9] < 0x80000001 || !CooperativeSingleCpu(state, cpu)) return false;
+            Cooperative.Owner* owner = &control->Plan.Owner;
+            owner->CurrentRoot = cpu[1]; owner->CurrentKernelGs = cpu[14];
+            owner->Cr0 = cpu[0]; owner->Cr4 = cpu[2]; owner->Flags = cpu[3]; owner->Efer = cpu[11];
+            owner->Cs = (ushort)cpu[4]; owner->Ss = (ushort)cpu[5]; owner->Tr = (ushort)cpu[6];
+            owner->BasicEdx = (uint)cpu[7]; owner->ExtendedEdx = (uint)cpu[10]; owner->Fs = (ushort)cpu[15]; owner->Gs = (ushort)cpu[16];
+            owner->CpuCount = 1;
+            if (initial) owner->KernelGs = cpu[14];
+            return Cooperative.AdmitPlan(*owner) == Cooperative.Status.Ok;
+        }
+
+        private static bool CooperativePrepareProgram(Storage* state, out CooperativeControl* control)
+        {
+            ulong pool = state->CooperativePool, arena = pool + 2 * Page;
+            control = (CooperativeControl*)(arena + Page);
+            if (sizeof(CooperativeControl) > 0xe00) return false;
+            *control = default; control->State = state;
+            Cooperative.Owner owner = new()
+            {
+                Initialized = true, Key = pool ^ 0x4d30393030344f57UL, CurrentKey = pool ^ 0x4d30393030344f57UL,
+                Root = (ulong)state->Memory.Entries, ContextArena = arena, ContextArenaBytes = 2 * Page,
+                CodeStart = pool, CodeBytes = Cooperative.ProgramBytes, SwitchStackGuardStart = pool + 4 * Page, SwitchStackBytes = 10 * Page
+            };
+            control->Plan.Owner = owner;
+            // Establish owned selectors before observing the restoration baseline.
+            ((delegate* unmanaged<void>)(state->Memory.Code + FirstExitCodeBundle.CooperativeSegmentsOffset))();
+            if (!CooperativeObserve(control, true)) return false;
+            byte* rawFx = (byte*)arena + 0xe00;
+            ((delegate* unmanaged<byte*, void>)(state->Memory.Code + FirstExitCodeBundle.CooperativeFxOffset))(rawFx);
+            control->Plan.Owner.ObservedMxcsrMask = *(uint*)(rawFx + 28);
+            if (Cooperative.AdmitPlan(control->Plan.Owner) != Cooperative.Status.Ok) return false;
+            uint mask = control->Plan.Owner.ObservedMxcsrMask;
+            SavedContext* original = (SavedContext*)arena, first = (SavedContext*)(arena + 0x300), second = (SavedContext*)(arena + 0x600);
+            if (SavedContext.Initialize(original, SavedContext.Bytes, pool + Cooperative.OriginalResumeOffset,
+                    (state->Arena.StackTop - 64) & ~15UL, mask) != SavedContext.Status.Ok ||
+                SavedContext.Initialize(first, SavedContext.Bytes, pool + Cooperative.WorkerAEntryOffset, pool + 16 * Page - 40, mask,
+                    2, arena + 0x1f00, arena + 0x1f08) != SavedContext.Status.Ok ||
+                SavedContext.Initialize(second, SavedContext.Bytes, pool + Cooperative.WorkerBEntryOffset, pool + 19 * Page - 40, mask,
+                    0x402, arena + 0x1f10, arena + 0x1f18) != SavedContext.Status.Ok) return false;
+            CooperativeSeed(first, 1); CooperativeSeed(second, 2);
+            byte* helperFx = (byte*)arena + 0xc00;
+            for (uint i = 0; i < 512; i++) helperFx[i] = 0;
+            *(ushort*)helperFx = 0x027f; *(uint*)(helperFx + 24) = 0x1f80; *(uint*)(helperFx + 28) = mask;
+            control->Plan.Original = new() { Identity = 0x100000001, CurrentIdentity = 0x100000001, Context = original, ContextBytes = SavedContext.Bytes,
+                StackGuardStart = (ulong)state->Arena.Storage + 21 * Page, StackBytes = 66 * Page, ResumeRip = pool + Cooperative.OriginalResumeOffset, Kind = Cooperative.ResumeKind.CapturedCall };
+            control->Plan.A = new() { Identity = 0x100000002, CurrentIdentity = 0x100000002, Context = first, ContextBytes = SavedContext.Bytes,
+                StackGuardStart = pool + 14 * Page, StackBytes = 3 * Page, ResumeRip = pool + Cooperative.WorkerAEntryOffset, Kind = Cooperative.ResumeKind.Entry };
+            control->Plan.B = new() { Identity = 0x100000003, CurrentIdentity = 0x100000003, Context = second, ContextBytes = SavedContext.Bytes,
+                StackGuardStart = pool + 17 * Page, StackBytes = 3 * Page, ResumeRip = pool + Cooperative.WorkerBEntryOffset, Kind = Cooperative.ResumeKind.Entry };
+            control->Plan.Witness = (SavedContext*)(arena + 0x900); control->Plan.BCount = (ulong)&control->BCount;
+            control->Plan.FlagScratch = (ulong)&control->BranchFlags; control->Plan.Cycles = 8;
+            control->Plan.RecoveryCallback = (ulong)(delegate* unmanaged<void*, SavedContext*, byte>)&CooperativeRecover;
+            control->Plan.TerminalCallback = (ulong)(delegate* unmanaged<void*, void>)&CooperativeTerminal;
+            control->Plan.Stub = new()
+            {
+                AdmissionCallback = (ulong)(delegate* unmanaged<void*, SavedContext*, SavedContext*, byte>)&CooperativeAdmit,
+                CallbackContext = (ulong)control, CallbackBytes = (uint)sizeof(CooperativeControl), HelperFx = (ulong)helperFx,
+                JumpSlot = arena + 0x1e00, RejectRip = pool + Cooperative.RecoveryOffset
+            };
+            var imageRange = state->Memory.Capture.Range;
+            if (!imageRange.IsValid || imageRange.ImageBase.TryGetRawValueForUefiBoundary(out ulong image) != AddressValueStatus.Success ||
+                control->Plan.Stub.AdmissionCallback < image || control->Plan.Stub.AdmissionCallback - image >= imageRange.ImageSize ||
+                control->Plan.RecoveryCallback < image || control->Plan.RecoveryCallback - image >= imageRange.ImageSize ||
+                control->Plan.TerminalCallback < image || control->Plan.TerminalCallback - image >= imageRange.ImageSize) return false;
+            control->Phase = 1;
+            return Cooperative.EmitProgram((byte*)pool, Cooperative.ProgramBytes, control->Plan) &&
+                Cooperative.VerifyProgram((byte*)pool, Cooperative.ProgramBytes, control->Plan);
+        }
+
+        private static ulong CooperativeGpr(uint worker, uint register) => 0x434c520000000000UL | ((ulong)worker << 32) | (register * 0x10101UL + 0x1234);
+        private static void CooperativeSeed(SavedContext* c, uint worker)
+        {
+            c->Rax = CooperativeGpr(worker, 0); c->Rcx = CooperativeGpr(worker, 1); c->Rdx = CooperativeGpr(worker, 2); c->Rbx = CooperativeGpr(worker, 3);
+            c->Rbp = CooperativeGpr(worker, 5); c->Rsi = CooperativeGpr(worker, 6); c->Rdi = CooperativeGpr(worker, 7);
+            c->R8 = CooperativeGpr(worker, 8); c->R9 = CooperativeGpr(worker, 9); c->R10 = CooperativeGpr(worker, 10); c->R11 = CooperativeGpr(worker, 11);
+            c->R12 = CooperativeGpr(worker, 12); c->R13 = CooperativeGpr(worker, 13); c->R14 = CooperativeGpr(worker, 14); c->R15 = CooperativeGpr(worker, 15);
+            byte* fx = c->FxSave; *(ushort*)fx = worker == 1 ? (ushort)0x027f : (ushort)0x067f;
+            *(uint*)(fx + 24) = worker == 1 ? 0x1f80U : 0x3f80U;
+            fx[4] = 0xff; // Eight valid normal x87 registers, TOP0.
+            for (uint register = 0; register < 8; register++)
+            {
+                *(ulong*)(fx + 32 + register * 16) = CooperativeX87(worker, register);
+                *(ushort*)(fx + 40 + register * 16) = (ushort)(0x3fff + register);
+            }
+            for (uint register = 0; register < 16; register++) for (uint part = 0; part < 16; part++)
+                fx[160 + register * 16 + part] = (byte)(0x10 + worker * 0x20 + register * 7 + part * 3);
+        }
+        private static bool CooperativeWorker(SavedContext* c, uint worker, ulong stackGuard, uint mask, ulong arena)
+        {
+            if (c->Rsp != stackGuard + 2 * Page - 80 || c->Rax != CooperativeGpr(worker, 0) || c->Rcx != CooperativeGpr(worker, 1) ||
+                c->Rdx != CooperativeGpr(worker, 2) || c->Rbx != CooperativeGpr(worker, 3) || c->Rbp != CooperativeGpr(worker, 5) ||
+                c->Rsi != CooperativeGpr(worker, 6) || c->Rdi != CooperativeGpr(worker, 7) || c->R8 != CooperativeGpr(worker, 8) ||
+                c->R9 != CooperativeGpr(worker, 9) || c->R10 != CooperativeGpr(worker, 10) || c->R11 != CooperativeGpr(worker, 11) ||
+                c->R12 != CooperativeGpr(worker, 12) || c->R13 != CooperativeGpr(worker, 13) || c->R14 != CooperativeGpr(worker, 14) ||
+                c->R15 != CooperativeGpr(worker, 15) || c->Rflags != (worker == 1 ? 2UL : 0x402UL) ||
+                c->FsBase != arena + (worker == 1 ? 0x1f00UL : 0x1f10UL) ||
+                c->UserGsBase != arena + (worker == 1 ? 0x1f08UL : 0x1f18UL)) return false;
+            byte* fx = c->FxSave;
+            if (*(ushort*)fx != (worker == 1 ? 0x027f : 0x067f) || *(ushort*)(fx + 2) != 0 || fx[4] != 0xff ||
+                *(uint*)(fx + 24) != (worker == 1 ? 0x1f80 : 0x3f80) || *(uint*)(fx + 28) != mask) return false;
+            for (uint register = 0; register < 8; register++)
+                if (*(ulong*)(fx + 32 + register * 16) != CooperativeX87(worker, register) ||
+                    *(ushort*)(fx + 40 + register * 16) != (ushort)(0x3fff + register)) return false;
+            for (uint register = 0; register < 16; register++) for (uint part = 0; part < 16; part++)
+                if (fx[160 + register * 16 + part] != (byte)(0x10 + worker * 0x20 + register * 7 + part * 3)) return false;
+            return true;
+        }
+
+        private static ulong CooperativeX87(uint worker, uint register) => 0x8000000000000000UL |
+            ((ulong)worker << 48) | ((ulong)register << 32) | 0x12345678UL;
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte CooperativeAdmit(void* context, SavedContext* source, SavedContext* destination)
+        {
+            CooperativeControl* c = (CooperativeControl*)context;
+            if (c == null || c->State == null || c->State->CooperativePhase != 2 || !CooperativeObserve(c, false) ||
+                !CooperativeAuditPool(c->State, true)) return 0;
+            Cooperative.Descriptor from, to; uint fromId, toId;
+            ulong pool = c->Plan.Owner.CodeStart;
+            if (source == c->Plan.Original.Context && destination == c->Plan.A.Context && c->Phase == 1 && c->Transfers == 0)
+            { from = c->Plan.Original; to = c->Plan.A; fromId = 0; toId = 1; }
+            else if (source == c->Plan.A.Context && destination == c->Plan.B.Context && c->Phase == 2 && c->ACount == c->BCount && c->ACount < 8)
+            {
+                c->Plan.A.Kind = Cooperative.ResumeKind.CapturedCall; c->Plan.A.ResumeRip = pool + Cooperative.WorkerAResumeOffset;
+                from = c->Plan.A; to = c->Plan.B; fromId = 1; toId = 2;
+                if (!CooperativeWorker(source, 1, from.StackGuardStart, c->Plan.Owner.ObservedMxcsrMask, c->Plan.Owner.ContextArena)) return 0;
+            }
+            else if (source == c->Plan.B.Context && c->Phase == 2 && c->ACount == c->BCount + 1 && c->BCount < 8 &&
+                destination == (c->BCount == 7 ? c->Plan.Original.Context : c->Plan.A.Context))
+            {
+                c->Plan.B.Kind = Cooperative.ResumeKind.CapturedCall;
+                c->Plan.B.ResumeRip = pool + (c->BCount == 7 ? Cooperative.WorkerBFinalResumeOffset : Cooperative.WorkerBResumeOffset);
+                from = c->Plan.B; to = c->BCount == 7 ? c->Plan.Original : c->Plan.A; fromId = 2; toId = c->BCount == 7 ? 0U : 1U;
+                if (!CooperativeWorker(source, 2, from.StackGuardStart, c->Plan.Owner.ObservedMxcsrMask, c->Plan.Owner.ContextArena)) return 0;
+            }
+            else return 0;
+            if (Cooperative.Admit(c->Plan.Owner, from, to) != Cooperative.Status.Ok ||
+                !CooperativeRow(c->State, 0, c->Transfers, ((ulong)fromId << 32) | toId, source->Rip, source->Rsp)) return 0;
+            c->Transfers++;
+            if (fromId == 0) c->Phase = 2;
+            else if (fromId == 1) c->ACount++;
+            else { c->BCount++; if (toId == 0) c->Phase = 3; }
+            return 1;
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte CooperativeRecover(void* context, SavedContext* original)
+        {
+            CooperativeControl* c = (CooperativeControl*)context;
+            if (c == null || original != c->Plan.Original.Context || !CooperativeObserve(c, false) || !CooperativeAuditPool(c->State, true)) return 0;
+            c->Phase = 0x80;
+            return Cooperative.AdmitResume(c->Plan.Owner, c->Plan.Original) == Cooperative.Status.Ok ? (byte)1 : (byte)0;
+        }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static void CooperativeTerminal(void* context)
+        {
+            CooperativeControl* c = (CooperativeControl*)context;
+            if (c != null && c->State != null) _ = CooperativeRow(c->State, 4, 0, 0, 0, 0);
+            if (c != null && c->State != null) _ = CooperativeMarker(c->State, 3);
+            while (true) { }
+        }
+        private static bool CooperativeEqualContexts(SavedContext* a, SavedContext* b)
+        { for (uint i = 0; i < SavedContext.Bytes; i++) if (((byte*)a)[i] != ((byte*)b)[i]) return false; return true; }
+        private static bool CooperativeAllocatorEqual(BootPageAllocatorState a, BootPageAllocatorState b, BootPageFreeListNode x, BootPageFreeListNode y) =>
+            a.IsInitialized == b.IsInitialized && a.PageSize == b.PageSize && a.HeadNodeIndex == b.HeadNodeIndex && a.FreeNodeCount == b.FreeNodeCount &&
+            a.FreePageCount == b.FreePageCount && a.FreeByteCount == b.FreeByteCount && a.AllocatedPageCount == b.AllocatedPageCount && a.AllocatedByteCount == b.AllocatedByteCount &&
+            x.SourceFreeSegmentIndex == y.SourceFreeSegmentIndex && x.SourceUsableRangeIndex == y.SourceUsableRangeIndex && x.PhysicalStart == y.PhysicalStart &&
+            x.PhysicalEndExclusive == y.PhysicalEndExclusive && x.PageCount == y.PageCount && x.ByteLength == y.ByteLength && x.NextNodeIndex == y.NextNodeIndex;
+
+        private static bool CooperativeMarker(Storage* state, uint kind)
+        {
+            ulong* words = stackalloc ulong[4]; uint bytes;
+            if (kind == 0) { words[0] = 0x4154535f54534554; words[1] = 0x302e39306d205452; words[2] = 0x0a0d3430; bytes = 20; }
+            else if (kind == 1) { words[0] = 0x304d5f534f524c43; words[1] = 0x45525f3430305f39; words[2] = 0x0a0d594441; bytes = 21; }
+            else if (kind == 2) { words[0] = 0x5341505f54534554; words[1] = 0x30302e39306d2053; words[2] = 0x0a0d34; bytes = 19; }
+            else if (kind == 3) { words[0] = 0x4941465f54534554; words[1] = 0x30302e39306d204c; words[2] = 0x7463656a65722034; words[3] = 0x0a0d6465; bytes = 28; }
+            else return false;
+            return WriteOwnedBytes(state, (byte*)words, bytes);
+        }
+        private static bool CooperativeRow(Storage* state, uint kind, ulong a, ulong b, ulong c, ulong d)
+        {
+            byte* text = stackalloc byte[96]; *(ulong*)text = 0x5f3430305f39304d; uint length;
+            if (kind == 0) { *(ulong*)(text + 8) = 0x524546534e415254; length = 16; }
+            else if (kind == 1) { *(ulong*)(text + 8) = 0x434f4c4c41; length = 13; }
+            else if (kind == 2) { *(ulong*)(text + 8) = 0x45524f54534552; length = 15; }
+            else if (kind == 3) { *(ulong*)(text + 8) = 0x50554e41454c43; length = 15; }
+            else if (kind == 4) { *(ulong*)(text + 8) = 0x5443454a4552; length = 14; }
+            else return false;
+            ulong* values = stackalloc ulong[4]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;
+            for (uint i = 0; i < 4; i++)
+            {
+                text[length++] = (byte)' '; text[length++] = (byte)'0'; text[length++] = (byte)'x';
+                for (int shift = 60; shift >= 0; shift -= 4) { uint nibble = (uint)((values[i] >> shift) & 15); text[length++] = (byte)(nibble < 10 ? '0' + nibble : 'A' + nibble - 10); }
+            }
+            text[length++] = 13; text[length++] = 10;
+            return WriteOwnedBytes(state, text, length);
+        }
+#endif
+
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static void Enter(FirstExitOwnedStackContext* context)
         {
@@ -1776,6 +2274,11 @@ public static unsafe class EfiEntry
 #if (M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
                 if (ReportOwnedSubsystems(state))
                 {
+#if M09_004_PROBE
+                    _ = BootSequence.RunOwnedCooperativeSwitch(state->OwnedPhase == 2,
+                        transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
+                        state->Arena.Binding->RetainedPointersCleared, state, &RunCooperativeSwitch);
+#endif
 #if M16_002_PROBE
                     _ = BootSequence.RunOwnedLinuxElfPackage(state->OwnedPhase == 2,
                         transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&

@@ -8,8 +8,9 @@
    #708/#711's brk/fixed-map ownership repair is qualified in step1209.
    Host scheduler foundations #183-#185 are qualified in step1210-step1212,
    with external ownership/serialization and host-only boundaries retained.
-   The next slice is #186's actual cooperative transfer. #186-#188 retain actual
-   switching,
+   The next slice is #186/#719 qualification. Step1215 has thirty-four focused
+   checks and one actual seventeen-transfer development guest with restoration;
+   full/repeat/ancestor qualification remains pending. #186-#188 retain actual switching,
    interrupt and lifecycle guest proof before #686. Review step1207 preserves
    the original defect and corrected scheduler boundaries.
    Use exact dependencies and acceptance from the managed issue, not numeric

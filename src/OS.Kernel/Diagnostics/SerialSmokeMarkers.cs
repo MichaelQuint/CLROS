@@ -13,4 +13,6 @@ public static class SerialSmokeMarkers
     public const string OsSmokePass = "OS_SMOKE_PASS";
 
     public const string OsSmokeFail = "OS_SMOKE_FAIL";
+
+    public const string M09004Ready = "CLROS_M09_004_READY";
 }
