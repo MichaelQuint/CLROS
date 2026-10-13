@@ -51,13 +51,10 @@ selects `MultiMinimalApi`.
 ## NativeAOT-first execution roadmap (2026-10-12)
 
 Accepted architecture direction only: no upstream guest application/runtime
-acceptance. M16-001/#679 through M16-006/#684 are qualified within the bounded
-evidence below. The next dependency-compatible slice is
-[M16-007 / #685](http://192.168.4.35:3000/admin/CLROS/issues/685), measured Linux
-descriptors and immutable startup views. Refresh the tracker before implementation.
-The review in [step1207](../done/step1207.md) records two open follow-ups:
-#685/#707 need an actual CPL3 `openat` fixture before descriptor acceptance;
-[#708](http://192.168.4.35:3000/admin/CLROS/issues/708) repairs a reproduced
+acceptance. M16-001/#679 through M16-007/#685 are qualified within the bounded
+evidence below. [Step1208](../done/step1208.md) closes the live openat coverage gap
+identified in [step1207](../done/step1207.md). The next correctness slice is
+[#708](http://192.168.4.35:3000/admin/CLROS/issues/708), which repairs a reproduced
 `brk`/fixed-mapping ownership defect before unchanged Hello/runtime acceptance.
 The memory qualification above remains its historical bounded evidence, not
 proof that every mixed Linux memory operation is correct. Coordinate #708 with
@@ -65,7 +62,8 @@ the current integration-lane owner. Scheduler layout/queue foundations #183-#185
 are host-only; #186-#188 retain actual switching/interrupt/lifecycle guest proof.
 The [foundation epic #678](http://192.168.4.35:3000/admin/CLROS/issues/678)
 links #679-#690; [#691](http://192.168.4.35:3000/admin/CLROS/issues/691)
-owns the continuing NIC service. Tracker migration and cleanup evidence are in
+owns the continuing NIC service. Refresh the tracker before implementation.
+Tracker migration and cleanup evidence are in
 [step1196](../done/step1196.md).
 
 Run one pinned upstream .NET 10 NativeAOT Minimal API through a restricted
@@ -99,7 +97,10 @@ AWS/Azure. The durable dependency source is
 their existence does not prove continuing services.
 
 M16-007/#685 qualifies descriptor and immutable-file behavior with mechanical
-fixtures. It must not require real NativeAOT Hello before M16-008/#686 threads
+fixtures. [Step1208](../done/step1208.md) records 4,679 fresh full-host checks,
+unchanged original native review, six repeated guests with actual openat routes,
+and fifteen revalidated retained ancestors. Step1206 preserves the initial
+openat omission. It must not require real NativeAOT Hello before M16-008/#686 threads
 and M16-009/#687 signals exist: the pinned Hello trace starts finalizer and
 signal-handler threads before writing its greeting. #686 uses mechanical
 clone/TLS/futex fixtures and preserves each thread's signal mask; it does not

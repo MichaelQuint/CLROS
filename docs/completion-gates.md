@@ -1,5 +1,19 @@
 # CLROS Completion Gates
 
+M16-007/#685 and supplemental #707 are qualified in [step1208](../done/step1208.md):
+4,679 full-host checks across 613 fixtures (94 Native), eight original native
+bodies, three 173-record descriptor guests, three 175-record pipe guests and
+fifteen retained ancestors pass. Duplicates share cursor/status and last-close endpoint
+ownership; fd flags and generation tokens are separate. Immutable file reads use
+the original declared package ELF; proc snapshots derive from actual owned facts
+and VMAs. CPL3 fixtures check exact fd/pipe errors, ordering and partial I/O,
+exit 42, owned restoration and measured buffer/endpoint release. Three actual
+openat routes cover payload open, traversal rejection and CLOEXEC reopen. The
+initial omission remains in step1206 and its review in step1207. Separate #708
+brk/fixed-map ownership repair remains required before Hello/runtime acceptance. Blocking pipes,
+threading/TLS/futex (#686), signals and first unchanged Hello (#687), Kestrel and
+remaining numbered gates remain incomplete.
+
 M16-006/#684 and supplemental #706 are qualified in
 [step1205](../done/step1205.md): 4,646 full-host checks across 608 fixtures
 (94 Native), original scoped native review, three 150-record high-output guests,
@@ -18,7 +32,7 @@ M16-005/#683 and supplemental #699 are qualified in
 four 112-record controlled-negative guests and seven ancestors pass. Acceptance
 is one mechanical ELF excursion at CPL3, checked Linux write/exit/errno and
 complete owned-baseline restoration. General processes, threads/TLS/futex/signals,
-real NativeAOT Hello (#685), upstream guest GC/EH and CLROS Kestrel remain open.
+real NativeAOT Hello (#687), upstream guest GC/EH and CLROS Kestrel remain open.
 No numbered gate advances from this bounded diagnostic slice.
 
 M16-001/#679 host payload qualification is accepted in

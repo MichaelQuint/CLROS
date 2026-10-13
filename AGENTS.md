@@ -4,8 +4,10 @@
 
 1. Read `docs/workload-profiles.md` for the current NativeAOT-first decision.
 2. Refresh the LAN tracker and select the first unfinished dependency-compatible
-   NativeAOT-first ticket. M16-001/#679 through M16-006/#684 are qualified;
-   the next slice is [M16-007 / #685](http://192.168.4.35:3000/admin/CLROS/issues/685).
+   NativeAOT-first ticket. M16-001/#679 through M16-007/#685 are qualified;
+   the next correctness slice is [#708](http://192.168.4.35:3000/admin/CLROS/issues/708),
+   brk/fixed-map ownership repair before unchanged Hello/runtime acceptance.
+   Review step1207 preserves that defect and corrected host-only scheduler foundations.
    Use exact dependencies and acceptance from the managed issue, not numeric
    milestone order or a generic "smallest ready" optional ticket.
 3. Preserve existing work. Pick one cohesive implementation slice, reuse the
@@ -25,9 +27,19 @@ twelve ancestors pass. Sparse user reservations reach 64 GiB; physical/table
 bounds remain below 4 GiB. A mechanical ELF replays the 8,234,266,624-byte
 reservation with bounded backing and proves high copy-in/out, live monotonic
 time, fresh entropy and owned restoration. The unchanged upstream payload stops
-at unsupported ARCH_SET_FS, before Hello. Descriptors/pipes, threads/TLS/futex/
+at unsupported ARCH_SET_FS, before Hello. Threads/TLS/futex/
 signals, upstream GC/EH/ThreadPool, Kestrel, numbered/cloud/production gates remain
 incomplete.
+
+The #685/#707 default-off descriptor/pipe child is qualified in `done/step1208.md`:
+4,679 full-host checks across 613 fixtures (94 Native), eight original native
+bodies, three 173-record descriptor guests, three 175-record pipe guests and
+fifteen retained ancestors pass. The live descriptor fixture now executes three
+openat routes; step1206's initial omission and step1207's correction remain recorded.
+Original package/proc views, exact fd/pipe errors and
+last-close ownership are genuine; buffers are checked after release. Blocking
+pipes belong to #686; first unchanged Hello to #687. General threads/signals,
+upstream runtime, Kestrel and numbered/cloud/production gates remain incomplete.
 
 The #683/#699 default-off CPL3/syscall batch is qualified in `done/step1201.md`:
 4,619 full-host checks across 604 groups (94 Native), original scoped native

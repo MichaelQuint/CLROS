@@ -44,8 +44,15 @@ namespace System
     {
         public const int MaxValue = 0x7fff_ffff;
     }
-    public struct UInt32 { }
-    public struct Int64 { }
+    public struct UInt32
+    {
+        public const uint MaxValue = 0xffff_ffffU;
+    }
+    public struct Int64
+    {
+        public const long MinValue = unchecked((long)0x8000_0000_0000_0000UL);
+        public const long MaxValue = 0x7fff_ffff_ffff_ffffL;
+    }
     public struct UInt64
     {
         public const ulong MaxValue = 0xffff_ffff_ffff_ffffUL;

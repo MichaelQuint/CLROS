@@ -52,8 +52,16 @@ public static unsafe class EfiEntry
     private static class M03FirstExitAdapter
     {
         private const ulong Page = 4096, TablePages = 55;
+#if M16_007_PROBE
+        private const uint LinuxDescriptorPages = 37;
+        private const uint LinuxDescriptorSlots = 16;
+        private const uint LinuxDescriptorSnapshots = 0x1000, LinuxDescriptorPipes = 0x21000, LinuxDescriptorScratch = 0x23000;
+#endif
 #if M16_002_PROBE
         private const uint LinuxLedgerCapacity =
+#if M16_007_PROBE
+            16;
+#else
 #if M16_006_PROBE
             15;
 #else
@@ -64,6 +72,7 @@ public static unsafe class EfiEntry
             11;
 #else
             9;
+#endif
 #endif
 #endif
 #endif
@@ -113,6 +122,11 @@ public static unsafe class EfiEntry
             internal LinuxStartupServices.State LinuxServices;
             internal FirmwareEntropyCapture.State LinuxRandomCapture;
             internal FirmwareEntropyCapture.Buffer LinuxRandomScratch, LinuxRandomRetained;
+#endif
+#if M16_007_PROBE
+            internal ulong LinuxDescriptorArena;
+            internal uint LinuxDescriptorPhase;
+            internal LinuxDescriptorServices.State LinuxDescriptors;
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
             internal ulong MappingPhase, MappingCr0;
@@ -387,6 +401,12 @@ public static unsafe class EfiEntry
             references.LinuxMemoryPoolStart = state->LinuxMemoryPool;
             references.LinuxMemoryPoolPages = LinuxMemoryServices.MaximumPoolPages;
             references.LinuxMemoryCandidateStart = state->LinuxMemoryCandidate;
+#endif
+#if M16_007_PROBE
+            state->PreparationCheckpoint = 39;
+            if (!BootSequence.PrepareLinuxDescriptors(state->Phase == 2, state, &PrepareLinuxDescriptors)) return false;
+            references.LinuxDescriptorStart = state->LinuxDescriptorArena;
+            references.LinuxDescriptorPages = LinuxDescriptorPages;
 #endif
             state->PreparationCheckpoint = 40;
             if (!Allocate(services, 1, 3, image, imageBytes, allocator, out ulong code) ||
@@ -775,6 +795,9 @@ public static unsafe class EfiEntry
             if (!LinuxReservation(BootReservationKind.LinuxElfBacking, state->LinuxMemoryPool, LinuxMemoryServices.MaximumPoolPages, ledger + count++) ||
                 !LinuxReservation(BootReservationKind.LinuxElfUserTables, state->LinuxMemoryCandidate, X64UserAddressSpace.MaximumTables, ledger + count++)) return false;
 #endif
+#if M16_007_PROBE
+            if (!LinuxReservation(BootReservationKind.DiagnosticState, state->LinuxDescriptorArena, LinuxDescriptorPages, ledger + count++)) return false;
+#endif
             for (uint i = 1; i < count; i++)
             {
                 var current = ledger[i]; uint at = i;
@@ -1032,8 +1055,11 @@ public static unsafe class EfiEntry
         private static bool ReleaseLinuxUserBoundary(Storage* state, EfiBootServices* services)
         {
             bool okay = true;
+#if M16_007_PROBE
+            okay = ReleaseLinuxDescriptors(state, services);
+#endif
 #if M16_006_PROBE
-            okay = ReleaseLinuxMemory(state, services);
+            okay = ReleaseLinuxMemory(state, services) && okay;
 #endif
             if (state->LinuxSyscallCode != 0)
             {
@@ -1239,6 +1265,127 @@ public static unsafe class EfiEntry
         }
 #endif
 
+#if M16_007_PROBE
+        private static bool PrepareLinuxDescriptors(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->Phase != 2 || state->LinuxMemoryPhase != 2 || state->LinuxDescriptorPhase != 0) return false;
+            state->LinuxDescriptorPhase = 1;
+            if (!AllocateLinuxStartup(state->SystemTable->BootServices, LinuxDescriptorPages, out state->LinuxDescriptorArena)) return false;
+            ulong* starts = stackalloc ulong[8] { state->LinuxPackage, state->LinuxImageBacking, state->LinuxUserTables,
+                state->LinuxSyscallCode, state->LinuxSyscallData, state->LinuxMemoryPool, state->LinuxMemoryCandidate, (ulong)state };
+            ulong* lengths = stackalloc ulong[8] { state->LinuxPages * Page, state->LinuxImagePages * Page,
+                X64UserAddressSpace.MaximumTables * Page, Page, X64LinuxUserTransition.DataBytes,
+                LinuxMemoryServices.MaximumPoolPages * Page, X64UserAddressSpace.MaximumTables * Page, (ulong)sizeof(Storage) };
+            for (uint i = 0; i < 8; i++) if (!Disjoint(state->LinuxDescriptorArena, LinuxDescriptorPages * Page, starts[i], lengths[i])) return false;
+            for (uint i = 0; i < LinuxDescriptorPages * Page; i++) ((byte*)state->LinuxDescriptorArena)[i] = 0;
+            state->LinuxDescriptorPhase = 2; return true;
+        }
+
+        private static bool ReleaseLinuxDescriptors(Storage* state, EfiBootServices* services)
+        {
+            if (state->LinuxDescriptorArena == 0) return true;
+            if (services == null || services->FreePages == null || services->FreePages(state->LinuxDescriptorArena, LinuxDescriptorPages) != 0) return false;
+            state->LinuxDescriptorArena = 0; state->LinuxDescriptorPhase = 7; return true;
+        }
+
+        private static bool InitializeLinuxDescriptors(Storage* state)
+        {
+            if (state->LinuxDescriptorPhase != 2 || state->LinuxMemoryPhase != 4 ||
+                state->LinuxView.Manifest.Descriptors != LinuxDescriptorSlots ||
+                !LinuxMemoryFacts(state, out ulong physical, out ulong available)) return false;
+            byte* arena = (byte*)state->LinuxDescriptorArena;
+            var manifest = state->LinuxView.Manifest;
+            if (manifest.Path.Length == 0 || manifest.Path.Length > LinuxDescriptorServices.MaximumPath - 6) return false;
+            byte* path = arena + 0x800; *(ulong*)path = 0x2f7070612f; // /app/ plus the actual declared package path.
+            byte* declared = (byte*)state->LinuxPackage + state->LinuxView.ManifestOffset + manifest.Path.Offset;
+            for (uint i = 0; i < manifest.Path.Length; i++) path[5 + i] = declared[i];
+            LinuxDescriptorServices.View* view = (LinuxDescriptorServices.View*)(arena + 0x700);
+            *view = new() { Path = path, PathBytes = 5 + manifest.Path.Length,
+                Data = (byte*)state->LinuxPackage + state->LinuxView.PayloadOffset, Bytes = state->LinuxView.PayloadBytes, Inode = 256 };
+            LinuxDescriptorServices.Admission owner = new()
+            {
+                Slots = (LinuxDescriptorServices.Slot*)arena, Descriptions = (LinuxDescriptorServices.Description*)(arena + 0x100),
+                Pipes = (LinuxPipe*)(arena + 0x600), Views = view, ViewCount = 1,
+                Snapshots = arena + LinuxDescriptorSnapshots, PipeBuffers = arena + LinuxDescriptorPipes,
+                Scratch = arena + LinuxDescriptorScratch, ScratchBytes = 8192,
+                DescriptorCount = LinuxDescriptorSlots, DescriptionCount = LinuxDescriptorSlots, PipeCount = 2, PipeCapacity = 4096,
+                Memory = &state->LinuxMemory, PhysicalBytes = physical, AvailableBytes = available,
+                User = new() { Context = state, PageAccess = &LinuxUserPageAccess, CopyFromUser = &CopyDescriptorInput, Write = &WriteDescriptorOutput },
+                CopyToUser = &CopyDescriptorOutput, FirmwareExited = true, SingleOwnerValidated = true, SigpipeIgnored = true
+            };
+            if (!LinuxDescriptorServices.Begin(&state->LinuxDescriptors, owner)) return false;
+            state->LinuxDescriptorPhase = 4;
+            return LinuxText(state, "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=") &&
+                LinuxNumber(state, view->Bytes) && LinuxText(state, " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=unsupported\r\n");
+        }
+
+        private static bool DescriptorKernelRange(Storage* state, byte* pointer, uint bytes, bool output)
+        {
+            ulong start = (ulong)pointer;
+            if (pointer == null || bytes == 0 || bytes > LinuxDescriptorServices.MaximumIo || start > ~0UL - bytes) return false;
+            ulong stack = state->LinuxSyscallData + X64LinuxUserTransition.StackOffset;
+            if (start >= stack && start + bytes <= state->LinuxSyscallData + X64LinuxUserTransition.DataBytes) return true;
+            ulong scratch = state->LinuxDescriptorArena + LinuxDescriptorScratch;
+            if (start >= scratch && start + bytes <= scratch + 8192) return true;
+            if (!output) return false;
+            ulong snapshots = state->LinuxDescriptorArena + LinuxDescriptorSnapshots;
+            if (start >= snapshots && start + bytes <= snapshots + LinuxDescriptorSlots * LinuxDescriptorServices.SnapshotBytes) return true;
+            ulong payload = state->LinuxPackage + state->LinuxView.PayloadOffset;
+            return start >= payload && start + bytes <= payload + state->LinuxView.PayloadBytes;
+        }
+
+        private static bool LinuxDescriptorReleaseChecked(Storage* state)
+        {
+            var owner = state->LinuxDescriptors.Owner;
+            for (uint i = 0; i < owner.DescriptorCount; i++) if (owner.Slots[i].Description != 0 || owner.Slots[i].Flags != 0) return false;
+            for (uint i = 0; i < owner.DescriptionCount * sizeof(LinuxDescriptorServices.Description); i++)
+                if (((byte*)owner.Descriptions)[i] != 0) return false;
+            for (uint i = 0; i < owner.PipeCount; i++) if (owner.Pipes[i].Initialized || owner.Pipes[i].ReaderCount != 0 || owner.Pipes[i].WriterCount != 0) return false;
+            byte* bytes = (byte*)(state->LinuxDescriptorArena + LinuxDescriptorSnapshots);
+            for (uint i = 0; i < LinuxDescriptorPages * Page - LinuxDescriptorSnapshots; i++) if (bytes[i] != 0) return false;
+            return true;
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte CopyDescriptorInput(void* context, ulong address, byte* destination, uint bytes)
+        {
+            Storage* state = (Storage*)context;
+            return LinuxSyscallAuthority(state) && state->LinuxDescriptorPhase == 4 && DescriptorKernelRange(state, destination, bytes, false)
+                ? CopyLinuxAlias(state, address, destination, bytes, false) : (byte)0;
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte CopyDescriptorOutput(void* context, ulong address, byte* source, uint bytes)
+        {
+            Storage* state = (Storage*)context;
+            return LinuxSyscallAuthority(state) && state->LinuxDescriptorPhase == 4 && DescriptorKernelRange(state, source, bytes, true)
+                ? CopyLinuxAlias(state, address, source, bytes, true) : (byte)0;
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte WriteDescriptorOutput(void* context, uint channel, byte* source, uint bytes)
+        {
+            Storage* state = (Storage*)context;
+            if (!LinuxSyscallAuthority(state) || state->LinuxDescriptorPhase != 4 || (channel != 1 && channel != 2) ||
+                source != (byte*)(state->LinuxDescriptorArena + LinuxDescriptorScratch) || bytes == 0 || bytes > 8192 ||
+                !LinuxText(state, "M16_005_WRITE fd=") || !LinuxNumber(state, channel) || !LinuxText(state, " bytes=") ||
+                !LinuxNumber(state, bytes) || !LinuxText(state, " data=")) return 0;
+            for (uint i = 0; i < bytes; i++) if (!LinuxByte(state, source[i])) return 0;
+            if (!LinuxText(state, "\r\n")) return 0;
+            state->LinuxSyscallWrites++; return 1;
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static long DispatchLinuxDescriptors(void* context, LinuxSyscallFrame* frame)
+        {
+            Storage* state = (Storage*)context;
+            var readRoot = (delegate* unmanaged<ulong>)(state->Memory.Code + FirstExitCodeBundle.LinuxReadBackOffset + X64LinuxElfReadBackBridge.ReadCr3Offset);
+            if (!LinuxSyscallAuthority(state) || state->LinuxDescriptorPhase != 4 || frame == null || readRoot() != state->LinuxDispatchRoot) return -14;
+            return LinuxDescriptorServices.Dispatch(&state->LinuxDescriptors, *frame);
+        }
+#endif
+
         private static X64LinuxUserTransitionPlan LinuxUserTransitionPlan(Storage* state, ulong rsp) => new()
         {
             CodeAddress = state->LinuxSyscallCode, ContextAddress = state->LinuxSyscallData,
@@ -1283,7 +1430,9 @@ public static unsafe class EfiEntry
                 !state->Arena.Transition->RetainedFirmwareCallbacksCleared || !state->Arena.Binding->RetainedPointersCleared ||
                 !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
             state->LinuxSyscallPhase = 3;
-#if M16_006_PROBE
+#if M16_007_PROBE
+            if (!LinuxText(state, "TEST_START m16-007\r\n")) return false;
+#elif M16_006_PROBE
             if (!LinuxText(state, "TEST_START m16-006\r\n")) return false;
 #else
             if (!LinuxText(state, "TEST_START m16-005\r\n")) return false;
@@ -1357,6 +1506,10 @@ public static unsafe class EfiEntry
                 return LinuxSyscallAdmissionFailure(state, "memory-startup", state->LinuxMemoryCheckpoint);
             admission.EnableStartup = true; access.Startup = &DispatchLinuxStartup;
 #endif
+#if M16_007_PROBE
+            if (!InitializeLinuxDescriptors(state)) return LinuxSyscallAdmissionFailure(state, "descriptors");
+            admission.EnableDescriptors = true; access.Descriptors = &DispatchLinuxDescriptors;
+#endif
             if (LinuxSyscallGateway.Begin(ref state->LinuxSyscallState, admission, access) != LinuxSyscallGateStatus.Active ||
                 !LinuxText(state, "M16_005_ARMED root=") || !LinuxNumber(state, plan.UserRoot) ||
                 !LinuxText(state, " cs=59 ss=51 kernelStack=") || !LinuxNumber(state, plan.ContextAddress + X64LinuxUserTransition.DataBytes) ||
@@ -1378,9 +1531,16 @@ public static unsafe class EfiEntry
             for (uint i = 0; i < 64; i++) state->LinuxRandomRetained.Data[i] = 0;
             if (!LinuxMemoryServices.Audit(&state->LinuxMemory)) return false;
 #endif
+#if M16_007_PROBE
+            if (!LinuxDescriptorServices.Audit(&state->LinuxDescriptors) || !LinuxDescriptorServices.End(&state->LinuxDescriptors) ||
+                !LinuxDescriptorReleaseChecked(state)) return false;
+            state->LinuxDescriptorPhase = 6;
+#endif
             if (state->LinuxSyscallFaults != 0 || state->LinuxSyscallFailed != 0 || state->LinuxSyscallState.Status != LinuxSyscallGateStatus.Exited)
             {
-#if M16_006_PROBE
+#if M16_007_PROBE
+                _ = LinuxText(state, "TEST_FAIL m16-007 user-boundary-terminated status=");
+#elif M16_006_PROBE
                 _ = LinuxText(state, "TEST_FAIL m16-006 user-boundary-terminated status=");
 #else
                 _ = LinuxText(state, "TEST_FAIL m16-005 user-boundary-terminated status=");
@@ -1396,7 +1556,11 @@ public static unsafe class EfiEntry
                 LinuxText(state, " backed=") && LinuxNumber(state, state->LinuxMemory.BackedPages) &&
                 LinuxText(state, " tables=") && LinuxNumber(state, state->LinuxMemory.Root.UsedTables) &&
                 LinuxText(state, " entropyRemaining=") && LinuxNumber(state, state->LinuxServices.RemainingEntropy) &&
+#if M16_007_PROBE
+                LinuxText(state, "\r\nM16_007_RELEASE descriptors=0 pipes=0 scratch=zero snapshots=zero\r\nCLROS_M16_007_READY\r\nTEST_PASS m16-007\r\n");
+#else
                 LinuxText(state, "\r\nCLROS_M16_006_READY\r\nTEST_PASS m16-006\r\n");
+#endif
 #else
                 LinuxText(state, "\r\nCLROS_M16_005_READY\r\nTEST_PASS m16-005\r\n");
 #endif
@@ -1404,7 +1568,9 @@ public static unsafe class EfiEntry
 
         private static bool LinuxSyscallAdmissionFailure(Storage* state, string stage, ulong detail = 0)
         {
-#if M16_006_PROBE
+#if M16_007_PROBE
+            _ = LinuxText(state, "TEST_FAIL m16-007 admission stage=");
+#elif M16_006_PROBE
             _ = LinuxText(state, "TEST_FAIL m16-006 admission stage=");
 #else
             _ = LinuxText(state, "TEST_FAIL m16-005 admission stage=");
@@ -1627,7 +1793,9 @@ public static unsafe class EfiEntry
                         state->Arena.Binding->RetainedPointersCleared, state, &RunOwnedWorkloadServiceLoop)) return;
 #endif
 #if M16_005_PROBE
-#if M16_006_PROBE
+#if M16_007_PROBE
+                    if (!BootSequence.RunOwnedLinuxDescriptors(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
+#elif M16_006_PROBE
                     if (!BootSequence.RunOwnedLinuxMemory(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
 #else
                     if (!BootSequence.RunOwnedLinuxSyscalls(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
