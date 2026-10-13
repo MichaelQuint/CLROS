@@ -6,6 +6,25 @@ status/POD contracts; Linux errno, fd and register semantics stay in the
 adapter. Older prohibitions below describe the original CoreCLR-port route,
 not a prohibition on the newly selected M16 work. No live exports are added.
 
+## Scheduler implementation handoff
+
+The M09 scheduler starts with three host-tested foundations: the x64 saved-context
+layout ([#183](http://192.168.4.35:3000/admin/CLROS/issues/183)), fixed-capacity
+ready queue ([#184](http://192.168.4.35:3000/admin/CLROS/issues/184)) and deadline
+queue ([#185](http://192.168.4.35:3000/admin/CLROS/issues/185)). Their acceptance
+covers layout, ownership and queue behavior; they do not require a new EFI
+profile or establish execution. The managed issues contain exact source
+references, failure cases and focused commands. Coordinate edits to this shared
+document with the current integration owner.
+
+Actual cooperative transfer belongs to #186, hardware interrupt wake/preemption
+to #187, and thread lifecycle to #188. These retain default-off guest profiles,
+original native review and final-source qualification. A cooperative ABI context
+or Linux syscall frame is not automatically a complete interrupted-thread
+context. The initial profile retains the existing single-CPU x87/SSE boundary;
+XSAVE/AVX, CET and SMP require separate admission and evidence. Upstream Linux
+thread/TLS/futex/signal integration remains in M16.
+
 ## Current Status
 
 No first-party hosted-tier PAL implementation exists. The canonical CLROS

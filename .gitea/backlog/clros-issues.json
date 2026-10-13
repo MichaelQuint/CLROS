@@ -19340,93 +19340,75 @@
       "labels": [
         "agent:blocked",
         "type:implementation",
-        "evidence:qemu",
+        "evidence:host",
         "component:pal",
         "phase:m09-hosted",
         "reference:test-only",
-        "priority:p0",
-        "lane:nativeaot-integration"
+        "priority:p0"
       ],
       "priority": "priority:p0",
       "ownedPaths": [
         "src/OS.Kernel/Threading/X64ThreadContext.cs",
         "tests/OS.HostTests/X64ThreadContextTests.cs",
         "docs/pal.md",
-        "docs/app-model.md",
-        "src/OS/Boot/EfiEntry.cs",
-        "src/OS/OS.csproj",
-        "src/OS.Kernel/Boot/BootSequence.cs",
-        "src/OS.Kernel/Diagnostics/Probes.cs",
-        "tools/OS.Tooling/EfiContracts.cs",
-        "tools/OS.Tooling/EfiOptions.cs",
-        "tools/OS.Tooling/EfiProfile.cs",
-        "tools/OS.Tooling/QemuSmokeOptions.cs",
-        "tools/OS.Tooling/QemuProfiles.cs",
-        "docs/completion-gates.md"
+        "docs/app-model.md"
       ],
       "forbiddenPaths": [
         "README.md",
         "references/** (read-only except the dedicated references/AGENTS.override.md issue)",
         "done/** (reserve a new step only after implementation evidence exists)"
       ],
-      "collisionLane": "lane:nativeaot-integration",
-      "summary": "Define x64 thread-context layout including GPR, flags, GS, and selected FP/SIMD state.",
-      "currentEvidence": "PAL tables and readiness contracts are host-tested; scheduler exports and hosted CoreCLR execution are unproven.",
+      "collisionLane": "",
+      "summary": "Define a no-runtime-compatible x64 saved-context layout and validation contract for the admitted single-CPU x87/SSE profile. Specify actual offsets, widths, total size and alignment for GPRs, RIP/RSP/RFLAGS, FS and user-GS bases, and FP state.",
+      "currentEvidence": "Existing M16 user/syscall transitions and PAL contracts are source references only. This scheduler slice remains unimplemented and open; its own acceptance is required.",
       "implementationNotes": [
-        "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged. Use Linux application FS/TLS and pinned full CPU state in addition to kernel GS. Do not make custom application GC/EH or a CoreCLR port prerequisite.",
-        "Use concise cohesive types in the owned Threading file, documenting ownership, execution context, pre/postconditions and unsupported behavior on public/unsafe entry points. Before adding a type inspect existing Runtime/Threading/Pal contracts and reuse its state representation. Do not copy old generated filename prose into new type names.",
-        "Implement exactly one bounded slice: Define x64 thread-context layout including GPR, flags, GS, and selected FP/SIMD state.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
-        "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
-        "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
+        "Read docs/workload-profiles.md, docs/pal.md and work/PAL/pal-design.md first. Preserve the NativeAOT-first boundary: upstream applications own their GC/EH; this work does not port CoreCLR or extend general kernel EH.",
+        "Use C# 14/.NET 10, caller-owned bounded storage, explicit status results and no hidden allocation, exceptions or reflection in kernel paths. Keep one main public type per file where practical and document lifetime, execution context, failure atomicity and unsupported behavior.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Complete the valid packet or socket transition required by: Define x64 thread-context layout including GPR, flags, GS, and selected FP/SIMD state.",
-        "Failure cases: Cover truncation, bad length/checksum, loss, duplication, reordering, stale neighbor/lease/cache entry, partial I/O, retransmission timeout, reset, half-close, cancellation, and capacity exhaustion as applicable.",
-        "Explicitly inapplicable here: UEFI map-key retry and PE relocation failures are outside this network slice.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Inspect live claimed issues before editing overlapping canonical PAL/application documentation. A host foundation has no EFI/profile ownership and does not acquire it through a documentation edit.",
+        "Record focused checks and the exact evidence boundary in a newly reserved done step. Update canonical docs without promoting later completion gates.",
+        "Host-only foundation: do not edit EFI, boot order, probe toggles or native/QEMU profiles for this ticket. Later M09-004/M09-005 tickets own actual save/restore and hardware interrupt proof.",
+        "First read src/OS.Kernel/Compatibility/LinuxX64/X64LinuxUserTransition.cs, LinuxSyscallGateway.cs (LinuxSyscallFrame), src/OS.Kernel/Diagnostics/CpuFaultEntryFrameLayout.cs and tests/OS.HostTests/X64LinuxUserTransitionTests.cs. Consult Intel SDM FXSAVE64/FXRSTOR64 and interrupt-return state (https://www.intel.com/content/www/us/en/developer/articles/technical/intel-sdm.html) and the kernel-side Win64 calling convention (https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention)."
       ],
       "referenceInfluences": [
         {
-          "path": "references/SharpOS-main/OS/src/Kernel/Threading",
+          "path": "references/SharpOS-main/OS/src/Kernel/Threading/Thread.cs",
           "use": "test-only",
-          "notes": "Use scheduler state-machine behavior and known failure cases as test inputs."
+          "notes": "SavedRsp/TEB/FX storage is a cooperative-switch example, not authority for CLROS Linux FS/TLS or complete interrupted state."
         },
         {
-          "path": "references/SharpOS-main/done/step076.md",
+          "path": "references/SharpOS-main/OS/src/Hal/X64Asm.BootAsm.cs",
           "use": "test-only",
-          "notes": "Historical hosted-runtime evidence only; the required external fork is absent."
+          "notes": "Read ContextSwitch save/restore alongside Scheduler.cs. Its eight callee-saved GPRs and conditional GS restore are not a full preemptive context contract; preserve the historical SharpOS MXCSR/SIMD regression addendum."
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Define x64 thread-context layout including GPR, flags, GS, and selected FP/SIMD state.",
-        "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
-        "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
-        "Affected canonical documentation is updated without promoting unsupported completion gates.",
-        "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Complete the valid packet or socket transition required by: Define x64 thread-context layout including GPR, flags, GS, and selected FP/SIMD state.",
-        "Applicable failure cases are asserted: Cover truncation, bad length/checksum, loss, duplication, reordering, stale neighbor/lease/cache entry, partial I/O, retransmission timeout, reset, half-close, cancellation, and capacity exhaustion as applicable.",
-        "The evidence report explicitly records these non-goals: UEFI map-key retry and PE relocation failures are outside this network slice."
+        "Define a no-runtime-compatible x64 saved-context layout and validation contract for the admitted single-CPU x87/SSE profile. Specify actual offsets, widths, total size and alignment for GPRs, RIP/RSP/RFLAGS, FS and user-GS bases, and FP state.",
+        "Reserve a 512-byte, 16-byte-aligned FXSAVE64 area covering x87/MMX/MXCSR/XMM state. Define legal initial control state and supported MXCSR-mask handling; arbitrary zero-filled FP control state is not initialization. Explicitly exclude XSAVE/AVX, CET and SMP until separately admitted.",
+        "Document which selectors, address-space root, kernel-GS and TSS state belong to the thread versus the trusted CPU/transition owner. Distinguish structural validity from permission to restore executable addresses, mappings or privileged control state.",
+        "Host tests assert actual offsets and size, unique sentinel round trips, FP-area alignment, bounded buffer access, malformed size/alignment/overflow rejection and unchanged output on failure. Test every declared address/flags admission policy.",
+        "Explain cooperative-call versus asynchronous-interrupt preservation and syscall RCX/R11 conventions. Callee-saved GPRs alone are not a complete interrupted-thread context. Preserve the existing M16 transition and normalized fault-frame layouts.",
+        "No privileged save/restore instruction executes in this ticket. Actual context transfer, live FS/TLS setup, preemption and Linux thread creation remain later work.",
+        "Required focused checks succeed; docs and a new done step accurately separate host, native and guest evidence. No forbidden native source, generated artifact or secret is committed."
       ],
       "requiredMarkers": [
         "TEST_START m09.001",
         "TEST_PASS m09.001",
-        "TEST_FAIL m09.001 <reason>",
-        "CLROS_M09_001_READY"
+        "TEST_FAIL m09.001 <reason>"
       ],
       "requiredCommands": [
-        "dotnet build .\\CLROS.slnx --nologo -m:1",
-        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter X64ThreadContextTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
-        "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M09_001_READY\""
+        "git status --short"
       ],
       "documentationPaths": [
         "docs/pal.md",
         "docs/app-model.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Define x64 thread-context layout including GPR, flags, GS, and selected FP/SIMD state.\" It does not by itself prove the M09 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "evidenceBoundary": "Host-tested layout or queue contract only. No actual thread save/restore, scheduling, hardware interrupt, Linux thread/TLS/futex/signal service, upstream runtime, Kestrel or later completion gate is proven.",
       "desiredState": "open"
     },
     {
@@ -19440,93 +19422,68 @@
       "labels": [
         "agent:blocked",
         "type:implementation",
-        "evidence:qemu",
+        "evidence:host",
         "component:pal",
         "phase:m09-hosted",
         "reference:test-only",
-        "priority:p0",
-        "lane:nativeaot-integration"
+        "priority:p0"
       ],
       "priority": "priority:p0",
       "ownedPaths": [
         "src/OS.Kernel/Threading/ReadyQueue.cs",
         "tests/OS.HostTests/ReadyQueueTests.cs",
         "docs/pal.md",
-        "docs/app-model.md",
-        "src/OS/Boot/EfiEntry.cs",
-        "src/OS/OS.csproj",
-        "src/OS.Kernel/Boot/BootSequence.cs",
-        "src/OS.Kernel/Diagnostics/Probes.cs",
-        "tools/OS.Tooling/EfiContracts.cs",
-        "tools/OS.Tooling/EfiOptions.cs",
-        "tools/OS.Tooling/EfiProfile.cs",
-        "tools/OS.Tooling/QemuSmokeOptions.cs",
-        "tools/OS.Tooling/QemuProfiles.cs",
-        "docs/completion-gates.md"
+        "docs/app-model.md"
       ],
       "forbiddenPaths": [
         "README.md",
         "references/** (read-only except the dedicated references/AGENTS.override.md issue)",
         "done/** (reserve a new step only after implementation evidence exists)"
       ],
-      "collisionLane": "lane:nativeaot-integration",
-      "summary": "Host-test a fixed-capacity FIFO ready queue.",
-      "currentEvidence": "PAL tables and readiness contracts are host-tested; scheduler exports and hosted CoreCLR execution are unproven.",
+      "collisionLane": "",
+      "summary": "Implement a fixed-capacity ready queue over caller-owned storage with explicit initialized/empty/full states and a documented single-owner or external-synchronization contract.",
+      "currentEvidence": "Existing M16 user/syscall transitions and PAL contracts are source references only. This scheduler slice remains unimplemented and open; its own acceptance is required.",
       "implementationNotes": [
-        "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged. Use Linux application FS/TLS and pinned full CPU state in addition to kernel GS. Do not make custom application GC/EH or a CoreCLR port prerequisite.",
-        "Use concise cohesive types in the owned Threading file, documenting ownership, execution context, pre/postconditions and unsupported behavior on public/unsafe entry points. Before adding a type inspect existing Runtime/Threading/Pal contracts and reuse its state representation. Do not copy old generated filename prose into new type names.",
-        "Implement exactly one bounded slice: Host-test a fixed-capacity FIFO ready queue.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
-        "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
-        "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
+        "Read docs/workload-profiles.md, docs/pal.md and work/PAL/pal-design.md first. Preserve the NativeAOT-first boundary: upstream applications own their GC/EH; this work does not port CoreCLR or extend general kernel EH.",
+        "Use C# 14/.NET 10, caller-owned bounded storage, explicit status results and no hidden allocation, exceptions or reflection in kernel paths. Keep one main public type per file where practical and document lifetime, execution context, failure atomicity and unsupported behavior.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Complete one bounded valid device transaction for: Host-test a fixed-capacity FIFO ready queue.",
-        "Failure cases: Cover absent device/capability, cyclic capability list, invalid BAR/range, unsupported features, zero or non-power-of-two queue size, descriptor exhaustion/double use, ordering violation, timeout, bad status, reset, and stale DMA ownership as applicable.",
-        "Explicitly inapplicable here: PE import policy and hosted-runtime exception behavior are outside this device slice.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Inspect live claimed issues before editing overlapping canonical PAL/application documentation. A host foundation has no EFI/profile ownership and does not acquire it through a documentation edit.",
+        "Record focused checks and the exact evidence boundary in a newly reserved done step. Update canonical docs without promoting later completion gates.",
+        "Host-only foundation: do not edit EFI, boot order, probe toggles or native/QEMU profiles for this ticket. Later M09-004/M09-005 tickets own actual save/restore and hardware interrupt proof.",
+        "Inspect existing Threading/Runtime/PAL identity and lifetime types before adding another representation; reuse the preceding scheduler slice contracts."
       ],
       "referenceInfluences": [
         {
-          "path": "references/SharpOS-main/OS/src/Kernel/Threading",
+          "path": "references/SharpOS-main/OS/src/Kernel/Threading/Scheduler.cs",
           "use": "test-only",
-          "notes": "Use scheduler state-machine behavior and known failure cases as test inputs."
-        },
-        {
-          "path": "references/SharpOS-main/done/step076.md",
-          "use": "test-only",
-          "notes": "Historical hosted-runtime evidence only; the required external fork is absent."
+          "notes": "Use EnqueueRunnable/DequeueRunnable or Schedule/DrainExpired/Cancel as behavioral test references. Do not import managed linked-list or GC assumptions."
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Host-test a fixed-capacity FIFO ready queue.",
-        "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
-        "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
-        "Affected canonical documentation is updated without promoting unsupported completion gates.",
-        "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Complete one bounded valid device transaction for: Host-test a fixed-capacity FIFO ready queue.",
-        "Applicable failure cases are asserted: Cover absent device/capability, cyclic capability list, invalid BAR/range, unsupported features, zero or non-power-of-two queue size, descriptor exhaustion/double use, ordering violation, timeout, bad status, reset, and stale DMA ownership as applicable.",
-        "The evidence report explicitly records these non-goals: PE import policy and hosted-runtime exception behavior are outside this device slice."
+        "Implement a fixed-capacity ready queue over caller-owned storage with explicit initialized/empty/full states and a documented single-owner or external-synchronization contract.",
+        "Host tests prove FIFO order, empty/full behavior, wraparound, repeated drain/refill and capacity boundaries. Define duplicate-admission and removal/cancellation policies; test supported operations rather than inventing scheduler execution.",
+        "Use the existing generation-tagged identity contract where available; reject invalid/stale identities and owner misuse according to the declared admission boundary. Rejected operations leave queue state unchanged.",
+        "No heap allocation, callbacks, context switching, hardware timer, blocking wait or concurrency proof is introduced. The queue is a host-tested scheduler foundation only.",
+        "Required focused checks succeed; docs and a new done step accurately separate host, native and guest evidence. No forbidden native source, generated artifact or secret is committed."
       ],
       "requiredMarkers": [
         "TEST_START m09.002",
         "TEST_PASS m09.002",
-        "TEST_FAIL m09.002 <reason>",
-        "CLROS_M09_002_READY"
+        "TEST_FAIL m09.002 <reason>"
       ],
       "requiredCommands": [
-        "dotnet build .\\CLROS.slnx --nologo -m:1",
-        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter ReadyQueueTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
-        "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M09_002_READY\""
+        "git status --short"
       ],
       "documentationPaths": [
         "docs/pal.md",
         "docs/app-model.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Host-test a fixed-capacity FIFO ready queue.\" It does not by itself prove the M09 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "evidenceBoundary": "Host-tested layout or queue contract only. No actual thread save/restore, scheduling, hardware interrupt, Linux thread/TLS/futex/signal service, upstream runtime, Kestrel or later completion gate is proven.",
       "desiredState": "open"
     },
     {
@@ -19540,93 +19497,68 @@
       "labels": [
         "agent:blocked",
         "type:implementation",
-        "evidence:qemu",
+        "evidence:host",
         "component:pal",
         "phase:m09-hosted",
         "reference:test-only",
-        "priority:p0",
-        "lane:nativeaot-integration"
+        "priority:p0"
       ],
       "priority": "priority:p0",
       "ownedPaths": [
         "src/OS.Kernel/Threading/DeadlineQueue.cs",
         "tests/OS.HostTests/DeadlineQueueTests.cs",
         "docs/pal.md",
-        "docs/app-model.md",
-        "src/OS/Boot/EfiEntry.cs",
-        "src/OS/OS.csproj",
-        "src/OS.Kernel/Boot/BootSequence.cs",
-        "src/OS.Kernel/Diagnostics/Probes.cs",
-        "tools/OS.Tooling/EfiContracts.cs",
-        "tools/OS.Tooling/EfiOptions.cs",
-        "tools/OS.Tooling/EfiProfile.cs",
-        "tools/OS.Tooling/QemuSmokeOptions.cs",
-        "tools/OS.Tooling/QemuProfiles.cs",
-        "docs/completion-gates.md"
+        "docs/app-model.md"
       ],
       "forbiddenPaths": [
         "README.md",
         "references/** (read-only except the dedicated references/AGENTS.override.md issue)",
         "done/** (reserve a new step only after implementation evidence exists)"
       ],
-      "collisionLane": "lane:nativeaot-integration",
-      "summary": "Host-test an ordered deadline/timer queue.",
-      "currentEvidence": "PAL tables and readiness contracts are host-tested; scheduler exports and hosted CoreCLR execution are unproven.",
+      "collisionLane": "",
+      "summary": "Implement a bounded deadline queue over caller-owned storage and injected monotonic ticks. Define ordered insertion, earliest-deadline query, stable equal-deadline ordering and a bounded expiration drain.",
+      "currentEvidence": "Existing M16 user/syscall transitions and PAL contracts are source references only. This scheduler slice remains unimplemented and open; its own acceptance is required.",
       "implementationNotes": [
-        "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged. Use Linux application FS/TLS and pinned full CPU state in addition to kernel GS. Do not make custom application GC/EH or a CoreCLR port prerequisite.",
-        "Use concise cohesive types in the owned Threading file, documenting ownership, execution context, pre/postconditions and unsupported behavior on public/unsafe entry points. Before adding a type inspect existing Runtime/Threading/Pal contracts and reuse its state representation. Do not copy old generated filename prose into new type names.",
-        "Implement exactly one bounded slice: Host-test an ordered deadline/timer queue.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
-        "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
-        "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
+        "Read docs/workload-profiles.md, docs/pal.md and work/PAL/pal-design.md first. Preserve the NativeAOT-first boundary: upstream applications own their GC/EH; this work does not port CoreCLR or extend general kernel EH.",
+        "Use C# 14/.NET 10, caller-owned bounded storage, explicit status results and no hidden allocation, exceptions or reflection in kernel paths. Keep one main public type per file where practical and document lifetime, execution context, failure atomicity and unsupported behavior.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Complete one bounded valid device transaction for: Host-test an ordered deadline/timer queue.",
-        "Failure cases: Cover absent device/capability, cyclic capability list, invalid BAR/range, unsupported features, zero or non-power-of-two queue size, descriptor exhaustion/double use, ordering violation, timeout, bad status, reset, and stale DMA ownership as applicable.",
-        "Explicitly inapplicable here: PE import policy and hosted-runtime exception behavior are outside this device slice.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Inspect live claimed issues before editing overlapping canonical PAL/application documentation. A host foundation has no EFI/profile ownership and does not acquire it through a documentation edit.",
+        "Record focused checks and the exact evidence boundary in a newly reserved done step. Update canonical docs without promoting later completion gates.",
+        "Host-only foundation: do not edit EFI, boot order, probe toggles or native/QEMU profiles for this ticket. Later M09-004/M09-005 tickets own actual save/restore and hardware interrupt proof.",
+        "Inspect existing Threading/Runtime/PAL identity and lifetime types before adding another representation; reuse the preceding scheduler slice contracts."
       ],
       "referenceInfluences": [
         {
-          "path": "references/SharpOS-main/OS/src/Kernel/Threading",
+          "path": "references/SharpOS-main/OS/src/Kernel/Threading/TimerQueue.cs",
           "use": "test-only",
-          "notes": "Use scheduler state-machine behavior and known failure cases as test inputs."
-        },
-        {
-          "path": "references/SharpOS-main/done/step076.md",
-          "use": "test-only",
-          "notes": "Historical hosted-runtime evidence only; the required external fork is absent."
+          "notes": "Use EnqueueRunnable/DequeueRunnable or Schedule/DrainExpired/Cancel as behavioral test references. Do not import managed linked-list or GC assumptions."
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Host-test an ordered deadline/timer queue.",
-        "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
-        "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
-        "Affected canonical documentation is updated without promoting unsupported completion gates.",
-        "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Complete one bounded valid device transaction for: Host-test an ordered deadline/timer queue.",
-        "Applicable failure cases are asserted: Cover absent device/capability, cyclic capability list, invalid BAR/range, unsupported features, zero or non-power-of-two queue size, descriptor exhaustion/double use, ordering violation, timeout, bad status, reset, and stale DMA ownership as applicable.",
-        "The evidence report explicitly records these non-goals: PE import policy and hosted-runtime exception behavior are outside this device slice."
+        "Implement a bounded deadline queue over caller-owned storage and injected monotonic ticks. Define ordered insertion, earliest-deadline query, stable equal-deadline ordering and a bounded expiration drain.",
+        "Host tests prove that entries cannot expire early, equal deadlines retain the declared order, cancellation/rearm/reuse work, and empty/full boundaries and stale identities fail without corrupting the queue.",
+        "Specify overflow/wrap behavior rather than relying on unchecked timestamp comparisons. Test timestamps near the selected boundary, deadline arithmetic failure, repeated rearm and cancellation at expiration.",
+        "No real timer, sleeping, interrupt, preemption, callback dispatch or concurrent-owner behavior is claimed; hardware wake/preemption belongs to M09-005.",
+        "Required focused checks succeed; docs and a new done step accurately separate host, native and guest evidence. No forbidden native source, generated artifact or secret is committed."
       ],
       "requiredMarkers": [
         "TEST_START m09.003",
         "TEST_PASS m09.003",
-        "TEST_FAIL m09.003 <reason>",
-        "CLROS_M09_003_READY"
+        "TEST_FAIL m09.003 <reason>"
       ],
       "requiredCommands": [
-        "dotnet build .\\CLROS.slnx --nologo -m:1",
-        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter DeadlineQueueTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
-        "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M09_003_READY\""
+        "git status --short"
       ],
       "documentationPaths": [
         "docs/pal.md",
         "docs/app-model.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Host-test an ordered deadline/timer queue.\" It does not by itself prove the M09 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "evidenceBoundary": "Host-tested layout or queue contract only. No actual thread save/restore, scheduling, hardware interrupt, Linux thread/TLS/futex/signal service, upstream runtime, Kestrel or later completion gate is proven.",
       "desiredState": "open"
     },
     {
@@ -19670,43 +19602,35 @@
         "done/** (reserve a new step only after implementation evidence exists)"
       ],
       "collisionLane": "lane:nativeaot-integration",
-      "summary": "Implement one cooperative two-thread context-switch smoke.",
-      "currentEvidence": "PAL tables and readiness contracts are host-tested; scheduler exports and hosted CoreCLR execution are unproven.",
+      "summary": "A default-off post-ExitBootServices profile transfers between two actual mechanical execution contexts on distinct owned guarded stacks and proves repeated bidirectional progress.",
+      "currentEvidence": "Existing M16 user/syscall transitions and PAL contracts are source references only. This scheduler slice remains unimplemented and open; its own acceptance is required.",
       "implementationNotes": [
-        "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged. Use Linux application FS/TLS and pinned full CPU state in addition to kernel GS. Do not make custom application GC/EH or a CoreCLR port prerequisite.",
-        "Use concise cohesive types in the owned Threading file, documenting ownership, execution context, pre/postconditions and unsupported behavior on public/unsafe entry points. Before adding a type inspect existing Runtime/Threading/Pal contracts and reuse its state representation. Do not copy old generated filename prose into new type names.",
-        "Implement exactly one bounded slice: Implement one cooperative two-thread context-switch smoke.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
-        "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
-        "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
+        "Read docs/workload-profiles.md, docs/pal.md and work/PAL/pal-design.md first. Preserve the NativeAOT-first boundary: upstream applications own their GC/EH; this work does not port CoreCLR or extend general kernel EH.",
+        "Use C# 14/.NET 10, caller-owned bounded storage, explicit status results and no hidden allocation, exceptions or reflection in kernel paths. Keep one main public type per file where practical and document lifetime, execution context, failure atomicity and unsupported behavior.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Complete the valid lifecycle or ABI transition required by: Implement one cooperative two-thread context-switch smoke.",
-        "Failure cases: Cover invalid/zero/stale handles, capacity exhaustion, double close, ownership violation, wait race, timeout, cancellation, wake-one/wake-all ordering, timer wrap, unsupported ABI version/size, and shutdown while parked as applicable.",
-        "Explicitly inapplicable here: Disk CRC and packet checksum failures are outside this scheduler/PAL slice.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Inspect live claimed issues before editing overlapping canonical PAL/application documentation. A host foundation has no EFI/profile ownership and does not acquire it through a documentation edit.",
+        "Record focused checks and the exact evidence boundary in a newly reserved done step. Update canonical docs without promoting later completion gates.",
+        "Claim the integration lane before boot/profile edits. Implement and explicitly select a minimal default-off profile; record its exact options in the issue before qualification. Require an unfiltered full-host pass, original native review, three fresh final-source guest captures and relevant ancestor regressions. Dry-run smoke and host callbacks do not prove execution.",
+        "Inspect existing Threading/Runtime/PAL identity and lifetime types before adding another representation; reuse the preceding scheduler slice contracts."
       ],
       "referenceInfluences": [
         {
-          "path": "references/SharpOS-main/OS/src/Kernel/Threading",
+          "path": "references/SharpOS-main/OS/src/Kernel/Threading/Thread.cs",
           "use": "test-only",
-          "notes": "Use scheduler state-machine behavior and known failure cases as test inputs."
+          "notes": "SavedRsp/TEB/FX storage is a cooperative-switch example, not authority for CLROS Linux FS/TLS or complete interrupted state."
         },
         {
-          "path": "references/SharpOS-main/done/step076.md",
+          "path": "references/SharpOS-main/OS/src/Hal/X64Asm.BootAsm.cs",
           "use": "test-only",
-          "notes": "Historical hosted-runtime evidence only; the required external fork is absent."
+          "notes": "Read ContextSwitch save/restore alongside Scheduler.cs. Its eight callee-saved GPRs and conditional GS restore are not a full preemptive context contract; preserve the historical SharpOS MXCSR/SIMD regression addendum."
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Implement one cooperative two-thread context-switch smoke.",
-        "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
-        "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
-        "Affected canonical documentation is updated without promoting unsupported completion gates.",
-        "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Complete the valid lifecycle or ABI transition required by: Implement one cooperative two-thread context-switch smoke.",
-        "Applicable failure cases are asserted: Cover invalid/zero/stale handles, capacity exhaustion, double close, ownership violation, wait race, timeout, cancellation, wake-one/wake-all ordering, timer wrap, unsupported ABI version/size, and shutdown while parked as applicable.",
-        "The evidence report explicitly records these non-goals: Disk CRC and packet checksum failures are outside this scheduler/PAL slice."
+        "A default-off post-ExitBootServices profile transfers between two actual mechanical execution contexts on distinct owned guarded stacks and proves repeated bidirectional progress.",
+        "Verify the admitted GPR/flags, FS/GS and x87/SSE preservation policy, ABI stack alignment, original-context restoration and complete owned-resource cleanup. Use the M09-001 layout without confusing a cooperative ABI with full interrupted state.",
+        "Reject malformed context, stack bounds/alignment, unsupported CPU state and ownership failures before transfer. Focused host tests are complemented by original compiled-native inspection and fresh actual guest evidence.",
+        "Timer preemption, Linux clone/futex/signals, upstream NativeAOT runtime and Kestrel are not established by this two-context cooperative smoke.",
+        "Required focused checks succeed; docs and a new done step accurately separate host, native and guest evidence. No forbidden native source, generated artifact or secret is committed."
       ],
       "requiredMarkers": [
         "TEST_START m09.004",
@@ -19715,18 +19639,21 @@
         "CLROS_M09_004_READY"
       ],
       "requiredCommands": [
-        "dotnet build .\\CLROS.slnx --nologo -m:1",
-        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter ThreadContextSwitchTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M09_004_READY\""
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling -- efi build <explicit new default-off profile options recorded before qualification>",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke <same explicit profile options> -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M09_004_READY\""
       ],
       "documentationPaths": [
         "docs/pal.md",
         "docs/app-model.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Implement one cooperative two-thread context-switch smoke.\" It does not by itself prove the M09 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "evidenceBoundary": "Bounded mechanical guest scheduler behavior only. No upstream NativeAOT runtime/GC/ThreadPool, CoreCLR, Kestrel, SMP, cloud or production acceptance is implied.",
       "desiredState": "open"
     },
     {
@@ -19770,43 +19697,31 @@
         "done/** (reserve a new step only after implementation evidence exists)"
       ],
       "collisionLane": "lane:nativeaot-integration",
-      "summary": "Add hardware-timer wakeups and bounded preemption.",
-      "currentEvidence": "PAL tables and readiness contracts are host-tested; scheduler exports and hosted CoreCLR execution are unproven.",
+      "summary": "Select and document an owned hardware interrupt source and prove actual interrupt-driven wake/preemption of a non-yielding mechanical context after firmware exit. Polling a clock or injecting host callbacks is insufficient.",
+      "currentEvidence": "Existing M16 user/syscall transitions and PAL contracts are source references only. This scheduler slice remains unimplemented and open; its own acceptance is required.",
       "implementationNotes": [
-        "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged. Use Linux application FS/TLS and pinned full CPU state in addition to kernel GS. Do not make custom application GC/EH or a CoreCLR port prerequisite.",
-        "Use concise cohesive types in the owned Threading file, documenting ownership, execution context, pre/postconditions and unsupported behavior on public/unsafe entry points. Before adding a type inspect existing Runtime/Threading/Pal contracts and reuse its state representation. Do not copy old generated filename prose into new type names.",
-        "Implement exactly one bounded slice: Add hardware-timer wakeups and bounded preemption.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
-        "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
-        "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
+        "Read docs/workload-profiles.md, docs/pal.md and work/PAL/pal-design.md first. Preserve the NativeAOT-first boundary: upstream applications own their GC/EH; this work does not port CoreCLR or extend general kernel EH.",
+        "Use C# 14/.NET 10, caller-owned bounded storage, explicit status results and no hidden allocation, exceptions or reflection in kernel paths. Keep one main public type per file where practical and document lifetime, execution context, failure atomicity and unsupported behavior.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Complete the valid lifecycle or ABI transition required by: Add hardware-timer wakeups and bounded preemption.",
-        "Failure cases: Cover invalid/zero/stale handles, capacity exhaustion, double close, ownership violation, wait race, timeout, cancellation, wake-one/wake-all ordering, timer wrap, unsupported ABI version/size, and shutdown while parked as applicable.",
-        "Explicitly inapplicable here: Disk CRC and packet checksum failures are outside this scheduler/PAL slice.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Inspect live claimed issues before editing overlapping canonical PAL/application documentation. A host foundation has no EFI/profile ownership and does not acquire it through a documentation edit.",
+        "Record focused checks and the exact evidence boundary in a newly reserved done step. Update canonical docs without promoting later completion gates.",
+        "Claim the integration lane before boot/profile edits. Implement and explicitly select a minimal default-off profile; record its exact options in the issue before qualification. Require an unfiltered full-host pass, original native review, three fresh final-source guest captures and relevant ancestor regressions. Dry-run smoke and host callbacks do not prove execution.",
+        "Inspect existing Threading/Runtime/PAL identity and lifetime types before adding another representation; reuse the preceding scheduler slice contracts.",
+        "references/SharpOS-main/OS/src/Hal/Timer/Hpet.cs is a clock reference only: its comparator interrupts are deferred, so it cannot supply preemption evidence."
       ],
       "referenceInfluences": [
         {
-          "path": "references/SharpOS-main/OS/src/Kernel/Threading",
+          "path": "references/SharpOS-main/OS/src/Kernel/Threading/Scheduler.cs",
           "use": "test-only",
-          "notes": "Use scheduler state-machine behavior and known failure cases as test inputs."
-        },
-        {
-          "path": "references/SharpOS-main/done/step076.md",
-          "use": "test-only",
-          "notes": "Historical hosted-runtime evidence only; the required external fork is absent."
+          "notes": "Use EnqueueRunnable/DequeueRunnable or Schedule/DrainExpired/Cancel as behavioral test references. Do not import managed linked-list or GC assumptions."
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Add hardware-timer wakeups and bounded preemption.",
-        "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
-        "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
-        "Affected canonical documentation is updated without promoting unsupported completion gates.",
-        "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Complete the valid lifecycle or ABI transition required by: Add hardware-timer wakeups and bounded preemption.",
-        "Applicable failure cases are asserted: Cover invalid/zero/stale handles, capacity exhaustion, double close, ownership violation, wait race, timeout, cancellation, wake-one/wake-all ordering, timer wrap, unsupported ABI version/size, and shutdown while parked as applicable.",
-        "The evidence report explicitly records these non-goals: Disk CRC and packet checksum failures are outside this scheduler/PAL slice."
+        "Select and document an owned hardware interrupt source and prove actual interrupt-driven wake/preemption of a non-yielding mechanical context after firmware exit. Polling a clock or injecting host callbacks is insufficient.",
+        "Prove interrupted-state preservation, interrupt acknowledgement/rearm, bounded non-preemptible regions, not-before-deadline wakeup and controlled interrupt disable/restore during teardown.",
+        "Test timer/deadline boundary arithmetic, pending-versus-cancelled wakeups, invalid configuration and controlled failure cleanup. Do not install partial handlers or enable interrupts before owned IDT/stack/acknowledgement paths are ready.",
+        "Keep single-CPU and admitted FP/SIMD state explicit. This does not establish Linux signals, concurrent upstream GC, SMP or guest application runtime acceptance.",
+        "Required focused checks succeed; docs and a new done step accurately separate host, native and guest evidence. No forbidden native source, generated artifact or secret is committed."
       ],
       "requiredMarkers": [
         "TEST_START m09.005",
@@ -19815,18 +19730,21 @@
         "CLROS_M09_005_READY"
       ],
       "requiredCommands": [
-        "dotnet build .\\CLROS.slnx --nologo -m:1",
-        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter SchedulerTimerTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M09_005_READY\""
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling -- efi build <explicit new default-off profile options recorded before qualification>",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke <same explicit profile options> -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M09_005_READY\""
       ],
       "documentationPaths": [
         "docs/pal.md",
         "docs/app-model.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Add hardware-timer wakeups and bounded preemption.\" It does not by itself prove the M09 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "evidenceBoundary": "Bounded mechanical guest scheduler behavior only. No upstream NativeAOT runtime/GC/ThreadPool, CoreCLR, Kestrel, SMP, cloud or production acceptance is implied.",
       "desiredState": "open"
     },
     {
@@ -19870,43 +19788,30 @@
         "done/** (reserve a new step only after implementation evidence exists)"
       ],
       "collisionLane": "lane:nativeaot-integration",
-      "summary": "Implement thread create, exit, join, yield, sleep, and cancellation.",
-      "currentEvidence": "PAL tables and readiness contracts are host-tested; scheduler exports and hosted CoreCLR execution are unproven.",
+      "summary": "Implement real bounded create/start/yield/park/wake/sleep/join/exit/cancel transitions using the qualified context, ready queue and timer owners, with distinct owned stacks and generation-tagged identities.",
+      "currentEvidence": "Existing M16 user/syscall transitions and PAL contracts are source references only. This scheduler slice remains unimplemented and open; its own acceptance is required.",
       "implementationNotes": [
-        "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged. Use Linux application FS/TLS and pinned full CPU state in addition to kernel GS. Do not make custom application GC/EH or a CoreCLR port prerequisite.",
-        "Use concise cohesive types in the owned Threading file, documenting ownership, execution context, pre/postconditions and unsupported behavior on public/unsafe entry points. Before adding a type inspect existing Runtime/Threading/Pal contracts and reuse its state representation. Do not copy old generated filename prose into new type names.",
-        "Implement exactly one bounded slice: Implement thread create, exit, join, yield, sleep, and cancellation.",
-        "Reuse existing host-tested contracts where they are sound, but cross only the live or repository boundary named by this issue.",
-        "Use C# 14/.NET 10 for first-party source, status results on kernel paths, explicit ownership/lengths, and no hidden claims of later gate completion.",
-        "Reserve a unique done/stepNN.md only after implementation exists, and include commands, logs, failures, deferred work, and the exact evidence boundary.",
+        "Read docs/workload-profiles.md, docs/pal.md and work/PAL/pal-design.md first. Preserve the NativeAOT-first boundary: upstream applications own their GC/EH; this work does not port CoreCLR or extend general kernel EH.",
+        "Use C# 14/.NET 10, caller-owned bounded storage, explicit status results and no hidden allocation, exceptions or reflection in kernel paths. Keep one main public type per file where practical and document lifetime, execution context, failure atomicity and unsupported behavior.",
         "The ownedPaths inventory is the exact scope for this slice. Any additional shared integration file requires a separately claimed collision-lane issue.",
-        "Positive case: Complete the valid lifecycle or ABI transition required by: Implement thread create, exit, join, yield, sleep, and cancellation.",
-        "Failure cases: Cover invalid/zero/stale handles, capacity exhaustion, double close, ownership violation, wait race, timeout, cancellation, wake-one/wake-all ordering, timer wrap, unsupported ABI version/size, and shutdown while parked as applicable.",
-        "Explicitly inapplicable here: Disk CRC and packet checksum failures are outside this scheduler/PAL slice.",
-        "Real QEMU/OVMF serial evidence is required to close this issue; -DryRun is preflight evidence only.",
-        "Claim lane:nativeaot-integration before shared boot/profile edits; inspect all live claimed issues, including unkeyed follow-ups. The lane serializes shared changes, not unrelated host-only work. Implement only the minimal default-off profile and explicit source admission needed for this slice; do not create another contract-only integration backlog."
+        "Inspect live claimed issues before editing overlapping canonical PAL/application documentation. A host foundation has no EFI/profile ownership and does not acquire it through a documentation edit.",
+        "Record focused checks and the exact evidence boundary in a newly reserved done step. Update canonical docs without promoting later completion gates.",
+        "Claim the integration lane before boot/profile edits. Implement and explicitly select a minimal default-off profile; record its exact options in the issue before qualification. Require an unfiltered full-host pass, original native review, three fresh final-source guest captures and relevant ancestor regressions. Dry-run smoke and host callbacks do not prove execution.",
+        "Inspect existing Threading/Runtime/PAL identity and lifetime types before adding another representation; reuse the preceding scheduler slice contracts."
       ],
       "referenceInfluences": [
         {
-          "path": "references/SharpOS-main/OS/src/Kernel/Threading",
+          "path": "references/SharpOS-main/OS/src/Kernel/Threading/Scheduler.cs",
           "use": "test-only",
-          "notes": "Use scheduler state-machine behavior and known failure cases as test inputs."
-        },
-        {
-          "path": "references/SharpOS-main/done/step076.md",
-          "use": "test-only",
-          "notes": "Historical hosted-runtime evidence only; the required external fork is absent."
+          "notes": "Use EnqueueRunnable/DequeueRunnable or Schedule/DrainExpired/Cancel as behavioral test references. Do not import managed linked-list or GC assumptions."
         }
       ],
       "acceptanceCriteria": [
-        "The repository implements and tests the scoped behavior: Implement thread create, exit, join, yield, sleep, and cancellation.",
-        "Only declared owned paths are changed; lane-controlled integration files are touched only when this issue owns that lane.",
-        "Required commands succeed and stable success/failure markers are asserted where machine-readable evidence applies.",
-        "Affected canonical documentation is updated without promoting unsupported completion gates.",
-        "No forbidden first-party native source, generated artifact, secret, or unreviewed reference code is committed.",
-        "The positive case is demonstrated: Complete the valid lifecycle or ABI transition required by: Implement thread create, exit, join, yield, sleep, and cancellation.",
-        "Applicable failure cases are asserted: Cover invalid/zero/stale handles, capacity exhaustion, double close, ownership violation, wait race, timeout, cancellation, wake-one/wake-all ordering, timer wrap, unsupported ABI version/size, and shutdown while parked as applicable.",
-        "The evidence report explicitly records these non-goals: Disk CRC and packet checksum failures are outside this scheduler/PAL slice."
+        "Implement real bounded create/start/yield/park/wake/sleep/join/exit/cancel transitions using the qualified context, ready queue and timer owners, with distinct owned stacks and generation-tagged identities.",
+        "Tests and live mechanical guests cover failed-create rollback, exit before and after join, self-join rejection, cancellation/deadline races, stale-ID reuse and capacity exhaustion.",
+        "Reclaim stacks/contexts only after execution has stopped and all required ownership references are released. Prove teardown and original-context restoration with no runnable/parked entries retaining reclaimed storage.",
+        "Keep kernel lifecycle ownership separate from upstream managed-thread ownership. Linux clone/TLS/futex/masks and application GC/suspension remain M16-008/M16-009 work.",
+        "Required focused checks succeed; docs and a new done step accurately separate host, native and guest evidence. No forbidden native source, generated artifact or secret is committed."
       ],
       "requiredMarkers": [
         "TEST_START m09.006",
@@ -19915,18 +19820,21 @@
         "CLROS_M09_006_READY"
       ],
       "requiredCommands": [
-        "dotnet build .\\CLROS.slnx --nologo -m:1",
-        "dotnet run --project .\\tests\\OS.HostTests\\OS.HostTests.csproj --no-build",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
+        "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo",
+        "dotnet run --project tests/OS.HostTests --no-build -- --filter KernelThreadTests",
+        "dotnet run --project tools/OS.Tooling -- repo check",
+        "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M09_006_READY\""
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
+        "dotnet run --project tools/OS.Tooling -- efi build <explicit new default-off profile options recorded before qualification>",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke <same explicit profile options> -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M09_006_READY\""
       ],
       "documentationPaths": [
         "docs/pal.md",
         "docs/app-model.md"
       ],
-      "evidenceBoundary": "This issue proves only \"Implement thread create, exit, join, yield, sleep, and cancellation.\" It does not by itself prove the M09 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
+      "evidenceBoundary": "Bounded mechanical guest scheduler behavior only. No upstream NativeAOT runtime/GC/ThreadPool, CoreCLR, Kestrel, SMP, cloud or production acceptance is implied.",
       "desiredState": "open"
     },
     {
