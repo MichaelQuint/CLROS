@@ -19495,7 +19495,7 @@
         "M09-002"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:host",
         "component:pal",
@@ -19517,7 +19517,7 @@
       ],
       "collisionLane": "",
       "summary": "Implement a bounded deadline queue over caller-owned storage and injected monotonic ticks. Define ordered insertion, earliest-deadline query, stable equal-deadline ordering and a bounded expiration drain.",
-      "currentEvidence": "Existing M16 user/syscall transitions and PAL contracts are source references only. This scheduler slice remains unimplemented and open; its own acceptance is required.",
+      "currentEvidence": "done/step1212.md qualifies the caller-owned DeadlineQueue with ten fresh focused host checks and scoped peer source review. Stable insertion/rearm, no early expiration, bounded disjoint output, cancellation/reuse, generation/owner admission, checked nonwrapping ticks/overflow, stalled-time pending truth, byte-preserving failure and zero warmed allocation pass. Clock/lifetime authority, complete-operation serialization and wake publication are external. No platform timer, sleeping, actual wake/preemption, Linux thread/TLS/futex/signals, upstream runtime, Kestrel or later gate is proven. M09-004 follows reviewed merge and closure.",
       "implementationNotes": [
         "Read docs/workload-profiles.md, docs/pal.md and work/PAL/pal-design.md first. Preserve the NativeAOT-first boundary: upstream applications own their GC/EH; this work does not port CoreCLR or extend general kernel EH.",
         "Use C# 14/.NET 10, caller-owned bounded storage, explicit status results and no hidden allocation, exceptions or reflection in kernel paths. Keep one main public type per file where practical and document lifetime, execution context, failure atomicity and unsupported behavior.",
@@ -19559,7 +19559,7 @@
         "docs/app-model.md"
       ],
       "evidenceBoundary": "Host-tested layout or queue contract only. No actual thread save/restore, scheduling, hardware interrupt, Linux thread/TLS/futex/signal service, upstream runtime, Kestrel or later completion gate is proven.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M09-004",

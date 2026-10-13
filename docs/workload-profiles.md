@@ -58,9 +58,11 @@ identified in [step1207](../done/step1207.md). #708/#711's reproduced
 The host-only saved-context layout #183 is qualified in
 [step1210](../done/step1210.md) with nine focused checks. #184's caller-owned
 FIFO queue is qualified in [step1211](../done/step1211.md) with nine focused
-checks; the next foundation is #185's deadline queue. #186-#188 retain actual
+checks. #185's injected-tick deadline queue is qualified in
+[step1212](../done/step1212.md) with ten focused checks. The next slice is #186's
+actual cooperative transfer. #186-#188 retain actual
 switching/interrupt/lifecycle guest proof. Exact managed dependencies still
-control the sequence before #686; the layout does not establish execution.
+control the sequence before #686; these foundations do not establish execution.
 The #708/#711 qualification in [step1209](../done/step1209.md) adds explicit
 heap reservation ownership. General fixed mappings and unmaps still operate;
 they relinquish heap ownership, so brk cannot silently reclaim a replacement
