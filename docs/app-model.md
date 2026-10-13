@@ -95,6 +95,11 @@ the first development guest. [Step1218](../done/step1218.md) qualifies 4,742
 full-host checks, current original native review, three fresh 99-record guests
 with seventeen transfers and complete context/pool restoration, and seven
 ancestors. Real interrupt/preemption and lifecycle remain #187/#188 work.
+The #187 timer control development in [step1219](../done/step1219.md) passes
+twelve focused checks for a local-APIC one-shot protocol, retained deadlines,
+bounded publication deferral and partial-write cleanup. Its MMIO/expiration
+callbacks are simulated; actual IRQ capture and non-yielding guest preemption
+remain unimplemented. See [PAL timer ownership](pal.md#timer-control-development-187).
 The host queues are not connected to continuing guest scheduling.
 See [PAL deadline ownership](pal.md#deadline-queue-host-contract-185).
 M16-009/#687 owns first pinned NativeAOT Hello acceptance after signal

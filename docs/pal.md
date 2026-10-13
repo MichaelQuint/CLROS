@@ -148,6 +148,35 @@ stalled ticks, malformed/aliased output, owner misuse and zero warmed allocation
 Actual timer/interrupt/wake and concurrent-owner proof remain later work;
 hardware wake/preemption belongs to #187 and HPET recovery remains #96's scope.
 
+### Timer control development (#187)
+
+[Step1219](../done/step1219.md) adds the caller-owned `SchedulerTimer` control
+layer with twelve focused host checks. The selected source is the legacy local
+APIC one-shot timer on vector E1, divide16, over the existing masked single-BSP
+APIC setup. Intel's [SDM Volume3A, section11.5.4](https://cdrdv2-public.intel.com/835754/253668-sdm-vol-3a.pdf)
+defines the divider, initial-count reload and zero-count stop. Reload counts
+and acknowledged ticks carry no wall-clock calibration claim.
+
+Prepare requires a stopped masked timer, retained TPRd0/SVR1ff, empty ISR and
+no deliverable classE/F IRR. Arm requires IF clear and an external observation
+of complete owned gates, interrupt stack and full architectural capture/restore;
+the observation itself grants no authority. The control layer installs no IDT
+and never enables IF. Only the exact expired timer ISR can be acknowledged;
+verified EOI precedes tick advance/rearm. Allocation, initialization and
+publication phases defer within a positive bound without consuming deadline
+entries. Each interrupt peeks the original queue, preserving cancellation.
+A safe due result leaves the timer stopped and returns one identity by value;
+the owner must independently admit its live context and commit the wake.
+
+Restore masks/stops before checking quiescence and restoring the original
+divider/masked LVT. Partial writes and pending interrupt failures retain the
+hardware borrow and external IDT/stack/mapping lifetimes. The tests simulate
+MMIO and expiration; no hardware interrupt has executed through this layer.
+Full GPR/FS/GS/x87/SSE interrupt capture, actual non-yielding context preemption,
+IDT/TSS/IF restoration, original native review and final-source guest/full-host
+qualification remain #187 work. This adds no scheduler or upstream runtime
+acceptance, and does not reinterpret the qualified cooperative context ABI.
+
 ### Qualified bounded cooperative transfer (#186/#719)
 
 [Step1213](../done/step1213.md) records eight focused checks for the read-only
