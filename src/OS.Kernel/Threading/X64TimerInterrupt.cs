@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-
 namespace OS.Kernel.Threading;
 
 /// <summary>
@@ -21,34 +19,16 @@ public static unsafe class X64TimerInterrupt
     /// old RSP/SS even at CPL0. The pointer borrows the owned IST until IRETQ; no
     /// caller may retain it or publish a partially modified return frame. Complete
     /// is written last before callback entry. Kernel-GS base is never changed.</summary>
-    [StructLayout(LayoutKind.Explicit, Size = 704)]
     public struct Frame
     {
-        [FieldOffset(0)] public fixed byte FxSave[512];
-        [FieldOffset(512)] public ulong FsBase;
-        [FieldOffset(520)] public ulong GsBase;
-        [FieldOffset(528)] public ulong EntryFlags;
-        [FieldOffset(536)] public ulong Complete;
-        [FieldOffset(544)] public ulong R15;
-        [FieldOffset(552)] public ulong R14;
-        [FieldOffset(560)] public ulong R13;
-        [FieldOffset(568)] public ulong R12;
-        [FieldOffset(576)] public ulong R11;
-        [FieldOffset(584)] public ulong R10;
-        [FieldOffset(592)] public ulong R9;
-        [FieldOffset(600)] public ulong R8;
-        [FieldOffset(608)] public ulong Rdi;
-        [FieldOffset(616)] public ulong Rsi;
-        [FieldOffset(624)] public ulong Rbp;
-        [FieldOffset(632)] public ulong Rbx;
-        [FieldOffset(640)] public ulong Rdx;
-        [FieldOffset(648)] public ulong Rcx;
-        [FieldOffset(656)] public ulong Rax;
-        [FieldOffset(664)] public ulong Rip;
-        [FieldOffset(672)] public ulong Cs;
-        [FieldOffset(680)] public ulong Rflags;
-        [FieldOffset(688)] public ulong Rsp;
-        [FieldOffset(696)] public ulong Ss;
+        // Natural sequential8-byte fields avoid adding interop attributes to the
+        // explicit no-stdlib EFI surface. The owner supplies16-byte stack alignment;
+        // focused tests independently check every byte offset and total size.
+        public fixed byte FxSave[512];
+        public ulong FsBase, GsBase, EntryFlags, Complete;
+        public ulong R15, R14, R13, R12, R11, R10, R9, R8;
+        public ulong Rdi, Rsi, Rbp, Rbx, Rdx, Rcx, Rax;
+        public ulong Rip, Cs, Rflags, Rsp, Ss;
     }
 
     /// <summary>Retained native callback and immutable neutral FXSAVE image.

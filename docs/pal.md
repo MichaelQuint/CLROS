@@ -166,6 +166,9 @@ precede the neutral-FP C# callback. Return requires byte1, complete frame, CS8/S
 and verified restored FS/GS bases; only IRETQ restores the admitted return flags.
 The emitter is not installed or executed. The callback still needs independent
 live mapping/CPU/lifetime and complete return-frame admission.
+[Step1221](../done/step1221.md) keeps that frame on natural sequential fields,
+avoiding new interop attributes in the no-stdlib surface; all five offset/byte
+checks pass after the compatibility change.
 
 Prepare requires a stopped masked timer, retained TPRd0/SVR1ff, empty ISR and
 no deliverable classE/F IRR. Arm requires IF clear and an external observation
