@@ -4,10 +4,10 @@
 
 1. Read `docs/workload-profiles.md` for the current NativeAOT-first decision.
 2. Refresh the LAN tracker and select the first unfinished dependency-compatible
-   NativeAOT-first ticket. M16-001/#679 through M16-007/#685 are qualified;
-   the next foundation is [M09-001 / #183](http://192.168.4.35:3000/admin/CLROS/issues/183).
-   M16-008/#686 still depends on #188/#191/#192; reconcile #183's unrelated
-   network acceptance boilerplate before claiming its thread-context slice.
+   NativeAOT-first ticket. M16-001/#679 through M16-006/#684 are qualified;
+   finish [M16-007 / #685](http://192.168.4.35:3000/admin/CLROS/issues/685)'s
+   actual CPL3 openat coverage before closure. Review step1207 preserves #708's
+   brk/fixed-map ownership defect and corrected host-only scheduler foundations.
    Use exact dependencies and acceptance from the managed issue, not numeric
    milestone order or a generic "smallest ready" optional ticket.
 3. Preserve existing work. Pick one cohesive implementation slice, reuse the
@@ -31,10 +31,11 @@ at unsupported ARCH_SET_FS, before Hello. Descriptors/pipes, threads/TLS/futex/
 signals, upstream GC/EH/ThreadPool, Kestrel, numbered/cloud/production gates remain
 incomplete.
 
-The #685/#707 default-off descriptor/pipe child is qualified in `done/step1206.md`:
+The #685/#707 default-off descriptor/pipe child has initial evidence in `done/step1206.md`:
 4,679 full-host checks across 613 fixtures (94 Native), eight original native
 bodies, three 173-record descriptor guests, three 175-record pipe guests and
-fifteen ancestors pass. Original package/proc views, exact fd/pipe errors and
+fifteen ancestors pass, but those fixtures omitted openat; issue acceptance
+remains pending. Original package/proc views, exact fd/pipe errors and
 last-close ownership are genuine; buffers are checked after release. Blocking
 pipes belong to #686; first unchanged Hello to #687. General threads/signals,
 upstream runtime, Kestrel and numbered/cloud/production gates remain incomplete.

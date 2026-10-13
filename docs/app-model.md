@@ -37,7 +37,7 @@ proves high-address getrandom copy-out in CPL3 as well as high cross-page copy-i
 The one-use/64-call M16-005 policy is unchanged. The upstream payload stops at
 ARCH_SET_FS before Hello; these APIs do not qualify an upstream runtime.
 
-M16-007/#685 and #707 are qualified in [step1206](../done/step1206.md). Their
+M16-007/#685 and #707 have initial evidence in [step1206](../done/step1206.md). Their
 default-off child retains sixteen descriptors, two 4KiB pipes and separate 8KiB
 scratch in an owned supervisor RW/NX arena. The immutable /app/ view reads the
 original declared package ELF, including bytes beyond 1MiB, rather than its
@@ -48,7 +48,9 @@ owned serial channels. Blocking pipe calls fail ENOSYS; EPIPE requires the
 explicit mechanical ignored-SIGPIPE policy. The gateway keeps its 64-call bound
 and checks returns before resuming CPL3. 4,679 full-host checks across 613
 fixtures (94 Native), eight original native bodies, six repeated descriptor/pipe
-guests and fifteen ancestors pass. This is bounded mechanical behavior; it does
+guests and fifteen ancestors pass. Live openat coverage is missing; acceptance
+remains pending. Step1207 also records #708's brk/fixed-map ownership defect.
+This is bounded mechanical behavior; it does
 not qualify an unchanged upstream runtime or a continuing workload.
 
 #686 adds mechanical threads/TLS/futex, scheduler-backed blocking pipes
