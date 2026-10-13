@@ -2142,8 +2142,8 @@ internal static class BootPageAllocatorOnePageAllocationTests
             string source = File.ReadAllText(path);
             if (Path.GetFileName(path) == "EfiEntry.cs")
             {
-                // Admit one receipt operation only inside each reviewed owned
-                // device profile; preserve the firewall everywhere else.
+                // Admit reviewed device calls and M09's exact retained receipt
+                // storage; preserve the firewall everywhere else.
                 const string call = "BootPageAllocatorMutator.AllocateOnePage";
                 if (!EfiProfileTestControls.RemoveOwnedDmaCalls(ref source, call, out string reason))
                     return SourceFailure("owned-device-allocation-conditional " + reason);

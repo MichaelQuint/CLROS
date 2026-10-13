@@ -1589,6 +1589,8 @@ internal static class BootPageAllocatorStateMaterializerTests
             }
         }
 
+        if (!EfiProfileTestControls.RemoveOwnedCooperativeMaterializer(ref efiEntry, out string reason))
+            return SourceFailure("owned-cooperative-materializer " + reason);
         return !efiEntry.Contains(
                 nameof(BootPageAllocatorStateMaterializer),
                 StringComparison.Ordinal)

@@ -16,6 +16,13 @@ inventory, preserving all prior source indices and every evaluated profile's
 235-file closure. The cooperative execution flag remains default-off. Seven
 affected legacy fixtures and the contract audit pass; full qualification remains pending.
 
+[Step1217](../done/step1217.md) repairs the legacy allocator source firewalls
+without admitting unrelated references. The cooperative owner, twenty receipts,
+one-node/32-page materialization and ordered post-exit callback are checked
+explicitly. Direct MSBuild selection of the cooperative flag now chooses
+`Diagnostic`, consistently with the command-line tools. Ordinary builds retain
+`VerifiedExit`; full and final guest qualification remain pending.
+
 Qualified `--EnableM16005Probe` selects the default-off mechanical CPL3 syscall
 Diagnostic and automatically requires M16-002/003/004. QEMU acceptance requires
 `qemu smoke -BuildEfi -EnableM16005Probe -LinuxElfPackage <fixture.pkg>` with a
