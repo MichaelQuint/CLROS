@@ -1,5 +1,17 @@
 # App Model
 
+[Step1224](../done/step1224.md) qualifies M09-005 hardware-timer execution:
+4,776 full-host checks, six original native bodies, three fresh 115-record
+timer guests and ten ancestors pass.
+The mechanical worker calls no scheduler/yield helper: actual one-shot APIC
+interrupts defer across object initialization/publication, cancel an expired
+identity and resume the original queued context at tick four. Original context,
+IF/APIC/descriptors/mappings and all 22 borrowed pages are restored before
+success. Steps1222-1223 retain development failures and fixture repair. Thread
+lifecycle remains #188 before #686. Upstream application
+threads/TLS/futex/signals, GC, ThreadPool, unchanged Hello and Kestrel remain
+separate incomplete acceptance requirements.
+
 ## NativeAOT-first application boundary
 
 M16-006/#684 is qualified in [step1205](../done/step1205.md).
@@ -94,7 +106,14 @@ Integration child #719 owns the additional shared wiring. Step1215 preserves
 the first development guest. [Step1218](../done/step1218.md) qualifies 4,742
 full-host checks, current original native review, three fresh 99-record guests
 with seventeen transfers and complete context/pool restoration, and seven
-ancestors. Real interrupt/preemption and lifecycle remain #187/#188 work.
+ancestors. Step1224 adds bounded real interrupt/preemption; lifecycle remains #188.
+The #187 timer control development in [step1219](../done/step1219.md) passes
+twelve focused checks for a local-APIC one-shot protocol, retained deadlines,
+bounded publication deferral and partial-write cleanup. Its MMIO/expiration
+callbacks were simulated at that checkpoint. Step1220 adds the initial five
+frame/byte checks for an emitter then unexecuted; step1224 joins final native
+and live non-yielding guest qualification under integration child #721.
+See [PAL timer ownership](pal.md#qualified-bounded-timer-control-187).
 The host queues are not connected to continuing guest scheduling.
 See [PAL deadline ownership](pal.md#deadline-queue-host-contract-185).
 M16-009/#687 owns first pinned NativeAOT Hello acceptance after signal

@@ -144,6 +144,107 @@ internal static class HostResumeTests
         HostCheck.True(!resumed.TryReuse("changed", "A", out _));
     }
 
+    [HostTest("runner invalidation cannot be undone by a late passing fixture")]
+    private static void InvalidationRejectsLateFinish()
+    {
+        string root = HostToolProcess.FindRepositoryRoot(), directory = Scratch();
+        using (var checkpoint = new HostRunCheckpoint(root, directory, false))
+        {
+            string log = checkpoint.Start("before");
+            File.WriteAllText(log, "TEST_START control\nTEST_PASS control\n");
+            var result = new HostTestRunner.FixtureResult("before", "Fast", 0, false, 0, log, 1, 1, 0, null);
+            checkpoint.Finish("before", "identity", result);
+            HostCheck.True(checkpoint.TryReuse("before", "identity", out _));
+            string late = checkpoint.Start("late");
+            File.WriteAllText(late, "TEST_START control\nTEST_PASS control\n");
+            checkpoint.InvalidateRun();
+            checkpoint.Finish("late", "identity", result with { Id = "late", Log = late });
+            HostCheck.True(!checkpoint.TryReuse("before", "identity", out _) && !checkpoint.TryReuse("late", "identity", out _));
+        }
+        using var resumed = new HostRunCheckpoint(root, directory, true);
+        HostCheck.True(!resumed.TryReuse("before", "identity", out _) && !resumed.TryReuse("late", "identity", out _));
+    }
+
+    [HostTest("runner boundary stamps verify changed bytes and allow exact fixture restoration")]
+    private static void BoundaryStampValidation()
+    {
+        string directory = Scratch();
+        Directory.CreateDirectory(directory);
+        string source = Path.Combine(directory, "input.cs");
+        File.WriteAllText(source, "original");
+        DateTime originalTime = new(2020, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        File.SetLastWriteTimeUtc(source, originalTime);
+        var files = new Dictionary<string, string> { [source] = HostRunCheckpoint.HashFile(source) };
+        var stamps = new Dictionary<string, HostTestFingerprint.FileStamp> { [source] = HostTestFingerprint.FileStamp.Read(source) };
+        HostCheck.True(HostTestFingerprint.StampedFilesMatch(files, stamps));
+        File.SetLastWriteTimeUtc(source, originalTime.AddDays(1));
+        HostCheck.True(HostTestFingerprint.StampedFilesMatch(files, stamps), "restoring original bytes may change timestamps");
+        File.WriteAllText(source, "modified");
+        File.SetLastWriteTimeUtc(source, originalTime.AddDays(2));
+        HostCheck.True(!HostTestFingerprint.StampedFilesMatch(files, stamps));
+        File.WriteAllText(source, "original");
+        HostCheck.True(HostTestFingerprint.StampedFilesMatch(files, stamps));
+        File.Delete(source);
+        HostCheck.True(!HostTestFingerprint.StampedFilesMatch(files, stamps), "deleted source is an input change");
+    }
+
+    [HostTest("runner boundary inventory rejects new source and untracked done evidence")]
+    private static void BoundaryInventoryValidation()
+    {
+        string directory = Scratch();
+        foreach (string child in new[] { "src", "std", "tools", "tests", "apps", "scripts", "done", ".gitea/backlog" })
+            Directory.CreateDirectory(Path.Combine(directory, child));
+        File.WriteAllText(Path.Combine(directory, "CLROS.slnx"), "<Solution />");
+        File.WriteAllText(Path.Combine(directory, ".gitea/backlog/clros-issues.json"), "{}");
+        var initialized = ProcessRunner.RunAsync(new("git", ["init", "--quiet", directory], directory)).GetAwaiter().GetResult();
+        HostCheck.True(initialized.Succeeded, initialized.StandardError);
+        var recorded = HostBuildInputs.SourceInputs(directory).ToDictionary(Path.GetFullPath, _ => "unused", StringComparer.OrdinalIgnoreCase);
+        HostCheck.True(HostTestFingerprint.InventoryRecorded(directory, recorded));
+        foreach (string name in new[] { "src/Added.cs", "done/step-new.md" })
+        {
+            string added = Path.Combine(directory, name);
+            File.WriteAllText(added, "new input");
+            HostCheck.True(!HostTestFingerprint.InventoryRecorded(directory, recorded), name);
+            File.Delete(added);
+            HostCheck.True(HostTestFingerprint.InventoryRecorded(directory, recorded));
+        }
+    }
+
+    [HostTest("runner exact input hashes reject a binary replacement with preserved file stamps")]
+    private static void ExactBinarySnapshotValidation()
+    {
+        string directory = Scratch();
+        Directory.CreateDirectory(directory);
+        string binary = Path.Combine(directory, "host-producer.dll");
+        File.WriteAllBytes(binary, [1, 2, 3, 4]);
+        var original = HostTestFingerprint.FileStamp.Read(binary);
+        var files = new Dictionary<string, string> { [binary] = HostRunCheckpoint.HashFile(binary) };
+        var stamps = new Dictionary<string, HostTestFingerprint.FileStamp> { [binary] = original };
+        File.WriteAllBytes(binary, [4, 3, 2, 1]);
+        File.SetCreationTimeUtc(binary, new DateTime(original.Created, DateTimeKind.Utc));
+        File.SetLastWriteTimeUtc(binary, new DateTime(original.Written, DateTimeKind.Utc));
+        HostCheck.True(HostTestFingerprint.StampedFilesMatch(files, stamps), "cheap guard alone cannot establish byte identity");
+        HostCheck.True(!HostTestFingerprint.FilesMatch(files), "final exact snapshot rejects the replaced binary");
+    }
+
+    [HostTest("runner source parsing and raw hash use the same BOM-aware byte snapshot")]
+    private static void SourceByteSnapshot()
+    {
+        string directory = Scratch();
+        Directory.CreateDirectory(directory);
+        string source = Path.Combine(directory, "input.cs");
+        const string text = "// café\r\ninternal class Original {}";
+        foreach (var encoding in new System.Text.Encoding[] { new System.Text.UTF8Encoding(true), System.Text.Encoding.Unicode, System.Text.Encoding.BigEndianUnicode })
+        {
+            File.WriteAllBytes(source, [.. encoding.GetPreamble(), .. encoding.GetBytes(text)]);
+            var captured = HostTestFingerprint.ReadSource(source);
+            HostCheck.Equal(text, captured.Text);
+            HostCheck.Equal(HostRunCheckpoint.HashFile(source), captured.Sha256);
+            File.WriteAllText(source, "internal class Changed {}");
+            HostCheck.True(!HostTestFingerprint.FilesMatch(new Dictionary<string, string> { [source] = captured.Sha256 }));
+        }
+    }
+
     private static string Scratch() => Path.Combine(HostToolProcess.FindRepositoryRoot(), "artifacts", "host-resume-controls", Guid.NewGuid().ToString("N"));
     private static ProcessResult Run(params string[] args) => ProcessRunner.RunAsync(new("dotnet",
         [typeof(HostResumeTests).Assembly.Location, .. args], HostToolProcess.FindRepositoryRoot())

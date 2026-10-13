@@ -234,10 +234,11 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
         Require(defaults.Select(x=>x.Name.LocalName).Order(StringComparer.Ordinal).SequenceEqual(EfiContracts.ProjectDefaultProbes.Order(StringComparer.Ordinal)) && defaults.All(x=>x.Value=="false") && defaults.Count(x=>x.Name.LocalName==Flag)==1,"complete literal false defaults");
         foreach(string addedFlag in new[]{"EnableM03FirstRealExitBootServicesProbe","EnableM04SeededCollectorChurnProbe","EnableM03FirmwareAdapterRevocationProbe","EnableM04ClassConstructorExecutionProbe","EnableM04InterfaceDispatchProbe","EnableM04X64UnwindMetadataProbe","EnableM03OwnedSubsystemSurvivalProbe","EnableM03OwnedSubsystemPanicProbe","EnableM04SimpleThrowCatchProbe","EnableM04SingleFinallyCatchProbe"})
             Require(defaults.Count(x=>x.Name.LocalName==addedFlag && x.Value=="false")==1,"one literal false default "+addedFlag);
-        // The cooperative profile owns a separate exclusion category; retain
-        // every original condition and check that category in the M09 fixture.
+        // The two M09 profiles own separate aggregate exclusion categories;
+        // retain every original pairwise condition and check M09 in its fixtures.
         var errors=project.Descendants("Error").Where(x=>
             !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_004_",StringComparison.Ordinal) &&
+            !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_005_",StringComparison.Ordinal) &&
             x.Attribute("Condition")!.Value.Contains("$("+Flag+")",StringComparison.Ordinal)).ToArray();
         Require(errors.Length==76,"eight prerequisites, both directions of 33 conflicts, one first-exit conflict and normal-policy conflict");
         Require(errors.Count(x=>x.Attribute("Condition")?.Value=="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'")==1,"exact incoming first-exit conflict");
@@ -414,7 +415,11 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
             using var document=JsonDocument.Parse(File.ReadAllText(Path.Combine(root,artifact)+".link.json"));var evidence=document.RootElement;
             var inputs=evidence.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Require(inputs.Length==EfiEvidence.SourceClosurePaths(root).Count,"complete raw source inputs");
             foreach(var input in inputs)Require(Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))).Equals(input.GetProperty("sha256").GetString(),StringComparison.OrdinalIgnoreCase),"same raw source");
-            var evaluation=evidence.GetProperty("postRestoreEvaluation");Require(evaluation.GetProperty("compileCount").GetInt32()==OS.Tooling.EfiContracts.CompileItems.Count,"complete compiler inventory");
+            string[] expectedCompileItems = EfiProjectAdmission.ExpectedCompileItems(
+                EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { [Flag] = enabled }));
+            var evaluation=evidence.GetProperty("postRestoreEvaluation");
+            Require(evaluation.GetProperty("compileCount").GetInt32()==expectedCompileItems.Length,"complete evaluated compile inventory");
+            Require(evaluation.GetProperty("compileSha256").GetString()==EfiEvidence.HashLines(expectedCompileItems),"ordered evaluated compile inventory");
             var flags=evaluation.GetProperty("properties").EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Require(flags.Length==OS.Tooling.EfiContracts.DiagnosticProbes.Count,"complete evaluated diagnostic switches");
             foreach(var flag in flags)Require(flag.Value.GetString()==(enabled&&(flag.Name==Flag||Prerequisites.Contains(flag.Name,StringComparer.Ordinal))?"true":"false"),"evaluated "+flag.Name);
             using var pe=new PEReader(File.OpenRead(Path.Combine(dir,"OS.dll")));var md=pe.GetMetadataReader();Require(md.AssemblyReferences.Count==0&&md.GetString(md.GetAssemblyDefinition().Name)=="OS","actual no-stdlib OS");

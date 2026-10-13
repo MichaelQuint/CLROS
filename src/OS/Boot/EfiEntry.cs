@@ -1,8 +1,13 @@
 global using System;
 
-#if M09_004_PROBE
+#if M09_004_PROBE || M09_005_PROBE
 using Cooperative = OS.Kernel.Threading.ThreadContextSwitch;
 using SavedContext = OS.Kernel.Threading.X64ThreadContext;
+#endif
+#if M09_005_PROBE
+using TimerIrq = OS.Kernel.Threading.X64TimerInterrupt;
+using TickTimer = OS.Kernel.Threading.SchedulerTimer;
+using Deadlines = OS.Kernel.Threading.DeadlineQueue;
 #endif
 
 #if M04_LAYOUT_CONTRACT_PROBE
@@ -96,7 +101,7 @@ public static unsafe class EfiEntry
             internal ulong PreparationCheckpoint;
             internal uint TableMemoryType;
             internal fixed ulong PageMetadata[(int)TablePages * 3]; // 24 bytes per page, naturally aligned
-#if M09_004_PROBE
+#if M09_004_PROBE || M09_005_PROBE
             internal ulong CooperativePool;
             internal uint CooperativePhase;
 #endif
@@ -384,7 +389,7 @@ public static unsafe class EfiEntry
                 !FirstExitImageMappings.Contains(ranges, count, references.CopiedAcpi, references.CopiedAcpiBytes, PageProtection.Read | PageProtection.Write) ||
                 !FirstExitImageMappings.Contains(ranges, count, references.AllocatorState, references.AllocatorStateBytes, PageProtection.Read | PageProtection.Write)) return false;
             ulong image = ranges[0].Start, imageBytes = capture.Range.ImageSize;
-#if M09_004_PROBE
+#if M09_004_PROBE || M09_005_PROBE
             state->PreparationCheckpoint = 34;
             if (!BootSequence.PrepareCooperativeSwitch(state->Phase == 2, state, &PrepareCooperativePool)) return false;
             references.CooperativePoolStart = state->CooperativePool;
@@ -713,7 +718,7 @@ public static unsafe class EfiEntry
             return true;
         }
 
-#if M09_004_PROBE
+#if M09_004_PROBE || M09_005_PROBE
         // Pre-exit reservation only. Retain every successful firmware allocation
         // before validating its extent; this slice supplies no post-exit release.
         private static bool PrepareCooperativePool(void* context)
@@ -1924,7 +1929,7 @@ public static unsafe class EfiEntry
             return true;
         }
 
-#if M09_004_PROBE
+#if M09_004_PROBE || M09_005_PROBE
         private struct CooperativeControl
         {
             internal Storage* State;
@@ -2250,6 +2255,334 @@ public static unsafe class EfiEntry
         }
 #endif
 
+#if M09_005_PROBE
+        private struct TimerControl
+        {
+            internal CooperativeControl* Cooperative;
+            internal TickTimer Timer;
+            internal Deadlines Queue;
+            internal TimerIrq.Plan Handler;
+            internal TimerIrq.WorkerPlan Worker;
+            internal uint Mode, CriticalPhase, Command, PhaseMask, Failed, Installed;
+            internal ulong Progress, First, Second, PublishedRoot, Key, OriginalIdentity, OriginalIst;
+            internal fixed ulong Entries[4], OriginalIdtr[2], NewIdtr[2], RestoredIdtr[2];
+            internal fixed byte OriginalTss[104];
+        }
+        private static bool RunSchedulerTimer(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (!CooperativeAuthority(state) || state->ApicPhase != 2 || state->CooperativePhase != 0 || !TimerText(state, 0)) return false;
+            if (!FirstExitCodeBundle.ValidateInstalledReadBack(state->Memory.Code, FirstExitCodeBundle.Bytes, ref state->Arena,
+                state->Memory.Capture, state->Memory.Mapping, state->Memory.References.FaultCallback)) return false;
+            // The existing pool audit admits owned NULL FS/GS selectors. Establish
+            // that baseline before asking it to walk any timer backing page.
+            ((delegate* unmanaged<void>)(state->Memory.Code + FirstExitCodeBundle.CooperativeSegmentsOffset))();
+            ulong pool = state->CooperativePool;
+            if (!CooperativeAuditPool(state, false) || !CooperativeAuditOriginalMappings(state))
+            { _ = TimerText(state, 8, 10, 0, 0, 0); return false; }
+            BootPageFreeListNode node = new(0, 0, pool, pool + 32 * Page, 32, 32 * Page, -1);
+            BootPageAllocatorState allocator = default;
+            if (!BootPageAllocatorStateMaterializer.Materialize(&node, 1, 1, 1, 0, Page, 32, 32 * Page, &allocator, 1).Succeeded) return false;
+            BootPageAllocatorState initial = allocator; BootPageFreeListNode initialNode = node;
+            BootPageAllocatorOnePageResult* receipts = stackalloc BootPageAllocatorOnePageResult[22];
+            ulong* originalEntries = stackalloc ulong[32]; for (int i = 0; i < 32; i++) originalEntries[i] = 0;
+            uint borrowed = 0; bool addresses = true;
+            for (; borrowed < 22; borrowed++)
+            {
+                var receipt = BootPageAllocatorMutator.AllocateOnePage(allocator, &node, 1, 1, null, 0, 0, 1, Page);
+                if (!receipt.Succeeded) break;
+                allocator = receipt.AfterState; receipts[borrowed] = receipt;
+                addresses &= receipt.PhysicalStart.TryGetRawValueForHardwareRegisterBoundary(out ulong address) == AddressValueStatus.Success &&
+                    address == pool + borrowed * Page && receipt.PageCount == 1 && receipt.ByteLength == Page;
+            }
+            TimerControl* clock = null;
+            bool prepared = borrowed == 22 && addresses && TimerPrepare(state, out clock);
+            bool captured = false, published = false, entered = false, contextRestored = false, hardwareRestored = false;
+            ulong ticks = 0;
+            if (prepared)
+            {
+                published = CooperativeSetPoolMappings(state, originalEntries, true, out captured) && CooperativeAuditPool(state, true);
+                if (published)
+                {
+                    clock->Cooperative->Plan.Owner.GuardsVerified = true; clock->Cooperative->Plan.Owner.MappingsVerified = true;
+                    bool installed = TimerInstall(clock);
+                    if (installed) entered = ((delegate* unmanaged<uint>)pool)() == 1;
+                    contextRestored = entered && clock->Mode == 2 && clock->Failed == 0 && clock->PhaseMask == 15 &&
+                        clock->Progress != 0 && clock->Queue.IsEmpty &&
+                        CooperativeEqualContexts(clock->Cooperative->Plan.Original.Context, clock->Cooperative->Plan.Witness) &&
+                        TimerVerify(clock) && CooperativeObserve(clock->Cooperative, false);
+                    ticks = clock->Timer.Ticks;
+                    hardwareRestored = TimerRestore(clock) && CooperativeAuditPool(state, true);
+                }
+                else hardwareRestored = TimerRestore(clock);
+            }
+            else hardwareRestored = clock == null || TimerRestore(clock);
+            // Never unmap/free a still-borrowed IDT/IST or a timer with pending IRQs.
+            if (!hardwareRestored) { _ = TimerText(state, 8, ticks, 1, 0, 0); return false; }
+            bool mappings = captured ? CooperativeSetPoolMappings(state, originalEntries, false, out _) && CooperativeAuditPool(state, false)
+                : CooperativeAuditPool(state, false);
+            bool released = mappings;
+            if (mappings)
+            {
+                for (ulong i = 0; i < borrowed * Page; i++) ((byte*)pool)[i] = 0;
+                for (ulong i = 0; i < borrowed * Page; i++) released &= ((byte*)pool)[i] == 0;
+                for (uint i = borrowed; i > 0; i--)
+                {
+                    var free = BootPageAllocatorMutator.FreeOnePage(allocator, &node, 1, 1, null, 0, 0, receipts[i - 1]);
+                    if (!free.Succeeded) { released = false; break; } allocator = free.AfterState;
+                }
+            }
+            released &= CooperativeAllocatorEqual(initial, allocator, initialNode, node) && CooperativeAuditOriginalMappings(state) &&
+                FirstExitOwnedArena.ValidateCanaries(state->Arena);
+            bool success = prepared && published && entered && contextRestored && hardwareRestored && released;
+            state->CooperativePhase = success ? 4U : 5U;
+            if (!success) { _ = TimerText(state, 8, ticks, prepared ? 1UL : 0, entered ? 1UL : 0, released ? 1UL : 0); return false; }
+            return TimerText(state, 5, ticks, borrowed, allocator.FreePageCount, 1) && TimerText(state, 6) && TimerText(state, 7);
+        }
+        private static bool TimerPrepare(Storage* state, out TimerControl* clock)
+        {
+            clock = null;
+            if (!CooperativePrepareProgram(state, out CooperativeControl* c) || sizeof(CooperativeControl) > 0x800 || sizeof(TimerControl) > 0x600) return false;
+            ulong pool = state->CooperativePool;
+            clock = (TimerControl*)(pool + 3 * Page + 0x800); *clock = default;
+            clock->Cooperative = c; clock->Mode = 1; clock->CriticalPhase = 1;
+            clock->Key = pool ^ 0x4d30393030354f57UL; clock->OriginalIdentity = c->Plan.Original.Identity;
+            clock->Worker = new()
+            {
+                Phase = (uint)((ulong)&clock->CriticalPhase - (ulong)clock), Command = (uint)((ulong)&clock->Command - (ulong)clock),
+                Progress = (uint)((ulong)&clock->Progress - (ulong)clock), First = (uint)((ulong)&clock->First - (ulong)clock),
+                Second = (uint)((ulong)&clock->Second - (ulong)clock), Root = (uint)((ulong)&clock->PublishedRoot - (ulong)clock), ControlBytes = (uint)sizeof(TimerControl)
+            };
+            c->Plan.A.Context->R12 = (ulong)clock; c->Plan.A.Context->R13 = (ulong)&clock->First;
+            // Keep the original callback extent containing BCount/FlagScratch;
+            // the initial capture callbacks find the adjacent timer owner below.
+            c->Plan.Stub.AdmissionCallback = (ulong)(delegate* unmanaged<void*, SavedContext*, SavedContext*, byte>)&TimerEnter;
+            c->Plan.RecoveryCallback = (ulong)(delegate* unmanaged<void*, SavedContext*, byte>)&TimerRecover;
+            c->Plan.TerminalCallback = (ulong)(delegate* unmanaged<void*, void>)&TimerTerminal;
+            if (!Cooperative.EmitProgram((byte*)pool, Cooperative.ProgramBytes, c->Plan) || !Cooperative.VerifyProgram((byte*)pool, Cooperative.ProgramBytes, c->Plan)) return false;
+            for (uint i = 0; i < Cooperative.ProgramBytes; i++) ((byte*)(pool + 20 * Page))[i] = ((byte*)pool)[i];
+            clock->Handler = new() { CodeAddress = pool + 0xc00, Callback = (ulong)(delegate* unmanaged<void*, TimerIrq.Frame*, byte>)&TimerInterrupt,
+                CallbackContext = (ulong)clock, CallbackBytes = (uint)sizeof(TimerControl), HelperFx = c->Plan.Stub.HelperFx };
+            if (!TimerIrq.EmitWorker((byte*)pool + 0x200, 512, clock->Worker) || !TimerIrq.Emit((byte*)pool + 0xc00, 512, clock->Handler) || !TimerVerify(clock)) return false;
+            if (clock->Queue.Initialize(clock->Key, (Deadlines.Entry*)clock->Entries, 32, 2) != Deadlines.Status.Ok) return false;
+            OS.Pal.OSHostHandle cancel = new(0x100000002), original = new(clock->OriginalIdentity);
+            if (clock->Queue.Schedule(clock->Key, cancel, cancel, 0, 1) != Deadlines.Status.Ok ||
+                clock->Queue.Schedule(clock->Key, original, original, 0, 1) != Deadlines.Status.Ok) return false;
+            if (clock->Timer.Prepare(clock->Key, state->ApicTopology.LocalApicAddress, 2000000, 8, ApicAccess(state), 2) != TickTimer.Status.Ok) return false;
+            return TimerText(state, 1, pool, 22, pool + 13 * Page, clock->Handler.CodeAddress);
+        }
+        private static bool TimerVerify(TimerControl* c)
+        {
+            if (c == null || c->Cooperative == null || !CooperativeAuthority(c->Cooperative->State)) return false;
+            ulong pool = c->Cooperative->State->CooperativePool;
+            if ((ulong)c != pool + 3 * Page + 0x800 || c->Key != (pool ^ 0x4d30393030354f57UL)) return false;
+            if (!TimerIrq.Verify((byte*)pool + 0xc00, 512, c->Handler) || !TimerIrq.VerifyWorker((byte*)pool + 0x200, 512, c->Worker)) return false;
+            for (uint i = 0; i < Cooperative.ProgramBytes; i++)
+                if (!(i >= 0x200 && i < 0x400) && !(i >= 0xc00 && i < 0xe00) && ((byte*)pool)[i] != ((byte*)(pool + 20 * Page))[i]) return false;
+            return c->Installed == 0 || TimerInstalledReadBack(c);
+        }
+        private static bool TimerInstall(TimerControl* c)
+        {
+            Storage* state = c->Cooperative->State; ulong pool = state->CooperativePool;
+            byte* idt = (byte*)(pool + 18 * Page), code = (byte*)c->Handler.CodeAddress;
+            ((delegate* unmanaged<void*, void>)(code + TimerIrq.SaveIdtrOffset))(c->OriginalIdtr);
+            if (*(ushort*)c->OriginalIdtr != 4095 || *(ulong*)((byte*)c->OriginalIdtr + 2) != (ulong)state->Arena.Descriptors->FinalIdt) return false;
+            // IST1..3 belong to retained fault paths. Borrow only the unused IST4;
+            // publish its stack after the last original-descriptor admission.
+            c->OriginalIst = *(ulong*)(state->Arena.Descriptors->Tss + 60);
+            if (c->OriginalIst != 0 || !TimerVerify(c) || !CooperativeAuditPool(state, true)) return false;
+            for (uint i = 0; i < 104; i++) c->OriginalTss[i] = state->Arena.Descriptors->Tss[i];
+            for (uint i = 0; i < 4096; i++) idt[i] = state->Arena.Descriptors->FinalIdt[i];
+            TimerGate(idt + 0xe1 * 16, c->Handler.CodeAddress, 4);
+            TimerGate(idt + 0xff * 16, c->Handler.CodeAddress + TimerIrq.SpuriousOffset, 4);
+            for (uint i = 0; i < 4096; i++)
+                if (!(i >= 0xe1 * 16 && i < 0xe2 * 16) && i < 0xff * 16 && idt[i] != state->Arena.Descriptors->FinalIdt[i]) return false;
+            if (!TimerGateMatches(idt + 0xe1 * 16, c->Handler.CodeAddress) ||
+                !TimerGateMatches(idt + 0xff * 16, c->Handler.CodeAddress + TimerIrq.SpuriousOffset)) return false;
+            *(ushort*)c->NewIdtr = 4095; *(ulong*)((byte*)c->NewIdtr + 2) = (ulong)idt;
+            c->Installed = 1; // Retain the original descriptor before the first mutation.
+            ((delegate* unmanaged<void*, void>)(code + TimerIrq.LoadIdtrOffset))(c->NewIdtr);
+            ((delegate* unmanaged<void*, void>)(code + TimerIrq.SaveIdtrOffset))(c->RestoredIdtr);
+            for (uint i = 0; i < 16; i++) if (((byte*)c->NewIdtr)[i] != ((byte*)c->RestoredIdtr)[i]) return false;
+            return true;
+        }
+        // Validate the current descriptor authority without applying the original
+        // zero-IST4 predicate to a live borrow. Every other TSS byte and IDT gate
+        // must still equal the independently admitted original image.
+        private static bool TimerInstalledReadBack(TimerControl* c)
+        {
+            Storage* state = c->Cooperative->State; ulong pool = state->CooperativePool;
+            if (c->Installed != 1 || c->OriginalIst != 0) return false;
+            ulong top = *(ulong*)(state->Arena.Descriptors->Tss + 60);
+            if (top != 0 && top != pool + 13 * Page) return false;
+            for (uint i = 0; i < 4096; i++)
+                if (!(i >= 60 && i < 68) && state->Arena.Descriptors->Tss[i] != (i < 104 ? c->OriginalTss[i] : 0)) return false;
+            byte* idt = (byte*)(pool + 18 * Page);
+            if (!TimerGateMatches(idt + 0xe1 * 16, c->Handler.CodeAddress) ||
+                !TimerGateMatches(idt + 0xff * 16, c->Handler.CodeAddress + TimerIrq.SpuriousOffset)) return false;
+            for (uint i = 0; i < 4096; i++)
+                if (!(i >= 0xe1 * 16 && i < 0xe2 * 16) && i < 0xff * 16 && idt[i] != state->Arena.Descriptors->FinalIdt[i]) return false;
+            ulong* observed = stackalloc ulong[2]; observed[0] = 0; observed[1] = 0;
+            ((delegate* unmanaged<void*, void>)(c->Handler.CodeAddress + TimerIrq.SaveIdtrOffset))(observed);
+            for (uint i = 0; i < 16; i++) if (((byte*)observed)[i] != ((byte*)c->NewIdtr)[i]) return false;
+            return true;
+        }
+        private static void TimerGate(byte* gate, ulong address, byte ist)
+        {
+            *(ushort*)gate = (ushort)address; *(ushort*)(gate + 2) = 8; gate[4] = ist; gate[5] = 0x8e;
+            *(ushort*)(gate + 6) = (ushort)(address >> 16); *(uint*)(gate + 8) = (uint)(address >> 32); *(uint*)(gate + 12) = 0;
+        }
+        private static bool TimerGateMatches(byte* g, ulong address) => *(ushort*)g == (ushort)address && *(ushort*)(g + 2) == 8 &&
+            g[4] == 4 && g[5] == 0x8e && *(ushort*)(g + 6) == (ushort)(address >> 16) &&
+            *(uint*)(g + 8) == (uint)(address >> 32) && *(uint*)(g + 12) == 0;
+        private static bool TimerRestore(TimerControl* c)
+        {
+            Storage* state = c->Cooperative->State; byte* code = (byte*)c->Handler.CodeAddress;
+            if (c->Timer.IsPrepared && c->Timer.Restore(c->Key, 2) != TickTimer.Status.Ok) return false;
+            // OriginalIdtr remains the independently captured hardware descriptor.
+            if (c->Installed == 1)
+            {
+                ((delegate* unmanaged<void*, void>)(code + TimerIrq.LoadIdtrOffset))(c->OriginalIdtr);
+                ((delegate* unmanaged<void*, void>)(code + TimerIrq.SaveIdtrOffset))(c->RestoredIdtr);
+                for (uint i = 0; i < 16; i++) if (((byte*)c->OriginalIdtr)[i] != ((byte*)c->RestoredIdtr)[i]) return false;
+                *(ulong*)(state->Arena.Descriptors->Tss + 60) = c->OriginalIst;
+                if (*(ulong*)(state->Arena.Descriptors->Tss + 60) != c->OriginalIst) return false;
+                c->Installed = 0;
+            }
+            for (uint i = 0; i < 2 && c->Queue.HasPending; i++)
+            { var next = c->Queue.Peek(c->Key); if (!next.Succeeded || c->Queue.Cancel(c->Key, next.Value.Identity) != Deadlines.Status.Ok) return false; }
+            return !c->Queue.IsInitialized || c->Queue.Release(c->Key) == Deadlines.Status.Ok;
+        }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte TimerEnter(void* context, SavedContext* source, SavedContext* destination)
+        {
+            TimerControl* c = TimerFromCooperative(context); if (c == null) return 0;
+            CooperativeControl* old = c->Cooperative;
+            if (c->Mode != 1 || source != old->Plan.Original.Context || destination != old->Plan.A.Context || !TimerVerify(c) ||
+                !CooperativeObserve(old, false) || !CooperativeAuditPool(old->State, true) ||
+                Cooperative.Admit(old->Plan.Owner, old->Plan.Original, old->Plan.A) != Cooperative.Status.Ok) return 0;
+            if (c->Installed != 1 || *(ulong*)(old->State->Arena.Descriptors->Tss + 60) != c->OriginalIst) return 0;
+            *(ulong*)(old->State->Arena.Descriptors->Tss + 60) = old->State->CooperativePool + 13 * Page;
+            if (*(ulong*)(old->State->Arena.Descriptors->Tss + 60) != old->State->CooperativePool + 13 * Page ||
+                !TimerInstalledReadBack(c)) return 0;
+            if (!TimerText(old->State, 2, c->Key, 2000000, 0xe1, 16)) return 0;
+            var armed = c->Timer.Arm(c->Key, 2, true);
+            if (armed != TickTimer.Status.Ok) return TimerInterruptReject(c, 20, (ulong)armed, 0, 0);
+            return 1;
+        }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte TimerRecover(void* context, SavedContext* original)
+        {
+            TimerControl* c = TimerFromCooperative(context);
+            if (c == null || !TimerRestore(c) || original != c->Cooperative->Plan.Original.Context || !CooperativeObserve(c->Cooperative, false) ||
+                Cooperative.AdmitResume(c->Cooperative->Plan.Owner, c->Cooperative->Plan.Original) != Cooperative.Status.Ok) return 0;
+            c->Failed = 1; c->Mode = 3; return 1;
+        }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static void TimerTerminal(void* context)
+        { TimerControl* c = TimerFromCooperative(context); if (c != null) _ = TimerText(c->Cooperative->State, 8, 0, 0, 0, 0); while (true) { } }
+        private static TimerControl* TimerFromCooperative(void* context)
+        {
+            CooperativeControl* owner = (CooperativeControl*)context;
+            if (owner == null || owner->State == null) return null;
+            TimerControl* clock = (TimerControl*)(owner->State->CooperativePool + 3 * Page + 0x800);
+            return clock->Cooperative == owner ? clock : null;
+        }
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte TimerInterrupt(void* context, TimerIrq.Frame* frame)
+        {
+            TimerControl* c = (TimerControl*)context;
+            if (c == null || c->Cooperative == null || frame == null) return 0;
+            if (!TimerVerify(c)) return TimerInterruptReject(c, 10, (ulong)frame, 0, 0);
+            CooperativeControl* old = c->Cooperative; Storage* state = old->State; ulong pool = state->CooperativePool;
+            if ((ulong)frame != pool + 13 * Page - TimerIrq.FrameBytes || c->Mode != 1 || frame->Complete != 1 ||
+                c->Installed != 1 || *(ulong*)(state->Arena.Descriptors->Tss + 60) != pool + 13 * Page ||
+                frame->Cs != 8 || frame->Ss != 16 || (frame->EntryFlags & 0x202) != 2 || (frame->Rflags & 0x602) != 0x602 ||
+                // RF belongs to the actual interrupt frame and survives deferred
+                // IRETQ unchanged. CALL-captured contexts retain their IRQ-off mask.
+                (frame->Rflags & ~(Cooperative.AdmittedFlags | 0x10200UL)) != 0 || c->CriticalPhase > 3 ||
+                c->Progress == 0) return TimerInterruptReject(c, 11, frame->EntryFlags, frame->Rflags, (ulong)frame);
+            uint mismatch = TimerWorkerMismatch(c, frame);
+            if (mismatch != 0) return TimerInterruptReject(c, 100 + mismatch, frame->Rip, frame->Rsp, frame->FxSave[4]);
+            ulong* cpu = stackalloc ulong[19];
+            ((delegate* unmanaged<ulong*, void>)(state->Memory.Code + FirstExitCodeBundle.CooperativeObserveOffset))(cpu);
+            if (cpu[1] != old->Plan.Owner.Root || cpu[4] != 8 || cpu[5] != 0 || cpu[6] != 24 ||
+                (cpu[3] & 0x602) != 2 || cpu[14] != old->Plan.Owner.KernelGs || cpu[15] != 0 || cpu[16] != 0)
+                return TimerInterruptReject(c, 12, cpu[3], cpu[5], cpu[1]);
+            bool initialized = c->First == TimerIrq.FirstPattern && c->Second == TimerIrq.SecondPattern;
+            if ((c->PublishedRoot != 0 && (!initialized || c->PublishedRoot != (ulong)&c->First)) ||
+                (c->CriticalPhase == 0 && (!initialized || c->PublishedRoot == 0)))
+                return TimerInterruptReject(c, 13, c->First, c->Second, c->PublishedRoot);
+            c->PhaseMask |= 1U << (int)c->CriticalPhase;
+            TickTimer.Result tick = c->Timer.HandleInterrupt(c->Key, frame->EntryFlags, frame->Rflags, ref c->Queue, c->Key, (TickTimer.Phase)c->CriticalPhase);
+            if (!tick.Succeeded) return TimerInterruptReject(c, 14, (ulong)tick.Code, c->Timer.Ticks, c->CriticalPhase);
+            if (!TimerText(state, 3, tick.Tick, c->CriticalPhase, c->Timer.DeferredTicks, c->Progress)) return 0;
+            if (tick.Tick == 1 && c->Queue.Cancel(c->Key, new OS.Pal.OSHostHandle(0x100000002)) != Deadlines.Status.Ok) return 0;
+            if (tick.Next != TickTimer.Action.WakeReady) { c->Command = c->CriticalPhase + 1; return 1; }
+            SavedContext* original = old->Plan.Original.Context;
+            if (c->PhaseMask != 15 || c->OriginalIdentity != old->Plan.Original.Identity || c->OriginalIdentity != old->Plan.Original.CurrentIdentity ||
+                tick.Due.Identity.Value != c->OriginalIdentity || tick.Due.Deadline > tick.Tick ||
+                SavedContext.Validate(original, SavedContext.Bytes, old->Plan.Owner.ObservedMxcsrMask) != SavedContext.Status.Ok ||
+                original->Rip != pool + Cooperative.OriginalResumeOffset || (original->Rsp & 15) != 0 ||
+                !FirstExitOwnedArena.InMainStack(state->Arena, original->Rsp, 32) ||
+                (original->Rflags & ~Cooperative.AdmittedFlags) != 0 || (original->Rflags & 0x400) != 0 ||
+                !TimerText(state, 4, tick.Tick, tick.Due.Identity.Value, tick.Due.Deadline, frame->Rip)) return 0;
+            if (c->Queue.Cancel(c->Key, tick.Due.Identity) != Deadlines.Status.Ok || !c->Queue.IsEmpty) return 0;
+            frame->Complete = 0;
+            frame->Rax = original->Rax; frame->Rcx = original->Rcx; frame->Rdx = original->Rdx; frame->Rbx = original->Rbx;
+            frame->Rbp = original->Rbp; frame->Rsi = original->Rsi; frame->Rdi = original->Rdi;
+            frame->R8 = original->R8; frame->R9 = original->R9; frame->R10 = original->R10; frame->R11 = original->R11;
+            frame->R12 = original->R12; frame->R13 = original->R13; frame->R14 = original->R14; frame->R15 = original->R15;
+            frame->Rip = original->Rip; frame->Rsp = original->Rsp; frame->Rflags = original->Rflags; frame->Cs = 8; frame->Ss = 16;
+            frame->FsBase = original->FsBase; frame->GsBase = original->UserGsBase;
+            for (uint i = 0; i < 512; i++) frame->FxSave[i] = original->FxSave[i];
+            c->Mode = 2; frame->Complete = 1; return 1;
+        }
+        private static byte TimerInterruptReject(TimerControl* c, uint reason, ulong a, ulong b, ulong d)
+        { c->Failed = reason; _ = TimerText(c->Cooperative->State, 8, reason, a, b, d); return 0; }
+        private static uint TimerWorkerMismatch(TimerControl* c, TimerIrq.Frame* f)
+        {
+            SavedContext* a = c->Cooperative->Plan.A.Context; ulong pool = c->Cooperative->State->CooperativePool;
+            if (f->Rip < pool + 0x202 || f->Rip >= pool + 0x200 + TimerIrq.WorkerEnd || f->Rsp != a->Rsp) return 1;
+            if (
+                f->Rax != a->Rax || f->Rcx != a->Rcx || f->Rdx != a->Rdx || f->Rbx != a->Rbx || f->Rbp != a->Rbp ||
+                f->Rsi != a->Rsi || f->Rdi != a->Rdi || f->R8 != a->R8 || f->R9 != a->R9 || f->R10 != a->R10 || f->R11 != a->R11 ||
+                f->R12 != (ulong)c || f->R13 != (ulong)&c->First || f->R14 != a->R14 || f->R15 != a->R15) return 2;
+            if (f->FsBase != a->FsBase || f->GsBase != a->UserGsBase) return 3;
+            byte* fx = f->FxSave, expected = a->FxSave;
+            if (*(ushort*)fx != *(ushort*)expected || *(ushort*)(fx + 2) != 0 || fx[4] != 0xff ||
+                *(uint*)(fx + 24) != *(uint*)(expected + 24) || *(uint*)(fx + 28) != *(uint*)(expected + 28)) return 4;
+            for (uint r = 0; r < 8; r++) for (uint b = 0; b < 10; b++) if (fx[32 + r * 16 + b] != expected[32 + r * 16 + b]) return 5;
+            for (uint b = 160; b < 416; b++) if (fx[b] != expected[b]) return 6;
+            return 0;
+        }
+        private static bool TimerText(Storage* state, uint kind, ulong a = 0, ulong b = 0, ulong c = 0, ulong d = 0)
+        {
+            byte* text = stackalloc byte[112]; uint length = 0;
+            if (kind == 0) { *(ulong*)text = 0x4154535f54534554; *(ulong*)(text + 8) = 0x302e39306d205452; *(ushort*)(text + 16) = 0x3530; length = 18; }
+            else if (kind == 6) { *(ulong*)text = 0x5341505f54534554; *(ulong*)(text + 8) = 0x30302e39306d2053; text[16] = 0x35; length = 17; }
+            else if (kind == 7) { *(ulong*)text = 0x304d5f534f524c43; *(ulong*)(text + 8) = 0x45525f3530305f39; *(uint*)(text + 16) = 0x594441; length = 19; }
+            else if (kind == 8) { *(ulong*)text = 0x4941465f54534554; *(ulong*)(text + 8) = 0x30302e39306d204c; text[16] = 0x35; length = 17; }
+            else
+            {
+                *(ulong*)text = 0x5f3530305f39304d;
+                if (kind == 1) { *(ulong*)(text + 8) = 0x4445524150455250; length = 16; }
+                else if (kind == 2) { *(ulong*)(text + 8) = 0x44454d5241; length = 13; }
+                else if (kind == 3) { *(ulong*)(text + 8) = 0x4b434954; length = 12; }
+                else if (kind == 4) { *(ulong*)(text + 8) = 0x454b4157; length = 12; }
+                else if (kind == 5) { *(ulong*)(text + 8) = 0x4445524f54534552; length = 16; }
+                else return false;
+            }
+            if (kind is >= 1 and <= 5 or 8)
+            {
+                ulong* values = stackalloc ulong[4]; values[0] = a; values[1] = b; values[2] = c; values[3] = d;
+                for (uint i = 0; i < 4; i++) { text[length++] = 32; text[length++] = 48; text[length++] = 120;
+                    for (int shift = 60; shift >= 0; shift -= 4) { uint value = (uint)((values[i] >> shift) & 15); text[length++] = (byte)(value < 10 ? 48 + value : 65 + value - 10); } }
+            }
+            text[length++] = 13; text[length++] = 10; return WriteOwnedBytes(state, text, length);
+        }
+#endif
+
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static void Enter(FirstExitOwnedStackContext* context)
         {
@@ -2314,6 +2647,11 @@ public static unsafe class EfiEntry
                     {
 #if M05_APIC_SETUP_PROBE
                         if (!BootSequence.RunOwnedApicSetup(state->PciPhase == 8, state, &RunOwnedApicSetup)) return;
+#if M09_005_PROBE
+                        if (!BootSequence.RunOwnedSchedulerTimer(state->OwnedPhase == 2, state->ApicPhase == 2,
+                            transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
+                            state->Arena.Binding->RetainedPointersCleared, state, &RunSchedulerTimer)) return;
+#endif
 #endif
 #if M05_BAR_DMA_PROBE
                         _ = BootSequence.RunOwnedBarDma(state->PciPhase == 8, state, &RunOwnedBarDma);

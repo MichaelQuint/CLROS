@@ -148,9 +148,29 @@ public static class EfiProjectAdmission
         foreach (var analyzer in analyzers) { string name = Path.GetFileName(Text(analyzer!["FullPath"])); Require(expected.Contains(name, StringComparer.Ordinal) && Path.GetFileName(Text(analyzer["DefiningProjectFullPath"])) == "Microsoft.NET.Sdk.Analyzers.targets", reason); names.Add(name); }
         Require(names.Count == 2 && (ordered ? names.SequenceEqual(expected, StringComparer.Ordinal) : names.Distinct(StringComparer.Ordinal).Count() == 2), reason);
     }
+    /// <summary>Return a fresh ordered inventory for the reviewed profile's six
+    /// conditional source links. Static declaration admission stays complete;
+    /// both isolated and restored evaluations require this exact selection.</summary>
+    public static string[] ExpectedCompileItems(EfiProfile profile)
+    {
+        bool timer = profile.IsEnabled("EnableM09005Probe"), contexts = timer || profile.IsEnabled("EnableM09004Probe");
+        // Mirror only the six reviewed conditional links; retain static inventory order
+        // and admit no new evaluated identity, link or defining-project authority.
+        return EfiContracts.CompileItems.Where(item => item switch
+        {
+            @"..\OS.Kernel\Threading\X64ThreadContext.cs|Threading\X64ThreadContext.cs" or
+            @"..\OS.Kernel\Threading\ThreadContextSwitch.cs|Threading\ThreadContextSwitch.cs" => contexts,
+            @"..\OS.Kernel\Threading\DeadlineQueue.cs|Threading\DeadlineQueue.cs" or
+            @"..\OS.Kernel\Threading\SchedulerTimer.cs|Threading\SchedulerTimer.cs" or
+            @"..\OS.Kernel\Pal\OSHostHandle.cs|Pal\OSHostHandle.cs" or
+            @"..\OS.Kernel\Threading\X64TimerInterrupt.cs|Threading\X64TimerInterrupt.cs" => timer,
+            _ => true
+        }).ToArray();
+    }
     public static void Evaluate(string root, string configuration, EfiProfile profile, string dotnet, string sdk, int timeoutSeconds = EfiBuildPolicy.BuildTimeoutSeconds, int outputCharacters = EfiBuildPolicy.OutputCharacters)
     {
         string project = Path.Combine(root, "src/OS/OS.csproj"), serializerDirectory = Path.Combine(root, "tools/OS.X64TextSerializerGenerator"), targets = Path.Combine(serializerDirectory, "OS.X64TextSerializerGenerator.targets");
+        string[] expectedCompileItems = ExpectedCompileItems(profile);
         // The paths are deliberately absent; query-only MSBuild evaluation must not consume a
         // stale project.assets.json or generated NuGet import from any previous publish.
         string temp = Path.Combine(Path.GetTempPath(), "clros-source-evaluation-" + Guid.NewGuid().ToString("N"));
@@ -170,12 +190,12 @@ public static class EfiProjectAdmission
             Require(symbols.SetEquals(expectedSymbols), "evaluated_define_constants_mismatch", workload);
             JsonArray compile = Array(items["Compile"], "evaluated_item_count_mismatch"), analyzers = Array(items["Analyzer"], "evaluated_item_count_mismatch"), inputs = Array(items["_ClrosX64SerializerGeneratorInput"], "evaluated_item_count_mismatch");
             string[] expectedInputs = ["OS.X64TextSerializerGenerator.csproj", "Program.cs", "Amd64CoffWriter.cs", "CheckedReferenceBarrierThunkGenerator.cs", "InstructionPublicationSerializerGenerator.cs", "InterfaceDispatchThunkGenerator.cs", "ExceptionHandlingThunkGenerator.cs", "ExceptionFilterThunkGenerator.cs", "EhContributionCatalogGenerator.cs", "NormalFinallyThunkGenerator.cs", "OS.X64TextSerializerGenerator.targets"];
-            Require(compile.Count == EfiContracts.CompileItems.Count && Array(items["ProjectReference"], "evaluated_item_count_mismatch").Count == 0 && Array(items["Reference"], "evaluated_item_count_mismatch").Count == 0 && analyzers.Count == 2 && inputs.Count == expectedInputs.Length, "evaluated_item_count_mismatch");
+            Require(compile.Count == expectedCompileItems.Length && Array(items["ProjectReference"], "evaluated_item_count_mismatch").Count == 0 && Array(items["Reference"], "evaluated_item_count_mismatch").Count == 0 && analyzers.Count == 2 && inputs.Count == expectedInputs.Length, "evaluated_item_count_mismatch");
             VerifyAnalyzers(analyzers, "evaluated_analyzer_mismatch");
             for (int i = 0; i < compile.Count; i++)
             {
-                string include = EfiContracts.CompileItems[i].Split('|')[0]; var item = compile[i]!;
-                Require(Text(item["Identity"]) + "|" + (item["Link"] is null ? "" : Text(item["Link"])) == EfiContracts.CompileItems[i] && SamePath(Text(item["FullPath"]), Path.Combine(root, "src/OS", include)) && SamePath(Text(item["DefiningProjectFullPath"]), project), "evaluated_compile_item_mismatch", workload + ":" + i);
+                string include = expectedCompileItems[i].Split('|')[0]; var item = compile[i]!;
+                Require(Text(item["Identity"]) + "|" + (item["Link"] is null ? "" : Text(item["Link"])) == expectedCompileItems[i] && SamePath(Text(item["FullPath"]), Path.Combine(root, "src/OS", include)) && SamePath(Text(item["DefiningProjectFullPath"]), project), "evaluated_compile_item_mismatch", workload + ":" + i);
             }
             for (int i = 0; i < inputs.Count; i++) { string expected = Path.Combine(serializerDirectory, expectedInputs[i]); Require(SamePath(Text(inputs[i]!["Identity"]), expected) && SamePath(Text(inputs[i]!["FullPath"]), expected) && SamePath(Text(inputs[i]!["DefiningProjectFullPath"]), targets), "evaluated_serializer_input_mismatch", workload + ":" + i); }
         }

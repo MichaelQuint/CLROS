@@ -44,8 +44,6 @@ internal static class EfiArtifactVerificationScriptTests
         "ZIYDAAAAAADSAAAAAgAAAAAAAAAvNAAAAAAAAAAAAAAAAAAAFAAAAIwAAAAAAAAAAAAAAAAAAAAgAFBgLzE4AAAAAAAAAAAAAAAAAAgAAACgAAAAAAAAAAAAAAAAAAAAQAAwQC8zMwAAAAAAAAAAAAAAAAAMAAAAqAAAALQAAAAAAAAAAwAAAEAAMEBTuAAAAAC5AAAAAA+iuENMUlNbwwEBAQABMAAAAAAAABQAAAAAAAAAAAAAAAAAAAADAAQAAAAAAAAAAwAIAAAAAQAAAAMAAAAAADAAAAAAAAAAAQAgAAIAAAAAABIAAAAAAAAAAgAAAAMAWgAAAC50ZXh0JGNscm9zc20ALnhkYXRhJGNscm9zc20ALnBkYXRhJGNscm9zc20AQ0xST1NfWDY0X1NlcmlhbGl6ZUluc3RydWN0aW9uUHVibGljYXRpb24A";
     private const string EmptySha256 =
         "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855";
-    private static readonly string CompileClosureSha256 =
-        OS.Tooling.EfiContracts.CompileInventorySha256;
     private const string AnalyzerClosureSha256 =
         "bea3e700acbeec374acb02a39b8c154e03291cf380edf850fea2114193b7ea14";
     private const string ManagedFixtureConfiguration = "Release";
@@ -100,6 +98,11 @@ internal static class EfiArtifactVerificationScriptTests
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
         HostCheck.True(declared.SequenceEqual(properties.Keys.Where(name => name.StartsWith("Enable", StringComparison.Ordinal) && name.EndsWith("Probe", StringComparison.Ordinal)).Order(StringComparer.Ordinal)));
         HostCheck.True(declared.All(name => properties[name] == "false"), "fixture default probe isolation");
+        string[] expectedCompileItems = EfiProjectAdmission.ExpectedCompileItems(
+            EfiProfile.Create("Diagnostic", new Dictionary<string, bool>()));
+        HostCheck.Equal(expectedCompileItems.Length, (int)fixture["compileCount"]!);
+        HostCheck.Equal(EfiEvidence.HashLines(expectedCompileItems), (string)fixture["compileSha256"]!);
+        HostCheck.Equal("Diagnostic", properties["ClrosBootPolicy"]);
     }
 
     [HostFixture(HostLane.Native)]
@@ -4749,10 +4752,12 @@ internal static class EfiArtifactVerificationScriptTests
                 "false"
         };
         foreach (string probe in EfiContracts.DiagnosticProbes) properties.Add(probe, "false");
+        string[] expectedCompileItems = EfiProjectAdmission.ExpectedCompileItems(
+            EfiProfile.Create("Diagnostic", new Dictionary<string, bool>()));
         return new Dictionary<string, object?>
         {
-            ["compileCount"] = OS.Tooling.EfiContracts.CompileItems.Count,
-            ["compileSha256"] = CompileClosureSha256,
+            ["compileCount"] = expectedCompileItems.Length,
+            ["compileSha256"] = EfiEvidence.HashLines(expectedCompileItems),
             ["projectReferenceCount"] = 0,
             ["projectReferenceSha256"] = EmptySha256,
             ["referenceCount"] = 0,

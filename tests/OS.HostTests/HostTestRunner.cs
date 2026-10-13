@@ -323,6 +323,11 @@ internal static class HostTestRunner
             });
             SaveProgress();
             using CancellationTokenSource cancellation = new();
+            var inputs = new HostRunInputGuard(() => fingerprints.BoundaryInputsUnchanged(root), cancellation, failure =>
+            {
+                checkpoint.InvalidateRun();
+                Console.Error.WriteLine("TEST_FAIL host.tests.inputs " + failure);
+            });
             ConsoleCancelEventHandler cancel = (_, signal) => { signal.Cancel = true; cancellation.Cancel(); };
             Console.CancelKeyPress += cancel;
             try
@@ -331,25 +336,22 @@ internal static class HostTestRunner
                 {
                     Fixture[] fixtures = group.Fixtures;
                     string fingerprint = fingerprints.For(fixtures, caseFilter);
-                    FixtureResult result;
-                    if (checkpoint.TryReuse(group.Id, fingerprint, out var previous) &&
-                        HostNativeResumePolicy.Outputs(root, fixtures, previous!.Result).All(previous.ArtifactSources.ContainsKey))
+                    FixtureResult? result = await RunWithInputChecks(group.Id, inputs, async () =>
                     {
-                        result = previous!.Result with { Reused = true, Origin = previous.Origin };
-                        Console.WriteLine($"HOST_FIXTURE_REUSED {group.Id} origin={previous.Origin}");
-                    }
-                    else
-                    {
+                        if (checkpoint.TryReuse(group.Id, fingerprint, out var previous) &&
+                            HostNativeResumePolicy.Outputs(root, fixtures, previous!.Result).All(previous.ArtifactSources.ContainsKey))
+                        {
+                            Console.WriteLine($"HOST_FIXTURE_REUSED {group.Id} origin={previous.Origin}");
+                            return previous!.Result with { Reused = true, Origin = previous.Origin };
+                        }
                         string log = checkpoint.Start(group.Id);
                         Console.WriteLine($"HOST_FIXTURE_START {group.Id}");
-                        result = (await RunFixture(fixtures, root, log, caseFilter, cancellation)) with { Id = group.Id, Origin = checkpoint.Run };
-                        if (HostRunCheckpoint.Passed(result) && !fingerprint.StartsWith("fresh:", StringComparison.Ordinal) &&
-                            !fingerprints.InputsUnchanged(root, fixtures))
-                        {
-                            result = result with { ExitCode = 1, Error = "inputs_changed_during_fixture" };
-                            Console.Error.WriteLine("TEST_FAIL host.tests.inputs changed_during_fixture " + group.Id);
-                            cancellation.Cancel();
-                        }
+                        return (await RunFixture(fixtures, root, log, caseFilter, cancellation)) with { Id = group.Id, Origin = checkpoint.Run };
+                    }, completed => !HostRunCheckpoint.Passed(completed) || fingerprint.StartsWith("fresh:", StringComparison.Ordinal) ||
+                        fingerprints.InputsUnchanged(root, fixtures));
+                    if (result is null) return;
+                    if (!result.Reused)
+                    {
                         checkpoint.Finish(group.Id, fingerprint, result, HostNativeResumePolicy.Outputs(root, fixtures, result));
                         Console.WriteLine($"HOST_FIXTURE_RESULT {group.Id} exit={result.ExitCode} failures={result.Failed} seconds={result.Seconds:F3}");
                     }
@@ -365,11 +367,23 @@ internal static class HostTestRunner
             }
             finally { Console.CancelKeyPress -= cancel; }
             int failures = results.Count(r => r.ExitCode != 0 || r.TimedOut || r.Failed != 0 || r.Started == 0 || r.Passed < r.Started);
-            List<string> changed = [.. HostBuildInputs.Validate()];
-            var finalFingerprints = HostTestFingerprint.Create(root);
-            foreach (var group in groups)
-                if (fingerprints.For(group.Fixtures, caseFilter) != finalFingerprints.For(group.Fixtures, caseFilter))
-                    changed.Add("checkpoint_inputs_changed " + group.Id);
+            List<string> changed = [];
+            if (inputs.Failure is string inputFailure) changed.Add(inputFailure);
+            try
+            {
+                if (!fingerprints.ExactRunInputsUnchanged(root)) changed.Add("run_snapshot_inputs_changed");
+                changed.AddRange(HostBuildInputs.Validate());
+                var finalFingerprints = HostTestFingerprint.Create(root);
+                foreach (var group in groups)
+                    if (fingerprints.For(group.Fixtures, caseFilter) != finalFingerprints.For(group.Fixtures, caseFilter))
+                        changed.Add("checkpoint_inputs_changed " + group.Id);
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException)
+            {
+                // A removed or temporarily malformed input must still produce a
+                // final failed receipt after the scheduler has drained workers.
+                changed.Add("final_input_validation_failed " + error.GetType().Name);
+            }
             if (changed.Count != 0) checkpoint.InvalidateRun();
             failures += checkpoint.ValidateResults(results);
             foreach (string failure in changed) Console.Error.WriteLine("TEST_FAIL host.tests.inputs " + failure);
@@ -402,6 +416,23 @@ internal static class HostTestRunner
 
     private static void SaveReceipt(string directory, object receipt)
         => OS.Tooling.AtomicReceipt.WriteJson(Path.Combine(directory, "results.json"), receipt);
+
+    // Cache reuse, failed workers and fresh/native workers all cross the same
+    // integrity boundary. The additional exact check retains the stronger byte
+    // and toolchain validation already required for cacheable passing fixtures.
+    internal static async Task<FixtureResult?> RunWithInputChecks(string id, HostRunInputGuard inputs,
+        Func<Task<FixtureResult>> run, Func<FixtureResult, bool>? exact = null)
+    {
+        if (!inputs.Check("before_fixture " + id)) return null;
+        FixtureResult? result = null;
+        bool unchanged = false;
+        try { result = await run(); }
+        finally
+        {
+            unchanged = inputs.Check("after_fixture " + id, result is null || exact is null ? null : () => exact(result));
+        }
+        return unchanged ? result : result! with { ExitCode = 1, Error = "inputs_changed_during_fixture" };
+    }
 
     internal static string? WorkerProcessFailure(OS.Tooling.ProcessResult process, CancellationTokenSource scheduling)
     {

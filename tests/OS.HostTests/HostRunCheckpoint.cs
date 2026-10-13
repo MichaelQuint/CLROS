@@ -27,6 +27,7 @@ internal sealed class HostRunCheckpoint : IDisposable
     private readonly string producer, producerHash;
     private readonly Dictionary<string, bool> checkedProducers = new(StringComparer.Ordinal);
     private readonly object sync = new();
+    private bool runInvalidated;
     internal string Run { get; } = Guid.NewGuid().ToString("N");
 
     internal HostRunCheckpoint(string root, string directory, bool resume, Selection? selection = null)
@@ -69,6 +70,7 @@ internal sealed class HostRunCheckpoint : IDisposable
     {
         lock (sync)
         {
+            runInvalidated = true;
             foreach (string key in receipt.Entries.Where(item => item.Value.Origin == Run).Select(item => item.Key).ToArray()) receipt.Entries.Remove(key);
             Save();
         }
@@ -102,6 +104,7 @@ internal sealed class HostRunCheckpoint : IDisposable
 
     internal void Finish(string id, string fingerprint, HostTestRunner.FixtureResult result, IEnumerable<string>? outputs = null)
     {
+        lock (sync) if (runInvalidated) return;
         Dictionary<string, string> evidence = new(StringComparer.Ordinal);
         Dictionary<string, string> artifacts = new(StringComparer.Ordinal);
         foreach (string output in outputs ?? [])
@@ -116,6 +119,9 @@ internal sealed class HostRunCheckpoint : IDisposable
         }
         lock (sync)
         {
+            // Invalidation can race an already-finishing worker's evidence copy.
+            // Never recreate a reusable pass after this run has lost its inputs.
+            if (runInvalidated) return;
             receipt.Entries[id] = new(fingerprint, Run, HashFile(result.Log), result, evidence, producer, producerHash) { ArtifactSources = artifacts };
             Save();
         }

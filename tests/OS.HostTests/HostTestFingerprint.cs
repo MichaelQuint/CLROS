@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -9,7 +11,7 @@ internal sealed class HostTestFingerprint
     private static readonly HashSet<string> SharedSources = new(StringComparer.Ordinal)
     {
         "Program", "HostTestRunner", "HostCheck", "HostRunCheckpoint", "HostTestFingerprint",
-        "HostBuildInputs", "HostWorkerScheduler", "HostToolProcess", "HostNativeResumePolicy"
+        "HostBuildInputs", "HostWorkerScheduler", "HostToolProcess", "HostNativeResumePolicy", "HostRunInputGuard"
     };
     private readonly IReadOnlyDictionary<string, string> sources;
     private readonly Dictionary<string, HashSet<string>> types = new(StringComparer.Ordinal);
@@ -19,7 +21,17 @@ internal sealed class HostTestFingerprint
     private readonly string allSources;
     private Lazy<string?> native = new(() => null);
     private readonly Dictionary<string, string> inputFiles = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, FileStamp> inputStamps = new(StringComparer.OrdinalIgnoreCase);
     private string environment = "";
+
+    internal readonly record struct FileStamp(bool Exists, long Length, long Written, long Created, FileAttributes Attributes)
+    {
+        internal static FileStamp Read(string path)
+        {
+            var file = new FileInfo(path);
+            return file.Exists ? new(true, file.Length, file.LastWriteTimeUtc.Ticks, file.CreationTimeUtc.Ticks, file.Attributes) : default;
+        }
+    }
 
     internal HostTestFingerprint(IReadOnlyDictionary<string, string> sources, string shared, IEnumerable<string>? symbols = null)
     {
@@ -52,21 +64,67 @@ internal sealed class HostTestFingerprint
     internal static HostTestFingerprint Create(string root)
     {
         Dictionary<string, string> files = new(StringComparer.OrdinalIgnoreCase);
-        string shared = SharedFingerprint(root, files);
-        var sources = Directory.GetFiles(Path.Combine(root, "tests", "OS.HostTests"), "*.cs");
-        var result = new HostTestFingerprint(sources.ToDictionary(path => Path.GetFileNameWithoutExtension(path), File.ReadAllText, StringComparer.Ordinal),
+        var sources = Directory.GetFiles(Path.Combine(root, "tests", "OS.HostTests"), "*.cs")
+            .ToDictionary(Path.GetFullPath, ReadSource, StringComparer.OrdinalIgnoreCase);
+        string shared = SharedFingerprint(root, files, sources);
+        var result = new HostTestFingerprint(sources.ToDictionary(pair => Path.GetFileNameWithoutExtension(pair.Key), pair => pair.Value.Text, StringComparer.Ordinal),
             shared, CompilerOptions().Split('|')[4].Split([';', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             { native = new(() => HostNativeResumePolicy.InputFingerprint(root)), environment = EnvironmentFingerprint() };
-        foreach (string file in sources.Append(typeof(HostTestFingerprint).Assembly.Location)) files[file] = HostRunCheckpoint.HashFile(file);
-        foreach (var pair in files) result.inputFiles[pair.Key] = pair.Value;
+        foreach (var pair in sources) files[pair.Key] = pair.Value.Sha256;
+        string assembly = typeof(HostTestFingerprint).Assembly.Location;
+        files[assembly] = HostRunCheckpoint.HashFile(assembly);
+        foreach (var pair in files)
+        {
+            result.inputFiles[pair.Key] = pair.Value;
+            result.inputStamps[pair.Key] = FileStamp.Read(pair.Key);
+        }
+        if (!FilesMatch(files)) throw new InvalidOperationException("checkpoint_inputs_changed_during_snapshot");
         return result;
     }
 
+    // Parsing and provenance must come from one read, including BOM detection
+    // equivalent to File.ReadAllText. Reopening for the hash could join revisions.
+    internal static (string Text, string Sha256) ReadSource(string path)
+    {
+        byte[] bytes = File.ReadAllBytes(path);
+        using var stream = new MemoryStream(bytes, writable: false);
+        using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        return (reader.ReadToEnd(), Convert.ToHexString(SHA256.HashData(bytes)));
+    }
+
+    // Cheap scheduling guard, independent of cache eligibility. A changed stamp
+    // requires the original byte hash, allowing fixtures to restore exact bytes.
+    // This supplements, rather than replaces, exact post-pass and final checks:
+    // equal-length edits that preserve timestamps still require those full hashes.
+    internal bool BoundaryInputsUnchanged(string root) =>
+        EnvironmentFingerprint() == environment && StampedFilesMatch(inputFiles, inputStamps) &&
+        InventoryRecorded(root, inputFiles);
+
+    internal static bool InventoryRecorded(string root, IReadOnlyDictionary<string, string> recorded) =>
+        RepositoryFiles(root).All(file => recorded.ContainsKey(Path.GetFullPath(Path.Combine(root, file)))) &&
+        HostBuildInputs.SourceInputs(root).All(file => recorded.ContainsKey(Path.GetFullPath(file)));
+
+    internal static bool StampedFilesMatch(IReadOnlyDictionary<string, string> files, IDictionary<string, FileStamp> stamps)
+    {
+        foreach (var pair in files)
+        {
+            FileStamp current = FileStamp.Read(pair.Key);
+            if (stamps.TryGetValue(pair.Key, out var previous) && current == previous) continue;
+            if ((current.Exists ? HostRunCheckpoint.HashFile(pair.Key) : "MISSING") != pair.Value) return false;
+            stamps[pair.Key] = current;
+        }
+        return true;
+    }
+
     internal bool InputsUnchanged(string root, HostTestRunner.Fixture[] fixtures) =>
-        EnvironmentFingerprint() == environment && FilesMatch(inputFiles) &&
-        HostBuildInputs.SourceInputs(root).All(file => inputFiles.ContainsKey(Path.GetFullPath(file))) &&
+        ExactRunInputsUnchanged(root) &&
         (!fixtures.Any(f => f.Lane == HostLane.Native) || !HostNativeResumePolicy.OwnsOutputs(fixtures) ||
             native.Value == HostNativeResumePolicy.InputFingerprint(root));
+
+    // Final validation includes the original host DLL and every recorded byte,
+    // even when every selected fixture was fresh or its timestamps were restored.
+    internal bool ExactRunInputsUnchanged(string root) =>
+        EnvironmentFingerprint() == environment && FilesMatch(inputFiles) && InventoryRecorded(root, inputFiles);
 
     internal static bool FilesMatch(IReadOnlyDictionary<string, string> files) =>
         files.All(pair => (File.Exists(pair.Key) ? HostRunCheckpoint.HashFile(pair.Key) : "MISSING") == pair.Value);
@@ -132,22 +190,20 @@ internal sealed class HostTestFingerprint
         return (fresh ? "fresh:" + reason + ":" : "") + hash;
     }
 
-    internal static string SharedFingerprint(string root, Dictionary<string, string>? snapshot = null)
+    private static string SharedFingerprint(string root, Dictionary<string, string> snapshot,
+        IReadOnlyDictionary<string, (string Text, string Sha256)> sources)
     {
-        var inventory = ProcessRunner.RunAsync(new("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z"], root)).GetAwaiter().GetResult();
-        if (!inventory.Succeeded) throw new InvalidOperationException("checkpoint_inventory_failed");
         List<string> inputs = ["CLROS_HOST_RESUME_1", root, Environment.MachineName,
             System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
             System.Runtime.InteropServices.RuntimeInformation.OSDescription];
-        foreach (string relative in inventory.StandardOutput.Split('\0', StringSplitOptions.RemoveEmptyEntries).Distinct().Order(StringComparer.Ordinal))
+        foreach (string relative in RepositoryFiles(root).Order(StringComparer.Ordinal))
         {
-            if (relative.StartsWith("artifacts/", StringComparison.Ordinal)) continue;
             if (relative.StartsWith("tests/OS.HostTests/", StringComparison.Ordinal) && relative.LastIndexOf('/') == "tests/OS.HostTests/".Length - 1 &&
                 relative.EndsWith(".cs", StringComparison.Ordinal) && !SharedSources.Contains(Path.GetFileNameWithoutExtension(relative)))
             {
                 string path = Path.Combine(root, relative);
                 // Global imports/assembly attributes can affect unrelated fixtures.
-                if (File.Exists(path) && !AffectsAllFixtures(File.ReadAllText(path),
+                if (File.Exists(path) && !AffectsAllFixtures(sources.TryGetValue(Path.GetFullPath(path), out var source) ? source.Text : File.ReadAllText(path),
                     CompilerOptions().Split('|')[4].Split([';', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))) continue;
             }
             AddFile(Path.Combine(root, relative));
@@ -179,9 +235,18 @@ internal sealed class HostTestFingerprint
         void AddFile(string path)
         {
             path = Path.GetFullPath(path);
-            string hash = File.Exists(path) ? HostRunCheckpoint.HashFile(path) : "MISSING";
+            string hash = sources.TryGetValue(path, out var source) ? source.Sha256 :
+                File.Exists(path) ? HostRunCheckpoint.HashFile(path) : "MISSING";
             inputs.Add(path + ":" + hash);
-            if (snapshot is not null) snapshot[path] = hash;
+            snapshot[path] = hash;
         }
+    }
+
+    private static string[] RepositoryFiles(string root)
+    {
+        var inventory = ProcessRunner.RunAsync(new("git", ["ls-files", "--cached", "--others", "--exclude-standard", "-z"], root)).GetAwaiter().GetResult();
+        if (!inventory.Succeeded) throw new InvalidOperationException("checkpoint_inventory_failed");
+        return inventory.StandardOutput.Split('\0', StringSplitOptions.RemoveEmptyEntries)
+            .Where(file => !file.StartsWith("artifacts/", StringComparison.Ordinal)).Distinct(StringComparer.Ordinal).ToArray();
     }
 }
