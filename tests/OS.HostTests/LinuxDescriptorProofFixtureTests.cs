@@ -49,14 +49,16 @@ internal static unsafe class LinuxDescriptorProofFixtureTests
     {
         byte[] elf = LinuxDescriptorProofFixture.CreateElf("Descriptors");
         var calls = Decode(elf, 0x200, 0xf00);
-        uint[] expected = [0, 1, 1, 20, 16, 2, 5, 0, 17, 72, 0, 8, 17, 72, 72, 72, 72, 72, 8, 0, 3, 0,
-            2, 2, 2, 20, 20, 20, 2, 72, 0, 0, 72, 72, 72, 3, 3, 3, 2, 0, 3, 2, 0, 3, 293, 1, 0, 3, 0, 3, 1, 231];
+        uint[] expected = [0, 1, 1, 20, 16, 257, 5, 0, 17, 72, 0, 8, 17, 72, 72, 72, 72, 72, 8, 0, 3, 0,
+            2, 2, 257, 20, 20, 20, 257, 72, 0, 0, 72, 72, 72, 3, 3, 3, 2, 0, 3, 2, 0, 3, 293, 1, 0, 3, 0, 3, 1, 231];
         HostCheck.True(calls.Select(call => call.Number).SequenceEqual(expected) && calls.Count == 52 && calls.Count <= 64);
         HostCheck.Equal(52U, LinuxDescriptorProofFixture.ExpectedCalls("Descriptors"));
         HostCheck.True(calls.Select(call => call.Rip).SequenceEqual(LinuxDescriptorProofFixture.ExpectedReturnRips("Descriptors")));
         HostCheck.Equal(calls[^1].Rip, LinuxDescriptorProofFixture.SuccessRip("Descriptors"));
         HostCheck.True(calls[0].A0 == 0 && calls[1].A0 == 1 && calls[2].A0 == 2 && calls[3].Number == 20);
-        HostCheck.True(calls[5].A0 == 0x401000 && calls[5].A1 == 0 && calls[8].A3 == 0);
+        HostCheck.True(calls[5].A0 == 0xffff_ff9c && calls[5].A1 == 0x401000 && calls[5].A2 == 0 && calls[8].A3 == 0);
+        HostCheck.True(calls.Count(call => call.Number == 257) == 3 && calls[24].A0 == 0xffff_ff9c &&
+            calls[24].A1 == 0x4010a0 && calls[28].A0 == 0xffff_ff9c && calls[28].A1 == 0x401000 && calls[28].A2 == 0x80000);
         HostCheck.True(calls[9].A0 == 3 && calls[9].A1 == 0 && calls[9].A2 == 6);
         HostCheck.True(calls[12].Number == 17 && calls[12].A0 == 3 && calls[12].A2 == 1 && calls[12].A3 == 0x2000);
         HostCheck.True(calls[13].A0 == 6 && calls[13].A1 == 4 && calls[13].A2 == 0x800);

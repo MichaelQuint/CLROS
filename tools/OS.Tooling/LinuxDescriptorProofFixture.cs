@@ -116,7 +116,7 @@ public static class LinuxDescriptorProofFixture
         w.Call(1, 2, ImageBase + SecondText, (uint)SecondOutput.Length, SecondOutput.Length);
         w.Call(20, 1, ImageBase + Vectors, 2, VectorOutput.Length);
         w.Call(16, 1, 0x541b, OutputAddress, -25);
-        w.Call(2, ImageBase + PackagePath, 0, 0, 3);
+        w.Call(257, 0xffff_ff9c, ImageBase + PackagePath, 0, 3); // openat(AT_FDCWD), Linux's signed int dirfd ABI.
         w.Call(5, 3, ImageBase + StatOffset, 0, 0);
         w.MemoryDword(StatOffset + 24, 0x8124); w.MemoryQword(StatOffset + 48, ElfBytes);
         w.Call(0, 3, OutputAddress, 4, 4); w.MemoryDword(0x2000, 0x464c457f);
@@ -133,10 +133,10 @@ public static class LinuxDescriptorProofFixture
         w.Call(3, 3, 0, 0, 0); w.Call(0, 3, OutputAddress, 4, -9);
         w.Call(2, ImageBase + AbsentPath, 0, 0, -2);
         w.Call(2, ImageBase + PackagePath, 1, 0, -30);
-        w.Call(2, ImageBase + TraversalPath, 0, 0, -13);
+        w.Call(257, 0xffff_ff9c, ImageBase + TraversalPath, 0, -13);
         w.Call(20, 1, 0, 1, -14); w.Call(20, 1, ImageBase + BadVectors, 1, -14);
         w.Call(20, 1, ImageBase + Vectors, 17, -22);
-        w.Call(2, ImageBase + PackagePath, CloseOnExec, 0, 3); w.Call(72, 3, 1, 0, 1);
+        w.Call(257, 0xffff_ff9c, ImageBase + PackagePath, CloseOnExec, 3); w.Call(72, 3, 1, 0, 1);
         w.Call(0, 3, OutputAddress, 4, 4); w.MemoryDword(0x2000, 0x464c457f);
         w.Call(0, 6, OutputAddress, 4, 0); // Reused fd3 has a distinct fresh description.
         w.Call(72, 3, 1030, 7, 7); w.Call(72, 7, 1, 0, 1); w.Call(72, 7, 3, 0, 0x8000);
