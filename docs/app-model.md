@@ -99,7 +99,9 @@ The #187 timer control development in [step1219](../done/step1219.md) passes
 twelve focused checks for a local-APIC one-shot protocol, retained deadlines,
 bounded publication deferral and partial-write cleanup. Its MMIO/expiration
 callbacks are simulated; actual IRQ capture and non-yielding guest preemption
-remain unimplemented. See [PAL timer ownership](pal.md#timer-control-development-187).
+remain unimplemented. [Step1220](../done/step1220.md) adds five focused frame/byte
+checks for an unexecuted complete interrupt emitter under integration child #721.
+See [PAL timer ownership](pal.md#timer-control-development-187).
 The host queues are not connected to continuing guest scheduling.
 See [PAL deadline ownership](pal.md#deadline-queue-host-contract-185).
 M16-009/#687 owns first pinned NativeAOT Hello acceptance after signal

@@ -8,7 +8,9 @@ Linux threading, unchanged Hello, upstream runtime or Kestrel
 acceptance.
 
 M09-005/#187 has timer-control development in [step1219](../done/step1219.md),
-with twelve focused host checks over simulated APIC MMIO/expiration. There is
+with twelve focused host checks over simulated APIC MMIO/expiration.
+[Step1220](../done/step1220.md) adds five frame/encoding checks for the unexecuted
+complete interrupt emitter under integration child #721. There is
 no interrupt-handler execution or hardware preemption evidence for this slice.
 The issue remains open; its native/full-host/guest acceptance is pending.
 

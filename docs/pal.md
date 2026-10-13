@@ -157,6 +157,16 @@ APIC setup. Intel's [SDM Volume3A, section11.5.4](https://cdrdv2-public.intel.co
 defines the divider, initial-count reload and zero-count stop. Reload counts
 and acknowledged ticks carry no wall-clock calibration claim.
 
+[Step1220](../done/step1220.md) adds a fixed `X64TimerInterrupt` emitter under
+integration child #721. Five focused checks cover the 704-byte owned-IST frame,
+independent capture/Win64/restore byte vectors, failure branches, malformed/aliased
+plans, every changed code/padding byte and zero warmed allocation. Fifteen saved
+GPRs plus hardware oldRSP precede scratch use; aligned x87/SSE and FS/GS capture
+precede the neutral-FP C# callback. Return requires byte1, complete frame, CS8/SS16
+and verified restored FS/GS bases; only IRETQ restores the admitted return flags.
+The emitter is not installed or executed. The callback still needs independent
+live mapping/CPU/lifetime and complete return-frame admission.
+
 Prepare requires a stopped masked timer, retained TPRd0/SVR1ff, empty ISR and
 no deliverable classE/F IRR. Arm requires IF clear and an external observation
 of complete owned gates, interrupt stack and full architectural capture/restore;
@@ -172,7 +182,7 @@ Restore masks/stops before checking quiescence and restoring the original
 divider/masked LVT. Partial writes and pending interrupt failures retain the
 hardware borrow and external IDT/stack/mapping lifetimes. The tests simulate
 MMIO and expiration; no hardware interrupt has executed through this layer.
-Full GPR/FS/GS/x87/SSE interrupt capture, actual non-yielding context preemption,
+Live GPR/FS/GS/x87/SSE interrupt capture, actual non-yielding context preemption,
 IDT/TSS/IF restoration, original native review and final-source guest/full-host
 qualification remain #187 work. This adds no scheduler or upstream runtime
 acceptance, and does not reinterpret the qualified cooperative context ABI.
