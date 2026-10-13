@@ -63,6 +63,8 @@ internal sealed partial class EfiVerification
         BindProfile(profile.IsEnabled("M16005"), "m16_syscalls", new[] { "PrepareLinuxUserBoundary", "RunOwnedLinuxSyscalls", "DispatchLinuxSyscall",
             "LinuxUserPageAccess", "CopyLinuxUserBytes", "WriteLinuxUserBytes", "ReportLinuxUserFault" }
             .Select(n => "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__" + n).ToArray());
+        BindProfile(profile.IsEnabled("M16006"), "m16_memory", new[] { "PrepareLinuxMemory", "DispatchLinuxStartup", "CopyToLinuxUser",
+            "ReadLinuxClock", "LinuxMemoryBarrier" }.Select(n => "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__" + n).ToArray());
         BindProfile(profile.IsEnabled("M04ClassConstructorExecution"), "compiler_cctor", "OS_OS_Runtime_RhpNewFastAllocation__BindAndRunCompilerClassConstructors", "OS_OS_Runtime_RhpNewFastAllocation__CctorDirectRead", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnGCStaticBase");
         BindProfile(profile.IsEnabled("M04ClassConstructorExecution") || profile.IsEnabled("M04ConstructorFailure"), "compiler_cctor", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__EnsureClassConstructorRun", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnNonGCStaticBase");
         Require(!Regex.IsMatch(map, @"ClassConstructorRunner__[^\s]*ThreadStatic"), "compiler_cctor_thread_static_unsupported");

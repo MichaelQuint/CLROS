@@ -130,7 +130,7 @@ public static unsafe class LinuxElfStartup
         if (LinuxElfLoader.Validate(elf, elfLength, manifest.MemoryBytes, manifest.StackBytes, out image) != LinuxElfLoadStatus.Ready)
             return LinuxElfStartupStatus.InvalidElf;
         if (stack == null || ((ulong)stack & 15) != 0 || stackBytes != manifest.StackBytes || (ulong)stack > ~0UL - stackBytes ||
-            stackStart < 0x10000000 || (stackStart & 4095) != 0 || stackStart > 0x100000000UL - stackBytes)
+            stackStart < 0x10000000 || (stackStart & 4095) != 0 || stackStart > LinuxSyscallGateway.UserEnd - stackBytes)
             return LinuxElfStartupStatus.InvalidStorage;
         if (entropy == null || entropyBytes != 32 || (ulong)entropy > ~0UL - entropyBytes) return LinuxElfStartupStatus.InvalidEntropy;
         bool nonzero = false; for (uint i = 0; i < 16; i++) if (entropy[i] != 0) nonzero = true;

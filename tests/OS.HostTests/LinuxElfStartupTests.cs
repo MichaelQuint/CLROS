@@ -12,6 +12,30 @@ internal static unsafe class LinuxElfStartupTests
     private static byte[] Manifest(string args = "\"one two\" a\"b c\"d \"\"", string env = "env.NAME=value=with=equals\nenv.EMPTY=\n") => Encoding.ASCII.GetBytes(
         "format=clros-linux-elf\nversion=1\nprofile=linux-musl-x64-static-v1\napp.path=apps/example.elf\nargs=" + args + "\n" + env +
         "digest=" + new string('0', 64) + "\nmemory=65536\nstack=4096\nthreads=1\ndescriptors=16\nlisten=127.0.0.1:8080\n");
+
+    [HostTest("m16-006 Linux initial stack high pointers retain full argc argv envp auxv values", HostLane.Fast, 5)]
+    private static void HighStack()
+    {
+        byte[] manifest = Manifest(), elf = Elf(), entropy = Enumerable.Range(1, 32).Select(x => (byte)x).ToArray();
+        byte* stack = (byte*)NativeMemory.AlignedAlloc(Stack, 4096);
+        const ulong high = 0x16ffff000;
+        try
+        {
+            fixed (byte* m = manifest, e = elf, random = entropy)
+            {
+                HostCheck.Equal(LinuxElfStartupStatus.Ready, LinuxElfStartup.Build(m, (uint)manifest.Length, e, (uint)elf.Length,
+                    random, 32, stack, Stack, high, Hwcap, out var plan));
+                HostCheck.True(plan.StackPointer >= high && plan.StackPointer < high + Stack && plan.RandomAddress >= high);
+                ulong* frame = (ulong*)(stack + plan.StackPointer - high);
+                HostCheck.Equal(4UL, frame[0]); HostCheck.True(frame[1] >= high && frame[1] < high + Stack);
+                HostCheck.True(LinuxElfStartup.ValidateReadBack(m, (uint)manifest.Length, e, (uint)elf.Length,
+                    random, 32, stack, Stack, high, Hwcap, plan));
+                HostCheck.Equal(LinuxElfStartupStatus.InvalidStorage, LinuxElfStartup.Build(m, (uint)manifest.Length, e, (uint)elf.Length,
+                    random, 32, stack, Stack, LinuxSyscallGateway.UserEnd, Hwcap, out _));
+            }
+        }
+        finally { NativeMemory.AlignedFree(stack); }
+    }
     private static byte[] Elf()
     {
         byte[] b = new byte[8192];

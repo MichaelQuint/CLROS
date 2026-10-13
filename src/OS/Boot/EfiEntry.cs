@@ -12,7 +12,7 @@ using OS.Kernel.Platform;
 #if M16_004_PROBE
 using OS.Kernel.Compatibility.LinuxX64;
 #endif
-#if M05_PCI_ENUMERATION_PROBE
+#if M05_PCI_ENUMERATION_PROBE || M16_006_PROBE
 using OS.Drivers;
 #endif
 #if M07_ARP_RECEIVE_PROBE
@@ -54,6 +54,9 @@ public static unsafe class EfiEntry
         private const ulong Page = 4096, TablePages = 55;
 #if M16_002_PROBE
         private const uint LinuxLedgerCapacity =
+#if M16_006_PROBE
+            15;
+#else
 #if M16_005_PROBE
             13;
 #else
@@ -61,6 +64,7 @@ public static unsafe class EfiEntry
             11;
 #else
             9;
+#endif
 #endif
 #endif
 #endif
@@ -101,6 +105,14 @@ public static unsafe class EfiEntry
             internal X64LinuxUserTransitionPlan LinuxSyscallPlan;
             internal LinuxSyscallGateState LinuxSyscallState;
             internal fixed ulong LinuxSyscallOriginal[(int)X64LinuxUserTransition.ObservationWords];
+#endif
+#if M16_006_PROBE
+            internal ulong LinuxMemoryPool, LinuxMemoryCandidate, LinuxDispatchRoot;
+            internal uint LinuxMemoryPhase, LinuxMemoryCheckpoint;
+            internal LinuxMemoryServices.State LinuxMemory;
+            internal LinuxStartupServices.State LinuxServices;
+            internal FirmwareEntropyCapture.State LinuxRandomCapture;
+            internal FirmwareEntropyCapture.Buffer LinuxRandomScratch, LinuxRandomRetained;
 #endif
 #if M05_PHYSICAL_MAPPING_PROBE
             internal ulong MappingPhase, MappingCr0;
@@ -369,6 +381,13 @@ public static unsafe class EfiEntry
             references.LinuxSyscallCodeStart = state->LinuxSyscallCode;
             references.LinuxSyscallDataStart = state->LinuxSyscallData;
 #endif
+#if M16_006_PROBE
+            state->PreparationCheckpoint = 38;
+            if (!BootSequence.PrepareLinuxMemory(state->Phase == 2, state, &PrepareLinuxMemory)) return false;
+            references.LinuxMemoryPoolStart = state->LinuxMemoryPool;
+            references.LinuxMemoryPoolPages = LinuxMemoryServices.MaximumPoolPages;
+            references.LinuxMemoryCandidateStart = state->LinuxMemoryCandidate;
+#endif
             state->PreparationCheckpoint = 40;
             if (!Allocate(services, 1, 3, image, imageBytes, allocator, out ulong code) ||
                 !Allocate(services, 2, FirstExitOwnedArena.PageCount, image, imageBytes, allocator, out ulong data) ||
@@ -410,6 +429,9 @@ public static unsafe class EfiEntry
                     ref state->Arena, capture, mapping, references.FaultCallback) ||
                 PhysicalAddress.TryCreateFromUefiBoundary(tables, out var root) != AddressValueStatus.Success) return false;
 #if M16_005_PROBE
+#if M16_006_PROBE
+            state->LinuxDispatchRoot = tables;
+#endif
             state->LinuxSyscallPlan = LinuxUserTransitionPlan(state, 0x70000000);
             if (!X64LinuxUserTransition.Emit((byte*)state->LinuxSyscallCode, X64LinuxUserTransition.CodeBytes, state->LinuxSyscallPlan) ||
                 !X64LinuxUserTransition.ValidateReadBack((byte*)state->LinuxSyscallCode, X64LinuxUserTransition.CodeBytes, state->LinuxSyscallPlan)) return false;
@@ -749,6 +771,10 @@ public static unsafe class EfiEntry
             if (!LinuxReservation(BootReservationKind.LinuxSyscallCode, state->LinuxSyscallCode, 1, ledger + count++) ||
                 !LinuxReservation(BootReservationKind.LinuxSyscallData, state->LinuxSyscallData, X64LinuxUserTransition.DataPages, ledger + count++)) return false;
 #endif
+#if M16_006_PROBE
+            if (!LinuxReservation(BootReservationKind.LinuxElfBacking, state->LinuxMemoryPool, LinuxMemoryServices.MaximumPoolPages, ledger + count++) ||
+                !LinuxReservation(BootReservationKind.LinuxElfUserTables, state->LinuxMemoryCandidate, X64UserAddressSpace.MaximumTables, ledger + count++)) return false;
+#endif
             for (uint i = 1; i < count; i++)
             {
                 var current = ledger[i]; uint at = i;
@@ -950,6 +976,9 @@ public static unsafe class EfiEntry
                 // No physical RW image/stack alias in the user root. Its table
                 // arena is supplied as supervisor RW/NX by the builder itself.
                 if (r.Start == state->LinuxImageBacking || r.Start == state->LinuxUserTables) continue;
+#if M16_006_PROBE
+                if (r.Start == state->LinuxMemoryPool) continue;
+#endif
                 if (written == X64UserAddressSpace.MaximumRanges) return false;
                 target[written++] = new X64UserMappingRange
                 { VirtualStart = r.Start, PhysicalStart = r.Start, Pages = r.PageCount, Protection = r.Protection, Cache = r.CachePolicy, User = false };
@@ -1003,6 +1032,9 @@ public static unsafe class EfiEntry
         private static bool ReleaseLinuxUserBoundary(Storage* state, EfiBootServices* services)
         {
             bool okay = true;
+#if M16_006_PROBE
+            okay = ReleaseLinuxMemory(state, services);
+#endif
             if (state->LinuxSyscallCode != 0)
             {
                 if (services != null && services->FreePages != null && services->FreePages(state->LinuxSyscallCode, 1) == 0) state->LinuxSyscallCode = 0;
@@ -1019,10 +1051,201 @@ public static unsafe class EfiEntry
         private static ulong LinuxGateHandler(byte* gate) =>
             *(ushort*)gate | ((ulong)*(ushort*)(gate + 6) << 16) | ((ulong)*(uint*)(gate + 8) << 32);
 
+#if M16_006_PROBE
+        private static bool PrepareLinuxMemory(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state->Phase != 2 || state->LinuxMemoryPhase != 0 || state->LinuxSyscallPhase != 2) return false;
+            state->LinuxMemoryPhase = 1;
+            var services = state->SystemTable->BootServices;
+            if (!AllocateLinuxStartup(services, LinuxMemoryServices.MaximumPoolPages, out state->LinuxMemoryPool) ||
+                !AllocateLinuxStartup(services, X64UserAddressSpace.MaximumTables, out state->LinuxMemoryCandidate)) return false;
+            ulong* starts = stackalloc ulong[6] { state->LinuxMemoryPool, state->LinuxMemoryCandidate, state->LinuxPackage,
+                state->LinuxImageBacking, state->LinuxSyscallCode, state->LinuxSyscallData };
+            ulong* lengths = stackalloc ulong[6] { LinuxMemoryServices.MaximumPoolPages * Page, X64UserAddressSpace.MaximumTables * Page,
+                state->LinuxPages * Page, state->LinuxImagePages * Page, Page, X64LinuxUserTransition.DataBytes };
+            for (uint i = 0; i < 6; i++) for (uint j = 0; j < i; j++) if (!Disjoint(starts[i], lengths[i], starts[j], lengths[j])) return false;
+            var capture = &state->LinuxRandomCapture;
+            bool captured = FirmwareEntropyCapture.Begin(capture, &state->LinuxRandomScratch, &state->LinuxRandomRetained, state->SystemTable) &&
+                FirmwareEntropyCapture.Acquire(capture);
+            capture->SystemTable = null; capture->BootServices = null; capture->Locate = null; capture->Rng = null; capture->GetRng = null;
+            if (!captured || capture->Phase != 3 || capture->PublishedBytes != 32 ||
+                !FirmwareEntropyCapture.Guards(&state->LinuxRandomScratch) || !FirmwareEntropyCapture.Guards(&state->LinuxRandomRetained) ||
+                !FirmwareEntropyCapture.Zero(state->LinuxRandomScratch.Data, 0, 64)) return false;
+            for (ulong i = 0; i < LinuxMemoryServices.MaximumPoolPages * Page; i++) ((byte*)state->LinuxMemoryPool)[i] = 0;
+            if (!X64UserAddressSpace.Clear((ulong*)state->LinuxMemoryCandidate, X64UserAddressSpace.MaximumTables)) return false;
+            state->LinuxMemoryPhase = 2; return true;
+        }
+
+        private static bool ReleaseLinuxMemory(Storage* state, EfiBootServices* services)
+        {
+            bool okay = true;
+            if (state->LinuxMemoryPool != 0)
+            {
+                if (services != null && services->FreePages != null && services->FreePages(state->LinuxMemoryPool, LinuxMemoryServices.MaximumPoolPages) == 0)
+                    state->LinuxMemoryPool = 0;
+                else okay = false;
+            }
+            if (state->LinuxMemoryCandidate != 0)
+            {
+                if (services != null && services->FreePages != null && services->FreePages(state->LinuxMemoryCandidate, X64UserAddressSpace.MaximumTables) == 0)
+                    state->LinuxMemoryCandidate = 0;
+                else okay = false;
+            }
+            for (uint i = 0; i < 64; i++) { state->LinuxRandomScratch.Data[i] = 0; state->LinuxRandomRetained.Data[i] = 0; }
+            state->LinuxRandomCapture.SystemTable = null; state->LinuxRandomCapture.BootServices = null;
+            state->LinuxRandomCapture.Locate = null; state->LinuxRandomCapture.Rng = null; state->LinuxRandomCapture.GetRng = null;
+            state->LinuxMemoryPhase = 7; return okay;
+        }
+
+        private static bool InitializeLinuxMemory(Storage* state, LinuxSyscallAccess access)
+        {
+            state->LinuxMemoryCheckpoint = 1;
+            if (state->LinuxMemoryPhase != 2 || state->Clock.Source != OwnedClockSource.Hpet || state->Clock.Status != OwnedClockStatus.Ready ||
+                state->LinuxRandomCapture.PublishedBytes != 32 || state->LinuxRandomCapture.Rng != null ||
+                state->LinuxRandomCapture.GetRng != null || state->LinuxRandomCapture.SystemTable != null ||
+                state->LinuxRandomCapture.BootServices != null || state->LinuxRandomCapture.Locate != null || !LinuxSingleCpu(state)) return false;
+            state->LinuxMemoryPhase = 3;
+            state->LinuxMemoryCheckpoint = 2;
+            LinuxMemoryServices.Admission memory = new()
+            {
+                Pool = (byte*)state->LinuxMemoryPool, PoolPhysical = state->LinuxMemoryPool, PoolPages = LinuxMemoryServices.MaximumPoolPages,
+                RootPhysical = state->LinuxUserTables, Tables = (ulong*)state->LinuxUserTables,
+                CandidateTables = (ulong*)state->LinuxMemoryCandidate, TablePages = X64UserAddressSpace.MaximumTables,
+                StaticRanges = (X64UserMappingRange*)state->LinuxUserRanges, StaticCount = state->LinuxUserRangeCount,
+                ReservationBytes = 0x400000000, Conditions = state->Memory.Tables.Preconditions
+            };
+            if (!LinuxMemoryServices.Adopt(&state->LinuxMemory, memory, state->LinuxUserRoot)) return false;
+            state->LinuxMemoryCheckpoint = 3;
+            if (!LinuxMemoryFacts(state, out ulong physical, out ulong available)) return false;
+            state->LinuxMemoryCheckpoint = 4;
+            LinuxStartupServices.Admission startup = new()
+            {
+                Memory = &state->LinuxMemory, User = access, ReadClock = &ReadLinuxClock, CopyToUser = &CopyToLinuxUser,
+                MemoryBarrier = &LinuxMemoryBarrier, FrequencyHz = state->Clock.FrequencyHz,
+                PhysicalBytes = physical, AvailableBytes = available, HeapStart = 0x400000000, HeapBytes = 2 * 1024 * 1024,
+                StackBytes = state->LinuxInitialStack.StackBytes, ProcessId = 1,
+                Entropy = state->LinuxRandomRetained.Data, CapturedEntropyBytes = 32, SingleCpuValidated = true, FirmwareExited = true
+            };
+            if (!LinuxStartupServices.Begin(&state->LinuxServices, startup)) return false;
+            state->LinuxMemoryCheckpoint = 5;
+            state->LinuxUserRoot = state->LinuxMemory.Root; state->LinuxMemoryPhase = 4;
+            return LinuxText(state, "M16_006_POLICY physical=") && LinuxNumber(state, physical) &&
+                LinuxText(state, " available=") && LinuxNumber(state, available) &&
+                LinuxText(state, " poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel\r\n");
+        }
+
+        private static bool LinuxMemoryFacts(Storage* state, out ulong physical, out ulong available)
+        {
+            physical = 0; available = LinuxMemoryServices.MaximumPoolPages * Page;
+            var map = state->Arena.Transition->Attempt.Last.Map;
+            // The final GetMemoryMap writes directly into the retained arena,
+            // so it intentionally has no earlier snapshot's FlagOwnedCopy.
+            if (state->Arena.Transition->Mode != FirmwareServicesMode.BootServicesExited || !state->Arena.Transition->Attempt.Succeeded ||
+                map.DescriptorVersion != 1 || !UefiMemoryMapCopyPlanResult.Create(map, map.MapSize).Succeeded ||
+                map.BufferAddress != (ulong)state->Arena.Map || map.BufferSize != FirstExitOwnedArena.MapBytes || map.SourceBufferAddress != map.BufferAddress ||
+                map.SourceBufferSize != map.BufferSize) return false;
+            for (ulong i = 0; i < map.DescriptorCount; i++)
+            {
+                byte* descriptor = (byte*)(map.BufferAddress + i * map.DescriptorSize);
+                uint type = *(uint*)descriptor; ulong pages = *(ulong*)(descriptor + 24);
+                if ((type >= 1 && type <= 7) || type == 9 || type == 10)
+                {
+                    if (pages > (0x100000000UL - physical) / Page) return false;
+                    physical += pages * Page; if (type == 7) available += pages * Page;
+                }
+            }
+            return physical != 0 && available <= physical;
+        }
+
+        private static bool LinuxSingleCpu(Storage* state)
+        {
+            byte* code = state->Memory.Code + FirstExitCodeBundle.ApicObservationOffset;
+            XApicCpuObservation cpu = default;
+            if (!X64ApicObservation.Validate(code, X64ApicObservation.Bytes) ||
+                ((delegate* unmanaged<XApicCpuObservation*, uint>)code)(&cpu) != 1 ||
+                (cpu.ApicBaseMsr & 0x100) == 0 || cpu.BspId != 0) return false;
+            fixed (AcpiBootstrapWorkspace* workspace = &s_acpiBootstrap)
+            fixed (AcpiBootstrapOwnedBuffer* copied = &s_acpiBootstrapOwned)
+            {
+                if (!ReadBackAcpiBootstrap(workspace, copied->Bytes, AcpiOwnedPayloadCapacity)) return false;
+                var selected = OwnedACPIDirectorySelectMADTHPETMCFG.Select(copied->Bytes + 16, workspace->TotalBytes, workspace->Descriptors, 30);
+                return selected.Succeeded && MADTLocalAPICIOAPICSeparatelyPollingProof.Parse(
+                    copied->Bytes + 16 + selected.Madt.Offset, selected.Madt.Length, cpu.BspId, out _) == MadtPollingStatus.Success;
+            }
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte ReadLinuxClock(void* context, ulong* ticks)
+        {
+            Storage* state = (Storage*)context;
+            if (ticks == null || state->LinuxMemoryPhase < 3 || state->LinuxMemoryPhase > 4 ||
+                state->AdapterConsole != null || state->AdapterServices != null ||
+                !OwnedMonotonicClock.Read(ref state->Clock) || state->Clock.Source != OwnedClockSource.Hpet ||
+                state->Clock.RecoveryAttempts > 1 || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return 0;
+            *ticks = state->Clock.Ticks; return 1;
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte LinuxMemoryBarrier(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (!LinuxSyscallAuthority(state) || state->LinuxMemoryPhase != 4) return 0;
+            return ((delegate* unmanaged<byte>)(state->LinuxSyscallCode + X64LinuxUserTransition.MemoryBarrierOffset))();
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static long DispatchLinuxStartup(void* context, LinuxSyscallFrame* frame)
+        {
+            Storage* state = (Storage*)context;
+            var readRoot = (delegate* unmanaged<ulong>)(state->Memory.Code + FirstExitCodeBundle.LinuxReadBackOffset + X64LinuxElfReadBackBridge.ReadCr3Offset);
+            if (!LinuxSyscallAuthority(state) || state->LinuxMemoryPhase != 4 || frame == null || readRoot() != state->LinuxDispatchRoot) return -14;
+            return LinuxStartupServices.Dispatch(&state->LinuxServices, *frame);
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte CopyToLinuxUser(void* context, ulong destination, byte* source, uint bytes)
+        {
+            Storage* state = (Storage*)context;
+            if (!LinuxSyscallAuthority(state) || bytes == 0 || bytes > 4096 ||
+                (ulong)source < state->LinuxSyscallData + X64LinuxUserTransition.StackOffset ||
+                (ulong)source > state->LinuxSyscallData + X64LinuxUserTransition.DataBytes - bytes) return 0;
+            return CopyLinuxAlias(state, destination, source, bytes, true);
+        }
+
+        private static byte CopyLinuxAlias(Storage* state, ulong address, byte* kernel, uint bytes, bool toUser)
+        {
+            // Resolve high user pages to actual owned kernel aliases while the
+            // user root is inactive; admit the whole source/destination first.
+            if (!LinuxSyscallGateway.ValidateRange(address, bytes, toUser ? OS.Kernel.Compatibility.LinuxX64.LinuxUserPageAccess.Write : OS.Kernel.Compatibility.LinuxX64.LinuxUserPageAccess.Read,
+                new LinuxSyscallAccess { Context = state, PageAccess = &LinuxUserPageAccess })) return 0;
+            for (ulong page = address & ~4095UL; page <= ((address + bytes - 1) & ~4095UL); page += Page)
+            {
+                if (!X64UserAddressSpace.TryReadLeaf((ulong*)state->LinuxUserTables, state->LinuxUserTables,
+                    X64UserAddressSpace.MaximumTables, page, out ulong leaf)) return 0;
+                ulong physical = leaf & 0x000ffffffffff000;
+                bool image = physical >= state->LinuxImageBacking && physical - state->LinuxImageBacking < state->LinuxImagePages * Page;
+                bool pool = physical >= state->LinuxMemoryPool && physical - state->LinuxMemoryPool < LinuxMemoryServices.MaximumPoolPages * Page;
+                if (!image && !pool) return 0;
+            }
+            for (uint i = 0; i < bytes; i++)
+            {
+                _ = X64UserAddressSpace.TryReadLeaf((ulong*)state->LinuxUserTables, state->LinuxUserTables,
+                    X64UserAddressSpace.MaximumTables, address + i, out ulong leaf);
+                byte* alias = (byte*)((leaf & 0x000ffffffffff000) + ((address + i) & 4095));
+                if (toUser) *alias = kernel[i]; else kernel[i] = *alias;
+            }
+            return 1;
+        }
+#endif
+
         private static X64LinuxUserTransitionPlan LinuxUserTransitionPlan(Storage* state, ulong rsp) => new()
         {
             CodeAddress = state->LinuxSyscallCode, ContextAddress = state->LinuxSyscallData,
             UserRoot = state->LinuxUserTables, UserRip = state->LinuxImagePlan.Entry, UserRsp = rsp,
+#if M16_006_PROBE
+            KernelRoot = state->LinuxDispatchRoot,
+#endif
             Dispatcher = (ulong)(delegate* unmanaged<void*, LinuxSyscallFrame*, byte>)&DispatchLinuxSyscall,
             FaultReporter = (ulong)(delegate* unmanaged<void*, byte*, byte>)&ReportLinuxUserFault,
             CallbackContext = (ulong)state, TssRsp0Address = (ulong)(state->Arena.Descriptors->Tss + 4),
@@ -1041,7 +1264,11 @@ public static unsafe class EfiEntry
         {
             byte* bridge = state->Memory.Code + FirstExitCodeBundle.LinuxReadBackOffset;
             if (!X64LinuxElfReadBackBridge.Validate(bridge, X64LinuxElfReadBackBridge.Bytes) ||
-                ((delegate* unmanaged<ulong>)(bridge + X64LinuxElfReadBackBridge.ReadCr3Offset))() != state->LinuxUserRoot.Root) return false;
+                (
+#if M16_006_PROBE
+                 ((delegate* unmanaged<ulong>)(bridge + X64LinuxElfReadBackBridge.ReadCr3Offset))() != state->LinuxDispatchRoot &&
+#endif
+                 ((delegate* unmanaged<ulong>)(bridge + X64LinuxElfReadBackBridge.ReadCr3Offset))() != state->LinuxUserRoot.Root)) return false;
             return state->LinuxSyscallPhase == 4 && state->LinuxSyscallPlan.UserRoot == state->LinuxUserRoot.Root &&
                 state->Arena.Transition->Mode == FirmwareServicesMode.BootServicesExited &&
                 state->Arena.Transition->RetainedFirmwareCallbacksCleared && state->Arena.Binding->RetainedPointersCleared;
@@ -1056,7 +1283,11 @@ public static unsafe class EfiEntry
                 !state->Arena.Transition->RetainedFirmwareCallbacksCleared || !state->Arena.Binding->RetainedPointersCleared ||
                 !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
             state->LinuxSyscallPhase = 3;
+#if M16_006_PROBE
+            if (!LinuxText(state, "TEST_START m16-006\r\n")) return false;
+#else
             if (!LinuxText(state, "TEST_START m16-005\r\n")) return false;
+#endif
             var plan = LinuxUserTransitionPlan(state, state->LinuxInitialStack.StackPointer);
             byte* code = (byte*)state->LinuxSyscallCode; byte* data = (byte*)state->LinuxSyscallData;
             byte* cpu = state->Memory.Code + FirstExitCodeBundle.ClockAccessOffset;
@@ -1121,6 +1352,11 @@ public static unsafe class EfiEntry
                 Scratch = data + X64LinuxUserTransition.ScratchOffset, ScratchBytes = 4096, FirmwareExited = true, OwnedBoundaryValidated = true
             };
             LinuxSyscallAccess access = new() { Context = state, PageAccess = &LinuxUserPageAccess, CopyFromUser = &CopyLinuxUserBytes, Write = &WriteLinuxUserBytes };
+#if M16_006_PROBE
+            if (state->LinuxDispatchRoot != (ulong)state->Memory.Entries || !InitializeLinuxMemory(state, access))
+                return LinuxSyscallAdmissionFailure(state, "memory-startup", state->LinuxMemoryCheckpoint);
+            admission.EnableStartup = true; access.Startup = &DispatchLinuxStartup;
+#endif
             if (LinuxSyscallGateway.Begin(ref state->LinuxSyscallState, admission, access) != LinuxSyscallGateStatus.Active ||
                 !LinuxText(state, "M16_005_ARMED root=") || !LinuxNumber(state, plan.UserRoot) ||
                 !LinuxText(state, " cs=59 ss=51 kernelStack=") || !LinuxNumber(state, plan.ContextAddress + X64LinuxUserTransition.DataBytes) ||
@@ -1137,21 +1373,43 @@ public static unsafe class EfiEntry
             for (uint i = 0; i < 512; i++) if (data[X64LinuxUserTransition.KernelFxOffset + i] != data[X64LinuxUserTransition.UserFxOffset + i]) restored = false;
             if (!restored || !LinuxText(state, "M16_005_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true\r\n")) return false;
             state->LinuxSyscallPhase = 6;
+#if M16_006_PROBE
+            state->LinuxMemoryPhase = 6;
+            for (uint i = 0; i < 64; i++) state->LinuxRandomRetained.Data[i] = 0;
+            if (!LinuxMemoryServices.Audit(&state->LinuxMemory)) return false;
+#endif
             if (state->LinuxSyscallFaults != 0 || state->LinuxSyscallFailed != 0 || state->LinuxSyscallState.Status != LinuxSyscallGateStatus.Exited)
             {
+#if M16_006_PROBE
+                _ = LinuxText(state, "TEST_FAIL m16-006 user-boundary-terminated status=");
+#else
                 _ = LinuxText(state, "TEST_FAIL m16-005 user-boundary-terminated status=");
+#endif
                 _ = LinuxNumber(state, (uint)state->LinuxSyscallState.Status); _ = LinuxText(state, "\r\n"); return false;
             }
             return LinuxText(state, "M16_005_EXIT code=") && LinuxNumber(state, state->LinuxSyscallExitCode) &&
                 LinuxText(state, " calls=") && LinuxNumber(state, state->LinuxSyscallState.Calls) &&
                 LinuxText(state, " bytes=") && LinuxNumber(state, state->LinuxSyscallState.BytesWritten) &&
                 LinuxText(state, " writes=") && LinuxNumber(state, state->LinuxSyscallWrites) &&
+#if M16_006_PROBE
+                LinuxText(state, "\r\nM16_006_MEMORY reserved=") && LinuxNumber(state, state->LinuxMemory.ReservedBytes) &&
+                LinuxText(state, " backed=") && LinuxNumber(state, state->LinuxMemory.BackedPages) &&
+                LinuxText(state, " tables=") && LinuxNumber(state, state->LinuxMemory.Root.UsedTables) &&
+                LinuxText(state, " entropyRemaining=") && LinuxNumber(state, state->LinuxServices.RemainingEntropy) &&
+                LinuxText(state, "\r\nCLROS_M16_006_READY\r\nTEST_PASS m16-006\r\n");
+#else
                 LinuxText(state, "\r\nCLROS_M16_005_READY\r\nTEST_PASS m16-005\r\n");
+#endif
         }
 
         private static bool LinuxSyscallAdmissionFailure(Storage* state, string stage, ulong detail = 0)
         {
-            _ = LinuxText(state, "TEST_FAIL m16-005 admission stage="); _ = LinuxText(state, stage);
+#if M16_006_PROBE
+            _ = LinuxText(state, "TEST_FAIL m16-006 admission stage=");
+#else
+            _ = LinuxText(state, "TEST_FAIL m16-005 admission stage=");
+#endif
+            _ = LinuxText(state, stage);
             _ = LinuxText(state, " detail="); _ = LinuxNumber(state, detail); _ = LinuxText(state, "\r\n");
             return false;
         }
@@ -1163,6 +1421,9 @@ public static unsafe class EfiEntry
             if ((ulong)context != state->Memory.References.AdapterState || frame != (LinuxSyscallFrame*)(state->LinuxSyscallData + X64LinuxUserTransition.FrameOffset) ||
                 !LinuxSyscallAuthority(state)) return 0;
             var result = LinuxSyscallGateway.Dispatch(ref state->LinuxSyscallState, *frame);
+#if M16_006_PROBE
+            state->LinuxUserRoot = state->LinuxMemory.Root;
+#endif
             byte* data = (byte*)state->LinuxSyscallData;
             *(long*)(data + X64LinuxUserTransition.ValueOffset) = result.Value;
             *(ulong*)(data + X64LinuxUserTransition.OutcomeOffset) = (ulong)result.Action;
@@ -1202,8 +1463,12 @@ public static unsafe class EfiEntry
                 bytes == 0 || bytes > 4096) return 0;
             // Dispatch has preflighted every page; mappings cannot change in this
             // single-CPU, IRQ-off boundary and the scratch has no user alias.
+#if M16_006_PROBE
+            return CopyLinuxAlias(state, source, destination, bytes, false);
+#else
             for (uint i = 0; i < bytes; i++) destination[i] = ((byte*)source)[i];
             return 1;
+#endif
         }
 
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
@@ -1362,7 +1627,11 @@ public static unsafe class EfiEntry
                         state->Arena.Binding->RetainedPointersCleared, state, &RunOwnedWorkloadServiceLoop)) return;
 #endif
 #if M16_005_PROBE
+#if M16_006_PROBE
+                    if (!BootSequence.RunOwnedLinuxMemory(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
+#else
                     if (!BootSequence.RunOwnedLinuxSyscalls(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
+#endif
                         transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
                         state->Arena.Binding->RetainedPointersCleared, state, &RunOwnedLinuxSyscalls)) return;
 #endif

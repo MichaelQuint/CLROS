@@ -27,6 +27,54 @@ internal static unsafe class X64LinuxUserTransitionTests
     }
     private static byte* Allocate(uint bytes) => (byte*)NativeMemory.AlignedAlloc(bytes, 4096);
 
+    [HostTest("m16-006 dispatcher adopts original kernel root and reloads user root before checked IRET", HostLane.Fast, 5)]
+    private static void KernelDispatchRoot()
+    {
+        byte* code = Allocate(4096);
+        try
+        {
+            var plan = Plan(); plan.KernelRoot = 0x500000;
+            HostCheck.True(X64LinuxUserTransition.Emit(code, 4096, plan) && X64LinuxUserTransition.ValidateReadBack(code, 4096, plan));
+            var bytes = new ReadOnlySpan<byte>(code + X64LinuxUserTransition.SyscallOffset, 0x500);
+            // MOV RAX,[R14+20h]; MOV CR3,RAX before the callback; then the exact
+            // R14+28h root reload after cmp al,1's cleanup branch.
+            byte[] kernel = [0x49,0x8b,0x86,0x20,0,0,0,0x0f,0x22,0xd8];
+            byte[] user = [0x49,0x8b,0x86,0x28,0,0,0,0x0f,0x22,0xd8];
+            int enter = bytes.IndexOf(kernel), restore = bytes.IndexOf(user);
+            HostCheck.True(enter >= 0 && restore > enter && bytes[(enter + kernel.Length)..restore].IndexOf((byte)0xff) >= 0);
+            HostCheck.Equal(0x640U, X64LinuxUserTransition.KernelRootOffset);
+            ReadOnlySpan<byte> setup = new(code, 0x400);
+            // Independent saved-selector displacements occupy 1D0h..1D6h;
+            // the root comparison reads a disjoint qword after the private GDT.
+            HostCheck.True(setup.IndexOf(new byte[] { 0x49, 0x3b, 0x86, 0x40, 6, 0, 0 }) >= 0);
+            for (byte segment = 0; segment < 4; segment++)
+                HostCheck.True(setup.IndexOf(new byte[] { 0x66, 0x41, 0x89, 0x86, (byte)(0xd0 + segment * 2), 1, 0, 0 }) >= 0);
+            plan.KernelRoot = plan.UserRoot; HostCheck.True(!X64LinuxUserTransition.Emit(code, 4096, plan));
+            plan.KernelRoot = 0x100000000; HostCheck.True(!X64LinuxUserTransition.Emit(code, 4096, plan));
+        }
+        finally { NativeMemory.AlignedFree(code); }
+    }
+
+    [HostTest("m16-006 high transition RIP RSP FS GS preserve qwords while kernel pointers stay low", HostLane.Fast, 4)]
+    private static void HighAddresses()
+    {
+        byte* data = Allocate(X64LinuxUserTransition.DataBytes), gdt = Allocate(4096), idt = Allocate(4096), code = Allocate(4096);
+        try
+        {
+            Descriptors(gdt, idt); var plan = Plan();
+            plan.UserRip += 0x100000000; plan.UserRsp += 0x100000000; plan.UserFs = plan.UserGs = 0x170000000;
+            HostCheck.True(X64LinuxUserTransition.Prepare(data, X64LinuxUserTransition.DataBytes, plan, gdt, 4096, idt, 4096));
+            HostCheck.Equal(plan.UserRsp, *(ulong*)(data + 8)); HostCheck.Equal(plan.UserRip, *(ulong*)(data + 0x18));
+            HostCheck.Equal(plan.UserFs, *(ulong*)(data + 0x58)); HostCheck.Equal(plan.UserGs, *(ulong*)(data + 0x60));
+            HostCheck.True(X64LinuxUserTransition.Emit(code, 4096, plan) && X64LinuxUserTransition.ValidateReadBack(code, 4096, plan));
+            plan.UserRoot = 0x100000000;
+            HostCheck.True(!X64LinuxUserTransition.Emit(code, 4096, plan));
+            plan = Plan(); plan.Dispatcher += 0x100000000;
+            HostCheck.True(!X64LinuxUserTransition.Emit(code, 4096, plan));
+        }
+        finally { NativeMemory.AlignedFree(data); NativeMemory.AlignedFree(gdt); NativeMemory.AlignedFree(idt); NativeMemory.AlignedFree(code); }
+    }
+
     [HostTest("m16-005 user transition preserves original descriptor inputs and prepares private selectors FP and guard", HostLane.Fast, 0)]
     private static void Layout()
     {
@@ -93,7 +141,7 @@ internal static unsafe class X64LinuxUserTransitionTests
                     case 1: plan.ContextAddress = 0xffff0000; break;
                     case 2: plan.CodeAddress = plan.ContextAddress; break;
                     case 3: plan.UserRoot = plan.CodeAddress; break;
-                    case 4: plan.UserRip = 0x100000000; break;
+                    case 4: plan.UserRip = LinuxSyscallGateway.UserEnd; break;
                     case 5: plan.TssRsp0Address++; break;
                     case 6: gdt[13] = 0xfa; break; // user privilege on original kernel CS
                     case 7: gdt[29] = 0x89; break; // available TSS is not the loaded busy TSS

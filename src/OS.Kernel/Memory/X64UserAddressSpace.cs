@@ -22,7 +22,7 @@ public struct X64UserAddressSpaceResult
 }
 
 /// <summary>
-/// Bounded low-4GiB, four-level, 4KiB-page root in exclusive caller-owned zero
+/// Bounded low-64GiB, four-level, 4KiB-page root in exclusive caller-owned zero
 /// tables. Existing canonical entry encoding supplies NX, W^X and observed PAT
 /// rules. U/S is added explicitly to table pointers and declared user leaves;
 /// kernel leaves and the entire table arena retain supervisor RW/NX access.
@@ -32,7 +32,10 @@ public struct X64UserAddressSpaceResult
 public static unsafe class X64UserAddressSpace
 {
     public const uint MaximumRanges = 64, MaximumTables = 128;
-    private const ulong Page = 4096, End = 0x100000000, AddressMask = 0x000ffffffffff000;
+    // Virtual reservations may exceed physical memory. All actual backing and
+    // table pages still belong to the qualified low-4GiB physical arena.
+    public const ulong UserEnd = 0x1000000000, PhysicalEnd = 0x100000000;
+    private const ulong Page = 4096, AddressMask = 0x000ffffffffff000;
 
     public static X64UserAddressSpaceResult Build(X64UserMappingRange* ranges, uint count,
         ulong* tables, ulong physicalRoot, uint tablePages, X64PageTableEncodingPreconditions conditions)
@@ -49,7 +52,7 @@ public static unsafe class X64UserAddressSpace
                 ulong va = range.VirtualStart + page * Page;
                 uint pdpt = Child(tables, physicalRoot, tablePages, 0, 0, X64PageTableLevel.Pml4e, ref used, conditions);
                 if (pdpt == 0) return Rollback(tables, tablePages);
-                uint pd = Child(tables, physicalRoot, tablePages, pdpt, (uint)(va >> 30), X64PageTableLevel.Pdpte, ref used, conditions);
+                uint pd = Child(tables, physicalRoot, tablePages, pdpt, (uint)((va >> 30) & 511), X64PageTableLevel.Pdpte, ref used, conditions);
                 if (pd == 0) return Rollback(tables, tablePages);
                 uint pt = Child(tables, physicalRoot, tablePages, pd, (uint)((va >> 21) & 511), X64PageTableLevel.Pde, ref used, conditions);
                 if (pt == 0 || !Encode(range, page, conditions, out ulong leaf)) return Rollback(tables, tablePages);
@@ -81,7 +84,7 @@ public static unsafe class X64UserAddressSpace
             {
                 ulong pdptEntry = tables[pdpt * 512 + pi];
                 if (pdptEntry == 0) continue;
-                if (pi >= 4 || !AuditChild(pdptEntry, physicalRoot, tablePages, X64PageTableLevel.Pdpte, conditions, seen, ref seenTables, out uint pd)) return false;
+                if (pi >= UserEnd >> 30 || !AuditChild(pdptEntry, physicalRoot, tablePages, X64PageTableLevel.Pdpte, conditions, seen, ref seenTables, out uint pd)) return false;
                 for (uint di = 0; di < 512; di++)
                 {
                     ulong pdEntry = tables[pd * 512 + di];
@@ -116,8 +119,8 @@ public static unsafe class X64UserAddressSpace
     public static bool TryReadLeaf(ulong* tables, ulong physicalRoot, uint tablePages, ulong virtualAddress, out ulong leaf)
     {
         leaf = 0;
-        if (tables == null || ((ulong)tables & 4095) != 0 || virtualAddress >= End || tablePages < 4 || tablePages > MaximumTables ||
-            physicalRoot < Page || (physicalRoot & 4095) != 0 || physicalRoot > End - tablePages * Page ||
+        if (tables == null || ((ulong)tables & 4095) != 0 || virtualAddress >= UserEnd || tablePages < 4 || tablePages > MaximumTables ||
+            physicalRoot < Page || (physicalRoot & 4095) != 0 || physicalRoot > PhysicalEnd - tablePages * Page ||
             (ulong)tables > ~0UL - tablePages * Page) return false;
         uint page = 0;
         for (int level = 3; level > 0; level--)
@@ -137,20 +140,23 @@ public static unsafe class X64UserAddressSpace
         required = 0; leaves = 0;
         if (ranges == null || ((ulong)ranges & 7) != 0 || count == 0 || count > MaximumRanges ||
             (ulong)ranges > ~0UL - count * (ulong)sizeof(X64UserMappingRange) || tables == null || ((ulong)tables & 4095) != 0 ||
-            pages < 4 || pages > MaximumTables || root < Page || (root & 4095) != 0 || root > End - pages * Page ||
+            pages < 4 || pages > MaximumTables || root < Page || (root & 4095) != 0 || root > PhysicalEnd - pages * Page ||
             (ulong)tables > ~0UL - pages * Page || conditions.Validate() != X64PageTableEntryStatus.Success)
             return X64UserAddressSpaceStatus.InvalidInput;
         if (Overlap((ulong)ranges, count * (ulong)sizeof(X64UserMappingRange), (ulong)tables, pages * Page)) return X64UserAddressSpaceStatus.OverlappingRanges;
-        byte* slots = stackalloc byte[2048]; byte* directories = stackalloc byte[4];
-        for (uint i = 0; i < 2048; i++) slots[i] = 0;
-        for (uint i = 0; i < 4; i++) directories[i] = 0;
+        // One bit per 2MiB slot, bounded by the VA policy rather than backing
+        // size. Reservations are not passed here and create no table/leaf cost.
+        byte* slots = stackalloc byte[4096]; byte* directories = stackalloc byte[64];
+        for (uint i = 0; i < 4096; i++) slots[i] = 0;
+        for (uint i = 0; i < 64; i++) directories[i] = 0;
         required = 2;
         for (uint i = 0; i <= count; i++)
         {
             var range = i == count ? Arena(root, pages) : ranges[i];
             if (range.Pages == 0 || range.Pages > 32768 || range.VirtualStart < Page || range.PhysicalStart < Page ||
-                ((range.VirtualStart | range.PhysicalStart) & 4095) != 0 || range.VirtualStart > End - range.Pages * Page ||
-                range.PhysicalStart > End - range.Pages * Page) return X64UserAddressSpaceStatus.InvalidRange;
+                ((range.VirtualStart | range.PhysicalStart) & 4095) != 0 || range.VirtualStart > UserEnd - range.Pages * Page ||
+                (!range.User && range.VirtualStart > PhysicalEnd - range.Pages * Page) ||
+                range.PhysicalStart > PhysicalEnd - range.Pages * Page) return X64UserAddressSpaceStatus.InvalidRange;
             if (!Encode(range, 0, conditions, out _) || !Encode(range, range.Pages - 1, conditions, out _)) return X64UserAddressSpaceStatus.InvalidEncoding;
             for (uint j = 0; j < i; j++)
                 if (Overlap(range.VirtualStart, range.Pages * Page, ranges[j].VirtualStart, ranges[j].Pages * Page) ||
@@ -160,7 +166,8 @@ public static unsafe class X64UserAddressSpace
             uint first = (uint)(range.VirtualStart >> 21), last = (uint)((range.VirtualStart + range.Pages * Page - 1) >> 21);
             for (uint slot = first; slot <= last; slot++)
             {
-                if (slots[slot] == 0) { slots[slot] = 1; required++; }
+                byte mask = (byte)(1 << (int)(slot & 7));
+                if ((slots[slot >> 3] & mask) == 0) { slots[slot >> 3] |= mask; required++; }
                 if (directories[slot / 512] == 0) { directories[slot / 512] = 1; required++; }
             }
         }

@@ -2,6 +2,11 @@ namespace OS.Kernel.Diagnostics;
 
 public static partial class Probes
 {
+#if M16_006_PROBE
+    public const bool EnableM16006Probe = true;
+#else
+    public const bool EnableM16006Probe = false;
+#endif
 #if M16_005_PROBE
     public const bool EnableM16005Probe = true;
 #else
@@ -239,7 +244,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 51;
+    public const int ProbeCatalogCount = 52;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -495,6 +500,10 @@ public static partial class Probes
     public static ProbeDefinition GetM16005Probe() =>
         new("app.linux-syscalls", nameof(EnableM16005Probe), EnableM16005Probe,
             ProbeRisk.Destructive, "Bounded owned Linux syscall boundary after startup, service stop and firmware revocation.");
+
+    public static ProbeDefinition GetM16006Probe() =>
+        new("app.linux-memory", nameof(EnableM16006Probe), EnableM16006Probe,
+            ProbeRisk.Destructive, "Sparse Linux memory/startup syscalls with inactive-root publication after firmware revocation.");
 
     public static ProbeDefinition GetM06GptPartitionProbe() =>
         new("storage.gpt-partition", nameof(EnableM06GptPartitionProbe), EnableM06GptPartitionProbe,
@@ -803,6 +812,9 @@ public static partial class Probes
                 return true;
             case 50:
                 definition = GetM16005Probe();
+                return true;
+            case 51:
+                definition = GetM16006Probe();
                 return true;
             default:
                 definition = default;

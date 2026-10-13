@@ -2,10 +2,45 @@
 
 ## NativeAOT-first application boundary
 
-The next slice is [M16-006/#684](http://192.168.4.35:3000/admin/CLROS/issues/684)
-for measured Linux memory/startup services, followed by #685 descriptors and
-immutable file views. These slices use mechanical fixtures. #686 adds mechanical
-threads/TLS/futex and real per-thread signal-mask inheritance/restoration.
+M16-006/#684 is qualified in [step1205](../done/step1205.md).
+[Step1203](../done/step1203.md) records its
+host-tested sparse anonymous-memory backend and high-address checks. The user
+VA policy now ends at 64 GiB; physical backing, kernel identity mappings and
+table roots remain below 4 GiB. Dynamic mappings use the 4..64-GiB window,
+separate virtual and physical quotas, at most 64 ownership extents, 4096 pool
+pages and the existing 128-table-page/32768-leaf limits. A reservation has no
+backing or leaf cost until commitment.
+
+`LinuxMemoryServices` builds and audits candidate tables before publishing
+memory state. Anonymous fixed replacement discards backing; `mprotect(NONE)`
+retains contents. Partial operations split ownership, freed/reused pages are
+zeroed, and failures preserve the live root and accounting. Its caller must
+run on a separate kernel root while the target user root is inactive, then
+reload/publish CR3 before resuming user code. Accessible `MADV_DONTNEED` ranges
+are eagerly zeroed without claiming physical reclamation; inaccessible ranges
+release their backing. Demand faults, file/shared mappings and SMP are unsupported.
+
+The default-off M16-006 adapter now dispatches under the original kernel root,
+copies high user pointers through audited physical aliases, then reloads the
+mutated user root before checked IRET. Startup services supply observed HPET
+monotonic time, retained-map memory facts, a MADT/native-validated single CPU,
+bounded brk ownership and separately captured consumable entropy. Unsupported
+wall-clock and entropy refill requests fail explicitly. Dump policy is retained;
+in-place mremap preserves bytes and real musl stack probes receive bounded
+ENOMEM/EFAULT results. No thread/signal behavior is fabricated.
+
+[Step1204](../done/step1204.md) records the implementation, original native review,
+controlled memory negatives, twelve ancestors and unchanged upstream entry
+attempt. [Step1205](../done/step1205.md) qualifies 4,646 full-host checks across
+608 fixtures (94 Native) and three fresh 150-record guests. The 34-call fixture
+proves high-address getrandom copy-out in CPL3 as well as high cross-page copy-in.
+The one-use/64-call M16-005 policy is unchanged. The upstream payload stops at
+ARCH_SET_FS before Hello; these APIs do not qualify an upstream runtime.
+
+The next slice is [M16-007/#685](http://192.168.4.35:3000/admin/CLROS/issues/685)
+for measured descriptors, immutable file views and bounded pipes, using mechanical
+fixtures. #686 adds mechanical threads/TLS/futex, scheduler-backed blocking pipes
+and real per-thread signal-mask inheritance/restoration.
 M16-009/#687 owns first pinned NativeAOT Hello acceptance after signal
 startup/delivery, before focused suspension checks; Hello itself starts runtime
 threads before printing. #688 repeats Hello and qualifies the comprehensive

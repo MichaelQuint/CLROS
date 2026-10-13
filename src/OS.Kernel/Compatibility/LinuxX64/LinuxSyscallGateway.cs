@@ -31,6 +31,9 @@ public unsafe struct LinuxSyscallAccess
     // The owner prevents mapping changes and proves scratch/frame nonaliasing.
     public delegate* unmanaged<void*, ulong, byte*, uint, byte> CopyFromUser;
     public delegate* unmanaged<void*, uint, byte*, uint, byte> Write;
+    // Explicit M16-006 extension only; executes on the separately owned kernel
+    // root, publishes no transfer, and returns a Linux value/negative errno.
+    public delegate* unmanaged<void*, LinuxSyscallFrame*, long> Startup;
 }
 
 public unsafe struct LinuxSyscallAdmission
@@ -40,6 +43,7 @@ public unsafe struct LinuxSyscallAdmission
     public byte* Scratch;
     public uint ScratchBytes;
     public bool FirmwareExited, OwnedBoundaryValidated;
+    public bool EnableStartup;
 }
 
 public unsafe struct LinuxSyscallGateState
@@ -54,7 +58,7 @@ public unsafe struct LinuxSyscallGateState
 }
 
 /// <summary>
-/// One-use checked write/exit dispatcher for the declared low-4GiB, single-CPU
+/// One-use checked write/exit dispatcher for the declared low-64GiB, single-CPU
 /// boundary. Admission declarations and callback simulations are host contracts,
 /// not CPL3 evidence. The native owner proves selectors/MSRs, dedicated kernel
 /// stack, FS/GS/FP preservation, current root and immutable user mappings. It
@@ -64,7 +68,7 @@ public unsafe struct LinuxSyscallGateState
 /// </summary>
 public static unsafe class LinuxSyscallGateway
 {
-    public const ulong UserEnd = 0x100000000, UserRflagsMask = 0x200cd7;
+    public const ulong UserEnd = OS.Kernel.Memory.X64UserAddressSpace.UserEnd, UserRflagsMask = 0x200cd7;
     public const uint MaximumCalls = 64, MaximumWrite = 4096;
     private const long BadDescriptor = -9, Fault = -14, Invalid = -22, Unsupported = -38;
 
@@ -73,13 +77,14 @@ public static unsafe class LinuxSyscallGateway
     {
         if (state.StatusValue != LinuxSyscallGateStatus.Uninitialized) return LinuxSyscallGateStatus.AlreadyConsumed;
         if (state.CallsValue != 0 || state.BytesValue != 0 || !admission.FirmwareExited || !admission.OwnedBoundaryValidated ||
-            admission.UserRoot < 4096 || admission.UserRoot >= UserEnd || (admission.UserRoot & 4095) != 0 ||
+            admission.UserRoot < 4096 || admission.UserRoot >= OS.Kernel.Memory.X64UserAddressSpace.PhysicalEnd || (admission.UserRoot & 4095) != 0 ||
             admission.MaximumCalls == 0 || admission.MaximumCalls > MaximumCalls ||
             admission.MaximumWrite == 0 || admission.MaximumWrite > MaximumWrite ||
             admission.Scratch == null || admission.ScratchBytes < admission.MaximumWrite || admission.ScratchBytes > MaximumWrite ||
             (ulong)admission.Scratch > ~0UL - admission.ScratchBytes || access.Context == null ||
             access.PageAccess == null || access.CopyFromUser == null || access.Write == null)
             return LinuxSyscallGateStatus.InvalidAdmission;
+        if (admission.EnableStartup != (access.Startup != null)) return LinuxSyscallGateStatus.InvalidAdmission;
         fixed (LinuxSyscallGateState* original = &state)
             if ((ulong)admission.Scratch < (ulong)original + (uint)sizeof(LinuxSyscallGateState) &&
                 (ulong)original < (ulong)admission.Scratch + admission.ScratchBytes)
@@ -103,7 +108,15 @@ public static unsafe class LinuxSyscallGateway
             // process contract. Retain the original int bits without fabricating it.
             return new(LinuxSyscallAction.Terminate, exitCode: unchecked((uint)frame.Argument0));
         }
-        if (frame.Number != 1) return new(LinuxSyscallAction.Return, Unsupported);
+        if (frame.Number != 1)
+        {
+            if (!state.Admission.EnableStartup) return new(LinuxSyscallAction.Return, Unsupported);
+            LinuxSyscallFrame returnFrame = frame;
+            long value = state.Access.Startup(state.Access.Context, &frame);
+            Clear(state.Admission.Scratch, state.Admission.ScratchBytes);
+            if (!ValidateReturn(returnFrame, state.Access)) return Stop(ref state, LinuxSyscallGateStatus.InvalidReturn);
+            return new(LinuxSyscallAction.Return, value);
+        }
         uint descriptor = unchecked((uint)frame.Argument0); // Linux write takes unsigned int fd.
         if (descriptor != 1 && descriptor != 2) return new(LinuxSyscallAction.Return, BadDescriptor);
         if (frame.Argument2 > state.Admission.MaximumWrite) return new(LinuxSyscallAction.Return, Invalid);

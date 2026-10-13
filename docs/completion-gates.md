@@ -1,5 +1,17 @@
 # CLROS Completion Gates
 
+M16-006/#684 and supplemental #706 are qualified in
+[step1205](../done/step1205.md): 4,646 full-host checks across 608 fixtures
+(94 Native), original scoped native review, three 150-record high-output guests,
+two controlled memory negatives and twelve ancestor captures pass. The sparse
+64-GiB user VA policy retains independent low-4-GiB physical/table bounds and
+bounded backing; real memory/startup callbacks prove high copy-in/out, live HPET
+monotonic time, fresh firmware RNG bytes and owned restoration after exit 42.
+The unchanged upstream entry attempt stops at unsupported ARCH_SET_FS and a
+controlled CPL3 fault. No NativeAOT Hello, upstream GC/EH/ThreadPool, descriptors/
+pipes, threads/TLS/futex/signals, Kestrel, numbered gate, cloud or production
+completion advances from this bounded qualification.
+
 M16-005/#683 and supplemental #699 are qualified in
 [step1201](../done/step1201.md): 4,619 full-host checks across 604 groups
 (94 Native), scoped original native review, three 121-record write/exit guests,

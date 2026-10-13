@@ -693,6 +693,8 @@ internal static class BootSequencePlanTests
              "public static unsafe bool RunOwnedLinuxElfStartup(bool packageReady, bool firmwareRevoked,",
              "public static unsafe bool PrepareLinuxUserBoundary(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>",
              "public static unsafe bool RunOwnedLinuxSyscalls(bool startupReady, bool serviceStopped, bool firmwareRevoked,",
+             "public static unsafe bool PrepareLinuxMemory(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>",
+             "public static unsafe bool RunOwnedLinuxMemory(bool startupReady, bool serviceStopped, bool firmwareRevoked,",
              "public static unsafe OS.Boot.FirstExitReturn RunFirstRealExitBootServicesTransition(",
              "private static bool IsFirstRealExitBootServicesEnabled() =>",
              "public static unsafe OS.Kernel.Runtime.CompilerClassConstructorStatus RunCompilerClassConstructors(",
@@ -740,6 +742,8 @@ internal static class BootSequencePlanTests
              "public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch("])
             && HasGuardedSurface("src/OS.Kernel/Diagnostics/Probes.cs", 2,
             ["public static partial class Probes",
+             "public const bool EnableM16006Probe = true;",
+             "public const bool EnableM16006Probe = false;",
              "public const bool EnableM16005Probe = true;",
              "public const bool EnableM16005Probe = false;",
              "public const bool EnableM16004Probe = true;",
@@ -2049,8 +2053,8 @@ internal static class BootSequencePlanTests
     {
         int calls = 0;
         return HostCheck.Result(!Probes.EnableM16005Probe
-            && Probes.TryGetProbe(Probes.ProbeCatalogCount - 1, out var probe)
-            && probe.Group == "app.linux-syscalls" && probe.Name == "EnableM16005Probe" && !probe.EnabledByDefault && probe.Risk == ProbeRisk.Destructive
+            && Probes.GetM16005Probe().Group == "app.linux-syscalls" && Probes.GetM16005Probe().Name == "EnableM16005Probe"
+            && !Probes.GetM16005Probe().EnabledByDefault && Probes.GetM16005Probe().Risk == ProbeRisk.Destructive
             && !BootSequence.PrepareLinuxUserBoundary(true, &calls, &RecordLinuxSyscallCall)
             && !BootSequence.PrepareLinuxUserBoundary(false, &calls, &RecordLinuxSyscallCall)
             && !BootSequence.PrepareLinuxUserBoundary(true, null, &RecordLinuxSyscallCall)
