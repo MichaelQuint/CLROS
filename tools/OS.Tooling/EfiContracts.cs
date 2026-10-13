@@ -33,9 +33,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "59160914d15d76807faf08398d0119fb25d0fecccc2bcc086792616a0496a04e";
-    public const string CanonicalProjectSha256 = "d9c21633a27a8e1869386586364219b5774de5e06359e2587807b0b76594cc51";
-    public const string EfiEntrySourceSha256 = "d02142e112965693aaf4b22e4c940212e685d48c5e128d8e80974e1c3a4c6f53";
+    public const string ProjectSourceSha256 = "3c5bc2b873d12600c2704dedc023ad47a1f940b639d58c979aa5fc1835cdc4d0";
+    public const string CanonicalProjectSha256 = "7a09c2cd901e9d44fc4477c363b0bfd553281a19d8faba0dade201f86d5892b0";
+    public const string EfiEntrySourceSha256 = "fce1b77d53eac6b17098972b5f50eddc6d2d3ea66a20622557027d66a17a2cc7";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -51,8 +51,6 @@ public static partial class EfiContracts
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> CompileItems { get; } = Array.AsReadOnly<string>(
     [
-        @"..\OS.Kernel\Threading\X64ThreadContext.cs|Threading\X64ThreadContext.cs",
-        @"..\OS.Kernel\Threading\ThreadContextSwitch.cs|Threading\ThreadContextSwitch.cs",
         @"..\OS.Kernel\Boot\BootHandoffRecord.cs|Boot\BootHandoffRecord.cs",
         @"..\OS.Kernel\Boot\BootMemoryRegionMaterializer.cs|Boot\BootMemoryRegionMaterializer.cs",
         @"..\OS.Kernel\Boot\BootMemoryMapAcceptance.cs|Boot\BootMemoryMapAcceptance.cs",
@@ -286,6 +284,8 @@ public static partial class EfiContracts
         @"..\..\std\no-runtime\shared\Text\AsciiDecimalFormatter.cs|Std\Text\AsciiDecimalFormatter.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxStartupServices.cs|Compatibility\LinuxX64\LinuxStartupServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs|Compatibility\LinuxX64\X64LinuxUserTransition.cs",
+        @"..\OS.Kernel\Threading\X64ThreadContext.cs|Threading\X64ThreadContext.cs",
+        @"..\OS.Kernel\Threading\ThreadContextSwitch.cs|Threading\ThreadContextSwitch.cs",
     ]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> DiagnosticProbes { get; } = Array.AsReadOnly<string>(

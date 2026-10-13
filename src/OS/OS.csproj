@@ -374,10 +374,6 @@
 	<PropertyGroup Condition="'$(EnableM09004Probe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M09_004_PROBE</DefineConstants>
 	</PropertyGroup>
-	<ItemGroup Condition="'$(EnableM09004Probe)' == 'true'">
-		<Compile Include="..\OS.Kernel\Threading\X64ThreadContext.cs" Link="Threading\X64ThreadContext.cs" />
-		<Compile Include="..\OS.Kernel\Threading\ThreadContextSwitch.cs" Link="Threading\ThreadContextSwitch.cs" />
-	</ItemGroup>
 	<PropertyGroup Condition="'$(EnableM04SingleFinallyCatchProbe)' == 'true'">
 		<DefineConstants>$(DefineConstants);M04_SINGLE_FINALLY_CATCH_PROBE</DefineConstants>
 	</PropertyGroup>
@@ -795,6 +791,8 @@
 		<Compile Include="..\..\std\no-runtime\shared\Text\AsciiDecimalFormatter.cs" Link="Std\Text\AsciiDecimalFormatter.cs" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxStartupServices.cs" Link="Compatibility\LinuxX64\LinuxStartupServices.cs" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs" Link="Compatibility\LinuxX64\X64LinuxUserTransition.cs" />
+		<Compile Include="..\OS.Kernel\Threading\X64ThreadContext.cs" Link="Threading\X64ThreadContext.cs" />
+		<Compile Include="..\OS.Kernel\Threading\ThreadContextSwitch.cs" Link="Threading\ThreadContextSwitch.cs" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">

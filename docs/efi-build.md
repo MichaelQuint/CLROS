@@ -11,6 +11,11 @@ no-stdlib rules remain in force. [Step1215](../done/step1215.md) records a succe
 development publish and one actual guest; full/repeat/ancestor
 qualification is pending. No Linux threading or upstream workload acceptance.
 
+[Step1216](../done/step1216.md) appends those explicit links to the unconditional
+inventory, preserving all prior source indices and every evaluated profile's
+235-file closure. The cooperative execution flag remains default-off. Seven
+affected legacy fixtures and the contract audit pass; full qualification remains pending.
+
 Qualified `--EnableM16005Probe` selects the default-off mechanical CPL3 syscall
 Diagnostic and automatically requires M16-002/003/004. QEMU acceptance requires
 `qemu smoke -BuildEfi -EnableM16005Probe -LinuxElfPackage <fixture.pkg>` with a
