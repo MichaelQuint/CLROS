@@ -81,12 +81,13 @@ public static class EfiMsbuild
         var projectReferences = EfiEvidence.Array(items["ProjectReference"], "post_restore_evaluation_shape_invalid");
         var references = EfiEvidence.Array(items["Reference"], "post_restore_evaluation_shape_invalid");
         var analyzers = EfiEvidence.Array(items["Analyzer"], "post_restore_evaluation_shape_invalid");
-        EfiPeImage.Require(compile.Count == EfiContracts.CompileItems.Count && projectReferences.Count == 0 && references.Count == 0 && analyzers.Count == 2, "post_restore_evaluation_item_count_mismatch");
+        string[] expectedCompileItems = EfiProjectAdmission.ExpectedCompileItems(profile);
+        EfiPeImage.Require(compile.Count == expectedCompileItems.Length && projectReferences.Count == 0 && references.Count == 0 && analyzers.Count == 2, "post_restore_evaluation_item_count_mismatch");
         List<string> compileKeys = [];
         for (int i = 0; i < compile.Count; i++)
         {
             string key = EfiEvidence.String(compile[i]!["Identity"], "post_restore_evaluation_compile_item_mismatch") + "|" + (compile[i]!["Link"] is null ? "" : EfiEvidence.String(compile[i]!["Link"], "post_restore_evaluation_compile_item_mismatch"));
-            EfiPeImage.Require(key == EfiContracts.CompileItems[i], "post_restore_evaluation_compile_item_mismatch", "index=" + i); compileKeys.Add(key);
+            EfiPeImage.Require(key == expectedCompileItems[i], "post_restore_evaluation_compile_item_mismatch", "index=" + i); compileKeys.Add(key);
         }
         List<string> analyzerKeys = [];
         foreach (var analyzer in analyzers)

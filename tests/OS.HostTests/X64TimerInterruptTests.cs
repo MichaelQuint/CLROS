@@ -61,7 +61,10 @@ internal static unsafe class X64TimerInterruptTests
         HostCheck.True(bytes.Slice(207, 37).SequenceEqual(restoreFs) && bytes.Slice(250, 37).SequenceEqual(restoreGs));
         HostCheck.True(bytes.Slice(293, 42).SequenceEqual(Convert.FromHexString(
             "480FAE0C244881C420020000415F415E415D415C415B415A415941585F5E5D5B5A595848CFFAF390EBFC")));
-        HostCheck.True(bytes[335..].IndexOfAnyExcept((byte)0) == -1 && code[0] == 0xa5 && code[513] == 0xa5);
+        HostCheck.True(bytes.Slice(335,65).IndexOfAnyExcept((byte)0) == -1 && code[0] == 0xa5 && code[513] == 0xa5);
+        HostCheck.True(bytes.Slice(400,8).SequenceEqual(Convert.FromHexString("F30F1EFA0F0109C3")));
+        HostCheck.True(bytes.Slice(416,9).SequenceEqual(Convert.FromHexString("F30F1EFAFA0F0119C3")));
+        HostCheck.True(bytes.Slice(480,6).SequenceEqual(Convert.FromHexString("F30F1EFA48CF")));
         // Actual IRETQ, with no RET/JMP substitution or add40 to the saved old RSP.
         HostCheck.True(bytes.Slice(328, 2).SequenceEqual(new byte[] { 0x48, 0xcf }));
     }
@@ -130,5 +133,27 @@ internal static unsafe class X64TimerInterruptTests
             if (pass == 1) HostCheck.Equal(0L, GC.GetAllocatedBytesForCurrentThread() - before);
         }
         HostCheck.True(good);
+    }
+
+    [HostTest("m09.005 non-yielding worker retains registers and publishes only two initialized words", HostLane.Fast, 5)]
+    private static void Worker()
+    {
+        Irq.WorkerPlan p = new() { Phase = 0, Command = 4, Progress = 8, First = 16, Second = 24, Root = 32, ControlBytes = 40 };
+        byte* code = stackalloc byte[512];
+        HostCheck.True(Irq.EmitWorker(code, 512, p) && Irq.VerifyWorker(code, 512, p));
+        ReadOnlySpan<byte> bytes = new(code, 512);
+        HostCheck.True(bytes[..25].SequenceEqual(Convert.FromHexString("FDFB49FF8424080000004183BC2404000000020F82E9FFFFFF")));
+        HostCheck.True(bytes.Slice(25,24).SequenceEqual(Convert.FromHexString("49C78424100000004433221141C784240000000002000000")));
+        HostCheck.True(bytes.Slice(72,24).SequenceEqual(Convert.FromHexString("49C78424180000008877665541C784240000000003000000")));
+        HostCheck.True(bytes.Slice(119,33).SequenceEqual(Convert.FromHexString("4D89AC242000000041C78424000000000000000049FF842408000000E9F3FFFFFF")));
+        HostCheck.True(bytes[152..].IndexOfAnyExcept((byte)0) == -1);
+        foreach (int branch in new[] { 19,66,113 })
+            HostCheck.Equal(branch - 17, branch + 6 + BinaryPrimitives.ReadInt32LittleEndian(bytes.Slice(branch + 2,4)));
+        for (int i = 0; i < 512; i++) { code[i] ^= 1; HostCheck.True(!Irq.VerifyWorker(code,512,p)); code[i] ^= 1; }
+        byte[] snapshot = Snapshot(code,512);
+        Irq.WorkerPlan bad = p; bad.Root = bad.First; HostCheck.True(!Irq.EmitWorker(code,512,bad));
+        bad = p; bad.Phase = 1; HostCheck.True(!Irq.EmitWorker(code,512,bad));
+        bad = p; bad.ControlBytes = 39; HostCheck.True(!Irq.EmitWorker(code,512,bad));
+        HostCheck.True(snapshot.SequenceEqual(Snapshot(code,512)));
     }
 }

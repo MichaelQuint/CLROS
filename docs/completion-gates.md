@@ -7,12 +7,13 @@ context and owned-pool restoration precede success. This adds no numbered gate,
 Linux threading, unchanged Hello, upstream runtime or Kestrel
 acceptance.
 
-M09-005/#187 has timer-control development in [step1219](../done/step1219.md),
-with twelve focused host checks over simulated APIC MMIO/expiration.
-[Step1220](../done/step1220.md) adds five frame/encoding checks for the unexecuted
-complete interrupt emitter under integration child #721. There is
-no interrupt-handler execution or hardware preemption evidence for this slice.
-The issue remains open; its native/full-host/guest acceptance is pending.
+M09-005/#187 has development evidence in [step1222](../done/step1222.md).
+Twenty-six focused checks and a native publish pass; one development guest
+executes four actual APIC IRQs, defers a non-yielding worker at three publication
+phases and resumes/restores the original context and owned resources. The final
+IDT/TSS read-back change has not yet joined full-host, original native review,
+three fresh final-source guests and retained ancestors. #187/#721/#723/#724
+remain open. No numbered gate, upstream runtime, Hello or Kestrel is accepted.
 
 M16-007/#685 and supplemental #707 are qualified in [step1208](../done/step1208.md):
 4,679 full-host checks across 613 fixtures (94 Native), eight original native

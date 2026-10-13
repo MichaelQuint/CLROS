@@ -13,6 +13,61 @@ namespace OS.Kernel.Threading;
 public static unsafe class X64TimerInterrupt
 {
     public const uint Bytes = 512, FrameBytes = 704, PrefixBytes = 544;
+    public const uint SaveIdtrOffset = 400, LoadIdtrOffset = 416, SpuriousOffset = 480;
+    public const uint WorkerBytes = 512, WorkerEnd = 152;
+    public const ulong FirstPattern = 0x11223344, SecondPattern = 0x55667788;
+
+    /// <summary>Disjoint fields in the live R12 control extent. R13 independently
+    /// holds the pinned two-word object address. The worker never calls, yields or
+    /// returns: IRQ-written commands permit each initialization/publication phase,
+    /// then actual interrupt redirection is its only exit. The owner initializes
+    /// phase1/command0/root0 and admits data/stack/code before entry.</summary>
+    public struct WorkerPlan
+    { public uint Phase, Command, Progress, First, Second, Root, ControlBytes; }
+
+    /// <summary>Emit the fixed non-yielding fixture into unpublished storage.
+    /// Validate field extents/aliases before writes; this grants no live R12/R13,
+    /// allocation, root publication, interrupt or mapping authority.</summary>
+    public static bool EmitWorker(byte* output, uint capacity, WorkerPlan plan) => Worker(output, capacity, plan, false);
+    /// <summary>Read-only comparison of the whole worker and padding against its
+    /// retained plan, before publication and after original-context restoration.</summary>
+    public static bool VerifyWorker(byte* output, uint capacity, WorkerPlan plan) => Worker(output, capacity, plan, true);
+
+    private static bool Worker(byte* output, uint capacity, WorkerPlan p, bool compare)
+    {
+        if (capacity < WorkerBytes || !Range((ulong)output, WorkerBytes, 1)) return false;
+        uint* offsets = stackalloc uint[6] { p.Phase, p.Command, p.Progress, p.First, p.Second, p.Root };
+        for (uint i = 0; i < 6; i++)
+        {
+            uint size = i < 2 ? 4U : 8U;
+            if ((offsets[i] & (size - 1)) != 0 || (ulong)offsets[i] + size > p.ControlBytes) return false;
+            for (uint j = 0; j < i; j++)
+                if (offsets[i] < (ulong)offsets[j] + (j < 2 ? 4UL : 8UL) && offsets[j] < (ulong)offsets[i] + size) return false;
+        }
+        Writer w = new(output, compare);
+        w.Data(0xfbfd, 2); // STD; STI only after native owner arms the complete path.
+        uint first = WorkerWait(ref w, p, 2);
+        WorkerStore(ref w, p.First, (uint)FirstPattern, true); WorkerStore(ref w, p.Phase, 2, false);
+        uint second = WorkerWait(ref w, p, 3);
+        WorkerStore(ref w, p.Second, (uint)SecondPattern, true); WorkerStore(ref w, p.Phase, 3, false);
+        uint publication = WorkerWait(ref w, p, 4);
+        w.Data(0x24ac894d, 4); w.Data(p.Root, 4); // MOV [R12+Root],R13 AFTER both fields.
+        WorkerStore(ref w, p.Phase, 0, false);
+        uint forever = w.Offset; WorkerProgress(ref w, p.Progress);
+        w.Byte(0xe9); uint loop = w.Offset; w.Offset += 4; w.Patch(loop, forever);
+        w.Patch(first, 2); w.Patch(second, 49); w.Patch(publication, 96);
+        while (w.Offset < WorkerBytes) w.Byte(0);
+        return w.Valid && w.Offset == WorkerBytes;
+    }
+    private static void WorkerProgress(ref Writer w, uint offset) { w.Data(0x2484ff49, 4); w.Data(offset, 4); }
+    private static uint WorkerWait(ref Writer w, WorkerPlan p, byte command)
+    {
+        WorkerProgress(ref w, p.Progress);
+        w.Data(0x24bc8341, 4); w.Data(p.Command, 4); w.Byte(command);
+        w.Data(0x820f, 2); uint branch = w.Offset; w.Offset += 4; return branch;
+    }
+    private static void WorkerStore(ref Writer w, uint offset, uint value, bool wide)
+    { w.Data(wide ? 0x2484c749UL : 0x2484c741UL, 4); w.Data(offset, 4); w.Data(value, 4); }
 
     /// <summary>Actual stack image after fifteen pushes and a sixteen-aligned
     /// prefix. The last five words are the hardware no-error IRETQ frame, including
@@ -118,6 +173,12 @@ public static unsafe class X64TimerInterrupt
         w.Data(0xfceb90f3fa, 5); // CLI; PAUSE; JMP back to PAUSE. Retain owned resources.
         w.Patch(callbackRejected, reject); w.Patch(incomplete, reject); w.Patch(wrongCs, reject);
         w.Patch(wrongSs, reject); w.Patch(wrongFs, reject); w.Patch(wrongGs, reject);
+        while (w.Offset < SaveIdtrOffset) w.Byte(0);
+        w.Data(0xc309010ffa1e0ff3, 8); // ENDBR64; SIDT [RCX]; RET.
+        while (w.Offset < LoadIdtrOffset) w.Byte(0);
+        w.Data(0x19010ffafa1e0ff3, 8); w.Byte(0xc3); // ENDBR64; CLI; LIDT [RCX]; RET.
+        while (w.Offset < SpuriousOffset) w.Byte(0);
+        w.Data(0xcf48fa1e0ff3, 6); // Register-neutral spurious IRETQ; no EOI.
         while (w.Offset < Bytes) w.Byte(0);
         return w.Valid && w.Offset == Bytes;
     }
@@ -154,7 +215,7 @@ public static unsafe class X64TimerInterrupt
         public void Patch(uint position, uint target)
         {
             if (position > Offset || Offset - position < 4 || target >= Bytes) { Valid = false; return; }
-            uint displacement = target - (position + 4);
+            uint displacement = unchecked(target - (position + 4));
             for (uint i = 0; i < 4; i++)
             {
                 byte value = (byte)(displacement >> (int)(8 * i));

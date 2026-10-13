@@ -36,6 +36,33 @@ internal static class EfiProfileTestControls
             }
             admitted.Add((calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
         }
+        {
+            if (!TryGetSchedulerTimerSource(source, out var root, out var owner, out reason)) return false;
+            var calls = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
+                .Where(i => i.Expression.ToString() == call).ToArray();
+            reason = "M09_005_PROBE:allocator-owner-receipt";
+            if (calls.Length != 2 || calls.Count(i => i.Ancestors().OfType<MethodDeclarationSyntax>()
+                .FirstOrDefault()?.Identifier.Text == "RunCooperativeSwitch") != 1) return false;
+            calls = calls.Where(i => i.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Span == owner.Span).ToArray();
+            string expected = call.EndsWith(".AllocateOnePage", StringComparison.Ordinal)
+                ? "(allocator,&node,1,1,null,0,0,1,Page)"
+                : "(allocator,&node,1,1,null,0,0,receipts[i-1])";
+            if (calls.Length != 1 || Tokens(calls[0].ArgumentList) != expected) return false;
+            var loop = calls[0].Ancestors().OfType<ForStatementSyntax>().FirstOrDefault();
+            bool allocate = call.EndsWith(".AllocateOnePage", StringComparison.Ordinal);
+            reason = "M09_005_PROBE:receipt-loop";
+            if (loop is null || loop.Condition is null || Tokens(loop.Condition) != (allocate ? "borrowed<22" : "i>0") ||
+                loop.Incrementors.Count != 1 || Tokens(loop.Incrementors[0]) != (allocate ? "borrowed++" : "i--") ||
+                (allocate ? loop.Declaration is not null || loop.Initializers.Count != 0 :
+                    loop.Declaration is null || Tokens(loop.Declaration) != "uinti=borrowed" || loop.Initializers.Count != 0)) return false;
+            if (call.EndsWith(".AllocateOnePage", StringComparison.Ordinal))
+            {
+                var receipts = owner.DescendantNodes().OfType<LocalDeclarationStatementSyntax>()
+                    .Single(d => d.Declaration.Variables.Any(v => v.Identifier.Text == "receipts"));
+                admitted.Add((receipts.SpanStart, receipts.Span.Length));
+            }
+            admitted.Add((calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
+        }
         foreach (var (symbol, entry, body) in EfiContracts.OwnedDmaAllocatorProfiles)
         {
             string[] symbols = ["M01_LOADED_IMAGE_STACK_PROBE", "M01_LIVE_ALLOCATOR_PROBE", "ACPI_PHYSICAL_DISCOVERY_PROBE",
@@ -128,35 +155,50 @@ internal static class EfiProfileTestControls
         return true;
     }
 
-    // Admit only the guarded, one-node retained pool transaction. Keep all other
-    // materializer references visible to the caller's whole-source firewall.
+    // Admit only the two guarded, one-node retained pool transactions. Keep all
+    // other references visible to the caller's whole-source materializer firewall.
     internal static bool RemoveOwnedCooperativeMaterializer(ref string source, out string reason)
     {
-        if (!TryGetCooperativeSource(source, out var root, out var owner, out reason)) return false;
-        var calls = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
-            .Where(i => i.Expression.ToString() == "BootPageAllocatorStateMaterializer.Materialize").ToArray();
-        reason = "M09_004_PROBE:materializer-owner-arguments";
-        if (calls.Length != 1 || Tokens(calls[0].ArgumentList) !=
-            "(&node,1,1,1,0,Page,32,32*Page,&allocator,1)" ||
-            calls[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Span != owner.Span) return false;
-        var declarations = owner.DescendantNodes().OfType<LocalDeclarationStatementSyntax>().ToArray();
-        string[] expected = ["ulongpool=state->CooperativePool;",
-            "BootPageFreeListNodenode=new(0,0,pool,pool+32*Page,32,32*Page,-1);",
-            "BootPageAllocatorStateallocator=default;"];
-        reason = "M09_004_PROBE:materializer-pool";
-        int previous = owner.SpanStart;
-        foreach (string declaration in expected)
+        var admitted = new SortedSet<(int Start, int Length)>();
+        foreach (bool timer in new[] { false, true })
         {
-            var matches = declarations.Where(d => Tokens(d) == declaration).ToArray();
-            if (matches.Length != 1 || matches[0].SpanStart <= previous || matches[0].SpanStart >= calls[0].SpanStart) return false;
-            previous = matches[0].SpanStart;
+            SyntaxNode root; MethodDeclarationSyntax owner;
+            if (timer ? !TryGetSchedulerTimerSource(source, out root, out owner, out reason) :
+                !TryGetCooperativeSource(source, out root, out owner, out reason)) return false;
+            string symbol = timer ? "M09_005_PROBE" : "M09_004_PROBE";
+            var calls = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
+                .Where(i => i.Expression.ToString() == "BootPageAllocatorStateMaterializer.Materialize").ToArray();
+            if (timer)
+            {
+                reason = symbol + ":materializer-call-count";
+                if (calls.Length != 2 || calls.Count(i => i.Ancestors().OfType<MethodDeclarationSyntax>()
+                    .FirstOrDefault()?.Identifier.Text == "RunCooperativeSwitch") != 1) return false;
+                calls = calls.Where(i => i.Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Span == owner.Span).ToArray();
+            }
+            reason = symbol + ":materializer-owner-arguments";
+            if (calls.Length != 1 || Tokens(calls[0].ArgumentList) !=
+                "(&node,1,1,1,0,Page,32,32*Page,&allocator,1)" ||
+                calls[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Span != owner.Span) return false;
+            var declarations = owner.DescendantNodes().OfType<LocalDeclarationStatementSyntax>().ToArray();
+            string[] expected = ["ulongpool=state->CooperativePool;",
+                "BootPageFreeListNodenode=new(0,0,pool,pool+32*Page,32,32*Page,-1);",
+                "BootPageAllocatorStateallocator=default;"];
+            reason = symbol + ":materializer-pool";
+            int previous = owner.SpanStart;
+            foreach (string declaration in expected)
+            {
+                var matches = declarations.Where(d => Tokens(d) == declaration).ToArray();
+                if (matches.Length != 1 || matches[0].SpanStart <= previous || matches[0].SpanStart >= calls[0].SpanStart) return false;
+                previous = matches[0].SpanStart;
+            }
+            reason = symbol + ":materializer-failure-arm";
+            if (calls[0].Parent is not MemberAccessExpressionSyntax succeeded || succeeded.Name.Identifier.Text != "Succeeded" ||
+                succeeded.Parent is not PrefixUnaryExpressionSyntax condition || !condition.IsKind(SyntaxKind.LogicalNotExpression) ||
+                condition.Parent is not IfStatementSyntax branch || branch.Condition != condition || branch.Else is not null ||
+                Tokens(branch.Statement) != (timer ? "returnfalse;" : "{_=CooperativeMarker(state,3);returnfalse;}")) return false;
+            admitted.Add((calls[0].Expression.SpanStart, calls[0].Expression.Span.Length));
         }
-        reason = "M09_004_PROBE:materializer-failure-arm";
-        if (calls[0].Parent is not MemberAccessExpressionSyntax succeeded || succeeded.Name.Identifier.Text != "Succeeded" ||
-            succeeded.Parent is not PrefixUnaryExpressionSyntax condition || !condition.IsKind(SyntaxKind.LogicalNotExpression) ||
-            condition.Parent is not IfStatementSyntax branch || branch.Condition != condition || branch.Else is not null ||
-            Tokens(branch.Statement) != "{_=CooperativeMarker(state,3);returnfalse;}") return false;
-        source = source.Remove(calls[0].Expression.SpanStart, calls[0].Expression.Span.Length);
+        foreach (var span in admitted.Reverse()) source = source.Remove(span.Start, span.Length);
         reason = string.Empty;
         return true;
     }
@@ -189,9 +231,59 @@ internal static class EfiProfileTestControls
         return true;
     }
 
+    private static bool TryGetSchedulerTimerSource(string source, out SyntaxNode root, out MethodDeclarationSyntax owner, out string reason)
+    {
+        string[] symbols = ["M01_LOADED_IMAGE_STACK_PROBE", "M01_LIVE_ALLOCATOR_PROBE", "ACPI_PHYSICAL_DISCOVERY_PROBE",
+            "M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE", "M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE",
+            "M05_PCI_ENUMERATION_PROBE", "M05_APIC_SETUP_PROBE", "M09_005_PROBE"];
+        var tree = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(preprocessorSymbols: symbols));
+        root = tree.GetRoot(); owner = null!;
+        reason = "M09_005_PROBE:syntax";
+        if (tree.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error)) return false;
+        var owners = root.DescendantNodes().OfType<MethodDeclarationSyntax>().Where(m => m.Identifier.Text == "RunSchedulerTimer").ToArray();
+        reason = "M09_005_PROBE:conditional-owner";
+        if (owners.Length != 1) return false;
+        foreach (string[] disabledSymbols in new string[][] { symbols[..^1], [.. symbols[..^1], "M09_004_PROBE"] })
+        {
+            var disabled = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(preprocessorSymbols: disabledSymbols));
+            if (disabled.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error) || disabled.GetRoot().DescendantNodes()
+                .OfType<MethodDeclarationSyntax>().Any(m => m.Identifier.Text == "RunSchedulerTimer")) return false;
+        }
+        owner = owners[0];
+        var receipts = owner.DescendantNodes().OfType<LocalDeclarationStatementSyntax>()
+            .Where(d => d.Declaration.Variables.Any(v => v.Identifier.Text == "receipts")).ToArray();
+        reason = "M09_005_PROBE:receipt-storage";
+        if (receipts.Length != 1 || Tokens(receipts[0]) !=
+            "BootPageAllocatorOnePageResult*receipts=stackallocBootPageAllocatorOnePageResult[22];") return false;
+        var edges = root.DescendantNodes().OfType<InvocationExpressionSyntax>()
+            .Where(i => i.Expression.ToString() == "BootSequence.RunOwnedSchedulerTimer").ToArray();
+        reason = "M09_005_PROBE:ordered-owned-apic-edge";
+        if (edges.Length != 1 || edges[0].Ancestors().OfType<MethodDeclarationSyntax>().FirstOrDefault()?.Identifier.Text != "Diagnose" ||
+            Tokens(edges[0].ArgumentList) != "(state->OwnedPhase==2,state->ApicPhase==2,transition->Mode==FirmwareServicesMode.BootServicesExited&&transition->RetainedFirmwareCallbacksCleared&&state->Arena.Binding->RetainedPointersCleared,state,&RunSchedulerTimer)" ||
+            edges[0].Parent is not PrefixUnaryExpressionSyntax condition || !condition.IsKind(SyntaxKind.LogicalNotExpression) ||
+            condition.Parent is not IfStatementSyntax branch || branch.Condition != condition || branch.Else is not null ||
+            Tokens(branch.Statement) != "return;" || branch.Parent is not BlockSyntax block) return false;
+        int at = block.Statements.IndexOf(branch);
+        if (at <= 0 || Tokens(block.Statements[at - 1]) !=
+            "if(!BootSequence.RunOwnedApicSetup(state->PciPhase==8,state,&RunOwnedApicSetup))return;" ||
+            block.Parent is not IfStatementSyntax pci || pci.Condition is not InvocationExpressionSyntax enumeration ||
+            enumeration.Expression.ToString() != "BootSequence.RunOwnedPciEnumeration" ||
+            Tokens(enumeration.ArgumentList) != "(state->OwnedPhase==2,state,&RunOwnedPciEnumeration)") return false;
+        reason = string.Empty;
+        return true;
+    }
+
     // Independent expectations shared by cross-profile rejection fixtures.
     internal static string? MissingParentReason(IReadOnlyCollection<string> selected)
     {
+        if (selected.Contains("EnableM09005Probe"))
+        {
+            string[] parents = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
+                "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe",
+                "EnableM05PciEnumerationProbe", "EnableM05ApicSetupProbe"];
+            if (selected.Any(name => name != "EnableM09005Probe" && !parents.Contains(name))) return "m09_005_profile_conflict";
+            if (parents.Any(name => !selected.Contains(name))) return "m09_005_requires_owned_first_exit";
+        }
         if (selected.Contains("EnableM09004Probe"))
         {
             string[] parents = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
@@ -322,7 +414,8 @@ internal static class EfiProfileTestControls
                     "startup explicit false: " + parent);
             foreach (string conflict in EfiContracts.DiagnosticProbes.Except(allowed))
                 HostCheck.True(ServiceProfileRejected(build, ["--EnableM16004Probe", "--" + conflict],
-                    conflict == "EnableM09004Probe" ? "m09_004_profile_conflict" : "m16_002_profile_conflict"),
+                    conflict switch { "EnableM09004Probe" => "m09_004_profile_conflict",
+                        "EnableM09005Probe" => "m09_005_profile_conflict", _ => "m16_002_profile_conflict" }),
                     "startup profile conflict: " + conflict);
         }
     }

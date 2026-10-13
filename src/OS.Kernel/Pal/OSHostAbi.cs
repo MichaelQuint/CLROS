@@ -27,19 +27,6 @@ public enum OSHostStatus : int
 }
 
 [StructLayout(LayoutKind.Sequential)]
-public readonly struct OSHostHandle
-{
-    public readonly ulong Value;
-
-    public OSHostHandle(ulong value)
-    {
-        Value = value;
-    }
-
-    public bool IsValid => Value != 0;
-}
-
-[StructLayout(LayoutKind.Sequential)]
 public readonly struct OSHostByteSpan
 {
     public readonly ulong Address;

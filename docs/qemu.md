@@ -1,5 +1,19 @@
 # QEMU
 
+## Hardware timer development capture
+
+`-BootPolicy Diagnostic -BuildEfi -EnableM09005Probe -TimeoutSeconds 30 -RequireMarker CLROS_M09_005_READY`
+requires a fresh original build and the minimal APIC/owned-exit parents.
+The serial tail binds preparation, E1/divide16 arming, consecutive ticks at
+allocation/initialization/publication/safe boundaries, the surviving original
+identity/deadline and restoration before pass/ready. Only tick rows repeat.
+The worker never calls, yields or returns; IRETQ from a real IRQ resumes it or
+redirects to the captured original continuation. Owned IST4 preserves the three
+existing fault stacks. RF is admitted only in the actual interrupt frame;
+deferred returns retain the whole saved flags image. Synthetic rows test parser
+admission only. One development guest passes in [step1222](../done/step1222.md);
+final full/native/three-guest/ancestor qualification is pending.
+
 ## Qualified cooperative-transfer capture
 
 `-BootPolicy Diagnostic -BuildEfi -EnableM09004Probe -TimeoutSeconds 30 -RequireMarker CLROS_M09_004_READY`

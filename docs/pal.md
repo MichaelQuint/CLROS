@@ -1,5 +1,15 @@
 # PAL
 
+M09-005/#187 and integration children #721/#723/#724/#725 are in development in
+[step1222](../done/step1222.md). The default-off hardware timer profile now
+executes a non-yielding mechanical worker after firmware exit. One development
+guest acknowledges four E1 interrupts across allocation, initialization,
+publication and safe wake; original context, descriptors, mappings and all
+22 borrowed pages are restored before success. Two later development captures
+also pass the final live IDT/TSS read-back checks. Joined full/native/guest/
+ancestor qualification remains pending.
+This adds no Linux threading, upstream GC/runtime, Hello, Kestrel or gate.
+
 The NativeAOT-first Linux adapter in [workload profiles](workload-profiles.md)
 is an authorized additional application ABI. It preserves `OSHost_*` and
 status/POD contracts; Linux errno, fd and register semantics stay in the

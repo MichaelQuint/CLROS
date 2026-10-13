@@ -5,6 +5,10 @@ public static partial class EfiContracts
     {
         [@"..\OS.Kernel\Threading\X64ThreadContext.cs"] = "reviewed_m09_saved_context_source_identity",
         [@"..\OS.Kernel\Threading\ThreadContextSwitch.cs"] = "reviewed_m09_cooperative_source_identity",
+        [@"..\OS.Kernel\Threading\DeadlineQueue.cs"] = "reviewed_m09_deadline_queue_source_identity",
+        [@"..\OS.Kernel\Threading\SchedulerTimer.cs"] = "reviewed_m09_scheduler_timer_source_identity",
+        [@"..\OS.Kernel\Pal\OSHostHandle.cs"] = "reviewed_canonical_host_handle_source_identity",
+        [@"..\OS.Kernel\Threading\X64TimerInterrupt.cs"] = "reviewed_m09_timer_interrupt_source_identity",
         [@"..\..\std\no-runtime\shared\CompatibilityStatus.cs"] = "reviewed_existing_shared_compatibility_status",
         [@"..\..\std\no-runtime\shared\Ascii.cs"] = "reviewed_shared_ascii_unmanaged_subset",
         [@"..\..\std\no-runtime\shared\Memory\BufferOperations.cs"] = "reviewed_shared_overlap_safe_copy",

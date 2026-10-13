@@ -73,9 +73,10 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
     XElement[] ud2ProfileOverrides = project.Descendants("PropertyGroup").Where(group => group.Attribute("Condition")?.Value == "'$(EnableM02Ud2VectorStateProbe)' == 'true'").SelectMany(group => group.Elements("EnableM02CheckedPortIoBindingProbe")).ToArray();
     XElement[] symbols = project.Descendants("PropertyGroup").Where(element => element.Attribute("Condition")?.Value == "'$(EnableM02CheckedPortIoBindingProbe)' == 'true'").ToArray();
     // Keep this historical inventory scoped to its existing profiles. The new
-    // cooperative exclusion is independently checked by M09004EfiIntegrationTests.
+    // cooperative/timer exclusions are independently checked by their M09 fixtures.
     string[] errorConditions = project.Descendants("Error")
-        .Where(element => !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_004_", StringComparison.Ordinal))
+        .Where(element => !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_004_", StringComparison.Ordinal) &&
+            !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_005_", StringComparison.Ordinal))
         .Select(element => element.Attribute("Condition")?.Value ?? string.Empty).Where(value => value.Contains("EnableM02CheckedPortIoBindingProbe", StringComparison.Ordinal)).ToArray();
     string[] prerequisiteConditions = errorConditions.Where(value => value.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparison.Ordinal) && value.Contains("'$(EnableM02SafeStubProbe)' != 'true'", StringComparison.Ordinal)).ToArray();
     string[] dependentConditions = errorConditions.Where(value => value.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true'", StringComparison.Ordinal) && value.Contains("'$(EnableM02CheckedPortIoBindingProbe)' != 'true'", StringComparison.Ordinal)).ToArray();

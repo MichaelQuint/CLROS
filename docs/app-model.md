@@ -1,5 +1,13 @@
 # App Model
 
+[Step1222](../done/step1222.md) records M09-005 hardware-timer development.
+The mechanical worker calls no scheduler/yield helper: actual one-shot APIC
+interrupts defer across object initialization/publication, cancel an expired
+identity and resume the original queued context. One development capture
+passes; the final source batch remains unqualified. Upstream application
+threads/TLS/futex/signals, GC, ThreadPool, unchanged Hello and Kestrel remain
+separate incomplete acceptance requirements.
+
 ## NativeAOT-first application boundary
 
 M16-006/#684 is qualified in [step1205](../done/step1205.md).

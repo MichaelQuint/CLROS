@@ -264,7 +264,7 @@ public static class BootSequence
     /// authority remains available. The callback owns preparation/failure cleanup;
     /// this ordered default-off phase allocates nothing and returns false on refusal.</summary>
     public static unsafe bool PrepareCooperativeSwitch(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
-        OS.Kernel.Diagnostics.Probes.EnableM09004Probe && OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe &&
+        (OS.Kernel.Diagnostics.Probes.EnableM09004Probe || OS.Kernel.Diagnostics.Probes.EnableM09005Probe) && OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe &&
         OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe && firmwareAvailable &&
         context != null && prepare != null && prepare(context);
 
@@ -276,6 +276,16 @@ public static class BootSequence
         void* context, delegate*<void*, bool> run) =>
         OS.Kernel.Diagnostics.Probes.EnableM09004Probe && OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe &&
         OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe && ownedChecksComplete && firmwareRevoked &&
+        context != null && run != null && run(context);
+
+    /// <summary>Execute the default-off timer fixture after owned survival and
+    /// masked APIC setup. The adapter owns complete IDT/IST/capture/ack paths,
+    /// disabled-interrupt teardown and retained resource lifetimes on failure.</summary>
+    public static unsafe bool RunOwnedSchedulerTimer(bool ownedChecksComplete, bool apicReady, bool firmwareRevoked,
+        void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM09005Probe && OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe &&
+        OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe &&
+        OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe && ownedChecksComplete && apicReady && firmwareRevoked &&
         context != null && run != null && run(context);
 
     /// <summary>Run descriptor syscalls only through the original post-exit

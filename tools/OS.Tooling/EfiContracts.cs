@@ -3,6 +3,9 @@ namespace OS.Tooling;
 // Reviewed expected contracts. Do not populate these from actual output at test runtime.
 public static partial class EfiContracts
 {
+    public static IReadOnlyList<string> M09005Markers { get; } = Array.AsReadOnly(new[] {
+        "TEST_START m09.005", "M09_005_PREPARED", "M09_005_ARMED", "M09_005_TICK",
+        "M09_005_WAKE", "M09_005_RESTORED", "TEST_PASS m09.005", "CLROS_M09_005_READY" });
     // These profiles inherit first-exit conflicts through their required parent.
     // Source guards use the same inventory rather than copying each new leaf.
     public static IReadOnlyList<string> FirstExitDependentProbes { get; } = Array.AsReadOnly<string>(
@@ -13,7 +16,7 @@ public static partial class EfiContracts
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
         "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe",
-        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM09004Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe"]);
+        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM09004Probe", "EnableM09005Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -33,9 +36,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "1ecc7476cb4478d579ae0866ff9499c9f29810925f1c56b84c68ec4239a16800";
-    public const string CanonicalProjectSha256 = "0651e5ab978893bef7f37d3c89668c68ecb9dadbbb832f7be6a63c82f10f66bc";
-    public const string EfiEntrySourceSha256 = "fce1b77d53eac6b17098972b5f50eddc6d2d3ea66a20622557027d66a17a2cc7";
+    public const string ProjectSourceSha256 = "f4461c3da8508e1a9480ada9230bfe69f1b19781607fb5030a253959f693d45e";
+    public const string CanonicalProjectSha256 = "e1287424b888196f03d24152f7975c83f4c8cded0abf7b69b559dd4b719f0702";
+    public const string EfiEntrySourceSha256 = "9b707347ae5eb0b4701d7d5dfcb4a97453f47223a9938ac698945d3fdb499f4e";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -286,6 +289,10 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs|Compatibility\LinuxX64\X64LinuxUserTransition.cs",
         @"..\OS.Kernel\Threading\X64ThreadContext.cs|Threading\X64ThreadContext.cs",
         @"..\OS.Kernel\Threading\ThreadContextSwitch.cs|Threading\ThreadContextSwitch.cs",
+        @"..\OS.Kernel\Threading\DeadlineQueue.cs|Threading\DeadlineQueue.cs",
+        @"..\OS.Kernel\Threading\SchedulerTimer.cs|Threading\SchedulerTimer.cs",
+        @"..\OS.Kernel\Pal\OSHostHandle.cs|Pal\OSHostHandle.cs",
+        @"..\OS.Kernel\Threading\X64TimerInterrupt.cs|Threading\X64TimerInterrupt.cs",
     ]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> DiagnosticProbes { get; } = Array.AsReadOnly<string>(
@@ -368,7 +375,7 @@ public static partial class EfiContracts
         "EnableM06VirtioBlockReadProbe",
         "EnableM07ArpReceiveProbe",
         "EnableM07VirtioNetProbe",
-        "EnableM09004Probe",
+        "EnableM09004Probe", "EnableM09005Probe",
         "EnableM16002Probe",
         "EnableM16003Probe",
         "EnableM16004Probe",
