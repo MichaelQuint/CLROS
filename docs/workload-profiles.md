@@ -56,8 +56,9 @@ evidence below. [Step1208](../done/step1208.md) closes the live openat coverage 
 identified in [step1207](../done/step1207.md). #708/#711's reproduced
 `brk`/fixed-mapping ownership defect is repaired and qualified in step1209.
 The host-only saved-context layout #183 is qualified in
-[step1210](../done/step1210.md) with nine focused checks. The next foundations
-are #184's FIFO ready queue, then #185's deadline queue. #186-#188 retain actual
+[step1210](../done/step1210.md) with nine focused checks. #184's caller-owned
+FIFO queue is qualified in [step1211](../done/step1211.md) with nine focused
+checks; the next foundation is #185's deadline queue. #186-#188 retain actual
 switching/interrupt/lifecycle guest proof. Exact managed dependencies still
 control the sequence before #686; the layout does not establish execution.
 The #708/#711 qualification in [step1209](../done/step1209.md) adds explicit

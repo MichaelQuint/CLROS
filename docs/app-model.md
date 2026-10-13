@@ -72,8 +72,13 @@ qualified in [step1210](../done/step1210.md): nine focused checks verify the
 actual 688-byte layout, caller-supplied 16-byte alignment, legal FP controls,
 trusted MXCSR mask, complete snapshots, malformed-input rejection and unchanged
 output on failure. It executes no save/restore instructions or thread switch.
-The next foundation is #184's FIFO ready queue, followed by #185's deadline
-queue. See [PAL context ownership](pal.md#saved-context-host-contract-183).
+#184's caller-owned FIFO ready queue is qualified in
+[step1211](../done/step1211.md) with nine focused checks. It admits only a
+current generation, runnable state and complete structurally valid context;
+external lifetime authority and whole-operation serialization remain required.
+It rejects duplicate/stale generations and storage/context aliases, preserves
+FIFO cancellation and returns peek/dequeue results by value. The next
+foundation is #185's deadline queue. See [PAL queue ownership](pal.md#ready-queue-host-contract-184).
 M16-009/#687 owns first pinned NativeAOT Hello acceptance after signal
 startup/delivery, before focused suspension checks; Hello itself starts runtime
 threads before printing. #688 repeats Hello and qualifies the comprehensive

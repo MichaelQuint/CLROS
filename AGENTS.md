@@ -6,8 +6,9 @@
 2. Refresh the LAN tracker and select the first unfinished dependency-compatible
    NativeAOT-first ticket. M16-001/#679 through M16-007/#685 are qualified;
    #708/#711's brk/fixed-map ownership repair is qualified in step1209.
-   #183's saved-context host layout is qualified in step1210. The next
-   foundations are #184's FIFO ready queue, then #185's deadline queue.
+   #183's saved-context host layout and #184's caller-owned FIFO queue are
+   qualified in step1210 and step1211. The next foundation is #185's deadline
+   queue, with external ownership and host-only boundaries retained.
    #186-#188 retain actual switching,
    interrupt and lifecycle guest proof before #686. Review step1207 preserves
    the original defect and corrected scheduler boundaries.
