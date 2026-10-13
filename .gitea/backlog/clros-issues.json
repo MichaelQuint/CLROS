@@ -19420,7 +19420,7 @@
         "M09-001"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:host",
         "component:pal",
@@ -19442,7 +19442,7 @@
       ],
       "collisionLane": "",
       "summary": "Implement a fixed-capacity ready queue over caller-owned storage with explicit initialized/empty/full states and a documented single-owner or external-synchronization contract.",
-      "currentEvidence": "Existing M16 user/syscall transitions and PAL contracts are source references only. This scheduler slice remains unimplemented and open; its own acceptance is required.",
+      "currentEvidence": "done/step1211.md qualifies the caller-owned fixed-capacity ReadyQueue with nine fresh focused checks and scoped peer review after an alias repair. FIFO/full/empty/wrap, repeated capacities, cancellation, generation/owner admission, complete-context publication, byte-preserving rejection, alias controls and zero warmed allocation pass. Current identity, runnable/context lifetime and whole-operation serialization are externally owned; the queue does not create or run threads. Peek/dequeue return values without output aliases. No hardware scheduling, interrupt, Linux thread/TLS/futex/signal service, upstream runtime, Kestrel or later gate is proven. M09-003 follows reviewed merge and closure.",
       "implementationNotes": [
         "Read docs/workload-profiles.md, docs/pal.md and work/PAL/pal-design.md first. Preserve the NativeAOT-first boundary: upstream applications own their GC/EH; this work does not port CoreCLR or extend general kernel EH.",
         "Use C# 14/.NET 10, caller-owned bounded storage, explicit status results and no hidden allocation, exceptions or reflection in kernel paths. Keep one main public type per file where practical and document lifetime, execution context, failure atomicity and unsupported behavior.",
@@ -19484,7 +19484,7 @@
         "docs/app-model.md"
       ],
       "evidenceBoundary": "Host-tested layout or queue contract only. No actual thread save/restore, scheduling, hardware interrupt, Linux thread/TLS/futex/signal service, upstream runtime, Kestrel or later completion gate is proven.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M09-003",

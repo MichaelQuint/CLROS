@@ -78,13 +78,49 @@ context. The initial profile retains the existing single-CPU x87/SSE boundary;
 XSAVE/AVX, CET and SMP require separate admission and evidence. Upstream Linux
 thread/TLS/futex/signal integration remains in M16.
 
+### Ready-queue host contract (#184)
+
+[Step1211](../done/step1211.md) qualifies `Threading/ReadyQueue.cs` with nine
+focused checks. A positive fixed capacity borrows a live eight-byte-aligned
+`OSHostHandle` buffer. The queue and buffer must remain under one canonical
+external owner until empty `Release`; copying a bound queue is unsupported.
+An owner key rejects accidental cross-owner use but is neither a lock nor a
+security capability. The owner serializes each complete operation and its
+lifetime/context lookup against every other access, including interrupts.
+Default state is uninitialized; it does not count as an empty initialized queue.
+
+Handles retain `OSHostThreadTable`'s upper32 generation/lower32 slot-plus-one
+shape. Enqueue compares an independently supplied current identity, requires
+runnable state and validates the complete `X64ThreadContext` with a trusted
+MXCSR mask. The lifetime owner supplies that authority and keeps queued
+identities/contexts/runnable state pinned; this queue issues or reclaims none.
+Duplicate admission and slot reuse while an older generation is queued reject.
+Peek returns an identity for external lookup; dequeue removes it only when the
+current identity still matches. Stale dequeue leaves the head untouched.
+Cancellation removes one exact identity, keeps FIFO order through wraparound
+and never cancels another generation; it may evict a stale queued value.
+
+Initialization rejects declared buffer/queue-metadata overlap. Enqueue rejects
+context overlap with metadata or any queue slot before publication. Peek and
+dequeue return status/identity values without output references. All fallible
+checks precede mutation; rejected operations preserve the entire queue/buffer.
+Removal clears released slots. Release succeeds only when empty and ends the
+borrow without freeing caller storage. Operations allocate nothing and execute
+no callbacks, switching, hardware timer or blocking wait.
+
+Host tests cover FIFO/full/empty/wrap, repeated capacities1/2/3/17/257,
+cancellation, duplicate/stale generations, owner misuse, incomplete context
+preparation at every eight-byte checkpoint, alias rejection/exact adjacency
+and warmed allocation. Observations occur between complete serialized calls;
+interruption inside an operation and real preemption remain #187's guest work.
+
 ## Current Status
 
 No first-party hosted-tier PAL implementation exists. The canonical CLROS
 boundary is documented here and in `work/PAL/pal-design.md`. The upstream
 reference design is available at `references/SharpOS-main/work/PAL/pal-design.md`.
 
-Current work is limited to boundary design, Kestrel-critical ABI contract definition, mock socket/package/config/timer/wait/app-log/random tables and facades, host-only socket and timer/wait bridge composition, and platform-interface preparation for UEFI encapsulation. It is not hosted CoreCLR integration, it does not run .NET 10 applications, and it must not introduce a WinAPI/POSIX compatibility surface.
+Current work is limited to boundary design, Kestrel-critical ABI contract definition, mock socket/package/config/timer/wait/app-log/random tables and facades, host-only socket and timer/wait bridge composition, platform-interface preparation for UEFI encapsulation, and host-only saved-context/ready-queue contracts. It is not hosted CoreCLR integration, it does not run .NET 10 applications, and it must not introduce a WinAPI/POSIX compatibility surface.
 
 ## Implemented Behavior
 
