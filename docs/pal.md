@@ -35,7 +35,8 @@ document with the current integration owner.
 slice. Its managed body owns the implementation and qualification checklist.
 The following is a design handoff, not implemented lifecycle evidence. Use the
 current pinned toolchain in [host requirements](host-requirements.md); historical
-.NET 10 acceptance does not qualify the .NET 11 migration.
+.NET 10 acceptance does not qualify the .NET 11 migration. Its finite renewed
+profile evidence is recorded in [step1225](../done/step1225.md).
 
 Use a single-BSP CPL0 supervisor with fixed-capacity, caller-owned worker slots,
 distinct stacks, `X64ThreadContext`, `ReadyQueue` and `DeadlineQueue`. Keep workers

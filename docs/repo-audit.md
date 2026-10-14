@@ -37,6 +37,21 @@ remain incomplete.
 
 ## Current Status
 
+[Step1225](../done/step1225.md) qualifies the .NET 11 migration at implementation
+source `d728d2c`: 4,783 full-host checks, original native review and
+29 independently audited strict QEMU captures. The guest matrix includes the
+expected unhandled negative and three 115-record timer captures. The independent
+`artifacts/net11-migration/audit/final-r01.json` joins retained native inputs,
+source inventories and guest receipts; the full-host receipt is `artifacts/net11-migration/audit/full-host-final-r03.json`.
+Linux r04 qualifies fresh Hello, runtime exerciser and Minimal API payloads with
+zero publish warnings and retained original produced DLL/object evidence.
+
+These are bounded diagnostic guests and Linux-host application evidence, not
+unchanged Hello or Kestrel inside CLROS. Historical records below retain their
+original .NET 10 source/toolchain identities. No numbered gate advances. #188 is
+the next ready slice after #727 merges and tracker reconciliation completes;
+the existing development thread remains paused until explicitly resumed.
+
 The M06 read/completion batch #120/#121/#623 is accepted in
 [step1143](../done/step1143.md): 4,304 full-host checks across 521 groups, native
 delta review and fresh 138/122/79-record read/queue/ordinary captures pass with
@@ -412,9 +427,11 @@ and the reachable local Gitea tracker:
   `global.json`, with prereleases allowed and roll-forward disabled. The OS,
   tooling and first guest-app target are .NET 11; C# remains 14. Earlier
   accepted evidence retains its original SDK and source identity. See
-  [host requirements](host-requirements.md) and migration #727 for qualification.
+  [host requirements](host-requirements.md) and [step1225](../done/step1225.md)
+  for the qualified configuration. Visual Studio 18.12 design-time MSBuild
+  selects the pinned SDK, `net11.0` and C# 14 for both EFI and HostTests.
 - Before scaffolding, `dotnet build CLROS.slnx` was a no-op because the solution had no projects.
-- The migration solution build passes with zero errors and four no-stdlib
+- The qualified solution build passes with zero errors and four no-stdlib
   CS0660/CS0661 warnings for the existing MacAddress/Ipv4Address operators:
 
 ```powershell

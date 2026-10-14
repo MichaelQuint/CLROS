@@ -14,6 +14,10 @@ libraries, static zlib/C++ dependencies and strace. Windows inspection and
 managed fixture runs are development checks. [Step1198](../done/step1198.md)
 qualifies the historical .NET 10 static Linux payloads on the task-local Alpine builder;
 [step1197](../done/step1197.md) preserves development and bootstrap failures.
+[Step1225](../done/step1225.md) qualifies the current .NET 11 Linux r04 recipe:
+three fresh static payloads, runtime exercise, HTTP/configuration/shutdown and
+zero publish warnings. This remains Linux-host evidence; neither unchanged Hello
+nor Kestrel has run inside CLROS.
 Put `/opt/dotnet` and all Alpine system directories, including `/sbin`, on PATH.
 
 ```text
@@ -67,9 +71,17 @@ dotnet --version # must report 11.0.100-rc.2.26504.105 from the repository
 
 The private SDK `10.0.401` recovery remains available for historical checkouts;
 it is not the current build target. Keep old receipts unchanged. Migration
-[#727](http://192.168.4.35:3000/admin/CLROS/issues/727) records fresh validation
-and incompatible compiler-layout changes; .NET 10 acceptance does not transfer
-to .NET 11 by changing versions.
+[#727](http://192.168.4.35:3000/admin/CLROS/issues/727) is qualified in
+[step1225](../done/step1225.md) at implementation source `d728d2c`, with
+4,783 full-host checks, original native review and 29 independently
+audited strict QEMU captures. Full-host receipt: `artifacts/net11-migration/audit/full-host-final-r03.json`. Only the
+explicitly rerun profiles gain current compiler/guest acceptance; no numbered
+gate or CLROS application milestone advances.
+
+The runtime/guest source checkpoint is `d728d2c`; the final full-host run uses
+the subsequent host inventory/README repair `7eeb787`. Its 622 fixtures and
+4,783 checks pass with unchanged inputs and zero reuse. Step1225 records the
+failed runs and the independent final audit without relabeling guest evidence.
 
 The installed MSVC x64 linker is now `14.52.37025.0`, replacing the accepted
 `14.51.36252.0`. Windows SDK `10.0.28000.0` remains installed, and the existing
@@ -84,9 +96,12 @@ no-stdlib NativeAOT configuration. Its imported serializer targets use path
 normalization supported by both Visual Studio's full-framework MSBuild and
 `dotnet` MSBuild. If an older checkout reports `MSB4186` for
 `Path.TrimEndingDirectorySeparator`, update the checkout and reload the project.
-Visual Studio 2026 Insiders 18.11.12224.323 project evaluation was checked using
-its MSBuild with `DesignTimeBuild=true` and `BuildingInsideVisualStudio=true`;
-the user also confirmed that all solution projects load after this fix.
+Visual Studio 2026 Insiders `18.12.12308.306` project evaluation was checked
+using its MSBuild with `DesignTimeBuild=true` and
+`BuildingInsideVisualStudio=true`: EFI and HostTests select SDK
+`11.0.100-rc.2.26504.105`, `net11.0` and C# 14. Earlier 18.11 project-load
+checks retain their historical evidence; design-time evaluation is not an
+interactive project-load or guest-execution claim.
 Publish EFI images through
 `dotnet run --project tools/OS.Tooling -- efi build`, which also verifies the artifact.
 
@@ -103,15 +118,16 @@ the two missing `Microsoft.CodeAnalysis` namespace errors without a new package.
 
 The pinned SDK's compiler supports C# 15. Isolated compiled probes confirm
 unions, closed hierarchies, collection-expression arguments, extension indexers
-and labeled loop exits. Project language versions remain C# 14 while the runtime
-migration is qualified; availability alone does not justify a source rewrite.
+and labeled loop exits. Project language versions remain C# 14 after this
+qualification. A C# 15 change requires a separate scoped decision and checks;
+SDK availability does not automatically change the language policy.
 See the [C# 15 feature list](https://learn.microsoft.com/en-us/dotnet/csharp/whats-new/csharp-15).
 
 | Candidate | CLROS decision |
 | --- | --- |
 | New process ownership APIs | Evaluate `StartSuspended`, `InheritedHandles`, `KillOnParentExit` and exit-status/streaming APIs for host tooling. Preserve bounded output, deadlines, descendant cleanup and receipt evidence. Parent-death cleanup does not replace normal cancellation handling. |
 | Updated C# memory-safety rules | Worth a separate parser/user-copy/queue audit. They still require preview language and a feature flag, add caller obligations and emit `MemorySafetyRulesAttribute`. First prove no-stdlib compatibility; no blanket kernel opt-in. |
-| C# 15 control-flow/collection syntax | Use selectively in future touched host code when it simplifies that code. Closed types emit an attribute; check that dependency before no-stdlib use. |
+| C# 15 control-flow/collection syntax | Consider only in a separately approved language change when it simplifies touched host code. Closed types emit an attribute; check that dependency before no-stdlib use. |
 | Union types | Keep explicit POD/status structs in the kernel. The tested union stores `System.Object`, implements `IUnion` and contains managed references; it is not an allocation-free tagged-union substitute. |
 | Runtime async and dispatch improvements | Receive upstream improvements in application payloads after qualification. Runtime async needs runtime/GC/threading support and supplies no kernel scheduler. New compiler dispatch metadata requires an explicit kernel adapter. |
 

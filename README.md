@@ -18,24 +18,31 @@ yet.** Current acceptance covers bounded boot, runtime and device diagnostics,
 mechanical user execution, cooperative context transfer and hardware timer wakes.
 CLROS is not cloud-ready or production-ready.
 
-The current migration moves the OS, host tooling and guest application target to
-.NET 11 with the updated native linker. Its qualification is pending. The accepted
-.NET 10 results below remain historical evidence and do not transfer automatically
-to a new compiler, runtime, linker or payload.
+[Step1225](done/step1225.md) qualifies the pinned .NET 11 OS/tooling migration and
+fresh Linux-host application payloads. C# remains 14. Historical .NET 10 results
+retain their original identities; only the explicitly rerun profiles have current
+compiler and guest evidence.
 
 ## Current accepted evidence
 
-The accepted baseline is `master` commit
-[`a651496`](http://192.168.4.35:3000/admin/CLROS/commit/a651496), recorded in
-[step1224](done/step1224.md). Its default-off timer profile receives four real
-local-APIC interrupts on one BSP after firmware exit. It defers redirection
-through allocation, initialization and publication phases, then restores the
-original context and releases the borrowed resources.
+The current qualification is [step1225](done/step1225.md), using implementation
+source [`d728d2c`](http://192.168.4.35:3000/admin/CLROS/commit/d728d2c):
+**4,783 full-host checks and 29 independently audited strict QEMU
+captures**, with original native review and exact rebuilt-input joins. The matrix
+includes one expected unhandled-exception negative and three 115-record timer
+captures. Fresh static Hello, runtime exerciser and Minimal API payloads also
+pass the separate Linux-host qualifier with zero publish warnings.
 
-Qualification includes **4,776 full-host checks across 622 fixtures (94 Native),
-six original native bodies reviewed, three fresh timer guests and ten ancestor
-regressions**. Each timer guest has 115 application records. This is bounded
-single-BSP CPL0 mechanical execution; continuing thread lifecycle remains open.
+Host validation includes the inventory/README repair in `7eeb787`; step1225
+retains both source checkpoints and the failed attempts.
+
+The preceding [step1224](done/step1224.md) remains the historical .NET 10 timer
+acceptance: 4,776 full-host checks, six original native bodies, three timer guests
+and ten ancestors. The current timer rerun still proves bounded single-BSP CPL0
+mechanical execution; continuing thread lifecycle remains open.
+
+The foundation records below retain their historical toolchain and profile scope.
+Step1225 lists the finite set requalified on .NET 11.
 
 | Foundation | Accepted scope and evidence |
 | --- | --- |
@@ -61,8 +68,9 @@ static publish recipe. CLROS implements the required Linux x64 application
 syscalls in C#; pinned upstream NativeAOT runtime, musl and native payload
 libraries stay with the application. Application GC and exception handling remain
 upstream responsibilities. A Linux RID alone does not make an executable
-freestanding or prove CLROS compatibility. The .NET 11 migration must requalify
-the publish recipe, native dependencies and observed runtime/ABI requirements.
+freestanding or prove CLROS compatibility. Step1225 qualifies the .NET 11 publish
+recipe and records native dependencies and observed runtime/ABI requirements;
+the required CLROS guest services remain on the implementation roadmap.
 
 First-party kernel, shared library and app source committed here is C#.
 `src/OS` retains an explicit no-stdlib NativeAOT EFI build. Upstream native
@@ -78,9 +86,9 @@ The [workload profiles and roadmap](docs/workload-profiles.md) are canonical;
 
 ## Next implementation
 
-Complete [#727: .NET 11 qualification](http://192.168.4.35:3000/admin/CLROS/issues/727)
-before beginning #188 boot/runtime edits. The migration currently owns the shared
-integration lane.
+After [#727](http://192.168.4.35:3000/admin/CLROS/issues/727) is merged and its
+tracker evidence is reconciled, #188 is the next ready implementation slice.
+The existing development thread remains paused until explicitly resumed.
 
 The next scheduler slice is [#188: thread lifecycle](http://192.168.4.35:3000/admin/CLROS/issues/188):
 bounded single-BSP CPL0 cooperative create/start, yield, park/wake, sleep, join,
@@ -113,7 +121,7 @@ numeric issue order; optional research is not a first-web prerequisite.
 ## Build and test
 
 Start with [host requirements](docs/host-requirements.md) for the selected .NET 11
-SDK, native linker and migration status following the Visual Studio update.
+SDK, native linker and qualified Visual Studio setup.
 Use that document's current activation instructions before running commands;
 the preceding pinned .NET 10 recovery remains historical context. EFI publishing
 requires the documented Windows native toolchain, while Linux payload publishing

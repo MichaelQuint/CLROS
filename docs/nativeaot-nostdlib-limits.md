@@ -5,8 +5,9 @@ The user-selected .NET 11 migration is tracked in
 source is dotnet/dotnet `820230c386db5b0106c5430b3e5aee92a7826bf5`.
 Its RTR26.1 module rows contain section ID, signed length and start pointer
 (16 bytes), replacing the old flags/start/end form. Interface dispatch also
-has a new metadata/cell ABI. Source-backed adapters and fresh qualification are
-required; historical .NET 10 sections below do not establish .NET 11 support.
+has a new metadata/cell ABI. The bounded adapters and finite profile matrix are
+qualified in [step1225](../done/step1225.md); historical .NET 10 sections below
+do not establish support for additional .NET 11 profiles.
 Object/array/string, GC descriptors, class constructors, EH and CPU-transfer
 contracts must each retain their independently reviewed evidence boundary.
 Current commands and version policy are in [host requirements](host-requirements.md).

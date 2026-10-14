@@ -460,15 +460,20 @@ background compiler helpers from consuming the build timeout after native
 publication has finished. It does not change the QEMU runner's default process
 lifecycle or allow successful builds with unconfirmed child termination.
 
-The active .NET 11 migration in
-[#727](http://192.168.4.35:3000/admin/CLROS/issues/727) selects exact SDK
-`11.0.100-rc.2.26504.105`, compiler/runtime `11.0.0-rc.2.26504.105` and the
-current MSVC linker. See [host requirements](host-requirements.md) for exact
-selection and CPU policy. The source revision is
-`820230c386db5b0106c5430b3e5aee92a7826bf5`: its module directory is RTR26.1
-with 16-byte explicit-length rows, and its interface dispatch format changed.
-Fresh adapter, native and guest evidence is required; earlier receipts remain
-historical. Normal output paths now use `net11.0`.
+The .NET 11 migration in
+[#727](http://192.168.4.35:3000/admin/CLROS/issues/727) is qualified in
+[step1225](../done/step1225.md) at implementation source `d728d2c`. It selects
+exact SDK `11.0.100-rc.2.26504.105`, compiler/runtime
+`11.0.0-rc.2.26504.105` and MSVC linker `14.52.37025.0`. See
+[host requirements](host-requirements.md) for selection and CPU policy.
+Upstream revision `820230c386db5b0106c5430b3e5aee92a7826bf5` uses RTR26.1
+16-byte explicit-length module rows, native-sized array counts and the new
+interface dispatch metadata. Reviewed adapters, original native code and all
+29 strict guest captures qualify the finite step1225 matrix, including its
+expected unhandled negative and three timer captures. No other historical
+profile or numbered gate is renewed. Normal output paths use `net11.0`;
+the managed ILC input is the optimized `src/OS/obj/<Configuration>/net11.0/win-x64/OS.dll`.
+C# remains 14.
 
 Historically, issue #590 moved the freestanding ILCompiler and NativeAOT runtime pack
 to `10.0.12`, with stable SDK `10.0.401`. All three compiler/runtime packages
@@ -499,13 +504,16 @@ outside that matrix or completion gate is renewed by changing package versions.
 
 ## Accepted diagnostics and dispatch integration
 
-The following acceptance is historical .NET 10 evidence. The .NET 11 adapter
-uses section209 NativeArray callsite metadata, section210 zero-initialized
-16-byte cells and section331 relative type references. The renamed
-`RhpInterfaceDispatch` bridge is 814 bytes; its instruction bytes and relocations
-are unchanged. The five-cell fixture expects an 80-byte section, which requires
-confirmation against the new original COFF before guest acceptance. Its external
-bounded cache leaves compiler cells unchanged. #727 owns fresh qualification.
+[Step1225](../done/step1225.md) qualifies the .NET 11 adapter's section209
+NativeArray callsite metadata, section210 zero-initialized 16-byte cells and
+section331 relative type references. Original COFF/linked-image review confirms
+the five-cell 80-byte contribution, and the strict dispatch guest passes 158
+application records. The renamed `RhpInterfaceDispatch` bridge is 814 bytes;
+its instruction bytes and relocation geometry remain unchanged. The external
+bounded cache leaves compiler cells unchanged. This accepts the bounded fixture,
+not arbitrary interface metadata or general dispatch.
+
+The following paragraphs retain historical .NET 10 acceptance and object sizes.
 
 Shared issue #572 adds `EnableM04InterfaceDispatchProbe`, disabled by default.
 It requires `EnableM04ClassConstructorExecutionProbe` and that profile's entire

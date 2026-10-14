@@ -31,7 +31,9 @@ after Visual Studio Insiders updated to `18.12.12308.306` and MSVC linker
 runtime/ILCompiler `11.0.0-rc.2.26504.105`. See
 [host requirements](host-requirements.md#october-13-2026-host-toolchain-refresh)
 for exact selection, package and CPU requirements. Migration
-[#727](http://192.168.4.35:3000/admin/CLROS/issues/727) owns fresh qualification.
+[#727](http://192.168.4.35:3000/admin/CLROS/issues/727) is qualified in
+[step1225](../done/step1225.md) for its finite host/native/guest matrix and
+separate fresh Linux-host payloads. No CLROS guest application is accepted.
 The private .NET 10 recovery is for historical checkouts only. Retain earlier
 receipts unchanged; a compiler or linker update does not requalify them.
 

@@ -1,5 +1,20 @@
 # CLROS Completion Gates
 
+The .NET 11 toolchain/ABI migration in [step1225](../done/step1225.md) is
+qualified at implementation source `d728d2c`: 4,783 full-host checks,
+original native review and 29 independently audited strict QEMU captures pass.
+The matrix includes the expected 73-record unhandled negative and three
+115-record timer captures; expected termination is not successful catch or
+restoration. Linux r04 separately qualifies three freshly published static
+payloads, runtime exercise and actual Kestrel HTTP/configuration/shutdown on the
+Linux builder, with zero publish warnings. Full-host receipt: `artifacts/net11-migration/audit/full-host-final-r03.json`.
+
+This renews only the finite profiles named in step1225. Older .NET 10 results
+retain their original source/toolchain identity. No numbered gate changes;
+CLROS guest Hello/Kestrel, continuing lifecycle, general runtime, isolation,
+cloud and production remain unqualified. #188 follows #727's merge and tracker
+reconciliation; the existing development thread remains paused.
+
 M09-004/#186 and #719 are qualified in [step1218](../done/step1218.md):
 4,742 full-host checks, current original native review, three fresh default-off
 99-record/17-transfer post-exit guests and seven ancestors pass. Original

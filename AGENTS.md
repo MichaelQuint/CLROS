@@ -2,11 +2,15 @@
 
 ## Start here
 
-The user selected .NET 11 for the OS, tooling and guest-app target on October 13.
-Use the exact SDK/runtime pins and x86-64-v2 CPU contract in
-`docs/host-requirements.md`; C#14 remains the project language during migration.
-#727 owns the active toolchain/ABI qualification. Preserve older .NET 10 evidence
-and wait for that shared integration owner before starting #188 boot edits.
+`done/step1225.md` qualifies the .NET 11 OS/tooling migration at implementation
+source `d728d2c`: 4,783 full-host checks, original native review and
+29 independently audited strict QEMU captures, including the expected unhandled
+negative and three timer captures. Fresh Linux-host payload qualification also
+passes; no unchanged guest Hello or Kestrel is accepted. Use the exact pins and
+x86-64-v2 CPU contract in `docs/host-requirements.md`; C# remains 14.
+Preserve older .NET 10 receipts and the scope of profiles not rerun in step1225.
+After #727 merges and tracker reconciliation completes, #188 is the next ready
+slice. The existing development thread remains paused until explicitly resumed.
 
 1. Read `docs/workload-profiles.md` for the current NativeAOT-first decision.
 2. Refresh the LAN tracker and select the first unfinished dependency-compatible

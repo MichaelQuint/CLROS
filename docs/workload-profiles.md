@@ -28,12 +28,14 @@ services, application GC/EH, a continuing workload or CLROS Kestrel.
 
 ## Decision
 
-**Toolchain and workload version (2026-10-13):** the user selected .NET 11
-for the OS, tooling and guest-app milestone. Exact RC2 pins and migration
-qualification belong to [host requirements](host-requirements.md) and
-[#727](http://192.168.4.35:3000/admin/CLROS/issues/727). The architecture and
-issue order below remain NativeAOT-first. Preserve .NET 10 measurements as
-historical inputs and repeat payload/ABI qualification for the new version.
+**Toolchain and workload version (2026-10-13):** .NET 11 is the selected OS,
+tooling and guest-app target. [Step1225](../done/step1225.md) qualifies the exact
+RC2 toolchain/ABI migration and fresh Linux-host payloads at implementation
+source `d728d2c`; [host requirements](host-requirements.md) owns the pins and
+CPU contract. C# remains 14. The architecture and issue order below remain
+NativeAOT-first. Preserve .NET 10 measurements as historical inputs; only
+explicitly rerun profiles gain current qualification. Guest Hello and Kestrel
+remain unqualified.
 
 **Superseded ordering (2026-10-12):** the NativeAOT-first decision below is
 authoritative. Older hosted-runtime descriptions preserve historical contracts,
@@ -79,8 +81,12 @@ bounded cooperative workers with repeated hardware timer wakes, atomic waits
 and off-stack reclamation. See [the lifecycle handoff](pal.md#next-bounded-lifecycle-188).
 #191 wait-on-address and #192 application FS/TLS then remain prerequisites of
 #686 alongside accepted #685. Exact managed dependencies control that sequence.
-These accepted .NET 10 checkpoints retain their historical toolchain identity;
-the user-selected .NET 11 migration requires fresh qualification.
+These accepted .NET 10 checkpoints retain their historical toolchain identity.
+[Step1225](../done/step1225.md) adds a finite .NET 11 qualification: 29 strict
+QEMU captures, including three timer reruns and the expected unhandled negative,
+plus original native review and the full-host gate. It does not renew every
+historical profile. #188 is ready after #727 merges and tracker reconciliation
+completes; the existing development thread remains paused until explicitly resumed.
 The #708/#711 qualification in [step1209](../done/step1209.md) adds explicit
 heap reservation ownership. General fixed mappings and unmaps still operate;
 they relinquish heap ownership, so brk cannot silently reclaim a replacement
@@ -173,9 +179,12 @@ ordinary assets libraries and downloaded runtime packs, including their static
 archives; NuGet's `downloadDependencies` cannot be omitted from that inventory.
 Microsoft publishes the matching Linux musl SDK
 and checksum in the [official .NET11 release metadata](https://builds.dotnet.microsoft.com/dotnet/release-metadata/11.0/releases.json).
-Fresh .NET11 static publication, dependency inspection, runtime exercise and
-HTTP/shutdown traces are required; existing .NET10 receipts do not qualify this
-new payload. CLROS guest Hello and Kestrel remain unqualified.
+[Step1225](../done/step1225.md) records the fresh Linux r04 qualification:
+all three .NET 11 static payloads publish without warnings and pass dependency
+inspection, runtime exercise and HTTP/configuration/shutdown checks. Produced
+managed/native inputs and package closure are retained by hash, with the six
+original DLL/object files copied into the migration evidence archive. This is
+Linux-host acceptance; CLROS guest Hello and Kestrel remain unqualified.
 The .NET11 x64 JIT/AOT baseline is
 [x86-64-v2](https://learn.microsoft.com/en-us/dotnet/core/whats-new/dotnet-11/runtime#x86x64-requirements):
 the builder and eventual guest CPU must supply CX16, POPCNT, SSSE3 and SSE4.1/4.2
@@ -216,8 +225,13 @@ long mode; no AVX is advertised. Preserve this measured target and upstream
 CPUID dispatch before broadening CPU claims. GNU notes record a 1.5 MiB stack;
 they are not an exhaustive CPU specification. The runtime/ILC/package inventories
 in step1198 are the exact .NET10 build input evidence. The following measured
-values remain historical compatibility inputs; repeat their audit against the
-.NET11 payload before treating them as its required ABI.
+values remain historical compatibility inputs. Step1225 records the separate
+.NET 11 audit: startup reserves 8,234,242,048 bytes; PT_TLS has 24 file bytes,
+264 memory bytes and alignment 8; 53 syscall names appear across 22 threads in
+three processes. Changed stdin/CPU settings prevent attributing every trace
+difference to the runtime version. The new trace still does not prove all error
+paths, `fstat`/`pread64`, or GC activation-signal delivery; those contracts and
+separate suspension acceptance remain required.
 
 | Contract family | Observed and source-backed requirement |
 | --- | --- |
