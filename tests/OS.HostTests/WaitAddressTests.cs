@@ -205,6 +205,48 @@ internal static unsafe class WaitAddressTests
         long allocated = GC.GetAllocatedBytesForCurrentThread() - before; HostCheck.True(good); HostCheck.Equal(0L, allocated);
     }
 
+    [HostTest("wait.address nonzero bitsets select FIFO matches and invalid masks leave registrations untouched")]
+    private static void Bitsets()
+    {
+        using M m = new(); Setup(m); var binding = Bind(m);
+        var a = m.Create(0).Identity; var b = m.Create(1).Identity; var c = m.Create(2).Identity;
+        foreach (var entry in new[] { (a, 1U), (b, 2U), (c, 3U) })
+        {
+            HostCheck.Equal(entry.Item1.Value, m.Dispatch().Value);
+            byte[] before = m.Snapshot();
+            HostCheck.Equal(S.InvalidBitset, Owner(m)->Begin(Key, 2, binding, entry.Item1, 42, 0, bitset: 0).Code); m.Same(before);
+            var wait = Owner(m)->Begin(Key, 2, binding, entry.Item1, 42, 0, bitset: entry.Item2);
+            HostCheck.True(wait.Succeeded);
+            HostCheck.True(m.Table->Park(KernelThreadTableTests.Key, 2, wait.Wait, m.Capture(entry.Item1)).Succeeded); m.Confirm();
+        }
+        byte[] pending = m.Snapshot();
+        HostCheck.Equal(S.InvalidBitset, Owner(m)->Wake(Key, 2, binding, uint.MaxValue, 0).Code); m.Same(pending);
+        HostCheck.Equal(0U, Owner(m)->Wake(Key, 2, binding, uint.MaxValue, 4).Count);
+        HostCheck.Equal(1U, Owner(m)->Wake(Key, 2, binding, 1, 2).Count);
+        HostCheck.Equal(C.Woken, m.Inspect(b).Completion); HostCheck.Equal(T.Waiting, m.Inspect(a).State);
+        HostCheck.Equal(1U, Owner(m)->Wake(Key, 2, binding, 1, 1).Count);
+        HostCheck.Equal(C.Woken, m.Inspect(a).Completion); HostCheck.Equal(T.Waiting, m.Inspect(c).State);
+        HostCheck.Equal(1U, Owner(m)->Wake(Key, 2, binding, uint.MaxValue).Count);
+        HostCheck.Equal(b.Value, m.Dispatch().Value); m.Exit(b);
+        HostCheck.Equal(a.Value, m.Dispatch().Value); m.Exit(a); HostCheck.Equal(c.Value, m.Dispatch().Value);
+    }
+
+    [HostTest("wait.address tags separate namespaces for the same word across wake and reuse")]
+    private static void Tags()
+    {
+        using M m = new(); Setup(m); var ordinary = Bind(m);
+        var tagged = Owner(m)->Bind(Key, 2, Word(m), 1, 128); HostCheck.True(tagged.Succeeded);
+        var a = m.Create(0).Identity; var b = m.Create(1).Identity;
+        m.Dispatch(); Park(m, ordinary, a); m.Dispatch(); Park(m, tagged.Address, b);
+        HostCheck.Equal(1U, Owner(m)->Wake(Key, 2, tagged.Address, uint.MaxValue).Count);
+        HostCheck.Equal(T.Waiting, m.Inspect(a).State); HostCheck.Equal(C.Woken, m.Inspect(b).Completion);
+        HostCheck.Equal(S.Ok, Owner(m)->Unbind(Key, 2, tagged.Address));
+        var next = Owner(m)->Bind(Key, 2, Word(m), 2, 128); HostCheck.True(next.Succeeded);
+        HostCheck.Equal(S.StaleBinding, Owner(m)->Wake(Key, 2, tagged.Address, 1).Code);
+        HostCheck.Equal(0U, Owner(m)->Wake(Key, 2, next.Address, uint.MaxValue).Count);
+        HostCheck.Equal(1U, Owner(m)->Wake(Key, 2, ordinary, 1).Count);
+    }
+
     [HostTest("wait.address owner reinitialization at the same address rejects the prior lifetime token")]
     private static void OwnerReuse()
     {

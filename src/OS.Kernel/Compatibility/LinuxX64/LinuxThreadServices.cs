@@ -8,10 +8,10 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// IRQ-off BSP owner retains all metadata, prepared kernel entries and user
 /// mappings. No scheduler, native transfer, allocation or user stack/TLS freeing
 /// is supplied here. Restore the full CPL3 envelope before committing kernel
-/// exit/reap. Signal delivery and process clone/fork are unsupported. Futex and
-/// blocking-pipe dispatch are not yet connected; unsupported calls return ENOSYS.
+/// exit/reap. Signal delivery and process clone/fork are unsupported. Blocking
+/// pipes are not yet connected; unsupported calls return ENOSYS.
 /// </summary>
-public unsafe struct LinuxThreadServices
+public unsafe partial struct LinuxThreadServices
 {
     public const uint MaximumThreads = 16;
     // Exact musl v1.2.6 pthread_create subset, including historical DETACHED.
@@ -37,6 +37,8 @@ public unsafe struct LinuxThreadServices
         internal uint Tid, ExitCode, Exiting;
         internal ulong ClearTid;
         internal LinuxSignalMask Mask;
+        internal KernelThreadWait Wait;
+        internal uint FutexCellIndex;
         internal X64LinuxUserTransition.UserImage Image;
     }
     /// <summary>Actual native owner capabilities. All ranges are mapped,
@@ -66,14 +68,18 @@ public unsafe struct LinuxThreadServices
         public readonly bool Exiting;
         public readonly ulong ClearTid, BlockedSignals;
         public readonly LinuxSyscallFrame Frame;
+        public readonly KernelThreadWait Wait;
         internal View(Slot s)
-        { Kernel = s.Kernel; Tid = s.Tid; ExitCode = s.ExitCode; Exiting = s.Exiting != 0; ClearTid = s.ClearTid; BlockedSignals = s.Mask.Blocked; Frame = s.Image.Frame; }
+        { Kernel = s.Kernel; Tid = s.Tid; ExitCode = s.ExitCode; Exiting = s.Exiting != 0; ClearTid = s.ClearTid; BlockedSignals = s.Mask.Blocked; Frame = s.Image.Frame; Wait = s.Wait; }
     }
 
     private Admission _owner;
     private ulong _self, _key;
     private uint _nextTid, _active, _initialized;
     private bool _failed, _stopping;
+    private WaitAddress _addresses;
+    private FutexAdmission _futex;
+    private bool _futexEnabled;
     public readonly uint ActiveThreads => _initialized == 1 ? _active : 0;
     public readonly bool Failed => _failed;
 
@@ -131,7 +137,7 @@ public unsafe struct LinuxThreadServices
     /// the pointer expires at reap and grants no ownership or execution proof.</summary>
     public bool CurrentImage(ulong key, ulong flags, out X64LinuxUserTransition.UserImage* image)
     {
-        image = null; if (!Access(key, flags) || !Current(flags, out uint index)) return false;
+        image = null; if (!Access(key, flags) || !Current(flags, out uint index) || _owner.Slots[index].Wait.IsValid) return false;
         image = &_owner.Slots[index].Image; return true;
     }
     /// <summary>Read only a live actual kernel generation belonging to this
@@ -147,12 +153,13 @@ public unsafe struct LinuxThreadServices
     /// worker. The native owner has freshly captured its complete user image.
     /// Successful ARCH_SET_FS updates the real ref frame. Exits are staged;
     /// CommitExit runs after full native restoration with a captured kernel CALL.
-    /// Unsupported futex/pipe/signal-delivery operations cannot report success.</summary>
+    /// Futex is explicit optional admission; unsupported operations cannot
+    /// report success. A staged wait must finish before another user call.</summary>
     public LinuxSyscallResult Dispatch(ulong key, ulong flags, ref LinuxSyscallFrame frame)
     {
         if (!Access(key, flags) || _failed || _stopping || !Current(flags, out uint index)) return new(LinuxSyscallAction.Rejected);
         Slot* slot = _owner.Slots + index;
-        if (slot->Exiting != 0 || !LinuxSyscallGateway.ValidateReturn(frame, _owner.User)) return new(LinuxSyscallAction.Rejected);
+        if (slot->Exiting != 0 || slot->Wait.IsValid || !LinuxSyscallGateway.ValidateReturn(frame, _owner.User)) return new(LinuxSyscallAction.Rejected);
         long result;
         switch (frame.Number)
         {
@@ -164,6 +171,7 @@ public unsafe struct LinuxThreadServices
                 return new(LinuxSyscallAction.ThreadExited, exitCode: slot->ExitCode);
             case 158: result = ArchPrctl(slot, ref frame); break;
             case 186: result = slot->Tid; break;
+            case 202: return Futex(flags, slot, frame);
             case 218:
                 // Linux records this raw pointer without accessing it. Only
                 // the best-effort clear at exit checks the then-current mapping.
@@ -256,8 +264,8 @@ public unsafe struct LinuxThreadServices
     /// <summary>Commit a staged exit only on the actual current kernel worker
     /// after the CPL3 envelope restores. Actual kernel capture admission precedes
     /// user mutation. A failed user TID clear reports EFAULT separately and does
-    /// not resurrect an exited thread, matching Linux's best-effort clear. No
-    /// futex registration can exist while futex dispatch remains unsupported.
+    /// not resurrect an exited thread. The shared-key clear-TID wake is attempted
+    /// even if clearing faults, matching Linux's best-effort exit path.
     /// The native caller must finish the real handoff and ConfirmSupervisor.</summary>
     public bool CommitExit(ulong key, ulong flags, ThreadContextSwitch.Descriptor captured, out long clearTidResult)
     {
@@ -266,13 +274,14 @@ public unsafe struct LinuxThreadServices
         Slot* s = _owner.Slots + index;
         if (s->Exiting != 1 || captured.Identity != s->Kernel.Value) return false;
         if (!_owner.Threads->Exit(_owner.ThreadKey, flags, s->Kernel, captured, unchecked((int)s->ExitCode)).Succeeded) return false;
-        clearTidResult = 0;
+        clearTidResult = DropFutexWait(flags, s) ? 0 : Io;
         if (s->ClearTid != 0)
         {
             uint zero = 0;
             if (!LinuxSyscallGateway.ValidateRange(s->ClearTid, 4, LinuxUserPageAccess.Write, _owner.User) ||
                 _owner.CopyToUser(_owner.User.Context, s->ClearTid, (byte*)&zero, 4) != 1)
                 clearTidResult = Fault;
+            if (_futexEnabled) _ = FutexWake(flags, s->ClearTid, 0, 1, uint.MaxValue);
         }
         s->ClearTid = 0; return true;
     }
@@ -284,7 +293,7 @@ public unsafe struct LinuxThreadServices
     {
         released = default;
         if (!Access(key, flags) || !Lookup(flags, kernel, out uint index)) return false;
-        if (_owner.Slots[index].Exiting != 1 || _owner.Slots[index].ClearTid != 0) return false;
+        if (_owner.Slots[index].Exiting != 1 || _owner.Slots[index].ClearTid != 0 || _owner.Slots[index].Wait.IsValid) return false;
         var result = _owner.Threads->Reap(_owner.ThreadKey, flags, kernel, supervisorRsp);
         if (!result.Succeeded) return false;
         _owner.Slots[index] = default; _active--; released = result.Context; return true;
@@ -295,6 +304,7 @@ public unsafe struct LinuxThreadServices
     public bool Release(ulong key, ulong flags)
     {
         if (!Access(key, flags) || _active != 0 || _owner.Threads->Current.IsValid || _owner.Threads->HandoffPending) return false;
+        if (!ReleaseFutex(flags)) return false;
         this = default; return true;
     }
     private bool Current(ulong flags, out uint index)

@@ -20,7 +20,7 @@ public unsafe struct WaitAddress
         Ok, Uninitialized, AlreadyInitialized, WrongOwner, CopiedOwner,
         InterruptsEnabled, InvalidStorage, InvalidCapacity, Overlap,
         InvalidAddress, InvalidBinding, StaleBinding, AlreadyBound,
-        Full, Busy, ValueChanged, TimedOut, IdentityExhausted, ThreadFailure
+        Full, Busy, ValueChanged, TimedOut, IdentityExhausted, ThreadFailure, InvalidBitset
     }
 
     /// <summary>Opaque generation plus stable owner and backing lifetime.
@@ -36,11 +36,11 @@ public unsafe struct WaitAddress
 
     /// <summary>Exclusive caller storage; do not copy or modify bound slots.
     /// An exhausted generation retires rather than reissuing an old binding.</summary>
-    public struct Slot { internal uint Generation; internal bool Retired; internal uint* Word; internal ulong Lifetime; }
+    public struct Slot { internal uint Generation, Tag; internal bool Retired; internal uint* Word; internal ulong Lifetime; }
 
     /// <summary>Exclusive caller storage for one live registration. Completed
     /// registrations are removable without touching scheduler completion state.</summary>
-    public struct Registration { internal Binding Address; internal KernelThreadWait Wait; internal ulong Order; }
+    public struct Registration { internal Binding Address; internal KernelThreadWait Wait; internal ulong Order; internal uint Bitset; }
 
     /// <summary>Default is not success. ThreadFailure preserves the exact
     /// scheduler status. Wake Count reports committed winners even if a later
@@ -100,9 +100,11 @@ public unsafe struct WaitAddress
     }
 
     /// <summary>Bind one separately admitted four-byte word and nonzero backing
-    /// lifetime. Exact addresses are compared, never hash buckets. An already
-    /// bound address rejects even under another lifetime. Failures change nothing.</summary>
-    public Result Bind(ulong key, ulong flags, uint* word, ulong lifetime)
+    /// lifetime. Exact address/tag pairs are compared, never hash buckets. Tags
+    /// separate caller-defined namespaces for the same word; zero retains the
+    /// original namespace. An already bound pair rejects even under another
+    /// lifetime. Failures change nothing.</summary>
+    public Result Bind(ulong key, ulong flags, uint* word, ulong lifetime, uint tag = 0)
     {
         Status status = Access(key, flags); if (status != Status.Ok) return new(status);
         ulong address = (ulong)word;
@@ -111,11 +113,11 @@ public unsafe struct WaitAddress
         uint free = _capacity;
         for (uint i = 0; i < _capacity; i++)
         {
-            if (_slots[i].Word == word) return new(Status.AlreadyBound);
+            if (_slots[i].Word == word && _slots[i].Tag == tag) return new(Status.AlreadyBound);
             if (_slots[i].Word == null && !_slots[i].Retired && free == _capacity) free = i;
         }
         if (free == _capacity) return new(Status.Full);
-        _slots[free].Word = word; _slots[free].Lifetime = lifetime;
+        _slots[free].Word = word; _slots[free].Lifetime = lifetime; _slots[free].Tag = tag;
         return new(Status.Ok, Id(free));
     }
 
@@ -124,11 +126,14 @@ public unsafe struct WaitAddress
     /// a wake before Park is retained by KernelThreadTable. A successful staged
     /// registration must be completed/parked before leaving that transaction.
     /// Mismatch, zero timed delay, overflow, stale identities and capacity failures
-    /// publish nothing. Timed waits use the scheduler's existing tick epoch.</summary>
+    /// publish nothing. A zero bitset rejects before comparison/registration;
+    /// matching wake masks must share at least one bit. Timed waits use the
+    /// scheduler's existing tick epoch.</summary>
     public Result Begin(ulong key, ulong flags, Binding address, OSHostHandle thread,
-        uint expected, ulong now, bool timed = false, ulong delay = 0)
+        uint expected, ulong now, bool timed = false, ulong delay = 0, uint bitset = uint.MaxValue)
     {
         Status status = Access(key, flags); if (status != Status.Ok) return new(status);
+        if (bitset == 0) return new(Status.InvalidBitset);
         status = Lookup(address, out uint index); if (status != Status.Ok) return new(status);
         var current = _threads->Inspect(_threadKey, flags, thread);
         if (!current.Succeeded) return new(Status.ThreadFailure, threadStatus: current.Code);
@@ -149,7 +154,7 @@ public unsafe struct WaitAddress
         var begin = _threads->BeginWait(_threadKey, flags, thread,
             timed ? KernelThreadTable.WaitKind.Sleep : KernelThreadTable.WaitKind.Park, now, delay);
         if (!begin.Succeeded) return new(Status.ThreadFailure, threadStatus: begin.Code);
-        _registrations[free] = new() { Address = address, Wait = begin.Wait, Order = ++_order };
+        _registrations[free] = new() { Address = address, Wait = begin.Wait, Order = ++_order, Bitset = bitset };
         return new(Status.Ok, address, begin.Wait);
     }
 
@@ -157,10 +162,12 @@ public unsafe struct WaitAddress
     /// use 1 for wake-one or uint.MaxValue for wake-all. A spurious wake returns
     /// zero. Ready pressure retains the winner in the scheduler's Pending state.
     /// Stale/completed registrations are pruned only after argument admission.
-    /// A later live-context failure reports earlier committed Count explicitly.</summary>
-    public Result Wake(ulong key, ulong flags, Binding address, uint maximum)
+    /// A later live-context failure reports earlier committed Count explicitly.
+    /// Zero bitsets reject before pruning. Default matches every registration.</summary>
+    public Result Wake(ulong key, ulong flags, Binding address, uint maximum, uint bitset = uint.MaxValue)
     {
         Status status = Access(key, flags); if (status != Status.Ok) return new(status);
+        if (bitset == 0) return new(Status.InvalidBitset);
         status = Lookup(address, out _); if (status != Status.Ok) return new(status);
         uint count = 0;
         while (count < maximum)
@@ -169,7 +176,8 @@ public unsafe struct WaitAddress
             for (uint i = 0; i < _registrationCapacity; i++)
             {
                 if (!Live(_registrations[i])) { _registrations[i] = default; continue; }
-                if (_registrations[i].Address.Value == address.Value && (first == _registrationCapacity || _registrations[i].Order < order))
+                if (_registrations[i].Address.Value == address.Value && (_registrations[i].Bitset & bitset) != 0 &&
+                    (first == _registrationCapacity || _registrations[i].Order < order))
                 { first = i; order = _registrations[i].Order; }
             }
             if (first == _registrationCapacity) break;

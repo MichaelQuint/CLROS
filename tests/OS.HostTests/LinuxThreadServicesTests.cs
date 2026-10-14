@@ -19,6 +19,8 @@ internal static unsafe class LinuxThreadServicesTests
         internal byte* Bytes;
         internal ulong FailWriteAddress, LastRead, LastWrite;
         internal uint Reads, Writes, FailedWrites;
+        internal ulong Now, Lifetime;
+        internal bool ClockFails;
     }
 
     // All storage is private host-test memory. The table's real guarded-context
@@ -36,13 +38,17 @@ internal static unsafe class LinuxThreadServicesTests
         internal uint Writes => User->Writes;
         internal uint FailedWrites => User->FailedWrites;
         internal void FailWrite(ulong address) => User->FailWriteAddress = address;
+        internal ulong Now { get => User->Now; set => User->Now = value; }
+        internal void ChangeMappingLifetime(ulong value) => User->Lifetime = value;
+        internal void FailClock(bool value) => User->ClockFails = value;
+        internal Services.FutexCell* FutexCells => (Services.FutexCell*)(Kernel.Memory + 0x60000);
 
-        internal Model()
+        internal Model(bool futex = false, uint futexCapacity = 4)
         {
             HostCheck.True(sizeof(Services) <= 0x1000 && sizeof(Services.Slot) * 3 <= 0x1000 && sizeof(Services.Worker) * 3 <= 0x1000);
             *Service = default; new Span<byte>(Slots, sizeof(Services.Slot) * 3).Clear();
             new Span<byte>(Workers, sizeof(Services.Worker) * 3).Clear();
-            *User = new() { Bytes = Kernel.Memory + 0xb000, FailWriteAddress = ulong.MaxValue };
+            *User = new() { Bytes = Kernel.Memory + 0xb000, FailWriteAddress = ulong.MaxValue, Now = 1000, Lifetime = 1 };
             new Span<byte>(User->Bytes, (int)UserBytes).Fill(0x5a);
             for (int i = 0; i < 3; i++) Workers[i] = new() { Initial = WorkerContext(i, default), Entry = Kernel.Code + 0x400 + (uint)i * 0x40 };
             HostCheck.True(Service->Initialize(Key, 2, new()
@@ -55,10 +61,21 @@ internal static unsafe class LinuxThreadServicesTests
             LinuxSyscallFrame frame = new() { Rip = UserBase + 0x100, Rsp = UserBase + 0x3000, Rflags = 2,
                 FsBase = UserBase + 0x1100, GsBase = UserBase + 0x1140 };
             HostCheck.True(Transition.InitializeUserImage(Initial, Transition.UserImageBytes, frame, 0xffbf, Access));
+            new Span<byte>(FutexCells, sizeof(Services.FutexCell) * 4).Clear();
+            if (futex) HostCheck.True(Service->EnableFutex(Key, 2, FutexPlan(futexCapacity)));
             Initial->Value = -77;
             for (uint i = 0; i < 14; i++) Initial->Gpr[i] = 0x8100000000000001UL + i * 0x0101010101010101UL;
             for (int i = 32; i < 512; i++) Initial->Fx[i] = (byte)(i * 23 + 7);
         }
+
+        internal Services.FutexAdmission FutexPlan(uint capacity = 4) => new()
+        {
+            Cells = FutexCells, Addresses = (WaitAddress.Slot*)(Kernel.Memory + 0x61000),
+            Registrations = (WaitAddress.Registration*)(Kernel.Memory + 0x62000),
+            Capacity = capacity, CellBytes = capacity * (uint)sizeof(Services.FutexCell),
+            AddressBytes = capacity * (uint)sizeof(WaitAddress.Slot), RegistrationBytes = 3 * (uint)sizeof(WaitAddress.Registration),
+            OwnerKey = 0x6675746578616464, Resolve = &ResolveFutex, ReadMonotonic = &Monotonic
+        };
 
         private ThreadContextSwitch.Descriptor WorkerContext(int i, OSHostHandle identity) => new()
         {
@@ -149,6 +166,20 @@ internal static unsafe class LinuxThreadServicesTests
         if (address == user->FailWriteAddress) { user->FailedWrites++; return 0; }
         for (uint i = 0; i < bytes; i++) user->Bytes[address - UserBase + i] = input[i];
         return 1;
+    }
+
+    [UnmanagedCallersOnly]
+    private static byte ResolveFutex(void* context, ulong address, uint** alias, ulong* lifetime)
+    {
+        if (context == null || alias == null || lifetime == null || !UserRange(address, 4, false) || (address & 3) != 0) return 0;
+        UserMemory* user = (UserMemory*)context;
+        *alias = (uint*)(user->Bytes + address - UserBase); *lifetime = user->Lifetime; return 1;
+    }
+    [UnmanagedCallersOnly]
+    private static byte Monotonic(void* context, ulong* now)
+    {
+        if (context == null || now == null || ((UserMemory*)context)->ClockFails) return 0;
+        *now = ((UserMemory*)context)->Now; return 1;
     }
 
     [HostTest("linux.thread-services start publishes a complete real binding and authenticates the current generation")]

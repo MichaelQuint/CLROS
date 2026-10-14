@@ -10,7 +10,7 @@ public static partial class EfiContracts
             {
                 [@"Boot\EfiEntry.ThreadWait.cs"] = "1444baaec07677b26e813b144f4d6f0826e83fc7529b7464bab0a4f97fa34ad3",
                 [@"..\OS.Kernel\Threading\ThreadWaitProgram.cs"] = "5c0ec00fed5bb5119ac49de5eac690ef9190187f442085d5dc375f5fc5af02c3",
-                [@"..\OS.Kernel\Threading\WaitAddress.cs"] = "85077808a12d9a20c22c24f5eff19aa7071bdc05b21c5f8b495273b6a77d6730",
+                [@"..\OS.Kernel\Threading\WaitAddress.cs"] = "b5a1dac8b29f9531ea3546b1d09141e0e720eca48e99d5668056d95f32397bd3",
                 [@"..\OS.Kernel\Threading\ThreadLocalStorage.cs"] = "4fa0a0bcdfa8caec4fe9b8234b4ae7917f164d05f8261535678219f939effc05",
                 [@"Boot\EfiEntry.KernelThread.cs"] = "5ebc94051e84b03ce511fd9c28cfa4c8260f50ae31e2f4976d2ccc8dcc7f1872",
                 [@"..\OS.Kernel\Threading\ReadyQueue.cs"] = "e07b0ed176158a1a7f4fcb36a5ed93c0c23a995a12a1e4de6afe575fa9ef601f",

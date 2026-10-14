@@ -36,8 +36,13 @@ independent saved user GPR/FP/TLS images, checked FS updates, real mask copies,
 staged exit, best-effort TID clear and off-stack reap. It also adds the explicit
 capture/resume-user bridge and gateway actions needed for the future native
 consumer. Focused host checks pass; the service is not yet linked into EFI.
-Futex/clear-TID wakeups, blocking pipes, native workers and the M16-008 mechanical
-guest remain unfinished. Signal delivery belongs to #687. All batch issues
+[Step1237](../done/step1237.md) adds the actual host-testable futex consumer over
+that owner: compare/enroll/park/completion, private and shared-anonymous keys,
+bitset wakes, monotonic deadlines, clear-TID wakeups and shutdown drain. Retained
+backing references reject overlapping memory changes through an owner guard;
+the native memory/IRQ owner still must wire that guard and the actual clock.
+Blocking pipes, native workers and the M16-008 mechanical guest remain unfinished.
+Signal delivery belongs to #687. All batch issues
 remain open pending shared qualification; the expensive full-host suite is
 deferred to the stable dependency-compatible batch requested by the user.
 
