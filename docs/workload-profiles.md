@@ -76,21 +76,23 @@ with seventeen transfers/restoration/cleanup and seven ancestors pass.
 [step1224](../done/step1224.md): 4,776 full-host checks, six original native
 bodies, three fresh 115-record guests and ten ancestors pass. That diagnostic
 restores its original context after one safe wake; it is not a continuing
-lifecycle owner. The next slice is [#188](http://192.168.4.35:3000/admin/CLROS/issues/188):
-bounded cooperative workers with repeated hardware timer wakes, atomic waits
-and off-stack reclamation. See [the lifecycle handoff](pal.md#next-bounded-lifecycle-188).
-[Step1228](../done/step1228.md) records implemented M09006 wiring and one strict
-179-record development guest with repeated hardware wakes and complete bounded
-cleanup. #188 remains open pending final native/full-host/repeated-guest and
-ancestor qualification; this does not advance the application runtime milestone.
+lifecycle owner. [Step1230](../done/step1230.md) qualifies
+[#188](http://192.168.4.35:3000/admin/CLROS/issues/188): bounded cooperative workers
+with repeated hardware timer wakes, serialized waits and off-stack reclamation.
+Its 4,806 full-host checks, scoped original native review, three byte-identical
+177-application-record guests and 15 fresh ancestors pass at source `e0dac79`.
+See [the lifecycle contract](pal.md#qualified-bounded-lifecycle-188). Seven real
+ticks, 38 transfers and four reaps return all 23 internal page leases; the
+32-page firmware reservation remains owned. This does not advance the upstream
+application-runtime milestone.
 #191 wait-on-address and #192 application FS/TLS then remain prerequisites of
 #686 alongside accepted #685. Exact managed dependencies control that sequence.
 These accepted .NET 10 checkpoints retain their historical toolchain identity.
 [Step1225](../done/step1225.md) adds a finite .NET 11 qualification: 29 strict
 QEMU captures, including three timer reruns and the expected unhandled negative,
 plus original native review and the full-host gate. It does not renew every
-historical profile. #188 is ready after #727 merges and tracker reconciliation
-completes; the existing development thread remains paused until explicitly resumed.
+historical profile. Step1230's later .NET 11 matrix qualifies only the bounded
+lifecycle and named ancestors; #191/#192 remain the next scheduler prerequisites.
 The #708/#711 qualification in [step1209](../done/step1209.md) adds explicit
 heap reservation ownership. General fixed mappings and unmaps still operate;
 they relinquish heap ownership, so brk cannot silently reclaim a replacement

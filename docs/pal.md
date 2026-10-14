@@ -8,8 +8,8 @@ allocation, initialization and publication before a safe deadline wake.
 Independent context/descriptor checks, APIC/IF/mapping restoration and release
 of all 22 borrowed pages precede success. Steps1222-1223 retain development
 failures and the evaluated-inventory/cancellation repair.
-Thread lifecycle remains #188, followed by #191 wait-on-address and #192
-application FS/TLS before #686. This adds no Linux threading,
+Step1230 qualifies #188's bounded cooperative lifecycle. #191 wait-on-address
+and #192 application FS/TLS follow before #686. This adds no Linux threading,
 upstream GC/runtime, unchanged Hello, Kestrel or numbered gate.
 
 The NativeAOT-first Linux adapter in [workload profiles](workload-profiles.md)
@@ -29,36 +29,32 @@ profile or establish execution. The managed issues contain exact source
 references, failure cases and focused commands. Coordinate edits to this shared
 document with the current integration owner.
 
-### Next: bounded lifecycle (#188)
+### Qualified bounded lifecycle (#188)
 
-[#188](http://192.168.4.35:3000/admin/CLROS/issues/188) is the next scheduler
-slice. Its managed body owns the implementation and qualification checklist.
-Stage one is implemented in `Threading/KernelThreadTable.cs`, with caller-owned
-`KernelThreadSlot` storage and generation/sequence-tagged `KernelThreadWait`.
-[Step1226](../done/step1226.md) records 12 focused host checks for admission and
-publication rollback, serialized waits, retained completion under ready pressure,
-join/cancellation/deadline races, off-stack observation, pins, scrub and reuse.
-The table performs no allocation, hardware access or native transfer. Its caller
-must provide actual IRQ serialization, mapping admission and supervisor-stack
-observations. These host controls do not qualify live lifecycle execution;
-#188 remains open and the entry/return, repeated timer and guest work below remains.
-The follow-up in [step1227](../done/step1227.md) adds the unpublished Win64
-`KernelThreadEntry` encoder and a supervisor-only `HandleIdleTimer` transaction
-over the table's private deadline queue. Host decoding checks normal return,
-cancel-before-entry and rejected starts. A simulated APIC checks three two-tick
-sleep cycles with both workers parked, retained restore failure and one epoch.
-[Step1228](../done/step1228.md) adds the default-off M09006 native owner and
-one strict 179-record **development** guest. Two original workers yield, sleep,
-join and exit on distinct stacks; two reused lifetimes exercise both
-cancellation/deadline orders. Seven real APIC ticks, 38 transfers, five retained
-join observations and four supervisor reaps complete. IRQs return to the owned
-`STI; HLT; CLI` idle path; they never convert interrupted workers into CALL
-continuations. Timer/IDT/IST/code authority is revoked before reuse, and all 23
-private-pool page borrows return before success. #188 still requires the final
-original native review, frozen full-host run, three guests and affected ancestors.
-Use the current pinned toolchain in [host requirements](host-requirements.md); historical
-.NET 10 acceptance does not qualify the .NET 11 migration. Its finite renewed
-profile evidence is recorded in [step1225](../done/step1225.md).
+[#188](http://192.168.4.35:3000/admin/CLROS/issues/188) is qualified in
+[step1230](../done/step1230.md) at frozen implementation `e0dac79`: 4,806
+full-host checks across 626 fixtures (94 Native), scoped original native review,
+three byte-identical 177-application-record guests and 15 fresh ancestors pass.
+Each stream has a 73-record lifecycle tail and two additional firmware lines.
+Two original workers and two reused lifetimes execute seven real APIC ticks,
+38 transfers, five retained join observations, both cancellation/deadline orders
+and four supervisor reaps. All 23 internal page leases return; the 32-page
+firmware reservation remains retained.
+
+`KernelThreadTable` borrows fixed caller-owned `KernelThreadSlot`, ready and
+deadline storage, with generation/sequence-tagged `KernelThreadWait` identities.
+It performs no allocation, hardware access or native transfer. The native owner
+provides actual IRQ serialization, mapping admission and supervisor-stack
+observations. `KernelThreadEntry` supplies the measured Win64 entry/return path;
+`KernelThreadProgram` supplies the finite workers/driver. IRQ callbacks return
+the exact separate 704-byte frame to owned `STI; HLT; CLI` idle, without converting
+interrupted workers to CALL continuations. Timer/IDT/IST/code authority is revoked
+before scrub/reuse. Failed restoration retains backing and cannot report READY.
+
+Steps1226-1227 retain focused owner/entry/timer controls, step1228 the development
+guest and rejected summary inventory, and step1229 the failed first full-host
+attempt and historical fixture repair. Use the pinned .NET 11/C#14 toolchain in
+[host requirements](host-requirements.md); step1225 owns its migration scope.
 
 Use a single-BSP CPL0 supervisor with fixed-capacity, caller-owned worker slots,
 distinct stacks, `X64ThreadContext`, `ReadyQueue` and `DeadlineQueue`. Keep workers
@@ -69,7 +65,7 @@ redirects its interrupted worker to the original context; it does not save that
 worker for later resumption. General asynchronous worker preemption is outside
 this slice.
 
-The lifecycle owner must define these operations together:
+The lifecycle owner enforces these operations together:
 
 | Operation | Required ownership behavior |
 | --- | --- |
@@ -87,23 +83,22 @@ owner or establish hosted-runtime readiness. Retain explicit lifetime pins for
 future consumers without adding upstream GC scanning to this ticket.
 
 `WakeReady` stops the timer while retaining the dirty hardware borrow, so calling
-`Arm` again returns `DirtyState`. The host-tested repeated-use protocol saves
+`Arm` again returns `DirtyState`. The qualified repeated-use protocol saves
 `Ticks` before successful `Restore` clears the timer, then calls
 `Prepare(initialTick: savedTick)` and `Arm` after fresh native path admission.
 Keep borrowed IDT/IST/APIC lifetimes pinned across the whole sequence; a failed
-restore blocks preparation and release. M09006 uses this protocol in its
-development guest; stable-batch qualification remains outstanding. When all workers park, an owned supervisor/idle path must enable
-interrupts and wait for actual hardware wakeups. A busy loop or injected host
-tick is not evidence of sleep. Failed timer restoration retains its storage.
+restore blocks preparation and release. M09006 uses this protocol for five
+hardware-backed wait intervals in one tick epoch. When all workers park, its
+owned supervisor enables interrupts and waits for actual hardware wakeups.
+Failed timer restoration retains its storage.
 
-The default-off `EnableM09006Probe` interface described in #188 now exists.
-Finish qualifying two workers plus supervisor with repeated yields
-and timer sleeps, all-workers-parked recovery, entry return and explicit exit,
-join before/after exit, cancellation/deadline races, rollback and stale reuse.
-Final success follows off-stack teardown and original-context/hardware restoration.
-Use focused tests during implementation, then frozen full-host, original native,
-three guest and affected ancestor evidence. Shared evaluated inventories and
-harness cancellation from step1223 must remain intact.
+The default-off `EnableM09006Probe` profile qualifies repeated yields and sleeps,
+all-workers-parked recovery, normal return and explicit exit, join before/after
+exit, cancellation/deadline races, rollback and stale reuse. Success follows
+off-stack teardown and original-context/hardware restoration. Shared evaluated
+inventories and harness cancellation from step1223 remain mandatory. This does
+not qualify application threads, arbitrary asynchronous resumption or upstream
+GC/EH/ThreadPool.
 
 Read the existing CLROS owners first. SharpOS `Thread.cs` offers state/lifetime
 ideas, `Scheduler.cs` contains `Spawn`/`HostedTrampoline`/`Yield`/`Exit`, and
@@ -112,7 +107,7 @@ context leak after failed stack allocation and its hosted binding initialization
 after runnable publication as negative tests. Do not copy its managed linked
 lists, incompatible context layout or ownership defects.
 
-After #188, #191 provides atomic wait-on-address and #192 application FS/TLS.
+Next, #191 provides atomic wait-on-address and #192 application FS/TLS.
 Those and accepted #685 are prerequisites of #686's Linux threading, futex,
 mask and blocking-pipe adapter. Signal delivery and the first unchanged NativeAOT
 Hello remain #687; comprehensive upstream runtime qualification remains #688.

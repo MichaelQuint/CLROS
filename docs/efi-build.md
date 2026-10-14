@@ -1,19 +1,20 @@
 # EFI Build
 
-## Development lifecycle profile
+## Qualified cooperative lifecycle profile
 
 `dotnet run --project tools/OS.Tooling -- efi build -BootPolicy Diagnostic -EnableM09006Probe`
-builds the new default-off single-BSP cooperative lifecycle fixture. Selection
+builds the default-off single-BSP cooperative lifecycle fixture. Selection
 requires the loaded stack, allocator, ACPI, first-exit, owned-subsystem, PCI and
 APIC parents; other leaves and disabled parents reject. Its evaluated inventory
 adds the context/timer/handle links, ready queue, five lifecycle files and the
 explicit `Boot/EfiEntry.KernelThread.cs` partial. Shared inventories bind every
 selection; the partial has a separate exact source identity.
 
-One strict 179-record development guest passes in [step1228](../done/step1228.md).
-It is not final #188 acceptance. Run the required final native/full-host/guest
-and ancestor qualification before closure. The mechanical fixture qualifies no
-unchanged application payload or Kestrel.
+[Step1230](../done/step1230.md) qualifies frozen implementation `e0dac79` with
+4,806 full-host checks, original native review, three byte-identical
+177-application-record lifecycle guests and 15 fresh ancestors. The native join
+covers all 875 original lifecycle code bodies and exact rebuilt image inputs.
+The mechanical fixture qualifies no unchanged application payload or Kestrel.
 
 ## Qualified hardware timer profile
 
