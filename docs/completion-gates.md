@@ -1,5 +1,14 @@
 # CLROS Completion Gates
 
+M09-006/#188 is qualified in [step1230](../done/step1230.md) at frozen source
+`e0dac79`: 4,806 full-host checks across 626 fixtures (94 Native), scoped original
+native review, three byte-identical 177-application-record lifecycle guests and
+15 fresh ancestors pass. Seven hardware ticks, 38 cooperative transfers, retained
+joins, both cancellation/deadline orders and four off-stack reaps complete.
+All 23 internal page leases return; the 32-page firmware reservation remains
+retained. The scope is single-BSP CPL0 cooperative workers with IRQs returning to
+supervisor idle. No numbered gate or upstream application-runtime acceptance changes.
+
 The .NET 11 toolchain/ABI migration in [step1225](../done/step1225.md) is
 qualified at implementation source `d728d2c`: 4,783 full-host checks,
 original native review and 29 independently audited strict QEMU captures pass.
@@ -11,9 +20,9 @@ Linux builder, with zero publish warnings. Full-host receipt: `artifacts/net11-m
 
 This renews only the finite profiles named in step1225. Older .NET 10 results
 retain their original source/toolchain identity. No numbered gate changes;
-CLROS guest Hello/Kestrel, continuing lifecycle, general runtime, isolation,
-cloud and production remain unqualified. #188 follows #727's merge and tracker
-reconciliation; the existing development thread remains paused.
+CLROS guest Hello/Kestrel, application lifecycle, general runtime, isolation,
+cloud and production remain unqualified. #191 wait-on-address and #192 application
+FS/TLS follow the bounded #188 qualification before #686.
 
 M09-004/#186 and #719 are qualified in [step1218](../done/step1218.md):
 4,742 full-host checks, current original native review, three fresh default-off

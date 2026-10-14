@@ -70,6 +70,10 @@ public unsafe struct SchedulerTimer
     /// performs no MMIO writes and preserves this value. Baseline must have a
     /// stopped masked timer, TPRd0/SVR1ff, empty ISR and no deliverable classE/F IRR.
     /// Lower blocked IRR is retained, as in the existing qualified APIC setup.
+    /// Repeated cooperative waits use Restore, then Prepare with the tick saved
+    /// BEFORE Restore clears this value, then Arm after fresh native path admission.
+    /// Keep IDT/IST/mapping storage pinned across that sequence; only successful
+    /// Restore proves a quiescent baseline. A stopped WakeReady borrow is dirty.
     /// </summary>
     public Status Prepare(ulong owner, ulong localApicAddress, uint reload, uint maximumDeferredTicks,
         XApicSetupAccess access, ulong rflags, ulong initialTick = 0)

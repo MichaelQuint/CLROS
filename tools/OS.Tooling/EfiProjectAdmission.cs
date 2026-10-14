@@ -153,11 +153,19 @@ public static class EfiProjectAdmission
     /// both isolated and restored evaluations require this exact selection.</summary>
     public static string[] ExpectedCompileItems(EfiProfile profile)
     {
-        bool timer = profile.IsEnabled("EnableM09005Probe"), contexts = timer || profile.IsEnabled("EnableM09004Probe");
-        // Mirror only the six reviewed conditional links; retain static inventory order
+        bool lifecycle = profile.IsEnabled("EnableM09006Probe");
+        bool timer = lifecycle || profile.IsEnabled("EnableM09005Probe"), contexts = timer || profile.IsEnabled("EnableM09004Probe");
+        // Mirror the reviewed conditional links; retain static inventory order
         // and admit no new evaluated identity, link or defining-project authority.
         return EfiContracts.CompileItems.Where(item => item switch
         {
+            @"Boot\EfiEntry.KernelThread.cs|" or
+            @"..\OS.Kernel\Threading\ReadyQueue.cs|Threading\ReadyQueue.cs" or
+            @"..\OS.Kernel\Threading\KernelThreadSlot.cs|Threading\KernelThreadSlot.cs" or
+            @"..\OS.Kernel\Threading\KernelThreadWait.cs|Threading\KernelThreadWait.cs" or
+            @"..\OS.Kernel\Threading\KernelThreadTable.cs|Threading\KernelThreadTable.cs" or
+            @"..\OS.Kernel\Threading\KernelThreadEntry.cs|Threading\KernelThreadEntry.cs" or
+            @"..\OS.Kernel\Threading\KernelThreadProgram.cs|Threading\KernelThreadProgram.cs" => lifecycle,
             @"..\OS.Kernel\Threading\X64ThreadContext.cs|Threading\X64ThreadContext.cs" or
             @"..\OS.Kernel\Threading\ThreadContextSwitch.cs|Threading\ThreadContextSwitch.cs" => contexts,
             @"..\OS.Kernel\Threading\DeadlineQueue.cs|Threading\DeadlineQueue.cs" or

@@ -1,12 +1,28 @@
 # EFI Build
 
+## Qualified cooperative lifecycle profile
+
+`dotnet run --project tools/OS.Tooling -- efi build -BootPolicy Diagnostic -EnableM09006Probe`
+builds the default-off single-BSP cooperative lifecycle fixture. Selection
+requires the loaded stack, allocator, ACPI, first-exit, owned-subsystem, PCI and
+APIC parents; other leaves and disabled parents reject. Its evaluated inventory
+adds the context/timer/handle links, ready queue, five lifecycle files and the
+explicit `Boot/EfiEntry.KernelThread.cs` partial. Shared inventories bind every
+selection; the partial has a separate exact source identity.
+
+[Step1230](../done/step1230.md) qualifies frozen implementation `e0dac79` with
+4,806 full-host checks, original native review, three byte-identical
+177-application-record lifecycle guests and 15 fresh ancestors. The native join
+covers all 875 original lifecycle code bodies and exact rebuilt image inputs.
+The mechanical fixture qualifies no unchanged application payload or Kestrel.
+
 ## Qualified hardware timer profile
 
 `dotnet run --project tools/OS.Tooling -- efi build -BootPolicy Diagnostic -EnableM09005Probe`
 selects exactly the loaded-stack, allocator, ACPI, first-exit, owned-subsystem,
 PCI and APIC parents. Other leaves and explicitly disabled parents are rejected.
 The static source inventory admits all declared links; evaluated inventories
-include the two context links for M09004 or M09005 and four timer/handle links
+include the two context links for M09004, M09005 or M09006 and four timer/handle links
 only for M09005. Normal/profile-off builds exclude all six conditional links.
 The extracted OSHostHandle retains its existing managed ABI; it grants no
 ownership authority. Step1222 preserves development failures; step1223 repairs

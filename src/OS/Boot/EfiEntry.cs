@@ -1,10 +1,10 @@
 global using System;
 
-#if M09_004_PROBE || M09_005_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
 using Cooperative = OS.Kernel.Threading.ThreadContextSwitch;
 using SavedContext = OS.Kernel.Threading.X64ThreadContext;
 #endif
-#if M09_005_PROBE
+#if M09_005_PROBE || M09_006_PROBE
 using TimerIrq = OS.Kernel.Threading.X64TimerInterrupt;
 using TickTimer = OS.Kernel.Threading.SchedulerTimer;
 using Deadlines = OS.Kernel.Threading.DeadlineQueue;
@@ -54,12 +54,12 @@ namespace OS.Boot;
 
 #pragma warning disable 649
 
-public static unsafe class EfiEntry
+public static unsafe partial class EfiEntry
 {
 #if (M03_FIRST_REAL_EXIT_BOOT_SERVICES_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
     // Explicit default-off profile. BootSequence consumes the prepared firmware
     // binding only after M01, copied ACPI and the ordinary boot marker plan.
-    private static class M03FirstExitAdapter
+    private static partial class M03FirstExitAdapter
     {
         private const ulong Page = 4096, TablePages = 55;
 #if M16_007_PROBE
@@ -101,7 +101,7 @@ public static unsafe class EfiEntry
             internal ulong PreparationCheckpoint;
             internal uint TableMemoryType;
             internal fixed ulong PageMetadata[(int)TablePages * 3]; // 24 bytes per page, naturally aligned
-#if M09_004_PROBE || M09_005_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
             internal ulong CooperativePool;
             internal uint CooperativePhase;
 #endif
@@ -389,7 +389,7 @@ public static unsafe class EfiEntry
                 !FirstExitImageMappings.Contains(ranges, count, references.CopiedAcpi, references.CopiedAcpiBytes, PageProtection.Read | PageProtection.Write) ||
                 !FirstExitImageMappings.Contains(ranges, count, references.AllocatorState, references.AllocatorStateBytes, PageProtection.Read | PageProtection.Write)) return false;
             ulong image = ranges[0].Start, imageBytes = capture.Range.ImageSize;
-#if M09_004_PROBE || M09_005_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
             state->PreparationCheckpoint = 34;
             if (!BootSequence.PrepareCooperativeSwitch(state->Phase == 2, state, &PrepareCooperativePool)) return false;
             references.CooperativePoolStart = state->CooperativePool;
@@ -718,7 +718,7 @@ public static unsafe class EfiEntry
             return true;
         }
 
-#if M09_004_PROBE || M09_005_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
         // Pre-exit reservation only. Retain every successful firmware allocation
         // before validating its extent; this slice supplies no post-exit release.
         private static bool PrepareCooperativePool(void* context)
@@ -1929,7 +1929,7 @@ public static unsafe class EfiEntry
             return true;
         }
 
-#if M09_004_PROBE || M09_005_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
         private struct CooperativeControl
         {
             internal Storage* State;
@@ -2255,7 +2255,7 @@ public static unsafe class EfiEntry
         }
 #endif
 
-#if M09_005_PROBE
+#if M09_005_PROBE || M09_006_PROBE
         private struct TimerControl
         {
             internal CooperativeControl* Cooperative;
@@ -2651,6 +2651,11 @@ public static unsafe class EfiEntry
                         if (!BootSequence.RunOwnedSchedulerTimer(state->OwnedPhase == 2, state->ApicPhase == 2,
                             transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
                             state->Arena.Binding->RetainedPointersCleared, state, &RunSchedulerTimer)) return;
+#endif
+#if M09_006_PROBE
+                        if (!BootSequence.RunOwnedKernelThreads(state->OwnedPhase == 2, state->ApicPhase == 2,
+                            transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
+                            state->Arena.Binding->RetainedPointersCleared, state, &RunKernelThreads)) return;
 #endif
 #endif
 #if M05_BAR_DMA_PROBE

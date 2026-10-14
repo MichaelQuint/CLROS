@@ -9,8 +9,13 @@ negative and three timer captures. Fresh Linux-host payload qualification also
 passes; no unchanged guest Hello or Kestrel is accepted. Use the exact pins and
 x86-64-v2 CPU contract in `docs/host-requirements.md`; C# remains 14.
 Preserve older .NET 10 receipts and the scope of profiles not rerun in step1225.
-After #727 merges and tracker reconciliation completes, #188 is the next ready
-slice. The existing development thread remains paused until explicitly resumed.
+M09-006/#188 is qualified in `done/step1230.md` at implementation source
+`e0dac79`: 4,806 full-host checks across 626 fixtures (94 Native), original
+native review, three byte-identical 177-application-record lifecycle guests and
+15 fresh ancestors pass. Seven hardware ticks drive 38 cooperative transfers;
+four supervisor reaps return 23 internal page leases. The 32-page firmware
+reservation remains retained. Next are #191 wait-on-address and #192 application
+FS/TLS before #686; unchanged guest Hello and Kestrel remain incomplete.
 
 1. Read `docs/workload-profiles.md` for the current NativeAOT-first decision.
 2. Refresh the LAN tracker and select the first unfinished dependency-compatible
@@ -22,7 +27,8 @@ slice. The existing development thread remains paused until explicitly resumed.
    checks, original native review, three 99-record/17-transfer guests and seven
    ancestors pass. #187 and children #721/#723-#726 are qualified in step1224:
    4,776 full-host checks, six original native bodies, three 115-record timer
-   guests and ten ancestors pass. The next slice is #188 lifecycle before #686.
+   guests and ten ancestors pass. #188 lifecycle is qualified in step1230;
+   #191 wait-on-address and #192 application FS/TLS precede #686.
    Review step1207 preserves
    the original defect and corrected scheduler boundaries.
    Use exact dependencies and acceptance from the managed issue, not numeric

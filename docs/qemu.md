@@ -10,6 +10,24 @@ required features; the new Linux SDK rejects it. See Microsoft's
 [.NET 11 x64 requirements](https://learn.microsoft.com/en-us/dotnet/core/whats-new/dotnet-11/runtime#x86x64-requirements).
 Historical captures below retain their original CPU/toolchain identity.
 
+## Qualified cooperative lifecycle capture
+
+`-BootPolicy Diagnostic -BuildEfi -EnableM09006Probe -TimeoutSeconds 30 -RequireMarker CLROS_M09_006_READY`
+selects the owned first-exit/APIC parents and rejects other leaves. The strict
+73-record lifecycle tail binds seven real ticks, 38 cooperative transfers,
+retained joins, both cancellation/deadline orders, rollback, reuse and four reaps.
+IRQs return the exact separate 704-byte frame to supervisor `STI; HLT; CLI` idle;
+workers keep the IRQ-off Entry/CapturedCall ABI. Original-context/APIC/IDT/IST/
+mapping restoration, revoked executable references and scrub/release precede READY.
+All 23 internal page leases return; the 32-page firmware reservation stays owned.
+
+[Step1230](../done/step1230.md) joins 4,806 full-host checks, scoped original
+native review, three byte-identical 177-application-record streams (179 raw lines
+including two firmware lines) and 15 fresh ancestor captures. Every guest rebuild
+joins its reviewed original object/map/managed producer/EFI before boot. This is
+bounded single-BSP CPL0 lifecycle, with no application TLS/futex, unchanged Hello,
+upstream runtime, Kestrel or numbered/cloud/production acceptance.
+
 ## Qualified hardware timer capture
 
 `-BootPolicy Diagnostic -BuildEfi -EnableM09005Probe -TimeoutSeconds 30 -RequireMarker CLROS_M09_005_READY`

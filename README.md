@@ -15,7 +15,7 @@ Hardware-protected isolation for multiple applications follows.
 
 **No unchanged .NET NativeAOT Hello or Kestrel application has run inside CLROS
 yet.** Current acceptance covers bounded boot, runtime and device diagnostics,
-mechanical user execution, cooperative context transfer and hardware timer wakes.
+mechanical user execution and cooperative worker lifecycle with hardware timer wakes.
 CLROS is not cloud-ready or production-ready.
 
 [Step1225](done/step1225.md) qualifies the pinned .NET 11 OS/tooling migration and
@@ -25,21 +25,21 @@ compiler and guest evidence.
 
 ## Current accepted evidence
 
-The current qualification is [step1225](done/step1225.md), using implementation
-source [`d728d2c`](http://192.168.4.35:3000/admin/CLROS/commit/d728d2c):
-**4,783 full-host checks and 29 independently audited strict QEMU
-captures**, with original native review and exact rebuilt-input joins. The matrix
-includes one expected unhandled-exception negative and three 115-record timer
-captures. Fresh static Hello, runtime exerciser and Minimal API payloads also
-pass the separate Linux-host qualifier with zero publish warnings.
+The latest scheduler qualification is [step1230](done/step1230.md), using frozen
+implementation [`e0dac79`](http://192.168.4.35:3000/admin/CLROS/commit/e0dac79):
+**4,806 full-host checks across 626 fixtures (94 Native), three lifecycle guests
+and 15 fresh ancestor captures**, with original native review and exact rebuilt
+input joins. Each lifecycle stream has 177 application records, including seven
+hardware ticks, 38 cooperative transfers, retained joins, both cancellation race
+orders and four off-stack reaps. All 23 internal page leases return; the 32-page
+firmware reservation remains retained. This qualifies single-BSP CPL0 mechanical
+workers. Application wait-on-address and FS/TLS are next, before Linux threading.
 
-Host validation includes the inventory/README repair in `7eeb787`; step1225
-retains both source checkpoints and the failed attempts.
-
-The preceding [step1224](done/step1224.md) remains the historical .NET 10 timer
-acceptance: 4,776 full-host checks, six original native bodies, three timer guests
-and ten ancestors. The current timer rerun still proves bounded single-BSP CPL0
-mechanical execution; continuing thread lifecycle remains open.
+[Step1225](done/step1225.md) separately retains the .NET 11 migration acceptance:
+4,783 full-host checks and 29 audited strict QEMU captures, including an expected
+unhandled negative and three timer reruns. Fresh static Hello, runtime exerciser
+and Minimal API payloads pass its separate Linux-host qualifier. Earlier failures
+and source checkpoints remain in their original step records.
 
 The foundation records below retain their historical toolchain and profile scope.
 Step1225 lists the finite set requalified on .NET 11.
@@ -55,6 +55,7 @@ Step1225 lists the finite set requalified on .NET 11.
 | Heap ownership | Qualified `brk` and fixed-mapping ownership repair, including a real protected-page fault control. [Step1209](done/step1209.md). |
 | Cooperative transfer | Seventeen checked transfers across distinct guarded stacks and independent original-context restoration. [Step1218](done/step1218.md). |
 | Hardware timer | Four owned interrupts, safe deferred wake and IDT/IST/APIC/mapping restoration. [Step1224](done/step1224.md). |
+| Cooperative lifecycle | Repeated hardware-backed waits, retained joins, deferred cancellation and supervisor-only scrub/reuse. [Step1230](done/step1230.md). |
 
 These diagnostics are separate profiles, not one continuing application kernel.
 Only Gate 2 passes within its documented scope. The

@@ -2,6 +2,11 @@ namespace OS.Kernel.Diagnostics;
 
 public static partial class Probes
 {
+#if M09_006_PROBE
+    public const bool EnableM09006Probe = true;
+#else
+    public const bool EnableM09006Probe = false;
+#endif
 #if M09_005_PROBE
     public const bool EnableM09005Probe = true;
 #else
@@ -259,7 +264,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 55;
+    public const int ProbeCatalogCount = 56;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -531,6 +536,10 @@ public static partial class Probes
     public static ProbeDefinition GetM09005Probe() =>
         new("thread.timer-preemption", nameof(EnableM09005Probe), EnableM09005Probe,
             ProbeRisk.Destructive, "Bounded owned LAPIC timer interrupt capture, deadline wake and context restoration after firmware revocation.");
+
+    public static ProbeDefinition GetM09006Probe() =>
+        new("thread.cooperative-lifecycle", nameof(EnableM09006Probe), EnableM09006Probe,
+            ProbeRisk.Destructive, "Bounded cooperative entry, waits, join, cancellation and off-stack reap with owned timer wakes.");
 
     public static ProbeDefinition GetM06GptPartitionProbe() =>
         new("storage.gpt-partition", nameof(EnableM06GptPartitionProbe), EnableM06GptPartitionProbe,
@@ -851,6 +860,9 @@ public static partial class Probes
                 return true;
             case 54:
                 definition = GetM09005Probe();
+                return true;
+            case 55:
+                definition = GetM09006Probe();
                 return true;
             default:
                 definition = default;

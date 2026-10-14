@@ -6,7 +6,7 @@ using OS.Tooling;
 
 internal static class EfiCompileInventoryTests
 {
-    [HostTest("EFI evaluated inventory follows declared off cooperative and timer profiles")]
+    [HostTest("EFI evaluated inventory follows declared off cooperative timer and lifecycle profiles")]
     private static void ProfileInventory()
     {
         foreach (EfiProfile profile in Profiles())
@@ -63,11 +63,12 @@ internal static class EfiCompileInventoryTests
     [
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool>()),
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09004Probe"] = true }),
-        EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09005Probe"] = true })
+        EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09005Probe"] = true }),
+        EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09006Probe"] = true })
     ];
 
     // The project declarations are an independent oracle for the shared helper.
-    // Deliberately interpret only its two reviewed predicates; a new condition
+    // Deliberately interpret only its three reviewed predicates; a new condition
     // requires an explicit test review instead of being silently treated as true.
     private static string[] DeclaredItems(EfiProfile profile)
     {
@@ -75,12 +76,14 @@ internal static class EfiCompileInventoryTests
             .Descendants("Compile").Where(item => item.Attribute("Include") is not null).ToArray();
         string Key(XElement item) => (string)item.Attribute("Include")! + "|" + ((string?)item.Attribute("Link") ?? "");
         HostCheck.True(items.Select(Key).SequenceEqual(EfiContracts.CompileItems, StringComparer.Ordinal));
-        HostCheck.Equal(6, items.Count(item => item.Attribute("Condition") is not null));
+        int unconditional = EfiProjectAdmission.ExpectedCompileItems(Profiles()[0]).Length;
+        HostCheck.Equal(EfiContracts.CompileItems.Count - unconditional, items.Count(item => item.Attribute("Condition") is not null));
         return items.Where(item => (string?)item.Attribute("Condition") switch
         {
             null => true,
-            "'$(EnableM09004Probe)' == 'true' or '$(EnableM09005Probe)' == 'true'" => profile.IsEnabled("EnableM09004Probe") || profile.IsEnabled("EnableM09005Probe"),
-            "'$(EnableM09005Probe)' == 'true'" => profile.IsEnabled("EnableM09005Probe"),
+            "'$(EnableM09004Probe)' == 'true' or '$(EnableM09005Probe)' == 'true' or '$(EnableM09006Probe)' == 'true'" => profile.IsEnabled("EnableM09004Probe") || profile.IsEnabled("EnableM09005Probe") || profile.IsEnabled("EnableM09006Probe"),
+            "'$(EnableM09005Probe)' == 'true' or '$(EnableM09006Probe)' == 'true'" => profile.IsEnabled("EnableM09005Probe") || profile.IsEnabled("EnableM09006Probe"),
+            "'$(EnableM09006Probe)' == 'true'" => profile.IsEnabled("EnableM09006Probe"),
             string condition => throw new InvalidOperationException("Unreviewed compile condition: " + condition)
         }).Select(Key).ToArray();
     }
@@ -103,7 +106,8 @@ internal static class EfiCompileInventoryTests
             {
                 ["ClrosBootPolicy"] = profile.BootPolicy,
                 ["EnableM09004Probe"] = profile.IsEnabled("EnableM09004Probe").ToString(),
-                ["EnableM09005Probe"] = profile.IsEnabled("EnableM09005Probe").ToString()
+                ["EnableM09005Probe"] = profile.IsEnabled("EnableM09005Probe").ToString(),
+                ["EnableM09006Probe"] = profile.IsEnabled("EnableM09006Probe").ToString()
             }
         };
     }
