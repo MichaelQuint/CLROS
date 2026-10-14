@@ -146,6 +146,14 @@ integration and upstream managed thread statics are separate unfinished work.
 Full-host and final guest qualification are deferred to the larger related
 NativeAOT threading/runtime batch, not run for these two host prerequisites.
 
+Shared integration #733 adds the unpublished `ThreadWaitProgram` emitter in
+[step1233](../done/step1233.md). Four fixed CALL actions optionally load actual
+FS:[0]/GS:[0] into captured R12/R13, then workers return through the existing
+exit trampoline. Four new byte/continuation controls, three original program
+controls and five source-admission checks pass. The entry/recovery/IRQ-helper/
+switch infrastructure is reused; profile wiring and actual execution remain
+unfinished. No native or guest acceptance follows from emitted bytes.
+
 ### Saved-context host contract (#183)
 
 [Step1210](../done/step1210.md) records nine focused checks for

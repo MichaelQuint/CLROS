@@ -52,7 +52,8 @@ public static unsafe class KernelThreadProgram
     public static bool Verify(byte* output, uint capacity, Plan plan) =>
         Inputs(output, capacity, plan, false) && Encode(output, plan, true);
 
-    private static bool Inputs(byte* output, uint capacity, Plan p, bool initial)
+    // Shared unpublished admission for the independent wait/TLS worker program.
+    internal static bool Inputs(byte* output, uint capacity, Plan p, bool initial)
     {
         var o = p.Owner;
         if (capacity < Bytes || ((ulong)output & 15) != 0 || !Range((ulong)output, Bytes) || o.CodeBytes != Bytes ||
@@ -103,7 +104,9 @@ public static unsafe class KernelThreadProgram
         a.ContextArena == b.ContextArena && a.ContextArenaBytes == b.ContextArenaBytes && a.CodeStart == b.CodeStart && a.CodeBytes == b.CodeBytes &&
         a.SwitchStackGuardStart == b.SwitchStackGuardStart && a.SwitchStackBytes == b.SwitchStackBytes;
 
-    private static bool Encode(byte* output, Plan p, bool compare)
+    internal static bool EncodeInfrastructure(byte* output, Plan p, bool compare) => Encode(output, p, compare, false);
+
+    private static bool Encode(byte* output, Plan p, bool compare, bool workers = true)
     {
         ulong code = p.Owner.CodeStart;
         for (uint i = 0; i < 2; i++)
@@ -118,7 +121,7 @@ public static unsafe class KernelThreadProgram
         }
         if (!KernelThreadEntry.Encode(output == null ? null : output + EntryA, p.First, compare) ||
             !KernelThreadEntry.Encode(output == null ? null : output + EntryB, p.Second, compare)) return false;
-        for (uint i = 0; i < 3; i++)
+        for (uint i = 0; workers && i < 3; i++)
         {
             uint offset = i == 0 ? WorkerA : i == 1 ? WorkerB : ReusedWorker;
             ThreadContextSwitch.StubWriter w = new(output == null ? null : output + offset, code + offset, compare, 256);
