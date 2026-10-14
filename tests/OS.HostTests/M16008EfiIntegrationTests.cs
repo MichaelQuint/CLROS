@@ -41,6 +41,8 @@ internal static unsafe class M16008EfiIntegrationTests
         HostCheck.True(plan.Required.Contains("CLROS_M16_008_READY") && plan.Required.Contains("M16_008_RESTORE") &&
             plan.Required.Contains("M16_008_RESUME") && plan.Required.Contains("M05_APIC 3") &&
             !plan.Required.Contains("CLROS_M16_007_READY") && !plan.Unique.Contains("M16_008_CALL"));
+        foreach (string repeated in new[] { "M16_008_CALL", "M16_008_RESUME", "M16_008_SUPERVISOR", "M16_008_EXIT", "M16_008_REAP", "M16_008_TICK" })
+            HostCheck.True(!plan.Ordered.Contains(repeated) && !plan.Unique.Contains(repeated));
         HostCheck.True(!BootSequence.RunOwnedLinuxThreads(true, true, true, true, null, null));
         Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["--DryRun", "--BuildEfi", "--EnableM16008Probe", "--RequireMarker", "CLROS_M16_007_READY"])));
         Reject(() => QemuTranscripts.AssertM03AcpiBootstrapTranscript("missing", linuxThreads: true), "m16_008_profile_invalid");

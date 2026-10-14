@@ -6,7 +6,7 @@ public static partial class QemuTranscripts
 {
     public static IReadOnlyList<string> M16LinuxThreadMarkers { get; } = Array.AsReadOnly<string>(
         ["TEST_START m16-008", "M16_006_POLICY", "M16_007_POLICY", "M16_005_ARMED", "M16_008_BOUND", "M16_008_CALL",
-         "M16_008_SUPERVISOR", "M16_008_RESUME", "M16_008_EXIT", "M16_008_REAP", "M16_008_TICK", "M16_005_WRITE",
+         "M16_008_SUPERVISOR", "M16_008_RESUME", "M16_008_EXIT", "M16_008_REAP", "M16_005_WRITE",
          "M16_008_OWNER_END", "M16_008_RESTORE", "CLROS_M16_008_READY", "TEST_PASS m16-008"]);
 
     /// <summary>Validate one exact mechanical thread tail against its complete
@@ -16,8 +16,8 @@ public static partial class QemuTranscripts
     public static void ValidateLinuxThreadTail(string[] tail, byte[] package, ulong startupUserRoot, ulong restoredKernelRoot)
     {
         if (tail is null || package is null) throw new ToolFailure("m16_008_tail_input");
-        Need(package.AsSpan().SequenceEqual(LinuxThreadProofFixture.CreatePackage("Threads")), "m16_008_fixture_identity");
-        Need(tail.Length is >= 171 and <= 298, "m16_008_tail_inventory");
+        string variant = LinuxThreadProofFixture.PackageVariant(package);
+        Need(tail.Length is >= 30 and <= 298, "m16_008_tail_inventory");
         int position = 0;
         string Take() { Need(position < tail.Length, "m16_008_truncated"); return tail[position++]; }
         void Exact(string expected) => Need(Take() == expected, "m16_008_record_order_" + expected);
@@ -33,6 +33,9 @@ public static partial class QemuTranscripts
             bound["pool"] is >= 4096 and <= 0xfffc0000 && bound["pool"] % 4096 == 0 && bound["workers"] == 2 &&
             bound["code"] == 16384 && bound["metadata"] == 45056 && bound["userImage"] == 728, "m16_008_bound_geometry");
         DistinctExtents([(bound["root"], 4096), (armed["root"], 4096), (bound["pool"], 64 * 4096)], "m16_008_bound_roots_pool");
+
+        if (variant != "Threads") { ValidateLinuxPipeControl(tail[5..], variant); return; }
+        Need(tail.Length is >= 171 and <= 298, "m16_008_thread_tail_inventory");
 
         // Independent Linux ABI vectors; fd values and PID/TIDs are bound to
         // actual earlier rows. The child has no replayed clone syscall row.
@@ -168,4 +171,98 @@ public static partial class QemuTranscripts
     }
 
     private readonly record struct LinuxThreadExpected(ulong Nr, ulong A0 = 0, ulong A1 = 0, ulong A2 = 0, ulong A3 = 0, ulong A4 = 0);
+
+    private static void ValidateLinuxPipeControl(string[] tail, string variant)
+    {
+        bool write = variant == "PipeWriteClose", shutdown = variant == "PipeShutdown";
+        int position = 0;
+        string Take() { Need(position < tail.Length, "m16_008_pipe_truncated"); return tail[position++]; }
+        void Exact(string expected) => Need(Take() == expected, "m16_008_pipe_order_" + expected);
+        Dictionary<string, ulong> Row(string prefix, params string[] fields) => ReadRecord(Take(), prefix, fields);
+        LinuxThreadExpected[] parent = [new(39), new(186), new(158,0x1002,0x402000), new(14,2,0x401020,0,8), new(293,0x401000),
+            new(write || shutdown ? 0UL : 1UL),
+            .. (write ? new LinuxThreadExpected[] { new(1,0,0x402000,4096) } : []),
+            new(56,0x7d0f00,0x406000,0x401008,0x40100c,0x403000),
+            shutdown ? new(202,0x401010,128,0,0x401058) : new(write ? 1UL : 0UL,0,0x401078,4),
+            .. (shutdown ? Array.Empty<LinuxThreadExpected>() : [new(3)]), new(1,1,0x400180,15), new(231,42)];
+        LinuxThreadExpected[] child = shutdown ? [new(0,0,0x401078,4)] : [new(3), new(60)];
+        var parentRips = LinuxThreadProofFixture.ExpectedReturnRips(variant);
+        var childRips = LinuxThreadProofFixture.ExpectedReturnRips(variant, child: true);
+        Need(parentRips.Count == parent.Length && childRips.Count == child.Length, "m16_008_pipe_instruction_inventory");
+        const ulong p = 0x100000001, c = 0x100000002;
+        int clone = write ? 7 : 6, block = clone + 1;
+        ulong pid = 0, readFd = 0, writeFd = 0, clock = 0, timeoutClock = 0, ticks = 0;
+        void Call(bool isChild, int index)
+        {
+            var row = Row("M16_008_CALL", "identity:dec", "nr:dec", "a0:dec", "a1:dec", "a2:dec", "a3:dec", "a4:dec", "a5:dec",
+                "rip:dec", "rsp:dec", "flags:dec", "fs:dec", "gs:dec", "clock:dec", "valueBits:dec", "action:dec", "status:dec");
+            var expected = (isChild ? child : parent)[index];
+            if (!isChild && index == 0)
+            { pid = row["valueBits"]; Need(pid is > 0 and < int.MaxValue, "m16_008_pipe_pid"); }
+            if (isChild && index == 0 || !isChild && (index == 5 || write && index == 6 || !write && !shutdown && index == block))
+            {
+                bool read = isChild ? write || shutdown : index == 5 ? write || shutdown : !write;
+                ref ulong fd = ref (read ? ref readFd : ref writeFd);
+                if (fd == 0) fd = row["a0"];
+                Need(row["a0"] == fd && fd is >= 3 and < 16 && (readFd == 0 || writeFd == 0 || readFd != writeFd), "m16_008_pipe_fd");
+            }
+            ulong a0 = expected.A0;
+            if (isChild && index == 0) a0 = write || shutdown ? readFd : writeFd;
+            else if (!isChild && index == 5) a0 = write || shutdown ? readFd : writeFd;
+            else if (!isChild && (write && index == 6 || !shutdown && (index == block || index == block + 1)))
+                a0 = write ? writeFd : readFd;
+            Need(row["identity"] == (isChild ? c : p) && row["nr"] == expected.Nr && row["a0"] == a0 &&
+                row["a1"] == expected.A1 && row["a2"] == expected.A2 && row["a3"] == expected.A3 && row["a4"] == expected.A4 && row["a5"] == 0 &&
+                row["rip"] == (isChild ? childRips : parentRips)[index] && row["rsp"] == (isChild ? 0x406000UL : 0x405000UL) &&
+                row["fs"] == (isChild ? 0x403000UL : index < 2 ? 0UL : 0x402000UL) && row["gs"] == 0 &&
+                (row["flags"] & 2) != 0 && (row["flags"] & ~LinuxSyscallGateway.UserRflagsMask) == 0, "m16_008_pipe_call_binding");
+            bool blocked = isChild ? shutdown : index == block;
+            bool exited = isChild ? !shutdown && index == 1 : index == parent.Length - 1;
+            long value = !isChild && index is 0 or 1 ? (long)pid : !isChild && index == clone ? (long)pid + 1 :
+                !isChild && write && index == 6 ? 4096 : !isChild && index == parent.Length - 2 ? 15 : 0;
+            Need(row["valueBits"] == unchecked((ulong)value) && row["action"] == (blocked ? 3UL : exited ? isChild ? 4UL : 2UL : 1UL) &&
+                row["status"] == (blocked ? 9UL : exited ? 2UL : 1UL), "m16_008_pipe_call_outcome");
+            bool sample = !isChild && shutdown && index == block;
+            Need(row["clock"] >= clock && row["clock"] <= long.MaxValue && (sample || row["clock"] == clock), "m16_008_pipe_call_clock");
+            clock = row["clock"];
+            if (sample) { timeoutClock = clock; Need(clock <= (ulong)long.MaxValue - 1_000_000, "m16_008_pipe_time_overflow"); }
+        }
+        void Calls(bool isChild, int first, int last) { for (int i = first; i <= last; i++) Call(isChild, i); }
+        void Supervisor(ulong identity, uint action, uint transfers, uint ready, uint active)
+        {
+            var row = Row("M16_008_SUPERVISOR", "identity:dec", "action:dec", "transfers:dec", "ready:dec", "active:dec");
+            Need(row["identity"] == identity && row["action"] == action && row["transfers"] == transfers && row["ready"] == ready && row["active"] == active,
+                "m16_008_pipe_supervisor");
+        }
+        void Exit(ulong identity)
+        { var row = Row("M16_008_EXIT", "identity:dec", "clearTidResult:dec"); Need(row["identity"] == identity && row["clearTidResult"] == 0, "m16_008_pipe_exit"); }
+        void Reap(ulong identity) => Exact("M16_008_REAP old=" + identity + " next=" + (identity + (1UL << 32)) + " context=zero stack=zero slot=zero");
+        Calls(false, 0, block); Supervisor(p, 3, 2, 1, 2);
+        Calls(true, 0, child.Length - 1);
+        if (shutdown)
+        {
+            Supervisor(c, 3, 4, 0, 2);
+            while (true)
+            {
+                var tick = Row("M16_008_TICK", "epoch:dec", "nanos:dec", "ready:dec");
+                Need(++ticks <= 128 && tick["epoch"] == ticks && tick["nanos"] > clock && tick["nanos"] <= long.MaxValue && tick["ready"] <= 1,
+                    "m16_008_pipe_tick"); clock = tick["nanos"];
+                if (tick["ready"] == 1) { Need(clock >= timeoutClock + 1_000_000, "m16_008_pipe_timeout"); break; }
+                Need(clock < timeoutClock + 1_000_000, "m16_008_pipe_missed_timeout");
+            }
+        }
+        else { Exit(c); Supervisor(c, 4, 4, 1, 2); Reap(c); }
+        var resume = Row("M16_008_RESUME", "identity:dec", "valueBits:dec", "status:dec");
+        Need(resume["identity"] == p && resume["valueBits"] == unchecked((ulong)(shutdown ? -110L : write ? -32L : 0L)) && resume["status"] == 1,
+            "m16_008_pipe_completion");
+        if (!shutdown) Call(false, block + 1);
+        Exact("M16_005_WRITE fd=1 bytes=15 data=M16_THREADS_OK!"); Call(false, parent.Length - 2); Call(false, parent.Length - 1);
+        Exit(p); Supervisor(p, 2, 6, shutdown ? 1U : 0U, shutdown ? 2U : 1U); Reap(p);
+        if (shutdown) { Exit(c); Supervisor(c, 4, 8, 0, 1); Reap(c); }
+        Exact("M16_008_OWNER_END reaped=2 transfers=" + (shutdown ? 8 : 6) + " irqs=" + ticks +
+            " exit=42 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed reservation=retained");
+        Exact("M16_008_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
+        Exact("CLROS_M16_008_READY"); Exact("TEST_PASS m16-008");
+        Need(position == tail.Length, "m16_008_pipe_extra_record");
+    }
 }

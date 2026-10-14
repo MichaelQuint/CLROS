@@ -30,6 +30,21 @@ are 28,672; the strict tail requires 103 calls, 21 completions, 52 transfers and
 five reaps. Generate a fresh package after this change as well. The native
 owner and profile are unchanged; no execution evidence is added.
 
+[Step1247](../done/step1247.md) adds `PipeReadClose`, `PipeWriteClose` and
+`PipeShutdown` packages under the same profile. Append the variant to the
+compiled package command, using a fresh output path, for example:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/m16-008-read-close.pkg PipeReadClose
+```
+
+The default variant remains `Threads`, whose bytes are unchanged. Canonical
+preflight identifies complete package bytes; a manifest name alone cannot
+select a protocol. The runner orders the common envelope, while the complete
+validator enforces each package's exact calls, peer-close wakeups, timer and
+cancelled-child exit order. Close-only cases require no IRQ; Threads and
+PipeShutdown require actual HPET timeout records. All remain unexecuted inputs.
+
 The future qualification command is:
 
 ```powershell

@@ -57,6 +57,18 @@ the tail. A separate user RW page holds the full read, leaving stacks, TLS and
 control words disjoint. The current strict contract is 103 calls, 21 completions,
 52 transfers and five reaps. This remains an unexecuted mechanical input.
 
+[Step1247](../done/step1247.md) adds three small packages under the same M16-008
+profile. PipeReadClose requires a parked reader to resume with EOF after the
+child closes the write endpoint. PipeWriteClose fills the pipe, then requires
+a parked writer to resume with EPIPE after the child closes the read endpoint;
+the mechanical owner explicitly ignores SIGPIPE. PipeShutdown parks a child
+reader, resumes the parent through its genuine HPET-driven futex timeout and
+requires exit_group42 to drain the child without any further user call or
+successful read completion. All require two off-stack reaps and drained/scrubbed
+ownership. Earlier zero-byte I/O binds peer fds without assuming fd numbers.
+The complete package bytes select each strict protocol before build/launch.
+These are focused host/input/parser checks; none of these guests has run.
+
 This remains focused host/source and freestanding C# evidence. No native worker,
 timer callback or mechanical ELF has executed. Original native/stack review,
 live stress/negatives and guest/ancestor qualification remain required. Signal

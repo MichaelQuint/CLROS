@@ -120,16 +120,106 @@ internal static class LinuxThreadTranscriptTests
 
     // Entirely synthetic host parser input. Decode actual instruction boundaries
     // and arguments independently; do not use the producer's expected-RIP API.
+    [HostTest("m16-008 pipe control tails bind EOF EPIPE peer wake and timed process shutdown without child user resumption")]
+    private static void PipeControls()
+    {
+        foreach (string variant in new[] { "PipeReadClose", "PipeWriteClose", "PipeShutdown" })
+        foreach (int ticks in variant == "PipeShutdown" ? new[] { 1,3,128 } : new[] { 0 })
+        {
+            string[] rows = SyntheticPipe(variant,ticks); byte[] package = LinuxThreadProofFixture.CreatePackage(variant);
+            QemuTranscripts.ValidateLinuxThreadTail(rows,package,0x200000,0x100000);
+            HostCheck.Equal(variant == "PipeShutdown" ? 11 : variant == "PipeWriteClose" ? 14 : 13, Indices(rows,"M16_008_CALL ").Length);
+            HostCheck.Equal(1,Indices(rows,"M16_008_RESUME ").Length);
+            HostCheck.Equal(variant == "PipeShutdown" ? 4 : 3, Indices(rows,"M16_008_SUPERVISOR ").Length);
+            HostCheck.Equal(2,Indices(rows,"M16_008_REAP ").Length);
+            HostCheck.Equal(ticks,Indices(rows,"M16_008_TICK ").Length);
+            HostCheck.True(Indices(rows,"M16_008_RESUME ").All(i => Field(rows[i],"identity") == 0x100000001));
+        }
+    }
+
+    [HostTest("m16-008 pipe controls reject cross-package frames forged peer results cancelled-child return and dropped lifecycle records")]
+    private static void PipeControlRejections()
+    {
+        foreach (string variant in new[] { "PipeReadClose", "PipeWriteClose", "PipeShutdown" })
+        {
+            string[] rows = SyntheticPipe(variant, variant == "PipeShutdown" ? 3 : 0); byte[] package = LinuxThreadProofFixture.CreatePackage(variant);
+            foreach (string other in LinuxThreadProofFixture.Variants.Where(x => x != variant)) Reject(rows,LinuxThreadProofFixture.CreatePackage(other));
+            foreach (int call in Indices(rows,"M16_008_CALL "))
+            foreach (string field in new[] { "identity","nr","a0","a1","a2","a3","a4","a5","rip","rsp","fs","gs","clock","valueBits","action","status" })
+                Reject(Change(rows,call,field,Field(rows[call],field) ^ 1),package);
+            int completion = Indices(rows,"M16_008_RESUME ").Single();
+            Reject(Change(rows,completion,"identity",0x100000002),package);
+            Reject(Change(rows,completion,"valueBits",Field(rows[completion],"valueBits") ^ 1),package);
+            for (int row = 0; row < rows.Length; row++)
+            {
+                Reject([.. rows[..row], .. rows[(row + 1)..]],package);
+                Reject([.. rows[..row], rows[row], .. rows[row..]],package);
+            }
+            foreach (int at in Indices(rows,"M16_008_EXIT ")) Reject(Change(rows,at,"clearTidResult",unchecked((ulong)-14L)),package);
+            foreach (int at in Indices(rows,"M16_008_SUPERVISOR "))
+            foreach (string field in new[] { "identity","action","transfers","ready","active" }) Reject(Change(rows,at,field,Field(rows[at],field) ^ 1),package);
+            if (variant == "PipeShutdown")
+            {
+                int exit = Indices(rows,"M16_008_EXIT ")[1];
+                Reject([.. rows[..exit], "M16_008_RESUME identity=4294967298 valueBits=0 status=1", .. rows[exit..]],package);
+                int[] ticks = Indices(rows,"M16_008_TICK ");
+                Reject(Change(rows,ticks[0],"ready",1),package); Reject(Change(rows,ticks[^1],"nanos",Field(rows[ticks[0]],"nanos")),package);
+                Reject(SyntheticPipe(variant,129),package);
+            }
+        }
+    }
+
+    private static List<string> Header() => ["TEST_START m16-008",
+        "M16_006_POLICY physical=268435456 available=134217728 poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel",
+        "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=28672 package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler",
+        "M16_005_ARMED root=2097152 cs=59 ss=51 kernelStack=9437184 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null",
+        "M16_008_BOUND root=1048576 pool=3145728 workers=2 code=16384 metadata=45056 userImage=728 timer=idle-only clock=hpet-nanoseconds reuse=off-stack"];
+
+    private static string[] SyntheticPipe(string variant, int ticks)
+    {
+        const ulong p = 0x100000001, c = 0x100000002, pid = 103, readFd = 7, writeFd = 12;
+        bool write = variant == "PipeWriteClose", shutdown = variant == "PipeShutdown";
+        var parent = Decode(false,variant); var child = Decode(true,variant); int clone = write ? 7 : 6, block = clone + 1;
+        ulong clock = 0; List<string> rows = Header();
+        void Call(bool isChild,int index)
+        {
+            var call = (isChild ? child : parent)[index];
+            if (!isChild && shutdown && index == block) clock += 10_000;
+            ulong a0 = call.FdOffset == 0x1000 ? readFd : call.FdOffset == 0x1004 ? writeFd : call.A0;
+            long value = !isChild && index is 0 or 1 ? (long)pid : !isChild && index == clone ? (long)pid + 1 :
+                !isChild && write && index == 6 ? 4096 : !isChild && index == parent.Count - 2 ? 15 : 0;
+            bool blocked = isChild ? shutdown : index == block, exited = isChild ? !shutdown && index == 1 : index == parent.Count - 1;
+            ulong action = blocked ? 3UL : exited ? isChild ? 4UL : 2UL : 1UL, status = blocked ? 9UL : exited ? 2UL : 1UL;
+            rows.Add(FormattableString.Invariant($"M16_008_CALL identity={(isChild ? c : p)} nr={call.Nr} a0={a0} a1={call.A1} a2={call.A2} a3={call.A3} a4={call.A4} a5={call.A5} rip={call.Rip} rsp={(isChild ? 0x406000UL : 0x405000UL)} flags=2 fs={(isChild ? 0x403000UL : index < 2 ? 0UL : 0x402000UL)} gs=0 clock={clock} valueBits={unchecked((ulong)value)} action={action} status={status}"));
+        }
+        void Supervisor(ulong identity,uint action,uint transfers,uint ready,uint active) => rows.Add(FormattableString.Invariant($"M16_008_SUPERVISOR identity={identity} action={action} transfers={transfers} ready={ready} active={active}"));
+        void Exit(ulong identity) => rows.Add(FormattableString.Invariant($"M16_008_EXIT identity={identity} clearTidResult=0"));
+        void Reap(ulong identity) => rows.Add(FormattableString.Invariant($"M16_008_REAP old={identity} next={identity + (1UL << 32)} context=zero stack=zero slot=zero"));
+        for (int i = 0; i <= block; i++) Call(false,i); Supervisor(p,3,2,1,2);
+        for (int i = 0; i < child.Count; i++) Call(true,i);
+        if (shutdown)
+        {
+            Supervisor(c,3,4,0,2); ulong start = clock;
+            for (int tick = 1; tick <= ticks; tick++)
+            { clock = start + (ulong)tick * 1_000_000 / (uint)ticks; rows.Add(FormattableString.Invariant($"M16_008_TICK epoch={tick} nanos={clock} ready={(tick == ticks ? 1 : 0)}")); }
+        }
+        else { Exit(c); Supervisor(c,4,4,1,2); Reap(c); }
+        rows.Add(FormattableString.Invariant($"M16_008_RESUME identity={p} valueBits={unchecked((ulong)(shutdown ? -110L : write ? -32L : 0L))} status=1"));
+        if (!shutdown) Call(false,block + 1);
+        rows.Add("M16_005_WRITE fd=1 bytes=15 data=M16_THREADS_OK!"); Call(false,parent.Count - 2); Call(false,parent.Count - 1);
+        Exit(p); Supervisor(p,2,6,shutdown ? 1U : 0U,shutdown ? 2U : 1U); Reap(p);
+        if (shutdown) { Exit(c); Supervisor(c,4,8,0,1); Reap(c); }
+        rows.Add(FormattableString.Invariant($"M16_008_OWNER_END reaped=2 transfers={(shutdown ? 8 : 6)} irqs={ticks} exit=42 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed reservation=retained"));
+        rows.Add("M16_008_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
+        rows.Add("CLROS_M16_008_READY"); rows.Add("TEST_PASS m16-008"); return rows.ToArray();
+    }
+
     private static string[] Synthetic(int ticks = 3, ulong pid = 17, ulong readFd = 7, ulong writeFd = 12)
     {
         const ulong p = 0x100000001;
         ulong c = 0x100000002; int cycle = 0;
         var parent = Decode(false); var child = Decode(true); ulong clock = 0;
-        List<string> rows = ["TEST_START m16-008",
-            "M16_006_POLICY physical=268435456 available=134217728 poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel",
-            "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=28672 package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler",
-            "M16_005_ARMED root=2097152 cs=59 ss=51 kernelStack=9437184 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null",
-            "M16_008_BOUND root=1048576 pool=3145728 workers=2 code=16384 metadata=45056 userImage=728 timer=idle-only clock=hpet-nanoseconds reuse=off-stack"];
+        List<string> rows = Header();
         void Call(bool isChild, int index)
         {
             var call = (isChild ? child : parent)[index];
@@ -171,9 +261,9 @@ internal static class LinuxThreadTranscriptTests
     }
 
     private readonly record struct CallFrame(ulong Nr, ulong A0, ulong A1, ulong A2, ulong A3, ulong A4, ulong A5, ulong Rip, int FdOffset);
-    private static List<CallFrame> Decode(bool child)
+    private static List<CallFrame> Decode(bool child, string variant = "Threads")
     {
-        byte[] elf = LinuxThreadProofFixture.CreateElf("Threads"); ulong[] r = new ulong[16]; List<CallFrame> calls = []; int fd = -1;
+        byte[] elf = LinuxThreadProofFixture.CreateElf(variant); ulong[] r = new ulong[16]; List<CallFrame> calls = []; int fd = -1;
         for (int at = child ? 0x900 : 0x200, end = child ? 0xf00 : 0x900; at < end && elf[at] != 0xcc;)
         {
             byte op = elf[at]; int size;

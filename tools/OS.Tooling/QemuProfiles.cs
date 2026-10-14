@@ -153,6 +153,9 @@ public static class QemuProfiles
             string[] repeated = ["M16_008_CALL", "M16_008_RESUME", "M16_008_SUPERVISOR", "M16_008_EXIT", "M16_008_REAP", "M16_008_TICK"];
             Select(records, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8", "M16_002_STAGE_REJECTED"], true,
                 records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)).ToArray());
+            // Exact call/completion/exit/tick ordering is package-specific and
+            // enforced by the complete canonical transcript validator.
+            ordered = records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)).ToArray();
         }
         else if (Enabled("M09009") || Enabled("M09010"))
         {

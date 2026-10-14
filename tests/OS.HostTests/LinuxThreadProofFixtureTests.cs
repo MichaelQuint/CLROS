@@ -188,7 +188,7 @@ internal static unsafe class LinuxThreadProofFixtureTests
     [HostTest("m16-008 thread fixture exposes fresh exact inventories and rejects every unsupported variant", HostLane.Fast, 3)]
     private static void FreshAndRejected()
     {
-        HostCheck.True(LinuxThreadProofFixture.Variants.SequenceEqual(new[] { "Threads" }));
+        HostCheck.True(LinuxThreadProofFixture.Variants.SequenceEqual(new[] { "Threads", "PipeReadClose", "PipeWriteClose", "PipeShutdown" }));
         byte[] changed = LinuxThreadProofFixture.CreateElf("Threads"); changed[0x180] ^= 1;
         HostCheck.True(LinuxThreadProofFixture.CreateElf("Threads").AsSpan(0x180, 15).SequenceEqual("M16_THREADS_OK!"u8));
         HostCheck.True(!ReferenceEquals(LinuxThreadProofFixture.ExpectedReturnRips("Threads"), LinuxThreadProofFixture.ExpectedReturnRips("Threads")));
@@ -198,6 +198,77 @@ internal static unsafe class LinuxThreadProofFixtureTests
             Reject(() => LinuxThreadProofFixture.ExpectedReturnRips(variant)); Reject(() => LinuxThreadProofFixture.ExpectedReturnRips(variant, child: true));
             Reject(() => LinuxThreadProofFixture.ExpectedCalls(variant)); Reject(() => LinuxThreadProofFixture.CloneReturnRip(variant));
             Reject(() => LinuxThreadProofFixture.SuccessRip(variant)); Reject(() => LinuxThreadProofFixture.ChildExitRip(variant)); Reject(() => LinuxThreadProofFixture.Witness(variant));
+        }
+    }
+
+    [HostTest("m16-008 peer-close and shutdown ELF controls bind actual pipe calls opposite endpoint close and no resumed shutdown child")]
+    private static void PipeControlInstructions()
+    {
+        HostCheck.Equal("1DD7D9828914DB92A8C0FAB494C6841ED3CD02217F2634F4A1F44A813ABA374E",
+            Convert.ToHexString(SHA256.HashData(LinuxThreadProofFixture.CreatePackage("Threads"))));
+        foreach (string variant in new[] { "PipeReadClose", "PipeWriteClose", "PipeShutdown" })
+        {
+            bool write = variant == "PipeWriteClose", shutdown = variant == "PipeShutdown";
+            byte[] elf = LinuxThreadProofFixture.CreateElf(variant);
+            var p = Decode(elf, 0x200, 0x900); var c = Decode(elf, 0x900, 0xf00);
+            uint[] numbers = write ? [39,186,158,14,293,0,1,56,1,3,1,231] : shutdown ? [39,186,158,14,293,0,56,202,1,231] : [39,186,158,14,293,1,56,0,3,1,231];
+            HostCheck.True(p.Calls.Select(x => x.Number).SequenceEqual(numbers) &&
+                c.Calls.Select(x => x.Number).SequenceEqual(shutdown ? new uint[] { 0 } : new uint[] { 3,60 }));
+            HostCheck.True(p.Calls.Select(x => x.Rip).SequenceEqual(LinuxThreadProofFixture.ExpectedReturnRips(variant)) &&
+                c.Calls.Select(x => x.Rip).SequenceEqual(LinuxThreadProofFixture.ExpectedReturnRips(variant, child: true)));
+            int clone = write ? 7 : 6, block = clone + 1;
+            Check(p.Calls[clone], 56, 0x7d0f00, 0x406000, 0x401008, 0x40100c, 0x403000);
+            HostCheck.Equal(p.Calls[clone].Rip, LinuxThreadProofFixture.CloneReturnRip(variant));
+            HostCheck.True(p.Calls[5].FdOffset == (write || shutdown ? 0x1000 : 0x1004) && p.Calls[5].A1 == 0 && p.Calls[5].A2 == 0);
+            if (write) HostCheck.True(p.Calls[6].FdOffset == 0x1004 && p.Calls[6].A1 == 0x402000 && p.Calls[6].A2 == 4096);
+            if (shutdown) Check(p.Calls[block], 202, 0x401010, 128, 0, 0x401058);
+            else HostCheck.True(p.Calls[block].FdOffset == (write ? 0x1004 : 0x1000) && p.Calls[block].A1 == 0x401078 && p.Calls[block].A2 == 4);
+            HostCheck.True(c.Calls[0].FdOffset == (write || shutdown ? 0x1000 : 0x1004));
+            if (shutdown)
+            {
+                HostCheck.True(c.Calls[0].A1 == 0x401078 && c.Calls[0].A2 == 4 && elf[(int)(c.Calls[0].Rip - 0x400000)] == 0xe9);
+                HostCheck.Equal(0UL, LinuxThreadProofFixture.ChildExitRip(variant));
+            }
+            else
+            {
+                HostCheck.True(MemoryCheck(elf, p, 0x100c, 0));
+                Check(c.Calls[1], 60, 0, 0, 0);
+                HostCheck.Equal(c.Calls[1].Rip, LinuxThreadProofFixture.ChildExitRip(variant));
+                HostCheck.True(p.Calls[block + 1].Number == 3 && p.Calls[block + 1].FdOffset == p.Calls[block].FdOffset);
+            }
+            HostCheck.True(FsCheck(elf.AsSpan(0x200,0x700),0x13579bdf) && FsCheck(elf.AsSpan(0x900,0x600),0x2468ace0));
+            int returned = (int)(p.Calls[block].Rip - 0x400000);
+            HostCheck.True(elf[returned] == 0x48 && elf[returned + 1] == 0x3d &&
+                BinaryPrimitives.ReadInt32LittleEndian(elf.AsSpan(returned + 2)) == (shutdown ? -110 : write ? -32 : 0));
+            Check(p.Calls[^2],1,1,0x400180,15); Check(p.Calls[^1],231,42,0,0);
+            HostCheck.True(p.Branches.All(x => x.Target is 0x900 or 0xf00) && c.Branches.All(x => x.Target == 0xf00));
+        }
+    }
+
+    [HostTest("m16-008 canonical pipe packages preflight all variants without trusting manifest labels or overwriting output")]
+    private static void PipeControlPackages()
+    {
+        string directory = Directory.CreateTempSubdirectory("clros-thread-controls-").FullName;
+        try
+        {
+            foreach (string variant in LinuxThreadProofFixture.Variants)
+            {
+                string path = Path.Combine(directory, variant + ".pkg");
+                LinuxThreadProofFixture.WritePackage(path, variant);
+                byte[] package = File.ReadAllBytes(path); HostCheck.Equal(variant, LinuxThreadProofFixture.PackageVariant(package));
+                HostCheck.True(LinuxElfPackage.Validate(package).Succeeded);
+                using (FileStream input = File.OpenRead(path)) { LinuxThreadProofFixture.RequirePackage(input); HostCheck.Equal(0L,input.Position); }
+                bool rejected = false; try { LinuxThreadProofFixture.WritePackage(path, "Threads"); } catch (IOException) { rejected = true; }
+                HostCheck.True(rejected && File.ReadAllBytes(path).AsSpan().SequenceEqual(package));
+                package[64] ^= 1; rejected = false;
+                try { _ = LinuxThreadProofFixture.PackageVariant(package); } catch (ToolFailure) { rejected = true; }
+                HostCheck.True(rejected); File.Delete(path);
+            }
+        }
+        finally
+        {
+            foreach (string path in Directory.EnumerateFiles(directory)) File.Delete(path);
+            Directory.Delete(directory);
         }
     }
 

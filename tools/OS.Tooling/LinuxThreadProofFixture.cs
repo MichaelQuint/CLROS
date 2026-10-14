@@ -13,7 +13,7 @@ namespace OS.Tooling;
 /// upstream application, native execution or signal delivery is qualified.</summary>
 public static class LinuxThreadProofFixture
 {
-    public static IReadOnlyList<string> Variants { get; } = Array.AsReadOnly<string>(["Threads"]);
+    public static IReadOnlyList<string> Variants { get; } = Array.AsReadOnly<string>(["Threads", "PipeReadClose", "PipeWriteClose", "PipeShutdown"]);
     public const string AppPath = "apps/m16threads.elf", ThreadWitness = "M16_THREADS_OK!";
     public const ulong ImageBase = 0x400000, DataBase = 0x401000;
     public const ulong ParentTls = 0x402000, ChildTls = 0x403000, ChangedChildTls = 0x403040;
@@ -31,10 +31,10 @@ public static class LinuxThreadProofFixture
     public const int ChildOldMask = 0x1040, ParentFsOut = 0x1048, ChildFsOut = 0x1050, TimeoutOffset = 0x1058;
     public const int PayloadOffset = 0x1070, ReadOffset = 0x1078;
 
-    /// <summary>Actual syscall continuations on the successful assertion path
-    /// for the parent or all four sequential child lifetimes, including exits.
-    /// Repeated loop instructions
-    /// retain their actual RIPs. Child inventory excludes the synthetic clone return;
+    /// <summary>Actual syscall continuations on the selected assertion path,
+    /// including exits. Threads expands its four child lifetimes and preserves
+    /// repeated instruction RIPs; pipe controls have one child. Child inventory
+    /// excludes the synthetic clone return and kernel-only cancelled exit;
     /// CloneReturnRip separately names the child's first saved continuation.
     /// Each call returns fresh immutable inventory storage; exit99 is excluded.</summary>
     public static IReadOnlyList<ulong> ExpectedReturnRips(string variant, bool child = false)
@@ -42,15 +42,17 @@ public static class LinuxThreadProofFixture
     public static uint ExpectedCalls(string variant, bool child = false) => (uint)ExpectedReturnRips(variant, child).Count;
     public static ulong CloneReturnRip(string variant) => Build(variant).Clone;
     public static ulong SuccessRip(string variant) => Build(variant).Parent[^1];
-    public static ulong ChildExitRip(string variant) => Build(variant).Child[^1];
+    /// <summary>Actual user exit continuation; zero for PipeShutdown, whose
+    /// parked child must exit through the kernel without user resumption.</summary>
+    public static ulong ChildExitRip(string variant) => variant == "PipeShutdown" ? 0 : Build(variant).Child[^1];
     public static string Witness(string variant) { Validate(variant); return ThreadWitness; }
 
     /// <summary>Write this mechanical package to a fresh caller-selected path.
     /// CreateNew rejects existing files atomically; no existing bytes are changed.
     /// The output is a fixture only and establishes no execution evidence.</summary>
-    public static void WritePackage(string path)
+    public static void WritePackage(string path, string variant = "Threads")
     {
-        byte[] package = CreatePackage("Threads");
+        byte[] package = CreatePackage(variant);
         path = Path.GetFullPath(path);
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         using FileStream output = new(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
@@ -64,13 +66,22 @@ public static class LinuxThreadProofFixture
     /// Mismatches/truncation fail without changing input bytes or granting proof.</summary>
     public static void RequirePackage(Stream input)
     {
-        byte[] expected = CreatePackage("Threads");
-        if (!input.CanRead || !input.CanSeek || input.Position != 0 || input.Length != expected.Length)
+        if (!input.CanRead || !input.CanSeek || input.Position != 0 || input.Length is < ElfBytes or > ElfBytes + 4096)
             throw new ToolFailure("m16_008_package_identity");
-        byte[] observed = new byte[expected.Length];
+        byte[] observed = new byte[checked((int)input.Length)];
         input.ReadExactly(observed);
-        if (!observed.AsSpan().SequenceEqual(expected)) throw new ToolFailure("m16_008_package_identity");
+        _ = PackageVariant(observed);
         input.Position = 0;
+    }
+
+    /// <summary>Identify only a complete byte-identical canonical mechanical
+    /// package. Untrusted manifest names alone cannot select a validator.
+    /// Unknown, altered and truncated input throws before native execution.</summary>
+    public static string PackageVariant(ReadOnlySpan<byte> package)
+    {
+        foreach (string variant in Variants)
+            if (package.SequenceEqual(CreatePackage(variant))) return variant;
+        throw new ToolFailure("m16_008_package_identity");
     }
 
     /// <summary>Build a fresh deterministic package containing the complete ELF
@@ -94,7 +105,8 @@ public static class LinuxThreadProofFixture
     }
 
     /// <summary>Build a static non-PIE x64 ELF. Parent exit_group42 follows all
-    /// checks; all four child exit60 lifetimes join through actual clear-TID/wake. Every
+    /// checks. Threads joins four child exits; pipe controls exercise opposite
+    /// peer close or cancellation of an actual parked read. Every
     /// assertion mismatch terminates the whole process with exit_group99.</summary>
     public static byte[] CreateElf(string variant) => Build(variant).Elf;
 
@@ -117,6 +129,8 @@ public static class LinuxThreadProofFixture
         U64(TimeoutOffset, 0); U64(TimeoutOffset + 8, 1_000_000); // Genuine relative 1ms, not a synthetic yield.
         "PIPE"u8.CopyTo(elf.AsSpan(PayloadOffset));
         U64(0x2000, 0x13579bdf); U64(0x2ff8, 0x5a5a5a5a); U64(0x3000, 0x2468ace0); U64(0x3040, 0x31415926);
+
+        if (variant != "Threads") return BuildPipeControl(elf, variant);
 
         Writer p = new(elf, EntryOffset);
         p.Op(0xc031, 2); p.Op(0xc88c66, 3); p.Compare(0x3b); // Actual CPL3 CS.
@@ -174,15 +188,65 @@ public static class LinuxThreadProofFixture
         c.FdCall(1, PairOffset + 4, ParentTls, 4100); c.Compare(4100); // Retain 4096-byte progress while blocked; complete the final four bytes once.
         c.Call(60, 0, 0, 0); c.JumpFailure();
         if (c.Position > FailureOffset) throw new ToolFailure("m16_008_fixture_child_capacity");
-        Writer failure = new(elf, FailureOffset); failure.Op(0xfc, 1); failure.Call(231, 99, 0, 0); failure.Op(0xf4, 1);
-        if (failure.Rips[0] != FailureExitRip) throw new ToolFailure("m16_008_fixture_failure_rip");
+        WriteFailure(elf);
         ulong[] parent = [.. p.Rips.Take(9), .. Enumerable.Range(0, ReuseCycles).SelectMany(_ => p.Rips.Skip(9).Take(10)), .. p.Rips.Skip(19)];
         ulong[] children = Enumerable.Range(0, ReuseCycles).SelectMany(_ => c.Rips).ToArray();
         return (elf, parent, children, clone);
     }
 
+    private static (byte[] Elf, ulong[] Parent, ulong[] Child, ulong Clone) BuildPipeControl(byte[] elf, string variant)
+    {
+        bool write = variant == "PipeWriteClose", shutdown = variant == "PipeShutdown";
+        Writer p = new(elf, EntryOffset);
+        p.Op(0xc031, 2); p.Op(0xc88c66, 3); p.Compare(0x3b);
+        p.Immediate(4, (uint)ParentStackTop); p.Store32(0x4ff8, 0x13579bdf);
+        p.Call(39, 0, 0, 0); p.Positive(); p.Op(0xc48941, 3); p.StoreRax(ParentPidOffset);
+        p.Call(186, 0, 0, 0); p.CompareR12();
+        p.Call(158, 0x1002, ParentTls, 0); p.Compare(0);
+        p.Call(14, 2, Address(ParentMaskOffset), 0, 8); p.Compare(0);
+        p.Call(293, Address(PairOffset), 0, 0); p.Compare(0);
+        p.FdCall(write || shutdown ? 0U : 1U, PairOffset + (write || shutdown ? 0 : 4), 0, 0); p.Compare(0);
+        if (write) { p.FdCall(1, PairOffset + 4, ParentTls, 4096); p.Compare(4096); }
+        p.Call(56, 0x7d0f00, ChildStackTop, Address(ParentTidOffset), Address(ClearTidOffset), ChildTls);
+        ulong clone = p.Rips[^1]; p.Op(0xc08548, 3); p.Branch(0x84, ChildOffset);
+        p.Positive(); p.CompareR12(0x84); p.StoreRax(CloneTidOffset); p.CompareMemory(ParentTidOffset); p.Memory(ClearTidOffset, 1);
+        if (shutdown)
+        { p.Call(202, Address(GateOffset), 128, 0, Address(TimeoutOffset)); p.Compare(-110); }
+        else
+        {
+            p.FdCall(write ? 1U : 0U, PairOffset + (write ? 4 : 0), Address(ReadOffset), 4); p.Compare(write ? -32 : 0);
+            p.Memory(ClearTidOffset, 0);
+            p.FdCall(3, PairOffset + (write ? 4 : 0), 0, 0); p.Compare(0);
+        }
+        p.Memory(0x4ff8, 0x13579bdf); p.Fs(); p.Compare(0x13579bdf);
+        p.Call(1, 1, ImageBase + WitnessOffset, (uint)ThreadWitness.Length); p.Compare(ThreadWitness.Length);
+        p.Call(231, 42, 0, 0); p.JumpFailure();
+        if (p.Position > ChildOffset) throw new ToolFailure("m16_008_fixture_parent_capacity");
+
+        Writer c = new(elf, ChildOffset);
+        c.Compare(0); c.Op(0xe08948, 3); c.Compare((long)ChildStackTop);
+        c.Fs(); c.Compare(0x2468ace0);
+        if (shutdown) c.FdCall(0, PairOffset, Address(ReadOffset), 4);
+        else
+        {
+            c.FdCall(3, PairOffset + (write ? 0 : 4), 0, 0); c.Compare(0);
+            c.Call(60, 0, 0, 0);
+        }
+        c.JumpFailure(); // Shutdown must drain the parked child without another user return.
+        if (c.Position > FailureOffset) throw new ToolFailure("m16_008_fixture_child_capacity");
+        WriteFailure(elf);
+        return (elf, p.Rips.ToArray(), c.Rips.ToArray(), clone);
+    }
+
+    private static void WriteFailure(byte[] elf)
+    {
+        Writer failure = new(elf, FailureOffset); failure.Op(0xfc, 1); failure.Call(231, 99, 0, 0); failure.Op(0xf4, 1);
+        if (failure.Rips[0] != FailureExitRip) throw new ToolFailure("m16_008_fixture_failure_rip");
+    }
+
     private static ulong Address(int offset) => ImageBase + (uint)offset;
-    private static void Validate(string variant) { if (variant != "Threads") throw new ToolFailure("m16_008_fixture_variant"); }
+    private static void Validate(string variant)
+    { if (variant is not ("Threads" or "PipeReadClose" or "PipeWriteClose" or "PipeShutdown")) throw new ToolFailure("m16_008_fixture_variant"); }
 
     // All syscall arguments are explicit. Only pipe fd arguments are replaced
     // with actual pair loads; no allocation order or initial TID is assumed.
