@@ -207,7 +207,7 @@ internal static class M02DoubleFaultIstEfiIntegrationTests
                 }
             }
             """);
-        File.WriteAllText(Path.Combine(dir,"Adapter.csproj"),"<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks><ImplicitUsings>enable</ImplicitUsings></PropertyGroup><ItemGroup><ProjectReference Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS.Kernel/OS.Kernel.csproj"))+"\"/><Compile Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS/Boot/X64InstructionPublication.cs"))+"\"/><Compile Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS/Runtime/RuntimeImportAttribute.cs"))+"\"/></ItemGroup></Project>");
+        File.WriteAllText(Path.Combine(dir,"Adapter.csproj"),"<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks><ImplicitUsings>enable</ImplicitUsings></PropertyGroup><ItemGroup><ProjectReference Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS.Kernel/OS.Kernel.csproj"))+"\"/><Compile Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS/Boot/X64InstructionPublication.cs"))+"\"/><Compile Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS/Runtime/RuntimeImportAttribute.cs"))+"\"/></ItemGroup></Project>");
         Result r=Process(root,"dotnet","run","--project",Path.Combine(dir,"Adapter.csproj"),"-c","Release");File.WriteAllText(Path.Combine(dir,"run.log"),r.Output);Require(r.Code==0,r.Output);
     }
     private static string Transcript(int zeroLevels=4)
@@ -341,7 +341,7 @@ internal static class M02DoubleFaultIstEfiIntegrationTests
             Result r=Tool(["efi","build","--boot-policy","Diagnostic","-EfiOutputPath",artifact,"-LogPath",Path.Combine(dir,"publish.log"),..(enabled?new[]{"-"+Flag}:Array.Empty<string>())]);
             File.WriteAllText(Path.Combine(dir,"run.log"),r.Output);Require(r.Code==0&&r.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal)&&r.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),r.Output);
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(Path.Combine(root,artifact)+suffix,Path.Combine(dir,"image.EFI"+suffix));
-            foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(dir,file.Item2));
+            foreach(var file in new[]{(OS.Tooling.EfiContracts.ManagedAssemblyRelativePath("Release"),"OS.dll"),("src/OS/obj/Release/net11.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net11.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(dir,file.Item2));
             string link=Path.ChangeExtension(Path.Combine(root,artifact),"link.json");
             if(!File.Exists(link))link=Path.Combine(root,artifact)+".link.json";
             using JsonDocument document=JsonDocument.Parse(File.ReadAllText(link));JsonElement evidence=document.RootElement;

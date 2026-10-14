@@ -4,7 +4,7 @@ This directory contains host-testable kernel contracts. Root `AGENTS.md` applies
 
 ## Purpose
 
-`OS.Kernel` holds code that should eventually run in the kernel, but is currently compiled as a normal `net10.0` library so host tests can verify contracts before real boot integration.
+`OS.Kernel` holds code that should eventually run in the kernel, but is currently compiled as a normal `net11.0` library so host tests can verify contracts before real boot integration.
 
 ## Architecture Rules
 
@@ -18,7 +18,7 @@ This directory contains host-testable kernel contracts. Root `AGENTS.md` applies
 
 ## Runtime Restrictions
 
-Even though this project builds on normal .NET 10, write kernel-facing code as if it will move to a constrained NativeAOT/no-stdlib environment.
+Even though this project builds on normal .NET 11, write kernel-facing code as if it will move to a constrained NativeAOT/no-stdlib environment.
 
 - Avoid exceptions in kernel-facing paths.
 - Avoid `throw` for control flow.

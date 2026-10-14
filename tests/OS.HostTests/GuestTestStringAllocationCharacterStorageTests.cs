@@ -17,7 +17,7 @@ using Status = OS.Kernel.Runtime.RhpNewFastStatus;
 internal static unsafe class GuestTestStringAllocationCharacterStorageTests
 {
     private const ulong Token = 0x1234567800000008;
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
 
     [HostFixture(HostLane.Native)]
     internal static void Run()
@@ -70,7 +70,7 @@ internal static unsafe class GuestTestStringAllocationCharacterStorageTests
         Expect(f, Status.NotInitialized, profile: 0, token: 0, flags: 0, length: long.MinValue);
         Require(Bind(f).Succeeded, "existing binder");
         Expect(f, Status.UnsupportedProfile, profile: 0, token: 0, flags: 0, length: long.MinValue);
-        foreach (NativeAotLayoutProfile profile in new[] { (NativeAotLayoutProfile)2, (NativeAotLayoutProfile)255 })
+        foreach (NativeAotLayoutProfile profile in new[] { NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, (NativeAotLayoutProfile)255 })
             Expect(f, Status.UnsupportedProfile, profile: profile);
         Expect(f, Status.InvalidMethodTableToken, token: 0, flags: 0, length: long.MinValue);
         byte[] before = f.Snapshot();
@@ -476,7 +476,7 @@ internal static unsafe class GuestTestStringAllocationCharacterStorageTests
         File.WriteAllText(Path.Combine(directory,"Compile.csproj"),$$"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
-                <TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion>
+                <TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion>
                 <OutputType>Library</OutputType><AssemblyName>CLROS.M04.String.NoStdLib</AssemblyName>
                 <EnableDefaultCompileItems>false</EnableDefaultCompileItems><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
                 <NoStdLib>true</NoStdLib><DefineConstants>NOSTDLIB_EFI</DefineConstants><NoConfig>true</NoConfig>
@@ -508,7 +508,7 @@ internal static unsafe class GuestTestStringAllocationCharacterStorageTests
         File.WriteAllText(Path.Combine(directory,"build.stdout.log"),stdout.Result);File.WriteAllText(Path.Combine(directory,"build.stderr.log"),stderr.Result);
         File.WriteAllText(Path.Combine(directory,"result.json"),System.Text.Json.JsonSerializer.Serialize(new{Exited=exited,NativeExit=process.ExitCode,EndedUtc=DateTime.UtcNow}));
         Require(exited && process.ExitCode==0,"actual eleven-source String no-stdlib compile: "+directory+" "+stdout.Result+stderr.Result);
-        using FileStream stream=File.OpenRead(Path.Combine(directory,"bin","Release","net10.0","CLROS.M04.String.NoStdLib.dll"));
+        using FileStream stream=File.OpenRead(Path.Combine(directory,"bin","Release","net11.0","CLROS.M04.String.NoStdLib.dll"));
         using PEReader pe=new(stream);MetadataReader metadata=pe.GetMetadataReader();
         Require(metadata.AssemblyReferences.Count==0,"zero AssemblyRefs");
         foreach((string type,string method) in new[]{("GuestTestStringAllocationCharacterStorage","TryAllocate"),("GuestTestRhpNewFast","TryAllocate"),("GuestTestRhpNewFast","TryAllocateArray"),("GuestTestRhpNewFast","TryAllocateString"),("GuestTestRhpNewFast","AllocateCore")})

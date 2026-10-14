@@ -11,7 +11,7 @@ internal static class NormalFinallyThunkGeneratorTests
             string root=HostToolProcess.FindRepositoryRoot(),folder=Path.Combine(root,"artifacts/normal-finally-thunk",Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(folder);
             _=ExceptionHandlingThunkGeneratorTests.Run(root,folder,"build",["build","tools/OS.X64TextSerializerGenerator","--nologo","-m:1"]);
-            var assembly=Assembly.LoadFile(Path.Combine(root,"tools/OS.X64TextSerializerGenerator/bin/Debug/net10.0/OS.X64TextSerializerGenerator.dll"));
+            var assembly=Assembly.LoadFile(Path.Combine(root,"tools/OS.X64TextSerializerGenerator/bin/Debug/net11.0/OS.X64TextSerializerGenerator.dll"));
             object normal=assembly.GetType("OS.X64TextSerializerGenerator.NormalFinallyThunkGenerator",true)!.GetMethod("Define")!.Invoke(null,null)!;
             object original=assembly.GetType("OS.X64TextSerializerGenerator.ExceptionHandlingThunkGenerator",true)!.GetMethod("Define",Type.EmptyTypes)!.Invoke(null,null)!;
             Array Sections(object value)=>(Array)value.GetType().GetProperty("Sections")!.GetValue(value)!;

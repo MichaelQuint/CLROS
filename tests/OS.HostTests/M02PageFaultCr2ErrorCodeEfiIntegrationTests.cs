@@ -153,7 +153,7 @@ internal static class M02PageFaultCr2ErrorCodeEfiIntegrationTests
                 }
             }
             """);
-        File.WriteAllText(Path.Combine(dir,"Adapter.csproj"),"<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks><ImplicitUsings>enable</ImplicitUsings></PropertyGroup><ItemGroup><ProjectReference Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS.Kernel/OS.Kernel.csproj"))+"\"/><Compile Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS/Boot/X64InstructionPublication.cs"))+"\"/><Compile Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS/Runtime/RuntimeImportAttribute.cs"))+"\"/></ItemGroup></Project>");
+        File.WriteAllText(Path.Combine(dir,"Adapter.csproj"),"<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks><ImplicitUsings>enable</ImplicitUsings></PropertyGroup><ItemGroup><ProjectReference Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS.Kernel/OS.Kernel.csproj"))+"\"/><Compile Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS/Boot/X64InstructionPublication.cs"))+"\"/><Compile Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS/Runtime/RuntimeImportAttribute.cs"))+"\"/></ItemGroup></Project>");
         Result r=Process(root,"dotnet","run","--project",Path.Combine(dir,"Adapter.csproj"),"-c","Release");File.WriteAllText(Path.Combine(dir,"run.log"),r.Output);Require(r.Code==0,r.Output);
     }
     [HostTest("m02.014.efi strict numeric transcript and lifecycle", HostLane.Fast, 2)]
@@ -261,7 +261,7 @@ internal static class M02PageFaultCr2ErrorCodeEfiIntegrationTests
             Require(evaluation.GetProperty("compileSha256").GetString()==OS.Tooling.EfiEvidence.HashLines(expectedCompileItems),"ordered evaluated compile inventory");
             var properties=evaluation.GetProperty("properties");var flags=properties.EnumerateObject().Where(x=>x.Name.StartsWith("Enable",StringComparison.Ordinal)).ToArray();Require(flags.Length==OS.Tooling.EfiContracts.DiagnosticProbes.Count,"complete diagnostic switch inventory");
             foreach(var flag in flags)Require(flag.Value.GetString()==(enabled&&(Prerequisites.Contains(flag.Name,StringComparer.Ordinal)||flag.Name==Flag)?"true":"false"),"actual evaluated "+flag.Name);
-            string assembly=Path.Combine(root,"src/OS/bin/Release/net10.0/win-x64/OS.dll");using var reader=new PEReader(File.OpenRead(assembly));Require(reader.GetMetadataReader().AssemblyReferences.Count==0,"actual no-stdlib metadata");
+            string assembly=Path.Combine(root,OS.Tooling.EfiContracts.ManagedAssemblyRelativePath("Release"));using var reader=new PEReader(File.OpenRead(assembly));Require(reader.GetMetadataReader().AssemblyReferences.Count==0,"actual no-stdlib metadata");
         }
     }
     private static string Adapter(string text) => Between(text,"    private static class M02PageFaultAdapter","#endif");

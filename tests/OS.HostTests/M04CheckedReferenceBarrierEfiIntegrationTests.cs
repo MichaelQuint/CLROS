@@ -392,7 +392,7 @@ internal static class M04CheckedReferenceBarrierEfiIntegrationTests
             .Select(x => "<Compile Include=\"" + SecurityElement.Escape(Path.Combine(root, x)) + "\"/>"));
         string project = Path.Combine(path, "Core.csproj");
         File.WriteAllText(project, """
-            <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion>
+            <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion>
             <OutputType>Exe</OutputType><AllowUnsafeBlocks>true</AllowUnsafeBlocks><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
             <EnableDefaultCompileItems>false</EnableDefaultCompileItems><DefineConstants>CHECKED_REFERENCE_CORE_TEST</DefineConstants><UseSharedCompilation>false</UseSharedCompilation></PropertyGroup><ItemGroup>
             """ + includes + "<ProjectReference Include=\"" + SecurityElement.Escape(Path.Combine(root, "src/OS.Kernel/OS.Kernel.csproj")) + "\"/></ItemGroup></Project>", new UTF8Encoding(false));
@@ -591,7 +591,7 @@ internal static class M04CheckedReferenceBarrierEfiIntegrationTests
             Result r = Command(ToolArguments("efi build", ["-EfiOutputPath", artifact, "-LogPath", Path.Combine(directory, "publish.log"), .. flags.Select(x => "-" + x)]), Path.Combine(directory, "publish")); Passed(r);
             Need(r.Output.Contains("TEST_PASS efi.shell.publish", StringComparison.Ordinal) && r.Output.Contains("TEST_PASS efi.artifact.verify", StringComparison.Ordinal), "complete actual publication and verifier");
             foreach (string suffix in new[] { "", ".link.json", ".link.map", ".link.rsp", ".serializer.obj" }.Concat(enabled ? new[] { ".references.obj" } : [])) File.Copy(artifact + suffix, Path.Combine(directory, "image.EFI" + suffix));
-            foreach (var file in new[] { ("src/OS/bin/Release/net10.0/win-x64/OS.dll", "OS.dll"), ("src/OS/obj/Release/net10.0/win-x64/native/OS.obj", "OS.obj"), ("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml", "OS.map.xml") }) File.Copy(Path.Combine(root, file.Item1), Path.Combine(directory, file.Item2));
+            foreach (var file in new[] { (OS.Tooling.EfiContracts.ManagedAssemblyRelativePath("Release"), "OS.dll"), ("src/OS/obj/Release/net11.0/win-x64/native/OS.obj", "OS.obj"), ("src/OS/obj/Release/net11.0/win-x64/native/OS.map.xml", "OS.map.xml") }) File.Copy(Path.Combine(root, file.Item1), Path.Combine(directory, file.Item2));
             using var json = System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact + ".link.json")); var e = json.RootElement; var inputs = e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray(); Need(inputs.Length == OS.Tooling.EfiEvidence.SourceClosurePaths(root).Count, "complete raw source inventory");
             foreach (var input in inputs) { string path = input.GetProperty("path").GetString()!; byte[] bytes = File.ReadAllBytes(Path.Combine(root, path)); Need(Hash(bytes).Equals(input.GetProperty("sha256").GetString(), StringComparison.OrdinalIgnoreCase), "actual source " + path); string copy = Path.Combine(directory, "source", path); Directory.CreateDirectory(Path.GetDirectoryName(copy)!); File.WriteAllBytes(copy, bytes); }
             string[] expectedCompileItems = OS.Tooling.EfiProjectAdmission.ExpectedCompileItems(

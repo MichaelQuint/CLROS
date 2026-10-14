@@ -272,7 +272,8 @@ internal static class QemuRunnerTests
     {
         ProcessResult r = RunQemuRunner("--dry-run", "--qemu", "qemu-test", "--image", Path.Combine(root,"rng-default.raw"));
         return r.ExitCode == 0 && r.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal) &&
-            !r.Output.Contains("FIRMWARE_RNG_SOURCE", StringComparison.Ordinal) && !r.Output.Contains("-cpu", StringComparison.Ordinal) &&
+            !r.Output.Contains("FIRMWARE_RNG_SOURCE", StringComparison.Ordinal) && r.Output.Contains("-cpu Nehalem", StringComparison.Ordinal) &&
+            r.Output.Split("-cpu", StringSplitOptions.None).Length == 2 &&
             !r.Output.Contains("rng-builtin", StringComparison.Ordinal) && !r.Output.Contains("virtio-rng-pci", StringComparison.Ordinal);
     }
     private static bool TestFirmwareRngSource(string root, string source)
@@ -284,8 +285,8 @@ internal static class QemuRunnerTests
         return command.Contains("-device ich9-ahci,id=ahci", StringComparison.Ordinal) &&
             command.IndexOf("ide-hd,drive=esp,bus=ahci.0",StringComparison.Ordinal) > command.IndexOf("ich9-ahci,id=ahci",StringComparison.Ordinal) &&
             command.IndexOf("virtio-net-pci,netdev=n0",StringComparison.Ordinal) > command.IndexOf("ide-hd,drive=esp,bus=ahci.0",StringComparison.Ordinal) &&
-            command.IndexOf("-cpu qemu64,-rdrand,-rdseed",StringComparison.Ordinal) > command.IndexOf("virtio-net-pci,netdev=n0",StringComparison.Ordinal) &&
-            command.Contains("-cpu qemu64,-rdrand,-rdseed", StringComparison.Ordinal) &&
+            command.IndexOf("-cpu Nehalem,-rdrand,-rdseed",StringComparison.Ordinal) > command.IndexOf("virtio-net-pci,netdev=n0",StringComparison.Ordinal) &&
+            command.Contains("-cpu Nehalem,-rdrand,-rdseed", StringComparison.Ordinal) &&
             (source == "virtio" ? command.Contains("-object rng-builtin,id=clrosrng -device virtio-rng-pci,rng=clrosrng", StringComparison.Ordinal) :
                 !command.Contains("rng-builtin", StringComparison.Ordinal) && !command.Contains("virtio-rng-pci", StringComparison.Ordinal));
     }

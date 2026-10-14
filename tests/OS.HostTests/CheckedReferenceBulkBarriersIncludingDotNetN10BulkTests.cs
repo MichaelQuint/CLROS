@@ -295,7 +295,7 @@ internal static unsafe class CheckedReferenceBulkBarriersIncludingDotNetN10BulkT
     private static void CheckMixed()
     {
         using Fixture f = new();
-        const NativeAotLayoutProfile layout = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
+        const NativeAotLayoutProfile layout = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
         Require(GuestTestRhpNewFast.InitializeOnce(f.Access, f.State, 96).Succeeded, "bind real sole cursor");
         for (int round = 0; round < 8; round++)
         {
@@ -434,7 +434,7 @@ internal static unsafe class CheckedReferenceBulkBarriersIncludingDotNetN10BulkT
         File.WriteAllText(Path.Combine(directory,"Compile.csproj"),$$"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
-                <TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion>
+                <TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion>
                 <OutputType>Library</OutputType><AssemblyName>CLROS.M04.CheckedReference.NoStdLib</AssemblyName>
                 <EnableDefaultCompileItems>false</EnableDefaultCompileItems><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
                 <NoStdLib>true</NoStdLib><DefineConstants>NOSTDLIB_EFI</DefineConstants><NoConfig>true</NoConfig>
@@ -474,7 +474,7 @@ internal static unsafe class CheckedReferenceBulkBarriersIncludingDotNetN10BulkT
         foreach (var input in identities)
             Require(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(Path.Combine(root,input.Path))))==input.Sha256,
                 "no-stdlib source unchanged: "+input.Path);
-        using var stream=File.OpenRead(Path.Combine(directory,"bin","Release","net10.0","CLROS.M04.CheckedReference.NoStdLib.dll"));
+        using var stream=File.OpenRead(Path.Combine(directory,"bin","Release","net11.0","CLROS.M04.CheckedReference.NoStdLib.dll"));
         using PEReader image=new(stream); MetadataReader metadata=image.GetMetadataReader();
         Require(metadata.AssemblyReferences.Count==0,"actual eleven-source closure has zero AssemblyRefs");
         TypeDefinition leaf=metadata.TypeDefinitions.Select(metadata.GetTypeDefinition)

@@ -98,7 +98,7 @@ public readonly struct GCStaticRootResult
 }
 
 /// <summary>
-/// Pinned .NET 10.0.12 x64/little-endian, one uninitialized GC-static entry and
+/// Pinned .NET 11.0.0 RC2 x64/little-endian, one uninitialized GC-static entry and
 /// one positive GCDesc series. ValidateOne performs no writes, callbacks,
 /// allocations or payload object reads. The image/owner must remain mapped and exclusively
 /// stable through the call, under the TypeManager unsafe caller contract.
@@ -140,7 +140,7 @@ public static unsafe class GCStaticRootsMalformedMetadata
         if (region.Length != 4) return new(GCStaticMetadataStatus.UnsupportedEntryCount);
 
         // The second lookup authenticates the same registered owner and supplies
-        // the complete protected slot, even though the lookup row reports eight.
+        // the complete 16-byte protected indirection slot.
         TypeManagerModuleResult slot = TypeManagerModuleMetadataLiveNativeAOTImage.TryGetSection(
             capture, mapping, owner, ownerCapacity, moduleHandle, 204);
         if (!slot.Succeeded) return new(GCStaticMetadataStatus.ModuleRejected, slot.Status);
@@ -290,7 +290,7 @@ public static unsafe class GCStaticRootsMalformedMetadata
         Copy(candidate.Snapshot + 44, (byte*)decoded.RelatedType, 24);
 
         RhpNewFastResult receipt = GuestTestRhpNewFast.TryAllocateStaticBase(heap, bump, bumpCapacity,
-            NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, decoded.Flags, decoded.BaseSize, decoded.MethodTable);
+            NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, decoded.Flags, decoded.BaseSize, decoded.MethodTable);
         if (!receipt.AllocationSucceeded) return new(GCStaticRootStatus.HeapRejected, heapStatus: receipt.Status);
         candidate.Receipt = receipt;
         *root = candidate; // First root write: the allocation is now consumed.

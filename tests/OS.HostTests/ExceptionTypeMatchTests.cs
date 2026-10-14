@@ -9,7 +9,7 @@ using Status = OS.Kernel.Runtime.ExceptionTypeMatchStatus;
 
 internal static unsafe class ExceptionTypeMatchTests
 {
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
     private const uint ClassFlags = 0x50000000;
 
     [HostTest("m04.exception_type_match.identity", HostLane.Fast, 0)]
@@ -265,9 +265,9 @@ internal static unsafe class ExceptionTypeMatchTests
             Section(2, ".modules", 0x5000, 8, 0x40000040);
             Section(3, ".text", 0x6000, 0x1000, 0x60000020);
             W64(Image + 0x5000, Address(0x1000)); W32(Image + 0x1000, 0x00525452);
-            W16(Image + 0x1004, 16); W16(Image + 0x100C, 4); Image[0x100E] = 24; Image[0x100F] = 1;
-            Row(0, 201, 1, 0x1200, 0x1204); Row(1, 202, 1, 0x2100, 0x2108);
-            Row(2, 204, 0, 0x2000, 0); Row(3, 213, 1, 0x1210, 0x1210);
+            W16(Image + 0x1004, 26); W16(Image + 0x1006, 1); W16(Image + 0x100C, 4); Image[0x100E] = 16; Image[0x100F] = 1;
+            Row(0, 201, 4, 0x1200); Row(1, 202, 8, 0x2100);
+            Row(2, 204, 16, 0x2000); Row(3, 213, 0, 0x1210);
             var observation = EfiLoadedImageProtocolObservation.CaptureFromUefiBoundary(0, 0x1000, 0x2000, (ulong)Image, 0x8000);
             Capture = EfiLoadedImageRangeCapturePlan.Create(&observation, 1, 1, 4096);
             Mapping = M01LoadedImageVirtualMappingEvidence.CaptureCallerAttestedIdentity(Capture);
@@ -318,8 +318,8 @@ internal static unsafe class ExceptionTypeMatchTests
             Require(new ReadOnlySpan<byte>(ImageStorage, 0xD000).SequenceEqual(image) &&
                 new ReadOnlySpan<byte>(HeapStorage, 65536).SequenceEqual(heap), "all input and canary bytes preserved");
         }
-        private void Row(int index, uint id, uint flags, int start, int end)
-        { byte* p = Image + 0x1010 + index * 24; W32(p, id); W32(p + 4, flags); W64(p + 8, Address(start)); W64(p + 16, end == 0 ? 0 : Address(end)); }
+        private void Row(int index, uint id, uint length, int start)
+        { byte* p = Image + 0x1010 + index * 16; W32(p, id); W32(p + 4, length); W64(p + 8, Address(start)); }
         private void Section(int index, string name, uint start, uint size, uint flags)
         { byte* p = Image + 0x188 + index * 40; for (int i = 0; i < name.Length; i++) p[i] = (byte)name[i]; W32(p + 8, size); W32(p + 12, start); W32(p + 36, flags); }
         public void Dispose() { NativeMemory.AlignedFree(ImageStorage); NativeMemory.AlignedFree(HeapStorage); }

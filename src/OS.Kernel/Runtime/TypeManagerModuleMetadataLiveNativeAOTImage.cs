@@ -33,7 +33,7 @@ public enum TypeManagerRegisteredRangeKind : byte
 }
 
 /// <summary>
-/// The pinned .NET 10.0.12 x64 TypeManager data layout, not the CLROS owner.
+/// The pinned .NET 11 RC2 x64 TypeManager data layout, not the CLROS owner.
 /// Class-library fields stay zero; recording GC/TLS addresses initializes neither.
 /// Explicit trailing padding makes all 48 bytes deterministic.
 /// </summary>
@@ -79,8 +79,12 @@ public readonly struct TypeManagerModuleResult
 /// </summary>
 public static unsafe class TypeManagerModuleMetadataLiveNativeAOTImage
 {
-    public const uint PinnedMajorVersion = 16;
-    public const uint PinnedMinorVersion = 0;
+    // ModuleHeaders.cs / ReadyToRunHeaderNode.cs at Layout.RuntimeSourceCommit:
+    // NativeAOT 26.1 rows contain Int32 section ID, Int32 byte length and a pointer.
+    // The preceding flags/end-pointer format is deliberately not admitted.
+    public const uint PinnedMajorVersion = 26;
+    public const uint PinnedMinorVersion = 1;
+    public const uint ModuleInfoRowBytes = 16;
     public const ulong SlotBytes = 16;
     public const ulong AbiBytes = 48;
     private const ulong Registered = 0x4D30343031315231;
@@ -164,10 +168,10 @@ public static unsafe class TypeManagerModuleMetadataLiveNativeAOTImage
         if (status != TypeManagerModuleStatus.Success) return new(status);
         for (uint i = 0; i < image.Rows; i++)
         {
-            byte* row = (byte*)image.Header + 16 + i * 24;
+            byte* row = (byte*)image.Header + 16 + i * ModuleInfoRowBytes;
             if ((int)U32(row) == sectionId)
                 return new(TypeManagerModuleStatus.Success, Required(image), handle,
-                    U64(row + 8), U32(row + 4) == 0 ? 8 : (int)(U64(row + 16) - U64(row + 8)));
+                    U64(row + 8), (int)U32(row + 4));
         }
         return new(TypeManagerModuleStatus.SectionAbsent);
     }
@@ -206,9 +210,9 @@ public static unsafe class TypeManagerModuleMetadataLiveNativeAOTImage
                 return TypeManagerModuleStatus.RangePermissionRejected;
             for (uint i = 0; i < image.Rows; i++)
             {
-                byte* row = (byte*)image.Header + 16 + i * 24;
+                byte* row = (byte*)image.Header + 16 + i * ModuleInfoRowBytes;
                 ulong start = U64(row + 8);
-                ulong length = U32(row + 4) == 0 ? 8 : U64(row + 16) - start;
+                ulong length = U32(row + 4);
                 if (address >= start && Within(length, address - start, bytes))
                     return TypeManagerModuleStatus.Success;
             }
@@ -222,8 +226,8 @@ public static unsafe class TypeManagerModuleMetadataLiveNativeAOTImage
             return TypeManagerModuleStatus.RangeProtectedOverlap;
         for (uint i = 0; i < image.Rows; i++)
         {
-            byte* row = (byte*)image.Header + 16 + i * 24;
-            ulong length = U32(row + 4) == 0 ? 8 : U64(row + 16) - U64(row + 8);
+            byte* row = (byte*)image.Header + 16 + i * ModuleInfoRowBytes;
+            ulong length = U32(row + 4);
             if (Overlap(address, bytes, U64(row + 8), length)) return TypeManagerModuleStatus.RangeProtectedOverlap;
         }
         return InSection(image, address, bytes, Read | Write, Execute)
@@ -327,31 +331,29 @@ public static unsafe class TypeManagerModuleMetadataLiveNativeAOTImage
             return TypeManagerModuleStatus.MetadataRejected;
         byte* rtr = (byte*)image.Header;
         if (U32(rtr) != 0x00525452 || U16(rtr + 4) != PinnedMajorVersion ||
-            U16(rtr + 6) != PinnedMinorVersion || U32(rtr + 8) != 0 || rtr[14] != 24 || rtr[15] != 1)
+            U16(rtr + 6) != PinnedMinorVersion || U32(rtr + 8) != 0 || rtr[14] != ModuleInfoRowBytes || rtr[15] != 1)
             return TypeManagerModuleStatus.UnsupportedFormat;
         image.Rows = U16(rtr + 12);
-        image.TableBytes = 16 + (ulong)image.Rows * 24;
+        image.TableBytes = 16 + (ulong)image.Rows * ModuleInfoRowBytes;
         if (image.Rows == 0 || !InSection(image, image.Header, image.TableBytes, Read, Write) ||
             Overlap(image.Header, image.TableBytes, image.Modules, image.ModuleBytes))
             return TypeManagerModuleStatus.MetadataRejected;
         uint previous = 0;
         for (uint i = 0; i < image.Rows; i++)
         {
-            byte* row = rtr + 16 + i * 24;
-            uint id = U32(row), flags = U32(row + 4);
-            ulong start = U64(row + 8), end = U64(row + 16);
-            if (id == 0 || id > 0x7FFFFFFF || id <= previous || flags > 1 ||
-                (flags == 0 && end != 0) || (flags == 1 && (end < start || end - start > 0x7FFFFFFF)))
+            byte* row = rtr + 16 + i * ModuleInfoRowBytes;
+            uint id = U32(row), length = U32(row + 4);
+            ulong start = U64(row + 8);
+            if (id == 0 || id > 0x7FFFFFFF || id <= previous || length > 0x7FFFFFFF)
                 return TypeManagerModuleStatus.MetadataRejected;
             previous = id;
             if (id == 207) return TypeManagerModuleStatus.UnsupportedFormat; // DehydratedData requires startup work.
-            ulong length = flags == 0 ? 8 : end - start;
             if (!InSection(image, start, length, Read, 0)) return TypeManagerModuleStatus.MetadataRejected;
             if (id == 201) image.Gc = start;
             if (id == 202) image.Tls = start;
             if (id == 204)
             {
-                if (flags != 0 || (start & 7) != 0 || !InSection(image, start, SlotBytes, Read | Write, Execute))
+                if (length != SlotBytes || (start & 7) != 0 || !InSection(image, start, SlotBytes, Read | Write, Execute))
                     return TypeManagerModuleStatus.MetadataRejected;
                 image.Slot = start;
             }
@@ -363,9 +365,9 @@ public static unsafe class TypeManagerModuleMetadataLiveNativeAOTImage
         // overwrite a different section's payload, including a partial slot alias.
         for (uint i = 0; i < image.Rows; i++)
         {
-            byte* row = rtr + 16 + i * 24;
+            byte* row = rtr + 16 + i * ModuleInfoRowBytes;
             if (U32(row) != 204 && Overlap(image.Slot, SlotBytes, U64(row + 8),
-                U32(row + 4) == 0 ? 8 : U64(row + 16) - U64(row + 8)))
+                U32(row + 4)))
                 return TypeManagerModuleStatus.MetadataRejected;
         }
         return TypeManagerModuleStatus.Success;
@@ -388,8 +390,8 @@ public static unsafe class TypeManagerModuleMetadataLiveNativeAOTImage
             return TypeManagerModuleStatus.StorageOverlap;
         for (uint i = 0; i < image.Rows; i++)
         {
-            byte* row = (byte*)image.Header + 16 + i * 24;
-            ulong length = U32(row + 4) == 0 ? 8 : U64(row + 16) - U64(row + 8);
+            byte* row = (byte*)image.Header + 16 + i * ModuleInfoRowBytes;
+            ulong length = U32(row + 4);
             if (Overlap(address, capacity, U64(row + 8), length)) return TypeManagerModuleStatus.StorageOverlap;
         }
         return TypeManagerModuleStatus.Success;

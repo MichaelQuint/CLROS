@@ -15,7 +15,7 @@ internal sealed partial class EfiVerification
         Require(FileVersionInfo.GetVersionInfo(linker).FileVersion is string linkerVersion && linkerVersion.Length != 0 && linkerVersion == Text("linkerVersion"), "linker_version_mismatch");
         configuration = Text("configuration"); Require(configuration is "Release" or "Debug", "configuration_invalid");
         Require(Text("runtimeIdentifier") == "win-x64", "build_identity_invalid");
-        string intermediate = Path.Combine(Root, "src/OS/obj", configuration, "net10.0/win-x64");
+        string intermediate = Path.Combine(Root, "src/OS/obj", configuration, "net11.0/win-x64");
         extensions = EvidencePath("projectExtensionsPath", "project_extensions_path_invalid");
         Require(SamePath(extensions, Path.Combine(intermediate, "nuget")), "project_extensions_path_not_canonical");
         Require(Directory.Exists(extensions), "project_extensions_directory_missing");
@@ -54,7 +54,7 @@ internal sealed partial class EfiVerification
         Require(Directory.Exists(sdk), "dotnet_sdk_identity_mismatch");
         JsonObject globalJson = Parse(Open(Path.Combine(Root, "global.json"), "global_json", 65536, root: Root).ReadUtf8(65536, "global_json_sdk_contract_invalid"), "global_json_sdk_contract_invalid");
         var sdkContract = Object(globalJson["sdk"], "global_json_sdk_contract_invalid");
-        Require(EfiVerify.TestSdkLatestPatchVersion(sdkVersion, String(sdkContract["version"], "global_json_sdk_contract_invalid")) && String(sdkContract["rollForward"], "global_json_sdk_contract_invalid") == "latestPatch" && sdkContract["allowPrerelease"] is JsonValue prerelease && prerelease.TryGetValue<bool>(out bool allowPrerelease) && !allowPrerelease, "dotnet_sdk_global_contract_mismatch");
+        Require(EfiVerify.TestSdkExactVersion(sdkVersion, String(sdkContract["version"], "global_json_sdk_contract_invalid")) && String(sdkContract["rollForward"], "global_json_sdk_contract_invalid") == "disable" && sdkContract["allowPrerelease"] is JsonValue prerelease && prerelease.TryGetValue<bool>(out bool allowPrerelease) && allowPrerelease, "dotnet_sdk_global_contract_mismatch");
         string windowsLibrary = EvidencePath("windowsSdkLibraryPath", "windows_sdk_library_path_invalid"), windowsVersion = Text("windowsSdkVersion");
         Require(windowsVersion.Length != 0 && Path.GetFileName(windowsLibrary).Equals("kernel32.lib", StringComparison.OrdinalIgnoreCase) && windowsLibrary.Contains("\\Lib\\" + windowsVersion + "\\um\\x64\\", StringComparison.OrdinalIgnoreCase) && Open(windowsLibrary, "windows_sdk_library").Sha256 == Text("windowsSdkLibrarySha256"), "windows_sdk_identity_mismatch");
         string ilc = EvidencePath("ilCompilerPath", "ilcompiler_path_invalid"), expectedIlc = Path.Combine(packages, "runtime.win-x64.microsoft.dotnet.ilcompiler", EfiContracts.NativePackageVersion, "tools/ilc.exe");

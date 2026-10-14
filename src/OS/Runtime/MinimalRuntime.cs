@@ -651,7 +651,7 @@ namespace System.Runtime
 
         [RuntimeExport("RhpNewArrayFast")]
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        internal static object RhpNewArrayFast(Internal.Runtime.MethodTable* methodTable, int length)
+        internal static object RhpNewArrayFast(Internal.Runtime.MethodTable* methodTable, nint length)
         {
 #if M04_SZ_ARRAY_ALLOCATION_PROBE
             nuint reference = (nuint)OS.Runtime.RhpNewFastAllocation.AllocateArray((ulong)methodTable, length, false);
@@ -663,7 +663,7 @@ namespace System.Runtime
 
         [RuntimeExport("RhpNewPtrArrayFast")]
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-        internal static object RhpNewPtrArrayFast(Internal.Runtime.MethodTable* methodTable, int length)
+        internal static object RhpNewPtrArrayFast(Internal.Runtime.MethodTable* methodTable, nint length)
         {
 #if M04_SZ_ARRAY_ALLOCATION_PROBE
             nuint reference = (nuint)OS.Runtime.RhpNewFastAllocation.AllocateArray((ulong)methodTable, length, true);

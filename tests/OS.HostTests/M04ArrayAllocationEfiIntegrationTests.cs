@@ -76,10 +76,10 @@ internal static unsafe class ArrayCoreTestProgram
     }
     private static void Rejected()
     {
-        for(int variant=0;variant<10;variant++)
+        for(int variant=0;variant<14;variant++)
         {
             using F f=new();Need(f.Prepare()==RhpAdmissionStatus.Success,"prepare");
-            ulong token=f.MixedToken(2),expected=token,element=f.Token(6);int length=0;
+            ulong token=f.MixedToken(2),expected=token,element=f.Token(6);long length=0;
             switch(variant)
             {
                 case 0:token=ulong.MaxValue-7;break;
@@ -92,6 +92,10 @@ internal static unsafe class ArrayCoreTestProgram
                 case 7:W32(f.Image+0x1AC,0xC0000040);break;
                 case 8:length=1;break;
                 case 9:f.Control->InProgress=1;break;
+                case 10:length=0x100000000L;break;
+                case 11:length=0x100000001L;break;
+                case 12:length=long.MinValue;break;
+                case 13:length=long.MaxValue;break;
             }
             byte[] before=f.Snapshot();var r=RhpNewFastAllocationCore.AllocateMixed(f.Access,f.Bump,f.Control,f.Records,token,expected,2,3,length,element);
             Need(!r.Succeeded && r.Status!=RhpAdmissionStatus.AllocationRejected,"pre-read/fixture rejection "+variant);f.Unchanged(before);
@@ -236,7 +240,7 @@ internal static class M04ArrayAllocationEfiIntegrationTests
         string includes=string.Join('\n',new[]{"src/OS/Runtime/RhpNewFastAllocation.cs","tests/OS.HostTests/M04ArrayAllocationEfiIntegrationTests.cs"}
             .Select(x=>"<Compile Include=\""+SecurityElement.Escape(Path.Combine(root,x))+"\"/>"));
         File.WriteAllText(Path.Combine(directory,"Core.csproj"),"""
-            <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion>
+            <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion>
             <OutputType>Exe</OutputType><AllowUnsafeBlocks>true</AllowUnsafeBlocks><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
             <EnableDefaultCompileItems>false</EnableDefaultCompileItems><DefineConstants>ARRAY_CORE_TEST</DefineConstants><NoWarn>0649</NoWarn></PropertyGroup><ItemGroup>
             """+includes+"<ProjectReference Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS.Kernel/OS.Kernel.csproj"))+"\"/></ItemGroup></Project>");
@@ -255,7 +259,7 @@ internal static class M04ArrayAllocationEfiIntegrationTests
             Need(project.Descendants("PropertyGroup").Single(x=>x.Attribute("Condition")?.Value=="'$("+pair.Item1+")' == 'true'").Element("DefineConstants")?.Value=="$(DefineConstants);"+pair.Item2,"exact selected compiler symbol");
         }
         foreach(string required in Chain)Need(project.Descendants("Error").Any(x=>x.Attribute("Condition")?.Value=="'$("+Flag+")' == 'true' and '$("+required+")' != 'true'"),"explicit prerequisite "+required);
-        foreach(var file in new[]{("GuestTestArrayAllocationLengthOverflowChecks.cs","3181b70d4a9bad1dd957ecba9e9d6c860275780cc26b61961019f9341c1138a9"),("GuestTestRhpNewFast.cs",OS.Tooling.EfiContracts.AllocationSourceSha256)})
+        foreach(var file in new[]{("GuestTestArrayAllocationLengthOverflowChecks.cs","3848704952c9b04052713ac11c4650a5b2238db80e48878ae4b80fb6ffd4549a"),("GuestTestRhpNewFast.cs",OS.Tooling.EfiContracts.AllocationSourceSha256)})
             Need(Hash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(root,"src/OS.Kernel/Runtime",file.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)))==file.Item2,"frozen host source");
         string shim=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/MinimalRuntime.cs")),adapter=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/RhpNewFastAllocation.cs"));
         Need(shim.Contains("private int _numComponents;",StringComparison.Ordinal) && shim.Contains("public int Length => _numComponents;",StringComparison.Ordinal),"minimal actual compiler Array contract");
@@ -370,7 +374,7 @@ private static void TestFirewall()
             Save(directory,r);
             Need(r.Code==0 && r.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal) && r.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),r.Output);
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
-            foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(directory,file.Item2));
+            foreach(var file in new[]{(OS.Tooling.EfiContracts.ManagedAssemblyRelativePath("Release"),"OS.dll"),("src/OS/obj/Release/net11.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net11.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(directory,file.Item2));
             using var document=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=document.RootElement;
             var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==OS.Tooling.EfiEvidence.SourceClosurePaths(root).Count,"complete raw source inventory");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw source unchanged");
@@ -408,8 +412,8 @@ private static void TestFirewall()
             var method=md.GetMethodDefinition(named[0]);Need(FullType(method.GetDeclaringType())=="System.Runtime.RhpNewFastRuntime","exact export owner");
             Need((method.Attributes&System.Reflection.MethodAttributes.Static)!=0 && (method.Attributes&System.Reflection.MethodAttributes.MemberAccessMask)==System.Reflection.MethodAttributes.Assembly && method.GetGenericParameters().Count==0,"internal static nongeneric helper");
             Need((method.ImplAttributes&System.Reflection.MethodImplAttributes.NoInlining)!=0 && method.RelativeVirtualAddress!=0,"real NoInlining body");
-            var sig=md.GetBlobReader(method.Signature);Need(sig.ReadByte()==0 && sig.ReadCompressedInteger()==2 && sig.ReadByte()==0x1C && sig.ReadByte()==0x0F && sig.ReadByte()==0x11,"object(pointer-to-valuetype,int) signature");
-            int coded=sig.ReadCompressedInteger();Need((coded&3)==0 && FullType(System.Reflection.Metadata.Ecma335.MetadataTokens.TypeDefinitionHandle(coded>>2))=="Internal.Runtime.MethodTable" && sig.ReadByte()==8 && sig.RemainingBytes==0,"actual MethodTable* and signed Int32");
+            var sig=md.GetBlobReader(method.Signature);Need(sig.ReadByte()==0 && sig.ReadCompressedInteger()==2 && sig.ReadByte()==0x1C && sig.ReadByte()==0x0F && sig.ReadByte()==0x11,"object(pointer-to-valuetype,nint) signature");
+            int coded=sig.ReadCompressedInteger();Need((coded&3)==0 && FullType(System.Reflection.Metadata.Ecma335.MetadataTokens.TypeDefinitionHandle(coded>>2))=="Internal.Runtime.MethodTable" && sig.ReadByte()==0x18 && sig.RemainingBytes==0,"actual MethodTable* and signed native-sized count");
             int exports=0;
             foreach(var h in methods)foreach(var ah in md.GetMethodDefinition(h).GetCustomAttributes())
             {

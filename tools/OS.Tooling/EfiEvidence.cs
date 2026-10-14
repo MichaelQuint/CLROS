@@ -227,5 +227,5 @@ public static class EfiEvidence
         EfiPeImage.Require(sources.Length == 2 && sources[0].Name == "clear" && !sources[0].HasAttributes && sources[1].Name == "add" && sources[1].Attributes().Count() == 2 && (string?)sources[1].Attribute("key") == "CLROS_PINNED" && SamePath((string?)sources[1].Attribute("value") ?? "", source), "pinned_restore_config_package_sources_invalid");
         foreach (var group in children.Skip(1)) EfiPeImage.Require(group.Elements().Count() == 1 && group.Elements().Single().Name == "clear" && !group.Elements().Single().HasAttributes, "pinned_restore_config_clear_group_invalid");
     }
-    public static string[] RestorePaths(string configuration) => new[] { "OS.csproj.nuget.dgspec.json", "OS.csproj.nuget.g.props", "OS.csproj.nuget.g.targets", "project.assets.json", "project.nuget.cache" }.Select(n => $"src/OS/obj/{configuration}/net10.0/win-x64/nuget/{n}").Order(StringComparer.Ordinal).ToArray();
+    public static string[] RestorePaths(string configuration) => new[] { "OS.csproj.nuget.dgspec.json", "OS.csproj.nuget.g.props", "OS.csproj.nuget.g.targets", "project.assets.json", "project.nuget.cache" }.Select(n => $"src/OS/obj/{configuration}/net11.0/win-x64/nuget/{n}").Order(StringComparer.Ordinal).ToArray();
 }

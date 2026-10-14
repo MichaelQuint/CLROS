@@ -13,7 +13,7 @@ internal static class EfiDispatchTranscriptControls
         int cctorAt = gc + 3;
         string[] parent = [.. baseline[..cctorAt], .. cctor, .. baseline[cctorAt..]];
         ulong[][] rows = new ulong[73][];
-        rows[0] = [handle, image + 0x70000, 32768, seed]; rows[1] = [image + 0x10000, 112, image + 0x18000, 5];
+        rows[0] = [handle, image + 0x70000, 32768, seed]; rows[1] = [image + 0x10000, 80, image + 0x18000, 5];
         rows[2] = [heap + 64, heap + 88, image + 0x5100, image + 0x5200]; rows[3] = [9, 10, 24, 24];
         const ulong tag = 0xC011EC7000000006;
         rows[4] = [gcRoot[1], heap + 32, tag, handle - 272]; rows[5] = [stack[0], stack[1], stack[2], stack[3] - 512];
@@ -26,7 +26,7 @@ internal static class EfiDispatchTranscriptControls
             ulong implemented = op is 2 or 3 && second == 0 ? image + 0xB000 + (ulong)op * 128 : requested;
             ulong owner = op <= 1 ? rows[6][0] : rows[2][2 + second];
             ulong target = image + 0x20000 + (ulong)op * 256 + (op == 0 ? 0UL : (ulong)second * 16);
-            rows[row] = [rows[2][second], rows[1][0] + new ulong[] { 0, 16, 64, 80, 32 }[op], target, (ulong)(9 + second)];
+            rows[row] = [rows[2][second], rows[1][0] + new ulong[] { 0, 16, 48, 64, 32 }[op], target, (ulong)(9 + second)];
             rows[row + 1] = [rows[2][2 + second], requested, implemented, owner];
             ulong slot = new ulong[] { 1, 0, 1, 2, 3 }[op], interfaceSlot = op is 2 or 3 ? 1UL : 0;
             rows[row + 2] = [interfaceSlot, slot, i % 3 == 2 ? 1UL : 0, (ulong)i + 1];
@@ -43,6 +43,15 @@ internal static class EfiDispatchTranscriptControls
         var controls = new EfiTranscriptControls(Path.Combine(HostToolProcess.FindRepositoryRoot(), "artifacts/issue572-dispatch-tests", Guid.NewGuid().ToString("N")),
             path => QemuTranscripts.AssertM04ManagedHeapPageRangeTranscript(path, includeGcStatics: true, includeClassConstructors: true, includeInterfaceDispatch: true));
         controls.Check(good, true, "original dispatch oracle");
+        string[] reorderedCells = [.. good];
+        for (int i = 0; i < 15; i++)
+        {
+            int row = 10 + 4 * i;
+            ulong[] call = [.. rows[row]];
+            call[1] = rows[1][0] + (ulong)(4 - i / 3) * 16;
+            reorderedCells[insert + 1 + row] = EfiTranscriptControls.Row("M04_DISPATCH", row, call);
+        }
+        controls.Check(reorderedCells, true, "compiler cell order is independent of callsite identity");
         ulong shallower = canary[3] + 8;
         HostCheck.True(shallower <= stack[3], "distinct phase minima control");
         string[] differentFrames = [.. good]; ulong[] first = [.. rows[5]], last = [.. rows[72]];
@@ -74,7 +83,7 @@ internal static class EfiDispatchTranscriptControls
             (10,2,0),(10,3,10),(11,2,image+0xB000),(11,3,rows[2][2]),(12,0,1),(12,1,0),(12,2,1),
             (12,3,2),(13,3,0),(18,1,rows[1][0]+16),(70,0,14),(70,1,9),(70,2,4),(70,3,1025),
             (71,1,6),(72,0,16),(72,1,0),(72,3,stack[2]),
-            (1,1,96),(1,3,6),(7,1,image+0x6100),(8,2,4),(34,1,rows[1][0]+48),(36,0,0),(48,0,0),
+            (1,1,96),(1,1,112),(1,3,6),(7,1,image+0x6100),(8,2,4),(34,1,rows[1][0]+80),(36,0,0),(48,0,0),
             (60,1,4),(14,2,rows[10][2]+16)
         }) Mutate(row, (field, value));
         Mutate(4, (3, rows[4][3] + 8));

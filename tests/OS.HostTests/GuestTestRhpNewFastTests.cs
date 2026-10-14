@@ -15,7 +15,7 @@ internal static unsafe class GuestTestRhpNewFastTests
 {
     private const ulong Token = 0x1234567800000008;
     private const ulong Token2 = 0xABCD987600000018;
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
 
     [HostFixture(HostLane.Native)]
     internal static void Run()
@@ -229,7 +229,7 @@ internal static unsafe class GuestTestRhpNewFastTests
     private static void CheckAdmission()
     {
         using Fixture f = new(); Bind(f);
-        foreach (NativeAotLayoutProfile profile in new[] { (NativeAotLayoutProfile)0, (NativeAotLayoutProfile)2, (NativeAotLayoutProfile)255 })
+        foreach (NativeAotLayoutProfile profile in new[] { (NativeAotLayoutProfile)0, NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, (NativeAotLayoutProfile)255 })
             Expect(f, Status.UnsupportedProfile, profile: profile);
         foreach (ulong token in new ulong[] { 0, 1, 7, Token + 1, Token + 2, Token + 3, Token + 4,
             Token + 5, Token + 6, Token + 7, ulong.MaxValue, 0xFFFFFFFFFFFFFFF8, 0xFFFFFFFFFFFFFFF0, 0xFFFFFFFFFFFFFFE8 })
@@ -755,7 +755,7 @@ internal static unsafe class GuestTestRhpNewFastTests
         File.WriteAllText(Path.Combine(directory, "Compile.csproj"), $$"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
-                <TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion>
+                <TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion>
                 <OutputType>Library</OutputType><AssemblyName>CLROS.M04.NewFast.NoStdLib</AssemblyName>
                 <EnableDefaultCompileItems>false</EnableDefaultCompileItems><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
                 <NoStdLib>true</NoStdLib><DefineConstants>NOSTDLIB_EFI</DefineConstants><NoConfig>true</NoConfig>
@@ -793,7 +793,7 @@ internal static unsafe class GuestTestRhpNewFastTests
         File.WriteAllText(Path.Combine(directory, "build.stderr.log"), stderr.Result);
         File.WriteAllText(Path.Combine(directory, "build.exitcode.txt"), process.ExitCode.ToString(System.Globalization.CultureInfo.InvariantCulture));
         Require(exited && process.ExitCode == 0, "actual-source no-stdlib compile: " + directory + " " + stdout.Result + stderr.Result);
-        using var stream = File.OpenRead(Path.Combine(directory, "bin", "Release", "net10.0", "CLROS.M04.NewFast.NoStdLib.dll"));
+        using var stream = File.OpenRead(Path.Combine(directory, "bin", "Release", "net11.0", "CLROS.M04.NewFast.NoStdLib.dll"));
         using PEReader image = new(stream); MetadataReader metadata = image.GetMetadataReader();
         Require(metadata.AssemblyReferences.Count == 0, "actual ten-source closure has zero assembly references");
         Require(metadata.MethodDefinitions.Select(metadata.GetMethodDefinition).Any(m => metadata.GetString(m.Name) == "TryAllocate" && m.RelativeVirtualAddress != 0),

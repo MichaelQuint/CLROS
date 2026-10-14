@@ -8,7 +8,8 @@ allocation, initialization and publication before a safe deadline wake.
 Independent context/descriptor checks, APIC/IF/mapping restoration and release
 of all 22 borrowed pages precede success. Steps1222-1223 retain development
 failures and the evaluated-inventory/cancellation repair.
-Thread lifecycle remains #188 before #686. This adds no Linux threading,
+Thread lifecycle remains #188, followed by #191 wait-on-address and #192
+application FS/TLS before #686. This adds no Linux threading,
 upstream GC/runtime, unchanged Hello, Kestrel or numbered gate.
 
 The NativeAOT-first Linux adapter in [workload profiles](workload-profiles.md)
@@ -27,6 +28,69 @@ covers layout, ownership and queue behavior; they do not require a new EFI
 profile or establish execution. The managed issues contain exact source
 references, failure cases and focused commands. Coordinate edits to this shared
 document with the current integration owner.
+
+### Next: bounded lifecycle (#188)
+
+[#188](http://192.168.4.35:3000/admin/CLROS/issues/188) is the next scheduler
+slice. Its managed body owns the implementation and qualification checklist.
+The following is a design handoff, not implemented lifecycle evidence. Use the
+current pinned toolchain in [host requirements](host-requirements.md); historical
+.NET 10 acceptance does not qualify the .NET 11 migration.
+
+Use a single-BSP CPL0 supervisor with fixed-capacity, caller-owned worker slots,
+distinct stacks, `X64ThreadContext`, `ReadyQueue` and `DeadlineQueue`. Keep workers
+cooperative: the existing `Entry`/`CapturedCall` ABI requires IRQ-off continuations.
+A measured first-entry trampoline must turn a worker's normal return into exit.
+The separate timer frame uses IRETQ and is not a CALL continuation. Step1224
+redirects its interrupted worker to the original context; it does not save that
+worker for later resumption. General asynchronous worker preemption is outside
+this slice.
+
+The lifecycle owner must define these operations together:
+
+| Operation | Required ownership behavior |
+| --- | --- |
+| Create/start | Fully initialize stack, context and entry metadata before publishing runnable state. Roll back every allocation/admission/publication failure. |
+| Yield/park/wake | Serialize state, queue and lifetime changes in one save/disable/restore-IF transaction. A generation-tagged thread ID and a distinct wait identity prevent old completions from ending a later wait. |
+| Sleep | Use checked ticks in one nonwrapping epoch; delay zero yields. Preserve or reserve ready capacity before consuming a due deadline. |
+| Join | Allow one pending waiter per target. Reject self-join, cyclic joins and a second waiter explicitly. Keep the completion status observable by repeated completed joins until supervisor reap. |
+| Cancel | Request cancellation; observe it at start or a cooperative safe point. Resume a parked worker with a cancellation result so it reaches its exit path. Cancelling a join wait does not cancel its target. |
+| Exit/reap | Transfer to the retained supervisor stack before releasing worker storage. Remove all ready/deadline/join and IRQ/context lifetime references, then scrub/release and advance the slot generation. Identity exhaustion fails closed. |
+
+Only one wake, deadline, cancellation or target-exit event may complete a wait.
+Queue exhaustion must preserve a retryable state rather than lose a wake.
+`OSHostThreadTable` remains a managed host mock and must not become the guest
+owner or establish hosted-runtime readiness. Retain explicit lifetime pins for
+future consumers without adding upstream GC scanning to this ticket.
+
+The timer needs a repeated-use owner protocol. `WakeReady` stops it while retaining
+the dirty hardware borrow, so calling `Arm` again currently returns `DirtyState`.
+A carefully serialized restore/prepare with the saved tick/arm sequence, or a
+narrowly tested rearm API, must preserve the epoch and borrowed IDT/IST/APIC
+lifetimes. When all workers park, an owned supervisor/idle path must enable
+interrupts and wait for actual hardware wakeups. A busy loop or injected host
+tick is not evidence of sleep. Failed timer restoration retains its storage.
+
+Implement the default-off `EnableM09006Probe` interface described in #188;
+it does not exist yet. Qualify two workers plus supervisor with repeated yields
+and timer sleeps, all-workers-parked recovery, entry return and explicit exit,
+join before/after exit, cancellation/deadline races, rollback and stale reuse.
+Final success follows off-stack teardown and original-context/hardware restoration.
+Use focused tests during implementation, then frozen full-host, original native,
+three guest and affected ancestor evidence. Shared evaluated inventories and
+harness cancellation from step1223 must remain intact.
+
+Read the existing CLROS owners first. SharpOS `Thread.cs` offers state/lifetime
+ideas, `Scheduler.cs` contains `Spawn`/`HostedTrampoline`/`Yield`/`Exit`, and
+`TimerQueue.cs` contains `Schedule`/`DrainExpired`/`Cancel`. Treat SharpOS's
+context leak after failed stack allocation and its hosted binding initialization
+after runnable publication as negative tests. Do not copy its managed linked
+lists, incompatible context layout or ownership defects.
+
+After #188, #191 provides atomic wait-on-address and #192 application FS/TLS.
+Those and accepted #685 are prerequisites of #686's Linux threading, futex,
+mask and blocking-pipe adapter. Signal delivery and the first unchanged NativeAOT
+Hello remain #687; comprehensive upstream runtime qualification remains #688.
 
 ### Saved-context host contract (#183)
 
@@ -254,7 +318,7 @@ No first-party hosted-tier PAL implementation exists. The canonical CLROS
 boundary is documented here and in `work/PAL/pal-design.md`. The upstream
 reference design is available at `references/SharpOS-main/work/PAL/pal-design.md`.
 
-Current work is limited to boundary design, Kestrel-critical ABI contract definition, mock socket/package/config/timer/wait/app-log/random tables and facades, host-only socket and timer/wait bridge composition, platform-interface preparation for UEFI encapsulation, and host-only saved-context, ready-queue and deadline-queue contracts. It is not hosted CoreCLR integration, it does not run .NET 10 applications, and it must not introduce a WinAPI/POSIX compatibility surface.
+Current `OSHost_*` PAL work is limited to boundary design, Kestrel-critical ABI contract definition, mock socket/package/config/timer/wait/app-log/random tables and facades, host-only socket and timer/wait bridge composition, platform-interface preparation for UEFI encapsulation, and host-only saved-context, ready-queue and deadline-queue contracts. It is not hosted CoreCLR integration and does not run guest .NET 11 applications. Keep WinAPI/POSIX semantics out of the `OSHost_*` ABI. The separate restricted Linux x64 syscall adapter authorized by [the NativeAOT-first decision](workload-profiles.md) uses Linux errno/fd semantics over common C# services without changing that PAL contract.
 
 ## Implemented Behavior
 

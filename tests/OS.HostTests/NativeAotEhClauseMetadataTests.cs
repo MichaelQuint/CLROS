@@ -32,9 +32,9 @@ internal static unsafe class NativeAotEhClauseMetadataTests
         CatalogFailure(Lookup(f,0),Status.TargetRejected,"null PC");
         CatalogFailure(Core.LookupMethod(default,f.Capture,f.Mapping,f.Owner,Fixture.Capacity,f.Handle,f.Snapshot,Fixture.Capacity,0x1900,32,f.Address(0x6000)),Status.UnsupportedProfile,"profile");
         using Fixture other=new(); other.Bind();
-        CatalogFailure(Core.LookupMethod(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,f.Capture,f.Mapping,f.Owner,Fixture.Capacity,f.Handle,other.Snapshot,Fixture.Capacity,0x1900,32,f.Address(0x6000)),Status.SnapshotRejected,"cross-image snapshot");
-        CatalogFailure(Core.LookupMethod(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,f.Capture,f.Mapping,other.Owner,Fixture.Capacity,f.Handle,f.Snapshot,Fixture.Capacity,0x1900,32,f.Address(0x6000)),Status.ModuleRejected,"cross-image module");
-        CatalogFailure(Core.LookupMethod(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,f.Capture,f.Mapping,f.Owner,Fixture.Capacity,f.Handle+8,f.Snapshot,Fixture.Capacity,0x1900,32,f.Address(0x6000)),Status.ModuleRejected,"stale handle");
+        CatalogFailure(Core.LookupMethod(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,f.Capture,f.Mapping,f.Owner,Fixture.Capacity,f.Handle,other.Snapshot,Fixture.Capacity,0x1900,32,f.Address(0x6000)),Status.SnapshotRejected,"cross-image snapshot");
+        CatalogFailure(Core.LookupMethod(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,f.Capture,f.Mapping,other.Owner,Fixture.Capacity,f.Handle,f.Snapshot,Fixture.Capacity,0x1900,32,f.Address(0x6000)),Status.ModuleRejected,"cross-image module");
+        CatalogFailure(Core.LookupMethod(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,f.Capture,f.Mapping,f.Owner,Fixture.Capacity,f.Handle+8,f.Snapshot,Fixture.Capacity,0x1900,32,f.Address(0x6000)),Status.ModuleRejected,"stale handle");
         _=Lookup(f,f.Address(0x6000)); long allocated=GC.GetAllocatedBytesForCurrentThread();
         for(int i=0;i<16;i++) if(!Lookup(f,f.Address(0x6000)).Succeeded) throw new InvalidOperationException("stable lookup");
         Check(GC.GetAllocatedBytesForCurrentThread()==allocated,"catalog lookup allocates no managed memory");
@@ -75,7 +75,7 @@ internal static unsafe class NativeAotEhClauseMetadataTests
         for(uint i=0;i<count;i++) { byte* row=p+16+i*16; W32(row,f.Bounds.RootMethodRva); W32(row+4,f.Bounds.CodeBytes); W32(row+8,f.Bounds.EhRva); W32(row+12,f.Bounds.EhBytes); }
     }
     private static NativeAotEhMethodLookupResult Lookup(Fixture f,ulong instruction,uint rva=0x1900,uint bytes=32) =>
-        Core.LookupMethod(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,f.Capture,f.Mapping,f.Owner,
+        Core.LookupMethod(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,f.Capture,f.Mapping,f.Owner,
             Fixture.Capacity,f.Handle,f.Snapshot,Fixture.Capacity,rva,bytes,instruction);
     private static void CatalogFailure(NativeAotEhMethodLookupResult r,Status expected,string reason) => Check(
         r.Status==expected && !r.Succeeded && r.ClauseCount==0 && r.Bounds.RootMethodRva==0 &&
@@ -171,10 +171,10 @@ internal static unsafe class NativeAotEhClauseMetadataTests
         f.Bounds = new(0x6000, 0x400, 0x1600, 1); f.Snapshot[Unwind.StateBytes] ^= 1;
         Failure(f.Read(), Status.SnapshotRejected, "stale snapshot precedes payload decode"); f.Snapshot[Unwind.StateBytes] ^= 1;
         using Fixture other = new(); other.Bind();
-        Failure(Core.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, f.Capture, f.Mapping, f.Owner,
+        Failure(Core.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, f.Capture, f.Mapping, f.Owner,
             Fixture.Capacity, f.Handle, other.Snapshot, Fixture.Capacity, f.Bounds, 0), Status.SnapshotRejected, "different valid original image snapshot");
         new ReadOnlySpan<byte>(f.Snapshot, (int)Fixture.Capacity).CopyTo(new Span<byte>(other.Snapshot, (int)Fixture.Capacity));
-        Failure(Core.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, f.Capture, f.Mapping, f.Owner,
+        Failure(Core.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, f.Capture, f.Mapping, f.Owner,
             Fixture.Capacity, f.Handle, other.Snapshot, Fixture.Capacity, f.Bounds, 0), Status.SnapshotRejected, "copied snapshot not original");
         f.Image[0x1201] = 1;
         Failure(f.Read(), Status.SnapshotRejected, "changed original unwind prefix"); f.Image[0x1201] = 0;
@@ -314,9 +314,9 @@ internal static unsafe class NativeAotEhClauseMetadataTests
             W32(Image + 0x104, 16); W32(Image + 0x120, 0x1100); W32(Image + 0x124, 36);
             Section(0, ".rdata", 0x1000, 0x1000, 0x40000040); Section(1, ".data", 0x2000, 0x2000, 0xC0000040);
             Section(2, ".modules", 0x5000, 16, 0x40000040); Section(3, ".text", 0x6000, 0x1000, 0x60000020);
-            W64(Image + 0x5000, Address(0x1000)); W32(Image + 0x1000, 0x00525452); W16(Image + 0x1004, 16);
-            W16(Image + 0x100C, 1); Image[0x100E] = 24; Image[0x100F] = 1;
-            W32(Image + 0x1010, 204); W64(Image + 0x1018, Address(0x2000));
+            W64(Image + 0x5000, Address(0x1000)); W32(Image + 0x1000, 0x00525452); W16(Image + 0x1004, 26); W16(Image + 0x1006, 1);
+            W16(Image + 0x100C, 1); Image[0x100E] = 16; Image[0x100F] = 1;
+            W32(Image + 0x1010, 204); W32(Image + 0x1014, 16); W64(Image + 0x1018, Address(0x2000));
             Function(0, 0x6000, 0x1200); Function(1, 0x6100, 0x1240); Function(2, 0x6200, 0x1280);
             Image[0x1200] = 9; W32(Image + 0x1204, 0x6500); Image[0x1208] = (byte)(associated ? 20 : 4);
             if (associated) W32(Image + 0x1209, 0x1800);
@@ -336,7 +336,7 @@ internal static unsafe class NativeAotEhClauseMetadataTests
             var snapshot = Unwind.Bind(Capture, Mapping, Owner, Capacity, Handle, Snapshot, Capacity);
             Check(snapshot.Succeeded, "unwind snapshot " + snapshot.Status);
         }
-        internal NativeAotEhClauseResult Read(uint index = 0) => Core.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+        internal NativeAotEhClauseResult Read(uint index = 0) => Core.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
             Capture, Mapping, Owner, Capacity, Handle, Snapshot, Capacity, Bounds, index);
         private void Function(uint index, uint begin, uint unwind)
         {

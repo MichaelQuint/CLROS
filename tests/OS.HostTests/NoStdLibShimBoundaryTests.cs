@@ -64,7 +64,7 @@ internal static class NoStdLibShimBoundaryTests
             int enabled = source.IndexOf("#if M04_SZ_ARRAY_ALLOCATION_PROBE", start, StringComparison.Ordinal);
             int disabled = source.IndexOf("#else", enabled, StringComparison.Ordinal), end = source.IndexOf("#endif", disabled, StringComparison.Ordinal);
             if (enabled < start || disabled < enabled || end < disabled ||
-                !source[start..enabled].Contains("int length", StringComparison.Ordinal) ||
+                !source[start..enabled].Contains("MethodTable* methodTable, nint length)", StringComparison.Ordinal) ||
                 !source[start..enabled].Contains("MethodImplOptions.NoInlining", StringComparison.Ordinal) ||
                 !source[enabled..disabled].Contains("RhpNewFastAllocation.AllocateArray((ulong)methodTable, length,", StringComparison.Ordinal) ||
                 !source[disabled..end].Contains("while (true) RuntimeFailFast.Halt();", StringComparison.Ordinal) ||

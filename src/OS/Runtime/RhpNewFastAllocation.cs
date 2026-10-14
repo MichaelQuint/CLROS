@@ -108,7 +108,7 @@ internal static unsafe partial class RhpNewFastAllocationCore
 
     internal static RhpAllocationAttempt AllocateMixed(RhpNewFastHeapAccess* access,
         RhpNewFastBumpState* bump, RhpAllocationControl* control, RhpObservationStorage* records,
-        ulong token, ulong expectedToken, ulong id, ulong route, int length, ulong expectedElement)
+        ulong token, ulong expectedToken, ulong id, ulong route, long length, ulong expectedElement)
         => AllocateCore(access, bump, control, records, token, expectedToken, id, route, true, length, expectedElement);
 
     internal static RhpAllocationAttempt AllocateStrings(RhpNewFastHeapAccess* access,
@@ -180,11 +180,11 @@ internal static unsafe partial class RhpNewFastAllocationCore
         control->InProgress = 1;
         RhpNewFastResult result = text
             ? GuestTestStringAllocationCharacterStorage.TryAllocate(*access, bump, 80,
-                NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, prefix, token, length)
+                NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, prefix, token, length)
             : array ? GuestTestArrayAllocationLengthOverflowChecks.TryAllocate(*access, bump, 80,
-                NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, prefix, token, (int)length)
+                NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, prefix, token, length)
             : GuestTestRhpNewFast.TryAllocate(*access, bump, 80,
-                NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, prefix, token);
+                NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, prefix, token);
         if (!result.AllocationSucceeded)
         {
             control->InProgress = 0;
@@ -908,7 +908,7 @@ internal static unsafe partial class RhpNewFastAllocation
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    internal static ulong AllocateArray(ulong token, int length, bool pointerSized)
+    internal static ulong AllocateArray(ulong token, long length, bool pointerSized)
     {
 #if M04_STRING_ALLOCATION_PROBE
         if (pointerSized) RejectAdapter(RhpAdmissionStatus.InvalidFixture, 40);
@@ -920,7 +920,7 @@ internal static unsafe partial class RhpNewFastAllocation
 #endif
     }
 
-    private static ulong AllocateMixed(ulong token, ulong expected, ulong id, ulong route, int length, ulong element)
+    private static ulong AllocateMixed(ulong token, ulong expected, ulong id, ulong route, long length, ulong element)
     {
         fixed (RhpNewFastHeapAccess* a = &s_access)
         fixed (RhpNewFastBumpState* b = &s_bump)

@@ -1563,7 +1563,7 @@ internal static class BootPageAllocatorOnePageAllocationTests
                   <PropertyGroup>
                     <AssemblyName>CLROS.M01.PointerPreflightProbe</AssemblyName>
                     <OutputType>Exe</OutputType>
-                    <TargetFramework>net10.0</TargetFramework>
+                    <TargetFramework>net11.0</TargetFramework>
                     <LangVersion>14.0</LangVersion>
                     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
                     <ImplicitUsings>enable</ImplicitUsings>
@@ -3485,7 +3485,7 @@ internal static class BootPageAllocatorOnePageAllocationTests
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
                 <AssemblyName>CLROS.M01.BootPageAllocatorOnePageCompileClosure</AssemblyName>
-                <TargetFramework>net10.0</TargetFramework>
+                <TargetFramework>net11.0</TargetFramework>
                 <LangVersion>14.0</LangVersion>
                 <OutputType>Library</OutputType>
                 <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

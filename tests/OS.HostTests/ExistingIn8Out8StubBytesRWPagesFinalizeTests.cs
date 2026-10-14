@@ -1442,7 +1442,7 @@ internal static unsafe class ExistingIn8Out8StubBytesRWPagesFinalizeTests
                 <Project Sdk="Microsoft.NET.Sdk">
                   <PropertyGroup>
                     <AssemblyName>CLROS.M02.FixedStubPage.NoStdLib</AssemblyName>
-                    <TargetFramework>net10.0</TargetFramework>
+                    <TargetFramework>net11.0</TargetFramework>
                     <LangVersion>14.0</LangVersion>
                     <OutputType>Library</OutputType>
                     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -1619,7 +1619,7 @@ internal static unsafe class ExistingIn8Out8StubBytesRWPagesFinalizeTests
                 <Project Sdk="Microsoft.NET.Sdk">
                   <PropertyGroup>
                     <AssemblyName>CLROS.M02.FixedStubPage.NostdlibRunner</AssemblyName>
-                    <TargetFramework>net10.0</TargetFramework>
+                    <TargetFramework>net11.0</TargetFramework>
                     <LangVersion>14.0</LangVersion>
                     <OutputType>Exe</OutputType>
                     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

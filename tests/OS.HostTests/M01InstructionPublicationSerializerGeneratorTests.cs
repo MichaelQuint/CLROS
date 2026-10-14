@@ -174,7 +174,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
                 <OutputType>Exe</OutputType>
-                <TargetFramework>net10.0</TargetFramework>
+                <TargetFramework>net11.0</TargetFramework>
                 <LangVersion>14.0</LangVersion>
                 <ImplicitUsings>enable</ImplicitUsings>
                 <Nullable>enable</Nullable>
@@ -585,7 +585,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             helperRoot,
             "bin",
             "Release",
-            "net10.0",
+            "net11.0",
             OperatingSystem.IsWindows()
                 ? "BoundedProcessHelper.exe"
                 : "BoundedProcessHelper");
@@ -737,7 +737,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             ToolProjectName,
             "bin",
             "Release",
-            "net10.0",
+            "net11.0",
             OperatingSystem.IsWindows()
                 ? ToolProjectName + ".exe"
                 : ToolProjectName);
@@ -1040,7 +1040,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
                 <OutputType>Exe</OutputType>
-                <TargetFramework>net10.0</TargetFramework>
+                <TargetFramework>net11.0</TargetFramework>
                 <LangVersion>14.0</LangVersion>
                 <Nullable>enable</Nullable>
                 <ImplicitUsings>enable</ImplicitUsings>
@@ -1449,7 +1449,7 @@ internal static partial class M01InstructionPublicationSerializerGeneratorTests
             probeRoot,
             "bin",
             "Release",
-            "net10.0",
+            "net11.0",
             OperatingSystem.IsWindows()
                 ? "WriterContractProbe.exe"
                 : "WriterContractProbe");

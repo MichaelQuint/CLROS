@@ -274,7 +274,7 @@ Image-builder placement validates that a caller-provided source manifest exists,
 
 ## Tests
 
-`tests/OS.HostTests/ManifestToolTests.cs` covers valid manifests, optional/native runtime manifests, reserved `dotnet10` Kestrel contracts, malformed JSON, unknown schema versions, unknown runtime kinds, unsafe entry and assembly paths, malformed hosted runtime shapes, invalid Kestrel listen endpoints, duplicate env keys, and oversized input. The tests execute the already-built `tools/OS.ManifestTool/bin/<configuration>/net10.0/OS.ManifestTool.dll` with `dotnet <dll>`, not nested `dotnet run --project`.
+`tests/OS.HostTests/ManifestToolTests.cs` covers valid manifests, optional/native runtime manifests, reserved `dotnet10` Kestrel contracts, malformed JSON, unknown schema versions, unknown runtime kinds, unsafe entry and assembly paths, malformed hosted runtime shapes, invalid Kestrel listen endpoints, duplicate env keys, and oversized input. The tests execute the already-built `tools/OS.ManifestTool/bin/<configuration>/net11.0/OS.ManifestTool.dll` with `dotnet <dll>`, not nested `dotnet run --project`.
 
 Evidence from 2026-05-22:
 

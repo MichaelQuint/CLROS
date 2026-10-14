@@ -180,7 +180,7 @@ internal static class KestrelSmokePackageContractTests
             "--configuration",
             "Debug",
             "--framework",
-            "net10.0",
+            "net11.0",
             "--self-contained",
             "false",
             "-p:UseAppHost=false",
@@ -229,7 +229,7 @@ internal static class KestrelSmokePackageContractTests
         string program = File.ReadAllText(programPath);
 
         bool valid = true;
-        valid &= ContainsOrReport(project, "<TargetFramework>net10.0</TargetFramework>", projectPath);
+        valid &= ContainsOrReport(project, "<TargetFramework>net11.0</TargetFramework>", projectPath);
         valid &= ContainsOrReport(project, "<LangVersion>14.0</LangVersion>", projectPath);
         valid &= ContainsOrReport(project, "<Nullable>enable</Nullable>", projectPath);
         valid &= ContainsOrReport(project, "<InvariantGlobalization>true</InvariantGlobalization>", projectPath);

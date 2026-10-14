@@ -331,7 +331,7 @@ public static class NativeAotHelperLedger
                 satisfiesKernelRuntimeCompletion: false,
                 "RhpStackProbe",
                 "M01-021 source/readback tests lock the exact 27-byte page-probe plan, and the emitted-object audit verifies the fail-closed bridge shape and pre-transfer frame budget; no guest execution is claimed.",
-                "Honor the pinned .NET 10 x64 RhpStackProbe special ABI: consume the target in R11, touch each crossed page downward, preserve R11 and RSP until tail dispatch, and fail closed before an audited target is installed.",
+                "Honor the pinned .NET 11 RC2 x64 RhpStackProbe special ABI: consume the target in R11, touch each crossed page downward, preserve R11 and RSP until tail dispatch, and fail closed before an audited target is installed.",
                 "An audited fail-closed bridge plus exact read-back-verified first-party byte plan is allowed for the EFI stage only; never use a no-op or ordinary-argument approximation.",
                 "M01-021 focused source, mutation, readback, static-scratch, and generated-object frame/bridge audits cover the current build boundary.",
                 "efi-runtime-shim",

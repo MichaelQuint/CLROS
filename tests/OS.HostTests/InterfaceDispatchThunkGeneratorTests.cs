@@ -22,7 +22,7 @@ internal static class InterfaceDispatchThunkGeneratorTests
             Directory.CreateDirectory(folder);
             string project = Path.Combine(root, "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj");
             Run(root, folder, "build", 0, ["build", project, "--nologo", "-m:1"]);
-            string tool = Path.Combine(root, "tools/OS.X64TextSerializerGenerator/bin/Debug/net10.0/OS.X64TextSerializerGenerator.dll");
+            string tool = Path.Combine(root, "tools/OS.X64TextSerializerGenerator/bin/Debug/net11.0/OS.X64TextSerializerGenerator.dll");
             string[] arguments = [tool, "--interface-dispatch", "--output-root", folder, "--output-file", "dispatch.obj"];
             string created = Run(root, folder, "create", 0, arguments);
             string unchanged = Run(root, folder, "unchanged", 0, arguments);
@@ -65,7 +65,7 @@ internal static class InterfaceDispatchThunkGeneratorTests
         Need(reloc == 532 && symbols == 552 && U32(strings) == bytes.Length - strings, "bounded complete tables");
         Need(U32(reloc) == 0xDD && U32(reloc+4) == 1 && U16(reloc+8) == 4 &&
             U32(reloc+10) == 0x1C3 && U32(reloc+14) == 3 && U16(reloc+18) == 4, "exact function and data REL32 fixups");
-        string[] names = ["RhpInitialDynamicInterfaceDispatch", "CLROS_InterfaceDispatch_Resolve", "CLROS_InterfaceDispatch_GetCellSection", "__InterfaceDispatchCellSection_Start", "CLROS_InterfaceDispatch_GetInitialStub"];
+        string[] names = ["RhpInterfaceDispatch", "CLROS_InterfaceDispatch_Resolve", "CLROS_InterfaceDispatch_GetCellSection", "__InterfaceDispatchCellSection_Start", "CLROS_InterfaceDispatch_GetInitialStub"];
         for (int i = 0; i < 5; i++)
         {
             int symbol = symbols + i*18, start = strings + (int)U32(symbol+4);

@@ -17,7 +17,7 @@ internal static class ConstructorFailureThunkGeneratorTests
             Directory.CreateDirectory(folder);
             _ = ExceptionHandlingThunkGeneratorTests.Run(root, folder, "build",
                 ["build", "tools/OS.X64TextSerializerGenerator", "--nologo", "-m:1"]);
-            string tool = Path.Combine(root, "tools/OS.X64TextSerializerGenerator/bin/Debug/net10.0/OS.X64TextSerializerGenerator.dll");
+            string tool = Path.Combine(root, "tools/OS.X64TextSerializerGenerator/bin/Debug/net11.0/OS.X64TextSerializerGenerator.dll");
             Type generator = Assembly.LoadFile(Path.GetFullPath(tool))
                 .GetType("OS.X64TextSerializerGenerator.ExceptionHandlingThunkGenerator", true)!;
             object definition = generator.GetMethod("DefineConstructorFailure")!.Invoke(null, null)!;

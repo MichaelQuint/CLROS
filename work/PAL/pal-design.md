@@ -301,7 +301,7 @@ Current host-only evidence:
 
 ## Kestrel Evidence Boundary
 
-`TEST_PASS kestrel.smoke` is valid only after guest OS launches a packaged ASP.NET Minimal API app on hosted .NET 10, Kestrel binds the configured endpoint, an external request receives the expected HTTP response, and serial output contains the corresponding pass marker.
+`TEST_PASS kestrel.smoke` is valid only after the guest OS launches the packaged ASP.NET Minimal API app through the documented .NET 11 NativeAOT-first route or a separately qualified future hosted runtime, Kestrel binds the configured endpoint, an external request receives the expected HTTP response over the OS network stack, and serial output contains the corresponding pass marker. The NativeAOT-first route uses the restricted Linux syscall adapter; CoreCLR and exported `OSHost_*` PAL functions are not prerequisites for that route. The complete profile-specific evidence and isolation requirements remain in `docs/completion-gates.md`.
 
 Before that point, these are not Kestrel support evidence:
 

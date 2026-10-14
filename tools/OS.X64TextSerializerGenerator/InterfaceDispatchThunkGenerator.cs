@@ -2,12 +2,12 @@ using System.Buffers.Binary;
 
 namespace OS.X64TextSerializerGenerator;
 
-// Independently authored Win64 instance-interface bridge. R11 is the compiler cell,
+// Independently authored .NET 11 Win64 RhpInterfaceDispatch bridge. R11 is the compiler cell,
 // RCX is the receiver; the ordinary scalar-return target keeps the caller's stack.
 // No unwind, generic hidden-argument, struct-return or concurrent-GC contract.
 public static class InterfaceDispatchThunkGenerator
 {
-    public const string Entry = "RhpInitialDynamicInterfaceDispatch";
+    public const string Entry = "RhpInterfaceDispatch";
     public const string CellSectionGetter = "CLROS_InterfaceDispatch_GetCellSection";
     public const string InitialStubGetter = "CLROS_InterfaceDispatch_GetInitialStub";
     public const string CellSection = "__InterfaceDispatchCellSection_Start";
@@ -65,7 +65,7 @@ public static class InterfaceDispatchThunkGenerator
         while ((text.Count & 15) != 0) Add(0x90);
         uint getter = (uint)text.Count;
         Add(0x48, 0x8D, 0x05); uint dataOffset = (uint)text.Count; I32(0);
-        Add(0xC3); // actual linker-owned start symbol; no fabricated section ID/end
+        Add(0xC3); // actual linker-owned start symbol; matched to ReadyToRun section 210
         while ((text.Count & 15) != 0) Add(0x90);
         uint stubGetter = (uint)text.Count;
         Add(0x48, 0x8D, 0x05); I32(-(text.Count + 4));

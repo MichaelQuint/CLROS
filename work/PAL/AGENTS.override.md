@@ -8,7 +8,7 @@ rules that differ from the root guide.
 `work/PAL` owns design notes for the future boundary between:
 
 - Kernel/native-tier OS code.
-- Future hosted .NET 10/CoreCLR integration.
+- Future hosted .NET 11/CoreCLR integration.
 - Host tooling and tests where applicable.
 
 Implementation-facing PAL rules live in `AGENTS.md`, `docs/pal.md`, and

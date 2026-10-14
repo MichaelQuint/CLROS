@@ -96,12 +96,12 @@ internal static unsafe class GCStaticRootsMalformedMetadataTests
     private static void EntryCounts()
     {
         using (Fixture f = new(x => W32(x.Row(0), 200))) f.Expect(Status.SectionAbsent);
-        using (Fixture f = new(x => W64(x.Row(0) + 16, x.Entry))) f.Expect(Status.SectionEmpty);
+        using (Fixture f = new(x => W32(x.Row(0) + 4, 0))) f.Expect(Status.SectionEmpty);
         foreach (int n in new[] { 1, 2, 3, 5, 7 })
-        { using Fixture f = new(x => W64(x.Row(0) + 16, x.Entry + (uint)n)); f.Expect(Status.EntryRejected); }
+        { using Fixture f = new(x => W32(x.Row(0) + 4, (uint)n)); f.Expect(Status.EntryRejected); }
         foreach (int n in new[] { 8, 12, 0x100 })
-        { using Fixture f = new(x => W64(x.Row(0) + 16, x.Entry + (uint)n)); f.Expect(Status.UnsupportedEntryCount); }
-        using (Fixture f = new(x => { W64(x.Row(0) + 8, x.Entry + 1); W64(x.Row(0) + 16, x.Entry + 5); }))
+        { using Fixture f = new(x => W32(x.Row(0) + 4, (uint)n)); f.Expect(Status.UnsupportedEntryCount); }
+        using (Fixture f = new(x => W64(x.Row(0) + 8, x.Entry + 1)))
             f.Expect(Status.EntryRejected);
     }
     private static void LiteralBytes()
@@ -270,7 +270,7 @@ internal static unsafe class GCStaticRootsMalformedMetadataTests
         byte[] before=f.Snapshot();var repeat=f.Call();f.Unchanged(before);
         Check(repeat.Succeeded && repeat.ObjectReference==first.ObjectReference,"same published allocation");
         var value=GuestTestRhpNewFast.TryAllocate(f.Access,f.Heap.Bump,f.BumpCapacity,
-            NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,new(0x50000000,24,0,0,0,0),f.Image.Object);
+            NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,new(0x50000000,24,0,0,0,0),f.Image.Object);
         Check(value.AllocationSucceeded && value.UsedBefore==24 && f.Heap.Bump->AllocationCount==2,"later same cursor");
         // Mapped bytes only; this host test never fabricates a CLR object/reference.
         *(ulong*)first.SeriesStart=value.ObjectReference;
@@ -348,7 +348,7 @@ internal static unsafe class GCStaticRootsMalformedMetadataTests
         using(RootFixture f=new())
         {
             var full=GuestTestRhpNewFast.TryAllocate(f.Access,f.Heap.Bump,f.BumpCapacity,
-                NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,new(0x50000000,4096,0,0,0,0),f.Image.Object);
+                NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,new(0x50000000,4096,0,0,0,0),f.Image.Object);
             Check(full.AllocationSucceeded,"fill page");var r=f.Reject(GCStaticRootStatus.HeapRejected);
             Check(r.HeapStatus==RhpNewFastStatus.Exhausted && *(ulong*)f.Root==0,"exhaustion stays unattempted");
         }
@@ -545,8 +545,8 @@ internal static unsafe class GCStaticRootsMalformedMetadataTests
             Section(2,".modules",0x5000,8,0x40000040);
             Section(3,".text",0x6000,0x1000,0x60000020);
             W64(Image+0x5000,Address(0x1000));W32(Image+0x1000,0x00525452);
-            W16(Image+0x1004,16);W16(Image+0x100C,4);Image[0x100E]=24;Image[0x100F]=1;
-            WriteRow(1,202,1,0x2100,0x2108);WriteRow(2,204,0,0x2000,0);WriteRow(3,213,1,0x1210,0x1210);
+            W16(Image+0x1004,26);W16(Image+0x1006,1);W16(Image+0x100C,4);Image[0x100E]=16;Image[0x100F]=1;
+            WriteRow(1,202,8,0x2100);WriteRow(2,204,16,0x2000);WriteRow(3,213,0,0x1210);
             SetLocations(0x1200,0x2200,0x1400,0x1180);
             Metadata=new(Address(0x1100),0xF00);Cells=new(Address(0x2000),0x2000);
             configure?.Invoke(this);
@@ -559,19 +559,19 @@ internal static unsafe class GCStaticRootsMalformedMetadataTests
             new Span<byte>(Image+0x7000,0x1000).Fill(0xC3);
         }
         internal ulong Address(int offset)=>(ulong)Image+(uint)offset;
-        internal byte* Row(int i)=>Image+0x1010+24*i;
+        internal byte* Row(int i)=>Image+0x1010+16*i;
         internal void SetLocations(int entry,int cell,int mt,int obj)
         {
             Entry=Address(entry);Cell=Address(cell);Mt=Address(mt);Object=Address(obj);
-            WriteRow(0,201,1,entry,entry+4);
+            WriteRow(0,201,4,entry);
             W32((byte*)Entry,unchecked((uint)(cell-entry)));
             W64((byte*)Cell,unchecked((uint)(mt-cell+1)));
             byte[] literal=[0xF0,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,8,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,24,0,0,0];
             literal.CopyTo(new Span<byte>((void*)(Mt-24),32));W64((byte*)Mt+8,Object);
             W32((byte*)Object,0x50000000);W32((byte*)Object+4,24);W64((byte*)Object+8,0);
         }
-        private void WriteRow(int i,uint id,uint flags,int start,int end)
-        {byte* r=Row(i);W32(r,id);W32(r+4,flags);W64(r+8,Address(start));W64(r+16,end==0?0:Address(end));}
+        private void WriteRow(int i,uint id,uint length,int start)
+        {byte* r=Row(i);W32(r,id);W32(r+4,length);W64(r+8,Address(start));}
         private void Section(int i,string name,uint start,uint size,uint flags)
         {byte* p=Image+0x188+i*40;for(int n=0;n<name.Length;n++) p[n]=(byte)name[n];W32(p+8,size);W32(p+12,start);W32(p+36,flags);}
         internal GCStaticMetadataResult Validate()=>Core.ValidateOne(Capture,Mapping,Owner,Capacity,Handle,Metadata,Cells,Object);
@@ -610,7 +610,7 @@ internal static unsafe class GCStaticRootsMalformedMetadataTests
         File.WriteAllText(Path.Combine(directory,"inputs.json"),JsonSerializer.Serialize(identities,new JsonSerializerOptions{WriteIndented=true}));
         var project=new XElement("Project",new XAttribute("Sdk","Microsoft.NET.Sdk"),
             new XElement("PropertyGroup",
-                new XElement("TargetFramework","net10.0"),new XElement("LangVersion","14.0"),
+                new XElement("TargetFramework","net11.0"),new XElement("LangVersion","14.0"),
                 new XElement("AssemblyName","M04_012_Closure"),new XElement("OutputType","Library"),
                 new XElement("AllowUnsafeBlocks","true"),new XElement("EnableDefaultCompileItems","false"),
                 new XElement("ImplicitUsings","disable"),new XElement("Nullable","disable"),
@@ -639,7 +639,7 @@ internal static unsafe class GCStaticRootsMalformedMetadataTests
         File.WriteAllText(Path.Combine(directory,"result.json"),JsonSerializer.Serialize(new{NativeExit=process.ExitCode,Timeout=timeout,
             StartedUtc=began,EndedUtc=DateTime.UtcNow,InputsUnchanged=unchanged}));
         Check(!timeout && process.ExitCode==0 && error.Length==0 && unchanged,"actual no-stdlib child "+directory);
-        string dll=Path.Combine(directory,"bin","Release","net10.0","M04_012_Closure.dll");
+        string dll=Path.Combine(directory,"bin","Release","net11.0","M04_012_Closure.dll");
         using var stream=File.OpenRead(dll);using PEReader pe=new(stream);var md=pe.GetMetadataReader();
         Check(md.AssemblyReferences.Count==0,"AssemblyRefs0");
         var type=md.TypeDefinitions.Select(h=>md.GetTypeDefinition(h)).Single(t=>md.GetString(t.Name)==nameof(GCStaticRootsMalformedMetadata));

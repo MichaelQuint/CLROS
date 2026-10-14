@@ -193,10 +193,10 @@ internal static class Program
 
     private static bool TryGenerateInterfaceDispatch(out byte[] objectBytes, out CoffWriteError error)
     {
-        objectBytes = new byte[828];
+        objectBytes = new byte[814];
         if (!InterfaceDispatchThunkGenerator.TryGenerate(objectBytes, out int written, out error)) return false;
-        if (written != 828 || Convert.ToHexString(SHA256.HashData(objectBytes)) !=
-            "228630B0AD4D6AB298414FDA0FCF07E76CB4699A63339FA59BA331AFDC3AEB61")
+        if (written != 814 || Convert.ToHexString(SHA256.HashData(objectBytes)) !=
+            "A6122AC2D26139C15D1AE7D004BABCBD8649F4D6CFD41846E0CC99A5E3245272")
         {
             error = CoffWriteError.InternalInvariant;
             return false;

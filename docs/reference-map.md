@@ -267,9 +267,9 @@ CosmosOS/Cosmos destination.
 | `GCSegment.cs`, `GarbageCollector.PreciseStack.cs`, `GCHandleManager.cs` | #193: object-start lookup for interior roots and distinct handle kinds are useful later seams. Review pointer units and failed allocations independently; the inspected enumerator adds a byte count to a `GCObject*`, and handle allocation dereferences an unchecked result. These are static concerns, not reproduced failures or reasons to reopen #82/#83. |
 | [EFI calling-convention fix `cdafa67`](https://github.com/valentinbreiz/nativeaot-patcher/commit/cdafa67d9515a6e3dae7f3901d8a213e420a67e2), `EfiNative.cs` and `EfiRtc.cs` | #65: distinguish calling convention, mapping authority and service lifetime. Cosmos bridges System V to Microsoft x64 and retains runtime services through Limine mappings. CLROS already targets win-x64 and needs its own all-adapter revocation; do not add the assembly thunk. |
 
-Current source targets net10.0, but its SDK request `10.0.201` with
+That inspected Cosmos source snapshot targets net10.0, but its SDK request `10.0.201` with
 `latestFeature` and ILC `$(BundledNETCoreAppPackageVersion)` do not establish
-CLROS's exact ILC 10.0.8 contract. Its runtime gitlink is
+CLROS's then-pinned ILC 10.0.8 contract. Its runtime gitlink is
 `baf4eb1e0b672338897fc20de49daffe5f84569c`. Patched CoreLib, plugs,
 Limine/ELF and native/System V bridges remain separate architecture choices.
 The newer ext2/symlink and DNS/socket work is future reference material;

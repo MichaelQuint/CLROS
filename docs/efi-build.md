@@ -425,7 +425,7 @@ This is a bounded terminal boot path. It reuses the original retained allocator 
 
 ## Current toolchain migration
 
-The host producer and verifier run as C# 14/.NET 10 commands:
+The host producer and verifier run as C# 14/.NET 11 commands:
 `dotnet run --project tools/OS.Tooling -- efi build` and
 `dotnet run --project tools/OS.Tooling -- efi verify`. Add `--preflight-only`
 to the build command for discovery and source admission without publication.
@@ -460,10 +460,20 @@ background compiler helpers from consuming the build timeout after native
 publication has finished. It does not change the QEMU runner's default process
 lifecycle or allow successful builds with unconfirmed child termination.
 
-Issue #590 moves the selected freestanding ILCompiler and NativeAOT runtime pack
+The active .NET 11 migration in
+[#727](http://192.168.4.35:3000/admin/CLROS/issues/727) selects exact SDK
+`11.0.100-rc.2.26504.105`, compiler/runtime `11.0.0-rc.2.26504.105` and the
+current MSVC linker. See [host requirements](host-requirements.md) for exact
+selection and CPU policy. The source revision is
+`820230c386db5b0106c5430b3e5aee92a7826bf5`: its module directory is RTR26.1
+with 16-byte explicit-length rows, and its interface dispatch format changed.
+Fresh adapter, native and guest evidence is required; earlier receipts remain
+historical. Normal output paths now use `net11.0`.
+
+Historically, issue #590 moved the freestanding ILCompiler and NativeAOT runtime pack
 to `10.0.12`, with stable SDK `10.0.401`. All three compiler/runtime packages
 identify dotnet/dotnet revision `95017c711e6afc1085133d440e42b4bd78155701`.
-The active layout profile is `ilc10.0.12-win-x64-le`. The reviewed 67 upstream
+That layout profile was `ilc10.0.12-win-x64-le`. The reviewed 67 upstream
 ABI sources match the previous `10.0.8` sources byte for byte; compiler binaries
 differ, so qualification includes fresh native geometry and guest validation.
 
@@ -488,6 +498,14 @@ contracts in the publisher, verifier and runner. No optional-profile acceptance
 outside that matrix or completion gate is renewed by changing package versions.
 
 ## Accepted diagnostics and dispatch integration
+
+The following acceptance is historical .NET 10 evidence. The .NET 11 adapter
+uses section209 NativeArray callsite metadata, section210 zero-initialized
+16-byte cells and section331 relative type references. The renamed
+`RhpInterfaceDispatch` bridge is 814 bytes; its instruction bytes and relocations
+are unchanged. The five-cell fixture expects an 80-byte section, which requires
+confirmation against the new original COFF before guest acceptance. Its external
+bounded cache leaves compiler cells unchanged. #727 owns fresh qualification.
 
 Shared issue #572 adds `EnableM04InterfaceDispatchProbe`, disabled by default.
 It requires `EnableM04ClassConstructorExecutionProbe` and that profile's entire
@@ -769,7 +787,7 @@ boundary.
   or emitting `TEST_PASS efi.shell.publish`.
 - `dotnet run --project tools/OS.Tooling -- efi build -EnableUefiGoneSimulationProbe` defines `UEFI_GONE_SIMULATION_PROBE`, prints `EFI_PROBE UEFI_GONE_SIMULATION`, and publishes a variant that emits `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
 - `dotnet run --project tools/OS.Tooling -- efi build -EnableAcpiPhysicalDiscoveryProbe` defines `ACPI_PHYSICAL_DISCOVERY_PROBE`, prints `EFI_PROBE ACPI_PHYSICAL_DISCOVERY`, and publishes a variant that reads firmware-provided ACPI physical addresses before `ExitBootServices`, validates RSDP/root SDT/MCFG bytes into fixed scratch storage, and emits `ACPI_RSDP_SNAPSHOT_READY`, `ACPI_RSDP_VALIDATED`, `ACPI_ROOT_SDT_SNAPSHOT_READY`, `ACPI_ROOT_SDT_VALIDATED`, and `ACPI_MCFG_DISCOVERY_READY`.
-- On success, the publish script copies `src/OS/bin/Release/net10.0/win-x64/publish/OS.exe` to `artifacts/efi/BOOTX64.EFI`.
+- On success, the publish script copies `src/OS/bin/Release/net11.0/win-x64/publish/OS.exe` to `artifacts/efi/BOOTX64.EFI`.
 - `dotnet run --project tools/OS.Tooling -- efi verify` parses the staged PE directly and rejects
   missing, empty, truncated, malformed, non-AMD64, non-PE32+, non-EFI,
   zero-entrypoint, non-executable-entrypoint, virtual-only-entrypoint, import,
@@ -2241,7 +2259,7 @@ successful three-lane attempt; no product source changed for either correction.
 `tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.targets`
 file. The import runs only as a host-side build integration:
 
-- the generator remains an ordinary .NET 10 host tool and has no
+- the generator remains an ordinary .NET 11 host tool and has no
   `ProjectReference`, package, custom reference, or non-SDK analyzer closure;
 - the generated COFF object remains ephemeral, is generated atomically, and is
   registered as both the exact `NativeLibrary` input and linker argument only
@@ -2313,7 +2331,7 @@ ordinary package, fallback-package, and audit sources, so restore has one
 explicit local package source and one fresh isolated package root.
 
 That restore creates exactly five canonical NuGet/MSBuild inputs under
-`src/OS/obj/<configuration>/net10.0/<rid>/nuget`:
+`src/OS/obj/<configuration>/net11.0/<rid>/nuget`:
 `OS.csproj.nuget.dgspec.json`, `OS.csproj.nuget.g.props`,
 `OS.csproj.nuget.g.targets`, `project.assets.json`, and
 `project.nuget.cache`. The build rejects any missing, extra, empty, indirect,

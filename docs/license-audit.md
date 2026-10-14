@@ -7,6 +7,19 @@ the reference-build firewall. M16-001 must record exact compiler/runtime/musl
 and native dependency versions, immutable sources and hashes; M16-002 carries
 that provenance into the image. No upstream native source is imported here.
 
+The .NET 11 RC2 payload audit uses runtime pack
+`Microsoft.NETCore.App.Runtime.NativeAOT.linux-musl-x64/11.0.0-rc.2.26504.105`,
+whose nuspec identifies dotnet/dotnet revision
+`820230c386db5b0106c5430b3e5aee92a7826bf5`. Its restored inputs include
+`runtimes/linux-musl-x64/native/libzstd.a` and the package-root `LICENSE.TXT`
+and `THIRD-PARTY-NOTICES.TXT`. The latter retains the Zstandard BSD notice
+and Meta attribution. Payload packaging must retain the applicable notices;
+the compiler/runtime version alone does not identify all bundled dependencies.
+The payload qualifier hashes downloaded runtime-pack files as well as ordinary
+NuGet asset libraries. See [host requirements](host-requirements.md) and the
+fresh qualification receipt recorded by [step1225](../done/step1225.md).
+This records dependency provenance, not completed payload image packaging.
+
 ## Current Status
 
 The project owner has authorized agents to inspect and use the reference

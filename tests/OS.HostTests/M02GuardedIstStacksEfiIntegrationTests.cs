@@ -563,13 +563,10 @@ internal static class M02GuardedIstStacksEfiIntegrationTests
                 "postExitBootServices=false",
                 StringComparison.Ordinal)
             && readme.Contains(
-                "M02-008",
+                "(docs/efi-build.md)",
                 StringComparison.Ordinal)
             && readme.Contains(
-                "temporary six-page UEFI LoaderData arena",
-                StringComparison.Ordinal)
-            && readme.Contains(
-                "does not install a TSS, IST, GDT, or IDT",
+                "(docs/qemu.md)",
                 StringComparison.Ordinal);
     }
 

@@ -20,7 +20,7 @@ internal static class ExceptionHandlingThunkGeneratorTests
             string folder = Path.Combine(root, "artifacts", "simple-catch-thunk", Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(folder);
             Run(root, folder, "build", ["build", "tools/OS.X64TextSerializerGenerator/OS.X64TextSerializerGenerator.csproj", "--nologo", "-m:1"]);
-            string tool = Path.Combine(root, "tools/OS.X64TextSerializerGenerator/bin/Debug/net10.0/OS.X64TextSerializerGenerator.dll");
+            string tool = Path.Combine(root, "tools/OS.X64TextSerializerGenerator/bin/Debug/net11.0/OS.X64TextSerializerGenerator.dll");
             Run(root, folder, "emit", [tool, "--simple-throw-catch", "--output-root", folder, "--output-file", "catch.obj"]);
             byte[] obj = File.ReadAllBytes(Path.Combine(folder, "catch.obj"));
             Need(obj.Length == OS.Tooling.EfiContracts.SimpleCatchObjectBytes && Convert.ToHexString(SHA256.HashData(obj)) == Hash, "fixed complete object");

@@ -28,7 +28,7 @@ public static partial class QemuTranscripts
         ulong seed = ((module[3] ^ heap["backing"] ^ stack[2]) & 65535) + 1;
         Need(binding[0] == module[3] && binding[2] == 32768 && binding[3] == seed && original[0] == root[1] && original[1] == collector[0] && original[2] == 0xC011EC7000000006 && module[3] == (decimal)original[3] + 272, "m04_dispatch_original_authority");
         bool InImage(ulong address, ulong bytes, ulong alignment) => bytes > 0 && address % alignment == 0 && address >= image[0] && (decimal)address + bytes <= (decimal)image[0] + image[1];
-        Need(InImage(binding[1], 32768, 8) && InImage(original[3], 4096, 8) && InImage(cells[0], cells[1], 16) && cells[1] == 112 && cells[3] == 5 && InImage(cells[2], 1, 1), "m04_dispatch_image_ranges");
+        Need(InImage(binding[1], 32768, 8) && InImage(original[3], 4096, 8) && InImage(cells[0], cells[1], 8) && cells[1] == 80 && cells[3] == 5 && InImage(cells[2], 1, 1), "m04_dispatch_image_ranges");
         DistinctExtents([(binding[1], 32768), (original[3], 4096), (cctor[1], 8192)], "m04_dispatch_owner");
         for (int i = 0; i < 2; i++) Need(objects[i] % 8 == 0 && objects[i] >= (decimal)heap["retainedStart"] + 8 && (decimal)objects[i] + 16 <= (decimal)heap["retainedStart"] + 176 && InImage(objects[i + 2], 24, 8), "m04_dispatch_receiver_extent");
         DistinctExtents([(objects[0] - 8, 24), (objects[1] - 8, 24), (original[0] - 8, 24), (original[1] - 8, 32)], "m04_dispatch_receiver");
@@ -40,13 +40,18 @@ public static partial class QemuTranscripts
         Need(rows[72][0] == 17 && rows[72][1] == collectorStack[1] && rows[72][2] == collectorStack[2], "m04_dispatch_stack_canary");
         foreach (ulong witness in new[] { rows[5][3], rows[72][3] }) Need(witness % 8 == 0 && witness >= (decimal)stack[0] + 16400 && (decimal)witness + 8 <= stack[2] && witness <= stack[3], "m04_dispatch_stack_extent");
         Need(rows[72][3] <= rows[5][3], "m04_dispatch_stack_minimum");
-        HashSet<ulong> seenCells = [], seenInterfaces = []; ulong[] offsets = [0, 16, 64, 80, 32], slotsExpected = [1, 0, 1, 2, 3];
+        // Compiler sorting is not an ABI guarantee. Five distinct identities in
+        // this exact five-cell region exhaust it without accepting a terminator,
+        // interior pointer, repeated callsite or an unrelated image address.
+        HashSet<ulong> seenCells = [], seenInterfaces = []; ulong[] slotsExpected = [1, 0, 1, 2, 3];
         for (int i = 0; i < 15; i++)
         {
             int operation = i / 3, receiver = i % 3 == 1 ? 1 : 0, at = 10 + i * 4; bool second = receiver == 1;
             var call = rows[at]; var types = rows[at + 1]; var slots = rows[at + 2]; var value = rows[at + 3];
             ulong interfaceSlot = operation is 2 or 3 ? 1UL : 0;
-            Need(call[0] == objects[receiver] && call[3] == (ulong)(9 + receiver) && types[0] == objects[receiver + 2] && call[1] == (decimal)cells[0] + offsets[operation] && InImage(call[2], 1, 1) && call[2] != cells[2] && InImage(types[1], 24, 8) && InImage(types[2], 24, 8) && slots[0] == interfaceSlot && slots[2] == (i % 3 == 2 ? 1UL : 0) && slots[3] == (ulong)i + 1, "m04_dispatch_call_" + i);
+            Need(call[0] == objects[receiver] && call[3] == (ulong)(9 + receiver) && types[0] == objects[receiver + 2] &&
+                call[1] >= cells[0] && call[1] - cells[0] < cells[1] && (call[1] - cells[0]) % 16 == 0 &&
+                InImage(call[2], 1, 1) && call[2] != cells[2] && InImage(types[1], 24, 8) && InImage(types[2], 24, 8) && slots[0] == interfaceSlot && slots[2] == (i % 3 == 2 ? 1UL : 0) && slots[3] == (ulong)i + 1, "m04_dispatch_call_" + i);
             Need(types[3] == (operation <= 1 ? rows[6][0] : objects[receiver + 2]) && slots[1] == slotsExpected[operation], "m04_dispatch_slot_owner");
             bool variant = operation is 2 or 3 && !second;
             Need(variant ? types[1] != types[2] : types[1] == types[2], "m04_dispatch_variance");

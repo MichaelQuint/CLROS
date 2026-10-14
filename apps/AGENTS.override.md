@@ -11,16 +11,16 @@ Apps under this tree are used to prove the single-workload CloudReady model:
 - Packaged file reads.
 - Network client behavior.
 - HTTP server behavior.
-- Future hosted .NET 10 ASP.NET Minimal API and Kestrel support.
+- Future hosted .NET 11 ASP.NET Minimal API and Kestrel support.
 
-Current apps are host-buildable `net10.0` placeholders. They are not proof that the OS can run hosted .NET 10 workloads yet.
+Current apps are host-buildable `net11.0` placeholders. They are not proof that the OS can run hosted .NET 11 workloads yet.
 
 ## Project Rules
 
 Use:
 
 - C# 14.0.
-- `net10.0`.
+- `net11.0`.
 - Nullable annotations enabled.
 - Clear console output markers for host-side smoke tests.
 - Small apps with one focused behavior each.
@@ -47,7 +47,7 @@ Kestrel support is mandatory for the product goal, but it must be proven with re
 
 Before app code can claim Kestrel support, the repository needs:
 
-- A documented hosted .NET 10 runtime boundary.
+- A documented hosted .NET 11 runtime boundary.
 - Socket/timer/threading behavior sufficient for Kestrel.
 - Network stack evidence through TCP.
 - An image/package path that launches the Minimal API app.

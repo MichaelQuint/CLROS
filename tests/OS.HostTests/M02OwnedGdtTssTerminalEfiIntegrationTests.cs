@@ -720,6 +720,12 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
         string qemu = File.ReadAllText(
             Path.Combine(root, "docs", "qemu.md"));
         string readme = File.ReadAllText(Path.Combine(root, "README.md"));
+        string diagnostics = Regex.Replace(
+            ExtractBlock(
+                File.ReadAllText(Path.Combine(root, "docs", "diagnostics.md")),
+                "M02-009 host tests",
+                "M02-010 host tests"),
+            @"\s+", " ", RegexOptions.CultureInvariant);
 
         return efiBuild.Contains(
                 "EnableM02OwnedGdtTssTerminalProbe",
@@ -734,11 +740,14 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
             && qemu.Contains("43 forbidden", StringComparison.OrdinalIgnoreCase)
             && qemu.Contains("runner-terminated", StringComparison.Ordinal)
             && qemu.Contains("raw-observation shim", StringComparison.OrdinalIgnoreCase)
-            && readme.Contains("M02-009", StringComparison.Ordinal)
-            && readme.Contains(
-                "done/step918.md` records the fresh real QEMU/OVMF acceptance",
+            && diagnostics.Contains(
+                "accepted source-bound QEMU/OVMF profile recorded in `done/step918.md`",
                 StringComparison.Ordinal)
-            && readme.Contains("pre-`ExitBootServices`", StringComparison.Ordinal);
+            && diagnostics.Contains(
+                "This is bounded pre-`ExitBootServices` evidence only.",
+                StringComparison.Ordinal)
+            && readme.Contains("(docs/efi-build.md)", StringComparison.Ordinal)
+            && readme.Contains("(docs/qemu.md)", StringComparison.Ordinal);
     }
 
     private static bool ExecuteCleanupPlanHarness(string cleanupPlan)
@@ -760,7 +769,7 @@ internal static class M02OwnedGdtTssTerminalEfiIntegrationTests
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
                 <OutputType>Exe</OutputType>
-                <TargetFramework>net10.0</TargetFramework>
+                <TargetFramework>net11.0</TargetFramework>
                 <ImplicitUsings>disable</ImplicitUsings>
                 <Nullable>enable</Nullable>
               </PropertyGroup>

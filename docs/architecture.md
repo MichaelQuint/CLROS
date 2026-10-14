@@ -66,7 +66,7 @@ or continuing workload.
 Ordinary verified firmware exit is accepted under #68/#594 in [step1094](../done/step1094.md). The frozen source `3c986e83447e2955efb25566ecd611676f054b30` passes the original full host gate (3,903 paired groups plus the suite summary), three fresh ordinary 79-record QEMU/OVMF captures and five explicit diagnostic regressions. Native, raw transcript, source and post-capture GPT/FAT/EFI associations pass.
 
 CLROS follows a staged CloudReady NativeAOT architecture. The first-class
-application goal is .NET 10 workload hosting, with ASP.NET Minimal API apps as
+application goal is .NET 11 NativeAOT workload hosting, with ASP.NET Minimal API apps as
 the primary cloud target. Kestrel support is mandatory for that milestone.
 Accepted local QEMU/OVMF profiles include the default EFI smoke, opt-in owned
 stack/allocator/paging and ACPI discovery, bounded real `ExitBootServices`,

@@ -5,12 +5,13 @@ namespace OS.Kernel.Runtime;
 /// Prefix/token association and stable exclusive mapped storage are caller
 /// obligations. Numeric references are not host CLR objects. Pointer components
 /// are zero slots only; no reference stores, barriers, GC or compiled-array proof.
+/// The signed x64 length is validated before narrowing to the array's Int32 field.
 /// </summary>
 public static unsafe class GuestTestArrayAllocationLengthOverflowChecks
 {
     public static RhpNewFastResult TryAllocate(RhpNewFastHeapAccess access,
         RhpNewFastBumpState* state, ulong stateCapacity, NativeAotLayoutProfile profile,
-        NativeAotMethodTablePrefix prefix, ulong methodTableToken, int length) =>
+        NativeAotMethodTablePrefix prefix, ulong methodTableToken, long length) =>
         GuestTestRhpNewFast.TryAllocateArray(access, state, stateCapacity,
             profile, prefix, methodTableToken, length);
 }

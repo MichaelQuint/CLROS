@@ -5834,7 +5834,7 @@ internal static unsafe class M01LivePagingIntegrationTests
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
                 <AssemblyName>CLROS.M01.LivePagingCompileClosure</AssemblyName>
-                <TargetFramework>net10.0</TargetFramework>
+                <TargetFramework>net11.0</TargetFramework>
                 <LangVersion>14.0</LangVersion>
                 <OutputType>Library</OutputType>
                 <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

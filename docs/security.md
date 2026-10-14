@@ -32,7 +32,7 @@ Security is policy baseline only.
   - rejects `references/` project paths in `CLROS.slnx`;
   - rejects `references/` project paths from first-party `src/`, `std/`, and `apps/` project files;
   - emits `TEST_START source.firewall`, `TEST_PASS source.firewall`, and `TEST_FAIL source.firewall <path>: <reason>` markers.
-- `tools/OS.X64TextSerializerGenerator` is the C# 14/.NET 10 host-build leaf
+- `tools/OS.X64TextSerializerGenerator` is the C# 14/.NET 11 host-build leaf
   included in `CLROS.slnx`. M01-034 imports its audited targets into the EFI
   project without a managed `ProjectReference`; only the exact generated native
   object enters the native link.

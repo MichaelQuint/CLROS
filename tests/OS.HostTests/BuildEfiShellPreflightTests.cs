@@ -183,12 +183,12 @@ internal static class BuildEfiShellPreflightTests
 
     private static bool TestSdkVersionContract(string tempRoot)
     {
-        foreach (string version in new[] { "10.0.401", "10.0.402", "10.0.499" })
-            if (EfiPreflight.SdkVersionFailure("ok", [version]) != "ok") return false;
-        foreach (string version in new[] { "", "10.0.300", "10.0.302", "10.0.400", "10.0.500", "11.0.401", "10.1.401", "10.0.401-preview.1", "10.0.401+extra", "invalid" })
+        const string approved = "11.0.100-rc.2.26504.105";
+        if (EfiPreflight.SdkVersionFailure("ok", [approved]) != "ok") return false;
+        foreach (string version in new[] { "", "10.0.401", "11.0.100", "11.0.101", "11.0.100-rc.1.26504.105", "11.0.100-rc.2.26504.104", "11.0.100-rc.2.26504.106", "11.0.100-RC.2.26504.105", approved + "+extra", "invalid" })
             if (EfiPreflight.SdkVersionFailure("ok", [version]) != "dotnet_sdk_version_unsupported") return false;
         return EfiPreflight.SdkVersionFailure("ok", []) == "dotnet_sdk_version_output_invalid"
-            && EfiPreflight.SdkVersionFailure("ok", ["10.0.401", "10.0.402"]) == "dotnet_sdk_version_output_invalid"
+            && EfiPreflight.SdkVersionFailure("ok", [approved, approved]) == "dotnet_sdk_version_output_invalid"
             && EfiPreflight.SdkVersionFailure("timed_out", []) == "dotnet_sdk_version_timed_out";
     }
 
@@ -1929,7 +1929,7 @@ internal static class BuildEfiShellPreflightTests
 
     private static bool TestM01FreshOutputCleanupGuards(string tempRoot)
     {
-        string root = CreateEmptyDirectory(tempRoot, "fresh cleanup with spaces"), relative = "src/OS/obj/Release/net10.0/win-x64";
+        string root = CreateEmptyDirectory(tempRoot, "fresh cleanup with spaces"), relative = "src/OS/obj/Release/net11.0/win-x64";
         string candidate = Path.Combine(root, relative); Directory.CreateDirectory(candidate); File.WriteAllText(Path.Combine(candidate, "sentinel"), "remove");
         EfiBuildFiles.FreshDirectory(root, candidate, relative);
         if (Path.Exists(candidate)) return false;
@@ -1941,7 +1941,7 @@ internal static class BuildEfiShellPreflightTests
             if (ancestor) Directory.Delete(link, recursive: true);
             Directory.CreateDirectory(Path.GetDirectoryName(link)!);
             string target = CreateEmptyDirectory(tempRoot, ancestor ? "cleanup ancestor target" : "cleanup leaf target");
-            string targetCandidate = ancestor ? Path.Combine(target, "Release/net10.0/win-x64") : target; Directory.CreateDirectory(targetCandidate);
+            string targetCandidate = ancestor ? Path.Combine(target, "Release/net11.0/win-x64") : target; Directory.CreateDirectory(targetCandidate);
             string keep = Path.Combine(targetCandidate, "keep"); File.WriteAllText(keep, "keep"); TestJunction.Create(link, target);
             try { if (!Fails(() => EfiBuildFiles.FreshDirectory(root, candidate, relative), "fresh_publish_path_reparse_point") || File.ReadAllText(keep) != "keep") return false; }
             finally { Directory.Delete(link); }
@@ -2669,7 +2669,7 @@ internal static class BuildEfiShellPreflightTests
             "EFI_PREFLIGHT_M02_SWITCHES status=ok enabled=false loadedImageStack=false liveAllocator=false ownedPaging=false checkedPortIoBinding=false",
             $"EFI_PREFLIGHT_M01_SOURCE_CLOSURE status=ok reviewed={EfiContracts.ReviewedSourceIncludes.Count} prerequisites={EfiContracts.PrerequisiteSourceIncludes.Count} compileItems={EfiContracts.CompileItems.Count} prerequisiteGap=UefiMemoryType",
             "EFI_PREFLIGHT_DOTNET path=\"",
-            "sdkVersion=\"10.0.4",
+            "sdkVersion=\"" + EfiContracts.SdkVersion + "\"",
             "EFI_PREFLIGHT_MSVC_LINKER path=\"" + Path.GetFullPath(tools.LinkerPath) + "\" version=\"14.40.33807\"",
             "EFI_PREFLIGHT_WINDOWS_SDK path=\"" + Path.GetFullPath(tools.SdkLibPath) + "\" version=\"10.0.26100.0\"",
             "EFI_PREFLIGHT_ILCOMPILER path=\"" + Path.GetFullPath(tools.IlCompilerPath) + "\" packageVersion=\"" + EfiContracts.NativePackageVersion + "\"",
@@ -2725,7 +2725,7 @@ internal static class BuildEfiShellPreflightTests
         Directory.CreateDirectory(runtimePackData);
         File.WriteAllText(
             Path.Combine(runtimePackData, "RuntimeList.xml"),
-            "<FileList TargetFrameworkIdentifier=\".NETCoreApp\" TargetFrameworkVersion=\"10.0\" />");
+            "<FileList TargetFrameworkIdentifier=\".NETCoreApp\" TargetFrameworkVersion=\"11.0\" />");
 
         string qemuPath = Path.Combine(root, "qemu-system-x86_64.cmd");
         File.WriteAllLines(

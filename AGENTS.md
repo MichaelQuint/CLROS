@@ -2,6 +2,12 @@
 
 ## Start here
 
+The user selected .NET 11 for the OS, tooling and guest-app target on October 13.
+Use the exact SDK/runtime pins and x86-64-v2 CPU contract in
+`docs/host-requirements.md`; C#14 remains the project language during migration.
+#727 owns the active toolchain/ABI qualification. Preserve older .NET 10 evidence
+and wait for that shared integration owner before starting #188 boot edits.
+
 1. Read `docs/workload-profiles.md` for the current NativeAOT-first decision.
 2. Refresh the LAN tracker and select the first unfinished dependency-compatible
    NativeAOT-first ticket. M16-001/#679 through M16-007/#685 are qualified;
@@ -112,7 +118,7 @@ intended deployment model is a minimal single-workload cloud appliance:
 - Reproducible UEFI boot image and cloud/virtualization image tooling.
 - No default multi-user shell, SSH, or remote administration surface.
 - One configured workload by default.
-- .NET 10 applications as first-class workloads.
+- .NET 11 applications as first-class workloads.
 - ASP.NET Minimal API/Kestrel support as a mandatory milestone.
 
 Ordinary `VerifiedExit` is accepted in `done/step1094.md`: three frozen-source
@@ -235,7 +241,7 @@ differ from this root guide.
 
 - First-party kernel/std/app source committed to this repo must be C#.
 - Do not commit `.c`, `.cpp`, `.h`, `.asm`, or `.s` files.
-- Use C# 14.0 and .NET 10 for normal managed projects.
+- Use C# 14.0 and .NET 11 for normal managed projects.
 - Keep `src/OS` explicit, minimal, no-stdlib, and NativeAOT-aware.
 - `src/OS.Kernel/Boot/BootSequence.cs` is the source of truth for boot order.
   Add phases there; do not bypass it.

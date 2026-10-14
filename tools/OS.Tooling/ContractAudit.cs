@@ -51,7 +51,7 @@ public static class ContractAudit
 
     private static readonly (string Name, string Value)[] RequiredProperties =
     [
-        ("TargetFramework", "net10.0"), ("LangVersion", "14.0"),
+        ("TargetFramework", "net11.0"), ("LangVersion", "14.0"),
         ("NoStdLib", "true"), ("NoConfig", "true"),
         ("EnableDefaultCompileItems", "false"), ("DisableImplicitFrameworkReferences", "true"),
         ("EntryPointSymbol", "EfiMain"), ("LinkerSubsystem", "EFI_APPLICATION")

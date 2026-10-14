@@ -121,7 +121,7 @@ public static unsafe class BoundedNonMovingCollectorExplicitRootEnumeration
         CollectorStaticRootAccess staticRoot = default,
         uint workLimit = GuestTestRhpNewFast.MaximumTrackedAllocations)
     {
-        if (profile != NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian)
+        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian)
             return new(BoundedCollectionStatus.UnsupportedProfile);
         if (rootCount > rootCapacity || rootCapacity > GuestTestRhpNewFast.MaximumTrackedAllocations ||
             (rootCapacity == 0 ? roots != null : roots == null || ((ulong)roots & 7) != 0 ||
@@ -267,7 +267,7 @@ public static unsafe class BoundedNonMovingCollectorExplicitRootEnumeration
 
     /// <summary>
     /// Decode ordinary fixed-class or abbreviated GC-static metadata for the
-    /// pinned .NET 10.0.12 x64 profile. Variable-sized objects, negative/repeating
+    /// pinned .NET 11.0.0 RC2 x64 profile. Variable-sized objects, negative/repeating
     /// GCDesc forms, finalizers and dynamic type metadata are not admitted.
     /// Every read is inside both the caller window and registered immutable PE
     /// metadata. There are no allocations, callbacks or writes to caller memory.
@@ -277,7 +277,7 @@ public static unsafe class BoundedNonMovingCollectorExplicitRootEnumeration
         byte* typeOwner, ulong typeCapacity, ulong moduleHandle,
         GCStaticReadableWindow metadata, ulong methodTable, bool abbreviatedStaticBase = false)
     {
-        if (profile != NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian)
+        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian)
             return new(CollectorTypeMapStatus.UnsupportedProfile);
         if (metadata.Start == 0 || metadata.Bytes == 0 || metadata.Start > ~0UL - metadata.Bytes)
             return new(CollectorTypeMapStatus.InvalidWindow);
@@ -335,7 +335,7 @@ public static unsafe class BoundedNonMovingCollectorExplicitRootEnumeration
         for (uint i = 0; i < MaximumReferenceSeries; i++) series[i] = default;
         // GCDesc grows backwards: count at MT-8, highest series at MT-24.
         // The stored signed length is adjusted by subtracting object BaseSize.
-        // Source: pinned dotnet/dotnet 95017c711e6afc1085133d440e42b4bd78155701,
+        // Source: pinned dotnet/dotnet 820230c386db5b0106c5430b3e5aee92a7826bf5,
         // src/runtime/src/coreclr/gc/gcdesc.h, CGCDesc/CGCDescSeries.
         for (uint i = 0; i < count; i++)
         {

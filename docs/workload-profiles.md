@@ -4,7 +4,7 @@
 
 Accepted for planning. This document defines workload profile names and gate
 semantics only. It does not add runtime, process, network, storage, hosted
-.NET 10, CoreCLR, ASP.NET Minimal API, or Kestrel evidence.
+.NET applications, CoreCLR, ASP.NET Minimal API, or Kestrel evidence.
 
 ## Context
 
@@ -18,7 +18,7 @@ CLROS has two related but different workload targets:
 The current implementation includes host-tested contracts and accepted bounded
 EFI/QEMU firmware-exit, storage and network diagnostics. Continuing services,
 an upstream .NET application runtime, Kestrel, isolated application processes,
-scheduling and an app supervisor remain unqualified. See completion-gates.md
+general application scheduling and an app supervisor remain unqualified. See completion-gates.md
 for the accepted boundaries; bounded diagnostics do not establish app hosting.
 
 [Step1201](../done/step1201.md) accepts one default-off mechanical ELF CPL3
@@ -27,6 +27,13 @@ It does not qualify the upstream NativeAOT Hello milestone, thread/TLS/futex
 services, application GC/EH, a continuing workload or CLROS Kestrel.
 
 ## Decision
+
+**Toolchain and workload version (2026-10-13):** the user selected .NET 11
+for the OS, tooling and guest-app milestone. Exact RC2 pins and migration
+qualification belong to [host requirements](host-requirements.md) and
+[#727](http://192.168.4.35:3000/admin/CLROS/issues/727). The architecture and
+issue order below remain NativeAOT-first. Preserve .NET 10 measurements as
+historical inputs and repeat payload/ABI qualification for the new version.
 
 **Superseded ordering (2026-10-12):** the NativeAOT-first decision below is
 authoritative. Older hosted-runtime descriptions preserve historical contracts,
@@ -63,9 +70,17 @@ checks. #185's injected-tick deadline queue is qualified in
 cooperative transfer is qualified in [step1218](../done/step1218.md): 4,742
 full-host checks, current original native review, three fresh 99-record guests
 with seventeen transfers/restoration/cleanup and seven ancestors pass.
-#187's real hardware interrupt wake/preemption and #188's lifecycle guest proof
-remain before Linux threading. Exact managed dependencies still
-control the sequence before #686; these foundations do not establish execution.
+#187 and its children qualify four bounded hardware timer interrupts in
+[step1224](../done/step1224.md): 4,776 full-host checks, six original native
+bodies, three fresh 115-record guests and ten ancestors pass. That diagnostic
+restores its original context after one safe wake; it is not a continuing
+lifecycle owner. The next slice is [#188](http://192.168.4.35:3000/admin/CLROS/issues/188):
+bounded cooperative workers with repeated hardware timer wakes, atomic waits
+and off-stack reclamation. See [the lifecycle handoff](pal.md#next-bounded-lifecycle-188).
+#191 wait-on-address and #192 application FS/TLS then remain prerequisites of
+#686 alongside accepted #685. Exact managed dependencies control that sequence.
+These accepted .NET 10 checkpoints retain their historical toolchain identity;
+the user-selected .NET 11 migration requires fresh qualification.
 The #708/#711 qualification in [step1209](../done/step1209.md) adds explicit
 heap reservation ownership. General fixed mappings and unmaps still operate;
 they relinquish heap ownership, so brk cannot silently reclaim a replacement
@@ -84,7 +99,7 @@ owns the continuing NIC service. Refresh the tracker before implementation.
 Tracker migration and cleanup evidence are in
 [step1196](../done/step1196.md).
 
-Run one pinned upstream .NET 10 NativeAOT Minimal API through a restricted
+Run one pinned upstream .NET 11 NativeAOT Minimal API through a restricted
 Linux x64 syscall ABI implemented in the C# kernel, then two separately
 packaged applications in hardware-protected processes. Preserve the upstream
 runtime, GC, EH and musl inside each application payload. Kernel and application
@@ -92,7 +107,7 @@ heaps, roots, metadata and exception machinery remain separate.
 
 Use the existing `linux-musl-x64` target and controlled publish recipe before
 considering a custom RID/runtime fork. First-party kernel/std/apps remain
-C#14/.NET10; attributed upstream native dependencies may be built externally
+C#14/.NET11; attributed upstream native dependencies may be built externally
 and packaged with apps. Reference snapshots remain read-only, outside build
 inputs. Preserve `OSHost_*` and OSHostStatus; Linux register/errno/fd semantics
 are a distinct adapter over common kernel services, not changes to that ABI.
@@ -147,7 +162,27 @@ blocker and review a changed strategy before speculative compatibility work.
 Linux-host success is not CLROS guest evidence. Never implement successful
 no-op threads, mappings, protection or entropy.
 
-[Step1198](../done/step1198.md) qualifies M16-001's pinned static Hello, runtime
+The active guest payload policy is .NET 11 RC2: SDK
+`11.0.100-rc.2.26504.105`, runtime/ILC/ILLink
+`11.0.0-rc.2.26504.105`, `net11.0`, and C#14. The qualification command
+`dotnet run --project tools/OS.Tooling -- nativeaot payload qualify --output <fresh-directory>`
+requires that exact SDK on Linux musl, publishes all three apps with explicit
+runtime and target-framework pins, and rejects missing or mismatched restored
+ILCompiler/NativeAOT/ILLink packages. The native input receipt includes both
+ordinary assets libraries and downloaded runtime packs, including their static
+archives; NuGet's `downloadDependencies` cannot be omitted from that inventory.
+Microsoft publishes the matching Linux musl SDK
+and checksum in the [official .NET11 release metadata](https://builds.dotnet.microsoft.com/dotnet/release-metadata/11.0/releases.json).
+Fresh .NET11 static publication, dependency inspection, runtime exercise and
+HTTP/shutdown traces are required; existing .NET10 receipts do not qualify this
+new payload. CLROS guest Hello and Kestrel remain unqualified.
+The .NET11 x64 JIT/AOT baseline is
+[x86-64-v2](https://learn.microsoft.com/en-us/dotnet/core/whats-new/dotnet-11/runtime#x86x64-requirements):
+the builder and eventual guest CPU must supply CX16, POPCNT, SSSE3 and SSE4.1/4.2
+in addition to the prior SSE baseline. This does not require AVX/XSAVE. The old
+`qemu64` evidence below does not establish this new CPU contract.
+
+[Step1198](../done/step1198.md) qualified M16-001's earlier .NET10 static Hello, runtime
 exerciser and real Minimal API on Alpine3.24.2, SDK10.0.401/runtime10.0.12.
 All three are x64 ET_EXEC with four disjoint load ranges, TLS, no interpreter
 or dynamic section; upstream application GC/EH remains separate from the kernel.
@@ -174,13 +209,15 @@ step1201 profile qualifies mechanical application entry and write/exit syscalls.
 Thread TLS and upstream application startup remain incomplete. No guest runtime
 or Kestrel evidence follows from loading, read-back or mechanical entry alone.
 
-### Pinned payload requirements and trace limits
+### Prior .NET10 payload requirements and trace limits
 
-The tested CPU is QEMU `qemu64`, one CPU, with SSE/SSE2/SSE3, FXSAVE, NX and
+The step1198 CPU was QEMU `qemu64`, one CPU, with SSE/SSE2/SSE3, FXSAVE, NX and
 long mode; no AVX is advertised. Preserve this measured target and upstream
 CPUID dispatch before broadening CPU claims. GNU notes record a 1.5 MiB stack;
 they are not an exhaustive CPU specification. The runtime/ILC/package inventories
-in step1198 are the exact build input evidence.
+in step1198 are the exact .NET10 build input evidence. The following measured
+values remain historical compatibility inputs; repeat their audit against the
+.NET11 payload before treating them as its required ABI.
 
 | Contract family | Observed and source-backed requirement |
 | --- | --- |
@@ -232,13 +269,15 @@ through `IConnectionListenerFactory`; compare the pinned application's behavior,
 dependency inventory and required CLROS services before adopting it. This can
 change networking integration, but does not remove upstream GC/EH, memory,
 threading or timer requirements. The experiment is not guest acceptance and
-does not block #684. See [the Kestrel ledger](kestrel.md#transport-decision-experiments).
+does not block the NativeAOT implementation sequence. See [the Kestrel ledger](kestrel.md#transport-decision-experiments).
 
 [WASI HTTP research #703](http://192.168.4.35:3000/admin/CLROS/issues/703)
 is a separate optional route using a component host and a custom ASP.NET
 `IServer`. It must not be reported as Kestrel or satisfy the
-existing first-web gate. Publishing a .NET 10 WASI component and invoking it on
-a host do not prove a freestanding CLROS engine, runtime or network boundary.
+existing first-web gate. The previous .NET 10 WASI research remains historical;
+.NET 11 feasibility needs a fresh audit of that separate experimental toolchain.
+Publishing a component and invoking it on a host do not prove a freestanding
+CLROS engine, runtime or network boundary.
 Both tickets are supplemental research with no milestone and no critical-path
 dependency; their results inform a later explicit architecture decision.
 
@@ -309,7 +348,7 @@ The kernel-facing metadata is exposed through
 `tools/OS.ManifestTool` also accepts a matching profile selector:
 
 ```powershell
-dotnet .\tools\OS.ManifestTool\bin\Debug\net10.0\OS.ManifestTool.dll validate --manifest .\manifest.json --profile SingleMinimalApi
+dotnet .\tools\OS.ManifestTool\bin\Debug\net11.0\OS.ManifestTool.dll validate --manifest .\manifest.json --profile SingleMinimalApi
 ```
 
 When `--profile` is omitted, the tool uses the build-selected
@@ -375,10 +414,10 @@ TEST_FAIL workload.profile.tooling rejects invalid profile=BadProfile valid=Sing
 | Default workload count | Exactly one configured ASP.NET Minimal API workload. | Two or more configured ASP.NET Minimal API workloads. Acceptance starts with at least two apps. |
 | Manifest shape | One workload entry selected by the OS manifest. Current v0 manifest contracts may reserve the profile name later, but existing validators do not enforce it yet. | A bounded app list with per-app name, package or assembly path, args, environment/config, listen endpoint, log settings, resource limits, and restart policy. Not implemented. |
 | Process table | Explicitly not required for the near-term profile. No `pid`, `spawn`, `wait`, `kill`, or process enumeration requirement is added by this profile. | Required. Needs process IDs, lifecycle state, exit status, terminate/kill, supervisor ownership, and resource accounting. |
-| Per-app address space | Explicitly not required. One workload may run in the only hosted workload context once a hosted boundary exists. This does not prove containment from other apps because there are no other apps. | Required. Each app needs its own virtual address space, handle table, memory limits, guard pages, and copy-in/copy-out validation at kernel or PAL boundaries. |
+| Per-app address space | One guarded user address space for the selected NativeAOT payload, with validated kernel/user access. Switching among multiple app address spaces is a later requirement. This proves no containment between apps. | Required. Each app needs its own virtual address space, handle table, memory limits, guard pages, and copy-in/copy-out validation at kernel or PAL boundaries. |
 | Supervisor/restart policy | Boot selects and starts one workload. Restart policy can stay absent or be a single-workload policy after app exit capture exists. No multi-app dependency ordering or port arbitration is required. | Required. The supervisor must start, stop, monitor, restart, and log multiple apps, detect port conflicts, preserve per-app exit codes, and avoid one app crash taking down the others. |
-| Scheduler/threading | Requires enough thread, timer, and synchronization support for the selected hosted .NET 10/CoreCLR or Native AOT Minimal API/Kestrel path. It does not require process scheduling. | Requires preemptive scheduling across processes and threads, thread creation/join/exit, sleep/yield, timer waits, futex-style wait/wake, and fair handling of multiple active Kestrel apps. |
-| Hosted .NET 10/CoreCLR boundary | Requires a documented hosted boundary such as flat `OSHost_*` PAL calls for file/config/socket/time/thread/memory behavior, or an explicitly documented Native AOT app target. One runtime/workload instance is enough for this profile. | Requires the hosted boundary to be process-aware: per-app handles, per-app config/environment, per-app socket ownership, isolated runtime state, and safe cleanup after app crash or restart. |
+| Scheduler/threading | Requires the threads, timers and synchronization used by the pinned .NET 11 NativeAOT payload, including musl pthreads and upstream GC/ThreadPool lifecycles. Scheduling multiple processes follows the first service. | Requires preemptive scheduling across processes and threads, thread creation/join/exit, sleep/yield, timer waits, futex-style wait/wake, and fair handling of multiple active Kestrel apps. |
+| Application runtime boundary | The selected path is the restricted Linux x64 syscall ABI for the pinned NativeAOT payload. One runtime/workload instance is enough. Flat `OSHost_*` PAL/CoreCLR hosting remains a future route. | Requires a process-aware boundary: per-app descriptors/handles, configuration, socket ownership, isolated runtime state, and safe cleanup after app crash or restart. |
 | Kestrel network/runtime prerequisites | Required before claiming the profile: app package/config is available in guest, PAL or ABI calls are exported, TCP listener works over live network, Kestrel binds the manifest endpoint, and an external `GET /healthz` reaches the app response. | Requires all single-app Kestrel prerequisites plus distinct ports for multiple apps, concurrent accepts, app-to-app isolation, and crash isolation while another app continues responding. |
 | Storage/config packaging | One selected app package plus one config/environment set. The current package, manifest, and `kestrel.smoke.package.v0` docs are contracts only until live guest reads exist. | Multiple app packages or one package with multiple app entries, per-app config/environment, per-app log paths, package enumeration, and update semantics if added later. |
 | Serial/panic diagnostics | Required boot, hosted-runtime, Kestrel bind, health-probe, app exit, and panic markers. Serial remains the required early evidence channel. | Required boot plus per-app lifecycle/crash markers. One app crash must be diagnosable without corrupting another app or losing supervisor state. |

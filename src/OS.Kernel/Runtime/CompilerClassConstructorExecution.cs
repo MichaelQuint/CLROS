@@ -18,7 +18,7 @@ public struct CompilerClassConstructorProgress
 }
 
 /// <summary>
-/// Pinned ILC 10.0.12 win-x64 managed-void execution, under exclusive single-thread
+/// Pinned ILC 11.0.0 RC2 win-x64 managed-void execution, under exclusive single-thread
 /// access. The original registered image, owner and caller-owned runner storage
 /// must remain mapped and stable for the entire lifetime, including callbacks.
 /// Image-contained storage requires registered mutable-data admission. External

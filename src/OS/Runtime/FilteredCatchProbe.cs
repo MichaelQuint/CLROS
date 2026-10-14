@@ -33,7 +33,7 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (GcTypeStorage* type = &s_gcType)
         fixed (GcCollectingStorage* owner = &s_gcCollecting)
         {
-            var match = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+            var match = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 s_access, &owner->State, (ulong)sizeof(GcCollectingStorage), s_ehReceipt, reference, targetType);
             if (!match.Succeeded || !match.Matches || !EhObjectIntact()) { RejectEh(41); return false; }
@@ -151,7 +151,7 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (GcTypeStorage* type = &s_gcType)
         fixed (EhStorage* storage = &s_ehStorage)
         {
-            var noEh = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+            var noEh = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 (byte*)storage, EhStorageBytes, new((uint)(thrower - s_gcImage.Start), 10, 0, 0), 0);
             if (noEh.Status != NativeAotEhClauseStatus.NoEhInfo) return RejectEh(16);
@@ -177,7 +177,7 @@ internal static unsafe partial class RhpNewFastAllocation
             receipts[0] = default; receipts[1] = default;
             for (uint index = 0; index < 2; index++)
             {
-                rows[index] = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+                rows[index] = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
                     s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                     (byte*)storage, EhStorageBytes, bounds, index);
                 if (!rows[index].Succeeded || rows[index].Index != index || rows[index].Count != 2 ||

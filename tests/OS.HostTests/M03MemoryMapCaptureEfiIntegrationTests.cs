@@ -230,7 +230,7 @@ internal static class M03MemoryMapCaptureEfiIntegrationTests
         Need(shim.Replace("\r\n","\n",StringComparison.Ordinal).Contains(attribute,StringComparison.Ordinal),"exact unchanged ordinary-host attribute projection");
         File.WriteAllText(Path.Combine(directory,"Attribute.cs"),"namespace System.Runtime {\n"+attribute+"\n}");
         File.WriteAllText(Path.Combine(directory,"Capture.csproj"),"""
-            <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion>
+            <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion>
             <OutputType>Exe</OutputType><StartupObject>MemoryMapCaptureHost</StartupObject><AllowUnsafeBlocks>true</AllowUnsafeBlocks><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
             <EnableDefaultCompileItems>false</EnableDefaultCompileItems><DefineConstants>MEMORY_MAP_CAPTURE_HOST;M03_MEMORY_MAP_CAPTURE_PROBE</DefineConstants>
             </PropertyGroup><ItemGroup>
@@ -290,7 +290,7 @@ internal static class M03MemoryMapCaptureEfiIntegrationTests
             Result r=Tool(["efi","build","-EfiOutputPath",artifact,"-LogPath",Path.Combine(directory,"publish.log"),..(enabled?new[]{"-"+Flag}:Array.Empty<string>())]);Passed(r);
             Need(r.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal)&&r.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),"complete artifact producer/verifier");
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
-            foreach(var pair in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(Root(),pair.Item1),Path.Combine(directory,pair.Item2));
+            foreach(var pair in new[]{(OS.Tooling.EfiContracts.ManagedAssemblyRelativePath("Release"),"OS.dll"),("src/OS/obj/Release/net11.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net11.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(Root(),pair.Item1),Path.Combine(directory,pair.Item2));
             using var json=JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=json.RootElement;var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Select(i=>i.GetProperty("path").GetString()).SequenceEqual(OS.Tooling.EfiEvidence.SourceClosurePaths(Root()),StringComparer.Ordinal),"exact raw source inventory");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(Root(),input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw hash");
             string[] expectedCompileItems = OS.Tooling.EfiProjectAdmission.ExpectedCompileItems(

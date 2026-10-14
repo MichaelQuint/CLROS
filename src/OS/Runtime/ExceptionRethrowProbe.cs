@@ -238,7 +238,7 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (EhStorage* storage = &s_ehStorage)
         fixed (GcCollectingStorage* owner = &s_gcCollecting)
         {
-            var noEh = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+            var noEh = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 (byte*)storage, EhStorageBytes, new((uint)(thrower - s_gcImage.Start), RethrowAdmission.ThrowBytes, 0, 0), 0);
             if (noEh.Status != NativeAotEhClauseStatus.NoEhInfo) return RejectEh(15);
@@ -253,14 +253,14 @@ internal static unsafe partial class RhpNewFastAllocation
             if (!RethrowTableRva(table)) return RejectEh(18);
             NativeAotEhMethodBounds bounds = new((uint)(method - s_gcImage.Start), RethrowAdmission.InnerBytes,
                 (uint)(table - s_gcImage.Start), 11);
-            var caught = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+            var caught = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle, (byte*)storage, EhStorageBytes, bounds, 1);
-            var cleanup = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+            var cleanup = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle, (byte*)storage, EhStorageBytes, bounds, 0);
             if (!RethrowAdmission.AcceptInnerCleanup(cleanup, caught, method, EhBaseType(), (uint)(unwind.Caller.Rip - 1 - method)) ||
                 !RethrowFunction((byte*)storage, method, RethrowAdmission.Cleanup, RethrowAdmission.InnerCatch, 40, 40, 4) ||
                 !RethrowFunction((byte*)storage, method, RethrowAdmission.InnerCatch, RethrowAdmission.InnerBytes, 40, 40, 4)) return RejectEh(19);
-            var match = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, s_gcCapture, s_gcMapping,
+            var match = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, s_gcCapture, s_gcMapping,
                 (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle, s_access, &owner->State,
                 (ulong)sizeof(GcCollectingStorage), s_ehReceipt, exception, caught.TypeAddress);
             if (!match.Succeeded || !match.Matches || !RethrowOwnerIntact()) return RejectEh(20);
@@ -325,11 +325,11 @@ internal static unsafe partial class RhpNewFastAllocation
             if (!RethrowTableRva(table)) return RejectEh(35);
             NativeAotEhMethodBounds bounds = new((uint)(method - s_gcImage.Start), RethrowAdmission.OuterBytes,
                 (uint)(table - s_gcImage.Start), 8);
-            var caught = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+            var caught = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle, (byte*)storage, EhStorageBytes, bounds, 0);
             if (!RethrowAdmission.AcceptOuterCatch(caught, method, EhBaseType(), (uint)(unwind.Caller.Rip - 1 - method)) ||
                 !RethrowFunction((byte*)storage, method, RethrowAdmission.OuterCatch, RethrowAdmission.OuterBytes, 40, 40, 4)) return RejectEh(36);
-            var match = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, s_gcCapture, s_gcMapping,
+            var match = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, s_gcCapture, s_gcMapping,
                 (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle, s_access, &owner->State,
                 (ulong)sizeof(GcCollectingStorage), s_ehReceipt, s_rethrowException, caught.TypeAddress);
             if (!match.Succeeded || !match.Matches || !RethrowOwnerIntact()) return RejectEh(37);

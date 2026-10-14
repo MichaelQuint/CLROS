@@ -64,7 +64,7 @@ internal static unsafe class NativeAotModuleRegistrationProbe
 
         TypeManagerModuleResult slot = TypeManagerModuleMetadataLiveNativeAOTImage.TryGetSection(
             capture, mapping, storage, capacity, registered.Handle, 204);
-        if (!slot.Succeeded || slot.Length != 8 || slot.Section == 0)
+        if (!slot.Succeeded || slot.Length != 16 || slot.Section == 0)
             return Reject(ref observation, 9);
         observation.Slot = slot.Section;
         ulong consumerHandle = ReadWord(slot.Section);
@@ -86,7 +86,7 @@ internal static unsafe class NativeAotModuleRegistrationProbe
         if (!observation.Thread.Succeeded || observation.Thread.Length != 8 ||
             observation.Thread.Section != observation.Abi.ThreadStaticRegion ||
             !observation.Indirection.Succeeded || observation.Indirection.Section != slot.Section ||
-            observation.Indirection.Length != 8 || !observation.Empty.Succeeded || observation.Empty.Length != 0 ||
+            observation.Indirection.Length != 16 || !observation.Empty.Succeeded || observation.Empty.Length != 0 ||
             observation.Absent.Status != TypeManagerModuleStatus.SectionAbsent ||
             observation.Absent.Section != 0 || observation.Absent.Length != 0 ||
             !Preserved(storage, valid.RequiredStorage))
@@ -99,7 +99,7 @@ internal static unsafe class NativeAotModuleRegistrationProbe
             capture, mapping, storage, capacity, ReadWord(slot.Section), 204);
         if (observation.Repeat != TypeManagerModuleStatus.AlreadyRegistered ||
             observation.Foreign != TypeManagerModuleStatus.RegistrationChanged ||
-            !retained.Succeeded || retained.Section != slot.Section || retained.Length != 8 ||
+            !retained.Succeeded || retained.Section != slot.Section || retained.Length != 16 ||
             ReadWord(slot.Section) != consumerHandle || ReadWord(slot.Section + 8) != 0 ||
             !Preserved(storage, valid.RequiredStorage))
             return Reject(ref observation, 13);

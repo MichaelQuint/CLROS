@@ -237,7 +237,7 @@ internal static class M04StringAllocationEfiIntegrationTests
         string includes=string.Join('\n',new[]{"src/OS/Runtime/RhpNewFastAllocation.cs","tests/OS.HostTests/M04StringAllocationEfiIntegrationTests.cs"}
             .Select(x=>"<Compile Include=\""+SecurityElement.Escape(Path.Combine(root,x))+"\"/>"));
         File.WriteAllText(Path.Combine(directory,"Core.csproj"),"""
-            <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion>
+            <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion>
             <OutputType>Exe</OutputType><AllowUnsafeBlocks>true</AllowUnsafeBlocks><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
             <EnableDefaultCompileItems>false</EnableDefaultCompileItems><DefineConstants>STRING_CORE_TEST</DefineConstants><NoWarn>0649</NoWarn></PropertyGroup><ItemGroup>
             """+includes+"<ProjectReference Include=\""+SecurityElement.Escape(Path.Combine(root,"src/OS.Kernel/OS.Kernel.csproj"))+"\"/></ItemGroup></Project>");
@@ -279,7 +279,7 @@ private static void TestFirewall()
             Need(Hash(Encoding.UTF8.GetBytes(File.ReadAllText(Path.Combine(root,file.Item1)).Replace("\r\n","\n",StringComparison.Ordinal)))==file.Item2,"reviewed host/entry source "+file.Item1);
         string adapter=File.ReadAllText(Path.Combine(root,"src/OS/Runtime/RhpNewFastAllocation.cs"));
         Need(adapter.Contains("GuestTestStringAllocationCharacterStorage.TryAllocate(*access, bump, 80,",StringComparison.Ordinal) &&
-            adapter.Contains("NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, prefix, token, length)",StringComparison.Ordinal) &&
+            adapter.Contains("NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, prefix, token, length)",StringComparison.Ordinal) &&
             adapter.Contains("expectedElement == token",StringComparison.Ordinal) && adapter.Contains("token != expectedToken",StringComparison.Ordinal) &&
             adapter.Contains("RejectedAllocationUnchanged(bump, bumpBefore, access->Backing, records->BeforeAttempt)",StringComparison.Ordinal) &&
             !adapter.Contains("Serialize(",StringComparison.Ordinal),"actual shared allocator and metadata/rejection/data publication boundary");
@@ -329,7 +329,7 @@ private static void TestFirewall()
             Save(directory,r);
             Need(r.Code==0 && r.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal) && r.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),r.Output);
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
-            foreach(var file in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(directory,file.Item2));
+            foreach(var file in new[]{(OS.Tooling.EfiContracts.ManagedAssemblyRelativePath("Release"),"OS.dll"),("src/OS/obj/Release/net11.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net11.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,file.Item1),Path.Combine(directory,file.Item2));
             using var document=System.Text.Json.JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var e=document.RootElement;
             var inputs=e.GetProperty("sourceClosureInputs").EnumerateArray().ToArray();Need(inputs.Length==OS.Tooling.EfiEvidence.SourceClosurePaths(root).Count,"complete raw source inventory");
             foreach(var input in inputs)Need(Hash(File.ReadAllBytes(Path.Combine(root,input.GetProperty("path").GetString()!)))==input.GetProperty("sha256").GetString(),"actual raw source unchanged");

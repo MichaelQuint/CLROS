@@ -210,7 +210,7 @@ internal static unsafe class BoundedExceptionFilterSearchTests
             var result = new NativeAotEhClauseResult[rows.Length];
             for (uint i = 0; i < result.Length; i++)
             {
-                result[i] = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+                result[i] = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
                     Owner.Capture, Owner.Mapping, Owner.Owner, 4096, Owner.Handle, Snapshot, 0x4000,
                     new(0x6000, 0x900, 0x1B00, (uint)blob.Length), i);
                 HostCheck.True(result[i].Succeeded, "decoded physical filter fixture row " + i + ": " + result[i].Status);

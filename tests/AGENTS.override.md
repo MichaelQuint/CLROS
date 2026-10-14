@@ -44,7 +44,7 @@ Keep names stable because scripts and future CI will parse them.
 
 ## Allowed APIs
 
-Tests may use normal .NET 10 and C# 14 APIs.
+Tests may use normal .NET 11 and C# 14 APIs.
 
 Do not let host-test convenience leak into kernel/std implementation. If a production path cannot use exceptions/reflection/allocation, tests should verify the production path's constrained contract instead of wrapping it in host-only behavior.
 

@@ -29,7 +29,7 @@ internal static unsafe class TypeManagerCaptureHost
             Check(o.Image==(ulong)f.Image&&o.Storage==(ulong)f.Storage&&o.Handle==(ulong)f.Storage+272&&o.Slot==f.Address(0x2000),"actual pointer lineage");
             Check(o.Short==Status.StorageRejected&&o.Repeat==Status.AlreadyRegistered&&o.Foreign==Status.RegistrationChanged,"actual rejection statuses");
             Check(Probe.ReadWord(o.Slot)==o.Handle&&Probe.ReadWord(o.Slot+8)==0&&o.Abi.OsModule==o.Image&&o.Abi.ReadyToRunHeader==f.Address(0x1000),"slot ABI readback");
-            Check(o.Thread.Section==f.Address(0x2100)&&o.Thread.Length==8&&o.Indirection.Section==o.Slot&&o.Indirection.Length==8&&o.Empty.Succeeded&&o.Empty.Length==0&&o.Absent.Status==Status.SectionAbsent,"actual consumer results");
+            Check(o.Thread.Section==f.Address(0x2100)&&o.Thread.Length==8&&o.Indirection.Section==o.Slot&&o.Indirection.Length==16&&o.Empty.Succeeded&&o.Empty.Length==0&&o.Absent.Status==Status.SectionAbsent,"actual consumer results");
             byte[] before=Bytes(f.Image,Fixture.ImageSize);Check(!Probe.Execute(f.Capture,f.Mapping,f.Storage,4096,out _)&&Bytes(f.Image,Fixture.ImageSize).SequenceEqual(before),"second adapter cannot reset retained bytes");
             Console.WriteLine("TYPE_MANAGER_HOST_LAYOUT abi=48 state="+Core.StateBytes+" result="+sizeof(TypeManagerModuleResult)+" observation="+sizeof(Probe.Observation)+" capacity=4096 guardStart=4064");
         });
@@ -93,20 +93,20 @@ internal static unsafe class TypeManagerCaptureHost
             Section(2, ".modules", 0x5000, 16, 0x40000040);
             Section(3, ".text", 0x6000, 0x1000, 0x60000020);
             W64(Image + 0x5000, Address(0x1000));
-            W32(Image + 0x1000, 0x00525452); W16(Image + 0x1004, 16); W16(Image + 0x100C, 5);
-            Image[0x100E] = 24; Image[0x100F] = 1;
-            Row(0, 202, 1, 0x2100, 0x2108); Row(1, 204, 0, 0x2000, 0);
-            Row(2, 206, 1, 0x1100, 0x1108); Row(3, 213, 1, 0x1110, 0x1110); Row(4, 301, 1, 0x1200, 0x1218);
+            W32(Image + 0x1000, 0x00525452); W16(Image + 0x1004, 26); W16(Image + 0x1006, 1); W16(Image + 0x100C, 5);
+            Image[0x100E] = 16; Image[0x100F] = 1;
+            Row(0, 202, 8, 0x2100); Row(1, 204, 16, 0x2000);
+            Row(2, 206, 8, 0x1100); Row(3, 213, 0, 0x1110); Row(4, 301, 24, 0x1200);
             Capture = TypeManagerCaptureHost.Capture((ulong)Image, ImageSize);
             Mapping = M01LoadedImageVirtualMappingEvidence.CaptureCallerAttestedIdentity(Capture);
         }
 
         internal ulong Address(int offset) => (ulong)Image + (uint)offset;
-        internal byte* Row(int i) => Image + 0x1010 + 24 * i;
+        internal byte* Row(int i) => Image + 0x1010 + 16 * i;
         internal byte* Section(int i) => Image + 0x188 + 40 * i;
-        private void Row(int i, uint id, uint flags, int start, int end)
+        private void Row(int i, uint id, uint length, int start)
         {
-            byte* r = Row(i); W32(r, id); W32(r + 4, flags); W64(r + 8, Address(start)); W64(r + 16, end == 0 ? 0 : Address(end));
+            byte* r = Row(i); W32(r, id); W32(r + 4, length); W64(r + 8, Address(start));
         }
         private void Section(int i, string name, uint start, uint bytes, uint flags)
         {
@@ -229,7 +229,7 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
         "CLROS_M04_011_REJECT kind=capacity status=7 unchanged=true",
         "CLROS_M04_011_REGISTER slot=1056768 handle=1061136 osModule=1048576 header=1052672 gc=0 tls=1057024 slotBytes=16 index=0 padding=0 abiBytes=48 classlib=0 classlibCount=0",
         "CLROS_M04_011_SECTION id=202 status=1 start=1057024 length=8",
-        "CLROS_M04_011_SECTION id=204 status=1 start=1056768 length=8",
+        "CLROS_M04_011_SECTION id=204 status=1 start=1056768 length=16",
         "CLROS_M04_011_SECTION id=213 status=1 start=1052944 length=0",
         "CLROS_M04_011_SECTION id=0 status=11 start=0 length=0",
         "CLROS_M04_011_REJECT kind=repeat status=9 unchanged=true",
@@ -298,7 +298,7 @@ internal static class M04NativeAotModuleRegistrationEfiIntegrationTests
             Result result=Invoke(["efi", "build", "-BootPolicy", "Diagnostic","-EfiOutputPath",artifact,"-LogPath",Path.Combine(directory,"publish.log"),..(enabled?new[]{"-EnableM04TypeManagerModuleRegistrationProbe","-EnableM01LoadedImageStackProbe"}:Array.Empty<string>())]);Passed(result);
             Need(result.Output.Contains("TEST_PASS efi.shell.publish",StringComparison.Ordinal)&&result.Output.Contains("TEST_PASS efi.artifact.verify",StringComparison.Ordinal),"actual producer/verifier");
             foreach(string suffix in new[]{"",".link.json",".link.map",".link.rsp",".serializer.obj"})File.Copy(artifact+suffix,Path.Combine(directory,"image.EFI"+suffix));
-            foreach(var pair in new[]{("src/OS/bin/Release/net10.0/win-x64/OS.dll","OS.dll"),("src/OS/obj/Release/net10.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net10.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,pair.Item1),Path.Combine(directory,pair.Item2));
+            foreach(var pair in new[]{(OS.Tooling.EfiContracts.ManagedAssemblyRelativePath("Release"),"OS.dll"),("src/OS/obj/Release/net11.0/win-x64/native/OS.obj","OS.obj"),("src/OS/obj/Release/net11.0/win-x64/native/OS.map.xml","OS.map.xml")})File.Copy(Path.Combine(root,pair.Item1),Path.Combine(directory,pair.Item2));
             using var json=JsonDocument.Parse(File.ReadAllText(artifact+".link.json"));var evaluation=json.RootElement.GetProperty("postRestoreEvaluation");
             string[] expectedCompileItems = OS.Tooling.EfiProjectAdmission.ExpectedCompileItems(
                 OS.Tooling.EfiProfile.Create("Diagnostic", new Dictionary<string, bool>

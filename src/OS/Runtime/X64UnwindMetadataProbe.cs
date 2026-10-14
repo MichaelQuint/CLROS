@@ -37,7 +37,7 @@ internal static unsafe class X64UnwindMetadataProbe
         s_phase = 1;
         TypeManagerModuleResult original = TypeManagerModuleMetadataLiveNativeAOTImage.TryGetSection(
             capture, mapping, moduleOwner, moduleCapacity, moduleHandle, 204);
-        if (!original.Succeeded || original.Length != 8 || original.Section == 0 ||
+        if (!original.Succeeded || original.Length != (int)TypeManagerModuleMetadataLiveNativeAOTImage.SlotBytes || original.Section == 0 ||
             mapping.VirtualImageBase.TryGetRawValueForUefiBoundary(out ulong image) != AddressValueStatus.Success ||
             ReadWord(original.Section) != moduleHandle)
             return Fail(console, 2, X64UnwindMetadataStatus.ModuleRejected);
@@ -99,7 +99,7 @@ internal static unsafe class X64UnwindMetadataProbe
                 capture, mapping, moduleOwner, moduleCapacity, moduleHandle, 204);
             if (!final.Succeeded || final.RequiredStorage != measured.RequiredStorage ||
                 final.FunctionCount != measured.FunctionCount || !retained.Succeeded ||
-                retained.Section != original.Section || retained.Length != 8 ||
+                retained.Section != original.Section || retained.Length != (int)TypeManagerModuleMetadataLiveNativeAOTImage.SlotBytes ||
                 ReadWord(retained.Section) != moduleHandle || !Preserved(storage, measured.RequiredStorage) ||
                 !CheckStack() || s_stack.Checks != 7)
                 return Fail(console, 12, X64UnwindMetadataStatus.ModuleRejected);

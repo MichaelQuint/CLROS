@@ -117,8 +117,8 @@ internal static class EfiArtifactVerificationScriptTests
         {
             Directory.CreateDirectory(tempRoot);
             Run(
-                "efi artifact verifier enforces latestPatch SDK feature band",
-                () => TestSdkLatestPatchVersion(tempRoot),
+                "efi artifact verifier enforces exact SDK identity",
+                () => TestSdkExactVersion(tempRoot),
                 ref failures);
             Run(
                 "efi artifact verifier preserves literal path and reparse admission",
@@ -1657,6 +1657,32 @@ internal static class EfiArtifactVerificationScriptTests
         ProcessResult nonCanonicalManagedResult = RunVerifier(
             nonCanonicalManagedArtifact);
 
+        string legacyManagedArtifact = WriteFixture(
+            tempRoot,
+            "managed-assembly-legacy-bin",
+            CreateValidPe());
+        LinkEvidencePaths legacyManagedPaths = WriteLinkEvidence(legacyManagedArtifact);
+        string legacyManagedAssembly = Path.Combine(
+            SchemaThreeFixtureRepositoryRoot,
+            "src/OS/bin",
+            ManagedFixtureConfiguration,
+            "net11.0/win-x64/OS.dll");
+        Directory.CreateDirectory(Path.GetDirectoryName(legacyManagedAssembly)!);
+        File.Copy(legacyManagedPaths.ManagedAssemblyPath, legacyManagedAssembly);
+        ProcessResult legacyManagedResult;
+        try
+        {
+            MutateEvidence(
+                legacyManagedPaths.EvidencePath,
+                evidence => evidence["managedAssemblyPath"] = legacyManagedAssembly);
+            // Identical bytes and hash at the old location still are not the ILC input.
+            legacyManagedResult = RunVerifier(legacyManagedArtifact);
+        }
+        finally
+        {
+            File.Delete(legacyManagedAssembly);
+        }
+
         string malformedManagedArtifact = WriteFixture(
             tempRoot,
             "managed-assembly-malformed",
@@ -1763,8 +1789,18 @@ internal static class EfiArtifactVerificationScriptTests
             "managed-assembly-missing",
             CreateValidPe());
         LinkEvidencePaths missingAssemblyPaths = WriteLinkEvidence(missingAssemblyArtifact);
-        File.Delete(missingAssemblyPaths.ManagedAssemblyPath);
-        ProcessResult missingAssemblyResult = RunVerifier(missingAssemblyArtifact);
+        File.Copy(missingAssemblyPaths.ManagedAssemblyPath, legacyManagedAssembly);
+        ProcessResult missingAssemblyResult;
+        try
+        {
+            File.Delete(missingAssemblyPaths.ManagedAssemblyPath);
+            // A bin copy cannot rescue a missing canonical producer assembly.
+            missingAssemblyResult = RunVerifier(missingAssemblyArtifact);
+        }
+        finally
+        {
+            File.Delete(legacyManagedAssembly);
+        }
 
         return FailedWith(missingResult, "missing_linker_map")
             && FailedWith(staleResult, "link_evidence_hash_mismatch")
@@ -1831,6 +1867,9 @@ internal static class EfiArtifactVerificationScriptTests
             && FailedWith(configurationResult, "configuration_invalid")
             && FailedWith(
                 nonCanonicalManagedResult,
+                "managed_assembly_path_not_canonical")
+            && FailedWith(
+                legacyManagedResult,
                 "managed_assembly_path_not_canonical")
             && FailedWith(
                 malformedManagedResult,
@@ -2651,16 +2690,17 @@ internal static class EfiArtifactVerificationScriptTests
             "post_restore_user_extensions_path_present");
     }
 
-    private static bool TestSdkLatestPatchVersion(string tempRoot)
+    private static bool TestSdkExactVersion(string tempRoot)
     {
-        foreach (string version in new[] { "10.0.401", "10.0.402", "10.0.499" })
-            HostCheck.True(OS.Tooling.EfiVerify.TestSdkLatestPatchVersion(version, "10.0.401"));
-        foreach (string version in new[] { "", "10.0.302", "10.0.400", "10.0.500", "10.0.501", "10.1.401", "11.0.401", "10.0.401-preview.1", "10.0.401+extra", "invalid" })
-            HostCheck.True(!OS.Tooling.EfiVerify.TestSdkLatestPatchVersion(version, "10.0.401"));
-        return HostCheck.Result(OS.Tooling.EfiVerify.TestSdkLatestPatchVersion("10.0.399", "10.0.300") &&
-            !OS.Tooling.EfiVerify.TestSdkLatestPatchVersion("10.0.400", "10.0.300") &&
-            !OS.Tooling.EfiVerify.TestSdkLatestPatchVersion("10.0.401", "invalid") &&
-            !OS.Tooling.EfiVerify.TestSdkLatestPatchVersion("10.0.401", "10.0.401-preview.1"));
+        const string approved = "11.0.100-rc.2.26504.105";
+        HostCheck.True(OS.Tooling.EfiVerify.TestSdkExactVersion(approved, approved));
+        foreach (string version in new[] { "", "10.0.401", "11.0.100", "11.0.101", "11.0.100-rc.1.26504.105", "11.0.100-rc.2.26504.104", "11.0.100-rc.2.26504.106", "11.0.100-RC.2.26504.105", approved + "+extra", "invalid" })
+        {
+            HostCheck.True(!OS.Tooling.EfiVerify.TestSdkExactVersion(version, approved));
+            HostCheck.True(!OS.Tooling.EfiVerify.TestSdkExactVersion(approved, version));
+            HostCheck.True(!OS.Tooling.EfiVerify.TestSdkExactVersion(version, version));
+        }
+        return true;
     }
     private static bool TestReparsePathHelper(string tempRoot)
     {
@@ -3923,18 +3963,9 @@ internal static class EfiArtifactVerificationScriptTests
 
     private static string EnsureManagedAssemblyFixture(string repositoryRoot)
     {
-        string configurationRoot = Path.GetFullPath(
-            Path.Combine(
-                repositoryRoot,
-                "src",
-                "OS",
-                "bin",
-                ManagedFixtureConfiguration));
         string managedAssemblyPath = Path.Combine(
-            configurationRoot,
-            "net10.0",
-            "win-x64",
-            "OS.dll");
+            repositoryRoot,
+            EfiContracts.ManagedAssemblyRelativePath(ManagedFixtureConfiguration));
         Directory.CreateDirectory(Path.GetDirectoryName(managedAssemblyPath)!);
         if (!File.Exists(managedAssemblyPath))
         {
@@ -3988,7 +4019,7 @@ internal static class EfiArtifactVerificationScriptTests
 
             string managedIntermediatePath = Path.Combine(
                 configurationRoot,
-                "net10.0",
+                "net11.0",
                 "win-x64");
             string projectExtensionsPath = Path.Combine(
                 managedIntermediatePath,
@@ -4647,7 +4678,7 @@ internal static class EfiArtifactVerificationScriptTests
             ["_targetOS"] = "win",
             ["_targetArchitecture"] = "x64",
             ["RuntimeIdentifier"] = "win-x64",
-            ["TargetFramework"] = "net10.0",
+            ["TargetFramework"] = "net11.0",
             ["PublishAot"] = "true",
             ["SelfContained"] = "true",
             ["PublishTrimmed"] = "true",

@@ -617,19 +617,24 @@ Gate 5/Gate 6 now also have host-tested `PhysicalMmioOwnershipPlan` evidence for
 
 ## Gate 14 Profile Split
 
-Kestrel support is mandatory for the CloudReady hosted workload milestone. The
+Kestrel support is mandatory for the CloudReady workload milestone. The
 evidence needed to claim it is profile-specific:
 
 - `SingleMinimalApi` is the near-term CloudReady gate. It can pass with one
-  packaged ASP.NET Minimal API workload when the guest starts the hosted .NET 10
-  runtime or documented app target, loads package/config data, exports and uses
-  the required PAL file/config/socket/timer/thread/sync contracts, binds Kestrel
-  to the manifest endpoint, and an external runner receives the expected
+  packaged ASP.NET Minimal API workload when the guest starts the documented
+  .NET 11 NativeAOT payload or a separately qualified future hosted runtime,
+  loads package/config data, supplies the required file, configuration, socket,
+  timer, thread and synchronization services, binds Kestrel to the manifest
+  endpoint, and an external runner receives the expected
   `GET /healthz` response over the OS network stack. Required serial/runner
   evidence includes the normal boot markers plus `TEST_START kestrel.smoke`,
   `KESTREL_PACKAGE_CONTRACT kestrel.smoke.package.v0`, `KESTREL_APP_START`,
   `KESTREL_BIND_READY`, `HTTP_PROBE_START`, `HTTP_PROBE_PASS`, and
-  `TEST_PASS kestrel.smoke`.
+  `TEST_PASS kestrel.smoke`. The [NativeAOT-first route](workload-profiles.md)
+  uses the restricted Linux x64 syscall adapter and does not require CoreCLR
+  or exported `OSHost_*` PAL functions. A future hosted-runtime route must
+  qualify its required `OSHost_*` contracts separately. This route selection
+  does not relax the real guest, network, lifecycle or security evidence.
 - `SingleMinimalApi` does not require a process table, process IDs,
   per-process address spaces, a multi-app supervisor, per-app resource limits,
   or a two-app crash-isolation proof. It also does not make a multi-app

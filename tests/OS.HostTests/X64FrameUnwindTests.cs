@@ -8,7 +8,7 @@ using Status = OS.Kernel.Runtime.X64FrameUnwindStatus;
 
 internal static unsafe class X64FrameUnwindTests
 {
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
     private static readonly byte[] Registers = [3, 5, 6, 7, 12, 13, 14, 15];
 
     [HostTest("m04.one_frame_unwind.body", HostLane.Fast, 0)]
@@ -327,9 +327,9 @@ internal static unsafe class X64FrameUnwindTests
             Section(0, ".rdata", 0x1000, 0x1000, 0x40000040); Section(1, ".data", 0x2000, 0x2000, 0xC0000040);
             Section(2, ".modules", 0x5000, 16, 0x40000040); Section(3, ".text", 0x6000, 0x1000, 0x60000020);
             new Span<byte>(Image + 0x6000, 0x1000).Fill(0x90);
-            W64(Image + 0x5000, Address(0x1000)); W32(Image + 0x1000, 0x00525452); W16(Image + 0x1004, 16);
-            W16(Image + 0x100C, 1); Image[0x100E] = 24; Image[0x100F] = 1;
-            W32(Image + 0x1010, 204); W64(Image + 0x1018, Address(0x2000));
+            W64(Image + 0x5000, Address(0x1000)); W32(Image + 0x1000, 0x00525452); W16(Image + 0x1004, 26); W16(Image + 0x1006, 1);
+            W16(Image + 0x100C, 1); Image[0x100E] = 16; Image[0x100F] = 1;
+            W32(Image + 0x1010, 204); W32(Image + 0x1014, 16); W64(Image + 0x1018, Address(0x2000));
             W32(Image + 0x1100, 0x6000); W32(Image + 0x1104, 0x6400); W32(Image + 0x1108, 0x1200);
             W32(Image + 0x110C, 0x6500); W32(Image + 0x1110, 0x6600); W32(Image + 0x1114, 0x1400); Image[0x1400] = 1;
             var observation = EfiLoadedImageProtocolObservation.CaptureFromUefiBoundary(0, 0x1000, 0x2000, (ulong)Image, 0x8000);

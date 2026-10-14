@@ -319,9 +319,9 @@ internal static unsafe class X64PERuntimeFunctionUnwindMetadataHostileInputTests
             W32(Image + 0x104, 16); W32(Image + 0x120, 0x1100); W32(Image + 0x124, 24);
             Section(0, ".rdata", 0x1000, 0x1000, 0x40000040); Section(1, ".data", 0x2000, 0x2000, 0xC0000040);
             Section(2, ".modules", 0x5000, 16, 0x40000040); Section(3, ".text", 0x6000, 0x1000, 0x60000020);
-            W64(Image + 0x5000, Address(0x1000)); W32(Image + 0x1000, 0x00525452); W16(Image + 0x1004, 16);
-            W16(Image + 0x100C, 1); Image[0x100E] = 24; Image[0x100F] = 1;
-            W32(Image + 0x1010, 204); W64(Image + 0x1018, Address(0x2000));
+            W64(Image + 0x5000, Address(0x1000)); W32(Image + 0x1000, 0x00525452); W16(Image + 0x1004, 26); W16(Image + 0x1006, 1);
+            W16(Image + 0x100C, 1); Image[0x100E] = 16; Image[0x100F] = 1;
+            W32(Image + 0x1010, 204); W32(Image + 0x1014, 16); W64(Image + 0x1018, Address(0x2000));
             Row(0, 0x6000, 0x6080, 0x1200); Row(1, 0x6100, 0x6180, 0x1240);
             Unwind(0x1200, 1, 5, 0, [5, 0x32, 1, 0x50]); Unwind(0x1240, 1, 0, 0, []);
             var observation = EfiLoadedImageProtocolObservation.CaptureFromUefiBoundary(0, 0x1000, 0x2000, (ulong)Image, ImageBytes);

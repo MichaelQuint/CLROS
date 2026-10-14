@@ -113,7 +113,7 @@ internal sealed partial class EfiVerification
             foreach (int field in fields) Rel32(text, field, a[0], a[3], "reference_callback_rel32_mismatch");
             emit($"EFI_ARTIFACT_CHECKED_REFERENCE_THUNKS bytes={EfiContracts.CheckedReferenceObjectBytes} text=1390 exports=3 callbackRel32=3 callbackGraphAccepted=false unwindSupported=false");
         }
-        string[] dispatch = ["RhpInitialDynamicInterfaceDispatch", "CLROS_InterfaceDispatch_GetCellSection", "CLROS_InterfaceDispatch_GetInitialStub", "CLROS_InterfaceDispatch_Resolve", "__InterfaceDispatchCellSection_Start"];
+        string[] dispatch = ["RhpInterfaceDispatch", "CLROS_InterfaceDispatch_GetCellSection", "CLROS_InterfaceDispatch_GetInitialStub", "CLROS_InterfaceDispatch_Resolve", "__InterfaceDispatchCellSection_Start"];
         if (!profile.IsEnabled("M04InterfaceDispatch"))
         {
             foreach (string name in dispatch.Take(4)) Require(Symbols(map, name).Count == 0, "dispatch_unrequested_native_symbol", name);
@@ -125,8 +125,24 @@ internal sealed partial class EfiVerification
             ulong[] a = dispatch.Select((n, i) => Address(n, i < 3 ? "CLROS.X64.InterfaceDispatch.obj" : "OS.obj", "dispatch")).ToArray();
             Require(a[1] == a[0] + 448 && a[2] == a[0] + 464 && a[0] % 16 == 0 && a[4] % 8 == 0 && !(a[3] >= a[0] && a[3] < a[0] + 472), "dispatch_symbol_layout");
             CodeAddress(a[3], "dispatch_callback");
-            var cell = image.Resolve(a[4] - image.ImageBase, 16, "dispatch_cell_not_backed", "dispatch_cell_ambiguous");
-            Require((cell.Section.Characteristics & 0xc0000040) == 0xc0000040 && (cell.Section.Characteristics & 0x22000020) == 0, "dispatch_cell_section_invalid");
+            // .NET 11 cells are BSS. Admit their mapped extent separately from
+            // raw backing, and verify any file-backed bytes initialize to zero.
+            ulong cellRva = a[4] - image.ImageBase;
+            Require(a[4] >= image.ImageBase && cellRva < image.SizeOfImage &&
+                80 <= image.SizeOfImage - cellRva, "dispatch_cell_out_of_image");
+            var cellSections = image.Sections.Where(s => cellRva >= s.VirtualAddress &&
+                cellRva + 80 <= (ulong)s.VirtualAddress + s.VirtualSize).ToArray();
+            Require(cellSections.Length == 1, "dispatch_cell_ambiguous_or_absent");
+            var cellSection = cellSections[0];
+            Require((cellSection.Characteristics & 0xc0000000) == 0xc0000000 &&
+                (cellSection.Characteristics & 0x22000020) == 0 &&
+                (cellSection.Characteristics & 0xc0) != 0, "dispatch_cell_section_invalid");
+            for (ulong i = 0; i < 80; i++)
+            {
+                ulong sectionOffset = cellRva + i - cellSection.VirtualAddress;
+                if (sectionOffset < cellSection.RawSize)
+                    Require(image.Bytes[checked((int)(cellSection.RawOffset + sectionOffset))] == 0, "dispatch_cell_not_zero");
+            }
             byte[] text = BridgeText(a[0], 472, obj, [221, 451], "dispatch");
             Rel32(text, 221, a[0], a[3], "dispatch_callback_rel32_mismatch"); Rel32(text, 451, a[0], a[4], "dispatch_cell_rel32_mismatch");
             emit($"EFI_ARTIFACT_INTERFACE_DISPATCH_THUNKS bytes={EfiContracts.InterfaceDispatchObjectBytes} text=472 exports=3 callbackRel32=1 dataRel32=1 callbackGraphAccepted=false unwindSupported=false");

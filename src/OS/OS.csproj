@@ -4,7 +4,7 @@
 		<AssemblyName>OS</AssemblyName>
 		<RootNamespace>OS</RootNamespace>
 		<OutputType>Exe</OutputType>
-		<TargetFramework>net10.0</TargetFramework>
+		<TargetFramework>net11.0</TargetFramework>
 		<LangVersion>14.0</LangVersion>
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 		<SelfContained>true</SelfContained>
@@ -28,8 +28,8 @@
 		<NativeDebugSymbols>false</NativeDebugSymbols>
 		<EnableSourceLink>false</EnableSourceLink>
 		<SuppressGenerateILCompilerExplicitPackageReferenceWarning>true</SuppressGenerateILCompilerExplicitPackageReferenceWarning>
-		<ClrosIlcHostPackagePath Condition="'$(ClrosIlcHostPackagePath)' == ''">$(UserProfile)\.nuget\packages\runtime.win-x64.microsoft.dotnet.ilcompiler\10.0.12</ClrosIlcHostPackagePath>
-		<ClrosRuntimePackagePath Condition="'$(ClrosRuntimePackagePath)' == ''">$(UserProfile)\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\10.0.12</ClrosRuntimePackagePath>
+		<ClrosIlcHostPackagePath Condition="'$(ClrosIlcHostPackagePath)' == ''">$(UserProfile)\.nuget\packages\runtime.win-x64.microsoft.dotnet.ilcompiler\11.0.0-rc.2.26504.105</ClrosIlcHostPackagePath>
+		<ClrosRuntimePackagePath Condition="'$(ClrosRuntimePackagePath)' == ''">$(UserProfile)\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\11.0.0-rc.2.26504.105</ClrosRuntimePackagePath>
 		<EntryPointSymbol>EfiMain</EntryPointSymbol>
 		<LinkerSubsystem>EFI_APPLICATION</LinkerSubsystem>
 		<DefineConstants>$(DefineConstants);NOSTDLIB_EFI</DefineConstants>
@@ -803,8 +803,8 @@
 		<Compile Include="..\OS.Kernel\Threading\SchedulerTimer.cs" Link="Threading\SchedulerTimer.cs" Condition="'$(EnableM09005Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Pal\OSHostHandle.cs" Link="Pal\OSHostHandle.cs" Condition="'$(EnableM09005Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Threading\X64TimerInterrupt.cs" Link="Threading\X64TimerInterrupt.cs" Condition="'$(EnableM09005Probe)' == 'true'" />
-		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
-		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="10.0.12" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="11.0.0-rc.2.26504.105" PrivateAssets="all" />
+		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="11.0.0-rc.2.26504.105" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">
 			<PackageDirectory>$(ClrosIlcHostPackagePath)</PackageDirectory>
 		</ResolvedILCompilerPack>

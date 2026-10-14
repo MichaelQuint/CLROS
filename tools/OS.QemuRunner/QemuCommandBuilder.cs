@@ -53,9 +53,12 @@ internal static class QemuCommandBuilder
         if (options.EthernetCapturePath is not null)
             arguments.AddRange(["-object", "filter-dump,id=clroscapture,netdev=n0,file=" + options.EthernetCapturePath + ",maxlen=65536"]);
 
+        // .NET 11 NativeAOT requires x86-64-v2. Nehalem supplies its SSE4/POPCNT/
+        // CX16 baseline without AVX/XSAVE state beyond CLROS's x87/SSE contract.
+        // Keep an explicit model: QEMU's default qemu64 lacks the v2 baseline.
+        arguments.AddRange(["-cpu", options.FirmwareRngSource is null ? "Nehalem" : "Nehalem,-rdrand,-rdseed"]);
         if (options.FirmwareRngSource is not null)
         {
-            arguments.AddRange(["-cpu", "qemu64,-rdrand,-rdseed"]);
             if (string.Equals(options.FirmwareRngSource, "virtio", StringComparison.Ordinal))
                 arguments.AddRange(["-object", "rng-builtin,id=clrosrng", "-device", "virtio-rng-pci,rng=clrosrng"]);
         }

@@ -1002,7 +1002,7 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         string kernel = SecurityElement.Escape(typeof(Transition).Assembly.Location)!;
         File.WriteAllText(Path.Combine(directory, "Worker.csproj"), $$"""
             <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType>
-            <TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion>
+            <TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion>
             <AllowUnsafeBlocks>true</AllowUnsafeBlocks><ImplicitUsings>enable</ImplicitUsings>
             </PropertyGroup><ItemGroup><Reference Include="OS.Kernel"><HintPath>{{kernel}}</HintPath>
             </Reference></ItemGroup></Project>
@@ -1010,7 +1010,7 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
         File.WriteAllText(Path.Combine(directory, "Program.cs"), Worker, new UTF8Encoding(false));
         Execute(directory, "build", ["build", "Worker.csproj", "--nologo"], "Build succeeded.");
         foreach (string scenario in new[] { "one", "retry", "return" })
-            Execute(directory, scenario, ["bin/Debug/net10.0/Worker.dll", scenario], "TEST_PASS transfer." + scenario);
+            Execute(directory, scenario, ["bin/Debug/net11.0/Worker.dll", scenario], "TEST_PASS transfer." + scenario);
     }
 
     private static void Execute(string directory, string name, string[] arguments, string marker)

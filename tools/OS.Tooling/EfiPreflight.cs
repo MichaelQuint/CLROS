@@ -24,7 +24,7 @@ public static class EfiPreflight
         if (processFailure != "ok") return "dotnet_sdk_version_" + processFailure;
         if (lines.Count != 1) return "dotnet_sdk_version_output_invalid";
         string version = lines[0].Trim();
-        return Regex.IsMatch(version, @"^10\.0\.4[0-9]{2}$") && Version.TryParse(version, out var parsed) && parsed >= new Version(10, 0, 401) ? "ok" : "dotnet_sdk_version_unsupported";
+        return EfiContracts.IsPinnedSdkVersion(version) ? "ok" : "dotnet_sdk_version_unsupported";
     }
     public static Version NumericPathVersion(string path) => Regex.Matches(path, @"(?<!\d)\d+\.\d+(?:\.\d+){0,2}(?!\d)").Select(m => Version.TryParse(m.Value, out var v) ? v : new Version(0, 0)).DefaultIfEmpty(new Version(0, 0)).Max()!;
     public static string VersionFromPath(string path)

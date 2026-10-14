@@ -85,7 +85,7 @@ internal static class M04ArithmeticConformanceEfiIntegrationTests
         File.WriteAllText(project, """
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
-                <TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion>
+                <TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion>
                 <NoStdLib>true</NoStdLib><NoConfig>true</NoConfig>
                 <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
                 <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
@@ -99,7 +99,7 @@ internal static class M04ArithmeticConformanceEfiIntegrationTests
             Compile(root, "src/OS/Runtime/MethodImplAttribute.cs") + "</ItemGroup></Project>");
         ScriptResult build = Process(root, "dotnet", "build", project, "-c", "Release", "--nologo", "-m:1");
         Require(build.ExitCode == 0, build.Output);
-        using FileStream file = File.OpenRead(Path.Combine(directory, "bin/Release/net10.0/Metadata.dll"));
+        using FileStream file = File.OpenRead(Path.Combine(directory, "bin/Release/net11.0/Metadata.dll"));
         using PEReader pe = new(file);
         MetadataReader metadata = pe.GetMetadataReader();
         Require(metadata.AssemblyReferences.Count == 0, "no managed assembly references");
@@ -128,7 +128,7 @@ internal static class M04ArithmeticConformanceEfiIntegrationTests
         string directory = Scratch("adapter");
         File.WriteAllText(Path.Combine(directory, "Adapter.csproj"), """
             <Project Sdk="Microsoft.NET.Sdk">
-              <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework>
+              <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net11.0</TargetFramework>
                 <LangVersion>14.0</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
                 <ImplicitUsings>enable</ImplicitUsings><EnableDefaultCompileItems>false</EnableDefaultCompileItems>
               </PropertyGroup><ItemGroup><Compile Include="Program.cs"/>

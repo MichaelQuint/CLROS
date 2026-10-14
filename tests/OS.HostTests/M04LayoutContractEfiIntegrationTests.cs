@@ -86,7 +86,7 @@ internal static class M04LayoutContractEfiIntegrationTests
         File.WriteAllText(project, """
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
-                <TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion>
+                <TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion>
                 <NoStdLib>true</NoStdLib><NoConfig>true</NoConfig>
                 <DefineConstants>NOSTDLIB_EFI</DefineConstants>
                 <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
@@ -101,7 +101,7 @@ internal static class M04LayoutContractEfiIntegrationTests
             Compile(root, "src/OS/Runtime/MethodImplAttribute.cs") + "</ItemGroup></Project>");
         ScriptResult build = Process(root, "dotnet", "build", project, "-c", "Release", "--nologo", "-m:1");
         Require(build.ExitCode == 0, build.Output);
-        using FileStream file = File.OpenRead(Path.Combine(directory, "bin/Release/net10.0/Metadata.dll"));
+        using FileStream file = File.OpenRead(Path.Combine(directory, "bin/Release/net11.0/Metadata.dll"));
         using PEReader pe = new(file);
         MetadataReader metadata = pe.GetMetadataReader();
         Require(metadata.AssemblyReferences.Count == 0, "no managed assembly references");
@@ -130,7 +130,7 @@ internal static class M04LayoutContractEfiIntegrationTests
         string directory = Scratch("adapter");
         File.WriteAllText(Path.Combine(directory, "Adapter.csproj"), """
             <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType>
-            <TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+            <TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
             <ImplicitUsings>enable</ImplicitUsings><EnableDefaultCompileItems>false</EnableDefaultCompileItems>
             </PropertyGroup><ItemGroup><Compile Include="Program.cs"/>
             """ + Compile(root, Leaf) + "</ItemGroup></Project>");
@@ -290,7 +290,7 @@ internal static class M04LayoutContractEfiIntegrationTests
             cases.Add((good + record + "\n", false));
             cases.Add((record + "\n" + good, false));
         }
-        foreach (string token in new[] { "checks=19", "profile=ilc10.0.12-win-x64-le", "shapes=3", "prefixBytes=24", "gate4=Fail" })
+        foreach (string token in new[] { "checks=19", "profile=ilc11.0.0-rc.2.26504.105-win-x64-le", "shapes=3", "prefixBytes=24", "gate4=Fail" })
             cases.Add((good.Replace(token, token + "x", StringComparison.Ordinal), false));
         cases.Add((good.Replace(chain[2] + "\n" + chain[3], chain[3] + "\n" + chain[2], StringComparison.Ordinal), false));
         cases.Add((good.Replace("OS_SMOKE_PASS\n", "OS_SMOKE_PASS", StringComparison.Ordinal), false));

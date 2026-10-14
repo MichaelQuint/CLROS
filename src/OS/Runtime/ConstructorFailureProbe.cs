@@ -261,12 +261,12 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (GcCollectingStorage* owner = &s_gcCollecting)
         {
             var map = BoundedNonMovingCollectorExplicitRootEnumeration.InspectType(
-                NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, s_gcCapture, s_gcMapping,
+                NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, s_gcCapture, s_gcMapping,
                 (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle, s_gcImage, token);
             if (!map.Succeeded || map.SeriesCount != 1 || map.Prefix.BaseSize != 32 ||
                 !map.TryGetSeries(0, out var series) || series.OffsetFromReference != 8 || series.Bytes != 8) RejectEh(22);
             var allocated = GuestTestRhpNewFast.TryAllocate(s_access, &owner->State, (ulong)sizeof(GcCollectingStorage),
-                NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, map.Prefix, token);
+                NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, map.Prefix, token);
             if (!allocated.AllocationSucceeded || allocated.AllocationCount != 10 || allocated.BytesConsumed != 32 ||
                 GcReadWord(allocated.ObjectReference + 8) != 0 || GcReadWord(allocated.ObjectReference + 16) != 0) RejectEh(23);
             s_constructorFailureRoots.Wrapper = allocated; return allocated.ObjectReference;
@@ -323,7 +323,7 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (GcTypeStorage* type = &s_gcType)
         fixed (GcCollectingStorage* owner = &s_gcCollecting)
         {
-            var match = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+            var match = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 s_access, &owner->State, (ulong)sizeof(GcCollectingStorage), receipt, reference, targetType);
             if (!match.Succeeded || !ConstructorFailureRootRetained(reference)) { RejectEh(25); return false; }
@@ -508,7 +508,7 @@ internal static unsafe partial class RhpNewFastAllocation
     private static bool ConstructorFailureNoEh(byte* type, byte* metadata, ulong method, uint bytes)
     {
         if (method < s_gcImage.Start || method - s_gcImage.Start > 0x7FFFFFFF) return false;
-        var row = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+        var row = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
             s_gcCapture, s_gcMapping, type, (ulong)sizeof(GcTypeStorage), s_gcHandle, metadata, EhStorageBytes,
             new((uint)(method - s_gcImage.Start), bytes, 0, 0), 0);
         return row.Status == NativeAotEhClauseStatus.NoEhInfo;
@@ -518,7 +518,7 @@ internal static unsafe partial class RhpNewFastAllocation
     {
         if (method < s_gcImage.Start || method - s_gcImage.Start > 0x7FFFFFFF ||
             table < s_gcImage.Start || table - s_gcImage.Start > 0x7FFFFFFF) return default;
-        return NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+        return NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
             s_gcCapture, s_gcMapping, type, (ulong)sizeof(GcTypeStorage), s_gcHandle, metadata, EhStorageBytes,
             new((uint)(method - s_gcImage.Start), bytes, (uint)(table - s_gcImage.Start), 8), 0);
     }

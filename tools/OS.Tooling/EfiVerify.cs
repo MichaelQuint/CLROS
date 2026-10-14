@@ -28,7 +28,7 @@ public static partial class EfiVerify
         using var context = new EfiVerification(options, emit ?? (_ => { }));
         context.Verify();
     }
-    public static bool TestSdkLatestPatchVersion(string actual, string minimum) => Regex.IsMatch(actual, @"^\d+\.\d+\.\d+$", RegexOptions.CultureInvariant) && Version.TryParse(actual, out var a) && Version.TryParse(minimum, out var m) && a.Major == m.Major && a.Minor == m.Minor && a.Build / 100 == m.Build / 100 && a >= m;
+    public static bool TestSdkExactVersion(string actual, string declared) => EfiContracts.IsPinnedSdkVersion(actual) && EfiContracts.IsPinnedSdkVersion(declared);
     public static bool TestSingleFinallyEhTable(byte[]? table, ulong typeRva) => table is { Length: 11 } && typeRva is > 0 and <= uint.MaxValue && table.AsSpan(0, 7).SequenceEqual(new byte[] { 0x04, 0x36, 0x32, 0x8e, 0x36, 0xa0, 0xbc }) && BinaryPrimitives.ReadUInt32LittleEndian(table.AsSpan(7)) == typeRva;
     public static bool TestSingleFinallyUnwindBytes(byte[]? data, bool root, ulong tableRva)
     {
@@ -177,7 +177,7 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
         Require(serializerLinked.Length == EfiContracts.SerializerObjectBytes && serializerLinked.Sha256 == EfiContracts.SerializerObjectSha256, "serializer_linked_object_identity_mismatch");
         foreach ((string property, string path) in EfiContracts.SerializerSourceBindings)
             Require(Open(Path.Combine(Root, path), "serializer_source", MaximumTextBytes, root: Root).Sha256 == Text(property), "serializer_source_hash_mismatch", "property=" + property);
-        string managed = EvidencePath("managedAssemblyPath", "managed_assembly_path_invalid"), expected = Path.Combine(Root, "src/OS/bin", configuration, "net10.0/win-x64/OS.dll");
+        string managed = EvidencePath("managedAssemblyPath", "managed_assembly_path_invalid"), expected = Path.Combine(Root, EfiContracts.ManagedAssemblyRelativePath(configuration));
         Require(SamePath(managed, expected), "managed_assembly_path_not_canonical");
         var managedFile = Open(managed, "managed_assembly", MaximumFileBytes, output: true, root: Root);
         Require(managedFile.Sha256 == Text("managedAssemblySha256"), "managed_assembly_identity_mismatch");
@@ -246,7 +246,7 @@ internal sealed partial class EfiVerification(EfiOptions options, Action<string>
         Require(!Regex.IsMatch(response, @"(?im)(?:^|\s)/ALTERNATENAME:"), "serializer_fallback_linkage_present");
         List<string> includes = [EfiContracts.SerializerSymbol];
         if (profile.IsEnabled("M04CheckedReferenceBarrier") || profile.IsEnabled("M04GcStaticRootMaterialization")) includes.AddRange(["RhpAssignRef", "RhpCheckedAssignRef", "RhpByRefAssignRef"]);
-        if (profile.IsEnabled("M04InterfaceDispatch")) includes.AddRange(["RhpInitialDynamicInterfaceDispatch", "CLROS_InterfaceDispatch_GetCellSection", "CLROS_InterfaceDispatch_GetInitialStub"]);
+        if (profile.IsEnabled("M04InterfaceDispatch")) includes.AddRange(["RhpInterfaceDispatch", "CLROS_InterfaceDispatch_GetCellSection", "CLROS_InterfaceDispatch_GetInitialStub"]);
         if (profile.IsEnabled("M04SimpleThrowCatch") || profile.IsEnabled("M04SingleFinallyCatch")) includes.AddRange(["RhpThrowEx", "CLROS_Eh_GetClauseTable"]);
         if (profile.IsEnabled("M04Rethrow")) includes.AddRange(["RhpThrowEx", "RhpRethrow", "CLROS_Rethrow_InnerClauses", "CLROS_Rethrow_OuterClauses"]);
         if (profile.IsEnabled("M04NormalFinally")) includes.AddRange(["RhpThrowEx","CLROS_NormalFinally_Clauses","RhTypeCast_IsInstanceOfException"]);

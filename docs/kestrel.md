@@ -1,11 +1,13 @@
-# .NET 10 Minimal API and Kestrel Ledger
+# .NET 11 Minimal API and Kestrel Ledger
 
 ## NativeAOT-first milestone
 
 The [current workload decision](workload-profiles.md) makes M16 NativeAOT
 services, continuing M07 TCP and M10 actual Kestrel the critical path.
-M16-001/#679 through M16-005/#683 have bounded qualification; the next slice
-is [M16-006/#684](http://192.168.4.35:3000/admin/CLROS/issues/684).
+M16-001/#679 through M16-007/#685 and the bounded scheduler/timer foundations
+have historical qualification. Finish [#727's toolchain qualification](http://192.168.4.35:3000/admin/CLROS/issues/727),
+then [#188 lifecycle](http://192.168.4.35:3000/admin/CLROS/issues/188), #191 waits
+and #192 FS/TLS before #686. Follow the exact managed issue dependencies.
 Mechanical ELF startup/write/exit does not run the upstream runtime.
 M16-008/#686 uses mechanical thread/TLS/futex fixtures with real per-thread
 signal-mask inheritance/restoration. M16-009/#687 qualifies the first pinned
@@ -28,7 +30,7 @@ The primary route uses the pinned static `linux-musl-x64` payload and Kestrel's
 stock socket transport. The host-only
 [comparison #702](http://192.168.4.35:3000/admin/CLROS/issues/702)
 may replace that transport via
-[`IConnectionListenerFactory`](https://github.com/dotnet/aspnetcore/blob/v10.0.12/src/Servers/Connections.Abstractions/src/IConnectionListenerFactory.cs)
+[`IConnectionListenerFactory`](https://github.com/dotnet/dotnet/blob/820230c386db5b0106c5430b3e5aee92a7826bf5/src/aspnetcore/src/Servers/Connections.Abstractions/src/IConnectionListenerFactory.cs)
 and `ConnectionContext`/`IDuplexPipe` while retaining the real Kestrel HTTP engine
 and Minimal API pipeline. Compare external `/healthz`, partial I/O, cancellation,
 backpressure, disconnect/shutdown and the resulting runtime/syscall inventory.
@@ -36,15 +38,17 @@ Record whether the adapter reduces the required CLROS socket/epoll surface befor
 changing the architecture; a host adapter is not a guest TCP implementation.
 
 Replacing transport does not eliminate runtime threads, GC or timers. In the
-pinned .NET 10 Kestrel source,
-[`Heartbeat`](https://github.com/dotnet/aspnetcore/blob/v10.0.12/src/Servers/Kestrel/Core/src/Internal/Infrastructure/Heartbeat.cs)
+pinned .NET 11 RC2 Kestrel source,
+[`Heartbeat`](https://github.com/dotnet/dotnet/blob/820230c386db5b0106c5430b3e5aee92a7826bf5/src/aspnetcore/src/Servers/Kestrel/Core/src/Internal/Infrastructure/Heartbeat.cs)
 starts a dedicated thread and waits on an event. A custom native runtime target
 therefore needs measured runtime services as well as its transport adapter.
 
 [WASI HTTP #703](http://192.168.4.35:3000/admin/CLROS/issues/703)
-is an optional separate experiment. Current
+is an optional separate experiment. The previously reviewed
 [`componentize-dotnet`](https://github.com/bytecodealliance/componentize-dotnet/tree/f6bfc5a9a5a25728aeec959be60c8f737278a183)
-targets .NET 10+ AOT WASI 0.2 components with experimental NativeAOT-LLVM tooling.
+snapshot targets .NET 10+ AOT WASI 0.2 components with experimental NativeAOT-LLVM
+tooling. This is historical research; .NET 11 feasibility needs a separate audit
+and must not be inferred from the selected stock RC2 compiler.
 A custom ASP.NET `IServer` dispatching WASI HTTP requests may preserve Minimal
 API routing, but replaces Kestrel and cannot satisfy this milestone. WASI
 asynchronous sockets exist, yet both the pinned
@@ -76,7 +80,7 @@ Hyper-V VM smoke are separate claim gates.
 
 Local QEMU/libvirt Kestrel evidence requires the `SingleMinimalApi` guest to
 boot locally, load the versioned Linux ELF package, start the pinned upstream
-.NET 10 NativeAOT app, bind Kestrel to the manifest endpoint, and return
+.NET 11 NativeAOT app, bind Kestrel to the manifest endpoint, and return
 the expected `GET /healthz` response through the QEMU/libvirt network path.
 
 AWS Nitro Kestrel evidence requires the same `SingleMinimalApi` guest Kestrel
@@ -102,10 +106,10 @@ negotiation, NetVSC network support, and StorVSC storage support.
 
 The first acceptable Kestrel proof is:
 
-1. Build a packaged ASP.NET Minimal API application targeting .NET 10.
+1. Build a packaged ASP.NET Minimal API application targeting the pinned .NET 11 release.
 2. Package the pinned static Linux ELF into a CLROS image with explicit app identity, arguments, environment/config, listen endpoint and logging.
 3. Boot CLROS in QEMU or libvirt and leave firmware boot services.
-4. Enter the protected application context through the qualified Linux ABI; the payload initializes its own upstream .NET 10 runtime, GC and EH.
+4. Enter the protected application context through the qualified Linux ABI; the payload initializes its own upstream .NET 11 runtime, GC and EH.
 5. Launch the packaged Minimal API app inside the guest.
 6. Bind a Kestrel endpoint from the manifest or app configuration.
 7. Serve a deterministic HTTP response over the OS network path.
