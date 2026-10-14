@@ -204,6 +204,24 @@ supervisor transfer. Epochs, HPET clocks, syscall/handler/restorer vectors, spin
 capture, both exits/reaps and final restoration must all agree. Host synthetic
 controls do not prove execution. All twelve inputs remain unqualified in guests.
 
+[Step1260](../done/step1260.md) adds `NativeAotHelloGuest` and `linux hello-package`
+for the exact unchanged .NET 11 r04 Hello qualified on Linux in step1225. The
+host packager binds its ELF, actual produced DLL/object, five original receipts
+and seven current raw app/SDK/build/qualifier inputs. It checks both upstream ELF
+inspection and the current CLROS loader, then publishes a fresh package atomically.
+The package requests 64 MiB memory, a 1.5 MiB main stack, four thread slots,
+sixteen descriptors, no arguments and only `env.CLROS_USER_IRQS=1`. These are
+package limits; this step does not measure guest resource use. The preserved
+Linux Hello trace starts main, Finalizer and SigHandler; SigHandler blocks on
+pipe read until exit_group, with no poll/ppoll call in that trace.
+
+The actual 1,241,768-byte ELF remains unchanged. Four focused host cases, eleven
+payload ancestors, real-input publication and eight separate receipt/producer/ELF
+mutation controls pass. Current QEMU preflight still admits only mechanical
+inputs: a complete real-Hello syscall/scheduler/output/cleanup validator and
+actual execution remain required. No Hello, signal-thread shutdown, suspension,
+GC/ThreadPool or Kestrel guest acceptance is added.
+
 This remains focused host/source and freestanding C# evidence. No native worker,
 timer callback or mechanical ELF has executed. Original native/stack review,
 live stress/negatives and guest/ancestor qualification remain required. Signal

@@ -125,6 +125,15 @@ Its strict transcript accepts bounded timing variation only through the exact
 two-worker FIFO protocol. Generate a fresh input with `linux signal-fixture
 artifacts/packages/m16-009-activation.pkg Activation`. No IRQ guest has run.
 
+The unchanged Hello input packager in [step1260](../done/step1260.md) uses the
+extracted step1225 r04 evidence, including the actual produced managed DLL and
+native object. Invoke `linux hello-package <extracted-evidence-r04>
+<fresh-artifacts-package-path>` through OS.Tooling. The output parent must exist;
+publication never replaces an existing file. Exact raw qualification receipts
+and relevant current source hashes must match before output. It preserves the
+upstream ELF and adds explicit bounded manifest/IRQ policy; it starts no builder
+or guest. Current QEMU preflight does not admit this Hello package yet.
+
 The future qualification command is:
 
 ```powershell

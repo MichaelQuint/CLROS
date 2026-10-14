@@ -21,6 +21,12 @@ handoff, exit/reap and restoration. Both ending excursions must drain their real
 one-shot; a parent spin capture is mandatory. Synthetic 39/51-row controls are
 parser evidence only. No QEMU IRQ/activation receipt is claimed.
 
+[Step1260](../done/step1260.md) can create the exact pinned upstream Hello package
+with `linux hello-package <extracted-evidence-r04> <fresh-artifacts-package-path>`.
+This is host input/producer admission only. The M16-009 QEMU selector continues
+to reject it until a complete actual-Hello transcript validator exists; supplying
+the package or its stdout marker cannot satisfy mechanical signal proof.
+
 Development selections `-EnableM09009Probe` and `-EnableM09010Probe` have strict
 profile and transcript admission in [step1234](../done/step1234.md). Their only
 permitted explicit required markers are `CLROS_M09_009_READY` and
