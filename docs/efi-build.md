@@ -61,6 +61,22 @@ Asynchronous capture, the distinct signal package/profile and original
 native/guest qualification remain required before signal or unchanged Hello acceptance.
 Pending/frame/bridge host checks supply no execution evidence.
 
+[Step1253](../done/step1253.md) adds deterministic mechanical signal packages:
+`AlternateStack`, `UserStack`, `BadReturn` and `BadRestorer`. They check actual
+pending/unmask handler entry, masks, stack selection, edited saved RAX and
+nontrivial GPR/FP/DF/red-zone restoration, or require owned SIGSEGV termination.
+Create a fresh package with compiled tooling:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- linux signal-fixture artifacts/packages/m16-009-alt.pkg AlternateStack
+```
+
+The canonical package and actual syscall-instruction inventory are available to
+the future M16-009 runner/validator. Current M16-008 preflight deliberately rejects
+these packages; the separate profile/transcript is still required. Construction
+and byte checks establish no handler execution. Shared header/writer reuse keeps
+all four original M16-008 packages byte-identical.
+
 The future qualification command is:
 
 ```powershell

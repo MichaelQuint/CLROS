@@ -120,6 +120,13 @@ their captured values before installation aliases the gateway frame. No syntheti
 dispatch is used for delivery or gate accounting. This is source integration and
 focused host/no-stdlib C# evidence; the native signal path has not executed.
 
+[Step1253](../done/step1253.md) adds C# mechanical signal inputs for ordinary and
+alternate stacks, actual pending/unmask delivery and register/FP/DF restoration,
+plus malicious saved-CS and invalid-restorer controls. The syscall15 serial
+snapshot now precedes checked restoration so it retains the actual restorer
+instruction/RSP rather than the user-edited return target. Separate M16-009
+profile/transcript wiring and guest qualification remain required.
+
 This remains focused host/source and freestanding C# evidence. No native worker,
 timer callback or mechanical ELF has executed. Original native/stack review,
 live stress/negatives and guest/ancestor qualification remain required. Signal

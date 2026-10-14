@@ -147,6 +147,12 @@ internal static unsafe class M16008EfiIntegrationTests
         foreach (var pair in new[] { ("DispatchLinuxNativeCore","X64LinuxUserTransition.RestoreActiveUserImage"),
             ("LinuxNativeWorkerPrepare","X64LinuxUserTransition.InstallUserImage") })
             CallsBefore(methods.Single(m => m.Identifier.Text == pair.Item1),"LinuxNativeUserReturn",pair.Item2);
+        var core = methods.Single(m => m.Identifier.Text == "DispatchLinuxNativeCore");
+        var captured = core.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v => v.Identifier.Text == "call");
+        HostCheck.True(captured.SpanStart < core.DescendantNodes().OfType<InvocationExpressionSyntax>()
+            .Single(c => c.Expression.ToString() == "LinuxSyscallGateway.Dispatch").SpanStart);
+        var overwritten = core.DescendantNodes().OfType<AssignmentExpressionSyntax>().Single(a => a.Left.ToString() == "call");
+        HostCheck.Equal("call.Number != 15",overwritten.Ancestors().OfType<IfStatementSyntax>().First().Condition.ToString());
 
         static void CallsBefore(MethodDeclarationSyntax method,string first,string? second)
         {

@@ -305,11 +305,14 @@ public static unsafe partial class EfiEntry
                     image, X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask, c->User)) return 0;
             uint index = c->Selected - 1;
             if (c->Entered[index] != 1 || c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity) return 0;
+            LinuxSyscallFrame call = *frame;
             var result = LinuxSyscallGateway.Dispatch(ref c->Gates[index], ref *frame);
             image->Frame = *frame; image->Value = result.Value;
             // Keep the actual syscall record separate from a handler's new
             // register image. Full installation below aliases the gateway frame.
-            LinuxSyscallFrame call = *frame;
+            // Sigreturn replaces the ref frame itself. Its serial record must
+            // retain the real restorer SYSCALL, not a user-edited return RIP.
+            if (call.Number != 15) call = *frame;
             state->LinuxUserRoot = state->LinuxMemory.Root;
             byte* data = (byte*)state->LinuxSyscallData;
             var returning = result;

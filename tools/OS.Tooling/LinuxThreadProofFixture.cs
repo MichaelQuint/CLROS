@@ -88,9 +88,15 @@ public static class LinuxThreadProofFixture
     /// and its digest. No native source, executable or upstream payload is used.</summary>
     public static byte[] CreatePackage(string variant)
     {
-        byte[] elf = CreateElf(variant);
+        return CreateMechanicalPackage(CreateElf(variant), variant, AppPath);
+    }
+
+    // The two mechanical consumers share only fixed ELF/package geometry;
+    // their instruction streams, protocol and acceptance remain independent.
+    internal static byte[] CreateMechanicalPackage(byte[] elf, string variant, string appPath)
+    {
         byte[] manifest = Encoding.ASCII.GetBytes("format=clros-linux-elf\nversion=1\nprofile=linux-musl-x64-static-v1\n" +
-            "app.path=" + AppPath + "\nargs=" + variant + "\ndigest=" + Convert.ToHexString(SHA256.HashData(elf)).ToLowerInvariant() +
+            "app.path=" + appPath + "\nargs=" + variant + "\ndigest=" + Convert.ToHexString(SHA256.HashData(elf)).ToLowerInvariant() +
             "\nmemory=67108864\nstack=65536\nthreads=2\ndescriptors=16\nlisten=127.0.0.1:8080\n");
         byte[] package = new byte[64 + manifest.Length + elf.Length];
         BinaryPrimitives.WriteUInt64LittleEndian(package, LinuxElfPackage.Magic);
@@ -113,18 +119,9 @@ public static class LinuxThreadProofFixture
     private static (byte[] Elf, ulong[] Parent, ulong[] Child, ulong Clone) Build(string variant)
     {
         Validate(variant);
-        byte[] elf = new byte[ElfBytes]; elf.AsSpan(EntryOffset, 4096 - EntryOffset).Fill(0xcc);
-        "\u007fELF"u8.CopyTo(elf); elf[4] = 2; elf[5] = 1; elf[6] = 1;
-        void U16(int at, ushort value) => BinaryPrimitives.WriteUInt16LittleEndian(elf.AsSpan(at), value);
+        byte[] elf = CreateMechanicalImage(ThreadWitness);
         void U32(int at, uint value) => BinaryPrimitives.WriteUInt32LittleEndian(elf.AsSpan(at), value);
         void U64(int at, ulong value) => BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(at), value);
-        U16(16, 2); U16(18, 62); U32(20, 1); U64(24, ImageBase + EntryOffset);
-        U64(32, 64); U16(52, 64); U16(54, 56); U16(56, 3);
-        void Load(int at, uint type, uint flags, ulong offset, ulong address, ulong bytes, ulong alignment)
-        { U32(at, type); U32(at + 4, flags); U64(at + 8, offset); U64(at + 16, address); U64(at + 24, address); U64(at + 32, bytes); U64(at + 40, bytes); U64(at + 48, alignment); }
-        Load(64, 1, 5, 0, ImageBase, 4096, 4096); Load(120, 1, 6, 4096, DataBase, ElfBytes - 4096, 4096);
-        Load(176, 0x6474e551, 6, 0, 0, 0, 16);
-        Encoding.ASCII.GetBytes(ThreadWitness).CopyTo(elf, WitnessOffset);
         U32(ClearTidOffset, 1); U64(ParentMaskOffset, 0x200); U64(ChildMaskOffset, 0x800);
         U64(TimeoutOffset, 0); U64(TimeoutOffset + 8, 1_000_000); // Genuine relative 1ms, not a synthetic yield.
         "PIPE"u8.CopyTo(elf.AsSpan(PayloadOffset));
@@ -244,20 +241,37 @@ public static class LinuxThreadProofFixture
         if (failure.Rips[0] != FailureExitRip) throw new ToolFailure("m16_008_fixture_failure_rip");
     }
 
+    internal static byte[] CreateMechanicalImage(string witness)
+    {
+        byte[] elf = new byte[ElfBytes]; elf.AsSpan(EntryOffset, 4096 - EntryOffset).Fill(0xcc);
+        "\u007fELF"u8.CopyTo(elf); elf[4] = 2; elf[5] = 1; elf[6] = 1;
+        void U16(int at, ushort value) => BinaryPrimitives.WriteUInt16LittleEndian(elf.AsSpan(at), value);
+        void U32(int at, uint value) => BinaryPrimitives.WriteUInt32LittleEndian(elf.AsSpan(at), value);
+        void U64(int at, ulong value) => BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(at), value);
+        U16(16, 2); U16(18, 62); U32(20, 1); U64(24, ImageBase + EntryOffset);
+        U64(32, 64); U16(52, 64); U16(54, 56); U16(56, 3);
+        void Load(int at, uint type, uint flags, ulong offset, ulong address, ulong bytes, ulong alignment)
+        { U32(at, type); U32(at + 4, flags); U64(at + 8, offset); U64(at + 16, address); U64(at + 24, address); U64(at + 32, bytes); U64(at + 40, bytes); U64(at + 48, alignment); }
+        Load(64, 1, 5, 0, ImageBase, 4096, 4096); Load(120, 1, 6, 4096, DataBase, ElfBytes - 4096, 4096);
+        Load(176, 0x6474e551, 6, 0, 0, 0, 16);
+        Encoding.ASCII.GetBytes(witness).CopyTo(elf, WitnessOffset);
+        return elf;
+    }
+
     private static ulong Address(int offset) => ImageBase + (uint)offset;
     private static void Validate(string variant)
     { if (variant is not ("Threads" or "PipeReadClose" or "PipeWriteClose" or "PipeShutdown")) throw new ToolFailure("m16_008_fixture_variant"); }
 
     // All syscall arguments are explicit. Only pipe fd arguments are replaced
     // with actual pair loads; no allocation order or initial TID is assumed.
-    private sealed class Writer(byte[] bytes, int position)
+    internal sealed class Writer(byte[] bytes, int position)
     {
         public int Position = position;
         public readonly List<ulong> Rips = [];
         public void Op(ulong value, int count) { for (int i = 0; i < count; i++) bytes[Position++] = (byte)(value >> (i * 8)); }
         public void Immediate(uint register, uint value)
         { if (register >= 8) Op(0x41, 1); Op(0xb8 + (register & 7), 1); Op(value, 4); }
-        private void Rip(ulong op, int length, int target, int tail = 0)
+        internal void Rip(ulong op, int length, int target, int tail = 0)
         { Op(op, length); Op(unchecked((uint)(target - (Position + 4 + tail))), 4); }
         public void Branch(byte condition, int target = FailureOffset) { Op(0x0f, 1); Op(condition, 1); Op(unchecked((uint)(target - (Position + 4))), 4); }
         public void JumpFailure() { Op(0xe9, 1); Op(unchecked((uint)(FailureOffset - (Position + 4))), 4); }
@@ -274,11 +288,11 @@ public static class LinuxThreadProofFixture
         { Arguments(number, a0, a1, a2, a3, a4, a5); Finish(); }
         public void FdCall(uint number, int fdOffset, ulong address, uint count)
         { Arguments(number, 0, address, count, 0, 0, 0); Rip(0x3d8b, 2, fdOffset); Finish(); }
-        private void Arguments(uint number, ulong a0, ulong a1, ulong a2, ulong a3, ulong a4, ulong a5)
+        internal void Arguments(uint number, ulong a0, ulong a1, ulong a2, ulong a3, ulong a4, ulong a5)
         {
             Immediate(0, number); Immediate(7, checked((uint)a0)); Immediate(6, checked((uint)a1)); Immediate(2, checked((uint)a2));
             Immediate(10, checked((uint)a3)); Immediate(8, checked((uint)a4)); Immediate(9, checked((uint)a5));
         }
-        private void Finish() { Op(0x050f, 2); Rips.Add(ImageBase + (uint)Position); }
+        internal void Finish() { Op(0x050f, 2); Rips.Add(ImageBase + (uint)Position); }
     }
 }
