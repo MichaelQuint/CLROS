@@ -30,7 +30,7 @@ internal static unsafe class M16008EfiIntegrationTests
             Reject(() => EfiOptions.Parse(["--BootPolicy", "VerifiedExit", "--" + flag], build).Profile());
             string[] compile = EfiProjectAdmission.ExpectedCompileItems(profile);
             foreach (string include in new[] { @"..\OS.Kernel\Threading\WaitAddress.cs|Threading\WaitAddress.cs",
-                @"Boot\EfiEntry.LinuxThreads.cs|", @"Boot\EfiEntry.LinuxThreadMemory.cs|",
+                @"Boot\EfiEntry.LinuxThreads.cs|", @"Boot\EfiEntry.LinuxSignals.cs|", @"Boot\EfiEntry.LinuxThreadMemory.cs|",
                 @"Boot\EfiEntry.LinuxThreadRun.cs|", @"Boot\EfiEntry.LinuxThreadTimer.cs|",
                 @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs|Compatibility\LinuxX64\LinuxThreadProgram.cs",
                 @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs|Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs" })
@@ -128,6 +128,32 @@ internal static unsafe class M16008EfiIntegrationTests
             MemberAccessExpressionSyntax member when member.ToString() == "FirstExitOwnedArena.MappingRangeCount" => FirstExitOwnedArena.MappingRangeCount,
             _ => throw new InvalidOperationException("unreviewed mapping capacity expression")
         };
+    }
+
+    [HostTest("m16-008 native signal attachment drains before scrub and return preparation precedes full installation")]
+    private static void SignalBoundary()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        var trees = new[] { "LinuxThreads", "LinuxSignals" }.Select(name =>
+            CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry." + name + ".cs")),
+                new CSharpParseOptions(preprocessorSymbols: ["M16_008_PROBE"]))).ToArray();
+        HostCheck.True(trees.All(t => !t.GetDiagnostics().Any(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error)));
+        var methods = trees.SelectMany(t => t.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>()).ToArray();
+        var bind = methods.Single(m => m.Identifier.Text == "LinuxNativeBind");
+        CallsBefore(bind,"c->Process.Initialize","LinuxNativeBindSignals");
+        var release = methods.Single(m => m.Identifier.Text == "LinuxNativeRelease");
+        CallsBefore(release,"c->Process.Release","LinuxNativeReleaseSignals");
+        CallsBefore(methods.Single(m => m.Identifier.Text == "LinuxNativeReleaseSignals"),"LinuxSignalServices.End",null);
+        foreach (var pair in new[] { ("DispatchLinuxNativeCore","X64LinuxUserTransition.RestoreActiveUserImage"),
+            ("LinuxNativeWorkerPrepare","X64LinuxUserTransition.InstallUserImage") })
+            CallsBefore(methods.Single(m => m.Identifier.Text == pair.Item1),"LinuxNativeUserReturn",pair.Item2);
+
+        static void CallsBefore(MethodDeclarationSyntax method,string first,string? second)
+        {
+            var calls = method.DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
+            var a = calls.Single(c => c.Expression.ToString() == first);
+            if (second != null) HostCheck.True(a.SpanStart < calls.Single(c => c.Expression.ToString() == second).SpanStart);
+        }
     }
 
     private static void Reject(Action action, string? expected = null)

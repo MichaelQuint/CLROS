@@ -227,4 +227,86 @@ internal static unsafe class LinuxSignalInterruptTests
             HostCheck.True(o.M.Service->MayChangeUserRange(Key,2,Word,4)); o.M.FailRead(ulong.MaxValue);
         }
     }
+
+    [HostTest("linux.signal-return actual syscall completion preserves the full image without pending work")]
+    private static void ReturnWithoutSignal()
+    {
+        using Owner o = new();
+        HostCheck.Equal(101L,o.Value(186));
+        var before = *o.M.CurrentImage();
+        var result = o.M.Service->PrepareUserReturn(Key,2,out var image);
+        HostCheck.True(result.Action == LinuxSyscallAction.RestoreUser && result.Value == 101 && image == o.M.CurrentImage());
+        HostCheck.True(new ReadOnlySpan<byte>(&before,(int)X64LinuxUserTransition.UserImageBytes)
+            .SequenceEqual(new ReadOnlySpan<byte>(image,(int)X64LinuxUserTransition.UserImageBytes)));
+        foreach (var access in new[] { (Key ^ 1,2UL),(Key,0x202UL) })
+            HostCheck.True(o.M.Service->PrepareUserReturn(access.Item1,access.Item2,out var denied).Action == LinuxSyscallAction.Rejected && denied == null);
+    }
+
+    [HostTest("linux.signal-return masked work stays pending until the actual unmask return boundary")]
+    private static void ReturnAfterUnmask()
+    {
+        using Owner o = new(); o.M.Put64(Input,1UL << 9); HostCheck.Equal(0L,o.Value(14,0,Input,0,8)); o.Send();
+        var result = o.M.Service->PrepareUserReturn(Key,2,out var image);
+        HostCheck.True(result.Action == LinuxSyscallAction.RestoreUser && image->Frame.Rip == After && image->Frame.Rsp == Base + 0x3000);
+        o.M.Put64(Input,0); HostCheck.Equal(0L,o.Value(14,2,Input,0,8));
+        result = o.M.Service->PrepareUserReturn(Key,2,out image);
+        HostCheck.True(result.Action == LinuxSyscallAction.RestoreUser && result.Value == 0 && image->Frame.Rip == Base + 0x180 && image->Gpr[3] == 10);
+        HostCheck.Equal(After,o.M.Read64(image->Frame.Rsp + 176));
+    }
+
+    [HostTest("linux.signal-return completed interrupted waits install handler or retained original-deadline restart values")]
+    private static void ReturnAfterInterrupt()
+    {
+        foreach (bool timed in new[] { false,true })
+        foreach (bool ignored in new[] { false,true })
+        {
+            using Owner o = new(true); o.Futex(timed); o.Sender(); o.Send();
+            if (ignored) o.Action(false,1);
+            o.ParentAgain(); HostCheck.Equal(-4L,o.Complete().Value);
+            var result = o.M.Service->PrepareUserReturn(Key,2,out var image);
+            HostCheck.True(result.Action == LinuxSyscallAction.RestoreUser && image != null);
+            HostCheck.Equal(ignored ? (timed ? 219L : 202L) : 0,result.Value);
+            HostCheck.Equal(ignored ? After - 2 : Base + 0x180,image->Frame.Rip);
+            if (!ignored) HostCheck.Equal(timed ? unchecked((ulong)-4) : 202UL,o.M.Read64(image->Frame.Rsp + 152));
+            HostCheck.True(o.M.Service->MayChangeUserRange(Key,2,Word,4));
+        }
+    }
+
+    [HostTest("linux.signal-return unresolved pipe waits cannot expose a continuation or drop its description")]
+    private static void ReturnBeforeCompletion()
+    {
+        using Owner o = new(); var pipe = o.Core.Pipe();
+        HostCheck.Equal(LinuxSyscallAction.Blocked,o.Call(0,pipe.Read,Output,4).Action);
+        HostCheck.True(o.M.Service->PrepareUserReturn(Key,2,out var image).Action == LinuxSyscallAction.Rejected && image == null);
+        HostCheck.Equal(1U,o.Core.Files.State->RetainedPipeOperations);
+        HostCheck.Equal(KernelThreadTable.State.Parking,o.M.Kernel.Inspect(o.Parent).State);
+    }
+
+    [HostTest("linux.signal-return fatal pending work stages actual shutdown without exposing an image or reaping inline")]
+    private static void FatalReturn()
+    {
+        foreach (bool badFrame in new[] { false,true })
+        {
+            using Owner o = new();
+            if (badFrame) { o.Send(); o.M.CurrentImage()->Frame.Rsp = Base + 0x1100; }
+            else HostCheck.Equal(0L,o.Value(234,101,101,12));
+            var result = o.M.Service->PrepareUserReturn(Key,2,out var image);
+            HostCheck.Equal(LinuxSyscallAction.Terminate,result.Action);
+            HostCheck.Equal(badFrame ? 139U : 140U,result.ExitCode); HostCheck.True(image == null);
+            HostCheck.Equal(2U,o.M.Service->ActiveThreads);
+            HostCheck.True(o.M.View(o.Parent).Exiting && o.M.View(o.Child).Exiting);
+        }
+    }
+
+    [HostTest("linux.signal-return sigreturn edits survive the following native return preparation")]
+    private static void ReturnAfterSigreturn()
+    {
+        using Owner o = new(); o.Send(); ulong frame = o.Caught();
+        o.M.Put64(frame + 152,0x123456789abcdef0); o.M.Put64(frame + 176,Base + 0x280);
+        ulong fp = o.M.Read64(frame + 232); *o.M.At(fp + 160) = 0x91;
+        HostCheck.Equal(LinuxSyscallAction.RestoreUser,o.Return(frame).Action);
+        var result = o.M.Service->PrepareUserReturn(Key,2,out var image);
+        HostCheck.True(result.Action == LinuxSyscallAction.RestoreUser && result.Value == 0x123456789abcdef0 && image->Value == result.Value);
+        HostCheck.True(image->Frame.Rip == Base + 0x280 && image->Fx[160] == 0x91);
+    }
 }

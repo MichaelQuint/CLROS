@@ -77,7 +77,7 @@ child's alternate stack; actual reap scrubs its metadata. A valid update survive
 an old-state copyout EFAULT, matching the pinned Linux ABI. The gateway routes
 these calls to real handlers; an unattached owner retains ENOSYS. Eight host controls and the
 affected focused regressions pass; the M16-008 no-stdlib C# closure compiles.
-Native M16-008 leaves signal attachment disabled.
+Native attachment follows in step1252 below.
 
 [Step1249](../done/step1249.md) adds checked current-generation delivery and
 rt_sigreturn on that same owner. The 440-byte Linux x64 frame references a
@@ -105,10 +105,20 @@ callback/deadline until sigreturn. No-handler retries preserve the original
 absolute deadline and re-admit current word/mapping ownership; pipe retries
 resolve the fd again. No internal restart errno reaches user code, and no image
 is available before resolving an interrupted return. Asynchronous user faults/
-activation, M16-009 integration, unchanged Hello and suspension remain
-unfinished. No native path calls the
-signal delivery APIs or attaches signal state yet; evidence is focused host/
-source and no-stdlib C# compilation only.
+activation, the distinct M16-009 profile/package, unchanged Hello and suspension
+remain unfinished.
+
+[Step1252](../done/step1252.md) attaches exclusive signal metadata to the
+default-off native thread owner before publishing any generation. Actual process
+release detaches it after reaping; End and an explicit zero check precede pool
+restoration/scrubbing. Both active syscalls and initial/rescheduled workers call
+the same checked return preparation after actual completion/accounting and before
+full GPR/FX installation. Its final handler/restart/sigreturn RAX is retained;
+the old syscall result cannot overwrite it. Fatal delivery stages actual shutdown
+and uses the existing native restoration/exit/reap path. Syscall records retain
+their captured values before installation aliases the gateway frame. No synthetic
+dispatch is used for delivery or gate accounting. This is source integration and
+focused host/no-stdlib C# evidence; the native signal path has not executed.
 
 This remains focused host/source and freestanding C# evidence. No native worker,
 timer callback or mechanical ELF has executed. Original native/stack review,

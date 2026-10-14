@@ -846,6 +846,7 @@
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs" Link="Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs" Link="Compatibility\LinuxX64\LinuxThreadProgram.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.LinuxThreads.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
+		<Compile Include="Boot\EfiEntry.LinuxSignals.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.LinuxThreadMemory.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.LinuxThreadRun.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.LinuxThreadTimer.cs" Condition="'$(EnableM16008Probe)' == 'true'" />

@@ -172,7 +172,7 @@ public static unsafe class X64LinuxUserTransition
     }
 
     /// <summary>Replace the complete user image at an active syscall callback
-    /// after an authenticated syscall15 RestoreUser result. The IRQ-off native
+    /// after authenticated sigreturn or pending signal/restart resolution. The IRQ-off native
     /// owner proves this exact fixed gateway, kernel root and current generation;
     /// this is not an arbitrary inactive install. Only phase1 and validated user
     /// mappings/FX state are admitted. Supervisor restoration bytes stay intact.</summary>

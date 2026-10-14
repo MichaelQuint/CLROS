@@ -4,6 +4,7 @@ public static partial class EfiContracts
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
         [@"Boot\EfiEntry.LinuxThreads.cs"] = "reviewed_m16_native_process_owner_source_identity",
+        [@"Boot\EfiEntry.LinuxSignals.cs"] = "reviewed_m16_native_signal_return_source_identity",
         [@"Boot\EfiEntry.LinuxThreadMemory.cs"] = "reviewed_m16_native_process_memory_source_identity",
         [@"Boot\EfiEntry.LinuxThreadRun.cs"] = "reviewed_m16_native_process_driver_source_identity",
         [@"Boot\EfiEntry.LinuxThreadTimer.cs"] = "reviewed_m16_native_process_timer_source_identity",

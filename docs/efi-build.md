@@ -48,13 +48,17 @@ PipeShutdown require actual HPET timeout records. All remain unexecuted inputs.
 [Step1248](../done/step1248.md) links the optional signal startup owner.
 [Step1249](../done/step1249.md) adds its checked frame/return dependencies and an
 explicit full user GPR/FX install for syscall15 in the active gateway. The
-M16-008 no-stdlib C# closure compiles; its native owner does not attach signal
-state or call DeliverSignal. There is no M16-009 build/runner switch yet.
+M16-008 no-stdlib C# closure compiles. There is no M16-009 build/runner switch yet.
 [Step1250](../done/step1250.md) links directed pending/tgkill selection on the
 same owner. [Step1251](../done/step1251.md) links genuine interrupted-wait and
-checked restart decisions, including timed restart_syscall. Asynchronous capture,
-native signal attachment/delivery and original native/guest qualification remain
-required before signal or unchanged Hello acceptance.
+checked restart decisions, including timed restart_syscall.
+[Step1252](../done/step1252.md) attaches signal storage in the existing RW/NX
+metadata arena and resolves pending delivery/restart before every native user
+return. Full user installation retains the resolved RAX and all GPR/FX state;
+actual syscall accounting and its captured serial record precede delivery.
+Signal metadata detaches after real reaps and is scrubbed before pool restoration.
+Asynchronous capture, the distinct signal package/profile and original
+native/guest qualification remain required before signal or unchanged Hello acceptance.
 Pending/frame/bridge host checks supply no execution evidence.
 
 The future qualification command is:

@@ -29,6 +29,7 @@ public static unsafe partial class EfiEntry
             internal NativeProgram.Plan Plan;
             internal KernelThreadTable Threads;
             internal LinuxThreadServices Process;
+            internal LinuxSignalServices.State* Signals;
             internal LinuxThreadServices.FutexCell* Cells;
             internal LinuxThreadServices.Slot* Slots;
             internal LinuxThreadServices.Worker* Workers;
@@ -48,7 +49,7 @@ public static unsafe partial class EfiEntry
             internal DeadlineQueue TimerDeadlines;
             internal DeadlineQueue.Entry TimerDeadline;
             internal ulong Epoch, OriginalIst;
-            internal uint Installed, GuardAttached, ProcessAttached, TableAttached;
+            internal uint Installed, GuardAttached, ProcessAttached, TableAttached, SignalsInitialized;
             internal fixed ulong Cpu[(int)NativeSwitch.ObservationWords];
             internal fixed ulong GatewayCpu[(int)X64LinuxUserTransition.ObservationWords];
             internal fixed ulong OriginalIdtr[2], NewIdtr[2], ObservedIdtr[2];
@@ -104,6 +105,7 @@ public static unsafe partial class EfiEntry
                 !LinuxNativeTake(ref cursor, end, (uint)sizeof(LinuxThreadServices.FutexCell) * LinuxNativeFutexes, out byte* cells) ||
                 !LinuxNativeTake(ref cursor, end, (uint)sizeof(WaitAddress.Slot) * LinuxNativeFutexes, out byte* addresses) ||
                 !LinuxNativeTake(ref cursor, end, (uint)sizeof(WaitAddress.Registration) * LinuxNativeWorkers, out byte* registrations) ||
+                !LinuxNativeTake(ref cursor, end, (uint)sizeof(LinuxSignalServices.State), out byte* signals) ||
                 !LinuxNativeTake(ref cursor, end, X64LinuxUserTransition.UserImageBytes, out byte* initial) ||
                 !LinuxNativeTake(ref cursor, end, NativeProgram.Bytes, out byte* codeCopy)) return false;
             c->Slots = (LinuxThreadServices.Slot*)slots; c->Workers = (LinuxThreadServices.Worker*)workers;
@@ -113,6 +115,7 @@ public static unsafe partial class EfiEntry
             c->Cells = (LinuxThreadServices.FutexCell*)cells; c->Addresses = (WaitAddress.Slot*)addresses;
             c->Registrations = (WaitAddress.Registration*)registrations; c->Initial = (X64LinuxUserTransition.UserImage*)initial;
             c->CodeCopy = codeCopy;
+            c->Signals = (LinuxSignalServices.State*)signals;
             c->User = new() { Context = state, PageAccess = &LinuxUserPageAccess,
                 CopyFromUser = &LinuxThreadCopyInput, Write = &WriteDescriptorOutput };
             c->Plan = new() { Prepare = (ulong)(delegate* unmanaged<void*, uint, byte>)&LinuxNativeWorkerPrepare,
@@ -271,9 +274,13 @@ public static unsafe partial class EfiEntry
                 access.Startup = &DispatchLinuxStartup; access.Descriptors = &DispatchLinuxDescriptors; access.Threads = &DispatchLinuxNativeThreadService;
                 if (LinuxSyscallGateway.Begin(ref c->Gates[index], admission, access) != LinuxSyscallGateStatus.Active) return LinuxNativeAbort(c, index);
             }
-            if (c->Gates[index].Status != LinuxSyscallGateStatus.Active || !c->State->LinuxSyscallPlan.ResumeUser ||
-                !c->Process.CurrentImage(c->Key, 2, out var image)) return LinuxNativeAbort(c, index);
-            if (completed) image->Value = completion.Value;
+            if (c->Gates[index].Status != LinuxSyscallGateStatus.Active || !c->State->LinuxSyscallPlan.ResumeUser)
+                return LinuxNativeAbort(c, index);
+            // CompletePipe/FutexWait already stored the real result. Delivery
+            // may replace RAX/RIP with a handler or checked syscall restart.
+            var returning = LinuxNativeUserReturn(c, index, out var image);
+            if (returning.Action == LinuxSyscallAction.Terminate) return 2;
+            if (returning.Action != LinuxSyscallAction.RestoreUser) return LinuxNativeAbort(c, index);
             if (!X64LinuxUserTransition.InstallUserImage((byte*)c->State->LinuxSyscallData, X64LinuxUserTransition.DataBytes,
                 image, X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask, c->User)) return LinuxNativeAbort(c, index);
             ((delegate* unmanaged<ulong*, void>)(c->State->LinuxSyscallCode + X64LinuxUserTransition.ObserveOffset))(c->GatewayCpu);
@@ -300,15 +307,21 @@ public static unsafe partial class EfiEntry
             if (c->Entered[index] != 1 || c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity) return 0;
             var result = LinuxSyscallGateway.Dispatch(ref c->Gates[index], ref *frame);
             image->Frame = *frame; image->Value = result.Value;
+            // Keep the actual syscall record separate from a handler's new
+            // register image. Full installation below aliases the gateway frame.
+            LinuxSyscallFrame call = *frame;
             state->LinuxUserRoot = state->LinuxMemory.Root;
             byte* data = (byte*)state->LinuxSyscallData;
-            if (result.Action == LinuxSyscallAction.RestoreUser &&
+            var returning = result;
+            if (result.Action is LinuxSyscallAction.Return or LinuxSyscallAction.RestoreUser)
+                returning = LinuxNativeUserReturn(c, index, out image);
+            if (returning.Action == LinuxSyscallAction.RestoreUser &&
                 !X64LinuxUserTransition.RestoreActiveUserImage(data, X64LinuxUserTransition.DataBytes, image,
                     X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask, c->User))
             { if (LinuxNativeAbort(c, index) != 2) return 0; return 2; }
-            *(long*)(data + X64LinuxUserTransition.ValueOffset) = result.Value;
-            *(ulong*)(data + X64LinuxUserTransition.OutcomeOffset) = (ulong)result.Action;
-            c->Actions[index] = (uint)result.Action;
+            *(long*)(data + X64LinuxUserTransition.ValueOffset) = returning.Value;
+            *(ulong*)(data + X64LinuxUserTransition.OutcomeOffset) = (ulong)returning.Action;
+            c->Actions[index] = (uint)returning.Action;
             if (result.Action == LinuxSyscallAction.Terminate)
             {
                 if (!c->Process.Inspect(c->Key, 2, c->Threads.Current, out var view) || !view.Exiting)
@@ -316,19 +329,19 @@ public static unsafe partial class EfiEntry
                 else { state->LinuxSyscallExitCode = result.ExitCode; c->Stopping = 1; }
             }
             bool logged = LinuxText(state, "M16_008_CALL identity=") && LinuxNumber(state, c->Threads.Current.Value) &&
-                LinuxText(state, " nr=") && LinuxNumber(state, frame->Number) &&
-                LinuxText(state, " a0=") && LinuxNumber(state, frame->Argument0) && LinuxText(state, " a1=") && LinuxNumber(state, frame->Argument1) &&
-                LinuxText(state, " a2=") && LinuxNumber(state, frame->Argument2) && LinuxText(state, " a3=") && LinuxNumber(state, frame->Argument3) &&
-                LinuxText(state, " a4=") && LinuxNumber(state, frame->Argument4) && LinuxText(state, " a5=") && LinuxNumber(state, frame->Argument5) &&
-                LinuxText(state, " rip=") && LinuxNumber(state, frame->Rip) && LinuxText(state, " rsp=") && LinuxNumber(state, frame->Rsp) &&
-                LinuxText(state, " flags=") && LinuxNumber(state, frame->Rflags) && LinuxText(state, " fs=") && LinuxNumber(state, frame->FsBase) &&
-                LinuxText(state, " gs=") && LinuxNumber(state, frame->GsBase) && LinuxText(state, " clock=") && LinuxNumber(state, c->Threads.ObservedTicks) &&
+                LinuxText(state, " nr=") && LinuxNumber(state, call.Number) &&
+                LinuxText(state, " a0=") && LinuxNumber(state, call.Argument0) && LinuxText(state, " a1=") && LinuxNumber(state, call.Argument1) &&
+                LinuxText(state, " a2=") && LinuxNumber(state, call.Argument2) && LinuxText(state, " a3=") && LinuxNumber(state, call.Argument3) &&
+                LinuxText(state, " a4=") && LinuxNumber(state, call.Argument4) && LinuxText(state, " a5=") && LinuxNumber(state, call.Argument5) &&
+                LinuxText(state, " rip=") && LinuxNumber(state, call.Rip) && LinuxText(state, " rsp=") && LinuxNumber(state, call.Rsp) &&
+                LinuxText(state, " flags=") && LinuxNumber(state, call.Rflags) && LinuxText(state, " fs=") && LinuxNumber(state, call.FsBase) &&
+                LinuxText(state, " gs=") && LinuxNumber(state, call.GsBase) && LinuxText(state, " clock=") && LinuxNumber(state, c->Threads.ObservedTicks) &&
                 LinuxText(state, " valueBits=") && LinuxNumber(state, unchecked((ulong)result.Value)) &&
                 LinuxText(state, " action=") && LinuxNumber(state, (uint)result.Action) &&
                 LinuxText(state, " status=") && LinuxNumber(state, (uint)c->Gates[index].Status) && LinuxText(state, "\r\n");
-            if (!logged || result.Action == LinuxSyscallAction.Rejected)
+            if (!logged || result.Action == LinuxSyscallAction.Rejected || returning.Action == LinuxSyscallAction.Rejected)
             { if (LinuxNativeAbort(c, index) != 2) return 0; }
-            return logged && result.Action is LinuxSyscallAction.Return or LinuxSyscallAction.RestoreUser ? (byte)1 : (byte)2;
+            return logged && returning.Action == LinuxSyscallAction.RestoreUser ? (byte)1 : (byte)2;
         }
 
         private static byte LinuxNativeAbort(LinuxNativeControl* c, uint index)
@@ -449,6 +462,7 @@ public static unsafe partial class EfiEntry
                 User = c->User, CopyToUser = &LinuxThreadCopyOutput, FirmwareExited = true, SingleOwnerValidated = true };
             if (!c->Process.Initialize(c->Key, 2, owner)) return false;
             c->ProcessAttached = 1;
+            if (!LinuxNativeBindSignals(c)) return false;
             LinuxThreadServices.FutexAdmission futex = new() { OwnerKey = c->Key ^ 0x4655544558UL,
                 Cells = c->Cells, CellBytes = (uint)sizeof(LinuxThreadServices.FutexCell) * LinuxNativeFutexes,
                 Addresses = c->Addresses, AddressBytes = (uint)sizeof(WaitAddress.Slot) * LinuxNativeFutexes,
@@ -473,6 +487,7 @@ public static unsafe partial class EfiEntry
             }
             if (c->ProcessAttached != 0)
             { if (!c->Process.Release(c->Key, 2)) return false; c->ProcessAttached = 0; }
+            if (!LinuxNativeReleaseSignals(c)) return false;
             if (c->TableAttached != 0)
             { if (c->Threads.Release(c->Key, 2, supervisorRsp) != KernelThreadTable.Status.Ok) return false; c->TableAttached = 0; }
             c->Phase = 5; return true;

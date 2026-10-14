@@ -51,8 +51,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "47450d96ae6152790487c50b5d9811b4b864daa532dba399dcaf63cf25679add";
-    public const string CanonicalProjectSha256 = "f7075a8a31e9c6cd23ef01502ef3ba684c414b5bae46b84060f579006b5b7fe9";
+    public const string ProjectSourceSha256 = "ec4ba2d80b876a03ea6404b27ddd4e75dc3ae5508385ac1e1b546b407d0c4e79";
+    public const string CanonicalProjectSha256 = "f959df9c62f99d4c539579e1d06cb75853f59a55500bd7891f30dc129770cb8c";
     public const string EfiEntrySourceSha256 = "d541486e48e47fce13aaa65651c9f00a4910f8f25c4a8a5a18e79c62e8c4195b";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
@@ -331,6 +331,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs|Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs|Compatibility\LinuxX64\LinuxThreadProgram.cs",
         @"Boot\EfiEntry.LinuxThreads.cs|",
+        @"Boot\EfiEntry.LinuxSignals.cs|",
         @"Boot\EfiEntry.LinuxThreadMemory.cs|",
         @"Boot\EfiEntry.LinuxThreadRun.cs|",
         @"Boot\EfiEntry.LinuxThreadTimer.cs|",

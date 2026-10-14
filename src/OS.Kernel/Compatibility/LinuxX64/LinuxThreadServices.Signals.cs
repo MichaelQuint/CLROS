@@ -2,6 +2,30 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public unsafe partial struct LinuxThreadServices
 {
+    /// <summary>Resolve pending delivery and completed wait/restart state at an
+    /// IRQ-off user-return boundary, then borrow the full current user image.
+    /// Capture the complete GPR/FX image and store the actual syscall result
+    /// before calling; do not overwrite the returned image with that old result.
+    /// RestoreUser requires installing every user field before resumption.
+    /// Terminate means actual process shutdown is staged; image remains null
+    /// and native restoration/off-stack exit and reap must still run. Rejected
+    /// grants no continuation. This neither captures nor executes user code,
+    /// schedules a worker, dispatches a syscall, nor changes gate accounting.</summary>
+    public LinuxSyscallResult PrepareUserReturn(ulong key, ulong flags, out X64LinuxUserTransition.UserImage* image)
+    {
+        image = null;
+        var delivery = DeliverPendingSignals(key, flags);
+        if (delivery is LinuxSignalServices.Delivery.None or LinuxSignalServices.Delivery.Delivered)
+        {
+            if (!CurrentImage(key, flags, out image)) return new(LinuxSyscallAction.Rejected);
+            return new(LinuxSyscallAction.RestoreUser, image->Value);
+        }
+        if (delivery is LinuxSignalServices.Delivery.Terminate or LinuxSignalServices.Delivery.BadFrame &&
+            Inspect(key, flags, _owner.Threads->Current, out var view) && view.Exiting)
+            return new(LinuxSyscallAction.Terminate, exitCode: view.ExitCode);
+        return new(LinuxSyscallAction.Rejected);
+    }
+
     /// <summary>Deliver at most one handler from the actual current generation's
     /// directed pending queue, skipping ignored signals and retaining blocked
     /// ones. None means no unblocked work, not a fabricated handler invocation.
