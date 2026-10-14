@@ -27,7 +27,8 @@ public static class QemuSmoke
             {
                 linuxInput = new FileStream(Path.GetFullPath(options.LinuxElfPackage, root), FileMode.Open, FileAccess.Read, FileShare.Read);
                 if (linuxInput.Length < 64 || linuxInput.Length > OS.Manifest.LinuxElfPackage.MaximumBytes) throw new ToolFailure("m16_002_package_input_size");
-                if (plan.IsEnabled("EnableM16008Probe")) LinuxThreadProofFixture.RequirePackage(linuxInput);
+                if (plan.IsEnabled("EnableM16009Probe")) LinuxSignalProofFixture.RequirePackage(linuxInput);
+                else if (plan.IsEnabled("EnableM16008Probe")) LinuxThreadProofFixture.RequirePackage(linuxInput);
             }
             output.WriteLine("QEMU_SCRIPT_BOOT_POLICY policy=" + plan.BootPolicy);
             output.WriteLine("WORKLOAD_PROFILE " + options.WorkloadProfile);

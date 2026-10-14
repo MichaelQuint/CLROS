@@ -1,5 +1,12 @@
 # QEMU
 
+Development `-EnableM16009Probe` admits only the four canonical mechanical signal
+packages and requires `CLROS_M16_009_READY`. Input preflight/read-lock ownership
+precedes native build/launch; complete startup/service/PCI/APIC and signal tails
+must validate. Ancestor readiness or marker overrides cannot satisfy this leaf.
+See [step1254](../done/step1254.md) and [EFI commands](efi-build.md). No new QEMU
+capture, unchanged Hello or runtime suspension is qualified by this wiring.
+
 Development selections `-EnableM09009Probe` and `-EnableM09010Probe` have strict
 profile and transcript admission in [step1234](../done/step1234.md). Their only
 permitted explicit required markers are `CLROS_M09_009_READY` and

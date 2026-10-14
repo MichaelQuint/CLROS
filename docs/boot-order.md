@@ -1,5 +1,11 @@
 # Boot Order
 
+Development `BootSequence.RunOwnedLinuxSignals` selects the M16-009 child through
+the same native thread owner after actual APIC and common startup/service/firmware
+admission. Its complete parent closure stays enabled, but the standalone M16-008
+leaf is not also invoked. [Step1254](../done/step1254.md) records source wiring;
+guest qualification remains deferred to the stable batch.
+
 Development `BootSequence.RunOwnedLinuxThreads` requires completed startup,
 service stop, revoked firmware authority and actual APIC setup. M16-008 runs
 after PCI/APIC, reusing common memory/descriptor/CPL3 admission with explicit

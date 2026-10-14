@@ -48,7 +48,7 @@ PipeShutdown require actual HPET timeout records. All remain unexecuted inputs.
 [Step1248](../done/step1248.md) links the optional signal startup owner.
 [Step1249](../done/step1249.md) adds its checked frame/return dependencies and an
 explicit full user GPR/FX install for syscall15 in the active gateway. The
-M16-008 no-stdlib C# closure compiles. There is no M16-009 build/runner switch yet.
+M16-008 no-stdlib C# closure compiles. The distinct signal leaf follows in step1254 below.
 [Step1250](../done/step1250.md) links directed pending/tgkill selection on the
 same owner. [Step1251](../done/step1251.md) links genuine interrupted-wait and
 checked restart decisions, including timed restart_syscall.
@@ -71,11 +71,30 @@ Create a fresh package with compiled tooling:
 dotnet run --project tools/OS.Tooling -- linux signal-fixture artifacts/packages/m16-009-alt.pkg AlternateStack
 ```
 
-The canonical package and actual syscall-instruction inventory are available to
-the future M16-009 runner/validator. Current M16-008 preflight deliberately rejects
-these packages; the separate profile/transcript is still required. Construction
+The canonical package and actual syscall-instruction inventory feed the M16-009
+runner/validator added in [step1254](../done/step1254.md). M16-008 preflight deliberately rejects
+these packages. Construction
 and byte checks establish no handler execution. Shared header/writer reuse keeps
 all four original M16-008 packages byte-identical.
+
+`EnableM16009Probe` defaults false and inherits M16-008's complete prerequisites.
+It selects one distinct post-APIC BootSequence leaf over the same actual native
+owner. The runner holds a canonical signal-package read lock before native build
+or launch, and the strict validator composes the original startup/service/PCI/APIC
+records with exact signal calls, handler/restorer stacks, expected negative exits,
+supervisor confirmation, reap and restoration. It rejects ancestor readiness and
+missing/extra/replayed rows. Mechanical negatives require exit139 with owned
+cleanup; they do not mean a successful application exit.
+
+Future qualification command (not yet executed):
+
+```powershell
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16009Probe -LinuxElfPackage artifacts/packages/m16-009-alt.pkg -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 60 -RequireMarker CLROS_M16_009_READY
+```
+
+This current leaf admits only the four mechanical signal packages. Unchanged
+pinned Hello, asynchronous activation/fault capture and focused suspension remain
+required before #687 acceptance; no M16-009 readiness has executed in a guest.
 
 The future qualification command is:
 

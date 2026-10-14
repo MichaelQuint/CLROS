@@ -1654,7 +1654,9 @@ public static unsafe partial class EfiEntry
                 !state->Arena.Transition->RetainedFirmwareCallbacksCleared || !state->Arena.Binding->RetainedPointersCleared ||
                 !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
             state->LinuxSyscallPhase = 3;
-#if M16_008_PROBE
+#if M16_009_PROBE
+            if (state->ApicPhase != 2 || !LinuxText(state, "TEST_START m16-009\r\n")) return false;
+#elif M16_008_PROBE
             if (state->ApicPhase != 2 || !LinuxText(state, "TEST_START m16-008\r\n")) return false;
 #elif M16_007_PROBE
             if (!LinuxText(state, "TEST_START m16-007\r\n")) return false;
@@ -1758,8 +1760,13 @@ public static unsafe partial class EfiEntry
                 (finalCpu[3] & 0x74700) == (original[3] & 0x74700) && FirstExitOwnedArena.ValidateCanaries(state->Arena);
             for (uint i = 0; i < X64LinuxUserTransition.ObservationWords; i++) if (i != 3 && finalCpu[i] != original[i]) restored = false;
             for (uint i = 0; i < 512; i++) if (data[X64LinuxUserTransition.KernelFxOffset + i] != data[X64LinuxUserTransition.UserFxOffset + i]) restored = false;
+#if M16_009_PROBE
+            return restored && LinuxText(state, "M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true\r\n") &&
+                LinuxText(state, "CLROS_M16_009_READY\r\nTEST_PASS m16-009\r\n");
+#else
             return restored && LinuxText(state, "M16_008_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true\r\n") &&
                 LinuxText(state, "CLROS_M16_008_READY\r\nTEST_PASS m16-008\r\n");
+#endif
 #else
             byte returned = ((delegate* unmanaged<byte>)code)();
             ulong* after = stackalloc ulong[(int)X64LinuxUserTransition.ObservationWords];
@@ -2724,7 +2731,11 @@ public static unsafe partial class EfiEntry
 #if M05_APIC_SETUP_PROBE
                         if (!BootSequence.RunOwnedApicSetup(state->PciPhase == 8, state, &RunOwnedApicSetup)) return;
 #if M16_008_PROBE
+#if M16_009_PROBE
+                        if (!BootSequence.RunOwnedLinuxSignals(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
+#else
                         if (!BootSequence.RunOwnedLinuxThreads(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
+#endif
                             transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
                             state->Arena.Binding->RetainedPointersCleared, state->ApicPhase == 2, state, &RunOwnedLinuxSyscalls)) return;
 #endif

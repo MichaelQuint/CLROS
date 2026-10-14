@@ -270,6 +270,15 @@ public static class BootSequence
         OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe && apicReady &&
         RunOwnedLinuxMemory(startupReady, serviceStopped, firmwareRevoked, context, run);
 
+    /// <summary>Run the default-off signal leaf through the actual thread owner
+    /// after all parent admission. The callback retains signal/user/native
+    /// ownership until drained restoration; false authorizes no release or user
+    /// continuation. This gate creates no signal, worker or execution evidence.</summary>
+    public static unsafe bool RunOwnedLinuxSignals(bool startupReady, bool serviceStopped, bool firmwareRevoked,
+        bool apicReady, void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16009Probe &&
+        RunOwnedLinuxThreads(startupReady, serviceStopped, firmwareRevoked, apicReady, context, run);
+
     /// <summary>Reserve the dedicated cooperative diagnostic pool while firmware
     /// authority remains available. The callback owns preparation/failure cleanup;
     /// this ordered default-off phase allocates nothing and returns false on refusal.</summary>

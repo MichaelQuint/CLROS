@@ -53,8 +53,11 @@ internal static class EfiCompileInventoryTests
             string? actual = null;
             if (DeclaredItems(other).SequenceEqual(DeclaredItems(requested), StringComparer.Ordinal))
             {
-                HostCheck.True(requested.IsEnabled("M09009") && other.IsEnabled("M09010") ||
-                    requested.IsEnabled("M09010") && other.IsEnabled("M09009"), "only the reviewed wait/TLS leaves share an inventory");
+                bool waitPair = requested.IsEnabled("M09009") && other.IsEnabled("M09010") ||
+                    requested.IsEnabled("M09010") && other.IsEnabled("M09009");
+                bool signalPair = requested.IsEnabled("M16008") && other.IsEnabled("M16008") &&
+                    requested.IsEnabled("M16009") != other.IsEnabled("M16009");
+                HostCheck.True(waitPair || signalPair, "only reviewed wait/TLS and thread/signal leaves share an inventory");
                 try { EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), other), Snapshot(DeclaredItems(requested), requested)); }
                 catch (ToolFailure failure) { actual = failure.Reason; }
                 HostCheck.Equal("post_restore_evidence_property_mismatch", actual);
@@ -76,7 +79,8 @@ internal static class EfiCompileInventoryTests
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09006Probe"] = true }),
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09009Probe"] = true }),
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09010Probe"] = true }),
-        EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM16008Probe"] = true })
+        EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM16008Probe"] = true }),
+        EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM16009Probe"] = true })
     ];
 
     // The project declarations are an independent oracle for the shared helper.
@@ -112,21 +116,15 @@ internal static class EfiCompileInventoryTests
     private static JsonObject Snapshot(IEnumerable<string> inventory, EfiProfile profile)
     {
         string[] items = inventory.ToArray();
+        JsonObject properties = new() { ["ClrosBootPolicy"] = profile.BootPolicy };
+        foreach (var flag in profile.Flags) properties[flag.Key] = flag.Value.ToString();
         return new()
         {
             ["compileCount"] = items.Length, ["compileSha256"] = Hash(items),
             ["projectReferenceCount"] = 0, ["projectReferenceSha256"] = Hash([]),
             ["referenceCount"] = 0, ["referenceSha256"] = Hash([]),
             ["analyzerCount"] = 2, ["analyzerSha256"] = Hash(["analyzer-a", "analyzer-b"]),
-            ["properties"] = new JsonObject
-            {
-                ["ClrosBootPolicy"] = profile.BootPolicy,
-                ["EnableM09004Probe"] = profile.IsEnabled("EnableM09004Probe").ToString(),
-                ["EnableM09005Probe"] = profile.IsEnabled("EnableM09005Probe").ToString(),
-                ["EnableM09006Probe"] = profile.IsEnabled("EnableM09006Probe").ToString(),
-                ["EnableM09009Probe"] = profile.IsEnabled("EnableM09009Probe").ToString(),
-                ["EnableM09010Probe"] = profile.IsEnabled("EnableM09010Probe").ToString()
-            }
+            ["properties"] = properties
         };
     }
 }

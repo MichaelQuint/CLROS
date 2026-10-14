@@ -1,5 +1,12 @@
 # Diagnostics
 
+Development `EnableM16009Probe` inherits the full M16-008 closure and selects a
+distinct signal leaf. [Step1254](../done/step1254.md) binds its four canonical
+mechanical packages to exact handler/restorer and owned-negative exit protocols,
+with original parent validation and drained restoration before
+`CLROS_M16_009_READY`. It has no guest execution evidence yet; unchanged Hello,
+asynchronous activation and suspension remain unfinished.
+
 Development `EnableM16008Probe` defaults false and requires the descriptor and
 owned clock/PCI/APIC parents. [Step1244](../done/step1244.md) attaches the native
 owner after actual APIC setup and admits only the canonical mechanical package.

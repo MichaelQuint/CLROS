@@ -105,7 +105,7 @@ callback/deadline until sigreturn. No-handler retries preserve the original
 absolute deadline and re-admit current word/mapping ownership; pipe retries
 resolve the fd again. No internal restart errno reaches user code, and no image
 is available before resolving an interrupted return. Asynchronous user faults/
-activation, the distinct M16-009 profile/package, unchanged Hello and suspension
+activation, unchanged Hello and suspension
 remain unfinished.
 
 [Step1252](../done/step1252.md) attaches exclusive signal metadata to the
@@ -124,8 +124,16 @@ focused host/no-stdlib C# evidence; the native signal path has not executed.
 alternate stacks, actual pending/unmask delivery and register/FP/DF restoration,
 plus malicious saved-CS and invalid-restorer controls. The syscall15 serial
 snapshot now precedes checked restoration so it retains the actual restorer
-instruction/RSP rather than the user-edited return target. Separate M16-009
-profile/transcript wiring and guest qualification remain required.
+instruction/RSP rather than the user-edited return target.
+
+[Step1254](../done/step1254.md) adds the default-off M16-009 build/runner switch,
+its complete M16-008 prerequisite closure and distinct post-APIC boot leaf. The
+runner preflights complete mechanical signal packages before native build/launch
+and retains its read lock. Strict validation joins original parent records with
+actual syscall continuations, handler/restorer stack geometry, expected fatal
+negatives and drained cleanup. It admits only these mechanical inputs for now;
+unchanged Hello, asynchronous user capture and suspension remain unfinished.
+Parser controls and C# compilation establish no new guest signal acceptance.
 
 This remains focused host/source and freestanding C# evidence. No native worker,
 timer callback or mechanical ELF has executed. Original native/stack review,

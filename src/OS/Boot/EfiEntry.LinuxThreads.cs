@@ -440,7 +440,11 @@ public static unsafe partial class EfiEntry
         private static void LinuxNativeTerminal(void* context)
         {
             LinuxNativeControl* c = LinuxNativeControlOwner(context);
+#if M16_009_PROBE
+            if (c != null) _ = LinuxText(c->State, "TEST_FAIL m16-009 native-transfer\r\n");
+#else
             if (c != null) _ = LinuxText(c->State, "TEST_FAIL m16-008 native-transfer\r\n");
+#endif
             while (true) { }
         }
 

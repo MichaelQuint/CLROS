@@ -27,6 +27,11 @@ public static partial class Probes
 #else
     public const bool EnableM09004Probe = false;
 #endif
+#if M16_009_PROBE
+    public const bool EnableM16009Probe = true;
+#else
+    public const bool EnableM16009Probe = false;
+#endif
 #if M16_008_PROBE
     public const bool EnableM16008Probe = true;
 #else
@@ -547,6 +552,10 @@ public static partial class Probes
     public static ProbeDefinition GetM16008Probe() =>
         new("app.linux-threads", nameof(EnableM16008Probe), EnableM16008Probe,
             ProbeRisk.Destructive, "Owned mechanical Linux threads, TLS, futex and blocking pipes after firmware revocation.");
+
+    public static ProbeDefinition GetM16009Probe() =>
+        new("app.linux-signals", nameof(EnableM16009Probe), EnableM16009Probe,
+            ProbeRisk.Destructive, "Owned mechanical Linux signal delivery and checked return after firmware revocation.");
 
     public static ProbeDefinition GetM09004Probe() =>
         new("thread.cooperative-switch", nameof(EnableM09004Probe), EnableM09004Probe,
