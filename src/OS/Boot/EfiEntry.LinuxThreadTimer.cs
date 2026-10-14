@@ -120,6 +120,9 @@ public static unsafe partial class EfiEntry
         private static byte LinuxNativeInterrupt(void* context, X64TimerInterrupt.Frame* frame)
         {
             LinuxNativeControl* c = LinuxNativeControlOwner(context);
+#if M16_009_PROBE
+            if (c!=null && c->UserDrain!=0) return LinuxNativeDrainUserInterrupt(c,frame);
+#endif
             if (c == null || frame == null || !LinuxNativeTimerInstalled(c) || c->Threads.Current.IsValid || c->Threads.HandoffPending ||
                 c->Epoch >= LinuxNativeMaximumEpochs || c->Timer.Ticks != c->Epoch || c->TimerDeadlines.ObservedTicks != c->Epoch ||
                 c->TimerDeadlines.Count != 1 || *(ulong*)(c->State->Arena.Descriptors->Tss + 60) != c->State->CooperativePool + 62 * Page ||

@@ -169,6 +169,26 @@ return frame before native WRMSR. The gateway allocation and disabled legacy
 bytes remain unchanged. These are focused host/byte/parser/C# development
 checks; no mechanical fault, unchanged Hello or runtime suspension has run.
 
+[Step1257](../done/step1257.md) implements an explicit M16-009 workload policy:
+`env.CLROS_USER_IRQS=1` requests IF-enabled user images; absent/0 retains the
+existing disabled behavior, and malformed requests fail admission. The process
+and signal owners retain the same policy, including clone and checked sigreturn.
+Kernel callbacks keep IF clear. A private E1 gate uses owned IST4 and complete
+GPR/RAX/FX/base capture before adopting the original kernel root. An actual
+acknowledged one-shot saves the current generation's user image, restores the
+original gateway envelope, then yields through its genuine captured kernel CALL.
+Pending signal delivery occurs at the subsequent checked user-return boundary.
+
+If a syscall ends the excursion before the interrupt arrives, the still-bound
+worker drains that one-shot at a separately admitted kernel `STI; HLT; CLI`
+checkpoint on the native switch stack. APIC acknowledgement and quiescent
+restoration precede IST release and Park/Exit/Yield. Failure retains ownership;
+masking a pending IRQ does not count as restoration. The separate IRQ epoch and
+HPET nanosecond clock remain distinct. Existing canonical packages omit the
+policy and retain their bytes. No new IRQ package or transcript is admitted yet;
+mechanical activation proof, original native/stack review and guest qualification
+remain required. This step adds focused host/byte checks and C# compilation only.
+
 This remains focused host/source and freestanding C# evidence. No native worker,
 timer callback or mechanical ELF has executed. Original native/stack review,
 live stress/negatives and guest/ancestor qualification remain required. Signal

@@ -20,7 +20,11 @@ internal static unsafe class M16009EfiIntegrationTests
             var profile = EfiOptions.Parse(["--" + flag],build).Profile();
             HostCheck.True(profile.BootPolicy == "Diagnostic" && profile.IsEnabled(flag) && parents.All(profile.IsEnabled));
             HostCheck.Equal(parents.Length + 1,profile.Flags.Count(p => p.Value));
-            HostCheck.True(EfiProjectAdmission.ExpectedCompileItems(profile).SequenceEqual(EfiProjectAdmission.ExpectedCompileItems(parent)));
+            string[] inherited = EfiProjectAdmission.ExpectedCompileItems(parent), actual = EfiProjectAdmission.ExpectedCompileItems(profile);
+            string[] added = [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs|Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs",
+                @"Boot\EfiEntry.LinuxUserInterrupts.cs|"];
+            HostCheck.True(actual.Except(inherited, StringComparer.Ordinal).SequenceEqual(added, StringComparer.Ordinal) &&
+                actual.Where(item => !added.Contains(item, StringComparer.Ordinal)).SequenceEqual(inherited, StringComparer.Ordinal));
             foreach (string prerequisite in parents) Reject(() => EfiOptions.Parse(["--" + flag,"--" + prerequisite + ":false"],build).Profile());
             foreach (string conflict in EfiContracts.DiagnosticProbes.Where(p => p != flag && !parents.Contains(p)))
                 Reject(() => EfiOptions.Parse(["--" + flag,"--" + conflict],build).Profile());

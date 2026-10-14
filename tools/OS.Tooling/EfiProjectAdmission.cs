@@ -161,6 +161,8 @@ public static class EfiProjectAdmission
         // and admit no new evaluated identity, link or defining-project authority.
         return EfiContracts.CompileItems.Where(item => item switch
         {
+            @"Boot\EfiEntry.LinuxUserInterrupts.cs|" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs|Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs" => profile.IsEnabled("EnableM16009Probe"),
             @"Boot\EfiEntry.ThreadWait.cs|" or
             @"..\OS.Kernel\Threading\ThreadWaitProgram.cs|Threading\ThreadWaitProgram.cs" or
             @"..\OS.Kernel\Threading\ThreadLocalStorage.cs|Threading\ThreadLocalStorage.cs" => wait,

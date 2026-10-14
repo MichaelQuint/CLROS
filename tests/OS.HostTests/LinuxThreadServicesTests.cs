@@ -35,8 +35,9 @@ internal static unsafe class LinuxThreadServicesTests
         internal Services.Worker* Workers => (Services.Worker*)(Kernel.Memory + 0x8000);
         internal Transition.UserImage* Initial => (Transition.UserImage*)(Kernel.Memory + 0x9000);
         private UserMemory* User => (UserMemory*)(Kernel.Memory + 0xa000);
-        internal LinuxSyscallAccess Access => new() { Context = User, PageAccess = &PageAccess, CopyFromUser = &CopyFromUser };
-        internal LinuxSyscallAccess DescriptorAccess => new() { Context = User, PageAccess = &PageAccess, CopyFromUser = &CopyFromUser, Write = &Sink };
+        private readonly bool _userInterrupts;
+        internal LinuxSyscallAccess Access => new() { Context = User, UserInterrupts = _userInterrupts, PageAccess = &PageAccess, CopyFromUser = &CopyFromUser };
+        internal LinuxSyscallAccess DescriptorAccess => new() { Context = User, UserInterrupts = _userInterrupts, PageAccess = &PageAccess, CopyFromUser = &CopyFromUser, Write = &Sink };
         internal LinuxSyscallAccess GatewayAccess
         {
             get { var access = DescriptorAccess; access.Startup = access.Descriptors = &Unsupported; access.Threads = &ThreadDispatch; return access; }
@@ -54,8 +55,9 @@ internal static unsafe class LinuxThreadServicesTests
         internal void FailClock(bool value) => User->ClockFails = value;
         internal Services.FutexCell* FutexCells => (Services.FutexCell*)(Kernel.Memory + 0x60000);
 
-        internal Model(bool futex = false, uint futexCapacity = 4)
+        internal Model(bool futex = false, uint futexCapacity = 4, bool userInterrupts = false)
         {
+            _userInterrupts = userInterrupts;
             HostCheck.True(sizeof(Services) <= 0x1000 && sizeof(Services.Slot) * 3 <= 0x1000 && sizeof(Services.Worker) * 3 <= 0x1000);
             *Service = default; new Span<byte>(Slots, sizeof(Services.Slot) * 3).Clear();
             new Span<byte>(Workers, sizeof(Services.Worker) * 3).Clear();
@@ -69,7 +71,7 @@ internal static unsafe class LinuxThreadServicesTests
                 ProcessId = 101, ObservedMxcsrMask = 0xffbf, User = Access, CopyToUser = &CopyToUser,
                 FirmwareExited = true, SingleOwnerValidated = true
             }));
-            LinuxSyscallFrame frame = new() { Rip = UserBase + 0x100, Rsp = UserBase + 0x3000, Rflags = 2,
+            LinuxSyscallFrame frame = new() { Rip = UserBase + 0x100, Rsp = UserBase + 0x3000, Rflags = userInterrupts ? 0x202UL : 2,
                 FsBase = UserBase + 0x1100, GsBase = UserBase + 0x1140 };
             HostCheck.True(Transition.InitializeUserImage(Initial, Transition.UserImageBytes, frame, 0xffbf, Access));
             new Span<byte>(FutexCells, sizeof(Services.FutexCell) * 4).Clear();

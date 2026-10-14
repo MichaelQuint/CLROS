@@ -5,6 +5,8 @@ public static partial class EfiContracts
     {
         [@"Boot\EfiEntry.LinuxThreads.cs"] = "reviewed_m16_native_process_owner_source_identity",
         [@"Boot\EfiEntry.LinuxSignals.cs"] = "reviewed_m16_native_signal_return_source_identity",
+        [@"Boot\EfiEntry.LinuxUserInterrupts.cs"] = "reviewed_m16_native_user_interrupt_owner_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs"] = "reviewed_m16_explicit_user_interrupt_policy_source_identity",
         [@"Boot\EfiEntry.LinuxThreadMemory.cs"] = "reviewed_m16_native_process_memory_source_identity",
         [@"Boot\EfiEntry.LinuxThreadRun.cs"] = "reviewed_m16_native_process_driver_source_identity",
         [@"Boot\EfiEntry.LinuxThreadTimer.cs"] = "reviewed_m16_native_process_timer_source_identity",

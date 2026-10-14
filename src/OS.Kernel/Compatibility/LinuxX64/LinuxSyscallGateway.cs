@@ -28,6 +28,9 @@ public readonly struct LinuxSyscallResult
 public unsafe struct LinuxSyscallAccess
 {
     public void* Context;
+    // Trusted owner policy, copied at admission. Only explicit threaded user
+    // IRQ mode may retain IF=1; kernel callbacks themselves still require IF=0.
+    public bool UserInterrupts;
     // Only actual present USER leaves may return access. Read is mandatory;
     // RW+X is forbidden. The owner binds lookup/copy to the active admitted root.
     public delegate* unmanaged<void*, ulong, byte> PageAccess;
@@ -42,7 +45,7 @@ public unsafe struct LinuxSyscallAccess
     public delegate* unmanaged<void*, LinuxSyscallFrame*, long> Descriptors;
     // Explicit M16-008 thread AND descriptor extension. It wraps every fd
     // mutation so pipe readiness cannot bypass the actual thread wait owner.
-    // ARCH_SET_FS and explicit checked syscall15 RestoreUser may change the
+    // ARCH_SET_FS/GS and explicit checked syscall15 RestoreUser may change the
     // return frame; all other return/control fields remain immutable. A blocked
     // result is a staged scheduler wait, not a fabricated Linux return value.
     public delegate* unmanaged<void*, LinuxSyscallFrame*, LinuxSyscallResult> Threads;
@@ -109,7 +112,8 @@ public static unsafe class LinuxSyscallGateway
         if (admission.EnableStartup != (access.Startup != null) ||
             admission.EnableDescriptors != (access.Descriptors != null) ||
             admission.EnableThreads != (access.Threads != null) ||
-            admission.EnableDescriptors && !admission.EnableStartup || admission.EnableThreads && !admission.EnableDescriptors)
+            admission.EnableDescriptors && !admission.EnableStartup || admission.EnableThreads && !admission.EnableDescriptors ||
+            access.UserInterrupts && !admission.EnableThreads)
             return LinuxSyscallGateStatus.InvalidAdmission;
         fixed (LinuxSyscallGateState* original = &state)
             if ((ulong)admission.Scratch < (ulong)original + (uint)sizeof(LinuxSyscallGateState) &&
@@ -239,12 +243,19 @@ public static unsafe class LinuxSyscallGateway
 
     public static bool ValidateReturn(LinuxSyscallFrame frame, LinuxSyscallAccess access) =>
         access.Context != null && access.PageAccess != null &&
-        (frame.Rflags & 2) != 0 && (frame.Rflags & ~UserRflagsMask) == 0 &&
+        ValidateUserFlags(frame.Rflags,access.UserInterrupts) &&
         frame.Rsp >= 4104 && frame.Rsp <= UserEnd &&
         ValidateRange(frame.Rip, 1, LinuxUserPageAccess.Execute, access) &&
         ValidateRange(frame.Rsp - 8, 8, LinuxUserPageAccess.Write, access) &&
         (frame.FsBase == 0 || ValidateRange(frame.FsBase, 1, LinuxUserPageAccess.Read, access)) &&
         (frame.GsBase == 0 || ValidateRange(frame.GsBase, 1, LinuxUserPageAccess.Read, access));
+
+    /// <summary>Check user status flags under the retained native owner's IRQ
+    /// policy. IF must match that policy; IOPL/TF/RF/AC/VM remain unsupported.
+    /// This checks a value only and grants no CPU or return authority.</summary>
+    public static bool ValidateUserFlags(ulong flags,bool userInterrupts) =>
+        (flags & 2)!=0 && (flags & ~(UserRflagsMask | (userInterrupts ? 0x200UL : 0)))==0 &&
+        (flags & 0x200)==(userInterrupts ? 0x200UL : 0);
 
     public static bool ValidateRange(ulong address, ulong bytes, LinuxUserPageAccess required, LinuxSyscallAccess access)
     {

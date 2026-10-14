@@ -10,11 +10,12 @@ internal static unsafe class LinuxSignalServicesTests
     private const ulong Base = LinuxThreadServicesTests.UserBase, Input = Base + 0x1200, Output = Base + 0x1300;
     internal sealed class Owner : IDisposable
     {
-        internal readonly Model Thread = new(futex: true);
+        internal readonly Model Thread;
         internal Signals.State* State = (Signals.State*)NativeMemory.AlignedAlloc(4096,4096);
         internal Signals.Admission Plan => new() { Capacity = 3, User = Thread.Access, CopyToUser = Thread.UserCopyOut, FirmwareExited = true, SingleOwnerValidated = true };
-        internal Owner(bool attach = true)
+        internal Owner(bool attach = true, bool userInterrupts = false)
         {
+            Thread = new(futex: true, userInterrupts: userInterrupts);
             HostCheck.True(State != null && sizeof(Signals.State) <= 4096);
             new Span<byte>(State,4096).Clear();
             HostCheck.True(Signals.Initialize(State,4096,SignalKey,2,Plan));

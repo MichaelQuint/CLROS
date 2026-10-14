@@ -51,9 +51,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "e017bdb65086ef947b86ce8dbc24b1316aeac599f8ba56d16b477b118683911c";
-    public const string CanonicalProjectSha256 = "e24146695a4783c588c64319c691a653f96149cd9b85cfe1d55da729c68608ae";
-    public const string EfiEntrySourceSha256 = "ac0e30affd7e8e9c6d5a2f8f70d6ce4db5be7b36ac9b6630931bfd3f15579445";
+    public const string ProjectSourceSha256 = "1055aa937acb4e863820aaee913e4f3e939631ff23a7f9d5cec1fd6290a528e3";
+    public const string CanonicalProjectSha256 = "7119ab1817ce17c00597e8701b0c2230656693f53e6f79fae93de28d0031d6f4";
+    public const string EfiEntrySourceSha256 = "2534998c57de415661ee85a97835c52e61cc274c942b1f02967b28849cd15a39";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -333,6 +333,8 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs|Compatibility\LinuxX64\LinuxThreadProgram.cs",
         @"Boot\EfiEntry.LinuxThreads.cs|",
         @"Boot\EfiEntry.LinuxSignals.cs|",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs|Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs",
+        @"Boot\EfiEntry.LinuxUserInterrupts.cs|",
         @"Boot\EfiEntry.LinuxThreadMemory.cs|",
         @"Boot\EfiEntry.LinuxThreadRun.cs|",
         @"Boot\EfiEntry.LinuxThreadTimer.cs|",

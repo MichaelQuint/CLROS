@@ -20,7 +20,7 @@ public static unsafe partial class LinuxSignalServices
         ulong faultAddress, ulong error, uint trap, bool hardwareFault = false)
     {
         if (!Bound(s, process, identity) || signal is < 1 or > 64 || pid == 0 ||
-            !(hardwareFault ? X64LinuxUserTransition.ValidateFaultUserImage(image, X64LinuxUserTransition.UserImageBytes, mxcsr) :
+            !(hardwareFault ? X64LinuxUserTransition.ValidateFaultUserImage(image, X64LinuxUserTransition.UserImageBytes, mxcsr,s->User.UserInterrupts) :
                 X64LinuxUserTransition.ValidateUserImage(image, X64LinuxUserTransition.UserImageBytes, mxcsr, s->User))) return Delivery.Rejected;
         if (mask.Contains(signal)) return Delivery.Masked;
         Disposition* action = (Disposition*)s->Actions + signal - 1;
@@ -116,7 +116,7 @@ public static unsafe partial class LinuxSignalServices
         if (!Input(s, fp, next.Fx, FpBytes)) return false;
         for (uint i = 464; i < FpBytes; i++) if (next.Fx[i] != 0) return false;
         ulong requestedFlags = *(ulong*)(sc + 136);
-        if ((requestedFlags & 2) == 0 || (requestedFlags & ~(LinuxSyscallGateway.UserRflagsMask | (hardwareFault ? 0x10000UL : 0UL))) != 0) return false;
+        if ((requestedFlags & 2) == 0 || (requestedFlags & ~(LinuxSyscallGateway.UserRflagsMask | (s->User.UserInterrupts ? 0x200UL : 0) | (hardwareFault ? 0x10000UL : 0UL))) != 0) return false;
         ReadMachine(sc, &next);
         next.Frame.Rflags &= ~0x10000UL; // RF is a fault-entry artifact, never continuation authority in this profile.
         AlternateStack stack = *(AlternateStack*)(header + 24);

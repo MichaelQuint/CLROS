@@ -26,6 +26,9 @@ public static unsafe partial class EfiEntry
             internal Storage* State;
             internal ulong Key, AliasSerial;
             internal uint Phase, Published, Capacity, Selected, Failed, Stopping, Reaped, Transfers, UserFaults;
+#if M16_009_PROBE
+            internal uint UserTimer, UserAcknowledged, UserDrain, UserPreempted;
+#endif
             internal NativeProgram.Plan Plan;
             internal KernelThreadTable Threads;
             internal LinuxThreadServices Process;
@@ -122,6 +125,9 @@ public static unsafe partial class EfiEntry
             c->CodeCopy = codeCopy;
             c->Signals = (LinuxSignalServices.State*)signals;
             c->User = new() { Context = state, PageAccess = &LinuxUserPageAccess,
+#if M16_009_PROBE
+                UserInterrupts = state->LinuxSyscallPlan.UserInterrupts,
+#endif
                 CopyFromUser = &LinuxThreadCopyInput, Write = &WriteDescriptorOutput };
             c->Plan = new() { Prepare = (ulong)(delegate* unmanaged<void*, uint, byte>)&LinuxNativeWorkerPrepare,
                 Recover = (ulong)(delegate* unmanaged<void*, NativeContext*, byte>)&LinuxNativeRecover,
@@ -303,6 +309,9 @@ public static unsafe partial class EfiEntry
             if (!X64LinuxUserTransition.InstallUserImage((byte*)c->State->LinuxSyscallData, X64LinuxUserTransition.DataBytes,
                 image, X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask, c->User)) return LinuxNativeAbort(c, index);
             ((delegate* unmanaged<ulong*, void>)(c->State->LinuxSyscallCode + X64LinuxUserTransition.ObserveOffset))(c->GatewayCpu);
+#if M16_009_PROBE
+            if (c->User.UserInterrupts && !LinuxNativeArmUserTimer(c,index)) return LinuxNativeAbort(c,index);
+#endif
             c->Actions[index] = (uint)LinuxSyscallAction.Return; c->Entered[index] = 1; return 1;
         }
 
@@ -371,6 +380,9 @@ public static unsafe partial class EfiEntry
             // Gate rejection/call limits have not necessarily staged a process
             // exit. Use the real owner shutdown before CommitExit can run.
             c->Failed = c->Stopping = 1; c->State->LinuxSyscallExitCode = 99;
+#if M16_009_PROBE
+            c->UserPreempted = 0;
+#endif
             if (!c->Process.Shutdown(c->Key, 2, 99)) return 0;
             var current = c->Threads.Inspect(c->Key, 2, c->Threads.Current);
             if (!current.Succeeded) return 0;
@@ -420,12 +432,26 @@ public static unsafe partial class EfiEntry
                 worker.Kind = NativeSwitch.ResumeKind.CapturedCall; worker.ResumeRip = source->Rip;
                 c->Plan.Bindings[index].Context = c->Plan.Bindings[index].Entry.Initial = worker;
                 if (!LinuxNativeVerify(c) || NativeSwitch.Admit(c->Plan.Owner, worker, c->Plan.Supervisor) != NativeSwitch.Status.Ok) return 0;
+#if M16_009_PROBE
+                // The gateway has restored the original kernel envelope and
+                // this complete CALL image is stable. A known checkpoint can
+                // acknowledge a pending one-shot before any table transition.
+                if (c->User.UserInterrupts && !LinuxNativeStopUserTimer(c,index)) return 0;
+#endif
                 var action = (LinuxSyscallAction)c->Actions[index];
                 if (c->State->LinuxSyscallFaults != 0 || c->State->LinuxSyscallFailed != 0)
                 {
                     if (LinuxNativeAbort(c, index) != 2) return 0;
                     action = (LinuxSyscallAction)c->Actions[index];
                 }
+#if M16_009_PROBE
+                if (c->UserPreempted!=0 && action==LinuxSyscallAction.Return)
+                {
+                    if (c->UserPreempted!=index+1 || !c->Threads.Yield(c->Key,2,new(worker.Identity),worker).Succeeded) return 0;
+                    c->UserPreempted=0;
+                }
+                else
+#endif
                 if (action == LinuxSyscallAction.Blocked)
                 {
                     bool handoff;

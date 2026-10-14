@@ -28,6 +28,36 @@ internal static unsafe class X64LinuxUserTransitionTests
     }
     private static byte* Allocate(uint bytes) => (byte*)NativeMemory.AlignedAlloc(bytes, 4096);
 
+    [HostTest("m16-009 user IRQ private IDT borrows only E1 FF and fault gates with exact IST ownership")]
+    private static void UserInterruptGates()
+    {
+        byte* data = Allocate(Transition.DataBytes), gdt = Allocate(4096), idt = Allocate(4096);
+        try
+        {
+            HostCheck.True(data != null && gdt != null && idt != null); Descriptors(gdt, idt);
+            byte[] original = new ReadOnlySpan<byte>(idt, 4096).ToArray(); var plan = Plan();
+            plan.ResumeUser = plan.UserInterrupts = true; plan.KernelRoot = 0x500000;
+            plan.UserFaultEntry = 0x600000; plan.UserSpuriousEntry = 0x7001e0;
+            HostCheck.True(Transition.Prepare(data, Transition.DataBytes, plan, gdt, 4096, idt, 4096));
+            for (uint vector = 0; vector < 256; vector++)
+            {
+                byte* gate = data + Transition.IdtOffset + vector * 16;
+                if (vector is not (13 or 14 or 0xe1 or 0xff))
+                { HostCheck.True(new ReadOnlySpan<byte>(gate, 16).SequenceEqual(original.AsSpan((int)vector * 16, 16))); continue; }
+                ulong expected = vector switch { 13 => plan.CodeAddress + Transition.GpOffset, 14 => plan.CodeAddress + Transition.PfOffset,
+                    0xe1 => plan.UserFaultEntry + Transition.UserInterruptOffset, _ => plan.UserSpuriousEntry };
+                ulong handler = *(ushort*)gate | (ulong)*(ushort*)(gate + 6) << 16 | (ulong)*(uint*)(gate + 8) << 32;
+                HostCheck.True(handler == expected && *(ushort*)(gate + 2) == 8 && gate[4] == (vector >= 0xe1 ? 4 : 0) &&
+                    gate[5] == 0x8e && *(uint*)(gate + 12) == 0);
+            }
+            HostCheck.True(original.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(idt, 4096)));
+            new Span<byte>(data, (int)Transition.DataBytes).Fill(0xa5); plan.UserSpuriousEntry = 0;
+            HostCheck.True(!Transition.Prepare(data, Transition.DataBytes, plan, gdt, 4096, idt, 4096));
+            HostCheck.True(new ReadOnlySpan<byte>(data, (int)Transition.DataBytes).IndexOfAnyExcept((byte)0xa5) < 0);
+        }
+        finally { NativeMemory.AlignedFree(data); NativeMemory.AlignedFree(gdt); NativeMemory.AlignedFree(idt); }
+    }
+
     [HostTest("m16-006 dispatcher adopts original kernel root and reloads user root before checked IRET", HostLane.Fast, 5)]
     private static void KernelDispatchRoot()
     {

@@ -7,10 +7,14 @@ public struct X64LinuxUserTransitionPlan
     public ulong KernelRoot; // Zero retains the byte-identical M16-005 dispatcher path.
     public bool ResumeUser; // Explicit M16-008 mode; requires the separate kernel dispatch root.
     public ulong UserFaultEntry; // Zero retains the original terminal GP/PF bytes.
+    public bool UserInterrupts; // Explicit workload opt-in; requires full capture and owned IST4.
+    public ulong UserSpuriousEntry; // Independently emitted/verified CPL0 IRETQ leaf, only in IRQ mode.
 }
 
 /// <summary>
-/// C#-authored x64 bytes for one owned, IRQ-off, single-CPU CPL3 excursion.
+/// C#-authored x64 bytes for one owned single-CPU CPL3 excursion. Kernel
+/// callbacks keep IF clear. Explicit threaded user IRQ mode additionally
+/// requires a retained timer/spurious path, IST4 and full capture ownership.
 /// This emitter supplies no execution authority. The native owner must prove
 /// current CS=8/TR=24, descriptor identity, CPU admission, RX code and supervisor
 /// RW/NX context/stack under both audited roots, an unmapped stack guard, immutable
@@ -20,7 +24,8 @@ public struct X64LinuxUserTransitionPlan
 /// every other result terminates. The default fault reporter returns to cleanup.
 /// An explicit separately owned full-capture entry may resume only a checked
 /// handler image. Kernel GP/PF frames go to the original terminal handlers.
-/// The original TSS remains loaded; only its RSP0 is temporarily replaced.
+/// The original TSS remains loaded; this emitter replaces only its RSP0.
+/// The explicit user IRQ owner separately borrows/restores IST4 and the APIC.
 /// </summary>
 public static unsafe partial class X64LinuxUserTransition
 {
@@ -54,6 +59,7 @@ public static unsafe partial class X64LinuxUserTransition
     // Immutable during each callback. The separate return frame's FS/GS may
     // change before native WRMSR applies a checked ARCH_SET_FS/GS result.
     public const uint CallbackFsOffset = 0x648, CallbackGsOffset = 0x650;
+    public const uint CaptureStackOffset = 0x658;
     public const ushort UserCs = 0x3b, UserSs = 0x33;
     public const ulong Star = 0x0028000800000000, Fmask = 0x74700;
     private const ulong End = 0x100000000, PointerEnd = 0x0000800000000000;
@@ -112,6 +118,12 @@ public static unsafe partial class X64LinuxUserTransition
         for (uint i = 0; i < 4096; i++) data[IdtOffset + i] = originalIdt[i];
         SetGate(data + IdtOffset + 13 * 16, plan.CodeAddress + GpOffset);
         SetGate(data + IdtOffset + 14 * 16, plan.CodeAddress + PfOffset);
+        if (plan.UserInterrupts)
+        {
+            SetGate(data+IdtOffset+0xe1*16,plan.UserFaultEntry+UserInterruptOffset);
+            SetGate(data+IdtOffset+0xff*16,plan.UserSpuriousEntry);
+            data[IdtOffset+0xe1*16+4]=data[IdtOffset+0xff*16+4]=4;
+        }
         *(ushort*)(data + UserFxOffset) = 0x37f; // Empty x87 stack, default controls.
         *(uint*)(data + UserFxOffset + 24) = 0x1f80;
         return true;
@@ -258,7 +270,7 @@ public static unsafe partial class X64LinuxUserTransition
             for (uint register = 0; register < 16; register++)
                 if (register != 4) w.Zero(register);
         }
-        w.Bytes(0xcf48, 2); // IRETQ: RIP,CS,RFLAGS,RSP,SS; IRQs remain disabled
+        w.Bytes(0xcf48, 2); // IRETQ: RIP,CS,RFLAGS,RSP,SS; IF follows the admitted image.
 
         // Win64 void(ulong* ownedOutput), CPL0 only. The owner proves the whole
         // output extent, initializes it and compares original/live observations.
@@ -389,6 +401,10 @@ public static unsafe partial class X64LinuxUserTransition
 
     private static bool Admit(X64LinuxUserTransitionPlan p) =>
         (!p.ResumeUser || p.KernelRoot != 0) &&
+        (p.UserInterrupts ? p.ResumeUser && p.UserFaultEntry!=0 && Address(p.UserSpuriousEntry) && p.UserSpuriousEntry<=End-6 &&
+            !Overlap(p.UserSpuriousEntry,6,p.UserFaultEntry,FaultCaptureBytes) &&
+            !Overlap(p.UserSpuriousEntry,6,p.CodeAddress,CodeBytes) && !Overlap(p.UserSpuriousEntry,6,p.ContextAddress,DataBytes) &&
+            !Overlap(p.UserSpuriousEntry,6,p.UserRoot,4096) && !Overlap(p.UserSpuriousEntry,6,p.KernelRoot,4096) : p.UserSpuriousEntry==0) &&
         (p.UserFaultEntry == 0 || p.ResumeUser && Address(p.UserFaultEntry) && (p.UserFaultEntry & 15) == 0 &&
             p.UserFaultEntry <= End - FaultCaptureBytes &&
             !Overlap(p.UserFaultEntry, FaultCaptureBytes, p.CodeAddress, CodeBytes) &&

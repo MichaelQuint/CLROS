@@ -17,7 +17,7 @@ public unsafe partial struct LinuxThreadServices
             return LinuxSignalServices.Delivery.Rejected;
         Slot* slot = _owner.Slots + index;
         if (slot->Exiting != 0 || slot->Wait.IsValid || slot->PipeOperation.IsActive || slot->RestartMode != 0 ||
-            !X64LinuxUserTransition.ValidateFaultUserImage(&slot->Image, X64LinuxUserTransition.UserImageBytes, _owner.ObservedMxcsrMask))
+            !X64LinuxUserTransition.ValidateFaultUserImage(&slot->Image, X64LinuxUserTransition.UserImageBytes, _owner.ObservedMxcsrMask,_owner.User.UserInterrupts))
             return LinuxSignalServices.Delivery.Rejected;
         // Linux hides outside-user page-table presence in the saved error code.
         // Keep the native diagnostic's raw hardware error separately.

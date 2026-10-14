@@ -55,9 +55,7 @@ internal static class EfiCompileInventoryTests
             {
                 bool waitPair = requested.IsEnabled("M09009") && other.IsEnabled("M09010") ||
                     requested.IsEnabled("M09010") && other.IsEnabled("M09009");
-                bool signalPair = requested.IsEnabled("M16008") && other.IsEnabled("M16008") &&
-                    requested.IsEnabled("M16009") != other.IsEnabled("M16009");
-                HostCheck.True(waitPair || signalPair, "only reviewed wait/TLS and thread/signal leaves share an inventory");
+                HostCheck.True(waitPair, "only reviewed wait/TLS leaves share an inventory");
                 try { EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), other), Snapshot(DeclaredItems(requested), requested)); }
                 catch (ToolFailure failure) { actual = failure.Reason; }
                 HostCheck.Equal("post_restore_evidence_property_mismatch", actual);
@@ -104,6 +102,7 @@ internal static class EfiCompileInventoryTests
             "'$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true'" => profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe"),
             "'$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true' or '$(EnableM16008Probe)' == 'true'" => profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe") || profile.IsEnabled("EnableM16008Probe"),
             "'$(EnableM16008Probe)' == 'true'" => profile.IsEnabled("EnableM16008Probe"),
+            "'$(EnableM16009Probe)' == 'true'" => profile.IsEnabled("EnableM16009Probe"),
             string condition => throw new InvalidOperationException("Unreviewed compile condition: " + condition)
         }).Select(Key).ToArray();
     }

@@ -110,6 +110,16 @@ remain required. Generate a fresh package for later batch qualification with:
 dotnet run --project tools/OS.Tooling -- linux signal-fixture artifacts/packages/m16-009-fault-stack.pkg FaultStack
 ```
 
+[Step1257](../done/step1257.md) implements the separately gated workload request
+`env.CLROS_USER_IRQS=1` inside M16-009; no new build flag or default is added.
+Absent/0 stays disabled, malformed requests fail closed. Its private E1/FF gates,
+complete user capture and real kernel CALL yield share the retained native owner.
+An ending syscall drains an outstanding one-shot through a checked switch-stack
+kernel wait before APIC/IST restoration. Host/byte checks and no-stdlib C# compile
+pass; original native/stack and live IRQ proof are still required. The eleven
+canonical packages omit this environment key. Editing one to add it breaks exact
+preflight identity: an IRQ fixture and strict transcript admission remain next.
+
 The future qualification command is:
 
 ```powershell

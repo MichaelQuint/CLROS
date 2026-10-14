@@ -91,7 +91,7 @@ public static unsafe partial class LinuxSignalServices
         delegate* unmanaged<void*, ulong, byte*, uint, byte> copyToUser)
     {
         if (!Audit(s) || process == 0 || s->Process != 0 || capacity != s->Capacity || !Empty(s) ||
-            s->User.Context != user.Context || (ulong)s->User.PageAccess != (ulong)user.PageAccess ||
+            s->User.Context != user.Context || s->User.UserInterrupts != user.UserInterrupts || (ulong)s->User.PageAccess != (ulong)user.PageAccess ||
             (ulong)s->User.CopyFromUser != (ulong)user.CopyFromUser || (ulong)s->CopyToUser != (ulong)copyToUser) return false;
         s->Process = process; return true;
     }

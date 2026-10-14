@@ -63,7 +63,7 @@ public static unsafe partial class EfiEntry
             if (c->Entered[index] != 1 || c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity) return 0;
             if (c->UserFaults >= 64 || !c->Process.CurrentImage(c->Key, 2, out var image) ||
                 !X64LinuxUserTransition.CaptureFaultUserImage(data, X64LinuxUserTransition.DataBytes, image,
-                    X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask))
+                    X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask,c->User.UserInterrupts))
                 return LinuxNativeAbort(c, index);
             uint trap = (uint)*(ulong*)(data + X64LinuxUserTransition.VectorOffset);
             ulong error = *(ulong*)(data + X64LinuxUserTransition.ErrorOffset);

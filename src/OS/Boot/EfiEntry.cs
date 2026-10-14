@@ -1607,8 +1607,14 @@ public static unsafe partial class EfiEntry
         }
 #endif
 
-        private static X64LinuxUserTransitionPlan LinuxUserTransitionPlan(Storage* state, ulong rsp) => new()
+        private static X64LinuxUserTransitionPlan LinuxUserTransitionPlan(Storage* state, ulong rsp)
         {
+#if M16_009_PROBE
+            if (!LinuxUserInterruptPolicy.TryRead((byte*)state->LinuxPackage+state->LinuxView.ManifestOffset,
+                state->LinuxView.ManifestBytes,state->LinuxView.Manifest,out bool userIrqs)) return default;
+#endif
+            return new()
+            {
             CodeAddress = state->LinuxSyscallCode, ContextAddress = state->LinuxSyscallData,
             UserRoot = state->LinuxUserTables, UserRip = state->LinuxImagePlan.Entry, UserRsp = rsp,
 #if M16_006_PROBE
@@ -1619,13 +1625,16 @@ public static unsafe partial class EfiEntry
 #endif
 #if M16_009_PROBE
             UserFaultEntry = state->CooperativePool + LinuxThreadProgram.UserFaultCapture,
+            UserInterrupts = userIrqs,
+            UserSpuriousEntry = userIrqs ? state->CooperativePool+LinuxThreadProgram.TimerHandler+OS.Kernel.Threading.X64TimerInterrupt.SpuriousOffset : 0,
 #endif
             Dispatcher = (ulong)(delegate* unmanaged<void*, LinuxSyscallFrame*, byte>)&DispatchLinuxSyscall,
             FaultReporter = (ulong)(delegate* unmanaged<void*, byte*, byte>)&ReportLinuxUserFault,
             CallbackContext = (ulong)state, TssRsp0Address = (ulong)(state->Arena.Descriptors->Tss + 4),
             OriginalGp = LinuxGateHandler(state->Arena.Descriptors->FinalIdt + 13 * 16),
             OriginalPf = LinuxGateHandler(state->Arena.Descriptors->FinalIdt + 14 * 16)
-        };
+            };
+        }
 
         private static bool LinuxSupervisorLeaf(Storage* state, ulong address, bool executable, bool writable)
         {
@@ -1918,6 +1927,8 @@ public static unsafe partial class EfiEntry
         {
             Storage* state = (Storage*)context;
 #if M16_009_PROBE
+            if (data==(byte*)state->LinuxSyscallData && *(ulong*)(data+X64LinuxUserTransition.VectorOffset)==0xe1)
+                return LinuxNativeUserInterrupt(state,data);
             return LinuxNativeUserFault(state, data);
 #else
             if (!LinuxSyscallAuthority(state) || data != (byte*)state->LinuxSyscallData || state->LinuxSyscallFaults != 0 ||

@@ -13,6 +13,16 @@ GPRs, nonzero user FS/GS, x87/SSE, fault context and repaired or rejected
 continuations. Canonical construction and parser controls establish no executed
 fault or guest signal acceptance; all eleven inputs await batch qualification.
 
+[Step1257](../done/step1257.md) adds opt-in user IRQ source under M16-009 with
+`env.CLROS_USER_IRQS=1`. Actual E1 acknowledgement proposes `M16_009_IRQ identity=
+epoch= nanos= rip= rsp= flags= fs= gs= valueBits=`; ending excursions use
+`M16_009_DRAIN identity= epoch= nanos=` only after a real kernel-checkpoint IRQ.
+The bound header reports `timer=user-irq-and-idle` in that mode. These are source
+protocols awaiting a canonical mechanical input and strict validator; no such
+rows have executed or been accepted. Existing eleven packages retain IF-off user
+images and their earlier tails. Pending APIC ownership drains before timer/IST
+release and scheduler handoff; kernel critical callbacks remain IF-off.
+
 Development `EnableM16008Probe` defaults false and requires the descriptor and
 owned clock/PCI/APIC parents. [Step1244](../done/step1244.md) attaches the native
 owner after actual APIC setup and admits only the canonical mechanical package.

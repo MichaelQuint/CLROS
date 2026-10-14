@@ -44,10 +44,12 @@ public static unsafe partial class EfiEntry
                         if (!LinuxText(state, "M16_008_BOUND root=") || !LinuxNumber(state, c->Plan.Owner.Root) ||
                             !LinuxText(state, " pool=") || !LinuxNumber(state, state->CooperativePool) ||
                             !LinuxText(state, " workers=") || !LinuxNumber(state, c->Capacity) ||
-                            !LinuxText(state, " code=16384 metadata=45056 userImage=728 timer=idle-only clock=hpet-nanoseconds reuse=off-stack\r\n")) c->Failed = 1;
+                            !LinuxText(state, c->User.UserInterrupts ?
+                                " code=16384 metadata=45056 userImage=728 timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack\r\n" :
+                                " code=16384 metadata=45056 userImage=728 timer=idle-only clock=hpet-nanoseconds reuse=off-stack\r\n")) c->Failed = 1;
                         var plan = state->LinuxSyscallPlan;
                         LinuxSyscallFrame initial = new() { Rip = plan.UserRip, Rsp = plan.UserRsp,
-                            Rflags = 2, FsBase = plan.UserFs, GsBase = plan.UserGs };
+                            Rflags = c->User.UserInterrupts ? 0x202UL : 2UL, FsBase = plan.UserFs, GsBase = plan.UserGs };
                         if (c->Failed == 0 && plan.ResumeUser && X64LinuxUserTransition.InitializeUserImage(c->Initial,
                             X64LinuxUserTransition.UserImageBytes, initial, c->Plan.Owner.ObservedMxcsrMask, c->User) &&
                             c->Process.Start(c->Key, 2, c->Initial, X64LinuxUserTransition.UserImageBytes, default, out var first) > 0 &&
@@ -91,7 +93,8 @@ public static unsafe partial class EfiEntry
 
         // Every iteration is a real dispatch, off-stack reap or bounded hardware
         // idle. Empty untimed pipe/futex waits cannot spin: shutdown wakes and
-        // drains them. The finite mechanical profile supports no user preemption.
+        // drains them. Explicit M16-009 user IRQs return through the restored
+        // kernel CALL handoff before this driver can dispatch another worker.
         private static bool LinuxNativeRun(LinuxNativeControl* c)
         {
             for (uint step = 0; step < 512; step++)
