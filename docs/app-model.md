@@ -26,6 +26,13 @@ freestanding C# compilation pass. Its wait/TLS schedules, actual MSR/segment/FP
 observations and revocation/reap paths still require original native review and
 real guest qualification; #191/#192 remain open. The next consumer is #686.
 
+#686 now has the pure per-thread `LinuxSignalMask` value/evaluator in
+[step1235](../done/step1235.md), with four focused host controls. It preserves
+the eight-byte x64 kernel mask, independent clone snapshots and reserved libc
+bits, strips SIGKILL/SIGSTOP, and checks query/update errors without mutation.
+It is not yet connected to the syscall/thread lifecycle; signal delivery remains
+explicitly outside this helper and belongs to #687.
+
 [Step1224](../done/step1224.md) qualifies M09-005 hardware-timer execution:
 4,776 full-host checks, six original native bodies, three fresh 115-record
 timer guests and ten ancestors pass.
