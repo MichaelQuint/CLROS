@@ -13,7 +13,11 @@ unqualified. Next are #191 wait-on-address and #192 application FS/TLS before #6
 13 focused controls over the qualified lifecycle table. Exact address/lifetime
 bindings, compare/register, FIFO wake-one/all, timeout/cancellation and stale
 reuse have host evidence only. There is no new guest, Linux futex or application
-threading acceptance; #191 and #192 remain open.
+threading acceptance; #191 and #192 remain open. [Step1232](../done/step1232.md)
+adds #192's private TLS ownership and 14 host controls over saved FS/user-GS,
+FP admission, owned kernel-GS and guarded scrub/reuse. It adds no hardware
+register access or guest acceptance. Both host prerequisites await integration
+and shared qualification with their NativeAOT thread/runtime consumers.
 
 [Step1224](../done/step1224.md) qualifies M09-005 hardware-timer execution:
 4,776 full-host checks, six original native bodies, three fresh 115-record

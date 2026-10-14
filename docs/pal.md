@@ -129,6 +129,23 @@ caller-pinned. This is host implementation evidence only: #191 remains open
 pending default-off mechanical guest/native/full-batch qualification. #192's
 application FS/TLS and #686's Linux adapter remain incomplete.
 
+### TLS ownership development (#192)
+
+`Threading/ThreadLocalStorage.cs` binds a dedicated private TLS subpool to
+current lifecycle generations and the existing saved FS/user-GS values.
+[Step1232](../done/step1232.md) records 14 focused host checks for region/segment
+isolation, saved FP/base admission, unchanged owned kernel-GS/root/selectors,
+stale identities and supervisor-only reap. The helper checks freshly supplied
+CPU observations; it does not read or write MSRs. Reap first uses the existing
+lifecycle pin/queue/supervisor guards, then scrubs the private TLS spans.
+Active FS/GS references or failed restoration retain backing.
+
+The context emitter remains unchanged. #192 still requires actual distinct
+FS/GS/FP execution and cleanup in a mechanical guest. Linux TLS/clone/signal
+integration and upstream managed thread statics are separate unfinished work.
+Full-host and final guest qualification are deferred to the larger related
+NativeAOT threading/runtime batch, not run for these two host prerequisites.
+
 ### Saved-context host contract (#183)
 
 [Step1210](../done/step1210.md) records nine focused checks for
