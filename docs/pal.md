@@ -33,8 +33,16 @@ document with the current integration owner.
 
 [#188](http://192.168.4.35:3000/admin/CLROS/issues/188) is the next scheduler
 slice. Its managed body owns the implementation and qualification checklist.
-The following is a design handoff, not implemented lifecycle evidence. Use the
-current pinned toolchain in [host requirements](host-requirements.md); historical
+Stage one is implemented in `Threading/KernelThreadTable.cs`, with caller-owned
+`KernelThreadSlot` storage and generation/sequence-tagged `KernelThreadWait`.
+[Step1226](../done/step1226.md) records 12 focused host checks for admission and
+publication rollback, serialized waits, retained completion under ready pressure,
+join/cancellation/deadline races, off-stack observation, pins, scrub and reuse.
+The table performs no allocation, hardware access or native transfer. Its caller
+must provide actual IRQ serialization, mapping admission and supervisor-stack
+observations. These host controls do not qualify live lifecycle execution;
+#188 remains open and the entry/return, repeated timer and guest work below remains.
+Use the current pinned toolchain in [host requirements](host-requirements.md); historical
 .NET 10 acceptance does not qualify the .NET 11 migration. Its finite renewed
 profile evidence is recorded in [step1225](../done/step1225.md).
 
