@@ -19,6 +19,13 @@ FP admission, owned kernel-GS and guarded scrub/reuse. It adds no hardware
 register access or guest acceptance. Both host prerequisites await integration
 and shared qualification with their NativeAOT thread/runtime consumers.
 
+[Step1234](../done/step1234.md) wires default-off `EnableM09009Probe` and
+`EnableM09010Probe` through the owned post-exit lifecycle envelope, explicit
+source/compiler inventories and exact serial validators. Focused controls and
+freestanding C# compilation pass. Its wait/TLS schedules, actual MSR/segment/FP
+observations and revocation/reap paths still require original native review and
+real guest qualification; #191/#192 remain open. The next consumer is #686.
+
 [Step1224](../done/step1224.md) qualifies M09-005 hardware-timer execution:
 4,776 full-host checks, six original native bodies, three fresh 115-record
 timer guests and ten ancestors pass.

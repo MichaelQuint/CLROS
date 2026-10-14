@@ -276,6 +276,22 @@ internal static class EfiProfileTestControls
     // Independent expectations shared by cross-profile rejection fixtures.
     internal static string? MissingParentReason(IReadOnlyCollection<string> selected)
     {
+        if (selected.Contains("EnableM09010Probe"))
+        {
+            string[] parents = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
+                "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe",
+                "EnableM05PciEnumerationProbe", "EnableM05ApicSetupProbe"];
+            if (selected.Any(name => name != "EnableM09010Probe" && !parents.Contains(name))) return "m09_010_profile_conflict";
+            if (parents.Any(name => !selected.Contains(name))) return "m09_010_requires_owned_first_exit";
+        }
+        if (selected.Contains("EnableM09009Probe"))
+        {
+            string[] parents = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
+                "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe",
+                "EnableM05PciEnumerationProbe", "EnableM05ApicSetupProbe"];
+            if (selected.Any(name => name != "EnableM09009Probe" && !parents.Contains(name))) return "m09_009_profile_conflict";
+            if (parents.Any(name => !selected.Contains(name))) return "m09_009_requires_owned_first_exit";
+        }
         if (selected.Contains("EnableM09006Probe"))
         {
             string[] parents = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
@@ -422,7 +438,8 @@ internal static class EfiProfileTestControls
                     "startup explicit false: " + parent);
             foreach (string conflict in EfiContracts.DiagnosticProbes.Except(allowed))
                 HostCheck.True(ServiceProfileRejected(build, ["--EnableM16004Probe", "--" + conflict],
-                    conflict switch { "EnableM09006Probe" => "m09_006_profile_conflict",
+                    conflict switch { "EnableM09010Probe" => "m09_010_profile_conflict",
+                        "EnableM09009Probe" => "m09_009_profile_conflict", "EnableM09006Probe" => "m09_006_profile_conflict",
                         "EnableM09004Probe" => "m09_004_profile_conflict",
                         "EnableM09005Probe" => "m09_005_profile_conflict", _ => "m16_002_profile_conflict" }),
                     "startup profile conflict: " + conflict);

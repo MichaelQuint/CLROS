@@ -151,8 +151,21 @@ Shared integration #733 adds the unpublished `ThreadWaitProgram` emitter in
 FS:[0]/GS:[0] into captured R12/R13, then workers return through the existing
 exit trampoline. Four new byte/continuation controls, three original program
 controls and five source-admission checks pass. The entry/recovery/IRQ-helper/
-switch infrastructure is reused; profile wiring and actual execution remain
-unfinished. No native or guest acceptance follows from emitted bytes.
+switch infrastructure is reused. [Step1234](../done/step1234.md) adds the two
+default-off profiles, native owner schedules and strict transcript admission.
+Both leaves compile as freestanding C#; actual native/guest execution remains
+unqualified. The TLS subpool now admits exclusive eight-byte-aligned byte spans;
+a fifteenth focused TLS control checks four private spans inside 256 bytes and
+unchanged neighboring bytes after reap.
+
+`EfiEntry.ThreadWait.cs` reuses the lifecycle transfer/IRQ/cleanup envelope with
+one additional RW/NX metadata lease (24 internal leases, unchanged 32-page
+firmware reservation). Its emitted workers stage four real CALL actions each,
+then return normally. The owner schedules collision checks, wake-before-park,
+FIFO wake-one/all, timer/wake and cancel/deadline orders, then revokes code/IRQ
+references before supervisor reap and reuse. These are implemented schedules,
+not observed guest results. Native publish, original object/stack review, real
+captures and the full-host suite remain deferred to the related consumer batch.
 
 ### Saved-context host contract (#183)
 

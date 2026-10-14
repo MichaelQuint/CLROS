@@ -51,6 +51,15 @@ internal static class EfiCompileInventoryTests
         foreach (EfiProfile other in profiles.Where(profile => !ReferenceEquals(profile, requested)))
         {
             string? actual = null;
+            if (DeclaredItems(other).SequenceEqual(DeclaredItems(requested), StringComparer.Ordinal))
+            {
+                HostCheck.True(requested.IsEnabled("M09009") && other.IsEnabled("M09010") ||
+                    requested.IsEnabled("M09010") && other.IsEnabled("M09009"), "only the reviewed wait/TLS leaves share an inventory");
+                try { EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), other), Snapshot(DeclaredItems(requested), requested)); }
+                catch (ToolFailure failure) { actual = failure.Reason; }
+                HostCheck.Equal("post_restore_evidence_property_mismatch", actual);
+                continue;
+            }
             // Keep requested properties fixed: the compile inventory alone must
             // reject another profile, even when its metadata claims this one.
             try { EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), requested), Snapshot(DeclaredItems(requested), requested)); }
@@ -64,11 +73,13 @@ internal static class EfiCompileInventoryTests
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool>()),
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09004Probe"] = true }),
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09005Probe"] = true }),
-        EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09006Probe"] = true })
+        EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09006Probe"] = true }),
+        EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09009Probe"] = true }),
+        EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09010Probe"] = true })
     ];
 
     // The project declarations are an independent oracle for the shared helper.
-    // Deliberately interpret only its three reviewed predicates; a new condition
+    // Deliberately interpret only its four reviewed predicates; a new condition
     // requires an explicit test review instead of being silently treated as true.
     private static string[] DeclaredItems(EfiProfile profile)
     {
@@ -81,9 +92,10 @@ internal static class EfiCompileInventoryTests
         return items.Where(item => (string?)item.Attribute("Condition") switch
         {
             null => true,
-            "'$(EnableM09004Probe)' == 'true' or '$(EnableM09005Probe)' == 'true' or '$(EnableM09006Probe)' == 'true'" => profile.IsEnabled("EnableM09004Probe") || profile.IsEnabled("EnableM09005Probe") || profile.IsEnabled("EnableM09006Probe"),
-            "'$(EnableM09005Probe)' == 'true' or '$(EnableM09006Probe)' == 'true'" => profile.IsEnabled("EnableM09005Probe") || profile.IsEnabled("EnableM09006Probe"),
-            "'$(EnableM09006Probe)' == 'true'" => profile.IsEnabled("EnableM09006Probe"),
+            "'$(EnableM09004Probe)' == 'true' or '$(EnableM09005Probe)' == 'true' or '$(EnableM09006Probe)' == 'true' or '$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true'" => profile.IsEnabled("EnableM09004Probe") || profile.IsEnabled("EnableM09005Probe") || profile.IsEnabled("EnableM09006Probe") || profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe"),
+            "'$(EnableM09005Probe)' == 'true' or '$(EnableM09006Probe)' == 'true' or '$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true'" => profile.IsEnabled("EnableM09005Probe") || profile.IsEnabled("EnableM09006Probe") || profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe"),
+            "'$(EnableM09006Probe)' == 'true' or '$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true'" => profile.IsEnabled("EnableM09006Probe") || profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe"),
+            "'$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true'" => profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe"),
             string condition => throw new InvalidOperationException("Unreviewed compile condition: " + condition)
         }).Select(Key).ToArray();
     }
@@ -107,7 +119,9 @@ internal static class EfiCompileInventoryTests
                 ["ClrosBootPolicy"] = profile.BootPolicy,
                 ["EnableM09004Probe"] = profile.IsEnabled("EnableM09004Probe").ToString(),
                 ["EnableM09005Probe"] = profile.IsEnabled("EnableM09005Probe").ToString(),
-                ["EnableM09006Probe"] = profile.IsEnabled("EnableM09006Probe").ToString()
+                ["EnableM09006Probe"] = profile.IsEnabled("EnableM09006Probe").ToString(),
+                ["EnableM09009Probe"] = profile.IsEnabled("EnableM09009Probe").ToString(),
+                ["EnableM09010Probe"] = profile.IsEnabled("EnableM09010Probe").ToString()
             }
         };
     }

@@ -748,6 +748,10 @@ internal static class BootSequencePlanTests
              "public static unsafe OS.Kernel.Runtime.CompilerInterfaceDispatchStatus RunInterfaceDispatch("])
             && HasGuardedSurface("src/OS.Kernel/Diagnostics/Probes.cs", 2,
             ["public static partial class Probes",
+             "public const bool EnableM09010Probe = true;",
+             "public const bool EnableM09010Probe = false;",
+             "public const bool EnableM09009Probe = true;",
+             "public const bool EnableM09009Probe = false;",
              "public const bool EnableM09006Probe = true;",
              "public const bool EnableM09006Probe = false;",
              "public const bool EnableM09005Probe = true;",

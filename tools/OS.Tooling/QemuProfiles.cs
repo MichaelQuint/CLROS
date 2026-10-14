@@ -46,7 +46,15 @@ public static class QemuProfiles
             if (forbidPresets) Require(options.MarkerPreset.Count == 0, reason + "_forbids_override parameter=MarkerPreset");
         }
         if (normal) Original("m03_normal", true, true, true);
-        if (firstExit && !Enabled("M16002") && !Enabled("M09004") && !Enabled("M09005") && !Enabled("M09006")) Original("m03_first_exit", true, true, true);
+        if (firstExit && !Enabled("M16002") && !Enabled("M09004") && !Enabled("M09005") && !Enabled("M09006") && !Enabled("M09009") && !Enabled("M09010")) Original("m03_first_exit", true, true, true);
+        foreach (string id in new[] { "009", "010" })
+            if (Enabled("M09" + id))
+            {
+                Original("m09_" + id, false, true, true);
+                foreach (string key in new[] { "RequireOrderedMarker", "RequireUniqueMarker", "ForbidMarker" })
+                    Require(!options.Explicit.Contains(key), "m09_" + id + "_forbids_override parameter=" + key);
+                Require(!options.Explicit.Contains("RequireMarker") || options.RequireMarker.All(x => x == "CLROS_M09_" + id + "_READY"), "m09_" + id + "_marker_override");
+            }
         if (Enabled("M09006"))
         {
             Original("m09_006", false, true, true);
@@ -136,6 +144,13 @@ public static class QemuProfiles
             ordered = Merge(records); unique = Merge(once ?? records); forbidden = Merge(forbidden, failures);
         }
         if (normal) { Select(QemuContracts.M03NormalVerifiedExitMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true); }
+        else if (Enabled("M09009") || Enabled("M09010"))
+        {
+            string id = Enabled("M09010") ? "010" : "009";
+            string[] records = [.. QemuContracts.M05ApicSetupMarkers, .. EfiContracts.ThreadWaitMarkers(id)];
+            Select(records, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true,
+                records.Where(x => !EfiContracts.ThreadWaitRepeated(x)).ToArray());
+        }
         else if (Enabled("M09006"))
         {
             string[] records = [.. QemuContracts.M05ApicSetupMarkers, .. EfiContracts.M09006Markers];
@@ -272,6 +287,8 @@ public static class QemuProfiles
         ("M16007", @"^(M16_007_|CLROS_M16_007_READY|TEST_(START|PASS) m16-007)", "m16_007"),
         ("M09004", @"^(M09_004_|CLROS_M09_004_READY|TEST_(START|PASS) m09\.004)", "m09_004"),
         ("M09005", @"^(M09_005_|CLROS_M09_005_READY|TEST_(START|PASS) m09\.005)", "m09_005"),
+        ("M09009", @"^(M09_009_|CLROS_M09_009_READY|TEST_(START|PASS) m09\.009)", "m09_009"),
+        ("M09010", @"^(M09_010_|CLROS_M09_010_READY|TEST_(START|PASS) m09\.010)", "m09_010"),
         ("M09006", @"^(M09_006_|CLROS_M09_006_READY|TEST_(START|PASS) m09\.006)", "m09_006"),
         ("M03FirstRealExitBootServices", @"^(M03_EBS_|M03_PERMANENT_|M03_POST_EBS_|CLROS_M03_007|TEST_(START|PASS) m03\.00[79])", "m03_first_exit"),
         ("M03OwnedSubsystemSurvival", @"^(M03_OWNED|CLROS_M03_010|TEST_(START|PASS) m03\.010)", "m03_owned"),

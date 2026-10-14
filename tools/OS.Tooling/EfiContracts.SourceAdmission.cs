@@ -3,6 +3,10 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"Boot\EfiEntry.ThreadWait.cs"] = "reviewed_m09_wait_tls_native_owner_source_identity",
+        [@"..\OS.Kernel\Threading\ThreadWaitProgram.cs"] = "reviewed_m09_wait_tls_program_source_identity",
+        [@"..\OS.Kernel\Threading\WaitAddress.cs"] = "reviewed_m09_wait_address_source_identity",
+        [@"..\OS.Kernel\Threading\ThreadLocalStorage.cs"] = "reviewed_m09_private_tls_source_identity",
         [@"Boot\EfiEntry.KernelThread.cs"] = "reviewed_m09_lifecycle_native_owner_source_identity",
         [@"..\OS.Kernel\Threading\ReadyQueue.cs"] = "reviewed_m09_ready_queue_source_identity",
         [@"..\OS.Kernel\Threading\KernelThreadSlot.cs"] = "reviewed_m09_lifecycle_slot_source_identity",

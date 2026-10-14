@@ -1,10 +1,10 @@
 global using System;
 
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
 using Cooperative = OS.Kernel.Threading.ThreadContextSwitch;
 using SavedContext = OS.Kernel.Threading.X64ThreadContext;
 #endif
-#if M09_005_PROBE || M09_006_PROBE
+#if M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
 using TimerIrq = OS.Kernel.Threading.X64TimerInterrupt;
 using TickTimer = OS.Kernel.Threading.SchedulerTimer;
 using Deadlines = OS.Kernel.Threading.DeadlineQueue;
@@ -101,7 +101,7 @@ public static unsafe partial class EfiEntry
             internal ulong PreparationCheckpoint;
             internal uint TableMemoryType;
             internal fixed ulong PageMetadata[(int)TablePages * 3]; // 24 bytes per page, naturally aligned
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
             internal ulong CooperativePool;
             internal uint CooperativePhase;
 #endif
@@ -389,7 +389,7 @@ public static unsafe partial class EfiEntry
                 !FirstExitImageMappings.Contains(ranges, count, references.CopiedAcpi, references.CopiedAcpiBytes, PageProtection.Read | PageProtection.Write) ||
                 !FirstExitImageMappings.Contains(ranges, count, references.AllocatorState, references.AllocatorStateBytes, PageProtection.Read | PageProtection.Write)) return false;
             ulong image = ranges[0].Start, imageBytes = capture.Range.ImageSize;
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
             state->PreparationCheckpoint = 34;
             if (!BootSequence.PrepareCooperativeSwitch(state->Phase == 2, state, &PrepareCooperativePool)) return false;
             references.CooperativePoolStart = state->CooperativePool;
@@ -718,7 +718,7 @@ public static unsafe partial class EfiEntry
             return true;
         }
 
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
         // Pre-exit reservation only. Retain every successful firmware allocation
         // before validating its extent; this slice supplies no post-exit release.
         private static bool PrepareCooperativePool(void* context)
@@ -1929,7 +1929,7 @@ public static unsafe partial class EfiEntry
             return true;
         }
 
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
         private struct CooperativeControl
         {
             internal Storage* State;
@@ -2255,7 +2255,7 @@ public static unsafe partial class EfiEntry
         }
 #endif
 
-#if M09_005_PROBE || M09_006_PROBE
+#if M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
         private struct TimerControl
         {
             internal CooperativeControl* Cooperative;
@@ -2652,7 +2652,7 @@ public static unsafe partial class EfiEntry
                             transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
                             state->Arena.Binding->RetainedPointersCleared, state, &RunSchedulerTimer)) return;
 #endif
-#if M09_006_PROBE
+#if M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
                         if (!BootSequence.RunOwnedKernelThreads(state->OwnedPhase == 2, state->ApicPhase == 2,
                             transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
                             state->Arena.Binding->RetainedPointersCleared, state, &RunKernelThreads)) return;

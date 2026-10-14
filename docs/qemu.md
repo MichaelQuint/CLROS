@@ -1,5 +1,12 @@
 # QEMU
 
+Development selections `-EnableM09009Probe` and `-EnableM09010Probe` have strict
+profile and transcript admission in [step1234](../done/step1234.md). Their only
+permitted explicit required markers are `CLROS_M09_009_READY` and
+`CLROS_M09_010_READY`, respectively; marker presets/order/uniqueness overrides
+reject. Each tail requires the complete two-generation schedule and restoration,
+not just READY. No new QEMU capture is qualified by that implementation step.
+
 ## Current CPU contract
 
 The .NET 11 migration selects explicit `-cpu Nehalem` for the x86-64-v2

@@ -45,7 +45,7 @@ internal static unsafe class ThreadLocalStorageTests
         HostCheck.Equal(S.InvalidOwner, Initialize(m, key: 0)); Same(m, before);
         var owner = m.Owner; owner.Flags |= 0x200;
         HostCheck.Equal(S.InterruptsEnabled, Owner(m)->Initialize(Key, owner, m.Table, KernelThreadTableTests.Key, Slots(m), 1024, 2, Pool(m), 8192)); Same(m, before);
-        HostCheck.Equal(S.InvalidRegion, Owner(m)->Initialize(Key, m.Owner, m.Table, KernelThreadTableTests.Key, Slots(m), 1024, 2, Pool(m) + 8, 8192)); Same(m, before);
+        HostCheck.Equal(S.InvalidRegion, Owner(m)->Initialize(Key, m.Owner, m.Table, KernelThreadTableTests.Key, Slots(m), 1024, 2, Pool(m) + 1, 8192)); Same(m, before);
         owner = m.Owner; owner.KernelGs = owner.CurrentKernelGs = Pool(m);
         HostCheck.Equal(S.Overlap, Owner(m)->Initialize(Key, owner, m.Table, KernelThreadTableTests.Key, Slots(m), 1024, 2, Pool(m), 8192)); Same(m, before);
         HostCheck.Equal(S.Overlap, Owner(m)->Initialize(Key, m.Owner, m.Table, KernelThreadTableTests.Key, (ThreadLocalStorage.Slot*)Owner(m), 1024, 2, Pool(m), 8192)); Same(m, before);
@@ -53,6 +53,26 @@ internal static unsafe class ThreadLocalStorageTests
         HostCheck.Equal(S.AlreadyInitialized, Initialize(m)); Same(m, before);
         ThreadLocalStorage copy = *Owner(m); HostCheck.Equal(S.CopiedOwner, copy.Release(Key, m.Owner)); Same(m, before);
         HostCheck.True(!default(ThreadLocalStorage.Binding).IsValid && !default(ThreadLocalStorage.Result).Succeeded);
+    }
+
+    [HostTest("thread.tls compact exclusive subpool binds four spans without borrowing adjacent bytes")]
+    private static void CompactPool()
+    {
+        using M m = new(initialize: false); *Owner(m) = default;
+        HostCheck.Equal(KernelThreadTable.Status.Ok, m.Bind());
+        ulong start = Pool(m) + 0xf00;
+        HostCheck.Equal(S.Ok, Owner(m)->Initialize(Key, m.Owner, m.Table, KernelThreadTableTests.Key, Slots(m),
+            2 * (uint)sizeof(ThreadLocalStorage.Slot), 2, start, 256));
+        R af = new(start, 64, start), ag = new(start + 64, 64, start + 64),
+            bf = new(start + 128, 64, start + 128), bg = new(start + 192, 64, start + 192);
+        var a = Create(m, 0, af, ag); var b = Create(m, 1, bf, bg);
+        var ab = Owner(m)->Bind(Key, m.Owner, a, af, ag); var bb = Owner(m)->Bind(Key, m.Owner, b, bf, bg);
+        HostCheck.True(ab.Succeeded && bb.Succeeded);
+        m.Dispatch(); m.Exit(a); var reaped = Owner(m)->Reap(Key, m.Owner, ab.Identity, m.SupervisorRsp, 0, 0);
+        HostCheck.True(reaped.Succeeded && Zero(af) && Zero(ag)); HostCheck.Equal(128UL, reaped.ReapedBytes);
+        HostCheck.True(!Zero(bf) && !Zero(bg));
+        HostCheck.Equal((byte)0xa5, ((byte*)start)[-1]); HostCheck.Equal((byte)0xa5, ((byte*)start)[256]);
+        HostCheck.True(Owner(m)->Inspect(Key, m.Owner, bb.Identity).Succeeded);
     }
 
     [HostTest("thread.tls distinct FS GS and FP snapshots are admitted without changing bytes")]

@@ -19,6 +19,34 @@ public sealed class EfiProfile
             if (!flags.ContainsKey(pair.Key)) throw new ToolFailure("diagnostic_probe_unknown", "property=" + pair.Key);
             flags[pair.Key] = pair.Value;
         }
+        if (flags["EnableM09010Probe"])
+        {
+            string[] required = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableAcpiPhysicalDiscoveryProbe",
+                "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe", "EnableM05PciEnumerationProbe", "EnableM05ApicSetupProbe"];
+            foreach (string name in required)
+            {
+                if (explicitlySelected.TryGetValue(name, out bool enabled) && !enabled)
+                    throw new ToolFailure("m09_010_explicit_false_prerequisite", name);
+                flags[name] = true;
+            }
+            foreach (var flag in flags)
+                if (flag.Value && flag.Key != "EnableM09010Probe" && !required.Contains(flag.Key))
+                    throw new ToolFailure("m09_010_profile_conflict", flag.Key);
+        }
+        if (flags["EnableM09009Probe"])
+        {
+            string[] required = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableAcpiPhysicalDiscoveryProbe",
+                "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe", "EnableM05PciEnumerationProbe", "EnableM05ApicSetupProbe"];
+            foreach (string name in required)
+            {
+                if (explicitlySelected.TryGetValue(name, out bool enabled) && !enabled)
+                    throw new ToolFailure("m09_009_explicit_false_prerequisite", name);
+                flags[name] = true;
+            }
+            foreach (var flag in flags)
+                if (flag.Value && flag.Key != "EnableM09009Probe" && !required.Contains(flag.Key))
+                    throw new ToolFailure("m09_009_profile_conflict", flag.Key);
+        }
         if (flags["EnableM09006Probe"])
         {
             string[] required = ["EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe", "EnableAcpiPhysicalDiscoveryProbe",

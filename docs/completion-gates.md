@@ -1,5 +1,11 @@
 # CLROS Completion Gates
 
+Development [step1234](../done/step1234.md) wires #191/#192's mechanical wait/TLS
+profiles and exact transcript admission. Focused checks and freestanding C#
+compilation pass; native publish/review, actual guest behavior and shared full-host
+qualification remain pending. #191, #192 and shared integration #733 stay open.
+No gate or unchanged upstream Hello/runtime acceptance changes.
+
 M09-006/#188 is qualified in [step1230](../done/step1230.md) at frozen source
 `e0dac79`: 4,806 full-host checks across 626 fixtures (94 Native), scoped original
 native review, three byte-identical 177-application-record lifecycle guests and

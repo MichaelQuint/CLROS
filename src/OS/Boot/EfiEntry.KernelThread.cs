@@ -1,4 +1,4 @@
-#if M09_006_PROBE
+#if M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
 using OS.Kernel.Boot;
 using OS.Kernel.Memory;
 using OS.Kernel.Diagnostics;
@@ -41,6 +41,9 @@ public static unsafe partial class EfiEntry
             internal fixed ulong Cpu[19];
             internal fixed ulong OriginalIdtr[2], NewIdtr[2], ObservedIdtr[2];
             internal fixed byte OriginalTss[104];
+#if M09_009_PROBE || M09_010_PROBE
+            internal ThreadWaitControl* Wait;
+#endif
         }
 
         private static bool RunKernelThreads(void* context)
@@ -54,10 +57,15 @@ public static unsafe partial class EfiEntry
             BootPageAllocatorState allocator = default;
             if (!BootPageAllocatorStateMaterializer.Materialize(&node, 1, 1, 1, 0, Page, 32, 32 * Page, &allocator, 1).Succeeded) return false;
             BootPageAllocatorState initial = allocator; BootPageFreeListNode initialNode = node;
-            BootPageAllocatorOnePageResult* receipts = stackalloc BootPageAllocatorOnePageResult[23];
+#if M09_009_PROBE || M09_010_PROBE
+            const uint leases = 24;
+#else
+            const uint leases = 23;
+#endif
+            BootPageAllocatorOnePageResult* receipts = stackalloc BootPageAllocatorOnePageResult[(int)leases];
             ulong* originals = stackalloc ulong[32]; for (uint i = 0; i < 32; i++) originals[i] = 0;
             uint borrowed = 0; bool addresses = true;
-            for (; borrowed < 23; borrowed++)
+            for (; borrowed < leases; borrowed++)
             {
                 var receipt = BootPageAllocatorMutator.AllocateOnePage(allocator, &node, 1, 1, null, 0, 0, 1, Page);
                 if (!receipt.Succeeded) break;
@@ -66,7 +74,7 @@ public static unsafe partial class EfiEntry
                     address == pool + borrowed * Page && receipt.PageCount == 1 && receipt.ByteLength == Page;
             }
             LifecycleControl* c = null;
-            bool prepared = borrowed == 23 && addresses && LifecyclePrepare(state, out c);
+            bool prepared = borrowed == leases && addresses && LifecyclePrepare(state, out c);
             bool captured = false, published = false, executed = false, hardware = true;
             if (prepared)
             {
@@ -76,8 +84,13 @@ public static unsafe partial class EfiEntry
                     c->Plan.Owner.GuardsVerified = true; c->Plan.Owner.MappingsVerified = true; LifecycleSync(c);
                     state->CooperativePhase = 2;
                     ulong prior = ((delegate* unmanaged<ulong>)(pool + WorkerProgram.IrqSaveDisable))();
+#if M09_009_PROBE || M09_010_PROBE
+                    executed = (prior & 0x202) == 2 && LifecycleBind(c) && ThreadWaitBind(c) && LifecycleInstall(c) &&
+                        ThreadWaitRun(c) && ThreadWaitReap(c, originals, true) && ThreadWaitRun(c) && ThreadWaitReap(c, originals, false);
+#else
                     executed = (prior & 0x202) == 2 && LifecycleBind(c) && LifecycleInstall(c) && LifecycleRunInitial(c) &&
                         LifecycleReuse(c, originals, 1) && LifecycleReuse(c, originals, 2) && LifecycleFinish(c, originals);
+#endif
                     // Finish revokes the pool code; IF was admitted clear and every
                     // idle return executes CLI. Fresh retained CPU observation below
                     // proves the same owner state without executing revoked bytes.
@@ -108,7 +121,7 @@ public static unsafe partial class EfiEntry
             bool success = prepared && published && executed && released;
             state->CooperativePhase = success ? 4U : 5U;
             if (!success) return LifecycleText(state, 12, prepared ? 1UL : 0, published ? 1UL : 0, executed ? 1UL : 0, released ? 1UL : 0) && false;
-            return LifecycleText(state, 9, 23, 32, 4, 1) && LifecycleText(state, 10) && LifecycleText(state, 11);
+            return LifecycleText(state, 9, leases, 32, 4, 1) && LifecycleText(state, 10) && LifecycleText(state, 11);
         }
 
         private static bool LifecyclePrepare(Storage* state, out LifecycleControl* c)
@@ -150,11 +163,15 @@ public static unsafe partial class EfiEntry
             c->Plan.TerminalCallback = (ulong)(delegate* unmanaged<void*, void>)&LifecycleTerminal;
             c->Handler = new() { CodeAddress = pool + WorkerProgram.TimerHandler, Callback = (ulong)(delegate* unmanaged<void*, TimerIrq.Frame*, byte>)&LifecycleInterrupt,
                 CallbackContext = (ulong)c, CallbackBytes = (uint)sizeof(LifecycleControl), HelperFx = (ulong)helper };
+#if M09_009_PROBE || M09_010_PROBE
+            return ThreadWaitPrepare(c);
+#else
             if (!LifecycleImageCallback(c, c->Plan.Stub.AdmissionCallback) || !LifecycleImageCallback(c, c->Plan.First.Start) ||
                 !LifecycleImageCallback(c, c->Plan.RecoverCallback) || !LifecycleImageCallback(c, c->Plan.TerminalCallback) || !LifecycleImageCallback(c, c->Handler.Callback) ||
                 !WorkerProgram.Emit((byte*)pool, WorkerProgram.Bytes, c->Plan) || !TimerIrq.Emit((byte*)c->Handler.CodeAddress, 512, c->Handler)) return false;
             LifecycleSaveCode(c);
             return LifecycleVerifyCode(c) && LifecycleText(state, 1, pool, 23, pool + 13 * Page, c->Key);
+#endif
         }
 
         private static WorkerEntry.Plan LifecycleEntry(LifecycleControl* c, Cooperative.Descriptor d, uint offset, uint body, uint back) =>
@@ -197,7 +214,12 @@ public static unsafe partial class EfiEntry
         { for (uint i = 0; i < WorkerProgram.Bytes; i++) ((byte*)(c->State->CooperativePool + 21 * Page))[i] = ((byte*)c->Plan.Owner.CodeStart)[i]; }
         private static bool LifecycleVerifyCode(LifecycleControl* c)
         {
-            if (!WorkerProgram.Verify((byte*)c->Plan.Owner.CodeStart, WorkerProgram.Bytes, c->Plan) || !TimerIrq.Verify((byte*)c->Handler.CodeAddress, 512, c->Handler)) return false;
+#if M09_009_PROBE || M09_010_PROBE
+            bool program = OS.Kernel.Threading.ThreadWaitProgram.Verify((byte*)c->Plan.Owner.CodeStart, WorkerProgram.Bytes, c->Plan, Probes.EnableM09010Probe);
+#else
+            bool program = WorkerProgram.Verify((byte*)c->Plan.Owner.CodeStart, WorkerProgram.Bytes, c->Plan);
+#endif
+            if (!program || !TimerIrq.Verify((byte*)c->Handler.CodeAddress, 512, c->Handler)) return false;
             for (uint i = 0; i < WorkerProgram.Bytes; i++) if (((byte*)(c->State->CooperativePool + 21 * Page))[i] != ((byte*)c->Plan.Owner.CodeStart)[i]) return false;
             return true;
         }
@@ -554,6 +576,9 @@ public static unsafe partial class EfiEntry
 
         private static bool LifecycleText(Storage* state, uint kind, ulong a = 0, ulong b = 0, ulong c = 0, ulong d = 0)
         {
+#if M09_009_PROBE || M09_010_PROBE
+            return ThreadWaitText(state, kind, a, b, c, d);
+#else
             string marker = kind switch { 0 => "TEST_START m09.006", 1 => "M09_006_PREPARED", 2 => "M09_006_TRANSFER", 3 => "M09_006_WAIT",
                 4 => "M09_006_JOIN", 5 => "M09_006_REUSE", 6 => "M09_006_REAP", 7 => "M09_006_ROLLBACK", 8 => "M09_006_TICK",
                 9 => "M09_006_RESTORED", 10 => "TEST_PASS m09.006", 11 => "CLROS_M09_006_READY", 12 => "TEST_FAIL m09.006 rejected",
@@ -572,6 +597,7 @@ public static unsafe partial class EfiEntry
             }
             text[length++] = 13; text[length++] = 10;
             return WriteOwnedBytes(state, text, length);
+#endif
         }
     }
 }

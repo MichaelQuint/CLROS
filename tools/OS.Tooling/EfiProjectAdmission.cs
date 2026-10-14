@@ -153,12 +153,17 @@ public static class EfiProjectAdmission
     /// both isolated and restored evaluations require this exact selection.</summary>
     public static string[] ExpectedCompileItems(EfiProfile profile)
     {
-        bool lifecycle = profile.IsEnabled("EnableM09006Probe");
+        bool wait = profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe");
+        bool lifecycle = wait || profile.IsEnabled("EnableM09006Probe");
         bool timer = lifecycle || profile.IsEnabled("EnableM09005Probe"), contexts = timer || profile.IsEnabled("EnableM09004Probe");
         // Mirror the reviewed conditional links; retain static inventory order
         // and admit no new evaluated identity, link or defining-project authority.
         return EfiContracts.CompileItems.Where(item => item switch
         {
+            @"Boot\EfiEntry.ThreadWait.cs|" or
+            @"..\OS.Kernel\Threading\ThreadWaitProgram.cs|Threading\ThreadWaitProgram.cs" or
+            @"..\OS.Kernel\Threading\WaitAddress.cs|Threading\WaitAddress.cs" or
+            @"..\OS.Kernel\Threading\ThreadLocalStorage.cs|Threading\ThreadLocalStorage.cs" => wait,
             @"Boot\EfiEntry.KernelThread.cs|" or
             @"..\OS.Kernel\Threading\ReadyQueue.cs|Threading\ReadyQueue.cs" or
             @"..\OS.Kernel\Threading\KernelThreadSlot.cs|Threading\KernelThreadSlot.cs" or

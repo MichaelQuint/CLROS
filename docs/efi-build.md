@@ -1,5 +1,15 @@
 # EFI Build
 
+## Development wait and TLS profiles
+
+`efi build -BootPolicy Diagnostic -EnableM09009Probe` and the corresponding
+`-EnableM09010Probe` selection now admit explicit wait/TLS native sources and
+the existing lifecycle/context/timer links. The tool expands the same seven
+owned-exit/APIC prerequisites; explicitly disabled parents or another leaf
+reject. Both leaves compile as no-stdlib C# in [step1234](../done/step1234.md).
+Native publish, original object/stack review and guest qualification remain
+pending the shared NativeAOT thread/runtime batch. Compilation is not boot proof.
+
 ## Qualified cooperative lifecycle profile
 
 `dotnet run --project tools/OS.Tooling -- efi build -BootPolicy Diagnostic -EnableM09006Probe`

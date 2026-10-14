@@ -83,7 +83,7 @@ public unsafe struct ThreadLocalStorage
 
     /// <summary>Validate all mapped metadata and the live owner before writing.
     /// Keep the table stable without key reuse until Release. Metadata and all
-    /// TLS spans come from a dedicated page-aligned private subpool, disjoint from
+    /// TLS spans come from a dedicated eight-byte-aligned private subpool, disjoint from
     /// context/stack/control resources. Discovered TLS/context aliases reject;
     /// the caller admits remaining external resources and keeps mappings pinned.</summary>
     public Status Initialize(ulong key, ThreadContextSwitch.Owner owner, KernelThreadTable* threads,
@@ -100,7 +100,7 @@ public unsafe struct ThreadLocalStorage
         if (Overlap(self, (uint)sizeof(ThreadLocalStorage), (ulong)threads, (uint)sizeof(KernelThreadTable)) ||
             Overlap(self, (uint)sizeof(ThreadLocalStorage), (ulong)slots, slotBytes) ||
             Overlap((ulong)threads, (uint)sizeof(KernelThreadTable), (ulong)slots, slotBytes)) return Status.Overlap;
-        if ((tlsStart & (ThreadContextSwitch.Page - 1)) != 0 || (tlsBytes & (ThreadContextSwitch.Page - 1)) != 0 ||
+        if ((tlsStart & 7) != 0 || (tlsBytes & 7) != 0 ||
             !Contains(owner.ContextArena, owner.ContextArenaBytes, tlsStart, tlsBytes)) return Status.InvalidRegion;
         if (Overlap(tlsStart, tlsBytes, self, (uint)sizeof(ThreadLocalStorage)) ||
             Overlap(tlsStart, tlsBytes, (ulong)threads, (uint)sizeof(KernelThreadTable)) ||

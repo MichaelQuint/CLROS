@@ -3,6 +3,15 @@ namespace OS.Tooling;
 // Reviewed expected contracts. Do not populate these from actual output at test runtime.
 public static partial class EfiContracts
 {
+    public static IReadOnlyList<string> ThreadWaitMarkers(string id) => Array.AsReadOnly(new[] {
+        "TEST_START m09." + id, "M09_" + id + "_PREPARED", "M09_" + id + "_REJECT", "M09_" + id + "_TRANSFER",
+        "M09_" + id + "_WAIT", "M09_" + id + "_OBSERVE", "M09_" + id + "_WAKE", "M09_" + id + "_TLS", "M09_" + id + "_TICK",
+        "M09_" + id + "_CANCEL", "M09_" + id + "_REAP", "M09_" + id + "_REUSE", "M09_" + id + "_COMPLETE", "M09_" + id + "_RESTORED",
+        "TEST_PASS m09." + id, "CLROS_M09_" + id + "_READY" });
+    public static bool ThreadWaitRepeated(string marker) => marker.EndsWith("_TRANSFER", StringComparison.Ordinal) ||
+        marker.EndsWith("_REJECT", StringComparison.Ordinal) || marker.EndsWith("_WAIT", StringComparison.Ordinal) || marker.EndsWith("_OBSERVE", StringComparison.Ordinal) ||
+        marker.EndsWith("_WAKE", StringComparison.Ordinal) || marker.EndsWith("_TLS", StringComparison.Ordinal) || marker.EndsWith("_TICK", StringComparison.Ordinal) ||
+        marker.EndsWith("_CANCEL", StringComparison.Ordinal) || marker.EndsWith("_REAP", StringComparison.Ordinal);
     public static IReadOnlyList<string> M09006Markers { get; } = Array.AsReadOnly(new[] {
         "TEST_START m09.006", "M09_006_PREPARED", "M09_006_ROLLBACK", "M09_006_TRANSFER", "M09_006_WAIT", "M09_006_TICK",
         "M09_006_JOIN", "M09_006_REAP", "M09_006_REUSE", "M09_006_CANCEL", "M09_006_COMPLETE",
@@ -22,7 +31,7 @@ public static partial class EfiContracts
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
         "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe",
-        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe"]);
+        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -42,8 +51,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "d40bcc38d9b32070dc695c46cdd2b6826939ae41b957e23293332716ca498bae";
-    public const string CanonicalProjectSha256 = "92ac743786fdc1b289839e4b76fea56a57921e1e463d9de8839f45c6c8f2edd8";
+    public const string ProjectSourceSha256 = "95205ed10ce610b63a484360fff8554ec0945203bcbf643fb6414a7a40026bb6";
+    public const string CanonicalProjectSha256 = "0cc0b9c844e2ea75ce8eff3c5676c929dde0d1e01b3bddcfb914921e2f3bf7bd";
     public const string EfiEntrySourceSha256 = "8e2c04f4b0616e2f08385e5c7709af1a5461be81614d013ce0398eebc968c5cc";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
@@ -306,6 +315,10 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Threading\KernelThreadTable.cs|Threading\KernelThreadTable.cs",
         @"..\OS.Kernel\Threading\KernelThreadEntry.cs|Threading\KernelThreadEntry.cs",
         @"..\OS.Kernel\Threading\KernelThreadProgram.cs|Threading\KernelThreadProgram.cs",
+        @"Boot\EfiEntry.ThreadWait.cs|",
+        @"..\OS.Kernel\Threading\ThreadWaitProgram.cs|Threading\ThreadWaitProgram.cs",
+        @"..\OS.Kernel\Threading\WaitAddress.cs|Threading\WaitAddress.cs",
+        @"..\OS.Kernel\Threading\ThreadLocalStorage.cs|Threading\ThreadLocalStorage.cs",
     ]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> DiagnosticProbes { get; } = Array.AsReadOnly<string>(
@@ -388,7 +401,7 @@ public static partial class EfiContracts
         "EnableM06VirtioBlockReadProbe",
         "EnableM07ArpReceiveProbe",
         "EnableM07VirtioNetProbe",
-        "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe",
+        "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe",
         "EnableM16002Probe",
         "EnableM16003Probe",
         "EnableM16004Probe",

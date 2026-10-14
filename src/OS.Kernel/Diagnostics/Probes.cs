@@ -2,6 +2,16 @@ namespace OS.Kernel.Diagnostics;
 
 public static partial class Probes
 {
+#if M09_010_PROBE
+    public const bool EnableM09010Probe = true;
+#else
+    public const bool EnableM09010Probe = false;
+#endif
+#if M09_009_PROBE
+    public const bool EnableM09009Probe = true;
+#else
+    public const bool EnableM09009Probe = false;
+#endif
 #if M09_006_PROBE
     public const bool EnableM09006Probe = true;
 #else
@@ -264,7 +274,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 56;
+    public const int ProbeCatalogCount = 58;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -540,6 +550,14 @@ public static partial class Probes
     public static ProbeDefinition GetM09006Probe() =>
         new("thread.cooperative-lifecycle", nameof(EnableM09006Probe), EnableM09006Probe,
             ProbeRisk.Destructive, "Bounded cooperative entry, waits, join, cancellation and off-stack reap with owned timer wakes.");
+
+    public static ProbeDefinition GetM09009Probe() =>
+        new("thread.wait-address", nameof(EnableM09009Probe), EnableM09009Probe,
+            ProbeRisk.Destructive, "Bounded cooperative wait-address enrollment, wake and off-stack lifetime cleanup.");
+
+    public static ProbeDefinition GetM09010Probe() =>
+        new("thread.local-storage", nameof(EnableM09010Probe), EnableM09010Probe,
+            ProbeRisk.Destructive, "Bounded private FS/user-GS bindings, cooperative transfer and off-stack TLS scrub.");
 
     public static ProbeDefinition GetM06GptPartitionProbe() =>
         new("storage.gpt-partition", nameof(EnableM06GptPartitionProbe), EnableM06GptPartitionProbe,
@@ -863,6 +881,12 @@ public static partial class Probes
                 return true;
             case 55:
                 definition = GetM09006Probe();
+                return true;
+            case 56:
+                definition = GetM09009Probe();
+                return true;
+            case 57:
+                definition = GetM09010Probe();
                 return true;
             default:
                 definition = default;

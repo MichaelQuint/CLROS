@@ -240,6 +240,8 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
             !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_004_",StringComparison.Ordinal) &&
             !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_005_",StringComparison.Ordinal) &&
             !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_006_",StringComparison.Ordinal) &&
+            !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_009_",StringComparison.Ordinal) &&
+            !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_010_",StringComparison.Ordinal) &&
             x.Attribute("Condition")!.Value.Contains("$("+Flag+")",StringComparison.Ordinal)).ToArray();
         Require(errors.Length==76,"eight prerequisites, both directions of 33 conflicts, one first-exit conflict and normal-policy conflict");
         Require(errors.Count(x=>x.Attribute("Condition")?.Value=="'$(EnableM03FirstRealExitBootServicesProbe)' == 'true' and '$(EnableM02UnexpectedVectorPanicProbe)' == 'true'")==1,"exact incoming first-exit conflict");

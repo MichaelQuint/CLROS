@@ -1,5 +1,14 @@
 # Diagnostics
 
+Development profiles `EnableM09009Probe` and `EnableM09010Probe` default false
+and require the same seven owned-exit/APIC parents as the qualified lifecycle
+leaf. They are mutually exclusive with other leaves. Their `M09_009_*` and
+`M09_010_*` records bind every transfer, wait, wake, observation, TLS state,
+tick, cancellation and reap/reuse before final restoration and READY. Strict
+transcript validators reject dropped, duplicated, reordered and corrupted rows.
+[Step1234](../done/step1234.md) records focused checks and freestanding C#
+compilation only; these profiles have no accepted native or guest capture yet.
+
 `EnableM09006Probe` is a qualified default-off Diagnostic lifecycle profile. It selects
 the first-exit/owned/APIC parents and rejects other leaves. Its ordered
 `M09_006_*` rows cover transfers, waits/ticks, retained joins, both cancellation
