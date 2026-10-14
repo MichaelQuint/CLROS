@@ -38,16 +38,27 @@ parser evidence only. No QEMU IRQ/activation receipt is claimed.
 
 [Step1260](../done/step1260.md) can create the exact pinned upstream Hello package
 with `linux hello-package <extracted-evidence-r04> <fresh-artifacts-package-path>`.
-This is host input/producer admission only. The M16-009 QEMU selector continues
-to reject it until a complete actual-Hello transcript validator exists; supplying
-the package or its stdout marker cannot satisfy mechanical signal proof.
+This is host input/producer admission only. Step1265 adds a separate explicit
+M16-009 Hello selector; a package or stdout marker alone cannot satisfy it.
 
 [Step1264](../done/step1264.md) adds `linux hello-program <hello-package>
 <llvm-disassembly>` to check the exact package and complete reviewed instruction
 index. It verifies executable file backing, ordered extents, real decoded syscall
 sites, canonical counts and digest. The result grants no QEMU launch or transcript
-success. Hello still needs its complete syscall/scheduler/raw-output/exit/reap
-validator before the selector can admit it.
+success. Step1265 composes it with the complete protocol validator below.
+
+[Step1265](../done/step1265.md) adds `-LinuxHelloDisassembly <reviewed-dump>` to
+the M16-009 wrapper. Only the exact pinned package/index selects Hello; input
+read locks span build/image/run/validation and output aliases reject. The full
+caller retains original firmware, startup, PCI/APIC, termination and exact
+raw/summary checks. The Hello model requires real main/finalizer/signal-thread
+lifetimes, correct FIFO wait/wake/IRQ accounting, all three original LF-terminated
+stdout writes, exit_group0, cancelled blocked children, three reaps and scrubbed
+ownership. Both startup wake orderings have synthetic controls. Hello alone has
+an 8-MiB raw cap; its three payload LFs are removed only after exact byte checks
+for CRLF-record/summary comparison. Raw byte and physical-line accounting remains
+original. Actual gateway call ordinals now protect every thread/signal tail from
+lost/reordered records. Thirty-nine focused checks pass; no fresh guest runs here.
 
 Development selections `-EnableM09009Probe` and `-EnableM09010Probe` have strict
 profile and transcript admission in [step1234](../done/step1234.md). Their only

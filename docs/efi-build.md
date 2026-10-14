@@ -150,7 +150,7 @@ native object. Invoke `linux hello-package <extracted-evidence-r04>
 publication never replaces an existing file. Exact raw qualification receipts
 and relevant current source hashes must match before output. It preserves the
 upstream ELF and adds explicit bounded manifest/IRQ policy; it starts no builder
-or guest. Current QEMU preflight does not admit this Hello package yet.
+or guest. Step1265 adds explicit pinned Hello preflight below.
 
 [Step1264](../done/step1264.md) checks that package against an immutable reviewed
 instruction index. Produce disassembly of the exact pinned ELF with the existing
@@ -167,7 +167,25 @@ canonical index digest. It parses a frozen LLVM linear disassembly, rather than
 implementing a general x64 decoder. Inspection reports alone have no prepared-
 program authority. Changed/partial/forged boundaries reject even when counts
 match. This command starts no payload, compiler or guest and cannot satisfy the
-still-required actual-Hello transcript/cleanup validator.
+actual-Hello transcript/cleanup validator added in step1265.
+
+[Step1265](../done/step1265.md) adds `-LinuxHelloDisassembly` only for M16-009.
+It selects the exact unchanged Hello package and prepared instruction index;
+without it, the original canonical mechanical selector applies. Both input files
+stay read-locked through the run, and disassembly/output aliases reject before
+build. The future qualification command adds these inputs to the existing leaf:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16009Probe -LinuxElfPackage artifacts/packages/hello.pkg -LinuxHelloDisassembly artifacts/hello.disassembly.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 60 -RequireMarker CLROS_M16_009_READY
+```
+
+All parent and runner checks remain mandatory. The strict Hello leaf binds
+syscalls, FIFO scheduling, IRQ/drain clocks, both parked runtime children, exact
+raw stdout, exit0 and cleanup. Its bounded 8-MiB raw extent and three exact
+payload-LF removals apply only after sealed Hello admission and raw byte checks;
+other firmware framing/size rules remain unchanged. Every current M16-008 CALL
+also requires its actual per-generation `ordinal` suffix. This command has not
+run; focused checks/C# compilation grant no new native or guest acceptance.
 
 The future qualification command is:
 

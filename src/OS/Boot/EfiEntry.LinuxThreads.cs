@@ -369,7 +369,8 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " gs=") && LinuxNumber(state, call.GsBase) && LinuxText(state, " clock=") && LinuxNumber(state, c->Threads.ObservedTicks) &&
                 LinuxText(state, " valueBits=") && LinuxNumber(state, unchecked((ulong)result.Value)) &&
                 LinuxText(state, " action=") && LinuxNumber(state, (uint)result.Action) &&
-                LinuxText(state, " status=") && LinuxNumber(state, (uint)c->Gates[index].Status) && LinuxText(state, "\r\n");
+                LinuxText(state, " status=") && LinuxNumber(state, (uint)c->Gates[index].Status) &&
+                LinuxText(state, " ordinal=") && LinuxNumber(state, c->Gates[index].Calls) && LinuxText(state, "\r\n");
             if (!logged || result.Action == LinuxSyscallAction.Rejected || returning.Action == LinuxSyscallAction.Rejected)
             { if (LinuxNativeAbort(c, index) != 2) return 0; }
             return logged && returning.Action == LinuxSyscallAction.RestoreUser ? (byte)1 : (byte)2;

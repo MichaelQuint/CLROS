@@ -18,6 +18,7 @@ public static partial class QemuTranscripts
     public static void ValidateLinuxSignalTail(string[] tail, byte[] package, ulong startupUserRoot, ulong restoredKernelRoot)
     {
         if (tail is null || package is null) throw new ToolFailure("m16_009_tail_input");
+        tail = ValidateLinuxCallOrdinals(tail);
         string variant = LinuxSignalProofFixture.PackageVariant(package);
         bool irq = LinuxSignalProofFixture.IsIrqVariant(variant);
         bool hardwareFault = LinuxSignalProofFixture.IsFaultVariant(variant);

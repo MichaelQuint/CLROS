@@ -20,14 +20,33 @@ public static class QemuSmoke
         }
         QemuCaptureSession? capture = null;
         FileStream? linuxInput = null;
+        FileStream? helloDisassemblyInput = null;
+        NativeAotHelloProgram? helloProgram = null;
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
+            if (options.LinuxHelloDisassembly.Length != 0 && !plan.IsEnabled("EnableM16009Probe"))
+                throw new ToolFailure("hello_profile_requires_m16_009");
             if (plan.IsEnabled("EnableM16002Probe") && !options.DryRun)
             {
                 linuxInput = new FileStream(Path.GetFullPath(options.LinuxElfPackage, root), FileMode.Open, FileAccess.Read, FileShare.Read);
                 if (linuxInput.Length < 64 || linuxInput.Length > OS.Manifest.LinuxElfPackage.MaximumBytes) throw new ToolFailure("m16_002_package_input_size");
-                if (plan.IsEnabled("EnableM16009Probe")) LinuxSignalProofFixture.RequirePackage(linuxInput);
+                if (plan.IsEnabled("EnableM16009Probe"))
+                {
+                    if (options.LinuxHelloDisassembly.Length != 0)
+                    {
+                        string disassembly = Path.GetFullPath(options.LinuxHelloDisassembly, root);
+                        var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+                        foreach (string path in new[] { options.Image, options.EfiArtifact, options.SerialLog, options.SummaryLog,
+                            options.SummaryLog + ".stderr.log", options.M01RawObservationLog, options.LinuxElfPackage })
+                            if (path.Length != 0 && string.Equals(disassembly, Path.GetFullPath(path, root), comparison))
+                                throw new ToolFailure("hello_disassembly_output_alias");
+                        helloDisassemblyInput = new FileStream(disassembly, FileMode.Open, FileAccess.Read, FileShare.Read);
+                        helloProgram = NativeAotHelloProgram.Read(root, Path.GetFullPath(options.LinuxElfPackage, root),
+                            disassembly);
+                    }
+                    else LinuxSignalProofFixture.RequirePackage(linuxInput);
+                }
                 else if (plan.IsEnabled("EnableM16008Probe")) LinuxThreadProofFixture.RequirePackage(linuxInput);
             }
             output.WriteLine("QEMU_SCRIPT_BOOT_POLICY policy=" + plan.BootPolicy);
@@ -151,11 +170,11 @@ public static class QemuSmoke
                 if (runner.ExitCode != 0) return runner.ExitCode;
                 capture.Validate(); output.WriteLine("TEST_PASS m01.026.raw-observations");
             }
-            return QemuTranscripts.ValidateRun(root, options, plan, runner, output);
+            return QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram);
         }
-        catch (Exception error) when (error is ToolFailure or ArgumentException or IOException or InvalidOperationException)
+        catch (Exception error) when (error is ToolFailure or ArgumentException or IOException or InvalidDataException or InvalidOperationException)
         { output.WriteLine("TEST_FAIL qemu.smoke " + error.Message); return 1; }
-        finally { capture?.Dispose(); linuxInput?.Dispose(); }
+        finally { capture?.Dispose(); linuxInput?.Dispose(); helloDisassemblyInput?.Dispose(); }
     }
 
     public static string? ResolveExecutable(string? requested)

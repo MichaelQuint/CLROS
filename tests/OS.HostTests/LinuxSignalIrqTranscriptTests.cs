@@ -127,7 +127,7 @@ internal static unsafe class LinuxSignalIrqTranscriptTests
         else {Segment(1,5,true);Segment(0,6,true);}
         rows.Add(FormattableString.Invariant($"M16_008_OWNER_END reaped=2 transfers={transfers} irqs={epoch} exit=42 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained"));
         rows.AddRange(["M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true","CLROS_M16_009_READY","TEST_PASS m16-009"]);
-        return rows.ToArray();
+        return LinuxCallOrdinalTests.Annotate(rows);
     }
     private static ulong InitialStack(byte[] package)
     {

@@ -93,6 +93,6 @@ internal static class LinuxSignalFaultTranscriptTests
         if (variant=="FaultFatal") AddFault();
         rows.AddRange(original.TakeLast(7).Select(r=>r.StartsWith("M16_008_OWNER_END ",StringComparison.Ordinal) ?
             r.Replace("exit=42 ","exit="+F.ExpectedExitCode(variant)+" ",StringComparison.Ordinal) : r));
-        return rows.ToArray();
+        return LinuxCallOrdinalTests.Annotate(rows);
     }
 }

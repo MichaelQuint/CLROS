@@ -1,5 +1,14 @@
 # Diagnostics
 
+[Step1265](../done/step1265.md) appends `ordinal=<actual gateway Calls>` to each
+`M16_008_CALL`. Every thread/signal decoder requires contiguous per-generation
+ordinals before its original ABI checks; new generations restart at one. The
+Hello selector additionally checks its complete protocol and all 72 original
+stdout bytes across three raw write envelopes. Its payload LF bytes are data,
+followed by the kernel CRLF; normalization occurs only after byte validation.
+Older captures lack the current ordinal/cleanup schema and keep historical scope.
+No new native publication or guest diagnostic is qualified by this development step.
+
 [Step1263](../done/step1263.md) extends the development M16-008/009 terminal
 `M16_008_OWNER_END` row with `userReserved=0 userBacked=0` before
 `process=drained` and `initialStack=zero` before `reservation=retained`. These

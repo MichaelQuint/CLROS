@@ -5,7 +5,7 @@ namespace OS.Tooling;
 public static partial class QemuTranscripts
 {
     public static void AssertM03AcpiBootstrapTranscript(string path, bool firstRealExit = false, bool firmwareRevocation = false,
-        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false, bool apicSetup = false, bool virtqueueInterrupt = false, bool virtioBlockQueueSetup = false, bool virtioBlockRead = false, bool liveBlockContract = false, bool gptPartition = false, bool primaryHeaderFault = false, bool fatRead = false, bool packageRead = false, string packageVariant = "Intact", bool blockMsix = false, bool blockMsixPollingRecovery = false, bool virtioNet = false, bool arpReceive = false, string linuxElfPackagePath = "", bool workloadServiceLoop = false, bool linuxStartup = false, bool linuxSyscalls = false, string linuxSyscallNegativeVariant = "", bool linuxMemory = false, string linuxMemoryNegativeVariant = "", bool linuxDescriptors = false, bool cooperativeSwitch = false, bool schedulerTimer = false, bool kernelThreads = false, bool waitAddress = false, bool privateTls = false, bool linuxThreads = false, bool linuxSignals = false)
+        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false, bool apicSetup = false, bool virtqueueInterrupt = false, bool virtioBlockQueueSetup = false, bool virtioBlockRead = false, bool liveBlockContract = false, bool gptPartition = false, bool primaryHeaderFault = false, bool fatRead = false, bool packageRead = false, string packageVariant = "Intact", bool blockMsix = false, bool blockMsixPollingRecovery = false, bool virtioNet = false, bool arpReceive = false, string linuxElfPackagePath = "", bool workloadServiceLoop = false, bool linuxStartup = false, bool linuxSyscalls = false, string linuxSyscallNegativeVariant = "", bool linuxMemory = false, string linuxMemoryNegativeVariant = "", bool linuxDescriptors = false, bool cooperativeSwitch = false, bool schedulerTimer = false, bool kernelThreads = false, bool waitAddress = false, bool privateTls = false, bool linuxThreads = false, bool linuxSignals = false, NativeAotHelloProgram? helloProgram = null)
     {
         Need(!cooperativeSwitch || !kernelThreads && !waitAddress && !privateTls && firstRealExit && ownedSurvival && !ownedPanic && !normalBoot && !firmwareRevocation &&
             !physicalMapping && !ownedAcpiSelection && !monotonicClock && !pciEnumeration && !barDma &&
@@ -68,7 +68,8 @@ public static partial class QemuTranscripts
         if (negativeMemory) terminal = "TEST_FAIL m16-006 user-boundary-terminated status=1\r\n";
         if (negativeSyscall) terminal = "TEST_FAIL m16-005 user-boundary-terminated status=" +
             (linuxSyscallNegativeVariant is "PrivilegedFault" or "KernelReadFault" ? 1 : 5) + "\r\n";
-        string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi", virtioBlockQueueSetup && !primaryHeaderFault);
+        Need(helloProgram is null || linuxSignals, "hello_requires_signal_profile");
+        string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi", virtioBlockQueueSetup && !primaryHeaderFault, helloProgram);
         Need(!linuxStartup || linuxElfPackagePath.Length != 0 && firstRealExit && ownedSurvival && !normalBoot && !firmwareRevocation, "m16_004_profile_invalid");
         Need(!linuxSyscalls || linuxStartup && workloadServiceLoop, "m16_005_profile_invalid");
         if (linuxThreads)
@@ -82,7 +83,14 @@ public static partial class QemuTranscripts
             string readback = lines[QemuContracts.M03OwnedSubsystemMarkers.Count + 7 + 4];
             Need(readback.EndsWith(restoredSuffix, StringComparison.Ordinal), "m16_008_parent_readback");
             var kernel = ReadRecord(readback[..^restoredSuffix.Length], "M16_004_READBACK", "old:dec");
-            if (linuxSignals) ValidateLinuxSignalTail(lines[start..], package, tables["root"], kernel["old"]);
+            if (helloProgram is not null)
+            {
+                byte[] raw = File.ReadAllBytes(path);
+                int rawStart = raw.AsSpan().IndexOf("TEST_START m16-009\r\n"u8);
+                Need(rawStart >= 0, "hello_raw_leaf");
+                ValidateLinuxHelloTail(helloProgram.SourceRoot, lines[start..], package, helloProgram, raw.AsSpan(rawStart), tables["root"], kernel["old"]);
+            }
+            else if (linuxSignals) ValidateLinuxSignalTail(lines[start..], package, tables["root"], kernel["old"]);
             else ValidateLinuxThreadTail(lines[start..], package, tables["root"], kernel["old"]);
             string[] parents = ValidateServiceLoopTail(lines[..parentsEnd], true);
             parents = ValidateLinuxStartupTail(parents, package);

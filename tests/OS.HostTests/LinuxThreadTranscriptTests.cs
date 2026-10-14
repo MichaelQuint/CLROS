@@ -212,7 +212,7 @@ internal static class LinuxThreadTranscriptTests
         if (shutdown) { Exit(c); Supervisor(c,4,8,0,1); Reap(c); }
         rows.Add(FormattableString.Invariant($"M16_008_OWNER_END reaped=2 transfers={(shutdown ? 8 : 6)} irqs={ticks} exit=42 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained"));
         rows.Add("M16_008_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
-        rows.Add("CLROS_M16_008_READY"); rows.Add("TEST_PASS m16-008"); return rows.ToArray();
+        rows.Add("CLROS_M16_008_READY"); rows.Add("TEST_PASS m16-008"); return LinuxCallOrdinalTests.Annotate(rows);
     }
 
     private static string[] Synthetic(int ticks = 3, ulong pid = 17, ulong readFd = 7, ulong writeFd = 12)
@@ -258,7 +258,7 @@ internal static class LinuxThreadTranscriptTests
         Call(false, 24); Exit(p); Supervisor(p, 2, 52, 0, 1); Reap(p);
         rows.Add(FormattableString.Invariant($"M16_008_OWNER_END reaped=5 transfers=52 irqs={ticks} exit=42 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained"));
         rows.Add("M16_008_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
-        rows.Add("CLROS_M16_008_READY"); rows.Add("TEST_PASS m16-008"); return rows.ToArray();
+        rows.Add("CLROS_M16_008_READY"); rows.Add("TEST_PASS m16-008"); return LinuxCallOrdinalTests.Annotate(rows);
     }
 
     private readonly record struct CallFrame(ulong Nr, ulong A0, ulong A1, ulong A2, ulong A3, ulong A4, ulong A5, ulong Rip, int FdOffset);

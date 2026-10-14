@@ -21,9 +21,10 @@ public sealed class NativeAotHelloProgram
     public const string IndexSha256 = "13A2F6FF65B4A2EE0137EDE2C59CFD174D32C91656B54E7E3F09794D49C6F0FB";
     private const int MaximumDisassemblyBytes = 20 * 1024 * 1024;
     private readonly ulong[] instructions, syscallReturns;
+    internal string SourceRoot { get; }
 
-    private NativeAotHelloProgram(Parsed parsed)
-    { instructions = parsed.Instructions; syscallReturns = parsed.Returns; }
+    private NativeAotHelloProgram(Parsed parsed, string root)
+    { instructions = parsed.Instructions; syscallReturns = parsed.Returns; SourceRoot = Path.GetFullPath(root); }
 
     /// <summary>Tests an exact decoded instruction start, excluding operand bytes and gaps.</summary>
     public bool IsInstruction(ulong address) => Array.BinarySearch(instructions, address) >= 0;
@@ -47,7 +48,7 @@ public sealed class NativeAotHelloProgram
         foreach (ulong address in parsed.Returns)
             Require(Array.BinarySearch(parsed.Instructions, address) >= 0, "hello_syscall_continuation");
         NativeAotHelloGuest.RequireCurrentSources(root);
-        return new(parsed);
+        return new(parsed, root);
     }
 
     /// <summary>

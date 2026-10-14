@@ -103,7 +103,7 @@ internal static class LinuxSignalTranscriptTests
             "M16_008_REAP old=4294967297 next=8589934593 context=zero stack=zero slot=zero",
             "M16_008_OWNER_END reaped=1 transfers=2 irqs=0 exit=" + (variant.StartsWith("Bad",StringComparison.Ordinal) ? "139" : "42") + " userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained",
             "M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true", "CLROS_M16_009_READY", "TEST_PASS m16-009"]);
-        return rows.ToArray();
+        return LinuxCallOrdinalTests.Annotate(rows);
     }
 
     internal static ulong Field(string row,string key) => ulong.Parse(row.Split(' ').Single(x => x.StartsWith(key + "=",StringComparison.Ordinal))[(key.Length + 1)..],CultureInfo.InvariantCulture);

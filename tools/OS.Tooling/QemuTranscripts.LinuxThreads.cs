@@ -16,6 +16,7 @@ public static partial class QemuTranscripts
     public static void ValidateLinuxThreadTail(string[] tail, byte[] package, ulong startupUserRoot, ulong restoredKernelRoot)
     {
         if (tail is null || package is null) throw new ToolFailure("m16_008_tail_input");
+        tail = ValidateLinuxCallOrdinals(tail);
         string variant = LinuxThreadProofFixture.PackageVariant(package);
         Need(tail.Length is >= 30 and <= 298, "m16_008_tail_inventory");
         int position = 0;

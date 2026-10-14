@@ -217,9 +217,9 @@ pipe read until exit_group, with no poll/ppoll call in that trace.
 
 The actual 1,241,768-byte ELF remains unchanged. Four focused host cases, eleven
 payload ancestors, real-input publication and eight separate receipt/producer/ELF
-mutation controls pass. Current QEMU preflight still admits only mechanical
-inputs: a complete real-Hello syscall/scheduler/output/cleanup validator and
-actual execution remain required. No Hello, signal-thread shutdown, suspension,
+mutation controls pass. At that step QEMU admitted only mechanical inputs;
+step1265 adds the explicit Hello selector and complete protocol validator.
+Actual execution remains required. No Hello, signal-thread shutdown, suspension,
 GC/ThreadPool or Kestrel guest acceptance is added.
 
 [Step1264](../done/step1264.md) adds immutable host instruction admission for
@@ -230,7 +230,17 @@ also find two operand-byte matches and cannot supply syscall authority. A
 value-only inspection report accepts no program; only the pinned factory creates
 the lookup used by future transcript checks. The actual package/index and five
 real-input mutation controls pass, alongside eight focused host checks. This
-does not admit Hello through QEMU or validate its scheduler/output/exit protocol.
+did not itself admit Hello through QEMU or validate its scheduler/output/exit protocol.
+
+[Step1265](../done/step1265.md) wires explicit pinned Hello admission through the
+existing M16-009 wrapper and complete firmware/startup/PCI/APIC/runner path. The
+model checks used syscall arguments, mapped memory/stack/TLS, three real thread
+generations, FIFO waits/wakes/IRQs, original stdout bytes and exit-group cancellation
+with three off-stack reaps and terminal cleanup. Both startup wake orderings have
+synthetic controls. Actual per-generation gateway call ordinals reject lost or
+reordered call records across all thread/signal decoders. Package and disassembly
+read locks span the run. Thirty-nine final focused checks and no-stdlib C# compile
+pass; no native publication, guest or full-host qualification is added.
 
 [Step1261](../done/step1261.md) implements the separate .NET 11/C# 14
 `apps/NativeAotSuspensionSmoke` consumer required after unchanged Hello. It uses
