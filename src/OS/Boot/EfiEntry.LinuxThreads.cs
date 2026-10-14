@@ -302,6 +302,10 @@ public static unsafe partial class EfiEntry
             image->Frame = *frame; image->Value = result.Value;
             state->LinuxUserRoot = state->LinuxMemory.Root;
             byte* data = (byte*)state->LinuxSyscallData;
+            if (result.Action == LinuxSyscallAction.RestoreUser &&
+                !X64LinuxUserTransition.RestoreActiveUserImage(data, X64LinuxUserTransition.DataBytes, image,
+                    X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask, c->User))
+            { if (LinuxNativeAbort(c, index) != 2) return 0; return 2; }
             *(long*)(data + X64LinuxUserTransition.ValueOffset) = result.Value;
             *(ulong*)(data + X64LinuxUserTransition.OutcomeOffset) = (ulong)result.Action;
             c->Actions[index] = (uint)result.Action;
@@ -324,7 +328,7 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " status=") && LinuxNumber(state, (uint)c->Gates[index].Status) && LinuxText(state, "\r\n");
             if (!logged || result.Action == LinuxSyscallAction.Rejected)
             { if (LinuxNativeAbort(c, index) != 2) return 0; }
-            return logged && result.Action == LinuxSyscallAction.Return ? (byte)1 : (byte)2;
+            return logged && result.Action is LinuxSyscallAction.Return or LinuxSyscallAction.RestoreUser ? (byte)1 : (byte)2;
         }
 
         private static byte LinuxNativeAbort(LinuxNativeControl* c, uint index)

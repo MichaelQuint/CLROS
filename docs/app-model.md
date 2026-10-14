@@ -75,12 +75,23 @@ signal-state owner shares 64 dispositions across the process and binds each
 alternate stack to its actual kernel generation. Shared-VM clone clears the
 child's alternate stack; actual reap scrubs its metadata. A valid update survives
 an old-state copyout EFAULT, matching the pinned Linux ABI. The gateway routes
-these calls to real handlers; an unattached owner and unimplemented delivery,
-tgkill and sigreturn still return ENOSYS. Eight new host controls and the
+these calls to real handlers; an unattached owner retains ENOSYS. Eight host controls and the
 affected focused regressions pass; the M16-008 no-stdlib C# closure compiles.
-Native M16-008 leaves signal attachment disabled. Pending delivery, interrupted
-waits/restart, actual frames/return, faults/activation, the M16-009 profile and
-unchanged Hello/suspension qualification remain unfinished.
+Native M16-008 leaves signal attachment disabled.
+
+[Step1249](../done/step1249.md) adds checked current-generation delivery and
+rt_sigreturn on that same owner. The 440-byte Linux x64 frame references a
+separate aligned legacy 512-byte FX image, preserves the red zone, supports
+alternate stacks/autodisarm, masks and four nested frames, and accepts validated
+user register/FP/mask edits. An explicit syscall15 RestoreUser result installs
+the complete user image into the active gateway. Malformed frames stage owned
+SIGSEGV shutdown. This bounded profile requires fixed selectors, flags6 and
+legacy FX storage with zero software-reserved bytes; XSAVE, legacy selector
+repair and fabricated return frames outside the owned nesting are unsupported.
+Pending selection/tgkill, interrupted waits/restart, asynchronous user faults/
+activation, the M16-009 profile and unchanged Hello/suspension qualification
+remain unfinished. No native path calls DeliverSignal or attaches signal state
+yet; the new frame and full-image bridge have focused host/source evidence only.
 
 This remains focused host/source and freestanding C# evidence. No native worker,
 timer callback or mechanical ELF has executed. Original native/stack review,

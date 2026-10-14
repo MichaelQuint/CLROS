@@ -8,7 +8,7 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// IRQ-off BSP owner retains all metadata, prepared kernel entries and user
 /// mappings. No scheduler, native transfer, allocation or user stack/TLS freeing
 /// is supplied here. Restore the full CPL3 envelope before committing kernel
-/// exit/reap. Signal delivery and process clone/fork are unsupported. Futex and
+/// exit/reap. Asynchronous signal capture and process clone/fork are unsupported. Futex and
 /// blocking pipes use explicit admission; unsupported calls return ENOSYS.
 /// </summary>
 public unsafe partial struct LinuxThreadServices
@@ -128,7 +128,8 @@ public unsafe partial struct LinuxThreadServices
     /// <summary>Attach process actions and per-thread alternate-stack metadata
     /// before Start. Exact copy capabilities, disjoint supervisor storage and
     /// external IRQ-off ownership must match this process. Registration is real
-    /// state; delivery/tgkill/sigreturn remain unsupported in this startup slice.
+    /// state; checked current-thread frames/return use the same actual owner.
+    /// Pending/tgkill and asynchronous delivery require separate integration.
     /// The caller retains the state until all actual generations reap and Release
     /// detaches; only then may LinuxSignalServices.End scrub it.</summary>
     public bool EnableSignals(ulong key, ulong flags, LinuxSignalServices.State* signals)
@@ -199,6 +200,7 @@ public unsafe partial struct LinuxThreadServices
             case 13: case 131:
                 result = _signals == null ? Unsupported : LinuxSignalServices.Dispatch(_signals, _self, slot->Kernel, frame); break;
             case 14: result = SignalMask(slot, frame); break;
+            case 15: return SignalReturn(key, flags, slot, ref frame);
             case 39: result = _owner.ProcessId; break;
             case 56: result = Clone(flags, slot, frame); break;
             case 60:

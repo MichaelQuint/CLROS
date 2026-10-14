@@ -45,12 +45,14 @@ validator enforces each package's exact calls, peer-close wakeups, timer and
 cancelled-child exit order. Close-only cases require no IRQ; Threads and
 PipeShutdown require actual HPET timeout records. All remain unexecuted inputs.
 
-[Step1248](../done/step1248.md) links the signal startup owner required by the
-thread dispatcher's optional rt_sigaction/sigaltstack capability and refreshes
-the exact source/project inventories. The M16-008 no-stdlib C# build passes;
-its native owner does not attach signal state. There is no M16-009 build/runner
-switch yet. Pending delivery, frame/return and native/guest qualification remain
-required before signal or unchanged Hello acceptance.
+[Step1248](../done/step1248.md) links the optional signal startup owner.
+[Step1249](../done/step1249.md) adds its checked frame/return dependencies and an
+explicit full user GPR/FX install for syscall15 in the active gateway. The
+M16-008 no-stdlib C# closure compiles; its native owner does not attach signal
+state or call DeliverSignal. There is no M16-009 build/runner switch yet.
+Pending selection/tgkill, interrupted waits, asynchronous capture and original
+native/guest qualification remain required before signal or unchanged Hello
+acceptance. Frame and bridge host checks supply no execution evidence.
 
 The future qualification command is:
 

@@ -167,10 +167,28 @@ public static unsafe class X64LinuxUserTransition
     {
         if (!ImageBuffers(data, dataBytes, image, imageBytes) || (*(ulong*)(data + PhaseOffset) != 0 && *(ulong*)(data + PhaseOffset) != 2) ||
             !LinuxSyscallGateway.ValidateReturn(image->Frame, user) || !UserFx(image->Fx, observedMxcsrMask)) return false;
+        WriteUserImage(data, image);
+        return true;
+    }
+
+    /// <summary>Replace the complete user image at an active syscall callback
+    /// after an authenticated syscall15 RestoreUser result. The IRQ-off native
+    /// owner proves this exact fixed gateway, kernel root and current generation;
+    /// this is not an arbitrary inactive install. Only phase1 and validated user
+    /// mappings/FX state are admitted. Supervisor restoration bytes stay intact.</summary>
+    public static bool RestoreActiveUserImage(byte* data, uint dataBytes, UserImage* image, uint imageBytes,
+        uint observedMxcsrMask, LinuxSyscallAccess user)
+    {
+        if (!ImageBuffers(data, dataBytes, image, imageBytes) || *(ulong*)(data + PhaseOffset) != 1 ||
+            !LinuxSyscallGateway.ValidateReturn(image->Frame, user) || !UserFx(image->Fx, observedMxcsrMask)) return false;
+        WriteUserImage(data, image);
+        return true;
+    }
+    private static void WriteUserImage(byte* data, UserImage* image)
+    {
         *(LinuxSyscallFrame*)(data + FrameOffset) = image->Frame; *(long*)(data + ValueOffset) = image->Value;
         for (uint i = 0; i < 14; i++) *(ulong*)(data + 0x160 + i * 8) = image->Gpr[i];
         for (uint i = 0; i < 512; i++) data[UserFxOffset + i] = image->Fx[i];
-        return true;
     }
     private static bool ImageStorage(UserImage* image, uint bytes) => sizeof(UserImage) == UserImageBytes &&
         Buffer((byte*)image, bytes, UserImageBytes, 8);

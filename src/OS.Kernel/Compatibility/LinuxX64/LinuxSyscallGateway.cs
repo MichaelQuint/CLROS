@@ -2,7 +2,7 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public enum LinuxSyscallGateStatus : byte
 { Uninitialized, Active, Exited, InvalidAdmission, AlreadyConsumed, InvalidReturn, CallLimit, CopyFailed, SinkFailed, Blocked }
-public enum LinuxSyscallAction : byte { Rejected, Return, Terminate, Blocked, ThreadExited }
+public enum LinuxSyscallAction : byte { Rejected, Return, Terminate, Blocked, ThreadExited, RestoreUser }
 public enum LinuxUserPageAccess : byte { None = 0, Read = 1, Write = 2, Execute = 4 }
 
 /// <summary>Captured Linux x64 syscall values; RCX/R11 supply return RIP/flags.</summary>
@@ -18,8 +18,9 @@ public readonly struct LinuxSyscallResult
     public readonly long Value;
     public readonly uint ExitCode;
     /// <summary>Result from a separately admitted service. Blocked/ThreadExited
-    /// require native cleanup before the scheduler parks/reaps its kernel worker;
-    /// the gateway validates the action and never performs that transfer itself.</summary>
+    /// require native cleanup before the scheduler parks/reaps its kernel worker.
+    /// RestoreUser is exclusively a validated syscall15 return; the native owner
+    /// must install its complete saved GPR/FX image, not just Frame/Value.</summary>
     public LinuxSyscallResult(LinuxSyscallAction action, long value = 0, uint exitCode = 0)
     { Action = action; Value = value; ExitCode = exitCode; }
 }
@@ -41,7 +42,7 @@ public unsafe struct LinuxSyscallAccess
     public delegate* unmanaged<void*, LinuxSyscallFrame*, long> Descriptors;
     // Explicit M16-008 thread AND descriptor extension. It wraps every fd
     // mutation so pipe readiness cannot bypass the actual thread wait owner.
-    // Only ARCH_SET_FS may change the captured
+    // ARCH_SET_FS and explicit checked syscall15 RestoreUser may change the
     // return frame; all other return/control fields remain immutable. A blocked
     // result is a staged scheduler wait, not a fabricated Linux return value.
     public delegate* unmanaged<void*, LinuxSyscallFrame*, LinuxSyscallResult> Threads;
@@ -144,7 +145,7 @@ public static unsafe class LinuxSyscallGateway
             Clear(state.Admission.Scratch, state.Admission.ScratchBytes);
             if (!ThreadFrame(original, frame, result) || !ValidateReturn(original, state.Access) || !ValidateReturn(frame, state.Access))
             { frame = original; return Stop(ref state, LinuxSyscallGateStatus.InvalidReturn); }
-            bool valid = result.Action == LinuxSyscallAction.Return && result.ExitCode == 0 ||
+            bool valid = (result.Action == LinuxSyscallAction.Return || result.Action == LinuxSyscallAction.RestoreUser && original.Number == 15) && result.ExitCode == 0 ||
                 result.Action == LinuxSyscallAction.Blocked && result.Value == 0 && result.ExitCode == 0 && frame.Number is 0 or 1 or 202 ||
                 (result.Action == LinuxSyscallAction.ThreadExited || result.Action == LinuxSyscallAction.Terminate) && result.Value == 0;
             if (!valid) return Stop(ref state, LinuxSyscallGateStatus.InvalidAdmission);
@@ -266,8 +267,11 @@ public static unsafe class LinuxSyscallGateway
         f.Argument3 == 0 && f.Argument4 == 0 && f.Argument5 == 0 && f.Rip == 0 && f.Rsp == 0 && f.Rflags == 0 && f.FsBase == 0 && f.GsBase == 0;
     private static void Clear(byte* bytes, uint count) { for (uint i = 0; i < count; i++) bytes[i] = 0; }
     private static bool DescriptorCall(ulong number) => number is 0 or 1 or 2 or 3 or 5 or 8 or 16 or 17 or 20 or 22 or 72 or 257 or 293;
-    private static bool ThreadCall(ulong number) => number is 13 or 14 or 24 or 35 or 39 or 56 or 60 or 131 or 158 or 186 or 202 or 218 or 231 or 273 or 274;
+    private static bool ThreadCall(ulong number) => number is 13 or 14 or 15 or 24 or 35 or 39 or 56 or 60 or 131 or 158 or 186 or 202 or 218 or 231 or 273 or 274;
     private static bool ThreadFrame(LinuxSyscallFrame before, LinuxSyscallFrame after, LinuxSyscallResult result) =>
+        result.Action == LinuxSyscallAction.RestoreUser
+        ? before.Number == 15 && after.Number == 15 && before.FsBase == after.FsBase && before.GsBase == after.GsBase
+        :
         before.Number == after.Number && before.Argument0 == after.Argument0 && before.Argument1 == after.Argument1 && before.Argument2 == after.Argument2 &&
         before.Argument3 == after.Argument3 && before.Argument4 == after.Argument4 && before.Argument5 == after.Argument5 &&
         before.Rip == after.Rip && before.Rsp == after.Rsp && before.Rflags == after.Rflags && before.GsBase == after.GsBase &&

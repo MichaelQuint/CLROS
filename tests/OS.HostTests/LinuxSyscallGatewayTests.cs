@@ -38,6 +38,11 @@ internal static unsafe class LinuxSyscallGatewayTests
             case 10: frame->FsBase = 0x403008; return new(LinuxSyscallAction.Return);
             case 11: frame->GsBase = 0x403000; return new(LinuxSyscallAction.Return);
             case 12: return new(LinuxSyscallAction.Return, m->ThreadValue);
+            case 13: frame->Rip = 0x400180; frame->Argument0 = 0x1234; return new(LinuxSyscallAction.RestoreUser, 77);
+            case 14: frame->FsBase = 0x403008; return new(LinuxSyscallAction.RestoreUser, 77);
+            case 15: return new(LinuxSyscallAction.RestoreUser, 77, exitCode: 1);
+            case 16: frame->Number = 39; return new(LinuxSyscallAction.RestoreUser, 77);
+            case 17: frame->Rip = 0xffff800000001000; return new(LinuxSyscallAction.RestoreUser, 77);
         }
         if (frame->Number == 158) { frame->FsBase = frame->Argument1; return new(LinuxSyscallAction.Return); }
         return new(LinuxSyscallAction.Return, 23);
@@ -49,6 +54,22 @@ internal static unsafe class LinuxSyscallGatewayTests
         admission.MaximumCalls = LinuxSyscallGateway.MaximumThreadCalls;
         LinuxSyscallGateState state = default;
         HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref state, admission, access)); return state;
+    }
+
+    [HostTest("linux.signal gateway restores only syscall15 with immutable thread bases valid user targets and zero exit code")]
+    private static void SignalReturnControls()
+    {
+        byte* scratch = stackalloc byte[64];
+        for (int variant = 0; variant < 6; variant++)
+        {
+            Model model = new() { ThreadMode = variant < 2 ? 13U : (uint)variant + 12 }; var state = ThreadGate(&model,scratch);
+            var frame = Frame(); frame.Number = variant == 1 ? 39UL : 15UL;
+            var result = LinuxSyscallGateway.Dispatch(ref state,ref frame);
+            if (variant == 0)
+                HostCheck.True(result.Action == LinuxSyscallAction.RestoreUser && result.Value == 77 && frame.Rip == 0x400180 &&
+                    frame.Argument0 == 0x1234 && state.Status == LinuxSyscallGateStatus.Active && state.BytesWritten == 0);
+            else HostCheck.True(result.Action == LinuxSyscallAction.Terminate && state.Status is LinuxSyscallGateStatus.InvalidReturn or LinuxSyscallGateStatus.InvalidAdmission);
+        }
     }
 
     [HostTest("m16-008 gateway admits explicit thread callback only with complete prerequisites and bounded budget")]

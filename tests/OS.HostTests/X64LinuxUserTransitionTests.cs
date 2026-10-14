@@ -405,7 +405,7 @@ internal static unsafe class X64LinuxUserTransitionTests
             HostCheck.True(new ReadOnlySpan<byte>(data + 0x400, 512).SequenceEqual(new ReadOnlySpan<byte>(image->Fx, 512)));
             HostCheck.True(new ReadOnlySpan<byte>(storage + 728, 4096 - 728).IndexOfAnyExcept((byte)0xa5) == -1);
             byte[] imageBefore = new ReadOnlySpan<byte>(storage, 4096).ToArray();
-            foreach (ulong phase in new ulong[] { 0, 2 })
+            foreach (ulong phase in new ulong[] { 0, 1, 2 })
             {
                 new Span<byte>(data, (int)Transition.DataBytes).Fill(0x5a);
                 HostCheck.True(Transition.Prepare(data, Transition.DataBytes, Plan(), gdt, 4096, idt, 4096));
@@ -415,7 +415,9 @@ internal static unsafe class X64LinuxUserTransitionTests
                 new ReadOnlySpan<byte>(&image->Frame, 96).CopyTo(expected.AsSpan(0x100, 96));
                 new ReadOnlySpan<byte>(image->Gpr, 112).CopyTo(expected.AsSpan(0x160, 112));
                 new ReadOnlySpan<byte>(image->Fx, 512).CopyTo(expected.AsSpan(0x400, 512));
-                HostCheck.True(Transition.InstallUserImage(data, Transition.DataBytes, image, Transition.UserImageBytes, 0xffff, access));
+                HostCheck.True(phase == 1
+                    ? Transition.RestoreActiveUserImage(data, Transition.DataBytes, image, Transition.UserImageBytes, 0xffff, access)
+                    : Transition.InstallUserImage(data, Transition.DataBytes, image, Transition.UserImageBytes, 0xffff, access));
                 // Whole-buffer equality includes the kernel header/FP image, selectors,
                 // private descriptors, guard sentinel and every kernel-stack byte.
                 HostCheck.True(new ReadOnlySpan<byte>(data, (int)Transition.DataBytes).SequenceEqual(expected));
@@ -435,15 +437,16 @@ internal static unsafe class X64LinuxUserTransitionTests
             new Span<byte>(storage, 4096).Fill(0xa5);
             var image = (Transition.UserImage*)storage; *(ulong*)(data + 0x1f0) = 1;
             HostCheck.True(Transition.CaptureUserImage(data, Transition.DataBytes, image, Transition.UserImageBytes, 0xffff, access));
-            foreach (bool capture in new[] { true, false })
-            foreach (ulong phase in capture ? new ulong[] { 0, 2, 3, ulong.MaxValue } : new ulong[] { 1, 3, ulong.MaxValue })
+            foreach (int mode in new[] { 0, 1, 2 })
+            foreach (ulong phase in mode is 0 or 2 ? new ulong[] { 0, 2, 3, ulong.MaxValue } : new ulong[] { 1, 3, ulong.MaxValue })
             {
                 *(ulong*)(data + 0x1f0) = phase;
                 byte[] before = new ReadOnlySpan<byte>(data, (int)Transition.DataBytes).ToArray();
                 byte[] imageBefore = new ReadOnlySpan<byte>(storage, 4096).ToArray();
-                bool accepted = capture
+                bool accepted = mode == 0
                     ? Transition.CaptureUserImage(data, Transition.DataBytes, image, Transition.UserImageBytes, 0xffff, access)
-                    : Transition.InstallUserImage(data, Transition.DataBytes, image, Transition.UserImageBytes, 0xffff, access);
+                    : mode == 1 ? Transition.InstallUserImage(data, Transition.DataBytes, image, Transition.UserImageBytes, 0xffff, access)
+                    : Transition.RestoreActiveUserImage(data, Transition.DataBytes, image, Transition.UserImageBytes, 0xffff, access);
                 HostCheck.True(!accepted);
                 HostCheck.True(new ReadOnlySpan<byte>(data, (int)Transition.DataBytes).SequenceEqual(before));
                 HostCheck.True(new ReadOnlySpan<byte>(storage, 4096).SequenceEqual(imageBefore));
@@ -458,14 +461,15 @@ internal static unsafe class X64LinuxUserTransitionTests
         byte* data = Allocate(Transition.DataBytes), storage = Allocate(4096); var image = (Transition.UserImage*)storage;
         try
         {
-            foreach (bool capture in new[] { true, false })
+            foreach (int mode in new[] { 0, 1, 2 })
             for (int variant = 0; variant < 19; variant++)
             {
+                bool capture = mode == 0;
                 ulong denied = ulong.MaxValue; var access = ImageAccess(&denied);
                 new Span<byte>(data, (int)Transition.DataBytes).Fill(0x5a); new Span<byte>(storage, 4096).Fill(0xa5);
                 GatewayUser(data, 0xffff); *(ulong*)(data + 0x1f0) = 1;
                 HostCheck.True(Transition.CaptureUserImage(data, Transition.DataBytes, image, Transition.UserImageBytes, 0xffff, access));
-                *(ulong*)(data + 0x1f0) = capture ? 1UL : 2UL;
+                *(ulong*)(data + 0x1f0) = mode == 1 ? 2UL : 1UL;
                 byte* gateway = data; Transition.UserImage* target = image; uint dataBytes = Transition.DataBytes, imageBytes = Transition.UserImageBytes, mask = 0xffff;
                 LinuxSyscallFrame* frame = capture ? (LinuxSyscallFrame*)(data + 0x100) : &image->Frame;
                 byte* fx = capture ? data + 0x400 : image->Fx;
@@ -495,7 +499,8 @@ internal static unsafe class X64LinuxUserTransitionTests
                 byte[] imageBefore = new ReadOnlySpan<byte>(storage, 4096).ToArray();
                 bool accepted = capture
                     ? Transition.CaptureUserImage(gateway, dataBytes, target, imageBytes, mask, access)
-                    : Transition.InstallUserImage(gateway, dataBytes, target, imageBytes, mask, access);
+                    : mode == 1 ? Transition.InstallUserImage(gateway, dataBytes, target, imageBytes, mask, access)
+                    : Transition.RestoreActiveUserImage(gateway, dataBytes, target, imageBytes, mask, access);
                 HostCheck.True(!accepted, (capture ? "capture " : "install ") + variant);
                 HostCheck.True(new ReadOnlySpan<byte>(data, (int)Transition.DataBytes).SequenceEqual(before));
                 HostCheck.True(new ReadOnlySpan<byte>(storage, 4096).SequenceEqual(imageBefore));

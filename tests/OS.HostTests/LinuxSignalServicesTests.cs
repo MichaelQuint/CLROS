@@ -8,7 +8,7 @@ internal static unsafe class LinuxSignalServicesTests
 {
     private const ulong Key = LinuxThreadServicesTests.Key, SignalKey = 0x7369676e616c6d64;
     private const ulong Base = LinuxThreadServicesTests.UserBase, Input = Base + 0x1200, Output = Base + 0x1300;
-    private sealed class Owner : IDisposable
+    internal sealed class Owner : IDisposable
     {
         internal readonly Model Thread = new(futex: true);
         internal Signals.State* State = (Signals.State*)NativeMemory.AlignedAlloc(4096,4096);
@@ -167,7 +167,7 @@ internal static unsafe class LinuxSignalServicesTests
             var result = LinuxSyscallGateway.Dispatch(ref gate,ref frame);
             HostCheck.Equal(LinuxSyscallAction.Return,result.Action); HostCheck.Equal(0L,result.Value);
         }
-        foreach (ulong number in new[] { 15UL,62UL,234UL }) HostCheck.Equal(-38L,o.Call(number));
+        foreach (ulong number in new[] { 62UL,234UL }) HostCheck.Equal(-38L,o.Call(number));
     }
 
     [HostTest("linux.signal-startup optional attachment preserves original unimplemented signal behavior")]

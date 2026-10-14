@@ -180,7 +180,9 @@ public static class EfiProjectAdmission
             @"..\OS.Kernel\Threading\X64TimerInterrupt.cs|Threading\X64TimerInterrupt.cs" => timer,
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs|Compatibility\LinuxX64\LinuxSignalMask.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.cs|Compatibility\LinuxX64\LinuxSignalServices.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.Frames.cs|Compatibility\LinuxX64\LinuxSignalServices.Frames.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs|Compatibility\LinuxX64\LinuxThreadServices.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Signals.cs|Compatibility\LinuxX64\LinuxThreadServices.Signals.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs|Compatibility\LinuxX64\LinuxThreadServices.Futex.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs|Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs|Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs" or

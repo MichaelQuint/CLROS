@@ -5,9 +5,10 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// <summary>Linux x64 signal startup state for one externally serialized process.
 /// The existing thread owner authenticates actual generations and holds this
 /// supervisor-only storage until detach/End. Actions are shared; alternate
-/// stacks are per-thread. No allocation, handler invocation, pending delivery,
-/// signal frame or sigreturn is implemented by this startup slice.</summary>
-public static unsafe class LinuxSignalServices
+/// stacks and bounded user frames are per-thread. No allocation or kernel-side
+/// handler invocation occurs. Pending selection and asynchronous capture belong
+/// to the thread/native owner, not this metadata block.</summary>
+public static unsafe partial class LinuxSignalServices
 {
     public const uint SignalCount = 64, MaximumThreads = 4;
     public const uint OnStack = 1, Disabled = 2, AutoDisarm = 0x80000000, MinimumStackBytes = 2048;
@@ -34,7 +35,7 @@ public static unsafe class LinuxSignalServices
         internal LinuxSyscallAccess User;
         internal delegate* unmanaged<void*, ulong, byte*, uint, byte> CopyToUser;
         internal fixed ulong Actions[64 * 4];
-        internal fixed ulong Threads[4 * 4]; // identity + stack_t, one actual generation each.
+        internal fixed ulong Threads[4 * 9]; // ThreadState, one actual generation each.
     }
 
     /// <summary>Exact user-copy capabilities shared with the thread owner.
@@ -48,7 +49,13 @@ public static unsafe class LinuxSignalServices
         public bool FirmwareExited, SingleOwnerValidated;
     }
 
-    private struct ThreadState { internal ulong Identity; internal AlternateStack Stack; }
+    private struct ThreadState
+    {
+        internal ulong Identity;
+        internal AlternateStack Stack;
+        internal ulong Depth;
+        internal fixed ulong Frames[4];
+    }
 
     /// <summary>Initialize one fresh metadata lifetime with IRQs disabled.
     /// Reject invalid/copy/overlap admission before mutation; no user bytes or
@@ -111,7 +118,7 @@ public static unsafe class LinuxSignalServices
         if (!Bound(s, process, identity)) return -5;
         if (frame.Number == 13) return Sigaction(s, frame);
         if (frame.Number == 131) return Sigaltstack(s, (ThreadState*)s->Threads + ((uint)identity.Value - 1), frame);
-        return -38; // Delivery, tgkill and sigreturn remain explicitly unimplemented.
+        return -38; // sigreturn needs the actual owner's complete user image.
     }
 
     private static long Sigaction(State* s, LinuxSyscallFrame f)
@@ -158,7 +165,7 @@ public static unsafe class LinuxSignalServices
     private static bool OnAlternate(AlternateStack stack, ulong rsp) => (stack.Flags & AutoDisarm) == 0 &&
         stack.Bytes != 0 && rsp > stack.Address && rsp - stack.Address <= stack.Bytes;
     private static bool Empty(State* s)
-    { for (uint i = 0; i < MaximumThreads * 4; i++) if (s->Threads[i] != 0) return false; return true; }
+    { for (uint i = 0; i < MaximumThreads * 9; i++) if (s->Threads[i] != 0) return false; return true; }
     private static bool Attached(State* s, ulong process) => Audit(s) && process != 0 && s->Process == process;
     private static bool Input(State* s, ulong address, byte* value, uint bytes) =>
         LinuxSyscallGateway.ValidateRange(address, bytes, LinuxUserPageAccess.Read, s->User) && s->User.CopyFromUser(s->User.Context, address, value, bytes) == 1;
