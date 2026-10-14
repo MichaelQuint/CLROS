@@ -1,5 +1,13 @@
 # App Model
 
+[Step1266](../done/step1266.md) completes source consumers for interrupted pipe
+and futex waits (EINTR/restart and positive partial-write progress), two nested
+alternate-stack returns and finite alternate-stack exhaustion under #687/#733.
+Canonical packages, emitted context assertions and strict complete transcripts
+have focused host controls. No new native or guest execution is established;
+#191/#192 -> #686 -> #687 -> #193 -> #194 -> #688 plus #733 remains the same
+eight-issue batch, with full-host qualification deferred until its stable boundary.
+
 M09-006/#188 is qualified in [step1230](../done/step1230.md): 4,806 full-host
 checks across 626 fixtures (94 Native), scoped original native review, three
 byte-identical 177-application-record guests and 15 fresh ancestors pass. Two

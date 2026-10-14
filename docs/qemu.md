@@ -15,7 +15,7 @@ ordering and counts. Optional `M16_` diagnostic rows are retained consistently i
 runner summaries and exact raw/summary validation. Activation, the wider guest
 matrix and final batch qualification remain pending.
 
-Development `-EnableM16009Probe` admits only the twelve canonical mechanical signal
+Development `-EnableM16009Probe` admits nineteen canonical mechanical signal
 packages and requires `CLROS_M16_009_READY`. Input preflight/read-lock ownership
 precedes native build/launch; complete startup/service/PCI/APIC and signal tails
 must validate. Ancestor readiness or marker overrides cannot satisfy this leaf.
@@ -25,6 +25,15 @@ Their tails contain 30 rows for recovery, 25 for invalid sigreturn and 19 for
 default fatal delivery. The four earlier signal protocols remain unchanged.
 See [step1254](../done/step1254.md) and [EFI commands](efi-build.md). No new QEMU
 capture, unchanged Hello or runtime suspension is qualified by this wiring.
+
+[Step1266](../done/step1266.md) extends canonical admission with five interrupted
+pipe/futex inputs and two nested/exhausted alternate-stack inputs. Their strict
+tails bind actual syscall sites and ordinals, handler/restorer RSPs, interrupted
+completion or real syscall reissue, partial progress, supervisor transfers,
+reaps and terminal cleanup. Wait inputs require two generations, six transfers,
+two reaps and exit42; nested return requires two restorers and exit42, while
+exhaustion requires exit139 after three entered handlers and no continuation.
+The new parsers have synthetic controls only; no new QEMU capture is claimed.
 
 The opt-in user IRQ source in [step1257](../done/step1257.md) uses
 `env.CLROS_USER_IRQS=1` only under M16-009. The eleven original packages omit it

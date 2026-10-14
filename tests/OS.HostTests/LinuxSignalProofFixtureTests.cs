@@ -14,7 +14,8 @@ internal static unsafe class LinuxSignalProofFixtureTests
         foreach (string variant in Fixture.Variants)
         {
             byte[] package = Fixture.CreatePackage(variant); var view = LinuxElfPackage.Validate(package);
-            HostCheck.True(view.Succeeded && view.PayloadBytes == 0x7000 && view.Manifest.Threads == 2 && view.Manifest.Descriptors == 16);
+            uint imageBytes = Fixture.IsWaitVariant(variant) ? 0xa000U : 0x7000U;
+            HostCheck.True(view.Succeeded && view.PayloadBytes == imageBytes && view.Manifest.Threads == 2 && view.Manifest.Descriptors == 16);
             HostCheck.Equal(variant,Fixture.PackageVariant(package));
             string manifest = Encoding.ASCII.GetString(package,64,(int)view.PayloadOffset - 64);
             HostCheck.True(manifest.Contains("app.path=apps/m16signals.elf\nargs=" + variant + "\n",StringComparison.Ordinal));
@@ -22,7 +23,7 @@ internal static unsafe class LinuxSignalProofFixtureTests
             {
                 HostCheck.Equal(LinuxElfLoadStatus.Ready,LinuxElfLoader.Validate(bytes + view.PayloadOffset,view.PayloadBytes,
                     view.Manifest.MemoryBytes,view.Manifest.StackBytes,out var plan));
-                HostCheck.True(plan.LoadCount == 2 && plan.ImageBytes == 0x7000 && plan.Entry == 0x400200 && plan.TlsMemoryBytes == 0);
+                HostCheck.True(plan.LoadCount == 2 && plan.ImageBytes == imageBytes && plan.Entry == 0x400200 && plan.TlsMemoryBytes == 0);
             }
             using MemoryStream stream = new(package); Fixture.RequirePackage(stream); HostCheck.Equal(0L,stream.Position);
             foreach (byte[] invalid in new[] { package[..^1],(byte[])package.Clone(),LinuxThreadProofFixture.CreatePackage("Threads") })

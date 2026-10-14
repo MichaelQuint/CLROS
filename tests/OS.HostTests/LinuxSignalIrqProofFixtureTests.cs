@@ -14,7 +14,7 @@ internal static unsafe class LinuxSignalIrqProofFixtureTests
         foreach (string variant in Fixture.Variants)
         {
             byte[] package = Fixture.CreatePackage(variant); var view = LinuxElfPackage.Validate(package);
-            HostCheck.True(view.Succeeded && view.PayloadBytes == 28672 && view.Manifest.Threads == 2 && view.Manifest.Descriptors == 16);
+            HostCheck.True(view.Succeeded && view.PayloadBytes == (Fixture.IsWaitVariant(variant) ? 40960U : 28672U) && view.Manifest.Threads == 2 && view.Manifest.Descriptors == 16);
             fixed (byte* p = package)
             {
                 HostCheck.True(LinuxUserInterruptPolicy.TryRead(p + view.ManifestOffset,view.ManifestBytes,view.Manifest,out bool enabled));

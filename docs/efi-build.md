@@ -108,11 +108,23 @@ Future qualification command (not yet executed):
 dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16009Probe -LinuxElfPackage artifacts/packages/m16-009-alt.pkg -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 60 -RequireMarker CLROS_M16_009_READY
 ```
 
-This current leaf admits only the twelve canonical mechanical signal packages. Unchanged
+The mechanical selector now admits nineteen canonical signal packages. Unchanged
 pinned Hello, asynchronous user IRQ activation and focused suspension remain
 required before #687 acceptance. Step1259 later records one mechanical
 `AlternateStack` diagnostic reaching readiness; full batch qualification remains
 pending.
+
+[Step1266](../done/step1266.md) adds `SignalPipeEintr`, `SignalPipeRestart`,
+`SignalFutexEintr`, `SignalFutexRestart`, `SignalPipePartial`,
+`NestedAlternateStack` and `AlternateStackExhaustion` to the same compiled
+`linux signal-fixture` command. Wait inputs use ten ELF pages so payload/read
+buffers remain separate from TLS and both stacks; input preflight admits their
+exact canonical bytes. The other inputs retain seven pages. Restart requires
+the original SYSCALL instruction to run again with a fresh gateway ordinal;
+partial writes must retain their 4096-byte prefix. Nesting requires two actual
+handler/restorer pairs, while exhaustion requires owned exit139 before a fourth
+handler can enter. These new inputs have focused host/byte/parser controls only;
+they have not executed in a guest. Full batch/native qualification remains open.
 The complete GP/PF capture source added in [step1255](../done/step1255.md) uses
 the separately verified 1800h..1FFFh worker-code region and the original gateway
 allocation. [Step1256](../done/step1256.md) adds canonical `FaultRead`,

@@ -21,17 +21,21 @@ public static partial class QemuTranscripts
         tail = ValidateLinuxCallOrdinals(tail);
         string variant = LinuxSignalProofFixture.PackageVariant(package);
         bool irq = LinuxSignalProofFixture.IsIrqVariant(variant);
+        bool wait = LinuxSignalProofFixture.IsWaitVariant(variant), nested = LinuxSignalProofFixture.IsNestedVariant(variant);
         bool hardwareFault = LinuxSignalProofFixture.IsFaultVariant(variant);
         bool badRestorer = variant == "BadRestorer", badReturn = variant == "BadReturn";
         uint exit = LinuxSignalProofFixture.ExpectedExitCode(variant);
-        int count = hardwareFault ? variant == "FaultFatal" ? 19 : variant == "FaultReturn" ? 25 : 30 : badRestorer ? 21 : badReturn ? 27 : 32;
+        var nestedCalls = nested ? LinuxSignalProofFixture.ExpectedNestedInvocations(variant) : null;
+        int count = wait ? LinuxSignalProofFixture.ExpectedWaitInvocations(variant).Count + 19 :
+            nested ? nestedCalls!.Count + 12 + nestedCalls.Count(i=>i.Number==1) :
+            hardwareFault ? variant == "FaultFatal" ? 19 : variant == "FaultReturn" ? 25 : 30 : badRestorer ? 21 : badReturn ? 27 : 32;
         Need(irq ? tail.Length is >= 39 and <= 289 : tail.Length == count, "m16_009_tail_inventory");
         int position = 0;
         string Take() { Need(position < tail.Length, "m16_009_truncated"); return tail[position++]; }
         void Exact(string expected) => Need(Take() == expected, "m16_009_record_order_" + expected);
         Dictionary<string, ulong> Row(string prefix, params string[] fields) => ReadRecord(Take(), prefix, fields);
         Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take());
-        Exact("M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=28672 package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler");
+        Exact("M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=" + (wait ? "40960" : "28672") + " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler");
         var armed = LinuxSyscallArm(Take());
         string boundSuffix = irq ? " timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack" :
             " timer=idle-only clock=hpet-nanoseconds reuse=off-stack";
@@ -45,9 +49,11 @@ public static partial class QemuTranscripts
         DistinctExtents([(bound["root"], 4096), (armed["root"], 4096), (bound["pool"], 64 * 4096)], "m16_009_roots_pool");
 
         if (irq) { ValidateLinuxIrqSignalBody(tail[5..], package); return; }
+        if (wait) { ValidateLinuxSignalWaitBody(tail[5..], variant); return; }
 
         ulong identity;
-        if (hardwareFault) ValidateLinuxFaultSignalCalls(Take,variant,out identity);
+        if (nested) ValidateLinuxNestedSignalCalls(Take,variant,out identity);
+        else if (hardwareFault) ValidateLinuxFaultSignalCalls(Take,variant,out identity);
         else
         {
             // Literal kernel ABI vectors are independent of the fixture's writer.

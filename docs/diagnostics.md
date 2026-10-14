@@ -1,5 +1,15 @@
 # Diagnostics
 
+[Step1266](../done/step1266.md) adds mechanical interrupted-wait and nested-stack
+consumers without changing serial record schemas. A restarted syscall repeats
+its original RIP with a new ordinal. Untimed futex replay sees the changed word
+and returns EAGAIN; pipe replay consumes the child's byte. A partially completed
+4100-byte write returns 4096 after interruption even with SA_RESTART, then checks
+the complete prefix and final four bytes. Nested handlers check saved masks,
+registers and stack contexts before two real sigreturns; stack exhaustion must
+terminate139 before a fourth handler. Construction and synthetic-tail checks do
+not establish execution. These seven new inputs await frozen batch qualification.
+
 [Step1265](../done/step1265.md) appends `ordinal=<actual gateway Calls>` to each
 `M16_008_CALL`. Every thread/signal decoder requires contiguous per-generation
 ordinals before its original ABI checks; new generations restart at one. The

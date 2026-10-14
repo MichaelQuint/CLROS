@@ -14,7 +14,8 @@ internal static class LinuxSignalFaultProofFixtureTests
             ("BadReturn","73439983C09F7F5D277CE7357A99CE71D7B454F80515F21B66A5B4470AD9A8E9"),
             ("BadRestorer","80233BCD62009D6B97903E2060AAE1ABE4528DA187F9A678600E74698457A424")];
         foreach (var item in originals) HostCheck.Equal(item.Hash,Convert.ToHexString(SHA256.HashData(F.CreatePackage(item.Variant))));
-        HostCheck.True(F.Variants.SequenceEqual(F.SyscallVariants.Concat(F.FaultVariants).Append(F.IrqVariant)) && F.Variants.Distinct(StringComparer.Ordinal).Count()==12);
+        HostCheck.True(F.Variants.SequenceEqual(F.SyscallVariants.Concat(F.FaultVariants).Append(F.IrqVariant).Concat(F.WaitVariants).Concat(F.NestedVariants)) &&
+            F.Variants.Distinct(StringComparer.Ordinal).Count() == 19);
     }
 
     [HostTest("m16-009 fault packages bind genuine read write NX CLI and null-stack instructions to actual saved continuations")]

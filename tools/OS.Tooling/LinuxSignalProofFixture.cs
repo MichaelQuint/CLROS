@@ -5,16 +5,16 @@ using Writer = OS.Tooling.LinuxThreadProofFixture.Writer;
 namespace OS.Tooling;
 
 /// <summary>C#-authored mechanical signal ELF/package for the M16-009 consumer.
-/// One actual thread checks pending/unmask delivery, Linux frame arguments,
+/// Actual threads check pending/unmask and interrupted-wait delivery, Linux frame arguments,
 /// stack selection, masks, GPR/FP restoration and edited saved RAX. Negative
 /// inputs require owned SIGSEGV termination. Construction/byte inventories are
 /// host evidence only; no handler, native runtime or guest execution is implied.
-/// Geometry matches the existing seven-page mechanical ELF, not an upstream app.</summary>
+/// Most inputs retain seven pages; blocked-wait inputs add three private data pages.</summary>
 public static partial class LinuxSignalProofFixture
 {
     public static IReadOnlyList<string> SyscallVariants { get; } = Array.AsReadOnly<string>(["AlternateStack", "UserStack", "BadReturn", "BadRestorer"]);
     public static IReadOnlyList<string> FaultVariants { get; } = Array.AsReadOnly<string>(["FaultRead", "FaultWrite", "FaultExecute", "FaultStack", "FaultGp", "FaultReturn", "FaultFatal"]);
-    public static IReadOnlyList<string> Variants { get; } = Array.AsReadOnly<string>([.. SyscallVariants, .. FaultVariants, IrqVariant]);
+    public static IReadOnlyList<string> Variants => Array.AsReadOnly<string>([.. SyscallVariants, .. FaultVariants, IrqVariant, .. WaitVariants, .. NestedVariants]);
     public const string AppPath = "apps/m16signals.elf", Witness = "M16_SIGNALS_OK!", HandlerWitness = "M16_HANDLER_OK!";
     public const ulong ImageBase = 0x400000, ParentTls = 0x402000, ParentStackTop = 0x405000, AlternateBase = 0x406000;
     public const int ElfBytes = 0x7000, EntryOffset = 0x200, HandlerOffset = 0xa00, RestorerOffset = 0xe00, FailureOffset = 0xf00;
@@ -31,7 +31,7 @@ public static partial class LinuxSignalProofFixture
     /// dynamic PID, RSP and independently checked arguments/results.</summary>
     public readonly record struct Invocation(uint Number, ulong ReturnRip, bool Handler);
 
-    public static uint ExpectedExitCode(string variant) { Validate(variant); return variant is "BadReturn" or "BadRestorer" or "FaultReturn" or "FaultFatal" ? 139U : 42U; }
+    public static uint ExpectedExitCode(string variant) { Validate(variant); return variant is "BadReturn" or "BadRestorer" or "FaultReturn" or "FaultFatal" or "AlternateStackExhaustion" ? 139U : 42U; }
     public static IReadOnlyList<Invocation> ExpectedInvocations(string variant) => IsIrqVariant(variant) ?
         throw new ToolFailure("m16_009_irq_thread_inventory_required") : Array.AsReadOnly(Build(variant).Calls);
     public static byte[] CreateElf(string variant) => IsIrqVariant(variant) ? BuildIrq().Elf : Build(variant).Elf;
@@ -59,7 +59,7 @@ public static partial class LinuxSignalProofFixture
     /// or launch. Success rewinds to zero; failure grants no execution authority.</summary>
     public static void RequirePackage(Stream input)
     {
-        if (!input.CanRead || !input.CanSeek || input.Position != 0 || input.Length is < ElfBytes or > ElfBytes + 4096)
+        if (!input.CanRead || !input.CanSeek || input.Position != 0 || input.Length is < ElfBytes or > WaitElfBytes + 4096)
             throw new ToolFailure("m16_009_package_identity");
         byte[] observed = new byte[checked((int)input.Length)]; input.ReadExactly(observed);
         _ = PackageVariant(observed); input.Position = 0;
@@ -68,6 +68,8 @@ public static partial class LinuxSignalProofFixture
     private static (byte[] Elf, Invocation[] Calls) Build(string variant)
     {
         Validate(variant);
+        if (IsWaitVariant(variant)) { var wait = BuildWait(variant); return (wait.Elf, wait.Calls); }
+        if (IsNestedVariant(variant)) { var nested = BuildNested(variant); return (nested.Elf, nested.Calls); }
         if (IsFaultVariant(variant)) { var fault = BuildFault(variant); return (fault.Elf, fault.Calls); }
         bool alternate = variant != "UserStack";
         byte[] elf = LinuxThreadProofFixture.CreateMechanicalImage(Witness);
