@@ -97,7 +97,7 @@ internal static unsafe class LinuxSignalPendingTests
         m.Yield(parent); HostCheck.Equal(reused.Value,m.Kernel.Dispatch().Value); HostCheck.Equal(Signals.Delivery.None,Deliver(o));
     }
 
-    [HostTest("linux.signal-pending unimplemented interruption fails closed while masked waits retain a directed signal")]
+    [HostTest("linux.signal-pending real interruption wins once while masked waits retain a directed signal")]
     private static void Blocked()
     {
         foreach (bool masked in new[] { false,true })
@@ -106,12 +106,13 @@ internal static unsafe class LinuxSignalPendingTests
             var parent = m.Kernel.Table->Current; var child = m.Clone();
             m.Put32(Input,7); HostCheck.Equal(LinuxSyscallAction.Blocked,m.Call(202,Input,128,7).Action);
             HostCheck.True(m.Service->CommitFutexWait(Key,2,m.Kernel.Capture(parent),out bool handoff) && handoff); m.Kernel.Confirm();
-            HostCheck.Equal(child.Value,m.Kernel.Dispatch().Value); HostCheck.Equal(masked ? 0L : -38L,Send(o,101,10));
-            HostCheck.Equal(KernelThreadTable.State.Waiting,m.Kernel.Inspect(parent).State);
-            HostCheck.Equal(1L,o.Call(202,Input,129,1)); m.Yield(child); HostCheck.Equal(parent.Value,m.Kernel.Dispatch().Value);
-            var completion = m.Service->CompleteFutexWait(Key,2); HostCheck.True(completion.Action == LinuxSyscallAction.Return && completion.Value == 0);
-            HostCheck.Equal(Signals.Delivery.None,Deliver(o)); Mask(o,0);
-            if (masked) HostCheck.Equal(10U,Delivered(o)); else HostCheck.Equal(Signals.Delivery.None,Deliver(o));
+            HostCheck.Equal(child.Value,m.Kernel.Dispatch().Value); HostCheck.Equal(0L,Send(o,101,10));
+            HostCheck.Equal(masked ? KernelThreadTable.State.Waiting : KernelThreadTable.State.Ready,m.Kernel.Inspect(parent).State);
+            HostCheck.Equal(masked ? 1L : 0L,o.Call(202,Input,129,1)); m.Yield(child); HostCheck.Equal(parent.Value,m.Kernel.Dispatch().Value);
+            var completion = m.Service->CompleteFutexWait(Key,2); HostCheck.True(completion.Action == LinuxSyscallAction.Return && completion.Value == (masked ? 0 : -4));
+            if (masked) { HostCheck.Equal(Signals.Delivery.None,Deliver(o)); Mask(o,0); }
+            else HostCheck.True(!m.Service->CurrentImage(Key,2,out _));
+            HostCheck.Equal(10U,Delivered(o)); HostCheck.Equal(Signals.Delivery.None,Deliver(o));
         }
     }
 

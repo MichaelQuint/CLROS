@@ -184,6 +184,7 @@ public static class EfiProjectAdmission
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.Pending.cs|Compatibility\LinuxX64\LinuxSignalServices.Pending.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs|Compatibility\LinuxX64\LinuxThreadServices.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Signals.cs|Compatibility\LinuxX64\LinuxThreadServices.Signals.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Interrupts.cs|Compatibility\LinuxX64\LinuxThreadServices.Interrupts.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs|Compatibility\LinuxX64\LinuxThreadServices.Futex.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs|Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs|Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs" or

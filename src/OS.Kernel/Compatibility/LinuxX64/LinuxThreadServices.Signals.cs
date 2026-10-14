@@ -6,7 +6,8 @@ public unsafe partial struct LinuxThreadServices
     /// directed pending queue, skipping ignored signals and retaining blocked
     /// ones. None means no unblocked work, not a fabricated handler invocation.
     /// Call only after complete capture or wait completion, before installing
-    /// the full image. No asynchronous capture or wait interruption is supplied.
+    /// the full image. It resolves already completed wait/restart decisions;
+    /// asynchronous capture remains the native owner's responsibility.
     /// Directed tgkill siginfo uses this process PID/uid0 and SI_TKILL(-6).
     /// Job-control or rejected delivery retains the pending entry.</summary>
     public LinuxSignalServices.Delivery DeliverPendingSignals(ulong key, ulong flags)
@@ -19,14 +20,14 @@ public unsafe partial struct LinuxThreadServices
         {
             long pending = LinuxSignalServices.Next(_signals, _self, slot->Kernel, slot->Mask, out uint signal);
             if (pending < 0) { _failed = true; return LinuxSignalServices.Delivery.Rejected; }
-            if (pending == 0) return LinuxSignalServices.Delivery.None;
+            if (pending == 0) return FinishUncaughtRestart(key, flags, slot);
             var result = DeliverSignal(key, flags, signal, -6);
             if (result is LinuxSignalServices.Delivery.Rejected or LinuxSignalServices.Delivery.Masked or LinuxSignalServices.Delivery.Unsupported) return result;
             if (!LinuxSignalServices.Consume(_signals, _self, slot->Kernel, signal))
             { _failed = true; return LinuxSignalServices.Delivery.Rejected; }
             if (result != LinuxSignalServices.Delivery.Ignored) return result;
         }
-        return LinuxSignalServices.Delivery.None;
+        return FinishUncaughtRestart(key, flags, slot);
     }
 
     private long Tgkill(ulong key, ulong flags, LinuxSyscallFrame frame)
@@ -46,10 +47,11 @@ public unsafe partial struct LinuxThreadServices
             if (target->Exiting != 0) return 0; // Linux exiting-task race, no pending lifetime acquired.
             bool ignored = LinuxSignalServices.Ignored(_signals, (uint)signal);
             if (!target->Mask.Contains((uint)signal) && LinuxSignalServices.JobControl(_signals, (uint)signal)) return Unsupported;
-            // Until actual EINTR/restart integration is installed, never report
-            // that an unmasked nonignored signal interrupted a blocked syscall.
-            if (target->Wait.IsValid && !target->Mask.Contains((uint)signal) && !ignored) return Unsupported;
-            return LinuxSignalServices.Queue(_signals, _self, target->Kernel, (uint)signal, target->Mask);
+            long queued = LinuxSignalServices.Queue(_signals, _self, target->Kernel, (uint)signal, target->Mask);
+            if (queued != 0) return queued;
+            if (target->Wait.IsValid && !target->Mask.Contains((uint)signal) && !ignored && !InterruptWait(flags, target))
+            { _failed = true; return Io; }
+            return 0;
         }
         return -3;
     }
@@ -69,8 +71,16 @@ public unsafe partial struct LinuxThreadServices
             return LinuxSignalServices.Delivery.Rejected;
         Slot* slot = _owner.Slots + index;
         if (slot->Exiting != 0 || slot->Wait.IsValid || slot->PipeOperation.IsActive) return LinuxSignalServices.Delivery.Rejected;
+        ulong priorRip = slot->Image.Frame.Rip; long priorValue = slot->Image.Value;
+        bool rewind = signal is >= 1 and <= 64 && !slot->Mask.Contains(signal) && slot->RestartMode == 1 &&
+            LinuxSignalServices.RestartHandler(_signals, signal);
+        if (rewind && !Rewind(slot, slot->WaitCall.Number))
+        { return Shutdown(key, flags, 139) ? LinuxSignalServices.Delivery.BadFrame : LinuxSignalServices.Delivery.Rejected; }
         var result = LinuxSignalServices.Deliver(_signals, _self, slot->Kernel, signal, code, _owner.ProcessId,
             &slot->Image, _owner.ObservedMxcsrMask, ref slot->Mask, faultAddress, error, trap);
+        if (result == LinuxSignalServices.Delivery.Delivered && slot->RestartMode is 1 or 2) ClearWaitRestartDecision(slot);
+        else if (rewind && result is LinuxSignalServices.Delivery.Rejected or LinuxSignalServices.Delivery.Masked or LinuxSignalServices.Delivery.Unsupported)
+        { slot->Image.Frame.Rip = priorRip; slot->Image.Value = priorValue; }
         if (result is LinuxSignalServices.Delivery.BadFrame or LinuxSignalServices.Delivery.Terminate)
         {
             uint reason = result == LinuxSignalServices.Delivery.BadFrame ? 11U : signal;
@@ -90,6 +100,7 @@ public unsafe partial struct LinuxThreadServices
             return new(LinuxSyscallAction.Terminate, exitCode: 139);
         }
         frame = slot->Image.Frame;
+        ClearRestart(slot); // Linux rt_sigreturn invalidates restart_block.fn even after user edits.
         return new(LinuxSyscallAction.RestoreUser, slot->Image.Value);
     }
 }

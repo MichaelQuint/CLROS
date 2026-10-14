@@ -8,7 +8,7 @@ internal static unsafe class LinuxBlockingPipeTests
 {
     private const ulong Key = LinuxThreadServicesTests.Key, Base = LinuxThreadServicesTests.UserBase;
     private const ulong Fds = Base + 0x1180, Data = Base + 0x1000, Output = Base + 0x3400;
-    private sealed class Owner : IDisposable
+    internal sealed class Owner : IDisposable
     {
         internal readonly ThreadModel Thread = new(futex: true);
         internal readonly LinuxDescriptorServicesTests.Owner Files = new();
@@ -52,7 +52,10 @@ internal static unsafe class LinuxBlockingPipeTests
                 if (!thread.IsValid) thread = Thread.Kernel.Dispatch();
                 if (Thread.Kernel.Inspect(thread).State == KernelThreadTable.State.Parking)
                 {
-                    HostCheck.True(Thread.Service->CommitPipeWait(Key, 2, Thread.Kernel.Capture(thread), out bool handoff));
+                    bool ok = Thread.View(thread).PipePending
+                        ? Thread.Service->CommitPipeWait(Key, 2, Thread.Kernel.Capture(thread), out bool handoff)
+                        : Thread.Service->CommitFutexWait(Key, 2, Thread.Kernel.Capture(thread), out handoff);
+                    HostCheck.True(ok);
                     if (handoff) Thread.Kernel.Confirm();
                     continue;
                 }

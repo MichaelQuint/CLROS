@@ -105,8 +105,10 @@ public unsafe partial struct LinuxThreadServices
 
     /// <summary>Consume exactly the current actual worker's completed wait before
     /// installing/resuming its user image. Wake returns zero; deadline returns
-    /// ETIMEDOUT. Shutdown cancellation remains a staged thread exit, never a
-    /// fabricated signal/EINTR. References drop only after validated completion.</summary>
+    /// ETIMEDOUT. Interrupted drops the word borrow and stages an EINTR/restart
+    /// decision that withholds CurrentImage until pending delivery resolves it.
+    /// Shutdown cancellation remains a staged thread exit. References drop only
+    /// after validated completion; a timed restart retains an absolute deadline.</summary>
     public LinuxSyscallResult CompleteFutexWait(ulong key, ulong flags)
     {
         if (!Access(key, flags) || !_futexEnabled || !Current(flags, out uint index)) return new(LinuxSyscallAction.Rejected);
@@ -117,20 +119,31 @@ public unsafe partial struct LinuxThreadServices
         if (!DropFutexWait(flags, slot)) return new(LinuxSyscallAction.Rejected);
         if (_stopping || slot->Exiting != 0) return new(LinuxSyscallAction.ThreadExited, exitCode: slot->ExitCode);
         if (_failed) return new(LinuxSyscallAction.Rejected);
+        if (state.Completion == KernelThreadTable.Completion.Interrupted)
+        {
+            slot->RestartMode = slot->WaitCall.Argument3 == 0 ? 1U : 2;
+            if (slot->RestartMode == 2)
+            {
+                slot->TimedRestartCall = slot->WaitCall; slot->TimedRestartDeadline = slot->WaitDeadline;
+                slot->TimedRestartArmed = true;
+            }
+            slot->Image.Value = -4; // Only EINTR is exposed; restart policy stays kernel metadata.
+            return new(LinuxSyscallAction.Return, -4);
+        }
         long value = state.Completion == KernelThreadTable.Completion.Woken ? 0 : TimedOut;
         if (state.Completion is not (KernelThreadTable.Completion.Woken or KernelThreadTable.Completion.Deadline))
         { _failed = true; return new(LinuxSyscallAction.Rejected); }
         slot->Image.Value = value; return new(LinuxSyscallAction.Return, value);
     }
 
-    private LinuxSyscallResult Futex(ulong flags, Slot* slot, LinuxSyscallFrame frame)
+    private LinuxSyscallResult Futex(ulong flags, Slot* slot, LinuxSyscallFrame frame, bool restarted = false, ulong deadline = 0)
     {
         if (!_futexEnabled) return new(LinuxSyscallAction.Return, Unsupported);
         uint op = unchecked((uint)frame.Argument1), mode = op & 128, cmd = op & ~384U;
         if (cmd is not (0 or 1 or 9 or 10)) return new(LinuxSyscallAction.Return, Unsupported);
-        bool wait = cmd is 0 or 9, timed = wait && frame.Argument3 != 0;
+        bool wait = cmd is 0 or 9, timed = wait && (restarted || frame.Argument3 != 0);
         ulong duration = 0;
-        if (timed)
+        if (timed && !restarted)
         {
             long* ts = stackalloc long[2];
             if (!Input(frame.Argument3, (byte*)ts, 16)) return new(LinuxSyscallAction.Return, Fault);
@@ -152,7 +165,8 @@ public unsafe partial struct LinuxThreadServices
             return _failed ? new(LinuxSyscallAction.Rejected) : new(LinuxSyscallAction.Return, value);
         }
         if (!Clock(out ulong now)) return new(LinuxSyscallAction.Rejected);
-        ulong delay = !timed ? 0 : cmd == 0 ? (duration > TimeEnd - now ? TimeEnd - now : duration) : duration > now ? duration - now : 0;
+        ulong delay = !timed ? 0 : restarted ? (deadline > now ? deadline - now : 0) :
+            cmd == 0 ? (duration > TimeEnd - now ? TimeEnd - now : duration) : duration > now ? duration - now : 0;
         long error = ResolveFutex(flags, frame.Argument0, mode, true, out uint cellIndex);
         if (error != 0) return _failed ? new(LinuxSyscallAction.Rejected) : new(LinuxSyscallAction.Return, error);
         FutexCell* cell = _futex.Cells + cellIndex;
@@ -166,6 +180,7 @@ public unsafe partial struct LinuxThreadServices
             return new(LinuxSyscallAction.Return, error);
         }
         cell->References++; slot->Wait = begin.Wait; slot->FutexCellIndex = cellIndex; slot->WaitSource = 1;
+        slot->WaitCall = frame; slot->WaitDeadline = timed ? now + delay : 0;
         return new(LinuxSyscallAction.Blocked);
     }
 

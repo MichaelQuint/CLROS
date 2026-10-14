@@ -93,11 +93,20 @@ repair and fabricated return frames outside the owned nesting are unsupported.
 standard coalescing and Linux synchronous-class priority, bounded realtime
 events, masks, process-wide ignore flushing, per-generation cleanup and checked
 current-thread selection. SIGKILL stages actual owned process shutdown. Null
-signals check existence; unsupported job control and unmasked blocked-call
-interruption return ENOSYS without queue/wake mutation. Masked signals can remain
-pending across a real wait and later unmask/delivery. This is not EINTR/restart
-support. Those paths, asynchronous user faults/activation, M16-009 integration,
-unchanged Hello and suspension remain unfinished. No native path calls the
+signals check existence; unsupported job control returns ENOSYS. Masked signals
+can remain pending across a real wait and later unmask/delivery.
+
+[Step1251](../done/step1251.md) adds real single-winner interrupted waits and
+EINTR/restart decisions. Existing wake/deadline winners remain final; partial
+pipe writes retain their prefix. Zero-progress pipe and untimed futex calls
+restart under the selected handler's SA_RESTART or when no handler remains.
+Timed futexes expose EINTR to handlers and retain an independent restart_syscall
+callback/deadline until sigreturn. No-handler retries preserve the original
+absolute deadline and re-admit current word/mapping ownership; pipe retries
+resolve the fd again. No internal restart errno reaches user code, and no image
+is available before resolving an interrupted return. Asynchronous user faults/
+activation, M16-009 integration, unchanged Hello and suspension remain
+unfinished. No native path calls the
 signal delivery APIs or attaches signal state yet; evidence is focused host/
 source and no-stdlib C# compilation only.
 

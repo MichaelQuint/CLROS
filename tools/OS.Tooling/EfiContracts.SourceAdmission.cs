@@ -13,6 +13,7 @@ public static partial class EfiContracts
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.Pending.cs"] = "reviewed_m16_signal_pending_owner_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs"] = "reviewed_m16_thread_owner_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Signals.cs"] = "reviewed_m16_signal_thread_owner_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Interrupts.cs"] = "reviewed_m16_signal_interrupt_owner_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs"] = "reviewed_m16_futex_owner_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs"] = "reviewed_m16_blocking_pipe_owner_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs"] = "reviewed_m16_retained_pipe_operation_source_identity",

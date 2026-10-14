@@ -40,6 +40,12 @@ public unsafe partial struct LinuxThreadServices
         internal KernelThreadWait Wait;
         internal uint FutexCellIndex, WaitSource;
         internal LinuxDescriptorServices.PipeOperation PipeOperation;
+        internal uint RestartMode; // Unresolved decision: 1 original syscall, 2 timed restart.
+        internal LinuxSyscallFrame WaitCall;
+        internal ulong WaitDeadline;
+        internal LinuxSyscallFrame TimedRestartCall;
+        internal ulong TimedRestartDeadline;
+        internal bool TimedRestartArmed;
         internal X64LinuxUserTransition.UserImage Image;
     }
     /// <summary>Actual native owner capabilities. All ranges are mapped,
@@ -129,8 +135,8 @@ public unsafe partial struct LinuxThreadServices
     /// before Start. Exact copy capabilities, disjoint supervisor storage and
     /// external IRQ-off ownership must match this process. Registration is real
     /// state; checked current-thread frames/return use the same actual owner.
-    /// Directed pending/tgkill uses explicit current-thread delivery; blocked
-    /// interruption and asynchronous delivery require separate integration.
+    /// Directed pending/tgkill completes actual waits and checked restart
+    /// decisions; asynchronous capture/native delivery require integration.
     /// The caller retains the state until all actual generations reap and Release
     /// detaches; only then may LinuxSignalServices.End scrub it.</summary>
     public bool EnableSignals(ulong key, ulong flags, LinuxSignalServices.State* signals)
@@ -164,10 +170,12 @@ public unsafe partial struct LinuxThreadServices
 
     /// <summary>Borrow the current scheduled worker's user image for actual
     /// gateway capture/install. Authenticate the real table identity each time;
-    /// the pointer expires at reap and grants no ownership or execution proof.</summary>
+    /// the pointer expires at reap and grants no ownership or execution proof.
+    /// An interrupted call cannot expose an image until pending delivery resolves
+    /// its handler/restart decision through DeliverPendingSignals.</summary>
     public bool CurrentImage(ulong key, ulong flags, out X64LinuxUserTransition.UserImage* image)
     {
-        image = null; if (!Access(key, flags) || !Current(flags, out uint index) || _owner.Slots[index].Wait.IsValid ||
+        image = null; if (!Access(key, flags) || !Current(flags, out uint index) || _owner.Slots[index].RestartMode is 1 or 2 || _owner.Slots[index].Wait.IsValid ||
             _owner.Slots[index].PipeOperation.IsActive) return false;
         image = &_owner.Slots[index].Image; return true;
     }
@@ -190,7 +198,7 @@ public unsafe partial struct LinuxThreadServices
     {
         if (!Access(key, flags) || _failed || _stopping || !Current(flags, out uint index)) return new(LinuxSyscallAction.Rejected);
         Slot* slot = _owner.Slots + index;
-        if (slot->Exiting != 0 || slot->Wait.IsValid || slot->PipeOperation.IsActive ||
+        if (slot->Exiting != 0 || slot->RestartMode is 1 or 2 || slot->Wait.IsValid || slot->PipeOperation.IsActive ||
             !LinuxSyscallGateway.ValidateReturn(frame, _owner.User)) return new(LinuxSyscallAction.Rejected);
         long result;
         switch (frame.Number)
@@ -214,6 +222,7 @@ public unsafe partial struct LinuxThreadServices
                 // Linux records this raw pointer without accessing it. Only
                 // the best-effort clear at exit checks the then-current mapping.
                 slot->ClearTid = frame.Argument0; result = slot->Tid; break;
+            case 219: return RestartFutex(flags, slot);
             case 231:
                 if (!Shutdown(key, flags, unchecked((uint)frame.Argument0))) return new(LinuxSyscallAction.Rejected);
                 return new(LinuxSyscallAction.Terminate, exitCode: unchecked((uint)frame.Argument0));

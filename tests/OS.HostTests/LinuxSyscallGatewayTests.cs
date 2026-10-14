@@ -72,6 +72,20 @@ internal static unsafe class LinuxSyscallGatewayTests
         }
     }
 
+    [HostTest("linux.signal gateway admits blocked restart_syscall once without descriptor accounting or callback replay")]
+    private static void RestartSyscall()
+    {
+        byte* scratch = stackalloc byte[64]; Model model = new() { ThreadMode = 4 }; var state = ThreadGate(&model,scratch);
+        var frame = Frame(); frame.Number = 219;
+        HostCheck.Equal(LinuxSyscallAction.Blocked,LinuxSyscallGateway.Dispatch(ref state,ref frame).Action);
+        HostCheck.Equal(LinuxSyscallGateStatus.Blocked,state.Status); HostCheck.Equal(1U,model.ThreadCalls);
+        HostCheck.Equal(-4L,LinuxSyscallGateway.CompleteBlocked(ref state,new(LinuxSyscallAction.Return,-4)).Value);
+        HostCheck.True(state.Status == LinuxSyscallGateStatus.Active && state.Calls == 1 && state.BytesWritten == 0 && model.ThreadCalls == 1);
+        frame.Number = 39;
+        HostCheck.Equal(LinuxSyscallAction.Terminate,LinuxSyscallGateway.Dispatch(ref state,ref frame).Action);
+        HostCheck.Equal(LinuxSyscallGateStatus.InvalidAdmission,state.Status);
+    }
+
     [HostTest("m16-008 gateway admits explicit thread callback only with complete prerequisites and bounded budget")]
     private static void ThreadAdmission()
     {

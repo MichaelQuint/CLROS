@@ -239,6 +239,58 @@ internal static unsafe class KernelThreadTableTests
         }
     }
 
+    [HostTest("kernel.thread signal interruption preserves exact wait winners and never requests cancellation")]
+    private static void InterruptedWaits()
+    {
+        for (int variant = 0; variant < 5; variant++)
+        {
+            using Model m = new(1,1,1); var a = m.Create(0); m.Dispatch();
+            var wait = m.Table->BeginWait(Key,2,a.Identity,W.Sleep,10,5); HostCheck.True(wait.Succeeded);
+            if (variant == 0)
+            {
+                HostCheck.True(m.Table->Interrupt(Key,2,wait.Wait).Succeeded);
+                var inPlace = m.Table->Park(Key,2,wait.Wait,m.Capture(a.Identity));
+                HostCheck.True(inPlace.State == T.Running && inPlace.Completion == C.Interrupted && !inPlace.CancellationRequested && !m.Table->HandoffPending);
+            }
+            else
+            {
+                HostCheck.True(m.Table->Park(Key,2,wait.Wait,m.Capture(a.Identity)).Succeeded); m.Confirm();
+                if (variant == 2) HostCheck.True(m.Table->Wake(Key,2,wait.Wait).Succeeded);
+                if (variant == 3) HostCheck.Equal(S.Ok,m.Table->Advance(Key,2,15));
+                if (variant == 4) HostCheck.True(m.Table->Cancel(Key,2,a.Identity).Succeeded);
+                var interrupted = m.Table->Interrupt(Key,2,wait.Wait);
+                HostCheck.Equal(variant == 1 ? S.Ok : S.AlreadyCompleted,interrupted.Code);
+                HostCheck.Equal(a.Identity.Value,m.Dispatch().Value);
+            }
+            var observed = m.Inspect(a.Identity);
+            HostCheck.Equal(variant == 2 ? C.Woken : variant == 3 ? C.Deadline : variant == 4 ? C.Cancelled : C.Interrupted,observed.Completion);
+            HostCheck.Equal(variant == 4,observed.CancellationRequested); HostCheck.Equal(0U,m.Table->DeadlineCount);
+            byte[] before = m.Snapshot(); HostCheck.Equal(S.AlreadyCompleted,m.Table->Interrupt(Key,2,wait.Wait).Code); m.Same(before);
+        }
+    }
+
+    [HostTest("kernel.thread interrupt admission stale sequences joins and full ready queue retain one completion")]
+    private static void InterruptAdmission()
+    {
+        using Model m = new(2,1,2); var a = m.Create(0); m.Dispatch();
+        var wait = m.Table->BeginWait(Key,2,a.Identity,W.Sleep,0,2);
+        byte[] before = m.Snapshot();
+        HostCheck.Equal(S.WrongOwner,m.Table->Interrupt(Key + 1,2,wait.Wait).Code); m.Same(before);
+        HostCheck.Equal(S.InterruptsEnabled,m.Table->Interrupt(Key,0x202,wait.Wait).Code); m.Same(before);
+        KernelThreadTable copy = *m.Table; HostCheck.Equal(S.CopiedOwner,copy.Interrupt(Key,2,wait.Wait).Code); m.Same(before);
+        HostCheck.True(m.Table->Park(Key,2,wait.Wait,m.Capture(a.Identity)).Succeeded); m.Confirm();
+        var b = m.Create(1); HostCheck.True(b.Succeeded);
+        HostCheck.Equal(S.Pending,m.Table->Interrupt(Key,2,wait.Wait).Code); HostCheck.Equal(T.Pending,m.Inspect(a.Identity).State);
+        HostCheck.Equal(S.Ok,m.Table->Advance(Key,2,2)); HostCheck.Equal(C.Interrupted,m.Inspect(a.Identity).Completion);
+        HostCheck.Equal(S.ReadyFull,m.Table->Flush(Key,2)); HostCheck.Equal(b.Identity.Value,m.Dispatch().Value);
+        HostCheck.Equal(S.Ok,m.Table->Flush(Key,2)); m.Exit(b.Identity); HostCheck.Equal(a.Identity.Value,m.Dispatch().Value);
+        var later = m.Table->BeginWait(Key,2,a.Identity,W.Park,2); HostCheck.True(later.Succeeded);
+        before = m.Snapshot(); HostCheck.Equal(S.StaleWait,m.Table->Interrupt(Key,2,wait.Wait).Code); m.Same(before);
+        using Model joined = new(); var waiter = joined.Create(0); var target = joined.Create(1); joined.Dispatch();
+        var join = joined.Table->BeginWait(Key,2,waiter.Identity,W.Join,0,target:target.Identity); HostCheck.True(join.Succeeded);
+        before = joined.Snapshot(); HostCheck.Equal(S.WrongState,joined.Table->Interrupt(Key,2,join.Wait).Code); joined.Same(before);
+    }
+
     [HostTest("kernel.thread joins reject cycles and second waiter and retain exit until reap")]
     private static void JoinLifetime()
     {

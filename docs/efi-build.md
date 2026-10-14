@@ -51,8 +51,10 @@ explicit full user GPR/FX install for syscall15 in the active gateway. The
 M16-008 no-stdlib C# closure compiles; its native owner does not attach signal
 state or call DeliverSignal. There is no M16-009 build/runner switch yet.
 [Step1250](../done/step1250.md) links directed pending/tgkill selection on the
-same owner. Interrupted waits/restart, asynchronous capture and original native/
-guest qualification remain required before signal or unchanged Hello acceptance.
+same owner. [Step1251](../done/step1251.md) links genuine interrupted-wait and
+checked restart decisions, including timed restart_syscall. Asynchronous capture,
+native signal attachment/delivery and original native/guest qualification remain
+required before signal or unchanged Hello acceptance.
 Pending/frame/bridge host checks supply no execution evidence.
 
 The future qualification command is:

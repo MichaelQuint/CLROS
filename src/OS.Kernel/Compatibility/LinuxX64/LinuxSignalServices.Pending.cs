@@ -13,6 +13,11 @@ public static unsafe partial class LinuxSignalServices
     }
     internal static bool JobControl(State* s, uint signal) => signal is >= 19 and <= 22 &&
         ((Disposition*)s->Actions)[signal - 1].Handler == 0;
+    internal static bool RestartHandler(State* s, uint signal)
+    {
+        Disposition action = ((Disposition*)s->Actions)[signal - 1];
+        return action.Handler > 1 && (action.Flags & 0x10000000) != 0;
+    }
 
     internal static long Queue(State* s, ulong process, OSHostHandle identity, uint signal, LinuxSignalMask mask)
     {

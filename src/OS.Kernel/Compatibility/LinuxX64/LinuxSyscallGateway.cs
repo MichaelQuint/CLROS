@@ -146,7 +146,7 @@ public static unsafe class LinuxSyscallGateway
             if (!ThreadFrame(original, frame, result) || !ValidateReturn(original, state.Access) || !ValidateReturn(frame, state.Access))
             { frame = original; return Stop(ref state, LinuxSyscallGateStatus.InvalidReturn); }
             bool valid = (result.Action == LinuxSyscallAction.Return || result.Action == LinuxSyscallAction.RestoreUser && original.Number == 15) && result.ExitCode == 0 ||
-                result.Action == LinuxSyscallAction.Blocked && result.Value == 0 && result.ExitCode == 0 && frame.Number is 0 or 1 or 202 ||
+                result.Action == LinuxSyscallAction.Blocked && result.Value == 0 && result.ExitCode == 0 && frame.Number is 0 or 1 or 202 or 219 ||
                 (result.Action == LinuxSyscallAction.ThreadExited || result.Action == LinuxSyscallAction.Terminate) && result.Value == 0;
             if (!valid) return Stop(ref state, LinuxSyscallGateStatus.InvalidAdmission);
             if (result.Action == LinuxSyscallAction.Return && !AccountDescriptor(ref state, frame, result.Value))
@@ -267,7 +267,7 @@ public static unsafe class LinuxSyscallGateway
         f.Argument3 == 0 && f.Argument4 == 0 && f.Argument5 == 0 && f.Rip == 0 && f.Rsp == 0 && f.Rflags == 0 && f.FsBase == 0 && f.GsBase == 0;
     private static void Clear(byte* bytes, uint count) { for (uint i = 0; i < count; i++) bytes[i] = 0; }
     private static bool DescriptorCall(ulong number) => number is 0 or 1 or 2 or 3 or 5 or 8 or 16 or 17 or 20 or 22 or 72 or 257 or 293;
-    private static bool ThreadCall(ulong number) => number is 13 or 14 or 15 or 24 or 35 or 39 or 56 or 60 or 131 or 158 or 186 or 202 or 218 or 231 or 234 or 273 or 274;
+    private static bool ThreadCall(ulong number) => number is 13 or 14 or 15 or 24 or 35 or 39 or 56 or 60 or 131 or 158 or 186 or 202 or 218 or 219 or 231 or 234 or 273 or 274;
     private static bool ThreadFrame(LinuxSyscallFrame before, LinuxSyscallFrame after, LinuxSyscallResult result) =>
         result.Action == LinuxSyscallAction.RestoreUser
         ? before.Number == 15 && after.Number == 15 && before.FsBase == after.FsBase && before.GsBase == after.GsBase

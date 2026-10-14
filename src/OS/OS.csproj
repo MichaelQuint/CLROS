@@ -840,6 +840,7 @@
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.Pending.cs" Link="Compatibility\LinuxX64\LinuxSignalServices.Pending.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs" Link="Compatibility\LinuxX64\LinuxThreadServices.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Signals.cs" Link="Compatibility\LinuxX64\LinuxThreadServices.Signals.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Interrupts.cs" Link="Compatibility\LinuxX64\LinuxThreadServices.Interrupts.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs" Link="Compatibility\LinuxX64\LinuxThreadServices.Futex.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs" Link="Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs" Link="Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs" Condition="'$(EnableM16008Probe)' == 'true'" />

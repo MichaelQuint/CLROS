@@ -46,7 +46,7 @@ public unsafe partial struct LinuxThreadServices
         if (!Access(key, flags) || _failed || _stopping || !Current(flags, out uint index) ||
             !LinuxSyscallGateway.ValidateReturn(frame, _owner.User) || _descriptors == null) return new(LinuxSyscallAction.Rejected);
         Slot* slot = _owner.Slots + index;
-        if (slot->Exiting != 0 || slot->Wait.IsValid || slot->PipeOperation.IsActive) return new(LinuxSyscallAction.Rejected);
+        if (slot->Exiting != 0 || slot->RestartMode is 1 or 2 || slot->Wait.IsValid || slot->PipeOperation.IsActive) return new(LinuxSyscallAction.Rejected);
         if (!LinuxDescriptorServices.Attached(_descriptors, _self)) { _failed = true; return new(LinuxSyscallAction.Rejected); }
         bool pipe = LinuxDescriptorServices.BeginPipe(_descriptors, _self, frame, ref slot->PipeOperation, out long value);
         if (pipe)
@@ -78,7 +78,9 @@ public unsafe partial struct LinuxThreadServices
     /// <summary>Consume one actual completed pipe wait. Retry the original open
     /// description, never a reused fd. Another reader/writer may have consumed
     /// readiness, so retry can stage a fresh wait; large writes retain progress.
-    /// Shutdown drains as thread exit without inventing signal/EINTR delivery.</summary>
+    /// Interrupted completion releases the original description, returning a
+    /// transferred prefix or staging a zero-progress EINTR/restart decision.
+    /// Shutdown drains as thread exit. No handler executes in this method.</summary>
     public LinuxSyscallResult CompletePipeWait(ulong key, ulong flags)
     {
         if (!Access(key, flags) || _descriptors == null || !Current(flags, out uint index)) return new(LinuxSyscallAction.Rejected);
@@ -92,6 +94,15 @@ public unsafe partial struct LinuxThreadServices
             return new(LinuxSyscallAction.ThreadExited, exitCode: slot->ExitCode);
         }
         if (_failed) return new(LinuxSyscallAction.Rejected);
+        if (state.Completion == KernelThreadTable.Completion.Interrupted)
+        {
+            uint progress = slot->PipeOperation.TransferredBytes;
+            if (!DropPipeOperation(flags, slot)) return new(LinuxSyscallAction.Rejected);
+            // A transferred prefix is final: never replay it through a restart.
+            slot->RestartMode = progress == 0 ? 1U : 0;
+            slot->Image.Value = progress == 0 ? -4 : progress;
+            return new(LinuxSyscallAction.Return, slot->Image.Value);
+        }
         if (state.Completion != KernelThreadTable.Completion.Woken) { _failed = true; return new(LinuxSyscallAction.Rejected); }
         slot->Wait = default; slot->WaitSource = 0;
         var result = ContinuePipe(flags, slot);
@@ -110,6 +121,7 @@ public unsafe partial struct LinuxThreadServices
             if (begin.Succeeded)
             {
                 slot->Wait = begin.Wait; slot->WaitSource = 2;
+                slot->WaitCall = slot->Image.Frame; slot->WaitDeadline = 0;
                 if (!WakePipeChanges(flags, before)) return new(LinuxSyscallAction.Rejected);
                 return new(LinuxSyscallAction.Blocked);
             }
