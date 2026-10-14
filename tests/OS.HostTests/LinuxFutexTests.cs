@@ -10,13 +10,13 @@ internal static unsafe class LinuxFutexTests
     private const ulong Word = Base + 0x3100, OtherWord = Base + 0x3104, Timeout = Base + 0x3200;
     private static LinuxSyscallResult Call(Model m, ulong op, uint value, ulong timeout = 0, uint bitset = uint.MaxValue, ulong address = Word)
         => m.Call(202, address, op, value, timeout, 0, bitset);
-    private static void Park(Model m, OSHostHandle thread)
+    internal static void Park(Model m, OSHostHandle thread)
     {
         HostCheck.True(!m.Service->CurrentImage(Key, 2, out _));
         HostCheck.True(m.Service->CommitFutexWait(Key, 2, m.Kernel.Capture(thread), out bool handoff) && handoff);
         m.Kernel.Confirm(); HostCheck.Equal(KernelThreadTable.State.Waiting, m.Kernel.Inspect(thread).State);
     }
-    private static void Drain(Model m)
+    internal static void Drain(Model m, LinuxMemoryServices.State* guarded = null)
     {
         HostCheck.True(m.Service->Shutdown(Key, 2, 9));
         while (m.Service->ActiveThreads != 0)
@@ -27,8 +27,44 @@ internal static unsafe class LinuxFutexTests
             HostCheck.True(m.Service->Reap(Key, 2, thread, m.Kernel.SupervisorRsp, out _));
         }
         HostCheck.True(m.Service->MayChangeUserRange(Key, 2, Word, 4096));
+        if (guarded != null) HostCheck.True(LinuxMemoryServices.DetachMutationGuard(guarded, m.Service, &MemoryGuard));
         HostCheck.True(m.Service->Release(Key, 2));
         HostCheck.True(new ReadOnlySpan<byte>(m.FutexCells, sizeof(Service.FutexCell) * 4).IndexOfAnyExcept((byte)0) == -1);
+    }
+
+    [System.Runtime.InteropServices.UnmanagedCallersOnly]
+    internal static byte MemoryGuard(void* context, ulong address, ulong bytes)
+        => ((Service*)context)->MayChangeUserRange(Key, 2, address, bytes) ? (byte)1 : (byte)0;
+
+    [HostTest("linux.futex actual memory guard retains woken backing until consumption and allows unchanged remap prefixes")]
+    private static void MemoryOwnership()
+    {
+        using var memory = new LinuxMemoryServicesTests.Owner(); memory.Begin();
+        const ulong start = LinuxMemoryServices.DynamicStart, word = start + 4096 + 128;
+        HostCheck.Equal((long)start, LinuxMemoryServices.Map(memory.State, start, 4 * 4096, 3, 0x22, ulong.MaxValue, 0));
+        *(uint*)memory.At(word) = 42;
+        using Model m = new(futex: true); m.UseMemory(memory.Memory);
+        HostCheck.True(LinuxMemoryServices.AttachMutationGuard(memory.State, m.Service, &MemoryGuard));
+        var parent = m.Start(); m.Kernel.Dispatch(); var child = m.Clone();
+        HostCheck.Equal(LinuxSyscallAction.Blocked, Call(m, 128, 42, address: word).Action); Park(m, parent); m.Kernel.Dispatch();
+        HostCheck.Equal(-12L, LinuxMemoryServices.Unmap(memory.State, start + 4096, 4096));
+        HostCheck.Equal(-12L, LinuxMemoryServices.Protect(memory.State, start + 4096, 4096, 1));
+        HostCheck.Equal(-12L, LinuxMemoryServices.Advise(memory.State, start + 4096, 4096, 4));
+        HostCheck.Equal(-12L, LinuxMemoryServices.Map(memory.State, start + 4096, 4096, 3, 0x32, ulong.MaxValue, 0));
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(memory.State, start + 3 * 4096, 4096));
+        HostCheck.Equal((long)start, LinuxMemoryServices.Remap(memory.State, start, 3 * 4096, 4 * 4096, 0));
+        HostCheck.Equal((long)start, LinuxMemoryServices.Remap(memory.State, start, 4 * 4096, 3 * 4096, 0));
+        HostCheck.Equal(-12L, LinuxMemoryServices.Remap(memory.State, start, 3 * 4096, 4096, 0));
+        HostCheck.Equal(42U, *(uint*)memory.At(word));
+        HostCheck.True(!LinuxMemoryServices.DetachMutationGuard(memory.State, m.Service, &MemoryGuard));
+        HostCheck.Equal(1L, Call(m, 129, 1, address: word).Value);
+        HostCheck.True(!LinuxMemoryServices.DetachMutationGuard(memory.State, m.Service, &MemoryGuard));
+        HostCheck.Equal(-12L, LinuxMemoryServices.Unmap(memory.State, start + 4096, 4096));
+        m.Yield(child); HostCheck.Equal(parent.Value, m.Kernel.Dispatch().Value);
+        HostCheck.Equal(0L, m.Service->CompleteFutexWait(Key, 2).Value);
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(memory.State, start + 4096, 4096, 1));
+        HostCheck.True(LinuxMemoryServices.Audit(memory.State)); Drain(m, memory.State);
+        HostCheck.True(!memory.State->HasMutationGuard);
     }
 
     [HostTest("linux.futex bitsets wake matching actual workers and retain backing until completion consumption")]

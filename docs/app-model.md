@@ -56,6 +56,13 @@ distinct CALL paths around the restored CPL3 gateway. Focused host/byte controls
 pass, including corrected padding branches and fixed-frame stack bounds. The
 native EFI owner, memory/clock callbacks and M16-008 profile still need wiring
 and actual qualification; emitted bytes are not execution evidence.
+[Step1240](../done/step1240.md) makes the backend's commit point consult an
+explicit retained-memory guard before changing live tables or backing. Exact
+changed intervals protect futex waits through wake and completion consumption;
+unrelated changes, dump policy and unchanged remap prefixes remain usable. Host
+controls also preserve raw brk failure and allow shrink after completion drains.
+The actual EFI process owner still must attach this guard and supply the live
+alias/lifetime and monotonic clock capabilities.
 Signal delivery belongs to #687. All batch issues
 remain open pending shared qualification; the expensive full-host suite is
 deferred to the stable dependency-compatible batch requested by the user.

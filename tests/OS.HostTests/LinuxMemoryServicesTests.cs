@@ -52,6 +52,54 @@ internal static unsafe class LinuxMemoryServicesTests
     private static long Map(Owner owner, ulong address, ulong bytes, uint protection, ulong flags = 0x100022) =>
         LinuxMemoryServices.Map(owner.State, address, bytes, protection, flags, ulong.MaxValue, 0);
 
+    private struct GuardOwner { internal ulong Pin, LastStart, LastBytes; internal uint Calls; internal bool Deny; }
+    [UnmanagedCallersOnly]
+    private static byte Guard(void* context, ulong address, ulong bytes)
+    {
+        var owner = (GuardOwner*)context; owner->Calls++; owner->LastStart = address; owner->LastBytes = bytes;
+        return owner->Deny || owner->Pin != 0 && address < owner->Pin + 4 && owner->Pin < address + bytes ? (byte)0 : (byte)1;
+    }
+
+    [HostTest("linux.memory guard rejects retained backing changes atomically and permits exact unrelated intervals")]
+    private static void MutationGuard()
+    {
+        using var owner = new Owner(); owner.Begin(); HostCheck.Equal((long)Start, Map(owner, Start, 4 * 4096, 3));
+        *owner.At(Start + 4096) = 0x7b; GuardOwner guard = new() { Pin = Start + 4096 + 128 };
+        HostCheck.True(!LinuxMemoryServices.AttachMutationGuard(owner.State, null, &Guard));
+        HostCheck.True(!LinuxMemoryServices.AttachMutationGuard(owner.State, owner.State, &Guard));
+        HostCheck.True(LinuxMemoryServices.AttachMutationGuard(owner.State, &guard, &Guard));
+        HostCheck.True(!LinuxMemoryServices.AttachMutationGuard(owner.State, &guard, &Guard));
+        HostCheck.True(owner.State->HasMutationGuard); var copy = *owner.State;
+        HostCheck.True(!LinuxMemoryServices.Audit(&copy));
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, Start, 4 * 4096, 3));
+        HostCheck.Equal(0L, LinuxMemoryServices.Advise(owner.State, Start + 4096, 4096, 16)); HostCheck.Equal(0U, guard.Calls);
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, Start + 2 * 4096, 4096, 1));
+        HostCheck.Equal(Start + 2 * 4096, guard.LastStart); HostCheck.Equal(4096UL, guard.LastBytes);
+        byte[] tables = owner.Tables(), pool = new ReadOnlySpan<byte>(owner.Memory.Pool, (int)PoolPages * 4096).ToArray();
+        byte[] state = new ReadOnlySpan<byte>(owner.State, sizeof(LinuxMemoryServices.State)).ToArray();
+        foreach (int operation in new[] { 0, 1, 2, 3 })
+        {
+            long result = operation switch
+            {
+                0 => LinuxMemoryServices.Protect(owner.State, Start + 4096, 4096, 1),
+                1 => LinuxMemoryServices.Unmap(owner.State, Start + 4096, 4096),
+                2 => LinuxMemoryServices.Advise(owner.State, Start + 4096, 4096, 4),
+                _ => Map(owner, Start + 4096, 4096, 3, 0x32)
+            };
+            HostCheck.Equal(-12L, result);
+            HostCheck.True(tables.AsSpan().SequenceEqual(owner.Tables()) && pool.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.Memory.Pool, pool.Length)) &&
+                state.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.State, state.Length)) && LinuxMemoryServices.Audit(owner.State));
+        }
+        HostCheck.True(!LinuxMemoryServices.DetachMutationGuard(owner.State, &guard, &Guard));
+        GuardOwner other = default; HostCheck.True(!LinuxMemoryServices.DetachMutationGuard(owner.State, &other, &Guard));
+        guard.Pin = 0; guard.Deny = true;
+        HostCheck.Equal(-12L, LinuxMemoryServices.Unmap(owner.State, Start + 3 * 4096, 4096));
+        guard.Deny = false; HostCheck.True(LinuxMemoryServices.DetachMutationGuard(owner.State, &guard, &Guard));
+        HostCheck.True(!owner.State->HasMutationGuard); HostCheck.Equal(4096UL, guard.LastStart);
+        HostCheck.Equal(OS.Kernel.Memory.X64UserAddressSpace.UserEnd - 4096, guard.LastBytes);
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, Start + 4096, 4096));
+    }
+
     [HostTest("m16-006 measured 8234266624-byte sparse reservation bounded commit and high leaves", HostLane.Fast, 0)]
     private static void SparseReservation()
     {

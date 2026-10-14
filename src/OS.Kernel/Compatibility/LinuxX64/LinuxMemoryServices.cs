@@ -52,9 +52,13 @@ public static unsafe class LinuxMemoryServices
         internal Admission Memory;
         internal uint Count, Initialized;
         internal fixed ulong Regions[(int)MaximumRegions * 4];
+        internal void* GuardContext;
+        internal delegate* unmanaged<void*, ulong, ulong, byte> Guard;
+        internal ulong GuardSelf;
         public ulong ReservedBytes { get; internal set; }
         public uint BackedPages { get; internal set; }
         public X64UserAddressSpaceResult Root { get; internal set; }
+        public readonly bool HasMutationGuard => Guard != null;
     }
 
     private struct Region
@@ -83,7 +87,7 @@ public static unsafe class LinuxMemoryServices
 
     private static bool Initialize(State* state, Admission memory, X64UserAddressSpaceResult original, bool adopt)
     {
-        if (!Storage(state, memory) || state->Initialized != 0 || state->Count != 0 ||
+        if (!Storage(state, memory) || state->Initialized != 0 || state->Count != 0 || state->GuardContext != null || state->Guard != null || state->GuardSelf != 0 ||
             state->ReservedBytes != 0 || state->BackedPages != 0 || state->Root.Status != X64UserAddressSpaceStatus.Uninitialized)
             return false;
         for (uint i = 0; i < MaximumRegions * 4; i++) if (state->Regions[i] != 0) return false;
@@ -106,6 +110,38 @@ public static unsafe class LinuxMemoryServices
         CopyTables(memory);
         state->Memory = memory; state->Root = root; state->Initialized = 1;
         return true;
+    }
+
+    /// <summary>Attach one read-only, nonreentrant ownership guard under the
+    /// existing IRQ-off/inactive-root serialization before publishing threads.
+    /// Context and native callback stay exclusively mapped through detachment;
+    /// the owner proves their identity and storage lifetime. Return exactly 1
+    /// only when the whole supplied user interval may change. Rejection precedes
+    /// live table/backing mutation; candidate scratch may change. Unchanged
+    /// backing/protection and dump-policy-only edits need no callback. This API
+    /// grants no thread, mapping or native callback execution authority.</summary>
+    public static bool AttachMutationGuard(State* state, void* context, delegate* unmanaged<void*, ulong, ulong, byte> guard)
+    {
+        if (!Valid(state) || state->Guard != null || !Buffer(context, 8, 8) || guard == null) return false;
+        var m = state->Memory;
+        if (Overlap((ulong)context, 8, (ulong)state, (ulong)sizeof(State)) ||
+            Overlap((ulong)context, 8, (ulong)m.Pool, m.PoolPages * Page) ||
+            Overlap((ulong)context, 8, (ulong)m.Tables, m.TablePages * Page) ||
+            Overlap((ulong)context, 8, (ulong)m.CandidateTables, m.TablePages * Page) ||
+            Overlap((ulong)context, 8, (ulong)m.StaticRanges, m.StaticCount * (ulong)sizeof(X64UserMappingRange))) return false;
+        state->GuardContext = context; state->Guard = guard; state->GuardSelf = (ulong)state; return true;
+    }
+
+    /// <summary>Detach the exact retained owner only after actual thread drain,
+    /// before its guard context is released. A final whole-user-range query must
+    /// confirm every outstanding mapping borrow is gone. Wrong owner/callback,
+    /// copied state or a retained wait changes nothing. This query does not
+    /// itself stop threads; the native owner excludes new wait publication.</summary>
+    public static bool DetachMutationGuard(State* state, void* context, delegate* unmanaged<void*, ulong, ulong, byte> guard)
+    {
+        if (!Valid(state) || state->Guard == null || context != state->GuardContext || (ulong)guard != (ulong)state->Guard ||
+            guard(context, Page, X64UserAddressSpace.UserEnd - Page) != 1) return false;
+        state->GuardContext = null; state->Guard = null; state->GuardSelf = 0; return true;
     }
 
     /// <summary>
@@ -335,6 +371,8 @@ public static unsafe class LinuxMemoryServices
     private static bool Valid(State* state)
     {
         if (state == null || ((ulong)state & 7) != 0 || state->Initialized != 1 ||
+            (state->Guard == null ? state->GuardContext != null || state->GuardSelf != 0 :
+                state->GuardContext == null || state->GuardSelf != (ulong)state) ||
             !Storage(state, state->Memory) || state->Count > MaximumRegions) return false;
         for (uint i = 0; i < state->Count; i++) if ((state->Regions[i * 4 + 3] & ~0x307UL) != 0) return false;
         Region* regions = stackalloc Region[(int)MaximumRegions];
@@ -359,6 +397,7 @@ public static unsafe class LinuxMemoryServices
         var root = X64UserAddressSpace.Build(mappings, mapped, memory.CandidateTables,
             memory.RootPhysical, memory.TablePages, memory.Conditions);
         if (!root.Succeeded) return NoMemory;
+        if (!GuardChanges(state, regions, count)) return NoMemory;
         // All fallible work is complete. The inactive-root, exclusive-pool
         // precondition allows zero-fill before publishing the candidate leaves.
         for (uint page = 0; page < memory.PoolPages; page++)
@@ -380,6 +419,40 @@ public static unsafe class LinuxMemoryServices
         }
         state->Count = count; state->ReservedBytes = reserved; state->BackedPages = backed; state->Root = root;
         return 0;
+    }
+
+    private static bool GuardChanges(State* state, Region* next, uint count)
+    {
+        if (state->Guard == null) return true;
+        Region* old = stackalloc Region[(int)MaximumRegions]; uint oldCount = CopyRegions(state, old);
+        for (uint i = 0; i < oldCount; i++)
+        {
+            Region prior = old[i]; ulong cursor = prior.Start, limit = prior.Start + prior.Bytes;
+            while (cursor < limit)
+            {
+                uint j = 0;
+                while (j < count && next[j].Start + next[j].Bytes <= cursor) j++;
+                ulong end = limit; bool changed = true;
+                if (j < count)
+                {
+                    Region r = next[j];
+                    if (r.Start > cursor) { if (r.Start < end) end = r.Start; }
+                    else
+                    {
+                        if (r.Start + r.Bytes < end) end = r.Start + r.Bytes;
+                        ulong fresh = r.Start + r.FreshFrom;
+                        if (r.Fresh && cursor < fresh && fresh < end) end = fresh;
+                        ulong before = prior.Backing == 0 ? 0 : prior.Backing + cursor - prior.Start;
+                        ulong after = r.Backing == 0 ? 0 : r.Backing + cursor - r.Start;
+                        changed = before != after || prior.Protection != r.Protection || prior.Heap != r.Heap ||
+                            r.Fresh && r.Backing != 0 && cursor >= fresh;
+                    }
+                }
+                if (end <= cursor || changed && state->Guard(state->GuardContext, cursor, end - cursor) != 1) return false;
+                cursor = end;
+            }
+        }
+        return true;
     }
 
     private static bool Storage(State* state, Admission m)

@@ -18,6 +18,7 @@ internal static unsafe class LinuxThreadServicesTests
     {
         internal byte* Bytes;
         internal Services* Service;
+        internal LinuxMemoryServices.Admission Memory;
         internal ulong FailWriteAddress, FailReadAddress, LastRead, LastWrite;
         internal uint Reads, Writes, FailedWrites;
         internal ulong Now, Lifetime;
@@ -49,6 +50,7 @@ internal static unsafe class LinuxThreadServicesTests
         internal byte* At(ulong address) => User->Bytes + address - UserBase;
         internal ulong Now { get => User->Now; set => User->Now = value; }
         internal void ChangeMappingLifetime(ulong value) => User->Lifetime = value;
+        internal void UseMemory(LinuxMemoryServices.Admission memory) => User->Memory = memory;
         internal void FailClock(bool value) => User->ClockFails = value;
         internal Services.FutexCell* FutexCells => (Services.FutexCell*)(Kernel.Memory + 0x60000);
 
@@ -166,8 +168,15 @@ internal static unsafe class LinuxThreadServicesTests
         => ((UserMemory*)context)->Service->Dispatch(Key, 2, ref *frame); // IRQ-off host model only.
 
     [UnmanagedCallersOnly]
-    private static byte PageAccess(void* context, ulong page) => context != null && UserRange(page, 4096, false)
-        ? page == UserBase ? (byte)5 : (byte)3 : (byte)0;
+    private static byte PageAccess(void* context, ulong page)
+    {
+        if (context == null) return 0;
+        if (UserRange(page, 4096, false)) return page == UserBase ? (byte)5 : (byte)3;
+        var memory = ((UserMemory*)context)->Memory;
+        if (memory.Tables == null || !OS.Kernel.Memory.X64UserAddressSpace.TryReadLeaf(memory.Tables, memory.RootPhysical,
+            memory.TablePages, page, out ulong leaf) || (leaf & 5) != 5) return 0;
+        return (byte)(1 | ((leaf & 2) != 0 ? 2 : 0) | ((leaf & 0x8000000000000000) == 0 ? 4 : 0));
+    }
 
     [UnmanagedCallersOnly]
     private static byte CopyFromUser(void* context, ulong address, byte* output, uint bytes)
@@ -192,9 +201,19 @@ internal static unsafe class LinuxThreadServicesTests
     [UnmanagedCallersOnly]
     private static byte ResolveFutex(void* context, ulong address, uint** alias, ulong* lifetime)
     {
-        if (context == null || alias == null || lifetime == null || !UserRange(address, 4, false) || (address & 3) != 0) return 0;
+        if (context == null || alias == null || lifetime == null || (address & 3) != 0) return 0;
         UserMemory* user = (UserMemory*)context;
-        *alias = (uint*)(user->Bytes + address - UserBase); *lifetime = user->Lifetime; return 1;
+        if (UserRange(address, 4, false)) *alias = (uint*)(user->Bytes + address - UserBase);
+        else
+        {
+            var memory = user->Memory;
+            if (memory.Tables == null || !OS.Kernel.Memory.X64UserAddressSpace.TryReadLeaf(memory.Tables, memory.RootPhysical,
+                memory.TablePages, address, out ulong leaf) || (leaf & 5) != 5) return 0;
+            ulong physical = (leaf & 0x000ffffffffff000) + (address & 4095);
+            if (physical < memory.PoolPhysical || physical - memory.PoolPhysical > memory.PoolPages * 4096UL - 4) return 0;
+            *alias = (uint*)(memory.Pool + physical - memory.PoolPhysical);
+        }
+        *lifetime = user->Lifetime; return 1;
     }
     [UnmanagedCallersOnly]
     private static byte Monotonic(void* context, ulong* now)

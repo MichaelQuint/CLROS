@@ -115,6 +115,26 @@ internal static unsafe class LinuxStartupServicesTests
         HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Heap), 8192).IndexOfAnyExcept((byte)0) == -1);
     }
 
+    [HostTest("linux.startup brk shrink preserves retained futex backing and exact raw break until completion drains")]
+    private static void GuardedHeap()
+    {
+        using var owner = new Owner(); owner.Begin(); HostCheck.Equal((long)Heap + 3 * 4096, owner.Call(12, Heap + 3 * 4096));
+        const ulong word = Heap + 4096 + 128, key = LinuxThreadServicesTests.Key;
+        *(uint*)owner.Memory.At(word) = 42;
+        using LinuxThreadServicesTests.Model threads = new(futex: true); threads.UseMemory(owner.Memory.Memory);
+        HostCheck.True(LinuxMemoryServices.AttachMutationGuard(owner.Memory.State, threads.Service, &LinuxFutexTests.MemoryGuard));
+        var parent = threads.Start(); threads.Kernel.Dispatch(); var child = threads.Clone();
+        HostCheck.Equal(LinuxSyscallAction.Blocked, threads.Call(202, word, 128, 42).Action);
+        LinuxFutexTests.Park(threads, parent); threads.Kernel.Dispatch();
+        BrkRejected(owner, Heap + 4096); HostCheck.Equal(42U, *(uint*)owner.Memory.At(word));
+        HostCheck.Equal((long)Heap + 4 * 4096, owner.Call(12, Heap + 4 * 4096));
+        HostCheck.Equal((long)Heap + 3 * 4096, owner.Call(12, Heap + 3 * 4096));
+        HostCheck.Equal(1L, threads.Call(202, word, 129, 1).Value); BrkRejected(owner, Heap + 4096);
+        threads.Yield(child); threads.Kernel.Dispatch(); HostCheck.Equal(0L, threads.Service->CompleteFutexWait(key, 2).Value);
+        HostCheck.Equal((long)Heap + 4096, owner.Call(12, Heap + 4096)); HostCheck.Equal(0UL, owner.Memory.Leaf(word));
+        LinuxFutexTests.Drain(threads, owner.Memory.State);
+    }
+
     [HostTest("m16-006 startup queries use x64 layouts actual memory and admitted CPU facts", HostLane.Fast, 1)]
     private static void Queries()
     {
