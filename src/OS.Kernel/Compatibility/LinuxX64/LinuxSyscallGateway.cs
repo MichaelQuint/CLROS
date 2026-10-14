@@ -1,7 +1,7 @@
 namespace OS.Kernel.Compatibility.LinuxX64;
 
 public enum LinuxSyscallGateStatus : byte
-{ Uninitialized, Active, Exited, InvalidAdmission, AlreadyConsumed, InvalidReturn, CallLimit, CopyFailed, SinkFailed }
+{ Uninitialized, Active, Exited, InvalidAdmission, AlreadyConsumed, InvalidReturn, CallLimit, CopyFailed, SinkFailed, Blocked }
 public enum LinuxSyscallAction : byte { Rejected, Return, Terminate, Blocked, ThreadExited }
 public enum LinuxUserPageAccess : byte { None = 0, Read = 1, Write = 2, Execute = 4 }
 
@@ -39,7 +39,9 @@ public unsafe struct LinuxSyscallAccess
     public delegate* unmanaged<void*, LinuxSyscallFrame*, long> Startup;
     // Explicit M16-007 fd extension; owns its separate retained tables/scratch.
     public delegate* unmanaged<void*, LinuxSyscallFrame*, long> Descriptors;
-    // Explicit M16-008 thread extension. Only ARCH_SET_FS may change the captured
+    // Explicit M16-008 thread AND descriptor extension. It wraps every fd
+    // mutation so pipe readiness cannot bypass the actual thread wait owner.
+    // Only ARCH_SET_FS may change the captured
     // return frame; all other return/control fields remain immutable. A blocked
     // result is a staged scheduler wait, not a fabricated Linux return value.
     public delegate* unmanaged<void*, LinuxSyscallFrame*, LinuxSyscallResult> Threads;
@@ -63,19 +65,26 @@ public unsafe struct LinuxSyscallGateState
     internal LinuxSyscallAdmission Admission;
     internal LinuxSyscallAccess Access;
     internal uint CallsValue, BytesValue;
+    internal LinuxSyscallFrame Pending;
     public readonly LinuxSyscallGateStatus Status => StatusValue;
     public readonly uint Calls => CallsValue;
     public readonly uint BytesWritten => BytesValue;
 }
 
 /// <summary>
-/// One-use checked write/exit dispatcher for the declared low-64GiB, single-CPU
+/// One-use checked dispatcher for the declared low-64GiB, single-CPU
 /// boundary. Admission declarations and callback simulations are host contracts,
 /// not CPL3 evidence. The native owner proves selectors/MSRs, dedicated kernel
 /// stack, FS/GS/FP preservation, current root and immutable user mappings. It
 /// validates every return before IRETQ; termination never resumes user code.
 /// Kernel scratch is cleared after every attempted copy/write. No allocations,
 /// exceptions, firmware calls, OS threading or upstream app acceptance is added.
+/// Thread mode requires one retained state per actual worker generation; never
+/// copy/reuse it or dispatch another worker through a blocked state. The IRQ-off
+/// owner binds that storage to the real scheduled identity, captures the user
+/// image and supplies actual wait completion after native restoration. Separate
+/// gates may share scratch only under that same serialization. Counters are per
+/// gate and include completed successful write prefixes, never pending progress.
 /// </summary>
 public static unsafe class LinuxSyscallGateway
 {
@@ -88,7 +97,7 @@ public static unsafe class LinuxSyscallGateway
         LinuxSyscallAdmission admission, LinuxSyscallAccess access)
     {
         if (state.StatusValue != LinuxSyscallGateStatus.Uninitialized) return LinuxSyscallGateStatus.AlreadyConsumed;
-        if (state.CallsValue != 0 || state.BytesValue != 0 || !admission.FirmwareExited || !admission.OwnedBoundaryValidated ||
+        if (state.CallsValue != 0 || state.BytesValue != 0 || !Empty(state.Pending) || !admission.FirmwareExited || !admission.OwnedBoundaryValidated ||
             admission.UserRoot < 4096 || admission.UserRoot >= OS.Kernel.Memory.X64UserAddressSpace.PhysicalEnd || (admission.UserRoot & 4095) != 0 ||
             admission.MaximumCalls == 0 || admission.MaximumCalls > (admission.EnableThreads ? MaximumThreadCalls : MaximumCalls) ||
             admission.MaximumWrite == 0 || admission.MaximumWrite > MaximumWrite ||
@@ -127,7 +136,7 @@ public static unsafe class LinuxSyscallGateway
         if (!ValidateReturn(frame, state.Access)) return Stop(ref state, LinuxSyscallGateStatus.InvalidReturn);
         if (state.CallsValue == state.Admission.MaximumCalls) return Stop(ref state, LinuxSyscallGateStatus.CallLimit);
         state.CallsValue++;
-        if (state.Admission.EnableThreads && ThreadCall(frame.Number))
+        if (state.Admission.EnableThreads && (ThreadCall(frame.Number) || DescriptorCall(frame.Number)))
         {
             LinuxSyscallFrame original = frame;
             LinuxSyscallResult result;
@@ -136,9 +145,14 @@ public static unsafe class LinuxSyscallGateway
             if (!ThreadFrame(original, frame, result) || !ValidateReturn(original, state.Access) || !ValidateReturn(frame, state.Access))
             { frame = original; return Stop(ref state, LinuxSyscallGateStatus.InvalidReturn); }
             bool valid = result.Action == LinuxSyscallAction.Return && result.ExitCode == 0 ||
-                result.Action == LinuxSyscallAction.Blocked && result.Value == 0 && result.ExitCode == 0 ||
+                result.Action == LinuxSyscallAction.Blocked && result.Value == 0 && result.ExitCode == 0 && frame.Number is 0 or 1 or 202 ||
                 (result.Action == LinuxSyscallAction.ThreadExited || result.Action == LinuxSyscallAction.Terminate) && result.Value == 0;
             if (!valid) return Stop(ref state, LinuxSyscallGateStatus.InvalidAdmission);
+            if (result.Action == LinuxSyscallAction.Return && !AccountDescriptor(ref state, frame, result.Value))
+                return Stop(ref state, LinuxSyscallGateStatus.SinkFailed);
+            if (result.Action == LinuxSyscallAction.Blocked)
+            { state.Pending = original; state.StatusValue = LinuxSyscallGateStatus.Blocked; }
+            if (result.Action == LinuxSyscallAction.ThreadExited) state.StatusValue = LinuxSyscallGateStatus.Exited;
             if (result.Action == LinuxSyscallAction.Terminate) state.StatusValue = LinuxSyscallGateStatus.Exited;
             return result;
         }
@@ -190,6 +204,38 @@ public static unsafe class LinuxSyscallGateway
         return new(LinuxSyscallAction.Return, bytes);
     }
 
+    /// <summary>Finish this worker's actual staged wait after it is scheduled
+    /// again. The owner authenticates its kernel generation and consumes the
+    /// pipe/futex completion first. Blocked retains the same call across a
+    /// readiness retry; Return revalidates the saved user target and counts a
+    /// write exactly once. Exit drains without validating an unused return
+    /// target. No syscall is replayed, scheduled or counted here. Terminal gate
+    /// failure still requires the native owner to drain all process resources.</summary>
+    public static LinuxSyscallResult CompleteBlocked(ref LinuxSyscallGateState state, LinuxSyscallResult completion)
+    {
+        if (state.StatusValue != LinuxSyscallGateStatus.Blocked || !state.Admission.EnableThreads)
+            return new(LinuxSyscallAction.Rejected);
+        Clear(state.Admission.Scratch, state.Admission.ScratchBytes);
+        if (completion.Action == LinuxSyscallAction.Blocked && completion.Value == 0 && completion.ExitCode == 0) return completion;
+        if ((completion.Action == LinuxSyscallAction.ThreadExited || completion.Action == LinuxSyscallAction.Terminate) && completion.Value == 0)
+        { state.Pending = default; state.StatusValue = LinuxSyscallGateStatus.Exited; return completion; }
+        if (completion.Action != LinuxSyscallAction.Return || completion.ExitCode != 0)
+            return Stop(ref state, LinuxSyscallGateStatus.InvalidAdmission);
+        if (!ValidateReturn(state.Pending, state.Access)) return Stop(ref state, LinuxSyscallGateStatus.InvalidReturn);
+        if (!AccountDescriptor(ref state, state.Pending, completion.Value)) return Stop(ref state, LinuxSyscallGateStatus.SinkFailed);
+        state.Pending = default; state.StatusValue = LinuxSyscallGateStatus.Active; return completion;
+    }
+
+    private static bool AccountDescriptor(ref LinuxSyscallGateState state, LinuxSyscallFrame frame, long value)
+    {
+        if (value <= 0) return true;
+        if (frame.Number is 0 or 1 && ((ulong)value > frame.Argument2 || value > LinuxDescriptorServices.MaximumIo)) return false;
+        if (frame.Number is not (1 or 20)) return true;
+        if (value > LinuxDescriptorServices.MaximumIo) return false;
+        state.BytesValue += (uint)value; // MaximumThreadCalls * MaximumIo fits uint.
+        return true;
+    }
+
     public static bool ValidateReturn(LinuxSyscallFrame frame, LinuxSyscallAccess access) =>
         access.Context != null && access.PageAccess != null &&
         (frame.Rflags & 2) != 0 && (frame.Rflags & ~UserRflagsMask) == 0 &&
@@ -215,7 +261,9 @@ public static unsafe class LinuxSyscallGateway
     }
 
     private static LinuxSyscallResult Stop(ref LinuxSyscallGateState state, LinuxSyscallGateStatus status)
-    { Clear(state.Admission.Scratch, state.Admission.ScratchBytes); state.StatusValue = status; return new(LinuxSyscallAction.Terminate); }
+    { Clear(state.Admission.Scratch, state.Admission.ScratchBytes); state.Pending = default; state.StatusValue = status; return new(LinuxSyscallAction.Terminate); }
+    private static bool Empty(LinuxSyscallFrame f) => f.Number == 0 && f.Argument0 == 0 && f.Argument1 == 0 && f.Argument2 == 0 &&
+        f.Argument3 == 0 && f.Argument4 == 0 && f.Argument5 == 0 && f.Rip == 0 && f.Rsp == 0 && f.Rflags == 0 && f.FsBase == 0 && f.GsBase == 0;
     private static void Clear(byte* bytes, uint count) { for (uint i = 0; i < count; i++) bytes[i] = 0; }
     private static bool DescriptorCall(ulong number) => number is 0 or 1 or 2 or 3 or 5 or 8 or 16 or 17 or 20 or 22 or 72 or 257 or 293;
     private static bool ThreadCall(ulong number) => number is 14 or 24 or 35 or 39 or 56 or 60 or 158 or 186 or 202 or 218 or 231 or 273 or 274;

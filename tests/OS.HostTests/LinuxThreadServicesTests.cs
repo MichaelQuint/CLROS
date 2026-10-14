@@ -17,6 +17,7 @@ internal static unsafe class LinuxThreadServicesTests
     private struct UserMemory
     {
         internal byte* Bytes;
+        internal Services* Service;
         internal ulong FailWriteAddress, FailReadAddress, LastRead, LastWrite;
         internal uint Reads, Writes, FailedWrites;
         internal ulong Now, Lifetime;
@@ -35,6 +36,10 @@ internal static unsafe class LinuxThreadServicesTests
         private UserMemory* User => (UserMemory*)(Kernel.Memory + 0xa000);
         internal LinuxSyscallAccess Access => new() { Context = User, PageAccess = &PageAccess, CopyFromUser = &CopyFromUser };
         internal LinuxSyscallAccess DescriptorAccess => new() { Context = User, PageAccess = &PageAccess, CopyFromUser = &CopyFromUser, Write = &Sink };
+        internal LinuxSyscallAccess GatewayAccess
+        {
+            get { var access = DescriptorAccess; access.Startup = access.Descriptors = &Unsupported; access.Threads = &ThreadDispatch; return access; }
+        }
         internal delegate* unmanaged<void*, ulong, byte*, uint, byte> UserCopyOut => &CopyToUser;
         internal uint Reads => User->Reads;
         internal uint Writes => User->Writes;
@@ -52,7 +57,7 @@ internal static unsafe class LinuxThreadServicesTests
             HostCheck.True(sizeof(Services) <= 0x1000 && sizeof(Services.Slot) * 3 <= 0x1000 && sizeof(Services.Worker) * 3 <= 0x1000);
             *Service = default; new Span<byte>(Slots, sizeof(Services.Slot) * 3).Clear();
             new Span<byte>(Workers, sizeof(Services.Worker) * 3).Clear();
-            *User = new() { Bytes = Kernel.Memory + 0xb000, FailWriteAddress = ulong.MaxValue, FailReadAddress = ulong.MaxValue, Now = 1000, Lifetime = 1 };
+            *User = new() { Bytes = Kernel.Memory + 0xb000, Service = Service, FailWriteAddress = ulong.MaxValue, FailReadAddress = ulong.MaxValue, Now = 1000, Lifetime = 1 };
             new Span<byte>(User->Bytes, (int)UserBytes).Fill(0x5a);
             for (int i = 0; i < 3; i++) Workers[i] = new() { Initial = WorkerContext(i, default), Entry = Kernel.Code + 0x400 + (uint)i * 0x40 };
             HostCheck.True(Service->Initialize(Key, 2, new()
@@ -152,6 +157,13 @@ internal static unsafe class LinuxThreadServicesTests
 
     private static bool UserRange(ulong address, uint bytes, bool write) => bytes != 0 &&
         address >= UserBase + (write ? 4096UL : 0) && bytes <= UserBytes && address - UserBase <= UserBytes - bytes;
+
+    [UnmanagedCallersOnly]
+    private static long Unsupported(void* context, LinuxSyscallFrame* frame) => -38;
+
+    [UnmanagedCallersOnly]
+    private static LinuxSyscallResult ThreadDispatch(void* context, LinuxSyscallFrame* frame)
+        => ((UserMemory*)context)->Service->Dispatch(Key, 2, ref *frame); // IRQ-off host model only.
 
     [UnmanagedCallersOnly]
     private static byte PageAccess(void* context, ulong page) => context != null && UserRange(page, 4096, false)

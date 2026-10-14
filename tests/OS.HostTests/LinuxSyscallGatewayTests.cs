@@ -10,6 +10,7 @@ internal static unsafe class LinuxSyscallGatewayTests
         public uint Copies, Writes, Bytes, Descriptor;
         public bool MissingSecond, CopyFails, SinkFails, High, RemovedCode;
         public uint ThreadCalls, ThreadMode;
+        public long ThreadValue;
     }
     private static LinuxSyscallFrame Frame() => new()
     { Number = 1, Argument0 = 1, Argument1 = 0x402000, Argument2 = 16, Rip = 0x400100, Rsp = 0x70001000, Rflags = 2 };
@@ -36,6 +37,7 @@ internal static unsafe class LinuxSyscallGatewayTests
             case 9: return new(LinuxSyscallAction.Blocked, 1);
             case 10: frame->FsBase = 0x403008; return new(LinuxSyscallAction.Return);
             case 11: frame->GsBase = 0x403000; return new(LinuxSyscallAction.Return);
+            case 12: return new(LinuxSyscallAction.Return, m->ThreadValue);
         }
         if (frame->Number == 158) { frame->FsBase = frame->Argument1; return new(LinuxSyscallAction.Return); }
         return new(LinuxSyscallAction.Return, 23);
@@ -97,12 +99,18 @@ internal static unsafe class LinuxSyscallGatewayTests
         byte* scratch = stackalloc byte[64]; Model model = new() { ThreadMode = 4 }; var state = ThreadGate(&model, scratch);
         var frame = Frame(); frame.Number = 202;
         HostCheck.Equal(LinuxSyscallAction.Blocked, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
+        HostCheck.Equal(LinuxSyscallGateStatus.Blocked, state.Status);
+        HostCheck.Equal(LinuxSyscallAction.Rejected, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
+        HostCheck.Equal(1U, model.ThreadCalls);
+        HostCheck.Equal(-110L, LinuxSyscallGateway.CompleteBlocked(ref state, new(LinuxSyscallAction.Return, -110)).Value);
         HostCheck.Equal(LinuxSyscallGateStatus.Active, state.Status);
         model.ThreadMode = 5; frame.Number = 60; var exited = LinuxSyscallGateway.Dispatch(ref state, ref frame);
-        HostCheck.True(exited.Action == LinuxSyscallAction.ThreadExited && exited.ExitCode == 17 && state.Status == LinuxSyscallGateStatus.Active);
+        HostCheck.True(exited.Action == LinuxSyscallAction.ThreadExited && exited.ExitCode == 17 && state.Status == LinuxSyscallGateStatus.Exited);
+        HostCheck.Equal(2U, state.Calls);
+        state = ThreadGate(&model, scratch);
         model.ThreadMode = 6; frame.Number = 231; exited = LinuxSyscallGateway.Dispatch(ref state, ref frame);
         HostCheck.True(exited.Action == LinuxSyscallAction.Terminate && exited.ExitCode == 42 && state.Status == LinuxSyscallGateStatus.Exited);
-        HostCheck.Equal(3U, state.Calls);
+        HostCheck.Equal(1U, state.Calls);
         foreach (uint mode in new uint[] { 7, 8, 9 })
         {
             model.ThreadMode = mode; state = ThreadGate(&model, scratch); frame.Number = 202;
@@ -111,6 +119,59 @@ internal static unsafe class LinuxSyscallGatewayTests
             HostCheck.Equal(LinuxSyscallGateStatus.InvalidAdmission, state.Status);
             HostCheck.True(new ReadOnlySpan<byte>(scratch, 64).IndexOfAnyExcept((byte)0) == -1);
         }
+    }
+
+    [HostTest("m16-008 gateway routes all threaded fd mutations and counts blocked writes once after completion")]
+    private static void ThreadDescriptors()
+    {
+        byte* scratch = stackalloc byte[64]; Model model = new() { ThreadMode = 12, ThreadValue = -9 }; var state = ThreadGate(&model, scratch);
+        var frame = Frame();
+        foreach (ulong number in new ulong[] { 0, 1, 2, 3, 5, 8, 16, 17, 20, 22, 72, 257, 293 })
+        { frame.Number = number; HostCheck.Equal(-9L, LinuxSyscallGateway.Dispatch(ref state, ref frame).Value); }
+        HostCheck.Equal(13U, model.ThreadCalls); // The legacy fd callback would return ENOSYS.
+        frame = Frame(); model.ThreadMode = 4;
+        HostCheck.Equal(LinuxSyscallAction.Blocked, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
+        HostCheck.Equal(0U, state.BytesWritten);
+        HostCheck.Equal(LinuxSyscallAction.Blocked, LinuxSyscallGateway.CompleteBlocked(ref state, new(LinuxSyscallAction.Blocked)).Action);
+        HostCheck.Equal(0U, state.BytesWritten);
+        HostCheck.Equal(16L, LinuxSyscallGateway.CompleteBlocked(ref state, new(LinuxSyscallAction.Return, 16)).Value);
+        HostCheck.Equal(16U, state.BytesWritten); HostCheck.Equal(14U, state.Calls);
+        HostCheck.Equal(LinuxSyscallAction.Rejected, LinuxSyscallGateway.CompleteBlocked(ref state, new(LinuxSyscallAction.Return, 16)).Action);
+        HostCheck.Equal(16U, state.BytesWritten);
+        model.ThreadMode = 12; model.ThreadValue = 8;
+        HostCheck.Equal(8L, LinuxSyscallGateway.Dispatch(ref state, ref frame).Value); HostCheck.Equal(24U, state.BytesWritten);
+    }
+
+    [HostTest("m16-008 gateway validates completion bounds return mappings and exit without replay or false byte accounting")]
+    private static void CompletionFailures()
+    {
+        byte* scratch = stackalloc byte[64]; Model model = new() { ThreadMode = 4 }; var frame = Frame();
+        foreach (int variant in new[] { 0, 1, 2, 3, 4 })
+        {
+            model.RemovedCode = false; var state = ThreadGate(&model, scratch);
+            HostCheck.Equal(LinuxSyscallAction.Blocked, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
+            LinuxSyscallResult result;
+            switch (variant)
+            {
+                case 0: result = new(LinuxSyscallAction.Return, 17); break;
+                case 1: result = new(LinuxSyscallAction.Blocked, 1); break;
+                case 2: result = new(LinuxSyscallAction.Return, 1, 1); break;
+                case 3: model.RemovedCode = true; result = new(LinuxSyscallAction.Return, 16); break;
+                default: model.RemovedCode = true; result = new(LinuxSyscallAction.ThreadExited, exitCode: 7); break;
+            }
+            var complete = LinuxSyscallGateway.CompleteBlocked(ref state, result);
+            HostCheck.Equal(variant == 4 ? LinuxSyscallAction.ThreadExited : LinuxSyscallAction.Terminate, complete.Action);
+            HostCheck.Equal(variant == 0 ? LinuxSyscallGateStatus.SinkFailed : variant == 3 ? LinuxSyscallGateStatus.InvalidReturn :
+                variant == 4 ? LinuxSyscallGateStatus.Exited : LinuxSyscallGateStatus.InvalidAdmission, state.Status);
+            HostCheck.Equal(0U, state.BytesWritten); HostCheck.Equal(1U, state.Calls);
+            HostCheck.True(new ReadOnlySpan<byte>(scratch, 64).IndexOfAnyExcept((byte)0) == -1);
+        }
+        model.RemovedCode = false; model.ThreadMode = 12; model.ThreadValue = 17; var immediate = ThreadGate(&model, scratch);
+        HostCheck.Equal(LinuxSyscallAction.Terminate, LinuxSyscallGateway.Dispatch(ref immediate, ref frame).Action);
+        HostCheck.Equal(LinuxSyscallGateStatus.SinkFailed, immediate.Status); HostCheck.Equal(0U, immediate.BytesWritten);
+        model.ThreadMode = 10; immediate = ThreadGate(&model, scratch);
+        HostCheck.Equal(LinuxSyscallAction.Terminate, LinuxSyscallGateway.Dispatch(ref immediate, ref frame).Action);
+        HostCheck.Equal(LinuxSyscallGateStatus.InvalidReturn, immediate.Status); HostCheck.Equal(0UL, frame.FsBase);
     }
     [UnmanagedCallersOnly]
     private static byte Permissions(void* context, ulong page)

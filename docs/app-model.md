@@ -48,6 +48,14 @@ peer-close changes and drain before descriptor shutdown. Large writes retain
 committed progress; short writes preserve PIPE_BUF atomicity. Seven new host
 controls and 42 focused regressions pass. Native gateway routing, workers and
 the M16-008 mechanical guest remain unfinished.
+[Step1239](../done/step1239.md) routes threaded descriptor calls through that
+owner and retains one blocked gateway state per worker, accounting a completed
+write exactly once across repeated capacity waits. Its new bounded kernel
+worker emitter reuses the existing entry/switch ABI and admits up to four
+distinct CALL paths around the restored CPL3 gateway. Focused host/byte controls
+pass, including corrected padding branches and fixed-frame stack bounds. The
+native EFI owner, memory/clock callbacks and M16-008 profile still need wiring
+and actual qualification; emitted bytes are not execution evidence.
 Signal delivery belongs to #687. All batch issues
 remain open pending shared qualification; the expensive full-host suite is
 deferred to the stable dependency-compatible batch requested by the user.

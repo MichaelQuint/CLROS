@@ -30,6 +30,19 @@ internal static unsafe class LinuxBlockingPipeTests
             Thread.Kernel.Confirm(); HostCheck.Equal(KernelThreadTable.State.Waiting, Thread.Kernel.Inspect(thread).State);
         }
         internal LinuxSyscallResult Complete() { var r = Thread.Service->CompletePipeWait(Key, 2); ScratchClean(); return r; }
+        internal void BeginGate(ref LinuxSyscallGateState gate, byte* scratch) => HostCheck.Equal(LinuxSyscallGateStatus.Active,
+            LinuxSyscallGateway.Begin(ref gate, new() { UserRoot = Thread.Kernel.Owner.Root, MaximumCalls = 64, MaximumWrite = 64,
+                Scratch = scratch, ScratchBytes = 64, FirmwareExited = true, OwnedBoundaryValidated = true,
+                EnableStartup = true, EnableDescriptors = true, EnableThreads = true }, Thread.GatewayAccess));
+        internal LinuxSyscallResult GateCall(ref LinuxSyscallGateState gate, ulong number, ulong fd, ulong address, ulong bytes)
+        {
+            var image = Thread.CurrentImage(); var frame = image->Frame;
+            frame.Number = number; frame.Argument0 = fd; frame.Argument1 = address; frame.Argument2 = bytes;
+            image->Frame = frame;
+            var result = LinuxSyscallGateway.Dispatch(ref gate, ref frame); image->Frame = frame;
+            if (result.Action == LinuxSyscallAction.Return) image->Value = result.Value;
+            return result;
+        }
         internal void Drain()
         {
             HostCheck.True(Thread.Service->Shutdown(Key, 2, 7));
@@ -92,19 +105,25 @@ internal static unsafe class LinuxBlockingPipeTests
     private static void LargeWrite()
     {
         using Owner o = new(); var m = o.Thread; var parent = m.Start(); m.Kernel.Dispatch(); var child = m.Clone(); var pipe = o.Pipe();
+        byte* scratch = stackalloc byte[128]; LinuxSyscallGateState parentGate = default, childGate = default;
+        o.BeginGate(ref parentGate, scratch); o.BeginGate(ref childGate, scratch + 64);
         byte[] expected = new byte[9000]; for (int i = 0; i < expected.Length; i++) expected[i] = (byte)(i * 7 + 3);
         expected.CopyTo(new Span<byte>(m.At(Data), 9000));
-        HostCheck.Equal(LinuxSyscallAction.Blocked, o.Call(1, pipe.Write, Data, 9000).Action);
+        HostCheck.Equal(LinuxSyscallAction.Blocked, o.GateCall(ref parentGate, 1, pipe.Write, Data, 9000).Action);
+        HostCheck.Equal(LinuxSyscallGateStatus.Blocked, parentGate.Status); HostCheck.Equal(0U, parentGate.BytesWritten);
         HostCheck.Equal(4096U, m.View(parent).PipeTransferredBytes); o.Park(parent);
         for (int chunk = 0; chunk < 2; chunk++)
         {
-            HostCheck.Equal(child.Value, m.Kernel.Dispatch().Value); HostCheck.Equal(4096L, o.Value(0, pipe.Read, Output, 4096));
+            HostCheck.Equal(child.Value, m.Kernel.Dispatch().Value); HostCheck.Equal(4096L, o.GateCall(ref childGate, 0, pipe.Read, Output, 4096).Value);
             HostCheck.True(expected.AsSpan(chunk * 4096, 4096).SequenceEqual(new ReadOnlySpan<byte>(m.At(Output), 4096)));
             m.Yield(child); HostCheck.Equal(parent.Value, m.Kernel.Dispatch().Value);
-            var result = o.Complete();
+            var result = LinuxSyscallGateway.CompleteBlocked(ref parentGate, o.Complete());
             if (chunk == 0) { HostCheck.Equal(LinuxSyscallAction.Blocked, result.Action); HostCheck.Equal(8192U, m.View(parent).PipeTransferredBytes); o.Park(parent); }
             else { HostCheck.Equal(LinuxSyscallAction.Return, result.Action); HostCheck.Equal(9000L, result.Value); }
         }
+        HostCheck.Equal(LinuxSyscallGateStatus.Active, parentGate.Status); HostCheck.Equal(9000U, parentGate.BytesWritten);
+        HostCheck.Equal(1U, parentGate.Calls); HostCheck.Equal(2U, childGate.Calls); HostCheck.Equal(0U, childGate.BytesWritten);
+        HostCheck.Equal(LinuxSyscallAction.Rejected, LinuxSyscallGateway.CompleteBlocked(ref parentGate, new(LinuxSyscallAction.Return, 9000)).Action);
         HostCheck.Equal(808L, o.Value(0, pipe.Read, Output, 4096));
         HostCheck.True(expected.AsSpan(8192).SequenceEqual(new ReadOnlySpan<byte>(m.At(Output), 808))); o.Drain();
     }

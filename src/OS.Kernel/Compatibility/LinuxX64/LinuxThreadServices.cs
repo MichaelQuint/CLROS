@@ -170,6 +170,9 @@ public unsafe partial struct LinuxThreadServices
         long result;
         switch (frame.Number)
         {
+            case 0: case 1: case 2: case 3: case 5: case 8: case 16: case 17:
+            case 20: case 22: case 72: case 257: case 293:
+                return DispatchDescriptor(key, flags, frame);
             case 14: result = SignalMask(slot, frame); break;
             case 39: result = _owner.ProcessId; break;
             case 56: result = Clone(flags, slot, frame); break;

@@ -95,7 +95,7 @@ public static unsafe class KernelThreadProgram
         entry.ExitStub == p.Owner.CodeStart + back && entry.RejectRip == p.Stub.RejectRip &&
         (entry.Entry == p.Owner.CodeStart + (offset == EntryA ? WorkerA : WorkerB) || offset == EntryA && entry.Entry == p.Owner.CodeStart + ReusedWorker);
 
-    private static bool SameOwner(ThreadContextSwitch.Owner a, ThreadContextSwitch.Owner b) =>
+    internal static bool SameOwner(ThreadContextSwitch.Owner a, ThreadContextSwitch.Owner b) =>
         a.Initialized == b.Initialized && a.GuardsVerified == b.GuardsVerified && a.MappingsVerified == b.MappingsVerified &&
         a.Key == b.Key && a.CurrentKey == b.CurrentKey && a.Root == b.Root && a.CurrentRoot == b.CurrentRoot &&
         a.KernelGs == b.KernelGs && a.CurrentKernelGs == b.CurrentKernelGs && a.Cr0 == b.Cr0 && a.Cr4 == b.Cr4 && a.Efer == b.Efer &&

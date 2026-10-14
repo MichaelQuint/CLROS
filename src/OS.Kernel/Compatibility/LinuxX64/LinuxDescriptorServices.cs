@@ -126,7 +126,7 @@ public static unsafe partial class LinuxDescriptorServices
             for (uint j = 0; j < sizeof(Description); j++) if (bytes[j] != 0) return false;
         }
         for (uint i = 0; i < admission.PipeCount * sizeof(LinuxPipe); i++) if (((byte*)admission.Pipes)[i] != 0) return false;
-        state->Owner = admission; state->Initialized = 1; state->NextInode = 0x10000;
+        state->Owner = admission; state->ThreadOwner = 0; state->Initialized = 1; state->NextInode = 0x10000;
         Clear(admission.Scratch, admission.ScratchBytes);
         Clear(admission.Snapshots, admission.DescriptionCount * SnapshotBytes);
         Clear(admission.PipeBuffers, admission.PipeCount * admission.PipeCapacity);
