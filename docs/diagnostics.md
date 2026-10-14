@@ -4,7 +4,9 @@ Development `EnableM16009Probe` inherits the full M16-008 closure and selects a
 distinct signal leaf. [Step1254](../done/step1254.md) binds its four canonical
 mechanical packages to exact handler/restorer and owned-negative exit protocols,
 with original parent validation and drained restoration before
-`CLROS_M16_009_READY`. It has no guest execution evidence yet; unchanged Hello,
+`CLROS_M16_009_READY`. [Step1259](../done/step1259.md) records one fresh
+`AlternateStack` diagnostic with real handler/sigreturn, exit42, reap and owned
+restoration. It is not full signal/batch acceptance; unchanged Hello,
 asynchronous activation and suspension remain unfinished.
 
 [Step1256](../done/step1256.md) adds seven canonical GP/PF fault packages and
@@ -33,8 +35,9 @@ owner after actual APIC setup and admits only the canonical mechanical package.
 Its `M16_008_*` tail binds syscall frames and blocked completion, supervisor
 confirmation, clear-TID exit, off-stack reap, HPET nanoseconds and final restored
 ownership before `CLROS_M16_008_READY`. Full parent startup/service/PCI/APIC
-validation remains required. Focused parser controls and C# compilation are
-development evidence only: no native worker, IRQ or mechanical ELF has executed.
+validation remains required. The separate M16-009 diagnostic in step1259 executes
+one native worker/ELF lifetime over this owner. M16-008 thread/pipe variants,
+actual user IRQs and complete batch qualification remain pending.
 
 Development profiles `EnableM09009Probe` and `EnableM09010Probe` default false
 and require the same seven owned-exit/APIC parents as the qualified lifecycle

@@ -239,16 +239,20 @@ is managed-host coordination/output evidence only. The new app has no qualified
 Linux NativeAOT payload, activation trace or CLROS guest receipt yet; the three
 original payload apps and their qualifier/source identities remain unchanged.
 
-This remains focused host/source and freestanding C# evidence. No native worker,
-timer callback or mechanical ELF has executed. Original native/stack review,
-live stress/negatives and guest/ancestor qualification remain required. Signal
+[Step1259](../done/step1259.md), integrated in [step1262](../done/step1262.md),
+adds one fresh mechanical `AlternateStack` diagnostic: the native worker executes
+the real handler/sigreturn, exits42, reaps and restores owned state. The full
+167-record application transcript and exact runner summary pass. This separate
+receipt is not execution evidence for user IRQ/Activation or unchanged Hello.
+Complete original native/stack review, live stress/negatives and batch/ancestor
+qualification remain required. Signal
 delivery and first unchanged Hello belong to #687; suspension/runtime consumers
 follow their managed dependencies. The requested eight-issue batch remains
 #191/#192 -> #686 -> #687 -> #193 -> #194 -> #688, plus #733. Step1258 freezes
-the current cohesive fixture slice for coordinated review. Targeted diagnostics
-may expose existing native integration defects before further implementation;
-full-host/native/guest batch acceptance remains open. No issue is closed and
-no expensive full-host or guest qualification has run for this branch yet.
+the current cohesive fixture slice for coordinated review. The integration
+repairs preserve current Hello/suspension source and producer admission. Full-
+host/native/guest batch acceptance remains open; no issue is closed and no
+unfiltered full-host suite has run for this branch yet.
 
 [Step1224](../done/step1224.md) qualifies M09-005 hardware-timer execution:
 4,776 full-host checks, six original native bodies, three fresh 115-record

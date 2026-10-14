@@ -102,7 +102,9 @@ dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16009Probe
 
 This current leaf admits only the twelve canonical mechanical signal packages. Unchanged
 pinned Hello, asynchronous user IRQ activation and focused suspension remain
-required before #687 acceptance; no M16-009 readiness has executed in a guest.
+required before #687 acceptance. Step1259 later records one mechanical
+`AlternateStack` diagnostic reaching readiness; full batch qualification remains
+pending.
 The complete GP/PF capture source added in [step1255](../done/step1255.md) uses
 the separately verified 1800h..1FFFh worker-code region and the original gateway
 allocation. [Step1256](../done/step1256.md) adds canonical `FaultRead`,
