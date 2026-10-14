@@ -2,6 +2,34 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public unsafe partial struct LinuxThreadServices
 {
+    /// <summary>Deliver an authenticated, completely captured CPL3 GP/PF to
+    /// the actual running generation. The native owner supplies trusted trap,
+    /// error and memory-reservation classification; the fault image itself is
+    /// untrusted data, never a resume target. Blocked/ignored synchronous faults
+    /// stage SIGSEGV shutdown instead of repeated refault. No syscall counters,
+    /// scheduling, pending queue consumption or native execution occurs here.
+    /// Delivered requires full checked handler installation before resumption.</summary>
+    public LinuxSignalServices.Delivery DeliverUserFault(ulong key, ulong flags, uint trap, ulong error,
+        ulong address, int code)
+    {
+        if (!Access(key, flags) || _failed || _stopping || _signals == null || !Current(flags, out uint index) ||
+            !X64LinuxUserTransition.FaultProvenance(trap, error) || (trap == 13 ? code != 128 || address != 0 : code is not (1 or 2)))
+            return LinuxSignalServices.Delivery.Rejected;
+        Slot* slot = _owner.Slots + index;
+        if (slot->Exiting != 0 || slot->Wait.IsValid || slot->PipeOperation.IsActive || slot->RestartMode != 0 ||
+            !X64LinuxUserTransition.ValidateFaultUserImage(&slot->Image, X64LinuxUserTransition.UserImageBytes, _owner.ObservedMxcsrMask))
+            return LinuxSignalServices.Delivery.Rejected;
+        // Linux hides outside-user page-table presence in the saved error code.
+        // Keep the native diagnostic's raw hardware error separately.
+        ulong savedError = trap == 14 && address >= LinuxSyscallGateway.UserEnd ? error | 1 : error;
+        var result = slot->Mask.Contains(11) || LinuxSignalServices.Ignored(_signals, 11) ? LinuxSignalServices.Delivery.Terminate :
+            LinuxSignalServices.Deliver(_signals, _self, slot->Kernel, 11, code, _owner.ProcessId,
+                &slot->Image, _owner.ObservedMxcsrMask, ref slot->Mask, address, savedError, trap, hardwareFault: true);
+        if (result is LinuxSignalServices.Delivery.Terminate or LinuxSignalServices.Delivery.BadFrame)
+            if (!Shutdown(key, flags, 139)) return LinuxSignalServices.Delivery.Rejected;
+        return result;
+    }
+
     /// <summary>Resolve pending delivery and completed wait/restart state at an
     /// IRQ-off user-return boundary, then borrow the full current user image.
     /// Capture the complete GPR/FX image and store the actual syscall result

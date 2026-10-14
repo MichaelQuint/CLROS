@@ -1617,6 +1617,9 @@ public static unsafe partial class EfiEntry
 #if M16_008_PROBE
             ResumeUser = true,
 #endif
+#if M16_009_PROBE
+            UserFaultEntry = state->CooperativePool + LinuxThreadProgram.UserFaultCapture,
+#endif
             Dispatcher = (ulong)(delegate* unmanaged<void*, LinuxSyscallFrame*, byte>)&DispatchLinuxSyscall,
             FaultReporter = (ulong)(delegate* unmanaged<void*, byte*, byte>)&ReportLinuxUserFault,
             CallbackContext = (ulong)state, TssRsp0Address = (ulong)(state->Arena.Descriptors->Tss + 4),
@@ -1914,6 +1917,9 @@ public static unsafe partial class EfiEntry
         private static byte ReportLinuxUserFault(void* context, byte* data)
         {
             Storage* state = (Storage*)context;
+#if M16_009_PROBE
+            return LinuxNativeUserFault(state, data);
+#else
             if (!LinuxSyscallAuthority(state) || data != (byte*)state->LinuxSyscallData || state->LinuxSyscallFaults != 0 ||
                 *(ushort*)(data + X64LinuxUserTransition.FaultSelectorsOffset) != X64LinuxUserTransition.UserCs ||
                 *(ushort*)(data + X64LinuxUserTransition.FaultSelectorsOffset + 2) != X64LinuxUserTransition.UserSs) return 0;
@@ -1925,6 +1931,7 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " cr2=") && LinuxNumber(state, *(ulong*)(data + X64LinuxUserTransition.FaultAddressOffset)) &&
                 LinuxText(state, " cs=59 ss=51 disposition=terminate\r\n");
             return written ? (byte)1 : (byte)0;
+#endif
         }
 #endif
 

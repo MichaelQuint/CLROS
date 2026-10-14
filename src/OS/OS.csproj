@@ -822,6 +822,7 @@
 		<Compile Include="..\..\std\no-runtime\shared\Text\AsciiDecimalFormatter.cs" Link="Std\Text\AsciiDecimalFormatter.cs" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxStartupServices.cs" Link="Compatibility\LinuxX64\LinuxStartupServices.cs" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs" Link="Compatibility\LinuxX64\X64LinuxUserTransition.cs" />
+		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.Faults.cs" Link="Compatibility\LinuxX64\X64LinuxUserTransition.Faults.cs" />
 		<Compile Include="..\OS.Kernel\Threading\X64ThreadContext.cs" Link="Threading\X64ThreadContext.cs" Condition="'$(EnableM09004Probe)' == 'true' or '$(EnableM09005Probe)' == 'true' or '$(EnableM09006Probe)' == 'true' or '$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true' or '$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Threading\ThreadContextSwitch.cs" Link="Threading\ThreadContextSwitch.cs" Condition="'$(EnableM09004Probe)' == 'true' or '$(EnableM09005Probe)' == 'true' or '$(EnableM09006Probe)' == 'true' or '$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true' or '$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Threading\DeadlineQueue.cs" Link="Threading\DeadlineQueue.cs" Condition="'$(EnableM09005Probe)' == 'true' or '$(EnableM09006Probe)' == 'true' or '$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true' or '$(EnableM16008Probe)' == 'true'" />

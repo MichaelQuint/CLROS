@@ -93,8 +93,12 @@ dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16009Probe
 ```
 
 This current leaf admits only the four mechanical signal packages. Unchanged
-pinned Hello, asynchronous activation/fault capture and focused suspension remain
+pinned Hello, asynchronous user IRQ activation and focused suspension remain
 required before #687 acceptance; no M16-009 readiness has executed in a guest.
+The complete GP/PF capture source added in [step1255](../done/step1255.md) uses
+the separately verified 1800h..1FFFh worker-code region and the original gateway
+allocation. Fault guest cases and original native/stack qualification remain
+required; the current canonical package preflight still admits no fault fixture.
 
 The future qualification command is:
 

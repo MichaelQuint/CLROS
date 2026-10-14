@@ -135,6 +135,21 @@ negatives and drained cleanup. It admits only these mechanical inputs for now;
 unchanged Hello, asynchronous user capture and suspension remain unfinished.
 Parser controls and C# compilation establish no new guest signal acceptance.
 
+[Step1255](../done/step1255.md) adds a complete native GP/PF capture entry in
+the retained worker code pool. M16-009 explicitly emits/verifies that region;
+default gateway/worker byte paths retain their earlier behavior. Actual user
+GPRs, RAX, FP, bases and the hardware frame are saved before scratch use. C#
+fault delivery runs under the original kernel root and authenticates the actual
+SWAPGS envelope separately from the saved supervisor KGS. Raw invalid RIP/RSP
+are signal-context data only: an alternate stack can receive the checked handler,
+and sigreturn must repair inaccessible continuations. Fault frames retain hardware
+RF provenance; handlers/returns clear RF under this restricted profile. Owned
+PROT_NONE reservations produce SEGV_ACCERR, holes SEGV_MAPERR, GP SI_KERNEL;
+outside-user saved PF errors hide page-table presence. Blocked/ignored/fatal
+faults use actual process shutdown. This is focused host/source/C# development
+evidence. Mechanical fault guest inputs, asynchronous user IRQ capture, unchanged
+Hello and focused suspension remain unfinished; no new guest has executed.
+
 This remains focused host/source and freestanding C# evidence. No native worker,
 timer callback or mechanical ELF has executed. Original native/stack review,
 live stress/negatives and guest/ancestor qualification remain required. Signal

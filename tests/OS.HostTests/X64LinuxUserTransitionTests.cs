@@ -317,6 +317,70 @@ internal static unsafe class X64LinuxUserTransitionTests
         FsBase = 0x600080, GsBase = 0x610040
     };
 
+    [HostTest("m16-009 fault emitter preserves complete user state before root adoption and uses only checked IRET or immutable cleanup")]
+    private static void FullFaultEmitter()
+    {
+        byte* code = Allocate(4096), fault = Allocate(4096);
+        try
+        {
+            var p = Plan(); p.ResumeUser = true; p.KernelRoot = 0x500000; p.UserFaultEntry = 0xa00000;
+            HostCheck.True(Transition.Emit(code,4096,p) && Transition.ValidateReadBack(code,4096,p));
+            HostCheck.True(Transition.EmitFaultCapture(fault,2048,p) && Transition.VerifyFaultCapture(fault,2048,p));
+            foreach ((uint offset,byte vector) in new[] {(0xc00U,(byte)13),(0xd00U,(byte)14)})
+            {
+                ReadOnlySpan<byte> stub = new(code + offset,32);
+                HostCheck.True(stub[..6].SequenceEqual(new byte[] {0x48,0x83,0x7c,0x24,0x10,0x3b}));
+                HostCheck.True(stub.Slice(6,2).SequenceEqual(new byte[] {0x74,6}));
+                HostCheck.True(stub.Slice(14,8).SequenceEqual(new byte[] {0x6a,vector,0xff,0x25,0,0,0,0}));
+                HostCheck.Equal(p.UserFaultEntry,*(ulong*)(code + offset + 22));
+            }
+            ReadOnlySpan<byte> bytes = new(fault,2048);
+            byte[] rax = [0x49,0x89,0x86,0xe8,0,0,0], kernel = [0x49,0x8b,0x86,0x20,0,0,0,0x0f,0x22,0xd8];
+            byte[] call = [0x49,0x8b,0x86,0x38,0,0,0,0x48,0x83,0xec,0x20,0xff,0xd0,0x48,0x83,0xc4,0x20];
+            int saved = bytes.IndexOf(rax), adopted = bytes.IndexOf(kernel), callback = bytes.IndexOf(call);
+            HostCheck.True(saved == 26 && adopted > saved && callback > adopted);
+            (uint register,uint offset)[] stores = [(3,0x160),(5,0x168),(6,0x170),(7,0x178),(2,0x180),(8,0x188),(9,0x190),
+                (10,0x198),(12,0x1a0),(13,0x1a8),(15,0x1b8),(1,0x1c0),(11,0x1c8)];
+            foreach (var store in stores)
+            {
+                byte[] expected = [(byte)(store.register < 8 ? 0x49 : 0x4d),0x89,(byte)(0x86 | ((store.register & 7) << 3)),
+                    (byte)store.offset,(byte)(store.offset >> 8),0,0];
+                HostCheck.True(bytes[..adopted].IndexOf(expected) > saved);
+            }
+            HostCheck.True(bytes[..saved].IndexOf(new byte[] {0x65,0x4c,0x89,0x34,0x25,0xb0,1,0,0}) >= 0); // R14 before scratch.
+            foreach (byte stackOffset in new byte[] {0,8,16,24,32,40,48})
+                HostCheck.True(bytes[..adopted].IndexOf(new byte[] {0x48,0x8b,0x44,0x24,stackOffset}) >= 0);
+            HostCheck.True(bytes[(callback + call.Length)..].IndexOf(new byte[] {0x0f,0x01,0xf8,0x48,0xcf}) >= 0);
+            HostCheck.True(bytes.Slice(2032,6).SequenceEqual(new byte[] {0xff,0x25,0,0,0,0}));
+            HostCheck.Equal(p.CodeAddress + 0xe00,*(ulong*)(fault + 2038));
+            for (uint i = 0; i < 2048; i++) { fault[i] ^= 1; HostCheck.True(!Transition.VerifyFaultCapture(fault,2048,p)); fault[i] ^= 1; }
+            byte[] baseline = bytes.ToArray();
+            foreach (ulong invalid in new ulong[] {0,p.CodeAddress,p.ContextAddress,p.UserRoot,p.KernelRoot,0x100000000,0xa00001})
+            { p.UserFaultEntry = invalid; HostCheck.True(!Transition.EmitFaultCapture(fault,2048,p)); HostCheck.True(bytes.SequenceEqual(baseline)); }
+        }
+        finally { NativeMemory.AlignedFree(code); NativeMemory.AlignedFree(fault); }
+    }
+
+    [HostTest("m16-009 active gateway admits actual swapped user bases and rejects every mismatched CPU or retained root field")]
+    private static void CallbackEnvelope()
+    {
+        byte* data = Allocate(Transition.DataBytes);
+        try
+        {
+            new Span<byte>(data,(int)Transition.DataBytes).Clear();
+            *(ulong*)(data + 0x1f0) = 1; *(ulong*)(data + 0x20) = *(ulong*)(data + 0x640) = 0x500000;
+            *(ulong*)(data + 0x150) = 0x123456789; *(ulong*)(data + 0x158) = 0x234567890;
+            ulong* cpu = stackalloc ulong[11] {0x500000,2,8,0,24,0x123456789,(ulong)data,0x234567890,0,0,0x500000};
+            HostCheck.True(Check(data,cpu)); cpu[3] = 16; HostCheck.True(Check(data,cpu)); cpu[3] = 0;
+            for (int i = 0; i < 11; i++)
+            { ulong old = cpu[i]; cpu[i] ^= i == 1 ? 0x200UL : 1UL; HostCheck.True(!Check(data,cpu), "cpu " + i); cpu[i] = old; }
+            foreach (uint offset in new uint[] {0x1f0,0x20,0x640,0x150,0x158})
+            { *(ulong*)(data + offset) ^= 1; HostCheck.True(!Check(data,cpu)); *(ulong*)(data + offset) ^= 1; }
+            static bool Check(byte* d,ulong* c) => Transition.ValidateCallback(d,Transition.DataBytes,c[10],c[0],c[1],c[2],c[3],c[4],c[5],c[6],c[7],c[8],c[9]);
+        }
+        finally { NativeMemory.AlignedFree(data); }
+    }
+
     private static LinuxSyscallAccess ImageAccess(ulong* denied) => new() { Context = denied, PageAccess = &ImagePageAccess };
 
     [UnmanagedCallersOnly]

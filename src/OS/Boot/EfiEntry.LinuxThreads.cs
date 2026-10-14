@@ -25,7 +25,7 @@ public static unsafe partial class EfiEntry
         {
             internal Storage* State;
             internal ulong Key, AliasSerial;
-            internal uint Phase, Published, Capacity, Selected, Failed, Stopping, Reaped, Transfers;
+            internal uint Phase, Published, Capacity, Selected, Failed, Stopping, Reaped, Transfers, UserFaults;
             internal NativeProgram.Plan Plan;
             internal KernelThreadTable Threads;
             internal LinuxThreadServices Process;
@@ -65,8 +65,13 @@ public static unsafe partial class EfiEntry
             if (c->State != state || c->Key != (state->CooperativePool ^ 0x4d31363030384f57UL) || c->Phase < 1 || c->Phase > 4) return null;
             ulong* cpu = stackalloc ulong[(int)NativeSwitch.ObservationWords];
             ((delegate* unmanaged<ulong*, void>)(state->Memory.Code + FirstExitCodeBundle.CooperativeObserveOffset))(cpu);
-            // IRQ callbacks execute with SS=0 on the owned IST; ordinary native
-            // callbacks use SS=16. Both require actual IF/DF clear and kernel CR3.
+            byte* gateway = (byte*)state->LinuxSyscallData;
+            if (*(ulong*)(gateway + X64LinuxUserTransition.PhaseOffset) == 1)
+                return X64LinuxUserTransition.ValidateCallback(gateway, X64LinuxUserTransition.DataBytes,
+                    state->LinuxDispatchRoot, cpu[1], cpu[3], cpu[4], cpu[5], cpu[6],
+                    cpu[12], cpu[13], cpu[14], cpu[15], cpu[16]) ? c : null;
+            // Outside the gateway, keep the original supervisor KGS authority.
+            // IRQ callbacks use SS=0 on the owned IST; ordinary callbacks SS=16.
             return cpu[1] == state->LinuxDispatchRoot && (cpu[3] & 0x602) == 2 && cpu[4] == 8 &&
                 (cpu[5] == 16 || cpu[5] == 0) && cpu[6] == 24 && cpu[14] == c->Plan.Owner.KernelGs &&
                 cpu[15] == 0 && cpu[16] == 0 ? c : null;
@@ -140,6 +145,9 @@ public static unsafe partial class EfiEntry
             c->Plan.Bindings = (NativeProgram.Binding*)bindings; c->Plan.Count = c->Capacity;
             c->Plan.BindingBytes = (uint)sizeof(NativeProgram.Binding) * LinuxNativeWorkers; c->Plan.Witness = (NativeContext*)witness;
             c->Plan.Gateway = state->LinuxSyscallCode;
+#if M16_009_PROBE
+            c->Plan.SeparateUserFaultCapture = true;
+#endif
             c->Plan.Stub.CallbackContext = (ulong)c; c->Plan.Stub.CallbackBytes = (uint)sizeof(LinuxNativeControl);
             c->Plan.Stub.HelperFx = (ulong)helper; c->Plan.Stub.JumpSlot = (ulong)jump; c->Plan.Stub.RejectRip = pool + NativeProgram.Recovery;
             // Each entry starts at generation one, exactly as the fresh table.
@@ -168,7 +176,13 @@ public static unsafe partial class EfiEntry
                 !LinuxNativeCallback(c, c->Plan.Recover) || !LinuxNativeCallback(c, c->Plan.TerminalCallback) ||
                 !LinuxNativeCallback(c, c->Plan.Bindings[0].Entry.Start) || !LinuxNativeCallback(c, interrupt)) return false;
             if (!NativeProgram.Emit((byte*)pool, NativeProgram.Bytes, c->Plan) ||
-                !X64TimerInterrupt.Emit((byte*)c->Handler.CodeAddress, X64TimerInterrupt.Bytes, c->Handler) || !LinuxNativeVerify(c)) return false;
+                !X64TimerInterrupt.Emit((byte*)c->Handler.CodeAddress, X64TimerInterrupt.Bytes, c->Handler)) return false;
+#if M16_009_PROBE
+            if (state->LinuxSyscallPlan.UserFaultEntry != pool + NativeProgram.UserFaultCapture ||
+                !X64LinuxUserTransition.EmitFaultCapture((byte*)(pool + NativeProgram.UserFaultCapture),
+                    X64LinuxUserTransition.FaultCaptureBytes, state->LinuxSyscallPlan)) return false;
+#endif
+            if (!LinuxNativeVerify(c)) return false;
             for (uint i = 0; i < NativeProgram.Bytes; i++) codeCopy[i] = ((byte*)pool)[i];
             return true;
         }
@@ -208,6 +222,11 @@ public static unsafe partial class EfiEntry
 
         private static bool LinuxNativeVerify(LinuxNativeControl* c) =>
             NativeProgram.Verify((byte*)c->State->CooperativePool, NativeProgram.Bytes, c->Plan) &&
+#if M16_009_PROBE
+            c->Plan.SeparateUserFaultCapture && c->State->LinuxSyscallPlan.UserFaultEntry == c->State->CooperativePool + NativeProgram.UserFaultCapture &&
+            X64LinuxUserTransition.VerifyFaultCapture((byte*)c->State->LinuxSyscallPlan.UserFaultEntry,
+                X64LinuxUserTransition.FaultCaptureBytes, c->State->LinuxSyscallPlan) &&
+#endif
             X64TimerInterrupt.Verify((byte*)c->Handler.CodeAddress, X64TimerInterrupt.Bytes, c->Handler);
 
         private static LinuxNativeControl* LinuxNativeControlOwner(void* context)

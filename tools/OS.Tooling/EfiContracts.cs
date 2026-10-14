@@ -51,9 +51,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "59aecfa6742e47c4e85706f7b5f7c753a9e215d44bc282561128253ce9f1bcd0";
-    public const string CanonicalProjectSha256 = "fe7959698387ac620267abe23e4f1dc8b22bdf60faea27d7f57b23e4dbad5ff1";
-    public const string EfiEntrySourceSha256 = "7e11af04676f05710ec0539359116d00b29a67d71ad934efe8cb161f7456628e";
+    public const string ProjectSourceSha256 = "e017bdb65086ef947b86ce8dbc24b1316aeac599f8ba56d16b477b118683911c";
+    public const string CanonicalProjectSha256 = "e24146695a4783c588c64319c691a653f96149cd9b85cfe1d55da729c68608ae";
+    public const string EfiEntrySourceSha256 = "ac0e30affd7e8e9c6d5a2f8f70d6ce4db5be7b36ac9b6630931bfd3f15579445";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -302,6 +302,7 @@ public static partial class EfiContracts
         @"..\..\std\no-runtime\shared\Text\AsciiDecimalFormatter.cs|Std\Text\AsciiDecimalFormatter.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxStartupServices.cs|Compatibility\LinuxX64\LinuxStartupServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs|Compatibility\LinuxX64\X64LinuxUserTransition.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.Faults.cs|Compatibility\LinuxX64\X64LinuxUserTransition.Faults.cs",
         @"..\OS.Kernel\Threading\X64ThreadContext.cs|Threading\X64ThreadContext.cs",
         @"..\OS.Kernel\Threading\ThreadContextSwitch.cs|Threading\ThreadContextSwitch.cs",
         @"..\OS.Kernel\Threading\DeadlineQueue.cs|Threading\DeadlineQueue.cs",

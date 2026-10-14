@@ -16,6 +16,7 @@ public static unsafe class LinuxThreadProgram
     public const uint Recovery = 0x1000, Terminal = 0x1200, TimerHandler = 0x1400;
     public const uint IrqSaveDisable = 0x1600, IrqRestore = 0x1610, StackPointer = 0x1620, Idle = 0x1630;
     public const uint ToWorker = 0x2000, FromWorker = 0x3000;
+    public const uint UserFaultCapture = 0x1800;
     public const uint InitialFixedStackBytes = 168, CapturedFixedStackBytes = 80;
 
     /// <summary>Retained current generation and its original entry adapter.
@@ -48,6 +49,7 @@ public static unsafe class LinuxThreadProgram
         public uint Count, BindingBytes;
         public X64ThreadContext* Witness;
         public ulong Prepare, Gateway, Recover, TerminalCallback;
+        public bool SeparateUserFaultCapture; // Owner emits/verifies the explicit 1800h..1FFFh region.
     }
 
     /// <summary>Validate every component and dry encode before any mutation.
@@ -191,6 +193,7 @@ public static unsafe class LinuxThreadProgram
         helpers.Bytes(0xe08948, 3); helpers.Bytes(0x08c08348, 4); helpers.Bytes(0xc3, 1); helpers.Pad(0x30);
         helpers.Bytes(0xfaf4fb, 3); helpers.Bytes(0x00000001b8, 5); helpers.Bytes(0xc3, 1); helpers.Pad(); if (!helpers.Valid) return false;
         ThreadContextSwitch.StubWriter gap = new(output == null ? null : output + 0x1800, code + 0x1800, compare, 0x800);
+        if (p.SeparateUserFaultCapture) return true;
         gap.Pad(); return gap.Valid;
     }
     private static bool Same(ThreadContextSwitch.Descriptor a, ThreadContextSwitch.Descriptor b) =>

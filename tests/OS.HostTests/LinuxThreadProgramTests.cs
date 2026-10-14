@@ -32,6 +32,20 @@ internal static unsafe class LinuxThreadProgramTests
     }
     private static ulong Target(byte* instruction) => unchecked((ulong)instruction + 5 + (ulong)(long)*(int*)(instruction + 1));
 
+    [HostTest("linux.thread program excludes the fault region only under its explicit separate owner and preserves it on re-emission")]
+    private static void SeparateFaultRegion()
+    {
+        using KernelThreadTableTests.Model m = new(initialize: false);
+        var p = Plan(m,2); HostCheck.True(P.Emit((byte*)m.Code,P.Bytes,p));
+        byte* region = (byte*)(m.Code + P.UserFaultCapture);
+        HostCheck.True(new ReadOnlySpan<byte>(region,2048).IndexOfAnyExcept((byte)0xcc) < 0);
+        region[0] = 0xf3; HostCheck.True(!P.Verify((byte*)m.Code,P.Bytes,p));
+        p.SeparateUserFaultCapture = true; HostCheck.True(P.Verify((byte*)m.Code,P.Bytes,p));
+        HostCheck.True(P.Emit((byte*)m.Code,P.Bytes,p) && region[0] == 0xf3);
+        ((byte*)m.Code)[P.UserFaultCapture - 1] ^= 1;
+        HostCheck.True(!P.Verify((byte*)m.Code,P.Bytes,p));
+    }
+
     [HostTest("linux.thread program rebinds an actually reaped generation by replacing only its entry")]
     private static void ReapedEntry()
     {

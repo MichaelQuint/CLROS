@@ -53,6 +53,24 @@ internal static unsafe class LinuxMemoryServicesTests
         LinuxMemoryServices.Map(owner.State, address, bytes, protection, flags, ulong.MaxValue, 0);
 
     private struct GuardOwner { internal ulong Pin, LastStart, LastBytes; internal uint Calls; internal bool Deny; }
+
+    [HostTest("linux.memory fault codes distinguish reservation permissions holes static user ranges and supervisor addresses")]
+    private static void PageFaultCodes()
+    {
+        using var owner = new Owner(); owner.Begin();
+        HostCheck.Equal((long)Start, Map(owner,Start,3 * 4096,0));
+        foreach (ulong address in new ulong[] {Start,Start+12287,0x400123,LinuxSyscallGateway.UserEnd,ulong.MaxValue})
+        { HostCheck.True(LinuxMemoryServices.TryPageFaultCode(owner.State,address,out int code)); HostCheck.Equal(2,code); }
+        foreach (ulong address in new ulong[] {0,0x100123,Start-1,Start+12288})
+        { HostCheck.True(LinuxMemoryServices.TryPageFaultCode(owner.State,address,out int code)); HostCheck.Equal(1,code); }
+        HostCheck.Equal(0L,LinuxMemoryServices.Unmap(owner.State,Start+4096,4096));
+        HostCheck.True(LinuxMemoryServices.TryPageFaultCode(owner.State,Start+4096,out int hole) && hole == 1);
+        HostCheck.True(LinuxMemoryServices.TryPageFaultCode(owner.State,Start+8192,out int reserved) && reserved == 2);
+        HostCheck.True(!LinuxMemoryServices.TryPageFaultCode(null,0,out int invalid) && invalid == 0);
+        owner.Memory.StaticRanges[0].Pages++;
+        HostCheck.True(!LinuxMemoryServices.TryPageFaultCode(owner.State,Start,out invalid) && invalid == 0);
+        owner.Memory.StaticRanges[0].Pages--;
+    }
     [UnmanagedCallersOnly]
     private static byte Guard(void* context, ulong address, ulong bytes)
     {

@@ -46,6 +46,7 @@ public static partial class EfiContracts
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxMemoryServices.cs"] = "reviewed_m16_linux_memory_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxStartupServices.cs"] = "reviewed_m16_linux_startup_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs"] = "reviewed_m16_linux_syscall_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.Faults.cs"] = "reviewed_m16_full_user_fault_capture_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs"] = "reviewed_m16_linux_syscall_source_identity",
         [@"..\OS.Kernel\Boot\BootSequence.cs"] = "reviewed_m16_linux_syscall_source_identity",
         [@"..\..\std\no-runtime\shared\Text\AsciiArgumentSplitter.cs"] = "reviewed_m16_startup_service_source_identity",

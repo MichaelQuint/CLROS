@@ -6,6 +6,7 @@ public struct X64LinuxUserTransitionPlan
     public ulong Dispatcher, FaultReporter, CallbackContext, TssRsp0Address, OriginalGp, OriginalPf;
     public ulong KernelRoot; // Zero retains the byte-identical M16-005 dispatcher path.
     public bool ResumeUser; // Explicit M16-008 mode; requires the separate kernel dispatch root.
+    public ulong UserFaultEntry; // Zero retains the original terminal GP/PF bytes.
 }
 
 /// <summary>
@@ -16,11 +17,12 @@ public struct X64LinuxUserTransitionPlan
 /// user mappings, callback identity and original-state readback. FXSAVE64 covers
 /// x87/SSE only; OSXSAVE and extended-state workloads are refused. The dispatcher
 /// returns byte 1 only after LinuxSyscallGateway validates the captured return;
-/// every other result terminates. Fault reporting returns to cleanup, never to
-/// the faulting user. Kernel GP/PF frames go to the original terminal handlers.
+/// every other result terminates. The default fault reporter returns to cleanup.
+/// An explicit separately owned full-capture entry may resume only a checked
+/// handler image. Kernel GP/PF frames go to the original terminal handlers.
 /// The original TSS remains loaded; only its RSP0 is temporarily replaced.
 /// </summary>
-public static unsafe class X64LinuxUserTransition
+public static unsafe partial class X64LinuxUserTransition
 {
     /// <summary>User-only saved image. This is copied storage, not an FXRSTOR
     /// operand: its Fx field need not be 16-byte aligned. Never alias a live
@@ -359,6 +361,12 @@ public static unsafe class X64LinuxUserTransition
         w.Bytes(0x3b10247c8348, 6); // cmp qword [rsp+16],UserCs
         w.Bytes(0x0674, 2); // JE over immutable RIP-relative original handler jump
         w.Bytes(0x25ff, 2); w.Bytes(unchecked(originalPointer - (w.Position + 4)), 4);
+        if (plan.UserFaultEntry != 0)
+        {
+            w.Bytes(0x6a, 1); w.Bytes(vector, 1); // Normalize [vector,error,RIP,CS,flags,RSP,SS].
+            w.Bytes(0x25ff, 2); w.Bytes(0, 4); w.Bytes(plan.UserFaultEntry, 8);
+            return; // The separately owned capture saves every GPR before scratch use.
+        }
         w.Bytes(0xf8010f, 3); w.Immediate(14, plan.ContextAddress); w.Bytes(0xfc, 1);
         w.StackLoad(0); w.Store(0, ErrorOffset); w.StackLoad(8); w.Store(0, 0x138);
         w.StackLoad(24); w.Store(0, 0x148); w.StackLoad(32); w.Store(0, 0x140);
@@ -376,6 +384,12 @@ public static unsafe class X64LinuxUserTransition
 
     private static bool Admit(X64LinuxUserTransitionPlan p) =>
         (!p.ResumeUser || p.KernelRoot != 0) &&
+        (p.UserFaultEntry == 0 || p.ResumeUser && Address(p.UserFaultEntry) && (p.UserFaultEntry & 15) == 0 &&
+            p.UserFaultEntry <= End - FaultCaptureBytes &&
+            !Overlap(p.UserFaultEntry, FaultCaptureBytes, p.CodeAddress, CodeBytes) &&
+            !Overlap(p.UserFaultEntry, FaultCaptureBytes, p.ContextAddress, DataBytes) &&
+            !Overlap(p.UserFaultEntry, FaultCaptureBytes, p.UserRoot, 4096) &&
+            !Overlap(p.UserFaultEntry, FaultCaptureBytes, p.KernelRoot, 4096)) &&
         (p.KernelRoot == 0 || PageRange(p.KernelRoot, 4096) && p.KernelRoot != p.UserRoot &&
             !Overlap(p.KernelRoot, 4096, p.CodeAddress, CodeBytes) && !Overlap(p.KernelRoot, 4096, p.ContextAddress, DataBytes)) &&
         PageRange(p.CodeAddress, CodeBytes) && PageRange(p.ContextAddress, DataBytes) &&
@@ -400,14 +414,14 @@ public static unsafe class X64LinuxUserTransition
     // Count/compare passes share encodings; independent host vectors audit ABI bytes.
     private struct Writer
     {
-        private byte* _code; private bool _compare, _valid; public uint Position;
-        public Writer(byte* code, bool compare) { _code = code; _compare = compare; _valid = true; Position = 0; }
-        public bool Valid => _valid && Position == CodeBytes;
+        private byte* _code; private bool _compare, _valid; private uint _limit; public uint Position;
+        public Writer(byte* code, bool compare, uint limit = CodeBytes) { _code = code; _compare = compare; _valid = true; _limit = limit; Position = 0; }
+        public bool Valid => _valid && Position == _limit;
         public void Bytes(ulong value, int count)
         {
             for (int i = 0; i < count; i++, Position++)
             {
-                if (Position >= CodeBytes) { _valid = false; continue; }
+                if (Position >= _limit) { _valid = false; continue; }
                 byte valueByte = (byte)(value >> (8 * i));
                 if (_code == null) continue;
                 if (_compare) { if (_code[Position] != valueByte) _valid = false; }

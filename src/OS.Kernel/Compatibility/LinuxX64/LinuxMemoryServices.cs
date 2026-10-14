@@ -368,6 +368,29 @@ public static unsafe class LinuxMemoryServices
     /// </summary>
     public static bool Audit(State* state) => Valid(state);
 
+    /// <summary>Classify an actual user page fault against retained virtual
+    /// ownership, including PROT_NONE reservations without a present PTE.
+    /// The serialized owner supplies genuine fault provenance separately.
+    /// Returns Linux SEGV_ACCERR(2) for owned or outside-user addresses, otherwise
+    /// SEGV_MAPERR(1). Invalid state returns false/zero without mutation. This
+    /// neither resolves a fault nor grants access or continuation authority.</summary>
+    public static bool TryPageFaultCode(State* state, ulong address, out int code)
+    {
+        code = 0; if (!Valid(state)) return false;
+        code = 2;
+        if (address >= X64UserAddressSpace.UserEnd) return true;
+        for (uint i = 0; i < state->Memory.StaticCount; i++)
+        {
+            var r = state->Memory.StaticRanges[i];
+            if (r.User && address >= r.VirtualStart && address - r.VirtualStart < r.Pages * Page) return true;
+        }
+        Region* regions = stackalloc Region[(int)MaximumRegions];
+        uint count = CopyRegions(state, regions);
+        for (uint i = 0; i < count; i++)
+            if (address >= regions[i].Start && address - regions[i].Start < regions[i].Bytes) return true;
+        code = 1; return true;
+    }
+
     private static bool Valid(State* state)
     {
         if (state == null || ((ulong)state & 7) != 0 || state->Initialized != 1 ||

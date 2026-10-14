@@ -17,10 +17,11 @@ public static unsafe partial class LinuxSignalServices
 
     internal static Delivery Deliver(State* s, ulong process, OSHostHandle identity, uint signal, int code,
         uint pid, X64LinuxUserTransition.UserImage* image, uint mxcsr, ref LinuxSignalMask mask,
-        ulong faultAddress, ulong error, uint trap)
+        ulong faultAddress, ulong error, uint trap, bool hardwareFault = false)
     {
         if (!Bound(s, process, identity) || signal is < 1 or > 64 || pid == 0 ||
-            !X64LinuxUserTransition.ValidateUserImage(image, X64LinuxUserTransition.UserImageBytes, mxcsr, s->User)) return Delivery.Rejected;
+            !(hardwareFault ? X64LinuxUserTransition.ValidateFaultUserImage(image, X64LinuxUserTransition.UserImageBytes, mxcsr) :
+                X64LinuxUserTransition.ValidateUserImage(image, X64LinuxUserTransition.UserImageBytes, mxcsr, s->User))) return Delivery.Rejected;
         if (mask.Contains(signal)) return Delivery.Masked;
         Disposition* action = (Disposition*)s->Actions + signal - 1;
         if (action->Handler == 1) return Delivery.Ignored;
@@ -35,8 +36,11 @@ public static unsafe partial class LinuxSignalServices
         ulong top = image->Frame.Rsp;
         bool on = OnAlternate(thread->Stack, top);
         bool useAlternate = (action->Flags & SignalOnStack) != 0 && !on && (thread->Stack.Flags & Disabled) == 0;
-        if (top < 128) return Delivery.BadFrame;
-        top -= 128; // Preserve the interrupted SysV red zone on the ordinary stack.
+        if (!useAlternate)
+        {
+            if (top < 128) return Delivery.BadFrame;
+            top -= 128; // Preserve the interrupted SysV red zone on the ordinary stack.
+        }
         if (useAlternate)
         {
             if (thread->Stack.Bytes == 0 || thread->Stack.Address < 4096 || thread->Stack.Bytes > LinuxSyscallGateway.UserEnd ||
@@ -69,7 +73,7 @@ public static unsafe partial class LinuxSignalServices
         else *(ulong*)(header + InformationOffset + 16) = faultAddress;
 
         X64LinuxUserTransition.UserImage next = *image;
-        next.Frame.Rip = action->Handler; next.Frame.Rsp = frame; next.Frame.Rflags &= ~0x400UL; // Handler starts with DF clear.
+        next.Frame.Rip = action->Handler; next.Frame.Rsp = frame; next.Frame.Rflags &= ~0x10400UL; // Handler starts with DF/RF clear.
         next.Value = 0;
         next.Gpr[3] = signal; next.Gpr[2] = frame + InformationOffset; next.Gpr[4] = frame + ContextOffset;
         // Linux clears the handler's FPU state after saving the interrupted
@@ -81,7 +85,9 @@ public static unsafe partial class LinuxSignalServices
         // A failed user copy can leave user bytes changed, but publishes no
         // kernel frame/mask/image. The caller terminates rather than retrying it.
         if (!Output(s, fp, fx, FpBytes) || !Output(s, frame, header, FrameBytes)) return Delivery.BadFrame;
-        thread->Frames[thread->Depth++] = frame;
+        // Bit0 tags actual hardware-fault provenance; the frame is 8 mod16.
+        // User bytes cannot turn an ordinary frame into a hardware RF restore.
+        thread->Frames[thread->Depth++] = frame | (hardwareFault ? 1UL : 0UL);
         if (useAlternate && (thread->Stack.Flags & AutoDisarm) != 0) thread->Stack = new() { Flags = Disabled };
         mask = new(mask.Blocked | action->Mask | ((action->Flags & NoDefer) == 0 ? 1UL << (int)(signal - 1) : 0));
         if ((action->Flags & ResetHand) != 0) action->Handler = 0;
@@ -95,7 +101,8 @@ public static unsafe partial class LinuxSignalServices
         if (!Bound(s, process, identity) || image == null || image->Frame.Rsp < 8) return false;
         ThreadState* thread = (ThreadState*)s->Threads + ((uint)identity.Value - 1);
         ulong frame = image->Frame.Rsp - 8; // RET has already popped pretcode before the restorer's syscall15.
-        if (thread->Depth == 0 || thread->Depth > MaximumNesting || thread->Frames[thread->Depth - 1] != frame) return false;
+        if (thread->Depth == 0 || thread->Depth > MaximumNesting || (thread->Frames[thread->Depth - 1] & ~1UL) != frame) return false;
+        bool hardwareFault = (thread->Frames[thread->Depth - 1] & 1) != 0;
         byte* header = stackalloc byte[(int)FrameBytes];
         if (!Input(s, frame, header, FrameBytes) || *(ulong*)(header + ContextOffset) != 6) return false;
         byte* sc = header + MachineOffset;
@@ -109,8 +116,9 @@ public static unsafe partial class LinuxSignalServices
         if (!Input(s, fp, next.Fx, FpBytes)) return false;
         for (uint i = 464; i < FpBytes; i++) if (next.Fx[i] != 0) return false;
         ulong requestedFlags = *(ulong*)(sc + 136);
-        if ((requestedFlags & 2) == 0 || (requestedFlags & ~LinuxSyscallGateway.UserRflagsMask) != 0) return false;
+        if ((requestedFlags & 2) == 0 || (requestedFlags & ~(LinuxSyscallGateway.UserRflagsMask | (hardwareFault ? 0x10000UL : 0UL))) != 0) return false;
         ReadMachine(sc, &next);
+        next.Frame.Rflags &= ~0x10000UL; // RF is a fault-entry artifact, never continuation authority in this profile.
         AlternateStack stack = *(AlternateStack*)(header + 24);
         uint mode = stack.Flags & ~AutoDisarm;
         if (mode is not (0 or OnStack or Disabled)) return false;
