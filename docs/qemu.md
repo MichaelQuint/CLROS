@@ -1,6 +1,6 @@
 # QEMU
 
-Development `-EnableM16009Probe` admits only the eleven canonical mechanical signal
+Development `-EnableM16009Probe` admits only the twelve canonical mechanical signal
 packages and requires `CLROS_M16_009_READY`. Input preflight/read-lock ownership
 precedes native build/launch; complete startup/service/PCI/APIC and signal tails
 must validate. Ancestor readiness or marker overrides cannot satisfy this leaf.
@@ -12,11 +12,14 @@ See [step1254](../done/step1254.md) and [EFI commands](efi-build.md). No new QEM
 capture, unchanged Hello or runtime suspension is qualified by this wiring.
 
 The opt-in user IRQ source in [step1257](../done/step1257.md) uses
-`env.CLROS_USER_IRQS=1` only under M16-009. Existing packages omit it and retain
-their exact IF-off protocols. No IRQ input or transcript is admitted yet, so an
-edited package fails preflight before native build/launch. Complete user capture,
-restored-kernel CALL yield and pending-IRQ drain currently have focused host/byte
-checks and C# compilation only; no QEMU IRQ/activation receipt is claimed.
+`env.CLROS_USER_IRQS=1` only under M16-009. The eleven original packages omit it
+and retain their IF-off protocols. [Step1258](../done/step1258.md) admits only the
+separate canonical `Activation` input for asynchronous mechanical proof. Its
+39..289-row tail binds every FIFO dispatch, exact instruction-stage IRQ envelope,
+one-shot epoch, HPET clock, child signal35, handler/restorer call, drain, supervisor
+handoff, exit/reap and restoration. Both ending excursions must drain their real
+one-shot; a parent spin capture is mandatory. Synthetic 39/51-row controls are
+parser evidence only. No QEMU IRQ/activation receipt is claimed.
 
 Development selections `-EnableM09009Probe` and `-EnableM09010Probe` have strict
 profile and transcript admission in [step1234](../done/step1234.md). Their only

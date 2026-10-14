@@ -185,17 +185,35 @@ checkpoint on the native switch stack. APIC acknowledgement and quiescent
 restoration precede IST release and Park/Exit/Yield. Failure retains ownership;
 masking a pending IRQ does not count as restoration. The separate IRQ epoch and
 HPET nanosecond clock remain distinct. Existing canonical packages omit the
-policy and retain their bytes. No new IRQ package or transcript is admitted yet;
+policy and retain their bytes. At that step no IRQ package or transcript was admitted;
 mechanical activation proof, original native/stack review and guest qualification
-remain required. This step adds focused host/byte checks and C# compilation only.
+remain required. That step adds focused host/byte checks and C# compilation only.
+
+[Step1258](../done/step1258.md) adds the canonical `Activation` mechanical input.
+Its parent seeds every GPR, x87/SSE, DF and private FS/GS, then makes no syscall
+in `JMP $`. A real preemption must let the child send signal35. The handler
+checks the complete saved context and edits RIP/RAX through checked sigreturn;
+the parent checks restored state and waits for actual child clear-TID before
+stdout/exit42. Child TLS/GS are independent. Every emitted instruction boundary
+has an explicit per-worker syscall stage and register/stack envelope, including
+the shared clone continuation and temporary PUSHFQ depth.
+
+The strict parser admits timing variation through an exact FIFO two-generation
+schedule. Each segment ends in one IRQ or ending-excursion drain and its actual
+supervisor transfer. Epochs, HPET clocks, syscall/handler/restorer vectors, spin
+capture, both exits/reaps and final restoration must all agree. Host synthetic
+controls do not prove execution. All twelve inputs remain unqualified in guests.
 
 This remains focused host/source and freestanding C# evidence. No native worker,
 timer callback or mechanical ELF has executed. Original native/stack review,
 live stress/negatives and guest/ancestor qualification remain required. Signal
 delivery and first unchanged Hello belong to #687; suspension/runtime consumers
-follow their managed dependencies. The requested eight-issue batch is
-#191/#192 -> #686 -> #687 -> #193 -> #194 -> #688, plus #733. Acceptance stays
-open and expensive full-host/native/QEMU validation waits for the stable batch.
+follow their managed dependencies. The requested eight-issue batch remains
+#191/#192 -> #686 -> #687 -> #193 -> #194 -> #688, plus #733. Step1258 freezes
+the current cohesive fixture slice for coordinated review. Targeted diagnostics
+may expose existing native integration defects before further implementation;
+full-host/native/guest batch acceptance remains open. No issue is closed and
+no expensive full-host or guest qualification has run for this branch yet.
 
 [Step1224](../done/step1224.md) qualifies M09-005 hardware-timer execution:
 4,776 full-host checks, six original native bodies, three fresh 115-record

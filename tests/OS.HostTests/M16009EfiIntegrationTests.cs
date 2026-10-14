@@ -73,7 +73,7 @@ internal static unsafe class M16009EfiIntegrationTests
                 int result = QemuSmoke.RunAsync(root,options,output,(_,_) => { calls++; return Task.FromResult(new ProcessResult(1,"","",false,false,false,TimeSpan.Zero)); }).GetAwaiter().GetResult();
                 HostCheck.True(result == 1 && calls == 0 && output.ToString().Contains("m16_009_package_identity",StringComparison.Ordinal));
             }
-            foreach (string variant in new[] {"AlternateStack","FaultStack"})
+            foreach (string variant in new[] {"AlternateStack","FaultStack","Activation"})
             {
                 File.WriteAllBytes(path,LinuxSignalProofFixture.CreatePackage(variant));
                 int before = calls; locked = false;

@@ -92,7 +92,7 @@ Future qualification command (not yet executed):
 dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16009Probe -LinuxElfPackage artifacts/packages/m16-009-alt.pkg -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 60 -RequireMarker CLROS_M16_009_READY
 ```
 
-This current leaf admits only the eleven canonical mechanical signal packages. Unchanged
+This current leaf admits only the twelve canonical mechanical signal packages. Unchanged
 pinned Hello, asynchronous user IRQ activation and focused suspension remain
 required before #687 acceptance; no M16-009 readiness has executed in a guest.
 The complete GP/PF capture source added in [step1255](../done/step1255.md) uses
@@ -117,8 +117,13 @@ complete user capture and real kernel CALL yield share the retained native owner
 An ending syscall drains an outstanding one-shot through a checked switch-stack
 kernel wait before APIC/IST restoration. Host/byte checks and no-stdlib C# compile
 pass; original native/stack and live IRQ proof are still required. The eleven
-canonical packages omit this environment key. Editing one to add it breaks exact
-preflight identity: an IRQ fixture and strict transcript admission remain next.
+original packages omit this environment key. Editing one to add it breaks exact
+preflight identity. [Step1258](../done/step1258.md) adds the separate canonical
+`Activation` package with that key: real parent spin preemption, child tgkill35,
+complete handler/sigreturn state checks and both real exit/drain/reap lifetimes.
+Its strict transcript accepts bounded timing variation only through the exact
+two-worker FIFO protocol. Generate a fresh input with `linux signal-fixture
+artifacts/packages/m16-009-activation.pkg Activation`. No IRQ guest has run.
 
 The future qualification command is:
 
