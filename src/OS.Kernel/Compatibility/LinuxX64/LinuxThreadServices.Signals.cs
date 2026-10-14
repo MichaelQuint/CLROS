@@ -2,6 +2,58 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public unsafe partial struct LinuxThreadServices
 {
+    /// <summary>Deliver at most one handler from the actual current generation's
+    /// directed pending queue, skipping ignored signals and retaining blocked
+    /// ones. None means no unblocked work, not a fabricated handler invocation.
+    /// Call only after complete capture or wait completion, before installing
+    /// the full image. No asynchronous capture or wait interruption is supplied.
+    /// Directed tgkill siginfo uses this process PID/uid0 and SI_TKILL(-6).
+    /// Job-control or rejected delivery retains the pending entry.</summary>
+    public LinuxSignalServices.Delivery DeliverPendingSignals(ulong key, ulong flags)
+    {
+        if (!Access(key, flags) || _failed || _stopping || _signals == null || !Current(flags, out uint index))
+            return LinuxSignalServices.Delivery.Rejected;
+        Slot* slot = _owner.Slots + index;
+        if (slot->Exiting != 0 || slot->Wait.IsValid || slot->PipeOperation.IsActive) return LinuxSignalServices.Delivery.Rejected;
+        for (uint attempt = 0; attempt < 31 + LinuxSignalServices.RealtimeQueueCapacity; attempt++)
+        {
+            long pending = LinuxSignalServices.Next(_signals, _self, slot->Kernel, slot->Mask, out uint signal);
+            if (pending < 0) { _failed = true; return LinuxSignalServices.Delivery.Rejected; }
+            if (pending == 0) return LinuxSignalServices.Delivery.None;
+            var result = DeliverSignal(key, flags, signal, -6);
+            if (result is LinuxSignalServices.Delivery.Rejected or LinuxSignalServices.Delivery.Masked or LinuxSignalServices.Delivery.Unsupported) return result;
+            if (!LinuxSignalServices.Consume(_signals, _self, slot->Kernel, signal))
+            { _failed = true; return LinuxSignalServices.Delivery.Rejected; }
+            if (result != LinuxSignalServices.Delivery.Ignored) return result;
+        }
+        return LinuxSignalServices.Delivery.None;
+    }
+
+    private long Tgkill(ulong key, ulong flags, LinuxSyscallFrame frame)
+    {
+        if (_signals == null) return Unsupported;
+        int group = unchecked((int)frame.Argument0), tid = unchecked((int)frame.Argument1), signal = unchecked((int)frame.Argument2);
+        if (group <= 0 || tid <= 0) return Invalid;
+        if ((uint)group != _owner.ProcessId) return -3;
+        for (uint i = 0; i < _owner.Capacity; i++)
+        {
+            Slot* target = _owner.Slots + i;
+            if (target->Tid != (uint)tid) continue;
+            if (!Lookup(flags, target->Kernel, out uint actual) || actual != i) { _failed = true; return Io; }
+            if (signal is < 0 or > 64) return Invalid;
+            if (signal == 0) return 0;
+            if (signal == 9) return Shutdown(key, flags, 137) ? 0 : Io;
+            if (target->Exiting != 0) return 0; // Linux exiting-task race, no pending lifetime acquired.
+            bool ignored = LinuxSignalServices.Ignored(_signals, (uint)signal);
+            if (!target->Mask.Contains((uint)signal) && LinuxSignalServices.JobControl(_signals, (uint)signal)) return Unsupported;
+            // Until actual EINTR/restart integration is installed, never report
+            // that an unmasked nonignored signal interrupted a blocked syscall.
+            if (target->Wait.IsValid && !target->Mask.Contains((uint)signal) && !ignored) return Unsupported;
+            return LinuxSignalServices.Queue(_signals, _self, target->Kernel, (uint)signal, target->Mask);
+        }
+        return -3;
+    }
+
     /// <summary>Deliver one selected signal to the actual running generation at
     /// an IRQ-off, completely captured user-return boundary. The caller owns
     /// pending selection and the trusted Linux siginfo code/fault provenance;

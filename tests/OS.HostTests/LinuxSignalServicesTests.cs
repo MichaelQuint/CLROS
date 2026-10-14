@@ -167,7 +167,7 @@ internal static unsafe class LinuxSignalServicesTests
             var result = LinuxSyscallGateway.Dispatch(ref gate,ref frame);
             HostCheck.Equal(LinuxSyscallAction.Return,result.Action); HostCheck.Equal(0L,result.Value);
         }
-        foreach (ulong number in new[] { 62UL,234UL }) HostCheck.Equal(-38L,o.Call(number));
+        HostCheck.Equal(-38L,o.Call(62)); HostCheck.Equal(-22L,o.Call(234));
     }
 
     [HostTest("linux.signal-startup optional attachment preserves original unimplemented signal behavior")]

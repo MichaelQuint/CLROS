@@ -13,7 +13,7 @@ public static unsafe partial class LinuxSignalServices
     /// consumption: the pending owner must retain it. Unsupported covers Linux
     /// job control, which this single-workload owner cannot truthfully emulate.
     /// BadFrame requires owned SIGSEGV termination without resuming user code.</summary>
-    public enum Delivery : byte { Rejected, Masked, Ignored, Delivered, Terminate, Unsupported, BadFrame }
+    public enum Delivery : byte { Rejected, Masked, Ignored, Delivered, Terminate, Unsupported, BadFrame, None }
 
     internal static Delivery Deliver(State* s, ulong process, OSHostHandle identity, uint signal, int code,
         uint pid, X64LinuxUserTransition.UserImage* image, uint mxcsr, ref LinuxSignalMask mask,

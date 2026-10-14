@@ -17,7 +17,7 @@ public static unsafe partial class LinuxSignalServices
 
     /// <summary>Exact 32-byte rt_sigaction kernel layout. Handler/restorer are
     /// user values, not callable kernel pointers. Registration stores them;
-    /// future delivery must separately validate executable user mappings.</summary>
+    /// delivery separately validates executable user mappings.</summary>
     public struct Disposition { public ulong Handler, Flags, Restorer, Mask; }
 
     /// <summary>Exact 24-byte Linux x64 stack_t. Padding is ignored on input and
@@ -35,7 +35,7 @@ public static unsafe partial class LinuxSignalServices
         internal LinuxSyscallAccess User;
         internal delegate* unmanaged<void*, ulong, byte*, uint, byte> CopyToUser;
         internal fixed ulong Actions[64 * 4];
-        internal fixed ulong Threads[4 * 9]; // ThreadState, one actual generation each.
+        internal fixed ulong Threads[4 * 13]; // ThreadState, one actual generation each.
     }
 
     /// <summary>Exact user-copy capabilities shared with the thread owner.
@@ -55,6 +55,8 @@ public static unsafe partial class LinuxSignalServices
         internal AlternateStack Stack;
         internal ulong Depth;
         internal fixed ulong Frames[4];
+        internal ulong PendingStandard, RealtimeCount;
+        internal fixed uint Realtime[4];
     }
 
     /// <summary>Initialize one fresh metadata lifetime with IRQs disabled.
@@ -135,6 +137,7 @@ public static unsafe partial class LinuxSignalServices
             requested.Flags &= ActionFlags;
             requested.Mask &= ~LinuxSignalMask.Unblockable;
             *action = requested;
+            if (Ignored(s, (uint)signal)) Discard(s, (uint)signal);
         }
         // Linux commits a valid action before old-action copyout. EFAULT must
         // preserve the new disposition rather than silently rolling it back.
@@ -165,7 +168,7 @@ public static unsafe partial class LinuxSignalServices
     private static bool OnAlternate(AlternateStack stack, ulong rsp) => (stack.Flags & AutoDisarm) == 0 &&
         stack.Bytes != 0 && rsp > stack.Address && rsp - stack.Address <= stack.Bytes;
     private static bool Empty(State* s)
-    { for (uint i = 0; i < MaximumThreads * 9; i++) if (s->Threads[i] != 0) return false; return true; }
+    { for (uint i = 0; i < MaximumThreads * 13; i++) if (s->Threads[i] != 0) return false; return true; }
     private static bool Attached(State* s, ulong process) => Audit(s) && process != 0 && s->Process == process;
     private static bool Input(State* s, ulong address, byte* value, uint bytes) =>
         LinuxSyscallGateway.ValidateRange(address, bytes, LinuxUserPageAccess.Read, s->User) && s->User.CopyFromUser(s->User.Context, address, value, bytes) == 1;

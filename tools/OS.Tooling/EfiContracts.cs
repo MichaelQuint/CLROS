@@ -51,8 +51,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "a6d0c3faa63b890bf97fc0604162d58b65af940712105ebc7a9c2768f088ad98";
-    public const string CanonicalProjectSha256 = "b313dd4fe119e7aaee109feb83f40dd4a8671be7e25dd87a56ffdc68aced0073";
+    public const string ProjectSourceSha256 = "09f56d4a104f5385a0546634dd217a5de5a07de2a06a0515d295d8235dee5116";
+    public const string CanonicalProjectSha256 = "3dea759ba94e388727f1f8181ac28035b4e84e323e78eebb63f04b4a66be7848";
     public const string EfiEntrySourceSha256 = "d541486e48e47fce13aaa65651c9f00a4910f8f25c4a8a5a18e79c62e8c4195b";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
@@ -322,6 +322,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs|Compatibility\LinuxX64\LinuxSignalMask.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.cs|Compatibility\LinuxX64\LinuxSignalServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.Frames.cs|Compatibility\LinuxX64\LinuxSignalServices.Frames.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.Pending.cs|Compatibility\LinuxX64\LinuxSignalServices.Pending.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs|Compatibility\LinuxX64\LinuxThreadServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Signals.cs|Compatibility\LinuxX64\LinuxThreadServices.Signals.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs|Compatibility\LinuxX64\LinuxThreadServices.Futex.cs",

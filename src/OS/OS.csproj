@@ -837,6 +837,7 @@
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs" Link="Compatibility\LinuxX64\LinuxSignalMask.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.cs" Link="Compatibility\LinuxX64\LinuxSignalServices.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.Frames.cs" Link="Compatibility\LinuxX64\LinuxSignalServices.Frames.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.Pending.cs" Link="Compatibility\LinuxX64\LinuxSignalServices.Pending.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs" Link="Compatibility\LinuxX64\LinuxThreadServices.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Signals.cs" Link="Compatibility\LinuxX64\LinuxThreadServices.Signals.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs" Link="Compatibility\LinuxX64\LinuxThreadServices.Futex.cs" Condition="'$(EnableM16008Probe)' == 'true'" />

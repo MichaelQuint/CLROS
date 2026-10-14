@@ -129,7 +129,8 @@ public unsafe partial struct LinuxThreadServices
     /// before Start. Exact copy capabilities, disjoint supervisor storage and
     /// external IRQ-off ownership must match this process. Registration is real
     /// state; checked current-thread frames/return use the same actual owner.
-    /// Pending/tgkill and asynchronous delivery require separate integration.
+    /// Directed pending/tgkill uses explicit current-thread delivery; blocked
+    /// interruption and asynchronous delivery require separate integration.
     /// The caller retains the state until all actual generations reap and Release
     /// detaches; only then may LinuxSignalServices.End scrub it.</summary>
     public bool EnableSignals(ulong key, ulong flags, LinuxSignalServices.State* signals)
@@ -216,6 +217,10 @@ public unsafe partial struct LinuxThreadServices
             case 231:
                 if (!Shutdown(key, flags, unchecked((uint)frame.Argument0))) return new(LinuxSyscallAction.Rejected);
                 return new(LinuxSyscallAction.Terminate, exitCode: unchecked((uint)frame.Argument0));
+            case 234:
+                result = Tgkill(key, flags, frame);
+                if (result == 0 && _stopping) return new(LinuxSyscallAction.Terminate, exitCode: 137);
+                break;
             default: result = Unsupported; break;
         }
         return _failed ? new(LinuxSyscallAction.Rejected) : new(LinuxSyscallAction.Return, result);

@@ -88,10 +88,18 @@ the complete user image into the active gateway. Malformed frames stage owned
 SIGSEGV shutdown. This bounded profile requires fixed selectors, flags6 and
 legacy FX storage with zero software-reserved bytes; XSAVE, legacy selector
 repair and fabricated return frames outside the owned nesting are unsupported.
-Pending selection/tgkill, interrupted waits/restart, asynchronous user faults/
-activation, the M16-009 profile and unchanged Hello/suspension qualification
-remain unfinished. No native path calls DeliverSignal or attaches signal state
-yet; the new frame and full-image bridge have focused host/source evidence only.
+
+[Step1250](../done/step1250.md) adds actual tgkill/private pending state:
+standard coalescing and Linux synchronous-class priority, bounded realtime
+events, masks, process-wide ignore flushing, per-generation cleanup and checked
+current-thread selection. SIGKILL stages actual owned process shutdown. Null
+signals check existence; unsupported job control and unmasked blocked-call
+interruption return ENOSYS without queue/wake mutation. Masked signals can remain
+pending across a real wait and later unmask/delivery. This is not EINTR/restart
+support. Those paths, asynchronous user faults/activation, M16-009 integration,
+unchanged Hello and suspension remain unfinished. No native path calls the
+signal delivery APIs or attaches signal state yet; evidence is focused host/
+source and no-stdlib C# compilation only.
 
 This remains focused host/source and freestanding C# evidence. No native worker,
 timer callback or mechanical ELF has executed. Original native/stack review,

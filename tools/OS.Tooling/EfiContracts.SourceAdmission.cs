@@ -10,6 +10,7 @@ public static partial class EfiContracts
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs"] = "reviewed_m16_thread_signal_mask_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.cs"] = "reviewed_m16_signal_startup_owner_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.Frames.cs"] = "reviewed_m16_signal_frame_owner_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.Pending.cs"] = "reviewed_m16_signal_pending_owner_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs"] = "reviewed_m16_thread_owner_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Signals.cs"] = "reviewed_m16_signal_thread_owner_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs"] = "reviewed_m16_futex_owner_source_identity",
