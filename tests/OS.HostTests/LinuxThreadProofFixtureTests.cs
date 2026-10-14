@@ -47,7 +47,7 @@ internal static unsafe class LinuxThreadProofFixtureTests
     {
         byte[] package = LinuxThreadProofFixture.CreatePackage("Threads");
         var view = LinuxElfPackage.Validate(package); HostCheck.True(view.Succeeded);
-        HostCheck.Equal(0x6000UL, view.PayloadBytes); HostCheck.Equal(2U, view.Manifest.Threads); HostCheck.Equal(16U, view.Manifest.Descriptors);
+        HostCheck.Equal(0x7000UL, view.PayloadBytes); HostCheck.Equal(2U, view.Manifest.Threads); HostCheck.Equal(16U, view.Manifest.Descriptors);
         ReadOnlySpan<byte> elf = package.AsSpan((int)view.PayloadOffset, (int)view.PayloadBytes);
         HostCheck.True(elf[..7].SequenceEqual(new byte[] { 0x7f, 0x45, 0x4c, 0x46, 2, 1, 1 }));
         HostCheck.Equal((ushort)2, U16(elf, 16)); HostCheck.Equal((ushort)62, U16(elf, 18));
@@ -56,7 +56,7 @@ internal static unsafe class LinuxThreadProofFixtureTests
         HostCheck.True(U32(elf, 64) == 1 && U32(elf, 68) == 5 && U64(elf, 72) == 0 && U64(elf, 80) == 0x400000 &&
             U64(elf, 96) == 4096 && U64(elf, 104) == 4096 && U64(elf, 112) == 4096);
         HostCheck.True(U32(elf, 120) == 1 && U32(elf, 124) == 6 && U64(elf, 128) == 4096 && U64(elf, 136) == 0x401000 &&
-            U64(elf, 152) == 0x5000 && U64(elf, 160) == 0x5000 && U64(elf, 168) == 4096);
+            U64(elf, 152) == 0x6000 && U64(elf, 160) == 0x6000 && U64(elf, 168) == 4096);
         HostCheck.True(U32(elf, 176) == 0x6474e551 && U32(elf, 180) == 6 && U64(elf, 224) == 16);
         string manifest = Encoding.ASCII.GetString(package.AsSpan(64, checked((int)view.PayloadOffset - 64)));
         HostCheck.True(manifest.Contains("app.path=apps/m16threads.elf\nargs=Threads\n", StringComparison.Ordinal) &&
@@ -65,7 +65,7 @@ internal static unsafe class LinuxThreadProofFixtureTests
         {
             HostCheck.Equal(LinuxElfLoadStatus.Ready, LinuxElfLoader.Validate(bytes + view.PayloadOffset, view.PayloadBytes,
                 view.Manifest.MemoryBytes, view.Manifest.StackBytes, out var plan));
-            HostCheck.True(plan.LoadCount == 2 && plan.ImageBytes == 0x6000 && plan.Entry == 0x400200 &&
+            HostCheck.True(plan.LoadCount == 2 && plan.ImageBytes == 0x7000 && plan.Entry == 0x400200 &&
                 plan.ProgramHeaders == 0x400040 && plan.TlsMemoryBytes == 0);
         }
         HostCheck.True(package.AsSpan().SequenceEqual(LinuxThreadProofFixture.CreatePackage("Threads")));
@@ -78,13 +78,13 @@ internal static unsafe class LinuxThreadProofFixtureTests
     {
         byte[] elf = LinuxThreadProofFixture.CreateElf("Threads");
         var parent = Decode(elf, 0x200, 0x900); var child = Decode(elf, 0x900, 0xf00);
-        uint[] parentNumbers = [39, 186, 158, 14, 293, 56, 202, 14, 158, 56, 0, 56, 39, 158, 14, 202, 202, 202, 202, 3, 3, 1, 231];
-        uint[] childNumbers = [39, 186, 158, 14, 14, 14, 158, 158, 1, 202, 60];
+        uint[] parentNumbers = [39, 186, 158, 14, 293, 56, 202, 14, 158, 56, 0, 56, 39, 158, 14, 202, 0, 202, 0, 202, 202, 3, 3, 1, 231];
+        uint[] childNumbers = [39, 186, 158, 14, 14, 14, 158, 158, 1, 202, 1, 60];
         HostCheck.True(parent.Calls.Select(c => c.Number).SequenceEqual(parentNumbers) && child.Calls.Select(c => c.Number).SequenceEqual(childNumbers));
-        HostCheck.Equal(47U, LinuxThreadProofFixture.ExpectedCalls("Threads"));
-        HostCheck.Equal(44U, LinuxThreadProofFixture.ExpectedCalls("Threads", child: true));
+        HostCheck.Equal(55U, LinuxThreadProofFixture.ExpectedCalls("Threads"));
+        HostCheck.Equal(48U, LinuxThreadProofFixture.ExpectedCalls("Threads", child: true));
         ulong[] parentPath = [.. parent.Calls.Take(9).Select(c => c.Rip),
-            .. Enumerable.Range(0, 4).SelectMany(_ => parent.Calls.Skip(9).Take(8).Select(c => c.Rip)), .. parent.Calls.Skip(17).Select(c => c.Rip)];
+            .. Enumerable.Range(0, 4).SelectMany(_ => parent.Calls.Skip(9).Take(10).Select(c => c.Rip)), .. parent.Calls.Skip(19).Select(c => c.Rip)];
         ulong[] childPath = Enumerable.Range(0, 4).SelectMany(_ => child.Calls.Select(c => c.Rip)).ToArray();
         HostCheck.True(parentPath.SequenceEqual(LinuxThreadProofFixture.ExpectedReturnRips("Threads")) &&
             childPath.SequenceEqual(LinuxThreadProofFixture.ExpectedReturnRips("Threads", child: true)));
@@ -93,7 +93,7 @@ internal static unsafe class LinuxThreadProofFixtureTests
         HostCheck.True(!child.Calls.Any(c => c.Rip == parent.Calls[9].Rip)); // Child begins at a saved clone continuation, not a replayed syscall.
         HostCheck.Equal(parent.Calls[^1].Rip, LinuxThreadProofFixture.SuccessRip("Threads"));
         HostCheck.Equal(child.Calls[^1].Rip, LinuxThreadProofFixture.ChildExitRip("Threads"));
-        HostCheck.Equal(0x4007b5UL, parent.Calls[^1].Rip); HostCheck.Equal(0x400c29UL, child.Calls[^1].Rip);
+        HostCheck.Equal(0x400861UL, parent.Calls[^1].Rip); HostCheck.Equal(0x400c63UL, child.Calls[^1].Rip);
         Check(parent.Calls[2], 158, 0x1002, 0x402000, 0);
         Check(parent.Calls[3], 14, 2, 0x401020, 0, 8);
         Check(parent.Calls[4], 293, 0x401000, 0, 0);
@@ -104,15 +104,18 @@ internal static unsafe class LinuxThreadProofFixtureTests
         Check(parent.Calls[9], 56, 0x7d0f00, 0x406000, 0x401008, 0x40100c, 0x403000);
         HostCheck.True(parent.Calls[10].FdOffset == 0x1000 && parent.Calls[10].A1 == 0x401078 && parent.Calls[10].A2 == 4);
         Check(parent.Calls[11], 56, 0x7d0f00, 0x406000, 0x401008, 0x40100c, 0x403000);
-        HostCheck.True(parent.Calls[19].FdOffset == 0x1000 && parent.Calls[20].FdOffset == 0x1004);
+        HostCheck.True(parent.Calls[21].FdOffset == 0x1000 && parent.Calls[22].FdOffset == 0x1004);
         HostCheck.True(child.Calls[8].FdOffset == 0x1004 && child.Calls[8].A1 == 0x401070 && child.Calls[8].A2 == 4);
-        HostCheck.True(parent.Calls.Count(c => c.FdOffset >= 0) == 3 && child.Calls.Count(c => c.FdOffset >= 0) == 1);
+        HostCheck.True(parent.Calls.Count(c => c.FdOffset >= 0) == 5 && child.Calls.Count(c => c.FdOffset >= 0) == 2);
+        HostCheck.True(parent.Calls[16].FdOffset == 0x1000 && parent.Calls[16].A1 == 0x406000 && parent.Calls[16].A2 == 4096 &&
+            parent.Calls[18].FdOffset == 0x1000 && parent.Calls[18].A1 == 0x401078 && parent.Calls[18].A2 == 4 &&
+            child.Calls[10].FdOffset == 0x1004 && child.Calls[10].A1 == 0x402000 && child.Calls[10].A2 == 4100);
         Check(parent.Calls[13], 158, 0x1003, 0x401048, 0);
         Check(parent.Calls[14], 14, 2, 0, 0x401030, 8);
         Check(parent.Calls[15], 202, 0x401010, 129, 1);
-        Check(parent.Calls[16], 202, 0x40100c, 0, 1);
-        Check(parent.Calls[17], 202, 0x401010, 128, 0);
-        Check(parent.Calls[18], 202, 0x401014, 128, 0, 0x401058);
+        Check(parent.Calls[17], 202, 0x40100c, 0, 1);
+        Check(parent.Calls[19], 202, 0x401010, 128, 0);
+        Check(parent.Calls[20], 202, 0x401014, 128, 0, 0x401058);
         Check(child.Calls[2], 158, 0x1003, 0x401050, 0);
         Check(child.Calls[3], 14, 2, 0, 0x401038, 8);
         Check(child.Calls[4], 14, 2, 0x401028, 0x401040, 8);
@@ -137,7 +140,7 @@ internal static unsafe class LinuxThreadProofFixtureTests
             loop.Target + 10 + BinaryPrimitives.ReadInt32LittleEndian(elf.AsSpan(loop.Target + 2)) == 0x1010 &&
             elf[loop.Target + 10] == 0xc7 && elf[loop.Target + 11] == 5 && U32(elf, loop.Target + 16) == 1 &&
             loop.Target + 20 + BinaryPrimitives.ReadInt32LittleEndian(elf.AsSpan(loop.Target + 12)) == 0x100c);
-        HostCheck.True(loop.At > checked((int)(parent.Calls[16].Rip - 0x400000)) &&
+        HostCheck.True(loop.At > checked((int)(parent.Calls[18].Rip - 0x400000)) &&
             loop.Target < checked((int)(parent.Calls[9].Rip - 0x400000)));
         HostCheck.True(child.Branches.All(b => b.Target == 0xf00));
         int cloneReturn = checked((int)(parent.Calls[9].Rip - 0x400000));
@@ -163,6 +166,8 @@ internal static unsafe class LinuxThreadProofFixtureTests
             MemoryCheck(elf, parent, 0x1078, 0x45504950) && MemoryCheck(elf, parent, 0x4ff8, 0x13579bdf));
         HostCheck.True(MemoryCheck(elf, parent, 0x1048, 0x402000, true) && MemoryCheck(elf, parent, 0x1030, 0x200, true) &&
             MemoryCheck(elf, child, 0x1050, 0x403000, true) && MemoryCheck(elf, child, 0x1050, 0x403040, true));
+        HostCheck.True(MemoryCheck(elf, parent, 0x6000, 0x13579bdf, true) && MemoryCheck(elf, parent, 0x6ff8, 0x5a5a5a5a, true) &&
+            MemoryCheck(elf, parent, 0x1078, 0x2468ace0));
         HostCheck.True(MemoryCheck(elf, child, 0x1038, 0x200, true) && MemoryCheck(elf, child, 0x1040, 0x200, true) &&
             MemoryCheck(elf, child, 0x1038, 0x800, true) && MemoryCheck(elf, child, 0x1010, 1) && MemoryCheck(elf, child, 0x5ff8, 0x2468ace0));
         HostCheck.True(FsCheck(p, 0x13579bdf) && FsCheck(c, 0x2468ace0) && FsCheck(c, 0x31415926));
@@ -171,7 +176,8 @@ internal static unsafe class LinuxThreadProofFixtureTests
         HostCheck.Equal(0UL, U64(elf, 0x1058)); HostCheck.Equal(1_000_000UL, U64(elf, 0x1060));
         HostCheck.True(elf.AsSpan(0x1070, 4).SequenceEqual("PIPE"u8));
         HostCheck.Equal(0x13579bdfUL, U64(elf, 0x2000)); HostCheck.Equal(0x2468ace0UL, U64(elf, 0x3000)); HostCheck.Equal(0x31415926UL, U64(elf, 0x3040));
-        HostCheck.True(elf.AsSpan(0x4000, 8192).IndexOfAnyExcept((byte)0) < 0);
+        HostCheck.Equal(0x5a5a5a5aUL, U64(elf, 0x2ff8));
+        HostCheck.True(elf.AsSpan(0x4000, 12288).IndexOfAnyExcept((byte)0) < 0);
         HostCheck.True(elf.AsSpan(0x180, 15).SequenceEqual("M16_THREADS_OK!"u8));
         HostCheck.Equal(1, failure.Calls.Count); Check(failure.Calls[0], 231, 99, 0, 0);
         HostCheck.Equal(0x400f29UL, failure.Calls[0].Rip); HostCheck.Equal(0x400f29UL, LinuxThreadProofFixture.FailureExitRip);

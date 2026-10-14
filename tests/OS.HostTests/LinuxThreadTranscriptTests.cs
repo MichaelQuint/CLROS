@@ -13,9 +13,9 @@ internal static class LinuxThreadTranscriptTests
         {
             string[] rows = Synthetic(ticks, ticks == 1 ? 17UL : 103UL, ticks == 1 ? 7UL : 5UL, ticks == 1 ? 12UL : 9UL);
             QemuTranscripts.ValidateLinuxThreadTail(rows, package, 0x200000, 0x100000);
-            HostCheck.Equal(91, Indices(rows, "M16_008_CALL ").Length);
-            HostCheck.Equal(13, Indices(rows, "M16_008_RESUME ").Length);
-            HostCheck.Equal(18, Indices(rows, "M16_008_SUPERVISOR ").Length);
+            HostCheck.Equal(103, Indices(rows, "M16_008_CALL ").Length);
+            HostCheck.Equal(21, Indices(rows, "M16_008_RESUME ").Length);
+            HostCheck.Equal(26, Indices(rows, "M16_008_SUPERVISOR ").Length);
             HostCheck.Equal(5, Indices(rows, "M16_008_REAP ").Length);
             HostCheck.True(Indices(rows, "M16_008_REAP ").Take(4).Select(i => Field(rows[i], "old"))
                 .SequenceEqual(new ulong[] { 0x100000002, 0x200000002, 0x300000002, 0x400000002 }));
@@ -25,12 +25,12 @@ internal static class LinuxThreadTranscriptTests
             { int at = Array.FindIndex(rows, row => row == marker || row.StartsWith(marker + " ", StringComparison.Ordinal)); HostCheck.True(at > prior); prior = at; }
         }
         var p = Decode(false); var c = Decode(true);
-        ulong[] parentPath = [.. p.Take(9).Select(x => x.Rip), .. Enumerable.Range(0, 4).SelectMany(_ => p.Skip(9).Take(8).Select(x => x.Rip)), .. p.Skip(17).Select(x => x.Rip)];
+        ulong[] parentPath = [.. p.Take(9).Select(x => x.Rip), .. Enumerable.Range(0, 4).SelectMany(_ => p.Skip(9).Take(10).Select(x => x.Rip)), .. p.Skip(19).Select(x => x.Rip)];
         HostCheck.True(parentPath.SequenceEqual(LinuxThreadProofFixture.ExpectedReturnRips("Threads")) &&
             Enumerable.Range(0, 4).SelectMany(_ => c.Select(x => x.Rip)).SequenceEqual(LinuxThreadProofFixture.ExpectedReturnRips("Threads", child: true)));
-        HostCheck.True(p[9].Rip == 0x400439 && p[^1].Rip == 0x4007b5 && c[^1].Rip == 0x400c29);
-        HostCheck.True(p.Select(x => x.Nr).SequenceEqual(new ulong[] { 39,186,158,14,293,56,202,14,158,56,0,56,39,158,14,202,202,202,202,3,3,1,231 }) &&
-            c.Select(x => x.Nr).SequenceEqual(new ulong[] { 39,186,158,14,14,14,158,158,1,202,60 }));
+        HostCheck.True(p[9].Rip == 0x400439 && p[^1].Rip == 0x400861 && c[^1].Rip == 0x400c63);
+        HostCheck.True(p.Select(x => x.Nr).SequenceEqual(new ulong[] { 39,186,158,14,293,56,202,14,158,56,0,56,39,158,14,202,0,202,0,202,202,3,3,1,231 }) &&
+            c.Select(x => x.Nr).SequenceEqual(new ulong[] { 39,186,158,14,14,14,158,158,1,202,1,60 }));
         HostCheck.True(QemuTranscripts.M16LinuxThreadMarkers.Contains("M16_008_RESUME", StringComparer.Ordinal) &&
             QemuTranscripts.M16LinuxThreadMarkers.Contains("M16_008_REAP", StringComparer.Ordinal));
     }
@@ -127,18 +127,18 @@ internal static class LinuxThreadTranscriptTests
         var parent = Decode(false); var child = Decode(true); ulong clock = 0;
         List<string> rows = ["TEST_START m16-008",
             "M16_006_POLICY physical=268435456 available=134217728 poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel",
-            "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=24576 package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler",
+            "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=28672 package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler",
             "M16_005_ARMED root=2097152 cs=59 ss=51 kernelStack=9437184 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null",
             "M16_008_BOUND root=1048576 pool=3145728 workers=2 code=16384 metadata=45056 userImage=728 timer=idle-only clock=hpet-nanoseconds reuse=off-stack"];
         void Call(bool isChild, int index)
         {
             var call = (isChild ? child : parent)[index];
-            if (isChild && index == 9 || !isChild && index is 16 or 18) clock += 10_000;
+            if (isChild && index == 9 || !isChild && index is 17 or 20) clock += 10_000;
             ulong a0 = call.FdOffset == 0x1000 ? readFd : call.FdOffset == 0x1004 ? writeFd : call.A0;
             long value = isChild ? index switch { 0 => (long)pid, 1 => (long)pid + cycle + 1, 8 => 4, _ => 0 } :
                 index switch { 0 or 1 or 12 => (long)pid, 5 or 6 or 7 => -22, 8 => -14,
-                    9 => (long)pid + cycle + 1, 11 or 17 => -11, 15 => 1, 21 => 15, _ => 0 };
-            bool blocked = isChild ? index == 9 : index is 10 or 16 or 18;
+                    9 => (long)pid + cycle + 1, 11 or 19 => -11, 15 => 1, 18 => 4, 23 => 15, _ => 0 };
+            bool blocked = isChild ? index is 9 or 10 : index is 10 or 16 or 17 or 20;
             ulong action = blocked ? 3UL : index == (isChild ? child.Count : parent.Count) - 1 ? isChild ? 4UL : 2UL : 1UL;
             ulong status = blocked ? 9UL : action is 2 or 4 ? 2UL : 1UL;
             ulong fs = isChild ? index < 6 ? 0x403000UL : 0x403040UL : index < 2 ? 0UL : 0x402000UL;
@@ -152,18 +152,20 @@ internal static class LinuxThreadTranscriptTests
         Calls(false, 0, 8);
         for (; cycle < 4; cycle++)
         {
-            c = ((ulong)(cycle + 1) << 32) | 2; uint transfers = (uint)cycle * 8;
+            c = ((ulong)(cycle + 1) << 32) | 2; uint transfers = (uint)cycle * 12;
             Calls(false, 9, 10); Supervisor(p, 3, transfers + 2, 1, 2); Calls(true, 0, 9); Supervisor(c, 3, transfers + 4, 1, 2);
             Resume(p, 4); Calls(false, 11, 16); Supervisor(p, 3, transfers + 6, 1, 2);
-            Resume(c, 0); Call(true, 10); Exit(c); Supervisor(c, 4, transfers + 8, 1, 2); Reap(c); Resume(p, 0);
+            Resume(c, 0); Call(true, 10); Supervisor(c, 3, transfers + 8, 1, 2);
+            Resume(p, 4096); Call(false, 17); Supervisor(p, 3, transfers + 10, 1, 2);
+            Resume(c, 4100); Call(true, 11); Exit(c); Supervisor(c, 4, transfers + 12, 1, 2); Reap(c); Resume(p, 0); Call(false, 18);
         }
-        Calls(false, 17, 18); Supervisor(p, 3, 34, 0, 1);
+        Calls(false, 19, 20); Supervisor(p, 3, 50, 0, 1);
         ulong timeoutClock = clock;
         for (int tick = 1; tick <= ticks; tick++)
         { clock = timeoutClock + (ulong)tick * 1_000_000 / (uint)ticks; rows.Add(FormattableString.Invariant($"M16_008_TICK epoch={tick} nanos={clock} ready={(tick == ticks ? 1 : 0)}")); }
-        Resume(p, -110); Calls(false, 19, 20); rows.Add("M16_005_WRITE fd=1 bytes=15 data=M16_THREADS_OK!"); Call(false, 21);
-        Call(false, 22); Exit(p); Supervisor(p, 2, 36, 0, 1); Reap(p);
-        rows.Add(FormattableString.Invariant($"M16_008_OWNER_END reaped=5 transfers=36 irqs={ticks} exit=42 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed reservation=retained"));
+        Resume(p, -110); Calls(false, 21, 22); rows.Add("M16_005_WRITE fd=1 bytes=15 data=M16_THREADS_OK!"); Call(false, 23);
+        Call(false, 24); Exit(p); Supervisor(p, 2, 52, 0, 1); Reap(p);
+        rows.Add(FormattableString.Invariant($"M16_008_OWNER_END reaped=5 transfers=52 irqs={ticks} exit=42 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed reservation=retained"));
         rows.Add("M16_008_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
         rows.Add("CLROS_M16_008_READY"); rows.Add("TEST_PASS m16-008"); return rows.ToArray();
     }

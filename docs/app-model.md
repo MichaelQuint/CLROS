@@ -49,6 +49,14 @@ misaligned futex and invalid mask-size EINVAL, unmapped FS EFAULT, and full-tabl
 clone EAGAIN with the parked child's clear-TID word intact. The repeated guest
 protocol and these errno controls have not executed.
 
+[Step1246](../done/step1246.md) adds pipe-capacity blocking to each lifetime.
+After the private futex wakes, the parent blocks on an empty pipe; the child
+requests 4,100 bytes, retains 4,096 bytes of progress while parked, and finishes
+the final four after the parent drains capacity. The parent joins then checks
+the tail. A separate user RW page holds the full read, leaving stacks, TLS and
+control words disjoint. The current strict contract is 103 calls, 21 completions,
+52 transfers and five reaps. This remains an unexecuted mechanical input.
+
 This remains focused host/source and freestanding C# evidence. No native worker,
 timer callback or mechanical ELF has executed. Original native/stack review,
 live stress/negatives and guest/ancestor qualification remain required. Signal

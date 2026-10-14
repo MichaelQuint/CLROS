@@ -24,6 +24,12 @@ The same input asserts malformed clone/mask/futex, unmapped FS and full-table
 clone errors; its strict tail requires 91 calls, 36 transfers and five reaps.
 This changes the mechanical input and strict transcript only, not native code.
 
+[Step1246](../done/step1246.md) extends each cycle with a 4,100-byte blocking
+write through the 4,096-byte pipe and a separate read page. Current ELF bytes
+are 28,672; the strict tail requires 103 calls, 21 completions, 52 transfers and
+five reaps. Generate a fresh package after this change as well. The native
+owner and profile are unchanged; no execution evidence is added.
+
 The future qualification command is:
 
 ```powershell

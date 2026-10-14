@@ -6,7 +6,8 @@ using OS.Manifest;
 namespace OS.Tooling;
 
 /// <summary>C#-authored mechanical M16-008 parent/child ELF. One RX page and
-/// five static RW pages hold separate user stacks/TLS and shared process data.
+/// six static RW pages hold separate user stacks/TLS, shared process data and
+/// a disjoint pipe read buffer.
 /// It requires real blocking pipes, per-thread masks, clone, futex completion,
 /// clear-child-TID and a live timer. Construction is host evidence only; no
 /// upstream application, native execution or signal delivery is qualified.</summary>
@@ -20,7 +21,7 @@ public static class LinuxThreadProofFixture
     /// <summary>Finite sequential child lifetimes within one two-thread process;
     /// each must exit/join/reap before the next real generation is created.</summary>
     public const int ReuseCycles = 4;
-    public const int ElfBytes = 0x6000, EntryOffset = 0x200, ChildOffset = 0x900, FailureOffset = 0xf00, WitnessOffset = 0x180;
+    public const int ElfBytes = 0x7000, EntryOffset = 0x200, ChildOffset = 0x900, FailureOffset = 0xf00, WitnessOffset = 0x180;
     public const ulong FailureExitRip = ImageBase + FailureOffset + 41;
     // Control-page offsets are public so the native owner can admit and inspect
     // the exact mechanical protocol without inventing fd/TID values.
@@ -115,7 +116,7 @@ public static class LinuxThreadProofFixture
         U32(ClearTidOffset, 1); U64(ParentMaskOffset, 0x200); U64(ChildMaskOffset, 0x800);
         U64(TimeoutOffset, 0); U64(TimeoutOffset + 8, 1_000_000); // Genuine relative 1ms, not a synthetic yield.
         "PIPE"u8.CopyTo(elf.AsSpan(PayloadOffset));
-        U64(0x2000, 0x13579bdf); U64(0x3000, 0x2468ace0); U64(0x3040, 0x31415926);
+        U64(0x2000, 0x13579bdf); U64(0x2ff8, 0x5a5a5a5a); U64(0x3000, 0x2468ace0); U64(0x3040, 0x31415926);
 
         Writer p = new(elf, EntryOffset);
         p.Op(0xc031, 2); p.Op(0xc88c66, 3); p.Compare(0x3b); // Actual CPL3 CS.
@@ -145,8 +146,11 @@ public static class LinuxThreadProofFixture
         p.Call(14, 2, 0, Address(ParentMaskOut), 8); p.Compare(0); p.Memory(ParentMaskOut, 0x200, true);
         p.Store32(GateOffset, 1);
         p.Call(202, Address(GateOffset), 129, 1); p.Compare(1); // Child already parked on its private gate.
+        p.FdCall(0, PairOffset, 0x406000, 4096); p.Compare(4096); // Empty pipe: child must run and fill its entire capacity.
+        p.Memory(0x6000, 0x13579bdf, true); p.Memory(0x6ff8, 0x5a5a5a5a, true);
         p.Call(202, Address(ClearTidOffset), 0, 1); p.Compare(0); // Shared key used by actual child exit.
         p.Memory(ClearTidOffset, 0);
+        p.FdCall(0, PairOffset, Address(ReadOffset), 4); p.Compare(4); p.Memory(ReadOffset, 0x2468ace0);
         p.Op(0xcdff49, 3); p.Branch(0x85, loop); // DEC R13; JNZ only after the genuine clear-TID join.
         p.Call(202, Address(GateOffset), 128, 0); p.Compare(-11); // Wrong current word never parks.
         p.Call(202, Address(TimeoutWordOffset), 128, 0, Address(TimeoutOffset)); p.Compare(-110);
@@ -167,11 +171,12 @@ public static class LinuxThreadProofFixture
         c.Call(158, 0x1003, Address(ChildFsOut), 0); c.Compare(0); c.Memory(ChildFsOut, ChangedChildTls, true); c.Fs(); c.Compare(0x31415926);
         c.FdCall(1, PairOffset + 4, Address(PayloadOffset), 4); c.Compare(4);
         c.Call(202, Address(GateOffset), 128, 0); c.Compare(0); c.Memory(GateOffset, 1); c.Memory(0x5ff8, 0x2468ace0);
+        c.FdCall(1, PairOffset + 4, ParentTls, 4100); c.Compare(4100); // Retain 4096-byte progress while blocked; complete the final four bytes once.
         c.Call(60, 0, 0, 0); c.JumpFailure();
         if (c.Position > FailureOffset) throw new ToolFailure("m16_008_fixture_child_capacity");
         Writer failure = new(elf, FailureOffset); failure.Op(0xfc, 1); failure.Call(231, 99, 0, 0); failure.Op(0xf4, 1);
         if (failure.Rips[0] != FailureExitRip) throw new ToolFailure("m16_008_fixture_failure_rip");
-        ulong[] parent = [.. p.Rips.Take(9), .. Enumerable.Range(0, ReuseCycles).SelectMany(_ => p.Rips.Skip(9).Take(8)), .. p.Rips.Skip(17)];
+        ulong[] parent = [.. p.Rips.Take(9), .. Enumerable.Range(0, ReuseCycles).SelectMany(_ => p.Rips.Skip(9).Take(10)), .. p.Rips.Skip(19)];
         ulong[] children = Enumerable.Range(0, ReuseCycles).SelectMany(_ => c.Rips).ToArray();
         return (elf, parent, children, clone);
     }
