@@ -266,7 +266,7 @@ public static unsafe class LinuxSyscallGateway
         f.Argument3 == 0 && f.Argument4 == 0 && f.Argument5 == 0 && f.Rip == 0 && f.Rsp == 0 && f.Rflags == 0 && f.FsBase == 0 && f.GsBase == 0;
     private static void Clear(byte* bytes, uint count) { for (uint i = 0; i < count; i++) bytes[i] = 0; }
     private static bool DescriptorCall(ulong number) => number is 0 or 1 or 2 or 3 or 5 or 8 or 16 or 17 or 20 or 22 or 72 or 257 or 293;
-    private static bool ThreadCall(ulong number) => number is 14 or 24 or 35 or 39 or 56 or 60 or 158 or 186 or 202 or 218 or 231 or 273 or 274;
+    private static bool ThreadCall(ulong number) => number is 13 or 14 or 24 or 35 or 39 or 56 or 60 or 131 or 158 or 186 or 202 or 218 or 231 or 273 or 274;
     private static bool ThreadFrame(LinuxSyscallFrame before, LinuxSyscallFrame after, LinuxSyscallResult result) =>
         before.Number == after.Number && before.Argument0 == after.Argument0 && before.Argument1 == after.Argument1 && before.Argument2 == after.Argument2 &&
         before.Argument3 == after.Argument3 && before.Argument4 == after.Argument4 && before.Argument5 == after.Argument5 &&

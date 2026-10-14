@@ -9,7 +9,8 @@ public static partial class EfiContracts
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs"] = "94b6a505fc808646e6cea6a8c00d40ae62f75e3375de8986b1439ce2b1f825dc",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs"] = "502469eb1a334d261767dc3e9aae31c93117f737338e439fa02a5932e8ec25b5",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.cs"] = "5de3363727f46e5531afe4bd0bb7b104b62f19ead49786f6f6bd714760ca70d8",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs"] = "1f2c3edce396b4059251d497d8922af9893fd157ceaf96b170a30616f1b2f1d8",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs"] = "1f97cfb62beca92250acb17a168730edb74c3fdd8aaa4a1cdb82646c1f4c8411",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs"] = "1c79ff0d78ead07806f2ad1528bdca076603bbb7a4b621b0968e890cd5aab9ea",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs"] = "b0437465fef58a208f434e69ac974300de31b8ceedf99b4d3ec8cb478b50c1a6",
@@ -44,7 +45,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxStartupServices.cs"] = "c8f8d4233fbc81db95a212f5064c2dabdc0a878bcba424b0dc10c53df6dd13fa",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxMemoryServices.cs"] = "2cd1a19d44a726a3564fd3ef72a5efd6112fe3390474d2ed1ecc69d45186efd6",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs"] = "bce2fbf0e78dea572f39dd5bc2fffaf52377fe1c8b0897148de657ca8d68ffde",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs"] = "d478492201f42344ce0136aa82040b363a5a96b5cdbba98418080e4d86e66298",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs"] = "bc83b0cb8e753b811ca1b3a31e5c211a9955921f600cb5708cc036a04ae2cb59",
                 [@"..\OS.Kernel\Boot\BootSequence.cs"] = "11cdaa27ea7f86003bf9249f9af654baa59d84d6ea646e46320814d18869559e",
                 [@"..\..\std\no-runtime\shared\Text\AsciiArgumentSplitter.cs"] = "9869438fcd0e465ca21c90f0e9de36b0a9b826c24885de36e44df653c5ea7be5",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfStartup.cs"] = "5fd400d94887ab5aaf64531ff58ca1484d56b308b2e30d8541ffced86a7a0396",

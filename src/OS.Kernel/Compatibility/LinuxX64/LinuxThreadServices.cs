@@ -85,6 +85,7 @@ public unsafe partial struct LinuxThreadServices
     private FutexAdmission _futex;
     private bool _futexEnabled;
     private LinuxDescriptorServices.State* _descriptors;
+    private LinuxSignalServices.State* _signals;
     public readonly uint ActiveThreads => _initialized == 1 ? _active : 0;
     public readonly bool Failed => _failed;
 
@@ -120,8 +121,30 @@ public unsafe partial struct LinuxThreadServices
             // Metadata must be fresh; do not erase a foreign/stale lifetime.
             byte* bytes = (byte*)(a.Slots + i); for (uint j = 0; j < sizeof(Slot); j++) if (bytes[j] != 0) return false;
         }
-        _owner = a; _self = self; _key = key; _nextTid = a.ProcessId; _active = 0; _failed = _stopping = false; _initialized = 1;
+        _owner = a; _self = self; _key = key; _nextTid = a.ProcessId; _active = 0; _failed = _stopping = false; _signals = null; _initialized = 1;
         return true;
+    }
+
+    /// <summary>Attach process actions and per-thread alternate-stack metadata
+    /// before Start. Exact copy capabilities, disjoint supervisor storage and
+    /// external IRQ-off ownership must match this process. Registration is real
+    /// state; delivery/tgkill/sigreturn remain unsupported in this startup slice.
+    /// The caller retains the state until all actual generations reap and Release
+    /// detaches; only then may LinuxSignalServices.End scrub it.</summary>
+    public bool EnableSignals(ulong key, ulong flags, LinuxSignalServices.State* signals)
+    {
+        uint bytes = (uint)sizeof(LinuxSignalServices.State);
+        if (!Access(key, flags) || _failed || _stopping || _active != 0 || _signals != null ||
+            !Buffer((ulong)signals, bytes, bytes) || BorrowOverlap((ulong)signals, bytes) ||
+            _futexEnabled && FutexStorageOverlap((ulong)signals, bytes) || DescriptorStorageOverlap((ulong)signals, bytes)) return false;
+        for (uint i = 0; i < _owner.Capacity; i++)
+        {
+            var d = _owner.Workers[i].Initial;
+            if (Overlap((ulong)signals, bytes, (ulong)d.Context, d.ContextBytes) ||
+                Overlap((ulong)signals, bytes, d.StackGuardStart, d.StackBytes)) return false;
+        }
+        if (!LinuxSignalServices.Attach(signals, _self, _owner.Capacity, _owner.User, _owner.CopyToUser)) return false;
+        _signals = signals; return true;
     }
 
     /// <summary>Publish the initial process thread only after its complete user
@@ -173,6 +196,8 @@ public unsafe partial struct LinuxThreadServices
             case 0: case 1: case 2: case 3: case 5: case 8: case 16: case 17:
             case 20: case 22: case 72: case 257: case 293:
                 return DispatchDescriptor(key, flags, frame);
+            case 13: case 131:
+                result = _signals == null ? Unsupported : LinuxSignalServices.Dispatch(_signals, _self, slot->Kernel, frame); break;
             case 14: result = SignalMask(slot, frame); break;
             case 39: result = _owner.ProcessId; break;
             case 56: result = Clone(flags, slot, frame); break;
@@ -216,10 +241,15 @@ public unsafe partial struct LinuxThreadServices
         Worker worker = _owner.Workers[index];
         if (worker.Initial.Identity != next.Value || worker.Initial.CurrentIdentity != next.Value || worker.Initial.Kind != ThreadContextSwitch.ResumeKind.Entry) return Invalid;
         Slot candidate = new() { Kernel = next, Tid = _nextTid, Image = image, Mask = new(mask.Blocked), ClearTid = clearTid };
+        if (_signals != null && !LinuxSignalServices.Bind(_signals, _self, next)) { _failed = true; return Io; }
         _owner.Slots[index] = candidate;
         var created = _owner.Threads->Create(_owner.ThreadKey, flags, worker.Initial.Context, worker.Initial.ContextBytes,
             worker.Initial.StackGuardStart, worker.Initial.StackBytes, worker.Initial.ResumeRip, worker.Entry, (ulong)(_owner.Slots + index));
-        if (!created.Succeeded) { _owner.Slots[index] = default; return Again; }
+        if (!created.Succeeded)
+        {
+            if (_signals != null && !LinuxSignalServices.Unbind(_signals, _self, next)) _failed = true;
+            _owner.Slots[index] = default; return Again;
+        }
         _active++; _nextTid = _nextTid == int.MaxValue ? 0 : _nextTid + 1; kernel = created.Identity;
         if (created.Identity.Value != next.Value) { _failed = true; return Io; }
         return candidate.Tid;
@@ -304,9 +334,10 @@ public unsafe partial struct LinuxThreadServices
         released = default;
         if (!Access(key, flags) || !Lookup(flags, kernel, out uint index)) return false;
         if (_owner.Slots[index].Exiting != 1 || _owner.Slots[index].ClearTid != 0 || _owner.Slots[index].Wait.IsValid ||
-            _owner.Slots[index].PipeOperation.IsActive) return false;
+            _owner.Slots[index].PipeOperation.IsActive || _signals != null && !LinuxSignalServices.Bound(_signals, _self, kernel)) return false;
         var result = _owner.Threads->Reap(_owner.ThreadKey, flags, kernel, supervisorRsp);
         if (!result.Succeeded) return false;
+        if (_signals != null && !LinuxSignalServices.Unbind(_signals, _self, kernel)) { _failed = true; return false; }
         _owner.Slots[index] = default; _active--; released = result.Context; return true;
     }
     /// <summary>Release this metadata borrow only after all actual kernel workers
@@ -317,6 +348,7 @@ public unsafe partial struct LinuxThreadServices
         if (!Access(key, flags) || _active != 0 || _owner.Threads->Current.IsValid || _owner.Threads->HandoffPending) return false;
         if (!ReleaseFutex(flags)) return false;
         if (_descriptors != null && !LinuxDescriptorServices.DetachThreads(_descriptors, _self)) return false;
+        if (_signals != null && !LinuxSignalServices.Detach(_signals, _self)) return false;
         this = default; return true;
     }
     private bool Current(ulong flags, out uint index)
@@ -340,6 +372,7 @@ public unsafe partial struct LinuxThreadServices
         _owner.User.CopyFromUser(_owner.User.Context, address, output, bytes) == 1;
     private bool TidAddress(ulong address) => address == 0 || (address & 3) == 0 && LinuxSyscallGateway.ValidateRange(address, 4, LinuxUserPageAccess.Write, _owner.User);
     private bool BorrowOverlap(ulong start, ulong bytes) => Overlap(start, bytes, _self, (uint)sizeof(LinuxThreadServices)) ||
+        _signals != null && Overlap(start, bytes, (ulong)_signals, (uint)sizeof(LinuxSignalServices.State)) ||
         Overlap(start, bytes, (ulong)_owner.Slots, _owner.SlotBytes) || Overlap(start, bytes, (ulong)_owner.Workers, _owner.WorkerBytes) ||
         Overlap(start, bytes, (ulong)_owner.Threads, (uint)sizeof(KernelThreadTable));
     private static bool IfClear(ulong flags) => (flags & 0x202) == 2;

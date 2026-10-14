@@ -8,6 +8,7 @@ public static partial class EfiContracts
         [@"Boot\EfiEntry.LinuxThreadRun.cs"] = "reviewed_m16_native_process_driver_source_identity",
         [@"Boot\EfiEntry.LinuxThreadTimer.cs"] = "reviewed_m16_native_process_timer_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs"] = "reviewed_m16_thread_signal_mask_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.cs"] = "reviewed_m16_signal_startup_owner_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs"] = "reviewed_m16_thread_owner_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs"] = "reviewed_m16_futex_owner_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs"] = "reviewed_m16_blocking_pipe_owner_source_identity",

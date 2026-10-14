@@ -69,6 +69,19 @@ ownership. Earlier zero-byte I/O binds peer fds without assuming fd numbers.
 The complete package bytes select each strict protocol before build/launch.
 These are focused host/input/parser checks; none of these guests has run.
 
+[Step1248](../done/step1248.md) begins #687 with concrete rt_sigaction and
+sigaltstack handlers on the existing thread dispatcher. An optional exclusive
+signal-state owner shares 64 dispositions across the process and binds each
+alternate stack to its actual kernel generation. Shared-VM clone clears the
+child's alternate stack; actual reap scrubs its metadata. A valid update survives
+an old-state copyout EFAULT, matching the pinned Linux ABI. The gateway routes
+these calls to real handlers; an unattached owner and unimplemented delivery,
+tgkill and sigreturn still return ENOSYS. Eight new host controls and the
+affected focused regressions pass; the M16-008 no-stdlib C# closure compiles.
+Native M16-008 leaves signal attachment disabled. Pending delivery, interrupted
+waits/restart, actual frames/return, faults/activation, the M16-009 profile and
+unchanged Hello/suspension qualification remain unfinished.
+
 This remains focused host/source and freestanding C# evidence. No native worker,
 timer callback or mechanical ELF has executed. Original native/stack review,
 live stress/negatives and guest/ancestor qualification remain required. Signal

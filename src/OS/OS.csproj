@@ -835,6 +835,7 @@
 		<Compile Include="..\OS.Kernel\Threading\WaitAddress.cs" Link="Threading\WaitAddress.cs" Condition="'$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true' or '$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Threading\ThreadLocalStorage.cs" Link="Threading\ThreadLocalStorage.cs" Condition="'$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs" Link="Compatibility\LinuxX64\LinuxSignalMask.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.cs" Link="Compatibility\LinuxX64\LinuxSignalServices.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs" Link="Compatibility\LinuxX64\LinuxThreadServices.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs" Link="Compatibility\LinuxX64\LinuxThreadServices.Futex.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs" Link="Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
