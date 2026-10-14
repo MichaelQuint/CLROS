@@ -7,6 +7,41 @@ using OS.Tooling;
 
 internal static unsafe class LinuxThreadProofFixtureTests
 {
+    [HostTest("m16-008 compiled package writer never overwrites and preflight rejects noncanonical retained inputs")]
+    private static void PackageFileAndPreflight()
+    {
+        string directory = Directory.CreateTempSubdirectory("clros-thread-fixture-").FullName;
+        string path = Path.Combine(directory, "thread.pkg");
+        try
+        {
+            LinuxThreadProofFixture.WritePackage(path);
+            byte[] expected = LinuxThreadProofFixture.CreatePackage("Threads");
+            HostCheck.True(File.ReadAllBytes(path).AsSpan().SequenceEqual(expected));
+            bool rejected = false;
+            try { LinuxThreadProofFixture.WritePackage(path); } catch (IOException) { rejected = true; }
+            HostCheck.True(rejected && File.ReadAllBytes(path).AsSpan().SequenceEqual(expected));
+            using (FileStream input = new(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            { LinuxThreadProofFixture.RequirePackage(input); HostCheck.Equal(0L, input.Position); }
+            foreach (byte[] invalid in new[] { Array.Empty<byte>(), expected[..^1], LinuxDescriptorProofFixture.CreatePackage("Pipes"), (byte[])expected.Clone() })
+            {
+                if (invalid.Length == expected.Length) invalid[^1] ^= 1;
+                using MemoryStream input = new(invalid);
+                rejected = false;
+                try { LinuxThreadProofFixture.RequirePackage(input); } catch (ToolFailure) { rejected = true; }
+                HostCheck.True(rejected);
+            }
+            byte[] foreign = [1, 2, 3]; File.WriteAllBytes(path, foreign);
+            rejected = false;
+            try { LinuxThreadProofFixture.WritePackage(path); } catch (IOException) { rejected = true; }
+            HostCheck.True(rejected && File.ReadAllBytes(path).AsSpan().SequenceEqual(foreign));
+        }
+        finally
+        {
+            HostCheck.True(Path.GetDirectoryName(Path.GetFullPath(path)) == Path.GetFullPath(directory));
+            File.Delete(path); Directory.Delete(directory);
+        }
+    }
+
     [HostTest("m16-008 thread package retains one RX page separate static stacks TLS and complete deterministic ELF digest", HostLane.Fast, 0)]
     private static void PackageGeometry()
     {

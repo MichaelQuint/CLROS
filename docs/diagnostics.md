@@ -1,12 +1,13 @@
 # Diagnostics
 
 Development `EnableM16008Probe` defaults false and requires the descriptor and
-owned clock/PCI/APIC parents. [Step1241](../done/step1241.md) admits its retained
-worker resources and no-stdlib source closure. Its native scheduler owner remains
-unfinished: QEMU selection rejects `m16_008_native_owner_unbound`, and direct EFI
-entry emits `TEST_FAIL m16-008 native-thread-owner-unbound` before the old user
-path runs. This is an explicit development refusal, not a controlled-negative
-guest qualification or a threading success marker.
+owned clock/PCI/APIC parents. [Step1244](../done/step1244.md) attaches the native
+owner after actual APIC setup and admits only the canonical mechanical package.
+Its `M16_008_*` tail binds syscall frames and blocked completion, supervisor
+confirmation, clear-TID exit, off-stack reap, HPET nanoseconds and final restored
+ownership before `CLROS_M16_008_READY`. Full parent startup/service/PCI/APIC
+validation remains required. Focused parser controls and C# compilation are
+development evidence only: no native worker, IRQ or mechanical ELF has executed.
 
 Development profiles `EnableM09009Probe` and `EnableM09010Probe` default false
 and require the same seven owned-exit/APIC parents as the qualified lifecycle

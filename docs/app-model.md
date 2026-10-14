@@ -9,93 +9,43 @@ reaps. All 23 internal page leases return; the 32-page reservation remains owned
 Application threads, upstream runtime, unchanged Hello and Kestrel remain
 unqualified. Next are #191 wait-on-address and #192 application FS/TLS before #686.
 
-[Step1231](../done/step1231.md) adds #191's bounded host wait-address owner and
-13 focused controls over the qualified lifecycle table. Exact address/lifetime
-bindings, compare/register, FIFO wake-one/all, timeout/cancellation and stale
-reuse have host evidence only. There is no new guest, Linux futex or application
-threading acceptance; #191 and #192 remain open. [Step1232](../done/step1232.md)
-adds #192's private TLS ownership and 14 host controls over saved FS/user-GS,
-FP admission, owned kernel-GS and guarded scrub/reuse. It adds no hardware
-register access or guest acceptance. Both host prerequisites await integration
-and shared qualification with their NativeAOT thread/runtime consumers.
+[Step1231](../done/step1231.md) and [step1232](../done/step1232.md) implement
+#191's wait-address owner and #192's application TLS ownership over that table.
+Exact lifetime bindings, compare/register/wake, deadlines, cancellation and
+scrub/reuse have focused host controls. [Step1234](../done/step1234.md) wires their
+default-off wait/TLS native profiles; original native and guest qualification
+remain pending.
 
-[Step1234](../done/step1234.md) wires default-off `EnableM09009Probe` and
-`EnableM09010Probe` through the owned post-exit lifecycle envelope, explicit
-source/compiler inventories and exact serial validators. Focused controls and
-freestanding C# compilation pass. Its wait/TLS schedules, actual MSR/segment/FP
-observations and revocation/reap paths still require original native review and
-real guest qualification; #191/#192 remain open. The next consumer is #686.
+#686's development service work is recorded in [step1235](../done/step1235.md)
+through [step1240](../done/step1240.md): per-thread masks, exact pthread clone
+flags and TIDs, saved user GPR/FP/FS images, staged exit and clear-TID, futex
+WAIT/WAKE/BITSET, retained mapping lifetimes and scheduler-backed blocking pipes.
+Pipe waits retain original descriptions across fd reuse; completion is consumed
+once. The memory commit guard protects retained backing until borrows drain.
 
-#686 now has the pure per-thread `LinuxSignalMask` value/evaluator in
-[step1235](../done/step1235.md), with four focused host controls. It preserves
-the eight-byte x64 kernel mask, independent clone snapshots and reserved libc
-bits, strips SIGKILL/SIGSTOP, and checks query/update errors without mutation.
-[Step1236](../done/step1236.md) connects this value to a bounded Linux thread
-owner over the actual kernel table: exact pthread clone flags, monotonic TIDs,
-independent saved user GPR/FP/TLS images, checked FS updates, real mask copies,
-staged exit, best-effort TID clear and off-stack reap. It also adds the explicit
-capture/resume-user bridge and gateway actions needed for the future native
-consumer. Focused host checks pass; the service is not yet linked into EFI.
-[Step1237](../done/step1237.md) adds the actual host-testable futex consumer over
-that owner: compare/enroll/park/completion, private and shared-anonymous keys,
-bitset wakes, monotonic deadlines, clear-TID wakeups and shutdown drain. Retained
-backing references reject overlapping memory changes through an owner guard;
-the native memory/IRQ owner still must wire that guard and the actual clock.
-[Step1238](../done/step1238.md) connects blocking pipe read/write to the same
-kernel table. Operations retain the original open description across fd
-close/reuse, park without scratch ownership, wake after actual data/capacity or
-peer-close changes and drain before descriptor shutdown. Large writes retain
-committed progress; short writes preserve PIPE_BUF atomicity. Seven new host
-controls and 42 focused regressions pass. Native gateway routing, workers and
-the M16-008 mechanical guest remain unfinished.
-[Step1239](../done/step1239.md) routes threaded descriptor calls through that
-owner and retains one blocked gateway state per worker, accounting a completed
-write exactly once across repeated capacity waits. Its new bounded kernel
-worker emitter reuses the existing entry/switch ABI and admits up to four
-distinct CALL paths around the restored CPL3 gateway. Focused host/byte controls
-pass, including corrected padding branches and fixed-frame stack bounds. The
-native EFI owner, memory/clock callbacks and M16-008 profile still need wiring
-and actual qualification; emitted bytes are not execution evidence.
-[Step1240](../done/step1240.md) makes the backend's commit point consult an
-explicit retained-memory guard before changing live tables or backing. Exact
-changed intervals protect futex waits through wake and completion consumption;
-unrelated changes, dump policy and unchanged remap prefixes remain usable. Host
-controls also preserve raw brk failure and allow shrink after completion drains.
-The actual EFI process owner still must attach this guard and supply the live
-alias/lifetime and monotonic clock capabilities.
-[Step1241](../done/step1241.md) adds the default-off M16-008 source/resource
-profile and a C# mechanical parent/child ELF. Its 64-page worker pool has separate
-code, metadata and guarded stacks; existing M09 pools retain their 32-page layout.
-The combined clock/PCI/APIC helpers have distinct offsets, allocation inventories
-retain every resource, and Linux preparation checks the retained pool before
-buffer writes. Worker entry arguments now retain the exact scheduler slot pointer.
-Focused fixture controls and freestanding C# compilation are development evidence.
-The native scheduler owner, timer/copy/alias callbacks, full cleanup and strict
-guest transcript remain unfinished. QEMU selection rejects with
-`m16_008_native_owner_unbound`; direct entry fails before the old single-thread
-path can produce ancestor success. The mechanical ELF has not executed.
-[Step1242](../done/step1242.md) adds the native process resource/binding partial
-and actual copy, PTE-alias, HPET-nanosecond and mutation-guard callbacks. Metadata
-and up to four prepared worker entries fit the retained arena; the manifest quota
-limits actual table/process capacity. Per-worker gateway callbacks capture full
-user images, consume blocked completion without replay and admit the restored
-CPU envelope before actual Park/Exit. Early completion uses an explicit Yield
-before the emitted supervisor transfer. The switch stack admits clear-TID's real
-copyout local. These partials compile but have not executed: the driver, IRQ,
-reap/reuse and full shutdown loop are not attached, and the M16-008 entry/QEMU
-refusals remain. Native/guest qualification remains deferred with the batch.
-[Step1243](../done/step1243.md) implements the private driver and bounded idle
-timer partials. Dispatch requires the actual supervisor witness and confirms
-handoff before reap; reaped workers retain an independent code snapshot while
-their scrubbed context is rebound to the table's advanced generation. Only the
-entry's code page changes RW/NX then RX for re-emission. Timer epochs use a
-separate queue; HPET nanoseconds alone advance futex deadlines. Cleanup retains
-the pool on unresolved native/hardware ownership. These paths compile but await
-boot attachment and the strict mechanical transcript. Entry/QEMU refusals remain;
-no worker, timer callback or ELF has executed in this development stage.
-Signal delivery belongs to #687. All batch issues
-remain open pending shared qualification; the expensive full-host suite is
-deferred to the stable dependency-compatible batch requested by the user.
+[Step1241](../done/step1241.md) through [step1243](../done/step1243.md) add the
+separate 64-page M16-008 pool and native process/driver/timer partials. They use
+actual kernel table generations, copy/PTE/HPET callbacks, per-worker gateways,
+supervisor confirmation, off-stack reap and generation-bound entry re-emission.
+The code page changes RW/NX then RX; an independent code snapshot protects the
+scrubbed-context interval. IRQ epochs have a separate timer queue; HPET
+nanoseconds alone advance futex deadlines. Unsafe cleanup retains ownership.
+
+[Step1244](../done/step1244.md) attaches that owner through BootSequence after
+PCI/APIC setup and selects explicit saved-user resumption. A compiled command
+creates the deterministic mechanical package; the runner preflights its exact
+bytes before build/launch. The strict thread tail binds every actual call,
+blocked completion, supervisor return, clear-TID exit, reap, timer observation
+and final restoration to the packaged ELF. Ancestor startup/service and complete
+PCI/APIC validators remain in the composed path.
+
+This remains focused host/source and freestanding C# evidence. No native worker,
+timer callback or mechanical ELF has executed. Original native/stack review,
+live stress/negatives and guest/ancestor qualification remain required. Signal
+delivery and first unchanged Hello belong to #687; suspension/runtime consumers
+follow their managed dependencies. The requested eight-issue batch is
+#191/#192 -> #686 -> #687 -> #193 -> #194 -> #688, plus #733. Acceptance stays
+open and expensive full-host/native/QEMU validation waits for the stable batch.
 
 [Step1224](../done/step1224.md) qualifies M09-005 hardware-timer execution:
 4,776 full-host checks, six original native bodies, three fresh 115-record

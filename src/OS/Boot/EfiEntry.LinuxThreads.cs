@@ -257,6 +257,9 @@ public static unsafe partial class EfiEntry
                     c->Actions[index] = (uint)completion.Action;
                     return 2;
                 }
+                if (!LinuxText(c->State, "M16_008_RESUME identity=") || !LinuxNumber(c->State, c->Threads.Current.Value) ||
+                    !LinuxText(c->State, " valueBits=") || !LinuxNumber(c->State, unchecked((ulong)completion.Value)) ||
+                    !LinuxText(c->State, " status=") || !LinuxNumber(c->State, (uint)c->Gates[index].Status) || !LinuxText(c->State, "\r\n")) return LinuxNativeAbort(c, index);
             }
             if (c->Gates[index].Status == LinuxSyscallGateStatus.Uninitialized)
             {
@@ -309,7 +312,13 @@ public static unsafe partial class EfiEntry
                 else { state->LinuxSyscallExitCode = result.ExitCode; c->Stopping = 1; }
             }
             bool logged = LinuxText(state, "M16_008_CALL identity=") && LinuxNumber(state, c->Threads.Current.Value) &&
-                LinuxText(state, " nr=") && LinuxNumber(state, frame->Number) && LinuxText(state, " rip=") && LinuxNumber(state, frame->Rip) &&
+                LinuxText(state, " nr=") && LinuxNumber(state, frame->Number) &&
+                LinuxText(state, " a0=") && LinuxNumber(state, frame->Argument0) && LinuxText(state, " a1=") && LinuxNumber(state, frame->Argument1) &&
+                LinuxText(state, " a2=") && LinuxNumber(state, frame->Argument2) && LinuxText(state, " a3=") && LinuxNumber(state, frame->Argument3) &&
+                LinuxText(state, " a4=") && LinuxNumber(state, frame->Argument4) && LinuxText(state, " a5=") && LinuxNumber(state, frame->Argument5) &&
+                LinuxText(state, " rip=") && LinuxNumber(state, frame->Rip) && LinuxText(state, " rsp=") && LinuxNumber(state, frame->Rsp) &&
+                LinuxText(state, " flags=") && LinuxNumber(state, frame->Rflags) && LinuxText(state, " fs=") && LinuxNumber(state, frame->FsBase) &&
+                LinuxText(state, " gs=") && LinuxNumber(state, frame->GsBase) && LinuxText(state, " clock=") && LinuxNumber(state, c->Threads.ObservedTicks) &&
                 LinuxText(state, " valueBits=") && LinuxNumber(state, unchecked((ulong)result.Value)) &&
                 LinuxText(state, " action=") && LinuxNumber(state, (uint)result.Action) &&
                 LinuxText(state, " status=") && LinuxNumber(state, (uint)c->Gates[index].Status) && LinuxText(state, "\r\n");

@@ -5,7 +5,7 @@ namespace OS.Tooling;
 public static partial class QemuTranscripts
 {
     public static void AssertM03AcpiBootstrapTranscript(string path, bool firstRealExit = false, bool firmwareRevocation = false,
-        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false, bool apicSetup = false, bool virtqueueInterrupt = false, bool virtioBlockQueueSetup = false, bool virtioBlockRead = false, bool liveBlockContract = false, bool gptPartition = false, bool primaryHeaderFault = false, bool fatRead = false, bool packageRead = false, string packageVariant = "Intact", bool blockMsix = false, bool blockMsixPollingRecovery = false, bool virtioNet = false, bool arpReceive = false, string linuxElfPackagePath = "", bool workloadServiceLoop = false, bool linuxStartup = false, bool linuxSyscalls = false, string linuxSyscallNegativeVariant = "", bool linuxMemory = false, string linuxMemoryNegativeVariant = "", bool linuxDescriptors = false, bool cooperativeSwitch = false, bool schedulerTimer = false, bool kernelThreads = false, bool waitAddress = false, bool privateTls = false)
+        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false, bool apicSetup = false, bool virtqueueInterrupt = false, bool virtioBlockQueueSetup = false, bool virtioBlockRead = false, bool liveBlockContract = false, bool gptPartition = false, bool primaryHeaderFault = false, bool fatRead = false, bool packageRead = false, string packageVariant = "Intact", bool blockMsix = false, bool blockMsixPollingRecovery = false, bool virtioNet = false, bool arpReceive = false, string linuxElfPackagePath = "", bool workloadServiceLoop = false, bool linuxStartup = false, bool linuxSyscalls = false, string linuxSyscallNegativeVariant = "", bool linuxMemory = false, string linuxMemoryNegativeVariant = "", bool linuxDescriptors = false, bool cooperativeSwitch = false, bool schedulerTimer = false, bool kernelThreads = false, bool waitAddress = false, bool privateTls = false, bool linuxThreads = false)
     {
         Need(!cooperativeSwitch || !kernelThreads && !waitAddress && !privateTls && firstRealExit && ownedSurvival && !ownedPanic && !normalBoot && !firmwareRevocation &&
             !physicalMapping && !ownedAcpiSelection && !monotonicClock && !pciEnumeration && !barDma &&
@@ -54,18 +54,42 @@ public static partial class QemuTranscripts
         bool negativeMemory = linuxMemoryNegativeVariant.Length != 0;
         Need(!negativeMemory || linuxMemory && linuxMemoryNegativeVariant is "GuardFault" or "ProtNoneFault" or "HeapOwnershipFault", "m16_006_negative_profile");
         bool negativeSyscall = linuxSyscallNegativeVariant.Length != 0;
+        Need(!linuxThreads || linuxDescriptors && linuxMemory && linuxSyscalls && linuxStartup && workloadServiceLoop &&
+            linuxElfPackagePath.Length != 0 && firstRealExit && ownedSurvival && pciEnumeration && apicSetup &&
+            !normalBoot && !ownedPanic && !cooperativeSwitch && !schedulerTimer && !kernelThreads && !threadWait && !negativeMemory && !negativeSyscall,
+            "m16_008_profile_invalid");
         Need(!linuxDescriptors || linuxMemory && !negativeMemory && !negativeSyscall, "m16_007_profile_invalid");
         Need(!linuxMemory || linuxSyscalls && linuxStartup && workloadServiceLoop && !negativeSyscall, "m16_006_profile_invalid");
         Need(!negativeSyscall || linuxSyscalls && linuxSyscallNegativeVariant is "PrivilegedFault" or "KernelReadFault" or "InvalidRsp" or "ReturnToData",
             "m16_005_negative_profile");
         string terminal = threadWait ? privateTls ? "CLROS_M09_010_READY\r\n" : "CLROS_M09_009_READY\r\n" : kernelThreads ? "CLROS_M09_006_READY\r\n" : schedulerTimer ? "CLROS_M09_005_READY\r\n" : cooperativeSwitch ? "TEST_PASS m09.004\r\n" : linuxDescriptors ? "TEST_PASS m16-007\r\n" : linuxMemory ? "TEST_PASS m16-006\r\n" : linuxSyscalls ? "TEST_PASS m16-005\r\n" : workloadServiceLoop ? "TEST_PASS m16-003\r\n" : linuxStartup ? "TEST_PASS m16-004\r\n" : linuxElfPackagePath.Length != 0 ? "TEST_PASS m16-002\r\n" : arpReceive ? "TEST_PASS m07.009\r\n" : virtioNet ? "TEST_PASS m07.005\r\n" : blockMsix ? "TEST_PASS m06.019\r\n" : packageRead ? "TEST_PASS m06.018\r\n" : fatRead ? "TEST_PASS m06.014\r\n" : gptPartition ? "TEST_PASS m06.011\r\n" : liveBlockContract ? "TEST_PASS m06.008\r\n" : virtioBlockRead ? "TEST_PASS m06.006\r\n" : virtioBlockQueueSetup ? "TEST_PASS m06.004\r\n" : virtqueueInterrupt ? "TEST_PASS m05.021\r\n" : apicSetup ? "TEST_PASS m05.020\r\n" : virtqueuePolling ? "TEST_PASS m05.019\r\n" : virtioNegotiation ? "TEST_PASS m05.015\r\n" : barDma ? "TEST_PASS m05.011\r\n" : pciEnumeration ? "TEST_PASS m05.007\r\n" : monotonicClock ? "TEST_PASS m05.003\r\n" : ownedAcpiSelection ? "TEST_PASS m05.002\r\n" : physicalMapping ? "TEST_PASS m05.001\r\n" : normalBoot || !firstRealExit ? "OS_SMOKE_PASS\r\n" : ownedPanic ? "" : ownedSurvival ? "TEST_PASS m03.010\r\n" : firmwareRevocation ? "TEST_PASS m03.008\r\n" : "TEST_PASS m03.009\r\n";
+        if (linuxThreads) terminal = "TEST_PASS m16-008\r\n";
         if (negativeMemory) terminal = "TEST_FAIL m16-006 user-boundary-terminated status=1\r\n";
         if (negativeSyscall) terminal = "TEST_FAIL m16-005 user-boundary-terminated status=" +
             (linuxSyscallNegativeVariant is "PrivilegedFault" or "KernelReadFault" ? 1 : 5) + "\r\n";
         string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi", virtioBlockQueueSetup && !primaryHeaderFault);
         Need(!linuxStartup || linuxElfPackagePath.Length != 0 && firstRealExit && ownedSurvival && !normalBoot && !firmwareRevocation, "m16_004_profile_invalid");
         Need(!linuxSyscalls || linuxStartup && workloadServiceLoop, "m16_005_profile_invalid");
-        if (threadWait) lines = ValidateThreadWaitTail(lines, privateTls);
+        if (linuxThreads)
+        {
+            byte[] package = File.ReadAllBytes(linuxElfPackagePath);
+            int parentsEnd = QemuContracts.M03OwnedSubsystemMarkers.Count + 7 + 7 + 17;
+            int start = parentsEnd + QemuContracts.M05ApicSetupMarkers.Count - QemuContracts.M03OwnedSubsystemMarkers.Count;
+            Need(start < lines.Length && lines[start] == "TEST_START m16-008", "m16_008_parent_record_count");
+            var tables = ReadRecord(lines[QemuContracts.M03OwnedSubsystemMarkers.Count + 7 + 3], "M16_004_TABLES", "root:dec", "used:dec", "leaves:dec", "ranges:dec");
+            const string restoredSuffix = " restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false";
+            string readback = lines[QemuContracts.M03OwnedSubsystemMarkers.Count + 7 + 4];
+            Need(readback.EndsWith(restoredSuffix, StringComparison.Ordinal), "m16_008_parent_readback");
+            var kernel = ReadRecord(readback[..^restoredSuffix.Length], "M16_004_READBACK", "old:dec");
+            ValidateLinuxThreadTail(lines[start..], package, tables["root"], kernel["old"]);
+            string[] parents = ValidateServiceLoopTail(lines[..parentsEnd], true);
+            parents = ValidateLinuxStartupTail(parents, package);
+            parents = ValidateLinuxElfTail(parents, package);
+            // Validate the original complete PCI/APIC parent below, after the
+            // separately checked Linux startup/service records are removed.
+            lines = [.. parents, .. lines[parentsEnd..start]];
+        }
+        else if (threadWait) lines = ValidateThreadWaitTail(lines, privateTls);
         else if (kernelThreads) lines = ValidateKernelThreadTail(lines);
         else if (schedulerTimer) lines = ValidateSchedulerTimerTail(lines);
         else if (cooperativeSwitch) lines = ValidateCooperativeTail(lines);
@@ -76,9 +100,9 @@ public static partial class QemuTranscripts
         else if (linuxSyscalls) lines = negativeSyscall
             ? ValidateLinuxSyscallNegativeTail(lines, File.ReadAllBytes(linuxElfPackagePath), linuxSyscallNegativeVariant)
             : ValidateLinuxSyscallTail(lines);
-        if (workloadServiceLoop) lines = ValidateServiceLoopTail(lines, linuxStartup);
-        if (linuxStartup) lines = ValidateLinuxStartupTail(lines, File.ReadAllBytes(linuxElfPackagePath));
-        if (linuxElfPackagePath.Length != 0) lines = ValidateLinuxElfTail(lines, File.ReadAllBytes(linuxElfPackagePath));
+        if (!linuxThreads && workloadServiceLoop) lines = ValidateServiceLoopTail(lines, linuxStartup);
+        if (!linuxThreads && linuxStartup) lines = ValidateLinuxStartupTail(lines, File.ReadAllBytes(linuxElfPackagePath));
+        if (!linuxThreads && linuxElfPackagePath.Length != 0) lines = ValidateLinuxElfTail(lines, File.ReadAllBytes(linuxElfPackagePath));
         Need(!arpReceive || virtioNet && !normalBoot, "m07_arp_receive_profile_invalid");
         if (arpReceive)
         {

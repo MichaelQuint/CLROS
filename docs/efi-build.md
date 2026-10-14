@@ -1,36 +1,32 @@
 # EFI Build
 
-## Development Linux threading source profile
+## Development Linux threading profile
 
-`EnableM16008Probe` defaults false. Selection requires M16-002 through M16-007,
-the original five owned-exit parents, PCI and APIC; other leaves and explicitly
-disabled parents reject. [Step1241](../done/step1241.md) links the existing kernel
-table/wait/timer APIs and Linux thread/mask/futex/blocking-pipe/emitter sources
-into the no-stdlib C# build. Its separate 64-page retained pool preserves the
-original M09 layouts. Combined HPET, ECAM and APIC resources have separate helper
-offsets and complete allocation/range capacity.
+`EnableM16008Probe` defaults false. It requires M16-002 through M16-007, the
+original five owned-exit parents, PCI and APIC; disabled parents and other leaves
+reject. [Step1241](../done/step1241.md) through [step1243](../done/step1243.md)
+record the exact source/resource closure, separate 64-page pool, native process
+callbacks, driver/timer and off-stack reuse. Existing M09 layouts are unchanged.
 
-The native process owner remains unfinished. QEMU profile creation rejects
-`m16_008_native_owner_unbound`; direct EFI entry also refuses before entering the
-single-thread ancestor path. No READY marker, native publication or guest proof
-is claimed. The step records explicit C# build properties and focused checks;
-full-host, original native review and guests await the stable related issue batch.
+[Step1244](../done/step1244.md) attaches the owner after actual PCI/APIC setup,
+selects saved-user resumption and wires the complete strict mechanical transcript.
+The runner preflights the canonical package before native build/launch and keeps
+its read lock. Create the package at a fresh path with compiled tooling:
 
-[Step1242](../done/step1242.md) adds explicit M16-008-only native process and
-memory callback partials to that source closure. They bind the existing kernel
-table/process/descriptor owners, authenticate actual IF/kernel CR3, resolve
-retained futex aliases through real user/kernel PTEs and read HPET nanoseconds.
-The gateway callbacks preserve per-worker images and blocked completion. Resource
-preparation/binding, callbacks and release compile in the no-stdlib project;
-the native driver/IRQ/reap loop is still unfinished and no worker has executed.
+```powershell
+dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/m16-008-thread.pkg
+```
 
-[Step1243](../done/step1243.md) adds explicit M16-008-only driver/timer partials,
-including supervisor-confirmed dispatch, off-stack reap, generation-bound entry
-re-emission, bounded actual idle IRQ admission and separate timer/futex clocks.
-The driver restores hardware, detaches drained owners, restores original pool
-PTEs and checks scrubbing; unsafe failure retains resources. Boot attachment and
-strict mechanical transcript selection remain unfinished. The existing entry
-and QEMU refusals still prevent execution; C# compilation is the current limit.
+The future qualification command is:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16008Probe -LinuxElfPackage artifacts/packages/m16-008-thread.pkg -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 60 -RequireMarker CLROS_M16_008_READY
+```
+
+Package generation and dry-run selection are host tooling evidence. No M16-008
+native publication, worker/IRQ/ELF execution or READY capture is claimed. Focused
+checks and freestanding C# compilation are the current limit; full-host, original
+native review and guests remain deferred to the stable related issue batch.
 
 ## Development wait and TLS profiles
 

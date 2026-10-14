@@ -1533,7 +1533,12 @@ public static unsafe partial class EfiEntry
             if (!LinuxDescriptorServices.Begin(&state->LinuxDescriptors, owner)) return false;
             state->LinuxDescriptorPhase = 4;
             return LinuxText(state, "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=") &&
-                LinuxNumber(state, view->Bytes) && LinuxText(state, " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=unsupported\r\n");
+                LinuxNumber(state, view->Bytes) && LinuxText(state,
+#if M16_008_PROBE
+                " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler\r\n");
+#else
+                " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=unsupported\r\n");
+#endif
         }
 
         private static bool DescriptorKernelRange(Storage* state, byte* pointer, uint bytes, bool output)
@@ -1609,6 +1614,9 @@ public static unsafe partial class EfiEntry
 #if M16_006_PROBE
             KernelRoot = state->LinuxDispatchRoot,
 #endif
+#if M16_008_PROBE
+            ResumeUser = true,
+#endif
             Dispatcher = (ulong)(delegate* unmanaged<void*, LinuxSyscallFrame*, byte>)&DispatchLinuxSyscall,
             FaultReporter = (ulong)(delegate* unmanaged<void*, byte*, byte>)&ReportLinuxUserFault,
             CallbackContext = (ulong)state, TssRsp0Address = (ulong)(state->Arena.Descriptors->Tss + 4),
@@ -1639,13 +1647,6 @@ public static unsafe partial class EfiEntry
 
         private static bool RunOwnedLinuxSyscalls(void* context)
         {
-#if M16_008_PROBE
-            // Source/resource integration is available for original native
-            // review. Until the scheduler owner is attached, reject before the
-            // single-thread path can enter user mode or emit ancestor success.
-            _ = LinuxText((Storage*)context, "TEST_FAIL m16-008 native-thread-owner-unbound\r\n");
-            return false;
-#else
             Storage* state = (Storage*)context;
             if (state->Phase != 4 || state->LinuxSyscallPhase != 2 || state->LinuxStartupPhase != 6 ||
                 !state->ServiceLoop.IsStopped || state->LinuxOwnedPhase != 2 || !state->LinuxUserRoot.Succeeded ||
@@ -1653,7 +1654,9 @@ public static unsafe partial class EfiEntry
                 !state->Arena.Transition->RetainedFirmwareCallbacksCleared || !state->Arena.Binding->RetainedPointersCleared ||
                 !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
             state->LinuxSyscallPhase = 3;
-#if M16_007_PROBE
+#if M16_008_PROBE
+            if (state->ApicPhase != 2 || !LinuxText(state, "TEST_START m16-008\r\n")) return false;
+#elif M16_007_PROBE
             if (!LinuxText(state, "TEST_START m16-007\r\n")) return false;
 #elif M16_006_PROBE
             if (!LinuxText(state, "TEST_START m16-006\r\n")) return false;
@@ -1723,7 +1726,13 @@ public static unsafe partial class EfiEntry
                 UserRoot = plan.UserRoot, MaximumCalls = LinuxSyscallGateway.MaximumCalls, MaximumWrite = LinuxSyscallGateway.MaximumWrite,
                 Scratch = data + X64LinuxUserTransition.ScratchOffset, ScratchBytes = 4096, FirmwareExited = true, OwnedBoundaryValidated = true
             };
-            LinuxSyscallAccess access = new() { Context = state, PageAccess = &LinuxUserPageAccess, CopyFromUser = &CopyLinuxUserBytes, Write = &WriteLinuxUserBytes };
+            LinuxSyscallAccess access = new() { Context = state, PageAccess = &LinuxUserPageAccess,
+#if M16_008_PROBE
+                CopyFromUser = &LinuxThreadCopyInput,
+#else
+                CopyFromUser = &CopyLinuxUserBytes,
+#endif
+                Write = &WriteLinuxUserBytes };
 #if M16_006_PROBE
             if (state->LinuxDispatchRoot != (ulong)state->Memory.Entries || !InitializeLinuxMemory(state, access))
                 return LinuxSyscallAdmissionFailure(state, "memory-startup", state->LinuxMemoryCheckpoint);
@@ -1733,11 +1742,25 @@ public static unsafe partial class EfiEntry
             if (!InitializeLinuxDescriptors(state)) return LinuxSyscallAdmissionFailure(state, "descriptors");
             admission.EnableDescriptors = true; access.Descriptors = &DispatchLinuxDescriptors;
 #endif
-            if (LinuxSyscallGateway.Begin(ref state->LinuxSyscallState, admission, access) != LinuxSyscallGateStatus.Active ||
-                !LinuxText(state, "M16_005_ARMED root=") || !LinuxNumber(state, plan.UserRoot) ||
+#if !M16_008_PROBE
+            if (LinuxSyscallGateway.Begin(ref state->LinuxSyscallState, admission, access) != LinuxSyscallGateStatus.Active) return false;
+#endif
+            if (!LinuxText(state, "M16_005_ARMED root=") || !LinuxNumber(state, plan.UserRoot) ||
                 !LinuxText(state, " cs=59 ss=51 kernelStack=") || !LinuxNumber(state, plan.ContextAddress + X64LinuxUserTransition.DataBytes) ||
                 !LinuxText(state, " guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null\r\n")) return false;
             state->LinuxSyscallPhase = 4;
+#if M16_008_PROBE
+            bool executed = RunLinuxNativeOwner(state);
+            ulong* finalCpu = stackalloc ulong[(int)X64LinuxUserTransition.ObservationWords];
+            observe(finalCpu);
+            bool restored = executed && *(ulong*)(data + X64LinuxUserTransition.PhaseOffset) == 2 &&
+                *(ulong*)(state->Arena.Descriptors->Tss + 4) == *(ulong*)(data + 0xd0) &&
+                (finalCpu[3] & 0x74700) == (original[3] & 0x74700) && FirstExitOwnedArena.ValidateCanaries(state->Arena);
+            for (uint i = 0; i < X64LinuxUserTransition.ObservationWords; i++) if (i != 3 && finalCpu[i] != original[i]) restored = false;
+            for (uint i = 0; i < 512; i++) if (data[X64LinuxUserTransition.KernelFxOffset + i] != data[X64LinuxUserTransition.UserFxOffset + i]) restored = false;
+            return restored && LinuxText(state, "M16_008_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true\r\n") &&
+                LinuxText(state, "CLROS_M16_008_READY\r\nTEST_PASS m16-008\r\n");
+#else
             byte returned = ((delegate* unmanaged<byte>)code)();
             ulong* after = stackalloc ulong[(int)X64LinuxUserTransition.ObservationWords];
             for (uint i = 0; i < X64LinuxUserTransition.ObservationWords; i++) after[i] = 0;
@@ -1792,7 +1815,9 @@ public static unsafe partial class EfiEntry
 
         private static bool LinuxSyscallAdmissionFailure(Storage* state, string stage, ulong detail = 0)
         {
-#if M16_007_PROBE
+#if M16_008_PROBE
+            _ = LinuxText(state, "TEST_FAIL m16-008 admission stage=");
+#elif M16_007_PROBE
             _ = LinuxText(state, "TEST_FAIL m16-007 admission stage=");
 #elif M16_006_PROBE
             _ = LinuxText(state, "TEST_FAIL m16-006 admission stage=");
@@ -2679,7 +2704,7 @@ public static unsafe partial class EfiEntry
                         transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
                         state->Arena.Binding->RetainedPointersCleared, state, &RunOwnedWorkloadServiceLoop)) return;
 #endif
-#if M16_005_PROBE
+#if M16_005_PROBE && !M16_008_PROBE
 #if M16_007_PROBE
                     if (!BootSequence.RunOwnedLinuxDescriptors(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
 #elif M16_006_PROBE
@@ -2698,6 +2723,11 @@ public static unsafe partial class EfiEntry
                     {
 #if M05_APIC_SETUP_PROBE
                         if (!BootSequence.RunOwnedApicSetup(state->PciPhase == 8, state, &RunOwnedApicSetup)) return;
+#if M16_008_PROBE
+                        if (!BootSequence.RunOwnedLinuxThreads(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
+                            transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
+                            state->Arena.Binding->RetainedPointersCleared, state->ApicPhase == 2, state, &RunOwnedLinuxSyscalls)) return;
+#endif
 #if M09_005_PROBE
                         if (!BootSequence.RunOwnedSchedulerTimer(state->OwnedPhase == 2, state->ApicPhase == 2,
                             transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&

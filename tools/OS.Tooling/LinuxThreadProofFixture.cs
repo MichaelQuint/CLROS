@@ -39,6 +39,34 @@ public static class LinuxThreadProofFixture
     public static ulong ChildExitRip(string variant) => Build(variant).Child[^1];
     public static string Witness(string variant) { Validate(variant); return ThreadWitness; }
 
+    /// <summary>Write this mechanical package to a fresh caller-selected path.
+    /// CreateNew rejects existing files atomically; no existing bytes are changed.
+    /// The output is a fixture only and establishes no execution evidence.</summary>
+    public static void WritePackage(string path)
+    {
+        byte[] package = CreatePackage("Threads");
+        path = Path.GetFullPath(path);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        using FileStream output = new(path, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+        output.Write(package);
+        output.Flush(true);
+    }
+
+    /// <summary>Read the complete retained package input from its start and
+    /// compare exact canonical bytes before any native build/launch. The caller
+    /// keeps its read lock; success rewinds it for the original package consumer.
+    /// Mismatches/truncation fail without changing input bytes or granting proof.</summary>
+    public static void RequirePackage(Stream input)
+    {
+        byte[] expected = CreatePackage("Threads");
+        if (!input.CanRead || !input.CanSeek || input.Position != 0 || input.Length != expected.Length)
+            throw new ToolFailure("m16_008_package_identity");
+        byte[] observed = new byte[expected.Length];
+        input.ReadExactly(observed);
+        if (!observed.AsSpan().SequenceEqual(expected)) throw new ToolFailure("m16_008_package_identity");
+        input.Position = 0;
+    }
+
     /// <summary>Build a fresh deterministic package containing the complete ELF
     /// and its digest. No native source, executable or upstream payload is used.</summary>
     public static byte[] CreatePackage(string variant)

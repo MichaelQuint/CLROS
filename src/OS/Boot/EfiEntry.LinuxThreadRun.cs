@@ -41,10 +41,14 @@ public static unsafe partial class EfiEntry
                     ulong prior = ((delegate* unmanaged<ulong>)(state->CooperativePool + NativeProgram.IrqSaveDisable))();
                     if ((prior & 0x602) == 2 && LinuxNativeBind(c) && LinuxNativeInstallTimer(c))
                     {
+                        if (!LinuxText(state, "M16_008_BOUND root=") || !LinuxNumber(state, c->Plan.Owner.Root) ||
+                            !LinuxText(state, " pool=") || !LinuxNumber(state, state->CooperativePool) ||
+                            !LinuxText(state, " workers=") || !LinuxNumber(state, c->Capacity) ||
+                            !LinuxText(state, " code=16384 metadata=45056 userImage=728 timer=idle-only clock=hpet-nanoseconds reuse=off-stack\r\n")) c->Failed = 1;
                         var plan = state->LinuxSyscallPlan;
                         LinuxSyscallFrame initial = new() { Rip = plan.UserRip, Rsp = plan.UserRsp,
                             Rflags = 2, FsBase = plan.UserFs, GsBase = plan.UserGs };
-                        if (plan.ResumeUser && X64LinuxUserTransition.InitializeUserImage(c->Initial,
+                        if (c->Failed == 0 && plan.ResumeUser && X64LinuxUserTransition.InitializeUserImage(c->Initial,
                             X64LinuxUserTransition.UserImageBytes, initial, c->Plan.Owner.ObservedMxcsrMask, c->User) &&
                             c->Process.Start(c->Key, 2, c->Initial, X64LinuxUserTransition.UserImageBytes, default, out var first) > 0 &&
                             first.Value == c->Plan.Bindings[0].Context.Identity)
@@ -141,6 +145,11 @@ public static unsafe partial class EfiEntry
             // its cancellation/exit resources still require off-stack cleanup.
             if (c->Threads.ConfirmSupervisor(c->Key, 2, LinuxNativeRsp(c)) != KernelThreadTable.Status.Ok) return false;
             c->Selected = 0;
+            if (!LinuxText(c->State, "M16_008_SUPERVISOR identity=") || !LinuxNumber(c->State, next.Identity.Value) ||
+                !LinuxText(c->State, " action=") || !LinuxNumber(c->State, c->Actions[index]) ||
+                !LinuxText(c->State, " transfers=") || !LinuxNumber(c->State, c->Transfers) ||
+                !LinuxText(c->State, " ready=") || !LinuxNumber(c->State, c->Threads.ReadyCount) ||
+                !LinuxText(c->State, " active=") || !LinuxNumber(c->State, c->Process.ActiveThreads) || !LinuxText(c->State, "\r\n")) c->Failed = 1;
             return !c->Threads.Current.IsValid && !c->Threads.HandoffPending;
         }
 

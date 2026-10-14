@@ -260,6 +260,16 @@ public static class BootSequence
         OS.Kernel.Diagnostics.Probes.EnableM16007Probe && OS.Kernel.Diagnostics.Probes.EnableM16006Probe &&
         firmwareAvailable && context != null && prepare != null && prepare(context);
 
+    /// <summary>Run the default-off Linux thread owner only after actual APIC
+    /// setup, startup, service stop and firmware revocation. The callback owns
+    /// native admission, restoration and drained cleanup; false retains its
+    /// unresolved resources. This gate creates no worker or interrupt.</summary>
+    public static unsafe bool RunOwnedLinuxThreads(bool startupReady, bool serviceStopped, bool firmwareRevoked,
+        bool apicReady, void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16008Probe && OS.Kernel.Diagnostics.Probes.EnableM16007Probe &&
+        OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe && apicReady &&
+        RunOwnedLinuxMemory(startupReady, serviceStopped, firmwareRevoked, context, run);
+
     /// <summary>Reserve the dedicated cooperative diagnostic pool while firmware
     /// authority remains available. The callback owns preparation/failure cleanup;
     /// this ordered default-off phase allocates nothing and returns false on refusal.</summary>

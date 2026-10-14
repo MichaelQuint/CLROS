@@ -7,7 +7,7 @@ using OS.Kernel.Diagnostics;
 using OS.Kernel.Platform;
 using OS.Tooling;
 
-internal static class M16008EfiIntegrationTests
+internal static unsafe class M16008EfiIntegrationTests
 {
     [HostTest("m16.008 default off source profile requires exact descriptor clock and APIC parents")]
     private static void Profile()
@@ -37,9 +37,39 @@ internal static class M16008EfiIntegrationTests
                 HostCheck.True(compile.Contains(include));
             HostCheck.True(!compile.Contains(@"Boot\EfiEntry.KernelThread.cs|") && !compile.Contains(@"Boot\EfiEntry.ThreadWait.cs|"));
         }
-        // Source compilation is available; an ancestor guest is not a thread proof.
-        Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["--DryRun", "--BuildEfi", "--EnableM16008Probe"])),
-            "m16_008_native_owner_unbound");
+        var plan = QemuProfiles.Create(QemuSmokeOptions.Parse(["--DryRun", "--BuildEfi", "--EnableM16008Probe"]));
+        HostCheck.True(plan.Required.Contains("CLROS_M16_008_READY") && plan.Required.Contains("M16_008_RESTORE") &&
+            plan.Required.Contains("M16_008_RESUME") && plan.Required.Contains("M05_APIC 3") &&
+            !plan.Required.Contains("CLROS_M16_007_READY") && !plan.Unique.Contains("M16_008_CALL"));
+        HostCheck.True(!BootSequence.RunOwnedLinuxThreads(true, true, true, true, null, null));
+        Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse(["--DryRun", "--BuildEfi", "--EnableM16008Probe", "--RequireMarker", "CLROS_M16_007_READY"])));
+        Reject(() => QemuTranscripts.AssertM03AcpiBootstrapTranscript("missing", linuxThreads: true), "m16_008_profile_invalid");
+    }
+
+    [HostTest("m16-008 native owner follows the successful APIC gate and selects explicit user resumption")]
+    private static void BootAttachment()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        foreach (string flag in new[] { "EnableM16008Probe", "EnableM16007Probe" })
+        {
+            var profile = EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { [flag] = true });
+            string[] symbols = profile.Flags.Where(p => p.Value).Select(p => EfiContracts.ProbeSymbols[p.Key]).ToArray();
+            var tree = CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root, "src/OS/Boot/EfiEntry.cs")), new CSharpParseOptions(preprocessorSymbols: symbols));
+            HostCheck.True(!tree.GetDiagnostics().Any(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
+            var calls = tree.GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
+            var thread = calls.Where(c => c.Expression.ToString() == "BootSequence.RunOwnedLinuxThreads").ToArray();
+            var descriptors = calls.Where(c => c.Expression.ToString() == "BootSequence.RunOwnedLinuxDescriptors").ToArray();
+            if (flag == "EnableM16007Probe") { HostCheck.True(thread.Length == 0 && descriptors.Length == 1); continue; }
+            HostCheck.True(thread.Length == 1 && descriptors.Length == 0);
+            var apic = calls.Single(c => c.Expression.ToString() == "BootSequence.RunOwnedApicSetup");
+            var gate = apic.Ancestors().OfType<IfStatementSyntax>().First();
+            HostCheck.True(gate.Statement is ReturnStatementSyntax && gate.Parent == thread[0].Ancestors().OfType<IfStatementSyntax>().First().Parent && apic.SpanStart < thread[0].SpanStart);
+            var methods = tree.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>();
+            HostCheck.True(methods.Single(m => m.Identifier.Text == "LinuxUserTransitionPlan").DescendantNodes().OfType<AssignmentExpressionSyntax>()
+                .Any(a => a.Left.ToString() == "ResumeUser" && a.Right.ToString() == "true"));
+            HostCheck.True(methods.Single(m => m.Identifier.Text == "RunOwnedLinuxSyscalls").DescendantNodes().OfType<InvocationExpressionSyntax>()
+                .Count(c => c.Expression.ToString() == "RunLinuxNativeOwner") == 1);
+        }
     }
 
     [HostTest("m16.008 combined source layout keeps clock PCI APIC and context helper bytes disjoint")]

@@ -1,5 +1,12 @@
 # Boot Order
 
+Development `BootSequence.RunOwnedLinuxThreads` requires completed startup,
+service stop, revoked firmware authority and actual APIC setup. M16-008 runs
+after PCI/APIC, reusing common memory/descriptor/CPL3 admission with explicit
+saved-user resumption. Existing M16-005 through M16-007 keep their original
+location. [Step1244](../done/step1244.md) records source/host and C# checks only;
+native execution and guest qualification remain pending the stable batch.
+
 `BootSequence.StageLinuxElfPackage` and `RunOwnedLinuxElfPackage` are explicit
 default-off M16-002 boundaries. Firmware staging precedes the final map/exit
 window; owned verification follows original post-exit subsystem checks and requires
