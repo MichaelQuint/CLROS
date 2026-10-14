@@ -32,7 +32,7 @@ public readonly struct ExceptionTypeMatchResult
 /// <summary>
 /// Bounded class-identity predicate, not an exception runtime export. Semantics
 /// derive from Runtime.Base TypeCast.IsInstanceOfException and Common
-/// MethodTable.NonArrayBaseType at Layout.RuntimeSourceCommit (ILC 10.0.12 x64).
+/// MethodTable.NonArrayBaseType at Layout.RuntimeSourceCommit (ILC 11.0.0 RC2 x64).
 /// Only canonical, non-generic fixed classes admitted by the layout contract,
 /// with no extended flags, are supported. Implemented interfaces and optional
 /// vtable/dispatch tails are not traversed; interface targets are unsupported.
@@ -72,7 +72,7 @@ public static unsafe class ExceptionTypeMatch
         RhpNewFastHeapAccess heap, RhpNewFastBumpState* allocator, ulong allocatorCapacity,
         RhpNewFastResult receipt, ulong objectReference, ulong targetType)
     {
-        if (profile != NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian)
+        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian)
             return new(ExceptionTypeMatchStatus.UnsupportedProfile);
         if (objectReference == 0) return new(ExceptionTypeMatchStatus.Success);
         if (objectReference != receipt.ObjectReference ||
@@ -137,7 +137,7 @@ public static unsafe class ExceptionTypeMatch
         byte* p = (byte*)address;
         NativeAotMethodTablePrefix candidate = new(U32(p), U32(p + 4), U64(p + 8),
             U16(p + 16), U16(p + 18), U32(p + 20));
-        NativeAotLayoutResult layout = Layout.Evaluate(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+        NativeAotLayoutResult layout = Layout.Evaluate(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
             candidate, 0, ulong.MaxValue);
         if (layout.Status == NativeAotLayoutStatus.UnsupportedShape ||
             layout.Status == NativeAotLayoutStatus.UnsupportedTypeFeatures)

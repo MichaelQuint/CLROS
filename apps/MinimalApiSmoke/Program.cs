@@ -30,7 +30,7 @@ app.MapGet("/healthz", (IConfiguration configuration) =>
     .WithName("KestrelSmokeHealth");
 
 app.MapGet("/config", (IConfiguration configuration) =>
-    TypedResults.Json(CreateConfigResponse(configuration)))
+    TypedResults.Json(CreateConfigResponse(configuration), KestrelSmokeJsonContext.Default.KestrelSmokeConfigResponse))
     .WithName("KestrelSmokeConfig");
 
 app.Run();

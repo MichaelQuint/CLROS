@@ -1268,7 +1268,7 @@ internal static class DisabledDefaultUd2VectorStateTests
         <Project Sdk="Microsoft.NET.Sdk">
           <PropertyGroup>
             <AssemblyName>CLROS.M02.DisabledDefaultUd2VectorState</AssemblyName>
-            <TargetFramework>net10.0</TargetFramework>
+            <TargetFramework>net11.0</TargetFramework>
             <LangVersion>14.0</LangVersion>
             <OutputType>Library</OutputType>
             <AllowUnsafeBlocks>false</AllowUnsafeBlocks>

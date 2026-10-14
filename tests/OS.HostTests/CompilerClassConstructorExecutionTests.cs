@@ -195,10 +195,10 @@ internal static unsafe class CompilerClassConstructorExecutionTests
             Section(3, ".text", 0x8000, 0x1000, textFlags);
             Section(4, ".rdata", 0xA000, 0x1000, 0x40000040);
             *(ulong*)(Image + 0x7000) = Address(0x1000);
-            *(uint*)(Image + 0x1000) = 0x00525452; *(ushort*)(Image + 0x1004) = 16;
-            *(ushort*)(Image + 0x100C) = (ushort)(absent ? 1 : 2); Image[0x100E] = 24; Image[0x100F] = 1;
-            Row(0, 204, 0, Address(0x2000), 0);
-            if (!absent) Row(1, 205, 1, (ulong)Table, (ulong)Table + (uint)(bytes < 0 ? eagerCount * 4 : bytes));
+            *(uint*)(Image + 0x1000) = 0x00525452; *(ushort*)(Image + 0x1004) = 26; *(ushort*)(Image + 0x1006) = 1;
+            *(ushort*)(Image + 0x100C) = (ushort)(absent ? 1 : 2); Image[0x100E] = 16; Image[0x100F] = 1;
+            Row(0, 204, 16, Address(0x2000));
+            if (!absent) Row(1, 205, (uint)(bytes < 0 ? eagerCount * 4 : bytes), (ulong)Table);
             for (int i = 0; i < eagerCount; i++) *(int*)(Table + i * 4) = 0x8000 + i * 16 - table - i * 4;
             var observation = EfiLoadedImageProtocolObservation.CaptureFromUefiBoundary(0, 0x1000, 0x2000, (ulong)Image, ImageSize);
             Capture = EfiLoadedImageRangeCapturePlan.Create(&observation, 1, 1, 4096);
@@ -214,10 +214,10 @@ internal static unsafe class CompilerClassConstructorExecutionTests
         internal byte[] ImageBytes() => new ReadOnlySpan<byte>(Image, (int)ImageSize).ToArray();
         internal void Guards() => Check(*(ulong*)(Runner - 8) == 0x0123456789ABCDEF &&
             *(ulong*)(Runner + Capacity) == 0xFEDCBA9876543210, "runner canaries");
-        private void Row(int i, uint id, uint flags, ulong start, ulong end)
+        private void Row(int i, uint id, uint length, ulong start)
         {
-            byte* p = Image + 0x1010 + i * 24;
-            *(uint*)p = id; *(uint*)(p + 4) = flags; *(ulong*)(p + 8) = start; *(ulong*)(p + 16) = end;
+            byte* p = Image + 0x1010 + i * 16;
+            *(uint*)p = id; *(uint*)(p + 4) = length; *(ulong*)(p + 8) = start;
         }
         private void Section(int i, string name, uint start, uint bytes, uint flags)
         {

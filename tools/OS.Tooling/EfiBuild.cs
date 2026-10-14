@@ -89,7 +89,7 @@ public static class EfiBuild
     {
         string root = options.Root, configuration = preflight.Configuration;
         string project = Path.GetFullPath(Path.Combine(root, "src/OS/OS.csproj"));
-        string intermediateRelative = $"src/OS/obj/{configuration}/net10.0/win-x64", binaryRelative = $"src/OS/bin/{configuration}/net10.0/win-x64";
+        string intermediateRelative = $"src/OS/obj/{configuration}/net11.0/win-x64", binaryRelative = $"src/OS/bin/{configuration}/net11.0/win-x64";
         string intermediate = Path.GetFullPath(Path.Combine(root, intermediateRelative)), binaries = Path.GetFullPath(Path.Combine(root, binaryRelative));
         string extensions = Path.Combine(intermediate, "nuget"), packages = Path.Combine(intermediate, "packages"), pinned = Path.Combine(intermediate, "restore-source");
         string global = Path.GetFullPath(Environment.GetEnvironmentVariable("NUGET_PACKAGES") is string custom && !string.IsNullOrWhiteSpace(custom) ? custom : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".nuget/packages"));
@@ -158,7 +158,7 @@ public static class EfiBuild
         Require(finalPackages.AggregateSha256 == packageClosure.AggregateSha256, "package_or_restore_input_changed_during_publish");
         output.Clear();
         emit("EFI_PUBLISH_OUTPUT_AUTHORITY status=ok leaves=" + output.Paths.Count);
-        string native = Path.Combine(intermediate, "native"), managed = Path.Combine(binaries, "OS.dll");
+        string native = Path.Combine(intermediate, "native"), managed = Path.Combine(root, EfiContracts.ManagedAssemblyRelativePath(configuration));
         var artifact = EfiBuildFiles.CopyCreateNew(locks, root, Path.Combine(binaries, "publish/OS.exe"), output.Directory, output.EfiPath);
         var map = EfiBuildFiles.CopyCreateNew(locks, root, Path.Combine(native, "OS.link.map"), output.Directory, output.MapPath);
         var response = EfiBuildFiles.CopyCreateNew(locks, root, Path.Combine(native, "link.rsp"), output.Directory, output.ResponsePath);

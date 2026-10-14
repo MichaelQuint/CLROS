@@ -59,7 +59,7 @@ public static class EfiMsbuild
         Dictionary<string, string> native = NativeProperties(canonical), isolation = IsolationProperties(root, extensions, packages, sdk);
         Dictionary<string, string> expected = new(StringComparer.Ordinal)
         {
-            ["ClrosBootPolicy"] = profile.BootPolicy, ["_targetOS"] = "win", ["_targetArchitecture"] = "x64", ["RuntimeIdentifier"] = "win-x64", ["TargetFramework"] = "net10.0", ["PublishAot"] = "true", ["SelfContained"] = "true"
+            ["ClrosBootPolicy"] = profile.BootPolicy, ["_targetOS"] = "win", ["_targetArchitecture"] = "x64", ["RuntimeIdentifier"] = "win-x64", ["TargetFramework"] = "net11.0", ["PublishAot"] = "true", ["SelfContained"] = "true"
         };
         foreach (var property in native) expected[property.Key] = property.Value;
         foreach (var property in profile.Flags) expected[property.Key] = property.Value ? "true" : "false";

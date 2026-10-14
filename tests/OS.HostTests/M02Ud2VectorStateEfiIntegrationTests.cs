@@ -1434,7 +1434,7 @@ internal static class M02Ud2VectorStateEfiIntegrationTests
             && evaluation.GetProperty("projectReferenceCount").GetInt32() == 0
             && evaluation.GetProperty("referenceCount").GetInt32() == 0
             && evaluation.GetProperty("analyzerCount").GetInt32() == 2
-            && properties.GetProperty("TargetFramework").GetString() == "net10.0"
+            && properties.GetProperty("TargetFramework").GetString() == "net11.0"
             && properties.GetProperty("RuntimeIdentifier").GetString() == "win-x64"
             && properties.GetProperty("PublishAot").GetString() == "true"
             && properties.GetProperty("SelfContained").GetString() == "true"

@@ -1,6 +1,6 @@
 # `scripts` Override
 
-Maintained automation has moved to the .NET 10/C# 14 console applications under
+Maintained automation has moved to the .NET 11/C# 14 console applications under
 `tools`. Do not add PowerShell wrappers or embedded scripts. Root `AGENTS.md`
 and `tools/AGENTS.override.md` define the current commands and evidence rules.
 

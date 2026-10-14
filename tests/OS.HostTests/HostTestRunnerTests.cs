@@ -215,6 +215,35 @@ internal static class HostTestRunnerTests
         HostCheck.Equal(1, finished);
     }
 
+    [HostTest("runner embedded inputs exclude unrelated generated trees and retain app configuration")]
+    private static void EmbeddedSourceInventory()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        using Stream stream = typeof(HostBuildInputs).Assembly.GetManifestResourceStream("host-test-inputs.txt")
+            ?? throw new InvalidOperationException("build input manifest missing");
+        using StreamReader reader = new(stream);
+        HashSet<string> paths = new(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        while (reader.ReadLine() is { } line)
+        {
+            int delimiter = line.LastIndexOf('|');
+            HostCheck.True(delimiter > 0, line);
+            string path = Path.GetFullPath(line[..delimiter]);
+            paths.Add(path);
+            string relative = Path.GetRelativePath(root, path).Replace('\\', '/');
+            bool generated = relative.Split('/').Any(part => part is "obj" or "bin" or "artifacts");
+            if (!generated) continue;
+            // Reference DLLs and this project's actual generated Compile inputs
+            // remain build dependencies. Other projects' caches are not sources.
+            bool compilerInput = relative.StartsWith("tests/OS.HostTests/obj/", StringComparison.Ordinal)
+                && Path.GetExtension(path) == ".cs";
+            HostCheck.True(compilerInput || Path.GetExtension(path).Equals(".dll", StringComparison.OrdinalIgnoreCase), path);
+        }
+        foreach (string path in HostBuildInputs.SourceInputs(root))
+            HostCheck.True(paths.Contains(Path.GetFullPath(path)), "source omitted: " + path);
+        foreach (string name in new[] { "Program.cs", "MinimalApiSmoke.csproj", "appsettings.json", "appsettings.Development.json" })
+            HostCheck.True(paths.Contains(Path.Combine(root, "apps", "MinimalApiSmoke", name)), name);
+    }
+
     [HostTest("runner refuses newly introduced linked source directories")]
     private static void LinkedSourceInput()
     {

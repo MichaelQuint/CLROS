@@ -1,9 +1,210 @@
 using System.Buffers.Binary;
 using System.Security.Cryptography;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Xml.Linq;
 using OS.Tooling;
 
 internal static class NativeAotPayloadTests
 {
+    [HostTest("nativeaot.payload SDK and application targets match the qualification policy")]
+    private static void BuildPolicy()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        using JsonDocument global = JsonDocument.Parse(File.ReadAllText(Path.Combine(root, "global.json")));
+        HostCheck.Equal(NativeAotPayload.SdkVersion, global.RootElement.GetProperty("sdk").GetProperty("version").GetString()!);
+        HostCheck.True(global.RootElement.GetProperty("sdk").GetProperty("allowPrerelease").GetBoolean());
+        foreach (string app in new[] { "DiagnosticApp", "FetchApp", "HelloSharpFs", "MinimalApiSmoke",
+            "NativeAotHello", "NativeAotRuntimeSmoke", "TinyHttpServer" })
+        {
+            XDocument project = XDocument.Load(Path.Combine(root, "apps", app, app + ".csproj"));
+            HostCheck.Equal(NativeAotPayload.TargetFramework, project.Descendants("TargetFramework").Single().Value);
+            HostCheck.Equal("14.0", project.Descendants("LangVersion").Single().Value);
+        }
+    }
+
+    [HostTest("nativeaot.payload hashes downloaded runtime archives and detects changed bytes")]
+    private static void DownloadedRuntimeInputs()
+    {
+        WithPackages((assets, archive) =>
+        {
+            var before = CapturePackages(assets);
+            HostCheck.Equal(4, before.Count);
+            HostCheck.Equal(Convert.ToHexString(SHA256.HashData(new byte[] { 1, 2, 3, 4 })), before[archive]);
+            DateTime timestamp = File.GetLastWriteTimeUtc(archive);
+            File.WriteAllBytes(archive, [4, 3, 2, 1]);
+            File.SetLastWriteTimeUtc(archive, timestamp);
+            var after = CapturePackages(assets);
+            HostCheck.True(before[archive] != after[archive]);
+            HostCheck.True(before.Where(row => row.Key != archive).All(row => after[row.Key] == row.Value));
+        });
+    }
+
+    [HostTest("nativeaot.payload rejects absent downloaded packs and mismatched package pins")]
+    private static void PackagePinFailures()
+    {
+        WithPackages((assets, archive) =>
+        {
+            JsonObject changed = (JsonObject)assets.DeepClone();
+            Downloads(changed).Clear();
+            RejectPackages(changed, "native_runtime_pack_missing");
+            changed = (JsonObject)assets.DeepClone();
+            Downloads(changed)[0]!["version"] = "[10.0.12, 10.0.12]";
+            RejectPackages(changed, "native_runtime_pin_mismatch");
+            changed = (JsonObject)assets.DeepClone();
+            Downloads(changed)[0]!["version"] = "[" + NativeAotPayload.RuntimeVersion + ", )";
+            RejectPackages(changed, "native_runtime_pin_mismatch");
+            changed = (JsonObject)assets.DeepClone();
+            ((JsonObject)changed["libraries"]!).Remove("Microsoft.NET.ILLink.Tasks/" + NativeAotPayload.RuntimeVersion);
+            RejectPackages(changed, "native_compiler_package_missing");
+            changed = (JsonObject)assets.DeepClone();
+            string library = "Microsoft.DotNet.ILCompiler/" + NativeAotPayload.RuntimeVersion;
+            changed["libraries"]![library]!["path"] = "microsoft.dotnet.ilcompiler/10.0.12";
+            RejectPackages(changed, "native_package_path");
+            changed = (JsonObject)assets.DeepClone();
+            string escaped = "..\\outside/" + NativeAotPayload.RuntimeVersion;
+            changed["libraries"]![escaped] = new JsonObject { ["type"] = "package", ["path"] = escaped };
+            RejectPackages(changed, "native_package_path");
+            File.Delete(archive);
+            RejectPackages(assets, "native_package_empty");
+        });
+    }
+
+    private static void WithPackages(Action<JsonObject, string> check)
+    {
+        string root = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "clros-nativeaot-packages-" + Guid.NewGuid().ToString("N")));
+        Directory.CreateDirectory(root);
+        try
+        {
+            string[] libraries = ["Microsoft.DotNet.ILCompiler", "Microsoft.NET.ILLink.Tasks",
+                "runtime.linux-musl-x64.Microsoft.DotNet.ILCompiler"];
+            var packageRows = new JsonObject();
+            foreach (string name in libraries)
+            {
+                string relative = name.ToLowerInvariant() + "/" + NativeAotPayload.RuntimeVersion;
+                Directory.CreateDirectory(Path.Combine(root, relative));
+                File.WriteAllText(Path.Combine(root, relative, "compiler-input"), name);
+                packageRows[name + "/" + NativeAotPayload.RuntimeVersion] = new JsonObject { ["type"] = "package", ["path"] = relative };
+            }
+            const string runtime = "Microsoft.NETCore.App.Runtime.NativeAOT.linux-musl-x64";
+            string archive = Path.Combine(root, runtime.ToLowerInvariant(), NativeAotPayload.RuntimeVersion, "runtimes", "linux-musl-x64", "native", "libzstd.a");
+            Directory.CreateDirectory(Path.GetDirectoryName(archive)!);
+            File.WriteAllBytes(archive, [1, 2, 3, 4]);
+            var assets = new JsonObject
+            {
+                ["libraries"] = packageRows,
+                ["packageFolders"] = new JsonObject { [root] = new JsonObject() },
+                ["project"] = new JsonObject { ["frameworks"] = new JsonObject
+                {
+                    [NativeAotPayload.TargetFramework] = new JsonObject { ["downloadDependencies"] = new JsonArray
+                    {
+                        new JsonObject { ["name"] = runtime, ["version"] = $"[{NativeAotPayload.RuntimeVersion}, {NativeAotPayload.RuntimeVersion}]" }
+                    } }
+                } }
+            };
+            check(assets, archive);
+        }
+        finally
+        {
+            HostCheck.True(root.StartsWith(Path.GetFullPath(Path.GetTempPath()), StringComparison.OrdinalIgnoreCase));
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static JsonArray Downloads(JsonObject assets) => (JsonArray)assets["project"]!["frameworks"]![NativeAotPayload.TargetFramework]!["downloadDependencies"]!;
+    private static IReadOnlyDictionary<string, string> CapturePackages(JsonObject assets)
+    {
+        using JsonDocument document = JsonDocument.Parse(assets.ToJsonString());
+        return NativeAotPayload.CapturePackageInputs(document.RootElement);
+    }
+    private static void RejectPackages(JsonObject assets, string reason)
+    {
+        try { CapturePackages(assets); throw new InvalidOperationException("invalid package closure accepted"); }
+        catch (InvalidDataException error) { HostCheck.Equal(reason, error.Message); }
+    }
+
+    [HostTest("nativeaot.payload archives warm managed and future-dated native caches after same-time source edits")]
+    private static void WarmBuildCache()
+    {
+        WithBuildCache((root, app, destination) =>
+        {
+            string source = Path.Combine(root, "apps", app, "Program.cs");
+            File.WriteAllText(source, "old source");
+            DateTime timestamp = File.GetLastWriteTimeUtc(source);
+            File.WriteAllText(source, "new source");
+            File.SetLastWriteTimeUtc(source, timestamp);
+            string bin = Path.Combine(root, "apps", app, "bin");
+            string obj = Path.Combine(root, "apps", app, "obj");
+            Directory.CreateDirectory(bin); Directory.CreateDirectory(Path.Combine(obj, "native"));
+            File.WriteAllBytes(Path.Combine(bin, app + ".dll"), [1, 2, 3]);
+            File.WriteAllBytes(Path.Combine(obj, "native", app + ".o"), [4, 5, 6]);
+            DateTime future = DateTime.UtcNow.AddYears(5);
+            File.SetLastWriteTimeUtc(Path.Combine(obj, "native", app + ".o"), future);
+            using var lease = NativeAotPayload.OpenQualificationLease(root);
+            NativeAotPayload.ArchiveBuildCache(root, app, destination);
+            HostCheck.True(!Directory.Exists(bin)); HostCheck.True(!Directory.Exists(obj));
+            string archive = Path.Combine(destination, "retained-build-cache", app);
+            HostCheck.True(File.ReadAllBytes(Path.Combine(archive, "bin", app + ".dll")).SequenceEqual(new byte[] { 1, 2, 3 }));
+            HostCheck.True(File.ReadAllBytes(Path.Combine(archive, "obj", "native", app + ".o")).SequenceEqual(new byte[] { 4, 5, 6 }));
+            HostCheck.Equal(future, File.GetLastWriteTimeUtc(Path.Combine(archive, "obj", "native", app + ".o")));
+            HostCheck.Equal("new source", File.ReadAllText(source));
+            HostCheck.Equal(timestamp, File.GetLastWriteTimeUtc(source));
+            RejectCache(() => NativeAotPayload.ArchiveBuildCache(root, app, destination), "native_cache_archive_exists");
+        });
+    }
+
+    [HostTest("nativeaot.payload serializes distinct qualification outputs and rejects redirected cache trees before moving")]
+    private static void BuildCacheOwnership()
+    {
+        WithBuildCache((root, app, destination) =>
+        {
+            using (var lease = NativeAotPayload.OpenQualificationLease(root))
+                RejectCache(() => NativeAotPayload.OpenQualificationLease(root).Dispose(), "native_qualification_busy");
+            using var nextLease = NativeAotPayload.OpenQualificationLease(root);
+            string appRoot = Path.Combine(root, "apps", app), bin = Path.Combine(appRoot, "bin"), obj = Path.Combine(appRoot, "obj");
+            Directory.CreateDirectory(bin); Directory.CreateDirectory(obj);
+            File.WriteAllText(Path.Combine(bin, "sentinel"), "retained");
+            RejectCache(() => NativeAotPayload.ArchiveBuildCache(root, "../outside", destination), "native_payload_app");
+            RejectCache(() => NativeAotPayload.ArchiveBuildCache(root, app, obj), "native_cache_output_overlap");
+            string target = Path.Combine(root, "outside"), link = Path.Combine(obj, "redirect");
+            Directory.CreateDirectory(target); File.WriteAllText(Path.Combine(target, "sentinel"), "outside");
+            if (OperatingSystem.IsWindows()) TestJunction.Create(link, target);
+            else Directory.CreateSymbolicLink(link, target);
+            try
+            {
+                RejectCache(() => NativeAotPayload.ArchiveBuildCache(root, app, destination), "native_cache_reparse_point");
+                HostCheck.Equal("retained", File.ReadAllText(Path.Combine(bin, "sentinel")));
+                HostCheck.Equal("outside", File.ReadAllText(Path.Combine(target, "sentinel")));
+                HostCheck.True(!Directory.Exists(Path.Combine(destination, "retained-build-cache")));
+            }
+            finally { Directory.Delete(link); }
+            NativeAotPayload.ArchiveBuildCache(root, app, destination);
+            HostCheck.True(!Directory.Exists(bin)); HostCheck.True(!Directory.Exists(obj));
+        });
+    }
+
+    private static void WithBuildCache(Action<string, string, string> check)
+    {
+        string root = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "clros-nativeaot-build-" + Guid.NewGuid().ToString("N")));
+        const string app = "MinimalApiSmoke";
+        string destination = Path.Combine(root, "artifacts", "qualification");
+        Directory.CreateDirectory(Path.Combine(root, "apps", app)); Directory.CreateDirectory(destination);
+        try { check(root, app, destination); }
+        finally
+        {
+            string temporaryRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath())) + Path.DirectorySeparatorChar;
+            if (!root.StartsWith(temporaryRoot, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("temporary_root_escape");
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static void RejectCache(Action action, string reason)
+    {
+        try { action(); throw new InvalidOperationException("unsafe build cache accepted"); }
+        catch (InvalidDataException error) { HostCheck.Equal(reason, error.Message); }
+        catch (ToolFailure error) { HostCheck.Equal(reason, error.Reason); }
+    }
+
     // Independent ELF byte vector: one RX load, one RW load and optional TLS.
     private static byte[] Image(bool tls = true)
     {

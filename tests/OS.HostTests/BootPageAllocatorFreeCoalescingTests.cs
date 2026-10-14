@@ -2898,7 +2898,7 @@ internal static class BootPageAllocatorFreeCoalescingTests
                   <PropertyGroup>
                     <AssemblyName>CLROS.M01.FreePointerPreflightProbe</AssemblyName>
                     <OutputType>Exe</OutputType>
-                    <TargetFramework>net10.0</TargetFramework>
+                    <TargetFramework>net11.0</TargetFramework>
                     <LangVersion>14.0</LangVersion>
                     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
                     <ImplicitUsings>enable</ImplicitUsings>
@@ -3413,7 +3413,7 @@ internal static class BootPageAllocatorFreeCoalescingTests
                 <Project Sdk="Microsoft.NET.Sdk">
                   <PropertyGroup>
                     <AssemblyName>CLROS.M01.BootPageAllocatorFreeCompileClosure</AssemblyName>
-                    <TargetFramework>net10.0</TargetFramework>
+                    <TargetFramework>net11.0</TargetFramework>
                     <LangVersion>14.0</LangVersion>
                     <OutputType>Library</OutputType>
                     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

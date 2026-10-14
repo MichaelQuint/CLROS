@@ -9,11 +9,15 @@ the Windows EFI toolchain does not by itself provide Linux publishing.
 ## Current Status
 
 The M16-001 NativeAOT payload tooling requires an explicit Linux musl builder.
-Use SDK `10.0.401` and runtime/ILC `10.0.12`, clang/binutils, musl development
+Use SDK `11.0.100-rc.2.26504.105` and runtime/ILC `11.0.0-rc.2.26504.105`, clang/binutils, musl development
 libraries, static zlib/C++ dependencies and strace. Windows inspection and
 managed fixture runs are development checks. [Step1198](../done/step1198.md)
-qualifies all three static Linux payloads on the task-local Alpine builder;
+qualifies the historical .NET 10 static Linux payloads on the task-local Alpine builder;
 [step1197](../done/step1197.md) preserves development and bootstrap failures.
+[Step1225](../done/step1225.md) qualifies the current .NET 11 Linux r04 recipe:
+three fresh static payloads, runtime exercise, HTTP/configuration/shutdown and
+zero publish warnings. This remains Linux-host evidence; neither unchanged Hello
+nor Kestrel has run inside CLROS.
 Put `/opt/dotnet` and all Alpine system directories, including `/sbin`, on PATH.
 
 ```text
@@ -30,18 +34,74 @@ auxv and CPU review before issue acceptance. Output must be fresh; failed output
 remain evidence and must not be reused as successful qualification. Inspection
 has its own marker and never substitutes for `TEST_PASS m16-001`.
 
-The repository currently builds on Windows with .NET 10. The normal solution build is managed-code host tooling, while the EFI shell publish also requires the Windows NativeAOT platform linker stack.
+Qualification exclusively owns the repository's app build caches for its whole
+run. Before each publish it preserves that app's existing `bin` and `obj` under
+the fresh output's `retained-build-cache` directory, then requires new managed
+and native compiler outputs. Source hashes or successful `dotnet clean` alone
+do not rule out timestamp-based reuse. Archive moves require the output and app
+caches on the same filesystem; a move failure stops the run and retains evidence.
+The lease coordinates qualifier invocations, not unrelated manual builds, so
+keep source and app builds idle until the run finishes.
+
+The repository targets .NET 11 with C# 14 on Windows. The normal solution build is managed-code host tooling, while the EFI shell publish also requires the Windows NativeAOT platform linker stack.
 
 The EFI publish requirement is a host toolchain requirement. It is not caused by Hyper-V. Hyper-V can affect later QEMU acceleration choices, but `OS.Tooling efi build` fails or passes before any VM boot path is involved.
+
+### October 13, 2026 host toolchain refresh
+
+The user selected .NET 11 for the OS, tooling and guest-app milestone after
+Visual Studio 2026 Insiders updated to `18.12.12308.306`. `global.json` selects
+exactly `11.0.100-rc.2.26504.105`, with `allowPrerelease: true` and
+`rollForward: disable`. EFI compiler/runtime and Linux payload pins select
+`11.0.0-rc.2.26504.105`, from dotnet/dotnet revision
+`820230c386db5b0106c5430b3e5aee92a7826bf5`. The SDK and NuGet identities agree
+with Microsoft's [.NET 11 release metadata](https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/11.0/releases.json).
+These exact prerelease pins require review and fresh qualification when changed;
+the build must not silently select a later SDK or preview.
+
+Use the installed SDK in a fresh terminal. If a terminal previously activated
+the private .NET 10 recovery installation, select the current installation:
+
+```powershell
+$clrosDotnet = 'C:\Program Files\dotnet'
+$env:DOTNET_ROOT = $clrosDotnet
+$env:PATH = "$clrosDotnet;$env:PATH"
+dotnet --version # must report 11.0.100-rc.2.26504.105 from the repository
+```
+
+The private SDK `10.0.401` recovery remains available for historical checkouts;
+it is not the current build target. Keep old receipts unchanged. Migration
+[#727](http://192.168.4.35:3000/admin/CLROS/issues/727) is qualified in
+[step1225](../done/step1225.md) at implementation source `d728d2c`, with
+4,783 full-host checks, original native review and 29 independently
+audited strict QEMU captures. Full-host receipt: `artifacts/net11-migration/audit/full-host-final-r03.json`. Only the
+explicitly rerun profiles gain current compiler/guest acceptance; no numbered
+gate or CLROS application milestone advances.
+
+The runtime/guest source checkpoint is `d728d2c`; the final full-host run uses
+the subsequent host inventory/README repair `7eeb787`. Its 622 fixtures and
+4,783 checks pass with unchanged inputs and zero reuse. Step1225 records the
+failed runs and the independent final audit without relabeling guest evidence.
+
+The installed MSVC x64 linker is now `14.52.37025.0`, replacing the accepted
+`14.51.36252.0`. Windows SDK `10.0.28000.0` remains installed, and the existing
+user-local `CLROS_LLVM_OBJDUMP` reports LLVM `22.1.3`. Earlier native receipts
+retain their historical tool identities. New native work must record the
+current linker and qualify freshly built binaries. The QEMU contract now uses
+`Nehalem` for .NET 11's x86-64-v2 baseline, without AVX/XSAVE state beyond the
+qualified x87/SSE context. The former `qemu64` CPU cannot run the new Linux SDK.
 
 Open `CLROS.slnx` in Visual Studio 2026. The `OS` project retains its explicit
 no-stdlib NativeAOT configuration. Its imported serializer targets use path
 normalization supported by both Visual Studio's full-framework MSBuild and
 `dotnet` MSBuild. If an older checkout reports `MSB4186` for
 `Path.TrimEndingDirectorySeparator`, update the checkout and reload the project.
-Visual Studio 2026 Insiders 18.11.12224.323 project evaluation was checked using
-its MSBuild with `DesignTimeBuild=true` and `BuildingInsideVisualStudio=true`;
-the user also confirmed that all solution projects load after this fix.
+Visual Studio 2026 Insiders `18.12.12308.306` project evaluation was checked
+using its MSBuild with `DesignTimeBuild=true` and
+`BuildingInsideVisualStudio=true`: EFI and HostTests select SDK
+`11.0.100-rc.2.26504.105`, `net11.0` and C# 14. Earlier 18.11 project-load
+checks retain their historical evidence; design-time evaluation is not an
+interactive project-load or guest-execution claim.
 Publish EFI images through
 `dotnet run --project tools/OS.Tooling -- efi build`, which also verifies the artifact.
 
@@ -54,13 +114,36 @@ the two missing `Microsoft.CodeAnalysis` namespace errors without a new package.
 
 ## Implemented Behavior
 
+### .NET 11 and C# 15 feature choices
+
+The pinned SDK's compiler supports C# 15. Isolated compiled probes confirm
+unions, closed hierarchies, collection-expression arguments, extension indexers
+and labeled loop exits. Project language versions remain C# 14 after this
+qualification. A C# 15 change requires a separate scoped decision and checks;
+SDK availability does not automatically change the language policy.
+See the [C# 15 feature list](https://learn.microsoft.com/en-us/dotnet/csharp/whats-new/csharp-15).
+
+| Candidate | CLROS decision |
+| --- | --- |
+| New process ownership APIs | Evaluate `StartSuspended`, `InheritedHandles`, `KillOnParentExit` and exit-status/streaming APIs for host tooling. Preserve bounded output, deadlines, descendant cleanup and receipt evidence. Parent-death cleanup does not replace normal cancellation handling. |
+| Updated C# memory-safety rules | Worth a separate parser/user-copy/queue audit. They still require preview language and a feature flag, add caller obligations and emit `MemorySafetyRulesAttribute`. First prove no-stdlib compatibility; no blanket kernel opt-in. |
+| C# 15 control-flow/collection syntax | Consider only in a separately approved language change when it simplifies touched host code. Closed types emit an attribute; check that dependency before no-stdlib use. |
+| Union types | Keep explicit POD/status structs in the kernel. The tested union stores `System.Object`, implements `IUnion` and contains managed references; it is not an allocation-free tagged-union substitute. |
+| Runtime async and dispatch improvements | Receive upstream improvements in application payloads after qualification. Runtime async needs runtime/GC/threading support and supplies no kernel scheduler. New compiler dispatch metadata requires an explicit kernel adapter. |
+
+The process APIs are verified in the
+[pinned runtime source](https://github.com/dotnet/dotnet/blob/820230c386db5b0106c5430b3e5aee92a7826bf5/src/runtime/src/libraries/System.Diagnostics.Process/src/System/Diagnostics/ProcessStartInfo.cs).
+The [memory-safety proposal](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/proposals/unsafe-evolution)
+and [union specification](https://learn.microsoft.com/en-us/dotnet/csharp/language-reference/proposals/csharp-15.0/unions)
+describe their additional obligations. Managed research probes establish no
+kernel safety, performance or guest-runtime evidence. These optional studies
+must not delay lifecycle or the first guest `/healthz`.
+
 Required for all current host builds:
 
 - Windows 10 or Windows 11 x64.
-- A stable .NET SDK in the `10.0.400` feature band. `global.json` requests
-  `10.0.401`, permits latest-patch roll-forward within that band, and rejects
-  prerelease SDKs. The new Windows host selects `10.0.401`.
-- NuGet access to restore .NET 10 packages.
+- Exact .NET SDK `11.0.100-rc.2.26504.105`, selected by `global.json`.
+- NuGet access to restore the pinned .NET 11 packages.
 
 The commands below use PowerShell syntax. Maintained build and test automation
 runs in compiled .NET console tools and does not require a PowerShell subprocess.
@@ -159,7 +242,7 @@ preset plans share `EvidenceOrchestration.CiMarkerPresets`; independent byte,
 security and runtime assertions remain explicit tests.
 ## Setup
 
-Install .NET 10 SDK from the official .NET installer or existing Visual Studio layout.
+Install the exact .NET 11 SDK above from the official .NET installer or existing Visual Studio layout.
 
 Install Visual Studio Build Tools from winget:
 
@@ -190,23 +273,23 @@ The earlier shell-module failure remains historical evidence in
 [step1077](../done/step1077.md).
 ### Restore the pinned EFI runtime pack
 
-The EFI project selects NativeAOT runtime pack `10.0.12` through
+The EFI project selects NativeAOT runtime pack `11.0.0-rc.2.26504.105` through
 `ClrosRuntimePackagePath`. Its ILCompiler metapackage and win-x64 host compiler
-are also pinned to `10.0.12`; the current SDK is `10.0.401`.
-The EFI artifact verifier needs the actual selected `10.0.12` package tree;
+are also pinned to `11.0.0-rc.2.26504.105`; the current SDK is `11.0.100-rc.2.26504.105`.
+The EFI artifact verifier needs the actual selected `11.0.0-rc.2.26504.105` package tree;
 an ordinary managed build alone does not establish that prerequisite.
 
 If the expected directory below is missing, restore the exact package through
 NuGet (do not rename another version's directory):
 
 ```powershell
-Test-Path "$env:USERPROFILE\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\10.0.12"
+Test-Path "$env:USERPROFILE\.nuget\packages\microsoft.netcore.app.runtime.nativeaot.win-x64\11.0.0-rc.2.26504.105"
 New-Item -ItemType Directory -Force artifacts/pinned-efi-runtime | Out-Null
 @'
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup><TargetFramework>net10.0</TargetFramework></PropertyGroup>
+  <PropertyGroup><TargetFramework>net11.0</TargetFramework></PropertyGroup>
   <ItemGroup>
-    <PackageDownload Include="Microsoft.NETCore.App.Runtime.NativeAOT.win-x64" Version="[10.0.12]" />
+    <PackageDownload Include="Microsoft.NETCore.App.Runtime.NativeAOT.win-x64" Version="[11.0.0-rc.2.26504.105]" />
   </ItemGroup>
 </Project>
 '@ | Set-Content artifacts/pinned-efi-runtime/Restore.csproj
@@ -221,14 +304,14 @@ it made the existing linked-artifact acceptance test pass independently; the
 subsequent full suite passed with 3,509 pass markers and zero failures (see
 `done/step925.md`). Package presence and host checks are not EFI boot evidence.
 
-The new `10.0.12` compiler qualification is recorded in
+The historical `10.0.12` compiler qualification is recorded in
 [step1078](../done/step1078.md); the preceding SDK401/ILC108 development
 checkpoint is [step1077](../done/step1077.md). These are freestanding build
 inputs, not a hosted .NET runtime running inside CLROS.
 
 ## C# host test runner
 
-The .NET 10 console runner discovers `[HostTest]` cases and `[HostFixture]`
+The .NET 11 console runner discovers `[HostTest]` cases and `[HostFixture]`
 groups without executing them. Module-initializer execution and the generated
 subset-project script have been removed. Build the complete project once;
 focused selection no longer needs companion source files.
@@ -367,6 +450,11 @@ native output directories between simultaneous suites. Checkpoints are local to
 the same workspace and machine, and do not import legacy runner receipts.
 
 The build manifest captures SDK-generated assembly attributes after generation.
+Repository source globs use a normalized absolute root and exclude generated
+`obj`, `bin` and `artifacts` trees. The harness's own generated compiler inputs
+and reference DLLs remain dependencies; real application JSON configuration is
+also retained. Rebuilding an app must not turn its transient Razor caches into
+host-test source inputs. Genuine source/configuration changes still fail closed.
 Pointer-probe and finally-guard builds use `--no-dependencies` so they cannot rebuild libraries
 already admitted by the running harness. Step1117 records the commit-version
 staleness failures that led to these fixes and their focused checks.
@@ -538,7 +626,7 @@ proof.
 Required agent capabilities:
 
 - Windows 10 or Windows 11 x64 with PowerShell 5.1 or newer.
-- The stable .NET SDK 10.0.400 feature band, minimum `10.0.401`, with patch selection governed by `global.json`.
+- Exact .NET SDK `11.0.100-rc.2.26504.105`, with prerelease admission and no roll-forward as governed by `global.json`.
 - Visual Studio or Build Tools with `Microsoft.VisualStudio.Workload.VCTools`
   and `Microsoft.VisualStudio.Component.VC.Tools.x86.x64`.
 - Windows 10/11 SDK UM x64 libraries, including `kernel32.lib`.
@@ -615,7 +703,7 @@ not prove QEMU boot, qcow2 conversion, libvirt real boot, cloud import, hosted
 
 ## Unsupported Behavior
 
-The host requirements above only prove build and publish prerequisites. They do not prove QEMU boot, ExitBootServices, drivers, storage, networking, hosted .NET 10 applications, ASP.NET Minimal API hosting, or Kestrel.
+The host requirements above only prove build and publish prerequisites. They do not prove QEMU boot, ExitBootServices, drivers, storage, networking, hosted .NET applications, ASP.NET Minimal API hosting, or Kestrel.
 
 Linux/macOS hosts are not documented for the EFI publish path yet. A future cross-build path can be added after the Windows NativeAOT/EFI path is stable.
 

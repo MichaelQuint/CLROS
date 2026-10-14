@@ -37,6 +37,21 @@ remain incomplete.
 
 ## Current Status
 
+[Step1225](../done/step1225.md) qualifies the .NET 11 migration at implementation
+source `d728d2c`: 4,783 full-host checks, original native review and
+29 independently audited strict QEMU captures. The guest matrix includes the
+expected unhandled negative and three 115-record timer captures. The independent
+`artifacts/net11-migration/audit/final-r01.json` joins retained native inputs,
+source inventories and guest receipts; the full-host receipt is `artifacts/net11-migration/audit/full-host-final-r03.json`.
+Linux r04 qualifies fresh Hello, runtime exerciser and Minimal API payloads with
+zero publish warnings and retained original produced DLL/object evidence.
+
+These are bounded diagnostic guests and Linux-host application evidence, not
+unchanged Hello or Kestrel inside CLROS. Historical records below retain their
+original .NET 10 source/toolchain identities. No numbered gate advances. #188 is
+the next ready slice after #727 merges and tracker reconciliation completes;
+the existing development thread remains paused until explicitly resumed.
+
 The M06 read/completion batch #120/#121/#623 is accepted in
 [step1143](../done/step1143.md): 4,304 full-host checks across 521 groups, native
 delta review and fresh 138/122/79-record read/queue/ordinary captures pass with
@@ -408,11 +423,16 @@ and the reachable local Gitea tracker:
 
 ## Build Status
 
-- The new development host selects stable .NET SDK `10.0.401` through
-  `global.json`, with latest-patch roll-forward within the `10.0.400` feature
-  band. Earlier accepted evidence retains its original SDK and source identity.
+- The development host selects exact SDK `11.0.100-rc.2.26504.105` through
+  `global.json`, with prereleases allowed and roll-forward disabled. The OS,
+  tooling and first guest-app target are .NET 11; C# remains 14. Earlier
+  accepted evidence retains its original SDK and source identity. See
+  [host requirements](host-requirements.md) and [step1225](../done/step1225.md)
+  for the qualified configuration. Visual Studio 18.12 design-time MSBuild
+  selects the pinned SDK, `net11.0` and C# 14 for both EFI and HostTests.
 - Before scaffolding, `dotnet build CLROS.slnx` was a no-op because the solution had no projects.
-- The current baseline build command passes with 0 warnings and 0 errors:
+- The qualified solution build passes with zero errors and four no-stdlib
+  CS0660/CS0661 warnings for the existing MacAddress/Ipv4Address operators:
 
 ```powershell
 dotnet build .\CLROS.slnx
@@ -497,7 +517,7 @@ Evidence:
 - `artifacts/logs/qemu-smoke.log` contains `TEST_START efi.main`, `EFI_CONSOLE_READY`, `UEFI_MEMORY_MAP_READY`, `UEFI_MEMORY_MAP_DESCRIPTOR_COUNT <count>`, `UEFI_MEMORY_MAP_OWNED`, `BOOT_HANDOFF_READY`, `UEFI_MEMORY_MAP_NORMALIZED`, `BOOT_MEMORY_MAP_ACCEPTED`, `BOOT_MEMORY_REGIONS_READY`, `BOOT_MEMORY_REGION_COUNT <count>`, `BOOT_ACPI_RSDP_HANDOFF_READY`, `UEFI_ACPI_RSDP_READY`, ordered `boot.sequence` phase markers, `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`.
 - `artifacts/logs/qemu-smoke-sim.log` additionally contains `UEFI_GONE_SIM_START`, `UEFI_GONE_SIM_PLATFORM_DENIED`, `POST_FIRMWARE_DIAGNOSTICS_READY`, and `UEFI_GONE_SIM_PASS`.
 - `artifacts/logs/qemu-smoke-acpi.log` additionally contains the five ordered ACPI physical discovery markers.
-- `dumpbin /headers src/OS/bin/Release/net10.0/win-x64/publish/OS.exe` reports `machine (x64)`, `entry point`, and `subsystem (EFI Application)`.
+- `dumpbin /headers src/OS/bin/Release/net11.0/win-x64/publish/OS.exe` reports `machine (x64)`, `entry point`, and `subsystem (EFI Application)`.
 
 Current M00 recovery evidence from 2026-07-25:
 
@@ -580,7 +600,7 @@ Current M00 recovery evidence from 2026-07-25:
 ## Known Limitations
 
 - Accepted bounded boot, runtime and serial-diagnostic profiles do not establish general runtime/driver support, live storage/networking, app execution or hosted-workload readiness.
-- The solution includes implemented .NET 10 host contracts and tools alongside the explicit no-stdlib `src/OS` EFI project. Its accepted bounded QEMU profiles do not make it a functional general-purpose kernel.
+- The solution includes implemented .NET 11 host contracts and tools alongside the explicit no-stdlib `src/OS` EFI project. Its accepted bounded QEMU profiles do not make it a functional general-purpose kernel.
 - SharpOS-authored source in `references/SharpOS-main` is eligible for
   selective adaptation under the recorded owner permission and public CC0
   evidence, but each adaptation still requires exact local path/hash,

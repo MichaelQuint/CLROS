@@ -237,7 +237,7 @@ internal static class IndependentArithmeticShiftCastN64BitDivisionRemainderTests
         File.WriteAllText(Path.Combine(directory, "Compile.csproj"), $$"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
-                <TargetFramework>net10.0</TargetFramework>
+                <TargetFramework>net11.0</TargetFramework>
                 <LangVersion>14.0</LangVersion>
                 <OutputType>Library</OutputType>
                 <AssemblyName>CLROS.M04.Arithmetic.NoStdLib</AssemblyName>
@@ -286,7 +286,7 @@ internal static class IndependentArithmeticShiftCastN64BitDivisionRemainderTests
         File.WriteAllText(Path.Combine(directory, "build.stderr.log"), stderr.Result);
         Require(exited && process.ExitCode == 0, "no-stdlib compile; logs=" + directory
             + " " + stdout.Result + stderr.Result);
-        using var stream = File.OpenRead(Path.Combine(directory, "bin", "Release", "net10.0",
+        using var stream = File.OpenRead(Path.Combine(directory, "bin", "Release", "net11.0",
             "CLROS.M04.Arithmetic.NoStdLib.dll"));
         using PEReader image = new(stream);
         Require(image.GetMetadataReader().AssemblyReferences.Count == 0, "no framework references");

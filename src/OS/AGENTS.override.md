@@ -94,7 +94,7 @@ EFI_ARTIFACT artifacts/efi/BOOTX64.EFI
 Useful artifact verification:
 
 ```powershell
-dumpbin /headers .\src\OS\bin\Release\net10.0\win-x64\publish\OS.exe
+dumpbin /headers .\src\OS\bin\Release\net11.0\win-x64\publish\OS.exe
 ```
 
 The PE headers should report:

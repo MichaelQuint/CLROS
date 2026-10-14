@@ -186,7 +186,7 @@ dependencies; neither qualifies guest execution. The
 ## Current Status
 
 The legacy OSAPPv0 native-tier app model described below is in early host-tested
-planning. The separate Linux ELF path above is the current first-class .NET 10
+planning. The separate Linux ELF path above is the current first-class .NET 11
 application target. Kestrel support is mandatory, but upstream runtime,
 sockets, timers, threading/scheduler and continuing network prerequisites remain
 incomplete. Broad workload claim boundaries are tracked in `docs/completion-gates.md`.
@@ -427,7 +427,7 @@ Placeholder apps exist to reserve the expected surfaces:
   can format that result as a `FETCH_HTTP_COMPLETION` diagnostic marker.
 - `TinyHttpServer`
 - `DiagnosticApp`
-- `MinimalApiSmoke`: host-buildable ASP.NET Core .NET 10 Minimal API fixture. It returns the configured `OS_SMOKE_EXPECTED_BODY` value from `GET /` and `GET /healthz`, exposes non-secret smoke metadata from `GET /config`, and includes `dotnet run --project tools/OS.Tooling -- kestrel package` to publish the host package layout under `artifacts/kestrel-smoke`. The published package can now be staged into a host-built raw ESP with `tools/OS.ImageBuilder create-raw --kestrel-package` and read back from `\OS\APP.PKG` through host storage/package parsers. This is not in-guest Kestrel evidence. The first in-guest package contract is `kestrel.smoke.package.v0` in `docs/kestrel.md`; it requires the package-relative assembly `apps/minimal-api/MinimalApiSmoke.dll`, listen endpoint `http://0.0.0.0:8080`, and manifest environment/config key `OS_SMOKE_EXPECTED_BODY=OS_MINIMAL_API_OK`.
+- `MinimalApiSmoke`: host-buildable ASP.NET Core .NET 11 Minimal API fixture. It returns the configured `OS_SMOKE_EXPECTED_BODY` value from `GET /` and `GET /healthz`, exposes non-secret smoke metadata from `GET /config`, and includes `dotnet run --project tools/OS.Tooling -- kestrel package` to publish the host package layout under `artifacts/kestrel-smoke`. The published package can now be staged into a host-built raw ESP with `tools/OS.ImageBuilder create-raw --kestrel-package` and read back from `\OS\APP.PKG` through host storage/package parsers. This is not in-guest Kestrel evidence. The retained framework-dependent host package contract is `kestrel.smoke.package.v0` in `docs/kestrel.md`; it requires the package-relative assembly `apps/minimal-api/MinimalApiSmoke.dll`, listen endpoint `http://0.0.0.0:8080`, and manifest environment/config key `OS_SMOKE_EXPECTED_BODY=OS_MINIMAL_API_OK`.
 - `tools/OS.ImageBuilder` can place a caller-supplied package payload at `\OS\APP.PKG` alongside optional `\OS\MANIFEST.JSON`, and can validate/stage a `kestrel.smoke.package.v0` package root with `--kestrel-package` for `SingleMinimalApi` host-image evidence only.
 - `tools/OS.ImageBuilder build-native-payload` can prepend a 32-byte `OSAPPv0\0` native payload header with entry offset `32` to caller-supplied raw app bytes.
 - `tools/OS.ImageBuilder build-package` can create deterministic `OSPKGv0` packages from a host directory using ordinal package-path ordering.

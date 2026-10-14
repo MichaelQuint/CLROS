@@ -20,8 +20,9 @@ public static class NativeAotPayload
 {
     public const int MaximumImageBytes = 128 * 1024 * 1024;
     public const ulong MaximumMappedBytes = 1024 * 1024 * 1024;
-    public const string SdkVersion = "10.0.401";
-    public const string RuntimeVersion = "10.0.12";
+    public const string SdkVersion = "11.0.100-rc.2.26504.105";
+    public const string RuntimeVersion = "11.0.0-rc.2.26504.105";
+    public const string TargetFramework = "net11.0";
 
     public sealed record Segment(uint Type, uint Flags, ulong Offset, ulong Address,
         ulong FileSize, ulong MemorySize, ulong Alignment);
@@ -121,9 +122,124 @@ public static class NativeAotPayload
         return Inspect(File.ReadAllBytes(path));
     }
 
+    /// <summary>
+    /// Hashes restored package files for this fixed Linux qualification profile, including
+    /// runtime packs represented only by NuGet downloadDependencies. Requires the exact
+    /// compiler, linker-task and NativeAOT runtime pins; missing packs fail closed. The
+    /// caller owns the assets document and must recheck returned file hashes after use.
+    /// </summary>
+    public static IReadOnlyDictionary<string, string> CapturePackageInputs(JsonElement assets)
+    {
+        var inputs = new Dictionary<string, string>(StringComparer.Ordinal);
+        string[] requiredLibraries = ["Microsoft.DotNet.ILCompiler", "Microsoft.NET.ILLink.Tasks",
+            "runtime.linux-musl-x64.Microsoft.DotNet.ILCompiler"];
+        var foundLibraries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (JsonProperty package in assets.GetProperty("libraries").EnumerateObject())
+        {
+            if (package.Value.GetProperty("type").GetString() != "package") continue;
+            string[] identity = package.Name.Split('/');
+            Require(identity.Length == 2, "native_package_identity");
+            Require(package.Value.GetProperty("path").GetString() == package.Name.ToLowerInvariant(), "native_package_path");
+            if (requiredLibraries.Contains(identity[0], StringComparer.OrdinalIgnoreCase) ||
+                identity[0].Contains("runtime.nativeaot.", StringComparison.OrdinalIgnoreCase))
+            {
+                Require(identity[1] == RuntimeVersion, "native_runtime_pin_mismatch");
+                foundLibraries.Add(identity[0]);
+            }
+            CaptureDirectory(package.Value.GetProperty("path").GetString()!);
+        }
+        Require(requiredLibraries.All(foundLibraries.Contains), "native_compiler_package_missing");
+
+        JsonElement framework = assets.GetProperty("project").GetProperty("frameworks").GetProperty(TargetFramework);
+        Require(framework.TryGetProperty("downloadDependencies", out JsonElement downloads), "native_runtime_pack_missing");
+        bool foundRuntime = false;
+        foreach (JsonElement package in downloads.EnumerateArray())
+        {
+            string name = package.GetProperty("name").GetString()!;
+            Require(name.Length > 0 && name.All(character => char.IsAsciiLetterOrDigit(character) || character is '.' or '-' or '_'),
+                "native_package_identity");
+            Require(package.GetProperty("version").GetString() == $"[{RuntimeVersion}, {RuntimeVersion}]",
+                "native_runtime_pin_mismatch");
+            foundRuntime |= name.Equals("Microsoft.NETCore.App.Runtime.NativeAOT.linux-musl-x64", StringComparison.OrdinalIgnoreCase);
+            CaptureDirectory(name.ToLowerInvariant() + "/" + RuntimeVersion);
+        }
+        Require(foundRuntime, "native_runtime_pack_missing");
+        return inputs;
+
+        void CaptureDirectory(string relative)
+        {
+            Require(!Path.IsPathRooted(relative) && relative.Split(new[] { '/', '\\' }).All(part => part is not ("" or "." or "..")),
+                "native_package_path");
+            string? directory = assets.GetProperty("packageFolders").EnumerateObject()
+                .Select(folder => Path.Combine(folder.Name, relative)).FirstOrDefault(Directory.Exists);
+            Require(directory is not null, "native_package_missing");
+            string[] files = Directory.GetFiles(directory!, "*", SearchOption.AllDirectories);
+            Require(files.Length > 0, "native_package_empty");
+            foreach (string input in files) AddNativeInput(inputs, input);
+        }
+    }
+
+    /// <summary>
+    /// Serializes qualification against the repository's shared app bin/obj directories.
+    /// The caller owns the returned stream for the entire run; contention fails closed.
+    /// The ignored lock file remains after disposal and is never deleted to release a lease.
+    /// This lease does not serialize arbitrary manual dotnet builds outside qualification.
+    /// </summary>
+    public static FileStream OpenQualificationLease(string root)
+    {
+        string directory = EfiBuildFiles.InitializeDirectory(Path.Combine(root, "artifacts"), "native_qualification_lock_path");
+        string path = Path.Combine(directory, "nativeaot-payload-build.lock");
+        EfiBuildFiles.RequirePlainOrMissing(directory, path, "native_qualification_lock_path");
+        try { return new FileStream(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
+        catch (IOException error) { throw new InvalidDataException("native_qualification_busy", error); }
+    }
+
+    /// <summary>
+    /// Preserves the selected known payload's generated caches beneath a fresh qualification
+    /// output, leaving no managed/native intermediate that timestamps could admit. The caller
+    /// must hold the repository qualification lease. Every path/tree is checked before any move;
+    /// redirected paths, overlapping output and existing archive destinations fail closed.
+    /// Source and output must share a filesystem for Directory.Move. A failed move retains
+    /// existing bytes and prevents publishing; nothing is recursively deleted.
+    /// </summary>
+    public static void ArchiveBuildCache(string root, string app, string destination)
+    {
+        Require(app is "NativeAotHello" or "NativeAotRuntimeSmoke" or "MinimalApiSmoke", "native_payload_app");
+        root = Path.GetFullPath(root);
+        destination = Path.GetFullPath(destination);
+        string appRoot = Path.Combine(root, "apps", app);
+        AuthorityFiles.RequirePlainPath(root, appRoot, "native_cache_path");
+        AuthorityFiles.RequirePlainPath(destination, destination, "native_cache_path");
+        string relative = Path.GetRelativePath(appRoot, destination);
+        Require(relative == ".." || relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
+            Path.IsPathRooted(relative), "native_cache_output_overlap");
+        string archive = Path.Combine(destination, "retained-build-cache", app);
+        EfiBuildFiles.RequirePlainOrMissing(destination, archive, "native_cache_path");
+        Require(!Path.Exists(archive), "native_cache_archive_exists");
+        string[] sources = [Path.Combine(appRoot, "bin"), Path.Combine(appRoot, "obj")];
+        foreach (string source in sources)
+        {
+            EfiBuildFiles.RequirePlainOrMissing(appRoot, source, "native_cache_path");
+            Require(!File.Exists(source), "native_cache_not_directory");
+            if (!Directory.Exists(source)) continue;
+            Stack<string> pending = new(); pending.Push(source);
+            while (pending.TryPop(out string? directory)) foreach (string item in Directory.EnumerateFileSystemEntries(directory))
+            {
+                FileAttributes attributes = File.GetAttributes(item);
+                Require((attributes & FileAttributes.ReparsePoint) == 0, "native_cache_reparse_point");
+                if ((attributes & FileAttributes.Directory) != 0) pending.Push(item);
+            }
+        }
+        EfiBuildFiles.InitializeDirectory(archive, "native_cache_path");
+        foreach (string source in sources)
+            if (Directory.Exists(source)) Directory.Move(source, Path.Combine(archive, Path.GetFileName(source)));
+        Require(sources.All(source => !Path.Exists(source)), "native_cache_still_present");
+    }
+
     private static async Task QualifyAsync(string root, string destination, TextWriter output)
     {
         Require(OperatingSystem.IsLinux(), "linux_builder_required");
+        using var repositoryLease = OpenQualificationLease(root);
         Require(!Directory.Exists(destination) && !File.Exists(destination), "fresh_output_required");
         Directory.CreateDirectory(destination);
         using var ownership = new FileStream(Path.Combine(destination, "qualification.lock"), FileMode.CreateNew,
@@ -173,31 +289,31 @@ public static class NativeAotPayload
             var inspections = new Dictionary<string, Inspection>();
             foreach (string app in apps)
             {
+                ArchiveBuildCache(root, app, destination);
                 output.WriteLine("NATIVEAOT_PAYLOAD_PUBLISH " + app);
                 string publish = Path.Combine(destination, app);
                 await Run(app + "-publish", "dotnet", ["publish", $"apps/{app}/{app}.csproj", "-c", "Release",
-                    "-r", "linux-musl-x64", "--self-contained", "true", "-o", publish, "--nologo",
+                    "-f", TargetFramework, "-r", "linux-musl-x64", "--self-contained", "true", "-o", publish, "--nologo",
                     "-p:PublishAot=true", "-p:StaticExecutable=true", "-p:PositionIndependentExecutable=false",
                     "-p:InvariantGlobalization=true", "-p:ServerGarbageCollection=false", "-p:EventSourceSupport=false",
                     "-p:EnableDiagnostics=false", "-p:DebuggerSupport=false", "-p:RuntimeFrameworkVersion=" + RuntimeVersion,
                     "-p:TargetLatestRuntimePatch=false", "-p:UseSharedCompilation=false", "-nr:false"], TimeSpan.FromMinutes(45));
                 string executable = Path.Combine(publish, app);
+                string intermediate = Path.Combine(root, "apps", app, "obj", "Release", TargetFramework, "linux-musl-x64");
+                foreach (string produced in new[] { Path.Combine(intermediate, app + ".dll"), Path.Combine(intermediate, "native", app + ".o") })
+                {
+                    AuthorityFiles.RequirePlainPath(root, produced, "native_produced_input_path");
+                    Require(new FileInfo(produced).Length > 0, "native_produced_input_empty");
+                    AddNativeInput(nativeInputs, produced);
+                }
                 string assetsPath = Path.Combine(root, "apps", app, "obj", "project.assets.json");
                 File.Copy(assetsPath, Path.Combine(destination, app + "-assets.json"));
                 using (JsonDocument assets = JsonDocument.Parse(await File.ReadAllTextAsync(assetsPath)))
                 {
-                    foreach (JsonProperty package in assets.RootElement.GetProperty("libraries").EnumerateObject())
+                    foreach (var input in CapturePackageInputs(assets.RootElement))
                     {
-                        if (package.Value.GetProperty("type").GetString() != "package") continue;
-                        if (package.Name.Contains("ilcompiler/", StringComparison.OrdinalIgnoreCase) ||
-                            package.Name.Contains("runtime.nativeaot.", StringComparison.OrdinalIgnoreCase))
-                            Require(package.Name.EndsWith("/" + RuntimeVersion, StringComparison.Ordinal), "native_runtime_pin_mismatch");
-                        string relative = package.Value.GetProperty("path").GetString()!;
-                        string? directory = assets.RootElement.GetProperty("packageFolders").EnumerateObject()
-                            .Select(folder => Path.Combine(folder.Name, relative)).FirstOrDefault(Directory.Exists);
-                        Require(directory is not null, "native_package_missing");
-                        foreach (string input in Directory.EnumerateFiles(directory!, "*", SearchOption.AllDirectories))
-                            AddNativeInput(nativeInputs, input);
+                        Require(!nativeInputs.TryGetValue(input.Key, out string? prior) || prior == input.Value, "native_inputs_changed");
+                        nativeInputs.TryAdd(input.Key, input.Value);
                     }
                 }
                 foreach (string input in Directory.EnumerateFiles(Path.Combine(root, "apps", app, "obj"), "*.rsp", SearchOption.AllDirectories))

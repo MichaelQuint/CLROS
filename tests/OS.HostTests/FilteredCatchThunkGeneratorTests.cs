@@ -17,7 +17,7 @@ internal static class FilteredCatchThunkGeneratorTests
             Directory.CreateDirectory(folder);
             _ = ExceptionHandlingThunkGeneratorTests.Run(root, folder, "build",
                 ["build", "tools/OS.X64TextSerializerGenerator", "--nologo", "-m:1"]);
-            var assembly = Assembly.LoadFile(Path.Combine(root, "tools/OS.X64TextSerializerGenerator/bin/Debug/net10.0/OS.X64TextSerializerGenerator.dll"));
+            var assembly = Assembly.LoadFile(Path.Combine(root, "tools/OS.X64TextSerializerGenerator/bin/Debug/net11.0/OS.X64TextSerializerGenerator.dll"));
             var generator = assembly.GetType("OS.X64TextSerializerGenerator.ExceptionHandlingThunkGenerator", true)!;
             object definition = generator.GetMethod("DefineFilteredCatch")!.Invoke(null, null)!;
             object section = Read<Array>(definition, "Sections").GetValue(0)!;

@@ -16,9 +16,10 @@ file-hash rules in `references/AGENTS.override.md` and
 `docs/license-audit.md`.
 
 `CLROS` is a C#-first NativeAOT operating-system project targeting a minimal
-CloudReady single-workload appliance model. Hosted .NET 10 applications and
-ASP.NET Minimal API/Kestrel support are mandatory milestones, but they are not
-implemented yet.
+CloudReady single-workload appliance model. The first workload milestone is a
+.NET 11 NativeAOT Minimal API running Kestrel inside CLROS; it remains incomplete.
+Framework-dependent/CoreCLR hosting follows later. Read the NativeAOT-first
+decision in `docs/workload-profiles.md` before selecting work.
 
 Do not claim hosted .NET, Kestrel, Azure/AWS readiness, cloud readiness,
 production readiness, live storage/networking, or real `ExitBootServices`
@@ -53,7 +54,7 @@ Then read the matching subsystem docs:
 
 - First-party kernel/std/app source committed here must be C#.
 - Do not commit `.c`, `.cpp`, `.h`, `.asm`, or `.s` files.
-- Use C# 14.0 and .NET 10 for normal managed projects.
+- Use C# 14.0 and the exact .NET 11 pins in `global.json` and the host guide.
 - Keep `src/OS.Kernel/Boot/BootSequence.cs` as the source of truth for boot
   ordering and readiness markers.
 - Keep dangerous probe toggles in
@@ -66,8 +67,8 @@ Then read the matching subsystem docs:
 - Future hosted-runtime PAL work uses flat `OSHost_*` POD/status-code ABI
   contracts only. No managed references, C++ objects, WinAPI handles, POSIX
   descriptors, exceptions, or host-owned movable buffers cross that boundary.
-- Do not add POSIX/Linux compatibility unless a documented PAL/CoreCLR step
-  requires it.
+- The NativeAOT-first roadmap authorizes the required Linux x64 application
+  syscall adapter in C#. Keep its errno/fd semantics separate from `OSHost_*`.
 - Never write credentials or secrets into files, issues, logs, commits, or
   prompts. Use only credentials supplied by the active task context.
 

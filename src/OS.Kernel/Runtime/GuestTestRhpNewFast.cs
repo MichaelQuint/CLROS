@@ -264,7 +264,7 @@ public static unsafe class GuestTestRhpNewFast
 
     internal static RhpNewFastResult TryAllocateArray(RhpNewFastHeapAccess access,
         RhpNewFastBumpState* state, ulong stateCapacity, NativeAotLayoutProfile profile,
-        NativeAotMethodTablePrefix prefix, ulong methodTableToken, int length) =>
+        NativeAotMethodTablePrefix prefix, ulong methodTableToken, long length) =>
         AllocateCore(access, state, stateCapacity, profile, prefix, methodTableToken, NativeAotLayoutShape.SzArray, length);
 
     internal static RhpNewFastResult TryAllocateString(RhpNewFastHeapAccess access,
@@ -282,7 +282,7 @@ public static unsafe class GuestTestRhpNewFast
         if (status != RhpNewFastStatus.Success) return Fail(status, heapStatus: heap.Status);
 
         // Existing objects can make ContentsAreZeroNow false without losing ownership.
-        if (profile != NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian)
+        if (profile != NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian)
             return Fail(RhpNewFastStatus.UnsupportedProfile);
         if (!ValidToken(access, state, stateCapacity, methodTableToken, staticBase ? 16UL : 24UL))
             return Fail(RhpNewFastStatus.InvalidMethodTableToken);
@@ -295,7 +295,7 @@ public static unsafe class GuestTestRhpNewFast
                 : size > PageBytes ? RhpNewFastStatus.UnsupportedStaticType : RhpNewFastStatus.Success;
         }
         else if (shape == NativeAotLayoutShape.SzArray)
-            status = AdmitArrayType(profile, prefix, (int)length, out size);
+            status = AdmitArrayType(profile, prefix, length, out size);
         else if (shape == NativeAotLayoutShape.String)
             status = AdmitStringType(profile, prefix, length, out size);
         else
@@ -501,7 +501,7 @@ public static unsafe class GuestTestRhpNewFast
             !Overlaps(token, tokenBytes, (ulong)state, stateCapacity);
     }
 
-    // Pinned dotnet/dotnet 95017c711e6afc1085133d440e42b4bd78155701:
+    // Pinned dotnet/dotnet 820230c386db5b0106c5430b3e5aee92a7826bf5:
     // MethodTable.Constants.cs / EETypeBuilderHelpers.cs define these scalar flags;
     // RuntimeExports.RhBox/RhNewObject also route fixed value types to RhpNewFast.
     // Admission does not prove actual compiler metadata, generic identity or field layout.
@@ -527,11 +527,15 @@ public static unsafe class GuestTestRhpNewFast
     }
 
     private static RhpNewFastStatus AdmitArrayType(NativeAotLayoutProfile profile,
-        NativeAotMethodTablePrefix prefix, int length, out ulong size)
+        NativeAotMethodTablePrefix prefix, long length, out ulong size)
     {
         size = 0;
+        // .NET 11 passes a signed native-sized count. Validate all 64 bits before
+        // narrowing; the invalid sentinel preserves flags/base/width precedence.
+        int count = length >= 0 && length <= ObjectArrayStringEETypeMethodTableLayoutContracts.MaximumArrayLength
+            ? (int)length : -1;
         NativeAotLayoutResult layout = ObjectArrayStringEETypeMethodTableLayoutContracts.Evaluate(
-            profile, prefix, length, ~0UL);
+            profile, prefix, count, ~0UL);
         // Preserve evaluator precedence even for malformed non-array descriptions.
         if (!layout.Succeeded)
         {

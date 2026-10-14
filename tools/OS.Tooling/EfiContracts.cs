@@ -36,9 +36,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "f4461c3da8508e1a9480ada9230bfe69f1b19781607fb5030a253959f693d45e";
-    public const string CanonicalProjectSha256 = "e1287424b888196f03d24152f7975c83f4c8cded0abf7b69b559dd4b719f0702";
-    public const string EfiEntrySourceSha256 = "9b707347ae5eb0b4701d7d5dfcb4a97453f47223a9938ac698945d3fdb499f4e";
+    public const string ProjectSourceSha256 = "ecd5f0a9d4f886ea915a5e1a33c793d45398cc5fff0b6ad7bfed25fc9356c981";
+    public const string CanonicalProjectSha256 = "09b48ce48e89326dfe1def7428d9b43081aa77c45bc650d9bae3937f5e89ac67";
+    public const string EfiEntrySourceSha256 = "49570df734c7f005cd2546bca3854a3aed57539e3163c7d56e9a38abaabe82b7";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -46,7 +46,7 @@ public static partial class EfiContracts
     public const string UnexpectedPanicSourceSha256 = "ec3583012baaca4b9cd9d13093c941196478a3fe12c89330c86d8c7ae39ca899";
     public const string SerializerObjectSha256 = "da97e50c95e479541b65eb3f96d9c6ded163735857650bee9416324086d55c7b";
     public const string SerializerBytesSha256 = "df76c8e39e0768d26ea27206ff102d7eadcc35d2c9bdf547b52b1171fd47bdaf";
-    public const string AllocationSourceSha256 = "7a14fa23e28548fa94d30e5569f786a1ce4c5bbe2375ac5b23a493d06f20ebd5";
+    public const string AllocationSourceSha256 = "cc5228cc990ee1df41dc398dc8c3eb69b2aef17d7a32484fb10e436ab323e6ba";
     // These legacy switches are disabled by absent MSBuild properties; all other
     // diagnostics have explicit conditional false defaults in OS.csproj.
     public static IReadOnlyList<string> ProjectDefaultProbes => DiagnosticProbes

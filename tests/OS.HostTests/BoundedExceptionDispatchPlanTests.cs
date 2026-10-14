@@ -171,7 +171,7 @@ internal static unsafe class BoundedExceptionDispatchPlanTests
             var result = new NativeAotEhClauseResult[rows.Length];
             for (uint i = 0; i < result.Length; i++)
             {
-                result[i] = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+                result[i] = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
                     Owner.Capture, Owner.Mapping, Owner.Owner, 4096, Owner.Handle, snapshot, 0x4000,
                     new(0x6000, 0x500, 0x1A00, (uint)blob.Length), i);
                 Need(result[i].Succeeded, "decoded original row " + i + ": " + result[i].Status);

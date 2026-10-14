@@ -14,7 +14,7 @@ internal static class EhContributionCatalogGeneratorTests
             string root=HostToolProcess.FindRepositoryRoot();
             string folder=Path.Combine(root,"artifacts","eh-catalog-generator",Guid.NewGuid().ToString("N")); Directory.CreateDirectory(folder);
             _=ExceptionHandlingThunkGeneratorTests.Run(root,folder,"build",["build","tools/OS.X64TextSerializerGenerator","--nologo","-m:1"]);
-            Assembly assembly=Assembly.LoadFile(Path.Combine(root,"tools/OS.X64TextSerializerGenerator/bin/Debug/net10.0/OS.X64TextSerializerGenerator.dll"));
+            Assembly assembly=Assembly.LoadFile(Path.Combine(root,"tools/OS.X64TextSerializerGenerator/bin/Debug/net11.0/OS.X64TextSerializerGenerator.dll"));
             MethodInfo generate=assembly.GetType("OS.X64TextSerializerGenerator.EhContributionCatalogGenerator",true)!.GetMethod("Generate")!;
             MethodInfo selected=assembly.GetType("OS.X64TextSerializerGenerator.EhContributionCatalogGenerator",true)!.GetMethod("GenerateForMethod")!;
             MethodInfo run=assembly.GetType("OS.X64TextSerializerGenerator.EhContributionCatalogGenerator",true)!.GetMethod("Run")!;

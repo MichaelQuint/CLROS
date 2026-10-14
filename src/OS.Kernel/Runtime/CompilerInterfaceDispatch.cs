@@ -39,8 +39,8 @@ public struct CompilerInterfaceDispatchSealedTable
 }
 
 /// <summary>
-/// Exclusive, finite .NET 10.0.12 Win64 ordinary instance dispatch. Layout facts
-/// are pinned to dotnet/dotnet 95017c711e6afc1085133d440e42b4bd78155701.
+/// Exclusive, finite .NET 11 RC2 Win64 ordinary instance dispatch. Layout facts
+/// are pinned to dotnet/dotnet 820230c386db5b0106c5430b3e5aee92a7826bf5.
 /// The caller authenticates the compiler cell section and initial stub, retains
 /// original image/heap mappings and owns the zero POD buffer for its lifetime.
 /// Address checks are not mapping probes or a forgery detector. No target is
@@ -52,7 +52,7 @@ public struct CompilerInterfaceDispatchSealedTable
 public static unsafe class CompilerInterfaceDispatch
 {
     public const uint MaximumCells = 64, MaximumCacheEntries = 64, MaximumMetadataWords = 1024;
-    public const uint MaximumRunCells = 32, MaximumHierarchyDepth = 16;
+    public const uint MaximumRunCells = 100, MaximumHierarchyDepth = 16;
     public const uint MaximumSlots = 64, MaximumInterfaces = 64, MaximumMapRows = 64, MaximumGenericArguments = 8;
     public const uint MaximumSealedTables = 16;
     private const ulong Bound = 0x4D30343031364431;
@@ -92,9 +92,10 @@ public static unsafe class CompilerInterfaceDispatch
 
     /// <summary>
     /// cellsStart/cellsBytes delimit the exact compiler-origin cell section,
-    /// including every run terminator, not an arbitrary enclosing data section.
-    /// Bind verifies its RW image admission and initial encoding before writing.
-    /// There is deliberately no invented ReadyToRun dispatch-cell section ID.
+    /// matching ReadyToRun section 210, not an arbitrary enclosing data section.
+    /// Bind admits zero-initialized {MethodTable,Code} cells and the bounded
+    /// NativeFormat array in section 209. Section 331 supplies relative type
+    /// references. No monomorphic cache or executable cell pointer is installed.
     /// </summary>
     public static CompilerInterfaceDispatchStatus Bind(EfiLoadedImageRangeCapturePlan capture,
         M01LoadedImageVirtualMappingEvidence mapping, byte* moduleOwner, ulong moduleCapacity, ulong moduleHandle,
@@ -126,7 +127,7 @@ public static unsafe class CompilerInterfaceDispatch
             return CompilerInterfaceDispatchStatus.StorageRejected;
         if (!SealedTableRanges(&candidate, sealedTables)) return CompilerInterfaceDispatchStatus.SlotRejected;
         if (!Executable(&candidate, initialStub)) return CompilerInterfaceDispatchStatus.TargetRejected;
-        CompilerInterfaceDispatchStatus status = Cells(&candidate, 0, out _, out _, out uint count);
+        CompilerInterfaceDispatchStatus status = Cells(&candidate, 0, out _, out _, out uint count, false);
         if (status != CompilerInterfaceDispatchStatus.Success) return status;
         for (ulong i = 0; i < required; i++) if (storage[i] != 0) return CompilerInterfaceDispatchStatus.AlreadyBound;
         candidate.CellCount = count;
@@ -135,6 +136,14 @@ public static unsafe class CompilerInterfaceDispatch
         for (ulong i = 0; i < cellsBytes; i++) snapshot[i] = ((byte*)cellsStart)[i];
         CompilerInterfaceDispatchSealedTable* tables = SealedTables((State*)storage);
         for (uint i = 0; i < sealedTableCount; i++) tables[i] = sealedTables[i];
+        // Admission above is read-only. Only after the exclusive owner buffer is
+        // accepted do we retain every metadata word used by the new cell ABI.
+        status = Cells((State*)storage, 0, out _, out _, out _, true);
+        if (status != CompilerInterfaceDispatchStatus.Success)
+        {
+            for (ulong i = 0; i < required; i++) storage[i] = 0;
+            return status;
+        }
         return CompilerInterfaceDispatchStatus.Success;
     }
 
@@ -235,35 +244,120 @@ public static unsafe class CompilerInterfaceDispatch
         return CompilerInterfaceDispatchStatus.Success;
     }
 
-    private static CompilerInterfaceDispatchStatus Cells(State* s, ulong selected, out ulong requested, out ushort slot, out uint count)
+    private static CompilerInterfaceDispatchStatus Cells(State* s, ulong selected, out ulong requested, out ushort slot, out uint count,
+        bool record = true)
     {
         requested = 0; slot = 0; count = 0;
-        if (!Span(s->CellsStart, s->CellsBytes, 16) || (s->CellsBytes & 15) != 0 ||
-            s->CellsBytes < 32 || s->CellsBytes > s->CellCapacity * 32UL ||
-            !Range(s, s->CellsStart, s->CellsBytes, TypeManagerRegisteredRangeKind.MutableData))
+        if (!Span(s->CellsStart, s->CellsBytes, 8) || (s->CellsBytes & 15) != 0 ||
+            s->CellsBytes < 16 || s->CellsBytes > s->CellCapacity * 16UL ||
+            !Range(s, s->CellsStart, s->CellsBytes, TypeManagerRegisteredRangeKind.ReadableSectionData))
             return CompilerInterfaceDispatchStatus.CellRejected;
-        uint run = 0; bool selectedInRun = false, found = selected == 0;
-        for (ulong offset = 0; offset < s->CellsBytes; offset += 16)
+        var cells = TypeManagerModuleMetadataLiveNativeAOTImage.TryGetSection(s->Capture, s->Mapping,
+            (byte*)s->ModuleOwner, s->ModuleCapacity, s->ModuleHandle, 210);
+        var info = TypeManagerModuleMetadataLiveNativeAOTImage.TryGetSection(s->Capture, s->Mapping,
+            (byte*)s->ModuleOwner, s->ModuleCapacity, s->ModuleHandle, 209);
+        var references = TypeManagerModuleMetadataLiveNativeAOTImage.TryGetSection(s->Capture, s->Mapping,
+            (byte*)s->ModuleOwner, s->ModuleCapacity, s->ModuleHandle, 331);
+        if (!cells.Succeeded || cells.Section != s->CellsStart || cells.Length < 0 || (ulong)cells.Length != s->CellsBytes)
+            return CompilerInterfaceDispatchStatus.CellRejected;
+        if (!info.Succeeded || info.Length <= 0 || info.Length > 4096 || !references.Succeeded ||
+            references.Length <= 0 || (references.Length & 3) != 0 ||
+            !Metadata(s, info.Section, (ulong)info.Length) || !Metadata(s, references.Section, (ulong)references.Length))
+            return CompilerInterfaceDispatchStatus.MetadataRejected;
+        ulong cursor = 0;
+        var status = CellUnsigned(s, info.Section, (ulong)info.Length, ref cursor, record, out uint header);
+        count = (uint)(s->CellsBytes / 16);
+        uint elements = header >> 2, widthTag = header & 3;
+        if (status != CompilerInterfaceDispatchStatus.Success) return status;
+        if (elements == 0 || elements > count || widthTag > 2) return CompilerInterfaceDispatchStatus.MetadataRejected;
+        ulong arrayBase = cursor;
+        bool found = selected == 0;
+        for (uint index = 0; index < count; index++)
         {
-            ulong address = s->CellsStart + offset, stub = *(ulong*)address, value = *(ulong*)(address + 8);
-            if (stub == 0)
+            ulong address = s->CellsStart + index * 16UL;
+            if (*(ulong*)address != 0 || *(ulong*)(address + 8) != 0)
+                return s->CellCount == 0 ? CompilerInterfaceDispatchStatus.CellRejected : CompilerInterfaceDispatchStatus.CellChanged;
+            bool tupleFound = false;
+            for (uint back = 0; back <= index && back < MaximumRunCells; back++)
             {
-                if (run == 0 || value > 0xFFFFUL) return CompilerInterfaceDispatchStatus.CellRejected;
-                if (selectedInRun) { slot = (ushort)value; found = true; selectedInRun = false; }
-                run = 0;
+                status = CellTuple(s, info.Section, (ulong)info.Length, arrayBase, elements, widthTag,
+                    index - back, record, out cursor, out tupleFound);
+                if (status != CompilerInterfaceDispatchStatus.Success) return status;
+                if (tupleFound) break;
             }
-            else
-            {
-                if (stub != s->InitialStub || ++run > MaximumRunCells || ++count > s->CellCapacity)
-                    return CompilerInterfaceDispatchStatus.CellRejected;
-                if ((value >> 32) != 0 || (value & 3) != 3) return CompilerInterfaceDispatchStatus.UnsupportedCell;
-                if (!Relative(address + 8, (uint)value, out ulong target)) return CompilerInterfaceDispatchStatus.CellRejected;
-                target &= ~3UL;
-                if ((target & 7) != 0 || !Metadata(s, target, 24)) return CompilerInterfaceDispatchStatus.MetadataRejected;
-                if (address == selected) { requested = target; selectedInRun = true; }
-            }
+            if (!tupleFound) return CompilerInterfaceDispatchStatus.MetadataRejected;
+            status = CellUnsigned(s, info.Section, (ulong)info.Length, ref cursor, record, out uint referenceIndex);
+            if (status != CompilerInterfaceDispatchStatus.Success) return status;
+            status = CellUnsigned(s, info.Section, (ulong)info.Length, ref cursor, record, out uint interfaceSlot);
+            if (status != CompilerInterfaceDispatchStatus.Success) return status;
+            if (interfaceSlot >= MaximumSlots) return CompilerInterfaceDispatchStatus.SlotRejected;
+            ulong referenceOffset = referenceIndex * 4UL;
+            status = CellWord(s, references.Section, (ulong)references.Length, referenceOffset, 4, record, out ulong relative);
+            if (status != CompilerInterfaceDispatchStatus.Success) return status;
+            if (!Relative(references.Section + referenceOffset, (uint)relative, out ulong target) ||
+                (target & 7) != 0 || !Metadata(s, target, 24)) return CompilerInterfaceDispatchStatus.MetadataRejected;
+            if (address == selected) { requested = target; slot = (ushort)interfaceSlot; found = true; }
         }
-        return run != 0 || !found ? CompilerInterfaceDispatchStatus.CellRejected : CompilerInterfaceDispatchStatus.Success;
+        return found ? CompilerInterfaceDispatchStatus.Success : CompilerInterfaceDispatchStatus.CellRejected;
+    }
+
+    // Bounded NativeFormat NativeArray decoding. A missing sparse entry falls
+    // back to its preceding same-target run; malformed storage never does.
+    private static CompilerInterfaceDispatchStatus CellTuple(State* s, ulong start, ulong bytes, ulong arrayBase,
+        uint elements, uint widthTag, uint index, bool record, out ulong tuple, out bool found)
+    {
+        tuple = 0; found = false;
+        if (index >= elements) return CompilerInterfaceDispatchStatus.Success;
+        ulong width = 1UL << (int)widthTag;
+        var status = CellWord(s, start, bytes, arrayBase + (index / 16) * width, width, record, out ulong relative);
+        if (status != CompilerInterfaceDispatchStatus.Success) return status;
+        ulong cursor = arrayBase + relative;
+        for (uint bit = 8; bit != 0; bit >>= 1)
+        {
+            ulong next = cursor;
+            status = CellUnsigned(s, start, bytes, ref next, record, out uint value);
+            if (status != CompilerInterfaceDispatchStatus.Success) return status;
+            if ((index & bit) != 0)
+            {
+                if ((value & 2) != 0) { cursor += value >> 2; continue; }
+            }
+            else if ((value & 1) != 0) { cursor = next; continue; }
+            if ((value & 3) == 0 && (value >> 2) == (index & 15)) { cursor = next; break; }
+            return CompilerInterfaceDispatchStatus.Success;
+        }
+        tuple = cursor; found = true;
+        return CompilerInterfaceDispatchStatus.Success;
+    }
+
+    private static CompilerInterfaceDispatchStatus CellUnsigned(State* s, ulong start, ulong bytes,
+        ref ulong cursor, bool record, out uint value)
+    {
+        value = 0;
+        var status = CellWord(s, start, bytes, cursor, 1, record, out ulong first);
+        if (status != CompilerInterfaceDispatchStatus.Success) return status;
+        uint count = 1;
+        while (count <= 5 && (first & (1UL << (int)(count - 1))) != 0) count++;
+        if (count > 5) return CompilerInterfaceDispatchStatus.MetadataRejected;
+        value = count == 5 ? 0 : (uint)first >> (int)count;
+        for (uint i = 1; i < count; i++)
+        {
+            status = CellWord(s, start, bytes, cursor + i, 1, record, out ulong part);
+            if (status != CompilerInterfaceDispatchStatus.Success) return status;
+            value |= (uint)part << (count == 5 ? (int)((i - 1) * 8) : (int)(8 - count + (i - 1) * 8));
+        }
+        cursor += count;
+        return CompilerInterfaceDispatchStatus.Success;
+    }
+
+    private static CompilerInterfaceDispatchStatus CellWord(State* s, ulong start, ulong bytes,
+        ulong offset, ulong width, bool record, out ulong value)
+    {
+        value = 0;
+        if (offset > bytes || width > bytes - offset || !Metadata(s, start + offset, width))
+            return CompilerInterfaceDispatchStatus.MetadataRejected;
+        if (record) return Read(s, start + offset, width, out value);
+        value = Load(start + offset, width);
+        return CompilerInterfaceDispatchStatus.Success;
     }
 
     private static CompilerInterfaceDispatchStatus Find(State* s, ulong receiver, ulong allocationBytes, ulong requested, ushort slot,

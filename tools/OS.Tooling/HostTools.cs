@@ -5,7 +5,7 @@ public static class HostTools
     public static string ManagedTool(string root, string name)
     {
         string configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name ?? "Debug";
-        string path = Path.Combine(root, "tools", name, "bin", configuration, "net10.0", name + ".dll");
+        string path = Path.Combine(root, "tools", name, "bin", configuration, "net11.0", name + ".dll");
         if (!File.Exists(path)) throw new FileNotFoundException("host_tool_not_built build CLROS.slnx first", path);
         return path;
     }

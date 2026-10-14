@@ -297,8 +297,8 @@ internal static class RepositoryRecoveryTests
         using JsonDocument document = JsonDocument.Parse(
             File.ReadAllText(Path.Combine(root, "global.json")));
         JsonElement sdk = document.RootElement.GetProperty("sdk");
-        return sdk.GetProperty("version").GetString() == "10.0.401"
-            && sdk.GetProperty("rollForward").GetString() == "latestPatch"
-            && sdk.GetProperty("allowPrerelease").ValueKind == JsonValueKind.False;
+        return sdk.GetProperty("version").GetString() == "11.0.100-rc.2.26504.105"
+            && sdk.GetProperty("rollForward").GetString() == "disable"
+            && sdk.GetProperty("allowPrerelease").ValueKind == JsonValueKind.True;
     }
 }

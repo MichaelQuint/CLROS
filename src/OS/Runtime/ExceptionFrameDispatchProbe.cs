@@ -231,7 +231,7 @@ internal static unsafe partial class RhpNewFastAllocation
             if (!BootSequence.IsEhCatalogEnabled() || catalogStart < s_gcImage.Start || catalogEnd <= catalogStart ||
                 catalogStart - s_gcImage.Start > 0x7FFFFFFFUL || catalogEnd - catalogStart > 0xFFFFFFFFUL)
                 return RejectFrame(26);
-            var window = BoundedExceptionCallerWindow.Build(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+            var window = BoundedExceptionCallerWindow.Build(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 (byte*)storage, EhStorageBytes, (uint)(catalogStart - s_gcImage.Start), (uint)(catalogEnd - catalogStart),
                 (byte*)(s_gcStack.Start + 16), s_gcStack.End - s_gcStack.Start - 16, *captured, 3,
@@ -274,7 +274,7 @@ internal static unsafe partial class RhpNewFastAllocation
             EhLine(3, captured->Rip, captured->Rsp, firstCaller.Rip, firstCaller.Rsp);
             EhLine(4, firstCaller.Rip, firstCaller.Rsp, secondCaller.Rip, secondCaller.Rsp);
 #if !M04_EH_CATALOG_PROBE
-            var noEh = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+            var noEh = NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
                 s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                 (byte*)storage, EhStorageBytes, new((uint)(thrower - s_gcImage.Start), 10, 0, 0), 0);
             if (noEh.Status != NativeAotEhClauseStatus.NoEhInfo) return RejectFrame(17);
@@ -313,7 +313,7 @@ internal static unsafe partial class RhpNewFastAllocation
                 !rows[1].ContainsOffset(FrameCatchReturn - 1) || !rows[2].ContainsOffset(FrameCatchReturn - 1)) return RejectFrame(18);
             for (uint i = 1; i < 3; i++)
             {
-                matches[i] = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+                matches[i] = ExceptionTypeMatch.Match(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
                     s_gcCapture, s_gcMapping, (byte*)type, (ulong)sizeof(GcTypeStorage), s_gcHandle,
                     s_access, &owner->State, (ulong)sizeof(GcCollectingStorage), s_ehReceipt, exception, rows[i].TypeAddress);
                 if (!matches[i].Succeeded || matches[i].Matches != (i == 2) ||
@@ -387,7 +387,7 @@ internal static unsafe partial class RhpNewFastAllocation
     {
         if (method < s_gcImage.Start || method - s_gcImage.Start > 0x7FFFFFFF ||
             table < s_gcImage.Start || table - s_gcImage.Start > 0x7FFFFFFF || codeBytes == 0 || tableBytes == 0) return default;
-        return NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+        return NativeAotEhClauseMetadata.ReadClause(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
             s_gcCapture, s_gcMapping, type, (ulong)sizeof(GcTypeStorage), s_gcHandle, storage, EhStorageBytes,
             new((uint)(method - s_gcImage.Start), codeBytes, (uint)(table - s_gcImage.Start), tableBytes), index);
     }
@@ -395,7 +395,7 @@ internal static unsafe partial class RhpNewFastAllocation
     // Keep large by-value authority copies in one returning helper frame.
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static NativeAotEhMethodLookupResult FrameCatalogLookup(byte* type, byte* storage, uint catalogRva, uint catalogBytes, ulong instruction) =>
-        NativeAotEhClauseMetadata.LookupMethod(NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian,
+        NativeAotEhClauseMetadata.LookupMethod(NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian,
             s_gcCapture, s_gcMapping, type, (ulong)sizeof(GcTypeStorage), s_gcHandle, storage, EhStorageBytes, catalogRva, catalogBytes, instruction);
     private static void FrameCallerWindowLine(ulong stage, ulong rip, ulong rsp, ulong offset, ulong slice)
     {

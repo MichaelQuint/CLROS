@@ -54,7 +54,7 @@ public static class MinimalApiPackage
         Directory.CreateDirectory(appRoot);
         invoke ??= request => ProcessRunner.RunAsync(request, cancellation);
         var publish = await invoke(new("dotnet", ["publish", Path.Combine(root, "apps/MinimalApiSmoke/MinimalApiSmoke.csproj"),
-            "--configuration", options.Configuration, "--framework", "net10.0", "--self-contained", "false", "-p:UseAppHost=false",
+            "--configuration", options.Configuration, "--framework", "net11.0", "--self-contained", "false", "-p:UseAppHost=false",
             "/p:OSWorkloadProfile=" + options.WorkloadProfile, "--output", appRoot], root) { Timeout = TimeSpan.FromMinutes(3) });
         output.Write(publish.StandardOutput);
         output.Write(publish.StandardError);

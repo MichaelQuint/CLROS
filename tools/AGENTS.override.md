@@ -17,7 +17,7 @@ Current tools:
 - `OS.Tooling`: C# build, verification, smoke, CI, backlog, repository checks,
   shared reviewed expectations, and atomic evidence-step allocation.
 
-New automation belongs in C#/.NET 10. Do not add PowerShell scripts or embed
+New automation belongs in C#/.NET 11. Do not add PowerShell scripts or embed
 PowerShell in C# fixtures. Use typed production APIs from host fixtures; preserve
 independent byte vectors and rejection controls. Native operations retain bounded
 processes, source/output locks, exact provenance, and confirmed child cleanup.
@@ -34,7 +34,7 @@ changing its targets or integration contract.
 
 ## Allowed Dependencies
 
-Host tools may use normal .NET 10 APIs and NuGet packages when useful.
+Host tools may use normal .NET 11 APIs and NuGet packages when useful.
 
 Rules:
 
@@ -45,7 +45,7 @@ Rules:
 
 ## Coding Standards
 
-- Target `net10.0`.
+- Target `net11.0`.
 - Use C# 14.0.
 - Nullable should remain enabled.
 - Use clear command-line parsing and deterministic output.

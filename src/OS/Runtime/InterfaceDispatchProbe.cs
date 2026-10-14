@@ -56,10 +56,11 @@ internal class DispatchReceiverB : DispatchOwnerBase, IDispatchConsumer<Dispatch
 
 internal static unsafe partial class RhpNewFastAllocation
 {
-    // Measured from development OS.obj 13f8127f: five cells plus two
-    // terminators, and Base's sole sealed slot. Recheck on the final image.
+    // The pinned .NET 11 ABI contributes five zero {MethodTable,Code} cells;
+    // Bind requires the exact section-210 extent and section-209 metadata.
+    // The final original COFF must independently confirm these extents.
     // A and B own ordinary virtual slots and have no sealed-table field.
-    private const ulong DispatchCellContributionBytes = 112;
+    private const ulong DispatchCellContributionBytes = 80;
     private const ulong DispatchBaseSealedBytes = 4;
     private struct DispatchStorage { internal fixed ulong Words[4096]; }
     private struct DispatchCells { internal fixed ulong Values[5]; }
@@ -274,12 +275,12 @@ internal static unsafe partial class RhpNewFastAllocation
         fixed (GcCollectingStorage* collecting = &s_gcCollecting)
         {
             CollectorTypeMapResult map = BoundedNonMovingCollectorExplicitRootEnumeration.InspectType(
-                NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, s_gcCapture, s_gcMapping, (byte*)type,
+                NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, s_gcCapture, s_gcMapping, (byte*)type,
                 (ulong)sizeof(GcTypeStorage), s_gcHandle, s_gcImage, token);
             if (!map.Succeeded || map.Prefix.BaseSize != 24 || map.SeriesCount != 0)
                 RejectDispatch(33, CompilerInterfaceDispatchStatus.MetadataRejected);
             RhpNewFastResult result = GuestTestRhpNewFast.TryAllocate(s_access, &collecting->State,
-                (ulong)sizeof(GcCollectingStorage), NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, map.Prefix, token);
+                (ulong)sizeof(GcCollectingStorage), NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian, map.Prefix, token);
             if (!result.AllocationSucceeded || result.AllocationCount != s_dispatchAllocations + 9 || result.BytesConsumed != 24 ||
                 GcReadWord(result.MappedAllocationStart) != 0 || GcReadWord(result.ObjectReference) != token ||
                 GcReadWord(result.ObjectReference + 8) != 0)

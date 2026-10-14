@@ -406,9 +406,9 @@ internal static class M04SpanMemoryConformanceEfiIntegrationTests
                 StringComparison.Ordinal)
             && qemu.Contains(ReadyMarker, StringComparison.Ordinal)
             && readme.Contains(
-                "EnableM04SpanOverlapMemoryCastUnsafeWidthConformanceProbe",
+                "(docs/efi-build.md)",
                 StringComparison.Ordinal)
-            && readme.Contains("CLROS_M04_003_READY", StringComparison.Ordinal)
+            && readme.Contains("(docs/qemu.md)", StringComparison.Ordinal)
             && Regex.IsMatch(
                 efi,
                 @"Gate 4\s+remains `Fail`",

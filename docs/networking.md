@@ -1705,7 +1705,7 @@ TEST_PASS net.tcp.rx dispatch rejects out-of-window control
 
 ## Known Limitations
 
-`FetchApp` and `TinyHttpServer` are placeholders and do not perform network I/O. No Kestrel compatibility claim can be made until TCP, timers, scheduler/threading, exported sockets/PAL, and hosted .NET 10 runtime integration have guest evidence.
+`FetchApp` and `TinyHttpServer` are placeholders and do not perform network I/O. No Kestrel compatibility claim can be made until TCP, timers, scheduler/threading, the selected application socket boundary, and the .NET 11 application runtime have real guest evidence. The [NativeAOT-first route](workload-profiles.md) supplies the restricted Linux socket/syscall boundary; a future hosted-runtime route instead requires its exported `OSHost_*` PAL. Both require actual guest Kestrel traffic and the applicable [completion-gate evidence](completion-gates.md#gate-14-profile-split).
 
 The IPv4 helper currently supports only minimum 20-byte headers. UDP frame writers now emit IPv4 pseudo-header checksums for caller-owned outbound datagrams. The UDP receive dispatcher accepts zero checksums and validates non-zero checksums over caller-owned IPv4 UDP datagrams. The parser treats extra bytes beyond UDP length as invalid to keep early cloud packet behavior deterministic.
 

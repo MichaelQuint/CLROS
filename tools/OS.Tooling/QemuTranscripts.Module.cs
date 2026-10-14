@@ -30,7 +30,7 @@ public static partial class QemuTranscripts
         for (int i = 0; i < ids.Length; i++)
         {
             var section = ReadRecord(lines[29 + i], "CLROS_M04_011_SECTION", "id:dec", "status:dec", "start:dec", "length:dec");
-            Need(section["id"] == ids[i] && section["status"] == (i == 3 ? 11UL : 1UL) && section["length"] == (i < 2 ? 8UL : 0UL), "m04_type_manager_section_contract");
+            Need(section["id"] == ids[i] && section["status"] == (i == 3 ? 11UL : 1UL) && section["length"] == (i == 0 ? 8UL : i == 1 ? 16UL : 0UL), "m04_type_manager_section_contract");
             Need(i != 0 || section["start"] == r["tls"], "m04_type_manager_section_identity");
             Need(i != 1 || section["start"] == r["slot"], "m04_type_manager_section_identity");
             Need(i != 3 || section["start"] == 0, "m04_type_manager_section_identity");

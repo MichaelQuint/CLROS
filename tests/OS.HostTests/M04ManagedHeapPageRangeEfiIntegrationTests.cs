@@ -53,7 +53,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
         string root = Root();
         Result r = Process(root, "dotnet", ["build", "src/OS/OS.csproj", "-c", "Release", "--nologo", .. Prerequisites.Append(Flag).Select(x => "-p:" + x + "=true")]);
         Save("enabled-build", r); Require(r.Code == 0, r.Output);
-        using FileStream input = File.OpenRead(Path.Combine(root, "src/OS/bin/Release/net10.0/win-x64/OS.dll"));
+        using FileStream input = File.OpenRead(Path.Combine(root, "src/OS/bin/Release/net11.0/win-x64/OS.dll"));
         using PEReader reader = new(input);
         MetadataReader metadata = reader.GetMetadataReader();
         Require(metadata.AssemblyReferences.Count == 0, "no framework/runtime assembly references");
@@ -76,7 +76,7 @@ internal static class M04ManagedHeapPageRangeEfiIntegrationTests
             .Select(x => "<Compile Include=\"" + SecurityElement.Escape(Path.GetFullPath(Path.Combine(root, "src/OS", x))) + "\"/>"));
         File.WriteAllText(Path.Combine(directory, "Adapter.csproj"), """
             <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType>
-            <TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+            <TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
             <ImplicitUsings>enable</ImplicitUsings><EnableDefaultCompileItems>false</EnableDefaultCompileItems>
             <DefineConstants>NOSTDLIB_EFI</DefineConstants></PropertyGroup><ItemGroup><Compile Include="Program.cs"/>
             """ + includes + "</ItemGroup></Project>");

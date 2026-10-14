@@ -190,7 +190,7 @@ internal static class M04SingleFinallyCatchEfiIntegrationTests
         Directory.CreateDirectory(directory);
         string project = Path.Combine(directory, "FinallyAdmission.Core.csproj");
         new XDocument(new XElement("Project", new XAttribute("Sdk", "Microsoft.NET.Sdk"),
-            new XElement("PropertyGroup", new XElement("OutputType", "Exe"), new XElement("TargetFramework", "net10.0"),
+            new XElement("PropertyGroup", new XElement("OutputType", "Exe"), new XElement("TargetFramework", "net11.0"),
                 new XElement("LangVersion", "14.0"), new XElement("Nullable", "enable"), new XElement("ImplicitUsings", "enable"),
                 new XElement("AllowUnsafeBlocks", "true"), new XElement("EnableDefaultCompileItems", "false"),
                 new XElement("DefineConstants", "SINGLE_FINALLY_CORE_TEST")),

@@ -2,6 +2,16 @@
 
 ## Start here
 
+`done/step1225.md` qualifies the .NET 11 OS/tooling migration at implementation
+source `d728d2c`: 4,783 full-host checks, original native review and
+29 independently audited strict QEMU captures, including the expected unhandled
+negative and three timer captures. Fresh Linux-host payload qualification also
+passes; no unchanged guest Hello or Kestrel is accepted. Use the exact pins and
+x86-64-v2 CPU contract in `docs/host-requirements.md`; C# remains 14.
+Preserve older .NET 10 receipts and the scope of profiles not rerun in step1225.
+After #727 merges and tracker reconciliation completes, #188 is the next ready
+slice. The existing development thread remains paused until explicitly resumed.
+
 1. Read `docs/workload-profiles.md` for the current NativeAOT-first decision.
 2. Refresh the LAN tracker and select the first unfinished dependency-compatible
    NativeAOT-first ticket. M16-001/#679 through M16-007/#685 are qualified;
@@ -112,7 +122,7 @@ intended deployment model is a minimal single-workload cloud appliance:
 - Reproducible UEFI boot image and cloud/virtualization image tooling.
 - No default multi-user shell, SSH, or remote administration surface.
 - One configured workload by default.
-- .NET 10 applications as first-class workloads.
+- .NET 11 applications as first-class workloads.
 - ASP.NET Minimal API/Kestrel support as a mandatory milestone.
 
 Ordinary `VerifiedExit` is accepted in `done/step1094.md`: three frozen-source
@@ -235,7 +245,7 @@ differ from this root guide.
 
 - First-party kernel/std/app source committed to this repo must be C#.
 - Do not commit `.c`, `.cpp`, `.h`, `.asm`, or `.s` files.
-- Use C# 14.0 and .NET 10 for normal managed projects.
+- Use C# 14.0 and .NET 11 for normal managed projects.
 - Keep `src/OS` explicit, minimal, no-stdlib, and NativeAOT-aware.
 - `src/OS.Kernel/Boot/BootSequence.cs` is the source of truth for boot order.
   Add phases there; do not bypass it.

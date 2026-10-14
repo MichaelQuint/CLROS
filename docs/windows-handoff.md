@@ -12,9 +12,10 @@ The source Gitea at `192.168.4.35:3000` was verified as repository `admin/CLROS`
 ID 9, with `master` at `69f9c53085a3a218c1547f2199a7a1c464703058` before
 changing `origin` from localhost to the LAN address. The destination's localhost
 Gitea is unrelated. Use the explicit source endpoint for tracker operations;
-the loopback-only plugin and backlog synchronizer remain source-host tools.
+the loopback-only plugin remains a source-host tool. The compiled backlog
+synchronizer verifies and uses the canonical LAN repository from this host.
 
-The user selected migration to SDK `10.0.401` with Visual Studio 2026 Insiders
+The October 8 migration selected SDK `10.0.401` with Visual Studio 2026 Insiders
 MSVC and the new QEMU installation. See [host requirements](host-requirements.md)
 for the current SDK policy. Pinned ILCompiler and selected NativeAOT runtime
 are qualified at `10.0.12` under #590; SDK-selected and selected-runtime roots
@@ -23,6 +24,18 @@ Copied evidence retains its historical scope. Fresh host/native/guest validation
 of the finite migration matrix passed on October 8 in
 [step1078](../done/step1078.md). Other historical optional-profile acceptance
 is not repeated by copying build outputs or changing SDK selection.
+
+On October 13, the user selected .NET 11 for the OS, tooling and guest target
+after Visual Studio Insiders updated to `18.12.12308.306` and MSVC linker
+`14.52.37025.0`. The repository now pins SDK `11.0.100-rc.2.26504.105` and
+runtime/ILCompiler `11.0.0-rc.2.26504.105`. See
+[host requirements](host-requirements.md#october-13-2026-host-toolchain-refresh)
+for exact selection, package and CPU requirements. Migration
+[#727](http://192.168.4.35:3000/admin/CLROS/issues/727) is qualified in
+[step1225](../done/step1225.md) for its finite host/native/guest matrix and
+separate fresh Linux-host payloads. No CLROS guest application is accepted.
+The private .NET 10 recovery is for historical checkouts only. Retain earlier
+receipts unchanged; a compiler or linker update does not requalify them.
 
 The destination copy audit and recovery are recorded in [step1077](../done/step1077.md).
 It verified the original manifest references, bundle refs and 190,179 of 190,181
@@ -126,13 +139,12 @@ if ((git -C 'C:\Projects\CLROS' rev-parse HEAD) -ne $expectedCommit) { throw 'Un
 git -C 'C:\Projects\CLROS' status --short
 ```
 
-The repository's `localhost:3000` instructions refer to the **source host**.
-The destination's localhost is its unrelated Gitea. Existing REST issue helpers
-and `OS.Tooling backlog sync` enforce loopback; passing a LAN `--base-url` is not a
-supported workaround. Run those tools on the source host, or explicitly
-configure/review scoped LAN REST tooling and secure credentials before tracker
-operations from the destination. Do not rewrite the historical manifest target,
-weaken endpoint guards or import a server database as part of this handoff.
+Historical `localhost:3000` instructions refer to the source host. This host's
+localhost is an unrelated Gitea. Use the compiled `OS.Tooling backlog sync`
+against its guarded LAN endpoint, repository ID9, with secure environment
+credentials. Preview a scoped `--issuekeys` selection before `--apply`, then
+read back the issue and repeat the preview. Do not use the loopback-only plugin
+or weaken endpoint guards. See [issue workflow](issue-labels.md).
 
 ## Resume
 

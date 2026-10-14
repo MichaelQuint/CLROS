@@ -10,7 +10,7 @@ using Layout = OS.Kernel.Runtime.ObjectArrayStringEETypeMethodTableLayoutContrac
 
 internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
 {
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
 
     [HostFixture(HostLane.Native)]
     internal static void Run()
@@ -31,7 +31,7 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
     private static void CheckIdentityAndConstants()
     {
         Require(Layout.ILCompilerVersion == OS.Tooling.EfiContracts.NativePackageVersion &&
-            Layout.RuntimeSourceCommit == "95017c711e6afc1085133d440e42b4bd78155701", "pinned source identity");
+            Layout.RuntimeSourceCommit == "820230c386db5b0106c5430b3e5aee92a7826bf5", "pinned source identity");
         XDocument project = XDocument.Load(Path.Combine(FindRoot(), "src", "OS", "OS.csproj"));
         foreach (string package in new[] { "Microsoft.DotNet.ILCompiler", "runtime.win-x64.Microsoft.DotNet.ILCompiler" })
         {
@@ -179,7 +179,7 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
     private static void CheckRejectionsAndFlags()
     {
         CheckFailure(default, NativeAotLayoutStatus.Uninitialized);
-        foreach (NativeAotLayoutProfile profile in new[] { (NativeAotLayoutProfile)0, (NativeAotLayoutProfile)2, (NativeAotLayoutProfile)255 })
+        foreach (NativeAotLayoutProfile profile in new[] { (NativeAotLayoutProfile)0, NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, (NativeAotLayoutProfile)255 })
             CheckFailure(Layout.Evaluate(profile, Prefix(0x50200000, 0), -1, 0), NativeAotLayoutStatus.UnsupportedProfile);
         CheckFailure(Layout.Evaluate(Profile, default, 0, 0), NativeAotLayoutStatus.UnsupportedShape);
         foreach (uint size in new uint[] { 0, 8, 16, 23, 25, uint.MaxValue })
@@ -328,7 +328,7 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
         File.WriteAllText(Path.Combine(directory, "Compile.csproj"), $$"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
-                <TargetFramework>net10.0</TargetFramework>
+                <TargetFramework>net11.0</TargetFramework>
                 <LangVersion>14.0</LangVersion>
                 <OutputType>Library</OutputType>
                 <AssemblyName>CLROS.M04.Layout.NoStdLib</AssemblyName>
@@ -378,7 +378,7 @@ internal static class ObjectArrayStringEETypeMethodTableLayoutContractsTests
         File.WriteAllText(Path.Combine(directory, "build.stdout.log"), stdout.Result);
         File.WriteAllText(Path.Combine(directory, "build.stderr.log"), stderr.Result);
         Require(exited && process.ExitCode == 0, "no-stdlib compile; logs=" + directory + " " + stdout.Result + stderr.Result);
-        using var stream = File.OpenRead(Path.Combine(directory, "bin", "Release", "net10.0", "CLROS.M04.Layout.NoStdLib.dll"));
+        using var stream = File.OpenRead(Path.Combine(directory, "bin", "Release", "net11.0", "CLROS.M04.Layout.NoStdLib.dll"));
         using PEReader image = new(stream);
         MetadataReader metadata = image.GetMetadataReader();
         Require(metadata.AssemblyReferences.Count == 0, "zero assembly references");

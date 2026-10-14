@@ -1,5 +1,19 @@
 # NativeAOT NoStdLib Limits
 
+The user-selected .NET 11 migration is tracked in
+[#727](http://192.168.4.35:3000/admin/CLROS/issues/727). The active compiler
+source is dotnet/dotnet `820230c386db5b0106c5430b3e5aee92a7826bf5`.
+Its RTR26.1 module rows contain section ID, signed length and start pointer
+(16 bytes), replacing the old flags/start/end form. Interface dispatch also
+has a new metadata/cell ABI. The bounded adapters and finite profile matrix are
+qualified in [step1225](../done/step1225.md); historical .NET 10 sections below
+do not establish support for additional .NET 11 profiles.
+Object/array/string, GC descriptors, class constructors, EH and CPU-transfer
+contracts must each retain their independently reviewed evidence boundary.
+Current commands and version policy are in [host requirements](host-requirements.md).
+The same document records the C# 15 research: managed unions and preview
+memory-safety features are not implicit additions to the no-stdlib surface.
+
 M16-002 adds `OS.Std.Hash.Sha256.TryCompute`: allocation-free,
 one-shot SHA-256 over trusted caller pointers, at most 128 MiB, with 32-byte caller
 output. Invalid/null nonempty input, small output, overflow and overlap fail
@@ -241,13 +255,22 @@ optional allocation, collection, metadata and constructor probes described
 below. `std/no-runtime/shared` contains compatible helper slices; it is not a
 complete BCL or general runtime surface.
 
-The active compiler/runtime profile is qualified at `10.0.12` on SDK `10.0.401`
-for the finite host/native/guest matrix recorded in step1078.
+The historical compiler/runtime profile was qualified at `10.0.12` on SDK
+`10.0.401` for the finite host/native/guest matrix recorded in step1078.
 See [the current EFI toolchain](efi-build.md#current-toolchain-migration) and
 [step1078](../done/step1078.md) for its qualification boundary. Historical
 `10.0.8` acceptance below remains tied to its original source and artifacts.
 
 ## Accepted bounded interface dispatch
+
+This section records the earlier .NET 10 acceptance. The .NET 11 candidate
+uses zero-initialized two-word cells in section210, NativeArray metadata in
+section209 and relative NativeReferences in section331. Its 814-byte bridge
+exports `RhpInterfaceDispatch`; instruction bytes and relocations match the
+independently checked earlier bridge. Compiler cells remain unchanged and the
+bounded cache remains external. Original new COFF and guest qualification
+belong to #727; the old stub/cache-word and run-terminator layout below is not
+admitted as .NET 11 input.
 
 M04-016 uses the original registered module and current allocator receipt to
 admit a receiver before reading its method table. The core consumes the pinned
@@ -284,7 +307,7 @@ dispatch failures remain unsupported. This does not complete Gate4.
 
 ## Class-constructor implementation order
 
-The selected ILC 10.0.12 package identifies source revision
+The earlier ILC 10.0.12 package identifies source revision
 [`95017c711e6afc1085133d440e42b4bd78155701`](https://github.com/dotnet/dotnet/tree/95017c711e6afc1085133d440e42b4bd78155701/src/runtime).
 Its presence check for `System.Runtime.CompilerServices.ClassConstructorRunner`
 enables lazy initialization. The compiler allocates one pointer-sized context
@@ -746,8 +769,8 @@ reviewed integration merge.
 
 `ObjectArrayStringEETypeMethodTableLayoutContracts` evaluates scalar
 descriptions of fixed canonical objects, zero-based single-dimensional arrays
-and strings for x64 little-endian NativeAOT 10.0.12. It uses
-`dotnet/dotnet` source commit `95017c711e6afc1085133d440e42b4bd78155701`,
+and strings for x64 little-endian NativeAOT 11.0.0-rc.2.26504.105. It uses
+`dotnet/dotnet` source commit `820230c386db5b0106c5430b3e5aee92a7826bf5`,
 identified by both pinned compiler/runtime package metadata. The source
 authorities are `ObjectLayout.h`, `MethodTable.cs`, `MethodTable.Constants.cs`,
 `EETypeBuilderHelpers.cs`, `TargetDetails.cs`, `GCHelpers.cpp` and
@@ -1038,7 +1061,9 @@ same-image COFF/PE association and relocation remain separate evidence.
 
 The minimal Array shim has the demonstrated first signed length field and
 bounded getter. `RhpNewArrayFast` and `RhpNewPtrArrayFast` have the exact
-`object(MethodTable*, int)` ABI and default to terminal failure. The pinned
+`object(MethodTable*, nint)` ABI for the current .NET 11 compiler and default to
+terminal failure. Step952's historical .NET 10 ABI used `int`; the migration
+preserves the full signed native count until checked narrowing. The pinned
 compiler routes the genuine byte and long allocations to the two helpers;
 their names do not classify the presence of managed references. Both use the
 same private shared allocator path. The helper ledger adds one narrow
@@ -1613,7 +1638,7 @@ plus matching nonwritable unwind coverage. M01-034 does not call the binding,
 prove its success cookie in a guest, implement NativeAOT runtime helpers, or
 advance a runtime or boot completion gate.
 
-Most solution projects reference normal `net10.0` libraries to keep host
+Most solution projects reference normal `net11.0` libraries to keep host
 contracts buildable. `src/OS/OS.csproj` is included in `CLROS.slnx` as explicit
 no-stdlib work under stricter directory-local rules; it produces a minimal EFI
 PE artifact, but that artifact is not yet a boot-proven kernel. Canonical

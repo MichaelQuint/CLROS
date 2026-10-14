@@ -78,7 +78,7 @@ public static class EfiRestore
         }
         JsonObject targetObjects = Object(assets["targets"], "restore_project_assets_target_count_invalid");
         Require(targetObjects.Count == 2, "restore_project_assets_target_count_invalid");
-        foreach (string targetName in new[] { "net10.0", "net10.0/win-x64" })
+        foreach (string targetName in new[] { "net11.0", "net11.0/win-x64" })
         {
             var target = Object(targetObjects[targetName], "restore_project_assets_target_missing");
             Require(target.Count == names.Length, "restore_project_assets_target_library_count_invalid");

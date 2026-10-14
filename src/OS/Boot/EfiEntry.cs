@@ -17362,7 +17362,7 @@ public static unsafe class EfiEntry
         EfiSimpleTextOutputProtocol* console,
         EfiSerialIoProtocol* serial)
     {
-        NativeAotLayoutProfile profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
+        NativeAotLayoutProfile profile = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
         // Independent scalar expectations; large modeled sizes allocate no memory.
         if (
             !CheckM04LayoutResult(profile, 0x50000008, 24, 0, 24UL,
@@ -17433,9 +17433,11 @@ public static unsafe class EfiEntry
         WriteM04LayoutAscii(console, serial, (byte)'4', (byte)'_', (byte)'0', (byte)'0', (byte)'5', (byte)'_', (byte)'R', (byte)'E');
         WriteM04LayoutAscii(console, serial, (byte)'A', (byte)'D', (byte)'Y', (byte)' ', (byte)'p', (byte)'r', (byte)'o', (byte)'f');
         WriteM04LayoutAscii(console, serial, (byte)'i', (byte)'l', (byte)'e', (byte)'=', (byte)'i', (byte)'l', (byte)'c', (byte)'1');
-        WriteM04LayoutAscii(console, serial, (byte)'0', (byte)'.', (byte)'0', (byte)'.', (byte)'1', (byte)'2', (byte)'-', (byte)'w');
-        WriteM04LayoutAscii(console, serial, (byte)'i', (byte)'n', (byte)'-', (byte)'x', (byte)'6', (byte)'4', (byte)'-', (byte)'l');
-        WriteM04LayoutAscii(console, serial, (byte)'e', (byte)' ', (byte)'c', (byte)'h', (byte)'e', (byte)'c', (byte)'k', (byte)'s');
+        WriteM04LayoutAscii(console, serial, (byte)'1', (byte)'.', (byte)'0', (byte)'.', (byte)'0', (byte)'-', (byte)'r', (byte)'c');
+        WriteM04LayoutAscii(console, serial, (byte)'.', (byte)'2', (byte)'.', (byte)'2', (byte)'6', (byte)'5', (byte)'0', (byte)'4');
+        WriteM04LayoutAscii(console, serial, (byte)'.', (byte)'1', (byte)'0', (byte)'5', (byte)'-', (byte)'w', (byte)'i', (byte)'n');
+        WriteM04LayoutAscii(console, serial, (byte)'-', (byte)'x', (byte)'6', (byte)'4', (byte)'-', (byte)'l', (byte)'e', (byte)' ');
+        WriteM04LayoutAscii(console, serial, (byte)'c', (byte)'h', (byte)'e', (byte)'c', (byte)'k', (byte)'s', 0, 0);
         WriteM04LayoutAscii(console, serial, (byte)'=', (byte)'1', (byte)'9', (byte)' ', (byte)'s', (byte)'h', (byte)'a', (byte)'p');
         WriteM04LayoutAscii(console, serial, (byte)'e', (byte)'s', (byte)'=', (byte)'3', (byte)' ', (byte)'p', (byte)'r', (byte)'e');
         WriteM04LayoutAscii(console, serial, (byte)'f', (byte)'i', (byte)'x', (byte)'B', (byte)'y', (byte)'t', (byte)'e', (byte)'s');

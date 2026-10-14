@@ -6,7 +6,7 @@ This directory is the staging area for shared no-runtime-compatible utilities an
 
 Shared string, numeric, collection, memory, and utility behavior must be implemented here before kernel/app code uses it.
 
-This project currently builds as `net10.0` for host validation, but the code should be written so it can migrate toward freestanding NativeAOT/no-stdlib use.
+This project currently builds as `net11.0` for host validation, but the code should be written so it can migrate toward freestanding NativeAOT/no-stdlib use.
 
 ## Namespace Rules
 

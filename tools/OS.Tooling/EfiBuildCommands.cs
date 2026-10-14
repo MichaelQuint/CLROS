@@ -13,7 +13,7 @@ public sealed record EfiBuildCommands(string Executable, string WorkingDirectory
     {
         string root = options.Root, configuration = preflight.Configuration;
         string project = Path.GetFullPath(Path.Combine(root, "src/OS/OS.csproj"));
-        string intermediate = Path.GetFullPath(Path.Combine(root, "src/OS/obj", configuration, "net10.0/win-x64"));
+        string intermediate = Path.GetFullPath(Path.Combine(root, "src/OS/obj", configuration, "net11.0/win-x64"));
         string extensions = Path.Combine(intermediate, "nuget"), packages = Path.Combine(intermediate, "packages");
         var isolation = EfiMsbuild.IsolationProperties(root, extensions, packages, preflight.DotnetSdkDirectory);
         var canonical = EfiMsbuild.CanonicalPaths(packages, preflight.NativeAotRuntimePackPath, preflight.DotnetSdkDirectory);

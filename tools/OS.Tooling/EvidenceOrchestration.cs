@@ -81,8 +81,8 @@ public static class EvidenceOrchestration
         SmokeContracts.ValidateWorkload(options.WorkloadProfile);
         string prefix = baseline ? "baseline" : "ci.smoke";
         string configuration = new DirectoryInfo(AppContext.BaseDirectory).Parent?.Name ?? "Debug";
-        string tool = Path.Combine(root, "tools", "OS.Tooling", "bin", configuration, "net10.0", "OS.Tooling.dll");
-        string host = Path.Combine(root, "tests", "OS.HostTests", "bin", configuration, "net10.0", "OS.HostTests.dll");
+        string tool = Path.Combine(root, "tools", "OS.Tooling", "bin", configuration, "net11.0", "OS.Tooling.dll");
+        string host = Path.Combine(root, "tests", "OS.HostTests", "bin", configuration, "net11.0", "OS.HostTests.dll");
         string Log(string file) => Path.Combine(logRoot, file);
         List<EvidenceStep> steps = [];
         EvidenceStep Tool(string name, string log, params string[] args) => new(prefix + "." + name, "dotnet", [tool, .. args], Log(log));

@@ -2816,7 +2816,7 @@ internal static class ImageBuilderTests
     private static string GetCurrentTargetFramework()
     {
         DirectoryInfo directory = new DirectoryInfo(AppContext.BaseDirectory);
-        return string.IsNullOrWhiteSpace(directory.Name) ? "net10.0" : directory.Name;
+        return string.IsNullOrWhiteSpace(directory.Name) ? "net11.0" : directory.Name;
     }
 
     private static byte[] CreateEfiBytes()

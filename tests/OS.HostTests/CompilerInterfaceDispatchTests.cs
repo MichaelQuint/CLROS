@@ -150,25 +150,26 @@ internal static unsafe class CompilerInterfaceDispatchTests
     [HostTest("m04.016.interface-dispatch.cell-encoding", HostLane.Fast, 5)]
     private static void CellEncoding()
     {
-        foreach (ulong word in new ulong[] { 0, 0xFF8, 1, 2, 0x100000003 })
+        foreach (ulong word in new ulong[] { 0xFF8, 1, 2, 0x100000003 })
         {
             using var f = new Fixture();
             *(ulong*)(f.Image + 0x5108) = word;
-            Expect(f.Bind(), Status.UnsupportedCell);
+            Expect(f.Bind(), Status.CellRejected);
             Check(f.RunnerBytes().All(b => b == 0), "cell rejection before controller write");
         }
         using (var f = new Fixture())
         {
             Expect(f.Bind(bytes: 16), Status.CellRejected);
+            Expect(f.Bind(bytes: 96), Status.CellRejected);
+            Expect(f.Bind(start: f.Cell(1), bytes: 64), Status.CellRejected);
             Expect(f.Bind(start: ulong.MaxValue - 15), Status.CellRejected);
-            *(ulong*)(f.Image + 0x5118) = 0x10000;
-            Expect(f.Bind(), Status.CellRejected);
+            Expect(f.Bind(cells: 4), Status.CellRejected);
         }
         using (var f = new Fixture())
         {
-            for (int i = 0; i < 33; i++) f.CellRecord(0x5100 + i * 16, 0x1900);
-            *(ulong*)(f.Image + 0x5310) = 0; *(ulong*)(f.Image + 0x5318) = 0;
-            Expect(f.Bind(bytes: 34 * 16, cells: 64), Status.CellRejected);
+            *(ulong*)(f.Image + 0x5100) = f.Address(0x11000);
+            f.Rel(0x5108, 0x1900, 3); // A .NET 10 initial-stub/cache cell is never admitted.
+            Expect(f.Bind(), Status.CellRejected);
         }
         using (var f = new Fixture())
         {
@@ -180,6 +181,58 @@ internal static unsafe class CompilerInterfaceDispatchTests
         {
             var receiver = f.Allocate(0x2300); Expect(f.Bind(), Status.Success);
             Expect(Core.Resolve(f.Runner, Fixture.Capacity, receiver.ObjectReference, f.Cell(0) + 8, out _), Status.CellRejected);
+        }
+    }
+
+    [HostTest("m04.016.interface-dispatch.native-array", HostLane.Fast, 8)]
+    private static void NativeArray()
+    {
+        // Independently authored single sparse entry covers every subsequent
+        // zero cell in the same target run, including indices beyond array count.
+        using (var f = new Fixture(info: [8, 1, 0, 0, 0]))
+        {
+            var receiver = f.Allocate(0x2300); Expect(f.Bind(), Status.Success);
+            Check(f.Resolve(receiver, 4).Target == f.Address(0x11010), "sparse preceding target run");
+            f.Image[0x1204] = 2;
+            f.Reject(receiver.ObjectReference, 4, Status.MetadataChanged);
+        }
+        foreach (byte[] info in new byte[][]
+        {
+            [], [0], [14, 1, 0, 0, 0], [8, 255], [8, 1, 31],
+            [8, 1, 0, 0], [8, 1, 8, 0, 0], [8, 1, 0, 10, 0],
+            [8, 1, 0, 0, 128], [8, 1, 0, 15, 255, 255, 255, 255, 0]
+        })
+        {
+            using var f = new Fixture(info: info);
+            var status = f.Bind();
+            Check(status is Status.MetadataRejected or Status.SlotRejected, "malformed NativeArray rejected: " + status);
+            Check(f.RunnerBytes().All(b => b == 0), "malformed metadata leaves owner unbound");
+        }
+        // All legal root index widths, and all unsigned integer widths, use
+        // exactly the same independently known {reference 0, slot 0} tuple.
+        foreach (byte[] info in new byte[][]
+        {
+            [10, 2, 0, 0, 0, 0], [12, 4, 0, 0, 0, 0, 0, 0],
+            [8, 1, 0, 1, 0, 0], [8, 1, 0, 3, 0, 0, 0],
+            [8, 1, 0, 7, 0, 0, 0, 0], [8, 1, 0, 15, 0, 0, 0, 0, 0]
+        })
+        {
+            using var f = new Fixture(info: info);
+            var receiver = f.Allocate(0x2300); Expect(f.Bind(), Status.Success);
+            Check(f.Resolve(receiver, 4).RequestedInterface == f.Address(0x1900), "index and integer widths");
+        }
+        using (var f = new Fixture())
+        {
+            var receiver = f.Allocate(0x2300); Expect(f.Bind(), Status.Success);
+            f.Rel(0x1300, 0x1A00);
+            f.Reject(receiver.ObjectReference, 0, Status.MetadataChanged);
+        }
+        foreach (var absent in new[] { (208U, 210U, 331U, Status.MetadataRejected),
+            (209U, 211U, 331U, Status.CellRejected), (209U, 210U, 332U, Status.MetadataRejected) })
+        {
+            using var f = new Fixture(infoId: absent.Item1, cellsId: absent.Item2, referencesId: absent.Item3);
+            Expect(f.Bind(), absent.Item4);
+            Check(f.RunnerBytes().All(b => b == 0), "required ABI section absent before owner publication");
         }
     }
 
@@ -268,7 +321,7 @@ internal static unsafe class CompilerInterfaceDispatchTests
     {
         internal const uint ImageSize = 0x18000;
         internal const ulong Capacity = 32768;
-        internal const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
+        internal const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
         internal readonly byte* Image = (byte*)NativeMemory.AlignedAlloc(ImageSize, 4096);
         internal readonly byte* Owner = (byte*)NativeMemory.AllocZeroed(4096);
         private readonly byte* runnerAllocation = (byte*)NativeMemory.AllocZeroed((nuint)Capacity + 16);
@@ -281,7 +334,8 @@ internal static unsafe class CompilerInterfaceDispatchTests
         internal readonly ulong Handle;
         internal ulong DerivedSealedBytes = 4;
 
-        internal Fixture(bool inline = false, uint textFlags = 0x60000020)
+        internal Fixture(bool inline = false, uint textFlags = 0x60000020, byte[]? info = null,
+            uint infoId = 209, uint cellsId = 210, uint referencesId = 331)
         {
             Check(Image != null && Owner != null && runnerAllocation != null && heapAllocation != null, "fixture allocation");
             NativeMemory.Clear(Image, ImageSize); NativeMemory.Clear(heapAllocation, 65536);
@@ -295,9 +349,15 @@ internal static unsafe class CompilerInterfaceDispatchTests
             Section(2, ".modules", 0x10000, 16, 0x40000040);
             Section(3, ".text", 0x11000, 0x1000, textFlags);
             *(ulong*)(Image + 0x10000) = Address(0x1000);
-            *(uint*)(Image + 0x1000) = 0x00525452; *(ushort*)(Image + 0x1004) = 16;
-            *(ushort*)(Image + 0x100C) = 1; Image[0x100E] = 24; Image[0x100F] = 1;
-            *(uint*)(Image + 0x1010) = 204; *(ulong*)(Image + 0x1018) = Address(0x5000);
+            *(uint*)(Image + 0x1000) = 0x00525452; *(ushort*)(Image + 0x1004) = 26;
+            *(ushort*)(Image + 0x1006) = 1;
+            *(ushort*)(Image + 0x100C) = 4; Image[0x100E] = 16; Image[0x100F] = 1;
+            // Five explicit NativeArray leaves: indices 0..4 each select the
+            // corresponding external reference and interface slot zero.
+            info ??= [40, 1, 2, 102, 54, 30, 0, 0, 2, 0, 30, 4, 0, 6, 0, 32, 8, 0];
+            info.CopyTo(new Span<byte>(Image + 0x1200, info.Length));
+            ModuleSection(0, 204, 0x5000, 16); ModuleSection(1, infoId, 0x1200, info.Length);
+            ModuleSection(2, cellsId, 0x5100, 80); ModuleSection(3, referencesId, 0x1300, 20);
             var observation = EfiLoadedImageProtocolObservation.CaptureFromUefiBoundary(0, 0x1000, 0x2000, (ulong)Image, ImageSize);
             Capture = EfiLoadedImageRangeCapturePlan.Create(&observation, 1, 1, 4096);
             Mapping = M01LoadedImageVirtualMappingEvidence.CaptureCallerAttestedIdentity(Capture);
@@ -320,7 +380,7 @@ internal static unsafe class CompilerInterfaceDispatchTests
             Map(0x3B00, (0, 0, 1)); Rel(0x3C00, 0x11070);
             Type(0x2600, 0x50000000, 24, 0x2500, [0x11080, 0x11090, 0x110A0], [0x1A00, 0x1900]);
             int[] requested = [0x1900, 0x1F00, 0x2200, 0x2000, 0x2100];
-            for (int i = 0; i < requested.Length; i++) CellRecord(0x5100 + i * 32, requested[i]);
+            for (int i = 0; i < requested.Length; i++) Rel(0x1300 + i * 4, requested[i]);
             Heap = new() { Allocator = (BootPageAllocatorState*)(heapAllocation + 0x100), AllocatorCapacity = 1,
                 Nodes = (BootPageFreeListNode*)(heapAllocation + 0x300), NodeCount = 1, NodeCapacity = 2,
                 Reservations = (BootReservedRange*)(heapAllocation + 0x1000), ReservationCount = 2, ReservationCapacity = 3,
@@ -338,7 +398,7 @@ internal static unsafe class CompilerInterfaceDispatchTests
                 Alloc.EnableCollection(Heap, Allocator, Alloc.RequiredCollectingStateBytes) == RhpNewFastStatus.Success, "original collecting owner");
         }
 
-        internal Status Bind(ulong bytes = 160, uint cells = 8, uint cache = 8, byte* storage = null, ulong start = 0, bool admitSealed = true)
+        internal Status Bind(ulong bytes = 80, uint cells = 8, uint cache = 8, byte* storage = null, ulong start = 0, bool admitSealed = true)
         {
             CompilerInterfaceDispatchSealedTable* tables = stackalloc CompilerInterfaceDispatchSealedTable[4];
             tables[0] = new() { DeclaringType = Address(0x2300), Table = Address(0x3900), Bytes = 12 };
@@ -367,8 +427,12 @@ internal static unsafe class CompilerInterfaceDispatchTests
             Check(result.Target == 0 && result.ReceiverType == 0 && result.AllocationSequence == 0 && !result.CacheHit, "rejection has no dispatch payload");
         }
         internal ulong Address(int offset) => (ulong)Image + (uint)offset;
-        internal ulong Cell(int index) => Address(0x5100 + index * 32);
-        internal void CellRecord(int offset, int type) { *(ulong*)(Image + offset) = Address(0x11000); Rel(offset + 8, type, 3); }
+        internal ulong Cell(int index) => Address(0x5100 + index * 16);
+        private void ModuleSection(int index, uint id, int start, int bytes)
+        {
+            byte* row = Image + 0x1010 + index * 16;
+            *(uint*)row = id; *(int*)(row + 4) = bytes; *(ulong*)(row + 8) = Address(start);
+        }
         internal void Rel(int at, int to, int tag = 0) => *(int*)(Image + at) = to - at + tag;
         internal void Type(int at, uint flags, uint size, int parent, int[] slots, int[] interfaces,
             int map = 0, int sealedTable = 0, int definition = 0, int composition = 0)

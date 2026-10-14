@@ -673,7 +673,7 @@ internal static class M01InstructionPublicationBuildIntegrationTests
             string assemblyPath = Path.Combine(
                 baseOutputPath,
                 "Release",
-                "net10.0",
+                "net11.0",
                 "win-x64",
                 "OS.dll");
             Directory.CreateDirectory(Path.GetDirectoryName(assemblyPath)!);
@@ -1391,7 +1391,7 @@ internal static class M01InstructionPublicationBuildIntegrationTests
         string nativeIntermediatePath = Path.Combine(
             baseIntermediatePath,
             "Release",
-            "net10.0",
+            "net11.0",
             "win-x64",
             "native");
         string objectPath = Path.Combine(
@@ -1404,12 +1404,12 @@ internal static class M01InstructionPublicationBuildIntegrationTests
             toolRoot,
             "bin",
             "Release",
-            "net10.0",
+            "net11.0",
             "OS.X64TextSerializerGenerator.exe");
         string fileListPath = Path.Combine(
             baseIntermediatePath,
             "Release",
-            "net10.0",
+            "net11.0",
             "win-x64",
             "OS.csproj.FileListAbsolute.txt");
 

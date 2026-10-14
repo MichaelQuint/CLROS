@@ -113,6 +113,20 @@ internal static class M04FilteredCatchEfiIntegrationTests
         foreach (string method in new[] { "FilterThrower","FilterCatcher","FilterDecision","FilterCatchEntered","FilterContinued","MatchRetainedExceptionType","MatchFilteredExceptionType","SelectFilteredCatch","ValidateFilteredContinuation","FilterContextMatches" })
             controls.Add((Offset("OS_OS_Runtime_RhpNewFastAllocation__"+method,1),"filters_method_bytes_mismatch"));
         controls.Add((Offset("RhTypeCast_IsInstanceOfClass",1),"filters_method_bytes_mismatch"));
+        // Independent semantic controls for the reviewed .NET 11 callbacks:
+        // the predicate selects profile 2 and retains its result in saved EBX;
+        // context equality visits all 30 qwords with an eight-byte stride.
+        int predicate = Offset("OS_OS_Runtime_RhpNewFastAllocation__MatchFilteredExceptionType",529),
+            context = Offset("OS_OS_Runtime_RhpNewFastAllocation__FilterContextMatches",144);
+        HostCheck.True(original.AsSpan(predicate+434,5).SequenceEqual(new byte[]{0xB9,2,0,0,0}) &&
+            original.AsSpan(predicate+454,6).SequenceEqual(new byte[]{0x0F,0xB6,0x5D,0xC1,0x85,0xDB}) &&
+            original.AsSpan(predicate+471,2).SequenceEqual(new byte[]{0x8B,0xC3}),
+            "profile 2 and preserved predicate result across retained-object validation");
+        HostCheck.True(original.AsSpan(context+96,6).SequenceEqual(new byte[]{0x41,0xB8,30,0,0,0}) &&
+            original.AsSpan(context+112,9).SequenceEqual(new byte[]{0x48,0x83,0xC2,8,0x41,0xFF,0xC8,0x75,0xED}),
+            "complete 240-byte context comparison with bounded countdown");
+        foreach(int at in new[]{predicate+435,predicate+455,predicate+472,context+98,context+115,context+120})
+            controls.Add((at,"filters_method_bytes_mismatch"));
         controls.Add((Offset("OS_OS_Runtime_RhpNewFastAllocation__FilterCatcher",76)+75,"filters_method_target_mismatch"));
         controls.Add((Offset("__ehinfo_OS_OS_Runtime_RhpNewFastAllocation__FilterCatcher",11)+10,"filters_table_mismatch"));
         controls.Add((Offset("_unwind0OS_OS_Runtime_RhpNewFastAllocation__FilterCatcher",13)+8,"filters_unwind_mismatch"));

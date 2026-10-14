@@ -45,6 +45,11 @@ internal static unsafe class M04X64UnwindMetadataEfiIntegrationTests
         Need(X64PERuntimeFunctionUnwindMetadataHostileInput.StateBytes == 288,
             "actual x64 retained-state geometry exercised by transcript mutations below");
         string probe = File.ReadAllText(Path.Combine(root, "src/OS/Runtime/X64UnwindMetadataProbe.cs"));
+        string normalizedProbe = string.Concat(probe.Where(character => !char.IsWhiteSpace(character)));
+        Need(TypeManagerModuleMetadataLiveNativeAOTImage.SlotBytes == 16 &&
+            normalizedProbe.Contains("original.Length!=(int)TypeManagerModuleMetadataLiveNativeAOTImage.SlotBytes", StringComparison.Ordinal) &&
+            normalizedProbe.Contains("retained.Length!=(int)TypeManagerModuleMetadataLiveNativeAOTImage.SlotBytes", StringComparison.Ordinal),
+            "initial and retained section 204 checks consume the current two-word indirection extent");
         Need(probe.StartsWith("#if NOSTDLIB_EFI && M04_X64_UNWIND_METADATA_PROBE", StringComparison.Ordinal) &&
             probe.Contains("[System.Runtime.RuntimeExport(\"__security_cookie\")]", StringComparison.Ordinal) &&
             probe.Split("SecurityCookieStorageAnchor(", StringSplitOptions.None).Length == 2,

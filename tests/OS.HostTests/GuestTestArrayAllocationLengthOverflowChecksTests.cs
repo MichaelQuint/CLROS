@@ -17,7 +17,7 @@ internal static unsafe class GuestTestArrayAllocationLengthOverflowChecksTests
 {
     private const ulong Token = 0x1234567800000008;
     private const ulong Token2 = 0xABCD987600000018;
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
 
     [HostFixture(HostLane.Native)]
     internal static void Run()
@@ -67,7 +67,7 @@ internal static unsafe class GuestTestArrayAllocationLengthOverflowChecksTests
         Expect(f, Status.NotInitialized);
         Require(Bind(f).Succeeded, "sole fixed binder");
         Expect(f, Status.UnsupportedProfile, profile: 0, token: 0, flags: 0, length: -1);
-        foreach (NativeAotLayoutProfile p in new[] { (NativeAotLayoutProfile)2, (NativeAotLayoutProfile)255 })
+        foreach (NativeAotLayoutProfile p in new[] { NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian, (NativeAotLayoutProfile)255 })
             Expect(f, Status.UnsupportedProfile, profile: p);
         Expect(f, Status.InvalidMethodTableToken, token: 0, flags: 0, length: -1);
         byte[] snapshot = f.Snapshot();
@@ -193,7 +193,7 @@ internal static unsafe class GuestTestArrayAllocationLengthOverflowChecksTests
         using Fixture f = new(); Bind(f);
         foreach(uint width in new uint[]{1,2,4,8})
         {
-            foreach(int length in new[]{int.MinValue,-1,0x7FFFFFC8,int.MaxValue})
+            foreach(long length in new[]{long.MinValue,int.MinValue,-1L,0x7FFFFFC8,int.MaxValue,0x100000000L,0x100000001L,long.MaxValue})
                 Expect(f,Status.InvalidLength,flags:0xE0020000|width,length:length);
             foreach(int length in new[]{0x7FFFFFC6,0x7FFFFFC7})
                 Expect(f,Status.Exhausted,flags:0xE0020000|width,length:length);
@@ -353,12 +353,12 @@ internal static unsafe class GuestTestArrayAllocationLengthOverflowChecksTests
 
     private static NativeAotMethodTablePrefix Prefix(uint flags,uint size=24) => new(flags,size,0xFEDCBA9876543211,ushort.MaxValue,ushort.MaxValue,0xDEADBEEF);
     private static RhpNewFastResult Bind(Fixture f) => Fixed.InitializeOnce(f.Access,f.State,f.StateCapacity);
-    private static RhpNewFastResult Allocate(Fixture f,uint width,int length,uint extra=0,ulong token=Token) =>
+    private static RhpNewFastResult Allocate(Fixture f,uint width,long length,uint extra=0,ulong token=Token) =>
         Arrays.TryAllocate(f.Access,f.State,f.StateCapacity,Profile,Prefix(0xE0020000|width|extra),token,length);
     private static ManagedHeapPageRangeResult Retained(RhpNewFastHeapAccess a) => Heap.ValidateRetained(a.Allocator,
         a.AllocatorCapacity,a.Nodes,a.NodeCount,a.NodeCapacity,a.Reservations,a.ReservationCount,
         a.ReservationCapacity,a.ParentIndex,a.Backing,a.BackingCapacity,a.Heap,a.HeapCapacity);
-    private static void Expect(Fixture f,Status expected,uint flags=0xE0020001,uint size=24,int length=0,
+    private static void Expect(Fixture f,Status expected,uint flags=0xE0020001,uint size=24,long length=0,
         ulong token=Token,NativeAotLayoutProfile profile=Profile,ManagedHeapPageRangeStatus heapStatus=default)
     {
         byte[] before=f.Snapshot();Reject(Arrays.TryAllocate(f.Access,f.State,f.StateCapacity,profile,Prefix(flags,size),token,length),expected,heapStatus);
@@ -465,7 +465,7 @@ internal static unsafe class GuestTestArrayAllocationLengthOverflowChecksTests
         File.WriteAllText(Path.Combine(directory,"Compile.csproj"),$$"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
-                <TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion>
+                <TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion>
                 <OutputType>Library</OutputType><AssemblyName>CLROS.M04.Array.NoStdLib</AssemblyName>
                 <EnableDefaultCompileItems>false</EnableDefaultCompileItems><AllowUnsafeBlocks>true</AllowUnsafeBlocks>
                 <NoStdLib>true</NoStdLib><DefineConstants>NOSTDLIB_EFI</DefineConstants><NoConfig>true</NoConfig>
@@ -497,7 +497,7 @@ internal static unsafe class GuestTestArrayAllocationLengthOverflowChecksTests
         File.WriteAllText(Path.Combine(directory,"build.stdout.log"),stdout.Result);File.WriteAllText(Path.Combine(directory,"build.stderr.log"),stderr.Result);
         File.WriteAllText(Path.Combine(directory,"result.json"),System.Text.Json.JsonSerializer.Serialize(new{Exited=exited,NativeExit=process.ExitCode,EndedUtc=DateTime.UtcNow}));
         Require(exited && process.ExitCode==0,"actual eleven-source no-stdlib compile: "+directory+" "+stdout.Result+stderr.Result);
-        using FileStream stream=File.OpenRead(Path.Combine(directory,"bin","Release","net10.0","CLROS.M04.Array.NoStdLib.dll"));
+        using FileStream stream=File.OpenRead(Path.Combine(directory,"bin","Release","net11.0","CLROS.M04.Array.NoStdLib.dll"));
         using PEReader pe=new(stream);MetadataReader metadata=pe.GetMetadataReader();
         Require(metadata.AssemblyReferences.Count==0,"zero AssemblyRefs");
         foreach((string type,string method) in new[]{("GuestTestArrayAllocationLengthOverflowChecks","TryAllocate"),("GuestTestRhpNewFast","TryAllocate"),("GuestTestRhpNewFast","TryAllocateArray"),("GuestTestRhpNewFast","AllocateCore")})

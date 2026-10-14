@@ -27,7 +27,7 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
         Run("m04.011 RTR format and unsupported dehydration reject", Format, ref failures);
         Run("m04.011 row lengths bounds and identifiers are checked", Rows, ref failures);
         Run("m04.011 registration publishes exact ABI and index once", Registration, ref failures);
-        Run("m04.011 writable slot admits sixteen bytes not lookup eight", Slot, ref failures);
+        Run("m04.011 writable slot requires exactly sixteen bytes", Slot, ref failures);
         Run("m04.011 full storage capacity aliases reject before writes", Storage, ref failures);
         Run("m04.011 repeated foreign and altered owner calls reject", Owner, ref failures);
         Run("m04.011 well formed metadata replacement loses retained identity", MetadataTamper, ref failures);
@@ -55,6 +55,8 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
     private static void Layout()
     {
         Check(sizeof(NativeAotTypeManagerAbi) == 48 && Marshal.SizeOf<NativeAotTypeManagerAbi>() == 48, "ABI48");
+        Check(Core.PinnedMajorVersion == 26 && Core.PinnedMinorVersion == 1 && Core.ModuleInfoRowBytes == 16,
+            "reviewed NativeAOT 26.1 explicit-length row ABI");
         string[] fields = ["OsModule", "ReadyToRunHeader", "GcStaticRegion", "ThreadStaticRegion", "ClassLibraryFunctions", "ClassLibraryFunctionCount", "Padding"];
         int[] offsets = [0, 8, 16, 24, 32, 40, 44];
         for (int i = 0; i < fields.Length; i++) Check(Marshal.OffsetOf<NativeAotTypeManagerAbi>(fields[i]).ToInt32() == offsets[i], fields[i]);
@@ -132,8 +134,9 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
     {
         Action<Fixture>[] bad = [
             f => W32(f.Image + 0x1000, 0), f => W16(f.Image + 0x1004, 15),
-            f => W16(f.Image + 0x1006, 1), f => W32(f.Image + 0x1008, 1),
-            f => f.Image[0x100E] = 16, f => f.Image[0x100F] = 0,
+            f => W16(f.Image + 0x1006, 0), f => W32(f.Image + 0x1008, 1),
+            f => f.Image[0x100E] = 24, f => f.Image[0x100F] = 0,
+            f => { W16(f.Image + 0x1004, 16); W16(f.Image + 0x1006, 0); f.Image[0x100E] = 24; },
             f => W32(f.Row(3), 207)
         ];
         foreach (var change in bad) Rejected(change, Status.UnsupportedFormat);
@@ -145,19 +148,18 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
     {
         Action<Fixture>[] bad = [
             f => W32(f.Row(0), 0), f => W32(f.Row(1), 202),
-            f => W32(f.Row(1), uint.MaxValue), f => W32(f.Row(2) + 4, 2),
-            f => W64(f.Row(1) + 16, 1),
-            f => W64(f.Row(2) + 16, f.Address(0x10FF)),
-            f => W64(f.Row(2) + 16, f.Address(0x1100) + 0x80000000),
+            f => W32(f.Row(1), uint.MaxValue), f => W32(f.Row(2) + 4, 0x80000000),
+            f => W32(f.Row(2) + 4, uint.MaxValue),
+            f => W32(f.Row(2) + 4, 0xF01),
+            f => W32(f.Row(2) + 4, int.MaxValue),
             f => W64(f.Row(2) + 8, f.Address(0x7000)),
-            f => W64(f.Row(2) + 16, f.Address(0x2001)),
+            f => W64(f.Row(2) + 8, 0),
             f => W64(f.Row(2) + 8, ulong.MaxValue - 7),
-            f => { W64(f.Row(2) + 8, f.Address(0x2008)); W64(f.Row(2) + 16, f.Address(0x2010)); }
+            f => W64(f.Row(2) + 8, f.Address(0x2008))
         ];
         foreach (var change in bad) Rejected(change, Status.MetadataRejected);
         using Fixture aliases = new();
         W64(aliases.Row(4) + 8, aliases.Address(0x1100));
-        W64(aliases.Row(4) + 16, aliases.Address(0x1118));
         Check(aliases.Register().Succeeded, "legitimate readonly payload overlap");
     }
 
@@ -181,7 +183,7 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
         var empty = f.Lookup(result.Handle, 213);
         var absent = f.Lookup(result.Handle, 201);
         var payload = f.Lookup(result.Handle, 301);
-        Check(slot.Succeeded && slot.Length == 8 && slot.Section == f.Address(0x2000), "no end row");
+        Check(slot.Succeeded && slot.Length == 16 && slot.Section == f.Address(0x2000), "explicit slot length");
         Check(empty.Succeeded && empty.Length == 0 && empty.Section == f.Address(0x1110), "present empty");
         Check(absent.Status == Status.SectionAbsent && absent.Section == 0 && absent.Length == 0, "absent");
         Check(payload.Succeeded && payload.Length == 24 && payload.Section == f.Address(0x1200), "range row");
@@ -199,7 +201,8 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
         Rejected(f => W64(f.Row(1) + 8, f.Address(0x3FF8)), Status.MetadataRejected);
         Rejected(f => W64(f.Row(1) + 8, f.Address(0x2001)), Status.MetadataRejected);
         Rejected(f => W64(f.Row(1) + 8, f.Address(0x1300)), Status.MetadataRejected);
-        Rejected(f => { W32(f.Row(1) + 4, 1); W64(f.Row(1) + 16, f.Address(0x2010)); }, Status.MetadataRejected);
+        foreach (uint bytes in new uint[] { 0, 8, 15, 17 })
+            Rejected(f => W32(f.Row(1) + 4, bytes), Status.MetadataRejected);
         Rejected(f => W64(f.Image + 0x2008, 1UL << 32), Status.AlreadyRegistered);
         Rejected(f => W64(f.Image + 0x2000, 1), Status.AlreadyRegistered);
     }
@@ -248,7 +251,8 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
     private static void MetadataTamper()
     {
         Action<Fixture>[] changes = [
-            f => { W64(f.Row(4) + 8, f.Address(0x1240)); W64(f.Row(4) + 16, f.Address(0x1258)); },
+            f => W64(f.Row(4) + 8, f.Address(0x1240)),
+            f => W32(f.Row(4) + 4, 25),
             f => W32(f.Row(4), 302), f => f.Image[2] = 1,
             f => W32(f.Section(3) + 36, 0x60000060),
             f => { W64(f.Image + 0x5000, 0); W64(f.Image + 0x5008, f.Address(0x1000)); }
@@ -360,10 +364,10 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
         using Fixture f = new();
         // GCStaticRegion contains rel32 entries in RO metadata. The future cell
         // is separate writable data, not the registered row extent itself.
-        W32(f.Row(0), 201); W64(f.Row(0) + 8, f.Address(0x1100)); W64(f.Row(0) + 16, f.Address(0x1104));
+        W32(f.Row(0), 201); W32(f.Row(0) + 4, 4); W64(f.Row(0) + 8, f.Address(0x1100));
         W32(f.Image + 0x1100, 0x1100); // signed rel32 from 0x1100 to cell 0x2200.
-        W64(f.Row(3) + 8, f.Address(0x2300)); W64(f.Row(3) + 16, f.Address(0x2300));
-        W64(f.Row(4) + 8, f.Address(0x2400)); W64(f.Row(4) + 16, f.Address(0x2418));
+        W64(f.Row(3) + 8, f.Address(0x2300));
+        W64(f.Row(4) + 8, f.Address(0x2400));
         var r = f.Register(); Check(r.Succeeded, "separate entry/cell registration");
         ExpectRange(f, r.Handle, f.Address(0x1100), 4, RangeKind.ImmutableMetadata, Status.Success);
         ExpectRange(f, r.Handle, f.Address(0x1100), 4, RangeKind.ReadableSectionData, Status.Success);
@@ -374,7 +378,7 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
         ExpectRange(f, r.Handle, f.Address(0x2200), 8, RangeKind.MutableData, Status.Success);
         ExpectRange(f, r.Handle, f.Address(0x22F8), 16, RangeKind.MutableData, Status.Success); // empty row excludes no byte.
         foreach ((int offset, ulong size) in new (int, ulong)[] {
-            (0, 1), (0x1000, 1), (0x1087, 1), (0x1100, 4),
+            (0, 1), (0x1000, 1), (0x105F, 1), (0x1100, 4),
             (0x2000, 1), (0x2008, 1), (0x200F, 1), (0x1FFF, 2),
             (0x2400, 1), (0x2417, 1), (0x23FF, 2), (0x5000, 16) })
             ExpectRange(f, r.Handle, f.Address(offset), size, RangeKind.MutableData, Status.RangeProtectedOverlap);
@@ -466,20 +470,20 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
             Section(2, ".modules", 0x5000, 16, 0x40000040);
             Section(3, ".text", 0x6000, 0x1000, 0x60000020);
             W64(Image + 0x5000, Address(0x1000));
-            W32(Image + 0x1000, 0x00525452); W16(Image + 0x1004, 16); W16(Image + 0x100C, 5);
-            Image[0x100E] = 24; Image[0x100F] = 1;
-            Row(0, 202, 1, 0x2100, 0x2108); Row(1, 204, 0, 0x2000, 0);
-            Row(2, 206, 1, 0x1100, 0x1108); Row(3, 213, 1, 0x1110, 0x1110); Row(4, 301, 1, 0x1200, 0x1218);
+            W32(Image + 0x1000, 0x00525452); W16(Image + 0x1004, 26); W16(Image + 0x1006, 1); W16(Image + 0x100C, 5);
+            Image[0x100E] = 16; Image[0x100F] = 1;
+            Row(0, 202, 8, 0x2100); Row(1, 204, 16, 0x2000);
+            Row(2, 206, 8, 0x1100); Row(3, 213, 0, 0x1110); Row(4, 301, 24, 0x1200);
             Capture = TypeManagerModuleMetadataLiveNativeAOTImageTests.Capture((ulong)Image, ImageSize);
             Mapping = M01LoadedImageVirtualMappingEvidence.CaptureCallerAttestedIdentity(Capture);
         }
 
         internal ulong Address(int offset) => (ulong)Image + (uint)offset;
-        internal byte* Row(int i) => Image + 0x1010 + 24 * i;
+        internal byte* Row(int i) => Image + 0x1010 + 16 * i;
         internal byte* Section(int i) => Image + 0x188 + 40 * i;
-        private void Row(int i, uint id, uint flags, int start, int end)
+        private void Row(int i, uint id, uint length, int start)
         {
-            byte* r = Row(i); W32(r, id); W32(r + 4, flags); W64(r + 8, Address(start)); W64(r + 16, end == 0 ? 0 : Address(end));
+            byte* r = Row(i); W32(r, id); W32(r + 4, length); W64(r + 8, Address(start));
         }
         private void Section(int i, string name, uint start, uint bytes, uint flags)
         {
@@ -540,7 +544,7 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
         File.WriteAllText(Path.Combine(directory, "inputs.json"), JsonSerializer.Serialize(identities, new JsonSerializerOptions { WriteIndented = true }));
         var project = new XElement("Project", new XAttribute("Sdk", "Microsoft.NET.Sdk"),
             new XElement("PropertyGroup",
-                new XElement("TargetFramework", "net10.0"), new XElement("LangVersion", "14.0"),
+                new XElement("TargetFramework", "net11.0"), new XElement("LangVersion", "14.0"),
                 new XElement("AssemblyName", "M04_011_Closure"), new XElement("OutputType", "Library"),
                 new XElement("AllowUnsafeBlocks", "true"), new XElement("EnableDefaultCompileItems", "false"),
                 new XElement("ImplicitUsings", "disable"), new XElement("Nullable", "disable"),
@@ -572,7 +576,7 @@ internal static unsafe class TypeManagerModuleMetadataLiveNativeAOTImageTests
         File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new { NativeExit = process.ExitCode, Timeout = timeout,
             StartedUtc = begin, EndedUtc = DateTime.UtcNow, InputsUnchanged = unchanged }));
         Check(!timeout && process.ExitCode == 0 && error.Length == 0 && unchanged, "no-stdlib command " + directory);
-        string dll = Path.Combine(directory, "bin", "Release", "net10.0", "M04_011_Closure.dll");
+        string dll = Path.Combine(directory, "bin", "Release", "net11.0", "M04_011_Closure.dll");
         using var stream = File.OpenRead(dll); using PEReader pe = new(stream);
         Check(pe.GetMetadataReader().AssemblyReferences.Count == 0, "AssemblyRefs=0");
         MetadataReader metadata = pe.GetMetadataReader();

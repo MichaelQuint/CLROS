@@ -243,7 +243,7 @@ internal static class CheckedReferenceBarrierCoffWriterTests
             File.WriteAllText(Path.Combine(folder,"Probe.csproj"),"""
                 <Project Sdk="Microsoft.NET.Sdk">
                   <PropertyGroup>
-                    <OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion>
+                    <OutputType>Exe</OutputType><TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion>
                     <Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><TreatWarningsAsErrors>true</TreatWarningsAsErrors>
                     <DefineConstants>CHECKED_REFERENCE_COFF_CHILD</DefineConstants><UseSharedCompilation>false</UseSharedCompilation>
                   </PropertyGroup>
@@ -251,7 +251,7 @@ internal static class CheckedReferenceBarrierCoffWriterTests
                 """,new UTF8Encoding(false));
             Run(folder,"build",120000,["build","Probe.csproj","--nologo","--disable-build-servers","-m:1","-nodeReuse:false",
                 "-p:ImportDirectoryBuildProps=false","-p:ImportDirectoryBuildTargets=false"]);
-            string output=Run(folder,"run",30000,[Path.Combine(folder,"bin","Debug","net10.0","Probe.dll"), OS.Tooling.EfiContracts.SerializerObjectSha256.ToUpperInvariant(), OS.Tooling.EfiContracts.SerializerObjectBytes.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+            string output=Run(folder,"run",30000,[Path.Combine(folder,"bin","Debug","net11.0","Probe.dll"), OS.Tooling.EfiContracts.SerializerObjectSha256.ToUpperInvariant(), OS.Tooling.EfiContracts.SerializerObjectBytes.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
             if(output!="COFF_REL32_CONTROL_PASS default structure bounds symbols overlaps capacity serializer"+Environment.NewLine)
                 throw new InvalidOperationException("child control marker mismatch");
         });

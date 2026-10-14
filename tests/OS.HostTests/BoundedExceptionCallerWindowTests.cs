@@ -7,7 +7,7 @@ using Status = OS.Kernel.Runtime.BoundedExceptionCallerWindowStatus;
 
 internal static unsafe class BoundedExceptionCallerWindowTests
 {
-    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc10_0_12WinX64LittleEndian;
+    private const NativeAotLayoutProfile Profile = NativeAotLayoutProfile.Ilc11_0_0Rc2WinX64LittleEndian;
     private static void Need(bool value, string reason) => HostCheck.True(value, reason);
 
     [HostTest("runtime.bounded-caller-window.physical-callers-protected-pc", HostLane.Fast, 0)]
@@ -246,9 +246,9 @@ internal static unsafe class BoundedExceptionCallerWindowTests
             Section(0, ".rdata", 0x1000, 0x1000, 0x40000040); Section(1, ".data", 0x2000, 0x2000, 0xc0000040);
             Section(2, ".modules", 0x5000, 16, 0x40000040); Section(3, ".text", 0x6000, 0x1000, 0x60000020);
             new Span<byte>(Image + 0x6000, 0x1000).Fill(0x90);
-            W64(Image + 0x5000, Address(0x1000)); W32(Image + 0x1000, 0x00525452); W16(Image + 0x1004, 16);
-            W16(Image + 0x100c, 1); Image[0x100e] = 24; Image[0x100f] = 1;
-            W32(Image + 0x1010, 204); W64(Image + 0x1018, Address(0x2000));
+            W64(Image + 0x5000, Address(0x1000)); W32(Image + 0x1000, 0x00525452); W16(Image + 0x1004, 26); W16(Image + 0x1006, 1);
+            W16(Image + 0x100c, 1); Image[0x100e] = 16; Image[0x100f] = 1;
+            W32(Image + 0x1010, 204); W32(Image + 0x1014, 16); W64(Image + 0x1018, Address(0x2000));
             Function(0, 0x6000, 0x6080, 0x1200); Function(1, 0x6100, 0x6140, 0x1240);
             Function(2, 0x6140, 0x6180, 0x1280); Function(3, 0x6200, 0x6240, 0x12c0);
             Function(4, 0x6240, 0x6280, 0x1300);

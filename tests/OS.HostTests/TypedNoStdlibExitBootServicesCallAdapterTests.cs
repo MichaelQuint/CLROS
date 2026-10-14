@@ -270,7 +270,7 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
         string project = $$"""
             <Project Sdk="Microsoft.NET.Sdk">
               <PropertyGroup>
-                <TargetFramework>net10.0</TargetFramework><LangVersion>14.0</LangVersion><OutputType>Library</OutputType>
+                <TargetFramework>net11.0</TargetFramework><LangVersion>14.0</LangVersion><OutputType>Library</OutputType>
                 <AssemblyName>M03_004_NoStdLib</AssemblyName><EnableDefaultCompileItems>false</EnableDefaultCompileItems>
                 <AllowUnsafeBlocks>true</AllowUnsafeBlocks><NoStdLib>true</NoStdLib><NoConfig>true</NoConfig>
                 <DefineConstants>NOSTDLIB_EFI</DefineConstants><DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
@@ -298,7 +298,7 @@ internal static unsafe class TypedNoStdlibExitBootServicesCallAdapterTests
         File.WriteAllText(Path.Combine(directory, "stdout.log"), stdout.Result); File.WriteAllText(Path.Combine(directory, "stderr.log"), stderr.Result);
         File.WriteAllText(Path.Combine(directory, "result.json"), JsonSerializer.Serialize(new { Exited = exited, NativeExit = child.ExitCode, EndedUtc = DateTimeOffset.UtcNow }));
         Check(exited && child.ExitCode == 0, "actual no-stdlib child: " + directory + " " + stdout.Result + stderr.Result);
-        string dll = Path.Combine(directory, "bin", "Release", "net10.0", "M03_004_NoStdLib.dll");
+        string dll = Path.Combine(directory, "bin", "Release", "net11.0", "M03_004_NoStdLib.dll");
         using FileStream stream = File.OpenRead(dll); using PEReader pe = new(stream); MetadataReader metadata = pe.GetMetadataReader();
         Check(metadata.AssemblyReferences.Count == 0, "zero AssemblyRefs");
         TypeDefinition type = metadata.TypeDefinitions.Select(metadata.GetTypeDefinition).Single(t => metadata.GetString(t.Name) == nameof(TypedNoStdlibExitBootServicesCallAdapter));
