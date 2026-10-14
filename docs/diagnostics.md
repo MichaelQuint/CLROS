@@ -1,5 +1,14 @@
 # Diagnostics
 
+`EnableM09006Probe` is a new default-off Diagnostic lifecycle profile. It selects
+the first-exit/owned/APIC parents and rejects other leaves. Its ordered
+`M09_006_*` rows cover transfers, waits/ticks, retained joins, both cancellation
+orders, rollback, reuse and four reaps; final restoration precedes
+`CLROS_M09_006_READY`. Every row type participates in the summary inventory;
+repeated row types are excluded from uniqueness. [Step1228](../done/step1228.md)
+records one passing 179-record development capture and the earlier summary
+inventory rejection. Final batch qualification remains outstanding.
+
 Qualified `EnableM16005Probe` defaults false and requires the package, protected
 startup and owned service children. [step1201](../done/step1201.md) binds one
 mechanical CPL3 ELF to checked write/exit/errno and complete owned-baseline

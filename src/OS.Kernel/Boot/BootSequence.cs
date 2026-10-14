@@ -264,7 +264,7 @@ public static class BootSequence
     /// authority remains available. The callback owns preparation/failure cleanup;
     /// this ordered default-off phase allocates nothing and returns false on refusal.</summary>
     public static unsafe bool PrepareCooperativeSwitch(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
-        (OS.Kernel.Diagnostics.Probes.EnableM09004Probe || OS.Kernel.Diagnostics.Probes.EnableM09005Probe) && OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe &&
+        (OS.Kernel.Diagnostics.Probes.EnableM09004Probe || OS.Kernel.Diagnostics.Probes.EnableM09005Probe || OS.Kernel.Diagnostics.Probes.EnableM09006Probe) && OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe &&
         OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe && firmwareAvailable &&
         context != null && prepare != null && prepare(context);
 
@@ -284,6 +284,17 @@ public static class BootSequence
     public static unsafe bool RunOwnedSchedulerTimer(bool ownedChecksComplete, bool apicReady, bool firmwareRevoked,
         void* context, delegate*<void*, bool> run) =>
         OS.Kernel.Diagnostics.Probes.EnableM09005Probe && OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe &&
+        OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe &&
+        OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe && ownedChecksComplete && apicReady && firmwareRevoked &&
+        context != null && run != null && run(context);
+
+    /// <summary>Run the default-off cooperative lifecycle only after owned
+    /// survival, APIC setup and firmware revocation. The native owner retains
+    /// all worker/supervisor/IRQ resources through transfer and restoration;
+    /// refusal returns false and fabricates no lifecycle or cleanup evidence.</summary>
+    public static unsafe bool RunOwnedKernelThreads(bool ownedChecksComplete, bool apicReady, bool firmwareRevoked,
+        void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM09006Probe && OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe &&
         OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe &&
         OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe && ownedChecksComplete && apicReady && firmwareRevoked &&
         context != null && run != null && run(context);

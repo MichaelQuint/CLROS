@@ -48,7 +48,7 @@ public static unsafe class KernelThreadEntry
     public static bool Verify(byte* output, uint capacity, Plan plan) =>
         Inputs(output, capacity, plan, false) && Encode(output, plan, true);
 
-    private static bool Inputs(byte* output, uint capacity, Plan p, bool initialState)
+    internal static bool Inputs(byte* output, uint capacity, Plan p, bool initialState)
     {
         var o = p.Owner; var d = p.Initial;
         if (ThreadContextSwitch.AdmitResumePlan(o, d) != ThreadContextSwitch.Status.Ok ||
@@ -78,7 +78,7 @@ public static unsafe class KernelThreadEntry
             *(uint*)(fx + 24) == X64ThreadContext.InitialMxcsr);
     }
 
-    private static bool Encode(byte* output, Plan p, bool compare)
+    internal static bool Encode(byte* output, Plan p, bool compare)
     {
         ulong code = p.Owner.CodeStart + p.CodeOffset;
         ThreadContextSwitch.StubWriter w = new(output, code, compare, Bytes);

@@ -47,8 +47,15 @@ The follow-up in [step1227](../done/step1227.md) adds the unpublished Win64
 over the table's private deadline queue. Host decoding checks normal return,
 cancel-before-entry and rejected starts. A simulated APIC checks three two-tick
 sleep cycles with both workers parked, retained restore failure and one epoch.
-Actual native entry, IRQ serialization, interrupt-enabled idle and live repeated
-wakes remain unqualified.
+[Step1228](../done/step1228.md) adds the default-off M09006 native owner and
+one strict 179-record **development** guest. Two original workers yield, sleep,
+join and exit on distinct stacks; two reused lifetimes exercise both
+cancellation/deadline orders. Seven real APIC ticks, 38 transfers, five retained
+join observations and four supervisor reaps complete. IRQs return to the owned
+`STI; HLT; CLI` idle path; they never convert interrupted workers into CALL
+continuations. Timer/IDT/IST/code authority is revoked before reuse, and all 23
+private-pool page borrows return before success. #188 still requires the final
+original native review, frozen full-host run, three guests and affected ancestors.
 Use the current pinned toolchain in [host requirements](host-requirements.md); historical
 .NET 10 acceptance does not qualify the .NET 11 migration. Its finite renewed
 profile evidence is recorded in [step1225](../done/step1225.md).
@@ -84,13 +91,13 @@ future consumers without adding upstream GC scanning to this ticket.
 `Ticks` before successful `Restore` clears the timer, then calls
 `Prepare(initialTick: savedTick)` and `Arm` after fresh native path admission.
 Keep borrowed IDT/IST/APIC lifetimes pinned across the whole sequence; a failed
-restore blocks preparation and release. The live owner still needs to prove this
-protocol. When all workers park, an owned supervisor/idle path must enable
+restore blocks preparation and release. M09006 uses this protocol in its
+development guest; stable-batch qualification remains outstanding. When all workers park, an owned supervisor/idle path must enable
 interrupts and wait for actual hardware wakeups. A busy loop or injected host
 tick is not evidence of sleep. Failed timer restoration retains its storage.
 
-Implement the default-off `EnableM09006Probe` interface described in #188;
-it does not exist yet. Qualify two workers plus supervisor with repeated yields
+The default-off `EnableM09006Probe` interface described in #188 now exists.
+Finish qualifying two workers plus supervisor with repeated yields
 and timer sleeps, all-workers-parked recovery, entry return and explicit exit,
 join before/after exit, cancellation/deadline races, rollback and stale reuse.
 Final success follows off-stack teardown and original-context/hardware restoration.

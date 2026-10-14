@@ -79,6 +79,10 @@ restores its original context after one safe wake; it is not a continuing
 lifecycle owner. The next slice is [#188](http://192.168.4.35:3000/admin/CLROS/issues/188):
 bounded cooperative workers with repeated hardware timer wakes, atomic waits
 and off-stack reclamation. See [the lifecycle handoff](pal.md#next-bounded-lifecycle-188).
+[Step1228](../done/step1228.md) records implemented M09006 wiring and one strict
+179-record development guest with repeated hardware wakes and complete bounded
+cleanup. #188 remains open pending final native/full-host/repeated-guest and
+ancestor qualification; this does not advance the application runtime milestone.
 #191 wait-on-address and #192 application FS/TLS then remain prerequisites of
 #686 alongside accepted #685. Exact managed dependencies control that sequence.
 These accepted .NET 10 checkpoints retain their historical toolchain identity.

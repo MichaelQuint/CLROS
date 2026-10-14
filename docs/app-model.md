@@ -1,5 +1,12 @@
 # App Model
 
+M09-006/#188 has one strict 179-record development guest in
+[step1228](../done/step1228.md): bounded cooperative workers, seven hardware
+ticks, repeated sleeps, join, cancellation/deadline races and off-stack reuse/reap
+execute. Final full-host, original native and repeated guest/ancestor qualification
+remain outstanding. #188 remains open; application threads, upstream runtime,
+unchanged Hello and Kestrel are not qualified by this mechanical fixture.
+
 [Step1224](../done/step1224.md) qualifies M09-005 hardware-timer execution:
 4,776 full-host checks, six original native bodies, three fresh 115-record
 timer guests and ten ancestors pass.

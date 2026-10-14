@@ -3,6 +3,13 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"Boot\EfiEntry.KernelThread.cs"] = "reviewed_m09_lifecycle_native_owner_source_identity",
+        [@"..\OS.Kernel\Threading\ReadyQueue.cs"] = "reviewed_m09_ready_queue_source_identity",
+        [@"..\OS.Kernel\Threading\KernelThreadSlot.cs"] = "reviewed_m09_lifecycle_slot_source_identity",
+        [@"..\OS.Kernel\Threading\KernelThreadWait.cs"] = "reviewed_m09_lifecycle_wait_source_identity",
+        [@"..\OS.Kernel\Threading\KernelThreadTable.cs"] = "reviewed_m09_lifecycle_table_source_identity",
+        [@"..\OS.Kernel\Threading\KernelThreadEntry.cs"] = "reviewed_m09_lifecycle_entry_source_identity",
+        [@"..\OS.Kernel\Threading\KernelThreadProgram.cs"] = "reviewed_m09_lifecycle_program_source_identity",
         [@"..\OS.Kernel\Threading\X64ThreadContext.cs"] = "reviewed_m09_saved_context_source_identity",
         [@"..\OS.Kernel\Threading\ThreadContextSwitch.cs"] = "reviewed_m09_cooperative_source_identity",
         [@"..\OS.Kernel\Threading\DeadlineQueue.cs"] = "reviewed_m09_deadline_queue_source_identity",

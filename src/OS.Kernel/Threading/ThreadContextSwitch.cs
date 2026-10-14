@@ -171,14 +171,7 @@ public static unsafe class ThreadContextSwitch
         w.Bytes(0xfa1e0ff3, 4); w.Bytes(0x9c, 1);
         w.Bytes(0x57565553, 4); w.Bytes(0x5741564155415441, 8); // outer Win64 nonvolatile GPRs/flags
         w.Bytes(0x20ec8348, 4); w.Call(code + FirstStubOffset); // return offset26
-        w.Set(witness, 0);
-        for (uint register = 0; register < 16; register++) w.Memory(false, register, witness + RegisterOffset(register));
-        w.Immediate(11, code + OriginalResumeOffset); w.Memory(false, 11, witness + X64ThreadContext.RipOffset);
-        w.Bytes(0x5b419c, 3); w.Memory(false, 11, witness + X64ThreadContext.RflagsOffset);
-        w.Fx(false, witness + X64ThreadContext.FxSaveOffset);
-        w.ReadMsr(0xc0000100); w.Memory(false, 0, witness + X64ThreadContext.FsBaseOffset);
-        w.ReadMsr(0xc0000101); w.Memory(false, 0, witness + X64ThreadContext.UserGsBaseOffset);
-        w.Set(witness + X64ThreadContext.ReservedOffset, 0); w.Set(witness, 1);
+        WriteWitness(ref w, witness, code + OriginalResumeOffset);
         w.Bytes(0x20c48348, 4); w.Bytes(0x5c415d415e415f41, 8); w.Bytes(0x5b5d5e5f, 4);
         w.Bytes(0x9d, 1); w.Bytes(0x00000001b8, 5); w.Bytes(0xc3, 1);
 
@@ -311,7 +304,7 @@ public static unsafe class ThreadContextSwitch
         return EncodeStub(ref writer, owner, source, destination, plan);
     }
 
-    private static bool StubInputs(byte* output, uint capacity, Owner owner, Descriptor source,
+    internal static bool StubInputs(byte* output, uint capacity, Owner owner, Descriptor source,
         Descriptor destination, StubPlan plan, bool allowInitialEntrySource = false)
     {
         if (AdmitCore(owner, source, destination, false) != Status.Ok ||
@@ -347,7 +340,7 @@ public static unsafe class ThreadContextSwitch
         Overlap((ulong)value.Context, value.ContextBytes, plan.HelperFx, 512) ||
         Overlap((ulong)value.Context, value.ContextBytes, plan.JumpSlot, 8);
 
-    private static bool EncodeStub(ref StubWriter w, Owner owner, Descriptor source,
+    internal static bool EncodeStub(ref StubWriter w, Owner owner, Descriptor source,
         Descriptor destination, StubPlan plan)
     {
         ulong from = (ulong)source.Context, to = (ulong)destination.Context;
@@ -369,7 +362,18 @@ public static unsafe class ThreadContextSwitch
         Restore(ref w, to, plan.JumpSlot, plan.RejectRip);
         w.Pad(); return w.Valid;
     }
-    private static void Restore(ref StubWriter w, ulong to, ulong jumpSlot, ulong rejectRip)
+    internal static void WriteWitness(ref StubWriter w, ulong witness, ulong resume)
+    {
+        w.Set(witness, 0);
+        for (uint register = 0; register < 16; register++) w.Memory(false, register, witness + RegisterOffset(register));
+        w.Immediate(11, resume); w.Memory(false, 11, witness + X64ThreadContext.RipOffset);
+        w.Bytes(0x5b419c, 3); w.Memory(false, 11, witness + X64ThreadContext.RflagsOffset);
+        w.Fx(false, witness + X64ThreadContext.FxSaveOffset);
+        w.ReadMsr(0xc0000100); w.Memory(false, 0, witness + X64ThreadContext.FsBaseOffset);
+        w.ReadMsr(0xc0000101); w.Memory(false, 0, witness + X64ThreadContext.UserGsBaseOffset);
+        w.Set(witness + X64ThreadContext.ReservedOffset, 0); w.Set(witness, 1);
+    }
+    internal static void Restore(ref StubWriter w, ulong to, ulong jumpSlot, ulong rejectRip)
     {
         w.Memory(true, 0, to + X64ThreadContext.RipOffset); w.Memory(false, 0, jumpSlot);
         w.Memory(true, 0, to + X64ThreadContext.FsBaseOffset); w.WriteVerifyMsr(0xc0000100, rejectRip);

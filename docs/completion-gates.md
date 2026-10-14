@@ -1,5 +1,12 @@
 # CLROS Completion Gates
 
+M09-006/#188 has one strict 179-record development guest in
+[step1228](../done/step1228.md), including seven hardware ticks, 38 cooperative
+transfers, both cancellation/deadline orders and four off-stack reaps. It remains
+open pending final original native review, frozen full-host, three guests and
+affected ancestors. This development evidence changes no numbered gate or
+upstream application-runtime acceptance.
+
 The .NET 11 toolchain/ABI migration in [step1225](../done/step1225.md) is
 qualified at implementation source `d728d2c`: 4,783 full-host checks,
 original native review and 29 independently audited strict QEMU captures pass.
