@@ -95,7 +95,8 @@ internal static class LinuxThreadTranscriptTests
         int witness = Indices(rows, "M16_005_WRITE ")[0]; string[] lateWrite = (string[])rows.Clone();
         (lateWrite[witness], lateWrite[witness + 1]) = (lateWrite[witness + 1], lateWrite[witness]); Reject(lateWrite, package);
         int end = Indices(rows, "M16_008_OWNER_END ")[0];
-        foreach (string key in new[] { "reaped", "transfers", "irqs", "exit" }) Reject(Change(rows, end, key, Field(rows[end], key) + 1), package);
+        foreach (string key in new[] { "reaped", "transfers", "irqs", "exit", "userReserved", "userBacked" }) Reject(Change(rows, end, key, Field(rows[end], key) + 1), package);
+        string[] liveStack = (string[])rows.Clone(); liveStack[end] = liveStack[end].Replace("initialStack=zero", "initialStack=dirty", StringComparison.Ordinal); Reject(liveStack, package);
         string[] dirty = (string[])rows.Clone(); dirty[^3] = dirty[^3].Replace("fp=true", "fp=false", StringComparison.Ordinal); Reject(dirty, package);
         Reject(rows[..^1], package); Reject([.. rows, "TEST_PASS m16-008"], package);
     }
@@ -209,7 +210,7 @@ internal static class LinuxThreadTranscriptTests
         rows.Add("M16_005_WRITE fd=1 bytes=15 data=M16_THREADS_OK!"); Call(false,parent.Count - 2); Call(false,parent.Count - 1);
         Exit(p); Supervisor(p,2,6,shutdown ? 1U : 0U,shutdown ? 2U : 1U); Reap(p);
         if (shutdown) { Exit(c); Supervisor(c,4,8,0,1); Reap(c); }
-        rows.Add(FormattableString.Invariant($"M16_008_OWNER_END reaped=2 transfers={(shutdown ? 8 : 6)} irqs={ticks} exit=42 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed reservation=retained"));
+        rows.Add(FormattableString.Invariant($"M16_008_OWNER_END reaped=2 transfers={(shutdown ? 8 : 6)} irqs={ticks} exit=42 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained"));
         rows.Add("M16_008_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
         rows.Add("CLROS_M16_008_READY"); rows.Add("TEST_PASS m16-008"); return rows.ToArray();
     }
@@ -255,7 +256,7 @@ internal static class LinuxThreadTranscriptTests
         { clock = timeoutClock + (ulong)tick * 1_000_000 / (uint)ticks; rows.Add(FormattableString.Invariant($"M16_008_TICK epoch={tick} nanos={clock} ready={(tick == ticks ? 1 : 0)}")); }
         Resume(p, -110); Calls(false, 21, 22); rows.Add("M16_005_WRITE fd=1 bytes=15 data=M16_THREADS_OK!"); Call(false, 23);
         Call(false, 24); Exit(p); Supervisor(p, 2, 52, 0, 1); Reap(p);
-        rows.Add(FormattableString.Invariant($"M16_008_OWNER_END reaped=5 transfers=52 irqs={ticks} exit=42 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed reservation=retained"));
+        rows.Add(FormattableString.Invariant($"M16_008_OWNER_END reaped=5 transfers=52 irqs={ticks} exit=42 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained"));
         rows.Add("M16_008_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
         rows.Add("CLROS_M16_008_READY"); rows.Add("TEST_PASS m16-008"); return rows.ToArray();
     }

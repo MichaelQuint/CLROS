@@ -54,6 +54,42 @@ internal static unsafe class LinuxMemoryServicesTests
 
     private struct GuardOwner { internal ulong Pin, LastStart, LastBytes; internal uint Calls; internal bool Deny; }
 
+    [HostTest("linux.memory terminal window unmap scrubs dynamic backing after guard release and preserves static mappings")]
+    private static void TerminalWindowUnmap()
+    {
+        using var owner = new Owner(); owner.Begin();
+        ulong originalCode = owner.Leaf(0x400000);
+        HostCheck.Equal((long)Start, Map(owner, Start, 3 * 4096, 3));
+        *owner.At(Start) = 0x61; *owner.At(Start + 8192) = 0x62;
+        HostCheck.Equal((long)(Start + 4096), Map(owner, Start + 4096, 4096, 0, 0x32));
+        ulong sparse = Start + 0x200000;
+        HostCheck.Equal((long)sparse, Map(owner, sparse, Reservation, 0));
+        ulong high = sparse + 0x100000000;
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, high, 4096, 3));
+        *owner.At(high) = 0x73;
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, high, 4096, 1));
+        ulong reserved = owner.State->ReservedBytes; uint backed = owner.State->BackedPages;
+        byte[] tables = owner.Tables(), pool = new ReadOnlySpan<byte>(owner.Memory.Pool, (int)PoolPages * 4096).ToArray();
+        GuardOwner guard = new() { Pin = Start };
+        HostCheck.True(LinuxMemoryServices.AttachMutationGuard(owner.State, &guard, &Guard));
+        const ulong window = LinuxSyscallGateway.UserEnd - LinuxMemoryServices.DynamicStart;
+        HostCheck.Equal(-12L, LinuxMemoryServices.Unmap(owner.State, LinuxMemoryServices.DynamicStart, window));
+        HostCheck.True(guard.Calls > 0 && owner.State->ReservedBytes == reserved && owner.State->BackedPages == backed);
+        HostCheck.True(tables.AsSpan().SequenceEqual(owner.Tables()) && pool.AsSpan().SequenceEqual(
+            new ReadOnlySpan<byte>(owner.Memory.Pool, (int)PoolPages * 4096)) && LinuxMemoryServices.Audit(owner.State));
+        HostCheck.True(!LinuxMemoryServices.DetachMutationGuard(owner.State, &guard, &Guard));
+        guard.Pin = 0; // The retained word borrow must drain before detach can succeed.
+        HostCheck.True(LinuxMemoryServices.DetachMutationGuard(owner.State, &guard, &Guard));
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, LinuxMemoryServices.DynamicStart, window));
+        HostCheck.True(owner.State->ReservedBytes == 0 && owner.State->BackedPages == 0 && LinuxMemoryServices.Audit(owner.State));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.Pool, (int)PoolPages * 4096).IndexOfAnyExcept((byte)0) < 0);
+        foreach (ulong address in new[] { Start, Start + 8192, high })
+            HostCheck.True(!X64UserAddressSpace.TryReadLeaf(owner.Memory.Tables, Root, TablePages, address, out ulong leaf) || (leaf & 1) == 0);
+        HostCheck.Equal(originalCode, owner.Leaf(0x400000));
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, LinuxMemoryServices.DynamicStart, window));
+        HostCheck.True(LinuxMemoryServices.Audit(owner.State) && owner.State->ReservedBytes == 0 && owner.State->BackedPages == 0);
+    }
+
     [HostTest("linux.memory fault codes distinguish reservation permissions holes static user ranges and supervisor addresses")]
     private static void PageFaultCodes()
     {

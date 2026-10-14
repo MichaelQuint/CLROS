@@ -239,6 +239,18 @@ is managed-host coordination/output evidence only. The new app has no qualified
 Linux NativeAOT payload, activation trace or CLROS guest receipt yet; the three
 original payload apps and their qualifier/source identities remain unchanged.
 
+[Step1263](../done/step1263.md) adds terminal user-memory cleanup after process,
+thread, borrow and descriptor release. It requires the actual kernel root to be
+active and the user root inactive, then reuses the existing full-window unmap
+to relinquish dynamic reservations and scrub their backing. The initial ABI
+stack is bound to its audited static mapping, zeroed and checked. Static image
+and stack mappings, table allocations and firmware reservations remain owned.
+Strict thread/signal tails now require zero dynamic reservation/backing counters
+and the checked initial-stack witness. Package bytes and record counts are
+unchanged. Focused host checks and no-stdlib C# compilation pass; this cleanup
+revision has no native publication or guest receipt. The older diagnostic below
+retains its original cleanup scope.
+
 [Step1259](../done/step1259.md), integrated in [step1262](../done/step1262.md),
 adds one fresh mechanical `AlternateStack` diagnostic: the native worker executes
 the real handler/sigreturn, exits42, reaps and restores owned state. The full

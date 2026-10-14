@@ -95,7 +95,7 @@ public static partial class QemuTranscripts
         line = Take(); Need(line.EndsWith(scrubSuffix, StringComparison.Ordinal), "m16_009_reap_scrub");
         var reap = ReadRecord(line[..^scrubSuffix.Length], "M16_008_REAP", "old:dec", "next:dec");
         Need(reap["old"] == identity && reap["next"] == identity + (1UL << 32), "m16_009_reap_generation");
-        const string endSuffix = " process=drained timer=restored descriptors=closed guard=detached pool=scrubbed reservation=retained";
+        const string endSuffix = " userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained";
         line = Take(); Need(line.EndsWith(endSuffix, StringComparison.Ordinal), "m16_009_owner_cleanup");
         var end = ReadRecord(line[..^endSuffix.Length], "M16_008_OWNER_END", "reaped:dec", "transfers:dec", "irqs:dec", "exit:dec");
         Need(end["reaped"] == 1 && end["transfers"] == 2 && end["irqs"] == 0 && end["exit"] == exit, "m16_009_owner_accounting");

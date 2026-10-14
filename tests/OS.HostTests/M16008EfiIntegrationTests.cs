@@ -166,6 +166,34 @@ internal static unsafe class M16008EfiIntegrationTests
         };
     }
 
+    [HostTest("m16-008 terminal memory cleanup follows owner descriptor release and binds the inactive root and static stack")]
+    private static void MemoryCleanupBoundary()
+    {
+        string root = HostToolProcess.FindRepositoryRoot();
+        var tree = CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root, "src/OS/Boot/EfiEntry.LinuxThreadRun.cs")),
+            new CSharpParseOptions(preprocessorSymbols: ["M16_008_PROBE", "M16_009_PROBE"]));
+        HostCheck.True(!tree.GetDiagnostics().Any(d => d.Severity == Microsoft.CodeAnalysis.DiagnosticSeverity.Error));
+        var methods = tree.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>().ToArray();
+        var owner = methods.Single(m => m.Identifier.Text == "RunLinuxNativeOwner");
+        var calls = owner.DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
+        var clear = calls.Single(c => c.Expression.ToString() == "LinuxNativeClearUserMemory");
+        HostCheck.True(calls.Single(c => c.Expression.ToString() == "LinuxNativeRelease").SpanStart < clear.SpanStart &&
+            calls.Single(c => c.Expression.ToString() == "LinuxDescriptorServices.End").SpanStart < clear.SpanStart &&
+            clear.SpanStart < calls.Last(c => c.Expression.ToString() == "CooperativeSetPoolMappings").SpanStart);
+        HostCheck.True(clear.Parent is PrefixUnaryExpressionSyntax unary && unary.RawKind == (int)SyntaxKind.LogicalNotExpression &&
+            unary.Parent is IfStatementSyntax gate && gate.Statement is ReturnStatementSyntax returned && returned.Expression!.RawKind == (int)SyntaxKind.FalseLiteralExpression);
+        var cleanup = methods.Single(m => m.Identifier.Text == "LinuxNativeClearUserMemory");
+        var bodyCalls = cleanup.DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
+        var unmap = bodyCalls.Single(c => c.Expression.ToString() == "LinuxMemoryServices.Unmap");
+        HostCheck.True(unmap.ArgumentList.Arguments.Select(a => a.Expression.ToString()).SequenceEqual(new[]
+            { "&state->LinuxMemory", "LinuxMemoryServices.DynamicStart", "LinuxSyscallGateway.UserEnd - LinuxMemoryServices.DynamicStart" }));
+        HostCheck.True(bodyCalls.Single(c => c.Expression.ToString() == "readRoot").SpanStart < unmap.SpanStart &&
+            cleanup.ToString().Contains("range.PhysicalStart == state->LinuxImageBacking + imageBytes", StringComparison.Ordinal) &&
+            cleanup.ToString().Contains("state->LinuxMemory.HasMutationGuard", StringComparison.Ordinal));
+        HostCheck.True(cleanup.ToString().Contains("state->LinuxMemory.ReservedBytes != 0", StringComparison.Ordinal) &&
+            cleanup.ToString().Contains("state->LinuxMemory.BackedPages != 0", StringComparison.Ordinal));
+    }
+
     [HostTest("m16-008 native signal attachment drains before scrub and return preparation precedes full installation")]
     private static void SignalBoundary()
     {

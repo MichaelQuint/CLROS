@@ -2,6 +2,14 @@
 
 ## Development Linux threading profile
 
+[Step1263](../done/step1263.md) adds terminal dynamic user-memory and initial ABI
+stack cleanup to the shared M16-008/009 owner after thread/process/descriptor
+release. The user root must be inactive before unmap; the stack scrub is bound
+to its audited static mapping. Counters, pool bytes and stack bytes are checked
+before terminal witnesses. Physical/table/firmware reservations remain retained.
+Focused host checks and the combined no-stdlib C# build pass; original native
+publication/stack review and a fresh guest are still required for this revision.
+
 [Step1259](../done/step1259.md) repairs combined-profile admission: the native
 verifier requires the authenticated thread copy callbacks in M16-008/009 and
 rejects the superseded single-thread callbacks. The shared retained-range

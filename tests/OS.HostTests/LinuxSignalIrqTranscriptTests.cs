@@ -52,7 +52,8 @@ internal static unsafe class LinuxSignalIrqTranscriptTests
         int reap=Array.FindIndex(rows,r=>r.StartsWith("M16_008_REAP ",StringComparison.Ordinal));
         Controls.Reject(Controls.Change(rows,reap,"next",0x100000002),package);
         int end=Array.FindIndex(rows,r=>r.StartsWith("M16_008_OWNER_END ",StringComparison.Ordinal));
-        foreach(string field in new[]{"reaped","transfers","irqs","exit"}) Controls.Reject(Controls.Change(rows,end,field,Controls.Field(rows[end],field)+1),package);
+        foreach(string field in new[]{"reaped","transfers","irqs","exit","userReserved","userBacked"}) Controls.Reject(Controls.Change(rows,end,field,Controls.Field(rows[end],field)+1),package);
+        string[] liveStack=(string[])rows.Clone(); liveStack[end]=liveStack[end].Replace("initialStack=zero","initialStack=dirty",StringComparison.Ordinal); Controls.Reject(liveStack,package);
         Controls.Reject(rows,Fixture.CreatePackage("AlternateStack"));
     }
 
@@ -124,7 +125,7 @@ internal static unsafe class LinuxSignalIrqTranscriptTests
             Segment(0,2,false,Fixture.ActivationResumeRip);Segment(0,2,true);
         }
         else {Segment(1,5,true);Segment(0,6,true);}
-        rows.Add(FormattableString.Invariant($"M16_008_OWNER_END reaped=2 transfers={transfers} irqs={epoch} exit=42 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed reservation=retained"));
+        rows.Add(FormattableString.Invariant($"M16_008_OWNER_END reaped=2 transfers={transfers} irqs={epoch} exit=42 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained"));
         rows.AddRange(["M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true","CLROS_M16_009_READY","TEST_PASS m16-009"]);
         return rows.ToArray();
     }

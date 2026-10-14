@@ -128,7 +128,7 @@ public static partial class QemuTranscripts
         }
         Need(parentCalls == 13 && childCalls == 5 && queued && restored && childReaped && parentReaped &&
             reaped == 2 && active == 0 && drains == 2 && userIrqs > 0 && loopCaptures > 0, "m16_009_irq_complete_protocol");
-        const string cleanup = " process=drained timer=restored descriptors=closed guard=detached pool=scrubbed reservation=retained";
+        const string cleanup = " userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained";
         string endLine = Take(); Need(endLine.EndsWith(cleanup, StringComparison.Ordinal), "m16_009_irq_owner_cleanup");
         var end = ReadRecord(endLine[..^cleanup.Length], "M16_008_OWNER_END", "reaped:dec","transfers:dec","irqs:dec","exit:dec");
         Need(end["reaped"] == 2 && end["transfers"] == transfers && end["irqs"] == epoch && end["exit"] == 42,

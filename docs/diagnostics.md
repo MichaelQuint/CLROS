@@ -1,5 +1,15 @@
 # Diagnostics
 
+[Step1263](../done/step1263.md) extends the development M16-008/009 terminal
+`M16_008_OWNER_END` row with `userReserved=0 userBacked=0` before
+`process=drained` and `initialStack=zero` before `reservation=retained`. These
+witnesses follow actual dynamic unmap/backing scrub and an audited initial ABI
+stack zero/read-back after process and descriptor release under the kernel root.
+The strict decoders reject missing/nonzero counters or a dirty stack witness.
+Static image/stack mappings and physical/table/firmware reservations remain owned.
+Record counts and packaged inputs are unchanged. This revision has focused host
+and C# compilation evidence only; step1259 retains its earlier executed scope.
+
 Development `EnableM16009Probe` inherits the full M16-008 closure and selects a
 distinct signal leaf. [Step1254](../done/step1254.md) binds its four canonical
 mechanical packages to exact handler/restorer and owned-negative exit protocols,

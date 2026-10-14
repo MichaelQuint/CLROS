@@ -160,7 +160,7 @@ public static partial class QemuTranscripts
         Resume(parentIdentity, -110); Calls(false, 21, 22);
         Exact("M16_005_WRITE fd=1 bytes=15 data=M16_THREADS_OK!"); Call(false, 23);
         Call(false, 24); Exit(parentIdentity); Supervisor(parentIdentity, 2, 52, 0, 1); Reap(parentIdentity);
-        const string endSuffix = " process=drained timer=restored descriptors=closed guard=detached pool=scrubbed reservation=retained";
+        const string endSuffix = " userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained";
         string endLine = Take(); Need(endLine.EndsWith(endSuffix, StringComparison.Ordinal), "m16_008_owner_cleanup");
         var end = ReadRecord(endLine[..^endSuffix.Length], "M16_008_OWNER_END", "reaped:dec", "transfers:dec", "irqs:dec", "exit:dec");
         Need(end["reaped"] == 5 && end["transfers"] == 52 && end["irqs"] == ticks && end["exit"] == 42 &&
@@ -260,7 +260,7 @@ public static partial class QemuTranscripts
         Exit(p); Supervisor(p, 2, 6, shutdown ? 1U : 0U, shutdown ? 2U : 1U); Reap(p);
         if (shutdown) { Exit(c); Supervisor(c, 4, 8, 0, 1); Reap(c); }
         Exact("M16_008_OWNER_END reaped=2 transfers=" + (shutdown ? 8 : 6) + " irqs=" + ticks +
-            " exit=42 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed reservation=retained");
+            " exit=42 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained");
         Exact("M16_008_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
         Exact("CLROS_M16_008_READY"); Exact("TEST_PASS m16-008");
         Need(position == tail.Length, "m16_008_pipe_extra_record");

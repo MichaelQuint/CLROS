@@ -74,6 +74,7 @@ public static unsafe partial class EfiEntry
                     !LinuxDescriptorReleaseChecked(state)) return false;
                 state->LinuxDescriptorPhase = 6;
             }
+            if (!LinuxNativeClearUserMemory(state)) return false;
             if (captured ? !CooperativeSetPoolMappings(state, originals, false, out _) : !CooperativeAuditPool(state, false)) return false;
             if (!CooperativeAuditOriginalMappings(state) || !CooperativeAuditPool(state, false)) return false;
             for (ulong i = 0; i < CooperativePoolPages * Page; i++) ((byte*)state->CooperativePool)[i] = 0;
@@ -84,8 +85,58 @@ public static unsafe partial class EfiEntry
             bool logged = LinuxText(state, "M16_008_OWNER_END reaped=") && LinuxNumber(state, reaped) &&
                 LinuxText(state, " transfers=") && LinuxNumber(state, transfers) && LinuxText(state, " irqs=") && LinuxNumber(state, epochs) &&
                 LinuxText(state, " exit=") && LinuxNumber(state, state->LinuxSyscallExitCode) &&
-                LinuxText(state, " process=drained timer=restored descriptors=closed guard=detached pool=scrubbed reservation=retained\r\n");
+                LinuxText(state, " userReserved=") && LinuxNumber(state, state->LinuxMemory.ReservedBytes) &&
+                LinuxText(state, " userBacked=") && LinuxNumber(state, state->LinuxMemory.BackedPages) &&
+                LinuxText(state, " process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained\r\n");
             return ran && logged && !failed && state->LinuxSyscallFailed == 0 && state->LinuxSyscallFaults == 0;
+        }
+
+        // The caller has restored hardware, confirmed every supervisor handoff,
+        // released the empty process/table and closed descriptors. No user root
+        // or borrowed word/buffer may remain live. Reuse the existing atomic
+        // unmap/scrub path; keep the physical/table/firmware reservations owned.
+        // Any failed admission/audit withholds the terminal cleanup witness.
+        private static bool LinuxNativeClearUserMemory(Storage* state)
+        {
+            fixed (Storage* retained = &s_storage) if (state != retained) return false;
+            if (state->LinuxSyscallPhase != 4 || state->LinuxMemoryPhase != 4 || state->LinuxDescriptorPhase != 6 ||
+                state->LinuxMemory.HasMutationGuard || !LinuxMemoryServices.Audit(&state->LinuxMemory)) return false;
+            var readRoot = (delegate* unmanaged<ulong>)(state->Memory.Code + FirstExitCodeBundle.LinuxReadBackOffset +
+                X64LinuxElfReadBackBridge.ReadCr3Offset);
+            if (state->LinuxDispatchRoot == 0 || readRoot() != state->LinuxDispatchRoot ||
+                state->LinuxDispatchRoot == state->LinuxMemory.Root.Root) return false;
+            ulong imageBytes = state->LinuxImagePlan.ImageBytes, stackBytes = state->LinuxInitialStack.StackBytes;
+            ulong total = state->LinuxImagePages * Page, poolBytes = LinuxMemoryServices.MaximumPoolPages * Page;
+            if (state->LinuxImagePages == 0 || state->LinuxImagePages > 4096 || imageBytes == 0 ||
+                (imageBytes & (Page - 1)) != 0 || imageBytes >= total || stackBytes != total - imageBytes ||
+                stackBytes != state->LinuxView.Manifest.StackBytes || state->LinuxImageBacking < Page ||
+                state->LinuxImageBacking > 0x100000000UL - total || state->LinuxMemoryPool < Page ||
+                state->LinuxMemoryPool > 0x100000000UL - poolBytes) return false;
+            // Bind the scrub pointer to the audited static user-stack mapping,
+            // rather than trusting only the independently retained image extent.
+            var memory = state->LinuxMemory.Memory;
+            if ((ulong)memory.Pool != state->LinuxMemoryPool || memory.PoolPhysical != state->LinuxMemoryPool ||
+                memory.PoolPages != LinuxMemoryServices.MaximumPoolPages) return false;
+            bool stackOwned = false;
+            for (uint i = 0; i < memory.StaticCount; i++)
+            {
+                var range = memory.StaticRanges[i];
+                if (range.User && range.VirtualStart == 0x70000000UL - stackBytes &&
+                    range.PhysicalStart == state->LinuxImageBacking + imageBytes && range.Pages == stackBytes / Page &&
+                    range.Protection == (PageProtection.Read | PageProtection.Write) && range.Cache == PageCachePolicy.WriteBack)
+                    stackOwned = true;
+            }
+            if (!stackOwned) return false;
+            if (LinuxMemoryServices.Unmap(&state->LinuxMemory, LinuxMemoryServices.DynamicStart,
+                LinuxSyscallGateway.UserEnd - LinuxMemoryServices.DynamicStart) != 0 ||
+                state->LinuxMemory.ReservedBytes != 0 || state->LinuxMemory.BackedPages != 0 ||
+                !LinuxMemoryServices.Audit(&state->LinuxMemory)) return false;
+            state->LinuxUserRoot = state->LinuxMemory.Root;
+            byte* stack = (byte*)(state->LinuxImageBacking + imageBytes);
+            for (ulong i = 0; i < stackBytes; i++) stack[i] = 0;
+            for (ulong i = 0; i < stackBytes; i++) if (stack[i] != 0) return false;
+            for (ulong i = 0; i < poolBytes; i++) if (((byte*)state->LinuxMemoryPool)[i] != 0) return false;
+            return true;
         }
 
         private static ulong LinuxNativeRsp(LinuxNativeControl* c) =>

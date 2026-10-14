@@ -48,7 +48,8 @@ internal static class LinuxSignalTranscriptTests
             }
             Reject([.. rows,rows[^1]],package);
             int end = Array.FindIndex(rows,r => r.StartsWith("M16_008_OWNER_END ",StringComparison.Ordinal));
-            foreach (string key in new[] {"reaped","transfers","irqs","exit"}) Reject(Change(rows,end,key,Field(rows[end],key) + 1),package);
+            foreach (string key in new[] {"reaped","transfers","irqs","exit","userReserved","userBacked"}) Reject(Change(rows,end,key,Field(rows[end],key) + 1),package);
+            string[] liveStack = (string[])rows.Clone(); liveStack[end] = liveStack[end].Replace("initialStack=zero", "initialStack=dirty", StringComparison.Ordinal); Reject(liveStack,package);
             int reap = Array.FindIndex(rows,r => r.StartsWith("M16_008_REAP ",StringComparison.Ordinal));
             Reject(Change(rows,reap,"next",0x100000001),package);
             int confirm = Array.FindIndex(rows,r => r.StartsWith("M16_008_SUPERVISOR ",StringComparison.Ordinal));
@@ -100,7 +101,7 @@ internal static class LinuxSignalTranscriptTests
         rows.AddRange(["M16_008_EXIT identity=4294967297 clearTidResult=0",
             "M16_008_SUPERVISOR identity=4294967297 action=2 transfers=2 ready=0 active=1",
             "M16_008_REAP old=4294967297 next=8589934593 context=zero stack=zero slot=zero",
-            "M16_008_OWNER_END reaped=1 transfers=2 irqs=0 exit=" + (variant.StartsWith("Bad",StringComparison.Ordinal) ? "139" : "42") + " process=drained timer=restored descriptors=closed guard=detached pool=scrubbed reservation=retained",
+            "M16_008_OWNER_END reaped=1 transfers=2 irqs=0 exit=" + (variant.StartsWith("Bad",StringComparison.Ordinal) ? "139" : "42") + " userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained",
             "M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true", "CLROS_M16_009_READY", "TEST_PASS m16-009"]);
         return rows.ToArray();
     }

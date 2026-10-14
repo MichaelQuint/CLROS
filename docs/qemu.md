@@ -1,5 +1,12 @@
 # QEMU
 
+[Step1263](../done/step1263.md) makes current thread/signal tails require zero
+dynamic user reservation/backing counters and a checked zeroed initial ABI stack
+in the existing owner-end row. Older tails lacking those fields fail the current
+decoder. Package bytes and record counts are unchanged. No QEMU run validates
+this cleanup revision yet; the step1259 receipt below belongs to its frozen
+earlier source and protocol.
+
 [Step1259](../done/step1259.md) records one passing fresh M16-009 `AlternateStack`
 guest: 167 application records, real handler/sigreturn, exit42, reap and owned
 restoration. Thread/signal streaming requirements now normalize marker whitespace
