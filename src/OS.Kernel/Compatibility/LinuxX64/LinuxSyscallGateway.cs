@@ -274,7 +274,9 @@ public static unsafe class LinuxSyscallGateway
         :
         before.Number == after.Number && before.Argument0 == after.Argument0 && before.Argument1 == after.Argument1 && before.Argument2 == after.Argument2 &&
         before.Argument3 == after.Argument3 && before.Argument4 == after.Argument4 && before.Argument5 == after.Argument5 &&
-        before.Rip == after.Rip && before.Rsp == after.Rsp && before.Rflags == after.Rflags && before.GsBase == after.GsBase &&
+        before.Rip == after.Rip && before.Rsp == after.Rsp && before.Rflags == after.Rflags &&
         (before.Number == 158 && unchecked((uint)before.Argument0) == 0x1002 && result.Action == LinuxSyscallAction.Return && result.Value == 0
-            ? after.FsBase == before.Argument1 : before.FsBase == after.FsBase);
+            ? after.FsBase == before.Argument1 : before.FsBase == after.FsBase) &&
+        (before.Number == 158 && unchecked((uint)before.Argument0) == 0x1001 && result.Action == LinuxSyscallAction.Return && result.Value == 0
+            ? after.GsBase == before.Argument1 : before.GsBase == after.GsBase);
 }

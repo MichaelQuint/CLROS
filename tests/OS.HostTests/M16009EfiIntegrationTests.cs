@@ -69,15 +69,19 @@ internal static unsafe class M16009EfiIntegrationTests
                 int result = QemuSmoke.RunAsync(root,options,output,(_,_) => { calls++; return Task.FromResult(new ProcessResult(1,"","",false,false,false,TimeSpan.Zero)); }).GetAwaiter().GetResult();
                 HostCheck.True(result == 1 && calls == 0 && output.ToString().Contains("m16_009_package_identity",StringComparison.Ordinal));
             }
-            File.WriteAllBytes(path,LinuxSignalProofFixture.CreatePackage("AlternateStack"));
-            int stopped = QemuSmoke.RunAsync(root,options,TextWriter.Null,(_,_) =>
+            foreach (string variant in new[] {"AlternateStack","FaultStack"})
             {
-                calls++;
-                try { using FileStream write = new(path,FileMode.Open,FileAccess.Write,FileShare.ReadWrite); }
-                catch (IOException) { locked = true; }
-                return Task.FromResult(new ProcessResult(1,"TEST_FAIL controlled-build-stop\n","",false,false,false,TimeSpan.Zero));
-            }).GetAwaiter().GetResult();
-            HostCheck.True(stopped == 1 && calls == 1 && locked);
+                File.WriteAllBytes(path,LinuxSignalProofFixture.CreatePackage(variant));
+                int before = calls; locked = false;
+                int stopped = QemuSmoke.RunAsync(root,options,TextWriter.Null,(_,_) =>
+                {
+                    calls++;
+                    try { using FileStream write = new(path,FileMode.Open,FileAccess.Write,FileShare.ReadWrite); }
+                    catch (IOException) { locked = true; }
+                    return Task.FromResult(new ProcessResult(1,"TEST_FAIL controlled-build-stop\n","",false,false,false,TimeSpan.Zero));
+                }).GetAwaiter().GetResult();
+                HostCheck.True(stopped == 1 && calls == before + 1 && locked);
+            }
             using FileStream released = new(path,FileMode.Open,FileAccess.Write,FileShare.None);
         }
         finally { File.Delete(path); Directory.Delete(directory); }

@@ -38,7 +38,7 @@ internal static unsafe class LinuxSignalProofFixtureTests
     private static void Invocations()
     {
         uint[] all = [39,186,158,13,131,14,234,14,14,186,14,131,1,15,14,131,1,231];
-        foreach (string variant in Fixture.Variants)
+        foreach (string variant in Fixture.SyscallVariants)
         {
             byte[] elf = Fixture.CreateElf(variant); var calls = Fixture.ExpectedInvocations(variant);
             int count = variant == "BadRestorer" ? 9 : variant == "BadReturn" ? 14 : 18;
@@ -64,7 +64,7 @@ internal static unsafe class LinuxSignalProofFixtureTests
     [HostTest("m16-009 Linux kernel action stack and saved-register vectors are independent of runtime-generated frames")]
     private static void AbiVectors()
     {
-        foreach (string variant in Fixture.Variants)
+        foreach (string variant in Fixture.SyscallVariants)
         {
             byte[] elf = Fixture.CreateElf(variant);
             HostCheck.True(U64(elf,0x1100) == 0x400a00 && U64(elf,0x1108) == (variant == "UserStack" ? 0x04000004UL : 0x0c000004UL));

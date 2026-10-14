@@ -6,7 +6,7 @@ internal static class LinuxSignalTranscriptTests
     [HostTest("m16-009 synthetic tails require actual handler restorer and expected negative exit protocols")]
     private static void Positive()
     {
-        foreach (string variant in LinuxSignalProofFixture.Variants)
+        foreach (string variant in LinuxSignalProofFixture.SyscallVariants)
         foreach (ulong pid in new[] { 1UL,103UL })
         {
             string[] rows = Synthetic(variant,pid);
@@ -20,7 +20,7 @@ internal static class LinuxSignalTranscriptTests
     [HostTest("m16-009 signal tails reject forged syscall handler stack context return and privilege fields")]
     private static void CallRejections()
     {
-        foreach (string variant in LinuxSignalProofFixture.Variants)
+        foreach (string variant in LinuxSignalProofFixture.SyscallVariants)
         {
             string[] rows = Synthetic(variant); byte[] package = LinuxSignalProofFixture.CreatePackage(variant);
             foreach (int at in Enumerable.Range(0,rows.Length).Where(i => rows[i].StartsWith("M16_008_CALL ",StringComparison.Ordinal)))
@@ -37,7 +37,7 @@ internal static class LinuxSignalTranscriptTests
     [HostTest("m16-009 signal readiness rejects missing extra reordered witness restoration and reap records")]
     private static void OrderAndLifetime()
     {
-        foreach (string variant in LinuxSignalProofFixture.Variants)
+        foreach (string variant in LinuxSignalProofFixture.SyscallVariants)
         {
             string[] rows = Synthetic(variant); byte[] package = LinuxSignalProofFixture.CreatePackage(variant);
             for (int i = 0; i < rows.Length; i++)
@@ -75,7 +75,7 @@ internal static class LinuxSignalTranscriptTests
         }
     }
 
-    private static string[] Synthetic(string variant,ulong pid = 17)
+    internal static string[] Synthetic(string variant,ulong pid = 17)
     {
         List<string> rows = ["TEST_START m16-009",
             "M16_006_POLICY physical=268435456 available=134217728 poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel",
@@ -105,13 +105,13 @@ internal static class LinuxSignalTranscriptTests
         return rows.ToArray();
     }
 
-    private static ulong Field(string row,string key) => ulong.Parse(row.Split(' ').Single(x => x.StartsWith(key + "=",StringComparison.Ordinal))[(key.Length + 1)..],CultureInfo.InvariantCulture);
-    private static string[] Change(string[] rows,int index,string key,ulong value)
+    internal static ulong Field(string row,string key) => ulong.Parse(row.Split(' ').Single(x => x.StartsWith(key + "=",StringComparison.Ordinal))[(key.Length + 1)..],CultureInfo.InvariantCulture);
+    internal static string[] Change(string[] rows,int index,string key,ulong value)
     {
         string[] copy = (string[])rows.Clone();
         copy[index] = string.Join(' ',copy[index].Split(' ').Select(x => x.StartsWith(key + "=",StringComparison.Ordinal) ? key + "=" + value.ToString(CultureInfo.InvariantCulture) : x));
         return copy;
     }
-    private static void Reject(string[] rows,byte[] package)
+    internal static void Reject(string[] rows,byte[] package)
     { bool rejected = false; try { QemuTranscripts.ValidateLinuxSignalTail(rows,package,0x200000,0x100000); } catch (ToolFailure) { rejected = true; } HostCheck.True(rejected); }
 }

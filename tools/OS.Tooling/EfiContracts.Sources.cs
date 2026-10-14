@@ -8,12 +8,12 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.Faults.cs"] = "d2ed85347db9a5abd0054c652f68a5c12a08ec4910167a32f6b66a0adaa8226e",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.Faults.cs"] = "10989d23bef8f9974104a468153e0699247c9532dddc14a01523dba0b3d4582d",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs"] = "94b6a505fc808646e6cea6a8c00d40ae62f75e3375de8986b1439ce2b1f825dc",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.cs"] = "9c31f70ac448ed2ee61bf41731816253c82f83f2140ac618aa9fc9a91d1be5a7",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.Frames.cs"] = "d2143afe619eca2be355b99d894a8948db78479b76e0e583d1bfed6182119904",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.Pending.cs"] = "a7d7d79daf888082078a0fd16d5080da245bf1dd0b5721e2877a1e5850867463",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs"] = "adad4ee21be247b5ab50bc265bc5980cb8735231df2289e9eea476d22e049d43",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs"] = "caae1051f52de185df62115a756f087abf0732eeaf37f5dbb85b5814e70599f4",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Signals.cs"] = "62e3d00c48a486807d4b4e2ffaab0c0e30eecb0fee0a74197f5a037e1928b57e",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Interrupts.cs"] = "58bf1ceec3bfd1387c6c572a59c743e905d977188e9932c54091d18d5854f692",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs"] = "5b2919a9152fafe7416f0d922f15de232095b316dcb440d9688b4b47f35ce14d",
@@ -50,8 +50,8 @@ public static partial class EfiContracts
                 [@"..\..\std\no-runtime\shared\Text\AsciiDecimalFormatter.cs"] = "7ecb8c89f031343bd5143b0222dbf70d124d6cc44b10d608894fa27ddab3bd82",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxStartupServices.cs"] = "c8f8d4233fbc81db95a212f5064c2dabdc0a878bcba424b0dc10c53df6dd13fa",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxMemoryServices.cs"] = "00d827874f705db4325bd7bd68a1dd237b7de0df3c295062d8f27596fe2ad5d9",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs"] = "817bd78ad2ba9b3c09b15a82378ae10161aea067dfe617f0be5a08045d8b7bde",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs"] = "a9cb00e7ba0ffae2592603f90f5807d5aad0f1993d8805b61e547e753f65ae55",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs"] = "05c68d690e49fcab9d9a2d795efed044ce81fcd02866fe9daa3de18b5c5a1fa5",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs"] = "efbb3cddc841a43d3b66bea63aff157d73be3c02466f77d6fbec12a735733754",
                 [@"..\OS.Kernel\Boot\BootSequence.cs"] = "2cd463b0a14094ff507b58d0061a6a70abf376bc1b4fb7f8952685e8d68a8da4",
                 [@"..\..\std\no-runtime\shared\Text\AsciiArgumentSplitter.cs"] = "9869438fcd0e465ca21c90f0e9de36b0a9b826c24885de36e44df653c5ea7be5",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfStartup.cs"] = "5fd400d94887ab5aaf64531ff58ca1484d56b308b2e30d8541ffced86a7a0396",

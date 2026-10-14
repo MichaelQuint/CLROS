@@ -147,8 +147,27 @@ RF provenance; handlers/returns clear RF under this restricted profile. Owned
 PROT_NONE reservations produce SEGV_ACCERR, holes SEGV_MAPERR, GP SI_KERNEL;
 outside-user saved PF errors hide page-table presence. Blocked/ignored/fatal
 faults use actual process shutdown. This is focused host/source/C# development
-evidence. Mechanical fault guest inputs, asynchronous user IRQ capture, unchanged
-Hello and focused suspension remain unfinished; no new guest has executed.
+evidence. Fault guest execution, asynchronous user IRQ capture, unchanged Hello
+and focused suspension remain unfinished; no new guest has executed.
+
+[Step1256](../done/step1256.md) adds seven canonical mechanical fault inputs:
+`FaultRead`, `FaultWrite`, `FaultExecute`, `FaultStack`, `FaultGp`, `FaultReturn`
+and `FaultFatal`. Their actual instructions target an unowned address above 4 GiB,
+RX code, NX data, a null user RSP, or CLI at CPL3. Handlers check every saved
+64-bit GPR, trap/error/address, RF/DF, x87 controls, MXCSR, XMM0/15 and FS/GS;
+checked returns repair RIP/RSP and preserve a saved RAX edit. Negative cases
+require default shutdown or rejection of an unrepaired NX continuation. Strict
+transcripts bind the single hardware fault to actual instructions, handler/
+restorer calls, witnesses, exit139/42, supervisor confirmation and drained reap.
+
+ARCH_SET_GS now uses the existing actual current-thread owner and the same
+mapped-readable base policy as ARCH_SET_FS; only that exact successful gateway
+frame field can change. Clone inherits GS, and later changes remain per-thread.
+Separate immutable callback-entry FS/GS witnesses prevent valid copies during
+pending/nested delivery from comparing hardware bases against a newly edited
+return frame before native WRMSR. The gateway allocation and disabled legacy
+bytes remain unchanged. These are focused host/byte/parser/C# development
+checks; no mechanical fault, unchanged Hello or runtime suspension has run.
 
 This remains focused host/source and freestanding C# evidence. No native worker,
 timer callback or mechanical ELF has executed. Original native/stack review,

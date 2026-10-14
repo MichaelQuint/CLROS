@@ -190,7 +190,8 @@ public unsafe partial struct LinuxThreadServices
 
     /// <summary>Execute only the explicit thread ABI slice for the actual running
     /// worker. The native owner has freshly captured its complete user image.
-    /// Successful ARCH_SET_FS updates the real ref frame. Exits are staged;
+    /// Successful ARCH_SET_FS/GS updates only the requested real ref-frame base.
+    /// Both retain this profile's mapped-readable user-base policy. Exits are staged;
     /// CommitExit runs after full native restoration with a captured kernel CALL.
     /// Futex is explicit optional admission; unsupported operations cannot
     /// report success. A staged wait must finish before another user call.</summary>
@@ -288,12 +289,14 @@ public unsafe partial struct LinuxThreadServices
     private long ArchPrctl(Slot* slot, ref LinuxSyscallFrame frame)
     {
         uint code = unchecked((uint)frame.Argument0); // Linux's int option ignores the upper argument bits.
-        if (code == 0x1002)
+        if (code is 0x1001 or 0x1002)
         {
             if (frame.Argument1 != 0 && !LinuxSyscallGateway.ValidateRange(frame.Argument1, 1, LinuxUserPageAccess.Read, _owner.User)) return Fault;
-            frame.FsBase = slot->Image.Frame.FsBase = frame.Argument1; return 0;
+            if (code == 0x1002) frame.FsBase = slot->Image.Frame.FsBase = frame.Argument1;
+            else frame.GsBase = slot->Image.Frame.GsBase = frame.Argument1;
+            return 0;
         }
-        if (code is not (0x1003 or 0x1004)) return Invalid; // SET_GS is not admitted by this subset.
+        if (code is not (0x1003 or 0x1004)) return Invalid;
         if (!LinuxSyscallGateway.ValidateRange(frame.Argument1, 8, LinuxUserPageAccess.Write, _owner.User)) return Fault;
         ulong value = code == 0x1003 ? frame.FsBase : frame.GsBase;
         return _owner.CopyToUser(_owner.User.Context, frame.Argument1, (byte*)&value, 8) == 1 ? 0 : Fault;

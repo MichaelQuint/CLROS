@@ -51,6 +51,9 @@ public static unsafe partial class X64LinuxUserTransition
     // Private GDT occupies 600h..63Fh; this distinct qword is outside saved
     // registers, segment selectors, both FXSAVE areas and the IDT at 1000h.
     public const uint KernelRootOffset = 0x640;
+    // Immutable during each callback. The separate return frame's FS/GS may
+    // change before native WRMSR applies a checked ARCH_SET_FS/GS result.
+    public const uint CallbackFsOffset = 0x648, CallbackGsOffset = 0x650;
     public const ushort UserCs = 0x3b, UserSs = 0x33;
     public const ulong Star = 0x0028000800000000, Fmask = 0x74700;
     private const ulong End = 0x100000000, PointerEnd = 0x0000800000000000;
@@ -274,7 +277,9 @@ public static unsafe partial class X64LinuxUserTransition
         w.Store(10, 0x120); w.Store(8, 0x128); w.Store(9, 0x130);
         w.Store(1, 0x138); w.Store(11, 0x148); w.Load(0, 8); w.Store(0, 0x140);
         w.ReadMsr(0xc0000100); w.Store(0, 0x150);
+        if (plan.ResumeUser) w.Store(0, CallbackFsOffset);
         w.ReadMsr(0xc0000102); w.Store(0, 0x158); // SWAPGS placed user GS here
+        if (plan.ResumeUser) w.Store(0, CallbackGsOffset);
         w.Fx(false, UserFxOffset); w.Fx(true, KernelFxOffset); w.Bytes(0xfc, 1);
         w.Bytes(0xd8200f, 3); w.CompareField(0, 0x28); w.Branch(0x85, ExitOffset);
         if (plan.KernelRoot != 0) { w.Load(0, 0x20); w.Bytes(0xd8220f, 3); }

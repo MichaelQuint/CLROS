@@ -43,6 +43,10 @@ internal static unsafe class LinuxSyscallGatewayTests
             case 15: return new(LinuxSyscallAction.RestoreUser, 77, exitCode: 1);
             case 16: frame->Number = 39; return new(LinuxSyscallAction.RestoreUser, 77);
             case 17: frame->Rip = 0xffff800000001000; return new(LinuxSyscallAction.RestoreUser, 77);
+            case 18: frame->GsBase = frame->Argument1; return new(LinuxSyscallAction.Return, m->ThreadValue);
+            case 19: frame->GsBase = frame->Argument1; frame->FsBase = frame->Argument1; return new(LinuxSyscallAction.Return);
+            case 20: frame->GsBase = 0x403008; return new(LinuxSyscallAction.Return);
+            case 21: frame->GsBase = 0x403008; return new(LinuxSyscallAction.RestoreUser, 77);
         }
         if (frame->Number == 158) { frame->FsBase = frame->Argument1; return new(LinuxSyscallAction.Return); }
         return new(LinuxSyscallAction.Return, 23);
@@ -60,9 +64,9 @@ internal static unsafe class LinuxSyscallGatewayTests
     private static void SignalReturnControls()
     {
         byte* scratch = stackalloc byte[64];
-        for (int variant = 0; variant < 6; variant++)
+        for (int variant = 0; variant < 7; variant++)
         {
-            Model model = new() { ThreadMode = variant < 2 ? 13U : (uint)variant + 12 }; var state = ThreadGate(&model,scratch);
+            Model model = new() { ThreadMode = variant < 2 ? 13U : variant == 6 ? 21U : (uint)variant + 12 }; var state = ThreadGate(&model,scratch);
             var frame = Frame(); frame.Number = variant == 1 ? 39UL : 15UL;
             var result = LinuxSyscallGateway.Dispatch(ref state,ref frame);
             if (variant == 0)
@@ -126,6 +130,40 @@ internal static unsafe class LinuxSyscallGatewayTests
         model.ThreadMode = 0; state = ThreadGate(&model, scratch); frame.Argument1 = 0x500000; // RWX is never admissible TLS.
         HostCheck.Equal(LinuxSyscallAction.Terminate, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
         HostCheck.Equal(LinuxSyscallGateStatus.InvalidReturn, state.Status);
+    }
+
+    [HostTest("m16-009 gateway permits only successful requested mapped GS updates and retains the distinct FS and sigreturn envelope")]
+    private static void ThreadGs()
+    {
+        byte* scratch = stackalloc byte[64]; Model model = new() { ThreadMode = 18 };
+        foreach (ulong option in new ulong[] {0x1001,0xffffffff00001001})
+        {
+            var state = ThreadGate(&model,scratch); var frame = Frame(); frame.Number=158;
+            frame.Argument0=option; frame.Argument1=0x403000; frame.FsBase=0x403008;
+            var result=LinuxSyscallGateway.Dispatch(ref state,ref frame);
+            HostCheck.True(result.Action==LinuxSyscallAction.Return && result.Value==0 && frame.GsBase==0x403000 && frame.FsBase==0x403008);
+            frame.Argument1=0; HostCheck.Equal(LinuxSyscallAction.Return,LinuxSyscallGateway.Dispatch(ref state,ref frame).Action);
+            HostCheck.Equal(0UL,frame.GsBase); HostCheck.Equal(0x403008UL,frame.FsBase);
+        }
+        for (int variant=0;variant<8;variant++)
+        {
+            model.ThreadMode=18; model.ThreadValue=0; var state=ThreadGate(&model,scratch);
+            var frame=Frame(); frame.Number=158; frame.Argument0=0x1001; frame.Argument1=0x403000; frame.FsBase=0x403010;
+            switch (variant)
+            {
+                case 0: frame.Number=39; break;
+                case 1: frame.Argument0=0x1002; break;
+                case 2: frame.Argument0=0x1004; break;
+                case 3: model.ThreadValue=-14; break;
+                case 4: model.ThreadValue=1; break;
+                case 5: model.ThreadMode=19; break;
+                case 6: model.ThreadMode=20; break;
+                case 7: frame.Argument1=0x500000; break;
+            }
+            HostCheck.Equal(LinuxSyscallAction.Terminate,LinuxSyscallGateway.Dispatch(ref state,ref frame).Action);
+            HostCheck.Equal(LinuxSyscallGateStatus.InvalidReturn,state.Status);
+            HostCheck.True(frame.GsBase==0 && frame.FsBase==0x403010);
+        }
     }
 
     [HostTest("m16-008 gateway distinguishes staged block thread exit and process exit without scheduling claims")]

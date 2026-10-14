@@ -10,7 +10,9 @@ public static unsafe partial class X64LinuxUserTransition
     /// retained kernel root. FS remains the captured user's base; GS owns this
     /// gateway; KERNEL_GS holds the captured user's GS. The IRQ-off native owner
     /// supplies genuine observations and proves exclusive mapped data and its
-    /// original restoration envelope. This grants no execution or copy authority.</summary>
+    /// original restoration envelope. Entry-base witnesses stay immutable even
+    /// when the desired return frame changes before native WRMSR. This grants
+    /// no execution or copy authority.</summary>
     public static bool ValidateCallback(byte* data, uint bytes, ulong kernelRoot,
         ulong root, ulong flags, ulong cs, ulong ss, ulong tr,
         ulong fsBase, ulong gsBase, ulong kernelGsBase, ulong fs, ulong gs) =>
@@ -18,7 +20,7 @@ public static unsafe partial class X64LinuxUserTransition
         *(ulong*)(data + PhaseOffset) == 1 && *(ulong*)(data + 0x20) == kernelRoot &&
         *(ulong*)(data + KernelRootOffset) == kernelRoot && root == kernelRoot &&
         (flags & 0x602) == 2 && cs == 8 && (ss == 16 || ss == 0) && tr == 24 && fs == 0 && gs == 0 &&
-        fsBase == *(ulong*)(data + 0x150) && gsBase == (ulong)data && kernelGsBase == *(ulong*)(data + 0x158);
+        fsBase == *(ulong*)(data + CallbackFsOffset) && gsBase == (ulong)data && kernelGsBase == *(ulong*)(data + CallbackGsOffset);
 
     /// <summary>Emit or compare the explicit GP/PF capture region, separate from
     /// the original 4-KiB gateway. Only that gateway's normalized user fault stubs
@@ -57,8 +59,8 @@ public static unsafe partial class X64LinuxUserTransition
         w.StackLoad(40); w.Store(0, 0x140); w.Store(0, 8);
         w.StackLoad(24); w.StoreWord(FaultSelectorsOffset); w.StackLoad(48); w.StoreWord(FaultSelectorsOffset + 2);
         w.Bytes(0xd0200f, 3); w.Store(0, FaultAddressOffset);
-        w.ReadMsr(0xc0000100); w.Store(0, 0x150);
-        w.ReadMsr(0xc0000102); w.Store(0, 0x158);
+        w.ReadMsr(0xc0000100); w.Store(0, 0x150); w.Store(0, CallbackFsOffset);
+        w.ReadMsr(0xc0000102); w.Store(0, 0x158); w.Store(0, CallbackGsOffset);
         w.Set(OutcomeOffset, 3); w.Fx(false, UserFxOffset); w.Fx(true, KernelFxOffset); w.Bytes(0xfc, 1);
         w.Bytes(0xd8200f, 3); w.CompareField(0, 0x28); w.Branch(0x85, FaultCleanup);
         w.Load(0, 0x20); w.Bytes(0xd8220f, 3); // No C# callback under the user root.

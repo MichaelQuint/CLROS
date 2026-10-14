@@ -405,17 +405,50 @@ internal static unsafe class LinuxThreadServicesTests
         ulong before = m.CurrentImage()->Frame.FsBase;
         HostCheck.Equal(-14L, m.Call(158, 0x1002, UserBase + UserBytes).Value);
         HostCheck.Equal(before, m.CurrentImage()->Frame.FsBase);
-        HostCheck.Equal(-22L, m.Call(158, 0x1001, UserBase + 0x2100).Value);
+        ulong priorGs = m.CurrentImage()->Frame.GsBase;
+        HostCheck.Equal(-14L, m.Call(158, 0x1001, UserBase + UserBytes).Value);
+        HostCheck.Equal(priorGs, m.CurrentImage()->Frame.GsBase);
+        HostCheck.Equal(0L, m.Call(158, 0xffffffff00001001, UserBase + 0x2180).Value);
+        HostCheck.Equal(UserBase + 0x2180, m.CurrentImage()->Frame.GsBase);
+        HostCheck.Equal(before, m.CurrentImage()->Frame.FsBase);
         HostCheck.Equal(0L, m.Call(158, 0xffffffff00001002, UserBase + 0x2100).Value);
         HostCheck.Equal(0L, m.Call(158, 0x1003, ParentOldMask).Value);
         HostCheck.Equal(UserBase + 0x2100, m.Read64(ParentOldMask));
         HostCheck.Equal(0L, m.Call(158, 0x1004, ParentOldMask).Value);
-        HostCheck.Equal(UserBase + 0x1140, m.Read64(ParentOldMask));
+        HostCheck.Equal(UserBase + 0x2180, m.Read64(ParentOldMask));
+        HostCheck.Equal(-22L, m.Call(158, 0x1005, UserBase + 0x2100).Value);
+        HostCheck.Equal(0L, m.Call(158, 0x1001, 0).Value); HostCheck.Equal(0UL, m.CurrentImage()->Frame.GsBase);
         HostCheck.Equal(0L, m.Call(158, 0x1002, 0).Value); HostCheck.Equal(0UL, m.CurrentImage()->Frame.FsBase);
         HostCheck.Equal(101L, m.Call(218, 0).Value); HostCheck.Equal(0UL, m.View(parent).ClearTid);
         HostCheck.Equal(101L, m.Call(218, ChildTidAddress + 1).Value);
         HostCheck.Equal(ChildTidAddress + 1, m.View(parent).ClearTid);
         HostCheck.Equal(-38L, m.Call(202).Value); HostCheck.True(!m.Service->Failed);
+    }
+
+    [HostTest("linux.thread-services real gateway GS changes survive clone and remain private to the running generation")]
+    private static void GatewayGsAndClone()
+    {
+        using Model m = new(); var parent=m.Start(); HostCheck.Equal(parent.Value,m.Kernel.Dispatch().Value);
+        byte* scratch=stackalloc byte[64]; LinuxSyscallGateState gate=default;
+        HostCheck.Equal(LinuxSyscallGateStatus.Active,LinuxSyscallGateway.Begin(ref gate,new()
+        {
+            UserRoot=0x200000,MaximumCalls=16,MaximumWrite=64,Scratch=scratch,ScratchBytes=64,
+            FirmwareExited=true,OwnedBoundaryValidated=true,EnableStartup=true,EnableDescriptors=true,EnableThreads=true
+        },m.GatewayAccess));
+        var frame=m.CurrentImage()->Frame; ulong fs=frame.FsBase;
+        frame.Number=158; frame.Argument0=0x1001; frame.Argument1=UserBase+0x2180;
+        m.CurrentImage()->Frame=frame;
+        var result=LinuxSyscallGateway.Dispatch(ref gate,ref frame);
+        HostCheck.True(result.Action==LinuxSyscallAction.Return && result.Value==0 && gate.Status==LinuxSyscallGateStatus.Active);
+        HostCheck.True(frame.GsBase==UserBase+0x2180 && frame.FsBase==fs && m.CurrentImage()->Frame.GsBase==frame.GsBase);
+        frame.Argument0=0x1004; frame.Argument1=ParentOldMask;
+        HostCheck.Equal(LinuxSyscallAction.Return,LinuxSyscallGateway.Dispatch(ref gate,ref frame).Action);
+        HostCheck.Equal(UserBase+0x2180,m.Read64(ParentOldMask));
+        var child=m.Clone(); m.Yield(parent); HostCheck.Equal(child.Value,m.Kernel.Dispatch().Value);
+        HostCheck.Equal(UserBase+0x2180,m.CurrentImage()->Frame.GsBase);
+        HostCheck.Equal(0L,m.Call(158,0x1001,UserBase+0x2200).Value);
+        m.Yield(child); HostCheck.Equal(parent.Value,m.Kernel.Dispatch().Value);
+        HostCheck.Equal(UserBase+0x2180,m.CurrentImage()->Frame.GsBase);
     }
 
     [HostTest("linux.thread-services set tid address stores raw pointers and exit clears only accessible bytes")]

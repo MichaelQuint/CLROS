@@ -348,6 +348,12 @@ internal static unsafe class X64LinuxUserTransitionTests
                 HostCheck.True(bytes[..adopted].IndexOf(expected) > saved);
             }
             HostCheck.True(bytes[..saved].IndexOf(new byte[] {0x65,0x4c,0x89,0x34,0x25,0xb0,1,0,0}) >= 0); // R14 before scratch.
+            foreach (byte offset in new byte[] {0x48,0x50})
+            {
+                byte[] witness=[0x49,0x89,0x86,offset,6,0,0];
+                HostCheck.True(bytes[..adopted].IndexOf(witness)>=0);
+                HostCheck.True(new ReadOnlySpan<byte>(code+0x600,0x4f0).IndexOf(witness)>=0);
+            }
             foreach (byte stackOffset in new byte[] {0,8,16,24,32,40,48})
                 HostCheck.True(bytes[..adopted].IndexOf(new byte[] {0x48,0x8b,0x44,0x24,stackOffset}) >= 0);
             HostCheck.True(bytes[(callback + call.Length)..].IndexOf(new byte[] {0x0f,0x01,0xf8,0x48,0xcf}) >= 0);
@@ -369,13 +375,20 @@ internal static unsafe class X64LinuxUserTransitionTests
         {
             new Span<byte>(data,(int)Transition.DataBytes).Clear();
             *(ulong*)(data + 0x1f0) = 1; *(ulong*)(data + 0x20) = *(ulong*)(data + 0x640) = 0x500000;
-            *(ulong*)(data + 0x150) = 0x123456789; *(ulong*)(data + 0x158) = 0x234567890;
+            *(ulong*)(data + 0x648) = *(ulong*)(data + 0x150) = 0x123456789;
+            *(ulong*)(data + 0x650) = *(ulong*)(data + 0x158) = 0x234567890;
             ulong* cpu = stackalloc ulong[11] {0x500000,2,8,0,24,0x123456789,(ulong)data,0x234567890,0,0,0x500000};
             HostCheck.True(Check(data,cpu)); cpu[3] = 16; HostCheck.True(Check(data,cpu)); cpu[3] = 0;
             for (int i = 0; i < 11; i++)
             { ulong old = cpu[i]; cpu[i] ^= i == 1 ? 0x200UL : 1UL; HostCheck.True(!Check(data,cpu), "cpu " + i); cpu[i] = old; }
-            foreach (uint offset in new uint[] {0x1f0,0x20,0x640,0x150,0x158})
+            foreach (uint offset in new uint[] {0x1f0,0x20,0x640,0x648,0x650})
             { *(ulong*)(data + offset) ^= 1; HostCheck.True(!Check(data,cpu)); *(ulong*)(data + offset) ^= 1; }
+            // A checked setter changes the return frame before WRMSR. CPU
+            // ownership must still admit original bases, never the desired ones.
+            *(ulong*)(data + 0x150)=0x345678901; *(ulong*)(data + 0x158)=0x456789012;
+            HostCheck.True(Check(data,cpu));
+            cpu[5]=*(ulong*)(data+0x150); HostCheck.True(!Check(data,cpu)); cpu[5]=0x123456789;
+            cpu[7]=*(ulong*)(data+0x158); HostCheck.True(!Check(data,cpu));
             static bool Check(byte* d,ulong* c) => Transition.ValidateCallback(d,Transition.DataBytes,c[10],c[0],c[1],c[2],c[3],c[4],c[5],c[6],c[7],c[8],c[9]);
         }
         finally { NativeMemory.AlignedFree(data); }
@@ -611,7 +624,26 @@ internal static unsafe class X64LinuxUserTransitionTests
                 0x4d,0x8b,0xbe,0xb8,1,0,0, 0x49,0x8b,0x86,0xe8,0,0,0, 0x4d,0x8b,0xb6,0xb0,1,0,0, 0x48,0xcf
             ];
             HostCheck.True(entry.IndexOf(resumeReturn) >= 0 && entry.IndexOf(originalReturn) == -1);
-            HostCheck.True(new ReadOnlySpan<byte>(code + 0x400, 4096 - 0x400).SequenceEqual(new ReadOnlySpan<byte>(legacy + 0x400, 4096 - 0x400)));
+            HostCheck.True(new ReadOnlySpan<byte>(code+0x400,0x200).SequenceEqual(new ReadOnlySpan<byte>(legacy+0x400,0x200)));
+            HostCheck.True(new ReadOnlySpan<byte>(code+0xaf0,4096-0xaf0).SequenceEqual(new ReadOnlySpan<byte>(legacy+0xaf0,4096-0xaf0)));
+            // The resumable syscall body adds exactly two immutable entry-base
+            // stores. Only the two forward cleanup displacements and INT3 tail
+            // padding move; compare every remaining byte to the legacy body.
+            ReadOnlySpan<byte> oldSyscall=new(legacy+0x600,0x4f0);
+            int fsEnd=oldSyscall.IndexOf(new byte[] {0x49,0x89,0x86,0x50,1,0,0})+7;
+            int gsEnd=oldSyscall.IndexOf(new byte[] {0x49,0x89,0x86,0x58,1,0,0})+7;
+            HostCheck.True(fsEnd>=7 && gsEnd>fsEnd && oldSyscall[^14..].IndexOfAnyExcept((byte)0xcc)<0);
+            byte[] expectedSyscall=[..oldSyscall[..fsEnd],0x49,0x89,0x86,0x48,6,0,0,
+                ..oldSyscall[fsEnd..gsEnd],0x49,0x89,0x86,0x50,6,0,0,..oldSyscall[gsEnd..^14]];
+            int cleanupBranches=0;
+            for (int at=0;at<expectedSyscall.Length-5;at++) if (expectedSyscall[at]==15 && expectedSyscall[at+1]==0x85)
+            {
+                int displacement=BitConverter.ToInt32(expectedSyscall,at+2);
+                HostCheck.Equal(0xe00+14,0x600+at+6+displacement);
+                BitConverter.GetBytes(displacement-14).CopyTo(expectedSyscall,at+2); cleanupBranches++;
+            }
+            HostCheck.Equal(2,cleanupBranches);
+            HostCheck.True(new ReadOnlySpan<byte>(code+0x600,0x4f0).SequenceEqual(expectedSyscall));
             foreach (ulong root in new ulong[] { 0, plan.UserRoot, 0x500001 })
             {
                 plan.KernelRoot = root; new Span<byte>(code, 4096).Fill(0xa5);

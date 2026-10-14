@@ -10,9 +10,11 @@ namespace OS.Tooling;
 /// inputs require owned SIGSEGV termination. Construction/byte inventories are
 /// host evidence only; no handler, native runtime or guest execution is implied.
 /// Geometry matches the existing seven-page mechanical ELF, not an upstream app.</summary>
-public static class LinuxSignalProofFixture
+public static partial class LinuxSignalProofFixture
 {
-    public static IReadOnlyList<string> Variants { get; } = Array.AsReadOnly<string>(["AlternateStack", "UserStack", "BadReturn", "BadRestorer"]);
+    public static IReadOnlyList<string> SyscallVariants { get; } = Array.AsReadOnly<string>(["AlternateStack", "UserStack", "BadReturn", "BadRestorer"]);
+    public static IReadOnlyList<string> FaultVariants { get; } = Array.AsReadOnly<string>(["FaultRead", "FaultWrite", "FaultExecute", "FaultStack", "FaultGp", "FaultReturn", "FaultFatal"]);
+    public static IReadOnlyList<string> Variants { get; } = Array.AsReadOnly<string>([.. SyscallVariants, .. FaultVariants]);
     public const string AppPath = "apps/m16signals.elf", Witness = "M16_SIGNALS_OK!", HandlerWitness = "M16_HANDLER_OK!";
     public const ulong ImageBase = 0x400000, ParentTls = 0x402000, ParentStackTop = 0x405000, AlternateBase = 0x406000;
     public const int ElfBytes = 0x7000, EntryOffset = 0x200, HandlerOffset = 0xa00, RestorerOffset = 0xe00, FailureOffset = 0xf00;
@@ -29,7 +31,7 @@ public static class LinuxSignalProofFixture
     /// dynamic PID, RSP and independently checked arguments/results.</summary>
     public readonly record struct Invocation(uint Number, ulong ReturnRip, bool Handler);
 
-    public static uint ExpectedExitCode(string variant) { Validate(variant); return variant is "BadReturn" or "BadRestorer" ? 139U : 42U; }
+    public static uint ExpectedExitCode(string variant) { Validate(variant); return variant is "BadReturn" or "BadRestorer" or "FaultReturn" or "FaultFatal" ? 139U : 42U; }
     public static IReadOnlyList<Invocation> ExpectedInvocations(string variant) => Array.AsReadOnly(Build(variant).Calls);
     public static byte[] CreateElf(string variant) => Build(variant).Elf;
     public static byte[] CreatePackage(string variant) => LinuxThreadProofFixture.CreateMechanicalPackage(CreateElf(variant), variant, AppPath);
@@ -64,7 +66,9 @@ public static class LinuxSignalProofFixture
 
     private static (byte[] Elf, Invocation[] Calls) Build(string variant)
     {
-        Validate(variant); bool alternate = variant != "UserStack";
+        Validate(variant);
+        if (IsFaultVariant(variant)) { var fault = BuildFault(variant); return (fault.Elf, fault.Calls); }
+        bool alternate = variant != "UserStack";
         byte[] elf = LinuxThreadProofFixture.CreateMechanicalImage(Witness);
         Encoding.ASCII.GetBytes(HandlerWitness).CopyTo(elf, HandlerWitnessOffset);
         void U16(int at, ushort value) => BinaryPrimitives.WriteUInt16LittleEndian(elf.AsSpan(at), value);
@@ -152,5 +156,5 @@ public static class LinuxSignalProofFixture
     { w.Op(0x589c, 2); w.Op(0x25, 1); w.Op(0x400, 4); w.Compare(expected); } // PUSHFQ; POP RAX; AND EAX,DF.
     private static ulong Address(int offset) => ImageBase + (uint)offset;
     private static void Validate(string variant)
-    { if (variant is not ("AlternateStack" or "UserStack" or "BadReturn" or "BadRestorer")) throw new ToolFailure("m16_009_fixture_variant"); }
+    { if (!Variants.Contains(variant, StringComparer.Ordinal)) throw new ToolFailure("m16_009_fixture_variant"); }
 }

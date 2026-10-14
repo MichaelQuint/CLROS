@@ -92,13 +92,23 @@ Future qualification command (not yet executed):
 dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16009Probe -LinuxElfPackage artifacts/packages/m16-009-alt.pkg -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 60 -RequireMarker CLROS_M16_009_READY
 ```
 
-This current leaf admits only the four mechanical signal packages. Unchanged
+This current leaf admits only the eleven canonical mechanical signal packages. Unchanged
 pinned Hello, asynchronous user IRQ activation and focused suspension remain
 required before #687 acceptance; no M16-009 readiness has executed in a guest.
 The complete GP/PF capture source added in [step1255](../done/step1255.md) uses
 the separately verified 1800h..1FFFh worker-code region and the original gateway
-allocation. Fault guest cases and original native/stack qualification remain
-required; the current canonical package preflight still admits no fault fixture.
+allocation. [Step1256](../done/step1256.md) adds canonical `FaultRead`,
+`FaultWrite`, `FaultExecute`, `FaultStack`, `FaultGp`, `FaultReturn` and
+`FaultFatal` inputs to the same preflight and strict transcript. The first five
+repair a genuine GP/PF context and require exit42; the last two require exit139.
+All use nonzero user FS/GS and complete saved GPR/FP checks. Fault read targets
+an unowned address above 4 GiB; null RSP recovery requires the alternate stack.
+No guest has executed these inputs; original native/stack and live qualification
+remain required. Generate a fresh package for later batch qualification with:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- linux signal-fixture artifacts/packages/m16-009-fault-stack.pkg FaultStack
+```
 
 The future qualification command is:
 

@@ -7,6 +7,12 @@ with original parent validation and drained restoration before
 `CLROS_M16_009_READY`. It has no guest execution evidence yet; unchanged Hello,
 asynchronous activation and suspension remain unfinished.
 
+[Step1256](../done/step1256.md) adds seven canonical GP/PF fault packages and
+strict single-fault/handler/return/exit/cleanup protocols. They check full saved
+GPRs, nonzero user FS/GS, x87/SSE, fault context and repaired or rejected
+continuations. Canonical construction and parser controls establish no executed
+fault or guest signal acceptance; all eleven inputs await batch qualification.
+
 Development `EnableM16008Probe` defaults false and requires the descriptor and
 owned clock/PCI/APIC parents. [Step1244](../done/step1244.md) attaches the native
 owner after actual APIC setup and admits only the canonical mechanical package.

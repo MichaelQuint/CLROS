@@ -1,9 +1,13 @@
 # QEMU
 
-Development `-EnableM16009Probe` admits only the four canonical mechanical signal
+Development `-EnableM16009Probe` admits only the eleven canonical mechanical signal
 packages and requires `CLROS_M16_009_READY`. Input preflight/read-lock ownership
 precedes native build/launch; complete startup/service/PCI/APIC and signal tails
 must validate. Ancestor readiness or marker overrides cannot satisfy this leaf.
+The seven hardware-fault inputs added in [step1256](../done/step1256.md) require
+one exact GP/PF capture, checked recovery or owned exit139, and complete cleanup.
+Their tails contain 30 rows for recovery, 25 for invalid sigreturn and 19 for
+default fatal delivery. The four earlier signal protocols remain unchanged.
 See [step1254](../done/step1254.md) and [EFI commands](efi-build.md). No new QEMU
 capture, unchanged Hello or runtime suspension is qualified by this wiring.
 
