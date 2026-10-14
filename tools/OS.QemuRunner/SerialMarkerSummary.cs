@@ -252,7 +252,7 @@ public sealed class SerialMarkerSummary
                 continue;
             }
 
-            if (IsMarkerLine(trimmed))
+            if (IsStandardObservedMarkerLine(trimmed))
             {
                 observedMarkers.Add(trimmed);
             }
@@ -263,13 +263,17 @@ public sealed class SerialMarkerSummary
             : observedMarkers.ToArray();
     }
 
-    private static bool IsMarkerLine(string line)
+    /// <summary>Classify one caller-trimmed host serial line for summary retention.
+    /// Optional M16 witnesses, faults and IRQ rows remain visible without becoming
+    /// required, ordered or unique markers. Recording a line does not validate it.</summary>
+    public static bool IsStandardObservedMarkerLine(string line)
     {
         return line.StartsWith("TEST_", StringComparison.Ordinal)
             || line.StartsWith("BOOT_", StringComparison.Ordinal)
             || line.StartsWith("OS_", StringComparison.Ordinal)
             || line.StartsWith("UEFI_", StringComparison.Ordinal)
             || line.StartsWith("ACPI_", StringComparison.Ordinal)
+            || line.StartsWith("M16_", StringComparison.Ordinal)
             || IsAppExitLine(line);
     }
 

@@ -652,7 +652,11 @@ internal static class DiagnosticsTests
             && CatalogContains(catalog, nameof(Probes.EnableFetchAppHttpTcpExchangeProbe), ProbeRisk.DeviceIo, enabled: false)
             && CatalogContains(catalog, nameof(Probes.EnableM01LoadedImageStackProbe), ProbeRisk.Destructive, enabled: false)
             && CatalogContains(catalog, nameof(Probes.EnableM01LiveAllocatorProbe), ProbeRisk.Destructive, enabled: false)
-            && CatalogContains(catalog, nameof(Probes.EnableM01OwnedPagingProbe), ProbeRisk.Destructive, enabled: false);
+            && CatalogContains(catalog, nameof(Probes.EnableM01OwnedPagingProbe), ProbeRisk.Destructive, enabled: false)
+            && CatalogContains(catalog, nameof(Probes.EnableM16008Probe), ProbeRisk.Destructive, enabled: false)
+            && CatalogContains(catalog, nameof(Probes.EnableM16009Probe), ProbeRisk.Destructive, enabled: false)
+            && CatalogNameCount(catalog, nameof(Probes.EnableM16008Probe)) == 1
+            && CatalogNameCount(catalog, nameof(Probes.EnableM16009Probe)) == 1;
     }
 
     private static bool TestProbeCatalogReportsDestinationCapacity()

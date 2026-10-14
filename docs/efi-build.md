@@ -2,6 +2,14 @@
 
 ## Development Linux threading profile
 
+[Step1259](../done/step1259.md) repairs combined-profile admission: the native
+verifier requires the authenticated thread copy callbacks in M16-008/009 and
+rejects the superseded single-thread callbacks. The shared retained-range
+capacity is 39, matching the combined image/arena/Linux/PCI/APIC envelope;
+table-page, mapped-page and permission bounds remain unchanged. One fresh
+M16-009 `AlternateStack` guest passes the ordinary build/image/QEMU wrapper.
+This is diagnostic development evidence, not complete batch qualification.
+
 `EnableM16008Probe` defaults false. It requires M16-002 through M16-007, the
 original five owned-exit parents, PCI and APIC; disabled parents and other leaves
 reject. [Step1241](../done/step1241.md) through [step1243](../done/step1243.md)

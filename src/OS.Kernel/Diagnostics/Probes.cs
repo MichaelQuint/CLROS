@@ -284,7 +284,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 58;
+    public const int ProbeCatalogCount = 60;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -905,6 +905,12 @@ public static partial class Probes
                 return true;
             case 57:
                 definition = GetM09010Probe();
+                return true;
+            case 58:
+                definition = GetM16008Probe();
+                return true;
+            case 59:
+                definition = GetM16009Probe();
                 return true;
             default:
                 definition = default;

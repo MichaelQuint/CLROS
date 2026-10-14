@@ -150,11 +150,13 @@ public static class QemuProfiles
                 "M16_002_PACKAGE_DIGEST", "M16_002_OWNED", "CLROS_M16_002_READY", "TEST_PASS m16-002",
                 .. QemuTranscripts.M16LinuxStartupMarkers, .. QemuTranscripts.M16ServiceLoopMarkers,
                 .. QemuContracts.M05ApicSetupMarkers.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count), .. QemuTranscripts.M16LinuxSignalMarkers];
-            string[] repeated = ["M16_008_CALL"];
+            string[] repeated = ["M16_008_CALL", "M16_008_SUPERVISOR", "M16_008_EXIT", "M16_008_REAP"];
             Select(records, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8", "M16_002_STAGE_REJECTED",
                 "TEST_START m16-008", "CLROS_M16_008_READY", "TEST_PASS m16-008"], true,
                 records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)).ToArray());
-            ordered = records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)).ToArray();
+            // Activation has two lifetimes and interleaved supervisor returns.
+            // The canonical tail parser checks their exact order and counts.
+            ordered = Merge(records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)));
         }
         else if (Enabled("M16008"))
         {
@@ -167,7 +169,7 @@ public static class QemuProfiles
                 records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)).ToArray());
             // Exact call/completion/exit/tick ordering is package-specific and
             // enforced by the complete canonical transcript validator.
-            ordered = records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)).ToArray();
+            ordered = Merge(records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)));
         }
         else if (Enabled("M09009") || Enabled("M09010"))
         {

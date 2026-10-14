@@ -1,5 +1,13 @@
 # QEMU
 
+[Step1259](../done/step1259.md) records one passing fresh M16-009 `AlternateStack`
+guest: 167 application records, real handler/sigreturn, exit42, reap and owned
+restoration. Thread/signal streaming requirements now normalize marker whitespace
+and permit repeated lifetime rows; the complete transcript still checks exact
+ordering and counts. Optional `M16_` diagnostic rows are retained consistently in
+runner summaries and exact raw/summary validation. Activation, the wider guest
+matrix and final batch qualification remain pending.
+
 Development `-EnableM16009Probe` admits only the twelve canonical mechanical signal
 packages and requires `CLROS_M16_009_READY`. Input preflight/read-lock ownership
 precedes native build/launch; complete startup/service/PCI/APIC and signal tails

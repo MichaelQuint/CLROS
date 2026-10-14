@@ -16,6 +16,9 @@ internal sealed partial class EfiVerification
         return address;
     }
     private void BindProfile(bool enabled, string name, params string[] symbols)
+        => BindProfile(image, map, enabled, name, symbols);
+
+    private static void BindProfile(EfiPeImage image, string map, bool enabled, string name, params string[] symbols)
     {
         foreach (string symbol in symbols)
         {
@@ -61,13 +64,14 @@ internal sealed partial class EfiVerification
         BindProfile(profile.IsEnabled("M16004"), "m16_startup", new[] { "PrepareLinuxStartup", "RunOwnedLinuxStartup", "ReadLinuxUserRoot" }
             .Select(n => "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__" + n).ToArray());
         BindProfile(profile.IsEnabled("M16005"), "m16_syscalls", new[] { "PrepareLinuxUserBoundary", "RunOwnedLinuxSyscalls", "DispatchLinuxSyscall",
-            "LinuxUserPageAccess", "CopyLinuxUserBytes", "WriteLinuxUserBytes", "ReportLinuxUserFault" }
+            "LinuxUserPageAccess", "WriteLinuxUserBytes", "ReportLinuxUserFault" }
             .Select(n => "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__" + n).ToArray());
         BindProfile(profile.IsEnabled("M16006"), "m16_memory", new[] { "PrepareLinuxMemory", "DispatchLinuxStartup", "CopyToLinuxUser",
             "ReadLinuxClock", "LinuxMemoryBarrier" }.Select(n => "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__" + n).ToArray());
         BindProfile(profile.IsEnabled("M16007"), "m16_descriptors", new[] { "PrepareLinuxDescriptors", "DispatchLinuxDescriptors",
-            "CopyDescriptorInput", "CopyDescriptorOutput", "WriteDescriptorOutput" }
+            "WriteDescriptorOutput" }
             .Select(n => "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__" + n).ToArray());
+        VerifyLinuxCopyBindings(profile, map, image);
         BindProfile(profile.IsEnabled("M04ClassConstructorExecution"), "compiler_cctor", "OS_OS_Runtime_RhpNewFastAllocation__BindAndRunCompilerClassConstructors", "OS_OS_Runtime_RhpNewFastAllocation__CctorDirectRead", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnGCStaticBase");
         BindProfile(profile.IsEnabled("M04ClassConstructorExecution") || profile.IsEnabled("M04ConstructorFailure"), "compiler_cctor", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__EnsureClassConstructorRun", "OS_System_Runtime_CompilerServices_ClassConstructorRunner__CheckStaticClassConstructionReturnNonGCStaticBase");
         Require(!Regex.IsMatch(map, @"ClassConstructorRunner__[^\s]*ThreadStatic"), "compiler_cctor_thread_static_unsupported");
@@ -81,6 +85,18 @@ internal sealed partial class EfiVerification
             image.Resolve(address - image.ImageBase, 1, "first_exit_callback_not_backed", "first_exit_callback_ambiguous").Section.RequireCode("first_exit_callback_section_invalid");
         }
     }
+    internal static void VerifyLinuxCopyBindings(EfiProfile profile, string map, EfiPeImage image)
+    {
+        const string prefix = "OS_OS_Boot_EfiEntry_M03FirstExitAdapter__";
+        // M16-009 implies M16-008. Its authenticated thread owner replaces the
+        // single-thread callbacks; those old bodies are trimmed by NativeAOT.
+        bool threads = profile.IsEnabled("M16008");
+        BindProfile(image, map, profile.IsEnabled("M16005") && !threads, "m16_syscalls", prefix + "CopyLinuxUserBytes");
+        BindProfile(image, map, profile.IsEnabled("M16007") && !threads, "m16_descriptors",
+            prefix + "CopyDescriptorInput", prefix + "CopyDescriptorOutput");
+        BindProfile(image, map, threads, "m16_threads", prefix + "LinuxThreadCopyInput", prefix + "LinuxThreadCopyOutput");
+    }
+
     private byte[] NativeObject(string propertyPrefix, string sidecar, string objectName, int size, string hash, string reasonPrefix)
     {
         string preserved = EvidencePath(propertyPrefix + "ObjectPath", reasonPrefix + "_object_path_invalid"), linked = EvidencePath(propertyPrefix + "LinkedObjectPath", reasonPrefix + "_linked_object_path_invalid");

@@ -315,11 +315,12 @@ internal static class EfiProfileTestControls
             if (selected.Any(name => name != "EnableM09004Probe" && !parents.Contains(name))) return "m09_004_profile_conflict";
             if (parents.Any(name => !selected.Contains(name))) return "m09_004_requires_owned_first_exit";
         }
-        if (selected.Contains("EnableM16002Probe") || selected.Contains("EnableM16003Probe") || selected.Contains("EnableM16004Probe") || selected.Contains("EnableM16005Probe") || selected.Contains("EnableM16006Probe") || selected.Contains("EnableM16007Probe"))
+        bool linuxThreads = selected.Contains("EnableM16008Probe") || selected.Contains("EnableM16009Probe");
+        if (linuxThreads || selected.Contains("EnableM16002Probe") || selected.Contains("EnableM16003Probe") || selected.Contains("EnableM16004Probe") || selected.Contains("EnableM16005Probe") || selected.Contains("EnableM16006Probe") || selected.Contains("EnableM16007Probe"))
         {
             string[] allowed = ["EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM01LoadedImageStackProbe", "EnableM01LiveAllocatorProbe",
                 "EnableAcpiPhysicalDiscoveryProbe", "EnableM03FirstRealExitBootServicesProbe", "EnableM03OwnedSubsystemSurvivalProbe"];
-            if (selected.Any(name => !allowed.Contains(name) && !(selected.Contains("EnableM16008Probe") &&
+            if (selected.Any(name => !allowed.Contains(name) && !(linuxThreads &&
                 name is "EnableM16008Probe" or "EnableM16009Probe" or "EnableM05PciEnumerationProbe" or "EnableM05ApicSetupProbe"))) return "m16_002_profile_conflict";
         }
         bool Has(string name) => selected.Contains("Enable" + name + "Probe", StringComparer.Ordinal);

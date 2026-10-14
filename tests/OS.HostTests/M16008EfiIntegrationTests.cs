@@ -9,6 +9,40 @@ using OS.Tooling;
 
 internal static unsafe class M16008EfiIntegrationTests
 {
+    [HostTest("m16 thread and signal marker vectors survive runner normalization without duplicate requirements")]
+    private static void RunnerMarkerBoundary()
+    {
+        foreach (string flag in new[] { "EnableM16008Probe", "EnableM16009Probe" })
+        {
+            var plan = QemuProfiles.Create(QemuSmokeOptions.Parse(["--DryRun", "--BuildEfi", "--" + flag]));
+            // The CLI adds ordered/unique entries to required with exact-string
+            // deduplication; the streaming parser then trims every entry.
+            string[] required = plan.Required.Concat(plan.Ordered).Concat(plan.Unique).Distinct(StringComparer.Ordinal).ToArray();
+            _ = new OS.Tools.QemuRunner.SerialMarkerStateMachine(required, plan.Forbidden,
+                orderedMarkers: plan.Ordered, uniqueMarkers: plan.Unique);
+            HostCheck.True(required.All(marker => marker == marker.Trim()));
+            foreach (string marker in new[] { "M16_008_CALL", "M16_008_SUPERVISOR", "M16_008_EXIT", "M16_008_REAP" })
+                HostCheck.True(plan.Required.Contains(marker) && !plan.Ordered.Contains(marker) && !plan.Unique.Contains(marker));
+        }
+    }
+
+    [HostTest("m16 signal activation lifecycle passes streaming markers before exact transcript validation")]
+    private static void ActivationStreamingMarkers()
+    {
+        var plan = QemuProfiles.Create(QemuSmokeOptions.Parse(["--DryRun", "--BuildEfi", "--EnableM16009Probe"]));
+        string[] Tail(IReadOnlyList<string> markers) => markers.Where(QemuTranscripts.M16LinuxSignalMarkers.Contains).ToArray();
+        foreach (bool early in new[] { false, true })
+        {
+            string[] rows = LinuxSignalIrqTranscriptTests.Synthetic(early);
+            var state = new OS.Tools.QemuRunner.SerialMarkerStateMachine(Tail(plan.Required), plan.Forbidden,
+                successTerminalMarker: "TEST_PASS m16-009", orderedMarkers: Tail(plan.Ordered), uniqueMarkers: Tail(plan.Unique));
+            state.Feed(System.Text.Encoding.ASCII.GetBytes(string.Join('\n', rows) + "\n"));
+            var result = state.Complete();
+            HostCheck.True(result.Passed, "streaming status=" + result.Status);
+            QemuTranscripts.ValidateLinuxSignalTail(rows, LinuxSignalProofFixture.CreatePackage("Activation"), 0x200000, 0x100000);
+        }
+    }
+
     [HostTest("m16.008 default off source profile requires exact descriptor clock and APIC parents")]
     private static void Profile()
     {
@@ -102,6 +136,8 @@ internal static unsafe class M16008EfiIntegrationTests
             .Single(n => n.Identifier.Text == name).Initializer!.Value;
         HostCheck.Equal(19UL, Sum(Capacity("MaximumAllocations")));
         HostCheck.Equal(FirstExitImageMappings.MaximumSections + FirstExitOwnedArena.MappingRangeCount + 18UL, Sum(Capacity("MaximumRanges")));
+        HostCheck.True(Sum(Capacity("MaximumRanges")) <= SeparateDisabledDefaultPageFaultPageTables.MaximumRetainedRanges,
+            "the combined native profile must fit image/table-builder retained-range admission");
         var ecam = retained.DescendantNodes().OfType<AssignmentExpressionSyntax>()
             .Single(n => n.Right.ToString() == "references.EcamStart");
         HostCheck.True(ecam.Left.ToString() == "starts[allocations]");
