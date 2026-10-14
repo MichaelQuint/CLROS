@@ -434,6 +434,11 @@ native output directories between simultaneous suites. Checkpoints are local to
 the same workspace and machine, and do not import legacy runner receipts.
 
 The build manifest captures SDK-generated assembly attributes after generation.
+Repository source globs use a normalized absolute root and exclude generated
+`obj`, `bin` and `artifacts` trees. The harness's own generated compiler inputs
+and reference DLLs remain dependencies; real application JSON configuration is
+also retained. Rebuilding an app must not turn its transient Razor caches into
+host-test source inputs. Genuine source/configuration changes still fail closed.
 Pointer-probe and finally-guard builds use `--no-dependencies` so they cannot rebuild libraries
 already admitted by the running harness. Step1117 records the commit-version
 staleness failures that led to these fixes and their focused checks.

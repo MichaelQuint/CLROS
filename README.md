@@ -50,7 +50,7 @@ single-BSP CPL0 mechanical execution; continuing thread lifecycle remains open.
 | Hardware timer | Four owned interrupts, safe deferred wake and IDT/IST/APIC/mapping restoration. [Step1224](done/step1224.md). |
 
 These diagnostics are separate profiles, not one continuing application kernel.
-Only Gate 2 currently passes within its documented scope. The
+Only Gate 2 passes within its documented scope. The
 [completion gates](docs/completion-gates.md) define all claim boundaries;
 [step records](done/) retain historical results and their exact tested inputs.
 
@@ -161,7 +161,7 @@ capture and the profile's exact success, failure and restoration checks.
 
 | Path | Purpose |
 | --- | --- |
-| `src/OS` | Explicit no-stdlib NativeAOT EFI shell and live adapters. |
+| `src/OS` | Explicit no-stdlib NativeAOT EFI shell and live adapters, included in `CLROS.slnx` under stricter build rules. |
 | `src/OS.Kernel` | Kernel services, boot, drivers, PAL, networking and app contracts. |
 | `src/OS.Std.NoRuntime.Shared` | Host project linking the audited source under `std/no-runtime/shared`. |
 | `std/no-runtime/shared` | Shared no-runtime utility implementations; do not duplicate or casually move these EFI inputs. |
