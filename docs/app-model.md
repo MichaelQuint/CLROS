@@ -222,6 +222,23 @@ inputs: a complete real-Hello syscall/scheduler/output/cleanup validator and
 actual execution remain required. No Hello, signal-thread shutdown, suspension,
 GC/ThreadPool or Kestrel guest acceptance is added.
 
+[Step1261](../done/step1261.md) implements the separate .NET 11/C# 14
+`apps/NativeAotSuspensionSmoke` consumer required after unchanged Hello. It uses
+one dedicated managed worker, two explicit blocking compacting full collections,
+live main/worker arrays, an interior reference, distinct thread-static values,
+and mandatory worker join. Each collection records a fresh progress sample after
+GC returns and requires a later increase; pre-GC activity cannot satisfy resume.
+The app uses no Task/ThreadPool/timer APIs. Startup/progress/join waits are bounded;
+the process owner must separately bound a GC call that cannot safely be cancelled.
+
+The Release managed DLL runs successfully on the Windows host, and the compiled
+`nativeaot threading validate-suspension <captured-stdout>` command checks all five
+output rows. Two focused host cases reject missing joins, stale counters, failed
+roots/TLS/interior witnesses, malformed numbers/UTF8 and extra/failure rows. This
+is managed-host coordination/output evidence only. The new app has no qualified
+Linux NativeAOT payload, activation trace or CLROS guest receipt yet; the three
+original payload apps and their qualifier/source identities remain unchanged.
+
 This remains focused host/source and freestanding C# evidence. No native worker,
 timer callback or mechanical ELF has executed. Original native/stack review,
 live stress/negatives and guest/ancestor qualification remain required. Signal
