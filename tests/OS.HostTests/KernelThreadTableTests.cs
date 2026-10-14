@@ -8,8 +8,8 @@ using C = OS.Kernel.Threading.KernelThreadTable.Completion;
 
 internal static unsafe class KernelThreadTableTests
 {
-    private const ulong Key = 0x746872656164;
-    private sealed class Model : IDisposable
+    internal const ulong Key = 0x746872656164;
+    internal sealed class Model : IDisposable
     {
         internal const int Bytes = 0x80000;
         internal readonly byte* Memory = (byte*)NativeMemory.AlignedAlloc(Bytes, 4096);

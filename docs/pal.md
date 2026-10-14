@@ -42,6 +42,13 @@ The table performs no allocation, hardware access or native transfer. Its caller
 must provide actual IRQ serialization, mapping admission and supervisor-stack
 observations. These host controls do not qualify live lifecycle execution;
 #188 remains open and the entry/return, repeated timer and guest work below remains.
+The follow-up in [step1227](../done/step1227.md) adds the unpublished Win64
+`KernelThreadEntry` encoder and a supervisor-only `HandleIdleTimer` transaction
+over the table's private deadline queue. Host decoding checks normal return,
+cancel-before-entry and rejected starts. A simulated APIC checks three two-tick
+sleep cycles with both workers parked, retained restore failure and one epoch.
+Actual native entry, IRQ serialization, interrupt-enabled idle and live repeated
+wakes remain unqualified.
 Use the current pinned toolchain in [host requirements](host-requirements.md); historical
 .NET 10 acceptance does not qualify the .NET 11 migration. Its finite renewed
 profile evidence is recorded in [step1225](../done/step1225.md).
@@ -72,11 +79,13 @@ Queue exhaustion must preserve a retryable state rather than lose a wake.
 owner or establish hosted-runtime readiness. Retain explicit lifetime pins for
 future consumers without adding upstream GC scanning to this ticket.
 
-The timer needs a repeated-use owner protocol. `WakeReady` stops it while retaining
-the dirty hardware borrow, so calling `Arm` again currently returns `DirtyState`.
-A carefully serialized restore/prepare with the saved tick/arm sequence, or a
-narrowly tested rearm API, must preserve the epoch and borrowed IDT/IST/APIC
-lifetimes. When all workers park, an owned supervisor/idle path must enable
+`WakeReady` stops the timer while retaining the dirty hardware borrow, so calling
+`Arm` again returns `DirtyState`. The host-tested repeated-use protocol saves
+`Ticks` before successful `Restore` clears the timer, then calls
+`Prepare(initialTick: savedTick)` and `Arm` after fresh native path admission.
+Keep borrowed IDT/IST/APIC lifetimes pinned across the whole sequence; a failed
+restore blocks preparation and release. The live owner still needs to prove this
+protocol. When all workers park, an owned supervisor/idle path must enable
 interrupts and wait for actual hardware wakeups. A busy loop or injected host
 tick is not evidence of sleep. Failed timer restoration retains its storage.
 

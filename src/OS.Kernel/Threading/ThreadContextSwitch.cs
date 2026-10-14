@@ -391,7 +391,7 @@ public static unsafe class ThreadContextSwitch
         6 => X64ThreadContext.RsiOffset, 7 => X64ThreadContext.RdiOffset,
         _ => X64ThreadContext.R8Offset + (register - 8) * 8
     };
-    private struct StubWriter
+    internal struct StubWriter
     {
         private byte* _output;
         private ulong _address;
@@ -505,8 +505,16 @@ public static unsafe class ThreadContextSwitch
     /// original-context recovery path. The same live ownership/mapping/CPU proof
     /// is required; this neither captures nor authorizes execution on its own.</summary>
     public static Status AdmitResume(Owner owner, Descriptor value)
+        => ResumeCore(owner, value, true);
+
+    // Shared planning admission for unpublished lifecycle entry code. Only the
+    // live AdmitResume path accepts guard/mapping observations as execution proof.
+    internal static Status AdmitResumePlan(Owner owner, Descriptor value)
+        => ResumeCore(owner, value, false);
+
+    private static Status ResumeCore(Owner owner, Descriptor value, bool requireMappingProof)
     {
-        Status status = AdmitOwner(owner);
+        Status status = OwnerShape(owner, requireMappingProof);
         if (status != Status.Ok) return status;
         status = Shape(owner, value);
         return status != Status.Ok ? status : Values(owner, value);

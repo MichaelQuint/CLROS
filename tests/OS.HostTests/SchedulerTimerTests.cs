@@ -334,4 +334,82 @@ internal static unsafe class SchedulerTimerTests
             HostCheck.Equal(ulong.MaxValue, last.Due.Deadline); Restored(ref timer, owner);
         }
     }
+
+    [HostTest("kernel.thread idle timer repeats restore prepare arm without resetting the lifecycle epoch")]
+    private static void LifecycleEpoch()
+    {
+        using Owner hardware = new(); using KernelThreadTableTests.Model threads = new(2, 2, 2);
+        var a = threads.Create(0); var b = threads.Create(1);
+        HostCheck.True(a.Succeeded && b.Succeeded);
+        ulong threadOwner = KernelThreadTableTests.Key, epoch = 0;
+        for (int cycle = 0; cycle < 3; cycle++)
+        {
+            foreach (OSHostHandle id in new[] { a.Identity, b.Identity })
+            {
+                HostCheck.Equal(id.Value, threads.Dispatch().Value);
+                HostCheck.True(threads.Table->Sleep(threadOwner, 2, id, threads.Capture(id), epoch, 2).Succeeded);
+                threads.Confirm();
+            }
+            HostCheck.Equal(0U, threads.Table->ReadyCount); HostCheck.Equal(2U, threads.Table->DeadlineCount);
+            Timer timer = hardware.Prepare(initialTick: epoch); Arm(ref timer);
+            for (int interrupt = 1; interrupt <= 2; interrupt++)
+            {
+                hardware.Expire();
+                HostCheck.Equal(KernelThreadTable.Status.Ok,
+                    threads.Table->HandleIdleTimer(threadOwner, 2, ref timer, Key, 0x202, out var tick));
+                HostCheck.Equal(epoch + (uint)interrupt, tick.Tick);
+                HostCheck.Equal(interrupt == 1 ? Timer.Action.Rearmed : Timer.Action.WakeReady, tick.Next);
+                HostCheck.Equal(interrupt == 1 ? 0U : 2U, threads.Table->ReadyCount);
+            }
+            epoch = timer.Ticks; HostCheck.Equal(epoch, threads.Table->ObservedTicks);
+            HostCheck.Equal(0U, threads.Table->DeadlineCount);
+            HostCheck.Equal(Timer.Status.DirtyState, timer.Arm(Key, 2, true));
+            if (cycle == 1)
+            {
+                // A failed restoration cannot release the IRQ/gate/mapping borrow
+                // or permit preparation for another period. The saved epoch survives.
+                hardware.M->Registers[0x270 / 4] = 2;
+                HostCheck.Equal(Timer.Status.PendingInterrupt, timer.Restore(Key, 2));
+                HostCheck.True(timer.IsPrepared && timer.NeedsRestore); HostCheck.Equal(epoch, timer.Ticks);
+                HostCheck.Equal(Timer.Status.AlreadyPrepared, timer.Prepare(Key, Apic, Reload, 3, hardware.Access, 2, epoch));
+                hardware.M->Registers[0x270 / 4] = 0;
+            }
+            Restored(ref timer, hardware); // Save epoch BEFORE Restore clears the timer.
+            HostCheck.Equal(0UL, timer.Ticks);
+        }
+        HostCheck.Equal(6UL, epoch);
+        HostCheck.Equal(a.Identity.Value, threads.Dispatch().Value); threads.Exit(a.Identity, 17);
+        HostCheck.Equal(b.Identity.Value, threads.Dispatch().Value); threads.Exit(b.Identity, 23);
+        HostCheck.True(threads.Table->Reap(threadOwner, 2, a.Identity, threads.SupervisorRsp).Succeeded);
+        HostCheck.True(threads.Table->Reap(threadOwner, 2, b.Identity, threads.SupervisorRsp).Succeeded);
+        HostCheck.Equal(KernelThreadTable.Status.Ok, threads.Table->Release(threadOwner, 2, threads.SupervisorRsp));
+    }
+
+    [HostTest("kernel.thread idle timer rejects active workers bad epochs and owner flags before MMIO")]
+    private static void LifecycleTimerAdmission()
+    {
+        using Owner hardware = new(); using KernelThreadTableTests.Model threads = new();
+        Timer timer = hardware.Prepare(); Arm(ref timer); ulong owner = KernelThreadTableTests.Key;
+        uint reads = hardware.M->Reads, writes = hardware.M->Writes;
+        HostCheck.Equal(KernelThreadTable.Status.WrongOwner,
+            threads.Table->HandleIdleTimer(owner + 1, 2, ref timer, Key, 0x202, out _));
+        HostCheck.Equal(KernelThreadTable.Status.InterruptsEnabled,
+            threads.Table->HandleIdleTimer(owner, 0x202, ref timer, Key, 0x202, out _));
+        var worker = threads.Create(0); threads.Dispatch();
+        HostCheck.Equal(KernelThreadTable.Status.Busy,
+            threads.Table->HandleIdleTimer(owner, 2, ref timer, Key, 0x202, out _));
+        HostCheck.Equal(reads, hardware.M->Reads); HostCheck.Equal(writes, hardware.M->Writes);
+        threads.Exit(worker.Identity); HostCheck.Equal(KernelThreadTable.Status.Ok, threads.Table->Advance(owner, 2, 1));
+        HostCheck.Equal(KernelThreadTable.Status.ClockRegression,
+            threads.Table->HandleIdleTimer(owner, 2, ref timer, Key, 0x202, out _));
+        HostCheck.Equal(reads, hardware.M->Reads); HostCheck.Equal(writes, hardware.M->Writes);
+        Restored(ref timer, hardware);
+        timer = hardware.Prepare(initialTick: 1); Arm(ref timer); hardware.Expire();
+        hardware.M->FailWrite = hardware.M->Writes + 1; // EOI takes effect before callback failure.
+        HostCheck.Equal(KernelThreadTable.Status.TimerFailure,
+            threads.Table->HandleIdleTimer(owner, 2, ref timer, Key, 0x202, out var failed));
+        HostCheck.Equal(Timer.Status.WriteFailed, failed.Code);
+        HostCheck.True(timer.NeedsRestore && !timer.IsArmed); HostCheck.Equal(1UL, threads.Table->ObservedTicks);
+        Restored(ref timer, hardware);
+    }
 }

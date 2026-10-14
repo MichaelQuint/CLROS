@@ -24,7 +24,7 @@ public unsafe struct KernelThreadTable
         StaleIdentity, WrongState, NotCurrent, Busy, Empty, ClockRegression,
         DeadlineOverflow, IdentityExhausted, StaleWait, AlreadyCompleted,
         SelfJoin, JoinCycle, JoinBusy, Cancelled, Pinned, NotSupervisor,
-        QueueFailure, NotEmpty
+        QueueFailure, NotEmpty, TimerFailure
     }
     public enum State : byte { Empty, Ready, Running, Parking, Waiting, Pending, Exiting, Exited, Retired }
     public enum WaitKind : byte { None, Park, Sleep, Join }
@@ -316,6 +316,25 @@ public unsafe struct KernelThreadTable
             if (!done.Succeeded) return done.Code;
         }
         return Status.Ok;
+    }
+
+    /// <summary>Owned idle interrupt transaction over the private deadline queue.
+    /// The native caller has captured the separate IRQ frame, authenticated the
+    /// APIC/gates/stack, and disabled IF. No worker or unresolved handoff may be
+    /// active. Timer and table must share the acknowledged tick epoch. A successful
+    /// safe tick commits due completions; full ready capacity retains Pending.
+    /// TimerFailure preserves the detailed timer result and its hardware borrow.
+    /// Any failure after MMIO requires native quiescence/Restore before release.
+    /// This performs no idle instruction, frame redirect or context transfer.</summary>
+    public Status HandleIdleTimer(ulong key, ulong flags, ref SchedulerTimer timer, ulong timerOwner,
+        ulong interruptedFlags, out SchedulerTimer.Result tick)
+    {
+        tick = default;
+        Status status = Access(key, flags); if (status != Status.Ok) return status;
+        if (_current.IsValid || _handoff.IsValid) return Status.Busy;
+        if (timer.Ticks != _now) return Status.ClockRegression;
+        tick = timer.HandleInterrupt(timerOwner, flags, interruptedFlags, ref _deadlines, _key, SchedulerTimer.Phase.Safe);
+        return tick.Succeeded ? Advance(key, flags, tick.Tick) : Status.TimerFailure;
     }
 
     /// <summary>Retry retained completions in slot order. A full queue stops cleanly;
