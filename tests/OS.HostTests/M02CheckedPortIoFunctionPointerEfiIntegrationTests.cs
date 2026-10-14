@@ -76,7 +76,8 @@ internal static class M02CheckedPortIoFunctionPointerEfiIntegrationTests
     // cooperative/timer exclusions are independently checked by their M09 fixtures.
     string[] errorConditions = project.Descendants("Error")
         .Where(element => !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_004_", StringComparison.Ordinal) &&
-            !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_005_", StringComparison.Ordinal))
+            !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_005_", StringComparison.Ordinal) &&
+            !(element.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_006_", StringComparison.Ordinal))
         .Select(element => element.Attribute("Condition")?.Value ?? string.Empty).Where(value => value.Contains("EnableM02CheckedPortIoBindingProbe", StringComparison.Ordinal)).ToArray();
     string[] prerequisiteConditions = errorConditions.Where(value => value.Contains("'$(EnableM02CheckedPortIoBindingProbe)' == 'true'", StringComparison.Ordinal) && value.Contains("'$(EnableM02SafeStubProbe)' != 'true'", StringComparison.Ordinal)).ToArray();
     string[] dependentConditions = errorConditions.Where(value => value.Contains("'$(EnableM02Com1OwnedPortIoProbe)' == 'true'", StringComparison.Ordinal) && value.Contains("'$(EnableM02CheckedPortIoBindingProbe)' != 'true'", StringComparison.Ordinal)).ToArray();

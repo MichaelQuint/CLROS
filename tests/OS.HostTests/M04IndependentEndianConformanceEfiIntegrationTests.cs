@@ -282,7 +282,8 @@ internal static class M04IndependentEndianConformanceEfiIntegrationTests
 
         bool HasOwner(string guard, string owner, string declaration)
         {
-            string ownerToken = "    private static class " + owner + "\n    {";
+            string ownerToken = "    private static " + (owner == "M03FirstExitAdapter" ? "partial " : string.Empty)
+                + "class " + owner + "\n    {";
             // Only comments/blank lines may separate the guard and owner.
             // Adapter types close at four spaces; their members close deeper.
             MatchCollection matches = Regex.Matches(
