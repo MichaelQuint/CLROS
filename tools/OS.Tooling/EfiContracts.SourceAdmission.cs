@@ -3,6 +3,12 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs"] = "reviewed_m16_thread_signal_mask_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs"] = "reviewed_m16_thread_owner_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs"] = "reviewed_m16_futex_owner_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs"] = "reviewed_m16_blocking_pipe_owner_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs"] = "reviewed_m16_retained_pipe_operation_source_identity",
+        [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs"] = "reviewed_m16_thread_program_source_identity",
         [@"Boot\EfiEntry.ThreadWait.cs"] = "reviewed_m09_wait_tls_native_owner_source_identity",
         [@"..\OS.Kernel\Threading\ThreadWaitProgram.cs"] = "reviewed_m09_wait_tls_program_source_identity",
         [@"..\OS.Kernel\Threading\WaitAddress.cs"] = "reviewed_m09_wait_address_source_identity",

@@ -78,6 +78,9 @@ public static class QemuProfiles
         }
         if (Enabled("M16002"))
         {
+            // The default-off leaf currently admits source/resources for native
+            // review. Do not launch an ancestor fixture as threading evidence.
+            Require(!Enabled("M16008"), "m16_008_native_owner_unbound");
             Original("m16_002", false, true, true);
             foreach (string key in new[] { "RequireOrderedMarker", "RequireUniqueMarker", "ForbidMarker" }) Require(!options.Explicit.Contains(key), "m16_002_forbids_override parameter=" + key);
             string terminal = Enabled("M16007") ? "CLROS_M16_007_READY" : Enabled("M16006") ? "CLROS_M16_006_READY" : Enabled("M16005") ? "CLROS_M16_005_READY" : Enabled("M16003") ? "CLROS_M16_003_READY" : Enabled("M16004") ? "CLROS_M16_004_READY" : "CLROS_M16_002_READY";

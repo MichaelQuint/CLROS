@@ -1,5 +1,13 @@
 # Diagnostics
 
+Development `EnableM16008Probe` defaults false and requires the descriptor and
+owned clock/PCI/APIC parents. [Step1241](../done/step1241.md) admits its retained
+worker resources and no-stdlib source closure. Its native scheduler owner remains
+unfinished: QEMU selection rejects `m16_008_native_owner_unbound`, and direct EFI
+entry emits `TEST_FAIL m16-008 native-thread-owner-unbound` before the old user
+path runs. This is an explicit development refusal, not a controlled-negative
+guest qualification or a threading success marker.
+
 Development profiles `EnableM09009Probe` and `EnableM09010Probe` default false
 and require the same seven owned-exit/APIC parents as the qualified lifecycle
 leaf. They are mutually exclusive with other leaves. Their `M09_009_*` and

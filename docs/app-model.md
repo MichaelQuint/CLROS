@@ -63,6 +63,17 @@ unrelated changes, dump policy and unchanged remap prefixes remain usable. Host
 controls also preserve raw brk failure and allow shrink after completion drains.
 The actual EFI process owner still must attach this guard and supply the live
 alias/lifetime and monotonic clock capabilities.
+[Step1241](../done/step1241.md) adds the default-off M16-008 source/resource
+profile and a C# mechanical parent/child ELF. Its 64-page worker pool has separate
+code, metadata and guarded stacks; existing M09 pools retain their 32-page layout.
+The combined clock/PCI/APIC helpers have distinct offsets, allocation inventories
+retain every resource, and Linux preparation checks the retained pool before
+buffer writes. Worker entry arguments now retain the exact scheduler slot pointer.
+Focused fixture controls and freestanding C# compilation are development evidence.
+The native scheduler owner, timer/copy/alias callbacks, full cleanup and strict
+guest transcript remain unfinished. QEMU selection rejects with
+`m16_008_native_owner_unbound`; direct entry fails before the old single-thread
+path can produce ancestor success. The mechanical ELF has not executed.
 Signal delivery belongs to #687. All batch issues
 remain open pending shared qualification; the expensive full-host suite is
 deferred to the stable dependency-compatible batch requested by the user.

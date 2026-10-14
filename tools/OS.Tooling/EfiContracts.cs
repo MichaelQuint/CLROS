@@ -31,7 +31,7 @@ public static partial class EfiContracts
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
         "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe",
-        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe"]);
+        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -51,9 +51,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "95205ed10ce610b63a484360fff8554ec0945203bcbf643fb6414a7a40026bb6";
-    public const string CanonicalProjectSha256 = "0cc0b9c844e2ea75ce8eff3c5676c929dde0d1e01b3bddcfb914921e2f3bf7bd";
-    public const string EfiEntrySourceSha256 = "8e2c04f4b0616e2f08385e5c7709af1a5461be81614d013ce0398eebc968c5cc";
+    public const string ProjectSourceSha256 = "4a56491240f3525fa26ef8b003d2e5cb8b05a71c62b85d48aeb44a819ae8ed76";
+    public const string CanonicalProjectSha256 = "0073cbaea64035e3b5873a948a52e2f864e41e7cfce003a120b062d5fb9a804c";
+    public const string EfiEntrySourceSha256 = "5d451f3582091e3237d60e85965e9ce2e0ac304db7800c2634131fb4cbe70516";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -319,6 +319,12 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Threading\ThreadWaitProgram.cs|Threading\ThreadWaitProgram.cs",
         @"..\OS.Kernel\Threading\WaitAddress.cs|Threading\WaitAddress.cs",
         @"..\OS.Kernel\Threading\ThreadLocalStorage.cs|Threading\ThreadLocalStorage.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs|Compatibility\LinuxX64\LinuxSignalMask.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs|Compatibility\LinuxX64\LinuxThreadServices.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs|Compatibility\LinuxX64\LinuxThreadServices.Futex.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs|Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs|Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs|Compatibility\LinuxX64\LinuxThreadProgram.cs",
     ]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> DiagnosticProbes { get; } = Array.AsReadOnly<string>(
@@ -408,6 +414,7 @@ public static partial class EfiContracts
         "EnableM16005Probe",
         "EnableM16006Probe",
         "EnableM16007Probe",
+        "EnableM16008Probe",
         "EnableUefiGoneSimulationProbe",
     ]);
 }

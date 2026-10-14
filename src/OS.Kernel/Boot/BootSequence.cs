@@ -265,7 +265,7 @@ public static class BootSequence
     /// this ordered default-off phase allocates nothing and returns false on refusal.</summary>
     public static unsafe bool PrepareCooperativeSwitch(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
         (OS.Kernel.Diagnostics.Probes.EnableM09004Probe || OS.Kernel.Diagnostics.Probes.EnableM09005Probe || OS.Kernel.Diagnostics.Probes.EnableM09006Probe ||
-        OS.Kernel.Diagnostics.Probes.EnableM09009Probe || OS.Kernel.Diagnostics.Probes.EnableM09010Probe) && OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe &&
+        OS.Kernel.Diagnostics.Probes.EnableM09009Probe || OS.Kernel.Diagnostics.Probes.EnableM09010Probe || OS.Kernel.Diagnostics.Probes.EnableM16008Probe) && OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe &&
         OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe && firmwareAvailable &&
         context != null && prepare != null && prepare(context);
 

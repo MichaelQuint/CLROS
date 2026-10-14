@@ -19,7 +19,7 @@ public struct FirstExitImageReferences
     // Optional in host-only compositions. The EFI adapter must retain its
     // original installed NativeAOT stack-probe page, outside the loaded image.
     public ulong RuntimeSupportCode, RuntimeSupportCodeBytes;
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
     public ulong CooperativePoolStart, CooperativePoolPages;
 #endif
 #if M16_002_PROBE
@@ -249,7 +249,7 @@ public static unsafe class FirstExitRetainedMappings
 {
     public const ulong MaximumRanges = FirstExitImageMappings.MaximumSections + 1 +
         FirstExitOwnedArena.MappingRangeCount + 3
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
         + 1
 #endif
 #if M16_002_PROBE
@@ -270,7 +270,10 @@ public static unsafe class FirstExitRetainedMappings
 #if M05_PHYSICAL_MAPPING_PROBE
         + 1
 #endif
-#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M05_PCI_ENUMERATION_PROBE
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
+        + 1
+#endif
+#if M05_PCI_ENUMERATION_PROBE
         + 1
 #endif
 #if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
@@ -287,7 +290,7 @@ public static unsafe class FirstExitRetainedMappings
 #endif
         ;
     private const int MaximumAllocations = 6
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
         + 1
 #endif
 #if M16_002_PROBE
@@ -305,7 +308,13 @@ public static unsafe class FirstExitRetainedMappings
 #if M16_007_PROBE
         + 1
 #endif
-#if M05_PHYSICAL_MAPPING_PROBE || M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M05_PCI_ENUMERATION_PROBE
+#if M05_PHYSICAL_MAPPING_PROBE
+        + 1
+#endif
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
+        + 1
+#endif
+#if M05_PCI_ENUMERATION_PROBE
         + 1
 #endif
 #if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
@@ -416,7 +425,7 @@ public static unsafe class FirstExitRetainedMappings
         if (references.RuntimeSupportCode == 0 || references.EcamStart < 0x100000 ||
             (references.EcamStart & 0xfffff) != 0 || references.EcamPages != 256 ||
             references.EcamStart > 0x100000000UL - 0x100000) return false;
-        starts[6] = references.EcamStart; lengths[6] = 0x100000; allocations = 7;
+        starts[allocations] = references.EcamStart; lengths[allocations++] = 0x100000;
 #endif
 #if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
         if (references.VirtioBarStart < 0x100000 || (references.VirtioBarStart & 0x3fff) != 0 ||
@@ -458,12 +467,13 @@ public static unsafe class FirstExitRetainedMappings
             references.LinuxDescriptorStart > 0x100000000UL - references.LinuxDescriptorPages * 4096) return false;
         starts[allocations] = references.LinuxDescriptorStart; lengths[allocations++] = references.LinuxDescriptorPages * 4096;
 #endif
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
-        if (references.CooperativePoolPages != OS.Kernel.Threading.ThreadContextSwitch.PoolPages ||
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
+        const ulong cooperativePages = Probes.EnableM16008Probe ? 64UL : OS.Kernel.Threading.ThreadContextSwitch.PoolPages;
+        if (references.CooperativePoolPages != cooperativePages ||
             references.CooperativePoolStart < 4096 || (references.CooperativePoolStart & 4095) != 0 ||
-            references.CooperativePoolStart > 0x100000000UL - OS.Kernel.Threading.ThreadContextSwitch.PoolPages * 4096UL) return false;
+            references.CooperativePoolStart > 0x100000000UL - cooperativePages * 4096UL) return false;
         starts[allocations] = references.CooperativePoolStart;
-        lengths[allocations++] = OS.Kernel.Threading.ThreadContextSwitch.PoolPages * 4096UL;
+        lengths[allocations++] = cooperativePages * 4096UL;
 #endif
         for (int i = 0; i < allocations; i++) for (int j = 0; j < i; j++)
             if (FirstExitDescriptors.Overlaps(starts[i], lengths[i], starts[j], lengths[j])) return false;
@@ -494,7 +504,7 @@ public static unsafe class FirstExitRetainedMappings
 #if M16_007_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.LinuxDescriptorStart, references.LinuxDescriptorPages, Data);
 #endif
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.CooperativePoolStart,
             references.CooperativePoolPages, Data, PageCachePolicy.WriteBack);
 #endif
@@ -563,9 +573,18 @@ public static unsafe class FirstExitCodeBundle
     public const uint LinuxReadBackOffset = 4800;
 #endif
 #if M05_PCI_ENUMERATION_PROBE
+#if M16_008_PROBE
+    // The combined Linux/clock/APIC profile retains distinct helper bodies.
+    public const uint PciReadOffset = 5504;
+#else
     public const uint PciReadOffset = 4608;
+#endif
 #if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+#if M16_008_PROBE
+    public const uint PciBarOffset = 5520;
+#else
     public const uint PciBarOffset = 4624;
+#endif
 #if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
     public const uint QueueFenceOffset = 4672;
 #endif
@@ -586,7 +605,7 @@ public static unsafe class FirstExitCodeBundle
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
     public const uint MsixInterruptOffset = 4784;
 #endif
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
     public const uint CooperativeObserveOffset = 6000, CooperativeFxOffset = 6512;
     public const uint CooperativeSegmentsOffset = 6544, CooperativePublishOffset = 6720;
 #endif
@@ -634,7 +653,7 @@ public static unsafe class FirstExitCodeBundle
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
             OS.Drivers.X64MsixInterrupt.Emit(code + MsixInterruptOffset, StackEntryOffset - MsixInterruptOffset) &&
 #endif
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
             OS.Kernel.Threading.ThreadContextSwitch.EmitObserver(code + CooperativeObserveOffset,
                 OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes) &&
             OS.Kernel.Threading.ThreadContextSwitch.EmitFxSnapshot(code + CooperativeFxOffset,
@@ -701,7 +720,7 @@ public static unsafe class FirstExitCodeBundle
         return FirstExitTerminalFaultStub.RequiredBytes > 0 && FirstExitTerminalFaultStub.RequiredBytes <= Out8Offset - FaultOffset &&
             FirstExitOwnedStackStub.RequiredBytes > 0 && FirstExitOwnedStackStub.RequiredBytes <= PermanentOffset - StackEntryOffset &&
             FirstExitPermanentCr3Stub.RequiredBytes > 0 && FirstExitPermanentCr3Stub.RequiredBytes <= 1024
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
             && OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes > 0 &&
                 OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes <= CooperativeFxOffset - CooperativeObserveOffset
             && OS.Kernel.Threading.ThreadContextSwitch.FxSnapshotBytes > 0 &&
@@ -758,7 +777,7 @@ public static unsafe class FirstExitCodeBundle
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
         if (!OS.Drivers.X64MsixInterrupt.Validate(code + MsixInterruptOffset, OS.Drivers.X64MsixInterrupt.Bytes)) return false;
 #endif
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
         if (!OS.Kernel.Threading.ThreadContextSwitch.EmitObserver(scratch, OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes) ||
             !Equal(scratch, code + CooperativeObserveOffset, OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes) ||
             !OS.Kernel.Threading.ThreadContextSwitch.EmitFxSnapshot(scratch, OS.Kernel.Threading.ThreadContextSwitch.FxSnapshotBytes) ||
@@ -797,7 +816,7 @@ public static unsafe class FirstExitCodeBundle
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
                 !Inside(index, MsixInterruptOffset, OS.Drivers.X64MsixInterrupt.Bytes) &&
 #endif
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
                 !Inside(index, CooperativeObserveOffset, OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes) &&
                 !Inside(index, CooperativeFxOffset, OS.Kernel.Threading.ThreadContextSwitch.FxSnapshotBytes) &&
                 !Inside(index, CooperativeSegmentsOffset, OS.Kernel.Threading.ThreadContextSwitch.OwnedSegmentsBytes) &&

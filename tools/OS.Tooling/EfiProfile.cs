@@ -88,6 +88,15 @@ public sealed class EfiProfile
                 if (flag.Value && flag.Key != "EnableM09004Probe" && !required.Contains(flag.Key))
                     throw new ToolFailure("m09_004_profile_conflict", flag.Key);
         }
+        if (flags["EnableM16008Probe"])
+        {
+            foreach (string parent in new[] { "EnableM16007Probe", "EnableM05PciEnumerationProbe", "EnableM05ApicSetupProbe" })
+            {
+                if (explicitlySelected.TryGetValue(parent, out bool enabled) && !enabled)
+                    throw new ToolFailure("m16_008_explicit_false_prerequisite", parent);
+                flags[parent] = true;
+            }
+        }
         if (flags["EnableM16007Probe"])
         {
             if (explicitlySelected.TryGetValue("EnableM16006Probe", out bool parent) && !parent)
@@ -130,7 +139,8 @@ public sealed class EfiProfile
                 flags[name] = true;
             }
             foreach (var flag in flags)
-                if (flag.Value && flag.Key != "EnableM16002Probe" && flag.Key != "EnableM16003Probe" && flag.Key != "EnableM16004Probe" && flag.Key != "EnableM16005Probe" && flag.Key != "EnableM16006Probe" && flag.Key != "EnableM16007Probe" && !required.Contains(flag.Key))
+                if (flag.Value && flag.Key != "EnableM16002Probe" && flag.Key != "EnableM16003Probe" && flag.Key != "EnableM16004Probe" && flag.Key != "EnableM16005Probe" && flag.Key != "EnableM16006Probe" && flag.Key != "EnableM16007Probe" &&
+                    !(flags["EnableM16008Probe"] && flag.Key is "EnableM16008Probe" or "EnableM05PciEnumerationProbe" or "EnableM05ApicSetupProbe") && !required.Contains(flag.Key))
                     throw new ToolFailure("m16_002_profile_conflict", flag.Key);
         }
         bool diagnostic = flags.Values.Any(v => v);

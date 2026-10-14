@@ -19,8 +19,9 @@ internal static unsafe class LinuxThreadProgramTests
                 Kind = S.ResumeKind.Entry, ResumeRip = m.Code + P.Entries + i * P.WorkerStride };
             HostCheck.Equal(X64ThreadContext.Status.Ok, X64ThreadContext.Initialize(d.Context, 688, d.ResumeRip,
                 d.StackGuardStart + 8192 - 40, 0xffbf));
-            bindings[i] = new() { Context = d, Entry = new() { Owner = o, Initial = d, CodeOffset = P.Entries + i * P.WorkerStride,
-                Entry = m.Code + P.Workers + i * P.WorkerStride, Argument = control, Start = 0x200000,
+            ulong argument = o.ContextArena + 0x9000 + i * 8;
+            bindings[i] = new() { Context = d, Argument = argument, Entry = new() { Owner = o, Initial = d, CodeOffset = P.Entries + i * P.WorkerStride,
+                Entry = m.Code + P.Workers + i * P.WorkerStride, Argument = argument, Start = 0x200000,
                 Control = control, ControlBytes = 256, ExitStub = m.Code + P.FromWorker + i * S.StubBytes, RejectRip = m.Code + P.Recovery } };
         }
         return new() { Owner = o, Supervisor = supervisor, Bindings = bindings, Count = count,
@@ -52,6 +53,7 @@ internal static unsafe class LinuxThreadProgramTests
             HostCheck.Equal((byte)0xe9, worker[0x6d]); HostCheck.Equal((ulong)worker + 0x80, Target(worker + 0x6d));
             HostCheck.Equal((byte)0xe8, worker[0x85]); HostCheck.Equal(m.Code + 0x3000 + i * 1024, Target(worker + 0x85));
             HostCheck.Equal((byte)0xe9, worker[0x8a]); HostCheck.Equal((ulong)worker + 0x10, Target(worker + 0x8a));
+            HostCheck.Equal(p.Bindings[i].Argument, *(ulong*)(m.Code + P.Entries + i * P.WorkerStride + 0x62));
         }
         HostCheck.True(*((byte*)m.Code + P.Idle) == 0xfb && *((byte*)m.Code + P.Idle + 1) == 0xf4 && *((byte*)m.Code + P.Idle + 2) == 0xfa);
         ((byte*)m.Code)[P.TimerHandler] = 0x90; HostCheck.True(P.Verify((byte*)m.Code, P.Bytes, p));
@@ -62,7 +64,7 @@ internal static unsafe class LinuxThreadProgramTests
     private static void Rejects()
     {
         using KernelThreadTableTests.Model m = new(initialize: false);
-        for (int variant = 0; variant < 16; variant++)
+        for (int variant = 0; variant < 18; variant++)
         {
             var p = Plan(m);
             switch (variant)
@@ -82,7 +84,9 @@ internal static unsafe class LinuxThreadProgramTests
                 case 12: p.Supervisor.ResumeRip++; break;
                 case 13: p.Prepare = p.Bindings[3].Context.StackGuardStart + 4096; break;
                 case 14: p.Bindings[3].Context = p.Bindings[0].Context; p.Bindings[3].Entry.Initial = p.Bindings[0].Context; break;
-                default: p.Bindings[0].Context.Context->Rsp = p.Bindings[0].Context.StackGuardStart + 4096 + 72; break;
+                case 15: p.Bindings[0].Context.Context->Rsp = p.Bindings[0].Context.StackGuardStart + 4096 + 72; break;
+                case 16: p.Bindings[2].Argument++; break;
+                default: p.Bindings[2].Argument = p.Bindings[2].Entry.Argument = p.Owner.ContextArena + p.Owner.ContextArenaBytes - 4; break;
             }
             var before = m.Snapshot(); HostCheck.True(!P.Emit((byte*)m.Code, P.Bytes, p)); m.Same(before);
         }

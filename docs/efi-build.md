@@ -1,5 +1,21 @@
 # EFI Build
 
+## Development Linux threading source profile
+
+`EnableM16008Probe` defaults false. Selection requires M16-002 through M16-007,
+the original five owned-exit parents, PCI and APIC; other leaves and explicitly
+disabled parents reject. [Step1241](../done/step1241.md) links the existing kernel
+table/wait/timer APIs and Linux thread/mask/futex/blocking-pipe/emitter sources
+into the no-stdlib C# build. Its separate 64-page retained pool preserves the
+original M09 layouts. Combined HPET, ECAM and APIC resources have separate helper
+offsets and complete allocation/range capacity.
+
+The native process owner remains unfinished. QEMU profile creation rejects
+`m16_008_native_owner_unbound`; direct EFI entry also refuses before entering the
+single-thread ancestor path. No READY marker, native publication or guest proof
+is claimed. The step records explicit C# build properties and focused checks;
+full-host, original native review and guests await the stable related issue batch.
+
 ## Development wait and TLS profiles
 
 `efi build -BootPolicy Diagnostic -EnableM09009Probe` and the corresponding

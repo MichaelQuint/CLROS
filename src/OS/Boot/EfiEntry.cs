@@ -1,6 +1,6 @@
 global using System;
 
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
 using Cooperative = OS.Kernel.Threading.ThreadContextSwitch;
 using SavedContext = OS.Kernel.Threading.X64ThreadContext;
 #endif
@@ -62,6 +62,11 @@ public static unsafe partial class EfiEntry
     private static partial class M03FirstExitAdapter
     {
         private const ulong Page = 4096, TablePages = 55;
+#if M16_008_PROBE
+        private const uint CooperativePoolPages = 64, CooperativeCodePages = 4;
+#elif M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
+        private const uint CooperativePoolPages = Cooperative.PoolPages, CooperativeCodePages = 2;
+#endif
 #if M16_007_PROBE
         private const uint LinuxDescriptorPages = 37;
         private const uint LinuxDescriptorSlots = 16;
@@ -69,7 +74,9 @@ public static unsafe partial class EfiEntry
 #endif
 #if M16_002_PROBE
         private const uint LinuxLedgerCapacity =
-#if M16_007_PROBE
+#if M16_008_PROBE
+            17;
+#elif M16_007_PROBE
             16;
 #else
 #if M16_006_PROBE
@@ -101,7 +108,7 @@ public static unsafe partial class EfiEntry
             internal ulong PreparationCheckpoint;
             internal uint TableMemoryType;
             internal fixed ulong PageMetadata[(int)TablePages * 3]; // 24 bytes per page, naturally aligned
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
             internal ulong CooperativePool;
             internal uint CooperativePhase;
 #endif
@@ -370,10 +377,10 @@ public static unsafe partial class EfiEntry
 #endif
 #endif
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
-                var selected = OwnedACPIDirectorySelectMADTHPETMCFG.Select(
+                var clockSelection = OwnedACPIDirectorySelectMADTHPETMCFG.Select(
                     copied->Bytes + 16, workspace->TotalBytes, workspace->Descriptors, 30);
-                if (!selected.Succeeded || !OwnedMonotonicClock.TryReadDescription(
-                        copied->Bytes + 16 + selected.Hpet.Offset, selected.Hpet.Length, out state->HpetDescription) ||
+                if (!clockSelection.Succeeded || !OwnedMonotonicClock.TryReadDescription(
+                        copied->Bytes + 16 + clockSelection.Hpet.Offset, clockSelection.Hpet.Length, out state->HpetDescription) ||
                     !OwnedMonotonicClock.AdmitDescription(state->HpetDescription, s_bootHandoff.MemoryMap)) return false;
                 references.HpetDevicePage = state->HpetDescription.Address;
 #endif
@@ -389,11 +396,11 @@ public static unsafe partial class EfiEntry
                 !FirstExitImageMappings.Contains(ranges, count, references.CopiedAcpi, references.CopiedAcpiBytes, PageProtection.Read | PageProtection.Write) ||
                 !FirstExitImageMappings.Contains(ranges, count, references.AllocatorState, references.AllocatorStateBytes, PageProtection.Read | PageProtection.Write)) return false;
             ulong image = ranges[0].Start, imageBytes = capture.Range.ImageSize;
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
             state->PreparationCheckpoint = 34;
             if (!BootSequence.PrepareCooperativeSwitch(state->Phase == 2, state, &PrepareCooperativePool)) return false;
             references.CooperativePoolStart = state->CooperativePool;
-            references.CooperativePoolPages = OS.Kernel.Threading.ThreadContextSwitch.PoolPages;
+            references.CooperativePoolPages = CooperativePoolPages;
 #endif
 #if M16_002_PROBE
             state->PreparationCheckpoint = 35;
@@ -718,7 +725,7 @@ public static unsafe partial class EfiEntry
             return true;
         }
 
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
         // Pre-exit reservation only. Retain every successful firmware allocation
         // before validating its extent; this slice supplies no post-exit release.
         private static bool PrepareCooperativePool(void* context)
@@ -731,7 +738,7 @@ public static unsafe partial class EfiEntry
             EfiBootServices* services = state->SystemTable->BootServices;
             if (services == null || services->AllocatePages == null) return false;
             ulong candidate = 0xffffffff;
-            ulong pages = OS.Kernel.Threading.ThreadContextSwitch.PoolPages, bytes = pages * Page;
+            ulong pages = CooperativePoolPages, bytes = pages * Page;
             if (services->AllocatePages(1, 2, pages, &candidate) != 0) return false;
             state->CooperativePool = candidate;
             if (candidate < Page || (candidate & (Page - 1)) != 0 || candidate > 0x100000000UL - bytes ||
@@ -753,9 +760,9 @@ public static unsafe partial class EfiEntry
                 !state->Arena.Transition->RetainedFirmwareCallbacksCleared || !state->Arena.Binding->RetainedPointersCleared)
                 return false;
             FirstExitDiagnosticMemory memory = state->Memory;
-            ulong pool = state->CooperativePool, poolBytes = Cooperative.PoolPages * Page;
+            ulong pool = state->CooperativePool, poolBytes = CooperativePoolPages * Page;
             if (pool < Page || (pool & (Page - 1)) != 0 || pool > 0x100000000UL - poolBytes ||
-                memory.References.CooperativePoolStart != pool || memory.References.CooperativePoolPages != Cooperative.PoolPages ||
+                memory.References.CooperativePoolStart != pool || memory.References.CooperativePoolPages != CooperativePoolPages ||
                 address < pool || address - pool >= poolBytes || (address & (Page - 1)) != 0 ||
                 memory.Tables.ArenaPageCount != TablePages || memory.PageCapacity != TablePages || memory.EntryCapacity != TablePages * 512 ||
                 memory.Pages != (X64PageTableImagePage*)state->PageMetadata ||
@@ -804,6 +811,14 @@ public static unsafe partial class EfiEntry
             return false;
         }
 
+        // This layout is distinct from the retained 32-page M09 layout.
+        private static bool CooperativeGuardPage(uint page) =>
+#if M16_008_PROBE
+            page is 15 or 32 or 33 or 38 or 39 or 44 or 45 or 50 or 51 or 56 or 57 or 62;
+#else
+            page is 4 or 13 or 14 or 16 or 17 or 19;
+#endif
+
         // Originals and out flag are distinct caller locals on the retained main
         // stack. A complete validated snapshot precedes any publication. False may
         // leave a partial layout; the caller restores whenever originalsCaptured.
@@ -811,14 +826,14 @@ public static unsafe partial class EfiEntry
         {
             originalsCaptured = false;
             fixed (Storage* retained = &s_storage) if (state != retained) return false;
-            const ulong savedBytes = Cooperative.PoolPages * 8UL;
+            const ulong savedBytes = CooperativePoolPages * 8UL;
             if (original == null || ((ulong)original & 7) != 0 ||
                 !FirstExitOwnedArena.InMainStack(state->Arena, (ulong)original, savedBytes)) return false;
-            ulong* captured = stackalloc ulong[(int)Cooperative.PoolPages];
-            ulong* replacement = stackalloc ulong[(int)Cooperative.PoolPages];
-            ulong** slots = stackalloc ulong*[(int)Cooperative.PoolPages];
+            ulong* captured = stackalloc ulong[(int)CooperativePoolPages];
+            ulong* replacement = stackalloc ulong[(int)CooperativePoolPages];
+            ulong** slots = stackalloc ulong*[(int)CooperativePoolPages];
             ulong root = (ulong)state->Memory.Entries;
-            for (uint page = 0; page < Cooperative.PoolPages; page++)
+            for (uint page = 0; page < CooperativePoolPages; page++)
             {
                 ulong address = state->CooperativePool + page * Page;
                 if (!CooperativeFindLeaf(state, address, out slots[page])) return false;
@@ -828,20 +843,20 @@ public static unsafe partial class EfiEntry
                     baseline.Protection != (PageProtection.Read | PageProtection.Write) || baseline.CachePolicy != PageCachePolicy.WriteBack ||
                     baseline.PhysicalAddress.TryGetRawValueForHardwareRegisterBoundary(out ulong physical) != AddressValueStatus.Success || physical != address) return false;
                 captured[page] = saved;
-                bool guard = page is 4 or 13 or 14 or 16 or 17 or 19;
+                bool guard = CooperativeGuardPage(page);
                 var code = X64PageTableEntry.TryReencodeLeafProtection(X64PageTableLevel.Pte, saved,
                     PageProtection.Read | PageProtection.Execute, X64HardwareStatePolicy.Preserve, state->Memory.Tables.Preconditions);
-                if (page < 2 && !code.Succeeded) return false;
-                ulong published = guard ? 0 : page < 2 ? code.Entry.RawValue : saved;
+                if (page < CooperativeCodePages && !code.Succeeded) return false;
+                ulong published = guard ? 0 : page < CooperativeCodePages ? code.Entry.RawValue : saved;
                 ulong current = *slots[page];
                 if (!publish && (current & ~0x60UL) != (saved & ~0x60UL) &&
                     (guard ? current != 0 : (current & ~0x60UL) != (published & ~0x60UL))) return false;
                 replacement[page] = publish ? published : saved;
             }
-            if (publish) for (uint page = 0; page < Cooperative.PoolPages; page++) original[page] = captured[page];
+            if (publish) for (uint page = 0; page < CooperativePoolPages; page++) original[page] = captured[page];
             originalsCaptured = true;
             var update = (delegate* unmanaged<ulong*, ulong, ulong, ulong, uint>)(state->Memory.Code + FirstExitCodeBundle.CooperativePublishOffset);
-            for (uint page = 0; page < Cooperative.PoolPages; page++)
+            for (uint page = 0; page < CooperativePoolPages; page++)
             {
                 ulong expected = *slots[page], desired = replacement[page];
                 if (expected == desired) continue;
@@ -858,15 +873,15 @@ public static unsafe partial class EfiEntry
         private static bool CooperativeAuditPool(Storage* state, bool published)
         {
             fixed (Storage* retained = &s_storage) if (state != retained) return false;
-            for (uint page = 0; page < Cooperative.PoolPages; page++)
+            for (uint page = 0; page < CooperativePoolPages; page++)
             {
                 ulong address = state->CooperativePool + page * Page;
                 if (!CooperativeFindLeaf(state, address, out ulong* leaf)) return false;
                 ulong raw = *leaf;
-                bool guard = published && page is 4 or 13 or 14 or 16 or 17 or 19;
+                bool guard = published && CooperativeGuardPage(page);
                 if (guard) { if (raw != 0) return false; continue; }
                 var decoded = X64PageTableEntry.TryDecode(X64PageTableLevel.Pte, raw, state->Memory.Tables.Preconditions);
-                PageProtection expected = published && page < 2 ? PageProtection.Read | PageProtection.Execute : PageProtection.Read | PageProtection.Write;
+                PageProtection expected = published && page < CooperativeCodePages ? PageProtection.Read | PageProtection.Execute : PageProtection.Read | PageProtection.Write;
                 if (!decoded.Succeeded || decoded.Kind != X64PageTableEntryKind.Leaf || decoded.Protection != expected ||
                     decoded.CachePolicy != PageCachePolicy.WriteBack || decoded.PageSizeBytes != Page ||
                     decoded.PhysicalAddress.TryGetRawValueForHardwareRegisterBoundary(out ulong physical) != AddressValueStatus.Success || physical != address) return false;
@@ -934,7 +949,8 @@ public static unsafe partial class EfiEntry
                 capture.Range.ImageBase.TryGetRawValueForUefiBoundary(out ulong image) != AddressValueStatus.Success ||
                 !M01StageTwoAdapter.TryGetOriginalExitAllocator(out _, out var allocator) ||
                 !Disjoint(candidate, pages * 4096, image, capture.Range.ImageSize) ||
-                !Disjoint(candidate, pages * 4096, allocator.Start, allocator.PageCount * 4096)) return false;
+                !Disjoint(candidate, pages * 4096, allocator.Start, allocator.PageCount * 4096) ||
+                !LinuxPoolDisjoint(state, candidate, pages)) return false;
             byte* buffer = (byte*)candidate;
             for (ulong i = 0; i < pages * 4096; i++) buffer[i] = 0;
             ulong written = 0;
@@ -975,6 +991,9 @@ public static unsafe partial class EfiEntry
 #if M16_007_PROBE
             if (!LinuxReservation(BootReservationKind.DiagnosticState, state->LinuxDescriptorArena, LinuxDescriptorPages, ledger + count++)) return false;
 #endif
+#if M16_008_PROBE
+            if (!LinuxReservation(BootReservationKind.DiagnosticState, state->CooperativePool, CooperativePoolPages, ledger + count++)) return false;
+#endif
             for (uint i = 1; i < count; i++)
             {
                 var current = ledger[i]; uint at = i;
@@ -995,6 +1014,15 @@ public static unsafe partial class EfiEntry
             *output = value; return true;
         }
 
+        // The combined profile reserves workers first. Reject an aliased Linux
+        // candidate before any package read, zero, user-root build or emission.
+        private static bool LinuxPoolDisjoint(Storage* state, ulong address, ulong pages) =>
+#if M16_008_PROBE
+            state->CooperativePool >= Page && Disjoint(address, pages * Page, state->CooperativePool, CooperativePoolPages * Page);
+#else
+            true;
+#endif
+
 #if M16_004_PROBE
         private static bool PrepareLinuxStartup(void* context)
         {
@@ -1010,8 +1038,8 @@ public static unsafe partial class EfiEntry
             if (pages == 0 || pages > 4096) return false;
             state->LinuxImagePages = pages;
             EfiBootServices* services = state->SystemTable->BootServices;
-            if (!AllocateLinuxStartup(services, pages, out state->LinuxImageBacking) ||
-                !AllocateLinuxStartup(services, X64UserAddressSpace.MaximumTables, out state->LinuxUserTables) ||
+            if (!AllocateLinuxStartup(state, services, pages, out state->LinuxImageBacking) ||
+                !AllocateLinuxStartup(state, services, X64UserAddressSpace.MaximumTables, out state->LinuxUserTables) ||
                 !Disjoint(state->LinuxImageBacking, pages * Page, state->LinuxUserTables, X64UserAddressSpace.MaximumTables * Page) ||
                 !Disjoint(state->LinuxImageBacking, pages * Page, state->LinuxPackage, state->LinuxPages * Page) ||
                 !Disjoint(state->LinuxUserTables, X64UserAddressSpace.MaximumTables * Page, state->LinuxPackage, state->LinuxPages * Page)) return false;
@@ -1028,7 +1056,7 @@ public static unsafe partial class EfiEntry
             state->LinuxStartupPhase = 2; return true;
         }
 
-        private static bool AllocateLinuxStartup(EfiBootServices* services, ulong pages, out ulong address)
+        private static bool AllocateLinuxStartup(Storage* state, EfiBootServices* services, ulong pages, out ulong address)
         {
             address = 0;
             if (services == null || services->AllocatePages == null || services->FreePages == null || pages == 0 || pages > 4096) return false;
@@ -1040,7 +1068,7 @@ public static unsafe partial class EfiEntry
                 capture.Range.ImageBase.TryGetRawValueForUefiBoundary(out ulong image) != AddressValueStatus.Success ||
                 !M01StageTwoAdapter.TryGetOriginalExitAllocator(out _, out var allocator)) return false;
             return Disjoint(candidate, pages * Page, image, capture.Range.ImageSize) &&
-                Disjoint(candidate, pages * Page, allocator.Start, allocator.PageCount * Page);
+                Disjoint(candidate, pages * Page, allocator.Start, allocator.PageCount * Page) && LinuxPoolDisjoint(state, candidate, pages);
         }
 
         private static bool ReleaseLinuxStartup(Storage* state, EfiBootServices* services)
@@ -1214,8 +1242,8 @@ public static unsafe partial class EfiEntry
             if (state->Phase != 2 || state->LinuxStartupPhase != 2 || state->LinuxSyscallPhase != 0) return false;
             state->LinuxSyscallPhase = 1;
             EfiBootServices* services = state->SystemTable->BootServices;
-            if (!AllocateLinuxStartup(services, 1, out state->LinuxSyscallCode) ||
-                !AllocateLinuxStartup(services, X64LinuxUserTransition.DataPages, out state->LinuxSyscallData) ||
+            if (!AllocateLinuxStartup(state, services, 1, out state->LinuxSyscallCode) ||
+                !AllocateLinuxStartup(state, services, X64LinuxUserTransition.DataPages, out state->LinuxSyscallData) ||
                 !Disjoint(state->LinuxSyscallCode, Page, state->LinuxSyscallData, X64LinuxUserTransition.DataBytes)) return false;
             ulong* starts = stackalloc ulong[3]; ulong* bytes = stackalloc ulong[3];
             starts[0] = state->LinuxPackage; bytes[0] = state->LinuxPages * Page;
@@ -1261,8 +1289,8 @@ public static unsafe partial class EfiEntry
             if (state->Phase != 2 || state->LinuxMemoryPhase != 0 || state->LinuxSyscallPhase != 2) return false;
             state->LinuxMemoryPhase = 1;
             var services = state->SystemTable->BootServices;
-            if (!AllocateLinuxStartup(services, LinuxMemoryServices.MaximumPoolPages, out state->LinuxMemoryPool) ||
-                !AllocateLinuxStartup(services, X64UserAddressSpace.MaximumTables, out state->LinuxMemoryCandidate)) return false;
+            if (!AllocateLinuxStartup(state, services, LinuxMemoryServices.MaximumPoolPages, out state->LinuxMemoryPool) ||
+                !AllocateLinuxStartup(state, services, X64UserAddressSpace.MaximumTables, out state->LinuxMemoryCandidate)) return false;
             ulong* starts = stackalloc ulong[6] { state->LinuxMemoryPool, state->LinuxMemoryCandidate, state->LinuxPackage,
                 state->LinuxImageBacking, state->LinuxSyscallCode, state->LinuxSyscallData };
             ulong* lengths = stackalloc ulong[6] { LinuxMemoryServices.MaximumPoolPages * Page, X64UserAddressSpace.MaximumTables * Page,
@@ -1448,7 +1476,7 @@ public static unsafe partial class EfiEntry
             Storage* state = (Storage*)context;
             if (state->Phase != 2 || state->LinuxMemoryPhase != 2 || state->LinuxDescriptorPhase != 0) return false;
             state->LinuxDescriptorPhase = 1;
-            if (!AllocateLinuxStartup(state->SystemTable->BootServices, LinuxDescriptorPages, out state->LinuxDescriptorArena)) return false;
+            if (!AllocateLinuxStartup(state, state->SystemTable->BootServices, LinuxDescriptorPages, out state->LinuxDescriptorArena)) return false;
             ulong* starts = stackalloc ulong[8] { state->LinuxPackage, state->LinuxImageBacking, state->LinuxUserTables,
                 state->LinuxSyscallCode, state->LinuxSyscallData, state->LinuxMemoryPool, state->LinuxMemoryCandidate, (ulong)state };
             ulong* lengths = stackalloc ulong[8] { state->LinuxPages * Page, state->LinuxImagePages * Page,
@@ -1600,6 +1628,13 @@ public static unsafe partial class EfiEntry
 
         private static bool RunOwnedLinuxSyscalls(void* context)
         {
+#if M16_008_PROBE
+            // Source/resource integration is available for original native
+            // review. Until the scheduler owner is attached, reject before the
+            // single-thread path can enter user mode or emit ancestor success.
+            _ = LinuxText((Storage*)context, "TEST_FAIL m16-008 native-thread-owner-unbound\r\n");
+            return false;
+#else
             Storage* state = (Storage*)context;
             if (state->Phase != 4 || state->LinuxSyscallPhase != 2 || state->LinuxStartupPhase != 6 ||
                 !state->ServiceLoop.IsStopped || state->LinuxOwnedPhase != 2 || !state->LinuxUserRoot.Succeeded ||
@@ -1740,6 +1775,7 @@ public static unsafe partial class EfiEntry
 #endif
 #else
                 LinuxText(state, "\r\nCLROS_M16_005_READY\r\nTEST_PASS m16-005\r\n");
+#endif
 #endif
         }
 
@@ -1929,7 +1965,7 @@ public static unsafe partial class EfiEntry
             return true;
         }
 
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
         private struct CooperativeControl
         {
             internal Storage* State;
@@ -2020,7 +2056,7 @@ public static unsafe partial class EfiEntry
 
         private static bool CooperativeAuthority(Storage* state) => state != null && state->Phase == 4 && state->OwnedPhase == 2 &&
             state->Arena.IsReady && state->Diagnostic.Status == FirstExitDiagnosticStatus.Completed && state->CooperativePool != 0 &&
-            state->Memory.References.CooperativePoolStart == state->CooperativePool && state->Memory.References.CooperativePoolPages == 32 &&
+            state->Memory.References.CooperativePoolStart == state->CooperativePool && state->Memory.References.CooperativePoolPages == CooperativePoolPages &&
             state->Arena.Transition->Mode == FirmwareServicesMode.BootServicesExited && state->Arena.Transition->RetainedFirmwareCallbacksCleared &&
             state->Arena.Binding->RetainedPointersCleared && FirstExitOwnedArena.ValidateCanaries(state->Arena);
 

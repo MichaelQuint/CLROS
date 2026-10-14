@@ -148,13 +148,14 @@ public static class EfiProjectAdmission
         foreach (var analyzer in analyzers) { string name = Path.GetFileName(Text(analyzer!["FullPath"])); Require(expected.Contains(name, StringComparer.Ordinal) && Path.GetFileName(Text(analyzer["DefiningProjectFullPath"])) == "Microsoft.NET.Sdk.Analyzers.targets", reason); names.Add(name); }
         Require(names.Count == 2 && (ordered ? names.SequenceEqual(expected, StringComparer.Ordinal) : names.Distinct(StringComparer.Ordinal).Count() == 2), reason);
     }
-    /// <summary>Return a fresh ordered inventory for the reviewed profile's six
+    /// <summary>Return a fresh ordered inventory for the reviewed profile's
     /// conditional source links. Static declaration admission stays complete;
     /// both isolated and restored evaluations require this exact selection.</summary>
     public static string[] ExpectedCompileItems(EfiProfile profile)
     {
+        bool linux = profile.IsEnabled("EnableM16008Probe");
         bool wait = profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe");
-        bool lifecycle = wait || profile.IsEnabled("EnableM09006Probe");
+        bool lifecycle = linux || wait || profile.IsEnabled("EnableM09006Probe");
         bool timer = lifecycle || profile.IsEnabled("EnableM09005Probe"), contexts = timer || profile.IsEnabled("EnableM09004Probe");
         // Mirror the reviewed conditional links; retain static inventory order
         // and admit no new evaluated identity, link or defining-project authority.
@@ -162,9 +163,9 @@ public static class EfiProjectAdmission
         {
             @"Boot\EfiEntry.ThreadWait.cs|" or
             @"..\OS.Kernel\Threading\ThreadWaitProgram.cs|Threading\ThreadWaitProgram.cs" or
-            @"..\OS.Kernel\Threading\WaitAddress.cs|Threading\WaitAddress.cs" or
             @"..\OS.Kernel\Threading\ThreadLocalStorage.cs|Threading\ThreadLocalStorage.cs" => wait,
-            @"Boot\EfiEntry.KernelThread.cs|" or
+            @"..\OS.Kernel\Threading\WaitAddress.cs|Threading\WaitAddress.cs" => wait || linux,
+            @"Boot\EfiEntry.KernelThread.cs|" => wait || profile.IsEnabled("EnableM09006Probe"),
             @"..\OS.Kernel\Threading\ReadyQueue.cs|Threading\ReadyQueue.cs" or
             @"..\OS.Kernel\Threading\KernelThreadSlot.cs|Threading\KernelThreadSlot.cs" or
             @"..\OS.Kernel\Threading\KernelThreadWait.cs|Threading\KernelThreadWait.cs" or
@@ -177,6 +178,12 @@ public static class EfiProjectAdmission
             @"..\OS.Kernel\Threading\SchedulerTimer.cs|Threading\SchedulerTimer.cs" or
             @"..\OS.Kernel\Pal\OSHostHandle.cs|Pal\OSHostHandle.cs" or
             @"..\OS.Kernel\Threading\X64TimerInterrupt.cs|Threading\X64TimerInterrupt.cs" => timer,
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs|Compatibility\LinuxX64\LinuxSignalMask.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs|Compatibility\LinuxX64\LinuxThreadServices.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs|Compatibility\LinuxX64\LinuxThreadServices.Futex.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs|Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs|Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs" or
+            @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs|Compatibility\LinuxX64\LinuxThreadProgram.cs" => linux,
             _ => true
         }).ToArray();
     }

@@ -19,12 +19,15 @@ public static unsafe class LinuxThreadProgram
     public const uint InitialFixedStackBytes = 168, CapturedFixedStackBytes = 80;
 
     /// <summary>Retained current generation and its original entry adapter.
+    /// Argument is the retained scheduler slot pointer, independently checked
+    /// by the native Start callback against that generation's table entry.
     /// Update both descriptors after actual capture/reap; storage stays mapped
     /// and exclusive through verification/re-emission. It grants no binding.</summary>
     public struct Binding
     {
         public ThreadContextSwitch.Descriptor Context;
         public KernelThreadEntry.Plan Entry;
+        public ulong Argument;
     }
 
     /// <summary>Bindings reside in a separate exclusive part of ContextArena.
@@ -99,7 +102,8 @@ public static unsafe class LinuxThreadProgram
             var b = p.Bindings[i]; var d = b.Context; var e = b.Entry;
             uint entry = Entries + i * WorkerStride, worker = Workers + i * WorkerStride;
             if (!KernelThreadProgram.SameOwner(o, e.Owner) || !Same(d, e.Initial) ||
-                e.CodeOffset != entry || e.Entry != o.CodeStart + worker || e.Argument != p.Stub.CallbackContext ||
+                e.CodeOffset != entry || e.Entry != o.CodeStart + worker || e.Argument != b.Argument ||
+                !Contains(o.ContextArena, o.ContextArenaBytes, b.Argument, 8) ||
                 e.Control != p.Stub.CallbackContext || e.ControlBytes != p.Stub.CallbackBytes ||
                 e.ExitStub != o.CodeStart + FromWorker + i * ThreadContextSwitch.StubBytes || e.RejectRip != p.Stub.RejectRip ||
                 !Callback(p, e.Start) || !KernelThreadEntry.Inputs(output + entry, WorkerStride, e, initial) ||
