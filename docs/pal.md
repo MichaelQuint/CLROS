@@ -112,6 +112,23 @@ Those and accepted #685 are prerequisites of #686's Linux threading, futex,
 mask and blocking-pipe adapter. Signal delivery and the first unchanged NativeAOT
 Hello remain #687; comprehensive upstream runtime qualification remains #688.
 
+### Wait-on-address development (#191)
+
+`Threading/WaitAddress.cs` adds caller-owned exact address/lifetime bindings and
+FIFO registrations over the qualified `KernelThreadTable`. Thirteen focused
+host checks pass in [step1231](../done/step1231.md): compare mismatch, wake before
+and after Park, colliding addresses, wake-one/all, deadline/wake races, capacity
+and ready pressure, cancellation, stale address/thread/owner reuse and finite
+identity exhaustion. Warmed operations allocate no managed storage.
+
+The trusted single-BSP caller keeps IF clear across compare/register/capture/Park
+and native transfer. A returned registration must be completed or parked inside
+that transaction. Timed waits use the scheduler's tick epoch; no polling or
+separate event/mutex service is introduced. Mappings and scheduler backing remain
+caller-pinned. This is host implementation evidence only: #191 remains open
+pending default-off mechanical guest/native/full-batch qualification. #192's
+application FS/TLS and #686's Linux adapter remain incomplete.
+
 ### Saved-context host contract (#183)
 
 [Step1210](../done/step1210.md) records nine focused checks for

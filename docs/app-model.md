@@ -9,6 +9,12 @@ reaps. All 23 internal page leases return; the 32-page reservation remains owned
 Application threads, upstream runtime, unchanged Hello and Kestrel remain
 unqualified. Next are #191 wait-on-address and #192 application FS/TLS before #686.
 
+[Step1231](../done/step1231.md) adds #191's bounded host wait-address owner and
+13 focused controls over the qualified lifecycle table. Exact address/lifetime
+bindings, compare/register, FIFO wake-one/all, timeout/cancellation and stale
+reuse have host evidence only. There is no new guest, Linux futex or application
+threading acceptance; #191 and #192 remain open.
+
 [Step1224](../done/step1224.md) qualifies M09-005 hardware-timer execution:
 4,776 full-host checks, six original native bodies, three fresh 115-record
 timer guests and ten ancestors pass.
