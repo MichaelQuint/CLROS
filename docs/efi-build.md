@@ -24,6 +24,14 @@ The gateway callbacks preserve per-worker images and blocked completion. Resourc
 preparation/binding, callbacks and release compile in the no-stdlib project;
 the native driver/IRQ/reap loop is still unfinished and no worker has executed.
 
+[Step1243](../done/step1243.md) adds explicit M16-008-only driver/timer partials,
+including supervisor-confirmed dispatch, off-stack reap, generation-bound entry
+re-emission, bounded actual idle IRQ admission and separate timer/futex clocks.
+The driver restores hardware, detaches drained owners, restores original pool
+PTEs and checks scrubbing; unsafe failure retains resources. Boot attachment and
+strict mechanical transcript selection remain unfinished. The existing entry
+and QEMU refusals still prevent execution; C# compilation is the current limit.
+
 ## Development wait and TLS profiles
 
 `efi build -BootPolicy Diagnostic -EnableM09009Probe` and the corresponding

@@ -42,6 +42,7 @@ public static unsafe partial class EfiEntry
             internal WaitAddress.Slot* Addresses;
             internal WaitAddress.Registration* Registrations;
             internal X64LinuxUserTransition.UserImage* Initial;
+            internal byte* CodeCopy;
             internal X64TimerInterrupt.Plan Handler;
             internal SchedulerTimer Timer;
             internal DeadlineQueue TimerDeadlines;
@@ -103,13 +104,15 @@ public static unsafe partial class EfiEntry
                 !LinuxNativeTake(ref cursor, end, (uint)sizeof(LinuxThreadServices.FutexCell) * LinuxNativeFutexes, out byte* cells) ||
                 !LinuxNativeTake(ref cursor, end, (uint)sizeof(WaitAddress.Slot) * LinuxNativeFutexes, out byte* addresses) ||
                 !LinuxNativeTake(ref cursor, end, (uint)sizeof(WaitAddress.Registration) * LinuxNativeWorkers, out byte* registrations) ||
-                !LinuxNativeTake(ref cursor, end, X64LinuxUserTransition.UserImageBytes, out byte* initial)) return false;
+                !LinuxNativeTake(ref cursor, end, X64LinuxUserTransition.UserImageBytes, out byte* initial) ||
+                !LinuxNativeTake(ref cursor, end, NativeProgram.Bytes, out byte* codeCopy)) return false;
             c->Slots = (LinuxThreadServices.Slot*)slots; c->Workers = (LinuxThreadServices.Worker*)workers;
             c->Gates = (LinuxSyscallGateState*)gates; c->KernelSlots = (KernelThreadSlot*)kernelSlots;
             c->Actions = (uint*)actions; c->Entered = (uint*)entered;
             c->Ready = (OSHostHandle*)ready; c->Deadlines = (DeadlineQueue.Entry*)deadlines;
             c->Cells = (LinuxThreadServices.FutexCell*)cells; c->Addresses = (WaitAddress.Slot*)addresses;
             c->Registrations = (WaitAddress.Registration*)registrations; c->Initial = (X64LinuxUserTransition.UserImage*)initial;
+            c->CodeCopy = codeCopy;
             c->User = new() { Context = state, PageAccess = &LinuxUserPageAccess,
                 CopyFromUser = &LinuxThreadCopyInput, Write = &WriteDescriptorOutput };
             c->Plan = new() { Prepare = (ulong)(delegate* unmanaged<void*, uint, byte>)&LinuxNativeWorkerPrepare,
@@ -161,8 +164,10 @@ public static unsafe partial class EfiEntry
             if (!LinuxNativeCallback(c, c->Plan.Prepare) || !LinuxNativeCallback(c, c->Plan.Stub.AdmissionCallback) ||
                 !LinuxNativeCallback(c, c->Plan.Recover) || !LinuxNativeCallback(c, c->Plan.TerminalCallback) ||
                 !LinuxNativeCallback(c, c->Plan.Bindings[0].Entry.Start) || !LinuxNativeCallback(c, interrupt)) return false;
-            return NativeProgram.Emit((byte*)pool, NativeProgram.Bytes, c->Plan) &&
-                X64TimerInterrupt.Emit((byte*)c->Handler.CodeAddress, X64TimerInterrupt.Bytes, c->Handler) && LinuxNativeVerify(c);
+            if (!NativeProgram.Emit((byte*)pool, NativeProgram.Bytes, c->Plan) ||
+                !X64TimerInterrupt.Emit((byte*)c->Handler.CodeAddress, X64TimerInterrupt.Bytes, c->Handler) || !LinuxNativeVerify(c)) return false;
+            for (uint i = 0; i < NativeProgram.Bytes; i++) codeCopy[i] = ((byte*)pool)[i];
+            return true;
         }
 
         private static bool LinuxNativeTake(ref ulong cursor, ulong end, uint bytes, out byte* result)

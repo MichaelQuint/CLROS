@@ -842,6 +842,8 @@
 		<Compile Include="..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs" Link="Compatibility\LinuxX64\LinuxThreadProgram.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.LinuxThreads.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.LinuxThreadMemory.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
+		<Compile Include="Boot\EfiEntry.LinuxThreadRun.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
+		<Compile Include="Boot\EfiEntry.LinuxThreadTimer.cs" Condition="'$(EnableM16008Probe)' == 'true'" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="11.0.0-rc.2.26504.105" PrivateAssets="all" />
 		<PackageReference Include="runtime.win-x64.Microsoft.DotNet.ILCompiler" Version="11.0.0-rc.2.26504.105" PrivateAssets="all" />
 		<ResolvedILCompilerPack Include="runtime.win-x64.Microsoft.DotNet.ILCompiler">

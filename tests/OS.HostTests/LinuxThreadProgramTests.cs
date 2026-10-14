@@ -32,6 +32,52 @@ internal static unsafe class LinuxThreadProgramTests
     }
     private static ulong Target(byte* instruction) => unchecked((ulong)instruction + 5 + (ulong)(long)*(int*)(instruction + 1));
 
+    [HostTest("linux.thread program rebinds an actually reaped generation by replacing only its entry")]
+    private static void ReapedEntry()
+    {
+        using KernelThreadTableTests.Model m = new(initialize: false);
+        var p = Plan(m, 2); HostCheck.True(P.Emit((byte*)m.Code, P.Bytes, p));
+        p.Owner.GuardsVerified = p.Owner.MappingsVerified = true;
+        for (uint i = 0; i < p.Count; i++) p.Bindings[i].Entry.Owner = p.Owner;
+        m.Owner = p.Owner; m.Supervisor = p.Supervisor;
+        HostCheck.Equal(KernelThreadTable.Status.Ok, m.Bind(2, 2, 2));
+        for (uint i = 0; i < p.Count; i++)
+        {
+            var b = p.Bindings[i]; var d = b.Context;
+            HostCheck.Equal(d.Identity, m.Table->Create(KernelThreadTableTests.Key, 2, d.Context, d.ContextBytes,
+                d.StackGuardStart, d.StackBytes, d.ResumeRip, b.Entry.Entry, b.Argument).Identity.Value);
+        }
+        var old = p.Bindings[0].Context;
+        HostCheck.Equal(old.Identity, m.Dispatch().Value);
+        var captured = old; captured.Kind = S.ResumeKind.CapturedCall;
+        captured.ResumeRip = m.Code + P.Workers + P.WorkerResume; captured.Context->Rip = captured.ResumeRip; captured.Context->Rsp -= 152;
+        p.Bindings[0].Context = p.Bindings[0].Entry.Initial = captured;
+        HostCheck.True(m.Table->Exit(KernelThreadTableTests.Key, 2, new(old.Identity), captured, 60).Succeeded); m.Confirm();
+        HostCheck.True(P.Verify((byte*)m.Code, P.Bytes, p));
+        byte[] code = new ReadOnlySpan<byte>((void*)m.Code, (int)P.Bytes).ToArray();
+        HostCheck.True(m.Table->Reap(KernelThreadTableTests.Key, 2, new(old.Identity), m.SupervisorRsp).Succeeded);
+        HostCheck.True(!P.Verify((byte*)m.Code, P.Bytes, p));
+        HostCheck.True(code.AsSpan().SequenceEqual(new ReadOnlySpan<byte>((void*)m.Code, (int)P.Bytes)));
+        HostCheck.True(new ReadOnlySpan<byte>(old.Context, (int)old.ContextBytes).IndexOfAnyExcept((byte)0) == -1);
+        HostCheck.Equal(KernelThreadTable.Status.Ok, m.Table->InspectNextCreateIdentity(KernelThreadTableTests.Key, 2, out var next));
+        HostCheck.Equal(old.Identity + (1UL << 32), next.Value);
+        old.Identity = old.CurrentIdentity = next.Value; old.Kind = S.ResumeKind.Entry;
+        HostCheck.Equal(X64ThreadContext.Status.Ok, X64ThreadContext.Initialize(old.Context, old.ContextBytes,
+            old.ResumeRip, old.StackGuardStart + old.StackBytes - 4096 - 40, p.Owner.ObservedMxcsrMask));
+        p.Bindings[0].Context = p.Bindings[0].Entry.Initial = old;
+        HostCheck.True(!P.Verify((byte*)m.Code, P.Bytes, p)); // Old identity is still embedded in the entry.
+        HostCheck.True(KernelThreadEntry.Emit((byte*)m.Code + P.Entries, KernelThreadEntry.Bytes, p.Bindings[0].Entry));
+        HostCheck.True(P.Verify((byte*)m.Code, P.Bytes, p));
+        HostCheck.True(code.AsSpan(0, (int)P.Entries).SequenceEqual(new ReadOnlySpan<byte>((void*)m.Code, (int)P.Entries)));
+        HostCheck.True(code.AsSpan((int)(P.Entries + KernelThreadEntry.Bytes)).SequenceEqual(
+            new ReadOnlySpan<byte>((void*)(m.Code + P.Entries + KernelThreadEntry.Bytes), (int)(P.Bytes - P.Entries - KernelThreadEntry.Bytes))));
+        var b0 = p.Bindings[0];
+        HostCheck.Equal(next.Value, m.Table->Create(KernelThreadTableTests.Key, 2, old.Context, old.ContextBytes,
+            old.StackGuardStart, old.StackBytes, old.ResumeRip, b0.Entry.Entry, b0.Argument).Identity.Value);
+        HostCheck.Equal(KernelThreadTable.Status.StaleIdentity, m.Inspect(new(next.Value - (1UL << 32))).Code);
+        HostCheck.Equal(p.Bindings[1].Context.Identity, m.Dispatch().Value); // Other live worker was retained.
+    }
+
     [HostTest("linux.thread program has four distinct real CALL paths with aligned shadow space and full supervisor witness")]
     private static void Flow()
     {

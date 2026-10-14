@@ -5,6 +5,8 @@ public static partial class EfiContracts
     {
         [@"Boot\EfiEntry.LinuxThreads.cs"] = "reviewed_m16_native_process_owner_source_identity",
         [@"Boot\EfiEntry.LinuxThreadMemory.cs"] = "reviewed_m16_native_process_memory_source_identity",
+        [@"Boot\EfiEntry.LinuxThreadRun.cs"] = "reviewed_m16_native_process_driver_source_identity",
+        [@"Boot\EfiEntry.LinuxThreadTimer.cs"] = "reviewed_m16_native_process_timer_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs"] = "reviewed_m16_thread_signal_mask_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs"] = "reviewed_m16_thread_owner_source_identity",
         [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs"] = "reviewed_m16_futex_owner_source_identity",

@@ -84,6 +84,15 @@ before the emitted supervisor transfer. The switch stack admits clear-TID's real
 copyout local. These partials compile but have not executed: the driver, IRQ,
 reap/reuse and full shutdown loop are not attached, and the M16-008 entry/QEMU
 refusals remain. Native/guest qualification remains deferred with the batch.
+[Step1243](../done/step1243.md) implements the private driver and bounded idle
+timer partials. Dispatch requires the actual supervisor witness and confirms
+handoff before reap; reaped workers retain an independent code snapshot while
+their scrubbed context is rebound to the table's advanced generation. Only the
+entry's code page changes RW/NX then RX for re-emission. Timer epochs use a
+separate queue; HPET nanoseconds alone advance futex deadlines. Cleanup retains
+the pool on unresolved native/hardware ownership. These paths compile but await
+boot attachment and the strict mechanical transcript. Entry/QEMU refusals remain;
+no worker, timer callback or ELF has executed in this development stage.
 Signal delivery belongs to #687. All batch issues
 remain open pending shared qualification; the expensive full-host suite is
 deferred to the stable dependency-compatible batch requested by the user.

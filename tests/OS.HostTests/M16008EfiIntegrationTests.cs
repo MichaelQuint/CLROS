@@ -31,6 +31,7 @@ internal static class M16008EfiIntegrationTests
             string[] compile = EfiProjectAdmission.ExpectedCompileItems(profile);
             foreach (string include in new[] { @"..\OS.Kernel\Threading\WaitAddress.cs|Threading\WaitAddress.cs",
                 @"Boot\EfiEntry.LinuxThreads.cs|", @"Boot\EfiEntry.LinuxThreadMemory.cs|",
+                @"Boot\EfiEntry.LinuxThreadRun.cs|", @"Boot\EfiEntry.LinuxThreadTimer.cs|",
                 @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs|Compatibility\LinuxX64\LinuxThreadProgram.cs",
                 @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs|Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs" })
                 HostCheck.True(compile.Contains(include));

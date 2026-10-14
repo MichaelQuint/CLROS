@@ -184,7 +184,8 @@ public static class EfiProjectAdmission
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs|Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs|Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs|Compatibility\LinuxX64\LinuxThreadProgram.cs" or
-            @"Boot\EfiEntry.LinuxThreads.cs|" or @"Boot\EfiEntry.LinuxThreadMemory.cs|" => linux,
+            @"Boot\EfiEntry.LinuxThreads.cs|" or @"Boot\EfiEntry.LinuxThreadMemory.cs|" or
+            @"Boot\EfiEntry.LinuxThreadRun.cs|" or @"Boot\EfiEntry.LinuxThreadTimer.cs|" => linux,
             _ => true
         }).ToArray();
     }
