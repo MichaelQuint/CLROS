@@ -17,6 +17,13 @@ its read lock. Create the package at a fresh path with compiled tooling:
 dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/m16-008-thread.pkg
 ```
 
+[Step1245](../done/step1245.md) makes the canonical package exercise four
+sequential child generations within its original two-thread quota. Older
+generated package bytes fail current preflight; create a fresh output path.
+The same input asserts malformed clone/mask/futex, unmapped FS and full-table
+clone errors; its strict tail requires 91 calls, 36 transfers and five reaps.
+This changes the mechanical input and strict transcript only, not native code.
+
 The future qualification command is:
 
 ```powershell

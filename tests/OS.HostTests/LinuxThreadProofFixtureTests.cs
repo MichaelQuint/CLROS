@@ -78,33 +78,41 @@ internal static unsafe class LinuxThreadProofFixtureTests
     {
         byte[] elf = LinuxThreadProofFixture.CreateElf("Threads");
         var parent = Decode(elf, 0x200, 0x900); var child = Decode(elf, 0x900, 0xf00);
-        uint[] parentNumbers = [39, 186, 158, 14, 293, 56, 0, 39, 158, 14, 202, 202, 202, 202, 3, 3, 1, 231];
+        uint[] parentNumbers = [39, 186, 158, 14, 293, 56, 202, 14, 158, 56, 0, 56, 39, 158, 14, 202, 202, 202, 202, 3, 3, 1, 231];
         uint[] childNumbers = [39, 186, 158, 14, 14, 14, 158, 158, 1, 202, 60];
         HostCheck.True(parent.Calls.Select(c => c.Number).SequenceEqual(parentNumbers) && child.Calls.Select(c => c.Number).SequenceEqual(childNumbers));
-        HostCheck.Equal((uint)parentNumbers.Length, LinuxThreadProofFixture.ExpectedCalls("Threads"));
-        HostCheck.Equal((uint)childNumbers.Length, LinuxThreadProofFixture.ExpectedCalls("Threads", child: true));
-        HostCheck.True(parent.Calls.Select(c => c.Rip).SequenceEqual(LinuxThreadProofFixture.ExpectedReturnRips("Threads")) &&
-            child.Calls.Select(c => c.Rip).SequenceEqual(LinuxThreadProofFixture.ExpectedReturnRips("Threads", child: true)));
-        HostCheck.Equal(parent.Calls[5].Rip, LinuxThreadProofFixture.CloneReturnRip("Threads"));
-        HostCheck.Equal(0x40034fUL, parent.Calls[5].Rip);
-        HostCheck.True(!child.Calls.Any(c => c.Rip == parent.Calls[5].Rip)); // Child begins at a saved clone continuation, not a replayed syscall.
+        HostCheck.Equal(47U, LinuxThreadProofFixture.ExpectedCalls("Threads"));
+        HostCheck.Equal(44U, LinuxThreadProofFixture.ExpectedCalls("Threads", child: true));
+        ulong[] parentPath = [.. parent.Calls.Take(9).Select(c => c.Rip),
+            .. Enumerable.Range(0, 4).SelectMany(_ => parent.Calls.Skip(9).Take(8).Select(c => c.Rip)), .. parent.Calls.Skip(17).Select(c => c.Rip)];
+        ulong[] childPath = Enumerable.Range(0, 4).SelectMany(_ => child.Calls.Select(c => c.Rip)).ToArray();
+        HostCheck.True(parentPath.SequenceEqual(LinuxThreadProofFixture.ExpectedReturnRips("Threads")) &&
+            childPath.SequenceEqual(LinuxThreadProofFixture.ExpectedReturnRips("Threads", child: true)));
+        HostCheck.Equal(parent.Calls[9].Rip, LinuxThreadProofFixture.CloneReturnRip("Threads"));
+        HostCheck.Equal(0x400439UL, parent.Calls[9].Rip);
+        HostCheck.True(!child.Calls.Any(c => c.Rip == parent.Calls[9].Rip)); // Child begins at a saved clone continuation, not a replayed syscall.
         HostCheck.Equal(parent.Calls[^1].Rip, LinuxThreadProofFixture.SuccessRip("Threads"));
         HostCheck.Equal(child.Calls[^1].Rip, LinuxThreadProofFixture.ChildExitRip("Threads"));
-        HostCheck.Equal(0x40067cUL, parent.Calls[^1].Rip); HostCheck.Equal(0x400c29UL, child.Calls[^1].Rip);
+        HostCheck.Equal(0x4007b5UL, parent.Calls[^1].Rip); HostCheck.Equal(0x400c29UL, child.Calls[^1].Rip);
         Check(parent.Calls[2], 158, 0x1002, 0x402000, 0);
         Check(parent.Calls[3], 14, 2, 0x401020, 0, 8);
         Check(parent.Calls[4], 293, 0x401000, 0, 0);
-        Check(parent.Calls[5], 56, 0x7d0f00, 0x406000, 0x401008, 0x40100c, 0x403000);
-        HostCheck.True(parent.Calls[6].FdOffset == 0x1000 && parent.Calls[6].A1 == 0x401078 && parent.Calls[6].A2 == 4);
-        HostCheck.True(parent.Calls[14].FdOffset == 0x1000 && parent.Calls[15].FdOffset == 0x1004);
+        Check(parent.Calls[5], 56, 0x7d0f01, 0x406000, 0x401008, 0x40100c, 0x403000);
+        Check(parent.Calls[6], 202, 0x401011, 128, 0);
+        Check(parent.Calls[7], 14, 2, 0x401020, 0, 16);
+        Check(parent.Calls[8], 158, 0x1002, 0x500000, 0);
+        Check(parent.Calls[9], 56, 0x7d0f00, 0x406000, 0x401008, 0x40100c, 0x403000);
+        HostCheck.True(parent.Calls[10].FdOffset == 0x1000 && parent.Calls[10].A1 == 0x401078 && parent.Calls[10].A2 == 4);
+        Check(parent.Calls[11], 56, 0x7d0f00, 0x406000, 0x401008, 0x40100c, 0x403000);
+        HostCheck.True(parent.Calls[19].FdOffset == 0x1000 && parent.Calls[20].FdOffset == 0x1004);
         HostCheck.True(child.Calls[8].FdOffset == 0x1004 && child.Calls[8].A1 == 0x401070 && child.Calls[8].A2 == 4);
         HostCheck.True(parent.Calls.Count(c => c.FdOffset >= 0) == 3 && child.Calls.Count(c => c.FdOffset >= 0) == 1);
-        Check(parent.Calls[8], 158, 0x1003, 0x401048, 0);
-        Check(parent.Calls[9], 14, 2, 0, 0x401030, 8);
-        Check(parent.Calls[10], 202, 0x401010, 129, 1);
-        Check(parent.Calls[11], 202, 0x40100c, 0, 1);
-        Check(parent.Calls[12], 202, 0x401010, 128, 0);
-        Check(parent.Calls[13], 202, 0x401014, 128, 0, 0x401058);
+        Check(parent.Calls[13], 158, 0x1003, 0x401048, 0);
+        Check(parent.Calls[14], 14, 2, 0, 0x401030, 8);
+        Check(parent.Calls[15], 202, 0x401010, 129, 1);
+        Check(parent.Calls[16], 202, 0x40100c, 0, 1);
+        Check(parent.Calls[17], 202, 0x401010, 128, 0);
+        Check(parent.Calls[18], 202, 0x401014, 128, 0, 0x401058);
         Check(child.Calls[2], 158, 0x1003, 0x401050, 0);
         Check(child.Calls[3], 14, 2, 0, 0x401038, 8);
         Check(child.Calls[4], 14, 2, 0x401028, 0x401040, 8);
@@ -121,9 +129,18 @@ internal static unsafe class LinuxThreadProofFixtureTests
     {
         byte[] elf = LinuxThreadProofFixture.CreateElf("Threads");
         var parent = Decode(elf, 0x200, 0x900); var child = Decode(elf, 0x900, 0xf00); var failure = Decode(elf, 0xf00, 0xf2a);
-        HostCheck.True(parent.Branches.Count(b => b.Target == 0x900) == 1 && parent.Branches.All(b => b.Target is 0x900 or 0xf00));
+        var loop = parent.Branches.Single(b => b.Target < b.At);
+        HostCheck.True(parent.Branches.Count(b => b.Target == 0x900) == 1 && parent.Branches.All(b => b.Target is 0x900 or 0xf00 || b == loop));
+        HostCheck.True(elf.AsSpan(loop.Target - 6, 6).SequenceEqual(new byte[] { 0x41, 0xbd, 4, 0, 0, 0 }) &&
+            elf.AsSpan(loop.At - 3, 5).SequenceEqual(new byte[] { 0x49, 0xff, 0xcd, 0x0f, 0x85 }));
+        HostCheck.True(elf[loop.Target] == 0xc7 && elf[loop.Target + 1] == 5 && U32(elf, loop.Target + 6) == 0 &&
+            loop.Target + 10 + BinaryPrimitives.ReadInt32LittleEndian(elf.AsSpan(loop.Target + 2)) == 0x1010 &&
+            elf[loop.Target + 10] == 0xc7 && elf[loop.Target + 11] == 5 && U32(elf, loop.Target + 16) == 1 &&
+            loop.Target + 20 + BinaryPrimitives.ReadInt32LittleEndian(elf.AsSpan(loop.Target + 12)) == 0x100c);
+        HostCheck.True(loop.At > checked((int)(parent.Calls[16].Rip - 0x400000)) &&
+            loop.Target < checked((int)(parent.Calls[9].Rip - 0x400000)));
         HostCheck.True(child.Branches.All(b => b.Target == 0xf00));
-        int cloneReturn = checked((int)(parent.Calls[5].Rip - 0x400000));
+        int cloneReturn = checked((int)(parent.Calls[9].Rip - 0x400000));
         HostCheck.True(elf.AsSpan(cloneReturn, 5).SequenceEqual(new byte[] { 0x48, 0x85, 0xc0, 0x0f, 0x84 }));
         HostCheck.Equal(0x900, cloneReturn + 9 + BinaryPrimitives.ReadInt32LittleEndian(elf.AsSpan(cloneReturn + 5)));
         HostCheck.True(elf.AsSpan(0x900, 8).SequenceEqual(new byte[] { 0x48, 0x3d, 0, 0, 0, 0, 0x0f, 0x85 }));
@@ -135,7 +152,7 @@ internal static unsafe class LinuxThreadProofFixtureTests
         byte[] fs = [0x64, 0x48, 0x8b, 0x04, 0x25, 0, 0, 0, 0];
         HostCheck.True(parent.Instructions.Count(at => elf.AsSpan(at, Math.Min(9, elf.Length - at)).SequenceEqual(fs)) == 1 &&
             child.Instructions.Count(at => elf.AsSpan(at, Math.Min(9, elf.Length - at)).SequenceEqual(fs)) == 2);
-        foreach (int errno in new[] { -11, -110 })
+        foreach (int errno in new[] { -11, -14, -22, -110 })
         {
             byte[] compare = [0x48, 0x3d, 0, 0, 0, 0, 0x0f, 0x85];
             BinaryPrimitives.WriteInt32LittleEndian(compare.AsSpan(2), errno); HostCheck.True(p.IndexOf(compare) >= 0);
@@ -238,6 +255,7 @@ internal static unsafe class LinuxThreadProofFixtureTests
         if (op is >= 0xb8 and <= 0xbf) return 5;
         if (op == 0x41 && b[at + 1] is >= 0xb8 and <= 0xbf) return 6;
         if (op == 0x41 && b[at + 1] is 0x89 or 0xf7) return 3;
+        if (op == 0x49 && b[at + 1] == 0xff && b[at + 2] == 0xcd) return 3;
         if (op == 0x48 && b[at + 1] == 0x3d) return 6;
         if (op == 0x48 && b[at + 1] == 0x8b && b[at + 2] == 5) return 7;
         if (op == 0x48 && b[at + 1] is 0x85 or 0x89 || op == 0x4c && b[at + 1] == 0x39) return 3;

@@ -17,7 +17,7 @@ public static partial class QemuTranscripts
     {
         if (tail is null || package is null) throw new ToolFailure("m16_008_tail_input");
         Need(package.AsSpan().SequenceEqual(LinuxThreadProofFixture.CreatePackage("Threads")), "m16_008_fixture_identity");
-        Need(tail.Length >= 5 && tail.Length <= 256, "m16_008_tail_inventory");
+        Need(tail.Length is >= 143 and <= 270, "m16_008_tail_inventory");
         int position = 0;
         string Take() { Need(position < tail.Length, "m16_008_truncated"); return tail[position++]; }
         void Exact(string expected) => Need(Take() == expected, "m16_008_record_order_" + expected);
@@ -39,7 +39,10 @@ public static partial class QemuTranscripts
         LinuxThreadExpected[] parent =
         [
             new(39), new(186), new(158,0x1002,0x402000), new(14,2,0x401020,0,8), new(293,0x401000),
-            new(56,0x7d0f00,0x406000,0x401008,0x40100c,0x403000), new(0,0,0x401078,4), new(39),
+            new(56,0x7d0f01,0x406000,0x401008,0x40100c,0x403000), new(202,0x401011,128),
+            new(14,2,0x401020,0,16), new(158,0x1002,0x500000),
+            new(56,0x7d0f00,0x406000,0x401008,0x40100c,0x403000), new(0,0,0x401078,4),
+            new(56,0x7d0f00,0x406000,0x401008,0x40100c,0x403000), new(39),
             new(158,0x1003,0x401048), new(14,2,0,0x401030,8), new(202,0x401010,129,1), new(202,0x40100c,0,1),
             new(202,0x401010,128), new(202,0x401014,128,0,0x401058), new(3), new(3), new(1,1,0x400180,15), new(231,42)
         ];
@@ -52,8 +55,10 @@ public static partial class QemuTranscripts
         var parentRips = LinuxThreadProofFixture.ExpectedReturnRips("Threads");
         var childRips = LinuxThreadProofFixture.ExpectedReturnRips("Threads", child: true);
         byte[] elf = LinuxThreadProofFixture.CreateElf("Threads");
-        Need(parentRips.Count == parent.Length && childRips.Count == child.Length, "m16_008_instruction_inventory");
+        const int cycles = 4;
+        Need(parentRips.Count == 47 && childRips.Count == 44, "m16_008_instruction_inventory");
         ulong parentIdentity = 0, childIdentity = 0, pid = 0, tid = 0, readFd = 0, writeFd = 0, clock = 0, timeoutClock = 0;
+        int cycle = 0, parentCalls = 0, childCalls = 0;
 
         void Call(bool isChild, int ordinal)
         {
@@ -65,37 +70,38 @@ public static partial class QemuTranscripts
                 parentIdentity = row["identity"]; pid = row["valueBits"];
                 Need(parentIdentity >> 32 == 1 && (uint)parentIdentity == 1 && pid is > 0 and < int.MaxValue, "m16_008_parent_identity");
             }
-            if (!isChild && ordinal == 5)
-            { tid = row["valueBits"]; Need(tid == pid + 1 && tid <= int.MaxValue, "m16_008_clone_tid"); }
+            if (!isChild && ordinal == 9)
+            { tid = row["valueBits"]; Need(tid == pid + (uint)cycle + 1 && tid <= int.MaxValue, "m16_008_clone_tid"); }
             if (isChild && ordinal == 0)
             {
                 childIdentity = row["identity"];
-                Need(childIdentity >> 32 == 1 && (uint)childIdentity == 2 && childIdentity != parentIdentity, "m16_008_child_identity");
+                Need(childIdentity >> 32 == (uint)cycle + 1 && (uint)childIdentity == 2 && childIdentity != parentIdentity, "m16_008_child_identity");
             }
-            if (!isChild && ordinal == 6)
-            { readFd = row["a0"]; Need(readFd is >= 3 and < 16, "m16_008_read_fd"); }
+            if (!isChild && ordinal == 10)
+            { if (cycle == 0) readFd = row["a0"]; Need(row["a0"] == readFd && readFd is >= 3 and < 16, "m16_008_read_fd"); }
             if (isChild && ordinal == 8)
-            { writeFd = row["a0"]; Need(writeFd is >= 3 and < 16 && writeFd != readFd, "m16_008_write_fd"); }
-            ulong a0 = !isChild && (ordinal is 6 or 14) ? readFd : !isChild && ordinal == 15 ? writeFd :
+            { if (cycle == 0) writeFd = row["a0"]; Need(row["a0"] == writeFd && writeFd is >= 3 and < 16 && writeFd != readFd, "m16_008_write_fd"); }
+            ulong a0 = !isChild && (ordinal is 10 or 19) ? readFd : !isChild && ordinal == 20 ? writeFd :
                 isChild && ordinal == 8 ? writeFd : expected.A0;
-            ulong rip = (isChild ? childRips : parentRips)[ordinal];
+            ulong rip = isChild ? childRips[childCalls++] : parentRips[parentCalls++];
             Need(row["identity"] == (isChild ? childIdentity : parentIdentity) && row["nr"] == expected.Nr &&
                 row["a0"] == a0 && row["a1"] == expected.A1 && row["a2"] == expected.A2 && row["a3"] == expected.A3 &&
                 row["a4"] == expected.A4 && row["a5"] == 0 && row["rip"] == rip && rip is >= 0x400202 and < 0x400f00 &&
                 elf[(int)(rip - 0x400000 - 2)] == 0x0f && elf[(int)(rip - 0x400000 - 1)] == 5, "m16_008_call_binding");
             ulong fs = isChild ? ordinal < 6 ? 0x403000UL : 0x403040UL : ordinal < 2 ? 0UL : 0x402000UL;
-            bool samplesClock = isChild ? ordinal == 9 : ordinal is 11 or 13;
+            bool samplesClock = isChild ? ordinal == 9 : ordinal is 16 or 18;
             Need(row["rsp"] == (isChild ? 0x406000UL : 0x405000UL) && row["fs"] == fs && row["gs"] == 0 &&
                 (row["flags"] & 2) != 0 && (row["flags"] & ~LinuxSyscallGateway.UserRflagsMask) == 0 &&
                 row["clock"] >= clock && row["clock"] <= long.MaxValue && (samplesClock || row["clock"] == clock), "m16_008_thread_envelope");
             clock = row["clock"];
-            bool blocked = isChild ? ordinal == 9 : ordinal is 6 or 11 or 13;
+            bool blocked = isChild ? ordinal == 9 : ordinal is 10 or 16 or 18;
             bool exited = ordinal == (isChild ? child.Length : parent.Length) - 1;
             long value = isChild ? ordinal switch { 0 => (long)pid, 1 => (long)tid, 8 => 4, _ => 0 } :
-                ordinal switch { 0 or 1 or 7 => (long)pid, 5 => (long)tid, 10 => 1, 12 => -11, 16 => 15, _ => 0 };
+                ordinal switch { 0 or 1 or 12 => (long)pid, 5 or 6 or 7 => -22, 8 => -14,
+                    9 => (long)tid, 11 or 17 => -11, 15 => 1, 21 => 15, _ => 0 };
             Need(row["valueBits"] == unchecked((ulong)value) && row["action"] == (blocked ? 3UL : exited ? isChild ? 4UL : 2UL : 1UL) &&
                 row["status"] == (blocked ? 9UL : exited ? 2UL : 1UL), "m16_008_call_outcome");
-            if (!isChild && ordinal == 13)
+            if (!isChild && ordinal == 18)
             { timeoutClock = clock; Need(timeoutClock <= (ulong)long.MaxValue - 1_000_000, "m16_008_timeout_overflow"); }
         }
         void Calls(bool isChild, int first, int last) { for (int i = first; i <= last; i++) Call(isChild, i); }
@@ -123,11 +129,17 @@ public static partial class QemuTranscripts
             Need(row["old"] == identity && row["next"] == identity + (1UL << 32), "m16_008_reap_generation");
         }
 
-        Calls(false, 0, 6); Supervisor(parentIdentity, 3, 2, 1, 2);
-        Calls(true, 0, 9); Supervisor(childIdentity, 3, 4, 1, 2);
-        Resume(parentIdentity, 4); Calls(false, 7, 11); Supervisor(parentIdentity, 3, 6, 1, 2);
-        Resume(childIdentity, 0); Call(true, 10); Exit(childIdentity); Supervisor(childIdentity, 4, 8, 1, 2); Reap(childIdentity);
-        Resume(parentIdentity, 0); Calls(false, 12, 13); Supervisor(parentIdentity, 3, 10, 0, 1);
+        Calls(false, 0, 8);
+        for (; cycle < cycles; cycle++)
+        {
+            ulong transfers = (uint)cycle * 8;
+            Calls(false, 9, 10); Supervisor(parentIdentity, 3, transfers + 2, 1, 2);
+            Calls(true, 0, 9); Supervisor(childIdentity, 3, transfers + 4, 1, 2);
+            Resume(parentIdentity, 4); Calls(false, 11, 16); Supervisor(parentIdentity, 3, transfers + 6, 1, 2);
+            Resume(childIdentity, 0); Call(true, 10); Exit(childIdentity); Supervisor(childIdentity, 4, transfers + 8, 1, 2); Reap(childIdentity);
+            Resume(parentIdentity, 0);
+        }
+        Calls(false, 17, 18); Supervisor(parentIdentity, 3, 34, 0, 1);
         ulong ticks = 0;
         while (true)
         {
@@ -139,13 +151,14 @@ public static partial class QemuTranscripts
             { Need(clock >= timeoutClock + 1_000_000, "m16_008_real_timeout"); break; }
             Need(clock < timeoutClock + 1_000_000, "m16_008_missed_timeout");
         }
-        Resume(parentIdentity, -110); Calls(false, 14, 15);
-        Exact("M16_005_WRITE fd=1 bytes=15 data=M16_THREADS_OK!"); Call(false, 16);
-        Call(false, 17); Exit(parentIdentity); Supervisor(parentIdentity, 2, 12, 0, 1); Reap(parentIdentity);
+        Resume(parentIdentity, -110); Calls(false, 19, 20);
+        Exact("M16_005_WRITE fd=1 bytes=15 data=M16_THREADS_OK!"); Call(false, 21);
+        Call(false, 22); Exit(parentIdentity); Supervisor(parentIdentity, 2, 36, 0, 1); Reap(parentIdentity);
         const string endSuffix = " process=drained timer=restored descriptors=closed guard=detached pool=scrubbed reservation=retained";
         string endLine = Take(); Need(endLine.EndsWith(endSuffix, StringComparison.Ordinal), "m16_008_owner_cleanup");
         var end = ReadRecord(endLine[..^endSuffix.Length], "M16_008_OWNER_END", "reaped:dec", "transfers:dec", "irqs:dec", "exit:dec");
-        Need(end["reaped"] == 2 && end["transfers"] == 12 && end["irqs"] == ticks && end["exit"] == 42, "m16_008_owner_accounting");
+        Need(end["reaped"] == 5 && end["transfers"] == 36 && end["irqs"] == ticks && end["exit"] == 42 &&
+            parentCalls == 47 && childCalls == 44, "m16_008_owner_accounting");
         Exact("M16_008_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
         Exact("CLROS_M16_008_READY"); Exact("TEST_PASS m16-008");
         Need(position == tail.Length, "m16_008_extra_record");

@@ -17,6 +17,9 @@ public static class LinuxThreadProofFixture
     public const ulong ImageBase = 0x400000, DataBase = 0x401000;
     public const ulong ParentTls = 0x402000, ChildTls = 0x403000, ChangedChildTls = 0x403040;
     public const ulong ParentStackTop = 0x405000, ChildStackTop = 0x406000;
+    /// <summary>Finite sequential child lifetimes within one two-thread process;
+    /// each must exit/join/reap before the next real generation is created.</summary>
+    public const int ReuseCycles = 4;
     public const int ElfBytes = 0x6000, EntryOffset = 0x200, ChildOffset = 0x900, FailureOffset = 0xf00, WitnessOffset = 0x180;
     public const ulong FailureExitRip = ImageBase + FailureOffset + 41;
     // Control-page offsets are public so the native owner can admit and inspect
@@ -27,8 +30,10 @@ public static class LinuxThreadProofFixture
     public const int ChildOldMask = 0x1040, ParentFsOut = 0x1048, ChildFsOut = 0x1050, TimeoutOffset = 0x1058;
     public const int PayloadOffset = 0x1070, ReadOffset = 0x1078;
 
-    /// <summary>Successful actual syscall returns for one caller, including its
-    /// terminating exit. Child inventory excludes the synthetic clone return;
+    /// <summary>Actual syscall continuations on the successful assertion path
+    /// for the parent or all four sequential child lifetimes, including exits.
+    /// Repeated loop instructions
+    /// retain their actual RIPs. Child inventory excludes the synthetic clone return;
     /// CloneReturnRip separately names the child's first saved continuation.
     /// Each call returns fresh immutable inventory storage; exit99 is excluded.</summary>
     public static IReadOnlyList<ulong> ExpectedReturnRips(string variant, bool child = false)
@@ -88,7 +93,7 @@ public static class LinuxThreadProofFixture
     }
 
     /// <summary>Build a static non-PIE x64 ELF. Parent exit_group42 follows all
-    /// checks; the child's exit60 is joined through actual clear-TID/wake. Every
+    /// checks; all four child exit60 lifetimes join through actual clear-TID/wake. Every
     /// assertion mismatch terminates the whole process with exit_group99.</summary>
     public static byte[] CreateElf(string variant) => Build(variant).Elf;
 
@@ -120,11 +125,20 @@ public static class LinuxThreadProofFixture
         p.Call(158, 0x1002, ParentTls, 0); p.Compare(0);
         p.Call(14, 2, Address(ParentMaskOffset), 0, 8); p.Compare(0);
         p.Call(293, Address(PairOffset), 0, 0); p.Compare(0); // Blocking pipe, real returned fds.
+        p.Call(56, 0x7d0f01, ChildStackTop, Address(ParentTidOffset), Address(ClearTidOffset), ChildTls); p.Compare(-22);
+        p.Call(202, Address(GateOffset) + 1, 128, 0); p.Compare(-22);
+        p.Call(14, 2, Address(ParentMaskOffset), 0, 16); p.Compare(-22);
+        p.Call(158, 0x1002, 0x500000, 0); p.Compare(-14); // Unmapped FS must preserve the parent's existing TLS.
+        p.Immediate(13, ReuseCycles); // R13 survives every real syscall, wait and child lifetime.
+        int loop = p.Position;
+        p.Store32(GateOffset, 0); p.Store32(ClearTidOffset, 1);
         p.Call(56, 0x7d0f00, ChildStackTop, Address(ParentTidOffset), Address(ClearTidOffset), ChildTls);
         ulong clone = p.Rips[^1]; p.Op(0xc08548, 3); p.Branch(0x84, ChildOffset);
         p.Positive(); p.CompareR12(0x84); p.StoreRax(CloneTidOffset); p.CompareMemory(ParentTidOffset);
         p.Memory(ClearTidOffset, 1);
         p.FdCall(0, PairOffset, Address(ReadOffset), 4); p.Compare(4); p.Memory(ReadOffset, 0x45504950);
+        p.Call(56, 0x7d0f00, ChildStackTop, Address(ParentTidOffset), Address(ClearTidOffset), ChildTls); p.Compare(-11);
+        p.Memory(ClearTidOffset, 1); // Full table cannot publish or clear the already parked child.
         p.Call(39, 0, 0, 0); p.CompareR12(); p.Memory(0x4ff8, 0x13579bdf);
         p.Call(158, 0x1003, Address(ParentFsOut), 0); p.Compare(0); p.Memory(ParentFsOut, ParentTls, true);
         p.Fs(); p.Compare(0x13579bdf);
@@ -133,6 +147,7 @@ public static class LinuxThreadProofFixture
         p.Call(202, Address(GateOffset), 129, 1); p.Compare(1); // Child already parked on its private gate.
         p.Call(202, Address(ClearTidOffset), 0, 1); p.Compare(0); // Shared key used by actual child exit.
         p.Memory(ClearTidOffset, 0);
+        p.Op(0xcdff49, 3); p.Branch(0x85, loop); // DEC R13; JNZ only after the genuine clear-TID join.
         p.Call(202, Address(GateOffset), 128, 0); p.Compare(-11); // Wrong current word never parks.
         p.Call(202, Address(TimeoutWordOffset), 128, 0, Address(TimeoutOffset)); p.Compare(-110);
         p.FdCall(3, PairOffset, 0, 0); p.Compare(0); p.FdCall(3, PairOffset + 4, 0, 0); p.Compare(0);
@@ -156,7 +171,9 @@ public static class LinuxThreadProofFixture
         if (c.Position > FailureOffset) throw new ToolFailure("m16_008_fixture_child_capacity");
         Writer failure = new(elf, FailureOffset); failure.Op(0xfc, 1); failure.Call(231, 99, 0, 0); failure.Op(0xf4, 1);
         if (failure.Rips[0] != FailureExitRip) throw new ToolFailure("m16_008_fixture_failure_rip");
-        return (elf, p.Rips.ToArray(), c.Rips.ToArray(), clone);
+        ulong[] parent = [.. p.Rips.Take(9), .. Enumerable.Range(0, ReuseCycles).SelectMany(_ => p.Rips.Skip(9).Take(8)), .. p.Rips.Skip(17)];
+        ulong[] children = Enumerable.Range(0, ReuseCycles).SelectMany(_ => c.Rips).ToArray();
+        return (elf, parent, children, clone);
     }
 
     private static ulong Address(int offset) => ImageBase + (uint)offset;

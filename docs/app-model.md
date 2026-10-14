@@ -39,6 +39,16 @@ blocked completion, supervisor return, clear-TID exit, reap, timer observation
 and final restoration to the packaged ELF. Ancestor startup/service and complete
 PCI/APIC validators remain in the composed path.
 
+[Step1245](../done/step1245.md) extends that same two-thread mechanical package
+to four sequential child lifetimes. A preserved R13 counter loops only after
+clear-TID join, resetting the shared words before each new clone. Strict rows
+require 91 calls, 36 transfers and five reaps, with the reused slot's actual
+generations and monotonically distinct TIDs. The host controls reject stale
+generation or TID replay. The same guest input asserts malformed clone flags,
+misaligned futex and invalid mask-size EINVAL, unmapped FS EFAULT, and full-table
+clone EAGAIN with the parked child's clear-TID word intact. The repeated guest
+protocol and these errno controls have not executed.
+
 This remains focused host/source and freestanding C# evidence. No native worker,
 timer callback or mechanical ELF has executed. Original native/stack review,
 live stress/negatives and guest/ancestor qualification remain required. Signal
