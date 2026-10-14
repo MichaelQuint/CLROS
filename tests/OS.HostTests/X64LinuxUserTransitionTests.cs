@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using OS.Kernel.Compatibility.LinuxX64;
 using OS.Tooling;
+using Transition = OS.Kernel.Compatibility.LinuxX64.X64LinuxUserTransition;
 
 internal static unsafe class X64LinuxUserTransitionTests
 {
@@ -307,5 +308,248 @@ internal static unsafe class X64LinuxUserTransitionTests
         try { _ = QemuTranscripts.ValidateLinuxSyscallTail([.. parents, .. withUnsupported]); }
         catch (ToolFailure) { wrongErrnoRejected = true; }
         HostCheck.True(wrongErrnoRejected);
+    }
+    private static LinuxSyscallFrame ImageFrame() => new()
+    {
+        Number = 0xa001000000000001, Argument0 = 0xa002000000000002, Argument1 = 0xa003000000000003,
+        Argument2 = 0xa004000000000004, Argument3 = 0xa005000000000005, Argument4 = 0xa006000000000006,
+        Argument5 = 0xa007000000000007, Rip = 0x400178, Rsp = 0x70001000, Rflags = 0x803,
+        FsBase = 0x600080, GsBase = 0x610040
+    };
+
+    private static LinuxSyscallAccess ImageAccess(ulong* denied) => new() { Context = denied, PageAccess = &ImagePageAccess };
+
+    [UnmanagedCallersOnly]
+    private static byte ImagePageAccess(void* context, ulong page)
+    {
+        if (page == *(ulong*)context) return 0;
+        return page == 0x400000 ? (byte)5 : page is 0x70000000 or 0x600000 or 0x610000 ? (byte)3 : (byte)0;
+    }
+
+    private static void ImageFp(byte* fx, uint mask)
+    {
+        for (int i = 0; i < 512; i++) fx[i] = (byte)(i * 37 + 11);
+        *(ushort*)fx = 0x37f; fx[4] = 0;
+        *(uint*)(fx + 24) = 0x1f80; *(uint*)(fx + 28) = mask;
+    }
+
+    private static void GatewayUser(byte* data, uint mask)
+    {
+        *(LinuxSyscallFrame*)(data + 0x100) = ImageFrame();
+        *(long*)(data + 0xe8) = -0x102030405060708L;
+        for (uint i = 0; i < 14; i++) *(ulong*)(data + 0x160 + i * 8) = 0xb000000000000001UL + i * 0x0101010101010101UL;
+        ImageFp(data + 0x400, mask);
+    }
+
+    [HostTest("m16-008 unpublished user image initializes only validated user state", HostLane.Fast, 0)]
+    private static void UserImageInitialization()
+    {
+        byte* storage = Allocate(4096); ulong denied = ulong.MaxValue; var access = ImageAccess(&denied);
+        try
+        {
+            var image = (Transition.UserImage*)storage;
+            HostCheck.Equal(728, sizeof(Transition.UserImage));
+            HostCheck.Equal(728U, Transition.UserImageBytes);
+            HostCheck.Equal(8UL, (ulong)image->Fx & 15); // Copied image is deliberately not an FXRSTOR operand.
+            foreach (uint mask in new uint[] { 0, 0xffff })
+            {
+                new Span<byte>(storage, 4096).Fill(0xa5); LinuxSyscallFrame frame = ImageFrame();
+                HostCheck.True(Transition.InitializeUserImage(image, Transition.UserImageBytes, frame, mask, access));
+                HostCheck.True(new ReadOnlySpan<byte>(&frame, 96).SequenceEqual(new ReadOnlySpan<byte>(&image->Frame, 96)));
+                HostCheck.Equal(0L, image->Value);
+                for (int i = 0; i < 14; i++) HostCheck.Equal(0UL, image->Gpr[i]);
+                byte[] expected = new byte[512]; expected[0] = 0x7f; expected[1] = 3;
+                BitConverter.GetBytes(0x1f80U).CopyTo(expected, 24); BitConverter.GetBytes(mask).CopyTo(expected, 28);
+                HostCheck.True(new ReadOnlySpan<byte>(image->Fx, 512).SequenceEqual(expected));
+                HostCheck.True(new ReadOnlySpan<byte>(storage + 728, 4096 - 728).IndexOfAnyExcept((byte)0xa5) == -1);
+            }
+            for (int variant = 0; variant < 7; variant++)
+            {
+                new Span<byte>(storage, 4096).Fill(0xa5); var frame = ImageFrame(); uint mask = 0xffff, bytes = Transition.UserImageBytes;
+                Transition.UserImage* target = image;
+                switch (variant)
+                {
+                    case 0: frame.Rip = LinuxSyscallGateway.UserEnd; break;
+                    case 1: frame.Rflags |= 0x200; break;
+                    case 2: mask = 0x1ffff; break;
+                    case 3: mask = 0x1f00; break;
+                    case 4: bytes--; break;
+                    case 5: target = (Transition.UserImage*)(storage + 1); break;
+                    default: target = null; break;
+                }
+                HostCheck.True(!Transition.InitializeUserImage(target, bytes, frame, mask, access));
+                HostCheck.True(new ReadOnlySpan<byte>(storage, 4096).IndexOfAnyExcept((byte)0xa5) == -1);
+            }
+        }
+        finally { NativeMemory.AlignedFree(storage); }
+    }
+
+    [HostTest("m16-008 user image copies every frame GPR return and FP byte without supervisor mutation", HostLane.Fast, 1)]
+    private static void UserImageRoundTrip()
+    {
+        byte* data = Allocate(Transition.DataBytes), storage = Allocate(4096), gdt = Allocate(4096), idt = Allocate(4096);
+        ulong denied = ulong.MaxValue; var access = ImageAccess(&denied);
+        try
+        {
+            Descriptors(gdt, idt); new Span<byte>(data, (int)Transition.DataBytes).Fill(0xa5);
+            HostCheck.True(Transition.Prepare(data, Transition.DataBytes, Plan(), gdt, 4096, idt, 4096));
+            GatewayUser(data, 0xffff); *(ulong*)(data + 0x1f0) = 1;
+            byte[] captured = new ReadOnlySpan<byte>(data, (int)Transition.DataBytes).ToArray();
+            new Span<byte>(storage, 4096).Fill(0xa5); var image = (Transition.UserImage*)storage;
+            HostCheck.True(Transition.CaptureUserImage(data, Transition.DataBytes, image, Transition.UserImageBytes, 0xffff, access));
+            HostCheck.True(new ReadOnlySpan<byte>(data, (int)Transition.DataBytes).SequenceEqual(captured));
+            LinuxSyscallFrame frame = ImageFrame();
+            HostCheck.True(new ReadOnlySpan<byte>(&frame, 96).SequenceEqual(new ReadOnlySpan<byte>(&image->Frame, 96)));
+            HostCheck.Equal(-0x102030405060708L, image->Value);
+            for (uint i = 0; i < 14; i++) HostCheck.Equal(0xb000000000000001UL + i * 0x0101010101010101UL, image->Gpr[i]);
+            HostCheck.True(new ReadOnlySpan<byte>(data + 0x400, 512).SequenceEqual(new ReadOnlySpan<byte>(image->Fx, 512)));
+            HostCheck.True(new ReadOnlySpan<byte>(storage + 728, 4096 - 728).IndexOfAnyExcept((byte)0xa5) == -1);
+            byte[] imageBefore = new ReadOnlySpan<byte>(storage, 4096).ToArray();
+            foreach (ulong phase in new ulong[] { 0, 2 })
+            {
+                new Span<byte>(data, (int)Transition.DataBytes).Fill(0x5a);
+                HostCheck.True(Transition.Prepare(data, Transition.DataBytes, Plan(), gdt, 4096, idt, 4096));
+                *(ulong*)(data + 0x1f0) = phase;
+                byte[] expected = new ReadOnlySpan<byte>(data, (int)Transition.DataBytes).ToArray();
+                new ReadOnlySpan<byte>(&image->Value, 8).CopyTo(expected.AsSpan(0xe8, 8));
+                new ReadOnlySpan<byte>(&image->Frame, 96).CopyTo(expected.AsSpan(0x100, 96));
+                new ReadOnlySpan<byte>(image->Gpr, 112).CopyTo(expected.AsSpan(0x160, 112));
+                new ReadOnlySpan<byte>(image->Fx, 512).CopyTo(expected.AsSpan(0x400, 512));
+                HostCheck.True(Transition.InstallUserImage(data, Transition.DataBytes, image, Transition.UserImageBytes, 0xffff, access));
+                // Whole-buffer equality includes the kernel header/FP image, selectors,
+                // private descriptors, guard sentinel and every kernel-stack byte.
+                HostCheck.True(new ReadOnlySpan<byte>(data, (int)Transition.DataBytes).SequenceEqual(expected));
+                HostCheck.True(new ReadOnlySpan<byte>(storage, 4096).SequenceEqual(imageBefore));
+            }
+        }
+        finally { NativeMemory.AlignedFree(data); NativeMemory.AlignedFree(storage); NativeMemory.AlignedFree(gdt); NativeMemory.AlignedFree(idt); }
+    }
+
+    [HostTest("m16-008 capture requires active phase and installation requires inactive phase", HostLane.Fast, 2)]
+    private static void UserImagePhases()
+    {
+        byte* data = Allocate(Transition.DataBytes), storage = Allocate(4096); ulong denied = ulong.MaxValue; var access = ImageAccess(&denied);
+        try
+        {
+            new Span<byte>(data, (int)Transition.DataBytes).Fill(0x5a); GatewayUser(data, 0xffff);
+            new Span<byte>(storage, 4096).Fill(0xa5);
+            var image = (Transition.UserImage*)storage; *(ulong*)(data + 0x1f0) = 1;
+            HostCheck.True(Transition.CaptureUserImage(data, Transition.DataBytes, image, Transition.UserImageBytes, 0xffff, access));
+            foreach (bool capture in new[] { true, false })
+            foreach (ulong phase in capture ? new ulong[] { 0, 2, 3, ulong.MaxValue } : new ulong[] { 1, 3, ulong.MaxValue })
+            {
+                *(ulong*)(data + 0x1f0) = phase;
+                byte[] before = new ReadOnlySpan<byte>(data, (int)Transition.DataBytes).ToArray();
+                byte[] imageBefore = new ReadOnlySpan<byte>(storage, 4096).ToArray();
+                bool accepted = capture
+                    ? Transition.CaptureUserImage(data, Transition.DataBytes, image, Transition.UserImageBytes, 0xffff, access)
+                    : Transition.InstallUserImage(data, Transition.DataBytes, image, Transition.UserImageBytes, 0xffff, access);
+                HostCheck.True(!accepted);
+                HostCheck.True(new ReadOnlySpan<byte>(data, (int)Transition.DataBytes).SequenceEqual(before));
+                HostCheck.True(new ReadOnlySpan<byte>(storage, 4096).SequenceEqual(imageBefore));
+            }
+        }
+        finally { NativeMemory.AlignedFree(data); NativeMemory.AlignedFree(storage); }
+    }
+
+    [HostTest("m16-008 invalid user image return mask capacity and aliases reject before mutation", HostLane.Fast, 3)]
+    private static void UserImageRejections()
+    {
+        byte* data = Allocate(Transition.DataBytes), storage = Allocate(4096); var image = (Transition.UserImage*)storage;
+        try
+        {
+            foreach (bool capture in new[] { true, false })
+            for (int variant = 0; variant < 19; variant++)
+            {
+                ulong denied = ulong.MaxValue; var access = ImageAccess(&denied);
+                new Span<byte>(data, (int)Transition.DataBytes).Fill(0x5a); new Span<byte>(storage, 4096).Fill(0xa5);
+                GatewayUser(data, 0xffff); *(ulong*)(data + 0x1f0) = 1;
+                HostCheck.True(Transition.CaptureUserImage(data, Transition.DataBytes, image, Transition.UserImageBytes, 0xffff, access));
+                *(ulong*)(data + 0x1f0) = capture ? 1UL : 2UL;
+                byte* gateway = data; Transition.UserImage* target = image; uint dataBytes = Transition.DataBytes, imageBytes = Transition.UserImageBytes, mask = 0xffff;
+                LinuxSyscallFrame* frame = capture ? (LinuxSyscallFrame*)(data + 0x100) : &image->Frame;
+                byte* fx = capture ? data + 0x400 : image->Fx;
+                switch (variant)
+                {
+                    case 0: dataBytes--; break;
+                    case 1: imageBytes--; break;
+                    case 2: gateway = null; break;
+                    case 3: target = null; break;
+                    case 4: gateway++; break;
+                    case 5: target = (Transition.UserImage*)(storage + 1); break;
+                    case 6: target = (Transition.UserImage*)(data + 0x2000); break;
+                    case 7: target = (Transition.UserImage*)(data + Transition.DataBytes - 8); break;
+                    case 8: frame->Rip = LinuxSyscallGateway.UserEnd; break;
+                    case 9: frame->Rsp = 4096; break;
+                    case 10: frame->Rflags |= 0x200; break;
+                    case 11: frame->FsBase = LinuxSyscallGateway.UserEnd; break;
+                    case 12: frame->GsBase = LinuxSyscallGateway.UserEnd; break;
+                    case 13: denied = frame->Rip & ~4095UL; break;
+                    case 14: denied = (frame->Rsp - 8) & ~4095UL; break;
+                    case 15: mask = 0x1ffff; break;
+                    case 16: mask = 0x1f00; break;
+                    case 17: *(uint*)(fx + 28) ^= 0x40; break;
+                    default: *(uint*)(fx + 24) |= 0x80000000; break;
+                }
+                byte[] before = new ReadOnlySpan<byte>(data, (int)Transition.DataBytes).ToArray();
+                byte[] imageBefore = new ReadOnlySpan<byte>(storage, 4096).ToArray();
+                bool accepted = capture
+                    ? Transition.CaptureUserImage(gateway, dataBytes, target, imageBytes, mask, access)
+                    : Transition.InstallUserImage(gateway, dataBytes, target, imageBytes, mask, access);
+                HostCheck.True(!accepted, (capture ? "capture " : "install ") + variant);
+                HostCheck.True(new ReadOnlySpan<byte>(data, (int)Transition.DataBytes).SequenceEqual(before));
+                HostCheck.True(new ReadOnlySpan<byte>(storage, 4096).SequenceEqual(imageBefore));
+            }
+        }
+        finally { NativeMemory.AlignedFree(data); NativeMemory.AlignedFree(storage); }
+    }
+
+    [HostTest("m16-008 resume entry restores Frame FS GS IRET and all GPRs with R14 last while legacy stays unchanged", HostLane.Fast, 4)]
+    private static void ResumeUserEntryBytes()
+    {
+        byte* code = Allocate(4096), legacy = Allocate(4096), explicitLegacy = Allocate(4096);
+        try
+        {
+            byte[] originalReturn = [0x6a,0x33, 0x49,0x8b,0x86,8,0,0,0,0x50, 0x6a,2,0x6a,0x3b,
+                0x49,0x8b,0x86,0x18,0,0,0,0x50, 0x31,0xc0,0x31,0xc9,0x31,0xd2,0x31,0xdb,0x31,0xed,0x31,0xf6,0x31,0xff,
+                0x45,0x31,0xc0,0x45,0x31,0xc9,0x45,0x31,0xd2,0x45,0x31,0xdb,0x45,0x31,0xe4,0x45,0x31,0xed,0x45,0x31,0xf6,0x45,0x31,0xff,0x48,0xcf];
+            foreach (ulong kernelRoot in new ulong[] { 0, 0x500000 })
+            {
+                var old = Plan(); old.KernelRoot = kernelRoot;
+                HostCheck.True(!old.ResumeUser && Transition.Emit(legacy, 4096, old)); old.ResumeUser = false;
+                HostCheck.True(Transition.Emit(explicitLegacy, 4096, old));
+                HostCheck.True(new ReadOnlySpan<byte>(legacy, 4096).SequenceEqual(new ReadOnlySpan<byte>(explicitLegacy, 4096)));
+                ReadOnlySpan<byte> oldEntry = new(legacy, 0x400);
+                HostCheck.True(oldEntry.IndexOf(originalReturn) >= 0);
+                HostCheck.True(oldEntry.IndexOf(new byte[] {0x49,0x8b,0x86,0x58,0,0,0,0x49,0x89,0xc4,0xb9,0,1,0,0xc0}) >= 0);
+                HostCheck.True(oldEntry.IndexOf(new byte[] {0x49,0x8b,0x86,0x60,0,0,0,0x49,0x89,0xc4,0xb9,1,1,0,0xc0}) >= 0);
+            }
+            var plan = Plan(); plan.KernelRoot = 0x500000; plan.ResumeUser = true;
+            HostCheck.True(Transition.Emit(code, 4096, plan) && Transition.ValidateReadBack(code, 4096, plan));
+            ReadOnlySpan<byte> entry = new(code, 0x400);
+            HostCheck.True(entry.IndexOf(new byte[] {0x49,0x8b,0x86,0x50,1,0,0,0x49,0x89,0xc4,0xb9,0,1,0,0xc0}) >= 0);
+            HostCheck.True(entry.IndexOf(new byte[] {0x49,0x8b,0x86,0x58,1,0,0,0x49,0x89,0xc4,0xb9,1,1,0,0xc0}) >= 0);
+            byte[] resumeReturn =
+            [
+                0x49,0x0f,0xae,0x8e,0,4,0,0, 0x49,0x8b,0x86,0x28,0,0,0,0x0f,0x22,0xd8,
+                0x49,0x8b,0xa6,0,0,0,0, 0x49,0xc7,0x86,0xf0,1,0,0,1,0,0,0,
+                0x6a,0x33, 0x49,0x8b,0x86,0x40,1,0,0,0x50, 0x49,0x8b,0x86,0x48,1,0,0,0x50, 0x6a,0x3b,
+                0x49,0x8b,0x86,0x38,1,0,0,0x50,
+                0x49,0x8b,0x8e,0xc0,1,0,0, 0x49,0x8b,0x96,0x80,1,0,0, 0x49,0x8b,0x9e,0x60,1,0,0,
+                0x49,0x8b,0xae,0x68,1,0,0, 0x49,0x8b,0xb6,0x70,1,0,0, 0x49,0x8b,0xbe,0x78,1,0,0,
+                0x4d,0x8b,0x86,0x88,1,0,0, 0x4d,0x8b,0x8e,0x90,1,0,0, 0x4d,0x8b,0x96,0x98,1,0,0,
+                0x4d,0x8b,0x9e,0xc8,1,0,0, 0x4d,0x8b,0xa6,0xa0,1,0,0, 0x4d,0x8b,0xae,0xa8,1,0,0,
+                0x4d,0x8b,0xbe,0xb8,1,0,0, 0x49,0x8b,0x86,0xe8,0,0,0, 0x4d,0x8b,0xb6,0xb0,1,0,0, 0x48,0xcf
+            ];
+            HostCheck.True(entry.IndexOf(resumeReturn) >= 0 && entry.IndexOf(originalReturn) == -1);
+            HostCheck.True(new ReadOnlySpan<byte>(code + 0x400, 4096 - 0x400).SequenceEqual(new ReadOnlySpan<byte>(legacy + 0x400, 4096 - 0x400)));
+            foreach (ulong root in new ulong[] { 0, plan.UserRoot, 0x500001 })
+            {
+                plan.KernelRoot = root; new Span<byte>(code, 4096).Fill(0xa5);
+                HostCheck.True(!Transition.Emit(code, 4096, plan) && !Transition.ValidateReadBack(code, 4096, plan));
+                HostCheck.True(new ReadOnlySpan<byte>(code, 4096).IndexOfAnyExcept((byte)0xa5) == -1);
+            }
+        }
+        finally { NativeMemory.AlignedFree(code); NativeMemory.AlignedFree(legacy); NativeMemory.AlignedFree(explicitLegacy); }
     }
 }

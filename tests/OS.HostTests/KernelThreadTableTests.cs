@@ -110,6 +110,54 @@ internal static unsafe class KernelThreadTableTests
         HostCheck.Equal(2U, (uint)b.Identity.Value);
     }
 
+    [HostTest("kernel.thread next create identity is read only matches publication and advances after real reap")]
+    private static void NextCreateIdentity()
+    {
+        using Model m = new(generation: 7); byte[] before = m.Snapshot();
+        HostCheck.Equal(S.Ok, m.Table->InspectNextCreateIdentity(Key, 2, out var first)); m.Same(before);
+        HostCheck.Equal(0x700000001UL, first.Value);
+        HostCheck.Equal(S.Ok, m.Table->InspectNextCreateIdentity(Key, 2, out var repeated)); m.Same(before);
+        HostCheck.Equal(first.Value, repeated.Value); // Inspection reserves nothing.
+        var a = m.Create(0); HostCheck.True(a.Succeeded); HostCheck.Equal(first.Value, a.Identity.Value);
+        before = m.Snapshot(); HostCheck.Equal(S.Ok, m.Table->InspectNextCreateIdentity(Key, 2, out var second)); m.Same(before);
+        HostCheck.Equal(0x700000002UL, second.Value);
+        var b = m.Create(1); HostCheck.True(b.Succeeded); HostCheck.Equal(second.Value, b.Identity.Value);
+        HostCheck.Equal(a.Identity.Value, m.Dispatch().Value); m.Exit(a.Identity, 17);
+        HostCheck.True(m.Table->Reap(Key, 2, a.Identity, m.SupervisorRsp).Succeeded);
+        before = m.Snapshot(); HostCheck.Equal(S.Ok, m.Table->InspectNextCreateIdentity(Key, 2, out var reused)); m.Same(before);
+        HostCheck.Equal(0x800000001UL, reused.Value); // Reaped hole precedes the still-live second slot.
+        m.Prepare(0); var next = m.Create(0); HostCheck.True(next.Succeeded); HostCheck.Equal(reused.Value, next.Identity.Value);
+    }
+
+    [HostTest("kernel.thread next create identity failures clear output without changing owner or buffers")]
+    private static void NextCreateIdentityFailures()
+    {
+        using Model m = new(); byte[] before = m.Snapshot(); OSHostHandle identity = new(ulong.MaxValue);
+        HostCheck.Equal(S.WrongOwner, m.Table->InspectNextCreateIdentity(Key + 1, 2, out identity));
+        HostCheck.Equal(0UL, identity.Value); m.Same(before); identity = new(ulong.MaxValue);
+        HostCheck.Equal(S.InterruptsEnabled, m.Table->InspectNextCreateIdentity(Key, 0x202, out identity));
+        HostCheck.Equal(0UL, identity.Value); m.Same(before); identity = new(ulong.MaxValue);
+        KernelThreadTable copy = *m.Table; byte[] copyBefore = new ReadOnlySpan<byte>(&copy, sizeof(KernelThreadTable)).ToArray();
+        HostCheck.Equal(S.CopiedOwner, copy.InspectNextCreateIdentity(Key, 2, out identity));
+        HostCheck.Equal(0UL, identity.Value); m.Same(before);
+        HostCheck.True(new ReadOnlySpan<byte>(&copy, sizeof(KernelThreadTable)).SequenceEqual(copyBefore));
+        using Model uninitialized = new(initialize: false); before = uninitialized.Snapshot(); identity = new(ulong.MaxValue);
+        HostCheck.Equal(S.Uninitialized, uninitialized.Table->InspectNextCreateIdentity(Key, 2, out identity));
+        HostCheck.Equal(0UL, identity.Value); uninitialized.Same(before);
+        using Model pressure = new(2, 1, 2); HostCheck.True(pressure.Create(0).Succeeded);
+        before = pressure.Snapshot(); identity = new(ulong.MaxValue);
+        HostCheck.Equal(S.ReadyFull, pressure.Table->InspectNextCreateIdentity(Key, 2, out identity));
+        HostCheck.Equal(0UL, identity.Value); pressure.Same(before);
+        using Model full = new(1, 1, 1, generation: uint.MaxValue); var a = full.Create(0); HostCheck.True(a.Succeeded);
+        before = full.Snapshot(); identity = new(ulong.MaxValue);
+        HostCheck.Equal(S.Full, full.Table->InspectNextCreateIdentity(Key, 2, out identity));
+        HostCheck.Equal(0UL, identity.Value); full.Same(before);
+        full.Dispatch(); full.Exit(a.Identity); HostCheck.True(full.Table->Reap(Key, 2, a.Identity, full.SupervisorRsp).Succeeded);
+        before = full.Snapshot(); identity = new(ulong.MaxValue);
+        HostCheck.Equal(S.Full, full.Table->InspectNextCreateIdentity(Key, 2, out identity));
+        HostCheck.Equal(0UL, identity.Value); full.Same(before); // Retired generations never become prospective identities.
+    }
+
     [HostTest("kernel.thread handoffs pin execution until supervisor confirmation and scrub only at reap")]
     private static void HandoffAndReap()
     {

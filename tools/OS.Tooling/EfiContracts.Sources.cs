@@ -8,7 +8,7 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                [@"Boot\EfiEntry.ThreadWait.cs"] = "e447fd2a31a128630be23813472540551a76b789c3343054b618497b6b468d51",
+                [@"Boot\EfiEntry.ThreadWait.cs"] = "1444baaec07677b26e813b144f4d6f0826e83fc7529b7464bab0a4f97fa34ad3",
                 [@"..\OS.Kernel\Threading\ThreadWaitProgram.cs"] = "5c0ec00fed5bb5119ac49de5eac690ef9190187f442085d5dc375f5fc5af02c3",
                 [@"..\OS.Kernel\Threading\WaitAddress.cs"] = "85077808a12d9a20c22c24f5eff19aa7071bdc05b21c5f8b495273b6a77d6730",
                 [@"..\OS.Kernel\Threading\ThreadLocalStorage.cs"] = "4fa0a0bcdfa8caec4fe9b8234b4ae7917f164d05f8261535678219f939effc05",
@@ -16,7 +16,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Threading\ReadyQueue.cs"] = "e07b0ed176158a1a7f4fcb36a5ed93c0c23a995a12a1e4de6afe575fa9ef601f",
                 [@"..\OS.Kernel\Threading\KernelThreadSlot.cs"] = "9c7a05e21dbb91bb26186fa3f029bf593302c3f57f2e6f3a51f6d71a46081cdf",
                 [@"..\OS.Kernel\Threading\KernelThreadWait.cs"] = "54995a79d0ab697dba705a1a6498c4e736694a4467527d07fecf20691f29bf72",
-                [@"..\OS.Kernel\Threading\KernelThreadTable.cs"] = "4d3cab7a546bef45802d4edc70e9454686d9af3bbb2b8960c21a4ea2947fc06f",
+                [@"..\OS.Kernel\Threading\KernelThreadTable.cs"] = "f41add3377e7fe2e76bd0614282ef44124a779f46c8477aba76458c9c9213456",
                 [@"..\OS.Kernel\Threading\KernelThreadEntry.cs"] = "cea8e30c38d329c978bad322297642a5ea9639fc652dce4329d101506fc429e4",
                 [@"..\OS.Kernel\Threading\KernelThreadProgram.cs"] = "81e8cd3fa51c55cd40813fe4fd30ea7b9036b77a0fdc9ed52bb93cacf60728d5",
                 [@"..\OS.Kernel\Threading\X64ThreadContext.cs"] = "ac030297621b3d4159369ce1e67468567b280fbc06e781fdd6b22a9c79aee030",
@@ -33,8 +33,8 @@ public static partial class EfiContracts
                 [@"..\..\std\no-runtime\shared\Text\AsciiDecimalFormatter.cs"] = "7ecb8c89f031343bd5143b0222dbf70d124d6cc44b10d608894fa27ddab3bd82",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxStartupServices.cs"] = "c8f8d4233fbc81db95a212f5064c2dabdc0a878bcba424b0dc10c53df6dd13fa",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxMemoryServices.cs"] = "0840aa7c9af95ebd05fb9bd269b99eff5ea166f6c7ea694c0aaeacd6a358d4dd",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs"] = "69bfc5611338fc5c709db4eed928a0072800c98050d1dbca7a1cc566d9f4b2e8",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs"] = "368fae2decfc7fea54922da4ac0aa744431b5dae0ebb88180b3223e9596d1e3a",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs"] = "bce2fbf0e78dea572f39dd5bc2fffaf52377fe1c8b0897148de657ca8d68ffde",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs"] = "be2edeef269e7534595ed41bf97aa8164565a07d2003c5c446ae1c7bcf1a9112",
                 [@"..\OS.Kernel\Boot\BootSequence.cs"] = "f7d640e0a899a52fbaa699c78a95336d86befa16b3ed5fd24f6af6a27d34b5bc",
                 [@"..\..\std\no-runtime\shared\Text\AsciiArgumentSplitter.cs"] = "9869438fcd0e465ca21c90f0e9de36b0a9b826c24885de36e44df653c5ea7be5",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfStartup.cs"] = "5fd400d94887ab5aaf64531ff58ca1484d56b308b2e30d8541ffced86a7a0396",

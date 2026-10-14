@@ -190,6 +190,10 @@ public static unsafe partial class EfiEntry
                 if (next == 0 && first && !ThreadWaitWake(c, false, 1, 1)) return 0;
                 result = c->Threads.Park(c->Key, 2, begin.Wait, worker);
                 if (!result.Succeeded || !LifecycleText(c->State, 3, identity.Value, begin.Wait.Sequence, address.Value, next)) return 0;
+                // Wake-before-Park resumes in place. This fixture deliberately
+                // returns to its supervisor after each action, so capture a real
+                // ready/handoff transition rather than treating Running as parked.
+                if (result.State == Lifecycle.State.Running) result = c->Threads.Yield(c->Key, 2, identity, worker);
                 if (first) c->Wait->NextA++; else c->Wait->NextB++;
             }
             if (!result.Succeeded || !c->Threads.HandoffPending || !c->Wait->Tls.Inspect(ThreadTlsKey(c), c->Plan.Owner, binding).Succeeded ||

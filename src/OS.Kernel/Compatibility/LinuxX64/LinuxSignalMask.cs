@@ -2,7 +2,7 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 /// <summary>Linux x64 kernel signal-mask value, owned by one admitted thread.
 /// The thread service serializes query/update/clone publication and commits
-/// After only after its user-copy admission. Copying this value intentionally
+/// After once the input copy succeeds, before old-mask copyout. Copying this value intentionally
 /// gives a child an independent inherited snapshot; there is no global mask.
 /// This type performs no user access, allocation, delivery, pending-signal,
 /// sigaction, altstack or sigreturn operation. Those require the signal service.

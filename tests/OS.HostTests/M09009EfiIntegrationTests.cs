@@ -12,6 +12,19 @@ internal static class M09009EfiIntegrationTests
     [HostTest("m09.009 summary retains all repeated transitions and complete single records", HostLane.Fast, 2)]
     private static void Summary() => CheckSummary(false);
 
+    [HostTest("m09.009 wake before park resumes in place and explicit yield creates the supervisor handoff")]
+    private static unsafe void InPlaceHandoff()
+    {
+        using KernelThreadTableTests.Model m = new();
+        var a = m.Create(0).Identity; var b = m.Create(1).Identity; HostCheck.Equal(a.Value, m.Dispatch().Value);
+        var wait = m.Table->BeginWait(KernelThreadTableTests.Key, 2, a, KernelThreadTable.WaitKind.Park, 0);
+        HostCheck.True(wait.Succeeded && m.Table->Wake(KernelThreadTableTests.Key, 2, wait.Wait).Succeeded);
+        var captured = m.Capture(a); var park = m.Table->Park(KernelThreadTableTests.Key, 2, wait.Wait, captured);
+        HostCheck.True(park.Succeeded && park.State == KernelThreadTable.State.Running && !m.Table->HandoffPending && m.Table->Current.Value == a.Value);
+        HostCheck.True(m.Table->Yield(KernelThreadTableTests.Key, 2, a, captured).Succeeded && m.Table->HandoffPending);
+        m.Confirm(); HostCheck.Equal(b.Value, m.Dispatch().Value); HostCheck.Equal(KernelThreadTable.State.Ready, m.Inspect(a).State);
+    }
+
     internal static unsafe void CheckProfile(bool tls)
     {
         string flag = tls ? "EnableM09010Probe" : "EnableM09009Probe";

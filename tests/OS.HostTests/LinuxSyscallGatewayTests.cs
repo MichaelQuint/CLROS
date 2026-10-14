@@ -9,6 +9,7 @@ internal static unsafe class LinuxSyscallGatewayTests
         public byte* Output;
         public uint Copies, Writes, Bytes, Descriptor;
         public bool MissingSecond, CopyFails, SinkFails, High, RemovedCode;
+        public uint ThreadCalls, ThreadMode;
     }
     private static LinuxSyscallFrame Frame() => new()
     { Number = 1, Argument0 = 1, Argument1 = 0x402000, Argument2 = 16, Rip = 0x400100, Rsp = 0x70001000, Rflags = 2 };
@@ -16,6 +17,101 @@ internal static unsafe class LinuxSyscallGatewayTests
     { UserRoot = 0x200000, MaximumCalls = 8, MaximumWrite = 64, Scratch = scratch, ScratchBytes = 64, FirmwareExited = true, OwnedBoundaryValidated = true };
     private static LinuxSyscallAccess Access(Model* model) => new()
     { Context = model, PageAccess = &Permissions, CopyFromUser = &Copy, Write = &Write };
+    [UnmanagedCallersOnly]
+    private static long NoopService(void* context, LinuxSyscallFrame* frame) => -38;
+    [UnmanagedCallersOnly]
+    private static LinuxSyscallResult ThreadService(void* context, LinuxSyscallFrame* frame)
+    {
+        Model* m = (Model*)context; m->ThreadCalls++;
+        switch (m->ThreadMode)
+        {
+            case 1: return new(LinuxSyscallAction.Return);
+            case 2: frame->Rip = 0x600100; return new(LinuxSyscallAction.Return);
+            case 3: frame->Argument3++; return new(LinuxSyscallAction.Return);
+            case 4: return new(LinuxSyscallAction.Blocked);
+            case 5: return new(LinuxSyscallAction.ThreadExited, exitCode: 17);
+            case 6: return new(LinuxSyscallAction.Terminate, exitCode: 42);
+            case 7: return new((LinuxSyscallAction)255);
+            case 8: return new(LinuxSyscallAction.Return, exitCode: 1);
+            case 9: return new(LinuxSyscallAction.Blocked, 1);
+            case 10: frame->FsBase = 0x403008; return new(LinuxSyscallAction.Return);
+            case 11: frame->GsBase = 0x403000; return new(LinuxSyscallAction.Return);
+        }
+        if (frame->Number == 158) { frame->FsBase = frame->Argument1; return new(LinuxSyscallAction.Return); }
+        return new(LinuxSyscallAction.Return, 23);
+    }
+    private static LinuxSyscallGateState ThreadGate(Model* model, byte* scratch)
+    {
+        var access = Access(model); access.Startup = access.Descriptors = &NoopService; access.Threads = &ThreadService;
+        var admission = Admission(scratch); admission.EnableStartup = admission.EnableDescriptors = admission.EnableThreads = true;
+        admission.MaximumCalls = LinuxSyscallGateway.MaximumThreadCalls;
+        LinuxSyscallGateState state = default;
+        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref state, admission, access)); return state;
+    }
+
+    [HostTest("m16-008 gateway admits explicit thread callback only with complete prerequisites and bounded budget")]
+    private static void ThreadAdmission()
+    {
+        byte* scratch = stackalloc byte[64]; Model model = default; var access = Access(&model);
+        access.Startup = access.Descriptors = &NoopService; access.Threads = &ThreadService;
+        var admission = Admission(scratch); admission.EnableStartup = admission.EnableDescriptors = true;
+        LinuxSyscallGateState state = default;
+        HostCheck.Equal(LinuxSyscallGateStatus.InvalidAdmission, LinuxSyscallGateway.Begin(ref state, admission, access));
+        admission.EnableThreads = true; admission.EnableDescriptors = false;
+        HostCheck.Equal(LinuxSyscallGateStatus.InvalidAdmission, LinuxSyscallGateway.Begin(ref state, admission, access));
+        admission.EnableDescriptors = true; admission.MaximumCalls = LinuxSyscallGateway.MaximumThreadCalls + 1;
+        HostCheck.Equal(LinuxSyscallGateStatus.InvalidAdmission, LinuxSyscallGateway.Begin(ref state, admission, access));
+        admission.MaximumCalls--; HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref state, admission, access));
+        HostCheck.Equal(0U, model.ThreadCalls);
+    }
+
+    [HostTest("m16-008 gateway publishes only the requested mapped FS base through its ref frame")]
+    private static void ThreadFs()
+    {
+        byte* scratch = stackalloc byte[64]; Model model = default; var state = ThreadGate(&model, scratch);
+        var frame = Frame(); frame.Number = 158; frame.Argument0 = 0x1002; frame.Argument1 = 0x403000;
+        var result = LinuxSyscallGateway.Dispatch(ref state, ref frame);
+        HostCheck.True(result.Action == LinuxSyscallAction.Return && result.Value == 0 && frame.FsBase == 0x403000 && model.ThreadCalls == 1);
+        frame.Argument0 = 0xffffffff00001002; frame.Argument1 = 0x403008;
+        HostCheck.Equal(LinuxSyscallAction.Return, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
+        HostCheck.Equal(0x403008UL, frame.FsBase); HostCheck.Equal(2U, model.ThreadCalls);
+        state = ThreadGate(&model, scratch); frame.FsBase = 0;
+        HostCheck.Equal(LinuxSyscallAction.Terminate, LinuxSyscallGateway.Dispatch(ref state, frame).Action);
+        HostCheck.Equal(LinuxSyscallGateStatus.InvalidAdmission, state.Status); HostCheck.Equal(2U, model.ThreadCalls);
+        foreach (uint mode in new uint[] { 1, 2, 3, 10, 11 })
+        {
+            model.ThreadMode = mode; state = ThreadGate(&model, scratch); frame = Frame(); frame.Number = 158;
+            frame.Argument0 = 0x1002; frame.Argument1 = 0x403000;
+            HostCheck.Equal(LinuxSyscallAction.Terminate, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
+            HostCheck.Equal(LinuxSyscallGateStatus.InvalidReturn, state.Status); HostCheck.Equal(0UL, frame.FsBase);
+            HostCheck.Equal(0x400100UL, frame.Rip); HostCheck.Equal(0UL, frame.Argument3); HostCheck.Equal(0UL, frame.GsBase);
+        }
+        model.ThreadMode = 0; state = ThreadGate(&model, scratch); frame.Argument1 = 0x500000; // RWX is never admissible TLS.
+        HostCheck.Equal(LinuxSyscallAction.Terminate, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
+        HostCheck.Equal(LinuxSyscallGateStatus.InvalidReturn, state.Status);
+    }
+
+    [HostTest("m16-008 gateway distinguishes staged block thread exit and process exit without scheduling claims")]
+    private static void ThreadActions()
+    {
+        byte* scratch = stackalloc byte[64]; Model model = new() { ThreadMode = 4 }; var state = ThreadGate(&model, scratch);
+        var frame = Frame(); frame.Number = 202;
+        HostCheck.Equal(LinuxSyscallAction.Blocked, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
+        HostCheck.Equal(LinuxSyscallGateStatus.Active, state.Status);
+        model.ThreadMode = 5; frame.Number = 60; var exited = LinuxSyscallGateway.Dispatch(ref state, ref frame);
+        HostCheck.True(exited.Action == LinuxSyscallAction.ThreadExited && exited.ExitCode == 17 && state.Status == LinuxSyscallGateStatus.Active);
+        model.ThreadMode = 6; frame.Number = 231; exited = LinuxSyscallGateway.Dispatch(ref state, ref frame);
+        HostCheck.True(exited.Action == LinuxSyscallAction.Terminate && exited.ExitCode == 42 && state.Status == LinuxSyscallGateStatus.Exited);
+        HostCheck.Equal(3U, state.Calls);
+        foreach (uint mode in new uint[] { 7, 8, 9 })
+        {
+            model.ThreadMode = mode; state = ThreadGate(&model, scratch); frame.Number = 202;
+            new Span<byte>(scratch, 64).Fill(0x5a);
+            HostCheck.Equal(LinuxSyscallAction.Terminate, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
+            HostCheck.Equal(LinuxSyscallGateStatus.InvalidAdmission, state.Status);
+            HostCheck.True(new ReadOnlySpan<byte>(scratch, 64).IndexOfAnyExcept((byte)0) == -1);
+        }
+    }
     [UnmanagedCallersOnly]
     private static byte Permissions(void* context, ulong page)
     {

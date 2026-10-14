@@ -30,8 +30,16 @@ real guest qualification; #191/#192 remain open. The next consumer is #686.
 [step1235](../done/step1235.md), with four focused host controls. It preserves
 the eight-byte x64 kernel mask, independent clone snapshots and reserved libc
 bits, strips SIGKILL/SIGSTOP, and checks query/update errors without mutation.
-It is not yet connected to the syscall/thread lifecycle; signal delivery remains
-explicitly outside this helper and belongs to #687.
+[Step1236](../done/step1236.md) connects this value to a bounded Linux thread
+owner over the actual kernel table: exact pthread clone flags, monotonic TIDs,
+independent saved user GPR/FP/TLS images, checked FS updates, real mask copies,
+staged exit, best-effort TID clear and off-stack reap. It also adds the explicit
+capture/resume-user bridge and gateway actions needed for the future native
+consumer. Focused host checks pass; the service is not yet linked into EFI.
+Futex/clear-TID wakeups, blocking pipes, native workers and the M16-008 mechanical
+guest remain unfinished. Signal delivery belongs to #687. All batch issues
+remain open pending shared qualification; the expensive full-host suite is
+deferred to the stable dependency-compatible batch requested by the user.
 
 [Step1224](../done/step1224.md) qualifies M09-005 hardware-timer execution:
 4,776 full-host checks, six original native bodies, three fresh 115-record

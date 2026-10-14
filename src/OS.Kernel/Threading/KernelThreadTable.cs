@@ -132,6 +132,21 @@ public unsafe struct KernelThreadTable
         return Status.Ok;
     }
 
+    /// <summary>Read the first empty slot's prospective generation/slot identity
+    /// without changing storage. Failure returns a default identity, including
+    /// full slot or ready capacity. This acquires no reservation, pin or publication
+    /// authority and does not admit a context. Keep the same single-owner IF-clear
+    /// transaction through Create; another publication can change this result.</summary>
+    public Status InspectNextCreateIdentity(ulong key, ulong flags, out OSHostHandle identity)
+    {
+        identity = default;
+        Status status = Access(key, flags); if (status != Status.Ok) return status;
+        uint index = 0; while (index < _capacity && _slots[index].State != State.Empty) index++;
+        if (index == _capacity) return Status.Full;
+        if (_ready.IsFull) return Status.ReadyFull;
+        identity = Id(index); return Status.Ok;
+    }
+
     /// <summary>
     /// Publish a complete preinitialized entry binding into the first vacant slot.
     /// This slice admits mechanical worker entry code inside the owned code range.
