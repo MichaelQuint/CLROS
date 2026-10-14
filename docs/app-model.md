@@ -222,6 +222,16 @@ inputs: a complete real-Hello syscall/scheduler/output/cleanup validator and
 actual execution remain required. No Hello, signal-thread shutdown, suspension,
 GC/ThreadPool or Kestrel guest acceptance is added.
 
+[Step1264](../done/step1264.md) adds immutable host instruction admission for
+that exact package. Each LLVM row must match file-backed executable ELF bytes;
+the complete ordered boundary/length/byte/syscall index must match its reviewed
+digest and counts (243,126 instructions, 166 syscall sites). Raw opcode searches
+also find two operand-byte matches and cannot supply syscall authority. A
+value-only inspection report accepts no program; only the pinned factory creates
+the lookup used by future transcript checks. The actual package/index and five
+real-input mutation controls pass, alongside eight focused host checks. This
+does not admit Hello through QEMU or validate its scheduler/output/exit protocol.
+
 [Step1261](../done/step1261.md) implements the separate .NET 11/C# 14
 `apps/NativeAotSuspensionSmoke` consumer required after unchanged Hello. It uses
 one dedicated managed worker, two explicit blocking compacting full collections,

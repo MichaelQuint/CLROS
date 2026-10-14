@@ -152,6 +152,23 @@ and relevant current source hashes must match before output. It preserves the
 upstream ELF and adds explicit bounded manifest/IRQ policy; it starts no builder
 or guest. Current QEMU preflight does not admit this Hello package yet.
 
+[Step1264](../done/step1264.md) checks that package against an immutable reviewed
+instruction index. Produce disassembly of the exact pinned ELF with the existing
+configured LLVM tool, then inspect it through the compiled admission command:
+
+```powershell
+& $env:CLROS_LLVM_OBJDUMP --disassemble --print-imm-hex <pinned-Hello-ELF> > artifacts/hello.disassembly.log
+dotnet run --project tools/OS.Tooling -- linux hello-program artifacts/packages/hello.pkg artifacts/hello.disassembly.log
+```
+
+The parser verifies row bytes against executable file-backed loads; the pinned
+factory requires all 243,126 reviewed boundaries and 166 syscall sites with the
+canonical index digest. It parses a frozen LLVM linear disassembly, rather than
+implementing a general x64 decoder. Inspection reports alone have no prepared-
+program authority. Changed/partial/forged boundaries reject even when counts
+match. This command starts no payload, compiler or guest and cannot satisfy the
+still-required actual-Hello transcript/cleanup validator.
+
 The future qualification command is:
 
 ```powershell

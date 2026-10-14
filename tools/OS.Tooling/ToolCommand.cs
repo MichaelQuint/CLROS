@@ -20,6 +20,13 @@ public static class ToolCommand
                 Console.WriteLine("TEST_PASS linux.hello-package sha256=" + hash + " elf=" + NativeAotHelloGuest.ElfSha256);
                 return 0;
             }
+            if (args is ["linux", "hello-program", var helloPackage, var disassembly])
+            {
+                Console.WriteLine("TEST_START linux.hello-program");
+                _ = NativeAotHelloProgram.Read(Repository.FindRoot(), helloPackage, disassembly);
+                Console.WriteLine($"TEST_PASS linux.hello-program instructions={NativeAotHelloProgram.InstructionCount} syscalls={NativeAotHelloProgram.SyscallCount} index={NativeAotHelloProgram.IndexSha256}");
+                return 0;
+            }
             if (args.Length is 3 or 4 && args[0] == "linux" && args[1] == "signal-fixture")
             {
                 string packagePath = args[2];
@@ -54,7 +61,7 @@ public static class ToolCommand
                 return LibvirtSmoke.RunAsync(Repository.FindRoot(), LibvirtSmokeOptions.Parse(args[2..]), Console.Out).GetAwaiter().GetResult();
             if (args.Length == 0 || args is ["--help"])
             {
-                Console.WriteLine("CLROS .NET 11 tooling\ndone next|reserve [--root <repository>]\nrepo check [--root <repository>]\ncontracts check\nefi build|verify [options]\nlinux hello-package <extracted-evidence-r04> <fresh-artifacts-package-path>\nlinux thread-fixture <fresh-package-path> [Threads|PipeReadClose|PipeWriteClose|PipeShutdown]\nlinux signal-fixture <fresh-package-path> [AlternateStack|UserStack|BadReturn|BadRestorer|FaultRead|FaultWrite|FaultExecute|FaultStack|FaultGp|FaultReturn|FaultFatal|Activation]\nqemu smoke|qcow2 [--dry-run] [options]\nlibvirt smoke [--dry-run|--plan-lifecycle|--check-serial-only] [options]\nkestrel package [options]\nnativeaot threading validate-suspension <captured-stdout>\nnativeaot payload inspect <file> | qualify --output <fresh-directory>\nci smoke [options]\nbaseline evidence [options]\nbacklog sync [options]");
+                Console.WriteLine("CLROS .NET 11 tooling\ndone next|reserve [--root <repository>]\nrepo check [--root <repository>]\ncontracts check\nefi build|verify [options]\nlinux hello-package <extracted-evidence-r04> <fresh-artifacts-package-path>\nlinux hello-program <hello-package> <llvm-disassembly>\nlinux thread-fixture <fresh-package-path> [Threads|PipeReadClose|PipeWriteClose|PipeShutdown]\nlinux signal-fixture <fresh-package-path> [AlternateStack|UserStack|BadReturn|BadRestorer|FaultRead|FaultWrite|FaultExecute|FaultStack|FaultGp|FaultReturn|FaultFatal|Activation]\nqemu smoke|qcow2 [--dry-run] [options]\nlibvirt smoke [--dry-run|--plan-lifecycle|--check-serial-only] [options]\nkestrel package [options]\nnativeaot threading validate-suspension <captured-stdout>\nnativeaot payload inspect <file> | qualify --output <fresh-directory>\nci smoke [options]\nbaseline evidence [options]\nbacklog sync [options]");
                 return 0;
             }
             if (args.Length >= 2 && args[0] == "repo" && args[1] == "check")

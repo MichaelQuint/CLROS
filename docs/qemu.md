@@ -42,6 +42,13 @@ This is host input/producer admission only. The M16-009 QEMU selector continues
 to reject it until a complete actual-Hello transcript validator exists; supplying
 the package or its stdout marker cannot satisfy mechanical signal proof.
 
+[Step1264](../done/step1264.md) adds `linux hello-program <hello-package>
+<llvm-disassembly>` to check the exact package and complete reviewed instruction
+index. It verifies executable file backing, ordered extents, real decoded syscall
+sites, canonical counts and digest. The result grants no QEMU launch or transcript
+success. Hello still needs its complete syscall/scheduler/raw-output/exit/reap
+validator before the selector can admit it.
+
 Development selections `-EnableM09009Probe` and `-EnableM09010Probe` have strict
 profile and transcript admission in [step1234](../done/step1234.md). Their only
 permitted explicit required markers are `CLROS_M09_009_READY` and
