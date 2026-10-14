@@ -16,6 +16,14 @@ single-thread ancestor path. No READY marker, native publication or guest proof
 is claimed. The step records explicit C# build properties and focused checks;
 full-host, original native review and guests await the stable related issue batch.
 
+[Step1242](../done/step1242.md) adds explicit M16-008-only native process and
+memory callback partials to that source closure. They bind the existing kernel
+table/process/descriptor owners, authenticate actual IF/kernel CR3, resolve
+retained futex aliases through real user/kernel PTEs and read HPET nanoseconds.
+The gateway callbacks preserve per-worker images and blocked completion. Resource
+preparation/binding, callbacks and release compile in the no-stdlib project;
+the native driver/IRQ/reap loop is still unfinished and no worker has executed.
+
 ## Development wait and TLS profiles
 
 `efi build -BootPolicy Diagnostic -EnableM09009Probe` and the corresponding

@@ -3,6 +3,7 @@ namespace OS.Tooling;
 public static partial class EfiContracts
 {
     public static IReadOnlyList<string> ReviewedSourceIncludes { get; } = Array.AsReadOnly<string>([
+        @"Boot\EfiEntry.LinuxThreads.cs", @"Boot\EfiEntry.LinuxThreadMemory.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs",

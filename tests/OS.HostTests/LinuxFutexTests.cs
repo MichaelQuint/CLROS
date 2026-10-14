@@ -36,6 +36,27 @@ internal static unsafe class LinuxFutexTests
     internal static byte MemoryGuard(void* context, ulong address, ulong bytes)
         => ((Service*)context)->MayChangeUserRange(Key, 2, address, bytes) ? (byte)1 : (byte)0;
 
+    [HostTest("linux.futex shutdown after enrollment commits real park and yield before off-stack exit")]
+    private static void ShutdownBeforePark()
+    {
+        using Model m = new(futex: true); var thread = m.Start(); m.Kernel.Dispatch(); m.Put32(Word, 42);
+        HostCheck.Equal(LinuxSyscallAction.Blocked, Call(m, 128, 42).Action);
+        HostCheck.True(m.Service->Shutdown(Key, 2, 99));
+        HostCheck.Equal(KernelThreadTable.State.Parking, m.Kernel.Inspect(thread).State);
+        HostCheck.True(!m.Service->CommitExit(Key, 2, m.Kernel.Capture(thread), out _));
+        HostCheck.True(!m.Service->MayChangeUserRange(Key, 2, Word, 4));
+        HostCheck.True(m.Service->CommitFutexWait(Key, 2, m.Kernel.Capture(thread), out bool handoff) && !handoff);
+        HostCheck.Equal(KernelThreadTable.State.Running, m.Kernel.Inspect(thread).State);
+        HostCheck.True(!m.Kernel.Table->HandoffPending && m.Kernel.Table->Current.Value == thread.Value);
+        m.Yield(thread); HostCheck.Equal(thread.Value, m.Kernel.Dispatch().Value);
+        HostCheck.True(m.Service->CommitExit(Key, 2, m.Kernel.Capture(thread), out _)); m.Kernel.Confirm();
+        HostCheck.Equal(99, m.Kernel.Inspect(thread).ExitValue);
+        HostCheck.True(m.Service->MayChangeUserRange(Key, 2, Word, 4));
+        HostCheck.True(m.Service->Reap(Key, 2, thread, m.Kernel.SupervisorRsp, out _));
+        HostCheck.True(m.Service->Release(Key, 2));
+        HostCheck.Equal(KernelThreadTable.Status.Ok, m.Kernel.Table->Release(KernelThreadTableTests.Key, 2, m.Kernel.SupervisorRsp));
+    }
+
     [HostTest("linux.futex actual memory guard retains woken backing until consumption and allows unchanged remap prefixes")]
     private static void MemoryOwnership()
     {

@@ -1516,8 +1516,19 @@ public static unsafe partial class EfiEntry
                 Scratch = arena + LinuxDescriptorScratch, ScratchBytes = 8192,
                 DescriptorCount = LinuxDescriptorSlots, DescriptionCount = LinuxDescriptorSlots, PipeCount = 2, PipeCapacity = 4096,
                 Memory = &state->LinuxMemory, PhysicalBytes = physical, AvailableBytes = available,
-                User = new() { Context = state, PageAccess = &LinuxUserPageAccess, CopyFromUser = &CopyDescriptorInput, Write = &WriteDescriptorOutput },
-                CopyToUser = &CopyDescriptorOutput, FirmwareExited = true, SingleOwnerValidated = true, SigpipeIgnored = true
+                User = new() { Context = state, PageAccess = &LinuxUserPageAccess,
+#if M16_008_PROBE
+                    CopyFromUser = &LinuxThreadCopyInput,
+#else
+                    CopyFromUser = &CopyDescriptorInput,
+#endif
+                    Write = &WriteDescriptorOutput },
+#if M16_008_PROBE
+                CopyToUser = &LinuxThreadCopyOutput,
+#else
+                CopyToUser = &CopyDescriptorOutput,
+#endif
+                FirmwareExited = true, SingleOwnerValidated = true, SigpipeIgnored = true
             };
             if (!LinuxDescriptorServices.Begin(&state->LinuxDescriptors, owner)) return false;
             state->LinuxDescriptorPhase = 4;
@@ -1796,6 +1807,9 @@ public static unsafe partial class EfiEntry
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
         private static byte DispatchLinuxSyscall(void* context, LinuxSyscallFrame* frame)
         {
+#if M16_008_PROBE
+            return DispatchLinuxNativeCore((Storage*)context, frame);
+#else
             Storage* state = (Storage*)context;
             if ((ulong)context != state->Memory.References.AdapterState || frame != (LinuxSyscallFrame*)(state->LinuxSyscallData + X64LinuxUserTransition.FrameOffset) ||
                 !LinuxSyscallAuthority(state)) return 0;
@@ -1823,6 +1837,7 @@ public static unsafe partial class EfiEntry
                 !LinuxText(state, " status=") || !LinuxNumber(state, (uint)state->LinuxSyscallState.Status) ||
                 !LinuxText(state, "\r\n")) { state->LinuxSyscallFailed = 1; return 0; }
             return result.Action == LinuxSyscallAction.Return ? (byte)1 : (byte)2;
+#endif
         }
 
         [System.Runtime.InteropServices.UnmanagedCallersOnly]

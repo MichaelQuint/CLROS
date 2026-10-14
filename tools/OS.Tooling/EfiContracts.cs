@@ -51,9 +51,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "4a56491240f3525fa26ef8b003d2e5cb8b05a71c62b85d48aeb44a819ae8ed76";
-    public const string CanonicalProjectSha256 = "0073cbaea64035e3b5873a948a52e2f864e41e7cfce003a120b062d5fb9a804c";
-    public const string EfiEntrySourceSha256 = "5d451f3582091e3237d60e85965e9ce2e0ac304db7800c2634131fb4cbe70516";
+    public const string ProjectSourceSha256 = "a086f734fa4769feec20039abef114a8604d5a2c55bfedfad169037d5d8a504f";
+    public const string CanonicalProjectSha256 = "60b7531b625d53cf823d69a21c28bf371a39f82fd4595b4b8377dff0b256c19f";
+    public const string EfiEntrySourceSha256 = "d08356800311e88f0ba4b430d8141ec03af74e51b235a540e6f23abce21b246e";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -325,6 +325,8 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs|Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs|Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs|Compatibility\LinuxX64\LinuxThreadProgram.cs",
+        @"Boot\EfiEntry.LinuxThreads.cs|",
+        @"Boot\EfiEntry.LinuxThreadMemory.cs|",
     ]);
 
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> DiagnosticProbes { get; } = Array.AsReadOnly<string>(

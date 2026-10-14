@@ -74,6 +74,16 @@ The native scheduler owner, timer/copy/alias callbacks, full cleanup and strict
 guest transcript remain unfinished. QEMU selection rejects with
 `m16_008_native_owner_unbound`; direct entry fails before the old single-thread
 path can produce ancestor success. The mechanical ELF has not executed.
+[Step1242](../done/step1242.md) adds the native process resource/binding partial
+and actual copy, PTE-alias, HPET-nanosecond and mutation-guard callbacks. Metadata
+and up to four prepared worker entries fit the retained arena; the manifest quota
+limits actual table/process capacity. Per-worker gateway callbacks capture full
+user images, consume blocked completion without replay and admit the restored
+CPU envelope before actual Park/Exit. Early completion uses an explicit Yield
+before the emitted supervisor transfer. The switch stack admits clear-TID's real
+copyout local. These partials compile but have not executed: the driver, IRQ,
+reap/reuse and full shutdown loop are not attached, and the M16-008 entry/QEMU
+refusals remain. Native/guest qualification remains deferred with the batch.
 Signal delivery belongs to #687. All batch issues
 remain open pending shared qualification; the expensive full-host suite is
 deferred to the stable dependency-compatible batch requested by the user.
