@@ -56,7 +56,7 @@ public unsafe partial struct LinuxThreadServices
         ulong* sizes = stackalloc ulong[3] { a.CellBytes, a.AddressBytes, a.RegistrationBytes };
         for (uint i = 0; i < 3; i++)
         {
-            if (BorrowOverlap(starts[i], sizes[i])) return false;
+            if (BorrowOverlap(starts[i], sizes[i]) || DescriptorStorageOverlap(starts[i], sizes[i])) return false;
             for (uint j = 0; j < i; j++) if (Overlap(starts[i], sizes[i], starts[j], sizes[j])) return false;
             for (uint j = 0; j < _owner.Capacity; j++)
             {
@@ -97,7 +97,7 @@ public unsafe partial struct LinuxThreadServices
     {
         handoff = false;
         if (!Access(key, flags) || !_futexEnabled || !Lookup(flags, _owner.Threads->Current, out uint index)) return false;
-        Slot* slot = _owner.Slots + index; if (!slot->Wait.IsValid) return false;
+        Slot* slot = _owner.Slots + index; if (!slot->Wait.IsValid || slot->WaitSource != 1) return false;
         var parked = _owner.Threads->Park(_owner.ThreadKey, flags, slot->Wait, captured);
         if (!parked.Succeeded) return false;
         handoff = parked.State == KernelThreadTable.State.Waiting; return true;
@@ -112,7 +112,7 @@ public unsafe partial struct LinuxThreadServices
         if (!Access(key, flags) || !_futexEnabled || !Current(flags, out uint index)) return new(LinuxSyscallAction.Rejected);
         Slot* slot = _owner.Slots + index;
         var state = _owner.Threads->Inspect(_owner.ThreadKey, flags, slot->Kernel);
-        if (!slot->Wait.IsValid || slot->Wait.Sequence != state.Wait.Sequence || state.Completion == KernelThreadTable.Completion.None)
+        if (!slot->Wait.IsValid || slot->WaitSource != 1 || slot->Wait.Sequence != state.Wait.Sequence || state.Completion == KernelThreadTable.Completion.None)
             return new(LinuxSyscallAction.Rejected);
         if (!DropFutexWait(flags, slot)) return new(LinuxSyscallAction.Rejected);
         if (_stopping || slot->Exiting != 0) return new(LinuxSyscallAction.ThreadExited, exitCode: slot->ExitCode);
@@ -165,7 +165,7 @@ public unsafe partial struct LinuxThreadServices
             { _failed = true; return new(LinuxSyscallAction.Rejected); }
             return new(LinuxSyscallAction.Return, error);
         }
-        cell->References++; slot->Wait = begin.Wait; slot->FutexCellIndex = cellIndex;
+        cell->References++; slot->Wait = begin.Wait; slot->FutexCellIndex = cellIndex; slot->WaitSource = 1;
         return new(LinuxSyscallAction.Blocked);
     }
 
@@ -213,12 +213,13 @@ public unsafe partial struct LinuxThreadServices
     private bool DropFutexWait(ulong flags, Slot* slot)
     {
         if (!slot->Wait.IsValid) return true;
+        if (slot->WaitSource != 1) { _failed = true; return false; }
         uint index = slot->FutexCellIndex;
         if (!_futexEnabled || index >= _futex.Capacity || _futex.Cells[index].References == 0 ||
             !_addresses.Sweep(_futex.OwnerKey, flags).Succeeded) { _failed = true; return false; }
         if (_futex.Cells[index].References == 1 && !UnbindFutexCell(flags, index)) return false;
         else if (_futex.Cells[index].References > 1) _futex.Cells[index].References--;
-        slot->Wait = default; slot->FutexCellIndex = 0; return true;
+        slot->Wait = default; slot->FutexCellIndex = 0; slot->WaitSource = 0; return true;
     }
     private bool UnbindFutexCell(ulong flags, uint index)
     {
@@ -242,7 +243,7 @@ public unsafe partial struct LinuxThreadServices
         Overlap(start, bytes, (ulong)_futex.Addresses, _futex.AddressBytes) || Overlap(start, bytes, (ulong)_futex.Registrations, _futex.RegistrationBytes);
     private bool ForbiddenFutexAlias(ulong start)
     {
-        if (BorrowOverlap(start, 4) || FutexStorageOverlap(start, 4)) return true;
+        if (BorrowOverlap(start, 4) || FutexStorageOverlap(start, 4) || DescriptorStorageOverlap(start, 4)) return true;
         for (uint i = 0; i < _owner.Capacity; i++)
         {
             var d = _owner.Workers[i].Initial;

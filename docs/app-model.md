@@ -41,7 +41,13 @@ that owner: compare/enroll/park/completion, private and shared-anonymous keys,
 bitset wakes, monotonic deadlines, clear-TID wakeups and shutdown drain. Retained
 backing references reject overlapping memory changes through an owner guard;
 the native memory/IRQ owner still must wire that guard and the actual clock.
-Blocking pipes, native workers and the M16-008 mechanical guest remain unfinished.
+[Step1238](../done/step1238.md) connects blocking pipe read/write to the same
+kernel table. Operations retain the original open description across fd
+close/reuse, park without scratch ownership, wake after actual data/capacity or
+peer-close changes and drain before descriptor shutdown. Large writes retain
+committed progress; short writes preserve PIPE_BUF atomicity. Seven new host
+controls and 42 focused regressions pass. Native gateway routing, workers and
+the M16-008 mechanical guest remain unfinished.
 Signal delivery belongs to #687. All batch issues
 remain open pending shared qualification; the expensive full-host suite is
 deferred to the stable dependency-compatible batch requested by the user.

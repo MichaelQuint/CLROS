@@ -14,7 +14,7 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// Linux fd integers may be reused. Internal tokens additionally bind the owner
 /// and generation, without changing Linux's integer descriptor semantics.
 /// </summary>
-public static unsafe class LinuxDescriptorServices
+public static unsafe partial class LinuxDescriptorServices
 {
     public const uint MaximumDescriptors = 32, MaximumViews = 8, MaximumPipes = 4;
     public const uint MaximumPath = 256, MaximumVectors = 16, MaximumIo = 65536, SnapshotBytes = 8192;
@@ -50,7 +50,7 @@ public static unsafe class LinuxDescriptorServices
     /// status flags and endpoint ownership. Only the last close releases them.</summary>
     public struct Description
     {
-        internal uint Type, References, Flags, Pipe;
+        internal uint Type, References, Flags, Pipe, Borrowers;
         internal byte* Data;
         internal ulong Bytes, Position, Inode;
         internal uint Channel;
@@ -95,7 +95,20 @@ public static unsafe class LinuxDescriptorServices
     {
         internal Admission Owner;
         internal uint Initialized, Active, NextInode;
+        internal ulong ThreadOwner;
         public readonly uint ActiveDescriptors => Initialized == 1 ? Active : 0;
+        /// <summary>Retained kernel I/O borrows, including closed fds. This is
+        /// diagnostic accounting, not a pin or release grant.</summary>
+        public readonly uint RetainedPipeOperations
+        {
+            get
+            {
+                if (Initialized != 1) return 0;
+                uint count = 0;
+                for (uint i = 0; i < Owner.DescriptionCount; i++) count += Owner.Descriptions[i].Borrowers;
+                return count;
+            }
+        }
     }
 
     /// <summary>Admit empty storage and install fd0 EOF input plus fd1/fd2
@@ -103,7 +116,7 @@ public static unsafe class LinuxDescriptorServices
     /// caller proves mappings, provenance and exclusive callback identities.</summary>
     public static bool Begin(State* state, Admission admission)
     {
-        if (!Storage(state, admission) || state->Initialized != 0 || state->Active != 0 || state->NextInode != 0)
+        if (!Storage(state, admission) || state->Initialized != 0 || state->Active != 0 || state->NextInode != 0 || state->ThreadOwner != 0)
             return false;
         for (uint i = 0; i < admission.DescriptorCount; i++)
             if (admission.Slots[i].Description != 0 || admission.Slots[i].Flags != 0 || admission.Slots[i].Generation != 0) return false;
@@ -130,6 +143,9 @@ public static unsafe class LinuxDescriptorServices
     /// writev, fcntl and pipe calls. Unknown calls return ENOSYS. The gateway
     /// retains call limits, termination and user-return validation.</summary>
     public static long Dispatch(State* state, LinuxSyscallFrame frame)
+        => state == null || ((ulong)state & 7) != 0 || state->ThreadOwner != 0 ? Fault : DispatchCore(state, frame);
+
+    private static long DispatchCore(State* state, LinuxSyscallFrame frame)
     {
         if (!Audit(state)) return Fault;
         uint fd = unchecked((uint)frame.Argument0);
@@ -175,7 +191,8 @@ public static unsafe class LinuxDescriptorServices
     /// delivery or deallocation is performed here.</summary>
     public static bool End(State* state)
     {
-        if (!Audit(state)) return false;
+        if (!Audit(state) || state->ThreadOwner != 0) return false;
+        for (uint i = 0; i < state->Owner.DescriptionCount; i++) if (state->Owner.Descriptions[i].Borrowers != 0) return false;
         for (uint i = 0; i < state->Owner.DescriptorCount; i++)
             if (state->Owner.Slots[i].Description != 0 && Close(state, i) != 0) return false;
         Clear(state->Owner.Scratch, state->Owner.ScratchBytes);
@@ -207,7 +224,9 @@ public static unsafe class LinuxDescriptorServices
             Description d = a.Descriptions[i]; uint references = 0;
             for (uint j = 0; j < a.DescriptorCount; j++) if (a.Slots[j].Description == i + 1) references++;
             if (d.References != references) return false;
-            if (references == 0) { if (d.Type != 0) return false; continue; }
+            if (references == 0 && d.Borrowers == 0) { if (d.Type != 0) return false; continue; }
+            if (d.Borrowers > MaximumDescriptors || d.Borrowers != 0 &&
+                ((Kind)d.Type != Kind.PipeRead && (Kind)d.Type != Kind.PipeWrite || state->ThreadOwner == 0)) return false;
             if (d.Type == 0 || d.Type > (uint)Kind.PipeWrite || d.Inode == 0 ||
                 (d.Flags & ~(NonBlock | LargeFile | NoFollow | 1U)) != 0 || d.Position > long.MaxValue) return false;
             if ((Kind)d.Type == Kind.Package || (Kind)d.Type == Kind.Snapshot)
@@ -225,7 +244,7 @@ public static unsafe class LinuxDescriptorServices
             for (uint j = 0; j < a.DescriptionCount; j++)
             {
                 Description d = a.Descriptions[j];
-                if (d.References == 0 || d.Pipe != i) continue;
+                if (d.References == 0 && d.Borrowers == 0 || d.Pipe != i) continue;
                 if ((Kind)d.Type == Kind.PipeRead) readers++;
                 if ((Kind)d.Type == Kind.PipeWrite) writers++;
             }
@@ -377,21 +396,30 @@ public static unsafe class LinuxDescriptorServices
         Description* d = Find(state, fd);
         if (d == null) return BadDescriptor;
         var a = state->Owner; uint index = a.Slots[fd].Description - 1;
-        if (d->References == 1 && ((Kind)d->Type == Kind.PipeRead || (Kind)d->Type == Kind.PipeWrite))
+        if (!DropDescription(state, index, false)) return Io;
+        a.Slots[fd].Description = 0; a.Slots[fd].Flags = 0; state->Active--;
+        return 0;
+    }
+
+    private static bool DropDescription(State* state, uint index, bool borrow)
+    {
+        var a = state->Owner; Description* d = a.Descriptions + index;
+        if (borrow ? d->Borrowers == 0 : d->References == 0) return false;
+        bool last = borrow ? d->Borrowers == 1 && d->References == 0 : d->References == 1 && d->Borrowers == 0;
+        if (last && ((Kind)d->Type == Kind.PipeRead || (Kind)d->Type == Kind.PipeWrite))
         {
             LinuxPipe* pipe = a.Pipes + d->Pipe;
             bool closed = (Kind)d->Type == Kind.PipeRead ? pipe->CloseReader() : pipe->CloseWriter();
-            if (!closed) return Io;
-            if (pipe->ReaderCount == 0 && pipe->WriterCount == 0 && !pipe->Release()) return Io;
+            if (!closed) return false;
+            if (pipe->ReaderCount == 0 && pipe->WriterCount == 0 && !pipe->Release()) return false;
         }
-        a.Slots[fd].Description = 0; a.Slots[fd].Flags = 0; state->Active--;
-        d->References--;
-        if (d->References == 0)
+        if (borrow) d->Borrowers--; else d->References--;
+        if (d->References == 0 && d->Borrowers == 0)
         {
             if ((Kind)d->Type == Kind.Snapshot) Clear(a.Snapshots + index * SnapshotBytes, SnapshotBytes);
             *d = default;
         }
-        return 0;
+        return true;
     }
 
     private static long Control(State* state, uint fd, uint command, ulong argument)
@@ -564,7 +592,7 @@ public static unsafe class LinuxDescriptorServices
     private static uint FreeDescription(State* state, uint exclude)
     {
         for (uint i = 0; i < state->Owner.DescriptionCount; i++)
-            if (i != exclude && state->Owner.Descriptions[i].References == 0) return i;
+            if (i != exclude && state->Owner.Descriptions[i].References == 0 && state->Owner.Descriptions[i].Borrowers == 0) return i;
         return state->Owner.DescriptionCount;
     }
     private static void Assign(State* state, uint fd, uint description, uint flags)

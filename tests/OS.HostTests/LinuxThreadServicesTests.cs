@@ -17,7 +17,7 @@ internal static unsafe class LinuxThreadServicesTests
     private struct UserMemory
     {
         internal byte* Bytes;
-        internal ulong FailWriteAddress, LastRead, LastWrite;
+        internal ulong FailWriteAddress, FailReadAddress, LastRead, LastWrite;
         internal uint Reads, Writes, FailedWrites;
         internal ulong Now, Lifetime;
         internal bool ClockFails;
@@ -34,10 +34,14 @@ internal static unsafe class LinuxThreadServicesTests
         internal Transition.UserImage* Initial => (Transition.UserImage*)(Kernel.Memory + 0x9000);
         private UserMemory* User => (UserMemory*)(Kernel.Memory + 0xa000);
         internal LinuxSyscallAccess Access => new() { Context = User, PageAccess = &PageAccess, CopyFromUser = &CopyFromUser };
+        internal LinuxSyscallAccess DescriptorAccess => new() { Context = User, PageAccess = &PageAccess, CopyFromUser = &CopyFromUser, Write = &Sink };
+        internal delegate* unmanaged<void*, ulong, byte*, uint, byte> UserCopyOut => &CopyToUser;
         internal uint Reads => User->Reads;
         internal uint Writes => User->Writes;
         internal uint FailedWrites => User->FailedWrites;
         internal void FailWrite(ulong address) => User->FailWriteAddress = address;
+        internal void FailRead(ulong address) => User->FailReadAddress = address;
+        internal byte* At(ulong address) => User->Bytes + address - UserBase;
         internal ulong Now { get => User->Now; set => User->Now = value; }
         internal void ChangeMappingLifetime(ulong value) => User->Lifetime = value;
         internal void FailClock(bool value) => User->ClockFails = value;
@@ -48,7 +52,7 @@ internal static unsafe class LinuxThreadServicesTests
             HostCheck.True(sizeof(Services) <= 0x1000 && sizeof(Services.Slot) * 3 <= 0x1000 && sizeof(Services.Worker) * 3 <= 0x1000);
             *Service = default; new Span<byte>(Slots, sizeof(Services.Slot) * 3).Clear();
             new Span<byte>(Workers, sizeof(Services.Worker) * 3).Clear();
-            *User = new() { Bytes = Kernel.Memory + 0xb000, FailWriteAddress = ulong.MaxValue, Now = 1000, Lifetime = 1 };
+            *User = new() { Bytes = Kernel.Memory + 0xb000, FailWriteAddress = ulong.MaxValue, FailReadAddress = ulong.MaxValue, Now = 1000, Lifetime = 1 };
             new Span<byte>(User->Bytes, (int)UserBytes).Fill(0x5a);
             for (int i = 0; i < 3; i++) Workers[i] = new() { Initial = WorkerContext(i, default), Entry = Kernel.Code + 0x400 + (uint)i * 0x40 };
             HostCheck.True(Service->Initialize(Key, 2, new()
@@ -112,12 +116,16 @@ internal static unsafe class LinuxThreadServicesTests
         }
 
         internal LinuxSyscallResult Call(ulong number, ulong a0 = 0, ulong a1 = 0, ulong a2 = 0, ulong a3 = 0, ulong a4 = 0, ulong a5 = 0)
+            => CallCore(false, number, a0, a1, a2, a3, a4, a5);
+        internal LinuxSyscallResult DescriptorCall(ulong number, ulong a0 = 0, ulong a1 = 0, ulong a2 = 0, ulong a3 = 0)
+            => CallCore(true, number, a0, a1, a2, a3, 0, 0);
+        private LinuxSyscallResult CallCore(bool descriptor, ulong number, ulong a0, ulong a1, ulong a2, ulong a3, ulong a4, ulong a5)
         {
             var image = CurrentImage(); var frame = image->Frame;
             frame.Number = number; frame.Argument0 = a0; frame.Argument1 = a1; frame.Argument2 = a2;
             frame.Argument3 = a3; frame.Argument4 = a4; frame.Argument5 = a5;
             image->Frame = frame; // Host model of the owner's already captured syscall image.
-            var result = Service->Dispatch(Key, 2, ref frame); image->Frame = frame;
+            var result = descriptor ? Service->DispatchDescriptor(Key, 2, frame) : Service->Dispatch(Key, 2, ref frame); image->Frame = frame;
             if (result.Action == LinuxSyscallAction.Return) image->Value = result.Value;
             return result;
         }
@@ -154,6 +162,7 @@ internal static unsafe class LinuxThreadServicesTests
     {
         if (context == null || output == null || !UserRange(address, bytes, false)) return 0;
         UserMemory* user = (UserMemory*)context; user->Reads++; user->LastRead = address;
+        if (address == user->FailReadAddress) return 0;
         for (uint i = 0; i < bytes; i++) output[i] = user->Bytes[address - UserBase + i];
         return 1;
     }
@@ -181,6 +190,9 @@ internal static unsafe class LinuxThreadServicesTests
         if (context == null || now == null || ((UserMemory*)context)->ClockFails) return 0;
         *now = ((UserMemory*)context)->Now; return 1;
     }
+    [UnmanagedCallersOnly]
+    private static byte Sink(void* context, uint channel, byte* source, uint bytes)
+        => context != null && source != null && channel is 1 or 2 && bytes <= LinuxDescriptorServices.MaximumIo ? (byte)1 : (byte)0;
 
     [HostTest("linux.thread-services start publishes a complete real binding and authenticates the current generation")]
     private static void StartAndIdentity()
