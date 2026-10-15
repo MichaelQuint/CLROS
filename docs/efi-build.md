@@ -2,6 +2,15 @@
 
 ## Development Linux threading profile
 
+[Step1302](../done/step1302.md) preserves three strict original-runtime and three
+ThreadPool-stress captures. A Hello run at `27dd0cf` prints its unchanged output
+and completes three-thread cleanup, but the old consumer rejects a signal child
+whose first timeslice follows early stdout. Parent startup checks remain at every
+write; both actual child masks/waits are now required before `exit_group`.
+Twenty-three focused checks and complete offline revalidation pass. This is a
+host ordering correction; repeated strict Hello and remaining batch gates stay
+pending, with the original failed capture preserved.
+
 [Step1301](../done/step1301.md) records three strict wait-address and three TLS
 captures at `7cb23ee`, plus successful signals/GC/ThreadPool/original-runtime
 captures and 32 original-native review bindings. A later original-runtime run

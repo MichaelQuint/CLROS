@@ -1,5 +1,12 @@
 # Diagnostics
 
+[Step1302](../done/step1302.md) corrects Hello's child ordering: exact parent
+initialization/clone/descriptor/signal-install checks remain at each stdout
+write, while both real child masks/waits and finalizer handoff must complete
+before `exit_group`. One, two or three stdout rows may precede the signal
+child's first timeslice. Missing child mask/wait and premature exit reject.
+No kernel scheduler or original payload changes follow from this host check.
+
 [Step1285](../done/step1285.md) admits the exact original RuntimeSmoke under
 explicit M16-010 selection. Canonical r04 package/source/producer evidence and
 its complete index remain separate from RuntimeMatrix. Its original output

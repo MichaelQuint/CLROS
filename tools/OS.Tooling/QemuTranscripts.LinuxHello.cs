@@ -344,9 +344,9 @@ public static partial class QemuTranscripts
                         "hello_not_tty"); break;
                 case 1:
                     Need(t.Tid == 1 && a == 1 && writes < 3 && c == (writes == 0 ? 27UL : writes == 1 ? 19UL : 26UL) &&
-                        value == c && memory.Covered(b,c,1), "hello_write_result"); StartupComplete(); writes++; break;
+                        value == c && memory.Covered(b,c,1), "hello_write_result"); StartupComplete(children:false); writes++; break;
                 case 231:
-                    Need(t.Tid == 1 && a == 0 && value == 0 && writes == 3, "hello_exit_group"); StartupComplete();
+                    Need(t.Tid == 1 && a == 0 && value == 0 && writes == 3, "hello_exit_group"); StartupComplete(children:true);
                     stopping = true; action = 2; status = 2;
                     foreach (int id in new[] { 2,3 }) { Need(!ready.Contains(id), "hello_cancel_parked"); ready.Enqueue(id); }
                     break;
@@ -368,12 +368,15 @@ public static partial class QemuTranscripts
             Need(r["action"] == action && r["status"] == status, "hello_call_outcome");
         }
 
-        private void StartupComplete()
+        private void StartupComplete(bool children)
         {
             // Uncontended user-space mutex acquisition/release emits no futex
-            // pair. Both children must still execute and park their real waits.
+            // pair. Child creation need not give the signal child a timeslice
+            // before stdout. Both actual child masks/waits remain mandatory
+            // before exit_group can cancel them and begin off-stack cleanup.
             Need(clones == 2 && files.Count == 0 && pipeRead == 3 && pipeWrite == 4 && stackGuardProbe && entropy && barrierRegistered &&
-                signalInstalls.SetEquals(new ulong[] {2,3,8,11,13,18,35}) && threads[2] is { Pending:1, MaskSet:true } finalizer &&
+                signalInstalls.SetEquals(new ulong[] {2,3,8,11,13,18,35}), "hello_runtime_startup");
+            if(children)Need(threads[2] is { Pending:1, MaskSet:true } finalizer &&
                 finalizer.StartupWake == mainWait &&
                 threads[3] is { Pending:2, MaskSet:true }, "hello_runtime_children_and_startup");
         }

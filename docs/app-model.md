@@ -1,5 +1,12 @@
 # App Model
 
+[Step1302](../done/step1302.md) completes the three strict original RuntimeSmoke
+and three ThreadPool-stress repetitions. Hello's actual signal child can first
+run after early stdout; its complete mask/pipe wait is still required before
+exit and three-thread cleanup. The corrected consumer preserves all parent
+startup checks at each write, original inputs and the failed first capture.
+Final shared acceptance, including strict Hello repetitions, remains pending.
+
 [Step1301](../done/step1301.md) records six strict mechanical wait/TLS captures,
 five strict runtime/signal captures and 32 native review bindings at `7cb23ee`.
 Another unchanged original-runtime run reaches full cleanup but exposes a host

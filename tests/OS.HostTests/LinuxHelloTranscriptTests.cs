@@ -34,6 +34,19 @@ internal static class LinuxHelloTranscriptTests
         Reject(uncontended.Where(r=>!r.Contains("identity=4294967299 nr=0 ",StringComparison.Ordinal)).ToArray());
     }
 
+    [HostTest("nativeaot.hello stdout can precede the signal child timeslice but exit requires its actual mask and pipe wait")]
+    private static void LateSignalChild()
+    {
+        foreach(int early in new[]{1,2,3})
+        {
+            var rows=Build(earlyWrites:early);var report=Inspect(rows);
+            HostCheck.Equal(14,report.Transfers);
+            Reject(rows.Where(r=>!r.Contains("identity=4294967299 nr=14 ",StringComparison.Ordinal)).ToArray());
+            Reject(rows.Where(r=>!r.Contains("identity=4294967299 nr=0 ",StringComparison.Ordinal)).ToArray());
+        }
+        Reject(Build(earlyWrites:3,prematureExit:true),reason:"hello_runtime_children_and_startup");
+    }
+
     [HostTest("nativeaot.hello optional syscall timings require the actual complete call and ordered raw samples")]
     private static void SyscallTimingDiagnostics()
     {
@@ -187,8 +200,8 @@ internal static class LinuxHelloTranscriptTests
     private static QemuTranscripts.HelloProtocolReport Inspect(string[] rows,Func<ulong,bool>? instruction=null,Func<ulong,bool>? syscall=null) =>
         QemuTranscripts.InspectLinuxHelloProtocolForTests(rows,Elf(),instruction ?? (r=>r==0x400202),syscall ?? (r=>r==0x400202),0x2000,0x3000);
 
-    private static void Reject(string[] rows,Func<ulong,bool>? instruction=null,Func<ulong,bool>? syscall=null)
-    { bool rejected=false; try { Inspect(rows,instruction,syscall); } catch(ToolFailure) { rejected=true; } HostCheck.True(rejected,"hello synthetic mutation accepted"); }
+    private static void Reject(string[] rows,Func<ulong,bool>? instruction=null,Func<ulong,bool>? syscall=null,string? reason=null)
+    { bool rejected=false; try { Inspect(rows,instruction,syscall); } catch(ToolFailure failure) { rejected=reason is null || failure.Reason==reason; } HostCheck.True(rejected,"hello synthetic mutation accepted or wrong rejection"); }
 
     private static string[] Change(string[] rows,string selector,string key,ulong value)
     {
@@ -222,7 +235,7 @@ internal static class LinuxHelloTranscriptTests
         return elf;
     }
 
-    private static string[] Build(bool wakeBeforeWait=false, (ulong Nr, ulong Value, ulong[] Args)[]? extraCalls=null,bool uncontended=false)
+    private static string[] Build(bool wakeBeforeWait=false, (ulong Nr, ulong Value, ulong[] Args)[]? extraCalls=null,bool uncontended=false,int earlyWrites=0,bool prematureExit=false)
     {
         const ulong tc=0x100000000, one=0x100010000, two=0x100300000;
         const ulong fs1=one+0x183000-0x4c8, fs2=two+0x183000-0x4c8;
@@ -243,6 +256,9 @@ internal static class LinuxHelloTranscriptTests
         void Supervisor(int action,int transfers,int ready,int active) => rows.Add($"M16_008_SUPERVISOR identity={0x100000000UL+(uint)tid} action={action} transfers={transfers} ready={ready} active={active}");
         void Exit() => rows.Add($"M16_008_EXIT identity={0x100000000UL+(uint)tid} clearTidResult=0");
         void Reap() => rows.Add($"M16_008_REAP old={0x100000000UL+(uint)tid} next={0x200000000UL+(uint)tid} context=zero stack=zero slot=zero");
+        var output=new[]{(27UL,"TEST_START nativeaot.hello"),(19UL,"NATIVEAOT_HELLO_OK"),(26UL,"TEST_PASS nativeaot.hello")};
+        void Write((ulong Bytes,string Text) write)
+        { rows.Add($"M16_005_WRITE fd=1 bytes={write.Bytes} data={write.Text}");Call(1,write.Bytes,[1,0x500100,write.Bytes]); }
         Call(9,tc,[0,488,3,0x22,ulong.MaxValue,0]); fs=tc+0x120; Call(158,0,[0x1002,fs]); Call(218,1,[0x53a370]);
         if (extraCalls is not null) foreach (var call in extraCalls) Call(call.Nr,call.Value,call.Args);
         foreach(ulong signal in new ulong[]{11,8,35,2,3,18}) { Call(13,0,[signal,0,0x500000,8]); Call(13,0,[signal,0x500020,0x500000,8]); }
@@ -263,12 +279,13 @@ internal static class LinuxHelloTranscriptTests
         Call(25,unchecked((ulong)-12L),[0x6fe80000,4096,8192,0]); Call(25,unchecked((ulong)-14L),[0x6fe7f000,4096,8192,0]);
         Call(293,0,[0x500400,0x80000]); Call(9,two,[0,0x183000,0,0x22,ulong.MaxValue,0]); Call(10,0,[two+8192,0x181000,3]);
         Call(56,3,[0x7d0f00,top2,0x500200,0x53a370,fs2]);
+        foreach(var write in output.Take(earlyWrites))Write(write);
+        if(prematureExit)Call(231,0,[0],2,2);
         clock=5; rows.Add($"M16_009_IRQ identity=4294967297 epoch=3 nanos=5 rip=4194818 rsp={rsp} flags=514 fs={fs} gs=0 valueBits=3"); Supervisor(1,6,2,3);
         tid=3; fs=fs2; rsp=top2-64; Call(14,0,[2,0x500100,0,8]); Call(157,unchecked((ulong)-38L),[15,0x500100]);
         Call(0,0,[3,rsp-64,1],3,9); Drain(4,6); Supervisor(3,8,1,3);
         tid=1; fs=tc+0x120; rsp=0x6ffffff0;
-        foreach(var write in new[]{(27UL,"TEST_START nativeaot.hello"),(19UL,"NATIVEAOT_HELLO_OK"),(26UL,"TEST_PASS nativeaot.hello")})
-        { rows.Add($"M16_005_WRITE fd=1 bytes={write.Item1} data={write.Item2}"); Call(1,write.Item1,[1,0x500100,write.Item1]); }
+        foreach(var write in output.Skip(earlyWrites))Write(write);
         Call(231,0,[0],2,2); Drain(5,6); Exit(); Supervisor(2,10,2,3); Reap();
         tid=2; Exit(); Supervisor(4,12,1,2); Reap(); tid=3; Exit(); Supervisor(4,14,0,1); Reap();
         rows.AddRange(["M16_008_BUDGET_END nanos=6",
