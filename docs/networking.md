@@ -1,5 +1,17 @@
 # Networking
 
+[Step1316](../done/step1316.md) adds bounded `TcpSendWindow` ownership over
+the actual passive handshake and receiver. Queue copies explicit short writes;
+Pump segments by MTU, negotiated peer MSS, advertised window and output capacity,
+and advances next-to-send only after copied TX admission. Original validated ACKs
+release retained bytes, including partial ACKs across sequence wrap. Ordered
+window updates reject stale reopening; receive metadata preserves the separate
+oldest-unacknowledged sequence. SYN MSS parsing and optional local MSS replies
+retain original negotiation across duplicate/retry paths. Thirteen new cases
+join the passing 235-check TCP fast filter across 28 fixtures. This remains host
+development; #151 is blocked/open. Retransmission, FIN/reset and real guest/packet
+qualification remain pending for the same stable integration batch.
+
 [Step1315](../done/step1315.md) adds persistent `TcpReceiveWindow` ownership
 over an established table generation. The existing stream/frame helpers supply
 an explicit windowed path: trim old overlap and excess beyond free capacity,

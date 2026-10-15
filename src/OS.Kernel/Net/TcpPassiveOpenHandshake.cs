@@ -145,7 +145,12 @@ public struct TcpPassiveOpenHandshake
         Span<byte> outboundSegment,
         ushort windowSize,
         ushort checksum,
-        out TcpPassiveOpenHandshakeTransitionResult result)
+        out TcpPassiveOpenHandshakeTransitionResult result) =>
+        ReceiveSynAndWriteSynAck(inboundSegment, outboundSegment, windowSize, checksum, ReadOnlySpan<byte>.Empty, out result);
+
+    internal TcpPassiveOpenHandshakeStatus ReceiveSynAndWriteSynAck(
+        scoped ReadOnlySpan<byte> inboundSegment, Span<byte> outboundSegment, ushort windowSize,
+        ushort checksum, scoped ReadOnlySpan<byte> options, out TcpPassiveOpenHandshakeTransitionResult result)
     {
         if (State != TcpPassiveOpenHandshakeState.Listen && State != TcpPassiveOpenHandshakeState.SynReceived)
         {
@@ -203,7 +208,7 @@ public struct TcpPassiveOpenHandshake
             windowSize,
             checksum,
             urgentPointer: 0,
-            ReadOnlySpan<byte>.Empty,
+            options,
             ReadOnlySpan<byte>.Empty,
             out int bytesWritten);
         if (writeStatus != PacketParseStatus.Success)

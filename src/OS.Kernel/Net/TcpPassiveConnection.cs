@@ -43,6 +43,8 @@ public static unsafe class TcpPassiveConnection
         internal Operations Io;
         internal byte Phase, Attempts;
         internal ulong Duplicates;
+        internal ushort PeerMss, PeerWindow;
+        internal uint WindowSequence, WindowAcknowledgement;
         public readonly bool Pending => Phase == 1;
         public readonly bool RequiresCleanup => Phase == 2;
         public readonly bool Established => Phase == 3;
@@ -52,6 +54,8 @@ public static unsafe class TcpPassiveConnection
         public readonly ulong DeadlineNanoseconds => Deadline;
         public readonly ulong NextRetryNanoseconds => NextRetry;
         public readonly TcpConnectionTable.Handle Connection => Handle;
+        public readonly ushort PeerMaximumSegmentSize => PeerMss;
+        public readonly ushort PeerAdvertisedWindow => PeerWindow;
     }
 
     /// <summary>Validate a SYN, reserve its tuple/sequence lifetime, and attempt
@@ -75,7 +79,8 @@ public static unsafe class TcpPassiveConnection
         if (!SupportedFrame(syn) || (info.LocalMac.Octet0 & 1) != 0 || (info.RemoteMac.Octet0 & 1) != 0) return Status.InvalidPacket;
         var candidate = TcpPassiveIpv4FramePlanner.Create(info);
         if (candidate.ReceiveSynFrameAndWriteSynAckFrame(syn, output, out packet) != TcpPassiveIpv4FramePlanStatus.Success)
-            return Status.InvalidPacket;
+            return packet.Status == TcpPassiveIpv4FramePlanStatus.FrameBufferTooSmall ? Status.OutputTooSmall : Status.InvalidPacket;
+        if (!SynParameters(syn, out ushort peerMss, out ushort peerWindow)) return Status.InvalidPacket;
         ulong now = operations.NowNanoseconds(operations.Context);
         if (now > ~0UL - operations.LifetimeNanoseconds) return Status.InvalidClock;
         var key = new TcpConnectionKey(info.LocalAddress, info.LocalPort, info.RemoteAddress, info.RemotePort);
@@ -85,6 +90,7 @@ public static unsafe class TcpPassiveConnection
         state->Self = (ulong)state; state->Table = table; state->Handle = handle; state->Planner = candidate;
         state->Io = operations; state->Started = now; state->LastNow = now;
         state->Deadline = now + operations.LifetimeNanoseconds; state->NextRetry = now; state->Phase = 1;
+        state->PeerMss = peerMss; state->PeerWindow = peerWindow;
         return Transmit(state, output.Slice(0, packet.BytesWritten), now, duplicate: false);
     }
 
@@ -101,7 +107,8 @@ public static unsafe class TcpPassiveConnection
         if (!SupportedFrame(syn)) return Status.InvalidPacket;
         var candidate = state->Planner;
         if (candidate.ReceiveSynFrameAndWriteSynAckFrame(syn, output, out packet) != TcpPassiveIpv4FramePlanStatus.Success)
-            return Status.InvalidPacket;
+            return packet.Status == TcpPassiveIpv4FramePlanStatus.FrameBufferTooSmall ? Status.OutputTooSmall : Status.InvalidPacket;
+        if (!SynParameters(syn, out ushort peerMss, out _) || peerMss != state->PeerMss) return Status.InvalidPacket;
         return Transmit(state, output.Slice(0, packet.BytesWritten), now, duplicate: true);
     }
 
@@ -118,7 +125,7 @@ public static unsafe class TcpPassiveConnection
         if (output.Length < TcpPassiveIpv4FramePlanner.HeaderBytes) return Status.OutputTooSmall;
         if (!FramesOutside(state, state->Table, ReadOnlySpan<byte>.Empty, output)) return Status.InvalidStorage;
         if (state->Planner.WritePendingSynAckFrame(output, out packet) != TcpPassiveIpv4FramePlanStatus.Success)
-            return Status.InvalidPacket;
+            return packet.Status == TcpPassiveIpv4FramePlanStatus.FrameBufferTooSmall ? Status.OutputTooSmall : Status.InvalidPacket;
         return Transmit(state, output.Slice(0, packet.BytesWritten), now, duplicate: false);
     }
 
@@ -157,6 +164,8 @@ public static unsafe class TcpPassiveConnection
         table->Entries[state->Handle.Index] = TcpConnectionTableEntry.Create(
             TcpConnectionLifecycleState.Established, entry.Key, entry.Sequence);
         state->Planner = candidate; state->Phase = 3; state->Io = default;
+        state->PeerWindow = packet.TcpHeader.WindowSize;
+        state->WindowSequence = packet.TcpHeader.SequenceNumber; state->WindowAcknowledgement = packet.TcpHeader.AcknowledgementNumber;
         return Status.Success;
     }
 
@@ -226,6 +235,16 @@ public static unsafe class TcpPassiveConnection
     private static bool Valid(Operations io) => io.NowNanoseconds != null && io.Send != null &&
         io.LifetimeNanoseconds is > 0 and <= 60_000_000_000 && io.RetryNanoseconds > 0 &&
         io.RetryNanoseconds <= io.LifetimeNanoseconds && io.MaximumAttempts is > 0 and <= 8;
+
+    private static bool SynParameters(ReadOnlySpan<byte> frame, out ushort mss, out ushort window)
+    {
+        mss = 0; window = 0;
+        int ipBytes = (frame[16] << 8) | frame[17];
+        if (ipBytes < 40 || ipBytes > frame.Length - 14 ||
+            TcpHeader.TryParse(frame.Slice(34, ipBytes - 20), out var header, out var options, out _) != PacketParseStatus.Success ||
+            TcpHeader.TryReadMaximumSegmentSize(options, out mss) != PacketParseStatus.Success) return false;
+        window = header.WindowSize; return true;
+    }
 
     // Existing IPv4 parsing rejects options. This controller additionally rejects
     // reserved/fragment flags and nonzero fragment offsets; DF is supported.

@@ -92,7 +92,8 @@ public static unsafe class TcpReceiveWindow
         {
             owner->Offset = stream.ReceiveOffset; owner->Unread = stream.UnreadBytes; owner->RemoteNext = stream.RemoteNextSequenceNumber;
             owner->Table->Entries[owner->Handle.Index] = entry.WithMetadata(entry.State,
-                new TcpConnectionSequenceMetadata(entry.Sequence.LocalNextSequenceNumber, owner->RemoteNext));
+                new TcpConnectionSequenceMetadata(entry.Sequence.LocalNextSequenceNumber, owner->RemoteNext,
+                    entry.Sequence.LocalAcknowledgedSequenceNumber));
             owner->AckPending = 1; return Status.Success;
         }
         if (parsed != TcpEstablishedStreamIpv4FramePlanStatus.TcpStreamFailed) return Status.InvalidPacket;
@@ -165,7 +166,7 @@ public static unsafe class TcpReceiveWindow
         return Status.Success;
     }
 
-    private static Status Validate(Owner* owner, out TcpConnectionTableEntry entry, bool closed = false)
+    internal static Status Validate(Owner* owner, out TcpConnectionTableEntry entry, bool closed = false)
     {
         entry = default;
         if (!Storage(owner, (ulong)sizeof(Owner)) || owner->Self != (ulong)owner ||
@@ -183,7 +184,8 @@ public static unsafe class TcpReceiveWindow
 
     private static TcpEstablishedStream Borrow(Owner* owner, TcpConnectionTableEntry entry) =>
         TcpEstablishedStream.Restore(entry.Key.LocalPort, entry.Key.RemotePort, entry.Sequence.LocalNextSequenceNumber,
-            owner->RemoteNext, new Span<byte>(owner->Buffer, owner->CapacityValue), owner->Offset, owner->Unread);
+            owner->RemoteNext, new Span<byte>(owner->Buffer, owner->CapacityValue), owner->Offset, owner->Unread,
+            entry.Sequence.LocalAcknowledgedSequenceNumber);
     private static bool Unicast(MacAddress mac) => !mac.IsZero && (mac.Octet0 & 1) == 0;
     private static bool Outside(Owner* owner, byte* address, ulong bytes) => OutsideTable(owner->Table, address, bytes) &&
         !Overlap((byte*)owner, (ulong)sizeof(Owner), address, bytes) && !Overlap(owner->Buffer, (ulong)owner->CapacityValue, address, bytes);

@@ -286,15 +286,17 @@ internal static unsafe class TcpReceiveWindowTests
         return hardware->SendResult;
     }
     // Independent wire vectors and one's-complement checksum implementation.
-    private static byte[] Packet(uint sequence, ReadOnlySpan<byte> payload, uint ack = Local, ushort port = 40000, byte flags = 0x18, ushort fragment = 0x4000)
+    internal static byte[] Packet(uint sequence, ReadOnlySpan<byte> payload, uint ack = Local, ushort port = 40000,
+        byte flags = 0x18, ushort fragment = 0x4000, ushort window = 0x2000, ReadOnlySpan<byte> options = default)
     {
-        byte[] bytes = new byte[54 + payload.Length]; new byte[] { 2, 0, 0, 0, 0, 1, 0x52, 0x55, 0x0a, 0, 2, 2, 8, 0 }.CopyTo(bytes, 0);
-        bytes[14] = 0x45; U16(bytes, 16, (ushort)(40 + payload.Length)); U16(bytes, 18, 0x2345); U16(bytes, 20, fragment); bytes[22] = 64; bytes[23] = 6;
+        if (options.Length > 40 || (options.Length & 3) != 0) throw new ArgumentOutOfRangeException(nameof(options));
+        byte[] bytes = new byte[54 + options.Length + payload.Length]; new byte[] { 2, 0, 0, 0, 0, 1, 0x52, 0x55, 0x0a, 0, 2, 2, 8, 0 }.CopyTo(bytes, 0);
+        bytes[14] = 0x45; U16(bytes, 16, (ushort)(40 + options.Length + payload.Length)); U16(bytes, 18, 0x2345); U16(bytes, 20, fragment); bytes[22] = 64; bytes[23] = 6;
         new byte[] { 10, 0, 2, 2, 10, 0, 2, 15 }.CopyTo(bytes, 26); U16(bytes, 24, (ushort)~Sum(bytes.AsSpan(14, 20)));
-        U16(bytes, 34, port); U16(bytes, 36, 8080); U32(bytes, 38, sequence); U32(bytes, 42, ack); bytes[46] = 0x50; bytes[47] = flags;
-        U16(bytes, 48, 0x2000); payload.CopyTo(bytes.AsSpan(54)); TcpChecksum(bytes); return bytes;
+        U16(bytes, 34, port); U16(bytes, 36, 8080); U32(bytes, 38, sequence); U32(bytes, 42, ack); bytes[46] = (byte)(((20 + options.Length) / 4) << 4); bytes[47] = flags;
+        U16(bytes, 48, window); options.CopyTo(bytes.AsSpan(54)); payload.CopyTo(bytes.AsSpan(54 + options.Length)); TcpChecksum(bytes); return bytes;
     }
-    private static void TcpChecksum(byte[] bytes)
+    internal static void TcpChecksum(byte[] bytes)
     { U16(bytes, 50, 0); U16(bytes, 50, (ushort)~Fold(Sum(bytes.AsSpan(26, 8)) + 6U + (uint)bytes.Length - 34 + Sum(bytes.AsSpan(34)))); }
     private static void CheckAck(byte[] bytes, uint local, uint remote, ushort window)
     {
@@ -305,9 +307,9 @@ internal static unsafe class TcpReceiveWindowTests
         HostCheck.Equal(window, BinaryPrimitives.ReadUInt16BigEndian(bytes.AsSpan(48, 2))); HostCheck.Equal((byte)0x10, bytes[47]);
         HostCheck.True(bytes.AsSpan(0, 14).SequenceEqual(new byte[] { 0x52, 0x55, 0x0a, 0, 2, 2, 2, 0, 0, 0, 0, 1, 8, 0 }));
     }
-    private static ushort Sum(ReadOnlySpan<byte> bytes)
+    internal static ushort Sum(ReadOnlySpan<byte> bytes)
     { uint sum = 0; for (int i = 0; i < bytes.Length; i += 2) sum += (uint)((bytes[i] << 8) | (i + 1 < bytes.Length ? bytes[i + 1] : 0)); return Fold(sum); }
-    private static ushort Fold(uint sum) { while (sum > 0xffff) sum = (sum & 0xffff) + (sum >> 16); return (ushort)sum; }
+    internal static ushort Fold(uint sum) { while (sum > 0xffff) sum = (sum & 0xffff) + (sum >> 16); return (ushort)sum; }
     private static void U16(byte[] bytes, int at, ushort value) => BinaryPrimitives.WriteUInt16BigEndian(bytes.AsSpan(at, 2), value);
-    private static void U32(byte[] bytes, int at, uint value) => BinaryPrimitives.WriteUInt32BigEndian(bytes.AsSpan(at, 4), value);
+    internal static void U32(byte[] bytes, int at, uint value) => BinaryPrimitives.WriteUInt32BigEndian(bytes.AsSpan(at, 4), value);
 }

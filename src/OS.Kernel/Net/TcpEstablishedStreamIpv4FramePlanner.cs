@@ -368,7 +368,7 @@ public static class TcpEstablishedStreamIpv4FramePlanner
         ref TcpEstablishedStream stream,
         in TcpEstablishedStreamIpv4FramePlannerInfo info,
         ReadOnlySpan<byte> frame,
-        out TcpEstablishedStreamIpv4FramePlanResult result) => ReceiveFrameCore(ref stream, info, frame, false, out result);
+        out TcpEstablishedStreamIpv4FramePlanResult result) => ReceiveFrameCore(ref stream, info, frame, false, false, out result);
 
     /// <summary>Validate original Ethernet/IP/TCP identity and checksum, then
     /// apply window trimming rather than the legacy strict in-order helper.
@@ -376,11 +376,23 @@ public static class TcpEstablishedStreamIpv4FramePlanner
     public static TcpEstablishedStreamIpv4FramePlanStatus ReceiveWindowFrame(
         ref TcpEstablishedStream stream, in TcpEstablishedStreamIpv4FramePlannerInfo info,
         ReadOnlySpan<byte> frame, out TcpEstablishedStreamIpv4FramePlanResult result) =>
-        ReceiveFrameCore(ref stream, info, frame, true, out result);
+        ReceiveFrameCore(ref stream, info, frame, true, false, out result);
+
+    /// <summary>Read-only original frame/endpoint/checksum admission. Success
+    /// describes validated packet metadata, never delivered bytes or ACK progress.
+    /// Protocol flags, sequence acceptability and ACK/window decisions belong to
+    /// the owner. This does not mutate stream metadata or its borrowed buffer.</summary>
+    public static TcpEstablishedStreamIpv4FramePlanStatus ValidateFrame(
+        in TcpEstablishedStream stream, in TcpEstablishedStreamIpv4FramePlannerInfo info,
+        ReadOnlySpan<byte> frame, out TcpEstablishedStreamIpv4FramePlanResult result)
+    {
+        var view = stream;
+        return ReceiveFrameCore(ref view, info, frame, false, true, out result);
+    }
 
     private static TcpEstablishedStreamIpv4FramePlanStatus ReceiveFrameCore(
         ref TcpEstablishedStream stream, in TcpEstablishedStreamIpv4FramePlannerInfo info,
-        ReadOnlySpan<byte> frame, bool windowed, out TcpEstablishedStreamIpv4FramePlanResult result)
+        ReadOnlySpan<byte> frame, bool windowed, bool validateOnly, out TcpEstablishedStreamIpv4FramePlanResult result)
     {
         TcpEstablishedStreamIpv4FramePlanStatus identityStatus = ValidateIdentity(stream, info);
         if (identityStatus != TcpEstablishedStreamIpv4FramePlanStatus.Success)
@@ -466,6 +478,16 @@ public static class TcpEstablishedStreamIpv4FramePlanner
             return result.Status;
         }
 
+        if (validateOnly)
+        {
+            if (tcpHeader.SourcePort != stream.RemotePort || tcpHeader.DestinationPort != stream.LocalPort)
+            { result = Fail(stream, info, TcpEstablishedStreamIpv4FramePlanStatus.TcpStreamFailed, TcpEstablishedStreamStatus.UnexpectedPorts, PacketParseStatus.Success); return result.Status; }
+            result = TcpEstablishedStreamIpv4FramePlanResult.Success(TcpEstablishedStreamStatus.Success,
+                tcpParseStatus, ethernetHeader, ipv4Header, tcpHeader, 0, tcpSegmentOffset, tcpSegmentLength,
+                tcpSegmentLength - tcpHeader.HeaderLength, info, stream.LocalPort, stream.RemotePort,
+                stream.LocalNextSequenceNumber, stream.RemoteNextSequenceNumber);
+            return result.Status;
+        }
         TcpEstablishedStream pending = stream;
         TcpEstablishedStreamReceiveResult receiveResult;
         TcpEstablishedStreamStatus streamStatus = windowed

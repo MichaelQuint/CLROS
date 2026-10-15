@@ -235,6 +235,7 @@ public ref struct TcpEstablishedStream
     private Span<byte> _receiveBuffer;
     private int _receiveOffset;
     private int _unreadBytes;
+    private uint _minimumAcknowledgement;
 
     private TcpEstablishedStream(
         ushort localPort,
@@ -250,6 +251,7 @@ public ref struct TcpEstablishedStream
         _receiveBuffer = receiveBuffer;
         _receiveOffset = 0;
         _unreadBytes = 0;
+        _minimumAcknowledgement = localNextSequenceNumber;
     }
 
     public ushort LocalPort { get; }
@@ -328,7 +330,10 @@ public ref struct TcpEstablishedStream
             return result.Status;
         }
 
-        if (header.AcknowledgementNumber != LocalNextSequenceNumber)
+        bool validAcknowledgement = windowed
+            ? unchecked(header.AcknowledgementNumber - _minimumAcknowledgement) <= unchecked(LocalNextSequenceNumber - _minimumAcknowledgement)
+            : header.AcknowledgementNumber == LocalNextSequenceNumber;
+        if (!validAcknowledgement)
         {
             result = CreateReceiveFailure(
                 TcpEstablishedStreamStatus.InvalidAcknowledgementNumber,
@@ -544,10 +549,11 @@ public ref struct TcpEstablishedStream
     // this temporary view. These APIs never retain a Span in persistent metadata.
     internal int ReceiveOffset => _receiveOffset;
     internal static TcpEstablishedStream Restore(ushort localPort, ushort remotePort,
-        uint localNext, uint remoteNext, Span<byte> buffer, int offset, int unread)
+        uint localNext, uint remoteNext, Span<byte> buffer, int offset, int unread, uint minimumAcknowledgement)
     {
         var stream = Create(localPort, remotePort, localNext, remoteNext, buffer);
-        stream._receiveOffset = offset; stream._unreadBytes = unread; return stream;
+        stream._receiveOffset = offset; stream._unreadBytes = unread;
+        stream._minimumAcknowledgement = minimumAcknowledgement; return stream;
     }
 
     private void EnsureContiguousTail(int bytesRequired)
