@@ -93,7 +93,7 @@ internal static class NativeAotThreadingTranscriptTests
         }
     }
 
-    private static Vector SuspensionVector(bool earlyHandlerIrq=false,bool selfExit=false,bool tailIrq=false,bool requeue=false,bool restart=false,bool imageNoop=false)
+    private static Vector SuspensionVector(bool earlyHandlerIrq=false,bool selfExit=false,bool tailIrq=false,bool requeue=false,bool restart=false,bool imageNoop=false,bool entropyFallback=false)
     {
         Vector v=new Vector(false).Start();Thread final=v.Clone(2,2),signal=v.Clone(3,3),worker=v.Clone(4,4);
         v.Irq(10,4,4);v.Select(final);v.Wait(0x500200);v.Drain(20);v.Supervisor(3,3,4);
@@ -103,6 +103,11 @@ internal static class NativeAotThreadingTranscriptTests
         {
             v.Select(v.Main);if(restart && cycle==1)v.Resume(0);
             if(imageNoop && cycle==0){v.Call(10,0,[0x500000,4096,3]);v.Call(10,-12,[0x500000,4096,1]);}
+            if(entropyFallback && cycle==0)
+            {
+                v.Call(318,-38,[0x500600,32,0]);v.Call(318,-38,[0x500600,32,0]);
+                v.Call(318,16,[0x500600,32,1]);v.Call(318,-11,[0x500600,8,1]);v.Call(318,-38,[0x500600,8,0]);
+            }
             v.Call(200,0,[4,35]);v.Wait(0x500204);v.Drain((ulong)(50+40*cycle));v.Supervisor(3,1,4);
             v.Select(worker);worker.Frame=worker.Top-1160;worker.Depth=1;worker.Mask=1UL<<34;worker.Rsp=worker.Frame-64;
             if(earlyHandlerIrq && cycle==0)v.Irq(55,1,4);
@@ -300,6 +305,25 @@ internal static class NativeAotThreadingTranscriptTests
         var borrowed=SuspensionVector(imageNoop:true);_=Inspect(borrowed);
         Reject(borrowed,Change(borrowed,"nr=10 a0=5242880 a1=4096 a2=3 ","valueBits",unchecked((ulong)-12L)));
         Reject(borrowed,Change(borrowed,"nr=10 a0=5242880 a1=4096 a2=1 ","valueBits",0));
+    }
+    [HostTest("nativeaot.threading finite entropy refusals preserve remaining bytes and partial reads cannot fabricate success or refill")]
+    private static void EntropyFallback()
+    {
+        var v=SuspensionVector(entropyFallback:true);_=Inspect(v);
+        const string random="nr=318 a0=5244416 ";
+        void Refuse(string selector,ulong result)
+        {
+            var rows=v.Rows.ToArray();int at=Array.FindIndex(rows,r=>r.Contains(selector,StringComparison.Ordinal));
+            HostCheck.True(at>=0,"entropy mutation selector");
+            rows[at]=Regex.Replace(rows[at],@"\b(valueBits|returnValueBits)=[0-9]+",m=>m.Groups[1].Value+"="+result.ToString(CultureInfo.InvariantCulture));
+            bool rejected=false;try{Inspect(v,rows);}catch(ToolFailure failure){rejected=failure.Reason=="threading_entropy_result";}
+            HostCheck.True(rejected,"entropy semantics rejected by wrong control");
+        }
+        Refuse(random+"a1=32 a2=0 ",32);
+        Reject(v,Change(v,random+"a1=32 a2=0 ","a2",1));
+        Refuse(random+"a1=32 a2=1 ",32);
+        Refuse(random+"a1=8 a2=1 ",8);
+        Refuse(random+"a1=8 a2=0 ",unchecked((ulong)-11L));
     }
     [HostTest("nativeaot.threading synthetic signals require actual frame ownership restored context and pending target generation")]
     private static void SignalFailures()

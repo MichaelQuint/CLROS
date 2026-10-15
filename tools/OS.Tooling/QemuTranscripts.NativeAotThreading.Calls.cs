@@ -226,7 +226,14 @@ public static partial class QemuTranscripts
                 case 204: Need(a is 0 or 1 && b is >=8 and <=4096 && memory.Covered(c,8,3) && v==8,"threading_affinity");break;
                 case 228: Need(a is 1 or 6?memory.Covered(b,16,3) && v==0:v==Bits(-22),"threading_monotonic_clock");break;
                 case 302: Need(a is 0 or 1 && b is 3 or 9 && c==0 && memory.Covered(d,16,3) && v==0,"threading_limit");break;
-                case 318: Need(b is >0 and <=32 && c<=3 && memory.Covered(a,b,3) && v==b && b<=entropyLimit-entropyBytes,"threading_entropy");entropyBytes+=b;break;
+                case 318:
+                    Need(b is >0 and <=32 && c<=3 && memory.Covered(a,b,3),"threading_entropy");
+                    ulong remainingEntropy=entropyLimit-entropyBytes;
+                    long entropyResult=remainingEntropy==0?((c&1)!=0?-11:-38):
+                        b>remainingEntropy && (c&1)==0?-38:(long)Math.Min(b,remainingEntropy);
+                    Need(v==Bits(entropyResult),"threading_entropy_result");
+                    if(entropyResult>0)entropyBytes+=(ulong)entropyResult;
+                    break;
                 case 324:
                     Need(b==0 && c==0 && a is 0 or 8 or 16 && v==(a==0?0x18UL:0UL) && (a!=8||barrierRegistered),"threading_barrier");if(a==16)barrierRegistered=true;break;
                 case 24: case 35: case 98: case 137: case 157: case 217: case 239: case 309:

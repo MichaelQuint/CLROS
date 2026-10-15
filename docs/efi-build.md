@@ -2,6 +2,14 @@
 
 ## Development Linux threading profile
 
+[Step1293](../done/step1293.md) adds one strict successful capture each for the
+two focused apps, three-lifetime ThreadPool stress and the runtime matrix, with
+original output and complete cleanup. It records genuine activation/return
+evidence in focused suspension and the matrix. Entropy fallbacks and delayed
+native reaps now match the existing kernel/runtime behavior. Broader GC stress
+still fails its real sleep-window assertion; no application/deadline/time change
+is made. Repeated final-source guests and shared acceptance remain pending.
+
 [Step1292](../done/step1292.md) selects bounded application backing and execution
 limits from the validated manifest. Hello and the focused four/eight-worker
 runtime apps now emit the same real-time budget start/end records as the broader

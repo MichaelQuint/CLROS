@@ -15,7 +15,7 @@ public static partial class QemuTranscripts
         private readonly int bytes;
         private readonly List<CollectionSignal> collections=[];
         private readonly List<(ulong Deadline,ulong Clock,int Reaps)> deadlines=[];
-        private int position,normalReaps,totalReaps,gc,joins,timers,written;
+        private int position,normalReaps,totalReaps,matrixReapsDue,gc,joins,timers,written;
         private bool started,passed;
         internal ulong EarliestClock { get; private set; }=ulong.MaxValue;
         internal ulong LatestClock { get; private set; }
@@ -59,8 +59,9 @@ public static partial class QemuTranscripts
                 }
                 else if(line.StartsWith("NATIVEAOT_MATRIX_GC ",StringComparison.Ordinal))
                 {
-                    ConsumeCollections(2,1);Need(normalReaps>=2,"runtime_matrix_join_ownership");
-                    normalReaps-=2;gc++;
+                    // Managed Join may finish before its native wrapper exits.
+                    // Require the real normal reaps by complete owner teardown.
+                    ConsumeCollections(2,1);matrixReapsDue+=2;gc++;
                 }
                 else if(line.StartsWith("NATIVEAOT_TP_STRESS_TIMER ",StringComparison.Ordinal))
                 {Frequency(fields);Times(fields["before"],fields["after"]);ConsumeDeadline(fields["before"],fields["after"]);timers++;}
@@ -116,6 +117,7 @@ public static partial class QemuTranscripts
         internal void Finish()
         {
             Need(started && passed && written==bytes && position==rows.Length,"runtime_phase_complete");
+            Need(app!="NativeAotRuntimeMatrix" || matrixReapsDue==6 && normalReaps>=matrixReapsDue,"runtime_matrix_join_ownership");
             Need(app=="NativeAotRuntimeSmoke"?joins==1 && timers==1:
                 app=="NativeAotSuspensionStress"?gc==9 && joins==3:
                 app=="NativeAotRuntimeMatrix"?gc==3 && timers==3:timers==3,"runtime_phase_inventory");

@@ -86,7 +86,7 @@ internal static class NativeAotRuntimeTranscriptTests
         v.Rows.Add("M16_008_BUDGET_END nanos=3000000001");v.End(18);return b;
     }
 
-    private static BroadVector Matrix()
+    private static BroadVector Matrix(bool lateNativeExit=false)
     {
         BroadVector b=new("NativeAotRuntimeMatrix");var v=b.Core;b.Write("TEST_START nativeaot.runtime-matrix");
         Thread[] background=new Thread[6];for(int i=0;i<6;i++)background[i]=v.Clone(2+i,2+i);
@@ -108,9 +108,15 @@ internal static class NativeAotRuntimeTranscriptTests
             Activation(b,cpu,basis+50,9);Activation(b,cpu,basis+60,9);
             v.Wake(0x500260);v.Wait(0x500270);v.Drain(basis+80);v.Supervisor(3,2,9);
             v.Select(cpu);v.Call(60,0,[0],4);v.Drain(basis+80);v.Exit(4,1,9);
-            v.Select(gate);v.Resume(0);v.Wake(0x500270);v.Call(60,0,[0],4);v.Drain(basis+80);v.Exit(4,1,8);
+            v.Select(gate);v.Resume(0);v.Wake(0x500270);
+            if(lateNativeExit)v.Irq(basis+80,2,8);
+            else {v.Call(60,0,[0],4);v.Drain(basis+80);v.Exit(4,1,8);}
             v.Select(v.Main);v.Resume(0);int before=round*3-2,progress=round*100;
             b.Write($"NATIVEAOT_MATRIX_GC round={round} collections=2 before={before} after={before+2} workers=2 joined=2 freshTls=2 roots=2 interior=2 tls=2 progressBefore={progress} progressReturned={progress+10} progressAfter={progress+20} finalizedMask={(1<<round)-1} duplicateFinalizers=0");
+            if(lateNativeExit)
+            {
+                v.Irq(basis+80,2,8);v.Select(gate);v.Call(60,0,[0],4);v.Drain(basis+80);v.Exit(4,1,8);v.Select(v.Main);
+            }
             Thread timer=background[2];
             for(int timerRound=1;timerRound<=2;timerRound++)
             {
@@ -237,6 +243,15 @@ internal static class NativeAotRuntimeTranscriptTests
         HostCheck.True(capture.NormalizedTail==string.Join("\r\n",b.Core.Rows)+"\r\n");
         bool rejected=false;try{QemuTranscripts.ValidateNativeAotRuntimeTail("",[],null!,raw,8192,12288);}catch(ToolFailure){rejected=true;}
         HostCheck.True(rejected,"value-only rows cannot replace sealed program authority");
+    }
+    [HostTest("nativeaot.runtime managed matrix joins may precede native wrapper exits but every real normal reap is mandatory")]
+    private static void LateNativeMatrixExit()
+    {
+        var b=Matrix(lateNativeExit:true);var report=b.Inspect();
+        HostCheck.True(report.Reaped==13 && report.SignalReturns==6);
+        int at=b.Core.Rows.FindIndex(r=>r.StartsWith("M16_008_REAP old=4294967305 ",StringComparison.Ordinal));
+        HostCheck.True(at>=0,"late native reap selector");
+        Reject(b,b.Core.Rows.Where((_,i)=>i!=at).ToArray());
     }
 
     private static byte[] Raw(BroadVector b)

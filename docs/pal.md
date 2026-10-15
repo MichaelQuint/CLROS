@@ -1,5 +1,15 @@
 # PAL
 
+[Step1293](../done/step1293.md) records strict successful development captures
+for focused suspension (two actual activation returns), focused ThreadPool,
+three-lifetime ThreadPool stress and the runtime matrix (six activation returns).
+Every capture retains original output, exit0 and full cleanup. Consumers now
+model real finite entropy refusal/partial-read semantics and distinguish managed
+joins from later native reaps, still requiring every owed normal reap at teardown.
+Broader GC stress fails its unchanged one-second sleep window before collection;
+the measured timing and unimplemented redundant-zeroing repair are in the receipt.
+Frozen-source repetition and full-host/native/negative/ancestor acceptance remain.
+
 [Step1292](../done/step1292.md) separates application resources from worker
 capacity. Under M16-008 and its children, a validated main stack of at least
 1 MiB or more than eight workers selects 8192 backing pages (32 MiB),
