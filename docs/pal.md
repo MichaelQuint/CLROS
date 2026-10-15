@@ -1,5 +1,13 @@
 # PAL
 
+[Step1299](../done/step1299.md) records three fresh strict GC-stress captures at
+frozen implementation source e4adc4e. Each completes nine actual activation
+sends/returns and eighteen reaps with full cleanup; original objects and EFIs
+match. The first shared full attempt blocks native execution after stale aggregate
+test expectations fail. Test-only repairs preserve the exact EFI firewall and
+profile exclusions. Shared full/native/negative/ancestor acceptance remains
+pending; all eight issues stay open.
+
 [Step1298](../done/step1298.md) resolves the observed GC-stress startup failure
 by reusing a range's admitted leaf encoding within each root construction/audit.
 Every actual entry, table identity/count, permission and unused page is still
