@@ -203,6 +203,30 @@ internal static unsafe class LinuxStartupServicesTests
         HostCheck.True(owner.Context->Fences == 1); HostCheck.Equal(-22L, owner.Call(324, 1));
     }
 
+    [HostTest("linux.startup coarse monotonic clock uses live epoch with millisecond resolution and checked output")]
+    private static void CoarseClock()
+    {
+        using var owner = new Owner(); owner.Begin();
+        owner.Context->Ticks = 123456789;
+        HostCheck.Equal(0L, owner.Call(228, 6, Output));
+        byte* time = owner.Memory.At(Output);
+        HostCheck.Equal(1UL, *(ulong*)time); HostCheck.Equal(235000000UL, *(ulong*)(time + 8));
+        HostCheck.Equal(0L, owner.Call(228, 1, Output));
+        HostCheck.Equal(1UL, *(ulong*)time); HostCheck.Equal(236567890UL, *(ulong*)(time + 8));
+        owner.Context->Ticks = 199999999;
+        HostCheck.Equal(0L, owner.Call(228, 6, Output));
+        HostCheck.Equal(2UL, *(ulong*)time); HostCheck.Equal(0UL, *(ulong*)(time + 8));
+        byte[] before = new ReadOnlySpan<byte>(time, 16).ToArray();
+        foreach (ulong id in new ulong[] { 0, 5, 7, ulong.MaxValue })
+            HostCheck.Equal(-22L, owner.Call(228, id, Output));
+        ulong ticks = owner.Context->Ticks;
+        HostCheck.Equal(-14L, owner.Call(228, 6, Output + 4090)); HostCheck.Equal(ticks, owner.Context->Ticks);
+        owner.Context->Regress = true; HostCheck.Equal(-5L, owner.Call(228, 6, Output));
+        owner.Context->Regress = false; owner.Context->FailClock = true; HostCheck.Equal(-5L, owner.Call(228, 6, Output));
+        owner.Context->FailClock = false; owner.Context->FailCopy = true; HostCheck.Equal(-14L, owner.Call(228, 6, Output));
+        HostCheck.True(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(time, 16)));
+    }
+
     [HostTest("m16-006 clock conversion regression and copy failures never invent time", HostLane.Fast, 2)]
     private static void Time()
     {

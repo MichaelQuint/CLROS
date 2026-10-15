@@ -2,6 +2,14 @@
 
 ## Development Linux threading profile
 
+[Step1289](../done/step1289.md) adds the real CLOCK_MONOTONIC_COARSE path used
+by pinned NativeAOT low-resolution ticks, sharing the live monotonic epoch at
+1ms resolution. Twenty-four focused checks and native publication pass. Real
+r16 clock6 calls succeed and the app advances beyond its previous thread-start
+failure to five live threads, then stops near the five-minute driver bound.
+Exact stop diagnostics, remaining runtime groups and full cleanup are pending;
+there is no shared-batch or guest runtime acceptance.
+
 [Step1288](../done/step1288.md) adds explicit owned ELF data protection for
 NativeAOT guard-stack cookie initialization. One active R/RW window derives
 physical identity from immutable original non-executable user mappings; later

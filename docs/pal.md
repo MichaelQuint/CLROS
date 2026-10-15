@@ -1,5 +1,12 @@
 # PAL
 
+[Step1289](../done/step1289.md) supplies real coarse monotonic time for NativeAOT
+tick/deadline calculations. R16 clock6 requests succeed; the app advances beyond
+the previous startup timeout to five live threads, then the driver stops near
+its five-minute bound without remaining runtime rows or full cleanup witness.
+Twenty-four focused checks and native publication pass; exact stop diagnostics
+and shared qualification remain pending.
+
 [Step1287](../done/step1287.md) repairs descriptor-backed futex admission and
 retained mapping capacity. The original runtime guest now passes those two
 failures, then stops at readonly ELF data protection before application output.

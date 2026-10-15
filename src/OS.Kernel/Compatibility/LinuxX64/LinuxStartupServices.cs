@@ -175,11 +175,14 @@ public static unsafe class LinuxStartupServices
     }
     private static long Clock(State* state, uint id, ulong address)
     {
-        if (id != 1) return Invalid; // No fabricated realtime/UTC source.
+        if (id != 1 && id != 6) return Invalid; // No fabricated realtime/UTC source.
         if (!LinuxSyscallGateway.ValidateRange(address, 16, LinuxUserPageAccess.Write, state->Owner.User)) return Fault;
         if (!Read(state, out ulong ticks)) return Io;
         byte* time = stackalloc byte[16]; ulong frequency = state->Owner.FrequencyHz;
         *(ulong*)time = ticks / frequency; *(ulong*)(time + 8) = (ticks % frequency) * 1000000000 / frequency;
+        // CLOCK_MONOTONIC_COARSE shares the live monotonic epoch and rounds
+        // down to this adapter's declared millisecond resolution.
+        if (id == 6) *(ulong*)(time + 8) = *(ulong*)(time + 8) / 1000000 * 1000000;
         return Output(state, address, time, 16);
     }
     private static long Info(State* state, ulong address)
