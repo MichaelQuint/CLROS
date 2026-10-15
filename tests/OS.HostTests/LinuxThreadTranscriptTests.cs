@@ -9,8 +9,8 @@ internal static class LinuxThreadTranscriptTests
     private static void PoolEnvelope()
     {
         var rows = Synthetic(); var package = LinuxThreadProofFixture.CreatePackage("Threads");
-        QemuTranscripts.ValidateLinuxThreadTail(Change(rows, 4, "pool", 0xfff97000), package, 0x200000, 0x100000);
-        Reject(Change(rows, 4, "pool", 0xfff98000), package);
+        QemuTranscripts.ValidateLinuxThreadTail(Change(rows, 4, "pool", 0xfff5e000), package, 0x200000, 0x100000);
+        Reject(Change(rows, 4, "pool", 0xfff5f000), package);
         Reject(Change(rows, 4, "code", 16384), package); Reject(Change(rows, 4, "metadata", 45056), package);
         bool rejected = false;
         try { QemuTranscripts.ValidateLinuxThreadTail(Change(rows, 4, "pool", 0x9c000), package, 0x200000, 0x100000); }
@@ -187,7 +187,7 @@ internal static class LinuxThreadTranscriptTests
         "M16_006_POLICY physical=268435456 available=134217728 poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel",
         "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=28672 package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler",
         "M16_005_ARMED root=2097152 cs=59 ss=51 kernelStack=9437184 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null",
-        "M16_008_BOUND root=1048576 pool=3145728 workers=2 code=28672 metadata=102400 userImage=728 timer=idle-only clock=hpet-nanoseconds reuse=off-stack"];
+        "M16_008_BOUND root=1048576 pool=3145728 workers=2 code=53248 metadata=114688 userImage=728 timer=idle-only clock=hpet-nanoseconds reuse=off-stack"];
 
     private static string[] SyntheticPipe(string variant, int ticks)
     {

@@ -1,5 +1,13 @@
 # Diagnostics
 
+[Step1279](../done/step1279.md) updates the current native pool geometry to
+16 workers, 53248 code bytes, 114688 metadata bytes and 162 total pages.
+Consumers derive these limits from the reviewed implementation; independent
+synthetic vectors include the exact final physical boundary and reject overflow,
+old geometry and root overlap. Existing syscall/handler/lifecycle record counts
+and original payload identities are unchanged. These are host parser controls,
+not new serial captures.
+
 [Step1277](../done/step1277.md) admits self-unmap lifetimes only against the
 complete immutable ELF tail and reviewed instruction/syscall boundaries. The
 first row must match the existing live stack/TLS envelope before memory removal;

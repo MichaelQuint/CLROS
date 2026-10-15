@@ -40,7 +40,7 @@ internal static class NativeAotThreadingTranscriptTests
                 "M16_006_POLICY physical=268435456 available=134217728 poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel",
                 "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes="+(Pool?1577712:1320176)+" package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler",
                 "M16_005_ARMED root=8192 cs=59 ss=51 kernelStack=1048576 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null",
-                "M16_008_BOUND root=12288 pool=2097152 workers="+(Pool?8:4)+" code=28672 metadata=102400 userImage=728 timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack"]);
+                "M16_008_BOUND root=12288 pool=2097152 workers="+(Pool?8:4)+" code=53248 metadata=114688 userImage=728 timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack"]);
             Select(Main); Main.Fs=0; Call(9,0x100000000,[0,488,3,0x22,ulong.MaxValue,0]); Main.Fs=0x100000120;
             Call(158,0,[0x1002,Main.Fs]);Call(218,1,[0x500100]);
             foreach(ulong sig in new ulong[]{2,3,8,11,13,18,35})Call(13,0,[sig,0x500400,0,8]);

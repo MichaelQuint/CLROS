@@ -1,14 +1,22 @@
 # PAL
 
+[Step1279](../done/step1279.md) implements a 16-worker native layout and matching
+16-generation signal state within the existing thread-service cap. Host tests
+exercise real service/table exhaustion, isolated pending signals and highest-slot
+exit/reap/reuse, plus every emitted worker path and supported count. This repairs
+the known matrix capacity prerequisite without qualifying actual guest capacity.
+Entropy, observed syscall/wait compatibility and full broader consumers remain
+in progress before the shared full-host/native/guest/ancestor gates.
+
 [Step1278](../done/step1278.md) binds the three broader Linux workloads to
 canonical packages and separately reviewed full instruction indexes. Actual
 factory positives and 36 artifact mutation/rejection controls pass alongside
 seven focused host checks. Matrix worker creation and its barrier establish at
 least nine simultaneous threads; 13 total trace files are not a peak bound.
-The new policy requests the thread service's existing maximum of 16, while the
-native owner still supports eight. Audit/implement observed futex requeue
-compatibility, entropy consumption and long timed waits with the native owner
-expansion and complete protocol consumers before guest admission. Package/index
+The new policy requests the thread service's existing maximum of 16; step1279
+implements the corresponding native layout. Audit/implement observed futex requeue
+compatibility, entropy consumption and long timed waits with complete protocol
+consumers and actual capacity qualification before guest admission. Package/index
 creation is host evidence only; all stable batch gates remain deferred.
 
 [Step1276](../done/step1276.md) passes exact static Linux NativeAOT publication,

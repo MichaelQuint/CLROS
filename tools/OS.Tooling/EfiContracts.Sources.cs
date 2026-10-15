@@ -10,7 +10,7 @@ public static partial class EfiContracts
             {
                 [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.Faults.cs"] = "c00f0817cdfdddf3b1b415ba5b15b0731134b4904a9bae2eec833e29e0acdc37",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs"] = "94b6a505fc808646e6cea6a8c00d40ae62f75e3375de8986b1439ce2b1f825dc",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.cs"] = "dec19bf51231222f52704e69df1b493188a87fd4e0d5bc3f2283c4d520c67869",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.cs"] = "b942059645a37c228ee83615e36e884251cdeae590b65aa1a56912df8c68454b",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.Frames.cs"] = "7ab9ffe72776980fb0d0ba8404f6b041ec75b7675e5a0fac0eb9280a7a044931",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.Pending.cs"] = "a7d7d79daf888082078a0fd16d5080da245bf1dd0b5721e2877a1e5850867463",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs"] = "e629c3ef29bb317ba9fc6fad7bccfc7b4c92b57c4c20bd116f42b4efb39853f1",
@@ -19,7 +19,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs"] = "5b2919a9152fafe7416f0d922f15de232095b316dcb440d9688b4b47f35ce14d",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs"] = "366f8f915f41e3cfd603029614df021f3cc844892dfce079a7dcf48bcb119869",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs"] = "b0437465fef58a208f434e69ac974300de31b8ceedf99b4d3ec8cb478b50c1a6",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs"] = "4fd9f63803056cbe31cddd8ca6d04884f7956c692ac01504cd513806af879fe6",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs"] = "ced13215bbce6783a67e7df371aa372f51bacebed664cd2a468d21cb73f8d8eb",
                 [@"Boot\EfiEntry.LinuxSignals.cs"] = "82950a5dc67e16df8e1eb6bd2a8fb64150bb2c4262b1ddda36e5881bb94e891e",
                 [@"Boot\EfiEntry.LinuxUserInterrupts.cs"] = "041affe69893ab3c272ba1fe512fc9ee2aad5eaa5f1a0203b23419332e161c83",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs"] = "219e55b5e409430e472d4a8cf3d7d9edf1f6250fe3ec3b80c9bf4aad39beb5a3",

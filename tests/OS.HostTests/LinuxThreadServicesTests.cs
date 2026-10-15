@@ -31,9 +31,11 @@ internal static unsafe class LinuxThreadServicesTests
     {
         internal readonly KernelModel Kernel;
         internal readonly uint Capacity;
+        // Extended fixture buffers must stay beyond every modeled worker stack.
+        private int StorageOffset => Capacity > 8 ? 0x20000 : 0;
         internal Services* Service => (Services*)(Kernel.Memory + 0x6000);
-        internal Services.Slot* Slots => (Services.Slot*)(Kernel.Memory + 0x64000);
-        internal Services.Worker* Workers => (Services.Worker*)(Kernel.Memory + 0x68000);
+        internal Services.Slot* Slots => (Services.Slot*)(Kernel.Memory + 0x64000 + StorageOffset);
+        internal Services.Worker* Workers => (Services.Worker*)(Kernel.Memory + (Capacity > 8 ? 0x89000 : 0x68000));
         internal Transition.UserImage* Initial => (Transition.UserImage*)(Kernel.Memory + 0x9000);
         private UserMemory* User => (UserMemory*)(Kernel.Memory + 0xa000);
         private readonly bool _userInterrupts;
@@ -54,14 +56,14 @@ internal static unsafe class LinuxThreadServicesTests
         internal void ChangeMappingLifetime(ulong value) => User->Lifetime = value;
         internal void UseMemory(LinuxMemoryServices.Admission memory) => User->Memory = memory;
         internal void FailClock(bool value) => User->ClockFails = value;
-        internal Services.FutexCell* FutexCells => (Services.FutexCell*)(Kernel.Memory + 0x60000);
+        internal Services.FutexCell* FutexCells => (Services.FutexCell*)(Kernel.Memory + 0x60000 + StorageOffset);
 
         internal Model(bool futex = false, uint futexCapacity = 4, bool userInterrupts = false, uint capacity = 3)
         {
-            HostCheck.True(capacity is > 0 and <= 8);
+            HostCheck.True(capacity is > 0 and <= 16);
             Capacity = capacity; Kernel = new(capacity, capacity, capacity, generation: 5);
             _userInterrupts = userInterrupts;
-            HostCheck.True(sizeof(Services) <= 0x1000 && sizeof(Services.Slot) * capacity <= 0x4000 && sizeof(Services.Worker) * capacity <= 0x1000);
+            HostCheck.True(sizeof(Services) <= 0x1000 && sizeof(Services.Slot) * capacity <= (capacity > 8 ? 0x5000 : 0x4000) && sizeof(Services.Worker) * capacity <= 0x1000);
             *Service = default; new Span<byte>(Slots, checked(sizeof(Services.Slot) * (int)capacity)).Clear();
             new Span<byte>(Workers, checked(sizeof(Services.Worker) * (int)capacity)).Clear();
             *User = new() { Bytes = Kernel.Memory + 0xb000, Service = Service, FailWriteAddress = ulong.MaxValue, FailReadAddress = ulong.MaxValue, Now = 1000, Lifetime = 1 };
@@ -86,8 +88,8 @@ internal static unsafe class LinuxThreadServicesTests
 
         internal Services.FutexAdmission FutexPlan(uint capacity = 4) => new()
         {
-            Cells = FutexCells, Addresses = (WaitAddress.Slot*)(Kernel.Memory + 0x61000),
-            Registrations = (WaitAddress.Registration*)(Kernel.Memory + 0x62000),
+            Cells = FutexCells, Addresses = (WaitAddress.Slot*)(Kernel.Memory + 0x61000 + StorageOffset),
+            Registrations = (WaitAddress.Registration*)(Kernel.Memory + 0x62000 + StorageOffset),
             Capacity = capacity, CellBytes = capacity * (uint)sizeof(Services.FutexCell),
             AddressBytes = capacity * (uint)sizeof(WaitAddress.Slot), RegistrationBytes = Capacity * (uint)sizeof(WaitAddress.Registration),
             OwnerKey = 0x6675746578616464, Resolve = &ResolveFutex, ReadMonotonic = &Monotonic

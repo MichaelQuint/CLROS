@@ -1,5 +1,14 @@
 # App Model
 
+[Step1279](../done/step1279.md) expands the existing native worker and signal
+limits to 16. The reviewed pool has 13 code pages, 28 metadata pages and
+16 guarded worker stacks in 162 total pages. Independent accounting requires
+112448 metadata bytes, leaving 2240 bytes under the fixed control allowance.
+Host controls cover all 16 emitted CALL paths, every admitted count, exhaustion,
+highest-slot signal queue isolation and actual table exit/reap/generation reuse.
+Combined no-stdlib C# compilation passes. Native capacity execution and the
+complete broader protocol/profile consumers remain pending batch qualification.
+
 [Step1278](../done/step1278.md) adds separate canonical packages and sealed
 reviewed instruction indexes for the three Linux-qualified stress/matrix apps.
 The fixed receipt, nine relevant raw sources per app, ELF/DLL/object/stdout and
@@ -7,7 +16,7 @@ complete trace inventory bind each package. An independent audit matches every
 byte in all five executable sections, with no gaps. Seven focused checks and
 actual factory/mutation controls pass. New manifests declare the existing
 thread service's 16-slot limit: the matrix has a causal lower bound of nine
-live threads, exceeding the native owner's current eight. These packages have
+live threads, requiring the step1279 owner expansion. These packages have
 no QEMU selector yet; native capacity, entropy/wait budgets and complete
 workload-specific protocol/profile consumers remain required before batch gates.
 

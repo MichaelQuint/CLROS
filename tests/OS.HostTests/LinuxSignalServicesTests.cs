@@ -65,7 +65,7 @@ internal static unsafe class LinuxSignalServicesTests
             !Signals.Initialize(&fresh,(uint)sizeof(Signals.State),0,2,o.Plan) &&
             !Signals.Initialize(&fresh,(uint)sizeof(Signals.State),SignalKey,0x202,o.Plan));
         invalid.Capacity = 0; HostCheck.True(!Signals.Initialize(&fresh,(uint)sizeof(Signals.State),SignalKey,2,invalid));
-        invalid = o.Plan; invalid.Capacity = 9; HostCheck.True(!Signals.Initialize(&fresh,(uint)sizeof(Signals.State),SignalKey,2,invalid));
+        invalid = o.Plan; invalid.Capacity = 17; HostCheck.True(!Signals.Initialize(&fresh,(uint)sizeof(Signals.State),SignalKey,2,invalid));
         invalid = o.Plan; invalid.CopyToUser = null; HostCheck.True(!Signals.Initialize(&fresh,(uint)sizeof(Signals.State),SignalKey,2,invalid));
         invalid = o.Plan; invalid.FirmwareExited = false; HostCheck.True(!Signals.Initialize(&fresh,(uint)sizeof(Signals.State),SignalKey,2,invalid));
         HostCheck.True(new ReadOnlySpan<byte>(&fresh,sizeof(Signals.State)).IndexOfAnyExcept((byte)0) < 0);

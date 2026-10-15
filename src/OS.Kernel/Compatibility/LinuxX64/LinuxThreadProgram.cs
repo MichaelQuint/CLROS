@@ -10,20 +10,20 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// capture, asynchronous preemption, XSAVE, SMP or upstream runtime proof.</summary>
 public static unsafe class LinuxThreadProgram
 {
-    public const uint Bytes = 28672, MaximumWorkers = 8, DriverStride = 512, DriverResume = 26;
-    public const uint Entries = 0x1000, Workers = 0x1800, WorkerStride = 256;
+    public const uint Bytes = 53248, MaximumWorkers = 16, DriverStride = 512, DriverResume = 26;
+    public const uint Entries = 0x2000, Workers = 0x3000, WorkerStride = 256;
     public const uint Loop = 0x10, EnterUser = 0x60, Handoff = 0x80, WorkerResume = 0x8a;
-    public const uint Recovery = 0x2000, Terminal = 0x2200, TimerHandler = 0x2400;
-    public const uint IrqSaveDisable = 0x2600, IrqRestore = 0x2610, StackPointer = 0x2620, Idle = 0x2630;
-    public const uint ToWorker = 0x3000, FromWorker = 0x5000;
-    public const uint UserFaultCapture = 0x2800;
+    public const uint Recovery = 0x4000, Terminal = 0x4200, TimerHandler = 0x4400;
+    public const uint IrqSaveDisable = 0x4600, IrqRestore = 0x4610, StackPointer = 0x4620, Idle = 0x4630;
+    public const uint ToWorker = 0x5000, FromWorker = 0x9000;
+    public const uint UserFaultCapture = 0x4800;
     public const uint InitialFixedStackBytes = 168, CapturedFixedStackBytes = 80;
 
     // One retained native pool: RX program, supervisor RW/NX metadata, guarded
-    // 16-page switch stack, eight guarded four-page worker stacks, guarded
+    // 16-page switch stack, sixteen guarded four-page worker stacks, guarded
     // four-page IRQ stack and private IDT. The owner publishes/restores leaves;
     // these offsets alone grant no mappings, executable authority or lifetime.
-    public const uint CodePages = Bytes / 4096, MetadataPage = CodePages, MetadataPages = 25;
+    public const uint CodePages = Bytes / 4096, MetadataPage = CodePages, MetadataPages = 28;
     public const uint SwitchGuardPage = MetadataPage + MetadataPages, SwitchPages = 18;
     public const uint WorkerPage = SwitchGuardPage + SwitchPages, WorkerPages = 6;
     public const uint IrqGuardPage = WorkerPage + MaximumWorkers * WorkerPages, IrqPages = 6;

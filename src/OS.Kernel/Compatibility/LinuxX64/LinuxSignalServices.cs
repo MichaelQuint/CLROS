@@ -10,7 +10,7 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// to the thread/native owner, not this metadata block.</summary>
 public static unsafe partial class LinuxSignalServices
 {
-    public const uint SignalCount = 64, MaximumThreads = 8;
+    public const uint SignalCount = 64, MaximumThreads = 16;
     public const uint OnStack = 1, Disabled = 2, AutoDisarm = 0x80000000, MinimumStackBytes = 2048;
     // Linux UAPI flags, including x86 SA_RESTORER; SA_UNSUPPORTED is cleared.
     public const ulong ActionFlags = 0xdc000807;

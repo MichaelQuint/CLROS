@@ -11,7 +11,8 @@ internal static unsafe class KernelThreadTableTests
     internal const ulong Key = 0x746872656164;
     internal sealed class Model : IDisposable
     {
-        internal const int Bytes = 0x80000;
+        internal const int Bytes = 0x90000;
+        private readonly bool _extended;
         internal readonly byte* Memory = (byte*)NativeMemory.AlignedAlloc(Bytes, 4096);
         internal KernelThreadTable* Table => (KernelThreadTable*)Memory;
         internal KernelThreadSlot* Slots => (KernelThreadSlot*)(Memory + 0x2000);
@@ -24,6 +25,7 @@ internal static unsafe class KernelThreadTableTests
         internal Model(uint capacity = 3, uint ready = 3, uint deadlines = 3, bool initialize = true,
             uint generation = 1, ulong sequence = 0)
         {
+            _extended = capacity > 8;
             new Span<byte>(Memory, Bytes).Fill(0xa5); *Table = default;
             Owner = new() { Initialized = true, GuardsVerified = true, MappingsVerified = true,
                 Key = Key, CurrentKey = Key, Root = 0x1000, CurrentRoot = 0x1000, Flags = 2,
@@ -37,7 +39,7 @@ internal static unsafe class KernelThreadTableTests
                 ResumeRip = Code + 0x80, Kind = ThreadContextSwitch.ResumeKind.CapturedCall };
             HostCheck.Equal(X64ThreadContext.Status.Ok,
                 X64ThreadContext.Initialize(Supervisor.Context, 688, Supervisor.ResumeRip, SupervisorRsp, 0xffbf));
-            for (int i = 0; i < 8; i++) Prepare(i);
+            for (int i = 0; i < (_extended ? 16 : 8); i++) Prepare(i);
             if (initialize) HostCheck.Equal(S.Ok, Bind(capacity, ready, deadlines, generation, sequence));
         }
         internal S Bind(uint capacity = 3, uint ready = 3, uint deadlines = 3, uint generation = 1, ulong sequence = 0,
@@ -45,7 +47,7 @@ internal static unsafe class KernelThreadTableTests
             => Table->Initialize(key, flags, Owner, Supervisor, slots == null ? Slots : slots,
                 capacity * (uint)sizeof(KernelThreadSlot), capacity, readyBuffer == null ? Ready : readyBuffer,
                 ready * 8, ready, Deadlines, deadlines * (uint)sizeof(DeadlineQueue.Entry), deadlines, 0, generation, sequence);
-        internal X64ThreadContext* Context(int i) => (X64ThreadContext*)(Memory + 0x21000 + i * 0x1000);
+        internal X64ThreadContext* Context(int i) => (X64ThreadContext*)(Memory + 0x21000 + i * (_extended ? 0x2b0 : 0x1000));
         internal ulong Stack(int i) => (ulong)Memory + 0x40000 + (uint)i * 0x4000;
         internal void Prepare(int i) => HostCheck.Equal(X64ThreadContext.Status.Ok,
             X64ThreadContext.Initialize(Context(i), 688, Code + 0x100, Stack(i) + 8192 - 72, 0xffbf));

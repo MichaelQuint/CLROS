@@ -2,6 +2,15 @@
 
 ## Development Linux threading profile
 
+[Step1279](../done/step1279.md) expands `LinuxThreadProgram` and the fixed signal
+state to 16 workers. Current `M16_008_BOUND` code/metadata sizes are
+53248/114688 bytes; the full retained native pool is 162 pages. Existing owner
+allocation, guarded mapping, callback addresses and terminal scrub derive the
+reviewed constants. The separate scheduler ancestor arena is unchanged.
+All 16 CALL paths and boundary/reuse controls pass on the host, and combined
+M16-008/009 no-stdlib C# compilation passes. Actual native/IRQ/stack/cleanup
+qualification remains required at the stable batch boundary.
+
 [Step1278](../done/step1278.md) adds host-only commands for exactly
 `NativeAotSuspensionStress`, `NativeAotThreadPoolStress` and
 `NativeAotRuntimeMatrix`:
@@ -14,8 +23,8 @@ linux runtime-program <app> <package> <reviewed-complete-llvm-dump>
 These bind the step1276 evidence and exact reviewed runtime-domain index.
 They preserve the original focused commands/selectors and grant no QEMU
 admission. All three manifests request 16 slots, within the existing host
-thread-service limit but beyond the current eight-slot native owner. Native
-owner expansion and full protocol/profile admission remain pending.
+thread-service limit, with the matching native layout implemented in step1279.
+Live capacity qualification and full protocol/profile admission remain pending.
 
 [Step1277](../done/step1277.md) wires an optional per-generation return policy
 into the existing M16-008/009 owner. Only the exact static RX libc
