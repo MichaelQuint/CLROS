@@ -12,7 +12,8 @@ namespace OS.Drivers;
 public static unsafe class ContinuingVirtioNet
 {
     public const ushort QueueSize = 8;
-    public const uint RingBytes = 256, BufferBytes = 1536, BuffersOffset = 512, BackingBytes = 32768;
+    public const uint RingBytes = 256, TransmitRingOffset = VirtioNetQueue.TransmitRingOffset,
+        BufferBytes = 1536, BuffersOffset = 4096, BackingBytes = 32768;
     public const int MaximumFrameBytes = 1514;
     public enum Status : byte
     {
@@ -82,7 +83,7 @@ public static unsafe class ContinuingVirtioNet
             return Fail(state, Status.OwnershipFailed);
         for (uint i = 0; i < BackingBytes; i++) state->Data[i] = 0;
         *(ushort*)(state->Data + state->Plan.AvailableRing.Offset) = 1; // NO_INTERRUPT: bounded polling owner.
-        *(ushort*)(state->Data + RingBytes + state->Plan.AvailableRing.Offset) = 1;
+        *(ushort*)(state->Data + TransmitRingOffset + state->Plan.AvailableRing.Offset) = 1;
         for (ushort i = 0; i < QueueSize; i++)
         {
             if (VirtqueueDescriptors.TryAllocate(&state->Rx, out tokens[i]) != VirtqueueDescriptorStatus.Success || tokens[i].Index != i)
@@ -121,7 +122,7 @@ public static unsafe class ContinuingVirtioNet
         if (VirtqueueDescriptors.TryPublish(&state->Tx, token) != VirtqueueDescriptorStatus.Success)
             return Fail(state, Status.OwnershipFailed);
         state->TxMask |= (byte)(1 << id);
-        byte* available = state->Data + RingBytes + state->Plan.AvailableRing.Offset;
+        byte* available = state->Data + TransmitRingOffset + state->Plan.AvailableRing.Offset;
         *(ushort*)(available + 4 + (state->TxAvailable & 7) * 2) = id;
         if (!Barrier(state)) return Fail(state, Status.OrderingFailed);
         state->TxAvailable = unchecked((ushort)(state->TxAvailable + 1));
@@ -134,10 +135,15 @@ public static unsafe class ContinuingVirtioNet
     /// duplicate/stale ownership, zero device-written length and index distance.
     /// A protocol/order fault retains backing until reset.</summary>
     public static Status Reclaim(State* state, uint budget, out uint count)
+        => Reclaim(state, budget, out count, out _);
+
+    // The retained owner needs the validated, already-completed IDs left by a
+    // small budget so it cannot time them out before the next bounded reclaim.
+    internal static Status Reclaim(State* state, uint budget, out uint count, out byte observedRemaining)
     {
-        count = 0;
+        count = 0; observedRemaining = 0;
         if (!Valid(state) || budget == 0 || budget > QueueSize) return Status.InvalidState;
-        Status status = Pending(state, true, out ushort pending);
+        Status status = Pending(state, true, out ushort pending, out byte observed);
         if (status != Status.Success) return status;
         if (pending == 0) return Status.Empty;
         uint take = pending < budget ? pending : budget;
@@ -154,6 +160,7 @@ public static unsafe class ContinuingVirtioNet
             state->TxUsed = unchecked((ushort)(state->TxUsed + 1)); count++;
         }
         state->Reclaimed += count;
+        observedRemaining = (byte)(observed & state->TxMask);
         return Status.Success;
     }
 
@@ -169,7 +176,7 @@ public static unsafe class ContinuingVirtioNet
         if (!Valid(state)) return Status.InvalidState;
         fixed (byte* target = destination)
             if (destination.Length != 0 && Aliases(state, (ulong)target, (ulong)destination.Length)) return Status.InvalidStorage;
-        Status status = Pending(state, false, out ushort pending);
+        Status status = Pending(state, false, out ushort pending, out _);
         if (status != Status.Success) return status;
         if (pending == 0) return Status.Empty;
         byte* entry = UsedEntry(state, false, state->RxUsed);
@@ -225,15 +232,14 @@ public static unsafe class ContinuingVirtioNet
         return Status.Success;
     }
 
-    private static Status Pending(State* s, bool tx, out ushort pending)
+    private static Status Pending(State* s, bool tx, out ushort pending, out byte seen)
     {
-        pending = 0;
+        pending = 0; seen = 0;
         if (!Barrier(s)) return Fail(s, Status.OrderingFailed);
-        ushort producer = *(ushort*)(s->Data + (tx ? RingBytes : 0) + s->Plan.UsedRing.Offset + 2);
+        ushort producer = *(ushort*)(s->Data + (tx ? TransmitRingOffset : 0) + s->Plan.UsedRing.Offset + 2);
         pending = unchecked((ushort)(producer - (tx ? s->TxUsed : s->RxUsed)));
         if (pending > QueueSize) return Fail(s, Status.InvalidCompletion);
         if (!Barrier(s)) return Fail(s, Status.OrderingFailed);
-        byte seen = 0;
         for (uint i = 0; i < pending; i++)
         {
             byte* entry = UsedEntry(s, tx, unchecked((ushort)((tx ? s->TxUsed : s->RxUsed) + i)));
@@ -248,12 +254,12 @@ public static unsafe class ContinuingVirtioNet
 
     private static void Descriptor(State* s, bool tx, ushort id, uint length)
     {
-        byte* d = s->Data + (tx ? RingBytes : 0) + id * 16;
+        byte* d = s->Data + (tx ? TransmitRingOffset : 0) + id * 16;
         *(ulong*)d = s->Range.DeviceAddress + BuffersOffset + (uint)(id + (tx ? QueueSize : 0)) * BufferBytes;
         *(uint*)(d + 8) = length; *(ushort*)(d + 12) = (ushort)(tx ? 0 : 2); *(ushort*)(d + 14) = 0;
     }
     private static byte* Buffer(State* s, bool tx, ushort id) => s->Data + BuffersOffset + (uint)(id + (tx ? QueueSize : 0)) * BufferBytes;
-    private static byte* UsedEntry(State* s, bool tx, ushort ordinal) => s->Data + (tx ? RingBytes : 0) + s->Plan.UsedRing.Offset + 4 + (ordinal & 7) * 8;
+    private static byte* UsedEntry(State* s, bool tx, ushort ordinal) => s->Data + (tx ? TransmitRingOffset : 0) + s->Plan.UsedRing.Offset + 4 + (ordinal & 7) * 8;
     private static bool Barrier(State* s) => s->Fence(s->Context) == 1;
     private static Status Fail(State* s, Status status) { s->Phase = 2; return status; }
     private static bool Bound(State* s) => Storage(s, (ulong)sizeof(State)) && s->Self == (ulong)s && s->Epoch != 0 && s->Data != null && s->Tokens != null && s->Fence != null;

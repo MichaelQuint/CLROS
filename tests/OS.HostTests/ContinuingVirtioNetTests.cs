@@ -7,7 +7,7 @@ internal static unsafe class ContinuingVirtioNetTests
 {
     // Independent size-eight wire layout without EVENT_IDX:128 descriptor
     // bytes,20 available bytes, then68 used bytes aligned to four.
-    private const int RxAvailable = 128, RxUsed = 148, TxAvailable = 384, TxUsed = 404;
+    private const int RxAvailable = 128, RxUsed = 148, TxAvailable = 2176, TxUsed = 2196;
 
     [HostTest("net.continuing prepares eight RX buffers in the device address domain", HostLane.Fast, 0)]
     private static bool Layout()
@@ -18,7 +18,7 @@ internal static unsafe class ContinuingVirtioNetTests
         HostCheck.Equal((ushort)0, *(ushort*)(f.Data + TxAvailable + 2));
         for (int i = 0; i < 8; i++)
         {
-            HostCheck.Equal(0x400000UL + 512UL + (ulong)i * 1536, *(ulong*)(f.Data + i * 16));
+            HostCheck.Equal(0x400000UL + 4096UL + (ulong)i * 1536, *(ulong*)(f.Data + i * 16));
             HostCheck.Equal(1536U, *(uint*)(f.Data + i * 16 + 8));
             HostCheck.Equal((ushort)2, *(ushort*)(f.Data + i * 16 + 12));
             HostCheck.Equal((ushort)i, *(ushort*)(f.Data + RxAvailable + 4 + i * 2));
@@ -99,8 +99,8 @@ internal static unsafe class ContinuingVirtioNetTests
             f.Completion(false, 0, 0, variant == 0 ? uint.MaxValue : variant == 1 ? 25U : 26U);
             *(ushort*)(f.Data + RxUsed + 2) = (ushort)(variant == 2 ? 2 : 1);
             if (variant == 2) f.Completion(false, 1, 0, 26);
-            if (variant == 3) f.Data[512] = 1; // Actual no-offload header rejects checksum work.
-            if (variant == 4) *(ushort*)(f.Data + 512 + 10) = 2; // No multi-buffer assembly in this owner.
+            if (variant == 3) f.Data[4096] = 1; // Actual no-offload header rejects checksum work.
+            if (variant == 4) *(ushort*)(f.Data + 4096 + 10) = 2; // No multi-buffer assembly in this owner.
             output.Fill(0xcc);
             HostCheck.Equal(variant >= 3 ? Net.Status.InvalidFrame : Net.Status.InvalidCompletion,
                 Net.Receive(f.State, output, out _));
@@ -214,7 +214,7 @@ internal static unsafe class ContinuingVirtioNetTests
         internal void Completion(bool tx, uint ordinal, uint id, uint length)
         { byte* e = Data + (tx ? TxUsed : RxUsed) + 4 + (ordinal & 7) * 8; *(uint*)e = id; *(uint*)(e + 4) = length; }
         internal void Packet(uint id, byte value)
-        { byte* b = Data + 512 + id * 1536; new Span<byte>(b, 26).Clear(); *(ushort*)(b + 10) = 1; Frame(new Span<byte>(b + 12, 14)); b[12] = value; }
+        { byte* b = Data + 4096 + id * 1536; new Span<byte>(b, 26).Clear(); *(ushort*)(b + 10) = 1; Frame(new Span<byte>(b + 12, 14)); b[12] = value; }
         public void Dispose()
         { NativeMemory.Free(State); NativeMemory.Free(Slots); NativeMemory.Free(Tokens); NativeMemory.Free(Hook); NativeMemory.AlignedFree(Data); }
     }
