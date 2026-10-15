@@ -538,6 +538,44 @@ public struct TcpPassiveIpv4FramePlanner
         return result.Status;
     }
 
+    /// <summary>Serialize the original pending SYN-ACK without changing the
+    /// handshake or its sequence numbers. Output is caller-owned; short output
+    /// writes nothing. Timers, TX admission and retry budgets belong to the
+    /// connection owner. Established/failed/listen states are unsupported.</summary>
+    public TcpPassiveIpv4FramePlanStatus WritePendingSynAckFrame(
+        Span<byte> outboundFrame, out TcpPassiveIpv4FramePlanResult result)
+    {
+        var identity = ValidateIdentity();
+        if (identity != TcpPassiveIpv4FramePlanStatus.Success) { result = Fail(identity); return result.Status; }
+        if (_handshake.State != TcpPassiveOpenHandshakeState.SynReceived)
+        { result = Fail(TcpPassiveIpv4FramePlanStatus.InvalidState, TcpPassiveOpenHandshakeStatus.InvalidState, PacketParseStatus.Success); return result.Status; }
+        if (outboundFrame.Length < HeaderBytes)
+        { result = Fail(TcpPassiveIpv4FramePlanStatus.FrameBufferTooSmall, TcpPassiveOpenHandshakeStatus.BufferTooSmall, PacketParseStatus.BufferTooSmall); return result.Status; }
+
+        Span<byte> segment = stackalloc byte[TcpHeader.MinHeaderLength];
+        var status = TcpHeader.TryWrite(segment, _info.LocalPort, _info.RemotePort,
+            _info.InitialSequenceNumber, _handshake.RemoteNextSequenceNumber,
+            TcpPassiveOpenHandshake.FlagSyn | TcpPassiveOpenHandshake.FlagAck,
+            _info.WindowSize, checksum: 0, urgentPointer: 0,
+            ReadOnlySpan<byte>.Empty, ReadOnlySpan<byte>.Empty, out int count);
+        if (status == PacketParseStatus.Success)
+            status = TryWriteTcpChecksum(segment.Slice(0, count), _info.LocalAddress, _info.RemoteAddress);
+        if (status != PacketParseStatus.Success)
+        { result = Fail(TcpPassiveIpv4FramePlanStatus.TcpSegmentWriteFailed, TcpPassiveOpenHandshakeStatus.SegmentWriteFailed, status); return result.Status; }
+        status = TryWriteFrame(outboundFrame, segment.Slice(0, count),
+            out EthernetHeader ethernet, out Ipv4Header ipv4, out int bytes);
+        if (status != PacketParseStatus.Success)
+        { result = Fail(MapFrameWriteFailure(status), TcpPassiveOpenHandshakeStatus.Success, status); return result.Status; }
+        status = TcpHeader.TryParse(segment.Slice(0, count), out TcpHeader tcp, out _, out _);
+        if (status != PacketParseStatus.Success)
+        { result = Fail(TcpPassiveIpv4FramePlanStatus.TcpSegmentWriteFailed, TcpPassiveOpenHandshakeStatus.SegmentWriteFailed, status); return result.Status; }
+        result = TcpPassiveIpv4FramePlanResult.Success(_handshake.State, TcpPassiveOpenHandshakeStatus.Success,
+            status, ethernet, ipv4, tcp, bytes, EthernetHeader.HeaderLength + Ipv4Header.MinHeaderLength,
+            count, _info, _handshake.LocalNextSequenceNumber,
+            _handshake.RemoteInitialSequenceNumber, _handshake.RemoteNextSequenceNumber);
+        return result.Status;
+    }
+
     private PacketParseStatus TryWriteFrame(
         Span<byte> frame,
         ReadOnlySpan<byte> tcpSegment,

@@ -1,5 +1,17 @@
 # Networking
 
+[Step1314](../done/step1314.md) composes passive handshake ownership in
+`TcpPassiveConnection`, using the existing table and backlog. It retains a pending
+tuple during TX pressure, stages invalid ACKs without poisoning the live planner,
+and establishes only after backlog admission. Exact duplicate SYNs and due replies
+preserve the original sequence space and hard deadline; only accepted initial or
+scheduled sends consume retry attempts. Timeout/cancel releases pending metadata;
+established handles pass to the later stream/close consumer. Eight owner checks
+and one pending-writer check join the passing 209-check TCP fast filter across 26
+fixtures. These use host packet vectors and clock/TX callbacks. #149 remains open
+and acceptance-blocked; default-off guest composition and independent packet
+qualification are still required. No live TCP or socket acceptance is added.
+
 [Step1313](../done/step1313.md) adds the bounded host `QemuEthernetPeer`
 transport for the batch's planned independent packet injector. It owns one IPv4
 loopback socket-netdev connection with a finite lifetime, exact length-prefixed

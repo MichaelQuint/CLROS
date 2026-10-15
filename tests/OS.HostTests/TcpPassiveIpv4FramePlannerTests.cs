@@ -531,6 +531,30 @@ internal static class TcpPassiveIpv4FramePlannerTests
             && !RuntimeHelpers.IsReferenceOrContainsReferences<TcpPassiveIpv4FramePlanResult>());
     }
 
+    [HostTest("net.tcp.passive.ipv4 pending reply writer preserves state and short output", HostLane.Fast, 9)]
+    private static void PendingReplyWriter()
+    {
+        var planner = CreatePlanner(); byte[] output = PoisonedFrame(TcpPassiveIpv4FramePlanner.HeaderBytes);
+        byte[] original = output.ToArray();
+        HostCheck.Equal(TcpPassiveIpv4FramePlanStatus.InvalidState, planner.WritePendingSynAckFrame(output, out _));
+        HostCheck.True(output.AsSpan().SequenceEqual(original));
+        planner = PreparedPlanner();
+        HostCheck.Equal(TcpPassiveIpv4FramePlanStatus.FrameBufferTooSmall,
+            planner.WritePendingSynAckFrame(output.AsSpan(0, output.Length - 1), out _));
+        HostCheck.True(output.AsSpan().SequenceEqual(original));
+        HostCheck.Equal(TcpPassiveOpenHandshakeState.SynReceived, planner.State);
+        HostCheck.Equal(TcpPassiveIpv4FramePlanStatus.Success, planner.WritePendingSynAckFrame(output, out var reply));
+        HostCheck.True(reply.Succeeded); HostCheck.Equal(ServerInitialSequence + 1, planner.LocalNextSequenceNumber);
+        HostCheck.Equal(ClientInitialSequence + 1, planner.RemoteNextSequenceNumber);
+        byte[] ack = CreateClientSynFrame(RemoteMac(), LocalMac(), RemoteAddress(), LocalAddress(),
+            RemotePort, LocalPort, ClientInitialSequence + 1, ServerInitialSequence + 1, TcpPassiveOpenHandshake.FlagAck);
+        HostCheck.Equal(TcpPassiveIpv4FramePlanStatus.Success, planner.ReceiveFinalAckFrame(ack, out _));
+        original = output.ToArray();
+        HostCheck.Equal(TcpPassiveIpv4FramePlanStatus.InvalidState, planner.WritePendingSynAckFrame(output, out _));
+        HostCheck.Equal(TcpPassiveOpenHandshakeState.Established, planner.State);
+        HostCheck.True(output.AsSpan().SequenceEqual(original));
+    }
+
     private static TcpPassiveIpv4FramePlanner PreparedPlanner()
     {
         TcpPassiveIpv4FramePlanner planner = CreatePlanner();

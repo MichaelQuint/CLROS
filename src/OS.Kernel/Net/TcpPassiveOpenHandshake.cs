@@ -136,6 +136,10 @@ public struct TcpPassiveOpenHandshake
         return new TcpPassiveOpenHandshake(localPort, remotePort, initialSequenceNumber);
     }
 
+    /// <summary>Accept a first SYN or an exact pending duplicate and reproduce
+    /// the original SYN-ACK. No timers or send admission are owned here. Stage a
+    /// copy when rejection must preserve a live connection: malformed/wrong
+    /// segments retain this helper's terminal Failed contract.</summary>
     public TcpPassiveOpenHandshakeStatus ReceiveSynAndWriteSynAck(
         ReadOnlySpan<byte> inboundSegment,
         Span<byte> outboundSegment,
@@ -143,7 +147,7 @@ public struct TcpPassiveOpenHandshake
         ushort checksum,
         out TcpPassiveOpenHandshakeTransitionResult result)
     {
-        if (State != TcpPassiveOpenHandshakeState.Listen)
+        if (State != TcpPassiveOpenHandshakeState.Listen && State != TcpPassiveOpenHandshakeState.SynReceived)
         {
             result = TcpPassiveOpenHandshakeTransitionResult.Fail(
                 TcpPassiveOpenHandshakeStatus.InvalidState,
@@ -181,6 +185,11 @@ public struct TcpPassiveOpenHandshake
                 TcpPassiveOpenHandshakeStatus.InvalidFlags,
                 parseStatus,
                 out result);
+        }
+
+        if (State == TcpPassiveOpenHandshakeState.SynReceived && header.SequenceNumber != RemoteInitialSequenceNumber)
+        {
+            return Fail(TcpPassiveOpenHandshakeStatus.WrongSequenceNumber, parseStatus, out result);
         }
 
         uint remoteNextSequenceNumber = NextSequence(header.SequenceNumber);
