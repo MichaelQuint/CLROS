@@ -1,5 +1,16 @@
 # PAL
 
+[Step1280](../done/step1280.md) implements the runtime entropy prerequisite.
+The M16-008/009 owner selects a finite 256-byte reservoir for the existing
+package policy requesting more than eight threads; original policies retain
+32 bytes. Eight genuine guarded firmware acquisitions fill it before EBS.
+Each syscall remains bounded to 32 bytes, burns attempted output even on partial
+copy failure, and cannot refill. Full-extent alias checks and explicit discard
+protect the lifetime; capture failure and returned-owner cleanup scrub it.
+Seventeen focused startup-service checks pass. The added firmware callback
+controls and native/guest qualification remain for the development agent's
+shared validation. No new workload selector or runtime acceptance is added.
+
 [Step1279](../done/step1279.md) implements a 16-worker native layout and matching
 16-generation signal state within the existing thread-service cap. Host tests
 exercise real service/table exhaustion, isolated pending signals and highest-slot

@@ -9,7 +9,7 @@ internal static unsafe class LinuxStartupServicesTests
     {
         public LinuxMemoryServices.Admission Memory;
         public ulong Ticks;
-        public uint Reads, Copies, Fences;
+        public uint Reads, Copies, Fences, PartialCopyBytes;
         public bool FailCopy, FailClock, Regress;
     }
     private sealed class Owner : IDisposable
@@ -18,15 +18,18 @@ internal static unsafe class LinuxStartupServicesTests
         public readonly LinuxStartupServices.State* State;
         public readonly Model* Context;
         public readonly byte* Entropy;
+        public readonly uint EntropyBytes;
         public Owner() : this(new LinuxMemoryServicesTests.Owner()) { }
-        public Owner(LinuxMemoryServicesTests.Owner memory)
+        public Owner(uint entropyBytes) : this(new LinuxMemoryServicesTests.Owner(), entropyBytes) { }
+        public Owner(LinuxMemoryServicesTests.Owner memory, uint entropyBytes = 32)
         {
             Memory = memory;
             Memory.Begin();
             HostCheck.Equal((long)Output, LinuxMemoryServices.Map(Memory.State, Output, 4096, 3, 0x100022, ulong.MaxValue, 0));
             State = (LinuxStartupServices.State*)NativeMemory.AlignedAlloc((nuint)sizeof(LinuxStartupServices.State), 16); *State = default;
             Context = (Model*)NativeMemory.AlignedAlloc((nuint)sizeof(Model), 16); *Context = new() { Memory = Memory.Memory, Ticks = 10000 };
-            Entropy = (byte*)NativeMemory.Alloc(32); for (uint i = 0; i < 32; i++) Entropy[i] = (byte)(i + 1);
+            EntropyBytes = entropyBytes;
+            Entropy = (byte*)NativeMemory.Alloc(entropyBytes); for (uint i = 0; i < entropyBytes; i++) Entropy[i] = (byte)(i % 251 + 1);
         }
         public LinuxStartupServices.Admission Admission() => new()
         {
@@ -34,7 +37,7 @@ internal static unsafe class LinuxStartupServicesTests
             CopyToUser = &Copy, ReadClock = &Clock, MemoryBarrier = &Fence, FrequencyHz = 100000000,
             PhysicalBytes = 256 * 1024 * 1024, AvailableBytes = 64 * 1024 * 1024,
             HeapStart = Heap, HeapBytes = 2 * 1024 * 1024, StackBytes = 65536,
-            ProcessId = 1, Entropy = Entropy, CapturedEntropyBytes = 32, SingleCpuValidated = true, FirmwareExited = true
+            ProcessId = 1, Entropy = Entropy, CapturedEntropyBytes = EntropyBytes, SingleCpuValidated = true, FirmwareExited = true
         };
         public void Begin() => HostCheck.True(LinuxStartupServices.Begin(State, Admission()));
         public long Call(ulong number, ulong a0 = 0, ulong a1 = 0, ulong a2 = 0, ulong a3 = 0, ulong a4 = 0, ulong a5 = 0) =>
@@ -76,7 +79,8 @@ internal static unsafe class LinuxStartupServicesTests
     private static byte Copy(void* context, ulong address, byte* source, uint bytes)
     {
         Model* model = (Model*)context; model->Copies++;
-        if (model->FailCopy) return 0;
+        if (model->FailCopy && model->PartialCopyBytes == 0) return 0;
+        if (model->FailCopy && bytes > model->PartialCopyBytes) bytes = model->PartialCopyBytes;
         for (uint i = 0; i < bytes; i++)
         {
             var m = model->Memory;
@@ -85,7 +89,7 @@ internal static unsafe class LinuxStartupServicesTests
             if (physical < m.PoolPhysical || physical >= m.PoolPhysical + m.PoolPages * 4096UL) return 0;
             m.Pool[physical - m.PoolPhysical] = source[i];
         }
-        return 1;
+        return model->FailCopy ? (byte)0 : (byte)1;
     }
     [UnmanagedCallersOnly]
     private static byte Clock(void* context, ulong* ticks)
@@ -190,6 +194,101 @@ internal static unsafe class LinuxStartupServicesTests
         HostCheck.True(new ReadOnlySpan<byte>(owner.Entropy, 32).IndexOfAnyExcept((byte)0) == -1);
         HostCheck.Equal(-11L, owner.Call(318, Output, 16, 1)); HostCheck.Equal(-38L, owner.Call(318, Output, 16));
         HostCheck.Equal(-22L, owner.Call(318, Output, 16, 4));
+    }
+
+    [HostTest("linux.startup runtime entropy serves observed 136 and 200 byte lifetimes without reuse")]
+    private static void RuntimeEntropy()
+    {
+        foreach (uint total in new uint[] { 136, 200, 256 })
+        {
+            using var owner = new Owner(256); owner.Begin();
+            uint used = 0;
+            while (used < total)
+            {
+                uint count = Math.Min(8U, total - used);
+                long allocations = GC.GetAllocatedBytesForCurrentThread();
+                long result = owner.Call(318, Output + used, count);
+                allocations = GC.GetAllocatedBytesForCurrentThread() - allocations;
+                HostCheck.Equal((long)count, result); HostCheck.Equal(0L, allocations);
+                used += count;
+                HostCheck.Equal(256U - used, owner.State->RemainingEntropy);
+            }
+            for (uint i = 0; i < total; i++) HostCheck.Equal((byte)(i % 251 + 1), owner.Memory.At(Output)[i]);
+            HostCheck.True(new ReadOnlySpan<byte>(owner.Entropy, (int)total).IndexOfAnyExcept((byte)0) == -1);
+            for (uint i = total; i < 256; i++) HostCheck.Equal((byte)(i % 251 + 1), owner.Entropy[i]);
+            HostCheck.True(!LinuxStartupServices.Begin(owner.State, owner.Admission()));
+        }
+    }
+
+    [HostTest("linux.startup runtime entropy rejects bad ranges and burns partial failed copies before exhaustion")]
+    private static void RuntimeEntropyFailures()
+    {
+        using var owner = new Owner(256); owner.Begin();
+        HostCheck.Equal(-14L, owner.Call(318, Output + 4090, 16));
+        HostCheck.Equal(-22L, owner.Call(318, Output, 33));
+        HostCheck.Equal(-22L, owner.Call(318, Output, 8, 4));
+        HostCheck.Equal(0L, owner.Call(318, 0, 0));
+        HostCheck.Equal(256U, owner.State->RemainingEntropy); HostCheck.Equal(0U, owner.Context->Copies);
+        for (int i = 0; i < 7; i++) HostCheck.Equal(32L, owner.Call(318, Output + (uint)i * 32, 32));
+        owner.Context->FailCopy = true;
+        owner.Context->PartialCopyBytes = 7;
+        HostCheck.Equal(-14L, owner.Call(318, Output + 224, 24));
+        for (uint i = 224; i < 231; i++) HostCheck.Equal((byte)(i % 251 + 1), owner.Memory.At(Output)[i]);
+        HostCheck.Equal((byte)0, owner.Memory.At(Output)[231]);
+        HostCheck.Equal(8U, owner.State->RemainingEntropy);
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Entropy, 248).IndexOfAnyExcept((byte)0) == -1);
+        owner.Context->FailCopy = false;
+        uint copies = owner.Context->Copies;
+        HostCheck.Equal(-38L, owner.Call(318, Output + 248, 16));
+        HostCheck.Equal(copies, owner.Context->Copies); HostCheck.Equal(8U, owner.State->RemainingEntropy);
+        HostCheck.Equal(8L, owner.Call(318, Output + 248, 16, 1));
+        for (uint i = 248; i < 256; i++) HostCheck.Equal((byte)(i % 251 + 1), owner.Memory.At(Output)[i]);
+        HostCheck.Equal(0U, owner.State->RemainingEntropy);
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Entropy, 256).IndexOfAnyExcept((byte)0) == -1);
+        HostCheck.Equal(-11L, owner.Call(318, Output, 1, 1)); HostCheck.Equal(-38L, owner.Call(318, Output, 1));
+    }
+
+    [HostTest("linux.startup full runtime entropy extent rejects suffix aliases and overflow before any read or reservation")]
+    private static void RuntimeEntropyAdmission()
+    {
+        using var owner = new Owner(256); var before = new Snapshot(owner);
+        foreach (uint count in new uint[] { 0, 31, 33, 255, 257, uint.MaxValue })
+        {
+            var admission = owner.Admission(); admission.CapturedEntropyBytes = count;
+            HostCheck.True(!LinuxStartupServices.Begin(owner.State, admission)); before.AssertUnchanged(owner);
+        }
+        // The first 32 bytes are outside each protected range; the later bytes
+        // overlap it. Reject numerically before dereferencing the candidate.
+        ulong[] protectedStarts = [(ulong)owner.State, (ulong)owner.Memory.State, (ulong)owner.Memory.Memory.Pool,
+            (ulong)owner.Memory.Memory.Tables, (ulong)owner.Memory.Memory.CandidateTables, (ulong)owner.Memory.Memory.StaticRanges];
+        foreach (ulong start in protectedStarts)
+        {
+            var admission = owner.Admission(); admission.Entropy = (byte*)(start - 128);
+            HostCheck.True(!LinuxStartupServices.Begin(owner.State, admission)); before.AssertUnchanged(owner);
+        }
+        var overflow = owner.Admission(); overflow.Entropy = (byte*)(ulong.MaxValue - 127);
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, overflow)); before.AssertUnchanged(owner);
+        HostCheck.Equal(0U, owner.Context->Reads);
+        new Span<byte>(owner.Entropy, 256).Clear();
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, owner.Admission())); before.AssertUnchanged(owner);
+        owner.Entropy[255] = 0x71; owner.Begin(); HostCheck.Equal(256U, owner.State->RemainingEntropy);
+    }
+
+    [HostTest("linux.startup entropy discard scrubs the full lifetime and cannot replenish it")]
+    private static void EntropyDiscard()
+    {
+        foreach (uint bytes in new uint[] { 32, 256 })
+        {
+            using var owner = new Owner(bytes);
+            HostCheck.True(!LinuxStartupServices.DiscardEntropy(owner.State)); owner.Begin();
+            HostCheck.Equal(8L, owner.Call(318, Output, 8));
+            HostCheck.True(LinuxStartupServices.DiscardEntropy(owner.State));
+            HostCheck.Equal(0U, owner.State->RemainingEntropy);
+            HostCheck.True(new ReadOnlySpan<byte>(owner.Entropy, (int)bytes).IndexOfAnyExcept((byte)0) == -1);
+            HostCheck.Equal(-11L, owner.Call(318, Output, 8, 1));
+            HostCheck.True(LinuxStartupServices.DiscardEntropy(owner.State));
+            HostCheck.True(!LinuxStartupServices.Begin(owner.State, owner.Admission()));
+        }
     }
 
     [HostTest("m16-006 startup admission aliases stale ownership and clock failure reject without reserving heap", HostLane.Fast, 4)]

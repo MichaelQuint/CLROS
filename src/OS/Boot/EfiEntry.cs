@@ -143,6 +143,7 @@ public static unsafe partial class EfiEntry
             internal LinuxStartupServices.State LinuxServices;
             internal FirmwareEntropyCapture.State LinuxRandomCapture;
             internal FirmwareEntropyCapture.Buffer LinuxRandomScratch, LinuxRandomRetained;
+            internal FirmwareEntropyReservoir.State LinuxRuntimeRandom;
 #endif
 #if M16_007_PROBE
             internal ulong LinuxDescriptorArena;
@@ -1296,13 +1297,20 @@ public static unsafe partial class EfiEntry
             ulong* lengths = stackalloc ulong[6] { LinuxMemoryServices.MaximumPoolPages * Page, X64UserAddressSpace.MaximumTables * Page,
                 state->LinuxPages * Page, state->LinuxImagePages * Page, Page, X64LinuxUserTransition.DataBytes };
             for (uint i = 0; i < 6; i++) for (uint j = 0; j < i; j++) if (!Disjoint(starts[i], lengths[i], starts[j], lengths[j])) return false;
-            var capture = &state->LinuxRandomCapture;
-            bool captured = FirmwareEntropyCapture.Begin(capture, &state->LinuxRandomScratch, &state->LinuxRandomRetained, state->SystemTable) &&
-                FirmwareEntropyCapture.Acquire(capture);
-            capture->SystemTable = null; capture->BootServices = null; capture->Locate = null; capture->Rng = null; capture->GetRng = null;
-            if (!captured || capture->Phase != 3 || capture->PublishedBytes != 32 ||
-                !FirmwareEntropyCapture.Guards(&state->LinuxRandomScratch) || !FirmwareEntropyCapture.Guards(&state->LinuxRandomRetained) ||
-                !FirmwareEntropyCapture.Zero(state->LinuxRandomScratch.Data, 0, 64)) return false;
+            if (LinuxRandomBudget(state) == LinuxStartupServices.RuntimeEntropyBytes)
+            {
+                if (!FirmwareEntropyReservoir.Acquire(&state->LinuxRuntimeRandom, state->SystemTable)) return false;
+            }
+            else
+            {
+                var capture = &state->LinuxRandomCapture;
+                bool captured = FirmwareEntropyCapture.Begin(capture, &state->LinuxRandomScratch, &state->LinuxRandomRetained, state->SystemTable) &&
+                    FirmwareEntropyCapture.Acquire(capture);
+                capture->SystemTable = null; capture->BootServices = null; capture->Locate = null; capture->Rng = null; capture->GetRng = null;
+                if (!captured || capture->Phase != 3 || capture->PublishedBytes != 32 ||
+                    !FirmwareEntropyCapture.Guards(&state->LinuxRandomScratch) || !FirmwareEntropyCapture.Guards(&state->LinuxRandomRetained) ||
+                    !FirmwareEntropyCapture.Zero(state->LinuxRandomScratch.Data, 0, 64)) return false;
+            }
             for (ulong i = 0; i < LinuxMemoryServices.MaximumPoolPages * Page; i++) ((byte*)state->LinuxMemoryPool)[i] = 0;
             if (!X64UserAddressSpace.Clear((ulong*)state->LinuxMemoryCandidate, X64UserAddressSpace.MaximumTables)) return false;
             state->LinuxMemoryPhase = 2; return true;
@@ -1323,17 +1331,44 @@ public static unsafe partial class EfiEntry
                     state->LinuxMemoryCandidate = 0;
                 else okay = false;
             }
+            okay = ClearLinuxRandom(state) && okay;
+            state->LinuxMemoryPhase = 7; return okay;
+        }
+
+        // The larger existing package thread policy selects one finite RNG
+        // lifetime. It does not admit a workload/profile or refill after EBS.
+        private static uint LinuxRandomBudget(Storage* state)
+        {
+#if M16_008_PROBE
+            if (state->LinuxView.Manifest.Threads > 8) return LinuxStartupServices.RuntimeEntropyBytes;
+#endif
+            return LinuxStartupServices.EntropyBytes;
+        }
+
+        private static bool ClearLinuxRandom(Storage* state)
+        {
+            bool consumed = LinuxRandomBudget(state) != LinuxStartupServices.RuntimeEntropyBytes ||
+                state->LinuxServices.RemainingEntropy == 0 || LinuxStartupServices.DiscardEntropy(&state->LinuxServices);
             for (uint i = 0; i < 64; i++) { state->LinuxRandomScratch.Data[i] = 0; state->LinuxRandomRetained.Data[i] = 0; }
             state->LinuxRandomCapture.SystemTable = null; state->LinuxRandomCapture.BootServices = null;
             state->LinuxRandomCapture.Locate = null; state->LinuxRandomCapture.Rng = null; state->LinuxRandomCapture.GetRng = null;
-            state->LinuxMemoryPhase = 7; return okay;
+            return FirmwareEntropyReservoir.Clear(&state->LinuxRuntimeRandom) && consumed &&
+                FirmwareEntropyCapture.Zero(state->LinuxRandomScratch.Data, 0, 64) &&
+                FirmwareEntropyCapture.Zero(state->LinuxRandomRetained.Data, 0, 64);
         }
+
+        // Evaluated after the BootSequence child returns, including admission
+        // or owner failure. Do not free any unresolved worker/hardware storage.
+        private static bool CompleteLinuxRandomLifetime(Storage* state, bool completed) => ClearLinuxRandom(state) && completed;
 
         private static bool InitializeLinuxMemory(Storage* state, LinuxSyscallAccess access)
         {
             state->LinuxMemoryCheckpoint = 1;
+            uint entropyBytes = LinuxRandomBudget(state);
             if (state->LinuxMemoryPhase != 2 || state->Clock.Source != OwnedClockSource.Hpet || state->Clock.Status != OwnedClockStatus.Ready ||
-                state->LinuxRandomCapture.PublishedBytes != 32 || state->LinuxRandomCapture.Rng != null ||
+                (entropyBytes == LinuxStartupServices.RuntimeEntropyBytes ?
+                    state->LinuxRuntimeRandom.Phase != 2 || state->LinuxRuntimeRandom.PublishedBytes != entropyBytes :
+                    state->LinuxRandomCapture.PublishedBytes != entropyBytes) || state->LinuxRandomCapture.Rng != null ||
                 state->LinuxRandomCapture.GetRng != null || state->LinuxRandomCapture.SystemTable != null ||
                 state->LinuxRandomCapture.BootServices != null || state->LinuxRandomCapture.Locate != null || !LinuxSingleCpu(state)) return false;
             state->LinuxMemoryPhase = 3;
@@ -1356,14 +1391,16 @@ public static unsafe partial class EfiEntry
                 MemoryBarrier = &LinuxMemoryBarrier, FrequencyHz = state->Clock.FrequencyHz,
                 PhysicalBytes = physical, AvailableBytes = available, HeapStart = 0x400000000, HeapBytes = 2 * 1024 * 1024,
                 StackBytes = state->LinuxInitialStack.StackBytes, ProcessId = 1,
-                Entropy = state->LinuxRandomRetained.Data, CapturedEntropyBytes = 32, SingleCpuValidated = true, FirmwareExited = true
+                Entropy = entropyBytes == LinuxStartupServices.RuntimeEntropyBytes ? state->LinuxRuntimeRandom.Data : state->LinuxRandomRetained.Data,
+                CapturedEntropyBytes = entropyBytes, SingleCpuValidated = true, FirmwareExited = true
             };
             if (!LinuxStartupServices.Begin(&state->LinuxServices, startup)) return false;
             state->LinuxMemoryCheckpoint = 5;
             state->LinuxUserRoot = state->LinuxMemory.Root; state->LinuxMemoryPhase = 4;
             return LinuxText(state, "M16_006_POLICY physical=") && LinuxNumber(state, physical) &&
                 LinuxText(state, " available=") && LinuxNumber(state, available) &&
-                LinuxText(state, " poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel\r\n");
+                LinuxText(state, " poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=") && LinuxNumber(state, entropyBytes) &&
+                LinuxText(state, " cpus=1 root=inactive-kernel\r\n");
         }
 
         private static bool LinuxMemoryFacts(Storage* state, out ulong physical, out ulong available)
@@ -1793,7 +1830,7 @@ public static unsafe partial class EfiEntry
             state->LinuxSyscallPhase = 6;
 #if M16_006_PROBE
             state->LinuxMemoryPhase = 6;
-            for (uint i = 0; i < 64; i++) state->LinuxRandomRetained.Data[i] = 0;
+            if (!ClearLinuxRandom(state)) return false;
             if (!LinuxMemoryServices.Audit(&state->LinuxMemory)) return false;
 #endif
 #if M16_007_PROBE
@@ -2750,12 +2787,12 @@ public static unsafe partial class EfiEntry
                         if (!BootSequence.RunOwnedApicSetup(state->PciPhase == 8, state, &RunOwnedApicSetup)) return;
 #if M16_008_PROBE
 #if M16_009_PROBE
-                        if (!BootSequence.RunOwnedLinuxSignals(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
+                        if (!CompleteLinuxRandomLifetime(state, BootSequence.RunOwnedLinuxSignals(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
 #else
-                        if (!BootSequence.RunOwnedLinuxThreads(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
+                        if (!CompleteLinuxRandomLifetime(state, BootSequence.RunOwnedLinuxThreads(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
 #endif
                             transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
-                            state->Arena.Binding->RetainedPointersCleared, state->ApicPhase == 2, state, &RunOwnedLinuxSyscalls)) return;
+                            state->Arena.Binding->RetainedPointersCleared, state->ApicPhase == 2, state, &RunOwnedLinuxSyscalls))) return;
 #endif
 #if M09_005_PROBE
                         if (!BootSequence.RunOwnedSchedulerTimer(state->OwnedPhase == 2, state->ApicPhase == 2,
@@ -6526,6 +6563,63 @@ public static unsafe partial class EfiEntry
 #endif
 
 #if M03_FIRMWARE_ENTROPY_SEED_PROBE || M16_004_PROBE
+    // One owned, non-refillable pre-EBS reservoir. Every block uses a fresh
+    // instance of the original guarded firmware acquisition, with no retained
+    // firmware pointer or copied RNG seed. Caller supplies exclusive mapped
+    // storage disjoint from firmware; malformed/stale admission writes nothing.
+    internal static class FirmwareEntropyReservoir
+    {
+        internal const uint Bytes = 256;
+        internal unsafe struct State
+        {
+            internal ulong Phase, PublishedBytes;
+            internal fixed byte Data[(int)Bytes];
+        }
+        private static bool Span(ulong address, ulong bytes) =>
+            address != 0 && (address & 7) == 0 && address <= ulong.MaxValue - bytes;
+        private static bool Apart(ulong a, ulong an, ulong b, ulong bn) => a + an <= b || b + bn <= a;
+
+        internal static bool Acquire(State* state, EfiSystemTable* table)
+        {
+            if (!Span((ulong)state, (ulong)sizeof(State)) || !Span((ulong)table, (ulong)sizeof(EfiSystemTable)) ||
+                !Apart((ulong)state, (ulong)sizeof(State), (ulong)table, (ulong)sizeof(EfiSystemTable))) return false;
+            var services = table->BootServices;
+            if (!Span((ulong)services, (ulong)sizeof(EfiBootServices)) ||
+                !Apart((ulong)state, (ulong)sizeof(State), (ulong)services, (ulong)sizeof(EfiBootServices)) ||
+                !Apart((ulong)table, (ulong)sizeof(EfiSystemTable), (ulong)services, (ulong)sizeof(EfiBootServices)) ||
+                state->Phase != 0 || state->PublishedBytes != 0 || !FirmwareEntropyCapture.Zero(state->Data, 0, (int)Bytes)) return false;
+            state->Phase = 1;
+            for (uint offset = 0; offset < Bytes; offset += (uint)FirmwareEntropyCapture.RequestedBytes)
+                if (!Block(table, state->Data + offset)) { Clear(state); return false; }
+            state->PublishedBytes = Bytes; state->Phase = 2; return true;
+        }
+
+        // Clear consumes the lifetime, including a failed or unused acquisition.
+        // It never restores the all-zero state required by Acquire.
+        internal static bool Clear(State* state)
+        {
+            if (!Span((ulong)state, (ulong)sizeof(State))) return false;
+            for (uint i = 0; i < Bytes; i++) state->Data[i] = 0;
+            state->PublishedBytes = 0; state->Phase = 3;
+            return FirmwareEntropyCapture.Zero(state->Data, 0, (int)Bytes);
+        }
+
+        private static bool Block(EfiSystemTable* table, byte* destination)
+        {
+            FirmwareEntropyCapture.State capture = default;
+            FirmwareEntropyCapture.Buffer scratch = default, retained = default;
+            bool acquired = FirmwareEntropyCapture.Begin(&capture, &scratch, &retained, table) && FirmwareEntropyCapture.Acquire(&capture);
+            capture.SystemTable = null; capture.BootServices = null; capture.Locate = null; capture.Rng = null; capture.GetRng = null;
+            bool valid = acquired && capture.Phase == 3 && capture.PublishedBytes == FirmwareEntropyCapture.RequestedBytes &&
+                FirmwareEntropyCapture.Guards(&scratch) && FirmwareEntropyCapture.Guards(&retained) &&
+                FirmwareEntropyCapture.Zero(scratch.Data, 0, 64) && FirmwareEntropyCapture.Zero(retained.Data, 32, 32);
+            if (valid) for (uint i = 0; i < FirmwareEntropyCapture.RequestedBytes; i++) destination[i] = FirmwareEntropyCapture.ReadByte(retained.Data + i);
+            for (uint i = 0; i < 64; i++) { scratch.Data[i] = 0; retained.Data[i] = 0; }
+            capture.Scratch = null; capture.Retained = null;
+            return valid && FirmwareEntropyCapture.Zero(scratch.Data, 0, 64) && FirmwareEntropyCapture.Zero(retained.Data, 0, 64);
+        }
+    }
+
     // One pre-EBS acquisition. The host Span/interface contract is deliberately
     // separate; this EFI boundary has only numeric values and admitted pointers.
     internal static class FirmwareEntropyCapture

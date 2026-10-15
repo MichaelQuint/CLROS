@@ -12,6 +12,7 @@ using System.Xml.Linq;
 #if ENTROPY_CAPTURE_HOST
 using OS.Boot;
 using Core = OS.Boot.EfiEntry.FirmwareEntropyCapture;
+using Reservoir = OS.Boot.EfiEntry.FirmwareEntropyReservoir;
 
 // Genuine numeric core on admitted host storage and controlled ABI callbacks.
 // No EfiMain, firmware output, target native image or device executes here.
@@ -27,6 +28,9 @@ internal static unsafe class FirmwareEntropyHost
     private static int mode, locateCount, rngCount, infoCount;
     private static byte fill;
     private static bool callbackValid;
+    private static Reservoir.State* Pool => (Reservoir.State*)(memory + 2304);
+    private static Core.State* poolCapture;
+    private static int poolFault, poolFaultBlock;
     private static void Need(bool value, string reason) { if (!value) throw new InvalidOperationException(reason); }
     private static byte[] Snapshot() => new ReadOnlySpan<byte>(memory, 4096).ToArray();
     private static void Reset(int selected = 0, byte value = 0xA5)
@@ -72,6 +76,41 @@ internal static unsafe class FirmwareEntropyHost
         return 0;
     }
     private static void Begin() => Need(Core.Begin(S,Scratch,Retained,Table), "actual begin");
+
+    private static void ResetPool(int fault = 0, int block = 0)
+    {
+        Reset(); poolFault = fault; poolFaultBlock = block; poolCapture = null;
+        Services->LocateProtocol = &PoolLocate; Rng->GetRng = &PoolGet;
+    }
+    [UnmanagedCallersOnly]
+    private static ulong PoolLocate(EfiGuid* guid, void* registration, void** output)
+    {
+        locateCount++;
+        poolCapture = (Core.State*)((byte*)output - ((byte*)&S->Rng - (byte*)S));
+        callbackValid &= registration == null && guid != null && guid->Data1 == 0x3152BCA5 &&
+            poolCapture->Phase == 2 && poolCapture->LocateCalls == 1 && poolCapture->RngCalls == 0 &&
+            poolCapture->PublishedBytes == 0 && Pool->Phase == 1 && Pool->PublishedBytes == 0;
+        if (poolFault == 1 && locateCount == poolFaultBlock) return Core.NotFound;
+        *output = Rng; return 0;
+    }
+    [UnmanagedCallersOnly]
+    private static ulong PoolGet(Core.Protocol* instance, EfiGuid* algorithm, nuint count, byte* bytes)
+    {
+        rngCount++;
+        callbackValid &= instance == Rng && algorithm == null && count == 32 && bytes == poolCapture->Scratch->Data &&
+            poolCapture->Phase == 2 && poolCapture->RngCalls == 1 && poolCapture->PublishedBytes == 0 &&
+            Core.Guards(poolCapture->Scratch) && Core.Guards(poolCapture->Retained) &&
+            Core.Zero(poolCapture->Retained->Data, 0, 64) && !Reservoir.Acquire(Pool, Table);
+        if (count != 32) return 0x8000000000000002UL;
+        for (int i = 0; i < 32; i++) bytes[i] = (byte)(rngCount * 32 + i);
+        if (locateCount == poolFaultBlock)
+        {
+            if (poolFault == 2) return 0x8000000000000007UL;
+            if (poolFault == 3) poolCapture->Scratch->After0 ^= 1;
+            if (poolFault == 4) bytes[32] = 1;
+        }
+        return 0;
+    }
     private static void Run(string name, Action test)
     { Console.WriteLine("TEST_START m03.entropy.host "+name);test();Console.WriteLine("TEST_PASS m03.entropy.host "+name); }
     private static int Main()
@@ -138,6 +177,42 @@ internal static unsafe class FirmwareEntropyHost
                     Reset();Begin();S->Phase=phase;byte[] before=Snapshot();Need(!Core.Retain(S)&&Snapshot().SequenceEqual(before),"no retention before complete acquisition "+phase);
                 }
             });
+            Run("runtime reservoir uses eight original guarded acquisitions then scrubs without refill",()=>{
+                ResetPool(); Need(Reservoir.Acquire(Pool, Table), "complete reservoir");
+                Need(callbackValid && locateCount == 8 && rngCount == 8 && infoCount == 0 &&
+                    Pool->Phase == 2 && Pool->PublishedBytes == 256, "eight fresh acquisitions and single publication");
+                for (int i = 0; i < 256; i++) Need(Pool->Data[i] == (byte)(32 + i), "distinct original bytes " + i);
+                byte[] complete = Snapshot(); Need(!Reservoir.Acquire(Pool, Table) && Snapshot().SequenceEqual(complete), "no second lifetime");
+                Need(Reservoir.Clear(Pool) && Pool->Phase == 3 && Pool->PublishedBytes == 0 && Core.Zero(Pool->Data, 0, 256), "complete scrub");
+                Need(!Reservoir.Acquire(Pool, Table) && Reservoir.Clear(Pool) && locateCount == 8 && rngCount == 8, "clear never authorizes refill");
+            });
+            Run("runtime reservoir failures scrub earlier blocks and malformed aliases mutate nothing",()=>{
+                foreach (int fault in new[] { 1, 2, 3, 4 }) foreach (int block in new[] { 1, 4, 8 })
+                {
+                    ResetPool(fault, block);
+                    Need(!Reservoir.Acquire(Pool, Table) && Pool->Phase == 3 && Pool->PublishedBytes == 0 &&
+                        Core.Zero(Pool->Data, 0, 256), "failed acquisition clears prefix and tail");
+                    Need(callbackValid && locateCount == block && rngCount == block - (fault == 1 ? 1 : 0), "no acquisition after failed block");
+                    byte[] failed = Snapshot(); Need(!Reservoir.Acquire(Pool, Table) && Snapshot().SequenceEqual(failed), "failed lifetime cannot retry");
+                }
+                for (int i = 0; i < 8; i++)
+                {
+                    ResetPool(); Reservoir.State* candidate = Pool; EfiSystemTable* table = Table;
+                    switch (i)
+                    {
+                        case 0: candidate = null; break;
+                        case 1: candidate = (Reservoir.State*)((byte*)Pool + 1); break;
+                        case 2: candidate = (Reservoir.State*)(ulong.MaxValue - 7); break;
+                        case 3: candidate = (Reservoir.State*)((byte*)Table - 128); break;
+                        case 4: candidate = (Reservoir.State*)((byte*)Services - 128); break;
+                        case 5: table = null; break;
+                        case 6: Pool->Phase = 2; break;
+                        case 7: Pool->Data[255] = 1; break;
+                    }
+                    byte[] before = Snapshot(); Need(!Reservoir.Acquire(candidate, table) && Snapshot().SequenceEqual(before) &&
+                        locateCount == 0 && rngCount == 0, "malformed or stale reservoir unchanged " + i);
+                }
+            });
             Console.WriteLine("TEST_PASS m03.entropy.host.tests");return 0;
         }
         finally { NativeMemory.AlignedFree(memory); }
@@ -200,7 +275,7 @@ internal static class M03FirmwareEntropySeedEfiIntegrationTests
         string[] inputs=[..sources.Select(x=>Path.Combine(root,x)),Path.Combine(directory,"Attribute.cs"),project];var identities=inputs.Select(path=>new{Path=path,Bytes=new FileInfo(path).Length,Sha256=Hash(path)}).ToArray();File.WriteAllText(Path.Combine(directory,"inputs.json"),JsonSerializer.Serialize(identities));
         Passed(Process(Path.Combine(directory,"build"),"dotnet","build",project,"-c","Release","--nologo","-m:1","--disable-build-servers","-p:UseSharedCompilation=false"));
         Result run=Process(Path.Combine(directory,"run"),"dotnet",Path.Combine(directory,"bin/Release/net11.0/Capture.dll"));Passed(run);
-        Need(run.Output.Contains("TEST_PASS m03.entropy.host.tests",StringComparison.Ordinal)&&run.Output.Split('\n').Count(x=>x.StartsWith("TEST_START m03.entropy.host ",StringComparison.Ordinal))==6,"complete six-group actual core child");
+        Need(run.Output.Contains("TEST_PASS m03.entropy.host.tests",StringComparison.Ordinal)&&run.Output.Split('\n').Count(x=>x.StartsWith("TEST_START m03.entropy.host ",StringComparison.Ordinal))==8,"complete eight-group actual core child");
         foreach(var input in identities)Need(Hash(input.Path)==input.Sha256,"unchanged child input "+input.Path);
     }
     [HostTest("m03.003.efi literal raw grammar and lifecycle controls", HostLane.Fast, 2)]

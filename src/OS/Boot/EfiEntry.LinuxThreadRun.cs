@@ -82,7 +82,7 @@ public static unsafe partial class EfiEntry
             if (!CooperativeAuditOriginalMappings(state) || !CooperativeAuditPool(state, false)) return false;
             for (ulong i = 0; i < CooperativePoolPages * Page; i++) ((byte*)state->CooperativePool)[i] = 0;
             for (ulong i = 0; i < CooperativePoolPages * Page; i++) if (((byte*)state->CooperativePool)[i] != 0) return false;
-            for (uint i = 0; i < 64; i++) state->LinuxRandomRetained.Data[i] = 0;
+            if (!ClearLinuxRandom(state)) return false;
             if (!LinuxMemoryServices.Audit(&state->LinuxMemory) || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
             state->CooperativePhase = state->LinuxSyscallPhase = state->LinuxMemoryPhase = 6;
             bool logged = LinuxText(state, "M16_008_OWNER_END reaped=") && LinuxNumber(state, reaped) &&

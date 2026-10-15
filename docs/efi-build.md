@@ -2,6 +2,14 @@
 
 ## Development Linux threading profile
 
+[Step1280](../done/step1280.md) adds pre-EBS entropy acquisition and cleanup for
+the broader thread policy. Existing profiles with at most eight threads retain
+their 32-byte budget and transcript. A larger M16-008/009 package policy reports
+`entropyBytes=256`; its complete runtime consumer must explicitly validate that
+policy before guest admission. The reservoir is single-use, with no post-EBS
+refill or automatic replenishment between process lifetimes. Native validation
+is deferred with the remaining batch; this adds no QEMU selector.
+
 [Step1279](../done/step1279.md) expands `LinuxThreadProgram` and the fixed signal
 state to 16 workers. Current `M16_008_BOUND` code/metadata sizes are
 53248/114688 bytes; the full retained native pool is 162 pages. Existing owner
