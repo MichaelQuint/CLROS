@@ -1,5 +1,14 @@
 # App Model
 
+[Step1282](../done/step1282.md) supplies larger-policy execution ceilings, raw
+stdout decoding for all three broader apps and common transcript requeue
+accounting. Address wake FIFO can change while the original equal-deadline FIFO
+and wait identity remain fixed. Thirty focused checks pass. The complete broader
+syscall/signal/lifecycle/profile consumers, wrapper limits, repeated guest process
+lifetimes and error/capacity cleanup remain before the shared eight-issue gates.
+Neither the new budget nor synthetic transcript positives establish guest runtime
+execution or a live timeout/recovery proof.
+
 [Step1281](../done/step1281.md) adds the ordinary musl futex-requeue prerequisite
 for broader runtime admission. The syscall returns the actual total woken plus
 moved. Moving transfers the retained backing reference, preserving the exact

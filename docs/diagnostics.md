@@ -1,9 +1,19 @@
 # Diagnostics
 
+[Step1282](../done/step1282.md) decodes the raw stdout envelopes for all three
+broader runtime apps through their existing complete validators. Canonical byte
+counts, original segmentation, immutable results and unchanged 4-KiB stdout /
+8-MiB raw bounds apply. Synthetic complete/rejection controls pass. The common
+transcript model now implements ordinary futex requeue with a separate address
+FIFO; the original scheduler deadline FIFO survives moves. Synthetic positives
+and mutations cover target FIFO, zero wakes, same-word counts and equal-deadline
+completion. Complete broader protocol/profile consumers still precede admission;
+raw stdout alone supplies no guest authority.
+
 [Step1281](../done/step1281.md) implements ordinary futex requeue in the syscall
-service. The broader runtime transcript model still needs to move address FIFO
-and backing ownership while retaining the original wait identity, deadline and
-restart call. A requeue is not a wake or a completed wait; its return count is
+service. Step1282 subsequently implements address FIFO and backing movement in
+the common transcript model while retaining original wait/deadline order. A
+requeue is not a wake or a completed wait; its return count is
 the actual total woken plus moved. Existing focused payload selectors and their
 record grammar are unchanged. No broader guest is admitted by this service
 change alone.

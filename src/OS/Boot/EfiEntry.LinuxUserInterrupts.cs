@@ -16,7 +16,7 @@ public static unsafe partial class EfiEntry
         private static bool LinuxNativeArmUserTimer(LinuxNativeControl* c, uint index)
         {
             if (!LinuxNativeUserWorker(c, index) || c->UserTimer != 0 || c->UserAcknowledged != 0 || c->UserDrain != 0 ||
-                c->UserPreempted != 0 || c->Timer.IsPrepared || c->Epoch >= LinuxNativeMaximumEpochs ||
+                c->UserPreempted != 0 || c->Timer.IsPrepared || c->Epoch >= c->Budget.MaximumEpochs ||
                 !c->TimerDeadlines.IsEmpty || c->TimerDeadlines.ObservedTicks != c->Epoch ||
                 !LinuxNativeTimerInstalled(c) || !LinuxNativeObserve(c) || !LinuxNativeVerify(c) ||
                 !LinuxNativeUserGates(c, false) || !CooperativeAuditPool(c->State, true)) return false;
@@ -95,12 +95,12 @@ public static unsafe partial class EfiEntry
             ulong entryFlags, ulong interruptedFlags, bool drain)
         {
             if (!LinuxNativeUserWorker(c, index) || c->UserTimer != index + 1 || c->UserAcknowledged != 0 ||
-                c->Epoch >= LinuxNativeMaximumEpochs || c->Timer.Ticks != c->Epoch ||
+                c->Epoch >= c->Budget.MaximumEpochs || c->Timer.Ticks != c->Epoch ||
                 c->TimerDeadlines.ObservedTicks != c->Epoch || c->TimerDeadlines.Count != 1) return false;
             var tick = c->Timer.HandleInterrupt(c->Key, entryFlags, interruptedFlags,
                 ref c->TimerDeadlines, c->Key, SchedulerTimer.Phase.Safe);
             if (!tick.Succeeded || tick.Next != SchedulerTimer.Action.WakeReady || tick.Tick != c->Epoch + 1 ||
-                tick.Tick > LinuxNativeMaximumEpochs || tick.Due.Identity.Value != c->Threads.Current.Value || tick.Due.Deadline != tick.Tick) return false;
+                tick.Tick > c->Budget.MaximumEpochs || tick.Due.Identity.Value != c->Threads.Current.Value || tick.Due.Deadline != tick.Tick) return false;
             DeadlineQueue.Entry due = default;
             var drained = c->TimerDeadlines.Drain(c->Key, tick.Tick, &due, (uint)sizeof(DeadlineQueue.Entry), 1);
             if (!drained.Succeeded || drained.Count != 1 || due.Identity.Value != tick.Due.Identity.Value || due.Deadline != tick.Tick) return false;

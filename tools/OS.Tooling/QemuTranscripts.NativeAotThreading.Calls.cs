@@ -38,7 +38,8 @@ public static partial class QemuTranscripts
         {
             Need(witness.Source==source && witness.Sequence>t.LastSequence && (witness.Deadline==0 || witness.Deadline>clock),"threading_wait_owner");
             t.WaitSource=source; t.WaitAddress=address; t.WaitMode=mode; t.WaitBits=bits;
-            t.Deadline=witness.Deadline; t.LastSequence=witness.Sequence; t.WaitOrder=++waitOrder; t.Parking=true;
+            t.Deadline=witness.Deadline; t.LastSequence=witness.Sequence;
+            t.WaitOrder=++waitOrder;t.AddressOrder=++addressOrder;t.Parking=true;
         }
         private int LowestFd()=>Enumerable.Range(3,13).FirstOrDefault(fd=>!files.Contains(fd) && fd!=pipeRead && fd!=pipeWrite,-1);
         private void Call(RuntimeThread t,Dictionary<string,ulong> r,LinuxCallWaitObservation witness,bool output)
@@ -112,9 +113,15 @@ public static partial class QemuTranscripts
                     slots[slot]=child; history.Add(child); Enqueue(child); active++; clones++;break;
                 case 202:
                     uint op=(uint)b, mode=op&128,cmd=op&~384U,bits=cmd is 9 or 10?(uint)f:uint.MaxValue;
-                    Need((a&3)==0 && (b&~(128UL|15))==0 && cmd is 0 or 1 or 9 or 10 && bits!=0 &&
+                    Need((a&3)==0 && (b&~(128UL|15))==0 && cmd is 0 or 1 or 3 or 9 or 10 && bits!=0 &&
                         memory.Covered(a,4,mode==0?3U:1U),"threading_futex_arguments");
-                    if(cmd is 1 or 10)
+                    if(cmd==3)
+                    {
+                        int wake=unchecked((int)c),move=unchecked((int)d);
+                        Need(wake>=0 && move>=0 && (e&3)==0 && memory.Covered(e,4,mode==0?3U:1U),"threading_requeue_arguments");
+                        Need(v==(ulong)Requeue(a,e,mode,(uint)wake,(uint)move),"threading_requeue_count");
+                    }
+                    else if(cmd is 1 or 10)
                     {int n=unchecked((int)c);Need(v==(ulong)Wake(a,mode,n<=0?1U:(uint)n,bits),"threading_wake_count");}
                     else if(r["action"]==3)
                     {

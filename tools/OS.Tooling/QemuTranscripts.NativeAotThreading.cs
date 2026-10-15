@@ -72,7 +72,7 @@ public static partial class QemuTranscripts
     {
         internal readonly ulong Identity=identity, Bottom=bottom, Top=top;
         internal readonly int Tid=tid;
-        internal ulong Fs=fs, Gs, ClearTid, Mask, SavedRsp=top, SavedRip=rip, LastSequence, WaitOrder;
+        internal ulong Fs=fs, Gs, ClearTid, Mask, SavedRsp=top, SavedRip=rip, LastSequence, WaitOrder, AddressOrder;
         internal ulong TailRip,TailRsp,TailFs,TailFlags;
         internal uint WaitSource, WaitMode, WaitBits;
         internal ulong WaitAddress, Deadline;
@@ -100,7 +100,7 @@ public static partial class QemuTranscripts
         private readonly Queue<RuntimeThread> ready=[];
         private readonly List<RuntimeThread> history=[];
         private int position,active=1,nextTid=2,clones,reaped,calls,writes,epochs,irqs,drains,ticks,transfers,normalExits,signalReturns;
-        private ulong clock,waitOrder,currentBreak=0x400000000;
+        private ulong clock,waitOrder,addressOrder,currentBreak=0x400000000;
         private bool stopping,heapIntact=true,barrierRegistered;
         private bool signalPipeCreated,stackProbe;
         private ulong entropyBytes;
@@ -277,8 +277,22 @@ public static partial class QemuTranscripts
         private int Wake(ulong address,uint mode,uint count,uint bits)
         {
             var selected=history.Where(t=>!t.Reaped && t.WaitSource==1 && t.Completion is null && t.WaitAddress==address && t.WaitMode==mode && (t.WaitBits&bits)!=0)
-                .OrderBy(t=>t.WaitOrder).Take((int)Math.Min(count,int.MaxValue)).ToArray();
+                .OrderBy(t=>t.AddressOrder).Take((int)Math.Min(count,int.MaxValue)).ToArray();
             foreach(var t in selected) Complete(t,0); return selected.Length;
+        }
+
+        private int Requeue(ulong source,ulong destination,uint mode,uint wake,uint move)
+        {
+            int count=Wake(source,mode,wake,uint.MaxValue);
+            var selected=history.Where(t=>!t.Reaped && t.WaitSource==1 && t.Completion is null &&
+                t.WaitAddress==source && t.WaitMode==mode).OrderBy(t=>t.AddressOrder).Take((int)Math.Min(move,int.MaxValue)).ToArray();
+            if(source!=destination)foreach(var t in selected)
+            {
+                // Address FIFO changes; the scheduler's original deadline
+                // insertion order, identity, sequence and completion do not.
+                t.WaitAddress=destination;t.AddressOrder=++addressOrder;
+            }
+            return count+selected.Length;
         }
     }
 }

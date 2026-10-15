@@ -51,8 +51,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "2e8116698f9404b597611fc659f4962279d921e9181f42124f11f89130dca0cb";
-    public const string CanonicalProjectSha256 = "c0c6dda4cc8fbdd3bb744756f461b2a81181c0e39add7142bdd118ec640fd11d";
+    public const string ProjectSourceSha256 = "21e9d0736f4b03bb5d668ec265984f19fa76ff0e8de8f3b87c2b2de0e1f2229a";
+    public const string CanonicalProjectSha256 = "b4c733813b31a9a374dbae8e17ccfda76ce5068f5caf639ccd0c20dbbbaaff71";
     public const string EfiEntrySourceSha256 = "2534998c57de415661ee85a97835c52e61cc274c942b1f02967b28849cd15a39";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
@@ -330,6 +330,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Interrupts.cs|Compatibility\LinuxX64\LinuxThreadServices.Interrupts.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs|Compatibility\LinuxX64\LinuxThreadServices.Futex.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Requeue.cs|Compatibility\LinuxX64\LinuxThreadServices.Requeue.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadExecutionBudget.cs|Compatibility\LinuxX64\LinuxThreadExecutionBudget.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs|Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs|Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs|Compatibility\LinuxX64\LinuxThreadProgram.cs",

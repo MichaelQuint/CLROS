@@ -52,6 +52,7 @@ public static unsafe partial class EfiEntry
             internal DeadlineQueue TimerDeadlines;
             internal DeadlineQueue.Entry TimerDeadline;
             internal ulong Epoch, OriginalIst;
+            internal LinuxThreadExecutionBudget Budget;
             internal uint Installed, GuardAttached, ProcessAttached, TableAttached, SignalsInitialized;
             internal fixed ulong Cpu[(int)NativeSwitch.ObservationWords];
             internal fixed ulong GatewayCpu[(int)X64LinuxUserTransition.ObservationWords];
@@ -562,7 +563,10 @@ public static unsafe partial class EfiEntry
                 Capacity = LinuxNativeFutexes, Resolve = &LinuxThreadResolveFutex, ReadMonotonic = &LinuxThreadReadNanoseconds };
             if (!c->Process.EnableFutex(c->Key, 2, futex) || !c->Process.EnablePipes(c->Key, 2, &c->State->LinuxDescriptors) ||
                 !LinuxMemoryServices.AttachMutationGuard(&c->State->LinuxMemory, c->State, &LinuxThreadMemoryGuard)) return false;
-            c->GuardAttached = 1; c->Phase = 2; return true;
+            c->GuardAttached = 1; c->Phase = 2;
+            ulong now = 0;
+            delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
+            return (c->Capacity <= 8 || clock(c->State, &now) == 1) && c->Budget.Begin(c->Capacity, now);
         }
 
         // Valid only after real workers/IRQ/native references have drained.

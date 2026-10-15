@@ -1,5 +1,14 @@
 # PAL
 
+[Step1282](../done/step1282.md) adds explicit native execution budgets. Policies
+above eight workers allow at most 8192 acknowledged IRQ epochs and 16384 driver
+steps, with five minutes of actual HPET-derived monotonic time checked at restored
+supervisor checkpoints. Original policies retain 128 epochs/512 steps and no
+additional clock reads. Expiry stages actual shutdown; acknowledgement and drain
+do not consult elapsed expiry. These independent ceilings are not APIC duration
+calibration or evidence that the broader apps fit. Thirty focused checks and
+combined no-stdlib C# compilation pass; native/guest qualification remains pending.
+
 [Step1281](../done/step1281.md) implements ordinary private/shared
 `FUTEX_REQUEUE` over the existing wait owner. Actual registrations move behind
 the target FIFO without waking, replacing their scheduler identity or changing

@@ -25,7 +25,9 @@ public static class NativeAotThreadingOutput
     }
 
     /// <summary>Borrow an unmodified raw tail of at most 8 MiB for exactly
-    /// NativeAotSuspensionSmoke or NativeAotThreadPoolSmoke. Each line-bound fd1
+    /// NativeAotSuspensionSmoke, NativeAotThreadPoolSmoke,
+    /// NativeAotSuspensionStress, NativeAotThreadPoolStress or NativeAotRuntimeMatrix.
+    /// Each line-bound fd1
     /// envelope supplies 1..4096 canonical decimal payload bytes followed by the
     /// kernel's CRLF; total stdout is at most 4096 bytes. Arbitrary segmentation
     /// is retained in WriteLengths. NormalizedTail removes only CR/LF within
@@ -35,7 +37,8 @@ public static class NativeAotThreadingOutput
     /// NativeAOT/CLROS execution. The caller owns the input throughout the call.</summary>
     public static Capture Read(string application, ReadOnlySpan<byte> rawTail)
     {
-        Need(application is "NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke", "application");
+        Need(application is "NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke" or
+            "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix", "application");
         Need(rawTail.Length is > 0 and <= 8 * 1024 * 1024, "size");
         byte[] stdout = new byte[4096], normalized = new byte[rawTail.Length];
         List<int> lengths = [];
@@ -78,8 +81,14 @@ public static class NativeAotThreadingOutput
         }
         string text = Utf8.GetString(stdout.AsSpan(0, total));
         string tail = Utf8.GetString(normalized.AsSpan(0, written));
-        if (application == "NativeAotSuspensionSmoke") NativeAotThreadingGuest.ValidateSuspensionOutput(text);
-        else NativeAotThreadingGuest.ValidateThreadPoolOutput(text);
+        switch (application)
+        {
+            case "NativeAotSuspensionSmoke": NativeAotThreadingGuest.ValidateSuspensionOutput(text); break;
+            case "NativeAotThreadPoolSmoke": NativeAotThreadingGuest.ValidateThreadPoolOutput(text); break;
+            case "NativeAotSuspensionStress": NativeAotSuspensionStressGuest.ValidateOutput(text); break;
+            case "NativeAotThreadPoolStress": NativeAotThreadPoolStressGuest.ValidateOutput(text); break;
+            case "NativeAotRuntimeMatrix": NativeAotRuntimeMatrixGuest.ValidateOutput(text); break;
+        }
         return new(text, tail, lengths.ToArray());
     }
 

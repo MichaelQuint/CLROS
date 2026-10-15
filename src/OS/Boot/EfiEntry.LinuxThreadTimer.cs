@@ -9,8 +9,6 @@ public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
-        private const ulong LinuxNativeMaximumEpochs = 128;
-
         // Borrow only IST4 and two IDT gates. The timer, copied IDT and guarded
         // IRQ stack remain live until quiescence and original-descriptor readback.
         private static bool LinuxNativeInstallTimer(LinuxNativeControl* c)
@@ -65,7 +63,7 @@ public static unsafe partial class EfiEntry
         // bounded count, not a calibrated duration; no worker IRQ can be resumed.
         private static bool LinuxNativeWaitOne(LinuxNativeControl* c)
         {
-            if (c == null || LinuxNativeControlOwner(c) != c || c->Failed != 0 || c->Epoch >= LinuxNativeMaximumEpochs ||
+            if (c == null || LinuxNativeControlOwner(c) != c || c->Failed != 0 || c->Epoch >= c->Budget.MaximumEpochs ||
                 c->Timer.IsPrepared || c->Threads.Current.IsValid || c->Threads.HandoffPending ||
                 !c->TimerDeadlines.IsEmpty || c->TimerDeadlines.ObservedTicks != c->Epoch ||
                 !LinuxNativeTimerInstalled(c) || !LinuxNativeObserve(c) || !LinuxNativeVerify(c) ||
@@ -124,7 +122,7 @@ public static unsafe partial class EfiEntry
             if (c!=null && c->UserDrain!=0) return LinuxNativeDrainUserInterrupt(c,frame);
 #endif
             if (c == null || frame == null || !LinuxNativeTimerInstalled(c) || c->Threads.Current.IsValid || c->Threads.HandoffPending ||
-                c->Epoch >= LinuxNativeMaximumEpochs || c->Timer.Ticks != c->Epoch || c->TimerDeadlines.ObservedTicks != c->Epoch ||
+                c->Epoch >= c->Budget.MaximumEpochs || c->Timer.Ticks != c->Epoch || c->TimerDeadlines.ObservedTicks != c->Epoch ||
                 c->TimerDeadlines.Count != 1 || *(ulong*)(c->State->Arena.Descriptors->Tss + 60) != c->State->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page ||
                 (ulong)frame != c->State->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page - X64TimerInterrupt.FrameBytes || frame->Complete != 1 ||
                 frame->Rip != c->Plan.Owner.CodeStart + NativeProgram.Idle + 2 || frame->Cs != 8 || frame->Ss != 16 ||
@@ -138,7 +136,7 @@ public static unsafe partial class EfiEntry
             var tick = c->Timer.HandleInterrupt(c->Key, frame->EntryFlags, frame->Rflags,
                 ref c->TimerDeadlines, c->Key, SchedulerTimer.Phase.Safe);
             if (!tick.Succeeded || tick.Next != SchedulerTimer.Action.WakeReady || tick.Tick != c->Epoch + 1 ||
-                tick.Tick > LinuxNativeMaximumEpochs || tick.Due.Identity.Value != c->Plan.Supervisor.Identity || tick.Due.Deadline != tick.Tick) return 0;
+                tick.Tick > c->Budget.MaximumEpochs || tick.Due.Identity.Value != c->Plan.Supervisor.Identity || tick.Due.Deadline != tick.Tick) return 0;
             DeadlineQueue.Entry due = default;
             var drained = c->TimerDeadlines.Drain(c->Key, tick.Tick, &due, (uint)sizeof(DeadlineQueue.Entry), 1);
             if (!drained.Succeeded || drained.Count != 1 || due.Identity.Value != tick.Due.Identity.Value || due.Deadline != tick.Tick) return 0;

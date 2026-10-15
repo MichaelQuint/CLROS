@@ -91,7 +91,7 @@ internal static class NativeAotThreadingTranscriptTests
         }
     }
 
-    private static Vector SuspensionVector(bool earlyHandlerIrq=false,bool selfExit=false,bool tailIrq=false)
+    private static Vector SuspensionVector(bool earlyHandlerIrq=false,bool selfExit=false,bool tailIrq=false,bool requeue=false)
     {
         Vector v=new Vector(false).Start();Thread final=v.Clone(2,2),signal=v.Clone(3,3),worker=v.Clone(4,4);
         v.Irq(10,4,4);v.Select(final);v.Wait(0x500200);v.Drain(20);v.Supervisor(3,3,4);
@@ -102,8 +102,17 @@ internal static class NativeAotThreadingTranscriptTests
             v.Select(v.Main);v.Call(200,0,[4,35]);v.Wait(0x500204);v.Drain((ulong)(50+40*cycle));v.Supervisor(3,1,4);
             v.Select(worker);worker.Frame=worker.Top-1160;worker.Depth=1;worker.Mask=1UL<<34;worker.Rsp=worker.Frame-64;
             if(earlyHandlerIrq && cycle==0)v.Irq(55,1,4);
-            v.Call(186,4);v.Wake(0x500204);v.Wait(0x500208);v.Drain((ulong)(60+40*cycle));v.Supervisor(3,1,4);
-            v.Select(v.Main);v.Resume(0);v.Wake(0x500208);v.Irq((ulong)(70+40*cycle),2,4);
+            v.Call(186,4);
+            if(requeue && cycle==0)
+            {
+                v.Call(202,1,[0x500200,131,0,1,0x500204]); // Final waiter moves behind Main.
+                v.Call(202,0,[0x500200,129,1]);
+                v.Call(202,2,[0x500204,131,0,int.MaxValue,0x500204]); // Same-key does not reorder.
+            }
+            v.Wake(0x500204);v.Wait(0x500208);v.Drain((ulong)(60+40*cycle));v.Supervisor(3,1,4);
+            v.Select(v.Main);v.Resume(0);
+            if(requeue && cycle==0)v.Call(202,1,[0x500204,131,0,1,0x500200]);
+            v.Wake(0x500208);v.Irq((ulong)(70+40*cycle),2,4);
             v.Select(worker);v.Resume(0);worker.Rsp=worker.Frame+8;worker.Depth=worker.Frame=worker.Mask=0;
             v.Call(15,0,action:5,returnedRsp:worker.Top-64);worker.Rsp=worker.Top-64;
             if(cycle==0)v.Irq(80,2,4);
@@ -122,7 +131,7 @@ internal static class NativeAotThreadingTranscriptTests
         v.Select(v.Main);v.Output();v.Call(231,0,[0],2);v.Drain(120);v.Exit(2,2,3);
         v.Select(final);v.Exit(4,1,2);v.Select(signal);v.Exit(4,0,1);v.End(4);return v;
     }
-    private static Vector PoolVector(bool reuse=false,bool workerClone=false,int retiredSignal=0)
+    private static Vector PoolVector(bool reuse=false,bool workerClone=false,int retiredSignal=0,bool requeue=false)
     {
         Vector v=new Vector(true).Start();Thread final=v.Clone(2,2),signal=v.Clone(3,3),first=v.Clone(4,4),second=v.Clone(5,5),gate=v.Clone(6,6);
         v.Irq(10,6,6);v.Select(final);v.Wait(0x500200);v.Drain(20);v.Supervisor(3,5,6);
@@ -130,6 +139,7 @@ internal static class NativeAotThreadingTranscriptTests
         v.Select(first);v.Wait(0x500210,100);v.Drain(40);v.Supervisor(3,3,6);
         v.Select(second);v.Wait(0x500214,100);v.Drain(50);v.Supervisor(3,2,6);
         v.Select(gate);
+        if(requeue)v.Call(202,1,[0x500210,131,0,1,0x500214]); // Address FIFO changes; equal-deadline scheduler FIFO must not.
         if(retiredSignal==1){gate.Mask=1UL<<34;v.Call(14,0,[2,0x500400,0,8]);}
         v.Wait(0x500230);v.Drain(60);v.Supervisor(3,1,6);
         v.Select(v.Main);v.Wait(0x500218,100);v.Drain(70);v.Supervisor(3,0,6);v.Tick(99,0);v.Tick(100,3);
@@ -173,6 +183,23 @@ internal static class NativeAotThreadingTranscriptTests
     {var rows=v.Rows.ToArray();int at=Array.FindIndex(rows,r=>r.Contains(selector,StringComparison.Ordinal));HostCheck.True(at>=0);rows[at]=Regex.Replace(rows[at],@"\b"+field+"=[0-9]+",field+"="+value.ToString(CultureInfo.InvariantCulture));return rows;}
     private static void Reject(Vector v,string[] rows,bool tail=false,byte[]? image=null)
     {bool rejected=false;try{Inspect(v,rows,tail:tail,image:image);}catch(ToolFailure){rejected=true;}HostCheck.True(rejected,"runtime synthetic mutation admitted");}
+
+    [HostTest("nativeaot.threading requeue moves address FIFO and borrows without inventing ready workers or changing deadline FIFO")]
+    private static void Requeue()
+    {
+        var v=SuspensionVector(requeue:true); HostCheck.True(Inspect(v).SignalReturns==2);
+        var timed=PoolVector(requeue:true); HostCheck.True(Inspect(timed).Reaped==6);
+        string move="a0=5243392 a1=131";
+        Reject(v,Change(v,move,"valueBits",2));
+        Reject(v,Change(v,move,"a2",1));
+        Reject(v,Change(v,move,"a3",0));
+        Reject(v,Change(v,move,"a3",uint.MaxValue));
+        Reject(v,Change(v,move,"a4",0x500208));
+        Reject(v,Change(v,move,"a4",0x500205));
+        Reject(v,Change(v,move,"a1",3));
+        Reject(v,Change(v,"a0=5243396 a1=131","valueBits",1));
+        Reject(timed,Change(timed,"a0=5243408 a1=131","valueBits",0));
+    }
 
     [HostTest("nativeaot.threading self-unmap tail requires exact ELF instructions masked owner IRQ continuation and EFAULT clear-TID")]
     private static void ExitTail()

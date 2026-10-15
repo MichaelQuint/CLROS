@@ -2,6 +2,15 @@
 
 ## Development Linux threading profile
 
+[Step1282](../done/step1282.md) replaces the larger thread policy's incidental
+128-IRQ/512-step cutoff with separate finite event and real-time limits. All
+timer arms/acknowledgements use the admitted epoch ceiling; expiry is evaluated
+only after restored-supervisor return, preserving hardware acknowledgement and
+owned shutdown. The larger policy gets 8192 epochs, 16384 steps and a five-minute
+monotonic ceiling. Original policies and positive marker grammar remain unchanged.
+Build/source/inventory controls pass. The full broader consumer and its wrapper
+timeouts/record bounds still need integration; these limits do not qualify a guest.
+
 [Step1281](../done/step1281.md) links the ordinary futex-requeue adapter under
 the existing M16-008 condition, with exact conditional inventory and reviewed
 source admission. Combined M16-008/009 no-stdlib C# compilation passes, as does

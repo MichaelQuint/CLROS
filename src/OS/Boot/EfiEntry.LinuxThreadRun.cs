@@ -151,11 +151,21 @@ public static unsafe partial class EfiEntry
         // kernel CALL handoff before this driver can dispatch another worker.
         private static bool LinuxNativeRun(LinuxNativeControl* c)
         {
-            for (uint step = 0; step < 512; step++)
+            for (uint step = 0; step < c->Budget.MaximumSteps; step++)
             {
                 if (!LinuxNativeObserve(c) || !LinuxNativeVerify(c) || !LinuxNativeSavedCode(c) || !CooperativeAuditPool(c->State, true)) return false;
                 if (!LinuxNativeReapExited(c)) return false;
                 if (c->Process.ActiveThreads == 0) return c->Failed == 0 && !c->Process.Failed;
+                // Expiry is checked only on the restored supervisor. Previously
+                // armed IRQs have already acknowledged/drained in Transfer.
+                // Shutdown still uses the same real worker exit continuations.
+                if (c->Stopping == 0)
+                {
+                    ulong now = 0;
+                    delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
+                    if ((c->Capacity > 8 && clock(c->State, &now) != 1 || !c->Budget.Continue(now, c->Epoch, step)) &&
+                        !LinuxNativeStop(c)) return false;
+                }
                 if ((c->Failed != 0 || c->Process.Failed || c->State->LinuxSyscallFaults != 0 || c->State->LinuxSyscallFailed != 0) &&
                     !LinuxNativeStop(c)) return false;
                 if (c->Threads.Flush(c->Key, 2) != KernelThreadTable.Status.Ok) return false;
