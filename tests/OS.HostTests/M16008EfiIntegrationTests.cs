@@ -239,6 +239,32 @@ internal static unsafe class M16008EfiIntegrationTests
         }
     }
 
+    [HostTest("m16-008 native call witness reads the current retained wait after real dispatch without inventing deadlines")]
+    private static void WaitObservationBoundary()
+    {
+        string root=HostToolProcess.FindRepositoryRoot();
+        var tree=CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(root,"src/OS/Boot/EfiEntry.LinuxThreads.cs")),
+            new CSharpParseOptions(preprocessorSymbols:["M16_008_PROBE"]));
+        var core=tree.GetRoot().DescendantNodes().OfType<MethodDeclarationSyntax>().Single(m=>m.Identifier.Text=="DispatchLinuxNativeCore");
+        var calls=core.DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
+        var observation=calls.Single(c=>c.Expression.ToString()=="c->Process.Inspect" &&
+            c.ArgumentList.Arguments.Last().ToString()=="out var waitView");
+        HostCheck.Equal("c->Key, 2, c->Threads.Current, out var waitView",observation.ArgumentList.Arguments.ToString());
+        HostCheck.True(calls.Single(c=>c.Expression.ToString()=="LinuxSyscallGateway.Dispatch").SpanStart<observation.SpanStart &&
+            calls.Single(c=>c.Expression.ToString()=="LinuxNativeUserReturn").SpanStart<observation.SpanStart);
+        HostCheck.True(observation.Parent is PrefixUnaryExpressionSyntax unary && unary.Parent is IfStatementSyntax guard &&
+            guard.Statement.DescendantNodes().OfType<InvocationExpressionSyntax>().Any(c=>c.Expression.ToString()=="LinuxNativeAbort") &&
+            guard.Statement.DescendantNodes().OfType<ReturnStatementSyntax>().Any());
+        var logged=core.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v=>v.Identifier.Text=="logged");
+        string[] observed=logged.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(c=>c.Expression.ToString()=="LinuxNumber")
+            .Select(c=>c.ArgumentList.Arguments[1].ToString()).TakeLast(4).ToArray();
+        HostCheck.True(observed.SequenceEqual(new[]{"c->Gates[index].Calls","waitView.WaitSource","waitView.WaitDeadline",
+            "waitView.Wait.IsValid ? waitView.Wait.Sequence : 0"}));
+        var names=logged.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(c=>c.Expression.ToString()=="LinuxText")
+            .Select(c=>(c.ArgumentList.Arguments[1].Expression as LiteralExpressionSyntax)?.Token.ValueText).TakeLast(5).ToArray();
+        HostCheck.True(names.SequenceEqual(new[]{" ordinal="," waitSource="," waitDeadline="," waitSequence=","\r\n"}));
+    }
+
     private static void Reject(Action action, string? expected = null)
     {
         string? reason = null;

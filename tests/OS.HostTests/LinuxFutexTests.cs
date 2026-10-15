@@ -165,6 +165,30 @@ internal static unsafe class LinuxFutexTests
         Drain(m);
     }
 
+    [HostTest("linux.futex views expose retained actual deadlines and sequences until completion without leaking stale metadata")]
+    private static void WaitSnapshots()
+    {
+        using Model m = new(futex: true); var parent = m.Start(); m.Kernel.Dispatch(); m.Put32(Word,42);
+        HostCheck.True(m.View(parent).WaitSource==0 && m.View(parent).WaitDeadline==0 && !m.View(parent).Wait.IsValid);
+        m.Put64(Timeout,0); m.Put64(Timeout+8,50);
+        HostCheck.Equal(LinuxSyscallAction.Blocked,Call(m,128,42,Timeout).Action);
+        var staged=m.View(parent);
+        HostCheck.True(staged.WaitSource==1 && staged.WaitDeadline==1050 && staged.Wait.IsValid && staged.Wait.Thread.Value==parent.Value);
+        Park(m,parent); m.Now=1050; HostCheck.True(m.Service->AdvanceFutexClock(Key,2));
+        var ready=m.View(parent); HostCheck.True(ready.WaitSource==1 && ready.WaitDeadline==1050 && ready.Wait.Sequence==staged.Wait.Sequence);
+        HostCheck.Equal(parent.Value,m.Kernel.Dispatch().Value); HostCheck.Equal(-110L,m.Service->CompleteFutexWait(Key,2).Value);
+        var consumed=m.View(parent);
+        HostCheck.True(consumed.WaitSource==0 && consumed.WaitDeadline==0 && !consumed.Wait.IsValid);
+        // The underlying slot retains the prior deadline for restart bookkeeping.
+        // A view must not expose it without a retained wait.
+        HostCheck.True(staged.WaitDeadline==1050 && staged.Wait.Sequence==ready.Wait.Sequence);
+        HostCheck.Equal(LinuxSyscallAction.Blocked,Call(m,128,42).Action);
+        var untimed=m.View(parent); HostCheck.True(untimed.WaitSource==1 && untimed.WaitDeadline==0 && untimed.Wait.Sequence!=staged.Wait.Sequence);
+        HostCheck.True(!m.Service->Inspect(Key+1,2,parent,out var denied) && denied.WaitSource==0 && denied.WaitDeadline==0 && !denied.Wait.IsValid);
+        Park(m,parent);
+        Drain(m);
+    }
+
     [HostTest("linux.futex rejects malformed and exhausted waits and preserves exact legacy wake count behavior")]
     private static void RejectionsAndCapacity()
     {

@@ -360,6 +360,10 @@ public static unsafe partial class EfiEntry
                 { if (LinuxNativeAbort(c, index) != 2) return 0; }
                 else { state->LinuxSyscallExitCode = result.ExitCode; c->Stopping = 1; }
             }
+            // Observe the actual retained wait after dispatch/return preparation.
+            // No deadline is inferred from a user timespec or timer ready count.
+            if (!c->Process.Inspect(c->Key, 2, c->Threads.Current, out var waitView))
+            { if (LinuxNativeAbort(c, index) != 2) return 0; return 2; }
             bool logged = LinuxText(state, "M16_008_CALL identity=") && LinuxNumber(state, c->Threads.Current.Value) &&
                 LinuxText(state, " nr=") && LinuxNumber(state, call.Number) &&
                 LinuxText(state, " a0=") && LinuxNumber(state, call.Argument0) && LinuxText(state, " a1=") && LinuxNumber(state, call.Argument1) &&
@@ -371,7 +375,10 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " valueBits=") && LinuxNumber(state, unchecked((ulong)result.Value)) &&
                 LinuxText(state, " action=") && LinuxNumber(state, (uint)result.Action) &&
                 LinuxText(state, " status=") && LinuxNumber(state, (uint)c->Gates[index].Status) &&
-                LinuxText(state, " ordinal=") && LinuxNumber(state, c->Gates[index].Calls) && LinuxText(state, "\r\n");
+                LinuxText(state, " ordinal=") && LinuxNumber(state, c->Gates[index].Calls) &&
+                LinuxText(state, " waitSource=") && LinuxNumber(state, waitView.WaitSource) &&
+                LinuxText(state, " waitDeadline=") && LinuxNumber(state, waitView.WaitDeadline) &&
+                LinuxText(state, " waitSequence=") && LinuxNumber(state, waitView.Wait.IsValid ? waitView.Wait.Sequence : 0) && LinuxText(state, "\r\n");
             if (!logged || result.Action == LinuxSyscallAction.Rejected || returning.Action == LinuxSyscallAction.Rejected)
             { if (LinuxNativeAbort(c, index) != 2) return 0; }
             return logged && returning.Action == LinuxSyscallAction.RestoreUser ? (byte)1 : (byte)2;

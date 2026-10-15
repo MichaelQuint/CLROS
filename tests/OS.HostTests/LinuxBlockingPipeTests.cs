@@ -73,14 +73,17 @@ internal static unsafe class LinuxBlockingPipeTests
     private static void ReadWrite()
     {
         using Owner o = new(); var m = o.Thread; var parent = m.Start(); m.Kernel.Dispatch(); var child = m.Clone(); var pipe = o.Pipe();
-        HostCheck.Equal(LinuxSyscallAction.Blocked, o.Call(0, pipe.Read, Output, 32).Action); o.Park(parent);
+        HostCheck.Equal(LinuxSyscallAction.Blocked, o.Call(0, pipe.Read, Output, 32).Action);
+        var staged=m.View(parent); HostCheck.True(staged.WaitSource==2 && staged.WaitDeadline==0 && staged.Wait.IsValid); o.Park(parent);
         HostCheck.True(!Descriptors.End(o.Files.State)); HostCheck.Equal(-14L, o.Files.Call(3, pipe.Write));
         HostCheck.Equal(child.Value, m.Kernel.Dispatch().Value); m.Put64(Data, 0x8877665544332211);
         HostCheck.Equal(8L, o.Value(1, pipe.Write, Data, 8)); o.ScratchClean();
         HostCheck.Equal(KernelThreadTable.State.Ready, m.Kernel.Inspect(parent).State);
+        HostCheck.True(m.View(parent).WaitSource==2 && m.View(parent).Wait.Sequence==staged.Wait.Sequence);
         m.Yield(child); HostCheck.Equal(parent.Value, m.Kernel.Dispatch().Value);
         var complete = o.Complete(); HostCheck.Equal(LinuxSyscallAction.Return, complete.Action); HostCheck.Equal(8L, complete.Value);
         HostCheck.Equal(0x8877665544332211UL, m.Read64(Output)); HostCheck.True(!m.View(parent).Wait.IsValid);
+        HostCheck.True(m.View(parent).WaitSource==0 && m.View(parent).WaitDeadline==0 && staged.WaitSource==2);
         HostCheck.Equal(LinuxSyscallAction.Rejected, o.Complete().Action); o.Drain();
     }
 

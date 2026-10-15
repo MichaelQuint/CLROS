@@ -2,6 +2,15 @@
 
 ## Development Linux threading profile
 
+[Step1270](../done/step1270.md) appends actual retained wait source, absolute
+monotonic deadline and generation-bound wait sequence after every native call
+ordinal. Zero source has zero deadline/sequence; untimed futex and pipe waits
+have zero deadline. The snapshot is read after real dispatch/return preparation,
+without changing scheduler or syscall results. Existing complete decoders strip
+only a validated suffix; future upstream runtime consumers require it. Exact
+source admission and combined no-stdlib C# compilation pass. No native publication,
+new runtime QEMU selector or current CLROS guest acceptance is added.
+
 [Step1269](../done/step1269.md) prepares only the two separately qualified
 threading payloads through `linux threading-package <app> <evidence-root>
 <fresh-artifacts-package>` and `linux threading-program <app> <package>

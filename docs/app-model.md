@@ -1,5 +1,15 @@
 # App Model
 
+[Step1270](../done/step1270.md) decodes the two focused workloads' complete raw
+stdout across arbitrary write segmentation. Original fd1 byte counts and kernel
+CRLF framing are checked before payload newline normalization; immutable write
+lengths remain available to the future syscall/output consumer. Both retained
+Linux stdout captures pass whole, 17-byte and single-byte synthetic envelopes.
+The native call record also observes actual retained wait source/deadline/sequence
+so timed wake ordering can be checked without guessing from timespec pointers.
+Sixty-seven focused checks pass. Complete scheduler/signal/lifecycle consumers
+still precede new QEMU admission. This is neither guest execution nor issue closure.
+
 [Step1269](../done/step1269.md) adds canonical packages and sealed instruction
 lookup for step1267's exact qualified suspension and ThreadPool ELF images.
 Packaging checks the fixed producer receipt, current relevant raw sources,

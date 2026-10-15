@@ -1,5 +1,18 @@
 # Diagnostics
 
+[Step1270](../done/step1270.md) appends `waitSource=<0|1|2>
+waitDeadline=<nanoseconds> waitSequence=<sequence>` after each native call
+ordinal. These values come from the actual current retained wait after dispatch
+and return preparation: source1 is futex, source2 is pipe, source0 has all zero
+values. Deadline is absolute monotonic time; zero means untimed. A completed
+wait retains its observation until consumption drops the borrow. Row counts
+and scheduler behavior are unchanged. Existing decoders validate/strip the
+optional suffix and retain ordinal-only synthetic vectors; future runtime
+consumers must require every current witness through `ReadLinuxCallWaits`.
+The separate raw threading-output decoder checks exact byte envelopes before
+normalizing payload newlines. These are host observations and C# compilation
+evidence; complete runtime consumers and current guest qualification remain pending.
+
 [Step1268](../done/step1268.md) changes current `M16_008_BOUND` geometry to
 code=28672/metadata=102400 for the eight-slot, 105-page native pool. Records and
 per-generation ordinals retain their existing form. Complete thread/signal/Hello

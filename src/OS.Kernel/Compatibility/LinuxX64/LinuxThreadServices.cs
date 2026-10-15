@@ -76,10 +76,20 @@ public unsafe partial struct LinuxThreadServices
         public readonly ulong ClearTid, BlockedSignals;
         public readonly LinuxSyscallFrame Frame;
         public readonly KernelThreadWait Wait;
+        /// <summary>Retained wait observation: 0 none, 1 futex, 2 pipe.
+        /// Deadline is absolute monotonic nanoseconds, or zero for an untimed
+        /// wait. Both are zero without a valid Wait. Completion may be ready
+        /// while the wait and its backing remain retained until consumption.</summary>
+        public readonly uint WaitSource;
+        /// <summary>Absolute monotonic nanoseconds for the retained futex wait;
+        /// zero for an untimed wait, a pipe wait or no valid Wait. Reading this
+        /// snapshot neither advances the clock nor consumes completion.</summary>
+        public readonly ulong WaitDeadline;
         public readonly uint PipeTransferredBytes;
         public readonly bool PipePending;
         internal View(Slot s)
         { Kernel = s.Kernel; Tid = s.Tid; ExitCode = s.ExitCode; Exiting = s.Exiting != 0; ClearTid = s.ClearTid; BlockedSignals = s.Mask.Blocked; Frame = s.Image.Frame; Wait = s.Wait;
+            WaitSource = s.Wait.IsValid ? s.WaitSource : 0; WaitDeadline = s.Wait.IsValid ? s.WaitDeadline : 0;
             PipeTransferredBytes = s.PipeOperation.TransferredBytes; PipePending = s.PipeOperation.IsActive; }
     }
 
