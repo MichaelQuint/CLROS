@@ -6,6 +6,13 @@ Accepted for planning. This document defines workload profile names and gate
 semantics only. It does not add runtime, process, network, storage, hosted
 .NET applications, CoreCLR, ASP.NET Minimal API, or Kestrel evidence.
 
+[Step1307](../done/step1307.md) separately qualifies the bounded #191/#192 through
+#688 thread/runtime batch: 5,202 full-host checks, 44 strict batch captures across 32
+profiles, three retained strict GC repetitions and 24 fresh ancestors. The exact
+unchanged pinned Hello and NativeAOT runtime workloads now execute in CLROS.
+Continuing network/TCP, Linux sockets and epoll remain before guest Kestrel;
+no new numbered, cloud or production gate changes.
+
 ## Context
 
 CLROS has two related but different workload targets:
@@ -85,14 +92,16 @@ See [the lifecycle contract](pal.md#qualified-bounded-lifecycle-188). Seven real
 ticks, 38 transfers and four reaps return all 23 internal page leases; the
 32-page firmware reservation remains owned. This does not advance the upstream
 application-runtime milestone.
-#191 wait-on-address and #192 application FS/TLS then remain prerequisites of
-#686 alongside accepted #685. Exact managed dependencies control that sequence.
+#191 wait-on-address and #192 application FS/TLS are prerequisites of #686
+alongside accepted #685; step1307 qualifies that complete later runtime batch.
+Exact managed dependencies control the continuing network/TCP/socket sequence.
 These accepted .NET 10 checkpoints retain their historical toolchain identity.
 [Step1225](../done/step1225.md) adds a finite .NET 11 qualification: 29 strict
 QEMU captures, including three timer reruns and the expected unhandled negative,
 plus original native review and the full-host gate. It does not renew every
 historical profile. Step1230's later .NET 11 matrix qualifies only the bounded
-lifecycle and named ancestors; #191/#192 remain the next scheduler prerequisites.
+lifecycle and named ancestors. Step1307 adds the later wait/TLS/Linux/runtime
+qualification, retaining the historical scope of both earlier receipts.
 The #708/#711 qualification in [step1209](../done/step1209.md) adds explicit
 heap reservation ownership. General fixed mappings and unmaps still operate;
 they relinquish heap ownership, so brk cannot silently reclaim a replacement

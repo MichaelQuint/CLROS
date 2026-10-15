@@ -1,5 +1,20 @@
 # App Model
 
+[Step1307](../done/step1307.md) qualifies the bounded #191/#192 through #688
+thread/runtime batch and shared #733: 5,202 full-host checks, 44 strict captures
+across 32 profiles, three retained strict GC repetitions and 24 fresh ancestors.
+The unchanged pinned Hello, focused GC/ThreadPool, original RuntimeSmoke and
+RuntimeMatrix execute in CLROS with original native/provenance joins and complete
+cleanup. A separate raw-state diagnostic proves an exit-requested worker blocked
+by active upstream GC before later exit/reap. It supplies no DetachCurrentThread
+entry or strict-runner claim. Continuing networking, sockets/epoll and Kestrel
+remain incomplete; no numbered/cloud/production gate changes.
+
+## Historical development receipts
+
+The dated development states below are superseded for this batch by step1307;
+their failures, original sources and narrower evidence remain preserved.
+
 [Step1306](../done/step1306.md) fixes a mechanical signal-wait fixture alias:
 handler sigaltstack output overwrote its pipe descriptors. The separate data
 slot and independent emitted-address/output-write regression pass107 focused
@@ -13,7 +28,7 @@ integrity audit passes. The first mechanical thread capture also completes its
 workload/cleanup, but exceeds an obsolete32KiB host framing limit; declared
 Linux thread profiles now use the existing bounded8MiB diagnostic extent.
 Exact leaf and runner checks remain. Mechanical/ancestor/final-full acceptance
-is pending; all eight issues stay open. A separate earlier pre-exit matrix boot
+is pending at that checkpoint. A separate earlier matrix startup
 failure remains preserved with unresolved cause.
 
 [Step1304](../done/step1304.md) replaces step1303's excessive matrix wake-bracket
@@ -726,9 +741,10 @@ dependencies; neither qualifies guest execution. The
 
 The legacy OSAPPv0 native-tier app model described below is in early host-tested
 planning. The separate Linux ELF path above is the current first-class .NET 11
-application target. Kestrel support is mandatory, but upstream runtime,
-sockets, timers, threading/scheduler and continuing network prerequisites remain
-incomplete. Broad workload claim boundaries are tracked in `docs/completion-gates.md`.
+application target. Step1307 qualifies only its exact pinned thread/runtime
+workloads. Kestrel support is mandatory; continuing network, TCP and Linux
+socket/epoll prerequisites remain incomplete. Broad workload claim boundaries are
+tracked in `docs/completion-gates.md`.
 
 `docs/workload-profiles.md` defines the application workload profiles used by the backlog. `SingleMinimalApi` is the near-term default and deliberately keeps the first hosted target to one Minimal API/Kestrel workload without requiring a process table or per-app address spaces. `MultiMinimalApi` is a later profile that requires process/isolation/supervisor semantics and is not implemented today.
 

@@ -2,11 +2,22 @@
 
 ## Start here
 
+`done/step1307.md` qualifies #191/#192 -> #686 -> #687 -> #193 -> #194 -> #688
+and shared integration #733: 5,202 full-host checks across 687 fixtures (94 Native),
+44 strict captures across 32 batch profiles, three retained strict GC-stress
+repetitions and 24 fresh ancestors, with exact original native/provenance joins.
+The unchanged pinned Hello, focused GC/ThreadPool, original RuntimeSmoke and
+RuntimeMatrix now run in CLROS guests. Supplemental raw-state evidence proves
+an exit-requested worker blocked by active upstream GC before later exit/reap;
+it does not prove already-entered DetachCurrentThread. No guest Kestrel or new
+numbered/cloud/production gate is accepted. Next follow #691's continuing network
+owner and #148-#153 TCP, then #689 sockets/#690 epoll. Refresh exact dependencies.
+
 `done/step1225.md` qualifies the .NET 11 OS/tooling migration at implementation
 source `d728d2c`: 4,783 full-host checks, original native review and
 29 independently audited strict QEMU captures, including the expected unhandled
 negative and three timer captures. Fresh Linux-host payload qualification also
-passes; no unchanged guest Hello or Kestrel is accepted. Use the exact pins and
+passes; step1307 adds the later finite guest runtime qualification. Use the exact pins and
 x86-64-v2 CPU contract in `docs/host-requirements.md`; C# remains 14.
 Preserve older .NET 10 receipts and the scope of profiles not rerun in step1225.
 M09-006/#188 is qualified in `done/step1230.md` at implementation source
@@ -14,8 +25,8 @@ M09-006/#188 is qualified in `done/step1230.md` at implementation source
 native review, three byte-identical 177-application-record lifecycle guests and
 15 fresh ancestors pass. Seven hardware ticks drive 38 cooperative transfers;
 four supervisor reaps return 23 internal page leases. The 32-page firmware
-reservation remains retained. Next are #191 wait-on-address and #192 application
-FS/TLS before #686; unchanged guest Hello and Kestrel remain incomplete.
+reservation remains retained. Step1307 adds the later wait/TLS/Linux/runtime batch;
+Kestrel remains incomplete.
 
 1. Read `docs/workload-profiles.md` for the current NativeAOT-first decision.
 2. Refresh the LAN tracker and select the first unfinished dependency-compatible
@@ -28,7 +39,8 @@ FS/TLS before #686; unchanged guest Hello and Kestrel remain incomplete.
    ancestors pass. #187 and children #721/#723-#726 are qualified in step1224:
    4,776 full-host checks, six original native bodies, three 115-record timer
    guests and ten ancestors pass. #188 lifecycle is qualified in step1230;
-   #191 wait-on-address and #192 application FS/TLS precede #686.
+   Step1307 qualifies the later #191/#192 through #688 batch; continuing network,
+   TCP, sockets and epoll precede Kestrel.
    Review step1207 preserves
    the original defect and corrected scheduler boundaries.
    Use exact dependencies and acceptance from the managed issue, not numeric

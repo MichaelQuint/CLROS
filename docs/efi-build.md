@@ -1,6 +1,16 @@
 # EFI Build
 
-## Development Linux threading profile
+## Qualified bounded Linux thread and runtime profiles
+
+[Step1307](../done/step1307.md) joins final 5,202-check full-host acceptance,
+44 strict batch captures across 32 profiles, three retained strict GC repetitions,
+24 fresh ancestors and scoped original native/ABI/stack review. Every original
+object/EFI/package/capture binding retains its exact source. The unchanged pinned
+Hello, focused GC/ThreadPool, original RuntimeSmoke and RuntimeMatrix now have
+bounded CLROS guest evidence. Supplemental raw-state GC observation is identified
+separately from strict captures. No upstream package/configuration/timer/deadline
+change or Kestrel/new numbered-gate claim accompanies this final consolidation.
+Earlier development states below describe their original named checkpoints.
 
 [Step1306](../done/step1306.md) separates mechanical wait fixture descriptors from
 sigaltstack output. Fresh canonical packages are generated for all five wait
@@ -15,7 +25,8 @@ Declared Linux thread/signal captures use the existing bounded8MiB raw extent,
 since current mechanical call/return diagnostics exceed32KiB. Ordinary profiles
 retain32KiB; prefix, EOF, framing, package, native, runner and leaf checks remain.
 Fresh mechanical/ancestor and final full gates remain required. The preceding
-pre-exit matrix failure is preserved; its cause remains unresolved.
+matrix startup failure is preserved; it precedes the first EBS-success
+confirmation, with actual firmware-exit state and cause unresolved.
 
 [Step1304](../done/step1304.md) corrects matrix timing admission after another
 complete workload/cleanup capture fails step1303's cached scheduler-time bracket.
@@ -543,20 +554,19 @@ The future qualification command is:
 dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16008Probe -LinuxElfPackage artifacts/packages/m16-008-thread.pkg -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 60 -RequireMarker CLROS_M16_008_READY
 ```
 
-Package generation and dry-run selection are host tooling evidence. No M16-008
-native publication, worker/IRQ/ELF execution or READY capture is claimed. Focused
-checks and freestanding C# compilation are the current limit; full-host, original
-native review and guests remain deferred to the stable related issue batch.
+Package generation and dry-run selection remain host tooling evidence. The
+later step1307 receipt qualifies the finite M16-008 worker/IRQ/ELF cases with
+actual guests, original native review, full-host and affected ancestors.
 
-## Development wait and TLS profiles
+## Qualified wait and TLS profiles
 
 `efi build -BootPolicy Diagnostic -EnableM09009Probe` and the corresponding
 `-EnableM09010Probe` selection now admit explicit wait/TLS native sources and
 the existing lifecycle/context/timer links. The tool expands the same seven
 owned-exit/APIC prerequisites; explicitly disabled parents or another leaf
 reject. Both leaves compile as no-stdlib C# in [step1234](../done/step1234.md).
-Native publish, original object/stack review and guest qualification remain
-pending the shared NativeAOT thread/runtime batch. Compilation is not boot proof.
+Step1307 adds original object/stack review, three strict guests per leaf and the
+shared full-host/ancestor qualification. Compilation alone is not boot proof.
 
 ## Qualified cooperative lifecycle profile
 

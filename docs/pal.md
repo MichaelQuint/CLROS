@@ -1,5 +1,20 @@
 # PAL
 
+[Step1307](../done/step1307.md) qualifies the bounded #191/#192, #686/#687,
+#193/#194/#688 and shared #733 batch: 5,202 full-host checks, 44 strict batch
+captures across 32 profiles, three retained strict GC repetitions and 24 fresh
+ancestors. Mechanical wait/TLS/Linux thread/signal services and the exact pinned
+NativeAOT Hello/GC/ThreadPool/runtime workloads now have guest evidence. The
+supplemental saved-context witness shows a signaled exit event and its worker
+blocked on the actual upstream GC event during suspension, then real exit/reap;
+it does not show already-entered native detach. The flat OSHost_* PAL remains a
+separate host-tested ABI contract. Kestrel and new numbered gates remain incomplete.
+
+## Historical development receipts
+
+The dated pending states below retain their original checkpoints. Step1307
+supersedes those pending claims for the finite accepted thread/runtime batch.
+
 [Step1299](../done/step1299.md) records three fresh strict GC-stress captures at
 frozen implementation source e4adc4e. Each completes nine actual activation
 sends/returns and eighteen reaps with full cleanup; original objects and EFIs
@@ -358,10 +373,10 @@ context leak after failed stack allocation and its hosted binding initialization
 after runnable publication as negative tests. Do not copy its managed linked
 lists, incompatible context layout or ownership defects.
 
-Next, #191 provides atomic wait-on-address and #192 application FS/TLS.
-Those and accepted #685 are prerequisites of #686's Linux threading, futex,
-mask and blocking-pipe adapter. Signal delivery and the first unchanged NativeAOT
-Hello remain #687; comprehensive upstream runtime qualification remains #688.
+Step1307 qualifies #191 atomic wait-on-address, #192 application FS/TLS,
+#686 Linux threading/futex/masks/blocking pipes, #687 signals/unchanged Hello and
+the exact #193/#194/#688 upstream runtime workloads. Next follow continuing
+network ownership and TCP before sockets/epoll and guest Kestrel.
 
 ### Wait-on-address development (#191)
 

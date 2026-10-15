@@ -1,5 +1,14 @@
 # QEMU
 
+[Step1307](../done/step1307.md) qualifies the finite thread/runtime batch with
+44 strict captures across 32 profiles, three retained strict GC repetitions,
+24 fresh ancestors and original native/source/package joins. A separate QMP/GDB
+replay observes signaled exit requests blocked by actual upstream GC and later
+exit/reap; its pauses and immediate owned-process cleanup give it diagnostic-only
+status. The original strict captures retain their measured quiet/termination
+authority. Select `NativeAotRuntimeSmoke` explicitly for the original payload;
+M16-010 otherwise selects `NativeAotRuntimeMatrix`. Guest Kestrel remains pending.
+
 [Step1272](../done/step1272.md) adds an explicit development selector for either
 focused runtime workload through the existing M16-009 profile:
 

@@ -13,9 +13,9 @@ CLROS is an experimental operating system for VM images containing configured
 is one real NativeAOT ASP.NET Minimal API serving `GET /healthz` through Kestrel.
 Hardware-protected isolation for multiple applications follows.
 
-**No unchanged .NET NativeAOT Hello or Kestrel application has run inside CLROS
-yet.** Current acceptance covers bounded boot, runtime and device diagnostics,
-mechanical user execution and cooperative worker lifecycle with hardware timer wakes.
+**The unchanged pinned .NET11 NativeAOT Hello and bounded runtime workloads now
+run inside CLROS.** [Step1307](done/step1307.md) qualifies the thread/runtime
+batch. Guest Kestrel remains incomplete.
 CLROS is not cloud-ready or production-ready.
 
 [Step1225](done/step1225.md) qualifies the pinned .NET 11 OS/tooling migration and
@@ -25,15 +25,15 @@ compiler and guest evidence.
 
 ## Current accepted evidence
 
-The latest scheduler qualification is [step1230](done/step1230.md), using frozen
-implementation [`e0dac79`](http://192.168.4.35:3000/admin/CLROS/commit/e0dac79):
-**4,806 full-host checks across 626 fixtures (94 Native), three lifecycle guests
-and 15 fresh ancestor captures**, with original native review and exact rebuilt
-input joins. Each lifecycle stream has 177 application records, including seven
-hardware ticks, 38 cooperative transfers, retained joins, both cancellation race
-orders and four off-stack reaps. All 23 internal page leases return; the 32-page
-firmware reservation remains retained. This qualifies single-BSP CPL0 mechanical
-workers. Application wait-on-address and FS/TLS are next, before Linux threading.
+The latest qualification is [step1307](done/step1307.md): **5,202 full-host checks
+across 687 fixtures (94 Native), 44 strict captures across 32 thread/runtime profiles
+and 24 fresh affected ancestors**, with original native/ABI/stack review and exact
+source/object/EFI/package/transcript joins. Three retained strict GC-stress
+repetitions and a separately identified raw-state diagnostic prove the bounded
+exit-request/GC interaction. Accepted scope includes mechanical waits/TLS/Linux
+threads/signals and the exact unchanged pinned Hello, focused GC/ThreadPool,
+original RuntimeSmoke and RuntimeMatrix workloads on single-vCPU QEMU/OVMF.
+This does not qualify arbitrary Linux apps, general kernel EH or Kestrel.
 
 [Step1225](done/step1225.md) separately retains the .NET 11 migration acceptance:
 4,783 full-host checks and 29 audited strict QEMU captures, including an expected
@@ -91,27 +91,14 @@ After [#727](http://192.168.4.35:3000/admin/CLROS/issues/727) is merged and its
 tracker evidence is reconciled, #188 is the next ready implementation slice.
 The existing development thread remains paused until explicitly resumed.
 
-The next scheduler slice is [#188: thread lifecycle](http://192.168.4.35:3000/admin/CLROS/issues/188):
-bounded single-BSP CPL0 cooperative create/start, yield, park/wake, sleep, join,
-exit and cancellation, with actual hardware timer wakes. It must join the
-qualified contexts and queues under one lifetime owner, handle all workers
-being parked, preserve timer progress across repeated wakes and reclaim a
-thread's stack only after execution and outstanding references have left it.
-This scope does not add arbitrary interrupt-preempted managed execution.
+The immediate sequence after the qualified thread/runtime batch is:
 
-The immediate sequence is:
-
-1. Qualify #188 lifecycle, then
-   [#191 wait-on-address](http://192.168.4.35:3000/admin/CLROS/issues/191) and
-   [#192 FS/TLS and kernel GS preservation](http://192.168.4.35:3000/admin/CLROS/issues/192).
-2. Implement [#686 Linux threads/TLS/futex](http://192.168.4.35:3000/admin/CLROS/issues/686),
-   blocking pipes and real per-thread signal masks.
-3. Add [#687 signal delivery and first unchanged pinned Hello](http://192.168.4.35:3000/admin/CLROS/issues/687),
-   then [#688 upstream runtime qualification](http://192.168.4.35:3000/admin/CLROS/issues/688)
-   after its GC/ThreadPool prerequisites.
-4. Complete the live networking, Linux sockets and epoll dependencies, then
+1. Implement [#691's continuing owned network-device lifetime](http://192.168.4.35:3000/admin/CLROS/issues/691)
+   and its dependency-compatible TCP consumers #148-#153.
+2. Complete [#689 Linux sockets](http://192.168.4.35:3000/admin/CLROS/issues/689)
+   and [#690 epoll](http://192.168.4.35:3000/admin/CLROS/issues/690), then
    prove guest Kestrel `/healthz` with an independent external HTTP request.
-5. Qualify two isolated local applications before provider-specific deployment.
+3. Qualify two isolated local applications before provider-specific deployment.
 
 Use the [managed issue manifest](.gitea/backlog/clros-issues.json) for exact
 acceptance, owned paths and dependencies, and the

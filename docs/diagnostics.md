@@ -1,5 +1,20 @@
 # Diagnostics
 
+[Step1307](../done/step1307.md) completes the stable bounded thread/runtime batch:
+5,202 full-host checks, 44 strict batch captures across 32 profiles, three retained
+strict GC repetitions and 24 fresh ancestors. Exact original native joins,
+framing, generation/wait/signal/timing/cleanup checks remain mandatory. The
+QMP/GDB GC witness is supplemental diagnostic evidence, with separate producer,
+RAM/CFI/CPU/slot/event provenance; it is not a strict-runner capture. The earlier
+matrix failure is before the first EBS-success confirmation, with actual firmware
+exit state unknown and no app execution witnessed. No startup cause/fix, guest
+Kestrel or new numbered/cloud/production gate is claimed.
+
+## Historical development receipts
+
+The named development checkpoints below retain their original scope; step1307
+supersedes their pending acceptance statements for this bounded batch.
+
 [Step1306](../done/step1306.md) preserves a genuine interrupted-pipe fixture
 failure: its descriptor pair occupied the final word of the handler's24-byte
 sigaltstack output. The returned stack size4096 overwrote fd3; the app read that
