@@ -1,5 +1,15 @@
 # PAL
 
+[Step1274](../done/step1274.md) adds repeated upstream ThreadPool work,
+cancelled-wait permit recovery, competing completion publishers/continuations
+and in-flight timer disposal. Three Windows managed rounds complete 24 real
+work items, recover all app-owned waits and drain three active callbacks. The
+post-disposal delay has its own monotonic start timestamp, so callback/drain time
+cannot hide an early observation interval. Seven focused checks pass. Runtime
+workers remain runtime-owned; native scheduler/wait ownership, worker exit and
+kernel resource reuse remain unqualified. The separate app requires its own Linux
+publication/syscall inventory and guest admission within the same eight-issue batch.
+
 [Step1273](../done/step1273.md) adds an upstream managed GC-only stress workload
 with running, event-waiting, sleeping, join-blocked and exit-requested threads
 over three lifetimes. The Windows managed control completes nine forced full

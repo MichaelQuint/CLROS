@@ -1,5 +1,17 @@
 # App Model
 
+[Step1274](../done/step1274.md) adds separate `NativeAotThreadPoolStress` source
+and Windows managed evidence. Three rounds complete 24 Task.Run work items with
+two app operations in flight, recover cancelled async waits, race result/cancel
+publication with exactly one winner and reject duplicate completion. Before,
+racing and after-publication continuations each execute once. Actual timer
+disposal stays pending while its callback is held; after release, disposal and
+callback completion precede a separately measured Task.Delay observation window.
+Seven focused checks pass, including original ThreadPool smoke regressions. This
+app's operations drain; runtime worker shutdown and kernel cleanup still need
+guest evidence. Original pinned workloads remain unchanged. The new stress app
+has no Linux producer/syscall/index qualification or guest admission yet.
+
 [Step1273](../done/step1273.md) adds a separate `NativeAotSuspensionStress`
 workload. Three lifetimes each start five managed workers: running, event-waiting,
 sleeping, join-blocked and exit-requested. Nine forced full collections require
