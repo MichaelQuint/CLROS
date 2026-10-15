@@ -34,6 +34,21 @@ internal static class LinuxHelloTranscriptTests
         Reject(uncontended.Where(r=>!r.Contains("identity=4294967299 nr=0 ",StringComparison.Ordinal)).ToArray());
     }
 
+    [HostTest("nativeaot.hello optional syscall timings require the actual complete call and ordered raw samples")]
+    private static void SyscallTimingDiagnostics()
+    {
+        var rows=Build().ToList();int at=rows.FindIndex(r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal));
+        string nr=Regex.Match(rows[at],@"\bnr=([0-9]+)").Groups[1].Value;
+        string timing=$"M16_008_SYSCALL_TIME identity=4294967297 ordinal=1 nr={nr} entered=100 admitted=200 dispatched=300 prepared=400 periodFs=10000000";
+        rows.Insert(at+1,timing);_=Inspect(rows.ToArray());
+        foreach(var mutation in new[]{Change(rows.ToArray(),"M16_008_SYSCALL_TIME ","identity",4294967298),
+            Change(rows.ToArray(),"M16_008_SYSCALL_TIME ","ordinal",2),Change(rows.ToArray(),"M16_008_SYSCALL_TIME ","nr",999),
+            Change(rows.ToArray(),"M16_008_SYSCALL_TIME ","admitted",99),Change(rows.ToArray(),"M16_008_SYSCALL_TIME ","dispatched",199),
+            Change(rows.ToArray(),"M16_008_SYSCALL_TIME ","prepared",299),Change(rows.ToArray(),"M16_008_SYSCALL_TIME ","periodFs",0),
+            rows.Where((_,i)=>i!=at).ToArray()})Reject(mutation);
+        rows.Insert(at+2,timing);Reject(rows.ToArray());
+    }
+
     [HostTest("nativeaot.hello optional timing rows cannot stand in for the required IRQ or alter its identity")]
     private static void TimingDiagnostics()
     {

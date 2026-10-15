@@ -349,13 +349,27 @@ public static unsafe partial class EfiEntry
         {
             LinuxNativeControl* c = LinuxNativeOwner(state);
             if (c == null || frame != (LinuxSyscallFrame*)(state->LinuxSyscallData + X64LinuxUserTransition.FrameOffset) ||
-                c->Selected == 0 || c->Selected > c->Capacity || !c->Process.CurrentImage(c->Key, 2, out var image) ||
+                c->Selected == 0 || c->Selected > c->Capacity) return 0;
+#if M16_009_PROBE
+            // Sample only after owner and exact-frame admission. The initial
+            // owner validation is outside these optional syscall intervals.
+            ulong entered = 0, admitted = 0, dispatched = 0, prepared = 0;
+            delegate* unmanaged<void*, ulong*, byte> timingRead = &ReadLinuxClock;
+            bool timing = c->Budget.HasElapsedLimit && timingRead(state, &entered) == 1;
+#endif
+            if (!c->Process.CurrentImage(c->Key, 2, out var image) ||
                 !X64LinuxUserTransition.CaptureUserImage((byte*)state->LinuxSyscallData, X64LinuxUserTransition.DataBytes,
                     image, X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask, c->User)) return 0;
             uint index = c->Selected - 1;
             if (c->Entered[index] != 1 || c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity) return 0;
             LinuxSyscallFrame call = *frame;
+#if M16_009_PROBE
+            timing = timing && timingRead(state, &admitted) == 1;
+#endif
             var result = LinuxSyscallGateway.Dispatch(ref c->Gates[index], ref *frame);
+#if M16_009_PROBE
+            timing = timing && timingRead(state, &dispatched) == 1;
+#endif
             image->Frame = *frame; image->Value = result.Value;
             // Sigreturn's original restorer input remains in call; this is the
             // actual admitted output before pending delivery can replace it.
@@ -389,6 +403,9 @@ public static unsafe partial class EfiEntry
             // No deadline is inferred from a user timespec or timer ready count.
             if (!c->Process.Inspect(c->Key, 2, c->Threads.Current, out var waitView))
             { if (LinuxNativeAbort(c, index) != 2) return 0; return 2; }
+#if M16_009_PROBE
+            timing = timing && timingRead(state, &prepared) == 1 && entered <= admitted && admitted <= dispatched && dispatched <= prepared;
+#endif
             bool logged = LinuxText(state, "M16_008_CALL identity=") && LinuxNumber(state, c->Threads.Current.Value) &&
                 LinuxText(state, " nr=") && LinuxNumber(state, call.Number) &&
                 LinuxText(state, " a0=") && LinuxNumber(state, call.Argument0) && LinuxText(state, " a1=") && LinuxNumber(state, call.Argument1) &&
@@ -413,10 +430,29 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " returnFs=") && LinuxNumber(state, returned.FsBase) &&
                 LinuxText(state, " returnGs=") && LinuxNumber(state, returned.GsBase) &&
                 LinuxText(state, " returnValueBits=") && LinuxNumber(state, unchecked((ulong)result.Value)) && LinuxText(state, "\r\n");
+#if M16_009_PROBE
+            if (logged && timing)
+                logged = LinuxNativeSyscallTimingWrite(c, call.Number, entered, admitted, dispatched, prepared);
+#endif
             if (!logged || result.Action == LinuxSyscallAction.Rejected || returning.Action == LinuxSyscallAction.Rejected)
             { if (LinuxNativeAbort(c, index) != 2) return 0; }
             return logged && returning.Action == LinuxSyscallAction.RestoreUser ? (byte)1 : (byte)2;
         }
+
+#if M16_009_PROBE
+        // Optional raw HPET observations exclude serial logging. Failed reads
+        // suppress the sample; they never bypass the original syscall checks.
+        private static bool LinuxNativeSyscallTimingWrite(LinuxNativeControl* c, ulong number,
+            ulong entered, ulong admitted, ulong dispatched, ulong prepared) =>
+            LinuxText(c->State, "M16_008_SYSCALL_TIME identity=") && LinuxNumber(c->State, c->Threads.Current.Value) &&
+            LinuxText(c->State, " ordinal=") && LinuxNumber(c->State, c->Gates[c->Selected - 1].Calls) &&
+            LinuxText(c->State, " nr=") && LinuxNumber(c->State, number) &&
+            LinuxText(c->State, " entered=") && LinuxNumber(c->State, entered) &&
+            LinuxText(c->State, " admitted=") && LinuxNumber(c->State, admitted) &&
+            LinuxText(c->State, " dispatched=") && LinuxNumber(c->State, dispatched) &&
+            LinuxText(c->State, " prepared=") && LinuxNumber(c->State, prepared) &&
+            LinuxText(c->State, " periodFs=") && LinuxNumber(c->State, c->State->Clock.PeriodFemtoseconds) && LinuxText(c->State, "\r\n");
+#endif
 
         private static byte LinuxNativeAbort(LinuxNativeControl* c, uint index)
         {

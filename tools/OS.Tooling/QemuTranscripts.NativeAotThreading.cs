@@ -262,6 +262,7 @@ public static partial class QemuTranscripts
                         }
                         Call(t,r,waits[index],output); Envelope(t,r["rip"],r["rsp"],r["flags"],r["fs"],r["gs"],r["nr"]);
                         t.SavedRsp=returns[index].Rsp; t.SavedRip=returns[index].Rip;
+                        if(Starts("M16_008_SYSCALL_TIME "))LinuxSyscallTiming(Take(),t.Identity,waits[index].Ordinal,r["nr"]);
                         ExpectDelivery(t);
                         calls++; ending=r["action"] is 2 or 3 or 4 or 6; exiting=r["action"] is 2 or 4; action=r["action"];
                         if(ending) break;

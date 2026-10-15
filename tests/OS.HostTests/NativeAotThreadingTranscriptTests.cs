@@ -311,6 +311,21 @@ internal static class NativeAotThreadingTranscriptTests
         v.Rows.Insert(blocked+1,timing);Reject(v,v.Rows.ToArray());
     }
 
+    [HostTest("nativeaot.threading syscall timing diagnostics bind to the actual generation ordinal and syscall without replacing evidence")]
+    private static void SyscallTimingDiagnostics()
+    {
+        var v=PoolVector();int at=v.Rows.FindIndex(r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal));
+        string nr=Regex.Match(v.Rows[at],@"\bnr=([0-9]+)").Groups[1].Value;
+        string timing=$"M16_008_SYSCALL_TIME identity=4294967297 ordinal=1 nr={nr} entered=100 admitted=200 dispatched=300 prepared=400 periodFs=10000000";
+        v.Rows.Insert(at+1,timing);HostCheck.True(Inspect(v).Reaped==6);
+        foreach(var mutation in new[]{Change(v,"M16_008_SYSCALL_TIME ","identity",4294967298),
+            Change(v,"M16_008_SYSCALL_TIME ","ordinal",2),Change(v,"M16_008_SYSCALL_TIME ","nr",999),
+            Change(v,"M16_008_SYSCALL_TIME ","admitted",99),Change(v,"M16_008_SYSCALL_TIME ","dispatched",199),
+            Change(v,"M16_008_SYSCALL_TIME ","prepared",299),Change(v,"M16_008_SYSCALL_TIME ","periodFs",0),
+            v.Rows.Where((_,i)=>i!=at).ToArray()})Reject(v,mutation);
+        v.Rows.Insert(at+2,timing);Reject(v,v.Rows.ToArray());
+    }
+
     [HostTest("nativeaot.threading synthetic scheduler rejects premature deadlines wrong FIFO resumes and forged owner cleanup")]
     private static void SchedulerFailures()
     {

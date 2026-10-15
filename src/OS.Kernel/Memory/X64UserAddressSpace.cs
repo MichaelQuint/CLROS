@@ -40,6 +40,9 @@ public static unsafe class X64UserAddressSpace
     public const ulong UserEnd = 0x1000000000, PhysicalEnd = 0x100000000;
     private const ulong Page = 4096, AddressMask = 0x000ffffffffff000;
 
+    /// <summary>Construct and audit an inactive root in exclusive mapped zero
+    /// tables while the caller retains unchanged ranges. Admission failure leaves
+    /// storage unchanged; later failure clears it. No allocation or CR3 switch occurs.</summary>
     public static X64UserAddressSpaceResult Build(X64UserMappingRange* ranges, uint count,
         ulong* tables, ulong physicalRoot, uint tablePages, X64PageTableEncodingPreconditions conditions)
     {
@@ -50,6 +53,7 @@ public static unsafe class X64UserAddressSpace
         for (uint index = 0; index <= count; index++)
         {
             var range = index == count ? Arena(physicalRoot, tablePages) : ranges[index];
+            if (!Encode(range, 0, conditions, out ulong rangeEntry)) return Rollback(tables, tablePages);
             for (ulong page = 0; page < range.Pages; page++)
             {
                 ulong va = range.VirtualStart + page * Page;
@@ -58,10 +62,11 @@ public static unsafe class X64UserAddressSpace
                 uint pd = Child(tables, physicalRoot, tablePages, pdpt, (uint)((va >> 30) & 511), X64PageTableLevel.Pdpte, ref used, conditions);
                 if (pd == 0) return Rollback(tables, tablePages);
                 uint pt = Child(tables, physicalRoot, tablePages, pd, (uint)((va >> 21) & 511), X64PageTableLevel.Pde, ref used, conditions);
-                if (pt == 0 || !Encode(range, page, conditions, out ulong leaf)) return Rollback(tables, tablePages);
+                if (pt == 0) return Rollback(tables, tablePages);
                 ulong* entry = tables + pt * 512 + ((va >> 12) & 511);
                 if (*entry != 0) return Rollback(tables, tablePages);
-                *entry = leaf;
+                // The admitted aligned span cannot carry into its flag bits.
+                *entry = rangeEntry + page * Page;
             }
         }
         var result = new X64UserAddressSpaceResult
@@ -70,6 +75,10 @@ public static unsafe class X64UserAddressSpace
         return result;
     }
 
+    /// <summary>Check every reachable entry and unused table against the admitted
+    /// ranges, allowing only hardware A/D changes. The caller retains exclusive,
+    /// mapped, unchanged range/table storage for this synchronous call. False
+    /// mutates nothing; this supplies no live-CR3 or execution authority.</summary>
     public static bool Audit(X64UserMappingRange* ranges, uint count, ulong* tables, ulong physicalRoot,
         uint tablePages, X64PageTableEncodingPreconditions conditions, X64UserAddressSpaceResult result)
     {
@@ -78,6 +87,7 @@ public static unsafe class X64UserAddressSpace
         byte* seen = stackalloc byte[(int)MaximumTables];
         for (uint i = 0; i < MaximumTables; i++) seen[i] = 0;
         seen[0] = 1; uint seenTables = 1; ulong leaves = 0;
+        ulong rangeStart = 0, rangeBytes = 0, rangeEntry = 0;
         for (uint rootIndex = 0; rootIndex < 512; rootIndex++)
         {
             ulong rootEntry = tables[rootIndex];
@@ -98,16 +108,22 @@ public static unsafe class X64UserAddressSpace
                         ulong leaf = tables[pt * 512 + ti];
                         if (leaf == 0) continue;
                         ulong va = ((ulong)pi << 30) | ((ulong)di << 21) | ((ulong)ti << 12);
-                        bool matched = false;
-                        for (uint r = 0; r <= count; r++)
+                        if (va < rangeStart || va - rangeStart >= rangeBytes)
                         {
-                            var range = r == count ? Arena(physicalRoot, tablePages) : ranges[r];
-                            if (va < range.VirtualStart || va - range.VirtualStart >= range.Pages * Page) continue;
-                            if (!Encode(range, (va - range.VirtualStart) / Page, conditions, out ulong expected) ||
-                                (leaf & ~0x60UL) != expected) return false;
-                            matched = true; break;
+                            bool matched = false;
+                            for (uint r = 0; r <= count; r++)
+                            {
+                                var range = r == count ? Arena(physicalRoot, tablePages) : ranges[r];
+                                if (va < range.VirtualStart || va - range.VirtualStart >= range.Pages * Page) continue;
+                                if (!Encode(range, 0, conditions, out rangeEntry)) return false;
+                                rangeStart = range.VirtualStart; rangeBytes = range.Pages * Page;
+                                matched = true; break;
+                            }
+                            if (!matched) return false;
                         }
-                        if (!matched) return false;
+                        // Admission bounded this whole physical span. Its aligned
+                        // offset changes address bits only; flags stay identical.
+                        if ((leaf & ~0x60UL) != rangeEntry + (va - rangeStart)) return false;
                         leaves++;
                     }
                 }

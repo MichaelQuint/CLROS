@@ -2,6 +2,14 @@
 
 ## Development Linux threading profile
 
+[Step1298](../done/step1298.md) adds optional per-call HPET intervals and removes
+repeated leaf encoding inside a single exclusive user-root construction/audit.
+110 focused checks, one strict three-lifetime/nine-collection GC stress capture
+and strict original RuntimeSmoke pass. All original payloads and real deadlines
+remain fixed; no timer-count change is retained. Every actual leaf and complete
+table inventory remains checked. Source review and boundary/PAT mutations pass;
+final original-native, repeated frozen-source and full-host/ancestor gates remain.
+
 [Step1297](../done/step1297.md) reduces duplicate/bytewise verification work
 while preserving independent code, padding, owner/root and transfer checks.
 67 focused checks and strict original RuntimeSmoke r24 pass with full cleanup.

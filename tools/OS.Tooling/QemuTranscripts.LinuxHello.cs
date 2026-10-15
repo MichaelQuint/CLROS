@@ -44,6 +44,13 @@ public static partial class QemuTranscripts
             r["start"]<=r["arm"] && r["arm"]<=r["capture"] && r["capture"]<=r["ready"],"linux_timing_observation");
     }
 
+    private static void LinuxSyscallTiming(string line,ulong identity,ulong ordinal,ulong number)
+    {
+        var r=ReadRecord(line,"M16_008_SYSCALL_TIME","identity:dec","ordinal:dec","nr:dec","entered:dec","admitted:dec","dispatched:dec","prepared:dec","periodFs:dec");
+        Need(r["identity"]==identity && r["ordinal"]==ordinal && r["nr"]==number && r["periodFs"] is >0 and <=1_000_000_000 &&
+            r["entered"]<=r["admitted"] && r["admitted"]<=r["dispatched"] && r["dispatched"]<=r["prepared"],"linux_syscall_timing_observation");
+    }
+
     // Validate original bytes before removing only the three known payload LFs
     // for the existing CRLF record parser and runner's trimmed marker summary.
     private static string NormalizeHelloWrites(string text)
@@ -145,6 +152,7 @@ public static partial class QemuTranscripts
                         Need(output == (call["nr"] == 1), "hello_write_call_pair");
                         Call(t, call);
                         Envelope(t, call, false);
+                        if(Starts("M16_008_SYSCALL_TIME "))LinuxSyscallTiming(Take(),t.Identity,(ulong)t.Calls,call["nr"]);
                         calls++;
                         ending = call["action"] is 2 or 3 or 4;
                         exiting = call["action"] is 2 or 4;

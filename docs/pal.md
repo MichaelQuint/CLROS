@@ -1,5 +1,15 @@
 # PAL
 
+[Step1298](../done/step1298.md) resolves the observed GC-stress startup failure
+by reusing a range's admitted leaf encoding within each root construction/audit.
+Every actual entry, table identity/count, permission and unused page is still
+checked; no cached validity survives the call.110 focused checks pass. One strict
+GC-stress capture completes three lifetimes, nine collections, fifteen joins,
+nine actual activation sends/returns and eighteen reaps with full cleanup. Strict
+original RuntimeSmoke also passes. Original payloads, waits, clocks and timer
+counts remain unchanged. Repeated frozen-source and full-host/native/ancestor
+qualification remain before shared acceptance; all eight issues stay open.
+
 [Step1297](../done/step1297.md) reduces native verification work without
 removing its invariants: the reap boundary retains the independent code scan,
 INT3 padding is checked/written in bounded words with a byte tail, and zero
