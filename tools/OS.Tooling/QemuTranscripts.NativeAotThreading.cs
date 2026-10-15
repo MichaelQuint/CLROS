@@ -263,7 +263,7 @@ public static partial class QemuTranscripts
                         Call(t,r,waits[index],output); Envelope(t,r["rip"],r["rsp"],r["flags"],r["fs"],r["gs"],r["nr"]);
                         t.SavedRsp=returns[index].Rsp; t.SavedRip=returns[index].Rip;
                         ExpectDelivery(t);
-                        calls++; ending=r["action"] is 2 or 3 or 4; exiting=r["action"] is 2 or 4; action=r["action"];
+                        calls++; ending=r["action"] is 2 or 3 or 4 or 6; exiting=r["action"] is 2 or 4; action=r["action"];
                         if(ending) break;
                     }
                     if(ending)
@@ -271,7 +271,7 @@ public static partial class QemuTranscripts
                         var drain=Row("M16_009_DRAIN","identity:dec","epoch:dec","nanos:dec");
                         Need(drain["identity"]==t.Identity && (!stopping || drain["nanos"]==clock),"threading_drain_binding");
                         Epoch(drain); drains++;
-                        if(!exiting && t.Completion.HasValue) Enqueue(t);
+                        if(action==6 || !exiting && t.Completion.HasValue) Enqueue(t);
                         t.Parking=false;
                     }
                     else

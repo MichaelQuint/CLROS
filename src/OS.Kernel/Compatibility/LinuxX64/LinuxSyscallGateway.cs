@@ -2,7 +2,7 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public enum LinuxSyscallGateStatus : byte
 { Uninitialized, Active, Exited, InvalidAdmission, AlreadyConsumed, InvalidReturn, CallLimit, CopyFailed, SinkFailed, Blocked }
-public enum LinuxSyscallAction : byte { Rejected, Return, Terminate, Blocked, ThreadExited, RestoreUser }
+public enum LinuxSyscallAction : byte { Rejected, Return, Terminate, Blocked, ThreadExited, RestoreUser, Yielded }
 public enum LinuxUserPageAccess : byte { None = 0, Read = 1, Write = 2, Execute = 4 }
 
 /// <summary>Captured Linux x64 syscall values; RCX/R11 supply return RIP/flags.</summary>
@@ -19,6 +19,8 @@ public readonly struct LinuxSyscallResult
     public readonly uint ExitCode;
     /// <summary>Result from a separately admitted service. Blocked/ThreadExited
     /// require native cleanup before the scheduler parks/reaps its kernel worker.
+    /// Yielded is exclusively syscall24: the native owner must capture and
+    /// enqueue the current worker through the real FIFO before resuming it.
     /// RestoreUser is exclusively a validated syscall15 return; the native owner
     /// must install its complete saved GPR/FX image, not just Frame/Value.</summary>
     public LinuxSyscallResult(LinuxSyscallAction action, long value = 0, uint exitCode = 0)
@@ -160,7 +162,9 @@ public static unsafe partial class LinuxSyscallGateway
             Clear(state.Admission.Scratch, state.Admission.ScratchBytes);
             if (!ThreadFrame(original, frame, result) || !ValidateReturn(original, state.Access) || !ValidateReturn(frame, state.Access))
             { frame = original; return Stop(ref state, LinuxSyscallGateStatus.InvalidReturn); }
-            bool valid = (result.Action == LinuxSyscallAction.Return || result.Action == LinuxSyscallAction.RestoreUser && original.Number == 15) && result.ExitCode == 0 ||
+            bool valid = (result.Action == LinuxSyscallAction.Return && (original.Number != 24 || result.Value < 0) ||
+                result.Action == LinuxSyscallAction.RestoreUser && original.Number == 15) && result.ExitCode == 0 ||
+                result.Action == LinuxSyscallAction.Yielded && original.Number == 24 && result.Value == 0 && result.ExitCode == 0 ||
                 result.Action == LinuxSyscallAction.Blocked && result.Value == 0 && result.ExitCode == 0 && frame.Number is 0 or 1 or 202 or 219 ||
                 (result.Action == LinuxSyscallAction.ThreadExited || result.Action == LinuxSyscallAction.Terminate) && result.Value == 0;
             if (!valid) return Stop(ref state, LinuxSyscallGateStatus.InvalidAdmission);

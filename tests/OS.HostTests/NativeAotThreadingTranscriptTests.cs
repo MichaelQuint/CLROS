@@ -156,7 +156,7 @@ internal static class NativeAotThreadingTranscriptTests
         v.Select(v.Main);v.Output();v.Call(231,0,[0],2);v.Drain(120);v.Exit(2,2,3);
         v.Select(final);v.Exit(4,1,2);v.Select(signal);v.Exit(4,0,1);v.End(4);return v;
     }
-    private static Vector PoolVector(bool reuse=false,bool workerClone=false,int retiredSignal=0,bool requeue=false)
+    private static Vector PoolVector(bool reuse=false,bool workerClone=false,int retiredSignal=0,bool requeue=false,bool yielded=false)
     {
         Vector v=new Vector(true).Start();Thread final=v.Clone(2,2),signal=v.Clone(3,3),first=v.Clone(4,4),second=v.Clone(5,5),gate=v.Clone(6,6);
         v.Irq(10,6,6);v.Select(final);v.Wait(0x500200);v.Drain(20);v.Supervisor(3,5,6);
@@ -164,6 +164,11 @@ internal static class NativeAotThreadingTranscriptTests
         v.Select(first);v.Wait(0x500210,100);v.Drain(40);v.Supervisor(3,3,6);
         v.Select(second);v.Wait(0x500214,100);v.Drain(50);v.Supervisor(3,2,6);
         v.Select(gate);
+        if(yielded)
+        {
+            v.Call(24,0,action:6);v.Drain(55);v.Supervisor(6,2,6);
+            v.Select(v.Main);v.Irq(56,2,6);v.Select(gate);
+        }
         if(requeue)v.Call(202,1,[0x500210,131,0,1,0x500214]); // Address FIFO changes; equal-deadline scheduler FIFO must not.
         if(retiredSignal==1){gate.Mask=1UL<<34;v.Call(14,0,[2,0x500400,0,8]);}
         v.Wait(0x500230);v.Drain(60);v.Supervisor(3,1,6);
@@ -277,6 +282,18 @@ internal static class NativeAotThreadingTranscriptTests
         HostCheck.True(Inspect(PoolVector(reuse:true)).Reaped==7 && Inspect(PoolVector(workerClone:true)).Clones==6);
         HostCheck.True(Inspect(PoolVector(retiredSignal:1)).SignalReturns==0 && Inspect(PoolVector(retiredSignal:2)).SignalReturns==0);
     }
+    [HostTest("nativeaot.threading sched_yield requires actual captured FIFO drain and cannot fabricate a wait or return-only success")]
+    private static void YieldProtocol()
+    {
+        var v=PoolVector(yielded:true);var report=Inspect(v);HostCheck.True(report.Transfers==30 && report.Irqs==2);
+        Reject(v,Change(v,"nr=24 ","action",1));Reject(v,Change(v,"nr=24 ","waitSource",1));
+        Reject(v,Change(v,"action=6 transfers=","ready",1));
+        int at=v.Rows.FindIndex(r=>r.Contains("nr=24 ",StringComparison.Ordinal));var rows=v.Rows.ToArray();
+        rows[at]=Regex.Replace(rows[at],@"\b(valueBits|returnValueBits)=[0-9]+",m=>m.Groups[1].Value+"="+unchecked((ulong)-38L).ToString(CultureInfo.InvariantCulture));
+        Reject(v,rows);
+        Reject(v,v.Rows.Where((_,i)=>i!=at+1).ToArray());
+    }
+
     [HostTest("nativeaot.threading synthetic scheduler rejects premature deadlines wrong FIFO resumes and forged owner cleanup")]
     private static void SchedulerFailures()
     {

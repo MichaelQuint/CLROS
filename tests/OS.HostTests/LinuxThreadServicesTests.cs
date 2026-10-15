@@ -140,7 +140,7 @@ internal static unsafe class LinuxThreadServicesTests
             frame.Argument3 = a3; frame.Argument4 = a4; frame.Argument5 = a5;
             image->Frame = frame; // Host model of the owner's already captured syscall image.
             var result = descriptor ? Service->DispatchDescriptor(Key, 2, frame) : Service->Dispatch(Key, 2, ref frame); image->Frame = frame;
-            if (result.Action == LinuxSyscallAction.Return) image->Value = result.Value;
+            if (result.Action is LinuxSyscallAction.Return or LinuxSyscallAction.Yielded) image->Value = result.Value;
             return result;
         }
 
@@ -252,6 +252,22 @@ internal static unsafe class LinuxThreadServicesTests
         HostCheck.Equal(101U, m.View(identity).Tid);
         HostCheck.True(!m.Service->Inspect(Key, 2, new(identity.Value + (1UL << 32)), out var stale) && !stale.Kernel.IsValid);
         HostCheck.Equal(0U, m.Reads); HostCheck.Equal(0U, m.Writes);
+    }
+
+    [HostTest("linux.thread-services sched_yield stages no wait and real captured FIFO resumes the ready peer first")]
+    private static void YieldToReadyPeer()
+    {
+        using Model m=new();var parent=m.Start();HostCheck.Equal(parent.Value,m.Kernel.Dispatch().Value);var child=m.Clone();
+        uint reads=m.Reads,writes=m.Writes;var result=m.Call(24,ulong.MaxValue,ulong.MaxValue);
+        HostCheck.True(result.Action==LinuxSyscallAction.Yielded && result.Value==0 && result.ExitCode==0);
+        HostCheck.Equal(parent.Value,m.Kernel.Table->Current.Value);HostCheck.Equal(1U,m.Kernel.Table->ReadyCount);
+        HostCheck.True(!m.View(parent).Wait.IsValid && m.View(parent).WaitSource==0);
+        HostCheck.Equal(reads,m.Reads);HostCheck.Equal(writes,m.Writes);
+        HostCheck.True(m.Kernel.Table->Yield(KernelThreadTableTests.Key,2,parent,m.Kernel.Capture(parent)).Succeeded);m.Kernel.Confirm();
+        HostCheck.Equal(child.Value,m.Kernel.Dispatch().Value);
+        HostCheck.True(m.Kernel.Table->Yield(KernelThreadTableTests.Key,2,child,m.Kernel.Capture(child)).Succeeded);m.Kernel.Confirm();
+        HostCheck.Equal(parent.Value,m.Kernel.Dispatch().Value);HostCheck.Equal(0L,m.CurrentImage()->Value);
+        HostCheck.True(!m.View(parent).Wait.IsValid && m.Service->ActiveThreads==2);
     }
 
     [HostTest("linux.thread-services exact pthread clone inherits independent images and masks with real user copies")]

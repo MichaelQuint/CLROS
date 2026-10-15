@@ -47,6 +47,9 @@ internal static unsafe class LinuxSyscallGatewayTests
             case 19: frame->GsBase = frame->Argument1; frame->FsBase = frame->Argument1; return new(LinuxSyscallAction.Return);
             case 20: frame->GsBase = 0x403008; return new(LinuxSyscallAction.Return);
             case 21: frame->GsBase = 0x403008; return new(LinuxSyscallAction.RestoreUser, 77);
+            case 30: return new(LinuxSyscallAction.Yielded, m->ThreadValue);
+            case 31: return new(LinuxSyscallAction.Yielded, exitCode: 1);
+            case 32: frame->Argument3++; return new(LinuxSyscallAction.Yielded);
         }
         if (frame->Number == 158) { frame->FsBase = frame->Argument1; return new(LinuxSyscallAction.Return); }
         return new(LinuxSyscallAction.Return, 23);
@@ -58,6 +61,27 @@ internal static unsafe class LinuxSyscallGatewayTests
         admission.MaximumCalls = LinuxSyscallGateway.MaximumThreadCalls;
         LinuxSyscallGateState state = default;
         HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref state, admission, access)); return state;
+    }
+
+    [HostTest("linux.gateway sched_yield requires exact staged handoff and rejects successful return without transfer")]
+    private static void YieldAdmission()
+    {
+        byte* scratch=stackalloc byte[64];Model model=new(){ThreadMode=30};var gate=ThreadGate(&model,scratch);
+        var frame=Frame();frame.Number=24;frame.Argument0=frame.Argument1=ulong.MaxValue;
+        var result=LinuxSyscallGateway.Dispatch(ref gate,ref frame);
+        HostCheck.True(result.Action==LinuxSyscallAction.Yielded && result.Value==0 && gate.Status==LinuxSyscallGateStatus.Active && gate.Calls==1);
+        foreach(var invalid in new[]{(30U,24UL,1L),(30U,39UL,0L),(31U,24UL,0L),(1U,24UL,0L)})
+        {
+            model.ThreadMode=invalid.Item1;model.ThreadValue=invalid.Item3;gate=ThreadGate(&model,scratch);frame.Number=invalid.Item2;
+            HostCheck.Equal(LinuxSyscallAction.Terminate,LinuxSyscallGateway.Dispatch(ref gate,ref frame).Action);
+            HostCheck.Equal(LinuxSyscallGateStatus.InvalidAdmission,gate.Status);
+        }
+        model.ThreadMode=32;model.ThreadValue=0;gate=ThreadGate(&model,scratch);frame=Frame();frame.Number=24;
+        HostCheck.Equal(LinuxSyscallAction.Terminate,LinuxSyscallGateway.Dispatch(ref gate,ref frame).Action);
+        HostCheck.Equal(LinuxSyscallGateStatus.InvalidReturn,gate.Status);HostCheck.Equal(0UL,frame.Argument3);
+        model.ThreadMode=30;model.ThreadCalls=0;gate=default;frame=Frame();frame.Number=24;
+        HostCheck.Equal(LinuxSyscallGateStatus.Active,LinuxSyscallGateway.Begin(ref gate,Admission(scratch),Access(&model)));
+        HostCheck.Equal(-38L,LinuxSyscallGateway.Dispatch(ref gate,ref frame).Value);HostCheck.Equal(0U,model.ThreadCalls);
     }
 
     [HostTest("linux.signal tkill gateway requires explicit thread admission and rejects callback frame mutation")]

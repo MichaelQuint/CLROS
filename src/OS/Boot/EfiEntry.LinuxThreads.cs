@@ -485,6 +485,17 @@ public static unsafe partial class EfiEntry
                     if (LinuxNativeAbort(c, index) != 2) return 0;
                     action = (LinuxSyscallAction)c->Actions[index];
                 }
+                if (action == LinuxSyscallAction.Yielded)
+                {
+#if M16_009_PROBE
+                    if (c->UserPreempted != 0 && c->UserPreempted != index + 1) return 0;
+#endif
+                    if (!c->Threads.Yield(c->Key, 2, new(worker.Identity), worker).Succeeded) return 0;
+#if M16_009_PROBE
+                    c->UserPreempted = 0;
+#endif
+                }
+                else
 #if M16_009_PROBE
                 if (c->UserPreempted!=0 && action==LinuxSyscallAction.Return)
                 {

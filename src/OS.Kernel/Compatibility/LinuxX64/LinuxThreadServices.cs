@@ -210,6 +210,8 @@ public unsafe partial struct LinuxThreadServices
     /// Successful ARCH_SET_FS/GS updates only the requested real ref-frame base.
     /// Both retain this profile's mapped-readable user-base policy. Exits are staged;
     /// CommitExit runs after full native restoration with a captured kernel CALL.
+    /// Yielded stages syscall24 without a wait; the native owner must restore
+    /// its envelope and commit the captured context through the kernel FIFO.
     /// Futex is explicit optional admission; unsupported operations cannot
     /// report success. A staged wait must finish before another user call.</summary>
     public LinuxSyscallResult Dispatch(ulong key, ulong flags, ref LinuxSyscallFrame frame)
@@ -228,6 +230,7 @@ public unsafe partial struct LinuxThreadServices
                 result = _signals == null ? Unsupported : LinuxSignalServices.Dispatch(_signals, _self, slot->Kernel, frame); break;
             case 14: result = SignalMask(slot, frame); break;
             case 15: return SignalReturn(key, flags, slot, ref frame);
+            case 24: return new(LinuxSyscallAction.Yielded);
             case 39: result = _owner.ProcessId; break;
             case 56: result = Clone(flags, slot, frame); break;
             case 60:

@@ -236,7 +236,8 @@ public static partial class QemuTranscripts
                     break;
                 case 324:
                     Need(b==0 && c==0 && a is 0 or 8 or 16 && v==(a==0?0x18UL:0UL) && (a!=8||barrierRegistered),"threading_barrier");if(a==16)barrierRegistered=true;break;
-                case 24: case 35: case 98: case 137: case 157: case 217: case 239: case 309:
+                case 24: Need(v==0,"threading_yield_result");action=6;break;
+                case 35: case 98: case 137: case 157: case 217: case 239: case 309:
                     Need(v==Bits(-38),"threading_unsupported_result");break;
                 default: throw new ToolFailure("threading_uninventoried_syscall_"+nr);
             }

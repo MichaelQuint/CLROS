@@ -1,5 +1,12 @@
 # PAL
 
+[Step1295](../done/step1295.md) implements syscall24 through an actual captured
+FIFO yield. It stages no wait and rejects successful return-only substitution.
+63 focused checks and unchanged original RuntimeSmoke pass, including ten real
+yield handoffs and complete nine-thread cleanup. Broader GC stress also performs
+ten yields but still fails sleep_window. Real boundary timing is next; neither
+application deadlines nor clocks are adjusted.
+
 [Step1294](../done/step1294.md) stops re-zeroing already-free pool pages on
 mapping/policy changes while preserving fresh/released-page zeroing and every
 admission/guard check.43 focused checks and the strict unchanged original runtime

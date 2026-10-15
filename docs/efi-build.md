@@ -2,6 +2,11 @@
 
 ## Development Linux threading profile
 
+[Step1295](../done/step1295.md) adds syscall24/action6 handoffs using existing
+captured-context FIFO and timer-restoration paths.63 focused checks and a strict
+original RuntimeSmoke regression pass. The broader GC stress retry still fails
+its genuine sleep window and fully cleans; boundary/timer cost remains to measure.
+
 [Step1294](../done/step1294.md) removes redundant free-pool clearing, passes43
 focused checks and repeats strict original RuntimeSmoke with exit0/full cleanup.
 The measured broader GC stress retry still fails sleep_window and cleans fully;
