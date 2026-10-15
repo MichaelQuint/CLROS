@@ -1,5 +1,14 @@
 # App Model
 
+[Step1305](../done/step1305.md) records three strict Hello and three strict matrix
+captures with original native-review joins and complete cleanup. A six-capture
+integrity audit passes. The first mechanical thread capture also completes its
+workload/cleanup, but exceeds an obsolete32KiB host framing limit; declared
+Linux thread profiles now use the existing bounded8MiB diagnostic extent.
+Exact leaf and runner checks remain. Mechanical/ancestor/final-full acceptance
+is pending; all eight issues stay open. A separate earlier pre-exit matrix boot
+failure remains preserved with unresolved cause.
+
 [Step1304](../done/step1304.md) replaces step1303's excessive matrix wake-bracket
 requirement. All six timestamps per round must match distinct successful
 CLOCK_MONOTONIC/ID1 syscall windows, bound to actual identity/ordinal and the

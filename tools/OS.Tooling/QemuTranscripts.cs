@@ -66,14 +66,17 @@ public static partial class QemuTranscripts
         }
     }
     internal static string[] FirmwareProtocol(string path, string terminal, bool noSuffix, bool allowShortSuffix, string reason, bool blockBoot = false,
-        NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null)
+        NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null,
+        bool linuxThreads = false)
     {
         byte[] bytes = File.ReadAllBytes(path);
         int prefixBytes = blockBoot ? QemuContracts.BlockFirmwarePrefixBytes : FirmwarePrefixBytes;
         string prefixHash = blockBoot ? QemuContracts.BlockFirmwarePrefixSha256 : FirmwarePrefixSha256;
         Need(helloProgram is null || threadingProgram is null,"threading_hello_conflict");
         Need(runtimeProgram is null || helloProgram is null && threadingProgram is null,"runtime_program_conflict");
-        Need(bytes.Length >= prefixBytes && bytes.Length <= (helloProgram is null && threadingProgram is null && runtimeProgram is null ? 32768 : 8 * 1024 * 1024), reason + "_raw_extent");
+        // Thread diagnostics include complete call/return/wait images. The
+        // declared profile still requires its exact bounded leaf afterward.
+        Need(bytes.Length >= prefixBytes && bytes.Length <= (!linuxThreads && helloProgram is null && threadingProgram is null && runtimeProgram is null ? 32768 : 8 * 1024 * 1024), reason + "_raw_extent");
         string text = DecodeUtf8(bytes);
         int start = text.IndexOf("TEST_START efi.main\r\n", StringComparison.Ordinal);
         int terminalAt = terminal.Length == 0 ? text.Length : text.IndexOf(terminal, StringComparison.Ordinal);

@@ -2,6 +2,14 @@
 
 ## Development Linux threading profile
 
+[Step1305](../done/step1305.md) completes the three strict Hello/matrix repetitions
+and verifies all six preserved capsules and their before-boot native identities.
+Declared Linux thread/signal captures use the existing bounded8MiB raw extent,
+since current mechanical call/return diagnostics exceed32KiB. Ordinary profiles
+retain32KiB; prefix, EOF, framing, package, native, runner and leaf checks remain.
+Fresh mechanical/ancestor and final full gates remain required. The preceding
+pre-exit matrix failure is preserved; its cause remains unresolved.
+
 [Step1304](../done/step1304.md) corrects matrix timing admission after another
 complete workload/cleanup capture fails step1303's cached scheduler-time bracket.
 Each reported timestamp now needs its own actual successful ID1 clock-call HPET

@@ -5,6 +5,55 @@ using OS.Tooling;
 
 internal static class LinuxThreadTranscriptTests
 {
+    [HostTest("m16-008 complete large mechanical framing preserves ordinary limits exact bytes and independent leaf rejection")]
+    private static void LargeFraming()
+    {
+        string directory=Path.Combine(HostToolProcess.FindRepositoryRoot(),"artifacts","thread-framing-"+Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);string path=Path.Combine(directory,"serial.log");
+        byte[] elf=LinuxThreadProofFixture.CreateElf("Threads");
+        Dictionary<ulong,ulong> sequences=[],masks=[];
+        string[] leaf=Synthetic(128).Select(row=>
+        {
+            if(!row.StartsWith("M16_008_CALL ",StringComparison.Ordinal))return row;
+            ulong identity=Field(row,"identity"),source=Field(row,"action")==3?Field(row,"nr")==202?1UL:2UL:0;
+            ulong sequence=source==0?0:sequences.GetValueOrDefault(identity)+1;
+            if(source!=0)sequences[identity]=sequence;
+            ulong deadline=source==1 && Field(row,"a3")!=0?Field(row,"clock")+1_000_000:0;
+            ulong mask=masks.GetValueOrDefault(identity,masks.GetValueOrDefault(0x100000001UL));
+            if(Field(row,"nr")==14 && Field(row,"a1")!=0)
+                mask=BinaryPrimitives.ReadUInt64LittleEndian(elf.AsSpan(checked((int)(Field(row,"a1")-0x400000)),8));
+            masks[identity]=mask;
+            string returned=string.Join(' ',new[]{"rip","rsp","flags","fs","gs","valueBits"}.Select(k=>"return"+char.ToUpperInvariant(k[0])+k[1..]+"="+Field(row,k).ToString(CultureInfo.InvariantCulture)));
+            return row+$" waitSource={source} waitDeadline={deadline} waitSequence={sequence} signalDepth=0 signalFrame=0 blockedSignals={mask} "+returned;
+        }).ToArray();
+        HostCheck.Equal(103,QemuTranscripts.ReadLinuxCallReturns(leaf).Count);
+        byte[] package=LinuxThreadProofFixture.CreatePackage("Threads");
+        QemuTranscripts.ValidateLinuxThreadTail(leaf,package,0x200000,0x100000);
+        string valid=M03OwnedSubsystemSurvivalEfiIntegrationTests.Frame(["TEST_START efi.main",..leaf]);
+        HostCheck.True(System.Text.Encoding.UTF8.GetByteCount(valid)>32768,"complete independent long leaf");
+        // Exercise only the existing internal raw framer; these synthetic parent
+        // rows and reflection never construct prepared-program/guest authority.
+        var frame=typeof(QemuTranscripts).GetMethod("FirmwareProtocol",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static)!;
+        string[] Parse(string text,bool threads=true)
+        {
+            File.WriteAllText(path,text,new System.Text.UTF8Encoding(false));
+            try{return (string[])frame.Invoke(null,[path,"TEST_PASS m16-008\r\n",true,false,"test_thread",false,null,null,null,threads])!;}
+            catch(System.Reflection.TargetInvocationException error)when(error.InnerException is ToolFailure){throw error.InnerException;}
+        }
+        void Bad(string text,string reason,bool threads=true)
+        {
+            bool rejected=false;try{_=Parse(text,threads);}catch(ToolFailure failure){rejected=failure.Reason=="test_thread_"+reason;}
+            HostCheck.True(rejected,"raw frame must reject "+reason);
+        }
+        string[] parsed=Parse(valid);HostCheck.True(parsed[1..].SequenceEqual(leaf));
+        QemuTranscripts.ValidateLinuxThreadTail(parsed[1..],package,0x200000,0x100000);
+        Bad(valid,"raw_extent",false);Bad(new string('x',8*1024*1024+1),"raw_extent");
+        Bad(valid+"trailing\r\n","firmware_eof");Bad(valid[..^1],"protocol_extent");
+        Bad(valid.Replace("M16_008_OWNER_END","\nM16_008_OWNER_END",StringComparison.Ordinal),"framing");
+        Bad(valid.Replace("M16_008_OWNER_END","\0M16_008_OWNER_END",StringComparison.Ordinal),"non_ascii");
+        Reject(Parse(valid.Replace("context=zero","context=live",StringComparison.Ordinal))[1..],package);
+    }
+
     [HostTest("m16-008 complete pool envelope rejects old extents physical overflow and overlap in its last worker pages")]
     private static void PoolEnvelope()
     {

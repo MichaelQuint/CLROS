@@ -1,5 +1,13 @@
 # Diagnostics
 
+[Step1305](../done/step1305.md) admits declared mechanical Linux thread/signal
+diagnostics under the existing bounded8MiB runtime raw extent. The original
+Threads capture contains51022 bytes,103 real calls and complete five-thread
+cleanup; the old32KiB ordinary extent rejects before leaf validation. Ordinary
+profiles retain that limit. Exact prefix/EOF/framing, call/ownership, runner and
+cleanup validation remain. Independent large-framing/negative controls and a
+complete offline mechanical audit pass; the original failure stays failed.
+
 [Step1304](../done/step1304.md) supersedes step1303's matrix wake-bracket policy.
 Each of its 18 reported monotonic timestamps must fit a distinct successful
 clock-ID1 call's authenticated admitted..dispatched HPET window. Actual syscall

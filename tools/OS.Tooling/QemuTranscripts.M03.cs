@@ -73,7 +73,7 @@ public static partial class QemuTranscripts
         Need(threadingProgram is null || linuxSignals,"threading_requires_signal_profile");
         Need(helloProgram is null || threadingProgram is null,"threading_hello_conflict");
         Need(runtimeProgram is null || linuxSignals && helloProgram is null && threadingProgram is null, "runtime_profile_invalid");
-        string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi", virtioBlockQueueSetup && !primaryHeaderFault, helloProgram, threadingProgram, runtimeProgram);
+        string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi", virtioBlockQueueSetup && !primaryHeaderFault, helloProgram, threadingProgram, runtimeProgram, linuxThreads);
         Need(!linuxStartup || linuxElfPackagePath.Length != 0 && firstRealExit && ownedSurvival && !normalBoot && !firmwareRevocation, "m16_004_profile_invalid");
         Need(!linuxSyscalls || linuxStartup && workloadServiceLoop, "m16_005_profile_invalid");
         if (linuxThreads)
