@@ -1,5 +1,19 @@
 # PAL
 
+[Step1292](../done/step1292.md) separates application resources from worker
+capacity. Under M16-008 and its children, a validated main stack of at least
+1 MiB or more than eight workers selects 8192 backing pages (32 MiB),
+8192 IRQ epochs, 16384 supervisor steps and the existing five-minute ceiling
+from real HPET time. Smaller mechanical policies retain 4096 backing pages,
+128 epochs and 512 steps. The larger physical allocation is retained as two
+4096-page mapping spans. The retained inventory permits 40 declarations and
+12288 total mapped pages; per-range and 55-page table-arena bounds stay fixed.
+Worker counts, virtual quotas, dynamic region/table limits, upstream application
+bytes and requested waits remain unchanged. One unchanged Hello and one original
+RuntimeSmoke capture pass their complete strict consumers with original output,
+exit0 and full cleanup. Frozen-source repetition, focused suspension/ThreadPool,
+broader runtime, native review and full-host/ancestor qualification remain pending.
+
 [Step1291](../done/step1291.md) proves the runtime's current backing exhaustion
 with an atomic production-service replay. The4 MiB commit needs1024 pages but
 only1020 remain; region/table capacity and the borrow guard are not its cause.

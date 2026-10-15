@@ -566,7 +566,8 @@ public static unsafe partial class EfiEntry
             c->GuardAttached = 1; c->Phase = 2;
             ulong now = 0;
             delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
-            return (c->Capacity <= 8 || clock(c->State, &now) == 1) && c->Budget.Begin(c->Capacity, now);
+            bool application = LinuxUsesApplicationLimits(c->State);
+            return (!application || clock(c->State, &now) == 1) && c->Budget.Begin(c->Capacity, now, application);
         }
 
         // Valid only after real workers/IRQ/native references have drained.

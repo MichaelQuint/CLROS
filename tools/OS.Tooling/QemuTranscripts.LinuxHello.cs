@@ -65,6 +65,7 @@ public static partial class QemuTranscripts
         private readonly Func<ulong, bool> instruction, syscall;
         private readonly ulong userRoot, kernelRoot;
         private readonly HelloMemory memory;
+        private LinuxThreadExecutionBudget budget;
         private readonly HelloThread?[] threads = new HelloThread?[4];
         private readonly Queue<int> ready = new();
         private readonly HashSet<int> files = [];
@@ -98,7 +99,7 @@ public static partial class QemuTranscripts
 
         internal HelloProtocolReport Validate()
         {
-            Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take());
+            Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take(), expectedPoolPages: LinuxMemoryServices.MaximumPoolPages);
             Exact("M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=1241768 package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler");
             var armed = LinuxSyscallArm(Take());
             const string suffix = " timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack";
@@ -108,9 +109,13 @@ public static partial class QemuTranscripts
                 bound["pool"] >= 4096 && bound["pool"] <= 0x100000000UL - LinuxThreadProgram.PoolPages * 4096UL && bound["pool"] % 4096 == 0 &&
                 bound["workers"] == 4 && bound["code"] == LinuxThreadProgram.Bytes && bound["metadata"] == LinuxThreadProgram.MetadataPages * 4096UL && bound["userImage"] == 728, "hello_parent_geometry");
             DistinctExtents([(kernelRoot,4096),(userRoot,4096),(bound["pool"],LinuxThreadProgram.PoolPages*4096UL)], "hello_roots_pool");
+            var limits = Row("M16_008_BUDGET", "started:dec", "epochs:dec", "steps:dec", "nanos:dec");
+            Need(budget.Begin(4, limits["started"], application: true) && limits["epochs"] == budget.MaximumEpochs &&
+                limits["steps"] == budget.MaximumSteps && limits["nanos"] == LinuxThreadExecutionBudget.RuntimeNanoseconds,
+                "hello_budget_policy");
             while (ready.Count != 0)
             {
-                Need(transfers < 1024, "hello_dispatch_bound");
+                Need((uint)(transfers / 2) < budget.MaximumSteps, "hello_dispatch_bound");
                 HelloThread t = threads[ready.Dequeue()]!;
                 Need(!t.Reaped, "hello_selected_generation");
                 bool ending = false, exiting = stopping;
@@ -172,6 +177,8 @@ public static partial class QemuTranscripts
             }
             Need(stopping && clones == 2 && active == 0 && reaped == 3 && writes == 3 && irqs > 0 &&
                 threads.Skip(1).All(t => t is not null && t.Reaped), "hello_complete_lifetimes");
+            var finished = Row("M16_008_BUDGET_END", "nanos:dec");
+            Need(finished["nanos"] >= clock && budget.Observe(finished["nanos"]), "hello_budget_complete");
             const string cleanup = " userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained";
             string owner = Take(); Need(owner.EndsWith(cleanup, StringComparison.Ordinal), "hello_owner_cleanup");
             var end = ReadRecord(owner[..^cleanup.Length], "M16_008_OWNER_END", "reaped:dec", "transfers:dec", "irqs:dec", "exit:dec");
@@ -191,8 +198,8 @@ public static partial class QemuTranscripts
 
         private void Epoch(HelloThread t, Dictionary<string, ulong> row, bool stopped)
         {
-            Need(++epochs <= 128 && row["identity"] == t.Identity && row["epoch"] == (ulong)epochs &&
-                row["nanos"] >= clock && row["nanos"] <= long.MaxValue && (!stopped || row["nanos"] == clock), "hello_epoch_clock");
+            Need(++epochs <= budget.MaximumEpochs && row["identity"] == t.Identity && row["epoch"] == (ulong)epochs &&
+                row["nanos"] >= clock && budget.Observe(row["nanos"]) && (!stopped || row["nanos"] == clock), "hello_epoch_clock");
             clock = row["nanos"];
         }
 
@@ -201,6 +208,9 @@ public static partial class QemuTranscripts
             ulong nr = r["nr"], a = r["a0"], b = r["a1"], c = r["a2"], d = r["a3"], e = r["a4"], f = r["a5"], value = r["valueBits"];
             bool wait = nr == 202 && b == 128;
             Need(r["clock"] >= clock && r["clock"] <= long.MaxValue && (wait || r["clock"] == clock), "hello_call_clock");
+            // Initial calls retain the scheduler's unobserved zero, even when
+            // budget admission has already read HPET. Waits observe the clock.
+            Need(r["clock"] == 0 || budget.Observe(r["clock"]), "hello_budget_clock");
             clock = r["clock"];
             ulong action = 1, status = 1;
             if (t.Tid == 1 && t.Calls <= 3)
@@ -216,9 +226,18 @@ public static partial class QemuTranscripts
                     if (d == 0x32) { Need(a == value, "hello_fixed_address"); BorrowFree(a, HelloMemory.Round(b)); if (HelloMemory.Overlap(a, HelloMemory.Round(b), 0x400000000, 0x200000)) heapIntact = false; }
                     memory.Map(value, b, (uint)c, d == 0x32); break;
                 case 10:
-                    Need(c is 0 or 1 or 3 && a >= 4096 && (a & 4095) == 0 && b > 0 && b <= 0x1000000000, "hello_protection");
-                    if (a < 0x100000000) Need(value == Err(-22), "hello_static_protection_rejected");
-                    else { Need(value == 0, "hello_protect_result"); BorrowFree(a, HelloMemory.Round(b)); memory.Protect(a,b,(uint)c); }
+                    Need(c <= uint.MaxValue && a >= 4096 && (a & 4095) == 0 && b > 0 && b <= 0x1000000000, "hello_protection");
+                    if (a < 0x100000000)
+                    {
+                        bool allowed = memory.CanProtectImage(a, b, (uint)c, out long error);
+                        Need(value == Err(error), "hello_image_protect_result");
+                        if (allowed)
+                        {
+                            if ((c == 3) != memory.Covered(a, HelloMemory.Round(b), 3)) BorrowFree(a, HelloMemory.Round(b));
+                            memory.Protect(a, b, (uint)c);
+                        }
+                    }
+                    else { Need(c is 0 or 1 or 3 && value == 0, "hello_protect_result"); BorrowFree(a, HelloMemory.Round(b)); memory.Protect(a,b,(uint)c); }
                     break;
                 case 11:
                     Need(value == 0 && a >= 0x100000000, "hello_unmap"); BorrowFree(a, HelloMemory.Round(b));
@@ -314,6 +333,8 @@ public static partial class QemuTranscripts
                     foreach (int id in new[] { 2,3 }) { Need(!ready.Contains(id), "hello_cancel_parked"); ready.Enqueue(id); }
                     break;
                 case 99: Need(memory.Covered(a,112,3) && value == 0, "hello_sysinfo"); break;
+                case 228:
+                    Need(value == Err(a is 1 or 6 ? memory.Covered(b,16,3) ? 0 : -14 : -22), "hello_clock_result"); break;
                 case 204: Need(a is 0 or 1 && b is >= 8 and <= 4096 && memory.Covered(c,8,3) && value == 8, "hello_affinity"); break;
                 case 302: Need(a is 0 or 1 && b == 9 && c == 0 && memory.Covered(d,16,3) && value == 0, "hello_limit"); break;
                 case 318: Need(t.Tid == 1 && b is > 0 and <= 32 && c <= 1 && memory.Covered(a,b,3) && value == b && !entropy, "hello_entropy"); entropy = true; break;
@@ -331,8 +352,11 @@ public static partial class QemuTranscripts
 
         private void StartupComplete()
         {
-            Need(clones == 2 && files.Count == 0 && pipeRead == 3 && pipeWrite == 4 && mainWait && stackGuardProbe && entropy && barrierRegistered &&
-                signalInstalls.SetEquals(new ulong[] {2,3,8,11,13,18,35}) && threads[2] is { Pending:1, StartupWake:true, MaskSet:true } &&
+            // Uncontended user-space mutex acquisition/release emits no futex
+            // pair. Both children must still execute and park their real waits.
+            Need(clones == 2 && files.Count == 0 && pipeRead == 3 && pipeWrite == 4 && stackGuardProbe && entropy && barrierRegistered &&
+                signalInstalls.SetEquals(new ulong[] {2,3,8,11,13,18,35}) && threads[2] is { Pending:1, MaskSet:true } finalizer &&
+                finalizer.StartupWake == mainWait &&
                 threads[3] is { Pending:2, MaskSet:true }, "hello_runtime_children_and_startup");
         }
 
@@ -350,6 +374,8 @@ public static partial class QemuTranscripts
     private sealed class HelloMemory
     {
         private List<HelloRange> ranges = [];
+        private readonly HelloRange[] image;
+        private HelloRange? imageProtection;
         internal unsafe HelloMemory(byte[] elf)
         {
             fixed (byte* source = elf)
@@ -358,9 +384,12 @@ public static partial class QemuTranscripts
                 for (uint i = 0; i < plan.LoadCount; i++)
                 {
                     uint at = i * 5; ulong start = plan.Loads[at] & ~4095UL;
-                    ranges.Add(new(start, Round(plan.Loads[at]+plan.Loads[at+3]), (plan.Loads[at+4] & 2) != 0 ? 3U : 1U,false));
+                    ulong flags = plan.Loads[at+4];
+                    uint protection = ((flags & 4) != 0 ? 1U : 0) | ((flags & 2) != 0 ? 2U : 0) | ((flags & 1) != 0 ? 4U : 0);
+                    ranges.Add(new(start, Round(plan.Loads[at]+plan.Loads[at+3]), protection, false));
                 }
             }
+            image = ranges.ToArray();
             ranges.Add(new(0x70000000-1_572_864,0x70000000,3,false));
             ranges.Add(new(0x400000000,0x400200000,0,true));
         }
@@ -370,7 +399,7 @@ public static partial class QemuTranscripts
         {
             if (bytes == 0 || start < 4096 || start >= 0x1000000000 || bytes > 0x1000000000-start) return false;
             ulong cursor = start, end = start + bytes;
-            foreach (var r in ranges.OrderBy(r=>r.Start))
+            foreach (var r in EffectiveRanges().OrderBy(r=>r.Start))
             {
                 if (r.End <= cursor) continue;
                 if (r.Start > cursor || (r.Protection & protection) != protection) return false;
@@ -392,9 +421,41 @@ public static partial class QemuTranscripts
         }
         internal void Protect(ulong start,ulong bytes,uint protection,bool empty=false)
         {
+            if (start < 0x100000000)
+            {
+                Need(CanProtectImage(start, bytes, protection, out _), "hello_image_protection");
+                bytes = Round(bytes);
+                HelloRange original = image.Single(r => start >= r.Start && start < r.End && bytes <= r.End - start);
+                imageProtection = protection == original.Protection ? null : new(start, start + bytes, protection, false);
+                return;
+            }
             bytes=Round(bytes); if(empty && bytes==0) return;
             Dynamic(start,bytes); Need(Covered(start,bytes,0),"hello_protect_coverage");
             Rewrite(start,bytes,protection); Audit();
+        }
+        // Original ELF rows remain provenance. Only one exact non-executable
+        // data window may differ; another window cannot supersede that owner.
+        internal bool CanProtectImage(ulong start, ulong bytes, uint protection, out long error)
+        {
+            error = -22;
+            if (protection is not (1 or 3) || start < 4096 || start >= 0x100000000 || (start & 4095) != 0 ||
+                bytes == 0 || bytes > 0x1000000000 - 4095) return false;
+            bytes = Round(bytes);
+            if (!image.Any(r => r.Protection is 1 or 3 && start >= r.Start && start < r.End && bytes <= r.End - start)) return false;
+            if (imageProtection is { } prior && (prior.Start != start || prior.End - prior.Start != bytes))
+            { error = -12; return false; }
+            error = 0; return true;
+        }
+        private IEnumerable<HelloRange> EffectiveRanges()
+        {
+            foreach (HelloRange r in ranges)
+            {
+                if (imageProtection is not { } window || r.Dynamic || !Overlap(r.Start, r.End-r.Start, window.Start, window.End-window.Start))
+                { yield return r; continue; }
+                if (r.Start < window.Start) yield return r with { End = window.Start };
+                yield return window;
+                if (r.End > window.End) yield return r with { Start = window.End };
+            }
         }
         internal void Unmap(ulong start,ulong bytes)
         { bytes=Round(bytes); Dynamic(start,bytes); Rewrite(start,bytes,null); Audit(); }
@@ -414,6 +475,6 @@ public static partial class QemuTranscripts
             ranges=next;
         }
         private void Audit() => Need(ranges.Where(r=>r.Dynamic).Sum(r=>(decimal)(r.End-r.Start))<=0x400000000 &&
-            ranges.Where(r=>r.Dynamic && r.Protection!=0).Sum(r=>(decimal)(r.End-r.Start))<=16*1024*1024,"hello_memory_quota");
+            ranges.Where(r=>r.Dynamic && r.Protection!=0).Sum(r=>(decimal)(r.End-r.Start))<=LinuxMemoryServices.MaximumPoolPages*4096UL,"hello_memory_quota");
     }
 }

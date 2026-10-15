@@ -8,7 +8,7 @@ internal static unsafe class LinuxStartupServicesTests
     private static void RuntimeMemoryTrace()
     {
         using Owner owner = new(new LinuxMemoryServicesTests.Owner(tables: X64UserAddressSpace.MaximumTables,
-            backingPages: LinuxMemoryServices.MaximumPoolPages, staticRows: 53));
+            backingPages: LinuxMemoryServices.DefaultPoolPages, staticRows: 53));
         owner.Begin();
         // Original r13 memory calls after its first page-rounded TLS mmap (the
         // Owner already maps that page). Kernel static addresses are synthetic;
@@ -49,7 +49,7 @@ internal static unsafe class LinuxStartupServicesTests
     private static void RuntimeBackingExhaustion()
     {
         using Owner owner = new(new LinuxMemoryServicesTests.Owner(tables: X64UserAddressSpace.MaximumTables,
-            backingPages: LinuxMemoryServices.MaximumPoolPages, staticRows: 53, runtimeImage: true));
+            backingPages: LinuxMemoryServices.DefaultPoolPages, staticRows: 53, runtimeImage: true));
         owner.Begin();
         // Literal r17 memory mutations in serial order, after Owner's first TLS
         // mmap and before main identity 4294967297 ordinal 592. Static placements
@@ -194,6 +194,20 @@ internal static unsafe class LinuxStartupServicesTests
         HostCheck.True(LinuxMemoryServices.DetachMutationGuard(owner.Memory.State, &guardCalls, &AllowRuntimeMutation));
         HostCheck.Equal(1UL, guardCalls);
         HostCheck.True(LinuxMemoryServices.Audit(owner.Memory.State));
+
+        // Replay the same exact successful prefix in the separately admitted
+        // application pool; only its physical capacity differs.
+        using Owner application = new(new LinuxMemoryServicesTests.Owner(tables: X64UserAddressSpace.MaximumTables,
+            backingPages: LinuxMemoryServices.MaximumPoolPages, staticRows: 53, runtimeImage: true));
+        application.Begin();
+        foreach (var c in calls)
+            HostCheck.Equal(c.Expected, application.Call(c.Nr, c.Address, c.Bytes, c.Arg2, c.Arg3,
+                c.Nr == 9 ? ulong.MaxValue : 0));
+        HostCheck.Equal(3076U, application.Memory.State->BackedPages);
+        HostCheck.Equal(0L, application.Call(10, 4349497344, 4194304, 3));
+        HostCheck.Equal(4100U, application.Memory.State->BackedPages);
+        HostCheck.Equal(7UL, application.Memory.Leaf(4349497344) & 7);
+        HostCheck.True(LinuxMemoryServices.Audit(application.Memory.State));
     }
 
     private static (uint Regions, uint MappingRows, uint FreePages, uint LargestFreeRun)

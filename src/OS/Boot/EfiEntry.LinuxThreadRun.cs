@@ -50,7 +50,7 @@ public static unsafe partial class EfiEntry
                             !LinuxText(state, c->User.UserInterrupts ?
                                 " timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack\r\n" :
                                 " timer=idle-only clock=hpet-nanoseconds reuse=off-stack\r\n")) c->Failed = 1;
-                        if (c->Capacity > 8 && !(LinuxText(state, "M16_008_BUDGET started=") && LinuxNumber(state, c->Budget.StartedNanoseconds) &&
+                        if (c->Budget.HasElapsedLimit && !(LinuxText(state, "M16_008_BUDGET started=") && LinuxNumber(state, c->Budget.StartedNanoseconds) &&
                             LinuxText(state, " epochs=") && LinuxNumber(state, c->Budget.MaximumEpochs) &&
                             LinuxText(state, " steps=") && LinuxNumber(state, c->Budget.MaximumSteps) &&
                             LinuxText(state, " nanos=") && LinuxNumber(state, LinuxThreadExecutionBudget.RuntimeNanoseconds) && LinuxText(state, "\r\n"))) c->Failed = 1;
@@ -73,7 +73,7 @@ public static unsafe partial class EfiEntry
             if (!hardware || !empty) return LinuxNativeCleanupRejected(state, 1);
             uint reaped = c == null ? 0 : c->Reaped, transfers = c == null ? 0 : c->Transfers;
             ulong epochs = c == null ? 0 : c->Epoch;
-            bool runtimeBudget = c != null && c->Capacity > 8;
+            bool runtimeBudget = c != null && c->Budget.HasElapsedLimit;
             ulong observedNanos = c == null ? 0 : c->Budget.ObservedNanoseconds;
             bool failed = c != null && (c->Failed != 0 || c->Process.Failed);
             if (published && !LinuxNativeRelease(c, LinuxNativeRsp(c))) return LinuxNativeCleanupRejected(state, 2);
@@ -144,7 +144,7 @@ public static unsafe partial class EfiEntry
             if (state->LinuxDispatchRoot == 0 || readRoot() != state->LinuxDispatchRoot ||
                 state->LinuxDispatchRoot == state->LinuxMemory.Root.Root) return false;
             ulong imageBytes = state->LinuxImagePlan.ImageBytes, stackBytes = state->LinuxInitialStack.StackBytes;
-            ulong total = state->LinuxImagePages * Page, poolBytes = LinuxMemoryServices.MaximumPoolPages * Page;
+            ulong total = state->LinuxImagePages * Page, poolBytes = LinuxMemoryPoolPages(state) * Page;
             if (state->LinuxImagePages == 0 || state->LinuxImagePages > 4096 || imageBytes == 0 ||
                 (imageBytes & (Page - 1)) != 0 || imageBytes >= total || stackBytes != total - imageBytes ||
                 stackBytes != state->LinuxView.Manifest.StackBytes || state->LinuxImageBacking < Page ||
@@ -154,7 +154,7 @@ public static unsafe partial class EfiEntry
             // rather than trusting only the independently retained image extent.
             var memory = state->LinuxMemory.Memory;
             if ((ulong)memory.Pool != state->LinuxMemoryPool || memory.PoolPhysical != state->LinuxMemoryPool ||
-                memory.PoolPages != LinuxMemoryServices.MaximumPoolPages) return false;
+                memory.PoolPages != LinuxMemoryPoolPages(state)) return false;
             bool stackOwned = false;
             for (uint i = 0; i < memory.StaticCount; i++)
             {
@@ -200,7 +200,7 @@ public static unsafe partial class EfiEntry
                     ulong finished = 0;
                     delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
                     return c->Failed == 0 && !c->Process.Failed &&
-                        (c->Capacity <= 8 || clock(c->State, &finished) == 1 && c->Budget.Observe(finished));
+                        (!c->Budget.HasElapsedLimit || clock(c->State, &finished) == 1 && c->Budget.Observe(finished));
                 }
                 // Expiry is checked only on the restored supervisor. Previously
                 // armed IRQs have already acknowledged/drained in Transfer.
@@ -209,9 +209,9 @@ public static unsafe partial class EfiEntry
                 {
                     ulong now = 0;
                     delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
-                    bool clockRead = c->Capacity <= 8 || clock(c->State, &now) == 1;
+                    bool clockRead = !c->Budget.HasElapsedLimit || clock(c->State, &now) == 1;
                     if ((!clockRead || !c->Budget.Continue(now, c->Epoch, step)) &&
-                        !LinuxNativeStop(c, clockRead ? 1U : 6U, step, now, c->Capacity > 8 && clockRead)) return false;
+                        !LinuxNativeStop(c, clockRead ? 1U : 6U, step, now, c->Budget.HasElapsedLimit && clockRead)) return false;
                 }
                 if ((c->Failed != 0 || c->Process.Failed || c->State->LinuxSyscallFaults != 0 || c->State->LinuxSyscallFailed != 0) &&
                     !LinuxNativeStop(c, 2, step)) return false;

@@ -44,6 +44,22 @@ internal static class LinuxThreadExecutionBudgetTests
         }
     }
 
+    [HostTest("linux.thread-budget application limits preserve actual small capacity and independent finite ceilings")]
+    private static void SmallApplication()
+    {
+        foreach (uint workers in new uint[] { 1, 4, 8 })
+        {
+            LinuxThreadExecutionBudget budget = default;
+            HostCheck.True(budget.Begin(workers, 100, application: true) && budget.HasElapsedLimit);
+            HostCheck.Equal(8192U, budget.MaximumEpochs); HostCheck.Equal(16384U, budget.MaximumSteps);
+            HostCheck.True(budget.Continue(101, 128, 512));
+            HostCheck.True(!budget.Continue(99, 1, 1) && !budget.Continue(101, 8192, 1) &&
+                !budget.Continue(101, 1, 16384) && !budget.Observe(300_000_000_100));
+            HostCheck.Equal(101UL, budget.ObservedNanoseconds);
+            HostCheck.True(budget.Observe(300_000_000_099));
+        }
+    }
+
     [HostTest("linux.thread-budget near-end clocks never overflow a deadline or accept invalid time")]
     private static void Arithmetic()
     {

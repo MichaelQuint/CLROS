@@ -262,7 +262,7 @@ public static unsafe class FirstExitRetainedMappings
         + 3
 #endif
 #if M16_006_PROBE
-        + 2
+        + 3
 #endif
 #if M16_007_PROBE
         + 1
@@ -502,7 +502,13 @@ public static unsafe class FirstExitRetainedMappings
             (X64LinuxUserTransition.DataBytes - X64LinuxUserTransition.StackOffset) / 4096, Data);
 #endif
 #if M16_006_PROBE
-        pending[count++] = new SeparatePageFaultMappingRange(references.LinuxMemoryPoolStart, references.LinuxMemoryPoolPages, Data);
+        // Preserve the per-range bound while retaining one contiguous owner.
+        for (ulong offset = 0; offset < references.LinuxMemoryPoolPages; offset += 4096)
+        {
+            ulong pages = references.LinuxMemoryPoolPages - offset;
+            pending[count++] = new SeparatePageFaultMappingRange(references.LinuxMemoryPoolStart + offset * 4096,
+                pages > 4096 ? 4096 : pages, Data);
+        }
         pending[count++] = new SeparatePageFaultMappingRange(references.LinuxMemoryCandidateStart, X64UserAddressSpace.MaximumTables, Data);
 #endif
 #if M16_007_PROBE

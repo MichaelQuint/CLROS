@@ -112,7 +112,7 @@ internal static class NativeAotOriginalRuntimeTests
             var v=Core.Start();v.Rows[1]=v.Rows[1].Replace("entropyBytes=32","entropyBytes=256",StringComparison.Ordinal);
             v.Rows[2]=v.Rows[2].Replace("packageBytes=1577712","packageBytes=1511248",StringComparison.Ordinal);
             v.Rows[4]=v.Rows[4].Replace("workers=8","workers=16",StringComparison.Ordinal);
-            v.Rows.Insert(5,"M16_008_BUDGET started=0 epochs=8192 steps=16384 nanos=300000000000");
+            v.Call(309,-38,[0x500100,0,0]); // Observed getcpu fallback; no output is written.
             Write("TEST_START nativeaot.runtime");Write("NATIVEAOT_RUNTIME_EH_OK");
             Thread final=v.Clone(2,2),signal=v.Clone(3,3),worker=v.Clone(4,4),pool=v.Clone(5,5),timer=v.Clone(6,6);
             v.Irq(10,6,6);v.Select(final);v.Wait(0x500200);v.Drain(20);v.Supervisor(3,5,6);
@@ -164,6 +164,13 @@ internal static class NativeAotOriginalRuntimeTests
     {
         SmokeVector vector=new();var report=vector.Inspect();
         HostCheck.True(report.Clones==5 && report.Reaped==6 && report.SignalReturns==0 && report.Ticks==1 && report.Irqs==1);
+        foreach(ulong forged in new ulong[]{0,unchecked((ulong)-14L)})
+        {
+            var rows=vector.Core.Rows.Select(r=>r.Contains("nr=309 ",StringComparison.Ordinal)?
+                Regex.Replace(r,@"\b(valueBits|returnValueBits)=[0-9]+",m=>m.Groups[1].Value+"="+forged.ToString(CultureInfo.InvariantCulture)):r).ToArray();
+            Reject(()=>vector.Inspect(rows),"threading_unsupported_result");
+        }
+        Reject(()=>vector.Inspect(vector.Core.Rows.Select(r=>r.Replace("nr=309 ","nr=310 ",StringComparison.Ordinal)).ToArray()),"threading_uninventoried_syscall_310");
         var raw=vector.Raw();var capture=NativeAotThreadingOutput.Read(App,raw);HostCheck.Equal(Stdout,capture.Stdout);
         HostCheck.Equal(string.Join("\r\n",vector.Core.Rows)+"\r\n",capture.NormalizedTail);
         Reject(()=>QemuTranscripts.ValidateNativeAotRuntimeTail("",[],null!,raw,8192,12288),"runtime_program_missing");
@@ -212,7 +219,6 @@ internal static class NativeAotOriginalRuntimeTests
         Vector empty=new(true);empty.Start();empty.Rows[1]=empty.Rows[1].Replace("entropyBytes=32","entropyBytes=256",StringComparison.Ordinal);
         empty.Rows[2]=empty.Rows[2].Replace("packageBytes=1577712","packageBytes=1511248",StringComparison.Ordinal);
         empty.Rows[4]=empty.Rows[4].Replace("workers=8","workers=16",StringComparison.Ordinal);
-        empty.Rows.Insert(5,"M16_008_BUDGET started=0 epochs=8192 steps=16384 nanos=300000000000");
         for(int i=0;i<4;i++)empty.Call(186,1);
         empty.Rows.Add($"M16_005_WRITE fd=1 bytes={bytes} data="+stdout.Replace("\n","",StringComparison.Ordinal));
         empty.Call(1,bytes,[1,0x500400,(uint)bytes]);

@@ -427,7 +427,7 @@ public static unsafe partial class EfiEntry
             state->PreparationCheckpoint = 38;
             if (!BootSequence.PrepareLinuxMemory(state->Phase == 2, state, &PrepareLinuxMemory)) return false;
             references.LinuxMemoryPoolStart = state->LinuxMemoryPool;
-            references.LinuxMemoryPoolPages = LinuxMemoryServices.MaximumPoolPages;
+            references.LinuxMemoryPoolPages = LinuxMemoryPoolPages(state);
             references.LinuxMemoryCandidateStart = state->LinuxMemoryCandidate;
 #endif
 #if M16_007_PROBE
@@ -1053,7 +1053,7 @@ public static unsafe partial class EfiEntry
                 !LinuxReservation(BootReservationKind.LinuxSyscallData, state->LinuxSyscallData, X64LinuxUserTransition.DataPages, ledger + count++)) return false;
 #endif
 #if M16_006_PROBE
-            if (!LinuxReservation(BootReservationKind.LinuxElfBacking, state->LinuxMemoryPool, LinuxMemoryServices.MaximumPoolPages, ledger + count++) ||
+            if (!LinuxReservation(BootReservationKind.LinuxElfBacking, state->LinuxMemoryPool, LinuxMemoryPoolPages(state), ledger + count++) ||
                 !LinuxReservation(BootReservationKind.LinuxElfUserTables, state->LinuxMemoryCandidate, X64UserAddressSpace.MaximumTables, ledger + count++)) return false;
 #endif
 #if M16_007_PROBE
@@ -1127,7 +1127,13 @@ public static unsafe partial class EfiEntry
         private static bool AllocateLinuxStartup(Storage* state, EfiBootServices* services, ulong pages, out ulong address)
         {
             address = 0;
-            if (services == null || services->AllocatePages == null || services->FreePages == null || pages == 0 || pages > 4096) return false;
+            bool bounded = pages > 0 && pages <= 4096;
+#if M16_006_PROBE
+            // Only the selected backing pool may exceed one retained range;
+            // its mapping declarations remain split at the 4096-page limit.
+            bounded |= pages == LinuxMemoryPoolPages(state);
+#endif
+            if (services == null || services->AllocatePages == null || services->FreePages == null || !bounded) return false;
             ulong candidate = 0xffffffff;
             if (services->AllocatePages(1, 2, pages, &candidate) != 0) return false;
             address = candidate;
@@ -1273,7 +1279,14 @@ public static unsafe partial class EfiEntry
                 // arena is supplied as supervisor RW/NX by the builder itself.
                 if (r.Start == state->LinuxImageBacking || r.Start == state->LinuxUserTables) continue;
 #if M16_006_PROBE
-                if (r.Start == state->LinuxMemoryPool) continue;
+                ulong poolPages = LinuxMemoryPoolPages(state);
+                if (r.Start >= state->LinuxMemoryPool && r.Start - state->LinuxMemoryPool < poolPages * Page)
+                {
+                    ulong offset = r.Start - state->LinuxMemoryPool, pages = poolPages - offset / Page;
+                    if (offset % (4096 * Page) != 0 || r.PageCount != (pages > 4096 ? 4096 : pages) ||
+                        r.Protection != (PageProtection.Read | PageProtection.Write) || r.CachePolicy != PageCachePolicy.WriteBack) return false;
+                    continue; // Neither physical backing span belongs in the user root.
+                }
 #endif
 #if M16_008_PROBE
                 // The independent user root must retain the published pool
@@ -1369,17 +1382,32 @@ public static unsafe partial class EfiEntry
             *(ushort*)gate | ((ulong)*(ushort*)(gate + 6) << 16) | ((ulong)*(uint*)(gate + 8) << 32);
 
 #if M16_006_PROBE
+        // The declared large main stack has substantial startup/probe cost
+        // even with few workers. Select finite application resources from the
+        // already validated manifest, retaining the mechanical defaults.
+        private static bool LinuxUsesApplicationLimits(Storage* state)
+        {
+#if M16_008_PROBE
+            return state->LinuxView.Manifest.StackBytes >= 1024 * 1024 || state->LinuxView.Manifest.Threads > 8;
+#else
+            return false;
+#endif
+        }
+
+        private static uint LinuxMemoryPoolPages(Storage* state) => LinuxUsesApplicationLimits(state) ?
+            LinuxMemoryServices.MaximumPoolPages : LinuxMemoryServices.DefaultPoolPages;
+
         private static bool PrepareLinuxMemory(void* context)
         {
             Storage* state = (Storage*)context;
             if (state->Phase != 2 || state->LinuxMemoryPhase != 0 || state->LinuxSyscallPhase != 2) return false;
             state->LinuxMemoryPhase = 1;
             var services = state->SystemTable->BootServices;
-            if (!AllocateLinuxStartup(state, services, LinuxMemoryServices.MaximumPoolPages, out state->LinuxMemoryPool) ||
+            if (!AllocateLinuxStartup(state, services, LinuxMemoryPoolPages(state), out state->LinuxMemoryPool) ||
                 !AllocateLinuxStartup(state, services, X64UserAddressSpace.MaximumTables, out state->LinuxMemoryCandidate)) return false;
             ulong* starts = stackalloc ulong[6] { state->LinuxMemoryPool, state->LinuxMemoryCandidate, state->LinuxPackage,
                 state->LinuxImageBacking, state->LinuxSyscallCode, state->LinuxSyscallData };
-            ulong* lengths = stackalloc ulong[6] { LinuxMemoryServices.MaximumPoolPages * Page, X64UserAddressSpace.MaximumTables * Page,
+            ulong* lengths = stackalloc ulong[6] { LinuxMemoryPoolPages(state) * Page, X64UserAddressSpace.MaximumTables * Page,
                 state->LinuxPages * Page, state->LinuxImagePages * Page, Page, X64LinuxUserTransition.DataBytes };
             for (uint i = 0; i < 6; i++) for (uint j = 0; j < i; j++) if (!Disjoint(starts[i], lengths[i], starts[j], lengths[j])) return false;
             if (LinuxRandomBudget(state) == LinuxStartupServices.RuntimeEntropyBytes)
@@ -1396,7 +1424,7 @@ public static unsafe partial class EfiEntry
                     !FirmwareEntropyCapture.Guards(&state->LinuxRandomScratch) || !FirmwareEntropyCapture.Guards(&state->LinuxRandomRetained) ||
                     !FirmwareEntropyCapture.Zero(state->LinuxRandomScratch.Data, 0, 64)) return false;
             }
-            for (ulong i = 0; i < LinuxMemoryServices.MaximumPoolPages * Page; i++) ((byte*)state->LinuxMemoryPool)[i] = 0;
+            for (ulong i = 0; i < LinuxMemoryPoolPages(state) * Page; i++) ((byte*)state->LinuxMemoryPool)[i] = 0;
             if (!X64UserAddressSpace.Clear((ulong*)state->LinuxMemoryCandidate, X64UserAddressSpace.MaximumTables)) return false;
             state->LinuxMemoryPhase = 2; return true;
         }
@@ -1406,7 +1434,7 @@ public static unsafe partial class EfiEntry
             bool okay = true;
             if (state->LinuxMemoryPool != 0)
             {
-                if (services != null && services->FreePages != null && services->FreePages(state->LinuxMemoryPool, LinuxMemoryServices.MaximumPoolPages) == 0)
+                if (services != null && services->FreePages != null && services->FreePages(state->LinuxMemoryPool, LinuxMemoryPoolPages(state)) == 0)
                     state->LinuxMemoryPool = 0;
                 else okay = false;
             }
@@ -1460,7 +1488,7 @@ public static unsafe partial class EfiEntry
             state->LinuxMemoryCheckpoint = 2;
             LinuxMemoryServices.Admission memory = new()
             {
-                Pool = (byte*)state->LinuxMemoryPool, PoolPhysical = state->LinuxMemoryPool, PoolPages = LinuxMemoryServices.MaximumPoolPages,
+                Pool = (byte*)state->LinuxMemoryPool, PoolPhysical = state->LinuxMemoryPool, PoolPages = LinuxMemoryPoolPages(state),
                 RootPhysical = state->LinuxUserTables, Tables = (ulong*)state->LinuxUserTables,
                 CandidateTables = (ulong*)state->LinuxMemoryCandidate, TablePages = X64UserAddressSpace.MaximumTables,
                 StaticRanges = (X64UserMappingRange*)state->LinuxUserRanges, StaticCount = state->LinuxUserRangeCount,
@@ -1490,13 +1518,13 @@ public static unsafe partial class EfiEntry
             state->LinuxUserRoot = state->LinuxMemory.Root; state->LinuxMemoryPhase = 4;
             return LinuxText(state, "M16_006_POLICY physical=") && LinuxNumber(state, physical) &&
                 LinuxText(state, " available=") && LinuxNumber(state, available) &&
-                LinuxText(state, " poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=") && LinuxNumber(state, entropyBytes) &&
+                LinuxText(state, " poolPages=") && LinuxNumber(state, memory.PoolPages) && LinuxText(state, " vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=") && LinuxNumber(state, entropyBytes) &&
                 LinuxText(state, " cpus=1 root=inactive-kernel\r\n");
         }
 
         private static bool LinuxMemoryFacts(Storage* state, out ulong physical, out ulong available)
         {
-            physical = 0; available = LinuxMemoryServices.MaximumPoolPages * Page;
+            physical = 0; available = LinuxMemoryPoolPages(state) * Page;
             var map = state->Arena.Transition->Attempt.Last.Map;
             // The final GetMemoryMap writes directly into the retained arena,
             // so it intentionally has no earlier snapshot's FlagOwnedCopy.
@@ -1584,7 +1612,7 @@ public static unsafe partial class EfiEntry
                     X64UserAddressSpace.MaximumTables, page, out ulong leaf)) return 0;
                 ulong physical = leaf & 0x000ffffffffff000;
                 bool image = physical >= state->LinuxImageBacking && physical - state->LinuxImageBacking < state->LinuxImagePages * Page;
-                bool pool = physical >= state->LinuxMemoryPool && physical - state->LinuxMemoryPool < LinuxMemoryServices.MaximumPoolPages * Page;
+                bool pool = physical >= state->LinuxMemoryPool && physical - state->LinuxMemoryPool < LinuxMemoryPoolPages(state) * Page;
                 if (!image && !pool) return 0;
             }
             for (uint i = 0; i < bytes; i++)
@@ -1609,7 +1637,7 @@ public static unsafe partial class EfiEntry
                 state->LinuxSyscallCode, state->LinuxSyscallData, state->LinuxMemoryPool, state->LinuxMemoryCandidate, (ulong)state };
             ulong* lengths = stackalloc ulong[8] { state->LinuxPages * Page, state->LinuxImagePages * Page,
                 X64UserAddressSpace.MaximumTables * Page, Page, X64LinuxUserTransition.DataBytes,
-                LinuxMemoryServices.MaximumPoolPages * Page, X64UserAddressSpace.MaximumTables * Page, (ulong)sizeof(Storage) };
+                LinuxMemoryPoolPages(state) * Page, X64UserAddressSpace.MaximumTables * Page, (ulong)sizeof(Storage) };
             for (uint i = 0; i < 8; i++) if (!Disjoint(state->LinuxDescriptorArena, LinuxDescriptorPages * Page, starts[i], lengths[i])) return false;
             for (uint i = 0; i < LinuxDescriptorPages * Page; i++) ((byte*)state->LinuxDescriptorArena)[i] = 0;
             state->LinuxDescriptorPhase = 2; return true;

@@ -53,7 +53,7 @@ public static partial class EfiContracts
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
     public const string ProjectSourceSha256 = "e9087623e9180d7f2eb93329b9bef072f7932a20d5440faf3e37c6a23bf39e76";
     public const string CanonicalProjectSha256 = "66ff982bf0c12c40c3da3a75a68230935a91d7dc20d65dee6fdc9f29910ff8d4";
-    public const string EfiEntrySourceSha256 = "2d1823c8273f608dd1f145923845a3182db9d26c47fa6e0a9b07346580680aef";
+    public const string EfiEntrySourceSha256 = "84bbdfb256de32677a2068625fc490f25f83860e4331d4e67459a15f799d44c9";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";

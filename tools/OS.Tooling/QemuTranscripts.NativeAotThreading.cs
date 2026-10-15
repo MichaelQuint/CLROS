@@ -187,7 +187,6 @@ public static partial class QemuTranscripts
             memory=new(elf); capacity=broader?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=broader?256U:32U;
             if(broader){Need(stdout is not null,"runtime_stdout_missing");phases=new RuntimePhases(app,stdout!,lengths!);}
             else Need(stdout is null,"threading_unexpected_stdout");
-            if(!broader)Need(budget.Begin((uint)capacity,0),"threading_budget");
             slots=new RuntimeThread?[capacity]; generations=Enumerable.Repeat(1UL,capacity).ToArray();
             var main=new RuntimeThread(0x100000001,1,0x70000000-1572864,0x70000000,0,Entry(elf));
             slots[0]=main; history.Add(main); ready.Enqueue(main);
@@ -201,7 +200,7 @@ public static partial class QemuTranscripts
 
         internal ThreadingProtocolReport Validate()
         {
-            Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take(),entropyLimit);
+            Exact("TEST_START m16-009"); LinuxMemoryPolicy(Take(),entropyLimit,LinuxMemoryServices.MaximumPoolPages);
             int bytes=broader?NativeAotRuntimePackage.Specification(app).Bytes:app=="NativeAotSuspensionSmoke"?1320176:1577712;
             Exact("M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes="+bytes+
                 " package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler");
@@ -213,10 +212,9 @@ public static partial class QemuTranscripts
                 bound["workers"]==(ulong)capacity && bound["code"]==LinuxThreadProgram.Bytes &&
                 bound["metadata"]==LinuxThreadProgram.MetadataPages*4096UL && bound["userImage"]==728,"threading_parent_geometry");
             DistinctExtents([(userRoot,4096),(kernelRoot,4096),(bound["pool"],LinuxThreadProgram.PoolPages*4096UL)],"threading_roots_pool");
-            if(broader)
             {
                 var b=Row("M16_008_BUDGET","started:dec","epochs:dec","steps:dec","nanos:dec");
-                Need(budget.Begin((uint)capacity,b["started"]) && b["epochs"]==budget.MaximumEpochs &&
+                Need(budget.Begin((uint)capacity,b["started"],application:true) && b["epochs"]==budget.MaximumEpochs &&
                     b["steps"]==budget.MaximumSteps && b["nanos"]==LinuxThreadExecutionBudget.RuntimeNanoseconds,"runtime_budget_policy");
             }
             while(active!=0)
@@ -314,11 +312,12 @@ public static partial class QemuTranscripts
                 Need(app=="NativeAotRuntimeSmoke"?peak>=5 && normalExits>=1 && clones>=5:
                     app=="NativeAotSuspensionStress"?peak>=8 && normalExits>=15 && clones>=17:
                     app=="NativeAotRuntimeMatrix"?peak>=9 && normalExits>=6:peak>=5 && clones>=4,"runtime_workload_lifetimes");
-                phases!.Finish();var finished=Row("M16_008_BUDGET_END","nanos:dec");
-                Need(finished["nanos"]>=clock && finished["nanos"]>=phases.LatestClock && phases.EarliestClock>=budget.StartedNanoseconds &&
-                    budget.Observe(finished["nanos"]),"runtime_budget_complete");
+                phases!.Finish();
             }
             else Need(app=="NativeAotSuspensionSmoke" ? clones>=3 && normalExits>=1 && signalReturns>=2 && history.Any(t=>t.NormalExit && t.Returned>=2) : clones>=5,"threading_workload_lifetimes");
+            var finished=Row("M16_008_BUDGET_END","nanos:dec");
+            Need(finished["nanos"]>=clock && (!broader || finished["nanos"]>=phases!.LatestClock && phases.EarliestClock>=budget.StartedNanoseconds) &&
+                budget.Observe(finished["nanos"]),"runtime_budget_complete");
             // Group cancellation retires pending/active signal state during
             // actual off-stack reap. It does not fabricate a user sigreturn.
             Need(history.All(t=>t.GroupRetired || t.Delivered==t.Returned && t.Requests==0),"threading_unreturned_signal");
@@ -353,12 +352,12 @@ public static partial class QemuTranscripts
         private void Clock(ulong now)
         {
             Need(now>=clock && now<=long.MaxValue,"threading_clock"); clock=now;
-            if(broader && now!=0)Need(budget.Observe(now),"runtime_budget_clock");
+            if(now!=0)Need(budget.Observe(now),"runtime_budget_clock");
             foreach(var t in history.Where(t=>!t.Reaped && t.WaitSource==1 && t.Completion is null && t.Deadline!=0 && t.Deadline<=now)
                 .OrderBy(t=>t.Deadline).ThenBy(t=>t.WaitOrder)) {phases?.Deadline(t.Deadline,now);Complete(t,-110);}
         }
         private void Epoch(Dictionary<string,ulong> row)
-        { Need(++epochs<=budget.MaximumEpochs && row["epoch"]==(ulong)epochs,"threading_epoch");Clock(row["nanos"]); }
+        { Need(++epochs<=budget.MaximumEpochs && row["epoch"]==(ulong)epochs && row["nanos"]>=budget.StartedNanoseconds,"threading_epoch");Clock(row["nanos"]); }
         private int Wake(ulong address,uint mode,uint count,uint bits)
         {
             var selected=history.Where(t=>!t.Reaped && t.WaitSource==1 && t.Completion is null && t.WaitAddress==address && t.WaitMode==mode && (t.WaitBits&bits)!=0)

@@ -20,7 +20,6 @@ internal static class NativeAotRuntimeTranscriptTests
             int size=app=="NativeAotThreadPoolStress"?1627408:app=="NativeAotRuntimeMatrix"?1577616:1576912;
             Core.Rows[2]=Core.Rows[2].Replace("packageBytes=1577712","packageBytes="+size.ToString(CultureInfo.InvariantCulture),StringComparison.Ordinal);
             Core.Rows[4]=Core.Rows[4].Replace("workers=8","workers=16",StringComparison.Ordinal);
-            Core.Rows.Insert(5,"M16_008_BUDGET started=0 epochs=8192 steps=16384 nanos=300000000000");
             for(int i=0;i<7;i++)Core.Call(318,16,[0x500600,16,0]); // Exercise the actual larger entropy contract.
         }
         internal void Write(string line)

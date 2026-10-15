@@ -139,10 +139,12 @@ internal static unsafe class SeparateDisabledDefaultPageFaultPageTablesTests
             maximum.Request = Request(pages: 55);
             maximum.Ranges[0] = new(0x40_0000, 4096, Rx);
             maximum.Ranges[1] = new(0x200_0000, 4096, Rw);
+            maximum.RangeCount = 3;
+            maximum.Ranges[2] = new(0x300_0000, 4096, Rw); // Second half of a contiguous 32-MiB pool.
             VerifyImage(maximum);
             maximum.EntryBytes.Clear();
-            maximum.RangeCount = 3;
-            maximum.Ranges[2] = new(0x400_0000, 1, Rw);
+            maximum.RangeCount = 4;
+            maximum.Ranges[3] = new(0x400_0000, 1, Rw);
             RejectUnchanged(maximum, Status.InvalidRange);
             maximum.RangeCount = 2;
             maximum.Ranges[0] = new(0x40_0000, 4097, Rx);

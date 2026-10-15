@@ -69,7 +69,7 @@ public static unsafe partial class EfiEntry
                 leaf.PhysicalAddress.TryGetRawValueForHardwareRegisterBoundary(out ulong physical) != AddressValueStatus.Success) return 0;
             physical += address & (Page - 1);
             if ((!LinuxThreadContains(state->LinuxImageBacking, state->LinuxImagePages * Page, physical, 4) &&
-                !LinuxThreadContains(state->LinuxMemoryPool, LinuxMemoryServices.MaximumPoolPages * Page, physical, 4)) ||
+                !LinuxThreadContains(state->LinuxMemoryPool, LinuxMemoryPoolPages(state) * Page, physical, 4)) ||
                 !LinuxThreadIdentityAlias(state, physical & ~(Page - 1))) return 0;
             uint* resolved = (uint*)physical; ulong retained = 0;
             for (uint i = 0; i < LinuxNativeFutexes; i++)

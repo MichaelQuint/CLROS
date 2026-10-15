@@ -70,7 +70,15 @@ public static partial class QemuTranscripts
                     break;
                 case 10: case 11: case 28:
                     Need(a>=4096 && a%4096==0 && b>0 && b<=0x1000000000,"threading_mapping_extent");
-                    if(a<0x100000000) { Need(v==Bits(nr==10?-22:-14),"threading_static_mutation_rejection"); break; }
+                    if(a<0x100000000)
+                    {
+                        if(nr!=10){Need(v==Bits(-14),"threading_static_mutation_rejection");break;}
+                        bool admitted=memory.CanProtectImage(a,b,(uint)c,out long imageError);
+                        bool held=admitted && (c==3)!=memory.Covered(a,HelloMemory.Round(b),3) && Borrowed(a,HelloMemory.Round(b));
+                        Need(v==Bits(held?-12:imageError),"threading_image_protection");
+                        if(admitted && !held)memory.Protect(a,b,(uint)c);
+                        break;
+                    }
                     bool borrowed=Borrowed(a,HelloMemory.Round(b)) && (nr!=28 || c is 4 or 8);
                     if(borrowed){Need(v==Bits(-12),"threading_mapping_borrow");break;}
                     Need(v==0,"threading_mapping_result");
@@ -216,12 +224,12 @@ public static partial class QemuTranscripts
                 case 97: Need(a is 3 or 9 && memory.Covered(b,16,3) && v==0,"threading_rlimit");break;
                 case 99: Need(memory.Covered(a,112,3) && v==0,"threading_sysinfo");break;
                 case 204: Need(a is 0 or 1 && b is >=8 and <=4096 && memory.Covered(c,8,3) && v==8,"threading_affinity");break;
-                case 228: Need(a==1?memory.Covered(b,16,3) && v==0:v==Bits(-22),"threading_monotonic_clock");break;
+                case 228: Need(a is 1 or 6?memory.Covered(b,16,3) && v==0:v==Bits(-22),"threading_monotonic_clock");break;
                 case 302: Need(a is 0 or 1 && b is 3 or 9 && c==0 && memory.Covered(d,16,3) && v==0,"threading_limit");break;
                 case 318: Need(b is >0 and <=32 && c<=3 && memory.Covered(a,b,3) && v==b && b<=entropyLimit-entropyBytes,"threading_entropy");entropyBytes+=b;break;
                 case 324:
                     Need(b==0 && c==0 && a is 0 or 8 or 16 && v==(a==0?0x18UL:0UL) && (a!=8||barrierRegistered),"threading_barrier");if(a==16)barrierRegistered=true;break;
-                case 24: case 35: case 98: case 137: case 157: case 217: case 239:
+                case 24: case 35: case 98: case 137: case 157: case 217: case 239: case 309:
                     Need(v==Bits(-38),"threading_unsupported_result");break;
                 default: throw new ToolFailure("threading_uninventoried_syscall_"+nr);
             }

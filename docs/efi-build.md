@@ -2,6 +2,18 @@
 
 ## Development Linux threading profile
 
+[Step1292](../done/step1292.md) selects bounded application backing and execution
+limits from the validated manifest. Hello and the focused four/eight-worker
+runtime apps now emit the same real-time budget start/end records as the broader
+apps. Their transcript consumers require the 8192-page pool and independently
+check owned ELF data permission changes and monotonic/coarse clock results.
+Mechanical profiles retain their earlier limits. Ninety-seven focused checks and
+native publication pass. Hello r04 and original RuntimeSmoke r20 pass their full
+strict commands with original output, exit0 and complete cleanup. These are one
+development capture each; repeated frozen-source guests, focused suspension/
+ThreadPool, broader runtime, original native review and full-host/ancestor
+qualification remain before shared acceptance.
+
 [Step1291](../done/step1291.md) reproduces the runtime ENOMEM through production
 services: 1024 pages requested, 1020 free, largest run1019, with region/table
 headroom and no guard callback. Fifty-four focused checks pass. The runtime

@@ -17,7 +17,7 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// </summary>
 public static unsafe class LinuxMemoryServices
 {
-    public const uint MaximumRegions = 64, MaximumPoolPages = 4096;
+    public const uint MaximumRegions = 64, DefaultPoolPages = 4096, MaximumPoolPages = 8192;
     // A partial interval can create two temporary fragments. Enforce the live
     // quota after coalescing, rather than rejecting an operation that reduces it.
     private const uint WorkingRegions = MaximumRegions + 2;

@@ -37,10 +37,11 @@ internal static class NativeAotThreadingTranscriptTests
         internal Vector Start()
         {
             Rows.AddRange(["TEST_START m16-009",
-                "M16_006_POLICY physical=268435456 available=134217728 poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel",
+                "M16_006_POLICY physical=268435456 available=134217728 poolPages=8192 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel",
                 "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes="+(Pool?1577712:1320176)+" package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler",
                 "M16_005_ARMED root=8192 cs=59 ss=51 kernelStack=1048576 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null",
-                "M16_008_BOUND root=12288 pool=2097152 workers="+(Pool?8:4)+" code=53248 metadata=114688 userImage=728 timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack"]);
+                "M16_008_BOUND root=12288 pool=2097152 workers="+(Pool?8:4)+" code=53248 metadata=114688 userImage=728 timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack",
+                "M16_008_BUDGET started=0 epochs=8192 steps=16384 nanos=300000000000"]);
             Select(Main); Main.Fs=0; Call(9,0x100000000,[0,488,3,0x22,ulong.MaxValue,0]); Main.Fs=0x100000120;
             Call(158,0,[0x1002,Main.Fs]);Call(218,1,[0x500100]);
             foreach(ulong sig in new ulong[]{2,3,8,11,13,18,35})Call(13,0,[sig,0x500400,0,8]);
@@ -86,12 +87,13 @@ internal static class NativeAotThreadingTranscriptTests
         }
         internal void End(int reaped)
         {
+            if(!Rows[^1].StartsWith("M16_008_BUDGET_END ",StringComparison.Ordinal))Rows.Add($"M16_008_BUDGET_END nanos={Clock}");
             Rows.Add($"M16_008_OWNER_END reaped={reaped} transfers={Transfers} irqs={Epoch} exit=0 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained");
             Rows.AddRange(["M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true","CLROS_M16_009_READY","TEST_PASS m16-009"]);
         }
     }
 
-    private static Vector SuspensionVector(bool earlyHandlerIrq=false,bool selfExit=false,bool tailIrq=false,bool requeue=false,bool restart=false)
+    private static Vector SuspensionVector(bool earlyHandlerIrq=false,bool selfExit=false,bool tailIrq=false,bool requeue=false,bool restart=false,bool imageNoop=false)
     {
         Vector v=new Vector(false).Start();Thread final=v.Clone(2,2),signal=v.Clone(3,3),worker=v.Clone(4,4);
         v.Irq(10,4,4);v.Select(final);v.Wait(0x500200);v.Drain(20);v.Supervisor(3,3,4);
@@ -100,6 +102,7 @@ internal static class NativeAotThreadingTranscriptTests
         for(int cycle=0;cycle<2;cycle++)
         {
             v.Select(v.Main);if(restart && cycle==1)v.Resume(0);
+            if(imageNoop && cycle==0){v.Call(10,0,[0x500000,4096,3]);v.Call(10,-12,[0x500000,4096,1]);}
             v.Call(200,0,[4,35]);v.Wait(0x500204);v.Drain((ulong)(50+40*cycle));v.Supervisor(3,1,4);
             v.Select(worker);worker.Frame=worker.Top-1160;worker.Depth=1;worker.Mask=1UL<<34;worker.Rsp=worker.Frame-64;
             if(earlyHandlerIrq && cycle==0)v.Irq(55,1,4);
@@ -278,6 +281,25 @@ internal static class NativeAotThreadingTranscriptTests
             v.Rows.Select(r=>r.Replace("initialStack=zero","initialStack=dirty",StringComparison.Ordinal)).ToArray(),v.Rows.Concat(new[]{"extra"}).ToArray()})Reject(v,rows);
         for(int i=0;i<v.Rows.Count;i++)if(v.Rows[i].StartsWith("M16_008_RESUME ",StringComparison.Ordinal)||v.Rows[i].StartsWith("M16_008_REAP ",StringComparison.Ordinal))
             Reject(v,v.Rows.Where((_,at)=>at!=i).ToArray());
+    }
+    [HostTest("nativeaot.threading small application profiles require real bounded time without changing worker capacity")]
+    private static void ApplicationBudget()
+    {
+        foreach(var v in new[]{SuspensionVector(),PoolVector()})
+        {
+            _=Inspect(v);
+            foreach(var prefix in new[]{"M16_008_BUDGET ","M16_008_BUDGET_END "})
+                Reject(v,v.Rows.Where(r=>!r.StartsWith(prefix,StringComparison.Ordinal)).ToArray());
+            Reject(v,Change(v,"M16_008_BUDGET ","started",11));
+            Reject(v,Change(v,"M16_008_BUDGET ","epochs",128));
+            Reject(v,Change(v,"M16_008_BUDGET ","steps",512));
+            Reject(v,Change(v,"M16_008_BUDGET_END ","nanos",300_000_000_000));
+            Reject(v,Change(v,"M16_008_BUDGET_END ","nanos",v.Clock-1));
+            Reject(v,v.Rows.Select(r=>r.Replace("poolPages=8192","poolPages=4096",StringComparison.Ordinal)).ToArray());
+        }
+        var borrowed=SuspensionVector(imageNoop:true);_=Inspect(borrowed);
+        Reject(borrowed,Change(borrowed,"nr=10 a0=5242880 a1=4096 a2=3 ","valueBits",unchecked((ulong)-12L)));
+        Reject(borrowed,Change(borrowed,"nr=10 a0=5242880 a1=4096 a2=1 ","valueBits",0));
     }
     [HostTest("nativeaot.threading synthetic signals require actual frame ownership restored context and pending target generation")]
     private static void SignalFailures()

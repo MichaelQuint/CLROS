@@ -137,7 +137,7 @@ internal static unsafe class M16008EfiIntegrationTests
         ExpressionSyntax Capacity(string name) => retained.Members.OfType<FieldDeclarationSyntax>().SelectMany(n => n.Declaration.Variables)
             .Single(n => n.Identifier.Text == name).Initializer!.Value;
         HostCheck.Equal(19UL, Sum(Capacity("MaximumAllocations")));
-        HostCheck.Equal(FirstExitImageMappings.MaximumSections + FirstExitOwnedArena.MappingRangeCount + 18UL, Sum(Capacity("MaximumRanges")));
+        HostCheck.Equal(FirstExitImageMappings.MaximumSections + FirstExitOwnedArena.MappingRangeCount + 19UL, Sum(Capacity("MaximumRanges")));
         HostCheck.True(Sum(Capacity("MaximumRanges")) <= SeparateDisabledDefaultPageFaultPageTables.MaximumRetainedRanges,
             "the combined native profile must fit image/table-builder retained-range admission");
         var ecam = retained.DescendantNodes().OfType<AssignmentExpressionSyntax>()
