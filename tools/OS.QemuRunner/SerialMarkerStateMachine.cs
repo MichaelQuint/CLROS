@@ -167,6 +167,13 @@ public sealed class SerialMarkerStateMachine
 
     public bool IsFinalized => _finalized;
 
+    /// <summary>Queries an exact configured marker after a complete serial line was received.</summary>
+    public bool HasSeenRequiredMarker(string marker)
+    {
+        int index = Array.IndexOf(_requiredMarkers, marker);
+        return index >= 0 && _requiredSeen[index];
+    }
+
     public SerialMarkerFeedResult Feed(ReadOnlySpan<byte> chunk)
     {
         if (_finalized)

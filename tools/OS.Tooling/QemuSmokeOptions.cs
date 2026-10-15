@@ -24,6 +24,7 @@ public sealed class QemuSmokeOptions
     public string LinuxThreadingDisassembly { get; set; } = "";
     public string DiskFormat { get; set; } = "raw";
     public int TimeoutSeconds { get; set; } = 30;
+    public int StartupTimeoutSeconds { get; set; } = 30;
     public bool DryRun { get; set; }
     public bool BuildEfi { get; set; }
     public bool SkipImageBuild { get; set; }
@@ -52,6 +53,7 @@ public sealed class QemuSmokeOptions
             ["summarylog"] = "SummaryLog", ["m01rawobservationlog"] = "M01RawObservationLog", ["qemu"] = "Qemu",
             ["ovmfcode"] = "OvmfCode", ["firmwarerngsource"] = "FirmwareRngSource", ["workloadprofile"] = "WorkloadProfile",
             ["gptimagevariant"] = "GptImageVariant", ["packageimagevariant"] = "PackageImageVariant", ["diskformat"] = "DiskFormat", ["timeoutseconds"] = "TimeoutSeconds", ["timeout"] = "TimeoutSeconds",
+            ["startuptimeoutseconds"] = "StartupTimeoutSeconds", ["startuptimeout"] = "StartupTimeoutSeconds",
             ["dryrun"] = "DryRun", ["buildefi"] = "BuildEfi", ["skipimagebuild"] = "SkipImageBuild",
             ["requirenativeappmarkers"] = "RequireNativeAppMarkers", ["requiremarker"] = "RequireMarker",
             ["requireorderedmarker"] = "RequireOrderedMarker", ["requireuniquemarker"] = "RequireUniqueMarker",
@@ -93,6 +95,7 @@ public sealed class QemuSmokeOptions
                 case "LinuxThreadingDisassembly": result.LinuxThreadingDisassembly = value; break;
                 case "DiskFormat": result.DiskFormat = value.ToLowerInvariant(); break;
                 case "TimeoutSeconds": result.TimeoutSeconds = int.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture); break;
+                case "StartupTimeoutSeconds": result.StartupTimeoutSeconds = int.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture); break;
                 case "DryRun": result.DryRun = bit; break;
                 case "BuildEfi": result.BuildEfi = bit; break;
                 case "SkipImageBuild": result.SkipImageBuild = bit; break;
@@ -104,6 +107,7 @@ public sealed class QemuSmokeOptions
                 case "MarkerPreset": result.MarkerPreset.Add(value); break;
             }
         }
+        if (result.StartupTimeoutSeconds <= 0) throw new ArgumentException("qemu_invalid_startup_timeout");
         return result;
     }
 }
