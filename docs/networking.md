@@ -1,5 +1,15 @@
 # Networking
 
+[Step1309](../done/step1309.md) implements the first #691 development slice:
+a retained size-eight RX/TX ring memory engine using existing DMA address,
+descriptor-generation and split-ring contracts. Nine focused checks pass,
+including 65,540 RX/TX cycles across 16-bit index wrap, full-queue backpressure,
+malformed completions, short-output retry and reset-gated scrub. The engine
+publishes/reclaims actual ring bytes but supplies no device configuration,
+MMIO notifications, real monotonic polling owner or DMA-pool release. No continuing
+guest/packet acceptance is added. Shared integration #734 owns the additional
+live-profile paths for the planned #691 -> #148-#153 batch; all remain open.
+
 The #141–#144 / #635 receive-and-ARP batch is qualified in
 [step1164](../done/step1164.md): 4,441 full-host checks, linked native review,
 a 194-record guest receipt, independent request/reply libpcap and thirteen
