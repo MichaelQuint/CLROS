@@ -74,6 +74,36 @@ public static partial class QemuTranscripts
         return text[..at]+capture.NormalizedTail;
     }
 
+    // Outer records are kernel output, never payload stdout. Validate the exact
+    // wrapper before handing only the original inner bytes to the leaf decoder.
+    private static ReadOnlySpan<byte> RuntimeRawLeaf(string app, ReadOnlySpan<byte> raw)
+    {
+        var markers = NativeAotRuntimeSelection.Markers(app);
+        byte[] start = Encoding.ASCII.GetBytes(markers.Start + "\r\n");
+        byte[] end = Encoding.ASCII.GetBytes(markers.Ready + "\r\n" + markers.Pass + "\r\n");
+        int at = raw.IndexOf(start);
+        Need(at >= 0 && raw[(at + start.Length)..].IndexOf(start) < 0 && raw.EndsWith(end), "runtime_profile_envelope");
+        int length = raw.Length - at - start.Length - end.Length;
+        Need(length > 0, "runtime_profile_extent");
+        ReadOnlySpan<byte> leaf = raw.Slice(at + start.Length, length);
+        Need(leaf.StartsWith("TEST_START m16-009\r\n"u8), "runtime_profile_inner_start");
+        return leaf;
+    }
+
+    private static string NormalizeRuntimeWrites(string text, string app)
+    {
+        var markers = NativeAotRuntimeSelection.Markers(app);
+        byte[] bytes = Encoding.UTF8.GetBytes(text);
+        var capture = NativeAotThreadingOutput.Read(app, RuntimeRawLeaf(app, bytes));
+        int at = text.IndexOf(markers.Start + "\r\n", StringComparison.Ordinal) + markers.Start.Length + 2;
+        return text[..at] + capture.NormalizedTail + markers.Ready + "\r\n" + markers.Pass + "\r\n";
+    }
+
+    /// <summary>Value-only framing inspection for synthetic controls. This
+    /// validates no package, firmware, runner or sealed program authority.</summary>
+    public static string InspectNativeAotRuntimeEnvelopeForTests(string app, ReadOnlySpan<byte> raw) =>
+        NormalizeRuntimeWrites(DecodeUtf8(raw.ToArray()), app);
+
     // Both wrapper capture-hash verification and direct complete validation use
     // these bounded plain, single-link, unchanged file authorities. Reopening
     // legacy parent/runner readers cannot switch evidence during acceptance.

@@ -2,6 +2,16 @@ namespace OS.Kernel.Diagnostics;
 
 public static partial class Probes
 {
+#if M09_012_PROBE
+    public const bool EnableM09012Probe = true;
+#else
+    public const bool EnableM09012Probe = false;
+#endif
+#if M09_011_PROBE
+    public const bool EnableM09011Probe = true;
+#else
+    public const bool EnableM09011Probe = false;
+#endif
 #if M09_010_PROBE
     public const bool EnableM09010Probe = true;
 #else
@@ -26,6 +36,11 @@ public static partial class Probes
     public const bool EnableM09004Probe = true;
 #else
     public const bool EnableM09004Probe = false;
+#endif
+#if M16_010_PROBE
+    public const bool EnableM16010Probe = true;
+#else
+    public const bool EnableM16010Probe = false;
 #endif
 #if M16_009_PROBE
     public const bool EnableM16009Probe = true;
@@ -284,7 +299,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 60;
+    public const int ProbeCatalogCount = 63;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -557,6 +572,10 @@ public static partial class Probes
         new("app.linux-signals", nameof(EnableM16009Probe), EnableM16009Probe,
             ProbeRisk.Destructive, "Owned mechanical Linux signal delivery and checked return after firmware revocation.");
 
+    public static ProbeDefinition GetM16010Probe() =>
+        new("app.nativeaot-runtime", nameof(EnableM16010Probe), EnableM16010Probe,
+            ProbeRisk.Destructive, "Owned NativeAOT runtime workload through the Linux signal and thread boundary after firmware revocation.");
+
     public static ProbeDefinition GetM09004Probe() =>
         new("thread.cooperative-switch", nameof(EnableM09004Probe), EnableM09004Probe,
             ProbeRisk.Destructive, "Bounded two-context cooperative transfer after owned firmware exit and revocation.");
@@ -576,6 +595,14 @@ public static partial class Probes
     public static ProbeDefinition GetM09010Probe() =>
         new("thread.local-storage", nameof(EnableM09010Probe), EnableM09010Probe,
             ProbeRisk.Destructive, "Bounded private FS/user-GS bindings, cooperative transfer and off-stack TLS scrub.");
+
+    public static ProbeDefinition GetM09011Probe() =>
+        new("thread.nativeaot-suspension", nameof(EnableM09011Probe), EnableM09011Probe,
+            ProbeRisk.Destructive, "Owned NativeAOT suspension workload through the Linux signal and thread boundary after firmware revocation.");
+
+    public static ProbeDefinition GetM09012Probe() =>
+        new("thread.nativeaot-threadpool", nameof(EnableM09012Probe), EnableM09012Probe,
+            ProbeRisk.Destructive, "Owned NativeAOT ThreadPool workload through the Linux signal and thread boundary after firmware revocation.");
 
     public static ProbeDefinition GetM06GptPartitionProbe() =>
         new("storage.gpt-partition", nameof(EnableM06GptPartitionProbe), EnableM06GptPartitionProbe,
@@ -911,6 +938,15 @@ public static partial class Probes
                 return true;
             case 59:
                 definition = GetM16009Probe();
+                return true;
+            case 60:
+                definition = GetM09011Probe();
+                return true;
+            case 61:
+                definition = GetM09012Probe();
+                return true;
+            case 62:
+                definition = GetM16010Probe();
                 return true;
             default:
                 definition = default;

@@ -55,7 +55,8 @@ internal static class EfiCompileInventoryTests
             {
                 bool waitPair = requested.IsEnabled("M09009") && other.IsEnabled("M09010") ||
                     requested.IsEnabled("M09010") && other.IsEnabled("M09009");
-                HostCheck.True(waitPair, "only reviewed wait/TLS leaves share an inventory");
+                bool signalPair = requested.IsEnabled("M16009") && other.IsEnabled("M16009");
+                HostCheck.True(waitPair || signalPair, "only reviewed wait/TLS or signal/runtime leaves share an inventory");
                 try { EfiMsbuild.VerifyEvaluation(Snapshot(DeclaredItems(other), other), Snapshot(DeclaredItems(requested), requested)); }
                 catch (ToolFailure failure) { actual = failure.Reason; }
                 HostCheck.Equal("post_restore_evidence_property_mismatch", actual);
@@ -78,7 +79,10 @@ internal static class EfiCompileInventoryTests
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09009Probe"] = true }),
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09010Probe"] = true }),
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM16008Probe"] = true }),
-        EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM16009Probe"] = true })
+        EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM16009Probe"] = true }),
+        EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09011Probe"] = true }),
+        EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09012Probe"] = true }),
+        EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM16010Probe"] = true })
     ];
 
     // The project declarations are an independent oracle for the shared helper.

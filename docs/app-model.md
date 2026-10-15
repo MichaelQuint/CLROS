@@ -1,5 +1,13 @@
 # App Model
 
+[Step1284](../done/step1284.md) integrates the three broader runtime apps with
+dedicated default-off profiles, matching sealed program preparation and complete
+parent/leaf/raw-runner validation. App/profile mismatches and invalid inputs
+reject before child execution. Thirty-eight distinct focused checks and all
+three no-stdlib C# profile builds pass. Repeated guest process lifetimes,
+capacity/error cleanup and the shared eight-issue full-host/native/guest gates
+remain required. See [EFI build](efi-build.md) for exact selectors and timeouts.
+
 [Step1283](../done/step1283.md) implements the complete broader runtime leaf
 consumer. Independent synthetic leaves model 18 thread lifetimes/nine signal
 returns for GC stress, 13 lifetimes/nine live threads/six signal returns for the
@@ -8,8 +16,8 @@ stdout without kernel phase evidence rejects; output segmentation/coalescing
 preserves distinct evidence. Timed restart uses original address/bitset/deadline
 and cannot reread a timeout or fabricate completion. Forty-seven focused checks
 pass across development rounds. No new QEMU selector or runtime acceptance is
-added; full parent/wrapper integration and actual process/capacity/error cleanup
-remain before the eight-issue batch gates.
+added at that step; parent/wrapper integration and actual process/capacity/error
+cleanup remained before the eight-issue batch gates.
 
 [Step1282](../done/step1282.md) supplies larger-policy execution ceilings, raw
 stdout decoding for all three broader apps and common transcript requeue

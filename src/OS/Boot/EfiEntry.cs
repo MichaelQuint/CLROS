@@ -1694,6 +1694,33 @@ public static unsafe partial class EfiEntry
                 state->Arena.Transition->RetainedFirmwareCallbacksCleared && state->Arena.Binding->RetainedPointersCleared;
         }
 
+#if M09_011_PROBE || M09_012_PROBE || M16_010_PROBE
+        // IRQ-off post-exit owner; the child retains the existing bounded native
+        // run and cleanup. These outer records do not replace workload evidence.
+        private static bool RunOwnedNativeAotRuntimeProfile(void* context)
+        {
+            Storage* state = (Storage*)context;
+            if (state == null) return false;
+#if M09_011_PROBE
+            if (!LinuxText(state, "TEST_START m09.011\r\n")) return false;
+#elif M09_012_PROBE
+            if (!LinuxText(state, "TEST_START m09.012\r\n")) return false;
+#else
+            if (!LinuxText(state, "TEST_START m16-010\r\n")) return false;
+#endif
+            bool completed = RunOwnedLinuxSyscalls(context);
+            if (completed) return true;
+#if M09_011_PROBE
+            _ = LinuxText(state, "TEST_FAIL m09.011 native-runtime\r\n");
+#elif M09_012_PROBE
+            _ = LinuxText(state, "TEST_FAIL m09.012 native-runtime\r\n");
+#else
+            _ = LinuxText(state, "TEST_FAIL m16-010 native-runtime\r\n");
+#endif
+            return false;
+        }
+#endif
+
         private static bool RunOwnedLinuxSyscalls(void* context)
         {
             Storage* state = (Storage*)context;
@@ -2786,13 +2813,31 @@ public static unsafe partial class EfiEntry
 #if M05_APIC_SETUP_PROBE
                         if (!BootSequence.RunOwnedApicSetup(state->PciPhase == 8, state, &RunOwnedApicSetup)) return;
 #if M16_008_PROBE
-#if M16_009_PROBE
+#if M09_011_PROBE
+                        if (!CompleteLinuxRandomLifetime(state, BootSequence.RunOwnedNativeAotSuspension(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
+#elif M09_012_PROBE
+                        if (!CompleteLinuxRandomLifetime(state, BootSequence.RunOwnedNativeAotThreadPool(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
+#elif M16_010_PROBE
+                        if (!CompleteLinuxRandomLifetime(state, BootSequence.RunOwnedNativeAotRuntime(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
+#elif M16_009_PROBE
                         if (!CompleteLinuxRandomLifetime(state, BootSequence.RunOwnedLinuxSignals(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
 #else
                         if (!CompleteLinuxRandomLifetime(state, BootSequence.RunOwnedLinuxThreads(state->LinuxStartupPhase == 6, state->ServiceLoop.IsStopped,
 #endif
                             transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
-                            state->Arena.Binding->RetainedPointersCleared, state->ApicPhase == 2, state, &RunOwnedLinuxSyscalls))) return;
+                            state->Arena.Binding->RetainedPointersCleared, state->ApicPhase == 2, state,
+#if M09_011_PROBE || M09_012_PROBE || M16_010_PROBE
+                            &RunOwnedNativeAotRuntimeProfile))) return;
+#else
+                            &RunOwnedLinuxSyscalls))) return;
+#endif
+#if M09_011_PROBE
+                        if (!LinuxText(state, "CLROS_M09_011_READY\r\nTEST_PASS m09.011\r\n")) return;
+#elif M09_012_PROBE
+                        if (!LinuxText(state, "CLROS_M09_012_READY\r\nTEST_PASS m09.012\r\n")) return;
+#elif M16_010_PROBE
+                        if (!LinuxText(state, "CLROS_M16_010_READY\r\nTEST_PASS m16-010\r\n")) return;
+#endif
 #endif
 #if M09_005_PROBE
                         if (!BootSequence.RunOwnedSchedulerTimer(state->OwnedPhase == 2, state->ApicPhase == 2,

@@ -9,7 +9,9 @@ public static class QemuSmoke
     {
         root = Path.GetFullPath(root);
         invoke ??= (name, args) => ProcessRunner.RunAsync(new("dotnet", [HostTools.ManagedTool(root, name), .. args], root)
-        { Timeout = TimeSpan.FromMinutes(name == "OS.Tooling" ? 30 : 10), OutputCharacterLimit = 16 * 1024 * 1024 }, cancellation);
+        { Timeout = name == "OS.QemuRunner" && NativeAotRuntimeSelection.Application(options.Flags).Length != 0
+            ? TimeSpan.FromSeconds(options.TimeoutSeconds + 60) : TimeSpan.FromMinutes(name == "OS.Tooling" ? 30 : 10),
+            OutputCharacterLimit = 16 * 1024 * 1024 }, cancellation);
         async Task<ProcessResult> Run(string name, IReadOnlyList<string> args)
         {
             var result = await invoke(name, args);
@@ -24,17 +26,10 @@ public static class QemuSmoke
         FileStream? threadingDisassemblyInput = null;
         NativeAotHelloProgram? helloProgram = null;
         NativeAotThreadingProgram? threadingProgram = null;
+        NativeAotRuntimeProgram? runtimeProgram = null;
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
-            if(options.HasThreadingSelection)
-            {
-                if(options.LinuxThreadingApplication is not ("NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke"))
-                    throw new ToolFailure("threading_application");
-                if(options.LinuxThreadingDisassembly.Length==0)throw new ToolFailure("threading_disassembly_required");
-                if(options.LinuxHelloDisassembly.Length!=0)throw new ToolFailure("threading_hello_conflict");
-                if(!plan.IsEnabled("EnableM16009Probe"))throw new ToolFailure("threading_profile_requires_m16_009");
-            }
             if (options.LinuxHelloDisassembly.Length != 0 && !plan.IsEnabled("EnableM16009Probe"))
                 throw new ToolFailure("hello_profile_requires_m16_009");
             if (plan.IsEnabled("EnableM16002Probe") && !options.DryRun)
@@ -53,7 +48,9 @@ public static class QemuSmoke
                                 string.Equals(disassembly,Path.GetFullPath(path,root),comparison)))throw new ToolFailure("threading_input_output_alias");
                         if(string.Equals(package,disassembly,comparison))throw new ToolFailure("threading_input_alias");
                         threadingDisassemblyInput=new FileStream(disassembly,FileMode.Open,FileAccess.Read,FileShare.Read);
-                        threadingProgram=NativeAotThreadingProgram.Read(root,options.LinuxThreadingApplication,package,disassembly);
+                        if (NativeAotRuntimeSelection.Application(plan.Flags).Length != 0)
+                            runtimeProgram=NativeAotRuntimeProgram.Read(root,options.LinuxThreadingApplication,package,disassembly);
+                        else threadingProgram=NativeAotThreadingProgram.Read(root,options.LinuxThreadingApplication,package,disassembly);
                     }
                     else if (options.LinuxHelloDisassembly.Length != 0)
                     {
@@ -190,12 +187,12 @@ public static class QemuSmoke
             if (runner.ExitCode != 0 && capture is not null) return runner.ExitCode;
             // Hold the exact public evidence before the capture hash check and
             // through every subsequent parent/leaf/runner read.
-            using AuthorityFiles? threadingEvidence = threadingProgram is null ? null : QemuTranscripts.HoldThreadingEvidence(root, options);
+            using AuthorityFiles? threadingEvidence = threadingProgram is null && runtimeProgram is null ? null : QemuTranscripts.HoldThreadingEvidence(root, options);
             if (capture is not null)
             {
                 capture.Validate(); output.WriteLine("TEST_PASS m01.026.raw-observations");
             }
-            int validated = QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram, threadingProgram);
+            int validated = QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram, threadingProgram, runtimeProgram);
             threadingEvidence?.VerifyUnchanged();
             return validated;
         }

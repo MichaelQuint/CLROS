@@ -45,8 +45,8 @@ public static class NativeAotRuntimePackage
 
     /// <summary>Canonical no-argument/no-runtime-override manifest with explicit
     /// user IRQs and the thread service's existing sixteen-slot limit. The
-    /// matrix needs at least nine live threads; the eight-slot native owner
-    /// cannot run this policy yet. Actual native capacity remains to qualify.
+    /// matrix needs at least nine live threads. The native owner now admits
+    /// sixteen slots; actual runtime capacity remains to qualify in guests.
     /// The required endpoint field grants no socket or network service.</summary>
     public static string Manifest(string app)
     {

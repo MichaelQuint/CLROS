@@ -26,7 +26,8 @@ internal static unsafe class M16009EfiIntegrationTests
             HostCheck.True(actual.Except(inherited, StringComparer.Ordinal).SequenceEqual(added, StringComparer.Ordinal) &&
                 actual.Where(item => !added.Contains(item, StringComparer.Ordinal)).SequenceEqual(inherited, StringComparer.Ordinal));
             foreach (string prerequisite in parents) Reject(() => EfiOptions.Parse(["--" + flag,"--" + prerequisite + ":false"],build).Profile());
-            foreach (string conflict in EfiContracts.DiagnosticProbes.Where(p => p != flag && !parents.Contains(p)))
+            foreach (string conflict in EfiContracts.DiagnosticProbes.Where(p => p != flag &&
+                p is not ("EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe") && !parents.Contains(p)))
                 Reject(() => EfiOptions.Parse(["--" + flag,"--" + conflict],build).Profile());
             Reject(() => EfiOptions.Parse(["--BootPolicy","VerifiedExit","--" + flag],build).Profile());
         }

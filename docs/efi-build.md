@@ -2,14 +2,49 @@
 
 ## Development Linux threading profile
 
+[Step1284](../done/step1284.md) adds three mutually exclusive default-off runtime
+profiles. Each inherits the complete M16-009 prerequisite chain and requires
+the matching canonical package and complete reviewed LLVM disassembly:
+
+| Probe | Exact application | Outer terminal |
+| --- | --- | --- |
+| `EnableM09011Probe` | `NativeAotSuspensionStress` | `TEST_PASS m09.011` |
+| `EnableM09012Probe` | `NativeAotThreadPoolStress` | `TEST_PASS m09.012` |
+| `EnableM16010Probe` | `NativeAotRuntimeMatrix` | `TEST_PASS m16-010` |
+
+Use the existing `-LinuxThreadingDisassembly` option. An omitted
+`-LinuxThreadingApplication` is inferred from the selected probe; an explicitly
+empty or different name rejects before any child. Broader apps require their
+dedicated profile. All three share the existing input/output alias checks,
+read locks and sealed program factories. Their wrapper timeout defaults to
+600 seconds, with explicit values 1..900 accepted; the outer runner process
+allows another 60 seconds for termination. Existing profiles retain 30 seconds
+by default and the 300-second maximum. The native larger-policy execution
+budget remains five minutes.
+
+The dedicated START precedes the original M16-009 leaf. READY/PASS follows its
+owned completion and entropy cleanup. Parent validation checks the original
+firmware/startup/PCI/APIC roots, strips only the exact outer envelope, validates
+the sealed complete runtime leaf and retains original raw runner accounting.
+For example, retained step1278 inputs can construct this dry-run command:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16010Probe -LinuxElfPackage artifacts/runtime-admission-r01/NativeAotRuntimeMatrix-r02.pkg -LinuxThreadingDisassembly artifacts/runtime-admission-r01/NativeAotRuntimeMatrix.llvm.log -DryRun
+```
+
+Thirty-eight distinct focused checks and all three no-stdlib C# profile builds
+pass. Full-host, native publication/review and actual CLROS runtime guests remain
+pending for the shared eight-issue batch. Dry-run construction grants no boot
+or runtime evidence.
+
 [Step1283](../done/step1283.md) publishes start/end budget observations only for
 the existing larger thread policy. Its final reap also samples actual time;
 there is no successful-completion exception to the elapsed ceiling. Focused
 profiles retain their original positive markers. Complete broader leaf
 consumers and independent synthetic positives now cover all three apps,
 including real modeled signal/deadline/reap phase evidence. Combined no-stdlib
-C# compilation and static source admission pass. Wrapper/profile preparation,
-outer runner limits and real native/guest qualification remain pending.
+C# compilation and static source admission pass. At that step, wrapper/profile
+preparation, outer runner limits and native/guest qualification remained pending.
 
 [Step1282](../done/step1282.md) replaces the larger thread policy's incidental
 128-IRQ/512-step cutoff with separate finite event and real-time limits. All

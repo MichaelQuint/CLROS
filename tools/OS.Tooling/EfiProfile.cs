@@ -88,6 +88,12 @@ public sealed class EfiProfile
                 if (flag.Value && flag.Key != "EnableM09004Probe" && !required.Contains(flag.Key))
                     throw new ToolFailure("m09_004_profile_conflict", flag.Key);
         }
+        if (NativeAotRuntimeSelection.Application(flags).Length != 0)
+        {
+            if (explicitlySelected.TryGetValue("EnableM16009Probe", out bool parent) && !parent)
+                throw new ToolFailure("runtime_explicit_false_prerequisite", "EnableM16009Probe");
+            flags["EnableM16009Probe"] = true;
+        }
         if (flags["EnableM16009Probe"])
         {
             if (explicitlySelected.TryGetValue("EnableM16008Probe", out bool parent) && !parent)
@@ -146,7 +152,7 @@ public sealed class EfiProfile
             }
             foreach (var flag in flags)
                 if (flag.Value && flag.Key != "EnableM16002Probe" && flag.Key != "EnableM16003Probe" && flag.Key != "EnableM16004Probe" && flag.Key != "EnableM16005Probe" && flag.Key != "EnableM16006Probe" && flag.Key != "EnableM16007Probe" &&
-                    !(flags["EnableM16008Probe"] && flag.Key is "EnableM16008Probe" or "EnableM16009Probe" or "EnableM05PciEnumerationProbe" or "EnableM05ApicSetupProbe") && !required.Contains(flag.Key))
+                    !(flags["EnableM16008Probe"] && flag.Key is "EnableM16008Probe" or "EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM05PciEnumerationProbe" or "EnableM05ApicSetupProbe") && !required.Contains(flag.Key))
                     throw new ToolFailure("m16_002_profile_conflict", flag.Key);
         }
         bool diagnostic = flags.Values.Any(v => v);

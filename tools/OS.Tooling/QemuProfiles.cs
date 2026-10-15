@@ -14,7 +14,6 @@ public static class QemuProfiles
     {
         SmokeContracts.ValidateWorkload(options.WorkloadProfile);
         Require(options.DiskFormat is "raw" or "qcow2", "qemu.smoke.invalid_args disk_format=" + options.DiskFormat);
-        Require(options.TimeoutSeconds is >= 1 and <= 300, "qemu_timeout_out_of_range");
         Dictionary<string, bool> flags = new(options.Flags, StringComparer.Ordinal);
         bool Selected(string name) => flags.TryGetValue("Enable" + name + "Probe", out bool selected) && selected;
         if (new[] { "M02OwnedGdtTssTerminal", "M02Ud2VectorState", "M02GuardedIstStackAllocation", "M02OwnedX64GdtEncoding", "M02PanicSafeOwnedCom1", "M02OwnedCom1Ready" }.Any(Selected)
@@ -28,6 +27,11 @@ public static class QemuProfiles
             emit?.Invoke("QEMU_SCRIPT_M02_OWNED_COM1_READY_PREREQUISITES m01LoadedImageStack=true m01LiveAllocator=true m01OwnedPaging=true");
         }
         EfiProfile profile = EfiProfile.Create(options.BootPolicy, flags, emit);
+        NativeAotRuntimeSelection.Bind(options, profile.Flags);
+        string runtimeApp = NativeAotRuntimeSelection.Application(profile.Flags);
+        if (runtimeApp.Length != 0 && !options.Explicit.Contains("TimeoutSeconds") && options.TimeoutSeconds == 30)
+            options.TimeoutSeconds = 600;
+        Require(options.TimeoutSeconds >= 1 && options.TimeoutSeconds <= (runtimeApp.Length == 0 ? 300 : 900), "qemu_timeout_out_of_range");
         bool Enabled(string name) => profile.IsEnabled("Enable" + name + "Probe");
         bool normal = profile.BootPolicy == "VerifiedExit";
         bool build = options.BuildEfi || normal && !options.Explicit.Contains("BuildEfi");
@@ -80,7 +84,7 @@ public static class QemuProfiles
         {
             Original("m16_002", false, true, true);
             foreach (string key in new[] { "RequireOrderedMarker", "RequireUniqueMarker", "ForbidMarker" }) Require(!options.Explicit.Contains(key), "m16_002_forbids_override parameter=" + key);
-            string terminal = Enabled("M16009") ? "CLROS_M16_009_READY" : Enabled("M16008") ? "CLROS_M16_008_READY" : Enabled("M16007") ? "CLROS_M16_007_READY" : Enabled("M16006") ? "CLROS_M16_006_READY" : Enabled("M16005") ? "CLROS_M16_005_READY" : Enabled("M16003") ? "CLROS_M16_003_READY" : Enabled("M16004") ? "CLROS_M16_004_READY" : "CLROS_M16_002_READY";
+            string terminal = runtimeApp.Length != 0 ? NativeAotRuntimeSelection.Markers(runtimeApp).Ready : Enabled("M16009") ? "CLROS_M16_009_READY" : Enabled("M16008") ? "CLROS_M16_008_READY" : Enabled("M16007") ? "CLROS_M16_007_READY" : Enabled("M16006") ? "CLROS_M16_006_READY" : Enabled("M16005") ? "CLROS_M16_005_READY" : Enabled("M16003") ? "CLROS_M16_003_READY" : Enabled("M16004") ? "CLROS_M16_004_READY" : "CLROS_M16_002_READY";
             Require(!options.Explicit.Contains("RequireMarker") || options.RequireMarker.All(x => x == terminal), "m16_002_marker_override");
             Require(!Enabled("M16003") || options.LinuxElfImageVariant == "Intact", "m16_003_requires_intact_package");
             Require(!Enabled("M16004") || options.LinuxElfImageVariant == "Intact", "m16_004_requires_intact_package");
@@ -149,7 +153,10 @@ public static class QemuProfiles
             string[] records = [.. QemuContracts.M03OwnedSubsystemMarkers, "TEST_START m16-002", "M16_002_STAGED", "M16_002_DIGEST",
                 "M16_002_PACKAGE_DIGEST", "M16_002_OWNED", "CLROS_M16_002_READY", "TEST_PASS m16-002",
                 .. QemuTranscripts.M16LinuxStartupMarkers, .. QemuTranscripts.M16ServiceLoopMarkers,
-                .. QemuContracts.M05ApicSetupMarkers.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count), .. QemuTranscripts.M16LinuxSignalMarkers];
+                .. QemuContracts.M05ApicSetupMarkers.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count),
+                .. runtimeApp.Length == 0 ? Array.Empty<string>() : new[] { NativeAotRuntimeSelection.Markers(runtimeApp).Start },
+                .. QemuTranscripts.M16LinuxSignalMarkers,
+                .. runtimeApp.Length == 0 ? Array.Empty<string>() : new[] { NativeAotRuntimeSelection.Markers(runtimeApp).Ready, NativeAotRuntimeSelection.Markers(runtimeApp).Pass }];
             string[] repeated = ["M16_008_CALL", "M16_008_SUPERVISOR", "M16_008_EXIT", "M16_008_REAP"];
             Select(records, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8", "M16_002_STAGE_REJECTED",
                 "TEST_START m16-008", "CLROS_M16_008_READY", "TEST_PASS m16-008"], true,
@@ -314,6 +321,9 @@ public static class QemuProfiles
         ("M16007", @"^(M16_007_|CLROS_M16_007_READY|TEST_(START|PASS) m16-007)", "m16_007"),
         ("M16008", @"^(M16_008_|CLROS_M16_008_READY|TEST_(START|PASS) m16-008)", "m16_008"),
         ("M16009", @"^(M16_009_|CLROS_M16_009_READY|TEST_(START|PASS) m16-009)", "m16_009"),
+        ("M09011", @"^(M09_011_|CLROS_M09_011_READY|TEST_(START|PASS) m09\.011)", "m09_011"),
+        ("M09012", @"^(M09_012_|CLROS_M09_012_READY|TEST_(START|PASS) m09\.012)", "m09_012"),
+        ("M16010", @"^(M16_010_|CLROS_M16_010_READY|TEST_(START|PASS) m16-010)", "m16_010"),
         ("M09004", @"^(M09_004_|CLROS_M09_004_READY|TEST_(START|PASS) m09\.004)", "m09_004"),
         ("M09005", @"^(M09_005_|CLROS_M09_005_READY|TEST_(START|PASS) m09\.005)", "m09_005"),
         ("M09009", @"^(M09_009_|CLROS_M09_009_READY|TEST_(START|PASS) m09\.009)", "m09_009"),

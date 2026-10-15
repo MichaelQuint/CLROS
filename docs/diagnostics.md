@@ -1,5 +1,16 @@
 # Diagnostics
 
+[Step1284](../done/step1284.md) adds default-off `EnableM09011Probe`,
+`EnableM09012Probe` and `EnableM16010Probe`, appended to the probe catalog without
+reordering older entries. Each gates the existing owned Linux signal owner and
+admits exactly its matching broader app. Dedicated START and READY/PASS surround
+the complete original leaf; successful outer terminals follow entropy cleanup.
+The full parent requires the sealed matching runtime program before opening
+transcripts, validates original inner bytes and keeps raw runner-summary
+accounting. Missing/duplicate/wrong/trailing outer records reject. Thirty-eight
+focused checks and three no-stdlib C# builds pass; actual guest acceptance and
+the shared full-host/native/ancestor gates remain pending.
+
 [Step1283](../done/step1283.md) adds `ValidateNativeAotRuntimeTail`, requiring the
 canonical package and sealed runtime instruction index for the selected app.
 Broader leaves retain all raw stdout, syscall/wait, signal-frame, scheduler,

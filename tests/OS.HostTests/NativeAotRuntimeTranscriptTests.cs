@@ -205,10 +205,43 @@ internal static class NativeAotRuntimeTranscriptTests
         v.Rows.Add("M16_008_BUDGET_END nanos=350000000");v.End(6);return b;
     }
 
+    [HostTest("nativeaot.runtime outer framing preserves original inner bytes and rejects wrong duplicate missing or trailing profile records")]
+    private static void Envelope()
+    {
+        foreach (var b in new[] { Suspension(), Pool(), Matrix() })
+        {
+            var m = NativeAotRuntimeSelection.Markers(b.App);
+            byte[] inner = Raw(b);
+            string text = "PARENT\r\n" + m.Start + "\r\n" + Encoding.UTF8.GetString(inner) + m.Ready + "\r\n" + m.Pass + "\r\n";
+            string normalized = QemuTranscripts.InspectNativeAotRuntimeEnvelopeForTests(b.App, Encoding.UTF8.GetBytes(text));
+            HostCheck.True(normalized.StartsWith("PARENT\r\n" + m.Start + "\r\nTEST_START m16-009\r\n", StringComparison.Ordinal));
+            HostCheck.True(normalized.EndsWith("TEST_PASS m16-009\r\n" + m.Ready + "\r\n" + m.Pass + "\r\n", StringComparison.Ordinal));
+            foreach (string broken in new[] { text.Replace(m.Start + "\r\n", "", StringComparison.Ordinal),
+                text.Replace(m.Start, m.Start + "\r\n" + m.Start, StringComparison.Ordinal),
+                text.Replace(m.Ready, "CLROS_M16_009_READY", StringComparison.Ordinal),
+                text.Replace(m.Pass + "\r\n", "", StringComparison.Ordinal), text + "trailing\r\n" })
+            {
+                bool rejected = false;
+                try { QemuTranscripts.InspectNativeAotRuntimeEnvelopeForTests(b.App, Encoding.UTF8.GetBytes(broken)); }
+                catch (ToolFailure) { rejected = true; }
+                HostCheck.True(rejected);
+            }
+        }
+    }
+
     [HostTest("nativeaot.runtime complete ThreadPool leaf binds larger entropy budget three genuine timer deadlines and actual cleanup")]
     private static void Complete()
     {
         var b=Pool();var report=b.Inspect();HostCheck.True(report.Clones==5 && report.Reaped==6 && report.Ticks==3 && report.Irqs==1);
+        byte[] raw=Raw(b);
+        var capture=NativeAotThreadingOutput.Read(b.App,raw);HostCheck.Equal(b.Stdout.ToString(),capture.Stdout);
+        HostCheck.True(capture.NormalizedTail==string.Join("\r\n",b.Core.Rows)+"\r\n");
+        bool rejected=false;try{QemuTranscripts.ValidateNativeAotRuntimeTail("",[],null!,raw,8192,12288);}catch(ToolFailure){rejected=true;}
+        HostCheck.True(rejected,"value-only rows cannot replace sealed program authority");
+    }
+
+    private static byte[] Raw(BroadVector b)
+    {
         using MemoryStream raw=new();
         foreach(string row in b.Core.Rows)
         {
@@ -216,10 +249,7 @@ internal static class NativeAotRuntimeTranscriptTests
             if(row.StartsWith("M16_005_WRITE ",StringComparison.Ordinal))raw.WriteByte(10);
             raw.Write("\r\n"u8);
         }
-        var capture=NativeAotThreadingOutput.Read(b.App,raw.ToArray());HostCheck.Equal(b.Stdout.ToString(),capture.Stdout);
-        HostCheck.True(capture.NormalizedTail==string.Join("\r\n",b.Core.Rows)+"\r\n");
-        bool rejected=false;try{QemuTranscripts.ValidateNativeAotRuntimeTail("",[],null!,raw.ToArray(),8192,12288);}catch(ToolFailure){rejected=true;}
-        HostCheck.True(rejected,"value-only rows cannot replace sealed program authority");
+        return raw.ToArray();
     }
 
     [HostTest("nativeaot.runtime rejects focused policy substitution unbacked timer output invented clocks and expired complete time")]
