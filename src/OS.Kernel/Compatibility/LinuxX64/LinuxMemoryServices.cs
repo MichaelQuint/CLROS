@@ -30,11 +30,16 @@ public static unsafe class LinuxMemoryServices
     /// aliases, distinct scratch tables and immutable non-pool static mappings.
     /// ReservationBytes is an independent virtual quota, not physical capacity.
     /// The owner proves physical allocation, inactive-root authority and lifetime.
+    /// Optional ImageVirtualStart/ImagePhysicalStart/ImageBytes identify its
+    /// exclusively retained, page-aligned ELF image, excluding the initial stack.
+    /// All zero disables image protection changes. Original image rows retain
+    /// exact linear physical identity; only non-executable user data may change.
     /// </summary>
     public struct Admission
     {
         public byte* Pool;
         public ulong PoolPhysical, RootPhysical, ReservationBytes;
+        public ulong ImageVirtualStart, ImagePhysicalStart, ImageBytes;
         public uint PoolPages, TablePages, StaticCount;
         public ulong* Tables;
         public ulong* CandidateTables;
@@ -55,10 +60,20 @@ public static unsafe class LinuxMemoryServices
         internal void* GuardContext;
         internal delegate* unmanaged<void*, ulong, ulong, byte> Guard;
         internal ulong GuardSelf;
+        internal ImageProtection Image;
         public ulong ReservedBytes { get; internal set; }
         public uint BackedPages { get; internal set; }
         public X64UserAddressSpaceResult Root { get; internal set; }
         public readonly bool HasMutationGuard => Guard != null;
+        /// <summary>True while one owned image interval differs from its original
+        /// protection. This observation grants no mutation or teardown authority.</summary>
+        public readonly bool HasImageProtections => Image.Bytes != 0;
+    }
+
+    internal struct ImageProtection
+    {
+        internal ulong Start, Bytes;
+        internal uint Protection;
     }
 
     private struct Region
@@ -88,7 +103,8 @@ public static unsafe class LinuxMemoryServices
     private static bool Initialize(State* state, Admission memory, X64UserAddressSpaceResult original, bool adopt)
     {
         if (!Storage(state, memory) || state->Initialized != 0 || state->Count != 0 || state->GuardContext != null || state->Guard != null || state->GuardSelf != 0 ||
-            state->ReservedBytes != 0 || state->BackedPages != 0 || state->Root.Status != X64UserAddressSpaceStatus.Uninitialized)
+            state->ReservedBytes != 0 || state->BackedPages != 0 || state->Root.Status != X64UserAddressSpaceStatus.Uninitialized ||
+            state->Image.Start != 0 || state->Image.Bytes != 0 || state->Image.Protection != 0)
             return false;
         for (uint i = 0; i < MaximumRegions * 4; i++) if (state->Regions[i] != 0) return false;
         if (adopt)
@@ -245,11 +261,17 @@ public static unsafe class LinuxMemoryServices
     /// mprotect requires complete reservation coverage. Partial ranges split
     /// ownership. PROT_NONE removes leaves but retains existing backing/data;
     /// first accessibility commits actual pool pages. W+X is refused.
+    /// An opted-in image permits one temporary R/RW window wholly within one
+    /// original non-executable user data row. Exact-window restoration removes
+    /// it; competing/partial windows return ENOMEM. Other image requests return
+    /// EINVAL. Neither path changes original static provenance or image backing.
     /// </summary>
     public static long Protect(State* state, ulong address, ulong bytes, uint protection)
     {
         if (!Valid(state)) return Fault;
-        if (!Protection(protection) || !Round(bytes, out bytes) || !Range(address, bytes)) return Invalid;
+        if (!Protection(protection) || !Round(bytes, out bytes)) return Invalid;
+        if (address < DynamicStart) return ProtectImage(state, address, bytes, protection);
+        if (!Range(address, bytes)) return Invalid;
         Region* candidate = stackalloc Region[(int)WorkingRegions];
         uint count = CopyRegions(state, candidate);
         if (!Covered(candidate, count, address, bytes)) return NoMemory;
@@ -257,6 +279,47 @@ public static unsafe class LinuxMemoryServices
         for (uint i = 0; i < count; i++)
             if (candidate[i].Protection != 0 && candidate[i].Backing == 0 && !Allocate(state->Memory, candidate, count, ref candidate[i])) return NoMemory;
         return Apply(state, candidate, count);
+    }
+
+    /// <summary>Restore original image permissions after the owner drains every
+    /// user and detaches its mutation guard, with the user root inactive. Rebuild
+    /// and audit before publication; preserve image bytes and dynamic ownership.
+    /// Returns EFAULT for invalid state or ENOMEM for an attached guard/build
+    /// rejection without live mutation. The caller retains all storage and must
+    /// publish/reload CR3 before any later user. This does not release the image.</summary>
+    public static long RestoreImageProtections(State* state)
+    {
+        if (!Valid(state)) return Fault;
+        if (state->Guard != null) return NoMemory;
+        return state->HasImageProtections ? ApplyImageProtection(state, default) : 0;
+    }
+
+    private static long ProtectImage(State* state, ulong address, ulong bytes, uint protection)
+    {
+        if ((protection != 1 && protection != 3) || !ImageRow(state->Memory, address, bytes, out uint row)) return Invalid;
+        var prior = state->Image;
+        if (prior.Bytes != 0 && (prior.Start != address || prior.Bytes != bytes)) return NoMemory;
+        uint original = (uint)state->Memory.StaticRanges[row].Protection;
+        if (protection == (prior.Bytes == 0 ? original : prior.Protection)) return 0;
+        ImageProtection next = protection == original ? default : new() { Start = address, Bytes = bytes, Protection = protection };
+        return ApplyImageProtection(state, next);
+    }
+
+    private static long ApplyImageProtection(State* state, ImageProtection next)
+    {
+        var memory = state->Memory;
+        Region* regions = stackalloc Region[(int)MaximumRegions]; uint count = CopyRegions(state, regions);
+        X64UserMappingRange* mappings = stackalloc X64UserMappingRange[(int)X64UserAddressSpace.MaximumRanges];
+        if (!Mappings(memory, next, regions, count, mappings, out uint mapped)) return NoMemory;
+        X64UserAddressSpace.Clear(memory.CandidateTables, memory.TablePages);
+        var root = X64UserAddressSpace.Build(mappings, mapped, memory.CandidateTables,
+            memory.RootPhysical, memory.TablePages, memory.Conditions);
+        if (!root.Succeeded) return NoMemory;
+        var changed = next.Bytes == 0 ? state->Image : next;
+        if (state->Guard != null && state->Guard(state->GuardContext, changed.Start, changed.Bytes) != 1) return NoMemory;
+        CopyTables(memory);
+        state->Image = next; state->Root = root;
+        return 0;
     }
 
     /// <summary>
@@ -403,7 +466,7 @@ public static unsafe class LinuxMemoryServices
         if (!Accounting(state->Memory, regions, count, out ulong reserved, out uint backed) ||
             reserved != state->ReservedBytes || backed != state->BackedPages) return false;
         X64UserMappingRange* mappings = stackalloc X64UserMappingRange[(int)X64UserAddressSpace.MaximumRanges];
-        return Mappings(state->Memory, regions, count, mappings, out uint mapped) &&
+        return Mappings(state->Memory, state->Image, regions, count, mappings, out uint mapped) &&
             X64UserAddressSpace.Audit(mappings, mapped, state->Memory.Tables, state->Memory.RootPhysical,
                 state->Memory.TablePages, state->Memory.Conditions, state->Root);
     }
@@ -415,7 +478,7 @@ public static unsafe class LinuxMemoryServices
         if (count > MaximumRegions) return NoMemory;
         if (!Accounting(memory, regions, count, out ulong reserved, out uint backed)) return NoMemory;
         X64UserMappingRange* mappings = stackalloc X64UserMappingRange[(int)X64UserAddressSpace.MaximumRanges];
-        if (!Mappings(memory, regions, count, mappings, out uint mapped)) return NoMemory;
+        if (!Mappings(memory, state->Image, regions, count, mappings, out uint mapped)) return NoMemory;
         X64UserAddressSpace.Clear(memory.CandidateTables, memory.TablePages);
         var root = X64UserAddressSpace.Build(mappings, mapped, memory.CandidateTables,
             memory.RootPhysical, memory.TablePages, memory.Conditions);
@@ -492,7 +555,52 @@ public static unsafe class LinuxMemoryServices
         ulong* starts = stackalloc ulong[5] { (ulong)state, (ulong)m.Pool, (ulong)m.Tables, (ulong)m.CandidateTables, (ulong)m.StaticRanges };
         ulong* lengths = stackalloc ulong[5] { (ulong)sizeof(State), m.PoolPages * Page, m.TablePages * Page, m.TablePages * Page, m.StaticCount * (ulong)sizeof(X64UserMappingRange) };
         for (uint i = 0; i < 5; i++) for (uint j = 0; j < i; j++) if (Overlap(starts[i], lengths[i], starts[j], lengths[j])) return false;
-        return m.Conditions.Validate() == X64PageTableEntryStatus.Success;
+        return m.Conditions.Validate() == X64PageTableEntryStatus.Success && ImageInventory(m);
+    }
+
+    private static bool ImageInventory(Admission m)
+    {
+        if (m.ImageBytes == 0) return m.ImageVirtualStart == 0 && m.ImagePhysicalStart == 0;
+        if (((m.ImageVirtualStart | m.ImagePhysicalStart | m.ImageBytes) & (Page - 1)) != 0 ||
+            m.ImageVirtualStart < Page || m.ImageVirtualStart >= DynamicStart || m.ImageBytes > DynamicStart - m.ImageVirtualStart ||
+            m.ImagePhysicalStart < Page || m.ImagePhysicalStart >= X64UserAddressSpace.PhysicalEnd ||
+            m.ImageBytes > X64UserAddressSpace.PhysicalEnd - m.ImagePhysicalStart ||
+            Overlap(m.ImagePhysicalStart, m.ImageBytes, m.PoolPhysical, m.PoolPages * Page) ||
+            Overlap(m.ImagePhysicalStart, m.ImageBytes, m.RootPhysical, m.TablePages * Page) ||
+            Overlap(m.ImageVirtualStart, m.ImageBytes, m.RootPhysical, m.TablePages * Page)) return false;
+        bool found = false;
+        for (uint i = 0; i < m.StaticCount; i++)
+        {
+            var r = m.StaticRanges[i];
+            if (r.Pages == 0 || r.Pages > 32768) return false;
+            ulong bytes = r.Pages * Page;
+            bool va = Overlap(r.VirtualStart, bytes, m.ImageVirtualStart, m.ImageBytes);
+            bool pa = Overlap(r.PhysicalStart, bytes, m.ImagePhysicalStart, m.ImageBytes);
+            if (!va && !pa) continue;
+            if (!va || !pa || !r.User || r.Cache != PageCachePolicy.WriteBack ||
+                r.VirtualStart < m.ImageVirtualStart || r.VirtualStart - m.ImageVirtualStart >= m.ImageBytes ||
+                bytes > m.ImageBytes - (r.VirtualStart - m.ImageVirtualStart) ||
+                r.PhysicalStart != m.ImagePhysicalStart + r.VirtualStart - m.ImageVirtualStart) return false;
+            found = true;
+        }
+        return found;
+    }
+
+    private static bool ImageRow(Admission memory, ulong address, ulong bytes, out uint row)
+    {
+        row = 0;
+        if (bytes == 0 || ((address | bytes) & (Page - 1)) != 0 || address < memory.ImageVirtualStart ||
+            address - memory.ImageVirtualStart >= memory.ImageBytes || bytes > memory.ImageBytes - (address - memory.ImageVirtualStart)) return false;
+        for (uint i = 0; i < memory.StaticCount; i++)
+        {
+            var r = memory.StaticRanges[i];
+            if (!r.User || r.Cache != PageCachePolicy.WriteBack ||
+                (r.Protection != PageProtection.Read && r.Protection != (PageProtection.Read | PageProtection.Write)) ||
+                address < r.VirtualStart || address - r.VirtualStart >= r.Pages * Page ||
+                bytes > r.Pages * Page - (address - r.VirtualStart)) continue;
+            row = i; return true;
+        }
+        return false;
     }
 
     private static bool Accounting(Admission memory, Region* regions, uint count, out ulong reserved, out uint backed)
@@ -514,10 +622,32 @@ public static unsafe class LinuxMemoryServices
         return backed <= memory.PoolPages;
     }
 
-    private static bool Mappings(Admission memory, Region* regions, uint count, X64UserMappingRange* mappings, out uint mapped)
+    private static bool Mappings(Admission memory, ImageProtection image, Region* regions, uint count, X64UserMappingRange* mappings, out uint mapped)
     {
-        mapped = memory.StaticCount;
-        for (uint i = 0; i < mapped; i++) mappings[i] = memory.StaticRanges[i];
+        mapped = 0; uint imageRow = memory.StaticCount;
+        if (image.Bytes == 0)
+        { if (image.Start != 0 || image.Protection != 0) return false; }
+        else if ((image.Protection != 1 && image.Protection != 3) || !ImageRow(memory, image.Start, image.Bytes, out imageRow) ||
+            image.Protection == (uint)memory.StaticRanges[imageRow].Protection) return false;
+        for (uint i = 0; i < memory.StaticCount; i++)
+        {
+            var r = memory.StaticRanges[i];
+            if (i != imageRow) { if (!AppendMapping(mappings, ref mapped, r)) return false; continue; }
+            ulong end = r.VirtualStart + r.Pages * Page, after = image.Start + image.Bytes;
+            if (r.VirtualStart < image.Start)
+            {
+                var before = r; before.Pages = (image.Start - r.VirtualStart) / Page;
+                if (!AppendMapping(mappings, ref mapped, before)) return false;
+            }
+            var middle = r; middle.VirtualStart = image.Start; middle.PhysicalStart += image.Start - r.VirtualStart;
+            middle.Pages = image.Bytes / Page; middle.Protection = (PageProtection)image.Protection;
+            if (!AppendMapping(mappings, ref mapped, middle)) return false;
+            if (after < end)
+            {
+                r.PhysicalStart += after - r.VirtualStart; r.VirtualStart = after; r.Pages = (end - after) / Page;
+                if (!AppendMapping(mappings, ref mapped, r)) return false;
+            }
+        }
         for (uint i = 0; i < count; i++)
         {
             Region r = regions[i];
@@ -528,6 +658,9 @@ public static unsafe class LinuxMemoryServices
         }
         return true;
     }
+
+    private static bool AppendMapping(X64UserMappingRange* mappings, ref uint count, X64UserMappingRange range)
+    { if (count == X64UserAddressSpace.MaximumRanges) return false; mappings[count++] = range; return true; }
 
     private static bool Allocate(Admission memory, Region* regions, uint count, ref Region r)
     {

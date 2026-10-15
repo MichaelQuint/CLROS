@@ -1445,6 +1445,12 @@ public static unsafe partial class EfiEntry
                 RootPhysical = state->LinuxUserTables, Tables = (ulong*)state->LinuxUserTables,
                 CandidateTables = (ulong*)state->LinuxMemoryCandidate, TablePages = X64UserAddressSpace.MaximumTables,
                 StaticRanges = (X64UserMappingRange*)state->LinuxUserRanges, StaticCount = state->LinuxUserRangeCount,
+#if M16_009_PROBE
+                // Only the owned loaded ELF grants data-protection authority.
+                // The adjacent initial stack and retained supervisor pool do not.
+                ImageVirtualStart = state->LinuxImagePlan.ImageStart, ImagePhysicalStart = state->LinuxImageBacking,
+                ImageBytes = state->LinuxImagePlan.ImageBytes,
+#endif
                 ReservationBytes = 0x400000000, Conditions = state->Memory.Tables.Preconditions
             };
             if (!LinuxMemoryServices.Adopt(&state->LinuxMemory, memory, state->LinuxUserRoot)) return false;

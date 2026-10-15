@@ -1,5 +1,17 @@
 # PAL
 
+[Step1287](../done/step1287.md) repairs descriptor-backed futex admission and
+retained mapping capacity. The original runtime guest now passes those two
+failures, then stops at readonly ELF data protection before application output.
+[Step1288](../done/step1288.md) implements the measured guard-stack cookie
+requirement: explicit owned-image authority, one active R/RW data override,
+immutable original mappings and explicit drained-owner restoration. Code,
+supervisor mappings and the separate initial stack receive no such authority.
+Sixty focused checks and native publication pass. The real r15 guest performs
+both permission changes and emits its EH-success row, then reports
+`thread_start_timeout`. Unchanged guest Hello/runtime and shared-batch
+acceptance remain pending.
+
 [Step1285](../done/step1285.md) adds distinct original RuntimeSmoke admission
 under M16-010 and real host-service repeated owner cleanup. Three successive
 16-slot owners reuse the same backing only after cancelled waits, pending

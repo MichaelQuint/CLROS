@@ -139,8 +139,11 @@ public static unsafe partial class EfiEntry
             if (!stackOwned) return false;
             if (LinuxMemoryServices.Unmap(&state->LinuxMemory, LinuxMemoryServices.DynamicStart,
                 LinuxSyscallGateway.UserEnd - LinuxMemoryServices.DynamicStart) != 0 ||
+                LinuxMemoryServices.RestoreImageProtections(&state->LinuxMemory) != 0 || state->LinuxMemory.HasImageProtections ||
                 state->LinuxMemory.ReservedBytes != 0 || state->LinuxMemory.BackedPages != 0 ||
-                !LinuxMemoryServices.Audit(&state->LinuxMemory)) return false;
+                !LinuxMemoryServices.Audit(&state->LinuxMemory) ||
+                !X64UserAddressSpace.Audit(memory.StaticRanges, memory.StaticCount, memory.Tables,
+                    memory.RootPhysical, memory.TablePages, memory.Conditions, state->LinuxMemory.Root)) return false;
             state->LinuxUserRoot = state->LinuxMemory.Root;
             byte* stack = (byte*)(state->LinuxImageBacking + imageBytes);
             for (ulong i = 0; i < stackBytes; i++) stack[i] = 0;

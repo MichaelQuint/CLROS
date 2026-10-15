@@ -207,6 +207,13 @@ internal static unsafe class M16008EfiIntegrationTests
             cleanup.ToString().Contains("state->LinuxMemory.HasMutationGuard", StringComparison.Ordinal));
         HostCheck.True(cleanup.ToString().Contains("state->LinuxMemory.ReservedBytes != 0", StringComparison.Ordinal) &&
             cleanup.ToString().Contains("state->LinuxMemory.BackedPages != 0", StringComparison.Ordinal));
+        var restore = bodyCalls.Single(c => c.Expression.ToString() == "LinuxMemoryServices.RestoreImageProtections");
+        var baseline = bodyCalls.Single(c => c.Expression.ToString() == "X64UserAddressSpace.Audit");
+        HostCheck.True(unmap.SpanStart < restore.SpanStart && restore.SpanStart < baseline.SpanStart &&
+            restore.ArgumentList.Arguments.Single().Expression.ToString() == "&state->LinuxMemory" &&
+            restore.Parent is BinaryExpressionSyntax reject && reject.IsKind(SyntaxKind.NotEqualsExpression) &&
+            reject.Right is LiteralExpressionSyntax success && Convert.ToInt64(success.Token.Value) == 0 &&
+            cleanup.ToString().Contains("state->LinuxMemory.HasImageProtections", StringComparison.Ordinal));
     }
 
     [HostTest("m16-008 native signal attachment drains before scrub and return preparation precedes full installation")]

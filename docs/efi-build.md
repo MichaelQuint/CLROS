@@ -2,6 +2,18 @@
 
 ## Development Linux threading profile
 
+[Step1288](../done/step1288.md) adds explicit owned ELF data protection for
+NativeAOT guard-stack cookie initialization. One active R/RW window derives
+physical identity from immutable original non-executable user mappings; later
+mmap rebuilds preserve it. The default-off M16-009 prerequisite profile grants
+only the retained image envelope, excluding its initial stack and supervisor
+pool. Drained teardown restores original permissions and directly audits the
+original inventory before cleanup success. Sixty focused checks and the host
+build pass. Native publication passes; original-runtime r15 performs both cookie
+permission changes and emits its real EH-success row. It later reports
+`thread_start_timeout` and exits1; the remaining runtime groups and full cleanup
+remain unqualified. Clock/scheduling behavior is the next concrete diagnosis.
+
 [Step1287](../done/step1287.md) reproduces both r13 startup failures through
 production services. Futex resolution now admits validated words in application
 backing while retaining descriptor/futex metadata exclusions and wait lifetime
