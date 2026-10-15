@@ -1,5 +1,18 @@
 # App Model
 
+[Step1271](../done/step1271.md) implements host-side leaf consumers for both
+exact prepared threading programs. Canonical package/index and raw complete
+output admission precede current call/wait/signal-return records, mappings/TLS,
+per-generation FIFO scheduling, real deadline order, user/idle IRQ epochs, stdout
+pairing, exit/clear-TID/reap and terminal cleanup. Synthetic controls include two
+suspension cycles, a handler IRQ before its first syscall, equal-deadline wakes,
+worker-originated clone, generation reuse and cancellation of masked pending or
+parked handler state. Retired frames are not counted as completed sigreturns.
+Forty-four focused checks pass. Genuine packages/programs plus genuine Linux
+stdout alone are rejected without the guest protocol. Parent/runner wiring,
+broader runtime stress and frozen batch qualification remain pending; no new
+runtime QEMU selector or CLROS execution is accepted.
+
 [Step1270](../done/step1270.md) decodes the two focused workloads' complete raw
 stdout across arbitrary write segmentation. Original fd1 byte counts and kernel
 CRLF framing are checked before payload newline normalization; immutable write

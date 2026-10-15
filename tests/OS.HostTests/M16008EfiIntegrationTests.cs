@@ -252,17 +252,25 @@ internal static unsafe class M16008EfiIntegrationTests
         HostCheck.Equal("c->Key, 2, c->Threads.Current, out var waitView",observation.ArgumentList.Arguments.ToString());
         HostCheck.True(calls.Single(c=>c.Expression.ToString()=="LinuxSyscallGateway.Dispatch").SpanStart<observation.SpanStart &&
             calls.Single(c=>c.Expression.ToString()=="LinuxNativeUserReturn").SpanStart<observation.SpanStart);
+        var dispatched=calls.Single(c=>c.Expression.ToString()=="c->Process.Inspect" &&
+            c.ArgumentList.Arguments.Last().ToString()=="out var dispatchedView");
+        HostCheck.True(dispatched.SpanStart<calls.Single(c=>c.Expression.ToString()=="LinuxNativeUserReturn").SpanStart);
+        var returned=core.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v=>v.Identifier.Text=="returned");
+        HostCheck.Equal("*frame",returned.Initializer!.Value.ToString());
+        HostCheck.True(returned.SpanStart>calls.Single(c=>c.Expression.ToString()=="LinuxSyscallGateway.Dispatch").SpanStart && returned.SpanStart<dispatched.SpanStart);
         HostCheck.True(observation.Parent is PrefixUnaryExpressionSyntax unary && unary.Parent is IfStatementSyntax guard &&
             guard.Statement.DescendantNodes().OfType<InvocationExpressionSyntax>().Any(c=>c.Expression.ToString()=="LinuxNativeAbort") &&
             guard.Statement.DescendantNodes().OfType<ReturnStatementSyntax>().Any());
         var logged=core.DescendantNodes().OfType<VariableDeclaratorSyntax>().Single(v=>v.Identifier.Text=="logged");
         string[] observed=logged.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(c=>c.Expression.ToString()=="LinuxNumber")
-            .Select(c=>c.ArgumentList.Arguments[1].ToString()).TakeLast(4).ToArray();
+            .Select(c=>c.ArgumentList.Arguments[1].ToString()).TakeLast(13).ToArray();
         HostCheck.True(observed.SequenceEqual(new[]{"c->Gates[index].Calls","waitView.WaitSource","waitView.WaitDeadline",
-            "waitView.Wait.IsValid ? waitView.Wait.Sequence : 0"}));
+            "waitView.Wait.IsValid ? waitView.Wait.Sequence : 0","dispatchedView.SignalDepth","dispatchedView.SignalFrame","dispatchedView.BlockedSignals",
+            "returned.Rip","returned.Rsp","returned.Rflags","returned.FsBase","returned.GsBase","unchecked((ulong)result.Value)"}));
         var names=logged.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(c=>c.Expression.ToString()=="LinuxText")
-            .Select(c=>(c.ArgumentList.Arguments[1].Expression as LiteralExpressionSyntax)?.Token.ValueText).TakeLast(5).ToArray();
-        HostCheck.True(names.SequenceEqual(new[]{" ordinal="," waitSource="," waitDeadline="," waitSequence=","\r\n"}));
+            .Select(c=>(c.ArgumentList.Arguments[1].Expression as LiteralExpressionSyntax)?.Token.ValueText).TakeLast(14).ToArray();
+        HostCheck.True(names.SequenceEqual(new[]{" ordinal="," waitSource="," waitDeadline="," waitSequence="," signalDepth="," signalFrame="," blockedSignals=",
+            " returnRip="," returnRsp="," returnFlags="," returnFs="," returnGs="," returnValueBits=","\r\n"}));
     }
 
     private static void Reject(Action action, string? expected = null)

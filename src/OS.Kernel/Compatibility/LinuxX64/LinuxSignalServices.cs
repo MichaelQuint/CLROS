@@ -109,6 +109,18 @@ public static unsafe partial class LinuxSignalServices
     }
     internal static bool Bound(State* s, ulong process, OSHostHandle identity) => Attached(s, process) && identity.IsValid &&
         (uint)identity.Value - 1 < s->Capacity && ((ThreadState*)s->Threads)[(uint)identity.Value - 1].Identity == identity.Value;
+    // Non-owning diagnostic values from the already authenticated generation.
+    // Never read user frames or expose the private hardware-provenance tag.
+    internal static bool InspectFrame(State* s, ulong process, OSHostHandle identity, out ulong depth, out ulong frame)
+    {
+        depth = frame = 0;
+        if (!Bound(s, process, identity)) return false;
+        ThreadState* thread = (ThreadState*)s->Threads + ((uint)identity.Value - 1);
+        if (thread->Depth > MaximumNesting) return false;
+        depth = thread->Depth;
+        if (depth != 0) frame = thread->Frames[depth - 1] & ~1UL;
+        return true;
+    }
     internal static bool Unbind(State* s, ulong process, OSHostHandle identity)
     {
         if (!Bound(s, process, identity)) return false;

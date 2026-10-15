@@ -85,11 +85,16 @@ public unsafe partial struct LinuxThreadServices
         /// zero for an untimed wait, a pipe wait or no valid Wait. Reading this
         /// snapshot neither advances the clock nor consumes completion.</summary>
         public readonly ulong WaitDeadline;
+        /// <summary>Current owned signal nesting and top user frame address,
+        /// with the private hardware tag removed. Both are zero without a
+        /// retained frame; these values grant no read/write or return authority.</summary>
+        public readonly ulong SignalDepth, SignalFrame;
         public readonly uint PipeTransferredBytes;
         public readonly bool PipePending;
-        internal View(Slot s)
+        internal View(Slot s, ulong depth, ulong signalFrame)
         { Kernel = s.Kernel; Tid = s.Tid; ExitCode = s.ExitCode; Exiting = s.Exiting != 0; ClearTid = s.ClearTid; BlockedSignals = s.Mask.Blocked; Frame = s.Image.Frame; Wait = s.Wait;
             WaitSource = s.Wait.IsValid ? s.WaitSource : 0; WaitDeadline = s.Wait.IsValid ? s.WaitDeadline : 0;
+            SignalDepth = depth; SignalFrame = signalFrame;
             PipeTransferredBytes = s.PipeOperation.TransferredBytes; PipePending = s.PipeOperation.IsActive; }
     }
 
@@ -195,7 +200,9 @@ public unsafe partial struct LinuxThreadServices
     {
         view = default;
         if (!Access(key, flags) || !Lookup(flags, kernel, out uint index)) return false;
-        view = new(_owner.Slots[index]); return true;
+        ulong depth = 0, frame = 0;
+        if (_signals != null && !LinuxSignalServices.InspectFrame(_signals, _self, kernel, out depth, out frame)) return false;
+        view = new(_owner.Slots[index], depth, frame); return true;
     }
 
     /// <summary>Execute only the explicit thread ABI slice for the actual running

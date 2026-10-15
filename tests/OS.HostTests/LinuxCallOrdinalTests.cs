@@ -76,6 +76,23 @@ internal static class LinuxCallOrdinalTests
     }
     private static void RejectWait(string[] rows)
     { bool rejected=false; try{QemuTranscripts.ReadLinuxCallWaits(rows);}catch(ToolFailure){rejected=true;} HostCheck.True(rejected); }
+    [HostTest("linux call return observations require actual frame shape canonical restored envelope and immutable generation binding")]
+    private static void ReturnObservations()
+    {
+        const string prefix="M16_008_CALL identity=4294967297 nr=15 ordinal=1 waitSource=0 waitDeadline=0 waitSequence=0";
+        const string suffix=" signalDepth=0 signalFrame=0 blockedSignals=0 returnRip=4194818 returnRsp=1879048176 returnFlags=514 returnFs=4294967584 returnGs=0 returnValueBits=18446744073709551605";
+        var rows=new[]{prefix+suffix};var values=QemuTranscripts.ReadLinuxCallReturns(rows);
+        HostCheck.True(values.Count==1 && values[0].Identity==4294967297 && values[0].Rip==0x400202 && values[0].ValueBits==unchecked((ulong)-11L));
+        HostCheck.Equal("M16_008_CALL identity=4294967297 nr=15",QemuTranscripts.ValidateLinuxCallOrdinals(rows)[0]);
+        rows[0]="changed";HostCheck.True(values[0].Rsp==1879048176 && values is not QemuTranscripts.LinuxCallReturnObservation[]);
+        foreach(string changed in new[]{"",suffix.Replace("signalDepth=0","signalDepth=5",StringComparison.Ordinal),
+            suffix.Replace("signalDepth=0","signalDepth=1",StringComparison.Ordinal),suffix.Replace("signalFrame=0","signalFrame=4104",StringComparison.Ordinal),
+            suffix.Replace("returnRip=4194818","returnRip=04194818",StringComparison.Ordinal),suffix.Replace("returnFs=4294967584","returnFs=18446744073709551616",StringComparison.Ordinal),
+            suffix.Replace(" returnValueBits=18446744073709551605","",StringComparison.Ordinal),suffix+" extra"})
+        {bool rejected=false;try{QemuTranscripts.ReadLinuxCallReturns([prefix+changed]);}catch(ToolFailure){rejected=true;}HostCheck.True(rejected);}
+        var nested=QemuTranscripts.ReadLinuxCallReturns([prefix+suffix.Replace("signalDepth=0 signalFrame=0","signalDepth=1 signalFrame=4104",StringComparison.Ordinal)]);
+        HostCheck.True(nested[0].SignalDepth==1 && nested[0].SignalFrame==4104);
+    }
     private static void Reject(string[] rows)
     { bool rejected=false; try{QemuTranscripts.ValidateLinuxCallOrdinals(rows);}catch(ToolFailure){rejected=true;} HostCheck.True(rejected); }
 }

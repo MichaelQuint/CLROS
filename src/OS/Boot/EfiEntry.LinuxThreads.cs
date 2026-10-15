@@ -337,6 +337,11 @@ public static unsafe partial class EfiEntry
             LinuxSyscallFrame call = *frame;
             var result = LinuxSyscallGateway.Dispatch(ref c->Gates[index], ref *frame);
             image->Frame = *frame; image->Value = result.Value;
+            // Sigreturn's original restorer input remains in call; this is the
+            // actual admitted output before pending delivery can replace it.
+            LinuxSyscallFrame returned = *frame;
+            if (!c->Process.Inspect(c->Key, 2, c->Threads.Current, out var dispatchedView))
+            { if (LinuxNativeAbort(c, index) != 2) return 0; return 2; }
             // Keep the actual syscall record separate from a handler's new
             // register image. Full installation below aliases the gateway frame.
             // Sigreturn replaces the ref frame itself. Its serial record must
@@ -378,7 +383,16 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " ordinal=") && LinuxNumber(state, c->Gates[index].Calls) &&
                 LinuxText(state, " waitSource=") && LinuxNumber(state, waitView.WaitSource) &&
                 LinuxText(state, " waitDeadline=") && LinuxNumber(state, waitView.WaitDeadline) &&
-                LinuxText(state, " waitSequence=") && LinuxNumber(state, waitView.Wait.IsValid ? waitView.Wait.Sequence : 0) && LinuxText(state, "\r\n");
+                LinuxText(state, " waitSequence=") && LinuxNumber(state, waitView.Wait.IsValid ? waitView.Wait.Sequence : 0) &&
+                LinuxText(state, " signalDepth=") && LinuxNumber(state, dispatchedView.SignalDepth) &&
+                LinuxText(state, " signalFrame=") && LinuxNumber(state, dispatchedView.SignalFrame) &&
+                LinuxText(state, " blockedSignals=") && LinuxNumber(state, dispatchedView.BlockedSignals) &&
+                LinuxText(state, " returnRip=") && LinuxNumber(state, returned.Rip) &&
+                LinuxText(state, " returnRsp=") && LinuxNumber(state, returned.Rsp) &&
+                LinuxText(state, " returnFlags=") && LinuxNumber(state, returned.Rflags) &&
+                LinuxText(state, " returnFs=") && LinuxNumber(state, returned.FsBase) &&
+                LinuxText(state, " returnGs=") && LinuxNumber(state, returned.GsBase) &&
+                LinuxText(state, " returnValueBits=") && LinuxNumber(state, unchecked((ulong)result.Value)) && LinuxText(state, "\r\n");
             if (!logged || result.Action == LinuxSyscallAction.Rejected || returning.Action == LinuxSyscallAction.Rejected)
             { if (LinuxNativeAbort(c, index) != 2) return 0; }
             return logged && returning.Action == LinuxSyscallAction.RestoreUser ? (byte)1 : (byte)2;

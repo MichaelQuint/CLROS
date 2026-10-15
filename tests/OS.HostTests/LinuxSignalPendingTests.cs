@@ -17,9 +17,14 @@ internal static unsafe class LinuxSignalPendingTests
     {
         HostCheck.Equal(Signals.Delivery.Delivered,Deliver(o));
         var image = o.Thread.CurrentImage(); ulong frame = image->Frame.Rsp;
+        var current=o.Thread.Kernel.Table->Current;
+        var view=o.Thread.View(current);
+        HostCheck.True(view.SignalDepth==1 && view.SignalFrame==frame);
         uint signal = o.Thread.Read32(frame + 312);
         HostCheck.Equal(101U,o.Thread.Read32(frame + 328)); HostCheck.Equal(unchecked((uint)-6),o.Thread.Read32(frame + 320));
         image->Frame.Rsp = frame + 8; HostCheck.Equal(LinuxSyscallAction.RestoreUser,o.Thread.Call(15).Action);
+        HostCheck.True(o.Thread.View(current).SignalDepth==0 && o.Thread.View(current).SignalFrame==0 && view.SignalFrame==frame);
+        HostCheck.True(!o.Thread.Service->Inspect(Key+1,2,current,out var denied) && denied.SignalDepth==0 && denied.SignalFrame==0);
         return signal;
     }
 

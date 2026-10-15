@@ -2,6 +2,15 @@
 
 ## Development Linux threading profile
 
+[Step1271](../done/step1271.md) records actual signal nesting/top frame/mask
+and admitted return RIP/RSP/flags/FS/GS/value after each gateway dispatch,
+before pending delivery can replace that user image. Original sigreturn input
+and all row counts remain intact. Signal/thread slot layouts and syscall/scheduler
+behavior are unchanged. Current runtime leaf consumers require those witnesses
+and the existing wait observations; missing or unsupported paths fail closed.
+Host and combined no-stdlib C# compilation pass. Parent/runner selection is
+still pending, so no new QEMU admission or current guest qualification follows.
+
 [Step1270](../done/step1270.md) appends actual retained wait source, absolute
 monotonic deadline and generation-bound wait sequence after every native call
 ordinal. Zero source has zero deadline/sequence; untimed futex and pipe waits

@@ -1,5 +1,19 @@
 # Diagnostics
 
+[Step1271](../done/step1271.md) extends the current CALL suffix after wait
+observations with `signalDepth`, `signalFrame`, `blockedSignals`, `returnRip`,
+`returnRsp`, `returnFlags`, `returnFs`, `returnGs`, `returnValueBits`. These are
+actual post-dispatch values before pending user-return delivery; syscall15's
+original restorer input remains in the preceding CALL fields. Signal inspection
+reads the authenticated generation's existing metadata and removes the private
+hardware frame tag. It exposes no user frame bytes or execution authority.
+`ReadLinuxCallReturns` requires the complete current witness; legacy consumers
+strip only a validated optional suffix. New focused runtime consumers derive
+records from original byte-validated stdout, then check FIFO/time/signal/exit/reap
+and cleanup. Group cancellation retires signal state without inventing sigreturn;
+focused suspension still requires two actual returns on a normally exited worker.
+These are development source/host checks, without new guest acceptance.
+
 [Step1270](../done/step1270.md) appends `waitSource=<0|1|2>
 waitDeadline=<nanoseconds> waitSequence=<sequence>` after each native call
 ordinal. These values come from the actual current retained wait after dispatch
