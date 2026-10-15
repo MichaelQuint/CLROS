@@ -1,5 +1,15 @@
 # PAL
 
+[Step1273](../done/step1273.md) adds an upstream managed GC-only stress workload
+with running, event-waiting, sleeping, join-blocked and exit-requested threads
+over three lifetimes. The Windows managed control completes nine forced full
+collections and joins fifteen workers with live object/interior/TLS witnesses.
+The kernel gains no collector or root scanner. Runtime-observed wait states and
+an exit request racing collection are workload observations; Linux/native traces
+and complete guest cleanup still must qualify actual suspension/exit overlap,
+wait ownership, capacity and interruption. The app remains excluded from current
+canonical package/guest admission pending its own Linux producer/syscall evidence.
+
 [Step1268](../done/step1268.md) implements bounded capacity for eight native
 threads and eight per-generation signal states, following the seven OS threads
 observed in the focused Linux ThreadPool payload. Host controls create all eight

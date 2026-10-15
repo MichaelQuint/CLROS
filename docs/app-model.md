@@ -1,5 +1,17 @@
 # App Model
 
+[Step1273](../done/step1273.md) adds a separate `NativeAotSuspensionStress`
+workload. Three lifetimes each start five managed workers: running, event-waiting,
+sleeping, join-blocked and exit-requested. Nine forced full collections require
+continued running-worker progress; all fifteen workers join with live object,
+interior-reference and isolated TLS checks. A strict whole-output consumer and
+bounded Windows managed execution pass. The exit request races a collection;
+output alone does not establish that exit overlapped suspension. Managed wait
+states do not prove kernel park ownership. This app has no Linux qualification,
+canonical package/index or guest selector yet; the original pinned apps and
+their identities remain unchanged. Capacity/wait-interruption/race and native
+cleanup evidence remain required within the same eight-issue batch.
+
 [Step1272](../done/step1272.md) wires the two sealed focused runtime programs
 through M16-009's complete parent and runner checks. Select the exact app with
 paired `-LinuxThreadingApplication` and `-LinuxThreadingDisassembly` options;
