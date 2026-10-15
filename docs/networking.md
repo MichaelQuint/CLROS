@@ -1,5 +1,17 @@
 # Networking
 
+[Step1315](../done/step1315.md) adds persistent `TcpReceiveWindow` ownership
+over an established table generation. The existing stream/frame helpers supply
+an explicit windowed path: trim old overlap and excess beyond free capacity,
+deliver contiguous bytes once, drop gaps, and schedule cumulative ACKs. Drain the
+bounded RX batch before pumping one ACK with the latest sequence/free window.
+Full TX retains ACK progress; reads release bytes and schedule window updates.
+A unique table attachment prevents receiver replacement and table release until
+closed-buffer scrub. Thirteen new receive/writer checks join the passing 222-check
+TCP fast filter across 27 fixtures. These remain host packet/TX models. #150 stays
+blocked/open; live RX/TX, source/profile wiring and guest/packet qualification are
+pending. Out-of-order buffering and send/RTO/FIN/reset consumers remain separate.
+
 [Step1314](../done/step1314.md) composes passive handshake ownership in
 `TcpPassiveConnection`, using the existing table and backlog. It retains a pending
 tuple during TX pressure, stages invalid ACKs without poisoning the live planner,

@@ -81,6 +81,9 @@ public readonly struct TcpConnectionSequenceMetadata
 
 public struct TcpConnectionTableEntry
 {
+    // A persistent receiver binds this exact generation. It must detach and
+    // scrub its buffer before the closed table entry can be released.
+    internal ulong ReceiveOwnerAddress;
     private TcpConnectionTableEntry(
         TcpConnectionLifecycleState state,
         TcpConnectionKey key,
@@ -96,6 +99,13 @@ public struct TcpConnectionTableEntry
     public TcpConnectionKey Key { get; }
 
     public TcpConnectionSequenceMetadata Sequence { get; }
+
+    internal readonly TcpConnectionTableEntry WithMetadata(TcpConnectionLifecycleState state, TcpConnectionSequenceMetadata sequence)
+    {
+        var updated = Create(state, Key, sequence);
+        updated.ReceiveOwnerAddress = ReceiveOwnerAddress;
+        return updated;
+    }
 
     public bool IsActive =>
         State == TcpConnectionLifecycleState.SynReceived ||
@@ -200,7 +210,7 @@ public static unsafe class TcpConnectionTable
     {
         Uninitialized, Success, InvalidStorage, InvalidState, InvalidEndpoint,
         InvalidSequence, DuplicateEndpoint, Full, NotFound, StaleHandle,
-        InvalidTransition, GenerationExhausted, CorruptState, ConnectionsRemain
+        InvalidTransition, GenerationExhausted, CorruptState, ConnectionsRemain, AttachmentsRemain
     }
 
     /// <summary>Exclusive, noncopyable connection owner. One serialized kernel
@@ -305,14 +315,18 @@ public static unsafe class TcpConnectionTable
 
     /// <summary>Update initialized sequence metadata on a held nonclosed entry.
     /// Zero is valid. Packet/ACK/window validation belongs to the TCP owner; this
-    /// method proves only identity/lifetime and never fabricates network progress.</summary>
+    /// method proves only identity/lifetime and never fabricates network progress.
+    /// A bound receiver owns receive-sequence advancement; other callers can
+    /// update the send side while preserving that binding.</summary>
     public static OwnershipStatus UpdateOwned(Owner* owner, Handle handle, TcpConnectionSequenceMetadata sequence)
     {
         var status = OwnedHandle(owner, handle); if (status != OwnershipStatus.Success) return status;
         if (!sequence.HasValidMetadata) return OwnershipStatus.InvalidSequence;
         var entry = owner->Entries[handle.Index];
         if (entry.State == TcpConnectionLifecycleState.Closed) return OwnershipStatus.InvalidTransition;
-        owner->Entries[handle.Index] = TcpConnectionTableEntry.Create(entry.State, entry.Key, sequence);
+        if (entry.ReceiveOwnerAddress != 0 && sequence.RemoteNextSequenceNumber != entry.Sequence.RemoteNextSequenceNumber)
+            return OwnershipStatus.InvalidTransition;
+        owner->Entries[handle.Index] = entry.WithMetadata(entry.State, sequence);
         return OwnershipStatus.Success;
     }
 
@@ -329,18 +343,21 @@ public static unsafe class TcpConnectionTable
             expected == TcpConnectionLifecycleState.Established && target is TcpConnectionLifecycleState.Closing or TcpConnectionLifecycleState.Closed ||
             expected == TcpConnectionLifecycleState.Closing && target == TcpConnectionLifecycleState.Closed;
         if (entry.State != expected || !allowed) return OwnershipStatus.InvalidTransition;
-        owner->Entries[handle.Index] = TcpConnectionTableEntry.Create(target, entry.Key, entry.Sequence);
+        owner->Entries[handle.Index] = entry.WithMetadata(target, entry.Sequence);
         return OwnershipStatus.Success;
     }
 
     /// <summary>Release only a closed held entry after the caller has stopped
     /// its timers and returned all external packet/data leases. This table owns
-    /// only metadata; it cannot certify that external cleanup. Clear endpoints
+    /// only metadata; it cannot certify that external cleanup. An attached
+    /// receiver must explicitly scrub/detach first or AttachmentsRemain is returned.
+    /// Clear endpoints
     /// and sequences, retain the spent generation, and invalidate every old handle.</summary>
     public static OwnershipStatus ReleaseOwned(Owner* owner, Handle handle)
     {
         var status = OwnedHandle(owner, handle); if (status != OwnershipStatus.Success) return status;
         if (owner->Entries[handle.Index].State != TcpConnectionLifecycleState.Closed) return OwnershipStatus.InvalidTransition;
+        if (owner->Entries[handle.Index].ReceiveOwnerAddress != 0) return OwnershipStatus.AttachmentsRemain;
         byte* bytes = (byte*)(owner->Entries + handle.Index);
         for (int i = 0; i < sizeof(TcpConnectionTableEntry); i++) bytes[i] = 0;
         owner->Held--; return OwnershipStatus.Success;
@@ -385,6 +402,8 @@ public static unsafe class TcpConnectionTable
                 continue;
             }
             if (!OwnedEndpoint(entry.Key) || owner->Generations[i] == 0) return OwnershipStatus.CorruptState;
+            if (entry.ReceiveOwnerAddress != 0 && ((entry.ReceiveOwnerAddress & 7) != 0 || entry.State == TcpConnectionLifecycleState.SynReceived))
+                return OwnershipStatus.CorruptState;
             for (int j = 0; j < i; j++)
                 if (owner->Entries[j].State != TcpConnectionLifecycleState.Free && owner->Entries[j].Key.HasSameEndpoint(entry.Key))
                     return OwnershipStatus.CorruptState;
@@ -647,6 +666,9 @@ public static unsafe class TcpConnectionTable
         for (int index = 0; index < entries.Length; index++)
         {
             TcpConnectionTableEntry entry = entries[index];
+            // Legacy span callers cannot mutate/reuse an attached owned entry.
+            if (!retainClosed && entry.ReceiveOwnerAddress != 0)
+                return new ScanResult(TcpConnectionTableStatus.InvalidEntryState, count, firstReusableEntryIndex, matchingEntryIndex);
             if (entry.State == TcpConnectionLifecycleState.Free ||
                 !retainClosed && entry.State == TcpConnectionLifecycleState.Closed)
             {
