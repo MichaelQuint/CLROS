@@ -51,7 +51,7 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "1055aa937acb4e863820aaee913e4f3e939631ff23a7f9d5cec1fd6290a528e3";
+    public const string ProjectSourceSha256 = "a2dc52bdf100a8db99f01df7489f6b39b039bea7813b0ac45b064093359edbbe";
     public const string CanonicalProjectSha256 = "7119ab1817ce17c00597e8701b0c2230656693f53e6f79fae93de28d0031d6f4";
     public const string EfiEntrySourceSha256 = "2534998c57de415661ee85a97835c52e61cc274c942b1f02967b28849cd15a39";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
@@ -292,6 +292,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Memory\X64UserAddressSpace.cs|Memory\X64UserAddressSpace.cs",
         @"..\..\std\no-runtime\shared\Text\AsciiArgumentSplitter.cs|Std\Text\AsciiArgumentSplitter.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs|Compatibility\LinuxX64\LinuxSyscallGateway.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.ExitTail.cs|Compatibility\LinuxX64\LinuxSyscallGateway.ExitTail.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxMemoryServices.cs|Compatibility\LinuxX64\LinuxMemoryServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.cs|Compatibility\LinuxX64\LinuxDescriptorServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxPipe.cs|Compatibility\LinuxX64\LinuxPipe.cs",

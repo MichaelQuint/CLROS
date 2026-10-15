@@ -1,5 +1,15 @@
 # App Model
 
+[Step1277](../done/step1277.md) implements a bounded libc self-unmap/exit
+continuation for the current threaded owner. The exact immutable 17-byte ELF
+sequence may retain its unmapped stack/TLS registers through three instruction
+boundaries and final exit60, with current-generation, fully blocked signal and
+zero-handler guards. Ordinary mapped-return admission remains the default.
+Sixty focused host checks and both no-stdlib C# builds pass. The transcript
+consumer independently binds the ELF/index, live pre-unmap envelope, IRQ RAX
+and best-effort clear-TID EFAULT. Actual CLROS execution and the shared batch
+full-host/native/QEMU gates remain pending.
+
 [Step1276](../done/step1276.md) qualifies separate static Linux NativeAOT builds
 and complete outputs for all three broader stress/matrix apps. Suspension stress
 has 18 thread traces and nine observed suspension-signal returns; ThreadPool stress
@@ -10,8 +20,9 @@ portable audit. Captured Windows/POSIX roots relocate without bypassing exact ra
 hash/inventory checks. The builder and loopback services stop, with all three
 retained backing images unchanged. Original source-pinned producers remain
 unchanged. These new apps still require reviewed indexes, complete guest protocol
-and profile admission. A separately reproduced gateway self-unmap/exit-tail gap
-must be fixed before guest qualification; Linux output grants no CLROS authority.
+and profile admission. The separately reproduced gateway self-unmap/exit-tail
+gap receives the bounded implementation in step1277; Linux output grants no
+CLROS authority.
 
 [Step1275](../done/step1275.md) adds separate `NativeAotRuntimeMatrix` source and
 Windows managed evidence. Three in-process rounds exercise real compiler EH

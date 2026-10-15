@@ -129,7 +129,7 @@ public static unsafe partial class EfiEntry
 #if M16_009_PROBE
                 UserInterrupts = state->LinuxSyscallPlan.UserInterrupts,
 #endif
-                CopyFromUser = &LinuxThreadCopyInput, Write = &WriteDescriptorOutput };
+                CopyFromUser = &LinuxThreadCopyInput, Write = &WriteDescriptorOutput, ReturnPolicy = &LinuxNativeReturnPolicy };
             c->Plan = new() { Prepare = (ulong)(delegate* unmanaged<void*, uint, byte>)&LinuxNativeWorkerPrepare,
                 Recover = (ulong)(delegate* unmanaged<void*, NativeContext*, byte>)&LinuxNativeRecover,
                 TerminalCallback = (ulong)(delegate* unmanaged<void*, void>)&LinuxNativeTerminal,
@@ -314,6 +314,23 @@ public static unsafe partial class EfiEntry
             if (c->User.UserInterrupts && !LinuxNativeArmUserTimer(c,index)) return LinuxNativeAbort(c,index);
 #endif
             c->Actions[index] = (uint)LinuxSyscallAction.Return; c->Entered[index] = 1; return 1;
+        }
+
+        [System.Runtime.InteropServices.UnmanagedCallersOnly]
+        private static byte LinuxNativeReturnPolicy(void* context,LinuxSyscallFrame* frame)
+        {
+            Storage* state=(Storage*)context;
+            fixed(Storage* retained=&s_storage) if(state!=retained || frame==null) return 2;
+            if(!LinuxSyscallAuthority(state) || !CooperativeAuthority(state)) return 2;
+            LinuxNativeControl* c=(LinuxNativeControl*)(state->CooperativePool+NativeProgram.MetadataPage*Page);
+            if(c->State!=state || c->Key!=(state->CooperativePool^0x4d31363030384f57UL)) return 2;
+            if(c->Selected==0 || c->Selected>c->Capacity) return 0;
+            uint index=c->Selected-1;
+            if(!c->Gates[index].HasExitTail) return 0;
+            if(LinuxNativeOwner(context)!=c || c->Published!=1 || c->Threads.Current.Value!=c->Plan.Bindings[index].Context.Identity ||
+                !c->Process.Inspect(c->Key,2,c->Threads.Current,out var view) || view.SignalDepth!=0 ||
+                view.BlockedSignals!=~LinuxSignalMask.Unblockable) return 2;
+            return LinuxSyscallGateway.ExitTailPolicy(ref c->Gates[index],*frame);
         }
 
         [System.Runtime.InteropServices.UnmanagedCallersOnly]

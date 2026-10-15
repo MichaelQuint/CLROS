@@ -2,6 +2,15 @@
 
 ## Development Linux threading profile
 
+[Step1277](../done/step1277.md) wires an optional per-generation return policy
+into the existing M16-008/009 owner. Only the exact static RX libc
+`munmap; xor rdi,rdi; mov eax,60; syscall` tail may continue after removing its
+complete stack/TLS extent. The owner proves the selected current generation,
+fully blocked signals and no active handler; syscall and IRQ image paths retain
+their existing supervisor checks. No new probe or native emitter is added.
+Combined M16-008/009 and default no-stdlib C# builds pass. Native publication
+and actual exit-tail/IRQ execution belong to the deferred stable batch gates.
+
 [Step1272](../done/step1272.md) adds paired M16-009 wrapper options
 `-LinuxThreadingApplication <NativeAotSuspensionSmoke|NativeAotThreadPoolSmoke>`
 and `-LinuxThreadingDisassembly <reviewed-complete-llvm-dump>`, alongside the

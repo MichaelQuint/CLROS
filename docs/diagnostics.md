@@ -1,5 +1,14 @@
 # Diagnostics
 
+[Step1277](../done/step1277.md) admits self-unmap lifetimes only against the
+complete immutable ELF tail and reviewed instruction/syscall boundaries. The
+first row must match the existing live stack/TLS envelope before memory removal;
+subsequent IRQ rows retain that context and require RAX0 before/after XOR or
+RAX60 after the move. Only exit60 may follow. Clear-TID is expected to report
+EFAULT when its retained raw address is no longer writable; the existing real
+exit/reap and futex wake model still apply. Synthetic positives and forged
+context/ELF/IRQ/error controls pass, without establishing guest execution.
+
 [Step1272](../done/step1272.md) preserves the runner's original raw-line marker
 observations, physical newline count and eight-line truncated tail when focused
 runtime stdout spans arbitrary writes. Only byte-validated payload CR/LF are

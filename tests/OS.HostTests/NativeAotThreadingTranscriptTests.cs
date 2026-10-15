@@ -6,6 +6,7 @@ using OS.Tooling;
 
 internal static class NativeAotThreadingTranscriptTests
 {
+    private const ulong TailRip=0x400287;
     // These are independent synthetic observations, never guest captures.
     private const string Suspension="TEST_START nativeaot.suspension\nNATIVEAOT_SUSPENSION_GC epoch=1 before=1 after=2 progressBefore=10 progressReturned=12 progressAfter=13\n"+
         "NATIVEAOT_SUSPENSION_GC epoch=2 before=2 after=3 progressBefore=13 progressReturned=15 progressAfter=16\n"+
@@ -54,24 +55,25 @@ internal static class NativeAotThreadingTranscriptTests
             Call(56,tid,[0x7d0f00,child.Top,0x500280,0x500300+(uint)tid*4,child.Fs]);return child;
         }
         internal void Call(ulong nr,long value,ulong[]? args=null,ulong action=1,uint source=0,ulong deadline=0,
-            ulong? returnedRsp=null,ulong? returnedRip=null,ulong? depth=null,ulong? frame=null)
+            ulong? returnedRsp=null,ulong? returnedRip=null,ulong? depth=null,ulong? frame=null,ulong? instructionRip=null,ulong flags=514)
         {
             ulong[] a=[0x1234,0x1234,0x1234,0x1234,0x1234,0x1234];if(args!=null)args.CopyTo(a,0);
             ulong seq=source==0?0:++Current.Sequence;
-            Rows.Add($"M16_008_CALL identity={Current.Id} nr={nr} a0={a[0]} a1={a[1]} a2={a[2]} a3={a[3]} a4={a[4]} a5={a[5]} rip=4194818 rsp={Current.Rsp} flags=514 fs={Current.Fs} gs=0 clock={Clock} valueBits={unchecked((ulong)value)} action={action} status={(action==3?9:action is 2 or 4?2:1)} ordinal={++Current.Ordinal} waitSource={source} waitDeadline={deadline} waitSequence={seq}"+
-                $" signalDepth={depth??Current.Depth} signalFrame={frame??Current.Frame} blockedSignals={Current.Mask} returnRip={returnedRip??0x400202} returnRsp={returnedRsp??Current.Rsp} returnFlags=514 returnFs={Current.Fs} returnGs=0 returnValueBits={unchecked((ulong)value)}");
+            ulong rip=instructionRip??0x400202;
+            Rows.Add($"M16_008_CALL identity={Current.Id} nr={nr} a0={a[0]} a1={a[1]} a2={a[2]} a3={a[3]} a4={a[4]} a5={a[5]} rip={rip} rsp={Current.Rsp} flags={flags} fs={Current.Fs} gs=0 clock={Clock} valueBits={unchecked((ulong)value)} action={action} status={(action==3?9:action is 2 or 4?2:1)} ordinal={++Current.Ordinal} waitSource={source} waitDeadline={deadline} waitSequence={seq}"+
+                $" signalDepth={depth??Current.Depth} signalFrame={frame??Current.Frame} blockedSignals={Current.Mask} returnRip={returnedRip??rip} returnRsp={returnedRsp??Current.Rsp} returnFlags={flags} returnFs={Current.Fs} returnGs=0 returnValueBits={unchecked((ulong)value)}");
         }
         internal void Wait(ulong address,ulong deadline=0)=>Call(202,0,[address,128,2,deadline==0?0UL:0x500600],3,1,deadline);
         internal void Resume(long value)=>Rows.Add($"M16_008_RESUME identity={Current.Id} valueBits={unchecked((ulong)value)} status=1");
         internal void Wake(ulong address)=>Call(202,1,[address,129,1]);
-        internal void Irq(ulong now,int ready,int active)
-        {Clock=now;Rows.Add($"M16_009_IRQ identity={Current.Id} epoch={++Epoch} nanos={now} rip=4194818 rsp={Current.Rsp} flags=514 fs={Current.Fs} gs=0 valueBits=0");Supervisor(1,ready,active);}
+        internal void Irq(ulong now,int ready,int active,ulong rip=0x400202,ulong flags=514,ulong value=0)
+        {Clock=now;Rows.Add($"M16_009_IRQ identity={Current.Id} epoch={++Epoch} nanos={now} rip={rip} rsp={Current.Rsp} flags={flags} fs={Current.Fs} gs=0 valueBits={value}");Supervisor(1,ready,active);}
         internal void Drain(ulong now){Clock=now;Rows.Add($"M16_009_DRAIN identity={Current.Id} epoch={++Epoch} nanos={now}");}
         internal void Tick(ulong now,int ready){Clock=now;Rows.Add($"M16_008_TICK epoch={++Epoch} nanos={now} ready={ready}");}
         internal void Supervisor(int action,int ready,int active){Transfers+=2;Rows.Add($"M16_008_SUPERVISOR identity={Current.Id} action={action} transfers={Transfers} ready={ready} active={active}");}
-        internal void Exit(int action,int ready,int active)
+        internal void Exit(int action,int ready,int active,long clearTid=0)
         {
-            Rows.Add($"M16_008_EXIT identity={Current.Id} clearTidResult=0");Supervisor(action,ready,active);
+            Rows.Add($"M16_008_EXIT identity={Current.Id} clearTidResult={unchecked((ulong)clearTid)}");Supervisor(action,ready,active);
             Rows.Add($"M16_008_REAP old={Current.Id} next={Current.Id+(1UL<<32)} context=zero stack=zero slot=zero");
         }
         internal void Output()
@@ -89,7 +91,7 @@ internal static class NativeAotThreadingTranscriptTests
         }
     }
 
-    private static Vector SuspensionVector(bool earlyHandlerIrq=false)
+    private static Vector SuspensionVector(bool earlyHandlerIrq=false,bool selfExit=false,bool tailIrq=false)
     {
         Vector v=new Vector(false).Start();Thread final=v.Clone(2,2),signal=v.Clone(3,3),worker=v.Clone(4,4);
         v.Irq(10,4,4);v.Select(final);v.Wait(0x500200);v.Drain(20);v.Supervisor(3,3,4);
@@ -106,7 +108,17 @@ internal static class NativeAotThreadingTranscriptTests
             v.Call(15,0,action:5,returnedRsp:worker.Top-64);worker.Rsp=worker.Top-64;
             if(cycle==0)v.Irq(80,2,4);
         }
-        v.Call(60,0,[0],4);v.Drain(120);v.Exit(4,1,4);
+        if(selfExit)
+        {
+            v.Call(218,worker.Tid,[worker.Fs+32]);worker.Mask=~((1UL<<8)|(1UL<<18));v.Call(14,0,[2,0x500400,0,8]);
+            v.Call(11,0,[worker.Bottom,0x20000],instructionRip:TailRip);
+            if(tailIrq)
+            {
+                v.Irq(120,2,4,TailRip+3,0x246);v.Select(v.Main);v.Irq(120,2,4);v.Select(worker);
+            }
+        }
+        v.Call(60,0,[0],4,instructionRip:selfExit?TailRip+10:null,flags:selfExit?0x246UL:514);
+        v.Drain(120);v.Exit(4,1,4,selfExit?-14:0);
         v.Select(v.Main);v.Output();v.Call(231,0,[0],2);v.Drain(120);v.Exit(2,2,3);
         v.Select(final);v.Exit(4,1,2);v.Select(signal);v.Exit(4,0,1);v.End(4);return v;
     }
@@ -145,19 +157,52 @@ internal static class NativeAotThreadingTranscriptTests
         if(extra!=null){v.Select(extra);v.Exit(4,2,count--);}
         v.Select(final);v.Exit(4,1,count--);v.Select(signal);v.Exit(4,0,count);v.End(extra==null?6:7);return v;
     }
-    private static byte[] Elf()
+    private static byte[] Elf(bool tail=false)
     {
         byte[] elf=LinuxThreadProofFixture.CreateElf("Threads");
         BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(136),0x500000);
-        BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(160),0x40000);return elf;
+        BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(160),0x40000);
+        if(tail)new byte[]{0xb8,11,0,0,0,0x0f,5,0x48,0x31,0xff,0xb8,60,0,0,0,0x0f,5}.CopyTo(elf,0x280);
+        return elf;
     }
-    private static QemuTranscripts.ThreadingProtocolReport Inspect(Vector v,string[]? rows=null,Func<ulong,bool>? code=null)=>
-        QemuTranscripts.InspectNativeAotThreadingProtocolForTests(v.Pool?"NativeAotThreadPoolSmoke":"NativeAotSuspensionSmoke",rows??v.Rows.ToArray(),Elf(),
-            code??(r=>r==0x400202),r=>r==0x400202,v.Lengths,0x2000,0x3000);
+    private static QemuTranscripts.ThreadingProtocolReport Inspect(Vector v,string[]? rows=null,Func<ulong,bool>? code=null,bool tail=false,byte[]? image=null)=>
+        QemuTranscripts.InspectNativeAotThreadingProtocolForTests(v.Pool?"NativeAotThreadPoolSmoke":"NativeAotSuspensionSmoke",rows??v.Rows.ToArray(),image??Elf(tail),
+            code??(r=>r==0x400202 || tail && (r==TailRip-7 || r==TailRip || r==TailRip+3 || r==TailRip+8 || r==TailRip+10)),
+            r=>r==0x400202 || tail && (r==TailRip || r==TailRip+10),v.Lengths,0x2000,0x3000);
     private static string[] Change(Vector v,string selector,string field,ulong value)
     {var rows=v.Rows.ToArray();int at=Array.FindIndex(rows,r=>r.Contains(selector,StringComparison.Ordinal));HostCheck.True(at>=0);rows[at]=Regex.Replace(rows[at],@"\b"+field+"=[0-9]+",field+"="+value.ToString(CultureInfo.InvariantCulture));return rows;}
-    private static void Reject(Vector v,string[] rows)
-    {bool rejected=false;try{Inspect(v,rows);}catch(ToolFailure){rejected=true;}HostCheck.True(rejected,"runtime synthetic mutation admitted");}
+    private static void Reject(Vector v,string[] rows,bool tail=false,byte[]? image=null)
+    {bool rejected=false;try{Inspect(v,rows,tail:tail,image:image);}catch(ToolFailure){rejected=true;}HostCheck.True(rejected,"runtime synthetic mutation admitted");}
+
+    [HostTest("nativeaot.threading self-unmap tail requires exact ELF instructions masked owner IRQ continuation and EFAULT clear-TID")]
+    private static void ExitTail()
+    {
+        Vector plain=SuspensionVector(selfExit:true),irq=SuspensionVector(selfExit:true,tailIrq:true);
+        HostCheck.True(Inspect(plain,tail:true).Reaped==4 && Inspect(irq,tail:true).Transfers==34);
+        Reject(plain,Change(plain,"nr=11 ","rip",0x400202),true);
+        Reject(plain,Change(plain,"nr=11 ","a1",0x18000),true);
+        Reject(plain,Change(plain,"nr=11 ","a1",0x20001),true);
+        Reject(plain,Change(plain,"nr=11 ","blockedSignals",0),true);
+        Reject(plain,Change(plain,"nr=60 ","nr",39),true);
+        Reject(plain,Change(plain,"nr=60 ","flags",0x202),true);
+        Reject(plain,Change(plain,"clearTidResult=","clearTidResult",0),true);
+        Reject(irq,Change(irq,$"rip={TailRip+3} ","rip",TailRip+4),true);
+        Reject(irq,Change(irq,$"rip={TailRip+3} ","flags",0x202),true);
+        var afterMov=Change(irq,$"rip={TailRip+3} ","rip",TailRip+8);
+        int afterMovIrq=Array.FindIndex(afterMov,r=>r.StartsWith("M16_009_IRQ ",StringComparison.Ordinal) && r.Contains($"rip={TailRip+8} ",StringComparison.Ordinal));
+        Reject(irq,afterMov,true);
+        afterMov[afterMovIrq]=Regex.Replace(afterMov[afterMovIrq],@"\bvalueBits=[0-9]+","valueBits=60");
+        HostCheck.Equal(34,Inspect(irq,afterMov,tail:true).Transfers);
+        int unmap=irq.Rows.FindIndex(r=>r.Contains("nr=11 ",StringComparison.Ordinal));
+        ulong fs=ulong.Parse(Regex.Match(irq.Rows[unmap],@"\bfs=([0-9]+)").Groups[1].Value,CultureInfo.InvariantCulture);
+        var forged=irq.Rows.Select((r,i)=>i<unmap?r:Regex.Replace(r,@"\b(fs|returnFs)="+fs+@"\b",
+            m=>m.Groups[1].Value+"="+(fs+8).ToString(CultureInfo.InvariantCulture))).ToArray();
+        Reject(irq,forged,true);
+        byte[] changed=Elf(true);changed[0x28b]=231;Reject(plain,plain.Rows.ToArray(),true,changed);
+        bool rejected=false;
+        try{Inspect(plain,code:r=>r==0x400202 || r==TailRip-7 || r==TailRip || r==TailRip+8 || r==TailRip+10,tail:true);}
+        catch(ToolFailure){rejected=true;}HostCheck.True(rejected,"partial instruction index cannot admit tail");
+    }
 
     [HostTest("nativeaot.threading complete synthetic lifetimes bind two signal frames and ordered timed idle wakes")]
     private static void Complete()

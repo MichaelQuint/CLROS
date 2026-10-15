@@ -162,6 +162,9 @@ public static unsafe partial class X64LinuxUserTransition
     /// proves this is the genuine fixed gateway under its kernel root and keeps
     /// image/data/mappings exclusive. Only phase 1 is admitted. No supervisor
     /// stack/root/descriptor/MSR/FP restoration state is copied or changed.</summary>
+    /// <remarks>The current threaded owner's return policy may admit its exact
+    /// register-only self-unmap/exit continuation; default admission still
+    /// requires mapped RSP/FS/GS. This method cannot create that policy.</remarks>
     public static bool CaptureUserImage(byte* data, uint dataBytes, UserImage* image, uint imageBytes,
         uint observedMxcsrMask, LinuxSyscallAccess user)
     {
@@ -177,6 +180,7 @@ public static unsafe partial class X64LinuxUserTransition
     /// <summary>Install a selected saved user image only before entry or after
     /// full native cleanup (phase 0/2), while IF is clear and no gateway user is
     /// active. Validate mappings and FP mask again before any write. The owner
+    /// retained exit-tail authority may replace mapped stack/TLS admission. The owner
     /// next enters the explicit ResumeUser template on its actual scheduled
     /// kernel worker. This grants no scheduler/transfer/publication authority.</summary>
     public static bool InstallUserImage(byte* data, uint dataBytes, UserImage* image, uint imageBytes,
@@ -192,7 +196,7 @@ public static unsafe partial class X64LinuxUserTransition
     /// after authenticated sigreturn or pending signal/restart resolution. The IRQ-off native
     /// owner proves this exact fixed gateway, kernel root and current generation;
     /// this is not an arbitrary inactive install. Only phase1 and validated user
-    /// mappings/FX state are admitted. Supervisor restoration bytes stay intact.</summary>
+    /// mappings (or retained exit-tail policy)/FX state are admitted. Supervisor restoration bytes stay intact.</summary>
     public static bool RestoreActiveUserImage(byte* data, uint dataBytes, UserImage* image, uint imageBytes,
         uint observedMxcsrMask, LinuxSyscallAccess user)
     {
@@ -211,7 +215,8 @@ public static unsafe partial class X64LinuxUserTransition
         Buffer((byte*)image, bytes, UserImageBytes, 8);
     /// <summary>Revalidate a retained image before a thread owner publishes or
     /// clones it. This checks storage, user return mappings and the current FP
-    /// mask without changing input or granting native execution authority.</summary>
+    /// mask without changing input or granting native execution authority.
+    /// A threaded exit-tail policy remains owned by its actual gate generation.</summary>
     public static bool ValidateUserImage(UserImage* image, uint imageBytes, uint observedMxcsrMask, LinuxSyscallAccess user) =>
         ImageStorage(image, imageBytes) && LinuxSyscallGateway.ValidateReturn(image->Frame, user) && UserFx(image->Fx, observedMxcsrMask);
     private static bool ImageBuffers(byte* data, uint dataBytes, UserImage* image, uint imageBytes) =>

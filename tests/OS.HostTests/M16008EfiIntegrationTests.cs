@@ -1,3 +1,4 @@
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using OS.Boot;
@@ -271,6 +272,26 @@ internal static unsafe class M16008EfiIntegrationTests
             .Select(c=>(c.ArgumentList.Arguments[1].Expression as LiteralExpressionSyntax)?.Token.ValueText).TakeLast(14).ToArray();
         HostCheck.True(names.SequenceEqual(new[]{" ordinal="," waitSource="," waitDeadline="," waitSequence="," signalDepth="," signalFrame="," blockedSignals=",
             " returnRip="," returnRsp="," returnFlags="," returnFs="," returnGs="," returnValueBits=","\r\n"}));
+    }
+
+    [HostTest("m16 native exit-tail return policy is wired to the current selected gate with mask and generation guards")]
+    private static void ExitTailOwner()
+    {
+        string path=Path.Combine(HostToolProcess.FindRepositoryRoot(),"src/OS/Boot/EfiEntry.LinuxThreads.cs");
+        var syntax=CSharpSyntaxTree.ParseText(File.ReadAllText(path),new CSharpParseOptions(preprocessorSymbols:["M16_008_PROBE","M16_009_PROBE"])).GetRoot();
+        var method=syntax.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(m=>m.Identifier.Text=="LinuxNativeReturnPolicy");
+        var assignment=syntax.DescendantNodes().OfType<AssignmentExpressionSyntax>().Single(a=>a.Left.ToString()=="ReturnPolicy");
+        HostCheck.True(assignment.Right is PrefixUnaryExpressionSyntax address && address.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.AddressOfExpression) &&
+            address.Operand.ToString()==method.Identifier.Text);
+        var calls=method.DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
+        foreach(string name in new[]{"LinuxSyscallAuthority","CooperativeAuthority","LinuxNativeOwner","c->Process.Inspect"})
+            HostCheck.True(calls.Any(c=>c.Expression.ToString()==name),"native proof includes "+name);
+        var policy=calls.Single(c=>c.Expression.ToString()=="LinuxSyscallGateway.ExitTailPolicy");
+        HostCheck.True(policy.ArgumentList.Arguments[0].RefKindKeyword.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.RefKeyword) &&
+            policy.ArgumentList.Arguments[0].Expression.ToString()=="c->Gates[index]" && policy.ArgumentList.Arguments[1].Expression.ToString()=="*frame");
+        var guards=method.DescendantNodes().OfType<BinaryExpressionSyntax>().Where(b=>b.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.NotEqualsExpression)).ToArray();
+        foreach(var pair in new[]{("c->Threads.Current.Value","c->Plan.Bindings[index].Context.Identity"),("view.SignalDepth","0"),("view.BlockedSignals","~LinuxSignalMask.Unblockable")})
+            HostCheck.True(guards.Any(g=>g.Left.ToString()==pair.Item1 && g.Right.ToString()==pair.Item2),"native return guard "+pair.Item1);
     }
 
     private static void Reject(Action action, string? expected = null)

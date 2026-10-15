@@ -73,6 +73,7 @@ public static partial class QemuTranscripts
         internal readonly ulong Identity=identity, Bottom=bottom, Top=top;
         internal readonly int Tid=tid;
         internal ulong Fs=fs, Gs, ClearTid, Mask, SavedRsp=top, SavedRip=rip, LastSequence, WaitOrder;
+        internal ulong TailRip,TailRsp,TailFs,TailFlags;
         internal uint WaitSource, WaitMode, WaitBits;
         internal ulong WaitAddress, Deadline;
         internal long? Completion;
@@ -87,6 +88,7 @@ public static partial class QemuTranscripts
         private readonly string app;
         private readonly string[] rows;
         private readonly Func<ulong,bool> instruction,syscall;
+        private readonly HashSet<ulong> exitTails;
         private readonly IReadOnlyList<int> writeLengths;
         private readonly Dictionary<int,LinuxCallWaitObservation> waits;
         private readonly Dictionary<int,LinuxCallReturnObservation> returns;
@@ -114,6 +116,7 @@ public static partial class QemuTranscripts
             Need(rows is not null && rows.Length is >=25 and <=100000 && instruction is not null && syscall is not null &&
                 lengths is not null && lengths.Count is >0 and <=4096 && lengths.All(n=>n is >0 and <=4096) && lengths.Sum()<=4096,"threading_protocol_input");
             this.app=app; this.instruction=instruction!; this.syscall=syscall!; writeLengths=lengths!.ToArray();
+            exitTails=FindExitTails(elf,this.instruction,this.syscall);
             waits=ReadLinuxCallWaits(rows!).ToDictionary(x=>x.RecordIndex);
             returns=ReadLinuxCallReturns(rows!).ToDictionary(x=>x.RecordIndex);
             this.rows=ValidateLinuxCallOrdinals(rows!); this.userRoot=userRoot; this.kernelRoot=kernelRoot;
@@ -180,7 +183,12 @@ public static partial class QemuTranscripts
                         Need(r["identity"]==t.Identity && syscall(r["rip"]) && output==(r["nr"]==1 && r["a0"]==1),"threading_call_binding");
                         SignalObservation(t,r,returns[index]);
                         Need((r["flags"]&0x400)==0,"threading_syscall_df");
-                        Call(t,r,waits[index],output); Envelope(t,r["rsp"],r["flags"],r["fs"],r["gs"]);
+                        if(t.TailRip!=0)
+                        {
+                            Envelope(t,r["rip"],r["rsp"],r["flags"],r["fs"],r["gs"],r["nr"]);
+                            Need(r["nr"]==60,"threading_exit_tail_syscall");
+                        }
+                        Call(t,r,waits[index],output); Envelope(t,r["rip"],r["rsp"],r["flags"],r["fs"],r["gs"],r["nr"]);
                         t.SavedRsp=returns[index].Rsp; t.SavedRip=returns[index].Rip;
                         ExpectDelivery(t);
                         calls++; ending=r["action"] is 2 or 3 or 4; exiting=r["action"] is 2 or 4; action=r["action"];
@@ -198,14 +206,17 @@ public static partial class QemuTranscripts
                     {
                         var irq=Row("M16_009_IRQ","identity:dec","epoch:dec","nanos:dec","rip:dec","rsp:dec","flags:dec","fs:dec","gs:dec","valueBits:dec");
                         Need(irq["identity"]==t.Identity && instruction(irq["rip"]),"threading_irq_binding");
-                        Envelope(t,irq["rsp"],irq["flags"],irq["fs"],irq["gs"]); Epoch(irq); irqs++;
+                        Envelope(t,irq["rip"],irq["rsp"],irq["flags"],irq["fs"],irq["gs"],0);
+                        if(t.TailRip!=0)Need(irq["valueBits"]==(irq["rip"]==t.TailRip+8?60UL:0),"threading_exit_tail_rax");
+                        Epoch(irq); irqs++;
                         t.SavedRsp=irq["rsp"]; t.SavedRip=irq["rip"]; Enqueue(t); action=1;
                     }
                 }
                 if(exiting)
                 {
                     var exit=Row("M16_008_EXIT","identity:dec","clearTidResult:dec");
-                    Need(exit["identity"]==t.Identity && exit["clearTidResult"]==0,"threading_clear_tid");
+                    ulong clear=t.ClearTid==0 || memory.Covered(t.ClearTid,4,3)?0:Bits(-14);
+                    Need(exit["identity"]==t.Identity && exit["clearTidResult"]==clear,"threading_clear_tid");
                     if(t.ClearTid!=0) Wake(t.ClearTid,0,1,uint.MaxValue);
                 }
                 transfers+=2;
@@ -238,8 +249,9 @@ public static partial class QemuTranscripts
             return new(calls,clones,reaped,irqs,drains,ticks,transfers,signalReturns);
         }
 
-        private void Envelope(RuntimeThread t,ulong rsp,ulong flags,ulong fs,ulong gs)
+        private void Envelope(RuntimeThread t,ulong rip,ulong rsp,ulong flags,ulong fs,ulong gs,ulong number)
         {
+            if(t.TailRip!=0){ExitEnvelope(t,rip,rsp,flags,fs,gs,number);return;}
             Need(rsp>=t.Bottom+8 && rsp<=t.Top && memory.Covered(rsp-8,8,3) && fs==t.Fs && gs==t.Gs &&
                 LinuxSyscallGateway.ValidateUserFlags(flags,true),"threading_user_envelope");
             if(fs!=0) Need(memory.Covered(fs,8,1),"threading_live_tls");

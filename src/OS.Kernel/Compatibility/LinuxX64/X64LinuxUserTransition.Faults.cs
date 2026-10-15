@@ -119,7 +119,8 @@ public static unsafe partial class X64LinuxUserTransition
     /// <summary>Copy a complete actual E1 CPL3 interrupt capture under an
     /// explicitly admitted user-IRQ policy. Native ownership/IST/root/APIC
     /// provenance remain the caller's obligation. Unlike a fault image, its
-    /// continuation must already pass full user mapping/IF/FP admission. No
+    /// continuation must already pass user mapping/IF/FP admission or the current
+    /// gate's exact retained exit-tail policy. No
     /// syscall, scheduling, time advance or user resumption is performed.</summary>
     public static bool CaptureInterruptUserImage(byte* data,uint bytes,UserImage* image,uint imageBytes,uint mxcsr,LinuxSyscallAccess user)
     {

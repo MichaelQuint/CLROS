@@ -8,7 +8,7 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.Faults.cs"] = "7361bd6dcaf527fb7dd16d3dd1616c793e371bb0ddde6942a8d729b8cb8dc261",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.Faults.cs"] = "c00f0817cdfdddf3b1b415ba5b15b0731134b4904a9bae2eec833e29e0acdc37",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs"] = "94b6a505fc808646e6cea6a8c00d40ae62f75e3375de8986b1439ce2b1f825dc",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.cs"] = "dec19bf51231222f52704e69df1b493188a87fd4e0d5bc3f2283c4d520c67869",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.Frames.cs"] = "7ab9ffe72776980fb0d0ba8404f6b041ec75b7675e5a0fac0eb9280a7a044931",
@@ -52,8 +52,9 @@ public static partial class EfiContracts
                 [@"..\..\std\no-runtime\shared\Text\AsciiDecimalFormatter.cs"] = "7ecb8c89f031343bd5143b0222dbf70d124d6cc44b10d608894fa27ddab3bd82",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxStartupServices.cs"] = "c8f8d4233fbc81db95a212f5064c2dabdc0a878bcba424b0dc10c53df6dd13fa",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxMemoryServices.cs"] = "00d827874f705db4325bd7bd68a1dd237b7de0df3c295062d8f27596fe2ad5d9",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs"] = "0982de56c97a5907d194a905418dcaf901c1d27236d8ef793db024d2efec2545",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs"] = "3810ceba9a7694e7f68f210d134d250bf75390ff639f0540d290ecc0a50ad569",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.cs"] = "9385dc93440dc77e1ba3ed727da3a4605ad182803497a67b980f7a8c7f1b4d7c",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.ExitTail.cs"] = "d52d61854c5fc1d31aa99d811f68bcd16185221ef8ad6b9676c67f8435167237",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSyscallGateway.cs"] = "009d796b3507df18dfba11cf35535a3f970e3d0ac20773d043ea0332e3eabe87",
                 [@"..\OS.Kernel\Boot\BootSequence.cs"] = "2cd463b0a14094ff507b58d0061a6a70abf376bc1b4fb7f8952685e8d68a8da4",
                 [@"..\..\std\no-runtime\shared\Text\AsciiArgumentSplitter.cs"] = "9869438fcd0e465ca21c90f0e9de36b0a9b826c24885de36e44df653c5ea7be5",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxElfStartup.cs"] = "5fd400d94887ab5aaf64531ff58ca1484d56b308b2e30d8541ffced86a7a0396",

@@ -24,7 +24,7 @@ public static partial class QemuTranscripts
             {
                 Need(t.Frames.Count>0 && r["action"]==5 && r["status"]==1,"threading_sigreturn_without_frame");
                 var frame=t.Frames.Pop(); Need(r["rsp"]==frame.Frame+8 && value.Rsp==frame.Rsp && instruction(value.Rip),"threading_sigreturn_context");
-                Envelope(t,value.Rsp,value.Flags,value.Fs,value.Gs); t.Returned++; signalReturns++;
+                Envelope(t,value.Rip,value.Rsp,value.Flags,value.Fs,value.Gs,15); t.Returned++; signalReturns++;
             }
             else
                 Need(value.Rip==r["rip"] && value.Rsp==r["rsp"] && value.Flags==r["flags"] && value.Fs==r["fs"] && value.Gs==r["gs"],"threading_unexpected_context_rewrite");
@@ -65,7 +65,12 @@ public static partial class QemuTranscripts
                     if(borrowed){Need(v==Bits(-12),"threading_mapping_borrow");break;}
                     Need(v==0,"threading_mapping_result");
                     if(nr==10){Need(c is 0 or 1 or 3,"threading_protection");memory.Protect(a,b,(uint)c);}
-                    else if(nr==11){memory.Unmap(a,b);if(HelloMemory.Overlap(a,HelloMemory.Round(b),0x400000000,0x200000))heapIntact=false;}
+                    else if(nr==11)
+                    {
+                        if(HelloMemory.Overlap(a,HelloMemory.Round(b),r["rsp"]-8,8) || r["fs"]!=0 && HelloMemory.Overlap(a,HelloMemory.Round(b),r["fs"],1))
+                            ArmExit(t,r);
+                        memory.Unmap(a,b);if(HelloMemory.Overlap(a,HelloMemory.Round(b),0x400000000,0x200000))heapIntact=false;
+                    }
                     else Need(c is 4 or 8 or 16 or 17 && memory.Covered(a,HelloMemory.Round(b),0),"threading_advice");
                     break;
                 case 12:

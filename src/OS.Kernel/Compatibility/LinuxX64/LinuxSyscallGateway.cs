@@ -49,6 +49,11 @@ public unsafe struct LinuxSyscallAccess
     // return frame; all other return/control fields remain immutable. A blocked
     // result is a staged scheduler wait, not a fabricated Linux return value.
     public delegate* unmanaged<void*, LinuxSyscallFrame*, LinuxSyscallResult> Threads;
+    // Optional threaded-owner continuation policy: 0 retains ordinary mapped
+    // admission, 1 admits its authenticated exit tail, every other value rejects.
+    // Called under the same IRQ-off root/current-generation ownership as lookup.
+    // The frame is borrowed for this synchronous call; do not retain or mutate it.
+    public delegate* unmanaged<void*, LinuxSyscallFrame*, byte> ReturnPolicy;
 }
 
 public unsafe struct LinuxSyscallAdmission
@@ -70,9 +75,13 @@ public unsafe struct LinuxSyscallGateState
     internal LinuxSyscallAccess Access;
     internal uint CallsValue, BytesValue;
     internal LinuxSyscallFrame Pending;
+    internal LinuxSyscallGateway.ExitTailContext ExitTail;
     public readonly LinuxSyscallGateStatus Status => StatusValue;
     public readonly uint Calls => CallsValue;
     public readonly uint BytesWritten => BytesValue;
+    /// <summary>Non-owning observation of this generation's staged register-only
+    /// self-unmap continuation. It grants no return or execution authority.</summary>
+    public readonly bool HasExitTail => ExitTail.Rip != 0;
 }
 
 /// <summary>
@@ -90,7 +99,7 @@ public unsafe struct LinuxSyscallGateState
 /// gates may share scratch only under that same serialization. Counters are per
 /// gate and include completed successful write prefixes, never pending progress.
 /// </summary>
-public static unsafe class LinuxSyscallGateway
+public static unsafe partial class LinuxSyscallGateway
 {
     public const ulong UserEnd = OS.Kernel.Memory.X64UserAddressSpace.UserEnd, UserRflagsMask = 0x200cd7;
     public const uint MaximumCalls = 64, MaximumWrite = 4096;
@@ -101,7 +110,7 @@ public static unsafe class LinuxSyscallGateway
         LinuxSyscallAdmission admission, LinuxSyscallAccess access)
     {
         if (state.StatusValue != LinuxSyscallGateStatus.Uninitialized) return LinuxSyscallGateStatus.AlreadyConsumed;
-        if (state.CallsValue != 0 || state.BytesValue != 0 || !Empty(state.Pending) || !admission.FirmwareExited || !admission.OwnedBoundaryValidated ||
+        if (state.CallsValue != 0 || state.BytesValue != 0 || !Empty(state.Pending) || !EmptyExitTail(state.ExitTail) || !admission.FirmwareExited || !admission.OwnedBoundaryValidated ||
             admission.UserRoot < 4096 || admission.UserRoot >= OS.Kernel.Memory.X64UserAddressSpace.PhysicalEnd || (admission.UserRoot & 4095) != 0 ||
             admission.MaximumCalls == 0 || admission.MaximumCalls > (admission.EnableThreads ? MaximumThreadCalls : MaximumCalls) ||
             admission.MaximumWrite == 0 || admission.MaximumWrite > MaximumWrite ||
@@ -113,7 +122,7 @@ public static unsafe class LinuxSyscallGateway
             admission.EnableDescriptors != (access.Descriptors != null) ||
             admission.EnableThreads != (access.Threads != null) ||
             admission.EnableDescriptors && !admission.EnableStartup || admission.EnableThreads && !admission.EnableDescriptors ||
-            access.UserInterrupts && !admission.EnableThreads)
+            access.UserInterrupts && !admission.EnableThreads || access.ReturnPolicy != null && !admission.EnableThreads)
             return LinuxSyscallGateStatus.InvalidAdmission;
         fixed (LinuxSyscallGateState* original = &state)
             if ((ulong)admission.Scratch < (ulong)original + (uint)sizeof(LinuxSyscallGateState) &&
@@ -138,6 +147,8 @@ public static unsafe class LinuxSyscallGateway
     public static LinuxSyscallResult Dispatch(ref LinuxSyscallGateState state, ref LinuxSyscallFrame frame)
     {
         if (state.StatusValue != LinuxSyscallGateStatus.Active) return new(LinuxSyscallAction.Rejected);
+        if (state.HasExitTail && (frame.Number != 60 || ExitTailPolicy(ref state, frame) != 1))
+            return Stop(ref state, LinuxSyscallGateStatus.InvalidReturn);
         if (!ValidateReturn(frame, state.Access)) return Stop(ref state, LinuxSyscallGateStatus.InvalidReturn);
         if (state.CallsValue == state.Admission.MaximumCalls) return Stop(ref state, LinuxSyscallGateStatus.CallLimit);
         state.CallsValue++;
@@ -157,8 +168,8 @@ public static unsafe class LinuxSyscallGateway
                 return Stop(ref state, LinuxSyscallGateStatus.SinkFailed);
             if (result.Action == LinuxSyscallAction.Blocked)
             { state.Pending = original; state.StatusValue = LinuxSyscallGateStatus.Blocked; }
-            if (result.Action == LinuxSyscallAction.ThreadExited) state.StatusValue = LinuxSyscallGateStatus.Exited;
-            if (result.Action == LinuxSyscallAction.Terminate) state.StatusValue = LinuxSyscallGateStatus.Exited;
+            if (result.Action is LinuxSyscallAction.ThreadExited or LinuxSyscallAction.Terminate)
+            { state.StatusValue = LinuxSyscallGateStatus.Exited; state.ExitTail = default; }
             return result;
         }
         if (frame.Number == 60 || frame.Number == 231)
@@ -189,6 +200,8 @@ public static unsafe class LinuxSyscallGateway
             LinuxSyscallFrame returnFrame = frame, callbackFrame = frame;
             long value = state.Access.Startup(state.Access.Context, &callbackFrame);
             Clear(state.Admission.Scratch, state.Admission.ScratchBytes);
+            if (value == 0 && frame.Number == 11 && !MappedReturn(returnFrame, state.Access))
+                _ = ArmExitTail(ref state, returnFrame);
             if (!ValidateReturn(returnFrame, state.Access)) return Stop(ref state, LinuxSyscallGateStatus.InvalidReturn);
             return new(LinuxSyscallAction.Return, value);
         }
@@ -241,11 +254,18 @@ public static unsafe class LinuxSyscallGateway
         return true;
     }
 
-    public static bool ValidateReturn(LinuxSyscallFrame frame, LinuxSyscallAccess access) =>
-        access.Context != null && access.PageAccess != null &&
-        ValidateUserFlags(frame.Rflags,access.UserInterrupts) &&
-        frame.Rsp >= 4104 && frame.Rsp <= UserEnd &&
-        ValidateRange(frame.Rip, 1, LinuxUserPageAccess.Execute, access) &&
+    public static bool ValidateReturn(LinuxSyscallFrame frame, LinuxSyscallAccess access)
+    {
+        if (access.Context == null || access.PageAccess == null || !ValidateUserFlags(frame.Rflags,access.UserInterrupts) ||
+            frame.Rsp < 4104 || frame.Rsp > UserEnd || !ValidateRange(frame.Rip,1,LinuxUserPageAccess.Execute,access)) return false;
+        if (access.ReturnPolicy != null)
+        {
+            byte policy = access.ReturnPolicy(access.Context,&frame);
+            if (policy != 0) return policy == 1;
+        }
+        return MappedReturn(frame,access);
+    }
+    private static bool MappedReturn(LinuxSyscallFrame frame, LinuxSyscallAccess access) =>
         ValidateRange(frame.Rsp - 8, 8, LinuxUserPageAccess.Write, access) &&
         (frame.FsBase == 0 || ValidateRange(frame.FsBase, 1, LinuxUserPageAccess.Read, access)) &&
         (frame.GsBase == 0 || ValidateRange(frame.GsBase, 1, LinuxUserPageAccess.Read, access));
@@ -273,7 +293,7 @@ public static unsafe class LinuxSyscallGateway
     }
 
     private static LinuxSyscallResult Stop(ref LinuxSyscallGateState state, LinuxSyscallGateStatus status)
-    { Clear(state.Admission.Scratch, state.Admission.ScratchBytes); state.Pending = default; state.StatusValue = status; return new(LinuxSyscallAction.Terminate); }
+    { Clear(state.Admission.Scratch, state.Admission.ScratchBytes); state.Pending = default; state.ExitTail = default; state.StatusValue = status; return new(LinuxSyscallAction.Terminate); }
     private static bool Empty(LinuxSyscallFrame f) => f.Number == 0 && f.Argument0 == 0 && f.Argument1 == 0 && f.Argument2 == 0 &&
         f.Argument3 == 0 && f.Argument4 == 0 && f.Argument5 == 0 && f.Rip == 0 && f.Rsp == 0 && f.Rflags == 0 && f.FsBase == 0 && f.GsBase == 0;
     private static void Clear(byte* bytes, uint count) { for (uint i = 0; i < count; i++) bytes[i] = 0; }
