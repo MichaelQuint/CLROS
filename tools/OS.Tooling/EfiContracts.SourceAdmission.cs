@@ -3,6 +3,13 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"Boot\EfiEntry.NetworkService.cs"] = "reviewed_m07_continuing_network_owner_source_identity",
+        [@"..\OS.Kernel\Drivers\ContinuingVirtioNet.cs"] = "reviewed_m07_retained_ring_source_identity",
+        [@"..\OS.Kernel\Drivers\ContinuingVirtioNetDevice.cs"] = "reviewed_m07_retained_device_source_identity",
+        [@"..\OS.Kernel\Net\Ipv4Header.cs"] = "reviewed_m07_ipv4_packet_source_identity",
+        [@"..\OS.Kernel\Net\IcmpEchoPacket.cs"] = "reviewed_m07_icmp_packet_source_identity",
+        [@"..\OS.Kernel\Net\Ipv4IcmpEchoFrame.cs"] = "reviewed_m07_icmp_ethernet_source_identity",
+        [@"..\..\std\no-runtime\shared\Net\InternetChecksum.cs"] = "reviewed_existing_no_runtime_internet_checksum_source_identity",
         [@"Boot\EfiEntry.LinuxThreads.cs"] = "reviewed_m16_native_process_owner_source_identity",
         [@"Boot\EfiEntry.LinuxSignals.cs"] = "reviewed_m16_native_signal_return_source_identity",
         [@"Boot\EfiEntry.LinuxUserInterrupts.cs"] = "reviewed_m16_native_user_interrupt_owner_source_identity",

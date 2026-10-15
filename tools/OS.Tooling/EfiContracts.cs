@@ -31,7 +31,7 @@ public static partial class EfiContracts
          "EnableM06VirtioBlockQueueSetupProbe",
          "EnableM06VirtioBlockReadProbe",
         "EnableM06LiveBlockContractProbe", "EnableM06GptPartitionProbe", "EnableM06FatReadProbe", "EnableM06PackageReadProbe",
-        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe"]);
+        "EnableM06BlockMsixProbe", "EnableM06BlockMsixPollingRecoveryProbe", "EnableM07VirtioNetProbe", "EnableM07ArpReceiveProbe", "EnableM07026Probe", "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe", "EnableM16002Probe", "EnableM16003Probe", "EnableM16004Probe", "EnableM16005Probe", "EnableM16006Probe", "EnableM16007Probe", "EnableM16008Probe", "EnableM16009Probe", "EnableM09011Probe", "EnableM09012Probe", "EnableM16010Probe"]);
 
     // The only explicit device profiles allowed one original allocator receipt
     // and its matching release. Both allocator firewall fixtures consume this.
@@ -51,9 +51,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "e9087623e9180d7f2eb93329b9bef072f7932a20d5440faf3e37c6a23bf39e76";
-    public const string CanonicalProjectSha256 = "66ff982bf0c12c40c3da3a75a68230935a91d7dc20d65dee6fdc9f29910ff8d4";
-    public const string EfiEntrySourceSha256 = "84bbdfb256de32677a2068625fc490f25f83860e4331d4e67459a15f799d44c9";
+    public const string ProjectSourceSha256 = "65f45ddb0954e4dbcdd2c81c451d505331eea0b7c46b03682f9dd022500aad93";
+    public const string CanonicalProjectSha256 = "d7b433ef9614141666b54bdcad8f3ee3b5d3b5453d8f434d0e84d5537b20d3fb";
+    public const string EfiEntrySourceSha256 = "d05a36d8206909bc6171123b320d6e19c0eaccd4f18ff7e57dd99fd0e87eb3c2";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -186,6 +186,9 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Drivers\LiveVirtioNetPCIDevice.cs|Drivers\LiveVirtioNetPCIDevice.cs",
         @"..\OS.Kernel\Drivers\MinimalNoOffloadNoGSONoMergeableBuffer.cs|Drivers\MinimalNoOffloadNoGSONoMergeableBuffer.cs",
         @"..\OS.Kernel\Drivers\Queue.cs|Drivers\Queue.cs",
+        @"..\OS.Kernel\Drivers\ContinuingVirtioNet.cs|Drivers\ContinuingVirtioNet.cs",
+        @"..\OS.Kernel\Drivers\ContinuingVirtioNetDevice.cs|Drivers\ContinuingVirtioNetDevice.cs",
+        @"Boot\EfiEntry.NetworkService.cs|",
         @"..\OS.Kernel\Drivers\FixedEthernetFrameReclaimDescriptors.cs|Drivers\FixedEthernetFrameReclaimDescriptors.cs",
         @"..\OS.Kernel\Drivers\VirtioNetHeader.cs|Drivers\VirtioNetHeader.cs",
         @"..\OS.Kernel\Drivers\VirtioNetReceiveFrameClassifier.cs|Drivers\VirtioNetReceiveFrameClassifier.cs",
@@ -196,6 +199,10 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Net\Ipv4Address.cs|Net\Ipv4Address.cs",
         @"..\OS.Kernel\Net\EthernetHeader.cs|Net\EthernetHeader.cs",
         @"..\OS.Kernel\Net\EthernetPayloadKind.cs|Net\EthernetPayloadKind.cs",
+        @"..\OS.Kernel\Net\Ipv4Header.cs|Net\Ipv4Header.cs",
+        @"..\OS.Kernel\Net\IcmpEchoPacket.cs|Net\IcmpEchoPacket.cs",
+        @"..\OS.Kernel\Net\Ipv4IcmpEchoFrame.cs|Net\Ipv4IcmpEchoFrame.cs",
+        @"..\..\std\no-runtime\shared\Net\InternetChecksum.cs|Std\Net\InternetChecksum.cs",
         @"..\OS.Kernel\Net\ArpPacket.cs|Net\ArpPacket.cs",
         @"..\OS.Kernel\Net\ArpNeighborCache.cs|Net\ArpNeighborCache.cs",
         @"..\OS.Kernel\Net\ArpNeighborResolutionTransaction.cs|Net\ArpNeighborResolutionTransaction.cs",
@@ -421,6 +428,7 @@ public static partial class EfiContracts
         "EnableM06PackageReadProbe",
         "EnableM06VirtioBlockQueueSetupProbe",
         "EnableM06VirtioBlockReadProbe",
+        "EnableM07026Probe",
         "EnableM07ArpReceiveProbe",
         "EnableM07VirtioNetProbe",
         "EnableM09004Probe", "EnableM09005Probe", "EnableM09006Probe", "EnableM09009Probe", "EnableM09010Probe",

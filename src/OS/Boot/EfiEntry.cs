@@ -74,7 +74,9 @@ public static unsafe partial class EfiEntry
 #endif
 #if M16_002_PROBE
         private const uint LinuxLedgerCapacity =
-#if M16_008_PROBE
+#if M07_026_PROBE
+            10;
+#elif M16_008_PROBE
             17;
 #elif M16_007_PROBE
             16;
@@ -230,6 +232,10 @@ public static unsafe partial class EfiEntry
 #if M16_003_PROBE
             internal uint ServicePhase;
             internal WorkloadServiceLoopState ServiceLoop;
+#endif
+#if M07_026_PROBE
+            internal uint NetworkPhase;
+            internal ulong NetworkArena;
 #endif
 #if (M03_OWNED_SUBSYSTEM_SURVIVAL_PROBE || CLROS_NORMAL_VERIFIED_EXIT)
             internal OwnedAllocatorRoundTripState OwnedAllocator;
@@ -408,6 +414,10 @@ public static unsafe partial class EfiEntry
             if (!BootSequence.StageLinuxElfPackage(state->Phase == 2, state, &ReadLinuxPackage)) return false;
             references.LinuxPackageStart = state->LinuxPackage;
             references.LinuxPackagePages = state->LinuxPages;
+#endif
+#if M07_026_PROBE
+            if (!BootSequence.PrepareNetworkService(state->Phase == 2, state, &PrepareNetworkArena)) return false;
+            references.NetworkArenaStart = state->NetworkArena; references.NetworkArenaPages = 8;
 #endif
 #if M16_004_PROBE
             state->PreparationCheckpoint = 36;
@@ -1044,6 +1054,9 @@ public static unsafe partial class EfiEntry
                 !LinuxReservation(BootReservationKind.Cr3TransitionStub, code, FirstExitCodeBundle.Bytes / 4096, ledger + count++) ||
                 !LinuxReservation(BootReservationKind.DiagnosticState, data, FirstExitOwnedArena.PageCount, ledger + count++) ||
                 !LinuxReservation(BootReservationKind.PageTableArena, tables, TablePages, ledger + count++)) return false;
+#if M07_026_PROBE
+            if (!LinuxReservation(BootReservationKind.DiagnosticState, state->NetworkArena, 8, ledger + count++)) return false;
+#endif
 #if M16_004_PROBE
             if (!LinuxReservation(BootReservationKind.LinuxElfBacking, state->LinuxImageBacking, state->LinuxImagePages, ledger + count++) ||
                 !LinuxReservation(BootReservationKind.LinuxElfUserTables, state->LinuxUserTables, X64UserAddressSpace.MaximumTables, ledger + count++)) return false;
@@ -3005,6 +3018,11 @@ public static unsafe partial class EfiEntry
                         _ = BootSequence.RunOwnedVirtioNet(state->QueuePhase == 20, state, &RunOwnedVirtioNet);
 #if M07_ARP_RECEIVE_PROBE
                         _ = BootSequence.RunOwnedArpReceive(state->NetPhase == 3, state, &RunOwnedArpReceive);
+#if M07_026_PROBE
+                        if (!BootSequence.RunOwnedNetworkService(state->ArpPhase == 3, state->ServicePhase == 2,
+                            transition->Mode == FirmwareServicesMode.BootServicesExited && transition->RetainedFirmwareCallbacksCleared &&
+                            state->Arena.Binding->RetainedPointersCleared, state, &RunOwnedNetworkService)) return;
+#endif
 #endif
 #endif
 #if M05_VIRTQUEUE_INTERRUPT_PROBE
@@ -5148,6 +5166,9 @@ public static unsafe partial class EfiEntry
             active |= state->QueuePhase == 20 && state->NetPhase == 2;
 #if M07_ARP_RECEIVE_PROBE
             active |= state->QueuePhase == 20 && state->ArpPhase == 2;
+#if M07_026_PROBE
+            active |= state->QueuePhase == 20 && state->NetworkPhase == 2;
+#endif
 #endif
 #endif
             if (enable > 1 || !active || (state->QueueCommand & 0x406) != 0x402) return 0;

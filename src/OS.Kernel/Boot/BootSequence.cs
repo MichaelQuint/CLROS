@@ -541,6 +541,22 @@ public static class BootSequence
         OS.Kernel.Diagnostics.Probes.EnableM07ArpReceiveProbe &&
         originalNetComplete && context != null && execute != null && execute(context);
 
+    /// <summary>Prepare the dedicated continuing-network arena before firmware
+    /// revocation. The trusted callback records every firmware allocation and
+    /// validates its original image/allocator/package disjointness before writes.</summary>
+    public static unsafe bool PrepareNetworkService(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
+        OS.Kernel.Diagnostics.Probes.EnableM07026Probe && firmwareAvailable && context != null && prepare != null && prepare(context);
+
+    /// <summary>Invoke the exclusive continuing network owner only after the
+    /// original ARP and live service-loop parents and irreversible firmware
+    /// revocation. The callback owns all DMA through verified reset/teardown;
+    /// false preserves failure and grants no guest-network acceptance.</summary>
+    public static unsafe bool RunOwnedNetworkService(
+        bool originalArpComplete, bool serviceLoopComplete, bool firmwareRevoked,
+        void* context, delegate*<void*, bool> execute) =>
+        OS.Kernel.Diagnostics.Probes.EnableM07026Probe && originalArpComplete &&
+        serviceLoopComplete && firmwareRevoked && context != null && execute != null && execute(context);
+
     public static unsafe bool RunOwnedVirtioNegotiation(
         bool pciEnumerationComplete, void* context, delegate*<void*, bool> execute) =>
         OS.Kernel.Diagnostics.Probes.EnableM05VirtioNegotiationProbe &&

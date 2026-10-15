@@ -5,7 +5,7 @@ namespace OS.Tooling;
 public static partial class QemuTranscripts
 {
     public static void AssertM03AcpiBootstrapTranscript(string path, bool firstRealExit = false, bool firmwareRevocation = false,
-        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false, bool apicSetup = false, bool virtqueueInterrupt = false, bool virtioBlockQueueSetup = false, bool virtioBlockRead = false, bool liveBlockContract = false, bool gptPartition = false, bool primaryHeaderFault = false, bool fatRead = false, bool packageRead = false, string packageVariant = "Intact", bool blockMsix = false, bool blockMsixPollingRecovery = false, bool virtioNet = false, bool arpReceive = false, string linuxElfPackagePath = "", bool workloadServiceLoop = false, bool linuxStartup = false, bool linuxSyscalls = false, string linuxSyscallNegativeVariant = "", bool linuxMemory = false, string linuxMemoryNegativeVariant = "", bool linuxDescriptors = false, bool cooperativeSwitch = false, bool schedulerTimer = false, bool kernelThreads = false, bool waitAddress = false, bool privateTls = false, bool linuxThreads = false, bool linuxSignals = false, NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null)
+        bool ownedSurvival = false, bool ownedPanic = false, bool normalBoot = false, bool physicalMapping = false, bool ownedAcpiSelection = false, bool monotonicClock = false, bool pciEnumeration = false, bool barDma = false, bool virtioNegotiation = false, bool virtqueuePolling = false, bool apicSetup = false, bool virtqueueInterrupt = false, bool virtioBlockQueueSetup = false, bool virtioBlockRead = false, bool liveBlockContract = false, bool gptPartition = false, bool primaryHeaderFault = false, bool fatRead = false, bool packageRead = false, string packageVariant = "Intact", bool blockMsix = false, bool blockMsixPollingRecovery = false, bool virtioNet = false, bool arpReceive = false, string linuxElfPackagePath = "", bool workloadServiceLoop = false, bool linuxStartup = false, bool linuxSyscalls = false, string linuxSyscallNegativeVariant = "", bool linuxMemory = false, string linuxMemoryNegativeVariant = "", bool linuxDescriptors = false, bool cooperativeSwitch = false, bool schedulerTimer = false, bool kernelThreads = false, bool waitAddress = false, bool privateTls = false, bool linuxThreads = false, bool linuxSignals = false, NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null, NativeAotRuntimeProgram? runtimeProgram = null, bool networkService = false)
     {
         Need(!cooperativeSwitch || !kernelThreads && !waitAddress && !privateTls && firstRealExit && ownedSurvival && !ownedPanic && !normalBoot && !firmwareRevocation &&
             !physicalMapping && !ownedAcpiSelection && !monotonicClock && !pciEnumeration && !barDma &&
@@ -73,9 +73,21 @@ public static partial class QemuTranscripts
         Need(threadingProgram is null || linuxSignals,"threading_requires_signal_profile");
         Need(helloProgram is null || threadingProgram is null,"threading_hello_conflict");
         Need(runtimeProgram is null || linuxSignals && helloProgram is null && threadingProgram is null, "runtime_profile_invalid");
+        if (networkService) terminal = "TEST_PASS m07-026\r\n";
         string[] lines = FirmwareProtocol(path, terminal, firstRealExit, false, "m03_acpi", virtioBlockQueueSetup && !primaryHeaderFault, helloProgram, threadingProgram, runtimeProgram, linuxThreads);
         Need(!linuxStartup || linuxElfPackagePath.Length != 0 && firstRealExit && ownedSurvival && !normalBoot && !firmwareRevocation, "m16_004_profile_invalid");
         Need(!linuxSyscalls || linuxStartup && workloadServiceLoop, "m16_005_profile_invalid");
+        if (networkService)
+        {
+            Need(arpReceive && workloadServiceLoop && linuxElfPackagePath.Length != 0 &&
+                !linuxStartup && !linuxSyscalls && !linuxThreads && !apicSetup, "m07_026_profile_invalid");
+            lines = ValidateNetworkServiceTail(lines);
+            int end = QemuContracts.M03OwnedSubsystemMarkers.Count + 7 + M16ServiceLoopMarkers.Count;
+            string[] parents = ValidateServiceLoopTail(lines[..end]);
+            parents = ValidateLinuxElfTail(parents, File.ReadAllBytes(linuxElfPackagePath));
+            lines = [.. parents, .. lines[end..]];
+            workloadServiceLoop = false; linuxElfPackagePath = "";
+        }
         if (linuxThreads)
         {
             byte[] package = File.ReadAllBytes(linuxElfPackagePath);

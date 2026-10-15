@@ -19,6 +19,9 @@ public struct FirstExitImageReferences
     // Optional in host-only compositions. The EFI adapter must retain its
     // original installed NativeAOT stack-probe page, outside the loaded image.
     public ulong RuntimeSupportCode, RuntimeSupportCodeBytes;
+#if M07_026_PROBE
+    public ulong NetworkArenaStart, NetworkArenaPages;
+#endif
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
     public ulong CooperativePoolStart, CooperativePoolPages;
 #endif
@@ -249,6 +252,9 @@ public static unsafe class FirstExitRetainedMappings
 {
     public const ulong MaximumRanges = FirstExitImageMappings.MaximumSections + 1 +
         FirstExitOwnedArena.MappingRangeCount + 3
+#if M07_026_PROBE
+        + 1
+#endif
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
         + 1
 #endif
@@ -290,6 +296,9 @@ public static unsafe class FirstExitRetainedMappings
 #endif
         ;
     private const int MaximumAllocations = 6
+#if M07_026_PROBE
+        + 1
+#endif
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
         + 1
 #endif
@@ -479,6 +488,11 @@ public static unsafe class FirstExitRetainedMappings
         starts[allocations] = references.CooperativePoolStart;
         lengths[allocations++] = cooperativePages * 4096UL;
 #endif
+#if M07_026_PROBE
+        if (references.NetworkArenaPages != 8 || references.NetworkArenaStart < 4096 ||
+            (references.NetworkArenaStart & 4095) != 0 || references.NetworkArenaStart > 0x100000000UL - 32768) return false;
+        starts[allocations] = references.NetworkArenaStart; lengths[allocations++] = 32768;
+#endif
         for (int i = 0; i < allocations; i++) for (int j = 0; j < i; j++)
             if (FirstExitDescriptors.Overlaps(starts[i], lengths[i], starts[j], lengths[j])) return false;
 
@@ -487,6 +501,9 @@ public static unsafe class FirstExitRetainedMappings
         count += arenaCount;
         pending[count++] = new SeparatePageFaultMappingRange((ulong)code, FirstExitCodeBundle.Bytes / 4096, Code);
         pending[count++] = allocator;
+#if M07_026_PROBE
+        pending[count++] = new SeparatePageFaultMappingRange(references.NetworkArenaStart, 8, Data, PageCachePolicy.WriteBack);
+#endif
         if (references.RuntimeSupportCode != 0) pending[count++] = new SeparatePageFaultMappingRange(references.RuntimeSupportCode, 1, Code);
 #if M16_002_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.LinuxPackageStart, references.LinuxPackagePages, PageProtection.Read);

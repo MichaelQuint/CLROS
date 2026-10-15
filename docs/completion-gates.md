@@ -12,6 +12,13 @@ finite application profiles. **Only the existing numbered Gate 2 passes.**
 Guest Kestrel, continuing network/socket/epoll services, isolation, cloud and
 production remain incomplete.
 
+Development [steps1309-1311](../done/step1311.md) add retained Virtio-net rings,
+the device owner and a default-off continuing-network profile with managed
+compilation and focused host checks. Native publication/review, full-host and
+actual guest/independent packet evidence are pending. The new profile's dedicated
+eight-page reservation remains retained after its DMA-pool lease is returned.
+This adds no gate acceptance or guest networking/Kestrel claim.
+
 ## Historical qualification snapshots
 
 Earlier statements below describe the evidence available at their named steps;

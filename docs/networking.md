@@ -11,6 +11,19 @@ PCI/MMIO, DMA and live-clock authority and independently capture external packet
 No continuing guest/packet acceptance is added. Shared integration #734 owns
 additional paths for the planned #691 -> #148-#153 batch; all remain open.
 
+[Step1311](../done/step1311.md) wires the default-off `EnableM07026Probe` child
+and its automatic service-loop/ARP prerequisites. Managed no-stdlib compilation
+and five new focused integration/transcript checks pass. Its planned guest path
+uses a separate eight-page pre-exit arena with supervisor WB/RW/NX retained
+mappings, image-resident owner metadata,20 ARP and12 tagged ICMP exchanges in one
+queue lifetime, full-queue rejection, live HPET deadlines and reset-gated scrub.
+Independent pcap admission requires every tagged request/reply with valid
+checksums and original-parent association. These packet checks use synthetic
+host fixtures so far. Native publication/review, full-host and actual QEMU/pcap
+qualification remain outstanding. Successful teardown returns the DMA lease to
+the dedicated pool; its eight-page firmware reservation remains owned/mapped.
+The original two-page M01 allocator contract is preserved.
+
 The #141–#144 / #635 receive-and-ARP batch is qualified in
 [step1164](../done/step1164.md): 4,441 full-host checks, linked native review,
 a 194-record guest receipt, independent request/reply libpcap and thirteen

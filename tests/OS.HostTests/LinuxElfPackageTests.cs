@@ -5,6 +5,7 @@ using OS.Manifest;
 
 internal static unsafe class LinuxElfPackageTests
 {
+    internal static byte[] CapturePackage() => Package();
     private static byte[] Elf()
     {
         byte[] elf = new byte[4096]; "\u007fELF"u8.CopyTo(elf);

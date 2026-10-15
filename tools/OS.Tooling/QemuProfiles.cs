@@ -84,7 +84,7 @@ public static class QemuProfiles
         {
             Original("m16_002", false, true, true);
             foreach (string key in new[] { "RequireOrderedMarker", "RequireUniqueMarker", "ForbidMarker" }) Require(!options.Explicit.Contains(key), "m16_002_forbids_override parameter=" + key);
-            string terminal = runtimeApp.Length != 0 ? NativeAotRuntimeSelection.Markers(runtimeApp).Ready : Enabled("M16009") ? "CLROS_M16_009_READY" : Enabled("M16008") ? "CLROS_M16_008_READY" : Enabled("M16007") ? "CLROS_M16_007_READY" : Enabled("M16006") ? "CLROS_M16_006_READY" : Enabled("M16005") ? "CLROS_M16_005_READY" : Enabled("M16003") ? "CLROS_M16_003_READY" : Enabled("M16004") ? "CLROS_M16_004_READY" : "CLROS_M16_002_READY";
+            string terminal = Enabled("M07026") ? "CLROS_M07_026_READY" : runtimeApp.Length != 0 ? NativeAotRuntimeSelection.Markers(runtimeApp).Ready : Enabled("M16009") ? "CLROS_M16_009_READY" : Enabled("M16008") ? "CLROS_M16_008_READY" : Enabled("M16007") ? "CLROS_M16_007_READY" : Enabled("M16006") ? "CLROS_M16_006_READY" : Enabled("M16005") ? "CLROS_M16_005_READY" : Enabled("M16003") ? "CLROS_M16_003_READY" : Enabled("M16004") ? "CLROS_M16_004_READY" : "CLROS_M16_002_READY";
             Require(!options.Explicit.Contains("RequireMarker") || options.RequireMarker.All(x => x == terminal), "m16_002_marker_override");
             Require(!Enabled("M16003") || options.LinuxElfImageVariant == "Intact", "m16_003_requires_intact_package");
             Require(!Enabled("M16004") || options.LinuxElfImageVariant == "Intact", "m16_004_requires_intact_package");
@@ -135,8 +135,8 @@ public static class QemuProfiles
         Require(options.PackageImageVariant == "Intact" || Enabled("M06PackageRead"), "package_image_variant_requires_profile");
         Require(!Enabled("M06BlockMsix") || options.PackageImageVariant == "Intact", "m06_block_msix_requires_intact_package");
         if (Enabled("M06BlockMsix")) Original("m06_block_msix", true, true, true);
-        if (Enabled("M07VirtioNet")) Original("m07_virtio_net", true, true, true);
-        if (Enabled("M07ArpReceive")) Original("m07_arp_receive", true, true, true);
+        if (Enabled("M07VirtioNet") && !Enabled("M07026")) Original("m07_virtio_net", true, true, true);
+        if (Enabled("M07ArpReceive") && !Enabled("M07026")) Original("m07_arp_receive", true, true, true);
         string[] required = Markers(options.RequireMarker), ordered = Markers(options.RequireOrderedMarker), unique = Markers(options.RequireUniqueMarker), forbidden = Markers(options.ForbidMarker);
         string[] custom = [.. required, .. ordered, .. unique];
         foreach (var rule in Ownership)
@@ -200,6 +200,7 @@ public static class QemuProfiles
         else if (Enabled("M05PhysicalMapping")) Select(QemuContracts.M05PhysicalMappingMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05OwnedAcpiSelection")) Select(QemuContracts.M05OwnedAcpiSelectionMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M05MonotonicClock")) Select(QemuContracts.M05MonotonicClockMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
+        else if (Enabled("M07026")) Select(QemuTranscripts.M07026Markers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M07ArpReceive")) Select(QemuContracts.M07ArpReceiveMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M07VirtioNet")) Select(QemuContracts.M07VirtioNetMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
         else if (Enabled("M06BlockMsix")) Select(QemuContracts.M06BlockMsixMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true);
@@ -361,6 +362,7 @@ public static class QemuProfiles
         ("M06PackageRead", @"^(M06_PKG|CLROS_M06_01[5-8]_READY|TEST_(START|PASS) m06\.01[5-8])", "m06_package_read"),
         ("M06BlockMsix", @"^(M06_IRQ|CLROS_M06_019_READY|TEST_(START|PASS) m06\.019)", "m06_block_msix"),
         ("M07VirtioNet", @"^(M07_NET|CLROS_M07_00[1-5]_READY|TEST_(START|PASS) m07\.00[1-5])", "m07_virtio_net"),
+        ("M07026", @"^(M07_026_|CLROS_M07_026_READY|TEST_(START|PASS) m07-026)", "m07_026"),
         ("M07ArpReceive", @"^(M07_ARP|CLROS_M07_00[6-9]_READY|TEST_(START|PASS) m07\.00[6-9])", "m07_arp_receive"),
         ("M06GptPartition", @"^(M06_GPT|CLROS_M06_(009|01[0-1])_READY|TEST_(START|PASS) m06\.(009|01[0-1]))", "m06_gpt_partition"),
         ("M06LiveBlockContract", @"^(M06_BDEV|CLROS_M06_00[7-8]_READY|TEST_(START|PASS) m06\.00[7-8])", "m06_live_block_contract"),

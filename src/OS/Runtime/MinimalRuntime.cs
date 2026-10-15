@@ -39,7 +39,7 @@ namespace System
     public struct SByte { }
     public struct Byte { }
     public struct Int16 { }
-    public struct UInt16 { }
+    public struct UInt16 { public const ushort MaxValue = 65535; }
     public struct Int32
     {
         public const int MaxValue = 0x7fff_ffff;
