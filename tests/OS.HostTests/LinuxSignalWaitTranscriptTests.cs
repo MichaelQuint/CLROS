@@ -89,7 +89,7 @@ internal static class LinuxSignalWaitTranscriptTests
             rows.Add(FormattableString.Invariant($"M16_008_REAP old={identity} next={identity+(1UL<<32)} context=zero stack=zero slot=zero"));
         }
         Emit(39,1);Emit(186,1);Emit(158,0,0x1002,0x402000);Emit(13,0,10,0x401100,0,8);Emit(131,0,0x401120);
-        if(!futex)Emit(293,0,0x4011b0);
+        if(!futex)Emit(293,0,0x4011c0);
         Emit(56,2,0x7d0f00,0x406000,0x4011b8,0x4011bc,0x403000);
         if(futex)Emit(202,0,0x4011d0,128,action:3,status:9);
         else Emit(partial?1UL:0UL,0,partial?4UL:3UL,partial?0x407000UL:0x409000UL,partial?4100UL:1UL,action:3,status:9);

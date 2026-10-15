@@ -1,5 +1,13 @@
 # Diagnostics
 
+[Step1306](../done/step1306.md) preserves a genuine interrupted-pipe fixture
+failure: its descriptor pair occupied the final word of the handler's24-byte
+sigaltstack output. The returned stack size4096 overwrote fd3; the app read that
+invalid fd and exited99. The validator correctly rejected it. The pair now has
+separate storage; tests decode actual emitted syscall targets and perform output
+writes before rereading descriptors/TIDs/futex words. Kernel/sigreturn behavior,
+expected exit42 and exact validator checks remain unchanged.
+
 [Step1305](../done/step1305.md) admits declared mechanical Linux thread/signal
 diagnostics under the existing bounded8MiB runtime raw extent. The original
 Threads capture contains51022 bytes,103 real calls and complete five-thread

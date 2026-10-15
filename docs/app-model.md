@@ -1,5 +1,12 @@
 # App Model
 
+[Step1306](../done/step1306.md) fixes a mechanical signal-wait fixture alias:
+handler sigaltstack output overwrote its pipe descriptors. The separate data
+slot and independent emitted-address/output-write regression pass107 focused
+checks. Fresh mechanical packages preserve original upstream NativeAOT inputs;
+kernel/runtime and validator semantics are unchanged. Fifteen mechanical guests
+already pass; remaining wait/nesting cases and final shared acceptance are open.
+
 [Step1305](../done/step1305.md) records three strict Hello and three strict matrix
 captures with original native-review joins and complete cleanup. A six-capture
 integrity audit passes. The first mechanical thread capture also completes its

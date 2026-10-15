@@ -2,6 +2,13 @@
 
 ## Development Linux threading profile
 
+[Step1306](../done/step1306.md) separates mechanical wait fixture descriptors from
+sigaltstack output. Fresh canonical packages are generated for all five wait
+variants; only the three pipe variants change bytes. The two futex variants and
+every original upstream NativeAOT payload remain identical. Original native EFI
+inputs and profile settings are unchanged; exact native joins still precede
+fresh execution.107 focused checks pass; live remaining cases remain required.
+
 [Step1305](../done/step1305.md) completes the three strict Hello/matrix repetitions
 and verifies all six preserved capsules and their before-boot native identities.
 Declared Linux thread/signal captures use the existing bounded8MiB raw extent,

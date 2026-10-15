@@ -6,6 +6,50 @@ using F = OS.Tooling.LinuxSignalProofFixture;
 
 internal static unsafe class LinuxSignalWaitProofFixtureTests
 {
+    [HostTest("m16-009 actual handler output writes preserve emitted pipe descriptors TIDs and futex controls")]
+    private static void OutputOwnership()
+    {
+        foreach(string variant in new[]{"SignalPipeEintr","SignalPipeRestart","SignalPipePartial"})
+        {
+            byte[] elf=F.CreateElf(variant);var calls=F.ExpectedWaitInvocations(variant);
+            int Start(F.WaitInvocation call)=>checked((int)(call.ReturnRip-0x400000))-40;
+            int pipe=Start(calls.Single(c=>c.Number==293));
+            HostCheck.Equal((byte)0xbf,elf[pipe+5]);
+            int pair=checked((int)(U32(elf,pipe+6)-0x400000));
+            BinaryPrimitives.WriteUInt32LittleEndian(elf.AsSpan(pair),3);
+            BinaryPrimitives.WriteUInt32LittleEndian(elf.AsSpan(pair+4),4);
+            BinaryPrimitives.WriteUInt32LittleEndian(elf.AsSpan(0x11b8),17);
+            BinaryPrimitives.WriteUInt32LittleEndian(elf.AsSpan(0x11bc),19);
+            BinaryPrimitives.WriteUInt32LittleEndian(elf.AsSpan(0x11d0),23);
+            foreach(var call in calls.Where(c=>c.Number is 14 or 131))
+            {
+                int at=Start(call);int output;
+                if(call.Number==131)
+                {
+                    HostCheck.Equal((byte)0xbe,elf[at+10]);uint address=U32(elf,at+11);if(address==0)continue;
+                    output=checked((int)(address-0x400000));
+                    BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(output),0x406000);
+                    BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(output+8),call.Handler?1UL:0);
+                    BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(output+16),4096);
+                }
+                else
+                {
+                    HostCheck.Equal((byte)0xba,elf[at+15]);uint address=U32(elf,at+16);if(address==0)continue;
+                    output=checked((int)(address-0x400000));
+                    BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(output),call.Handler?512UL:0);
+                }
+                HostCheck.Equal(3U,U32(elf,pair));HostCheck.Equal(4U,U32(elf,pair+4));
+                HostCheck.Equal(17U,U32(elf,0x11b8));HostCheck.Equal(19U,U32(elf,0x11bc));HostCheck.Equal(23U,U32(elf,0x11d0));
+            }
+            foreach(var call in calls)
+            {
+                int end=checked((int)(call.ReturnRip-0x400000));
+                if(call.Number is 0 or 1 && elf.AsSpan(end-8,2).SequenceEqual(new byte[]{0x8b,0x3d}))
+                    HostCheck.Equal(pair+(call.Number==0?0:4),end-2+I32(elf,end-6));
+            }
+        }
+    }
+
     [HostTest("m16-009 interrupted wait packages map disjoint payload read TLS and alternate stack pages")]
     private static void Packages()
     {
@@ -57,7 +101,7 @@ internal static unsafe class LinuxSignalWaitProofFixtureTests
                 if (fd)
                 {
                     HostCheck.True(call.Number is 0 or 1);
-                    HostCheck.Equal(call.Number == 0 ? 0x11b0 : 0x11b4, end - 2 + I32(elf,end - 6));
+                    HostCheck.Equal(call.Number == 0 ? 0x11c0 : 0x11c4, end - 2 + I32(elf,end - 6));
                 }
                 HostCheck.Equal(i >= pre.Length && i < pre.Length + child.Length, call.Child);
                 HostCheck.Equal(i >= pre.Length + child.Length && i < pre.Length + child.Length + handler.Length, call.Handler);

@@ -12,7 +12,7 @@ public static partial class QemuTranscripts
         bool restart=variant.EndsWith("Restart",StringComparison.Ordinal);
         var instructions=LinuxSignalProofFixture.ExpectedWaitInvocations(variant);
         List<SignalWaitCall> pre=[new(39,1),new(186,1),new(158,0,0x1002,0x402000),new(13,0,10,0x401100,0,8),new(131,0,0x401120)];
-        if(!futex)pre.Add(new(293,0,0x4011b0));
+        if(!futex)pre.Add(new(293,0,0x4011c0));
         pre.Add(new(56,2,0x7d0f00,0x406000,0x4011b8,0x4011bc,0x403000));
         SignalWaitCall blocked=futex?new(202,0,0x4011d0,128,0,0,Action:3,Status:9):
             new(partial?1UL:0UL,0,partial?4UL:3UL,partial?0x407000UL:0x409000UL,partial?4100UL:1UL,Action:3,Status:9);

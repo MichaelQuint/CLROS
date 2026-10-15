@@ -9,7 +9,8 @@ public static partial class LinuxSignalProofFixture
     public static IReadOnlyList<string> WaitVariants { get; } = Array.AsReadOnly<string>(
         ["SignalPipeEintr","SignalPipeRestart","SignalFutexEintr","SignalFutexRestart","SignalPipePartial"]);
     public const int WaitElfBytes = 0xa000, WaitChildOffset = 0x800;
-    public const int WaitPair = 0x11b0, WaitTid = 0x11b8, WaitClearTid = 0x11bc, WaitWord = 0x11d0;
+    // HandlerStackOut occupies [0x11a0,0x11b8), including its ss_size word.
+    public const int WaitPair = 0x11c0, WaitTid = 0x11b8, WaitClearTid = 0x11bc, WaitWord = 0x11d0;
     public const int WaitPayload = 0x7000, WaitRead = 0x9000;
 
     /// <summary>Exact canonical blocked-wait selector; a name alone grants no package authority.</summary>
