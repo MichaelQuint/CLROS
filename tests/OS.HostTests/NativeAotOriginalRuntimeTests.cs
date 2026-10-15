@@ -168,6 +168,13 @@ internal static class NativeAotOriginalRuntimeTests
         HostCheck.Equal(string.Join("\r\n",vector.Core.Rows)+"\r\n",capture.NormalizedTail);
         Reject(()=>QemuTranscripts.ValidateNativeAotRuntimeTail("",[],null!,raw,8192,12288),"runtime_program_missing");
         Reject(()=>new SmokeVector(true).Inspect(),"runtime_smoke_timer_kernel_evidence");
+        foreach(string failure in new[]{
+            "M16_008_STOP reason=1 step=218 epochs=218 clockRead=1 now=300000000001 started=0 observed=299999999999 ready=1 deadlines=0 active=5 failed=0 processFailed=0 faults=0 syscallFailed=0",
+            "M16_008_CLEANUP_REJECT stage=3"})
+        {
+            var stopped=vector.Core.Rows.ToList();stopped.Insert(6,failure);
+            Reject(()=>vector.Inspect(stopped.ToArray()));
+        }
         foreach(var change in new[]{("workers=16","workers=8"),("entropyBytes=256","entropyBytes=32"),
             ("packageBytes=1511248","packageBytes=1577616"),("M16_008_BUDGET_END nanos=100","M16_008_BUDGET_END nanos=99"),
             (" context=zero stack=zero slot=zero"," context=zero stack=dirty slot=zero")})

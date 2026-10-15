@@ -192,11 +192,18 @@ internal static unsafe class M16008EfiIntegrationTests
         var owner = methods.Single(m => m.Identifier.Text == "RunLinuxNativeOwner");
         var calls = owner.DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
         var clear = calls.Single(c => c.Expression.ToString() == "LinuxNativeClearUserMemory");
+        var teardown = calls.Single(c => c.Expression.ToString() == "LinuxNativeBeginTeardown");
         HostCheck.True(calls.Single(c => c.Expression.ToString() == "LinuxNativeRelease").SpanStart < clear.SpanStart &&
             calls.Single(c => c.Expression.ToString() == "LinuxDescriptorServices.End").SpanStart < clear.SpanStart &&
             clear.SpanStart < calls.Last(c => c.Expression.ToString() == "CooperativeSetPoolMappings").SpanStart);
+        HostCheck.True(calls.Single(c => c.Expression.ToString() == "LinuxNativeRelease").SpanStart < teardown.SpanStart &&
+            teardown.SpanStart < clear.SpanStart);
         HostCheck.True(clear.Parent is PrefixUnaryExpressionSyntax unary && unary.RawKind == (int)SyntaxKind.LogicalNotExpression &&
-            unary.Parent is IfStatementSyntax gate && gate.Statement is ReturnStatementSyntax returned && returned.Expression!.RawKind == (int)SyntaxKind.FalseLiteralExpression);
+            unary.Parent is IfStatementSyntax gate && gate.Statement is ReturnStatementSyntax returned &&
+            returned.Expression is InvocationExpressionSyntax rejected && rejected.Expression.ToString() == "LinuxNativeCleanupRejected");
+        var rejection = methods.Single(m => m.Identifier.Text == "LinuxNativeCleanupRejected");
+        HostCheck.True(rejection.DescendantNodes().OfType<ReturnStatementSyntax>().All(r =>
+            r.Expression!.IsKind(SyntaxKind.FalseLiteralExpression)));
         var cleanup = methods.Single(m => m.Identifier.Text == "LinuxNativeClearUserMemory");
         var bodyCalls = cleanup.DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
         var unmap = bodyCalls.Single(c => c.Expression.ToString() == "LinuxMemoryServices.Unmap");

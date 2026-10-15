@@ -2,6 +2,15 @@
 
 ## Development Linux threading profile
 
+[Step1290](../done/step1290.md) authenticates each IRQ-off pool audit once while
+retaining every leaf/guard/permission check and full standalone walk admission.
+A checked released-owner teardown phase ends active callback checks only after
+all borrows drain. Twenty-four focused checks and native publication pass.
+R17 finishes its failed app run in25.6s under the unchanged300s bound and emits
+the full owner-end cleanup witness. The app reports OutOfMemoryException on a
+4MiB mprotect/commit request; the raw runtime verifier rejects it. Runtime groups,
+nonzero-exit native marker gating and exact memory-limit diagnosis remain pending.
+
 [Step1289](../done/step1289.md) adds the real CLOCK_MONOTONIC_COARSE path used
 by pinned NativeAOT low-resolution ticks, sharing the live monotonic epoch at
 1ms resolution. Twenty-four focused checks and native publication pass. Real

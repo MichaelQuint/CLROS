@@ -755,19 +755,28 @@ public static unsafe partial class EfiEntry
         private static bool CooperativeFindLeaf(Storage* state, ulong address, out ulong* leaf, bool ownedIst = false)
         {
             leaf = null;
+            if (!CooperativeAdmitPool(state, ownedIst, out var memory, out ulong root)) return false;
+            return CooperativeWalkPoolLeaf(memory, state->CooperativePool, root, address, out leaf);
+        }
+
+        // Authenticate one IRQ-off, single-BSP operation. These observations
+        // are call-local: no code, descriptor, root or borrow validity survives
+        // a transfer, callback, mapping change or return to the caller.
+        private static bool CooperativeAdmitPool(Storage* state, bool ownedIst, out FirstExitDiagnosticMemory memory, out ulong root)
+        {
+            memory = default; root = 0;
             fixed (Storage* retained = &s_storage) if (state != retained) return false;
             if (state->Phase != 4 || !state->Arena.IsReady ||
                 state->Arena.Transition->Mode != FirmwareServicesMode.BootServicesExited ||
                 !state->Arena.Transition->RetainedFirmwareCallbacksCleared || !state->Arena.Binding->RetainedPointersCleared)
                 return false;
-            FirstExitDiagnosticMemory memory = state->Memory;
+            memory = state->Memory;
             ulong pool = state->CooperativePool, poolBytes = CooperativePoolPages * Page;
             if (pool < Page || (pool & (Page - 1)) != 0 || pool > 0x100000000UL - poolBytes ||
                 memory.References.CooperativePoolStart != pool || memory.References.CooperativePoolPages != CooperativePoolPages ||
-                address < pool || address - pool >= poolBytes || (address & (Page - 1)) != 0 ||
                 memory.Tables.ArenaPageCount != TablePages || memory.PageCapacity != TablePages || memory.EntryCapacity != TablePages * 512 ||
                 memory.Pages != (X64PageTableImagePage*)state->PageMetadata ||
-                memory.Tables.ArenaStart.TryGetRawValueForHardwareRegisterBoundary(out ulong root) != AddressValueStatus.Success ||
+                memory.Tables.ArenaStart.TryGetRawValueForHardwareRegisterBoundary(out root) != AddressValueStatus.Success ||
                 root != (ulong)memory.Entries || root < Page || root > 0x100000000UL - TablePages * Page || (root & (Page - 1)) != 0 ||
                 !Disjoint(pool, poolBytes, root, TablePages * Page) ||
                 !Disjoint(pool, poolBytes, (ulong)memory.Code, FirstExitCodeBundle.Bytes) ||
@@ -832,6 +841,16 @@ public static unsafe partial class EfiEntry
                 observed[9] < 0x80000001UL || (observed[10] & 0x20100000UL) != 0x20100000UL ||
                 (observed[11] & 0xd00UL) != 0xd00UL || observed[15] != 0 || observed[16] != 0 ||
                 !ownedDataSelectors) return false;
+            return true;
+        }
+
+        // Called only inside the operation that just admitted memory/root.
+        // This read-only walk executes no callbacks and preserves every live
+        // table/leaf check, including guards; the caller verifies permissions.
+        private static bool CooperativeWalkPoolLeaf(FirstExitDiagnosticMemory memory, ulong pool, ulong root, ulong address, out ulong* leaf)
+        {
+            leaf = null;
+            if (address < pool || address - pool >= CooperativePoolPages * Page || (address & (Page - 1)) != 0) return false;
             ulong table = root, visited = 0;
             for (int level = 4; level >= 1; level--)
             {
@@ -921,15 +940,15 @@ public static unsafe partial class EfiEntry
         // retain SS16; the separate Linux gateway authenticates its own envelope.
         private static bool CooperativeAuditPool(Storage* state, bool published, bool ownedIst = false)
         {
-            fixed (Storage* retained = &s_storage) if (state != retained) return false;
+            if (!CooperativeAdmitPool(state, ownedIst, out var memory, out ulong root)) return false;
             for (uint page = 0; page < CooperativePoolPages; page++)
             {
                 ulong address = state->CooperativePool + page * Page;
-                if (!CooperativeFindLeaf(state, address, out ulong* leaf, ownedIst)) return false;
+                if (!CooperativeWalkPoolLeaf(memory, state->CooperativePool, root, address, out ulong* leaf)) return false;
                 ulong raw = *leaf;
                 bool guard = published && CooperativeGuardPage(page);
                 if (guard) { if (raw != 0) return false; continue; }
-                var decoded = X64PageTableEntry.TryDecode(X64PageTableLevel.Pte, raw, state->Memory.Tables.Preconditions);
+                var decoded = X64PageTableEntry.TryDecode(X64PageTableLevel.Pte, raw, memory.Tables.Preconditions);
                 PageProtection expected = published && page < CooperativeCodePages ? PageProtection.Read | PageProtection.Execute : PageProtection.Read | PageProtection.Write;
                 if (!decoded.Succeeded || decoded.Kind != X64PageTableEntryKind.Leaf || decoded.Protection != expected ||
                     decoded.CachePolicy != PageCachePolicy.WriteBack || decoded.PageSizeBytes != Page ||

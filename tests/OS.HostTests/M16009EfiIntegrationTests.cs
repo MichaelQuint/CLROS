@@ -59,6 +59,71 @@ internal static unsafe class M16009EfiIntegrationTests
             HostCheck.True(validator.DescendantNodes().OfType<InvocationExpressionSyntax>().Any(c => c.Expression.ToString() == required));
     }
 
+    [HostTest("m16-009 pool audit authenticates each call once before all leaf walks and rejects admission bypass")]
+    private static void PoolAuditBoundary()
+    {
+        string source = File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(), "src/OS/Boot/EfiEntry.cs"));
+        HostCheck.Equal(0UL, OS.Kernel.Threading.ThreadContextSwitch.AdmittedFlags & 0x200UL);
+        foreach (string flag in new[] { "EnableM09004Probe", "EnableM16008Probe", "EnableM16009Probe" })
+        {
+            var profile = EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { [flag] = true });
+            string[] symbols = profile.Flags.Where(p => p.Value).Select(p => EfiContracts.ProbeSymbols[p.Key]).ToArray();
+            var tree = CSharpSyntaxTree.ParseText(source, new CSharpParseOptions(preprocessorSymbols: symbols));
+            HostCheck.True(!tree.GetDiagnostics().Any(d => d.Severity == DiagnosticSeverity.Error));
+            var syntax = tree.GetRoot();
+            HostCheck.True(PoolBoundary(syntax), flag);
+            foreach (string caller in new[] { "CooperativeFindLeaf", "CooperativeAuditPool" })
+            {
+                var method = syntax.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(m => m.Identifier.Text == caller);
+                var admission = method.DescendantNodes().OfType<InvocationExpressionSyntax>().Single(c => c.Expression.ToString() == "CooperativeAdmitPool");
+                var guard = admission.Ancestors().OfType<IfStatementSyntax>().First();
+                HostCheck.True(!PoolBoundary(syntax.RemoveNode(guard, SyntaxRemoveOptions.KeepNoTrivia)!), caller + " must reject missing admission");
+            }
+            var common = syntax.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(m => m.Identifier.Text == "CooperativeAdmitPool");
+            var names = common.DescendantNodes().OfType<InvocationExpressionSyntax>().Select(c => c.Expression.ToString()).ToArray();
+            HostCheck.Equal(1, names.Count(n => n == "FirstExitCodeBundle.ValidateInstalledReadBack"));
+            if (flag == "EnableM16009Probe")
+                foreach (string required in new[] { "LinuxNativeOwner", "LinuxNativeUserWorker", "LinuxNativeUserGates", "LinuxNativeTimerInstalled" })
+                    HostCheck.True(names.Contains(required), required);
+        }
+    }
+
+    // Native CPU observations cannot run in a host fixture. Check that their
+    // rejecting gate dominates both private walk callers; removed gates are
+    // independent negatives. Actual code/descriptor/PTE rejection remains in
+    // the native owner's existing host contracts and guest qualification.
+    private static bool PoolBoundary(SyntaxNode syntax)
+    {
+        var methods = syntax.DescendantNodes().OfType<MethodDeclarationSyntax>().ToArray();
+        if (syntax.DescendantNodes().OfType<InvocationExpressionSyntax>().Count(c => c.Expression.ToString() == "CooperativeWalkPoolLeaf") != 2) return false;
+        foreach (string name in new[] { "CooperativeFindLeaf", "CooperativeAuditPool" })
+        {
+            var method = methods.Single(m => m.Identifier.Text == name);
+            var calls = method.DescendantNodes().OfType<InvocationExpressionSyntax>().ToArray();
+            var admission = calls.Where(c => c.Expression.ToString() == "CooperativeAdmitPool").ToArray();
+            var walks = calls.Where(c => c.Expression.ToString() == "CooperativeWalkPoolLeaf").ToArray();
+            if (admission.Length != 1 || walks.Length != 1 ||
+                admission[0].Parent is not PrefixUnaryExpressionSyntax unary || !unary.IsKind(SyntaxKind.LogicalNotExpression) ||
+                unary.Parent is not IfStatementSyntax gate || gate.Condition != unary || gate.Parent != method.Body ||
+                gate.Statement is not ReturnStatementSyntax rejected || rejected.Expression?.IsKind(SyntaxKind.FalseLiteralExpression) != true ||
+                gate.Span.End > walks[0].SpanStart) return false;
+            if (name == "CooperativeFindLeaf")
+            {
+                if (walks[0].Parent is not ReturnStatementSyntax) return false;
+            }
+            else
+            {
+                var loops = method.DescendantNodes().OfType<ForStatementSyntax>().ToArray();
+                if (loops.Length != 1 || loops[0].Parent != method.Body || !walks[0].Ancestors().Contains(loops[0]) ||
+                    !loops[0].DescendantNodes().OfType<InvocationExpressionSyntax>().Any(c => c.Expression.ToString() == "CooperativeGuardPage") ||
+                    !loops[0].DescendantNodes().OfType<InvocationExpressionSyntax>().Any(c => c.Expression.ToString() == "X64PageTableEntry.TryDecode")) return false;
+            }
+        }
+        var walk = methods.Single(m => m.Identifier.Text == "CooperativeWalkPoolLeaf");
+        return walk.DescendantNodes().OfType<InvocationExpressionSyntax>().All(c =>
+            c.Expression.ToString() is "X64PageTableEntry.TryDecode" or "decoded.PhysicalAddress.TryGetRawValueForHardwareRegisterBoundary");
+    }
+
     [HostTest("m16-009 runner rejects foreign packages before build and keeps the canonical input read lock")]
     private static void Preflight()
     {

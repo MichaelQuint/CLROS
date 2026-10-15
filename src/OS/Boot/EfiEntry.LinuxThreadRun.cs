@@ -70,26 +70,27 @@ public static unsafe partial class EfiEntry
             // transfer with Current/Handoff retained never authorizes a guess.
             bool hardware = !published || LinuxNativeRestoreTimer(c);
             bool empty = c == null || c->Process.ActiveThreads == 0 && !c->Threads.Current.IsValid && !c->Threads.HandoffPending;
-            if (!hardware || !empty) return false;
+            if (!hardware || !empty) return LinuxNativeCleanupRejected(state, 1);
             uint reaped = c == null ? 0 : c->Reaped, transfers = c == null ? 0 : c->Transfers;
             ulong epochs = c == null ? 0 : c->Epoch;
             bool runtimeBudget = c != null && c->Capacity > 8;
             ulong observedNanos = c == null ? 0 : c->Budget.ObservedNanoseconds;
             bool failed = c != null && (c->Failed != 0 || c->Process.Failed);
-            if (published && !LinuxNativeRelease(c, LinuxNativeRsp(c))) return false;
+            if (published && !LinuxNativeRelease(c, LinuxNativeRsp(c))) return LinuxNativeCleanupRejected(state, 2);
+            if (published && !LinuxNativeBeginTeardown(state, c)) return LinuxNativeCleanupRejected(state, 3);
             if (state->LinuxDescriptorPhase == 4)
             {
                 if (!LinuxDescriptorServices.Audit(&state->LinuxDescriptors) || !LinuxDescriptorServices.End(&state->LinuxDescriptors) ||
-                    !LinuxDescriptorReleaseChecked(state)) return false;
+                    !LinuxDescriptorReleaseChecked(state)) return LinuxNativeCleanupRejected(state, 4);
                 state->LinuxDescriptorPhase = 6;
             }
-            if (!LinuxNativeClearUserMemory(state)) return false;
-            if (captured ? !CooperativeSetPoolMappings(state, originals, false, out _) : !CooperativeAuditPool(state, false)) return false;
-            if (!CooperativeAuditOriginalMappings(state) || !CooperativeAuditPool(state, false)) return false;
+            if (!LinuxNativeClearUserMemory(state)) return LinuxNativeCleanupRejected(state, 5);
+            if (captured ? !CooperativeSetPoolMappings(state, originals, false, out _) : !CooperativeAuditPool(state, false)) return LinuxNativeCleanupRejected(state, 6);
+            if (!CooperativeAuditOriginalMappings(state) || !CooperativeAuditPool(state, false)) return LinuxNativeCleanupRejected(state, 7);
             for (ulong i = 0; i < CooperativePoolPages * Page; i++) ((byte*)state->CooperativePool)[i] = 0;
-            for (ulong i = 0; i < CooperativePoolPages * Page; i++) if (((byte*)state->CooperativePool)[i] != 0) return false;
-            if (!ClearLinuxRandom(state)) return false;
-            if (!LinuxMemoryServices.Audit(&state->LinuxMemory) || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            for (ulong i = 0; i < CooperativePoolPages * Page; i++) if (((byte*)state->CooperativePool)[i] != 0) return LinuxNativeCleanupRejected(state, 8);
+            if (!ClearLinuxRandom(state)) return LinuxNativeCleanupRejected(state, 9);
+            if (!LinuxMemoryServices.Audit(&state->LinuxMemory) || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return LinuxNativeCleanupRejected(state, 10);
             state->CooperativePhase = state->LinuxSyscallPhase = state->LinuxMemoryPhase = 6;
             bool logged = (!runtimeBudget || LinuxText(state, "M16_008_BUDGET_END nanos=") && LinuxNumber(state, observedNanos) && LinuxText(state, "\r\n")) &&
                 LinuxText(state, "M16_008_OWNER_END reaped=") && LinuxNumber(state, reaped) &&
@@ -99,6 +100,33 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " userBacked=") && LinuxNumber(state, state->LinuxMemory.BackedPages) &&
                 LinuxText(state, " process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained\r\n");
             return ran && logged && !failed && state->LinuxSyscallFailed == 0 && state->LinuxSyscallFaults == 0;
+        }
+
+        // Release ends live process authority. Authenticate that exact retained
+        // control and restored hardware borrows before ending active pool checks;
+        // the common code/CPU/leaf checks still govern every teardown mapping.
+        private static bool LinuxNativeBeginTeardown(Storage* state, LinuxNativeControl* c)
+        {
+            if (c == null || c != (LinuxNativeControl*)(state->CooperativePool + NativeProgram.MetadataPage * Page) ||
+                c->State != state || c->Phase != 5 || state->CooperativePhase != 2 || state->LinuxSyscallPhase != 4 ||
+                c->Installed != 0 || c->Selected != 0 || c->GuardAttached != 0 || c->ProcessAttached != 0 ||
+                c->TableAttached != 0 || c->SignalsInitialized != 0 || c->Timer.IsPrepared ||
+                c->TimerDeadlines.IsInitialized || c->TimerDeadlines.HasPending || c->TimerDeadlines.Count != 0 ||
+                c->Process.ActiveThreads != 0 || c->Threads.Current.IsValid || c->Threads.HandoffPending ||
+                state->LinuxMemory.HasMutationGuard ||
+                *(ulong*)(state->LinuxSyscallData + X64LinuxUserTransition.PhaseOffset) != 2 ||
+                *(ulong*)(state->Arena.Descriptors->Tss + 4) != state->Arena.StackTop ||
+                *(ulong*)(state->Arena.Descriptors->Tss + 60) != 0) return false;
+#if M16_009_PROBE
+            if (c->UserTimer != 0 || c->UserDrain != 0 || c->UserAcknowledged != 0 || c->UserPreempted != 0) return false;
+#endif
+            state->CooperativePhase = 5; return true;
+        }
+
+        private static bool LinuxNativeCleanupRejected(Storage* state, uint stage)
+        {
+            _ = LinuxText(state, "M16_008_CLEANUP_REJECT stage=") && LinuxNumber(state, stage) && LinuxText(state, "\r\n");
+            return false;
         }
 
         // The caller has restored hardware, confirmed every supervisor handoff,
@@ -181,24 +209,25 @@ public static unsafe partial class EfiEntry
                 {
                     ulong now = 0;
                     delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
-                    if ((c->Capacity > 8 && clock(c->State, &now) != 1 || !c->Budget.Continue(now, c->Epoch, step)) &&
-                        !LinuxNativeStop(c)) return false;
+                    bool clockRead = c->Capacity <= 8 || clock(c->State, &now) == 1;
+                    if ((!clockRead || !c->Budget.Continue(now, c->Epoch, step)) &&
+                        !LinuxNativeStop(c, clockRead ? 1U : 6U, step, now, clockRead)) return false;
                 }
                 if ((c->Failed != 0 || c->Process.Failed || c->State->LinuxSyscallFaults != 0 || c->State->LinuxSyscallFailed != 0) &&
-                    !LinuxNativeStop(c)) return false;
+                    !LinuxNativeStop(c, 2, step)) return false;
                 if (c->Threads.Flush(c->Key, 2) != KernelThreadTable.Status.Ok) return false;
                 if (c->Threads.ReadyCount != 0)
                 { if (!LinuxNativeDispatch(c)) return false; }
                 else if (c->Threads.DeadlineCount != 0 && c->Stopping == 0)
                 {
-                    if (!LinuxNativeWaitOne(c) && (!LinuxNativeRestoreTimer(c) || !LinuxNativeStop(c))) return false;
+                    if (!LinuxNativeWaitOne(c) && (!LinuxNativeRestoreTimer(c) || !LinuxNativeStop(c, 3, step))) return false;
                 }
-                else if (!LinuxNativeStop(c)) return false;
+                else if (!LinuxNativeStop(c, 4, step)) return false;
             }
             // The bounded driver itself has made no native transfer here.
             // Cancellation still needs actual continuations, so use a separate
             // finite drain budget rather than freeing still-live resources.
-            if (!LinuxNativeStop(c)) return false;
+            if (!LinuxNativeStop(c, 5, c->Budget.MaximumSteps)) return false;
             for (uint step = 0; step < LinuxNativeWorkers * 3; step++)
             {
                 if (!LinuxNativeReapExited(c)) return false;
@@ -208,10 +237,29 @@ public static unsafe partial class EfiEntry
             return false;
         }
 
-        private static bool LinuxNativeStop(LinuxNativeControl* c)
+        // First-stop evidence distinguishes budget, failed-owner, idle,
+        // empty untimed-wait and step-limit paths. Log before staged shutdown;
+        // never emit TEST_FAIL here, because the actual exit/reap drain follows.
+        private static bool LinuxNativeStop(LinuxNativeControl* c, uint reason, uint step, ulong now = 0, bool clockRead = false)
         {
+            bool logged = c->Stopping != 0 || c->Capacity <= 8 ||
+                LinuxText(c->State, "M16_008_STOP reason=") && LinuxNumber(c->State, reason) &&
+                LinuxText(c->State, " step=") && LinuxNumber(c->State, step) &&
+                LinuxText(c->State, " epochs=") && LinuxNumber(c->State, c->Epoch) &&
+                LinuxText(c->State, " clockRead=") && LinuxNumber(c->State, clockRead ? 1UL : 0UL) &&
+                LinuxText(c->State, " now=") && LinuxNumber(c->State, now) &&
+                LinuxText(c->State, " started=") && LinuxNumber(c->State, c->Budget.StartedNanoseconds) &&
+                LinuxText(c->State, " observed=") && LinuxNumber(c->State, c->Budget.ObservedNanoseconds) &&
+                LinuxText(c->State, " ready=") && LinuxNumber(c->State, c->Threads.ReadyCount) &&
+                LinuxText(c->State, " deadlines=") && LinuxNumber(c->State, c->Threads.DeadlineCount) &&
+                LinuxText(c->State, " active=") && LinuxNumber(c->State, c->Process.ActiveThreads) &&
+                LinuxText(c->State, " failed=") && LinuxNumber(c->State, c->Failed) &&
+                LinuxText(c->State, " processFailed=") && LinuxNumber(c->State, c->Process.Failed ? 1UL : 0UL) &&
+                LinuxText(c->State, " faults=") && LinuxNumber(c->State, c->State->LinuxSyscallFaults) &&
+                LinuxText(c->State, " syscallFailed=") && LinuxNumber(c->State, c->State->LinuxSyscallFailed) && LinuxText(c->State, "\r\n");
             c->Failed = c->Stopping = 1; c->State->LinuxSyscallExitCode = 99;
-            return !c->Threads.Current.IsValid && !c->Threads.HandoffPending && c->Process.Shutdown(c->Key, 2, 99);
+            bool stopped = !c->Threads.Current.IsValid && !c->Threads.HandoffPending && c->Process.Shutdown(c->Key, 2, 99);
+            return logged && stopped;
         }
 
         private static bool LinuxNativeDispatch(LinuxNativeControl* c)

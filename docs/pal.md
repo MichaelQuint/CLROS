@@ -1,5 +1,13 @@
 # PAL
 
+[Step1290](../done/step1290.md) removes repeated common authentication within a
+single IRQ-off pool audit and checks released-owner teardown before pool
+restoration. R17 emits a complete cleanup witness for an app exit1 after actual
+OutOfMemoryException; raw runtime acceptance correctly fails. Driver execution
+lasts25.6s with the same300s limit. Twenty-four focused checks/native publication
+pass; memory-limit diagnosis, native nonzero-exit gating and full guest runtime
+qualification remain pending.
+
 [Step1289](../done/step1289.md) supplies real coarse monotonic time for NativeAOT
 tick/deadline calculations. R16 clock6 requests succeed; the app advances beyond
 the previous startup timeout to five live threads, then the driver stops near
