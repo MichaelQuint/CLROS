@@ -294,6 +294,23 @@ internal static class NativeAotThreadingTranscriptTests
         Reject(v,v.Rows.Where((_,i)=>i!=at+1).ToArray());
     }
 
+    [HostTest("nativeaot.threading optional HPET boundary diagnostics bind only to the completed IRQ owner and ordered samples")]
+    private static void TimingDiagnostics()
+    {
+        var v=PoolVector();int at=v.Rows.FindIndex(r=>r.StartsWith("M16_008_SUPERVISOR ",StringComparison.Ordinal));
+        const string timing="M16_008_TIMING identity=4294967297 epoch=1 start=100 arm=200 capture=300 ready=400 periodFs=10000000";
+        v.Rows.Insert(at+1,timing);HostCheck.True(Inspect(v).Reaped==6);
+        Reject(v,Change(v,"M16_008_TIMING ","identity",4294967298));
+        Reject(v,Change(v,"M16_008_TIMING ","epoch",2));
+        Reject(v,Change(v,"M16_008_TIMING ","arm",99));
+        Reject(v,Change(v,"M16_008_TIMING ","capture",199));
+        Reject(v,Change(v,"M16_008_TIMING ","ready",299));
+        Reject(v,Change(v,"M16_008_TIMING ","periodFs",0));
+        Reject(v,Change(v,"M16_008_TIMING ","periodFs",1_000_000_001));
+        v.Rows.RemoveAt(at+1);int blocked=v.Rows.FindIndex(r=>r.Contains("action=3 transfers=",StringComparison.Ordinal));
+        v.Rows.Insert(blocked+1,timing);Reject(v,v.Rows.ToArray());
+    }
+
     [HostTest("nativeaot.threading synthetic scheduler rejects premature deadlines wrong FIFO resumes and forged owner cleanup")]
     private static void SchedulerFailures()
     {

@@ -27,7 +27,13 @@ public static unsafe partial class EfiEntry
             if (c->Timer.Prepare(c->Key, c->State->ApicTopology.LocalApicAddress, 2000000, 8,
                 ApicAccess(c->State), 2, c->Epoch) != SchedulerTimer.Status.Ok) return false;
             *(ulong*)(c->State->Arena.Descriptors->Tss + 60) = c->State->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page;
-            return LinuxNativeTimerInstalled(c) && c->Timer.Arm(c->Key, 2, true) == SchedulerTimer.Status.Ok;
+            if (!LinuxNativeTimerInstalled(c)) return false;
+            if (c->TimingValid == 1)
+            {
+                if (LinuxNativeTimingRead(c, &c->TimingArm)) c->TimingValid = 3;
+                else c->TimingValid = 0;
+            }
+            return c->Timer.Arm(c->Key, 2, true) == SchedulerTimer.Status.Ok;
         }
 
         private static bool LinuxNativeUserWorker(LinuxNativeControl* c, uint index) =>
@@ -86,6 +92,11 @@ public static unsafe partial class EfiEntry
             if (*(ulong*)(data + X64LinuxUserTransition.CaptureStackOffset) !=
                 state->CooperativePool + NativeProgram.IrqTopPage * Page - 56)
                 return LinuxNativeUserInterruptRejected(state, 2);
+            if (c->TimingValid == 3)
+            {
+                if (LinuxNativeTimingRead(c, &c->TimingCapture)) c->TimingValid = 7;
+                else c->TimingValid = 0;
+            }
             if (!LinuxNativeUserGates(c, true)) return LinuxNativeUserInterruptRejected(state, 3);
             if (!LinuxNativeVerify(c)) return LinuxNativeUserInterruptRejected(state, 4);
             if (!CooperativeAuditPool(state, true)) return LinuxNativeUserInterruptRejected(state, 8);

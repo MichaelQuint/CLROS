@@ -295,6 +295,8 @@ public static partial class QemuTranscripts
                 var supervisor=Row("M16_008_SUPERVISOR","identity:dec","action:dec","transfers:dec","ready:dec","active:dec");
                 Need(supervisor["identity"]==t.Identity && supervisor["action"]==action && supervisor["transfers"]==(ulong)transfers &&
                     supervisor["ready"]==(ulong)ready.Count && supervisor["active"]==(ulong)active,"threading_supervisor");
+                if(Starts("M16_008_TIMING "))
+                {Need(action==1 && !ending && !exiting,"threading_timing_irq_only");LinuxTiming(Take(),t.Identity,(ulong)epochs);}
                 if(exiting)
                 {
                     const string scrub=" context=zero stack=zero slot=zero"; string reap=Take();

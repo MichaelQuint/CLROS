@@ -1,5 +1,14 @@
 # PAL
 
+[Step1296](../done/step1296.md) adds optional, ordered raw HPET observations
+around dispatch setup, timer arm, IRQ capture and supervisor restoration. The
+strict original RuntimeSmoke regression passes with all five output rows and
+full cleanup. A shorter application-only timer count reduced the armed interval
+but still failed GC stress sleep_window and increased transfers; that trial is
+reverted. The original timer count, application bytes, deadlines and all guards
+remain. Next remove one independently reviewed duplicate saved-code scan before
+the same check at the reap boundary; final shared acceptance remains pending.
+
 [Step1295](../done/step1295.md) implements syscall24 through an actual captured
 FIFO yield. It stages no wait and rejects successful return-only substitution.
 63 focused checks and unchanged original RuntimeSmoke pass, including ten real

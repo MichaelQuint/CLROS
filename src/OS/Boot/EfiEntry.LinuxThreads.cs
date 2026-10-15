@@ -28,6 +28,8 @@ public static unsafe partial class EfiEntry
             internal uint Phase, Published, Capacity, Selected, Failed, Stopping, Reaped, Transfers, UserFaults;
 #if M16_009_PROBE
             internal uint UserTimer, UserAcknowledged, UserDrain, UserPreempted;
+            internal ulong TimingStart, TimingArm, TimingCapture, TimingReady;
+            internal uint TimingValid;
 #endif
             internal NativeProgram.Plan Plan;
             internal KernelThreadTable Threads;

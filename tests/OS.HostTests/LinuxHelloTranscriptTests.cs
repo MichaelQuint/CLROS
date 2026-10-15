@@ -34,6 +34,15 @@ internal static class LinuxHelloTranscriptTests
         Reject(uncontended.Where(r=>!r.Contains("identity=4294967299 nr=0 ",StringComparison.Ordinal)).ToArray());
     }
 
+    [HostTest("nativeaot.hello optional timing rows cannot stand in for the required IRQ or alter its identity")]
+    private static void TimingDiagnostics()
+    {
+        var rows=Build(wakeBeforeWait:true).ToList();int at=rows.FindIndex(r=>r.StartsWith("M16_008_SUPERVISOR ",StringComparison.Ordinal));
+        rows.Insert(at+1,"M16_008_TIMING identity=4294967297 epoch=1 start=100 arm=200 capture=300 ready=400 periodFs=10000000");
+        _=Inspect(rows.ToArray());Reject(Change(rows.ToArray(),"M16_008_TIMING ","epoch",2));
+        rows.RemoveAt(at-1);Reject(rows.ToArray());
+    }
+
     [HostTest("nativeaot.hello application budget requires exact bounds fresh clocks and both lifetime records")]
     private static void BudgetRecords()
     {

@@ -36,6 +36,14 @@ public static partial class QemuTranscripts
     /// <summary>Value-only protocol accounting, without execution or input authority.</summary>
     public readonly record struct HelloProtocolReport(int Calls, int Irqs, int Drains, int Transfers);
 
+    // Optional diagnostics never replace clock, scheduling or cleanup evidence.
+    private static void LinuxTiming(string line,ulong identity,ulong epoch)
+    {
+        var r=ReadRecord(line,"M16_008_TIMING","identity:dec","epoch:dec","start:dec","arm:dec","capture:dec","ready:dec","periodFs:dec");
+        Need(r["identity"]==identity && r["epoch"]==epoch && r["periodFs"] is >0 and <=1_000_000_000 &&
+            r["start"]<=r["arm"] && r["arm"]<=r["capture"] && r["capture"]<=r["ready"],"linux_timing_observation");
+    }
+
     // Validate original bytes before removing only the three known payload LFs
     // for the existing CRLF record parser and runner's trimmed marker summary.
     private static string NormalizeHelloWrites(string text)
@@ -166,6 +174,8 @@ public static partial class QemuTranscripts
                 ulong action = exiting ? t.Tid == 1 ? 2UL : 4UL : ending ? 3UL : 1UL;
                 Need(supervisor["identity"] == t.Identity && supervisor["action"] == action && supervisor["transfers"] == (ulong)transfers &&
                     supervisor["ready"] == (ulong)ready.Count && supervisor["active"] == (ulong)active, "hello_supervisor");
+                if(Starts("M16_008_TIMING "))
+                { Need(action==1 && !ending && !exiting,"hello_timing_irq_only");LinuxTiming(Take(),t.Identity,(ulong)epochs); }
                 if (exiting)
                 {
                     const string scrub = " context=zero stack=zero slot=zero";

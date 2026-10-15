@@ -2,6 +2,13 @@
 
 ## Development Linux threading profile
 
+[Step1296](../done/step1296.md) adds optional HPET boundary diagnostics without
+replacing IRQ, ownership or cleanup evidence.64 focused checks and the strict
+original RuntimeSmoke regression pass. GC stress still fails sleep_window;
+the shorter-count trial also fails and is reverted. Measurements distinguish
+setup/armed/return work, rather than calibrating the APIC timer. One duplicate
+saved-code scan before the checked reap boundary is the next narrow change.
+
 [Step1295](../done/step1295.md) adds syscall24/action6 handoffs using existing
 captured-context FIFO and timer-restoration paths.63 focused checks and a strict
 original RuntimeSmoke regression pass. The broader GC stress retry still fails

@@ -191,6 +191,10 @@ public static unsafe partial class EfiEntry
         {
             for (uint step = 0; step < c->Budget.MaximumSteps; step++)
             {
+#if M16_009_PROBE
+                c->TimingValid = 0;
+                if (c->Budget.HasElapsedLimit && LinuxNativeTimingRead(c, &c->TimingStart)) c->TimingValid = 1;
+#endif
                 if (!LinuxNativeObserve(c) || !LinuxNativeVerify(c) || !LinuxNativeSavedCode(c) || !CooperativeAuditPool(c->State, true)) return false;
                 if (!LinuxNativeReapExited(c)) return false;
                 if (c->Process.ActiveThreads == 0)
@@ -278,13 +282,46 @@ public static unsafe partial class EfiEntry
             // its cancellation/exit resources still require off-stack cleanup.
             if (c->Threads.ConfirmSupervisor(c->Key, 2, LinuxNativeRsp(c)) != KernelThreadTable.Status.Ok) return false;
             c->Selected = 0;
+#if M16_009_PROBE
+            LinuxNativeTimingFinish(c);
+#endif
             if (!LinuxText(c->State, "M16_008_SUPERVISOR identity=") || !LinuxNumber(c->State, next.Identity.Value) ||
                 !LinuxText(c->State, " action=") || !LinuxNumber(c->State, c->Actions[index]) ||
                 !LinuxText(c->State, " transfers=") || !LinuxNumber(c->State, c->Transfers) ||
                 !LinuxText(c->State, " ready=") || !LinuxNumber(c->State, c->Threads.ReadyCount) ||
                 !LinuxText(c->State, " active=") || !LinuxNumber(c->State, c->Process.ActiveThreads) || !LinuxText(c->State, "\r\n")) c->Failed = 1;
+#if M16_009_PROBE
+            if (!LinuxNativeTimingWrite(c, next.Identity.Value)) c->Failed = 1;
+#endif
             return !c->Threads.Current.IsValid && !c->Threads.HandoffPending;
         }
+
+#if M16_009_PROBE
+        // Raw HPET reads avoid the owner/CPU/pool observations being measured.
+        // Samples never advance thread deadlines or authorize skipped checks.
+        private static bool LinuxNativeTimingRead(LinuxNativeControl* c, ulong* ticks)
+        {
+            delegate* unmanaged<void*, ulong*, byte> read = &ReadLinuxClock;
+            return read(c->State, ticks) == 1;
+        }
+
+        private static void LinuxNativeTimingFinish(LinuxNativeControl* c)
+        {
+            if (c->TimingValid != 7 || !LinuxNativeTimingRead(c, &c->TimingReady) ||
+                c->TimingStart > c->TimingArm || c->TimingArm > c->TimingCapture || c->TimingCapture > c->TimingReady)
+            { c->TimingValid = 0; return; }
+            c->TimingValid = 15;
+        }
+
+        private static bool LinuxNativeTimingWrite(LinuxNativeControl* c, ulong identity) => c->TimingValid != 15 ||
+            LinuxText(c->State, "M16_008_TIMING identity=") && LinuxNumber(c->State, identity) &&
+            LinuxText(c->State, " epoch=") && LinuxNumber(c->State, c->Epoch) &&
+            LinuxText(c->State, " start=") && LinuxNumber(c->State, c->TimingStart) &&
+            LinuxText(c->State, " arm=") && LinuxNumber(c->State, c->TimingArm) &&
+            LinuxText(c->State, " capture=") && LinuxNumber(c->State, c->TimingCapture) &&
+            LinuxText(c->State, " ready=") && LinuxNumber(c->State, c->TimingReady) &&
+            LinuxText(c->State, " periodFs=") && LinuxNumber(c->State, c->State->Clock.PeriodFemtoseconds) && LinuxText(c->State, "\r\n");
+#endif
 
         private static bool LinuxNativeSavedCode(LinuxNativeControl* c)
         {
