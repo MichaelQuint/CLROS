@@ -5,7 +5,7 @@ public static partial class EfiContracts
 {
     public static IReadOnlyList<string> ThreadWaitMarkers(string id) => Array.AsReadOnly(new[] {
         "TEST_START m09." + id, "M09_" + id + "_PREPARED", "M09_" + id + "_REJECT", "M09_" + id + "_TRANSFER",
-        "M09_" + id + "_WAIT", "M09_" + id + "_OBSERVE", "M09_" + id + "_WAKE", "M09_" + id + "_TLS", "M09_" + id + "_TICK",
+        "M09_" + id + "_WAKE", "M09_" + id + "_WAIT", "M09_" + id + "_TLS", "M09_" + id + "_OBSERVE", "M09_" + id + "_TICK",
         "M09_" + id + "_CANCEL", "M09_" + id + "_REAP", "M09_" + id + "_REUSE", "M09_" + id + "_COMPLETE", "M09_" + id + "_RESTORED",
         "TEST_PASS m09." + id, "CLROS_M09_" + id + "_READY" });
     public static bool ThreadWaitRepeated(string marker) => marker.EndsWith("_TRANSFER", StringComparison.Ordinal) ||

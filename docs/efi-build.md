@@ -2,6 +2,14 @@
 
 ## Development Linux threading profile
 
+[Step1300](../done/step1300.md) records the5196-check unfiltered full pass at
+366717b and seven fresh native preparations. A wait-address guest reaches READY
+after an exact pre-boot native-review join, but its outer runner rejects stale
+first-occurrence ordering. The literal host marker order is corrected and12
+focused checks now exercise the actual streaming parser, including reordered
+negatives. Kernel/app bytes and the detailed protocol remain fixed. Final shared
+source, repeated guest, negative and ancestor acceptance remains pending.
+
 [Step1298](../done/step1298.md) adds optional per-call HPET intervals and removes
 repeated leaf encoding inside a single exclusive user-root construction/audit.
 110 focused checks, one strict three-lifetime/nine-collection GC stress capture

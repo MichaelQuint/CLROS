@@ -123,6 +123,23 @@ internal static class M09009EfiIntegrationTests
             int count = serial.Count(r => r == marker || r.StartsWith(marker + " ", StringComparison.Ordinal));
             HostCheck.True(count > 0); HostCheck.Equal(count == 1, plan.Unique.Contains(marker));
         }
+        bool StreamPasses(string[] tail)
+        {
+            var stream = new OS.Tools.QemuRunner.SerialMarkerStateMachine(plan.Required, plan.Forbidden,
+                orderedMarkers: plan.Ordered, uniqueMarkers: plan.Unique);
+            string text = string.Join('\n', QemuContracts.M05ApicSetupMarkers.Concat(tail)) + "\n";
+            stream.Feed(System.Text.Encoding.UTF8.GetBytes(text));
+            return stream.Complete().Passed;
+        }
+        HostCheck.True(StreamPasses(serial), "actual runner accepts the complete repeated wait/TLS protocol");
+        foreach (var (first, second) in new[] { ("WAKE", "WAIT"), ("TLS", "OBSERVE") })
+        {
+            string[] swapped = (string[])serial.Clone();
+            int a = Array.FindIndex(swapped, row => row.StartsWith("M09_" + id + "_" + first + " ", StringComparison.Ordinal));
+            int b = Array.FindIndex(swapped, row => row.StartsWith("M09_" + id + "_" + second + " ", StringComparison.Ordinal));
+            (swapped[a], swapped[b]) = (swapped[b], swapped[a]);
+            HostCheck.True(!StreamPasses(swapped), "actual runner rejects reversed first occurrences " + first + "/" + second);
+        }
         foreach (string option in new[] { "--RequireOrderedMarker", "--RequireUniqueMarker", "--ForbidMarker" })
             Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse("--EnableM09" + id + "Probe", option, "anything")));
     }
