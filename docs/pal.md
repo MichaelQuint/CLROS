@@ -1,5 +1,16 @@
 # PAL
 
+[Step1281](../done/step1281.md) implements ordinary private/shared
+`FUTEX_REQUEUE` over the existing wait owner. Actual registrations move behind
+the target FIFO without waking, replacing their scheduler identity or changing
+their deadline/bitset. Per-thread backing references follow the move; completed
+waits keep their borrow until consumption. Negative counts and unavailable
+target capacity reject before wakes. Same-word operations preserve FIFO; PI,
+compare-requeue, realtime and aliased/file-backed shared mappings remain outside
+this subset. Focused service/ownership controls and combined no-stdlib C#
+compilation pass. Complete broader transcript consumers and real guest
+qualification remain pending in the existing eight-issue batch.
+
 [Step1280](../done/step1280.md) implements the runtime entropy prerequisite.
 The M16-008/009 owner selects a finite 256-byte reservoir for the existing
 package policy requesting more than eight threads; original policies retain
@@ -7,9 +18,10 @@ package policy requesting more than eight threads; original policies retain
 Each syscall remains bounded to 32 bytes, burns attempted output even on partial
 copy failure, and cannot refill. Full-extent alias checks and explicit discard
 protect the lifetime; capture failure and returned-owner cleanup scrub it.
-Seventeen focused startup-service checks pass. The added firmware callback
-controls and native/guest qualification remain for the development agent's
-shared validation. No new workload selector or runtime acceptance is added.
+Seventeen focused startup-service checks pass. Step1281 also passes the original
+numeric-core parent check, including eight firmware callback groups. Native/guest
+qualification remains for shared validation. No new workload selector or runtime
+acceptance is added.
 
 [Step1279](../done/step1279.md) implements a 16-worker native layout and matching
 16-generation signal state within the existing thread-service cap. Host tests

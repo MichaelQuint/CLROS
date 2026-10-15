@@ -158,6 +158,32 @@ public unsafe struct WaitAddress
         return new(Status.Ok, address, begin.Wait);
     }
 
+    /// <summary>Move the oldest live source registration to the end of the
+    /// destination FIFO under the same pinned, IRQ-off BSP owner transaction.
+    /// Both distinct bindings must remain admitted through this call; success
+    /// transfers the registration's backing borrow to destination. The exact
+    /// scheduler wait, deadline and bitset are unchanged. No word access, wake,
+    /// completion, transfer or allocation occurs. An empty source returns Count0;
+    /// invalid bindings/ownership or exhausted order reject without mutation,
+    /// including completed registrations, which are skipped rather than pruned.</summary>
+    public Result RequeueOne(ulong key, ulong flags, Binding source, Binding destination)
+    {
+        Status status = Access(key, flags); if (status != Status.Ok) return new(status);
+        status = Lookup(source, out _); if (status != Status.Ok) return new(status);
+        status = Lookup(destination, out _); if (status != Status.Ok) return new(status);
+        if (source.Value == destination.Value) return new(Status.InvalidBinding);
+        uint first = _registrationCapacity; ulong order = ulong.MaxValue;
+        for (uint i = 0; i < _registrationCapacity; i++)
+            if (_registrations[i].Address.Value == source.Value && Live(_registrations[i]) &&
+                (first == _registrationCapacity || _registrations[i].Order < order))
+            { first = i; order = _registrations[i].Order; }
+        if (first == _registrationCapacity) return new(Status.Ok, destination);
+        if (_order == ulong.MaxValue) return new(Status.IdentityExhausted);
+        _registrations[first].Address = destination;
+        _registrations[first].Order = ++_order;
+        return new(Status.Ok, destination, _registrations[first].Wait, 1);
+    }
+
     /// <summary>Complete at most maximum matching registrations in FIFO order;
     /// use 1 for wake-one or uint.MaxValue for wake-all. A spurious wake returns
     /// zero. Ready pressure retains the winner in the scheduler's Pending state.

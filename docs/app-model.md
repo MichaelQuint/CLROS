@@ -1,5 +1,14 @@
 # App Model
 
+[Step1281](../done/step1281.md) adds the ordinary musl futex-requeue prerequisite
+for broader runtime admission. The syscall returns the actual total woken plus
+moved. Moving transfers the retained backing reference, preserving the exact
+scheduler wait, absolute timeout and original restart syscall. Host controls
+exercise target FIFO, private/shared namespaces, repeated moves, signal
+interruption, process shutdown and actual user-mapping mutation guards. These
+are service tests; broader protocol/profile integration and CLROS guest evidence
+remain required before runtime acceptance.
+
 [Step1279](../done/step1279.md) expands the existing native worker and signal
 limits to 16. The reviewed pool has 13 code pages, 28 metadata pages and
 16 guarded worker stacks in 162 total pages. Independent accounting requires

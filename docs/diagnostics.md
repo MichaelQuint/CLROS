@@ -1,5 +1,13 @@
 # Diagnostics
 
+[Step1281](../done/step1281.md) implements ordinary futex requeue in the syscall
+service. The broader runtime transcript model still needs to move address FIFO
+and backing ownership while retaining the original wait identity, deadline and
+restart call. A requeue is not a wake or a completed wait; its return count is
+the actual total woken plus moved. Existing focused payload selectors and their
+record grammar are unchanged. No broader guest is admitted by this service
+change alone.
+
 [Step1279](../done/step1279.md) updates the current native pool geometry to
 16 workers, 53248 code bytes, 114688 metadata bytes and 162 total pages.
 Consumers derive these limits from the reviewed implementation; independent

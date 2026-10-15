@@ -2,6 +2,13 @@
 
 ## Development Linux threading profile
 
+[Step1281](../done/step1281.md) links the ordinary futex-requeue adapter under
+the existing M16-008 condition, with exact conditional inventory and reviewed
+source admission. Combined M16-008/009 no-stdlib C# compilation passes, as does
+the original firmware entropy numeric-core check from step1280. Full native
+publication/review and guest execution remain deferred until the eight-issue
+batch has complete broader protocol/profile consumers.
+
 [Step1280](../done/step1280.md) adds pre-EBS entropy acquisition and cleanup for
 the broader thread policy. Existing profiles with at most eight threads retain
 their 32-byte budget and transcript. A larger M16-008/009 package policy reports

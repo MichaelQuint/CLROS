@@ -8,6 +8,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Futex.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Requeue.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs",

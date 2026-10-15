@@ -140,7 +140,8 @@ public unsafe partial struct LinuxThreadServices
     {
         if (!_futexEnabled) return new(LinuxSyscallAction.Return, Unsupported);
         uint op = unchecked((uint)frame.Argument1), mode = op & 128, cmd = op & ~384U;
-        if (cmd is not (0 or 1 or 9 or 10)) return new(LinuxSyscallAction.Return, Unsupported);
+        if (cmd is not (0 or 1 or 3 or 9 or 10)) return new(LinuxSyscallAction.Return, Unsupported);
+        if (cmd == 3) return (op & 256) != 0 ? new(LinuxSyscallAction.Return, Unsupported) : FutexRequeue(flags, frame, mode);
         bool wait = cmd is 0 or 9, timed = wait && (restarted || frame.Argument3 != 0);
         ulong duration = 0;
         if (timed && !restarted)
