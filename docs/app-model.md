@@ -1,5 +1,18 @@
 # App Model
 
+[Step1272](../done/step1272.md) wires the two sealed focused runtime programs
+through M16-009's complete parent and runner checks. Select the exact app with
+paired `-LinuxThreadingApplication` and `-LinuxThreadingDisassembly` options;
+the current canonical package/index is prepared before any live child, and
+retained input read locks cover orchestration and validation. Bounded plain,
+single-link serial/summary authorities span capture-hash and complete validation,
+with final hash/identity verification. Original serial lines
+drive runner observations/accounting/tails after raw payload validation. Six
+synthetic segmentation controls use the actual Linux stdout and prepared programs;
+none is a CLROS capture. Broader runtime stress and stable batch qualification
+remain pending; unchanged guest Hello, suspension/ThreadPool and Kestrel remain
+unaccepted.
+
 [Step1271](../done/step1271.md) implements host-side leaf consumers for both
 exact prepared threading programs. Canonical package/index and raw complete
 output admission precede current call/wait/signal-return records, mappings/TLS,
@@ -9,9 +22,9 @@ suspension cycles, a handler IRQ before its first syscall, equal-deadline wakes,
 worker-originated clone, generation reuse and cancellation of masked pending or
 parked handler state. Retired frames are not counted as completed sigreturns.
 Forty-four focused checks pass. Genuine packages/programs plus genuine Linux
-stdout alone are rejected without the guest protocol. Parent/runner wiring,
-broader runtime stress and frozen batch qualification remain pending; no new
-runtime QEMU selector or CLROS execution is accepted.
+stdout alone are rejected without the guest protocol. Step1272 adds parent/runner
+wiring; broader runtime stress and frozen batch qualification remain pending.
+No CLROS execution is accepted by these host controls.
 
 [Step1270](../done/step1270.md) decodes the two focused workloads' complete raw
 stdout across arbitrary write segmentation. Original fd1 byte counts and kernel

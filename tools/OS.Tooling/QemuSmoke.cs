@@ -21,10 +21,20 @@ public static class QemuSmoke
         QemuCaptureSession? capture = null;
         FileStream? linuxInput = null;
         FileStream? helloDisassemblyInput = null;
+        FileStream? threadingDisassemblyInput = null;
         NativeAotHelloProgram? helloProgram = null;
+        NativeAotThreadingProgram? threadingProgram = null;
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
+            if(options.HasThreadingSelection)
+            {
+                if(options.LinuxThreadingApplication is not ("NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke"))
+                    throw new ToolFailure("threading_application");
+                if(options.LinuxThreadingDisassembly.Length==0)throw new ToolFailure("threading_disassembly_required");
+                if(options.LinuxHelloDisassembly.Length!=0)throw new ToolFailure("threading_hello_conflict");
+                if(!plan.IsEnabled("EnableM16009Probe"))throw new ToolFailure("threading_profile_requires_m16_009");
+            }
             if (options.LinuxHelloDisassembly.Length != 0 && !plan.IsEnabled("EnableM16009Probe"))
                 throw new ToolFailure("hello_profile_requires_m16_009");
             if (plan.IsEnabled("EnableM16002Probe") && !options.DryRun)
@@ -33,7 +43,19 @@ public static class QemuSmoke
                 if (linuxInput.Length < 64 || linuxInput.Length > OS.Manifest.LinuxElfPackage.MaximumBytes) throw new ToolFailure("m16_002_package_input_size");
                 if (plan.IsEnabled("EnableM16009Probe"))
                 {
-                    if (options.LinuxHelloDisassembly.Length != 0)
+                    if(options.HasThreadingSelection)
+                    {
+                        string package=Path.GetFullPath(options.LinuxElfPackage,root), disassembly=Path.GetFullPath(options.LinuxThreadingDisassembly,root);
+                        var comparison=OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal;
+                        foreach(string path in new[]{options.Image,options.EfiArtifact,options.SerialLog,options.SummaryLog,
+                            options.SummaryLog+".stderr.log",options.SerialLog+".pcap",options.M01RawObservationLog})
+                            if(path.Length!=0 && (string.Equals(package,Path.GetFullPath(path,root),comparison) ||
+                                string.Equals(disassembly,Path.GetFullPath(path,root),comparison)))throw new ToolFailure("threading_input_output_alias");
+                        if(string.Equals(package,disassembly,comparison))throw new ToolFailure("threading_input_alias");
+                        threadingDisassemblyInput=new FileStream(disassembly,FileMode.Open,FileAccess.Read,FileShare.Read);
+                        threadingProgram=NativeAotThreadingProgram.Read(root,options.LinuxThreadingApplication,package,disassembly);
+                    }
+                    else if (options.LinuxHelloDisassembly.Length != 0)
                     {
                         string disassembly = Path.GetFullPath(options.LinuxHelloDisassembly, root);
                         var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
@@ -165,16 +187,21 @@ public static class QemuSmoke
                 QemuTranscripts.RequireCompleteProcess(runner, "qemu_capture_runner_incomplete");
             }
             if (options.DryRun) return runner.ExitCode;
+            if (runner.ExitCode != 0 && capture is not null) return runner.ExitCode;
+            // Hold the exact public evidence before the capture hash check and
+            // through every subsequent parent/leaf/runner read.
+            using AuthorityFiles? threadingEvidence = threadingProgram is null ? null : QemuTranscripts.HoldThreadingEvidence(root, options);
             if (capture is not null)
             {
-                if (runner.ExitCode != 0) return runner.ExitCode;
                 capture.Validate(); output.WriteLine("TEST_PASS m01.026.raw-observations");
             }
-            return QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram);
+            int validated = QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram, threadingProgram);
+            threadingEvidence?.VerifyUnchanged();
+            return validated;
         }
         catch (Exception error) when (error is ToolFailure or ArgumentException or IOException or InvalidDataException or InvalidOperationException)
         { output.WriteLine("TEST_FAIL qemu.smoke " + error.Message); return 1; }
-        finally { capture?.Dispose(); linuxInput?.Dispose(); helloDisassemblyInput?.Dispose(); }
+        finally { capture?.Dispose(); linuxInput?.Dispose(); helloDisassemblyInput?.Dispose(); threadingDisassemblyInput?.Dispose(); }
     }
 
     public static string? ResolveExecutable(string? requested)

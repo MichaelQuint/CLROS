@@ -1,10 +1,26 @@
 # QEMU
 
-[Step1269](../done/step1269.md) adds host-only canonical package and sealed
-instruction preparation for the focused suspension and ThreadPool workloads.
-These packages currently have no QEMU selector: byte/index admission does not
-replace complete scheduler, signal, raw output, exit/reap and cleanup checks.
-The unchanged Hello path and mechanical selectors retain their existing scope.
+[Step1272](../done/step1272.md) adds an explicit development selector for either
+focused runtime workload through the existing M16-009 profile:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16009Probe -LinuxElfPackage artifacts/packages/suspension.pkg -LinuxThreadingApplication NativeAotSuspensionSmoke -LinuxThreadingDisassembly artifacts/suspension.llvm.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 60
+```
+
+Use exactly NativeAotSuspensionSmoke or NativeAotThreadPoolSmoke with its matching
+step1269 canonical package and complete reviewed LLVM index. Both options are
+required and exclude `-LinuxHelloDisassembly`. Input locks span live preparation,
+build/image/run/validation; input/output aliases reject. Bounded plain/single-link
+serial/summary authorities stay locked across capture-hash and complete validation
+(including direct callers), then verify original hash and identity. The existing complete
+firmware/startup/service/ELF/PCI/APIC, root, scheduler/signal/output/exit/reap/cleanup
+and confirmed runner checks all remain mandatory. Raw payload byte framing is
+validated before protocol newline normalization. Runner observed markers, physical
+line counts and tails use original raw serial lines across arbitrary stdout write
+segmentation. Six synthetic summary controls and 42 negatives pass with real
+prepared inputs and Linux stdout; these are not guest captures. Broader stress and
+frozen batch qualification remain pending. No unchanged guest Hello or focused
+runtime guest is accepted. The Hello and mechanical selectors retain their scope.
 
 [Step1263](../done/step1263.md) makes current thread/signal tails require zero
 dynamic user reservation/backing counters and a checked zeroed initial ABI stack

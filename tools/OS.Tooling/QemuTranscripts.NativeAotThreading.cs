@@ -40,6 +40,34 @@ public static partial class QemuTranscripts
         return capture.NormalizedTail[..^2].Split("\r\n",StringSplitOptions.None);
     }
 
+    // Parent framing uses normalized text only after the original byte envelopes
+    // and complete stdout pass. The complete leaf still validates original bytes.
+    private static string NormalizeThreadingWrites(string text,string app)
+    {
+        const string start="TEST_START m16-009\r\n";
+        int at=text.IndexOf(start,StringComparison.Ordinal);
+        Need(at>=0 && text.IndexOf(start,at+start.Length,StringComparison.Ordinal)<0,"threading_raw_leaf");
+        var capture=NativeAotThreadingOutput.Read(app,Encoding.UTF8.GetBytes(text[at..]));
+        return text[..at]+capture.NormalizedTail;
+    }
+
+    // Both wrapper capture-hash verification and direct complete validation use
+    // these bounded plain, single-link, unchanged file authorities. Reopening
+    // legacy parent/runner readers cannot switch evidence during acceptance.
+    internal static AuthorityFiles HoldThreadingEvidence(string root,QemuSmokeOptions options)
+    {
+        AuthorityFiles files=new();
+        try
+        {
+            string serial=Path.GetFullPath(options.SerialLog,root),summary=Path.GetFullPath(options.SummaryLog,root);
+            var raw=files.Open(Path.GetDirectoryName(serial)!,serial,"threading serial","threading_evidence_serial",8*1024*1024,singleLink:true);
+            var report=files.Open(Path.GetDirectoryName(summary)!,summary,"threading summary","threading_evidence_summary",16*1024*1024,singleLink:true);
+            AuthorityFiles.RequireDistinct(raw,report);
+            return files;
+        }
+        catch { files.Dispose();throw; }
+    }
+
     private sealed class RuntimeThread(ulong identity,int tid,ulong bottom,ulong top,ulong fs,ulong rip)
     {
         internal readonly ulong Identity=identity, Bottom=bottom, Top=top;

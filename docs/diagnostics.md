@@ -1,5 +1,12 @@
 # Diagnostics
 
+[Step1272](../done/step1272.md) preserves the runner's original raw-line marker
+observations, physical newline count and eight-line truncated tail when focused
+runtime stdout spans arbitrary writes. Only byte-validated payload CR/LF are
+removed for parent/leaf protocol framing. Exact BOM/CRLF summary bytes are checked
+against the original serial stream; normalized protocol rows cannot substitute
+for that summary. This host integration adds no guest acceptance.
+
 [Step1271](../done/step1271.md) extends the current CALL suffix after wait
 observations with `signalDepth`, `signalFrame`, `blockedSignals`, `returnRip`,
 `returnRsp`, `returnFlags`, `returnFs`, `returnGs`, `returnValueBits`. These are

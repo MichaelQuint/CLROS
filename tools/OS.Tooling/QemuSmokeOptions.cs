@@ -20,6 +20,8 @@ public sealed class QemuSmokeOptions
     public string LinuxElfPackage { get; set; } = "artifacts/packages/linux-elf.pkg";
     public string LinuxElfImageVariant { get; set; } = "Intact";
     public string LinuxHelloDisassembly { get; set; } = "";
+    public string LinuxThreadingApplication { get; set; } = "";
+    public string LinuxThreadingDisassembly { get; set; } = "";
     public string DiskFormat { get; set; } = "raw";
     public int TimeoutSeconds { get; set; } = 30;
     public bool DryRun { get; set; }
@@ -33,6 +35,8 @@ public sealed class QemuSmokeOptions
     public List<string> MarkerPreset { get; } = [];
     public Dictionary<string, bool> Flags { get; } = new(StringComparer.Ordinal);
     public HashSet<string> Explicit { get; } = new(StringComparer.Ordinal);
+    internal bool HasThreadingSelection => LinuxThreadingApplication.Length!=0 || LinuxThreadingDisassembly.Length!=0 ||
+        Explicit.Contains("LinuxThreadingApplication") || Explicit.Contains("LinuxThreadingDisassembly");
     public static IReadOnlyList<string> DefaultRequiredMarkers { get; } = Array.AsReadOnly<string>(
         ["OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS", "UEFI_MEMORY_MAP_OWNED", "BOOT_HANDOFF_READY",
          "UEFI_MEMORY_MAP_NORMALIZED", "BOOT_MEMORY_MAP_ACCEPTED", "BOOT_MEMORY_REGIONS_READY", "BOOT_MEMORY_REGION_COUNT",
@@ -52,7 +56,8 @@ public sealed class QemuSmokeOptions
             ["requirenativeappmarkers"] = "RequireNativeAppMarkers", ["requiremarker"] = "RequireMarker",
             ["requireorderedmarker"] = "RequireOrderedMarker", ["requireuniquemarker"] = "RequireUniqueMarker",
             ["forbidmarker"] = "ForbidMarker", ["markerpreset"] = "MarkerPreset", ["linuxelfpackage"] = "LinuxElfPackage", ["linuxelfimagevariant"] = "LinuxElfImageVariant",
-            ["linuxhellodisassembly"] = "LinuxHelloDisassembly"
+            ["linuxhellodisassembly"] = "LinuxHelloDisassembly",
+            ["linuxthreadingapplication"] = "LinuxThreadingApplication", ["linuxthreadingdisassembly"] = "LinuxThreadingDisassembly"
         };
         foreach (string flag in EfiContracts.DiagnosticProbes) names.Add(Key(flag), flag);
         for (int i = 0; i < arguments.Length; i++)
@@ -84,6 +89,8 @@ public sealed class QemuSmokeOptions
                 case "LinuxElfPackage": result.LinuxElfPackage = value; break;
                 case "LinuxElfImageVariant": result.LinuxElfImageVariant = value; break;
                 case "LinuxHelloDisassembly": result.LinuxHelloDisassembly = value; break;
+                case "LinuxThreadingApplication": result.LinuxThreadingApplication = value; break;
+                case "LinuxThreadingDisassembly": result.LinuxThreadingDisassembly = value; break;
                 case "DiskFormat": result.DiskFormat = value.ToLowerInvariant(); break;
                 case "TimeoutSeconds": result.TimeoutSeconds = int.Parse(value, NumberStyles.None, CultureInfo.InvariantCulture); break;
                 case "DryRun": result.DryRun = bit; break;

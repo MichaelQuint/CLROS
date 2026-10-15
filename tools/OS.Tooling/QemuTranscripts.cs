@@ -66,12 +66,13 @@ public static partial class QemuTranscripts
         }
     }
     internal static string[] FirmwareProtocol(string path, string terminal, bool noSuffix, bool allowShortSuffix, string reason, bool blockBoot = false,
-        NativeAotHelloProgram? helloProgram = null)
+        NativeAotHelloProgram? helloProgram = null, NativeAotThreadingProgram? threadingProgram = null)
     {
         byte[] bytes = File.ReadAllBytes(path);
         int prefixBytes = blockBoot ? QemuContracts.BlockFirmwarePrefixBytes : FirmwarePrefixBytes;
         string prefixHash = blockBoot ? QemuContracts.BlockFirmwarePrefixSha256 : FirmwarePrefixSha256;
-        Need(bytes.Length >= prefixBytes && bytes.Length <= (helloProgram is null ? 32768 : 8 * 1024 * 1024), reason + "_raw_extent");
+        Need(helloProgram is null || threadingProgram is null,"threading_hello_conflict");
+        Need(bytes.Length >= prefixBytes && bytes.Length <= (helloProgram is null && threadingProgram is null ? 32768 : 8 * 1024 * 1024), reason + "_raw_extent");
         string text = DecodeUtf8(bytes);
         int start = text.IndexOf("TEST_START efi.main\r\n", StringComparison.Ordinal);
         int terminalAt = terminal.Length == 0 ? text.Length : text.IndexOf(terminal, StringComparison.Ordinal);
@@ -89,6 +90,7 @@ public static partial class QemuTranscripts
         }
         string owned = text[start..end];
         if (helloProgram is not null) owned = NormalizeHelloWrites(owned);
+        if (threadingProgram is not null) owned = NormalizeThreadingWrites(owned,threadingProgram.Application);
         Need(!Regex.IsMatch(owned, @"[^\x20-\x7E\r\n]"), reason + "_non_ascii");
         string[] split = owned.Split("\r\n", StringSplitOptions.None);
         Need(split[^1].Length == 0 && split[..^1].All(x => !x.Contains('\r') && !x.Contains('\n')), reason + "_framing");
