@@ -2,6 +2,13 @@
 
 ## Development Linux threading profile
 
+[Step1297](../done/step1297.md) reduces duplicate/bytewise verification work
+while preserving independent code, padding, owner/root and transfer checks.
+67 focused checks and strict original RuntimeSmoke r24 pass with full cleanup.
+GC stress still fails sleep_window; the500000-count trial increases transfers
+and is reverted. The retained kernel sources match r24 after that reversion.
+Exact capture hashes, timings and failed experiments remain in the receipt.
+
 [Step1296](../done/step1296.md) adds optional HPET boundary diagnostics without
 replacing IRQ, ownership or cleanup evidence.64 focused checks and the strict
 original RuntimeSmoke regression pass. GC stress still fails sleep_window;

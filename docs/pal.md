@@ -1,5 +1,14 @@
 # PAL
 
+[Step1297](../done/step1297.md) reduces native verification work without
+removing its invariants: the reap boundary retains the independent code scan,
+INT3 padding is checked/written in bounded words with a byte tail, and zero
+code-bundle padding avoids unnecessary export-membership predicates.67 focused
+checks and strict original RuntimeSmoke pass. GC stress still fails sleep_window
+with complete cleanup. The500000-count trial also fails and is reverted; the
+original2000000 count remains. Thread-startup/syscall boundaries need profiling
+before another change; full shared qualification remains pending.
+
 [Step1296](../done/step1296.md) adds optional, ordered raw HPET observations
 around dispatch setup, timer arm, IRQ capture and supervisor restoration. The
 strict original RuntimeSmoke regression passes with all five output rows and

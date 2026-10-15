@@ -195,7 +195,8 @@ public static unsafe partial class EfiEntry
                 c->TimingValid = 0;
                 if (c->Budget.HasElapsedLimit && LinuxNativeTimingRead(c, &c->TimingStart)) c->TimingValid = 1;
 #endif
-                if (!LinuxNativeObserve(c) || !LinuxNativeVerify(c) || !LinuxNativeSavedCode(c) || !CooperativeAuditPool(c->State, true)) return false;
+                // ReapExited checks the independent code snapshot before any mutation.
+                if (!LinuxNativeObserve(c) || !LinuxNativeVerify(c) || !CooperativeAuditPool(c->State, true)) return false;
                 if (!LinuxNativeReapExited(c)) return false;
                 if (c->Process.ActiveThreads == 0)
                 {

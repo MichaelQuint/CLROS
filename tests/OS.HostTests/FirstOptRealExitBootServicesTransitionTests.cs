@@ -228,7 +228,8 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 !new ReadOnlySpan<byte>(code + FirstExitCodeBundle.Bytes, 4096).ContainsAnyExcept((byte)0xa5), "bundle output extent");
             byte[] original = new ReadOnlySpan<byte>(code, (int)FirstExitCodeBundle.Bytes).ToArray();
             foreach (uint offset in new uint[] { 0, FirstExitCodeBundle.FaultOffset + 71, FirstExitCodeBundle.Out8Offset,
-                FirstExitCodeBundle.In8Offset, FirstExitCodeBundle.StackEntryOffset, FirstExitCodeBundle.PermanentOffset, 6000 })
+                FirstExitCodeBundle.In8Offset, FirstExitCodeBundle.StackEntryOffset, FirstExitCodeBundle.PermanentOffset, 6000,
+                FirstExitCodeBundle.StackEntryOffset - 1, FirstExitCodeBundle.Bytes - 1 })
             {
                 code[offset] ^= 1;
                 Need(!FirstExitCodeBundle.ValidateReadBack(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, callback),

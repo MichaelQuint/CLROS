@@ -809,8 +809,10 @@ public static unsafe class FirstExitCodeBundle
             !Equal(scratch, code + CooperativeSegmentsOffset, OS.Kernel.Threading.ThreadContextSwitch.OwnedSegmentsBytes) ||
             !X64PhysicalMappingPublication.ValidateGuardPublication(code + CooperativePublishOffset, X64PhysicalMappingPublication.GuardRequiredBytes)) return false;
 #endif
+        // Most retained bytes are zero padding. Only nonzero bytes need the
+        // export-membership checks; each exported body was checked above.
         for (uint index = 4096; index < Bytes; index++)
-            if (!Inside(index, FaultOffset, faultBytes) && !Inside(index, Out8Offset, PortIoStubPlan.Out8RequiredByteLength) &&
+            if (code[index] != 0 && !Inside(index, FaultOffset, faultBytes) && !Inside(index, Out8Offset, PortIoStubPlan.Out8RequiredByteLength) &&
                 !Inside(index, In8Offset, PortIoStubPlan.In8RequiredByteLength) && !Inside(index, StackEntryOffset, entryBytes) &&
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
                 !Inside(index, ClockAccessOffset, X64OwnedClockAccess.Bytes) &&
@@ -845,7 +847,7 @@ public static unsafe class FirstExitCodeBundle
                 !Inside(index, CooperativeSegmentsOffset, OS.Kernel.Threading.ThreadContextSwitch.OwnedSegmentsBytes) &&
                 !Inside(index, CooperativePublishOffset, X64PhysicalMappingPublication.GuardRequiredBytes) &&
 #endif
-                !Inside(index, PermanentOffset, permanentBytes) && code[index] != 0) return false;
+                !Inside(index, PermanentOffset, permanentBytes)) return false;
         return true;
     }
 
