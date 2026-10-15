@@ -107,7 +107,7 @@ internal static class NativeAotOriginalRuntimeTests
     {
         internal readonly Vector Core=new(true);
         internal readonly StringBuilder Text=new();
-        internal SmokeVector(bool earlyTimer=false)
+        internal SmokeVector(bool earlyTimer=false,bool wakeTimer=false,int clockReads=2,bool clockProgress=true,bool requeueTimer=false)
         {
             var v=Core.Start();v.Rows[1]=v.Rows[1].Replace("entropyBytes=32","entropyBytes=256",StringComparison.Ordinal);
             v.Rows[2]=v.Rows[2].Replace("packageBytes=1577712","packageBytes=1511248",StringComparison.Ordinal);
@@ -132,6 +132,16 @@ internal static class NativeAotOriginalRuntimeTests
 
             void FireTimer(int active)
             {
+                if(wakeTimer)
+                {
+                    if(clockReads>0)v.Call(228,0,[6,0x500600]);
+                    if(requeueTimer)v.Call(202,1,[0x500218,131,1,0,0x50021c]);else v.Wake(0x500218);
+                    v.Wait(0x500234);v.Drain(clockProgress?80UL:60UL);v.Supervisor(3,1,active);
+                    v.Select(timer);v.Resume(0);
+                    if(clockReads>1)v.Call(228,0,[6,0x500600]);
+                    v.Wake(0x500234);v.Wait(0x500218);v.Drain(v.Clock);v.Supervisor(3,1,active);
+                    v.Select(v.Main);v.Resume(0);return;
+                }
                 v.Wait(0x500234);v.Drain(v.Clock);v.Supervisor(3,0,active);v.Tick(100,1);
                 v.Select(timer);v.Resume(-110);v.Wake(0x500234);v.Wait(0x500218);v.Drain(100);v.Supervisor(3,1,active);
                 v.Select(v.Main);v.Resume(0);
@@ -157,6 +167,24 @@ internal static class NativeAotOriginalRuntimeTests
             }
             return raw.ToArray();
         }
+    }
+
+    [HostTest("nativeaot.original-runtime due timer accepts matched wake and resume with bounding clocks but no invented timeout")]
+    private static void DueTimerWake()
+    {
+        SmokeVector vector=new(wakeTimer:true);var report=vector.Inspect();
+        HostCheck.Equal(0,report.Ticks);HostCheck.Equal(6,report.Reaped);
+        Reject(()=>new SmokeVector(earlyTimer:true,wakeTimer:true).Inspect(),"runtime_smoke_timer_kernel_evidence");
+        foreach(int reads in new[]{0,1})
+            Reject(()=>new SmokeVector(wakeTimer:true,clockReads:reads).Inspect(),"runtime_smoke_timer_kernel_evidence");
+        Reject(()=>new SmokeVector(wakeTimer:true,clockProgress:false).Inspect(),"runtime_smoke_timer_kernel_evidence");
+        Reject(()=>new SmokeVector(wakeTimer:true,requeueTimer:true).Inspect(),"runtime_smoke_timer_kernel_evidence");
+        Reject(()=>vector.Inspect(vector.Core.Rows.Select(r=>r.StartsWith("M16_008_RESUME identity=4294967302 ",StringComparison.Ordinal)?
+            r.Replace("valueBits=0 ","valueBits=1 ",StringComparison.Ordinal):r).ToArray()),"threading_resume");
+        Reject(()=>vector.Inspect(vector.Core.Rows.Select(r=>r.Contains($" nr=202 a0={0x500218} a1=129 ",StringComparison.Ordinal)?
+            Regex.Replace(r,@"\b(valueBits|returnValueBits)=[0-9]+",m=>m.Groups[1].Value+"=0"):r).ToArray()),"threading_wake_count");
+        Reject(()=>vector.Inspect(vector.Core.Rows.Select(r=>r.Replace("nanos=80","nanos=59",StringComparison.Ordinal)).ToArray()),"threading_clock");
+        Reject(()=>vector.Inspect(vector.Core.Rows.Select(r=>r.Replace("waitDeadline=100 ","waitDeadline=49 ",StringComparison.Ordinal)).ToArray()),"threading_futex_deadline");
     }
 
     [HostTest("nativeaot.original-runtime complete leaf requires normal worker cleanup and later timed completion without inventing activation signals")]
@@ -192,28 +220,32 @@ internal static class NativeAotOriginalRuntimeTests
     [HostTest("nativeaot.original-runtime coalesced split phase output preserves event order and cannot invent worker cleanup")]
     private static void CoalescedLeaf()
     {
-        SmokeVector b=new();var v=b.Core;string stdout=b.Text.ToString();int bytes=Encoding.UTF8.GetByteCount(stdout);
-        string template=v.Rows.First(r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal) && r.Contains(" nr=1 a0=1 ",StringComparison.Ordinal));
-        v.Rows.RemoveAll(r=>r.StartsWith("M16_005_WRITE ",StringComparison.Ordinal) ||
-            r.StartsWith("M16_008_CALL ",StringComparison.Ordinal) && r.Contains(" nr=1 a0=1 ",StringComparison.Ordinal));
-        int at=v.Rows.FindIndex(r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal) && r.Contains(" nr=231 ",StringComparison.Ordinal));
-        v.Lengths.Clear();int offset=0;
-        foreach(int count in new[]{1,bytes/2,bytes-bytes/2-1})
+        string stdout=Stdout;int bytes=Encoding.UTF8.GetByteCount(stdout);
+        foreach(SmokeVector b in new[]{new SmokeVector(),new SmokeVector(wakeTimer:true)})
         {
-            string part=stdout.Substring(offset,count).Replace("\n","",StringComparison.Ordinal);offset+=count;
-            v.Rows.Insert(at++,$"M16_005_WRITE fd=1 bytes={count} data={part}");string call=template;
-            foreach(var field in new[]{("a2",(ulong)count),("valueBits",(ulong)count),("returnValueBits",(ulong)count),("clock",100UL)})
-                call=Regex.Replace(call,@"\b"+field.Item1+"=[0-9]+",field.Item1+"="+field.Item2.ToString(CultureInfo.InvariantCulture));
-            v.Rows.Insert(at++,call);v.Lengths.Add(count);
+            var v=b.Core;
+            string template=v.Rows.First(r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal) && r.Contains(" nr=1 a0=1 ",StringComparison.Ordinal));
+            v.Rows.RemoveAll(r=>r.StartsWith("M16_005_WRITE ",StringComparison.Ordinal) ||
+                r.StartsWith("M16_008_CALL ",StringComparison.Ordinal) && r.Contains(" nr=1 a0=1 ",StringComparison.Ordinal));
+            int at=v.Rows.FindIndex(r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal) && r.Contains(" nr=231 ",StringComparison.Ordinal));
+            v.Lengths.Clear();int offset=0;
+            foreach(int count in new[]{1,bytes/2,bytes-bytes/2-1})
+            {
+                string part=stdout.Substring(offset,count).Replace("\n","",StringComparison.Ordinal);offset+=count;
+                v.Rows.Insert(at++,$"M16_005_WRITE fd=1 bytes={count} data={part}");string call=template;
+                foreach(var field in new[]{("a2",(ulong)count),("valueBits",(ulong)count),("returnValueBits",(ulong)count),("clock",v.Clock)})
+                    call=Regex.Replace(call,@"\b"+field.Item1+"=[0-9]+",field.Item1+"="+field.Item2.ToString(CultureInfo.InvariantCulture));
+                v.Rows.Insert(at++,call);v.Lengths.Add(count);
+            }
+            Dictionary<string,int> ordinals=[];
+            for(int i=0;i<v.Rows.Count;i++)if(v.Rows[i].StartsWith("M16_008_CALL ",StringComparison.Ordinal))
+            {
+                string identity=Regex.Match(v.Rows[i],@"\bidentity=([0-9]+)").Groups[1].Value;
+                int ordinal=ordinals.GetValueOrDefault(identity)+1;ordinals[identity]=ordinal;
+                v.Rows[i]=Regex.Replace(v.Rows[i],@"\bordinal=[0-9]+","ordinal="+ordinal.ToString(CultureInfo.InvariantCulture));
+            }
+            HostCheck.Equal(6,b.Inspect().Reaped);HostCheck.Equal(Stdout,NativeAotThreadingOutput.Read(App,b.Raw()).Stdout);
         }
-        Dictionary<string,int> ordinals=[];
-        for(int i=0;i<v.Rows.Count;i++)if(v.Rows[i].StartsWith("M16_008_CALL ",StringComparison.Ordinal))
-        {
-            string identity=Regex.Match(v.Rows[i],@"\bidentity=([0-9]+)").Groups[1].Value;
-            int ordinal=ordinals.GetValueOrDefault(identity)+1;ordinals[identity]=ordinal;
-            v.Rows[i]=Regex.Replace(v.Rows[i],@"\bordinal=[0-9]+","ordinal="+ordinal.ToString(CultureInfo.InvariantCulture));
-        }
-        HostCheck.Equal(6,b.Inspect().Reaped);HostCheck.Equal(Stdout,NativeAotThreadingOutput.Read(App,b.Raw()).Stdout);
         // Full valid stdout placed before any worker can have exited must fail
         // on the phase evidence, not merely on a later truncated transcript.
         Vector empty=new(true);empty.Start();empty.Rows[1]=empty.Rows[1].Replace("entropyBytes=32","entropyBytes=256",StringComparison.Ordinal);

@@ -236,6 +236,7 @@ public static partial class QemuTranscripts
                         long completion=t.Completion.GetValueOrDefault();
                         var resume=Row("M16_008_RESUME","identity:dec","valueBits:dec","status:dec");
                         Need(resume["identity"]==t.Identity && resume["valueBits"]==Bits(completion) && resume["status"]==1,"threading_resume");
+                        if(t.WaitSource==1 && completion==0)phases?.FutexResumed(t.Identity,t.LastSequence,clock);
                         if(t.WaitSource==2 && completion>0)
                         {Need(pipeBytes>=completion,"threading_pipe_completion_bytes");pipeBytes-=(int)completion;}
                         if(t.WaitSource==1 && completion==-4 && t.WaitCall is {Timeout: not 0} replay)t.TimedRestart=replay;
@@ -361,11 +362,16 @@ public static partial class QemuTranscripts
         }
         private void Epoch(Dictionary<string,ulong> row)
         { Need(++epochs<=budget.MaximumEpochs && row["epoch"]==(ulong)epochs && row["nanos"]>=budget.StartedNanoseconds,"threading_epoch");Clock(row["nanos"]); }
-        private int Wake(ulong address,uint mode,uint count,uint bits)
+        private int Wake(ulong address,uint mode,uint count,uint bits,bool explicitWake=false)
         {
             var selected=history.Where(t=>!t.Reaped && t.WaitSource==1 && t.Completion is null && t.WaitAddress==address && t.WaitMode==mode && (t.WaitBits&bits)!=0)
                 .OrderBy(t=>t.AddressOrder).Take((int)Math.Min(count,int.MaxValue)).ToArray();
-            foreach(var t in selected) Complete(t,0); return selected.Length;
+            foreach(var t in selected)
+            {
+                Complete(t,0);
+                if(explicitWake)phases?.FutexWoken(t.Identity,t.LastSequence,clock);
+            }
+            return selected.Length;
         }
 
         private int Requeue(ulong source,ulong destination,uint mode,uint wake,uint move)

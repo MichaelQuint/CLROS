@@ -3,8 +3,13 @@
 [Step1285](../done/step1285.md) admits the exact original RuntimeSmoke under
 explicit M16-010 selection. Canonical r04 package/source/producer evidence and
 its complete index remain separate from RuntimeMatrix. Its original output
-requires real normal reap followed by a later deadline completion, including
-split/coalesced writes. This original Linux trace carries no activation claim;
+requires real normal reap followed by a later deadline completion or step1301's
+matched explicit futex wake and successful same-generation/wait-sequence resume,
+bracketed by successful clock-ID6 calls and validated kernel clock progress.
+Clear-child-TID/requeue wakes cannot mint that alternative. Split/coalesced
+writes retain event order. This corroborates the untimestamped original app's
+managed-timer completion; it does not identify its registration, establish a
+kernel timeout or measure precise timer duration. This trace carries no activation claim;
 the stress-app checks remain unchanged. A host-only repeated-lifetime control
 fills all 16 slots in three successive owners on the same backing, rejects an
 extra clone without TID/signal mutation, cancels parked waits, drains pending

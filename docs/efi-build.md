@@ -2,6 +2,17 @@
 
 ## Development Linux threading profile
 
+[Step1301](../done/step1301.md) records three strict wait-address and three TLS
+captures at `7cb23ee`, plus successful signals/GC/ThreadPool/original-runtime
+captures and 32 original-native review bindings. A later original-runtime run
+completes cleanup but exposes an overly strict host timer assertion. Its
+unchanged 10 ms managed timer can be due before a kernel timed wait is needed.
+The Smoke-only consumer now retains deadline evidence and also accepts a matched
+post-reap explicit futex wake, exact successful resumption, bounding monotonic
+reads and independently validated clock progress. Stress/matrix deadline checks
+remain fixed. This does not identify the managed timer registration or measure
+its precise duration. Final-source guest/full/negative/ancestor gates remain.
+
 [Step1300](../done/step1300.md) records the5196-check unfiltered full pass at
 366717b and seven fresh native preparations. A wait-address guest reaches READY
 after an exact pre-boot native-review join, but its outer runner rejects stale
@@ -131,8 +142,10 @@ as a distinct M16-010 regression. Select it explicitly with
 `-LinuxThreadingApplication NativeAotRuntimeSmoke`; omitted M16-010 app selection
 still defaults to `NativeAotRuntimeMatrix`. The original five-row output, exact
 step1225 r04 ELF and complete instruction index have their own sealed authority.
-Its leaf requires actual normal worker reap and a later deadline completion;
-the stress apps retain their separate activation evidence requirements.
+Its leaf requires actual normal worker reap and later kernel timer-phase
+evidence: a deadline completion or the bounded clock/wake/resume route described
+in step1301. The stress apps retain their separate activation and timestamped
+deadline requirements.
 
 Prepare it with `linux runtime-package NativeAotRuntimeSmoke <evidence-root>
 artifacts/runtime-original-r01/NativeAotRuntimeSmoke.pkg`, then

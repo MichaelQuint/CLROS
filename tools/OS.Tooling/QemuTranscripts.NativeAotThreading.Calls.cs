@@ -139,7 +139,7 @@ public static partial class QemuTranscripts
                         Need(v==(ulong)Requeue(a,e,mode,(uint)wake,(uint)move),"threading_requeue_count");
                     }
                     else if(cmd is 1 or 10)
-                    {int n=unchecked((int)c);Need(v==(ulong)Wake(a,mode,n<=0?1U:(uint)n,bits),"threading_wake_count");}
+                    {int n=unchecked((int)c);Need(v==(ulong)Wake(a,mode,n<=0?1U:(uint)n,bits,explicitWake:true),"threading_wake_count");}
                     else if(r["action"]==3)
                     {
                         Need(v==0 && (d==0?witness.Deadline==0:memory.Covered(d,16,1)&&witness.Deadline>clock),"threading_futex_deadline");
@@ -224,7 +224,10 @@ public static partial class QemuTranscripts
                 case 97: Need(a is 3 or 9 && memory.Covered(b,16,3) && v==0,"threading_rlimit");break;
                 case 99: Need(memory.Covered(a,112,3) && v==0,"threading_sysinfo");break;
                 case 204: Need(a is 0 or 1 && b is >=8 and <=4096 && memory.Covered(c,8,3) && v==8,"threading_affinity");break;
-                case 228: Need(a is 1 or 6?memory.Covered(b,16,3) && v==0:v==Bits(-22),"threading_monotonic_clock");break;
+                case 228:
+                    Need(a is 1 or 6?memory.Covered(b,16,3) && v==0:v==Bits(-22),"threading_monotonic_clock");
+                    if(a==6 && v==0)phases?.MonotonicRead(clock);
+                    break;
                 case 302: Need(a is 0 or 1 && b is 3 or 9 && c==0 && memory.Covered(d,16,3) && v==0,"threading_limit");break;
                 case 318:
                     Need(b is >0 and <=32 && c<=3 && memory.Covered(a,b,3),"threading_entropy");

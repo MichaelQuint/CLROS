@@ -15,6 +15,10 @@ public static partial class QemuTranscripts
         private readonly int bytes;
         private readonly List<CollectionSignal> collections=[];
         private readonly List<(ulong Deadline,ulong Clock,int Reaps)> deadlines=[];
+        private readonly Dictionary<(ulong Identity,ulong Sequence),ulong> smokeWakes=[];
+        private readonly List<(ulong Clock,int Reads)> smokeResumes=[];
+        private ulong smokeFirstClock=ulong.MaxValue,smokeLastClock;
+        private int smokeClockReads;
         private int position,normalReaps,totalReaps,matrixReapsDue,gc,joins,timers,written;
         private bool started,passed;
         internal ulong EarliestClock { get; private set; }=ulong.MaxValue;
@@ -38,6 +42,26 @@ public static partial class QemuTranscripts
         internal void Collected(CollectionSignal proof)=>collections.Add(proof);
         internal void Reaped(){normalReaps++;totalReaps++;}
         internal void Deadline(ulong deadline,ulong clock)=>deadlines.Add((deadline,clock,totalReaps));
+
+        // The original app has no timer timestamps. An already-due managed timer
+        // may use clock/wake activity without a kernel timeout. Only explicit
+        // FUTEX_WAKE and the exact generation/sequence's successful resume mint
+        // this alternative; clear-TID, requeue and output alone cannot do so.
+        internal void MonotonicRead(ulong clock)
+        {
+            if(app!="NativeAotRuntimeSmoke" || totalReaps==0)return;
+            smokeFirstClock=Math.Min(smokeFirstClock,clock);smokeLastClock=clock;smokeClockReads++;
+        }
+        internal void FutexWoken(ulong identity,ulong sequence,ulong clock)
+        {
+            if(app=="NativeAotRuntimeSmoke" && totalReaps>0 && smokeClockReads>0)
+                smokeWakes.Add((identity,sequence),clock);
+        }
+        internal void FutexResumed(ulong identity,ulong sequence,ulong clock)
+        {
+            if(smokeWakes.Remove((identity,sequence),out ulong woke) && smokeFirstClock<=woke && woke<=clock)
+                smokeResumes.Add((clock,smokeClockReads));
+        }
 
         internal void Write(int total)
         {
@@ -79,12 +103,21 @@ public static partial class QemuTranscripts
                 }
                 else if(line=="NATIVEAOT_RUNTIME_TASK_TIMER_OK")
                 {
-                    // No app timestamp exists here. Require a real deadline win
-                    // observed after normal worker teardown. Preserve event
-                    // order even if both app rows arrive in one stdout write.
+                    // Preserve real deadline evidence. If the managed timer was
+                    // already due, require a matched wake/resume bracketed by
+                    // successful monotonic reads and validated clock progress.
+                    // Neither route identifies its internal registration or
+                    // measures this untimestamped app's precise timer duration.
                     int at=deadlines.FindIndex(d=>d.Reaps>0);
-                    Need(at>=0,"runtime_smoke_timer_kernel_evidence");
-                    var timer=deadlines[at];Times(timer.Deadline,timer.Clock);deadlines.RemoveAt(at);timers++;
+                    if(at>=0)
+                    {var timer=deadlines[at];Times(timer.Deadline,timer.Clock);deadlines.RemoveAt(at);}
+                    else
+                    {
+                        at=smokeResumes.FindIndex(r=>r.Reads<smokeClockReads && r.Clock<=smokeLastClock && smokeFirstClock<smokeLastClock);
+                        Need(at>=0,"runtime_smoke_timer_kernel_evidence");
+                        Times(smokeFirstClock,smokeLastClock);smokeResumes.RemoveAt(at);
+                    }
+                    timers++;
                 }
             }
         }

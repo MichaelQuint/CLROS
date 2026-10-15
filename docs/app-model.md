@@ -1,5 +1,15 @@
 # App Model
 
+[Step1301](../done/step1301.md) records six strict mechanical wait/TLS captures,
+five strict runtime/signal captures and 32 native review bindings at `7cb23ee`.
+Another unchanged original-runtime run reaches full cleanup but exposes a host
+consumer assumption: its 10 ms managed timer need not block until a kernel timeout
+if already due. The original-only correction accepts actual matched
+clock/wake/resume evidence as an alternative to deadline expiry; timestamped
+stress/matrix requirements and every payload/configuration remain fixed.
+Offline revalidation preserves the original failed run status. Final-source
+shared full-host, repeated guest, negative and ancestor acceptance remains open.
+
 [Step1285](../done/step1285.md) adds separate sealed admission for the unchanged
 original RuntimeSmoke, preserving its EH, GC/threads/TLS and task/timer groups
 as M16-010 regressions. Explicit app selection distinguishes it from the default
