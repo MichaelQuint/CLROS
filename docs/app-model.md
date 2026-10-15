@@ -1,5 +1,16 @@
 # App Model
 
+[Step1283](../done/step1283.md) implements the complete broader runtime leaf
+consumer. Independent synthetic leaves model 18 thread lifetimes/nine signal
+returns for GC stress, 13 lifetimes/nine live threads/six signal returns for the
+matrix, and three deadline-backed timer rounds for ThreadPool stress. Complete
+stdout without kernel phase evidence rejects; output segmentation/coalescing
+preserves distinct evidence. Timed restart uses original address/bitset/deadline
+and cannot reread a timeout or fabricate completion. Forty-seven focused checks
+pass across development rounds. No new QEMU selector or runtime acceptance is
+added; full parent/wrapper integration and actual process/capacity/error cleanup
+remain before the eight-issue batch gates.
+
 [Step1282](../done/step1282.md) supplies larger-policy execution ceilings, raw
 stdout decoding for all three broader apps and common transcript requeue
 accounting. Address wake FIFO can change while the original equal-deadline FIFO

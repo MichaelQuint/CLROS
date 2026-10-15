@@ -50,6 +50,10 @@ public static unsafe partial class EfiEntry
                             !LinuxText(state, c->User.UserInterrupts ?
                                 " timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack\r\n" :
                                 " timer=idle-only clock=hpet-nanoseconds reuse=off-stack\r\n")) c->Failed = 1;
+                        if (c->Capacity > 8 && !(LinuxText(state, "M16_008_BUDGET started=") && LinuxNumber(state, c->Budget.StartedNanoseconds) &&
+                            LinuxText(state, " epochs=") && LinuxNumber(state, c->Budget.MaximumEpochs) &&
+                            LinuxText(state, " steps=") && LinuxNumber(state, c->Budget.MaximumSteps) &&
+                            LinuxText(state, " nanos=") && LinuxNumber(state, LinuxThreadExecutionBudget.RuntimeNanoseconds) && LinuxText(state, "\r\n"))) c->Failed = 1;
                         var plan = state->LinuxSyscallPlan;
                         LinuxSyscallFrame initial = new() { Rip = plan.UserRip, Rsp = plan.UserRsp,
                             Rflags = c->User.UserInterrupts ? 0x202UL : 2UL, FsBase = plan.UserFs, GsBase = plan.UserGs };
@@ -69,6 +73,8 @@ public static unsafe partial class EfiEntry
             if (!hardware || !empty) return false;
             uint reaped = c == null ? 0 : c->Reaped, transfers = c == null ? 0 : c->Transfers;
             ulong epochs = c == null ? 0 : c->Epoch;
+            bool runtimeBudget = c != null && c->Capacity > 8;
+            ulong observedNanos = c == null ? 0 : c->Budget.ObservedNanoseconds;
             bool failed = c != null && (c->Failed != 0 || c->Process.Failed);
             if (published && !LinuxNativeRelease(c, LinuxNativeRsp(c))) return false;
             if (state->LinuxDescriptorPhase == 4)
@@ -85,7 +91,8 @@ public static unsafe partial class EfiEntry
             if (!ClearLinuxRandom(state)) return false;
             if (!LinuxMemoryServices.Audit(&state->LinuxMemory) || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
             state->CooperativePhase = state->LinuxSyscallPhase = state->LinuxMemoryPhase = 6;
-            bool logged = LinuxText(state, "M16_008_OWNER_END reaped=") && LinuxNumber(state, reaped) &&
+            bool logged = (!runtimeBudget || LinuxText(state, "M16_008_BUDGET_END nanos=") && LinuxNumber(state, observedNanos) && LinuxText(state, "\r\n")) &&
+                LinuxText(state, "M16_008_OWNER_END reaped=") && LinuxNumber(state, reaped) &&
                 LinuxText(state, " transfers=") && LinuxNumber(state, transfers) && LinuxText(state, " irqs=") && LinuxNumber(state, epochs) &&
                 LinuxText(state, " exit=") && LinuxNumber(state, state->LinuxSyscallExitCode) &&
                 LinuxText(state, " userReserved=") && LinuxNumber(state, state->LinuxMemory.ReservedBytes) &&
@@ -155,7 +162,15 @@ public static unsafe partial class EfiEntry
             {
                 if (!LinuxNativeObserve(c) || !LinuxNativeVerify(c) || !LinuxNativeSavedCode(c) || !CooperativeAuditPool(c->State, true)) return false;
                 if (!LinuxNativeReapExited(c)) return false;
-                if (c->Process.ActiveThreads == 0) return c->Failed == 0 && !c->Process.Failed;
+                if (c->Process.ActiveThreads == 0)
+                {
+                    // Completion must not bypass the elapsed ceiling just
+                    // because the final dispatch exited every remaining worker.
+                    ulong finished = 0;
+                    delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
+                    return c->Failed == 0 && !c->Process.Failed &&
+                        (c->Capacity <= 8 || clock(c->State, &finished) == 1 && c->Budget.Observe(finished));
+                }
                 // Expiry is checked only on the restored supervisor. Previously
                 // armed IRQs have already acknowledged/drained in Transfer.
                 // Shutdown still uses the same real worker exit continuations.

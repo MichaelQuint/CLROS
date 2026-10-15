@@ -13,6 +13,8 @@ public struct LinuxThreadExecutionBudget
     public const ulong RuntimeNanoseconds = 300_000_000_000;
     private uint _workers;
     private ulong _started, _last;
+    public readonly ulong StartedNanoseconds => _started;
+    public readonly ulong ObservedNanoseconds => _last;
     public readonly uint MaximumEpochs => _workers == 0 ? 0U : _workers <= 8 ? 128U : 8192U;
     public readonly uint MaximumSteps => _workers == 0 ? 0U : _workers <= 8 ? 512U : 16384U;
 
@@ -33,7 +35,16 @@ public struct LinuxThreadExecutionBudget
     /// this check must never be used to reject that acknowledgement or drain.</summary>
     public bool Continue(ulong now, ulong epochs, uint step)
     {
-        if (_workers == 0 || epochs >= MaximumEpochs || step >= MaximumSteps || now > long.MaxValue || now < _last ||
+        if (_workers == 0 || epochs >= MaximumEpochs || step >= MaximumSteps) return false;
+        return Observe(now);
+    }
+
+    /// <summary>Check genuine elapsed time, including after the final worker
+    /// reaps when no further timer may be armed. Failure changes nothing; this
+    /// does not acknowledge hardware or authorize resource release.</summary>
+    public bool Observe(ulong now)
+    {
+        if (_workers == 0 || now > long.MaxValue || now < _last ||
             _workers > 8 && now - _started >= RuntimeNanoseconds) return false;
         _last = now; return true;
     }

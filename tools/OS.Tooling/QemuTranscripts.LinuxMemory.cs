@@ -157,9 +157,11 @@ public static partial class QemuTranscripts
         return lines[..start];
     }
 
-    private static void LinuxMemoryPolicy(string line)
+    private static void LinuxMemoryPolicy(string line, uint entropy = 32)
     {
-        const string suffix = " poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel";
+        Need(entropy is 32 or 256,"m16_006_entropy_policy");
+        string suffix = " poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes="+
+            entropy.ToString(System.Globalization.CultureInfo.InvariantCulture)+" cpus=1 root=inactive-kernel";
         Need(line.EndsWith(suffix, StringComparison.Ordinal), "m16_006_policy");
         var policy = ReadRecord(line[..^suffix.Length], "M16_006_POLICY", "physical:dec", "available:dec");
         Need(policy["physical"] is >= 16777216 and <= 0x100000000 && policy["available"] >= 16777216 &&

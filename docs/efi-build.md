@@ -2,6 +2,15 @@
 
 ## Development Linux threading profile
 
+[Step1283](../done/step1283.md) publishes start/end budget observations only for
+the existing larger thread policy. Its final reap also samples actual time;
+there is no successful-completion exception to the elapsed ceiling. Focused
+profiles retain their original positive markers. Complete broader leaf
+consumers and independent synthetic positives now cover all three apps,
+including real modeled signal/deadline/reap phase evidence. Combined no-stdlib
+C# compilation and static source admission pass. Wrapper/profile preparation,
+outer runner limits and real native/guest qualification remain pending.
+
 [Step1282](../done/step1282.md) replaces the larger thread policy's incidental
 128-IRQ/512-step cutoff with separate finite event and real-time limits. All
 timer arms/acknowledgements use the admitted epoch ceiling; expiry is evaluated

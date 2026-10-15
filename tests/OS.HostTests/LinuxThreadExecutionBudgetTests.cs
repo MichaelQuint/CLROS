@@ -52,4 +52,16 @@ internal static class LinuxThreadExecutionBudgetTests
         HostCheck.True(!budget.Continue((ulong)long.MaxValue + 1, 1, 1) && !budget.Continue(ulong.MaxValue, 1, 1));
         HostCheck.True(budget.Continue(long.MaxValue, 1, 1));
     }
+
+    [HostTest("linux.thread-budget final completion observes real time without requiring another arm or consuming an expired clock")]
+    private static void Completion()
+    {
+        LinuxThreadExecutionBudget budget=default;HostCheck.True(budget.Begin(16,123));
+        HostCheck.Equal(123UL,budget.StartedNanoseconds);HostCheck.Equal(123UL,budget.ObservedNanoseconds);
+        HostCheck.True(budget.Continue(1000,8191,16383));
+        HostCheck.True(budget.Observe(300_000_000_122));
+        HostCheck.True(!budget.Observe(300_000_000_123));
+        HostCheck.Equal(300_000_000_122UL,budget.ObservedNanoseconds);
+        HostCheck.True(!default(LinuxThreadExecutionBudget).Observe(0));
+    }
 }

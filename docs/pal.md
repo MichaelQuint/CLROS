@@ -1,5 +1,16 @@
 # PAL
 
+[Step1283](../done/step1283.md) adds complete broader runtime leaf validation
+against canonical packages, sealed instruction indexes and original raw output.
+The common model admits the actual 16-worker/256-byte policy, verifies budget
+start/end observations, preserves timed restart callbacks through handler I/O
+until one-shot consumption or sigreturn, and rejects unowned clock advances.
+Collection/timer/join output consumes distinct validated signal returns, deadline
+wins and normal reaps; matrix acceptance requires at least nine simultaneous
+modeled threads. Forty-seven focused checks pass across development rounds.
+This is parser/service evidence; parent/wrapper integration and actual shared
+full-host/native/guest/ancestor qualification remain required.
+
 [Step1282](../done/step1282.md) adds explicit native execution budgets. Policies
 above eight workers allow at most 8192 acknowledged IRQ epochs and 16384 driver
 steps, with five minutes of actual HPET-derived monotonic time checked at restored

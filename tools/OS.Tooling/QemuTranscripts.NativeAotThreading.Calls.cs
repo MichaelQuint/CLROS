@@ -18,13 +18,18 @@ public static partial class QemuTranscripts
                 Need(interrupted>=1100,"threading_signal_redzone");
                 ulong fp=(interrupted-128-512)&~63UL, expected=((fp-440)&~15UL)-8;
                 Need(frame==expected && memory.Covered(frame-8,448,3) && memory.Covered(fp,512,3),"threading_signal_frame_geometry");
-                t.Requests--; t.Delivered++; t.Frames.Push((frame,interrupted));t.DeliveryRsp=null;
+                Need(phases is null || t.SignalProofs.Count!=0,"runtime_signal_request_evidence");
+                CollectionSignal? proof=phases is null?null:t.SignalProofs.Dequeue();
+                Need(proof is null || proof.Identity==t.Identity,"runtime_signal_generation");
+                t.Requests--; t.Delivered++; t.Frames.Push((frame,interrupted,proof));t.DeliveryRsp=null;
             }
             if(r["nr"]==15)
             {
                 Need(t.Frames.Count>0 && r["action"]==5 && r["status"]==1,"threading_sigreturn_without_frame");
                 var frame=t.Frames.Pop(); Need(r["rsp"]==frame.Frame+8 && value.Rsp==frame.Rsp && instruction(value.Rip),"threading_sigreturn_context");
                 Envelope(t,value.Rip,value.Rsp,value.Flags,value.Fs,value.Gs,15); t.Returned++; signalReturns++;
+                if(frame.Proof is not null)phases!.Collected(frame.Proof);
+                t.TimedRestart=null; // rt_sigreturn invalidates the restart callback.
             }
             else
                 Need(value.Rip==r["rip"] && value.Rsp==r["rsp"] && value.Flags==r["flags"] && value.Fs==r["fs"] && value.Gs==r["gs"],"threading_unexpected_context_rewrite");
@@ -45,9 +50,13 @@ public static partial class QemuTranscripts
         private void Call(RuntimeThread t,Dictionary<string,ulong> r,LinuxCallWaitObservation witness,bool output)
         {
             ulong nr=r["nr"],a=r["a0"],b=r["a1"],c=r["a2"],d=r["a3"],e=r["a4"],f=r["a5"],v=r["valueBits"];
-            Need(witness.Identity==t.Identity,"threading_wait_generation");
+            Need(witness.Identity==t.Identity && witness.Ordinal<=4096,"threading_wait_generation");
             if(t.Tid==1 && witness.Ordinal<=3)Need(nr==(witness.Ordinal==1?9UL:witness.Ordinal==2?158UL:218UL),"threading_main_startup_order");
-            Need(r["clock"]==clock || nr is 202 or 200 or 234 or 219,"threading_unowned_clock_change"); Clock(r["clock"]);
+            RuntimeThread? targetClock=nr is 200 or 234?slots.SingleOrDefault(x=>x?.Tid==unchecked((int)(nr==200?a:b))):null;
+            bool readsClock=nr==202 && (((uint)b&~384U) is 0 or 9) || nr==219 && t.TimedRestart.HasValue ||
+                targetClock is not null && !targetClock.Exiting && targetClock.WaitSource==1 &&
+                unchecked((int)(nr==200?b:c))==35 && (targetClock.Mask&(1UL<<34))==0;
+            Need(r["clock"]==clock || readsClock,"threading_unowned_clock_change"); Clock(r["clock"]);
             ulong action=1,status=1;
             switch(nr)
             {
@@ -110,7 +119,7 @@ public static partial class QemuTranscripts
                         slots.All(x=>x is null || x.Fs!=e),"threading_clone_stack_tls");
                     ulong identity=(generations[slot]<<32)|(uint)(slot+1);
                     var child=new RuntimeThread(identity,nextTid++,stack.Start,b,e,r["rip"]){ClearTid=d,Gs=t.Gs,Mask=t.Mask};
-                    slots[slot]=child; history.Add(child); Enqueue(child); active++; clones++;break;
+                    slots[slot]=child; history.Add(child); Enqueue(child); active++;peak=Math.Max(peak,active);clones++;break;
                 case 202:
                     uint op=(uint)b, mode=op&128,cmd=op&~384U,bits=cmd is 9 or 10?(uint)f:uint.MaxValue;
                     Need((a&3)==0 && (b&~(128UL|15))==0 && cmd is 0 or 1 or 3 or 9 or 10 && bits!=0 &&
@@ -126,9 +135,22 @@ public static partial class QemuTranscripts
                     else if(r["action"]==3)
                     {
                         Need(v==0 && (d==0?witness.Deadline==0:memory.Covered(d,16,1)&&witness.Deadline>clock),"threading_futex_deadline");
-                        Stage(t,witness,1,a,mode,bits); action=3;status=9;
+                        Stage(t,witness,1,a,mode,bits);
+                        t.WaitCall=new(a,op,unchecked((uint)c),d,bits,r["rip"],witness.Deadline);action=3;status=9;
                     }
                     else Need(v==Bits(-11) || d!=0 && v==Bits(-110),"threading_no_invented_wait_success");
+                    break;
+                case 219:
+                    if(t.TimedRestart is not { } saved){Need(v==Bits(-4),"threading_unarmed_restart");break;}
+                    t.TimedRestart=null;
+                    if(!memory.Covered(saved.Address,4,(saved.Op&128)==0?3U:1U))
+                    {Need(v==Bits(-14),"threading_restart_backing");break;}
+                    if(r["action"]==3)
+                    {
+                        Need(v==0 && saved.Deadline>clock && witness.Deadline==saved.Deadline,"threading_restart_deadline");
+                        Stage(t,witness,1,saved.Address,saved.Op&128,saved.Bits);t.WaitCall=saved;action=3;status=9;
+                    }
+                    else Need(v==Bits(-11) || saved.Deadline<=clock && v==Bits(-110),"threading_restart_result");
                     break;
                 case 200: case 234:
                     int target=unchecked((int)(nr==200?a:b)),signal=unchecked((int)(nr==200?b:c));
@@ -139,6 +161,9 @@ public static partial class QemuTranscripts
                     if(signal==35 && !recipient.Exiting)
                     {
                         Need(actions.Contains(35) && recipient.Requests<4,"threading_signal_action");recipient.Requests++;
+                        if(phases is not null)recipient.SignalProofs.Enqueue(new(recipient.Identity,
+                            history.Count(x=>!x.Reaped && x.WaitSource!=0 && x.Completion is null),
+                            recipient!=t && ready.Contains(recipient) && recipient.WaitSource==0 && recipient.LastUserIrq!=0));
                         // NativeAOT unblocks its activation signal. A real staged
                         // wait is interrupted only when its completion has not won.
                         if(recipient.WaitSource!=0 && recipient.Completion is null && (recipient.Mask&(1UL<<34))==0) Complete(recipient,-4);
@@ -164,7 +189,11 @@ public static partial class QemuTranscripts
                     else Need(v<=c && (a==0?v==0:a<=int.MaxValue && files.Contains((int)a)),"threading_file_read");break;
                 case 1:
                     Need(c>0 && c<=4096 && memory.Covered(b,c,1),"threading_write_buffer");
-                    if(a==1){Need(output && writes<writeLengths.Count && c==(ulong)writeLengths[writes] && v==c,"threading_stdout_pair");writes++;}
+                    if(a==1)
+                    {
+                        Need(output && writes<writeLengths.Count && c==(ulong)writeLengths[writes] && v==c,"threading_stdout_pair");
+                        stdoutBytes+=writeLengths[writes++];phases?.Write(stdoutBytes);
+                    }
                     else
                     {
                         Need(a==(ulong)pipeWrite && pipeWrite!=0 && pipeRead!=0 && c==1 && v==1 && pipeBytes<4096,"threading_pipe_write");pipeBytes++;
@@ -189,7 +218,7 @@ public static partial class QemuTranscripts
                 case 204: Need(a is 0 or 1 && b is >=8 and <=4096 && memory.Covered(c,8,3) && v==8,"threading_affinity");break;
                 case 228: Need(a==1?memory.Covered(b,16,3) && v==0:v==Bits(-22),"threading_monotonic_clock");break;
                 case 302: Need(a is 0 or 1 && b is 3 or 9 && c==0 && memory.Covered(d,16,3) && v==0,"threading_limit");break;
-                case 318: Need(b is >0 and <=32 && c<=3 && memory.Covered(a,b,3) && v==b && b<=32-entropyBytes,"threading_entropy");entropyBytes+=b;break;
+                case 318: Need(b is >0 and <=32 && c<=3 && memory.Covered(a,b,3) && v==b && b<=entropyLimit-entropyBytes,"threading_entropy");entropyBytes+=b;break;
                 case 324:
                     Need(b==0 && c==0 && a is 0 or 8 or 16 && v==(a==0?0x18UL:0UL) && (a!=8||barrierRegistered),"threading_barrier");if(a==16)barrierRegistered=true;break;
                 case 24: case 35: case 98: case 137: case 157: case 217: case 239:

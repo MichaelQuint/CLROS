@@ -1,5 +1,23 @@
 # Diagnostics
 
+[Step1283](../done/step1283.md) adds `ValidateNativeAotRuntimeTail`, requiring the
+canonical package and sealed runtime instruction index for the selected app.
+Broader leaves retain all raw stdout, syscall/wait, signal-frame, scheduler,
+mapping, exit/reap and owner cleanup checks. Collection output consumes completed
+activation frames for a ready, previously user-preempted peer while other kernel
+waits are parked. Timer output consumes actual deadline wins in its reported
+nanosecond interval. Join output consumes actual normal worker reaps. Split and
+coalesced writes retain those distinct observations. These checks correlate
+observable boundaries; they do not trace every user instruction or prove kernel
+roles from anonymous handles. Exact payload source and real capture provenance
+remain mandatory.
+
+Broader native owners emit `M16_008_BUDGET started=... epochs=8192 steps=16384
+nanos=300000000000` after the bound record and `M16_008_BUDGET_END nanos=...`
+before owner cleanup. Final time is sampled after the final reap so successful
+process completion cannot bypass expiry. Original focused positive grammar is
+unchanged. Parent/wrapper integration and current real guests remain pending.
+
 [Step1282](../done/step1282.md) decodes the raw stdout envelopes for all three
 broader runtime apps through their existing complete validators. Canonical byte
 counts, original segmentation, immutable results and unchanged 4-KiB stdout /

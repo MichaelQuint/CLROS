@@ -18,14 +18,14 @@ internal static class NativeAotThreadingTranscriptTests
         "NATIVEAOT_THREADPOOL_TIMER dueMs=50 before=1100 fired=1150 frequency=1000 callbacks=1 stale=0 disposed=true\n"+
         "NATIVEAOT_THREADPOOL_DRAINED tasks=4 continuations=3 callbacks=1 stale=0\nTEST_PASS nativeaot.threadpool\n";
 
-    private sealed class Thread(int slot,int tid,ulong generation=1)
+    internal sealed class Thread(int slot,int tid,ulong generation=1)
     {
         internal readonly ulong Id=(generation<<32)|(uint)slot;
         internal readonly int Tid=tid;
         internal ulong Bottom=0x100100000+(uint)tid*0x30000UL,Top=0x10011e000+(uint)tid*0x30000UL,Fs,Mask,Frame,Depth;
         internal ulong Rsp,Sequence,Ordinal;
     }
-    private sealed class Vector(bool pool)
+    internal sealed class Vector(bool pool)
     {
         internal readonly bool Pool=pool;
         internal readonly List<string> Rows=[];
@@ -91,7 +91,7 @@ internal static class NativeAotThreadingTranscriptTests
         }
     }
 
-    private static Vector SuspensionVector(bool earlyHandlerIrq=false,bool selfExit=false,bool tailIrq=false,bool requeue=false)
+    private static Vector SuspensionVector(bool earlyHandlerIrq=false,bool selfExit=false,bool tailIrq=false,bool requeue=false,bool restart=false)
     {
         Vector v=new Vector(false).Start();Thread final=v.Clone(2,2),signal=v.Clone(3,3),worker=v.Clone(4,4);
         v.Irq(10,4,4);v.Select(final);v.Wait(0x500200);v.Drain(20);v.Supervisor(3,3,4);
@@ -99,7 +99,8 @@ internal static class NativeAotThreadingTranscriptTests
         v.Select(worker);v.Irq(40,2,4);
         for(int cycle=0;cycle<2;cycle++)
         {
-            v.Select(v.Main);v.Call(200,0,[4,35]);v.Wait(0x500204);v.Drain((ulong)(50+40*cycle));v.Supervisor(3,1,4);
+            v.Select(v.Main);if(restart && cycle==1)v.Resume(0);
+            v.Call(200,0,[4,35]);v.Wait(0x500204);v.Drain((ulong)(50+40*cycle));v.Supervisor(3,1,4);
             v.Select(worker);worker.Frame=worker.Top-1160;worker.Depth=1;worker.Mask=1UL<<34;worker.Rsp=worker.Frame-64;
             if(earlyHandlerIrq && cycle==0)v.Irq(55,1,4);
             v.Call(186,4);
@@ -115,7 +116,23 @@ internal static class NativeAotThreadingTranscriptTests
             v.Wake(0x500208);v.Irq((ulong)(70+40*cycle),2,4);
             v.Select(worker);v.Resume(0);worker.Rsp=worker.Frame+8;worker.Depth=worker.Frame=worker.Mask=0;
             v.Call(15,0,action:5,returnedRsp:worker.Top-64);worker.Rsp=worker.Top-64;
-            if(cycle==0)v.Irq(80,2,4);
+            if(cycle==0)
+            {
+                v.Irq(80,2,4);
+                if(restart)
+                {
+                    v.Select(v.Main);v.Irq(81,2,4);
+                    v.Select(worker);v.Wait(0x500240,85);v.Drain(82);v.Supervisor(3,1,4);
+                    v.Select(v.Main);v.Call(202,1,[0x500240,131,0,1,0x500244]);v.Call(200,0,[4,35]);
+                    v.Wait(0x500204);v.Drain(83);v.Supervisor(3,1,4);
+                    v.Select(worker);v.Resume(-4);worker.Frame=worker.Top-1160;worker.Depth=1;worker.Mask=1UL<<34;worker.Rsp=worker.Frame-64;
+                    v.Call(186,4);v.Call(219,0,[ulong.MaxValue,ulong.MaxValue,ulong.MaxValue],3,1,85);
+                    v.Drain(84);v.Supervisor(3,0,4);v.Tick(85,1);
+                    v.Select(worker);v.Resume(-110);v.Call(219,-4);v.Wake(0x500204);
+                    worker.Rsp=worker.Frame+8;worker.Depth=worker.Frame=worker.Mask=0;
+                    v.Call(15,-4,action:5,returnedRsp:worker.Top-64);worker.Rsp=worker.Top-64;v.Irq(85,2,4);
+                }
+            }
         }
         if(selfExit)
         {
@@ -167,7 +184,7 @@ internal static class NativeAotThreadingTranscriptTests
         if(extra!=null){v.Select(extra);v.Exit(4,2,count--);}
         v.Select(final);v.Exit(4,1,count--);v.Select(signal);v.Exit(4,0,count);v.End(extra==null?6:7);return v;
     }
-    private static byte[] Elf(bool tail=false)
+    internal static byte[] Elf(bool tail=false)
     {
         byte[] elf=LinuxThreadProofFixture.CreateElf("Threads");
         BinaryPrimitives.WriteUInt64LittleEndian(elf.AsSpan(136),0x500000);
@@ -199,6 +216,18 @@ internal static class NativeAotThreadingTranscriptTests
         Reject(v,Change(v,move,"a1",3));
         Reject(v,Change(v,"a0=5243396 a1=131","valueBits",1));
         Reject(timed,Change(timed,"a0=5243408 a1=131","valueBits",0));
+    }
+
+    [HostTest("nativeaot.threading timed restart consumes the original requeued wait deadline once inside a real handler")]
+    private static void Restart()
+    {
+        var v=SuspensionVector(restart:true);HostCheck.Equal(3,Inspect(v).SignalReturns);
+        Reject(v,Change(v,"nr=219 ","waitDeadline",86));
+        Reject(v,Change(v,"nr=219 ","waitSequence",1));
+        Reject(v,Change(v,"nr=219 ","valueBits",unchecked((ulong)-110L)));
+        Reject(v,Change(v,"nr=219 ","waitSource",2));
+        Reject(v,Change(v,"nr=219 ","nr",202));
+        Reject(v,Change(v,"nr=219 ","clock",86));
     }
 
     [HostTest("nativeaot.threading self-unmap tail requires exact ELF instructions masked owner IRQ continuation and EFAULT clear-TID")]
