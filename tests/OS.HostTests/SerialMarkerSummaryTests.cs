@@ -3,6 +3,32 @@ using OS.Tools.QemuRunner;
 
 internal static class SerialMarkerSummaryTests
 {
+    [HostTest("qemu summary preserves optional Linux witnesses faults and IRQ rows including repetitions")]
+    private static void LinuxObservations()
+    {
+        string[] records = ["M16_005_WRITE fd=1 bytes=15 data=M16_HANDLER_OK!",
+            "M16_005_WRITE fd=1 bytes=15 data=M16_SIGNALS_OK!",
+            "M16_009_FAULT vector=14", "M16_009_IRQ epoch=1", "M16_009_DRAIN epoch=2",
+            "M16_008_REAP old=1", "M16_008_REAP old=1", "OS_SMOKE_PASS"];
+        string serial = "firmware noise\r\n" + string.Join("\r\n", records) + "\r\nnoise M16_009_IRQ\r\nM16009_not_a_marker\r\n";
+        var summary = SerialMarkerSummary.Parse(serial, ["OS_SMOKE_PASS"], ["TEST_FAIL"]);
+        HostCheck.True(summary.Passed && summary.ObservedMarkerLines.SequenceEqual(records));
+        HostCheck.True(records.All(SerialMarkerSummary.IsStandardObservedMarkerLine));
+        HostCheck.True(!SerialMarkerSummary.IsStandardObservedMarkerLine("noise M16_009_IRQ") &&
+            !SerialMarkerSummary.IsStandardObservedMarkerLine("M16009_not_a_marker"));
+    }
+
+    [HostTest("qemu optional Linux observations never replace required or forbidden marker checks")]
+    private static void LinuxObservationBoundary()
+    {
+        HostCheck.True(SerialMarkerSummary.Parse("OS_SMOKE_PASS\n", ["OS_SMOKE_PASS"], ["TEST_FAIL"]).Passed);
+        var missing = SerialMarkerSummary.Parse("M16_009_IRQ epoch=1\n", ["OS_SMOKE_PASS"], ["TEST_FAIL"]);
+        HostCheck.True(!missing.Passed && missing.MissingMarkers.SequenceEqual(new[] { "OS_SMOKE_PASS" }));
+        var forbidden = SerialMarkerSummary.Parse("M16_009_IRQ epoch=1\nOS_SMOKE_PASS\nTEST_FAIL m16-009\n",
+            ["OS_SMOKE_PASS"], ["TEST_FAIL"]);
+        HostCheck.True(!forbidden.Passed && forbidden.HasForbiddenMarkers);
+    }
+
     [HostFixture(HostLane.Fast)]
     public static void Initialize()
     {

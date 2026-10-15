@@ -345,6 +345,25 @@ internal static unsafe class ThreadContextSwitchTests
         HostCheck.True(ThreadContextSwitch.VerifyStub(code.Bytes, 4096, owner, source, destination, plan));
     }
 
+    [HostTest("m09.004 emitter checks every padding byte through its exact capacity without writes during comparison", HostLane.Fast, 17)]
+    private static void PaddingExtent()
+    {
+        using Buffer arena = new(); using Buffer code = new();
+        var plan = Stub(arena, out var owner, out var source, out var destination);
+        HostCheck.True(ThreadContextSwitch.EmitStub(code.Bytes, 1024, owner, source, destination, plan));
+        int start = 1024; while (start > 0 && code.Bytes[start - 1] == 0xcc) start--;
+        HostCheck.True(start > 0 && start < 1000 && (start & 7) != 0);
+        HostCheck.True(new ReadOnlySpan<byte>(code.Bytes + 1024, 3072).IndexOfAnyExcept((byte)0xa5) == -1);
+        HostCheck.True(ThreadContextSwitch.VerifyStub(code.Bytes, 1024, owner, source, destination, plan));
+        for (int position = start; position < 1024; position++)
+        {
+            code.Bytes[position] ^= 1; byte[] changed = code.Snapshot();
+            HostCheck.True(!ThreadContextSwitch.VerifyStub(code.Bytes, 1024, owner, source, destination, plan));
+            HostCheck.True(changed.SequenceEqual(code.Snapshot())); code.Bytes[position] ^= 1;
+        }
+        HostCheck.True(ThreadContextSwitch.VerifyStub(code.Bytes, 1024, owner, source, destination, plan));
+    }
+
     [HostTest("m09.004 emitter warmed output and comparison allocate no managed storage", HostLane.Fast, 11)]
     private static void EmitAllocation()
     {

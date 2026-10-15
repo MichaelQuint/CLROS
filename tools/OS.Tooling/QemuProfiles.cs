@@ -14,7 +14,6 @@ public static class QemuProfiles
     {
         SmokeContracts.ValidateWorkload(options.WorkloadProfile);
         Require(options.DiskFormat is "raw" or "qcow2", "qemu.smoke.invalid_args disk_format=" + options.DiskFormat);
-        Require(options.TimeoutSeconds is >= 1 and <= 300, "qemu_timeout_out_of_range");
         Dictionary<string, bool> flags = new(options.Flags, StringComparer.Ordinal);
         bool Selected(string name) => flags.TryGetValue("Enable" + name + "Probe", out bool selected) && selected;
         if (new[] { "M02OwnedGdtTssTerminal", "M02Ud2VectorState", "M02GuardedIstStackAllocation", "M02OwnedX64GdtEncoding", "M02PanicSafeOwnedCom1", "M02OwnedCom1Ready" }.Any(Selected)
@@ -28,6 +27,11 @@ public static class QemuProfiles
             emit?.Invoke("QEMU_SCRIPT_M02_OWNED_COM1_READY_PREREQUISITES m01LoadedImageStack=true m01LiveAllocator=true m01OwnedPaging=true");
         }
         EfiProfile profile = EfiProfile.Create(options.BootPolicy, flags, emit);
+        NativeAotRuntimeSelection.Bind(options, profile.Flags);
+        string runtimeApp = NativeAotRuntimeSelection.Application(profile.Flags, options.LinuxThreadingApplication);
+        if (runtimeApp.Length != 0 && !options.Explicit.Contains("TimeoutSeconds") && options.TimeoutSeconds == 30)
+            options.TimeoutSeconds = 600;
+        Require(options.TimeoutSeconds >= 1 && options.TimeoutSeconds <= (runtimeApp.Length == 0 ? 300 : 900), "qemu_timeout_out_of_range");
         bool Enabled(string name) => profile.IsEnabled("Enable" + name + "Probe");
         bool normal = profile.BootPolicy == "VerifiedExit";
         bool build = options.BuildEfi || normal && !options.Explicit.Contains("BuildEfi");
@@ -46,7 +50,15 @@ public static class QemuProfiles
             if (forbidPresets) Require(options.MarkerPreset.Count == 0, reason + "_forbids_override parameter=MarkerPreset");
         }
         if (normal) Original("m03_normal", true, true, true);
-        if (firstExit && !Enabled("M16002") && !Enabled("M09004") && !Enabled("M09005") && !Enabled("M09006")) Original("m03_first_exit", true, true, true);
+        if (firstExit && !Enabled("M16002") && !Enabled("M09004") && !Enabled("M09005") && !Enabled("M09006") && !Enabled("M09009") && !Enabled("M09010")) Original("m03_first_exit", true, true, true);
+        foreach (string id in new[] { "009", "010" })
+            if (Enabled("M09" + id))
+            {
+                Original("m09_" + id, false, true, true);
+                foreach (string key in new[] { "RequireOrderedMarker", "RequireUniqueMarker", "ForbidMarker" })
+                    Require(!options.Explicit.Contains(key), "m09_" + id + "_forbids_override parameter=" + key);
+                Require(!options.Explicit.Contains("RequireMarker") || options.RequireMarker.All(x => x == "CLROS_M09_" + id + "_READY"), "m09_" + id + "_marker_override");
+            }
         if (Enabled("M09006"))
         {
             Original("m09_006", false, true, true);
@@ -72,7 +84,7 @@ public static class QemuProfiles
         {
             Original("m16_002", false, true, true);
             foreach (string key in new[] { "RequireOrderedMarker", "RequireUniqueMarker", "ForbidMarker" }) Require(!options.Explicit.Contains(key), "m16_002_forbids_override parameter=" + key);
-            string terminal = Enabled("M16007") ? "CLROS_M16_007_READY" : Enabled("M16006") ? "CLROS_M16_006_READY" : Enabled("M16005") ? "CLROS_M16_005_READY" : Enabled("M16003") ? "CLROS_M16_003_READY" : Enabled("M16004") ? "CLROS_M16_004_READY" : "CLROS_M16_002_READY";
+            string terminal = runtimeApp.Length != 0 ? NativeAotRuntimeSelection.Markers(runtimeApp).Ready : Enabled("M16009") ? "CLROS_M16_009_READY" : Enabled("M16008") ? "CLROS_M16_008_READY" : Enabled("M16007") ? "CLROS_M16_007_READY" : Enabled("M16006") ? "CLROS_M16_006_READY" : Enabled("M16005") ? "CLROS_M16_005_READY" : Enabled("M16003") ? "CLROS_M16_003_READY" : Enabled("M16004") ? "CLROS_M16_004_READY" : "CLROS_M16_002_READY";
             Require(!options.Explicit.Contains("RequireMarker") || options.RequireMarker.All(x => x == terminal), "m16_002_marker_override");
             Require(!Enabled("M16003") || options.LinuxElfImageVariant == "Intact", "m16_003_requires_intact_package");
             Require(!Enabled("M16004") || options.LinuxElfImageVariant == "Intact", "m16_004_requires_intact_package");
@@ -136,6 +148,43 @@ public static class QemuProfiles
             ordered = Merge(records); unique = Merge(once ?? records); forbidden = Merge(forbidden, failures);
         }
         if (normal) { Select(QemuContracts.M03NormalVerifiedExitMarkers, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true); }
+        else if (Enabled("M16009"))
+        {
+            string[] records = [.. QemuContracts.M03OwnedSubsystemMarkers, "TEST_START m16-002", "M16_002_STAGED", "M16_002_DIGEST",
+                "M16_002_PACKAGE_DIGEST", "M16_002_OWNED", "CLROS_M16_002_READY", "TEST_PASS m16-002",
+                .. QemuTranscripts.M16LinuxStartupMarkers, .. QemuTranscripts.M16ServiceLoopMarkers,
+                .. QemuContracts.M05ApicSetupMarkers.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count),
+                .. runtimeApp.Length == 0 ? Array.Empty<string>() : new[] { NativeAotRuntimeSelection.Markers(runtimeApp).Start },
+                .. QemuTranscripts.M16LinuxSignalMarkers,
+                .. runtimeApp.Length == 0 ? Array.Empty<string>() : new[] { NativeAotRuntimeSelection.Markers(runtimeApp).Ready, NativeAotRuntimeSelection.Markers(runtimeApp).Pass }];
+            string[] repeated = ["M16_008_CALL", "M16_008_SUPERVISOR", "M16_008_EXIT", "M16_008_REAP"];
+            Select(records, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8", "M16_002_STAGE_REJECTED",
+                "TEST_START m16-008", "CLROS_M16_008_READY", "TEST_PASS m16-008"], true,
+                records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)).ToArray());
+            // Activation has two lifetimes and interleaved supervisor returns.
+            // The canonical tail parser checks their exact order and counts.
+            ordered = Merge(records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)));
+        }
+        else if (Enabled("M16008"))
+        {
+            string[] records = [.. QemuContracts.M03OwnedSubsystemMarkers, "TEST_START m16-002", "M16_002_STAGED", "M16_002_DIGEST",
+                "M16_002_PACKAGE_DIGEST", "M16_002_OWNED", "CLROS_M16_002_READY", "TEST_PASS m16-002",
+                .. QemuTranscripts.M16LinuxStartupMarkers, .. QemuTranscripts.M16ServiceLoopMarkers,
+                .. QemuContracts.M05ApicSetupMarkers.Skip(QemuContracts.M03OwnedSubsystemMarkers.Count), .. QemuTranscripts.M16LinuxThreadMarkers];
+            string[] repeated = ["M16_008_CALL", "M16_008_RESUME", "M16_008_SUPERVISOR", "M16_008_EXIT", "M16_008_REAP", "M16_008_TICK"];
+            Select(records, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8", "M16_002_STAGE_REJECTED"], true,
+                records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)).ToArray());
+            // Exact call/completion/exit/tick ordering is package-specific and
+            // enforced by the complete canonical transcript validator.
+            ordered = Merge(records.Where(x => !repeated.Contains(x, StringComparer.Ordinal)));
+        }
+        else if (Enabled("M09009") || Enabled("M09010"))
+        {
+            string id = Enabled("M09010") ? "010" : "009";
+            string[] records = [.. QemuContracts.M05ApicSetupMarkers, .. EfiContracts.ThreadWaitMarkers(id)];
+            Select(records, ["OS_SMOKE_FAIL", "TEST_FAIL", "ACPI_DISCOVERY_FAIL", "M03_OWNED 7", "M03_OWNED 8"], true,
+                records.Where(x => !EfiContracts.ThreadWaitRepeated(x)).ToArray());
+        }
         else if (Enabled("M09006"))
         {
             string[] records = [.. QemuContracts.M05ApicSetupMarkers, .. EfiContracts.M09006Markers];
@@ -270,8 +319,15 @@ public static class QemuProfiles
         ("M16005", @"^(M16_005_|CLROS_M16_005_READY|TEST_(START|PASS) m16-005)", "m16_005"),
         ("M16006", @"^(M16_006_|CLROS_M16_006_READY|TEST_(START|PASS) m16-006)", "m16_006"),
         ("M16007", @"^(M16_007_|CLROS_M16_007_READY|TEST_(START|PASS) m16-007)", "m16_007"),
+        ("M16008", @"^(M16_008_|CLROS_M16_008_READY|TEST_(START|PASS) m16-008)", "m16_008"),
+        ("M16009", @"^(M16_009_|CLROS_M16_009_READY|TEST_(START|PASS) m16-009)", "m16_009"),
+        ("M09011", @"^(M09_011_|CLROS_M09_011_READY|TEST_(START|PASS) m09\.011)", "m09_011"),
+        ("M09012", @"^(M09_012_|CLROS_M09_012_READY|TEST_(START|PASS) m09\.012)", "m09_012"),
+        ("M16010", @"^(M16_010_|CLROS_M16_010_READY|TEST_(START|PASS) m16-010)", "m16_010"),
         ("M09004", @"^(M09_004_|CLROS_M09_004_READY|TEST_(START|PASS) m09\.004)", "m09_004"),
         ("M09005", @"^(M09_005_|CLROS_M09_005_READY|TEST_(START|PASS) m09\.005)", "m09_005"),
+        ("M09009", @"^(M09_009_|CLROS_M09_009_READY|TEST_(START|PASS) m09\.009)", "m09_009"),
+        ("M09010", @"^(M09_010_|CLROS_M09_010_READY|TEST_(START|PASS) m09\.010)", "m09_010"),
         ("M09006", @"^(M09_006_|CLROS_M09_006_READY|TEST_(START|PASS) m09\.006)", "m09_006"),
         ("M03FirstRealExitBootServices", @"^(M03_EBS_|M03_PERMANENT_|M03_POST_EBS_|CLROS_M03_007|TEST_(START|PASS) m03\.00[79])", "m03_first_exit"),
         ("M03OwnedSubsystemSurvival", @"^(M03_OWNED|CLROS_M03_010|TEST_(START|PASS) m03\.010)", "m03_owned"),

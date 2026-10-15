@@ -1,5 +1,253 @@
 # Diagnostics
 
+[Step1307](../done/step1307.md) completes the stable bounded thread/runtime batch:
+5,202 full-host checks, 44 strict batch captures across 32 profiles, three retained
+strict GC repetitions and 24 fresh ancestors. Exact original native joins,
+framing, generation/wait/signal/timing/cleanup checks remain mandatory. The
+QMP/GDB GC witness is supplemental diagnostic evidence, with separate producer,
+RAM/CFI/CPU/slot/event provenance; it is not a strict-runner capture. The earlier
+matrix failure is before the first EBS-success confirmation, with actual firmware
+exit state unknown and no app execution witnessed. No startup cause/fix, guest
+Kestrel or new numbered/cloud/production gate is claimed.
+
+## Historical development receipts
+
+The named development checkpoints below retain their original scope; step1307
+supersedes their pending acceptance statements for this bounded batch.
+
+[Step1306](../done/step1306.md) preserves a genuine interrupted-pipe fixture
+failure: its descriptor pair occupied the final word of the handler's24-byte
+sigaltstack output. The returned stack size4096 overwrote fd3; the app read that
+invalid fd and exited99. The validator correctly rejected it. The pair now has
+separate storage; tests decode actual emitted syscall targets and perform output
+writes before rereading descriptors/TIDs/futex words. Kernel/sigreturn behavior,
+expected exit42 and exact validator checks remain unchanged.
+
+[Step1305](../done/step1305.md) admits declared mechanical Linux thread/signal
+diagnostics under the existing bounded8MiB runtime raw extent. The original
+Threads capture contains51022 bytes,103 real calls and complete five-thread
+cleanup; the old32KiB ordinary extent rejects before leaf validation. Ordinary
+profiles retain that limit. Exact prefix/EOF/framing, call/ownership, runner and
+cleanup validation remain. Independent large-framing/negative controls and a
+complete offline mechanical audit pass; the original failure stays failed.
+
+[Step1304](../done/step1304.md) supersedes step1303's matrix wake-bracket policy.
+Each of its 18 reported monotonic timestamps must fit a distinct successful
+clock-ID1 call's authenticated admitted..dispatched HPET window. Actual syscall
+identity/ordinal, chronological single consumption, parent frequency/period and
+the kernel's exact seconds/nanoseconds conversion are required. Missing, reused,
+foreign-domain or out-of-window samples reject, including coalesced stdout.
+Cached scheduler time is insufficient for these timestamp bounds. Matrix does
+not promise kernel timeouts or timer-registration identity; its existing managed
+elapsed and complete kernel wait/GC/reap/cleanup checks remain. Original runtime
+retains its post-reap evidence; ThreadPool stress retains deadline evidence.
+
+[Step1302](../done/step1302.md) corrects Hello's child ordering: exact parent
+initialization/clone/descriptor/signal-install checks remain at each stdout
+write, while both real child masks/waits and finalizer handoff must complete
+before `exit_group`. One, two or three stdout rows may precede the signal
+child's first timeslice. Missing child mask/wait and premature exit reject.
+No kernel scheduler or original payload changes follow from this host check.
+
+[Step1285](../done/step1285.md) admits the exact original RuntimeSmoke under
+explicit M16-010 selection. Canonical r04 package/source/producer evidence and
+its complete index remain separate from RuntimeMatrix. Its original output
+requires real normal reap followed by a later deadline completion or step1301's
+matched explicit futex wake and successful same-generation/wait-sequence resume,
+bracketed by successful clock-ID6 calls and validated kernel clock progress.
+Clear-child-TID/requeue wakes cannot mint that alternative. Split/coalesced
+writes retain event order. This corroborates the untimestamped original app's
+managed-timer completion; it does not identify its registration, establish a
+kernel timeout or measure precise timer duration. This trace carries no activation claim;
+the stress-app checks remain unchanged. A host-only repeated-lifetime control
+fills all 16 slots in three successive owners on the same backing, rejects an
+extra clone without TID/signal mutation, cancels parked waits, drains pending
+signals and reaps all 48 workers before fresh-key/generation reuse. Actual guest
+process, capacity and shutdown qualification remains required.
+
+[Step1284](../done/step1284.md) adds default-off `EnableM09011Probe`,
+`EnableM09012Probe` and `EnableM16010Probe`, appended to the probe catalog without
+reordering older entries. Each gates the existing owned Linux signal owner and
+admits exactly its matching broader app. Dedicated START and READY/PASS surround
+the complete original leaf; successful outer terminals follow entropy cleanup.
+The full parent requires the sealed matching runtime program before opening
+transcripts, validates original inner bytes and keeps raw runner-summary
+accounting. Missing/duplicate/wrong/trailing outer records reject. Thirty-eight
+focused checks and three no-stdlib C# builds pass; actual guest acceptance and
+the shared full-host/native/ancestor gates remain pending.
+
+[Step1283](../done/step1283.md) adds `ValidateNativeAotRuntimeTail`, requiring the
+canonical package and sealed runtime instruction index for the selected app.
+Broader leaves retain all raw stdout, syscall/wait, signal-frame, scheduler,
+mapping, exit/reap and owner cleanup checks. Collection output consumes completed
+activation frames for a ready, previously user-preempted peer while other kernel
+waits are parked. ThreadPool-stress timer output consumes actual deadline wins
+in its reported nanosecond interval; matrix uses step1304's clock bounds above.
+Join output consumes actual normal worker reaps. Split and
+coalesced writes retain those distinct observations. These checks correlate
+observable boundaries; they do not trace every user instruction or prove kernel
+roles from anonymous handles. Exact payload source and real capture provenance
+remain mandatory.
+
+Broader native owners emit `M16_008_BUDGET started=... epochs=8192 steps=16384
+nanos=300000000000` after the bound record and `M16_008_BUDGET_END nanos=...`
+before owner cleanup. Final time is sampled after the final reap so successful
+process completion cannot bypass expiry. Original focused positive grammar is
+unchanged. Parent/wrapper integration and current real guests remain pending.
+
+[Step1282](../done/step1282.md) decodes the raw stdout envelopes for all three
+broader runtime apps through their existing complete validators. Canonical byte
+counts, original segmentation, immutable results and unchanged 4-KiB stdout /
+8-MiB raw bounds apply. Synthetic complete/rejection controls pass. The common
+transcript model now implements ordinary futex requeue with a separate address
+FIFO; the original scheduler deadline FIFO survives moves. Synthetic positives
+and mutations cover target FIFO, zero wakes, same-word counts and equal-deadline
+completion. Complete broader protocol/profile consumers still precede admission;
+raw stdout alone supplies no guest authority.
+
+[Step1281](../done/step1281.md) implements ordinary futex requeue in the syscall
+service. Step1282 subsequently implements address FIFO and backing movement in
+the common transcript model while retaining original wait/deadline order. A
+requeue is not a wake or a completed wait; its return count is
+the actual total woken plus moved. Existing focused payload selectors and their
+record grammar are unchanged. No broader guest is admitted by this service
+change alone.
+
+[Step1279](../done/step1279.md) updates the current native pool geometry to
+16 workers, 53248 code bytes, 114688 metadata bytes and 162 total pages.
+Consumers derive these limits from the reviewed implementation; independent
+synthetic vectors include the exact final physical boundary and reject overflow,
+old geometry and root overlap. Existing syscall/handler/lifecycle record counts
+and original payload identities are unchanged. These are host parser controls,
+not new serial captures.
+
+[Step1277](../done/step1277.md) admits self-unmap lifetimes only against the
+complete immutable ELF tail and reviewed instruction/syscall boundaries. The
+first row must match the existing live stack/TLS envelope before memory removal;
+subsequent IRQ rows retain that context and require RAX0 before/after XOR or
+RAX60 after the move. Only exit60 may follow. Clear-TID is expected to report
+EFAULT when its retained raw address is no longer writable; the existing real
+exit/reap and futex wake model still apply. Synthetic positives and forged
+context/ELF/IRQ/error controls pass, without establishing guest execution.
+
+[Step1272](../done/step1272.md) preserves the runner's original raw-line marker
+observations, physical newline count and eight-line truncated tail when focused
+runtime stdout spans arbitrary writes. Only byte-validated payload CR/LF are
+removed for parent/leaf protocol framing. Exact BOM/CRLF summary bytes are checked
+against the original serial stream; normalized protocol rows cannot substitute
+for that summary. This host integration adds no guest acceptance.
+
+[Step1271](../done/step1271.md) extends the current CALL suffix after wait
+observations with `signalDepth`, `signalFrame`, `blockedSignals`, `returnRip`,
+`returnRsp`, `returnFlags`, `returnFs`, `returnGs`, `returnValueBits`. These are
+actual post-dispatch values before pending user-return delivery; syscall15's
+original restorer input remains in the preceding CALL fields. Signal inspection
+reads the authenticated generation's existing metadata and removes the private
+hardware frame tag. It exposes no user frame bytes or execution authority.
+`ReadLinuxCallReturns` requires the complete current witness; legacy consumers
+strip only a validated optional suffix. New focused runtime consumers derive
+records from original byte-validated stdout, then check FIFO/time/signal/exit/reap
+and cleanup. Group cancellation retires signal state without inventing sigreturn;
+focused suspension still requires two actual returns on a normally exited worker.
+These are development source/host checks, without new guest acceptance.
+
+[Step1270](../done/step1270.md) appends `waitSource=<0|1|2>
+waitDeadline=<nanoseconds> waitSequence=<sequence>` after each native call
+ordinal. These values come from the actual current retained wait after dispatch
+and return preparation: source1 is futex, source2 is pipe, source0 has all zero
+values. Deadline is absolute monotonic time; zero means untimed. A completed
+wait retains its observation until consumption drops the borrow. Row counts
+and scheduler behavior are unchanged. Existing decoders validate/strip the
+optional suffix and retain ordinal-only synthetic vectors; future runtime
+consumers must require every current witness through `ReadLinuxCallWaits`.
+The separate raw threading-output decoder checks exact byte envelopes before
+normalizing payload newlines. These are host observations and C# compilation
+evidence; complete runtime consumers and current guest qualification remain pending.
+
+[Step1268](../done/step1268.md) changes current `M16_008_BOUND` geometry to
+code=28672/metadata=102400 for the eight-slot, 105-page native pool. Records and
+per-generation ordinals retain their existing form. Complete thread/signal/Hello
+consumers reject the older geometry, out-of-range pool ends and root overlap in
+the new tail. Prior captures retain their recorded old layout; they are not
+current acceptance. No fresh CLROS guest is run for this source slice.
+
+[Step1266](../done/step1266.md) adds mechanical interrupted-wait and nested-stack
+consumers without changing serial record schemas. A restarted syscall repeats
+its original RIP with a new ordinal. Untimed futex replay sees the changed word
+and returns EAGAIN; pipe replay consumes the child's byte. A partially completed
+4100-byte write returns 4096 after interruption even with SA_RESTART, then checks
+the complete prefix and final four bytes. Nested handlers check saved masks,
+registers and stack contexts before two real sigreturns; stack exhaustion must
+terminate139 before a fourth handler. Construction and synthetic-tail checks do
+not establish execution. These seven new inputs await frozen batch qualification.
+
+[Step1265](../done/step1265.md) appends `ordinal=<actual gateway Calls>` to each
+`M16_008_CALL`. Every thread/signal decoder requires contiguous per-generation
+ordinals before its original ABI checks; new generations restart at one. The
+Hello selector additionally checks its complete protocol and all 72 original
+stdout bytes across three raw write envelopes. Its payload LF bytes are data,
+followed by the kernel CRLF; normalization occurs only after byte validation.
+Older captures lack the current ordinal/cleanup schema and keep historical scope.
+No new native publication or guest diagnostic is qualified by this development step.
+
+[Step1263](../done/step1263.md) extends the development M16-008/009 terminal
+`M16_008_OWNER_END` row with `userReserved=0 userBacked=0` before
+`process=drained` and `initialStack=zero` before `reservation=retained`. These
+witnesses follow actual dynamic unmap/backing scrub and an audited initial ABI
+stack zero/read-back after process and descriptor release under the kernel root.
+The strict decoders reject missing/nonzero counters or a dirty stack witness.
+Static image/stack mappings and physical/table/firmware reservations remain owned.
+Record counts and packaged inputs are unchanged. This revision has focused host
+and C# compilation evidence only; step1259 retains its earlier executed scope.
+
+Development `EnableM16009Probe` inherits the full M16-008 closure and selects a
+distinct signal leaf. [Step1254](../done/step1254.md) binds its four canonical
+mechanical packages to exact handler/restorer and owned-negative exit protocols,
+with original parent validation and drained restoration before
+`CLROS_M16_009_READY`. [Step1259](../done/step1259.md) records one fresh
+`AlternateStack` diagnostic with real handler/sigreturn, exit42, reap and owned
+restoration. It is not full signal/batch acceptance; unchanged Hello,
+asynchronous activation and suspension remain unfinished.
+
+[Step1256](../done/step1256.md) adds seven canonical GP/PF fault packages and
+strict single-fault/handler/return/exit/cleanup protocols. They check full saved
+GPRs, nonzero user FS/GS, x87/SSE, fault context and repaired or rejected
+continuations. Canonical construction and parser controls establish no executed
+fault or guest signal acceptance; all eleven inputs await batch qualification.
+
+[Step1257](../done/step1257.md) adds opt-in user IRQ source under M16-009 with
+`env.CLROS_USER_IRQS=1`. Actual E1 acknowledgement proposes `M16_009_IRQ identity=
+epoch= nanos= rip= rsp= flags= fs= gs= valueBits=`; ending excursions use
+`M16_009_DRAIN identity= epoch= nanos=` only after a real kernel-checkpoint IRQ.
+The bound header reports `timer=user-irq-and-idle` in that mode.
+[Step1258](../done/step1258.md) admits the canonical `Activation` package and a
+strict dynamic FIFO schedule validator for those rows. Each selected generation
+must produce its real matching capture/drain, supervisor transfer and eventual
+exit/reap. Parent spin capture, handler/restorer state, complete syscall vectors,
+epoch/nanosecond clocks and final cleanup are checked. Synthetic controls establish
+parser behavior only; no such rows have executed in a guest. The eleven original
+packages retain IF-off images and their earlier tails. Pending APIC ownership
+drains before timer/IST release and scheduler handoff; kernel callbacks stay IF-off.
+
+Development `EnableM16008Probe` defaults false and requires the descriptor and
+owned clock/PCI/APIC parents. [Step1244](../done/step1244.md) attaches the native
+owner after actual APIC setup and admits only the canonical mechanical package.
+Its `M16_008_*` tail binds syscall frames and blocked completion, supervisor
+confirmation, clear-TID exit, off-stack reap, HPET nanoseconds and final restored
+ownership before `CLROS_M16_008_READY`. Full parent startup/service/PCI/APIC
+validation remains required. The separate M16-009 diagnostic in step1259 executes
+one native worker/ELF lifetime over this owner. M16-008 thread/pipe variants,
+actual user IRQs and complete batch qualification remain pending.
+
+Development profiles `EnableM09009Probe` and `EnableM09010Probe` default false
+and require the same seven owned-exit/APIC parents as the qualified lifecycle
+leaf. They are mutually exclusive with other leaves. Their `M09_009_*` and
+`M09_010_*` records bind every transfer, wait, wake, observation, TLS state,
+tick, cancellation and reap/reuse before final restoration and READY. Strict
+transcript validators reject dropped, duplicated, reordered and corrupted rows.
+[Step1234](../done/step1234.md) records focused checks and freestanding C#
+compilation only; these profiles have no accepted native or guest capture yet.
+
 `EnableM09006Probe` is a qualified default-off Diagnostic lifecycle profile. It selects
 the first-exit/owned/APIC parents and rejects other leaves. Its ordered
 `M09_006_*` rows cover transfers, waits/ticks, retained joins, both cancellation

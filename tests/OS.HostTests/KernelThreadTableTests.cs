@@ -11,7 +11,8 @@ internal static unsafe class KernelThreadTableTests
     internal const ulong Key = 0x746872656164;
     internal sealed class Model : IDisposable
     {
-        internal const int Bytes = 0x80000;
+        internal const int Bytes = 0x90000;
+        private readonly bool _extended;
         internal readonly byte* Memory = (byte*)NativeMemory.AlignedAlloc(Bytes, 4096);
         internal KernelThreadTable* Table => (KernelThreadTable*)Memory;
         internal KernelThreadSlot* Slots => (KernelThreadSlot*)(Memory + 0x2000);
@@ -24,6 +25,7 @@ internal static unsafe class KernelThreadTableTests
         internal Model(uint capacity = 3, uint ready = 3, uint deadlines = 3, bool initialize = true,
             uint generation = 1, ulong sequence = 0)
         {
+            _extended = capacity > 8;
             new Span<byte>(Memory, Bytes).Fill(0xa5); *Table = default;
             Owner = new() { Initialized = true, GuardsVerified = true, MappingsVerified = true,
                 Key = Key, CurrentKey = Key, Root = 0x1000, CurrentRoot = 0x1000, Flags = 2,
@@ -37,7 +39,7 @@ internal static unsafe class KernelThreadTableTests
                 ResumeRip = Code + 0x80, Kind = ThreadContextSwitch.ResumeKind.CapturedCall };
             HostCheck.Equal(X64ThreadContext.Status.Ok,
                 X64ThreadContext.Initialize(Supervisor.Context, 688, Supervisor.ResumeRip, SupervisorRsp, 0xffbf));
-            for (int i = 0; i < 8; i++) Prepare(i);
+            for (int i = 0; i < (_extended ? 16 : 8); i++) Prepare(i);
             if (initialize) HostCheck.Equal(S.Ok, Bind(capacity, ready, deadlines, generation, sequence));
         }
         internal S Bind(uint capacity = 3, uint ready = 3, uint deadlines = 3, uint generation = 1, ulong sequence = 0,
@@ -45,7 +47,7 @@ internal static unsafe class KernelThreadTableTests
             => Table->Initialize(key, flags, Owner, Supervisor, slots == null ? Slots : slots,
                 capacity * (uint)sizeof(KernelThreadSlot), capacity, readyBuffer == null ? Ready : readyBuffer,
                 ready * 8, ready, Deadlines, deadlines * (uint)sizeof(DeadlineQueue.Entry), deadlines, 0, generation, sequence);
-        internal X64ThreadContext* Context(int i) => (X64ThreadContext*)(Memory + 0x21000 + i * 0x1000);
+        internal X64ThreadContext* Context(int i) => (X64ThreadContext*)(Memory + 0x21000 + i * (_extended ? 0x2b0 : 0x1000));
         internal ulong Stack(int i) => (ulong)Memory + 0x40000 + (uint)i * 0x4000;
         internal void Prepare(int i) => HostCheck.Equal(X64ThreadContext.Status.Ok,
             X64ThreadContext.Initialize(Context(i), 688, Code + 0x100, Stack(i) + 8192 - 72, 0xffbf));
@@ -108,6 +110,54 @@ internal static unsafe class KernelThreadTableTests
         HostCheck.Equal(S.Ok, m.Table->Dispatch(Key, 2).Code);
         var b = m.Create(1); HostCheck.True(b.Succeeded); // No slot was consumed by the rejected publications.
         HostCheck.Equal(2U, (uint)b.Identity.Value);
+    }
+
+    [HostTest("kernel.thread next create identity is read only matches publication and advances after real reap")]
+    private static void NextCreateIdentity()
+    {
+        using Model m = new(generation: 7); byte[] before = m.Snapshot();
+        HostCheck.Equal(S.Ok, m.Table->InspectNextCreateIdentity(Key, 2, out var first)); m.Same(before);
+        HostCheck.Equal(0x700000001UL, first.Value);
+        HostCheck.Equal(S.Ok, m.Table->InspectNextCreateIdentity(Key, 2, out var repeated)); m.Same(before);
+        HostCheck.Equal(first.Value, repeated.Value); // Inspection reserves nothing.
+        var a = m.Create(0); HostCheck.True(a.Succeeded); HostCheck.Equal(first.Value, a.Identity.Value);
+        before = m.Snapshot(); HostCheck.Equal(S.Ok, m.Table->InspectNextCreateIdentity(Key, 2, out var second)); m.Same(before);
+        HostCheck.Equal(0x700000002UL, second.Value);
+        var b = m.Create(1); HostCheck.True(b.Succeeded); HostCheck.Equal(second.Value, b.Identity.Value);
+        HostCheck.Equal(a.Identity.Value, m.Dispatch().Value); m.Exit(a.Identity, 17);
+        HostCheck.True(m.Table->Reap(Key, 2, a.Identity, m.SupervisorRsp).Succeeded);
+        before = m.Snapshot(); HostCheck.Equal(S.Ok, m.Table->InspectNextCreateIdentity(Key, 2, out var reused)); m.Same(before);
+        HostCheck.Equal(0x800000001UL, reused.Value); // Reaped hole precedes the still-live second slot.
+        m.Prepare(0); var next = m.Create(0); HostCheck.True(next.Succeeded); HostCheck.Equal(reused.Value, next.Identity.Value);
+    }
+
+    [HostTest("kernel.thread next create identity failures clear output without changing owner or buffers")]
+    private static void NextCreateIdentityFailures()
+    {
+        using Model m = new(); byte[] before = m.Snapshot(); OSHostHandle identity = new(ulong.MaxValue);
+        HostCheck.Equal(S.WrongOwner, m.Table->InspectNextCreateIdentity(Key + 1, 2, out identity));
+        HostCheck.Equal(0UL, identity.Value); m.Same(before); identity = new(ulong.MaxValue);
+        HostCheck.Equal(S.InterruptsEnabled, m.Table->InspectNextCreateIdentity(Key, 0x202, out identity));
+        HostCheck.Equal(0UL, identity.Value); m.Same(before); identity = new(ulong.MaxValue);
+        KernelThreadTable copy = *m.Table; byte[] copyBefore = new ReadOnlySpan<byte>(&copy, sizeof(KernelThreadTable)).ToArray();
+        HostCheck.Equal(S.CopiedOwner, copy.InspectNextCreateIdentity(Key, 2, out identity));
+        HostCheck.Equal(0UL, identity.Value); m.Same(before);
+        HostCheck.True(new ReadOnlySpan<byte>(&copy, sizeof(KernelThreadTable)).SequenceEqual(copyBefore));
+        using Model uninitialized = new(initialize: false); before = uninitialized.Snapshot(); identity = new(ulong.MaxValue);
+        HostCheck.Equal(S.Uninitialized, uninitialized.Table->InspectNextCreateIdentity(Key, 2, out identity));
+        HostCheck.Equal(0UL, identity.Value); uninitialized.Same(before);
+        using Model pressure = new(2, 1, 2); HostCheck.True(pressure.Create(0).Succeeded);
+        before = pressure.Snapshot(); identity = new(ulong.MaxValue);
+        HostCheck.Equal(S.ReadyFull, pressure.Table->InspectNextCreateIdentity(Key, 2, out identity));
+        HostCheck.Equal(0UL, identity.Value); pressure.Same(before);
+        using Model full = new(1, 1, 1, generation: uint.MaxValue); var a = full.Create(0); HostCheck.True(a.Succeeded);
+        before = full.Snapshot(); identity = new(ulong.MaxValue);
+        HostCheck.Equal(S.Full, full.Table->InspectNextCreateIdentity(Key, 2, out identity));
+        HostCheck.Equal(0UL, identity.Value); full.Same(before);
+        full.Dispatch(); full.Exit(a.Identity); HostCheck.True(full.Table->Reap(Key, 2, a.Identity, full.SupervisorRsp).Succeeded);
+        before = full.Snapshot(); identity = new(ulong.MaxValue);
+        HostCheck.Equal(S.Full, full.Table->InspectNextCreateIdentity(Key, 2, out identity));
+        HostCheck.Equal(0UL, identity.Value); full.Same(before); // Retired generations never become prospective identities.
     }
 
     [HostTest("kernel.thread handoffs pin execution until supervisor confirmation and scrub only at reap")]
@@ -189,6 +239,58 @@ internal static unsafe class KernelThreadTableTests
             HostCheck.Equal(a.Identity.Value, resumed.Identity.Value); HostCheck.True(resumed.CancellationRequested);
             HostCheck.Equal(cancelFirst ? C.Cancelled : C.Deadline, resumed.Completion);
         }
+    }
+
+    [HostTest("kernel.thread signal interruption preserves exact wait winners and never requests cancellation")]
+    private static void InterruptedWaits()
+    {
+        for (int variant = 0; variant < 5; variant++)
+        {
+            using Model m = new(1,1,1); var a = m.Create(0); m.Dispatch();
+            var wait = m.Table->BeginWait(Key,2,a.Identity,W.Sleep,10,5); HostCheck.True(wait.Succeeded);
+            if (variant == 0)
+            {
+                HostCheck.True(m.Table->Interrupt(Key,2,wait.Wait).Succeeded);
+                var inPlace = m.Table->Park(Key,2,wait.Wait,m.Capture(a.Identity));
+                HostCheck.True(inPlace.State == T.Running && inPlace.Completion == C.Interrupted && !inPlace.CancellationRequested && !m.Table->HandoffPending);
+            }
+            else
+            {
+                HostCheck.True(m.Table->Park(Key,2,wait.Wait,m.Capture(a.Identity)).Succeeded); m.Confirm();
+                if (variant == 2) HostCheck.True(m.Table->Wake(Key,2,wait.Wait).Succeeded);
+                if (variant == 3) HostCheck.Equal(S.Ok,m.Table->Advance(Key,2,15));
+                if (variant == 4) HostCheck.True(m.Table->Cancel(Key,2,a.Identity).Succeeded);
+                var interrupted = m.Table->Interrupt(Key,2,wait.Wait);
+                HostCheck.Equal(variant == 1 ? S.Ok : S.AlreadyCompleted,interrupted.Code);
+                HostCheck.Equal(a.Identity.Value,m.Dispatch().Value);
+            }
+            var observed = m.Inspect(a.Identity);
+            HostCheck.Equal(variant == 2 ? C.Woken : variant == 3 ? C.Deadline : variant == 4 ? C.Cancelled : C.Interrupted,observed.Completion);
+            HostCheck.Equal(variant == 4,observed.CancellationRequested); HostCheck.Equal(0U,m.Table->DeadlineCount);
+            byte[] before = m.Snapshot(); HostCheck.Equal(S.AlreadyCompleted,m.Table->Interrupt(Key,2,wait.Wait).Code); m.Same(before);
+        }
+    }
+
+    [HostTest("kernel.thread interrupt admission stale sequences joins and full ready queue retain one completion")]
+    private static void InterruptAdmission()
+    {
+        using Model m = new(2,1,2); var a = m.Create(0); m.Dispatch();
+        var wait = m.Table->BeginWait(Key,2,a.Identity,W.Sleep,0,2);
+        byte[] before = m.Snapshot();
+        HostCheck.Equal(S.WrongOwner,m.Table->Interrupt(Key + 1,2,wait.Wait).Code); m.Same(before);
+        HostCheck.Equal(S.InterruptsEnabled,m.Table->Interrupt(Key,0x202,wait.Wait).Code); m.Same(before);
+        KernelThreadTable copy = *m.Table; HostCheck.Equal(S.CopiedOwner,copy.Interrupt(Key,2,wait.Wait).Code); m.Same(before);
+        HostCheck.True(m.Table->Park(Key,2,wait.Wait,m.Capture(a.Identity)).Succeeded); m.Confirm();
+        var b = m.Create(1); HostCheck.True(b.Succeeded);
+        HostCheck.Equal(S.Pending,m.Table->Interrupt(Key,2,wait.Wait).Code); HostCheck.Equal(T.Pending,m.Inspect(a.Identity).State);
+        HostCheck.Equal(S.Ok,m.Table->Advance(Key,2,2)); HostCheck.Equal(C.Interrupted,m.Inspect(a.Identity).Completion);
+        HostCheck.Equal(S.ReadyFull,m.Table->Flush(Key,2)); HostCheck.Equal(b.Identity.Value,m.Dispatch().Value);
+        HostCheck.Equal(S.Ok,m.Table->Flush(Key,2)); m.Exit(b.Identity); HostCheck.Equal(a.Identity.Value,m.Dispatch().Value);
+        var later = m.Table->BeginWait(Key,2,a.Identity,W.Park,2); HostCheck.True(later.Succeeded);
+        before = m.Snapshot(); HostCheck.Equal(S.StaleWait,m.Table->Interrupt(Key,2,wait.Wait).Code); m.Same(before);
+        using Model joined = new(); var waiter = joined.Create(0); var target = joined.Create(1); joined.Dispatch();
+        var join = joined.Table->BeginWait(Key,2,waiter.Identity,W.Join,0,target:target.Identity); HostCheck.True(join.Succeeded);
+        before = joined.Snapshot(); HostCheck.Equal(S.WrongState,joined.Table->Interrupt(Key,2,join.Wait).Code); joined.Same(before);
     }
 
     [HostTest("kernel.thread joins reject cycles and second waiter and retain exit until reap")]

@@ -20106,7 +20106,7 @@
         "M09-006"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:pal",
@@ -20139,7 +20139,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Implement wait-on-address with collision, wake-one, wake-all, and timeout tests.",
-      "currentEvidence": "M09-006/#188 is qualified in done/step1230.md on .NET 11: caller-owned cooperative ready/parked/deadline lifecycle, repeated actual APIC wakes and supervisor-only reap/reuse. This issue remains unimplemented and unqualified: atomic address compare-and-park, collision-safe wake-one/all, address-lifetime reuse and futex-consumer behavior still require their own host/native/mechanical guest evidence. Application threads, upstream runtime and Kestrel remain incomplete.",
+      "currentEvidence": "Step1307 qualifies atomic compare/park/wake, exact wait keys, monotonic deadline and cancellation/reuse/capacity negatives with three strict mechanical wait guests and current original native review. Shared acceptance: 5202 full-host checks across 687 fixtures (94 Native), 44 strict batch captures across 32 profiles and 24 fresh ancestors. Exact source/provenance/cleanup evidence and boundaries are recorded in step1307.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged. Use Linux application FS/TLS and pinned full CPU state in addition to kernel GS. Do not make custom application GC/EH or a CoreCLR port prerequisite.",
         "Use concise cohesive types in the owned Threading file, documenting ownership, execution context, pre/postconditions and unsupported behavior on public/unsafe entry points. Before adding a type inspect existing Runtime/Threading/Pal contracts and reuse its state representation. Do not copy old generated filename prose into new type names.",
@@ -20188,7 +20188,7 @@
         "docs/app-model.md"
       ],
       "evidenceBoundary": "This issue proves only \"Implement wait-on-address with collision, wake-one, wake-all, and timeout tests.\" It does not by itself prove the M09 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M09-010",
@@ -20199,7 +20199,7 @@
         "M09-006"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:pal",
@@ -20236,7 +20236,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Preserve per-thread application TLS bases and owned kernel CPU state; upstream NativeAOT owns managed thread statics",
-      "currentEvidence": "M09-006/#188 is qualified in done/step1230.md on .NET 11 with bounded cooperative contexts, hardware-backed waits and off-stack reuse. This issue remains unimplemented and unqualified: distinct application FS/TLS, owned kernel GS and no-leakage exit/reuse require their own mechanical multi-thread guest. Upstream managed thread statics, Linux clone/arch_prctl integration and Kestrel remain incomplete.",
+      "currentEvidence": "Step1307 qualifies distinct application FS/TLS, owned kernel GS and saved FP across three strict mechanical TLS guests, with alias/generation/failure/reap controls and original native review. Shared acceptance: 5202 full-host checks across 687 fixtures (94 Native), 44 strict batch captures across 32 profiles and 24 fresh ancestors. Linux and upstream runtime consumers retain their exact separate scope.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged. Use Linux application FS/TLS and pinned full CPU state in addition to kernel GS. Do not make custom application GC/EH or a CoreCLR port prerequisite.",
         "Use concise cohesive types in the owned Threading file, documenting ownership, execution context, pre/postconditions and unsupported behavior on public/unsafe entry points. Before adding a type inspect existing Runtime/Threading/Pal contracts and reuse its state representation. Do not copy old generated filename prose into new type names.",
@@ -20286,7 +20286,7 @@
         "docs/app-model.md"
       ],
       "evidenceBoundary": "This issue proves only \"Materialize per-thread statics and required GS/TLS state.\" It does not by itself prove the M09 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M09-011",
@@ -20297,7 +20297,7 @@
         "M16-009"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:pal",
@@ -20308,8 +20308,10 @@
       ],
       "priority": "priority:p0",
       "ownedPaths": [
-        "src/OS.Kernel/Threading/NativeAotSuspensionSmoke.cs",
-        "tests/OS.HostTests/NativeAotSuspensionSmokeTests.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxSignalServices.cs",
+        "tests/OS.HostTests/NativeAotThreadingGuestTests.cs",
+        "tests/OS.HostTests/NativeAotSuspensionStressTests.cs",
+        "tests/OS.HostTests/LinuxRuntimeLifetimeTests.cs",
         "docs/pal.md",
         "docs/app-model.md",
         "src/OS/Boot/EfiEntry.cs",
@@ -20340,7 +20342,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Verify upstream NativeAOT GC suspension across CLROS application threads",
-      "currentEvidence": "Planning only. M16-009 must first qualify real signals, unchanged pinned Hello and a focused suspension fixture; no upstream application GC/ThreadPool guest acceptance exists yet.",
+      "currentEvidence": "Step1307 qualifies three strict frozen GC-stress repetitions and the current strict GC profile: nine collections, fifteen managed joins, nine actual activation sends/returns and eighteen reaps per repetition with roots/interior/TLS and full cleanup. Independently audited supplemental raw-state evidence proves a signaled exit-requested worker blocked on the actual upstream GC event during active suspension, then actual exit/reap; it does not show already-entered DetachCurrentThread. Shared 5202-check full gate and 24 fresh ancestors pass. Application GC remains upstream.",
       "implementationNotes": [
         "Consume M16-009 signal/suspension services. Verify upstream runtime root scanning/safe points; do not implement a second application collector in the kernel.",
         "Use concise cohesive types in the owned Threading file, documenting ownership, execution context, pre/postconditions and unsupported behavior on public/unsafe entry points. Before adding a type inspect existing Runtime/Threading/Pal contracts and reuse its state representation. Do not copy old generated filename prose into new type names.",
@@ -20383,19 +20385,22 @@
       ],
       "requiredCommands": [
         "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo",
-        "dotnet run --project tests/OS.HostTests --no-build -- --filter NativeAotSuspensionSmokeTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full --filter NativeAotThreadingGuestTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full --filter NativeAotSuspensionStressTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full --filter LinuxRuntimeLifetimeTests",
         "dotnet run --project tools/OS.Tooling -- repo check",
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
         "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
-        "Implement and record a default-off QEMU/OVMF profile for this exact fixture, then run three fresh captures requiring CLROS_M09_011_READY; retain source/publish/image hashes and affected ancestor regressions. A dry run or ordinary diagnostic profile is not acceptance."
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM09011Probe -LinuxElfPackage artifacts/runtime-admission-r01/NativeAotSuspensionStress-r02.pkg -LinuxThreadingDisassembly artifacts/runtime-admission-r01/NativeAotSuspensionStress.llvm.log -TimeoutSeconds 600 -RequireMarker CLROS_M09_011_READY",
+        "Run three fresh captures with distinct image/EFI/serial/summary paths; retain source/publish/image hashes, the original focused suspension fixture and affected ancestor regressions. A dry run or ordinary diagnostic profile is not acceptance."
       ],
       "documentationPaths": [
         "docs/pal.md",
         "docs/app-model.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add GC safe points, suspension, root scanning, and resume across parked threads.\" It does not by itself prove the M09 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M09-012",
@@ -20406,7 +20411,7 @@
         "M09-011"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:pal",
@@ -20417,7 +20422,7 @@
       ],
       "priority": "priority:p0",
       "ownedPaths": [
-        "src/OS.Kernel/Threading/NativeAotThreadPoolSmoke.cs",
+        "src/OS.Kernel/Compatibility/LinuxX64/LinuxThreadServices.Futex.cs",
         "tests/OS.HostTests/NativeAotThreadPoolSmokeTests.cs",
         "docs/pal.md",
         "docs/app-model.md",
@@ -20449,7 +20454,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Add ThreadPool, work queue, Task.Run, timer, and Task.Delay guest smokes.",
-      "currentEvidence": "Planning only. M16-009 must first qualify real signals, unchanged pinned Hello and a focused suspension fixture; no upstream application GC/ThreadPool guest acceptance exists yet.",
+      "currentEvidence": "Step1307 qualifies three strict original-package ThreadPool-stress guests with real task/timer/wait completion and bounded cleanup. Actual monotonic call/wake evidence and exact protocol/provenance remain mandatory. Shared acceptance: 5202 full-host checks across 687 fixtures (94 Native), 44 strict batch captures across 32 profiles and 24 fresh ancestors with original native review. Kestrel and arbitrary Linux workload support remain incomplete.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged. Use Linux application FS/TLS and pinned full CPU state in addition to kernel GS. Do not make custom application GC/EH or a CoreCLR port prerequisite.",
         "Use concise cohesive types in the owned Threading file, documenting ownership, execution context, pre/postconditions and unsupported behavior on public/unsafe entry points. Before adding a type inspect existing Runtime/Threading/Pal contracts and reuse its state representation. Do not copy old generated filename prose into new type names.",
@@ -20491,19 +20496,22 @@
       ],
       "requiredCommands": [
         "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo",
-        "dotnet run --project tests/OS.HostTests --no-build -- --filter NativeAotThreadPoolSmokeTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full --filter NativeAotThreadPoolSmokeTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full --filter NativeAotThreadPoolStressTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full --filter LinuxRuntimeLifetimeTests",
         "dotnet run --project tools/OS.Tooling -- repo check",
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
         "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
-        "Implement and record a default-off QEMU/OVMF profile for this exact fixture, then run three fresh captures requiring CLROS_M09_012_READY; retain source/publish/image hashes and affected ancestor regressions. A dry run or ordinary diagnostic profile is not acceptance."
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM09012Probe -LinuxElfPackage artifacts/runtime-admission-r01/NativeAotThreadPoolStress-r02.pkg -LinuxThreadingDisassembly artifacts/runtime-admission-r01/NativeAotThreadPoolStress.llvm.log -TimeoutSeconds 600 -RequireMarker CLROS_M09_012_READY",
+        "Run three fresh captures with distinct image/EFI/serial/summary paths; retain source/publish/image hashes, the original focused ThreadPool fixture and affected ancestor regressions. A dry run or ordinary diagnostic profile is not acceptance."
       ],
       "documentationPaths": [
         "docs/pal.md",
         "docs/app-model.md"
       ],
       "evidenceBoundary": "This issue proves only \"Add ThreadPool, work queue, Task.Run, timer, and Task.Delay guest smokes.\" It does not by itself prove the M09 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M09-013",
@@ -31701,9 +31709,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p0",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p0",
         "type:implementation",
         "evidence:qemu",
@@ -31717,7 +31725,7 @@
         "M09-009",
         "M09-010"
       ],
-      "currentEvidence": "Planning only for this ticket. Mechanical Linux-ABI fixtures are qualified separately; no unchanged upstream NativeAOT Hello, continuing application runtime or in-guest Kestrel is qualified.",
+      "currentEvidence": "Step1307 qualifies bounded Linux clone/TLS/futex, actual per-thread masks and blocking pipe/peer-close/process-shutdown lifetimes, plus upstream consumers with complete drained/scrubbed/restored cleanup. Shared acceptance: 5202 full-host checks across 687 fixtures (94 Native), 44 strict batch captures across 32 profiles and 24 fresh ancestors, with original native and exact source/object/EFI/package joins. General Linux compatibility and Kestrel remain incomplete.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Implement the exact pthread clone flag subset, FS-base/TLS setup, TID lifetimes, set_tid_address and clear-child-TID wakeups. Implement required private futex compare-and-sleep/wake, timeout and bitset behavior over scheduler services; avoid lost wakeups. Reject process clone/fork semantics. Linux thread exit must reclaim off the exiting stack. Model optional robust-list/membarrier calls from the actual payload rather than returning blanket success.",
@@ -31818,9 +31826,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p0",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p0",
         "type:implementation",
         "evidence:qemu",
@@ -31831,7 +31839,7 @@
       "dependencyKeys": [
         "M16-008"
       ],
-      "currentEvidence": "Planning only for this ticket. Mechanical Linux-ABI fixtures are qualified separately; no unchanged upstream NativeAOT Hello, continuing application runtime or in-guest Kestrel is qualified.",
+      "currentEvidence": "Step1307 qualifies three strict unchanged pinned NativeAOT Hello guests and finite signal/fault/activation/alternate-stack/nested/exhaustion/interrupted/restarted wait controls with original native joins. Mechanical futex restart is untimed. Shared full-host passes 5202 checks/687 fixtures/94 Native; 44 strict batch captures across 32 profiles and 24 fresh ancestors pass. No general Linux, arbitrary kernel EH or Kestrel claim.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Build on M16-008 per-thread mask state and M16-007/008 real pipe descriptors/blocking I/O. Implement measured rt_sigaction/rt_sigprocmask/sigaltstack/tgkill/rt_sigreturn, pending delivery and genuine user signal frames, including interrupted pipe waits and EINTR/restart semantics. Validate restored context, admitted FP/SIMD state and masks; sigreturn must never grant privilege. Cover the actual System.Native signal-dispatch thread and its wake/shutdown behavior. Route synchronous faults/runtime activation with the exact .NET 11.0.0-rc.2.26504.105 / musl 1.2.6 ABI; do not hold kernel locks across user callbacks.",
@@ -31938,9 +31946,9 @@
       "parentKey": "M16-EPIC",
       "priority": "priority:p0",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "priority:p0",
         "type:implementation",
         "evidence:qemu",
@@ -31952,7 +31960,7 @@
         "M16-009",
         "M09-012"
       ],
-      "currentEvidence": "Planning only for this ticket. Mechanical Linux-ABI fixtures are qualified separately; no unchanged upstream NativeAOT Hello, continuing application runtime or in-guest Kestrel is qualified.",
+      "currentEvidence": "Step1307 qualifies three strict original NativeAotRuntimeSmoke and three RuntimeMatrix guests plus three Hello regressions, exact upstream EH/rethrow/finally, threads/TLS/roots, GC/finalizers, tasks/timers, filters/cached constructor failures/delegates and repeated lifetime checks. Shared 5202-check full-host gate, original native joins, 44 strict batch captures/32 profiles and 24 fresh ancestors pass. Preserved Matrix startup failure has unknown actual EBS state and cause. General kernel EH, Kestrel and new numbered/cloud/production gates remain incomplete.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Execute the exact qualified Linux payload after firmware exit. Exercise allocation/GC, catch/finally/rethrow, cached constructor failure, delegates, thread statics, ThreadPool, Task.Delay, cancellation and teardown. Keep kernel custom-runtime and application runtime evidence distinct; no new kernel generic EH prerequisite.",
@@ -31989,8 +31997,13 @@
       ],
       "ownedPaths": [
         "apps/NativeAotRuntimeSmoke/Program.cs",
-        "tests/OS.HostTests/NativeAotRuntimeGuestTests.cs",
-        "tools/OS.Tooling/NativeAotRuntimeGuest.cs",
+        "tests/OS.HostTests/NativeAotRuntimeTranscriptTests.cs",
+        "tests/OS.HostTests/NativeAotRuntimeIntegrationTests.cs",
+        "tests/OS.HostTests/NativeAotOriginalRuntimeTests.cs",
+        "tests/OS.HostTests/LinuxRuntimeLifetimeTests.cs",
+        "tools/OS.Tooling/NativeAotRuntimeProgram.cs",
+        "tools/OS.Tooling/NativeAotRuntimePackage.cs",
+        "tools/OS.Tooling/NativeAotRuntimeSelection.cs",
         "src/OS/Boot/EfiEntry.cs",
         "src/OS/OS.csproj",
         "src/OS.Kernel/Boot/BootSequence.cs",
@@ -32026,12 +32039,17 @@
       ],
       "requiredCommands": [
         "dotnet build tests/OS.HostTests/OS.HostTests.csproj --nologo",
-        "dotnet run --project tests/OS.HostTests --no-build -- --filter NativeAotRuntimeGuestTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full --filter NativeAotRuntimeTranscriptTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full --filter NativeAotRuntimeIntegrationTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full --filter NativeAotOriginalRuntimeTests",
+        "dotnet run --project tests/OS.HostTests --no-build -- --lane full --filter LinuxRuntimeLifetimeTests",
         "dotnet run --project tools/OS.Tooling -- repo check",
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
         "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16010Probe -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 60 -RequireMarker CLROS_M16_010_READY"
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16010Probe -LinuxThreadingApplication NativeAotRuntimeSmoke -LinuxElfPackage artifacts/runtime-original-r01/NativeAotRuntimeSmoke.pkg -LinuxThreadingDisassembly artifacts/runtime-original-r01/NativeAotRuntimeSmoke.llvm.log -TimeoutSeconds 600 -RequireMarker CLROS_M16_010_READY",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16010Probe -LinuxThreadingApplication NativeAotRuntimeMatrix -LinuxElfPackage artifacts/runtime-admission-r01/NativeAotRuntimeMatrix-r02.pkg -LinuxThreadingDisassembly artifacts/runtime-admission-r01/NativeAotRuntimeMatrix.llvm.log -TimeoutSeconds 600 -RequireMarker CLROS_M16_010_READY",
+        "Repeat unchanged Hello with its identical qualified package/configuration. Run three fresh original RuntimeSmoke and matrix captures with distinct image/EFI/serial/summary paths; include required resource negatives and ancestor regressions."
       ],
       "documentationPaths": [
         "docs/workload-profiles.md",

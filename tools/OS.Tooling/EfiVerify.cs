@@ -29,6 +29,11 @@ public static partial class EfiVerify
         context.Verify();
     }
     public static bool TestSdkExactVersion(string actual, string declared) => EfiContracts.IsPinnedSdkVersion(actual) && EfiContracts.IsPinnedSdkVersion(declared);
+    /// <summary>Host-only copy-binding checks over borrowed synthetic map/image inputs.
+    /// Throws ToolFailure on mismatched ownership, presence or executable backing;
+    /// this does not verify provenance, callback behavior or guest execution.</summary>
+    public static void TestLinuxCopyBindings(EfiProfile profile, string map, byte[] image)
+        => EfiVerification.VerifyLinuxCopyBindings(profile, map, new EfiPeImage(image));
     public static bool TestSingleFinallyEhTable(byte[]? table, ulong typeRva) => table is { Length: 11 } && typeRva is > 0 and <= uint.MaxValue && table.AsSpan(0, 7).SequenceEqual(new byte[] { 0x04, 0x36, 0x32, 0x8e, 0x36, 0xa0, 0xbc }) && BinaryPrimitives.ReadUInt32LittleEndian(table.AsSpan(7)) == typeRva;
     public static bool TestSingleFinallyUnwindBytes(byte[]? data, bool root, ulong tableRva)
     {

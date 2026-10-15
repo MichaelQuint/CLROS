@@ -1,5 +1,573 @@
 # EFI Build
 
+## Qualified bounded Linux thread and runtime profiles
+
+[Step1307](../done/step1307.md) joins final 5,202-check full-host acceptance,
+44 strict batch captures across 32 profiles, three retained strict GC repetitions,
+24 fresh ancestors and scoped original native/ABI/stack review. Every original
+object/EFI/package/capture binding retains its exact source. The unchanged pinned
+Hello, focused GC/ThreadPool, original RuntimeSmoke and RuntimeMatrix now have
+bounded CLROS guest evidence. Supplemental raw-state GC observation is identified
+separately from strict captures. No upstream package/configuration/timer/deadline
+change or Kestrel/new numbered-gate claim accompanies this final consolidation.
+Earlier development states below describe their original named checkpoints.
+
+[Step1306](../done/step1306.md) separates mechanical wait fixture descriptors from
+sigaltstack output. Fresh canonical packages are generated for all five wait
+variants; only the three pipe variants change bytes. The two futex variants and
+every original upstream NativeAOT payload remain identical. Original native EFI
+inputs and profile settings are unchanged; exact native joins still precede
+fresh execution.107 focused checks pass; live remaining cases remain required.
+
+[Step1305](../done/step1305.md) completes the three strict Hello/matrix repetitions
+and verifies all six preserved capsules and their before-boot native identities.
+Declared Linux thread/signal captures use the existing bounded8MiB raw extent,
+since current mechanical call/return diagnostics exceed32KiB. Ordinary profiles
+retain32KiB; prefix, EOF, framing, package, native, runner and leaf checks remain.
+Fresh mechanical/ancestor and final full gates remain required. The preceding
+matrix startup failure is preserved; it precedes the first EBS-success
+confirmation, with actual firmware-exit state and cause unresolved.
+
+[Step1304](../done/step1304.md) corrects matrix timing admission after another
+complete workload/cleanup capture fails step1303's cached scheduler-time bracket.
+Each reported timestamp now needs its own actual successful ID1 clock-call HPET
+window, validated against the parent domain and exact kernel conversion, consumed
+chronologically once. Managed elapsed/cancellation/disposal checks and all real
+kernel wait/GC/reap/cleanup rules remain; ThreadPool-stress deadlines and original
+runtime post-reap evidence remain separate. No app, kernel, native input, timer,
+clock or deadline changes. Failed captures retain their original status.
+Fresh final-source matrix repetitions and shared acceptance remain required.
+
+[Step1302](../done/step1302.md) preserves three strict original-runtime and three
+ThreadPool-stress captures. A Hello run at `27dd0cf` prints its unchanged output
+and completes three-thread cleanup, but the old consumer rejects a signal child
+whose first timeslice follows early stdout. Parent startup checks remain at every
+write; both actual child masks/waits are now required before `exit_group`.
+Twenty-three focused checks and complete offline revalidation pass. This is a
+host ordering correction; repeated strict Hello and remaining batch gates stay
+pending, with the original failed capture preserved.
+
+[Step1301](../done/step1301.md) records three strict wait-address and three TLS
+captures at `7cb23ee`, plus successful signals/GC/ThreadPool/original-runtime
+captures and 32 original-native review bindings. A later original-runtime run
+completes cleanup but exposes an overly strict host timer assertion. Its
+unchanged 10 ms managed timer can be due before a kernel timed wait is needed.
+The Smoke-only consumer now retains deadline evidence and also accepts a matched
+post-reap explicit futex wake, exact successful resumption, bounding monotonic
+reads and independently validated clock progress. Stress/matrix deadline checks
+remain fixed. This does not identify the managed timer registration or measure
+its precise duration. Final-source guest/full/negative/ancestor gates remain.
+
+[Step1300](../done/step1300.md) records the5196-check unfiltered full pass at
+366717b and seven fresh native preparations. A wait-address guest reaches READY
+after an exact pre-boot native-review join, but its outer runner rejects stale
+first-occurrence ordering. The literal host marker order is corrected and12
+focused checks now exercise the actual streaming parser, including reordered
+negatives. Kernel/app bytes and the detailed protocol remain fixed. Final shared
+source, repeated guest, negative and ancestor acceptance remains pending.
+
+[Step1298](../done/step1298.md) adds optional per-call HPET intervals and removes
+repeated leaf encoding inside a single exclusive user-root construction/audit.
+110 focused checks, one strict three-lifetime/nine-collection GC stress capture
+and strict original RuntimeSmoke pass. All original payloads and real deadlines
+remain fixed; no timer-count change is retained. Every actual leaf and complete
+table inventory remains checked. Source review and boundary/PAT mutations pass;
+final original-native, repeated frozen-source and full-host/ancestor gates remain.
+
+[Step1297](../done/step1297.md) reduces duplicate/bytewise verification work
+while preserving independent code, padding, owner/root and transfer checks.
+67 focused checks and strict original RuntimeSmoke r24 pass with full cleanup.
+GC stress still fails sleep_window; the500000-count trial increases transfers
+and is reverted. The retained kernel sources match r24 after that reversion.
+Exact capture hashes, timings and failed experiments remain in the receipt.
+
+[Step1296](../done/step1296.md) adds optional HPET boundary diagnostics without
+replacing IRQ, ownership or cleanup evidence.64 focused checks and the strict
+original RuntimeSmoke regression pass. GC stress still fails sleep_window;
+the shorter-count trial also fails and is reverted. Measurements distinguish
+setup/armed/return work, rather than calibrating the APIC timer. One duplicate
+saved-code scan before the checked reap boundary is the next narrow change.
+
+[Step1295](../done/step1295.md) adds syscall24/action6 handoffs using existing
+captured-context FIFO and timer-restoration paths.63 focused checks and a strict
+original RuntimeSmoke regression pass. The broader GC stress retry still fails
+its genuine sleep window and fully cleans; boundary/timer cost remains to measure.
+
+[Step1294](../done/step1294.md) removes redundant free-pool clearing, passes43
+focused checks and repeats strict original RuntimeSmoke with exit0/full cleanup.
+The measured broader GC stress retry still fails sleep_window and cleans fully;
+no timing requirement is weakened. Generic real sched_yield support remains the
+next compatibility slice before final shared qualification.
+
+[Step1293](../done/step1293.md) adds one strict successful capture each for the
+two focused apps, three-lifetime ThreadPool stress and the runtime matrix, with
+original output and complete cleanup. It records genuine activation/return
+evidence in focused suspension and the matrix. Entropy fallbacks and delayed
+native reaps now match the existing kernel/runtime behavior. Broader GC stress
+still fails its real sleep-window assertion; no application/deadline/time change
+is made. Repeated final-source guests and shared acceptance remain pending.
+
+[Step1292](../done/step1292.md) selects bounded application backing and execution
+limits from the validated manifest. Hello and the focused four/eight-worker
+runtime apps now emit the same real-time budget start/end records as the broader
+apps. Their transcript consumers require the 8192-page pool and independently
+check owned ELF data permission changes and monotonic/coarse clock results.
+Mechanical profiles retain their earlier limits. Ninety-seven focused checks and
+native publication pass. Hello r04 and original RuntimeSmoke r20 pass their full
+strict commands with original output, exit0 and complete cleanup. These are one
+development capture each; repeated frozen-source guests, focused suspension/
+ThreadPool, broader runtime, original native review and full-host/ancestor
+qualification remain before shared acceptance.
+
+[Step1291](../done/step1291.md) reproduces the runtime ENOMEM through production
+services: 1024 pages requested, 1020 free, largest run1019, with region/table
+headroom and no guard callback. Fifty-four focused checks pass. The runtime
+wrapper now requires exit0; failed M16-009 returns emit a terminal failure after
+cleanup. R18 verifies failure gating after the known OOM and full cleanup,
+without M16-010 ready/pass. An unchanged Hello attempt reaches the mechanical
+128-IRQ ceiling and cleans two threads without stdout. Application backing/
+execution limits and strict model updates are next.
+
+[Step1290](../done/step1290.md) authenticates each IRQ-off pool audit once while
+retaining every leaf/guard/permission check and full standalone walk admission.
+A checked released-owner teardown phase ends active callback checks only after
+all borrows drain. Twenty-four focused checks and native publication pass.
+R17 finishes its failed app run in25.6s under the unchanged300s bound and emits
+the full owner-end cleanup witness. The app reports OutOfMemoryException on a
+4MiB mprotect/commit request; the raw runtime verifier rejects it. Runtime groups,
+nonzero-exit native marker gating and exact memory-limit diagnosis remain pending.
+
+[Step1289](../done/step1289.md) adds the real CLOCK_MONOTONIC_COARSE path used
+by pinned NativeAOT low-resolution ticks, sharing the live monotonic epoch at
+1ms resolution. Twenty-four focused checks and native publication pass. Real
+r16 clock6 calls succeed and the app advances beyond its previous thread-start
+failure to five live threads, then stops near the five-minute driver bound.
+Exact stop diagnostics, remaining runtime groups and full cleanup are pending;
+there is no shared-batch or guest runtime acceptance.
+
+[Step1288](../done/step1288.md) adds explicit owned ELF data protection for
+NativeAOT guard-stack cookie initialization. One active R/RW window derives
+physical identity from immutable original non-executable user mappings; later
+mmap rebuilds preserve it. The default-off M16-009 prerequisite profile grants
+only the retained image envelope, excluding its initial stack and supervisor
+pool. Drained teardown restores original permissions and directly audits the
+original inventory before cleanup success. Sixty focused checks and the host
+build pass. Native publication passes; original-runtime r15 performs both cookie
+permission changes and emits its real EH-success row. It later reports
+`thread_start_timeout` and exits1; the remaining runtime groups and full cleanup
+remain unqualified. Clock/scheduling behavior is the next concrete diagnosis.
+
+[Step1287](../done/step1287.md) reproduces both r13 startup failures through
+production services. Futex resolution now admits validated words in application
+backing while retaining descriptor/futex metadata exclusions and wait lifetime
+guards. The combined mapping inventory holds 128 rows, reserving capacity for
+the existing 64 mutable regions alongside fewer than64 static rows. Physical
+backing, table-page and mutable-region quotas remain unchanged. The recorded
+32-call startup memory trace and descriptor-attached futex controls pass.
+Native publication passes, and r14 blocks on the original futex and passes
+the previously failing dynamic mprotect. It later rejects a protection change
+to owned readonly ELF data at `0x533000`, before application output. Native
+stack/resource review and successful guest qualification remain pending.
+
+[Step1286](../done/step1286.md) begins actual native/runtime qualification.
+The new probe symbols are present in the reviewed inventory. The independent
+user root now retains RX thread-pool code, RW/NX usable stacks/metadata and
+absent guards across mmap rebuilds; kernel publication remains separately owned.
+Native publication/artifact verification passes. Explicit TSS RSP0/IST4
+expectations preserve the remaining descriptor/code checks during authenticated
+borrows. Hardware E1 capture normalizes RF only in its copied continuation;
+ordinary returns remain strict and raw evidence stays intact. The original
+RuntimeSmoke guest now creates a second thread and executes 62 timer epochs,
+then fails before application output with futex EFAULT and mprotect ENOMEM.
+Raw failed captures and focused mapping/callback controls remain
+development evidence; no guest runtime or shared batch acceptance is added.
+
+[Step1285](../done/step1285.md) adds the original unchanged `NativeAotRuntimeSmoke`
+as a distinct M16-010 regression. Select it explicitly with
+`-LinuxThreadingApplication NativeAotRuntimeSmoke`; omitted M16-010 app selection
+still defaults to `NativeAotRuntimeMatrix`. The original five-row output, exact
+step1225 r04 ELF and complete instruction index have their own sealed authority.
+Its leaf requires actual normal worker reap and later kernel timer-phase
+evidence: a deadline completion or the bounded clock/wake/resume route described
+in step1301. Stress apps retain their separate activation requirements;
+ThreadPool stress requires deadline wins and matrix uses step1304's clock bounds.
+
+Prepare it with `linux runtime-package NativeAotRuntimeSmoke <evidence-root>
+artifacts/runtime-original-r01/NativeAotRuntimeSmoke.pkg`, then
+`linux runtime-program NativeAotRuntimeSmoke <package> <complete-llvm-dump>`.
+Here `evidence-root` is the retained `nativeaot-net11-builder` root containing
+`final-audit-r04.json` and `evidence-r04`, not the latter child alone. Original
+archive/source/native/publish receipts, produced DLL/object, stdout and all
+eight original traces retain their exact identities. No app or producer changes
+or new probe are introduced. Main-checkout package/index verification passes;
+actual CLROS runtime guests and shared acceptance remain pending.
+
+[Step1284](../done/step1284.md) adds three mutually exclusive default-off runtime
+profiles. Each inherits the complete M16-009 prerequisite chain and requires
+the matching canonical package and complete reviewed LLVM disassembly:
+
+| Probe | Exact application | Outer terminal |
+| --- | --- | --- |
+| `EnableM09011Probe` | `NativeAotSuspensionStress` | `TEST_PASS m09.011` |
+| `EnableM09012Probe` | `NativeAotThreadPoolStress` | `TEST_PASS m09.012` |
+| `EnableM16010Probe` | `NativeAotRuntimeMatrix` (default), `NativeAotRuntimeSmoke` (explicit regression) | `TEST_PASS m16-010` |
+
+Use the existing `-LinuxThreadingDisassembly` option. An omitted
+`-LinuxThreadingApplication` is inferred from the selected probe; an explicitly
+empty or different name rejects before any child. Broader apps require their
+dedicated profile. All three share the existing input/output alias checks,
+read locks and sealed program factories. Their wrapper timeout defaults to
+600 seconds, with explicit values 1..900 accepted; the outer runner process
+allows another 60 seconds for termination. Existing profiles retain 30 seconds
+by default and the 300-second maximum. The native larger-policy execution
+budget remains five minutes.
+
+The dedicated START precedes the original M16-009 leaf. READY/PASS follows its
+owned completion and entropy cleanup. Parent validation checks the original
+firmware/startup/PCI/APIC roots, strips only the exact outer envelope, validates
+the sealed complete runtime leaf and retains original raw runner accounting.
+For example, retained step1278 inputs can construct this dry-run command:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16010Probe -LinuxElfPackage artifacts/runtime-admission-r01/NativeAotRuntimeMatrix-r02.pkg -LinuxThreadingDisassembly artifacts/runtime-admission-r01/NativeAotRuntimeMatrix.llvm.log -DryRun
+```
+
+Thirty-eight distinct focused checks and all three no-stdlib C# profile builds
+pass. Full-host, native publication/review and actual CLROS runtime guests remain
+pending for the shared eight-issue batch. Dry-run construction grants no boot
+or runtime evidence.
+
+[Step1283](../done/step1283.md) publishes start/end budget observations only for
+the existing larger thread policy. Its final reap also samples actual time;
+there is no successful-completion exception to the elapsed ceiling. Focused
+profiles retain their original positive markers. Complete broader leaf
+consumers and independent synthetic positives now cover all three apps,
+including real modeled signal/deadline/reap phase evidence. Combined no-stdlib
+C# compilation and static source admission pass. At that step, wrapper/profile
+preparation, outer runner limits and native/guest qualification remained pending.
+
+[Step1282](../done/step1282.md) replaces the larger thread policy's incidental
+128-IRQ/512-step cutoff with separate finite event and real-time limits. All
+timer arms/acknowledgements use the admitted epoch ceiling; expiry is evaluated
+only after restored-supervisor return, preserving hardware acknowledgement and
+owned shutdown. The larger policy gets 8192 epochs, 16384 steps and a five-minute
+monotonic ceiling. Original policies and positive marker grammar remain unchanged.
+Build/source/inventory controls pass. The full broader consumer and its wrapper
+timeouts/record bounds still need integration; these limits do not qualify a guest.
+
+[Step1281](../done/step1281.md) links the ordinary futex-requeue adapter under
+the existing M16-008 condition, with exact conditional inventory and reviewed
+source admission. Combined M16-008/009 no-stdlib C# compilation passes, as does
+the original firmware entropy numeric-core check from step1280. Full native
+publication/review and guest execution remain deferred until the eight-issue
+batch has complete broader protocol/profile consumers.
+
+[Step1280](../done/step1280.md) adds pre-EBS entropy acquisition and cleanup for
+the broader thread policy. Existing profiles with at most eight threads retain
+their 32-byte budget and transcript. A larger M16-008/009 package policy reports
+`entropyBytes=256`; its complete runtime consumer must explicitly validate that
+policy before guest admission. The reservoir is single-use, with no post-EBS
+refill or automatic replenishment between process lifetimes. Native validation
+is deferred with the remaining batch; this adds no QEMU selector.
+
+[Step1279](../done/step1279.md) expands `LinuxThreadProgram` and the fixed signal
+state to 16 workers. Current `M16_008_BOUND` code/metadata sizes are
+53248/114688 bytes; the full retained native pool is 162 pages. Existing owner
+allocation, guarded mapping, callback addresses and terminal scrub derive the
+reviewed constants. The separate scheduler ancestor arena is unchanged.
+All 16 CALL paths and boundary/reuse controls pass on the host, and combined
+M16-008/009 no-stdlib C# compilation passes. Actual native/IRQ/stack/cleanup
+qualification remains required at the stable batch boundary.
+
+[Step1278](../done/step1278.md) adds host-only commands for exactly
+`NativeAotSuspensionStress`, `NativeAotThreadPoolStress` and
+`NativeAotRuntimeMatrix`:
+
+```text
+linux runtime-package <app> <extracted-runtime-evidence-r02> <fresh-artifacts-package>
+linux runtime-program <app> <package> <reviewed-complete-llvm-dump>
+```
+
+These bind the step1276 evidence and exact reviewed runtime-domain index.
+They preserve the original focused commands/selectors and grant no QEMU
+admission. All three manifests request 16 slots, within the existing host
+thread-service limit, with the matching native layout implemented in step1279.
+Live capacity qualification and full protocol/profile admission remain pending.
+
+[Step1277](../done/step1277.md) wires an optional per-generation return policy
+into the existing M16-008/009 owner. Only the exact static RX libc
+`munmap; xor rdi,rdi; mov eax,60; syscall` tail may continue after removing its
+complete stack/TLS extent. The owner proves the selected current generation,
+fully blocked signals and no active handler; syscall and IRQ image paths retain
+their existing supervisor checks. No new probe or native emitter is added.
+Combined M16-008/009 and default no-stdlib C# builds pass. Native publication
+and actual exit-tail/IRQ execution belong to the deferred stable batch gates.
+
+[Step1272](../done/step1272.md) adds paired M16-009 wrapper options
+`-LinuxThreadingApplication <NativeAotSuspensionSmoke|NativeAotThreadPoolSmoke>`
+and `-LinuxThreadingDisassembly <reviewed-complete-llvm-dump>`, alongside the
+matching `-LinuxElfPackage`. They exclude the Hello selector. Non-dry execution
+requires canonical current package/index preparation and retained input read locks
+before build/image/runner; input/output aliases reject. Serial/summary authorities
+remain locked from capture-hash verification through complete validation, with
+bounded reads and final hash/identity checks. The full parent protocol
+and raw runner summary remain mandatory. Focused host controls pass without a
+new native publication or CLROS QEMU run.
+
+[Step1271](../done/step1271.md) records actual signal nesting/top frame/mask
+and admitted return RIP/RSP/flags/FS/GS/value after each gateway dispatch,
+before pending delivery can replace that user image. Original sigreturn input
+and all row counts remain intact. Signal/thread slot layouts and syscall/scheduler
+behavior are unchanged. Current runtime leaf consumers require those witnesses
+and the existing wait observations; missing or unsupported paths fail closed.
+Host and combined no-stdlib C# compilation pass. Step1272 adds parent/runner
+selection; current guest qualification remains pending.
+
+[Step1270](../done/step1270.md) appends actual retained wait source, absolute
+monotonic deadline and generation-bound wait sequence after every native call
+ordinal. Zero source has zero deadline/sequence; untimed futex and pipe waits
+have zero deadline. The snapshot is read after real dispatch/return preparation,
+without changing scheduler or syscall results. Existing complete decoders strip
+only a validated suffix; future upstream runtime consumers require it. Exact
+source admission and combined no-stdlib C# compilation pass. No native publication,
+new runtime QEMU selector or current CLROS guest acceptance is added.
+
+[Step1269](../done/step1269.md) prepares only the two separately qualified
+threading payloads through `linux threading-package <app> <evidence-root>
+<fresh-artifacts-package>` and `linux threading-program <app> <package>
+<llvm-disassembly>`. App names are exactly NativeAotSuspensionSmoke and
+NativeAotThreadPoolSmoke. The first requires step1267's extracted portable
+producer tree; the second requires its complete reviewed instruction index.
+These commands start no builder, native publication or guest. They do not add
+QEMU admission: complete guest protocol consumers are still required.
+
+[Step1268](../done/step1268.md) implements eight native worker slots and eight
+signal lifetimes within the same default-off M16-008/009 owner. Program offsets
+now cover seven code pages; the retained pool has 105 pages with derived
+metadata/switch/worker/IRQ/IDT bounds and 20 guard leaves. The existing usable
+stack sizes are preserved. Mapping retention, callback copy ranges, IRQ/IDT
+addresses, off-stack entry-page protection and strict transcript geometry use
+that layout. Combined and default no-stdlib C# compilation pass; this is not
+original native publication/stack review or current guest qualification.
+
+[Step1263](../done/step1263.md) adds terminal dynamic user-memory and initial ABI
+stack cleanup to the shared M16-008/009 owner after thread/process/descriptor
+release. The user root must be inactive before unmap; the stack scrub is bound
+to its audited static mapping. Counters, pool bytes and stack bytes are checked
+before terminal witnesses. Physical/table/firmware reservations remain retained.
+Focused host checks and the combined no-stdlib C# build pass; original native
+publication/stack review and a fresh guest are still required for this revision.
+
+[Step1259](../done/step1259.md) repairs combined-profile admission: the native
+verifier requires the authenticated thread copy callbacks in M16-008/009 and
+rejects the superseded single-thread callbacks. The shared retained-range
+capacity is 39, matching the combined image/arena/Linux/PCI/APIC envelope;
+table-page, mapped-page and permission bounds remain unchanged. One fresh
+M16-009 `AlternateStack` guest passes the ordinary build/image/QEMU wrapper.
+This is diagnostic development evidence, not complete batch qualification.
+
+`EnableM16008Probe` defaults false. It requires M16-002 through M16-007, the
+original five owned-exit parents, PCI and APIC; disabled parents and other leaves
+reject. [Step1241](../done/step1241.md) through [step1243](../done/step1243.md)
+record the original source/resource closure and 64-page pool (now 105 pages in
+step1268), native process
+callbacks, driver/timer and off-stack reuse. Existing M09 layouts are unchanged.
+
+[Step1244](../done/step1244.md) attaches the owner after actual PCI/APIC setup,
+selects saved-user resumption and wires the complete strict mechanical transcript.
+The runner preflights the canonical package before native build/launch and keeps
+its read lock. Create the package at a fresh path with compiled tooling:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/m16-008-thread.pkg
+```
+
+[Step1245](../done/step1245.md) makes the canonical package exercise four
+sequential child generations within its original two-thread quota. Older
+generated package bytes fail current preflight; create a fresh output path.
+The same input asserts malformed clone/mask/futex, unmapped FS and full-table
+clone errors; its strict tail requires 91 calls, 36 transfers and five reaps.
+This changes the mechanical input and strict transcript only, not native code.
+
+[Step1246](../done/step1246.md) extends each cycle with a 4,100-byte blocking
+write through the 4,096-byte pipe and a separate read page. Current ELF bytes
+are 28,672; the strict tail requires 103 calls, 21 completions, 52 transfers and
+five reaps. Generate a fresh package after this change as well. The native
+owner and profile are unchanged; no execution evidence is added.
+
+[Step1247](../done/step1247.md) adds `PipeReadClose`, `PipeWriteClose` and
+`PipeShutdown` packages under the same profile. Append the variant to the
+compiled package command, using a fresh output path, for example:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/m16-008-read-close.pkg PipeReadClose
+```
+
+The default variant remains `Threads`, whose bytes are unchanged. Canonical
+preflight identifies complete package bytes; a manifest name alone cannot
+select a protocol. The runner orders the common envelope, while the complete
+validator enforces each package's exact calls, peer-close wakeups, timer and
+cancelled-child exit order. Close-only cases require no IRQ; Threads and
+PipeShutdown require actual HPET timeout records. All remain unexecuted inputs.
+
+[Step1248](../done/step1248.md) links the optional signal startup owner.
+[Step1249](../done/step1249.md) adds its checked frame/return dependencies and an
+explicit full user GPR/FX install for syscall15 in the active gateway. The
+M16-008 no-stdlib C# closure compiles. The distinct signal leaf follows in step1254 below.
+[Step1250](../done/step1250.md) links directed pending/tgkill selection on the
+same owner. [Step1251](../done/step1251.md) links genuine interrupted-wait and
+checked restart decisions, including timed restart_syscall.
+[Step1252](../done/step1252.md) attaches signal storage in the existing RW/NX
+metadata arena and resolves pending delivery/restart before every native user
+return. Full user installation retains the resolved RAX and all GPR/FX state;
+actual syscall accounting and its captured serial record precede delivery.
+Signal metadata detaches after real reaps and is scrubbed before pool restoration.
+Asynchronous capture, the distinct signal package/profile and original
+native/guest qualification remain required before signal or unchanged Hello acceptance.
+Pending/frame/bridge host checks supply no execution evidence.
+
+[Step1253](../done/step1253.md) adds deterministic mechanical signal packages:
+`AlternateStack`, `UserStack`, `BadReturn` and `BadRestorer`. They check actual
+pending/unmask handler entry, masks, stack selection, edited saved RAX and
+nontrivial GPR/FP/DF/red-zone restoration, or require owned SIGSEGV termination.
+Create a fresh package with compiled tooling:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- linux signal-fixture artifacts/packages/m16-009-alt.pkg AlternateStack
+```
+
+The canonical package and actual syscall-instruction inventory feed the M16-009
+runner/validator added in [step1254](../done/step1254.md). M16-008 preflight deliberately rejects
+these packages. Construction
+and byte checks establish no handler execution. Shared header/writer reuse keeps
+all four original M16-008 packages byte-identical.
+
+`EnableM16009Probe` defaults false and inherits M16-008's complete prerequisites.
+It selects one distinct post-APIC BootSequence leaf over the same actual native
+owner. The runner holds a canonical signal-package read lock before native build
+or launch, and the strict validator composes the original startup/service/PCI/APIC
+records with exact signal calls, handler/restorer stacks, expected negative exits,
+supervisor confirmation, reap and restoration. It rejects ancestor readiness and
+missing/extra/replayed rows. Mechanical negatives require exit139 with owned
+cleanup; they do not mean a successful application exit.
+
+Future qualification command (not yet executed):
+
+```powershell
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16009Probe -LinuxElfPackage artifacts/packages/m16-009-alt.pkg -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 60 -RequireMarker CLROS_M16_009_READY
+```
+
+The mechanical selector now admits nineteen canonical signal packages. Unchanged
+pinned Hello, asynchronous user IRQ activation and focused suspension remain
+required before #687 acceptance. Step1259 later records one mechanical
+`AlternateStack` diagnostic reaching readiness; full batch qualification remains
+pending.
+
+[Step1266](../done/step1266.md) adds `SignalPipeEintr`, `SignalPipeRestart`,
+`SignalFutexEintr`, `SignalFutexRestart`, `SignalPipePartial`,
+`NestedAlternateStack` and `AlternateStackExhaustion` to the same compiled
+`linux signal-fixture` command. Wait inputs use ten ELF pages so payload/read
+buffers remain separate from TLS and both stacks; input preflight admits their
+exact canonical bytes. The other inputs retain seven pages. Restart requires
+the original SYSCALL instruction to run again with a fresh gateway ordinal;
+partial writes must retain their 4096-byte prefix. Nesting requires two actual
+handler/restorer pairs, while exhaustion requires owned exit139 before a fourth
+handler can enter. These new inputs have focused host/byte/parser controls only;
+they have not executed in a guest. Full batch/native qualification remains open.
+The complete GP/PF capture source added in [step1255](../done/step1255.md) uses
+the separately verified 1800h..1FFFh worker-code region and the original gateway
+allocation. [Step1256](../done/step1256.md) adds canonical `FaultRead`,
+`FaultWrite`, `FaultExecute`, `FaultStack`, `FaultGp`, `FaultReturn` and
+`FaultFatal` inputs to the same preflight and strict transcript. The first five
+repair a genuine GP/PF context and require exit42; the last two require exit139.
+All use nonzero user FS/GS and complete saved GPR/FP checks. Fault read targets
+an unowned address above 4 GiB; null RSP recovery requires the alternate stack.
+No guest has executed these inputs; original native/stack and live qualification
+remain required. Generate a fresh package for later batch qualification with:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- linux signal-fixture artifacts/packages/m16-009-fault-stack.pkg FaultStack
+```
+
+[Step1257](../done/step1257.md) implements the separately gated workload request
+`env.CLROS_USER_IRQS=1` inside M16-009; no new build flag or default is added.
+Absent/0 stays disabled, malformed requests fail closed. Its private E1/FF gates,
+complete user capture and real kernel CALL yield share the retained native owner.
+An ending syscall drains an outstanding one-shot through a checked switch-stack
+kernel wait before APIC/IST restoration. Host/byte checks and no-stdlib C# compile
+pass; original native/stack and live IRQ proof are still required. The eleven
+original packages omit this environment key. Editing one to add it breaks exact
+preflight identity. [Step1258](../done/step1258.md) adds the separate canonical
+`Activation` package with that key: real parent spin preemption, child tgkill35,
+complete handler/sigreturn state checks and both real exit/drain/reap lifetimes.
+Its strict transcript accepts bounded timing variation only through the exact
+two-worker FIFO protocol. Generate a fresh input with `linux signal-fixture
+artifacts/packages/m16-009-activation.pkg Activation`. No IRQ guest has run.
+
+The unchanged Hello input packager in [step1260](../done/step1260.md) uses the
+extracted step1225 r04 evidence, including the actual produced managed DLL and
+native object. Invoke `linux hello-package <extracted-evidence-r04>
+<fresh-artifacts-package-path>` through OS.Tooling. The output parent must exist;
+publication never replaces an existing file. Exact raw qualification receipts
+and relevant current source hashes must match before output. It preserves the
+upstream ELF and adds explicit bounded manifest/IRQ policy; it starts no builder
+or guest. Step1265 adds explicit pinned Hello preflight below.
+
+[Step1264](../done/step1264.md) checks that package against an immutable reviewed
+instruction index. Produce disassembly of the exact pinned ELF with the existing
+configured LLVM tool, then inspect it through the compiled admission command:
+
+```powershell
+& $env:CLROS_LLVM_OBJDUMP --disassemble --print-imm-hex <pinned-Hello-ELF> > artifacts/hello.disassembly.log
+dotnet run --project tools/OS.Tooling -- linux hello-program artifacts/packages/hello.pkg artifacts/hello.disassembly.log
+```
+
+The parser verifies row bytes against executable file-backed loads; the pinned
+factory requires all 243,126 reviewed boundaries and 166 syscall sites with the
+canonical index digest. It parses a frozen LLVM linear disassembly, rather than
+implementing a general x64 decoder. Inspection reports alone have no prepared-
+program authority. Changed/partial/forged boundaries reject even when counts
+match. This command starts no payload, compiler or guest and cannot satisfy the
+actual-Hello transcript/cleanup validator added in step1265.
+
+[Step1265](../done/step1265.md) adds `-LinuxHelloDisassembly` only for M16-009.
+It selects the exact unchanged Hello package and prepared instruction index;
+without it, the original canonical mechanical selector applies. Both input files
+stay read-locked through the run, and disassembly/output aliases reject before
+build. The future qualification command adds these inputs to the existing leaf:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16009Probe -LinuxElfPackage artifacts/packages/hello.pkg -LinuxHelloDisassembly artifacts/hello.disassembly.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 60 -RequireMarker CLROS_M16_009_READY
+```
+
+All parent and runner checks remain mandatory. The strict Hello leaf binds
+syscalls, FIFO scheduling, IRQ/drain clocks, both parked runtime children, exact
+raw stdout, exit0 and cleanup. Its bounded 8-MiB raw extent and three exact
+payload-LF removals apply only after sealed Hello admission and raw byte checks;
+other firmware framing/size rules remain unchanged. Every current M16-008 CALL
+also requires its actual per-generation `ordinal` suffix. This command has not
+run; focused checks/C# compilation grant no new native or guest acceptance.
+
+The future qualification command is:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16008Probe -LinuxElfPackage artifacts/packages/m16-008-thread.pkg -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 60 -RequireMarker CLROS_M16_008_READY
+```
+
+Package generation and dry-run selection remain host tooling evidence. The
+later step1307 receipt qualifies the finite M16-008 worker/IRQ/ELF cases with
+actual guests, original native review, full-host and affected ancestors.
+
+## Qualified wait and TLS profiles
+
+`efi build -BootPolicy Diagnostic -EnableM09009Probe` and the corresponding
+`-EnableM09010Probe` selection now admit explicit wait/TLS native sources and
+the existing lifecycle/context/timer links. The tool expands the same seven
+owned-exit/APIC prerequisites; explicitly disabled parents or another leaf
+reject. Both leaves compile as no-stdlib C# in [step1234](../done/step1234.md).
+Step1307 adds original object/stack review, three strict guests per leaf and the
+shared full-host/ancestor qualification. Compilation alone is not boot proof.
+
 ## Qualified cooperative lifecycle profile
 
 `dotnet run --project tools/OS.Tooling -- efi build -BootPolicy Diagnostic -EnableM09006Probe`

@@ -418,7 +418,23 @@ public static unsafe class ThreadContextSwitch
         }
         public void Pad() => Pad(_limit);
         public void Pad(uint target)
-        { if (_position > target || target > _limit) _valid = false; while (_position < target && _position < _limit) Bytes(0xcc, 1); }
+        {
+            if (_position > target || target > _limit) _valid = false;
+            uint end = target < _limit ? target : _limit;
+            // Uniform INT3 bytes have the same word value in either byte order.
+            // Unaligned x64 accesses stay entirely inside the admitted padding.
+            while (_position < end && end - _position >= 8)
+            {
+                if (_output != null)
+                {
+                    ulong* word = (ulong*)(_output + _position);
+                    if (_compare) { if (*word != 0xccccccccccccccccUL) _valid = false; }
+                    else *word = 0xccccccccccccccccUL;
+                }
+                _position += 8;
+            }
+            while (_position < end) Bytes(0xcc, 1);
+        }
         public void Call(ulong target) { Bytes(0xe8, 1); Displacement(target, 4); }
         public void Jump(ulong target) { Bytes(0xe9, 1); Displacement(target, 4); }
         public void Below(ulong target) { Bytes(0x820f, 2); Displacement(target, 4); }

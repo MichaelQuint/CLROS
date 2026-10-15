@@ -1,5 +1,112 @@
 # QEMU
 
+[Step1307](../done/step1307.md) qualifies the finite thread/runtime batch with
+44 strict captures across 32 profiles, three retained strict GC repetitions,
+24 fresh ancestors and original native/source/package joins. A separate QMP/GDB
+replay observes signaled exit requests blocked by actual upstream GC and later
+exit/reap; its pauses and immediate owned-process cleanup give it diagnostic-only
+status. The original strict captures retain their measured quiet/termination
+authority. Select `NativeAotRuntimeSmoke` explicitly for the original payload;
+M16-010 otherwise selects `NativeAotRuntimeMatrix`. Guest Kestrel remains pending.
+
+[Step1272](../done/step1272.md) adds an explicit development selector for either
+focused runtime workload through the existing M16-009 profile:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16009Probe -LinuxElfPackage artifacts/packages/suspension.pkg -LinuxThreadingApplication NativeAotSuspensionSmoke -LinuxThreadingDisassembly artifacts/suspension.llvm.log -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 60
+```
+
+Use exactly NativeAotSuspensionSmoke or NativeAotThreadPoolSmoke with its matching
+step1269 canonical package and complete reviewed LLVM index. Both options are
+required and exclude `-LinuxHelloDisassembly`. Input locks span live preparation,
+build/image/run/validation; input/output aliases reject. Bounded plain/single-link
+serial/summary authorities stay locked across capture-hash and complete validation
+(including direct callers), then verify original hash and identity. The existing complete
+firmware/startup/service/ELF/PCI/APIC, root, scheduler/signal/output/exit/reap/cleanup
+and confirmed runner checks all remain mandatory. Raw payload byte framing is
+validated before protocol newline normalization. Runner observed markers, physical
+line counts and tails use original raw serial lines across arbitrary stdout write
+segmentation. Six synthetic summary controls and 42 negatives pass with real
+prepared inputs and Linux stdout; these are not guest captures. Broader stress and
+frozen batch qualification remain pending. No unchanged guest Hello or focused
+runtime guest is accepted. The Hello and mechanical selectors retain their scope.
+
+[Step1263](../done/step1263.md) makes current thread/signal tails require zero
+dynamic user reservation/backing counters and a checked zeroed initial ABI stack
+in the existing owner-end row. Older tails lacking those fields fail the current
+decoder. Package bytes and record counts are unchanged. No QEMU run validates
+this cleanup revision yet; the step1259 receipt below belongs to its frozen
+earlier source and protocol.
+
+[Step1259](../done/step1259.md) records one passing fresh M16-009 `AlternateStack`
+guest: 167 application records, real handler/sigreturn, exit42, reap and owned
+restoration. Thread/signal streaming requirements now normalize marker whitespace
+and permit repeated lifetime rows; the complete transcript still checks exact
+ordering and counts. Optional `M16_` diagnostic rows are retained consistently in
+runner summaries and exact raw/summary validation. Activation, the wider guest
+matrix and final batch qualification remain pending.
+
+Development `-EnableM16009Probe` admits nineteen canonical mechanical signal
+packages and requires `CLROS_M16_009_READY`. Input preflight/read-lock ownership
+precedes native build/launch; complete startup/service/PCI/APIC and signal tails
+must validate. Ancestor readiness or marker overrides cannot satisfy this leaf.
+The seven hardware-fault inputs added in [step1256](../done/step1256.md) require
+one exact GP/PF capture, checked recovery or owned exit139, and complete cleanup.
+Their tails contain 30 rows for recovery, 25 for invalid sigreturn and 19 for
+default fatal delivery. The four earlier signal protocols remain unchanged.
+See [step1254](../done/step1254.md) and [EFI commands](efi-build.md). No new QEMU
+capture, unchanged Hello or runtime suspension is qualified by this wiring.
+
+[Step1266](../done/step1266.md) extends canonical admission with five interrupted
+pipe/futex inputs and two nested/exhausted alternate-stack inputs. Their strict
+tails bind actual syscall sites and ordinals, handler/restorer RSPs, interrupted
+completion or real syscall reissue, partial progress, supervisor transfers,
+reaps and terminal cleanup. Wait inputs require two generations, six transfers,
+two reaps and exit42; nested return requires two restorers and exit42, while
+exhaustion requires exit139 after three entered handlers and no continuation.
+The new parsers have synthetic controls only; no new QEMU capture is claimed.
+
+The opt-in user IRQ source in [step1257](../done/step1257.md) uses
+`env.CLROS_USER_IRQS=1` only under M16-009. The eleven original packages omit it
+and retain their IF-off protocols. [Step1258](../done/step1258.md) admits only the
+separate canonical `Activation` input for asynchronous mechanical proof. Its
+39..289-row tail binds every FIFO dispatch, exact instruction-stage IRQ envelope,
+one-shot epoch, HPET clock, child signal35, handler/restorer call, drain, supervisor
+handoff, exit/reap and restoration. Both ending excursions must drain their real
+one-shot; a parent spin capture is mandatory. Synthetic 39/51-row controls are
+parser evidence only. No QEMU IRQ/activation receipt is claimed.
+
+[Step1260](../done/step1260.md) can create the exact pinned upstream Hello package
+with `linux hello-package <extracted-evidence-r04> <fresh-artifacts-package-path>`.
+This is host input/producer admission only. Step1265 adds a separate explicit
+M16-009 Hello selector; a package or stdout marker alone cannot satisfy it.
+
+[Step1264](../done/step1264.md) adds `linux hello-program <hello-package>
+<llvm-disassembly>` to check the exact package and complete reviewed instruction
+index. It verifies executable file backing, ordered extents, real decoded syscall
+sites, canonical counts and digest. The result grants no QEMU launch or transcript
+success. Step1265 composes it with the complete protocol validator below.
+
+[Step1265](../done/step1265.md) adds `-LinuxHelloDisassembly <reviewed-dump>` to
+the M16-009 wrapper. Only the exact pinned package/index selects Hello; input
+read locks span build/image/run/validation and output aliases reject. The full
+caller retains original firmware, startup, PCI/APIC, termination and exact
+raw/summary checks. The Hello model requires real main/finalizer/signal-thread
+lifetimes, correct FIFO wait/wake/IRQ accounting, all three original LF-terminated
+stdout writes, exit_group0, cancelled blocked children, three reaps and scrubbed
+ownership. Both startup wake orderings have synthetic controls. Hello alone has
+an 8-MiB raw cap; its three payload LFs are removed only after exact byte checks
+for CRLF-record/summary comparison. Raw byte and physical-line accounting remains
+original. Actual gateway call ordinals now protect every thread/signal tail from
+lost/reordered records. Thirty-nine focused checks pass; no fresh guest runs here.
+
+Development selections `-EnableM09009Probe` and `-EnableM09010Probe` have strict
+profile and transcript admission in [step1234](../done/step1234.md). Their only
+permitted explicit required markers are `CLROS_M09_009_READY` and
+`CLROS_M09_010_READY`, respectively; marker presets/order/uniqueness overrides
+reject. Each tail requires the complete two-generation schedule and restoration,
+not just READY. No new QEMU capture is qualified by that implementation step.
+
 ## Current CPU contract
 
 The .NET 11 migration selects explicit `-cpu Nehalem` for the x86-64-v2

@@ -4,7 +4,7 @@ using S = OS.Kernel.Threading.ThreadContextSwitch;
 
 internal static unsafe class KernelThreadProgramTests
 {
-    private static P.Plan Plan(KernelThreadTableTests.Model m)
+    internal static P.Plan Plan(KernelThreadTableTests.Model m)
     {
         var o = m.Owner; o.CodeBytes = P.Bytes; o.GuardsVerified = false; o.MappingsVerified = false;
         var supervisor = m.Supervisor; supervisor.ResumeRip = m.Code + P.DriverResume; supervisor.Context->Rip = supervisor.ResumeRip;

@@ -19,7 +19,7 @@ public struct FirstExitImageReferences
     // Optional in host-only compositions. The EFI adapter must retain its
     // original installed NativeAOT stack-probe page, outside the loaded image.
     public ulong RuntimeSupportCode, RuntimeSupportCodeBytes;
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
     public ulong CooperativePoolStart, CooperativePoolPages;
 #endif
 #if M16_002_PROBE
@@ -249,7 +249,7 @@ public static unsafe class FirstExitRetainedMappings
 {
     public const ulong MaximumRanges = FirstExitImageMappings.MaximumSections + 1 +
         FirstExitOwnedArena.MappingRangeCount + 3
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
         + 1
 #endif
 #if M16_002_PROBE
@@ -262,7 +262,7 @@ public static unsafe class FirstExitRetainedMappings
         + 3
 #endif
 #if M16_006_PROBE
-        + 2
+        + 3
 #endif
 #if M16_007_PROBE
         + 1
@@ -270,7 +270,10 @@ public static unsafe class FirstExitRetainedMappings
 #if M05_PHYSICAL_MAPPING_PROBE
         + 1
 #endif
-#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M05_PCI_ENUMERATION_PROBE
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
+        + 1
+#endif
+#if M05_PCI_ENUMERATION_PROBE
         + 1
 #endif
 #if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
@@ -287,7 +290,7 @@ public static unsafe class FirstExitRetainedMappings
 #endif
         ;
     private const int MaximumAllocations = 6
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
         + 1
 #endif
 #if M16_002_PROBE
@@ -305,7 +308,13 @@ public static unsafe class FirstExitRetainedMappings
 #if M16_007_PROBE
         + 1
 #endif
-#if M05_PHYSICAL_MAPPING_PROBE || M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M05_PCI_ENUMERATION_PROBE
+#if M05_PHYSICAL_MAPPING_PROBE
+        + 1
+#endif
+#if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE
+        + 1
+#endif
+#if M05_PCI_ENUMERATION_PROBE
         + 1
 #endif
 #if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
@@ -416,7 +425,7 @@ public static unsafe class FirstExitRetainedMappings
         if (references.RuntimeSupportCode == 0 || references.EcamStart < 0x100000 ||
             (references.EcamStart & 0xfffff) != 0 || references.EcamPages != 256 ||
             references.EcamStart > 0x100000000UL - 0x100000) return false;
-        starts[6] = references.EcamStart; lengths[6] = 0x100000; allocations = 7;
+        starts[allocations] = references.EcamStart; lengths[allocations++] = 0x100000;
 #endif
 #if M05_VIRTIO_NEGOTIATION_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
         if (references.VirtioBarStart < 0x100000 || (references.VirtioBarStart & 0x3fff) != 0 ||
@@ -458,12 +467,17 @@ public static unsafe class FirstExitRetainedMappings
             references.LinuxDescriptorStart > 0x100000000UL - references.LinuxDescriptorPages * 4096) return false;
         starts[allocations] = references.LinuxDescriptorStart; lengths[allocations++] = references.LinuxDescriptorPages * 4096;
 #endif
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
-        if (references.CooperativePoolPages != OS.Kernel.Threading.ThreadContextSwitch.PoolPages ||
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
+#if M16_008_PROBE
+        const ulong cooperativePages = OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.PoolPages;
+#else
+        const ulong cooperativePages = OS.Kernel.Threading.ThreadContextSwitch.PoolPages;
+#endif
+        if (references.CooperativePoolPages != cooperativePages ||
             references.CooperativePoolStart < 4096 || (references.CooperativePoolStart & 4095) != 0 ||
-            references.CooperativePoolStart > 0x100000000UL - OS.Kernel.Threading.ThreadContextSwitch.PoolPages * 4096UL) return false;
+            references.CooperativePoolStart > 0x100000000UL - cooperativePages * 4096UL) return false;
         starts[allocations] = references.CooperativePoolStart;
-        lengths[allocations++] = OS.Kernel.Threading.ThreadContextSwitch.PoolPages * 4096UL;
+        lengths[allocations++] = cooperativePages * 4096UL;
 #endif
         for (int i = 0; i < allocations; i++) for (int j = 0; j < i; j++)
             if (FirstExitDescriptors.Overlaps(starts[i], lengths[i], starts[j], lengths[j])) return false;
@@ -488,13 +502,19 @@ public static unsafe class FirstExitRetainedMappings
             (X64LinuxUserTransition.DataBytes - X64LinuxUserTransition.StackOffset) / 4096, Data);
 #endif
 #if M16_006_PROBE
-        pending[count++] = new SeparatePageFaultMappingRange(references.LinuxMemoryPoolStart, references.LinuxMemoryPoolPages, Data);
+        // Preserve the per-range bound while retaining one contiguous owner.
+        for (ulong offset = 0; offset < references.LinuxMemoryPoolPages; offset += 4096)
+        {
+            ulong pages = references.LinuxMemoryPoolPages - offset;
+            pending[count++] = new SeparatePageFaultMappingRange(references.LinuxMemoryPoolStart + offset * 4096,
+                pages > 4096 ? 4096 : pages, Data);
+        }
         pending[count++] = new SeparatePageFaultMappingRange(references.LinuxMemoryCandidateStart, X64UserAddressSpace.MaximumTables, Data);
 #endif
 #if M16_007_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.LinuxDescriptorStart, references.LinuxDescriptorPages, Data);
 #endif
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
         pending[count++] = new SeparatePageFaultMappingRange(references.CooperativePoolStart,
             references.CooperativePoolPages, Data, PageCachePolicy.WriteBack);
 #endif
@@ -563,9 +583,18 @@ public static unsafe class FirstExitCodeBundle
     public const uint LinuxReadBackOffset = 4800;
 #endif
 #if M05_PCI_ENUMERATION_PROBE
+#if M16_008_PROBE
+    // The combined Linux/clock/APIC profile retains distinct helper bodies.
+    public const uint PciReadOffset = 5504;
+#else
     public const uint PciReadOffset = 4608;
+#endif
 #if M05_BAR_DMA_PROBE || M05_VIRTIO_NEGOTIATION_PROBE || M05_APIC_SETUP_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
+#if M16_008_PROBE
+    public const uint PciBarOffset = 5520;
+#else
     public const uint PciBarOffset = 4624;
+#endif
 #if M05_VIRTQUEUE_POLLING_PROBE || M05_VIRTQUEUE_INTERRUPT_PROBE || M06_VIRTIO_BLOCK_QUEUE_SETUP_PROBE
     public const uint QueueFenceOffset = 4672;
 #endif
@@ -586,7 +615,7 @@ public static unsafe class FirstExitCodeBundle
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
     public const uint MsixInterruptOffset = 4784;
 #endif
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
     public const uint CooperativeObserveOffset = 6000, CooperativeFxOffset = 6512;
     public const uint CooperativeSegmentsOffset = 6544, CooperativePublishOffset = 6720;
 #endif
@@ -634,7 +663,7 @@ public static unsafe class FirstExitCodeBundle
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
             OS.Drivers.X64MsixInterrupt.Emit(code + MsixInterruptOffset, StackEntryOffset - MsixInterruptOffset) &&
 #endif
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
             OS.Kernel.Threading.ThreadContextSwitch.EmitObserver(code + CooperativeObserveOffset,
                 OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes) &&
             OS.Kernel.Threading.ThreadContextSwitch.EmitFxSnapshot(code + CooperativeFxOffset,
@@ -678,11 +707,23 @@ public static unsafe class FirstExitCodeBundle
 
     public static bool ValidateInstalledReadBack(byte* code, ulong capacity, ref FirstExitOwnedArenaState arena,
         EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping, ulong callback)
-        => Admit(code, capacity, ref arena, capture, mapping, callback, 1, true) &&
+        => ValidateInstalledReadBack(code, capacity, ref arena, capture, mapping, callback, arena.StackTop, 0);
+
+    /// <summary>Read back the installed code and original descriptor storage
+    /// while an IRQ-off owner borrows exactly TSS.RSP0 and IST4. Expected stack
+    /// tops come from the authenticated owner, never from the fields under test.
+    /// The caller retains both stacks and proves their mappings, active tables
+    /// and borrow lifetime. All other bytes retain their original checks. False
+    /// changes nothing; this supplies no execution or restoration authority.</summary>
+    public static bool ValidateInstalledReadBack(byte* code, ulong capacity, ref FirstExitOwnedArenaState arena,
+        EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping, ulong callback,
+        ulong expectedRsp0, ulong expectedIst4)
+        => Admit(code, capacity, ref arena, capture, mapping, callback, 1, true, expectedRsp0, expectedIst4) &&
             arena.Fault->Backend.IsReady && CheckBytes(code, (ulong)arena.Fault, callback);
 
     private static bool Admit(byte* code, ulong capacity, ref FirstExitOwnedArenaState arena,
-        EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping, ulong callback, uint phase, bool installed = false)
+        EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping, ulong callback, uint phase, bool installed = false,
+        ulong expectedRsp0 = 0, ulong expectedIst4 = 0)
     {
         ulong address = (ulong)code, data = (ulong)arena.Storage;
         if (capacity != Bytes || address < 4096 || (address & 4095) != 0 || address >= LowEnd - Bytes ||
@@ -696,12 +737,13 @@ public static unsafe class FirstExitCodeBundle
             !FirstExitImageMappings.Contains(imageRanges, count, callback, 1, PageProtection.Read | PageProtection.Execute) ||
             FirstExitDescriptors.Overlaps(address, Bytes, imageRanges[0].Start, capture.Range.ImageSize) ||
             FirstExitDescriptors.Overlaps(data, FirstExitOwnedArena.Bytes, imageRanges[0].Start, capture.Range.ImageSize) ||
-            !(installed ? FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, address) : FirstExitOwnedArena.ValidateDescriptors(ref arena, address)) ||
+            !(installed ? FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, address, expectedRsp0, expectedIst4) :
+                FirstExitOwnedArena.ValidateDescriptors(ref arena, address)) ||
             arena.Fault->Phase != phase || arena.Fault->Reserved != 0) return false;
         return FirstExitTerminalFaultStub.RequiredBytes > 0 && FirstExitTerminalFaultStub.RequiredBytes <= Out8Offset - FaultOffset &&
             FirstExitOwnedStackStub.RequiredBytes > 0 && FirstExitOwnedStackStub.RequiredBytes <= PermanentOffset - StackEntryOffset &&
             FirstExitPermanentCr3Stub.RequiredBytes > 0 && FirstExitPermanentCr3Stub.RequiredBytes <= 1024
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
             && OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes > 0 &&
                 OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes <= CooperativeFxOffset - CooperativeObserveOffset
             && OS.Kernel.Threading.ThreadContextSwitch.FxSnapshotBytes > 0 &&
@@ -758,7 +800,7 @@ public static unsafe class FirstExitCodeBundle
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
         if (!OS.Drivers.X64MsixInterrupt.Validate(code + MsixInterruptOffset, OS.Drivers.X64MsixInterrupt.Bytes)) return false;
 #endif
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
         if (!OS.Kernel.Threading.ThreadContextSwitch.EmitObserver(scratch, OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes) ||
             !Equal(scratch, code + CooperativeObserveOffset, OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes) ||
             !OS.Kernel.Threading.ThreadContextSwitch.EmitFxSnapshot(scratch, OS.Kernel.Threading.ThreadContextSwitch.FxSnapshotBytes) ||
@@ -767,8 +809,10 @@ public static unsafe class FirstExitCodeBundle
             !Equal(scratch, code + CooperativeSegmentsOffset, OS.Kernel.Threading.ThreadContextSwitch.OwnedSegmentsBytes) ||
             !X64PhysicalMappingPublication.ValidateGuardPublication(code + CooperativePublishOffset, X64PhysicalMappingPublication.GuardRequiredBytes)) return false;
 #endif
+        // Most retained bytes are zero padding. Only nonzero bytes need the
+        // export-membership checks; each exported body was checked above.
         for (uint index = 4096; index < Bytes; index++)
-            if (!Inside(index, FaultOffset, faultBytes) && !Inside(index, Out8Offset, PortIoStubPlan.Out8RequiredByteLength) &&
+            if (code[index] != 0 && !Inside(index, FaultOffset, faultBytes) && !Inside(index, Out8Offset, PortIoStubPlan.Out8RequiredByteLength) &&
                 !Inside(index, In8Offset, PortIoStubPlan.In8RequiredByteLength) && !Inside(index, StackEntryOffset, entryBytes) &&
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
                 !Inside(index, ClockAccessOffset, X64OwnedClockAccess.Bytes) &&
@@ -797,13 +841,13 @@ public static unsafe class FirstExitCodeBundle
 #if M05_VIRTQUEUE_INTERRUPT_PROBE || M06_BLOCK_MSIX_PROBE
                 !Inside(index, MsixInterruptOffset, OS.Drivers.X64MsixInterrupt.Bytes) &&
 #endif
-#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE
+#if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
                 !Inside(index, CooperativeObserveOffset, OS.Kernel.Threading.ThreadContextSwitch.ObserverBytes) &&
                 !Inside(index, CooperativeFxOffset, OS.Kernel.Threading.ThreadContextSwitch.FxSnapshotBytes) &&
                 !Inside(index, CooperativeSegmentsOffset, OS.Kernel.Threading.ThreadContextSwitch.OwnedSegmentsBytes) &&
                 !Inside(index, CooperativePublishOffset, X64PhysicalMappingPublication.GuardRequiredBytes) &&
 #endif
-                !Inside(index, PermanentOffset, permanentBytes) && code[index] != 0) return false;
+                !Inside(index, PermanentOffset, permanentBytes)) return false;
         return true;
     }
 
@@ -1453,16 +1497,29 @@ public static unsafe class FirstExitOwnedArena
     /// pointers before following them. This does not observe live GDTR/IDTR/TR.
     /// </summary>
     public static bool ValidateDescriptors(ref FirstExitOwnedArenaState state, ulong vectorPage)
-        => ValidateDescriptorsCore(ref state, vectorPage, false);
+        => ValidateDescriptorsCore(ref state, vectorPage, false, state.StackTop, 0);
 
     // Validate supplied installed storage and native-recorded observations. This
     // helper itself does not execute SGDT/SIDT/STR or establish their provenance.
     public static bool ValidateInstalledDescriptors(ref FirstExitOwnedArenaState state, ulong vectorPage)
-        => ValidateDescriptorsCore(ref state, vectorPage, true);
+        => ValidateDescriptorsCore(ref state, vectorPage, true, state.StackTop, 0);
 
-    private static bool ValidateDescriptorsCore(ref FirstExitOwnedArenaState state, ulong vectorPage, bool installed)
+    /// <summary>Nonmutating installed-storage check with exact owner-declared
+    /// TSS.RSP0 and IST4 stack tops; zero IST4 means unborrowed. The IRQ-off owner
+    /// must authenticate the borrow and retain mapped stacks until restoration.
+    /// Every other descriptor byte and recorded adoption observation stays
+    /// original. Invalid tops or any mismatch fail closed. This does not observe
+    /// live GDTR/IDTR/TR, authorize a borrow or certify stack mappings.</summary>
+    public static bool ValidateInstalledDescriptors(ref FirstExitOwnedArenaState state, ulong vectorPage,
+        ulong expectedRsp0, ulong expectedIst4)
+        => ValidateDescriptorsCore(ref state, vectorPage, true, expectedRsp0, expectedIst4);
+
+    private static bool ValidateDescriptorsCore(ref FirstExitOwnedArenaState state, ulong vectorPage, bool installed,
+        ulong expectedRsp0, ulong expectedIst4)
     {
-        if (state.Reserved != 0 || !PageRange(vectorPage, 4096) || !ValidateCanaries(state) ||
+        if (expectedRsp0 < 4096 || expectedRsp0 >= LowEnd || (expectedRsp0 & 15) != 0 ||
+            (expectedIst4 != 0 && (expectedIst4 < 4096 || expectedIst4 >= LowEnd || (expectedIst4 & 15) != 0)) ||
+            state.Reserved != 0 || !PageRange(vectorPage, 4096) || !ValidateCanaries(state) ||
             FirstExitDescriptors.Overlaps((ulong)state.Data, Bytes, vectorPage, 4096)) return false;
         FirstExitDescriptorContext* context = state.Descriptors;
         byte* gdt = state.Data + 4096, tss = state.Data + 8192;
@@ -1499,13 +1556,14 @@ public static unsafe class FirstExitOwnedArena
         for (int i = 0; i < 4096; i++)
         {
             byte expected = 0;
-            if (i >= 4 && i < 12) expected = (byte)(state.StackTop >> ((i - 4) * 8));
+            if (i >= 4 && i < 12) expected = (byte)(expectedRsp0 >> ((i - 4) * 8));
             else if (i >= 36 && i < 60)
             {
                 int stack = (i - 36) / 8;
                 ulong top = (ulong)state.Data + (ulong)(92 + stack * 6) * 4096 - 16;
                 expected = (byte)(top >> (((i - 36) % 8) * 8));
             }
+            else if (i >= 60 && i < 68) expected = (byte)(expectedIst4 >> ((i - 60) * 8));
             else if (i == 102) expected = 104;
             if (tss[i] != expected) return false;
             int gateOffset = i & 15;

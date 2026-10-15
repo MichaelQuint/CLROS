@@ -228,7 +228,8 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
                 !new ReadOnlySpan<byte>(code + FirstExitCodeBundle.Bytes, 4096).ContainsAnyExcept((byte)0xa5), "bundle output extent");
             byte[] original = new ReadOnlySpan<byte>(code, (int)FirstExitCodeBundle.Bytes).ToArray();
             foreach (uint offset in new uint[] { 0, FirstExitCodeBundle.FaultOffset + 71, FirstExitCodeBundle.Out8Offset,
-                FirstExitCodeBundle.In8Offset, FirstExitCodeBundle.StackEntryOffset, FirstExitCodeBundle.PermanentOffset, 6000 })
+                FirstExitCodeBundle.In8Offset, FirstExitCodeBundle.StackEntryOffset, FirstExitCodeBundle.PermanentOffset, 6000,
+                FirstExitCodeBundle.StackEntryOffset - 1, FirstExitCodeBundle.Bytes - 1 })
             {
                 code[offset] ^= 1;
                 Need(!FirstExitCodeBundle.ValidateReadBack(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, callback),
@@ -374,6 +375,49 @@ internal static unsafe class FirstOptRealExitBootServicesTransitionTests
             descriptor->Prepared = 2;
             Need(!FirstExitOwnedArena.ValidateDescriptors(ref arena, (ulong)code) &&
                 FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, (ulong)code), "fresh and installed descriptor checks stay distinct");
+            // Model syscall RSP0, user IRQ RSP0+IST4, and the restored gateway
+            // whose timer still owns IST4 until its pending interrupt drains.
+            for (int borrow = 0; borrow < 3; borrow++)
+            {
+                ulong rsp0 = borrow == 2 ? arena.StackTop : arena.StackTop - 4096;
+                ulong ist4 = borrow == 0 ? 0 : arena.StackTop - 8192;
+                *(ulong*)(descriptor->Tss + 4) = rsp0;
+                *(ulong*)(descriptor->Tss + 60) = ist4;
+                byte[] borrowed = new ReadOnlySpan<byte>(arena.Storage, (int)FirstExitOwnedArena.Bytes).ToArray();
+                Need(!FirstExitCodeBundle.ValidateInstalledReadBack(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, references.FaultCallback) &&
+                    FirstExitCodeBundle.ValidateInstalledReadBack(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, references.FaultCallback, rsp0, ist4),
+                    "original audit rejects the borrow; exact owner expectations admit it " + borrow);
+                Need(!FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, (ulong)code, rsp0 + 16, ist4) &&
+                    !FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, (ulong)code, rsp0, ist4 + 16) &&
+                    !FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, (ulong)code, 0, ist4) &&
+                    !FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, (ulong)code, rsp0 + 1, ist4) &&
+                    !FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, (ulong)code, 0x800000000000, ist4),
+                    "changed, invalid and noncanonical expected tops reject " + borrow);
+                foreach (int offset in new[] { 0, 12, 36, 52, 68, 102, 103, 4095 })
+                {
+                    descriptor->Tss[offset] ^= 1;
+                    Need(!FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, (ulong)code, rsp0, ist4),
+                        "unborrowed TSS byte stays exact " + offset);
+                    descriptor->Tss[offset] ^= 1;
+                }
+                foreach (int offset in new[] { 4096 + 13, 4096 + 80, 12288 + 16, 16384 + 4 })
+                {
+                    arena.Storage[offset] ^= 0x10; // Do not toggle an admitted hardware accessed bit.
+                    Need(!FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, (ulong)code, rsp0, ist4),
+                        "original GDT and both IDTs stay exact " + offset);
+                    arena.Storage[offset] ^= 0x10;
+                }
+                code[0] ^= 1;
+                Need(!FirstExitCodeBundle.ValidateInstalledReadBack(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, references.FaultCallback, rsp0, ist4),
+                    "TSS borrow does not bypass code authentication");
+                code[0] ^= 1;
+                Need(borrowed.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(arena.Storage, (int)FirstExitOwnedArena.Bytes)),
+                    "borrowed descriptor validation never rewrites live storage");
+            }
+            *(ulong*)(descriptor->Tss + 4) = arena.StackTop;
+            *(ulong*)(descriptor->Tss + 60) = 0;
+            Need(FirstExitCodeBundle.ValidateInstalledReadBack(code, FirstExitCodeBundle.Bytes, ref arena, capture, mapping, references.FaultCallback),
+                "original strict audit passes again after restoring both borrowed fields");
             SeparatePageFaultMappingRange* ownedScratch = (SeparatePageFaultMappingRange*)(arena.StackBottom + 8);
             Need(FirstExitRetainedMappings.WriteInstalledRanges(ref arena, code, capture, mapping, references, allocator,
                 memory.Tables, ownedScratch, FirstExitRetainedMappings.MaximumRanges, out ulong installedCount) && installedCount == count,

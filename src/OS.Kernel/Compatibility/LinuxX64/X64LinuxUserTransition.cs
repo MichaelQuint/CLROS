@@ -5,22 +5,43 @@ public struct X64LinuxUserTransitionPlan
     public ulong CodeAddress, ContextAddress, UserRoot, UserRip, UserRsp, UserFs, UserGs;
     public ulong Dispatcher, FaultReporter, CallbackContext, TssRsp0Address, OriginalGp, OriginalPf;
     public ulong KernelRoot; // Zero retains the byte-identical M16-005 dispatcher path.
+    public bool ResumeUser; // Explicit M16-008 mode; requires the separate kernel dispatch root.
+    public ulong UserFaultEntry; // Zero retains the original terminal GP/PF bytes.
+    public bool UserInterrupts; // Explicit workload opt-in; requires full capture and owned IST4.
+    public ulong UserSpuriousEntry; // Independently emitted/verified CPL0 IRETQ leaf, only in IRQ mode.
 }
 
 /// <summary>
-/// C#-authored x64 bytes for one owned, IRQ-off, single-CPU CPL3 excursion.
+/// C#-authored x64 bytes for one owned single-CPU CPL3 excursion. Kernel
+/// callbacks keep IF clear. Explicit threaded user IRQ mode additionally
+/// requires a retained timer/spurious path, IST4 and full capture ownership.
 /// This emitter supplies no execution authority. The native owner must prove
 /// current CS=8/TR=24, descriptor identity, CPU admission, RX code and supervisor
 /// RW/NX context/stack under both audited roots, an unmapped stack guard, immutable
 /// user mappings, callback identity and original-state readback. FXSAVE64 covers
 /// x87/SSE only; OSXSAVE and extended-state workloads are refused. The dispatcher
 /// returns byte 1 only after LinuxSyscallGateway validates the captured return;
-/// every other result terminates. Fault reporting returns to cleanup, never to
-/// the faulting user. Kernel GP/PF frames go to the original terminal handlers.
-/// The original TSS remains loaded; only its RSP0 is temporarily replaced.
+/// every other result terminates. The default fault reporter returns to cleanup.
+/// An explicit separately owned full-capture entry may resume only a checked
+/// handler image. Kernel GP/PF frames go to the original terminal handlers.
+/// The original TSS remains loaded; this emitter replaces only its RSP0.
+/// The explicit user IRQ owner separately borrows/restores IST4 and the APIC.
 /// </summary>
-public static unsafe class X64LinuxUserTransition
+public static unsafe partial class X64LinuxUserTransition
 {
+    /// <summary>User-only saved image. This is copied storage, not an FXRSTOR
+    /// operand: its Fx field need not be 16-byte aligned. Never alias a live
+    /// image with the fixed gateway or another thread's retained image. The
+    /// owning thread generation and all backing/mapping lifetimes stay external.</summary>
+    public struct UserImage
+    {
+        public LinuxSyscallFrame Frame;
+        public long Value;
+        // Native 160h..1CFh: RBX,RBP,RSI,RDI,RDX,R8,R9,R10,R12-R15,RCX,R11.
+        public fixed ulong Gpr[14];
+        public fixed byte Fx[512];
+    }
+    public const uint UserImageBytes = 728;
     public const uint CodeBytes = 4096, DataPages = 20, DataBytes = DataPages * 4096;
     public const uint SyscallOffset = 0x600, GpOffset = 0xc00, PfOffset = 0xd00, ExitOffset = 0xe00;
     public const uint ObserveOffset = 0x400, ObservationWords = 25;
@@ -35,6 +56,10 @@ public static unsafe class X64LinuxUserTransition
     // Private GDT occupies 600h..63Fh; this distinct qword is outside saved
     // registers, segment selectors, both FXSAVE areas and the IDT at 1000h.
     public const uint KernelRootOffset = 0x640;
+    // Immutable during each callback. The separate return frame's FS/GS may
+    // change before native WRMSR applies a checked ARCH_SET_FS/GS result.
+    public const uint CallbackFsOffset = 0x648, CallbackGsOffset = 0x650;
+    public const uint CaptureStackOffset = 0x658;
     public const ushort UserCs = 0x3b, UserSs = 0x33;
     public const ulong Star = 0x0028000800000000, Fmask = 0x74700;
     private const ulong End = 0x100000000, PointerEnd = 0x0000800000000000;
@@ -93,6 +118,12 @@ public static unsafe class X64LinuxUserTransition
         for (uint i = 0; i < 4096; i++) data[IdtOffset + i] = originalIdt[i];
         SetGate(data + IdtOffset + 13 * 16, plan.CodeAddress + GpOffset);
         SetGate(data + IdtOffset + 14 * 16, plan.CodeAddress + PfOffset);
+        if (plan.UserInterrupts)
+        {
+            SetGate(data+IdtOffset+0xe1*16,plan.UserFaultEntry+UserInterruptOffset);
+            SetGate(data+IdtOffset+0xff*16,plan.UserSpuriousEntry);
+            data[IdtOffset+0xe1*16+4]=data[IdtOffset+0xff*16+4]=4;
+        }
         *(ushort*)(data + UserFxOffset) = 0x37f; // Empty x87 stack, default controls.
         *(uint*)(data + UserFxOffset + 24) = 0x1f80;
         return true;
@@ -112,6 +143,89 @@ public static unsafe class X64LinuxUserTransition
             Overlap((ulong)code, CodeBytes, plan.ContextAddress, DataBytes)) return false;
         Writer writer = new(code, true); return Encode(ref writer, plan);
     }
+
+    /// <summary>Initialize one unpublished user image with zero GPRs and empty
+    /// x87/default SSE state. The caller proves exclusive mapped output and live
+    /// user permissions under the admitted inactive root. Invalid return or mask
+    /// admission changes no output. No thread is published or entered.</summary>
+    public static bool InitializeUserImage(UserImage* image, uint imageBytes, LinuxSyscallFrame frame,
+        uint observedMxcsrMask, LinuxSyscallAccess user)
+    {
+        if (!ImageStorage(image, imageBytes) || !LinuxSyscallGateway.ValidateReturn(frame, user) || !MxcsrMask(observedMxcsrMask, out _)) return false;
+        UserImage value = default; value.Frame = frame;
+        *(ushort*)value.Fx = 0x37f; *(uint*)(value.Fx + 24) = 0x1f80; *(uint*)(value.Fx + 28) = observedMxcsrMask;
+        *image = value; return true;
+    }
+
+    /// <summary>Copy the complete active syscall user image before cleanup
+    /// overwrites the user FP slot with its supervisor witness. The IRQ-off owner
+    /// proves this is the genuine fixed gateway under its kernel root and keeps
+    /// image/data/mappings exclusive. Only phase 1 is admitted. No supervisor
+    /// stack/root/descriptor/MSR/FP restoration state is copied or changed.</summary>
+    /// <remarks>The current threaded owner's return policy may admit its exact
+    /// register-only self-unmap/exit continuation; default admission still
+    /// requires mapped RSP/FS/GS. This method cannot create that policy.</remarks>
+    public static bool CaptureUserImage(byte* data, uint dataBytes, UserImage* image, uint imageBytes,
+        uint observedMxcsrMask, LinuxSyscallAccess user)
+    {
+        if (!ImageBuffers(data, dataBytes, image, imageBytes) || *(ulong*)(data + PhaseOffset) != 1 ||
+            !LinuxSyscallGateway.ValidateReturn(*(LinuxSyscallFrame*)(data + FrameOffset), user) ||
+            !UserFx(data + UserFxOffset, observedMxcsrMask)) return false;
+        image->Frame = *(LinuxSyscallFrame*)(data + FrameOffset); image->Value = *(long*)(data + ValueOffset);
+        for (uint i = 0; i < 14; i++) image->Gpr[i] = *(ulong*)(data + 0x160 + i * 8);
+        for (uint i = 0; i < 512; i++) image->Fx[i] = data[UserFxOffset + i];
+        return true;
+    }
+
+    /// <summary>Install a selected saved user image only before entry or after
+    /// full native cleanup (phase 0/2), while IF is clear and no gateway user is
+    /// active. Validate mappings and FP mask again before any write. The owner
+    /// retained exit-tail authority may replace mapped stack/TLS admission. The owner
+    /// next enters the explicit ResumeUser template on its actual scheduled
+    /// kernel worker. This grants no scheduler/transfer/publication authority.</summary>
+    public static bool InstallUserImage(byte* data, uint dataBytes, UserImage* image, uint imageBytes,
+        uint observedMxcsrMask, LinuxSyscallAccess user)
+    {
+        if (!ImageBuffers(data, dataBytes, image, imageBytes) || (*(ulong*)(data + PhaseOffset) != 0 && *(ulong*)(data + PhaseOffset) != 2) ||
+            !LinuxSyscallGateway.ValidateReturn(image->Frame, user) || !UserFx(image->Fx, observedMxcsrMask)) return false;
+        WriteUserImage(data, image);
+        return true;
+    }
+
+    /// <summary>Replace the complete user image at an active syscall callback
+    /// after authenticated sigreturn or pending signal/restart resolution. The IRQ-off native
+    /// owner proves this exact fixed gateway, kernel root and current generation;
+    /// this is not an arbitrary inactive install. Only phase1 and validated user
+    /// mappings (or retained exit-tail policy)/FX state are admitted. Supervisor restoration bytes stay intact.</summary>
+    public static bool RestoreActiveUserImage(byte* data, uint dataBytes, UserImage* image, uint imageBytes,
+        uint observedMxcsrMask, LinuxSyscallAccess user)
+    {
+        if (!ImageBuffers(data, dataBytes, image, imageBytes) || *(ulong*)(data + PhaseOffset) != 1 ||
+            !LinuxSyscallGateway.ValidateReturn(image->Frame, user) || !UserFx(image->Fx, observedMxcsrMask)) return false;
+        WriteUserImage(data, image);
+        return true;
+    }
+    private static void WriteUserImage(byte* data, UserImage* image)
+    {
+        *(LinuxSyscallFrame*)(data + FrameOffset) = image->Frame; *(long*)(data + ValueOffset) = image->Value;
+        for (uint i = 0; i < 14; i++) *(ulong*)(data + 0x160 + i * 8) = image->Gpr[i];
+        for (uint i = 0; i < 512; i++) data[UserFxOffset + i] = image->Fx[i];
+    }
+    private static bool ImageStorage(UserImage* image, uint bytes) => sizeof(UserImage) == UserImageBytes &&
+        Buffer((byte*)image, bytes, UserImageBytes, 8);
+    /// <summary>Revalidate a retained image before a thread owner publishes or
+    /// clones it. This checks storage, user return mappings and the current FP
+    /// mask without changing input or granting native execution authority.
+    /// A threaded exit-tail policy remains owned by its actual gate generation.</summary>
+    public static bool ValidateUserImage(UserImage* image, uint imageBytes, uint observedMxcsrMask, LinuxSyscallAccess user) =>
+        ImageStorage(image, imageBytes) && LinuxSyscallGateway.ValidateReturn(image->Frame, user) && UserFx(image->Fx, observedMxcsrMask);
+    private static bool ImageBuffers(byte* data, uint dataBytes, UserImage* image, uint imageBytes) =>
+        Buffer(data, dataBytes, DataBytes, 4096) && ImageStorage(image, imageBytes) &&
+        !Overlap((ulong)data, DataBytes, (ulong)image, imageBytes);
+    private static bool MxcsrMask(uint observed, out uint effective)
+    { effective = observed == 0 ? 0xffbfU : observed; return (effective & ~0xffffU) == 0 && (0x1f80U & ~effective) == 0; }
+    private static bool UserFx(byte* fx, uint observed) => MxcsrMask(observed, out uint effective) &&
+        *(uint*)(fx + 28) == observed && (*(uint*)(fx + 24) & ~effective) == 0;
 
     private static bool Encode(ref Writer w, X64LinuxUserTransitionPlan plan)
     {
@@ -135,8 +249,8 @@ public static unsafe class X64LinuxUserTransition
         w.Descriptor(2, 0x98); w.Descriptor(3, 0xb8); // private LGDT/LIDT, no LTR
         w.Bytes(0xc031, 2); // null DS/ES/FS/GS before assigning MSR bases
         w.Bytes(0xc08ed88e, 4); w.Bytes(0xe88ee08e, 4);
-        w.Load(0, 0x58); w.WriteVerifyMsr(0xc0000100);
-        w.Load(0, 0x60); w.WriteVerifyMsr(0xc0000101);
+        w.Load(0, plan.ResumeUser ? 0x150U : 0x58U); w.WriteVerifyMsr(0xc0000100);
+        w.Load(0, plan.ResumeUser ? 0x158U : 0x60U); w.WriteVerifyMsr(0xc0000101);
         w.Immediate(0, plan.ContextAddress); w.WriteVerifyMsr(0xc0000102);
         w.Load(0, 0x68); w.Bytes(0x01c88348, 4); w.WriteVerifyMsr(0xc0000080); // EFER.SCE
         w.Immediate(0, Star); w.WriteVerifyMsr(0xc0000081);
@@ -147,11 +261,21 @@ public static unsafe class X64LinuxUserTransition
         w.Fx(true, UserFxOffset);
         w.Load(0, 0x28); w.Bytes(0xd8220f, 3); // publish admitted user CR3
         w.Load(4, 0); w.Set(PhaseOffset, 1);
-        w.Bytes(0x336a, 2); w.PushField(8); w.Bytes(0x026a, 2); w.Bytes(0x3b6a, 2); w.PushField(0x18);
-        // Clear every GPR before entering user code; no kernel pointer escapes.
-        for (uint register = 0; register < 16; register++)
-            if (register != 4) w.Zero(register);
-        w.Bytes(0xcf48, 2); // IRETQ: RIP,CS,RFLAGS,RSP,SS; IRQs remain disabled
+        if (plan.ResumeUser)
+        {
+            w.Bytes(0x336a, 2); w.PushField(0x140); w.PushField(0x148); w.Bytes(0x3b6a, 2); w.PushField(0x138);
+            for (uint register = 1; register < 16; register++)
+                if (register != 4 && register != 14) w.Load(register, SavedOffset(register));
+            w.Load(0, ValueOffset); w.Load(14, SavedOffset(14));
+        }
+        else
+        {
+            w.Bytes(0x336a, 2); w.PushField(8); w.Bytes(0x026a, 2); w.Bytes(0x3b6a, 2); w.PushField(0x18);
+            // Clear every GPR before entering user code; no kernel pointer escapes.
+            for (uint register = 0; register < 16; register++)
+                if (register != 4) w.Zero(register);
+        }
+        w.Bytes(0xcf48, 2); // IRETQ: RIP,CS,RFLAGS,RSP,SS; IF follows the admitted image.
 
         // Win64 void(ulong* ownedOutput), CPL0 only. The owner proves the whole
         // output extent, initializes it and compares original/live observations.
@@ -170,7 +294,9 @@ public static unsafe class X64LinuxUserTransition
         w.Store(10, 0x120); w.Store(8, 0x128); w.Store(9, 0x130);
         w.Store(1, 0x138); w.Store(11, 0x148); w.Load(0, 8); w.Store(0, 0x140);
         w.ReadMsr(0xc0000100); w.Store(0, 0x150);
+        if (plan.ResumeUser) w.Store(0, CallbackFsOffset);
         w.ReadMsr(0xc0000102); w.Store(0, 0x158); // SWAPGS placed user GS here
+        if (plan.ResumeUser) w.Store(0, CallbackGsOffset);
         w.Fx(false, UserFxOffset); w.Fx(true, KernelFxOffset); w.Bytes(0xfc, 1);
         w.Bytes(0xd8200f, 3); w.CompareField(0, 0x28); w.Branch(0x85, ExitOffset);
         if (plan.KernelRoot != 0) { w.Load(0, 0x20); w.Bytes(0xd8220f, 3); }
@@ -257,6 +383,12 @@ public static unsafe class X64LinuxUserTransition
         w.Bytes(0x3b10247c8348, 6); // cmp qword [rsp+16],UserCs
         w.Bytes(0x0674, 2); // JE over immutable RIP-relative original handler jump
         w.Bytes(0x25ff, 2); w.Bytes(unchecked(originalPointer - (w.Position + 4)), 4);
+        if (plan.UserFaultEntry != 0)
+        {
+            w.Bytes(0x6a, 1); w.Bytes(vector, 1); // Normalize [vector,error,RIP,CS,flags,RSP,SS].
+            w.Bytes(0x25ff, 2); w.Bytes(0, 4); w.Bytes(plan.UserFaultEntry, 8);
+            return; // The separately owned capture saves every GPR before scratch use.
+        }
         w.Bytes(0xf8010f, 3); w.Immediate(14, plan.ContextAddress); w.Bytes(0xfc, 1);
         w.StackLoad(0); w.Store(0, ErrorOffset); w.StackLoad(8); w.Store(0, 0x138);
         w.StackLoad(24); w.Store(0, 0x148); w.StackLoad(32); w.Store(0, 0x140);
@@ -273,6 +405,17 @@ public static unsafe class X64LinuxUserTransition
         10 => 0x198, 12 => 0x1a0, 13 => 0x1a8, 14 => 0x1b0, 15 => 0x1b8, 1 => 0x1c0, 11 => 0x1c8, _ => 0 };
 
     private static bool Admit(X64LinuxUserTransitionPlan p) =>
+        (!p.ResumeUser || p.KernelRoot != 0) &&
+        (p.UserInterrupts ? p.ResumeUser && p.UserFaultEntry!=0 && Address(p.UserSpuriousEntry) && p.UserSpuriousEntry<=End-6 &&
+            !Overlap(p.UserSpuriousEntry,6,p.UserFaultEntry,FaultCaptureBytes) &&
+            !Overlap(p.UserSpuriousEntry,6,p.CodeAddress,CodeBytes) && !Overlap(p.UserSpuriousEntry,6,p.ContextAddress,DataBytes) &&
+            !Overlap(p.UserSpuriousEntry,6,p.UserRoot,4096) && !Overlap(p.UserSpuriousEntry,6,p.KernelRoot,4096) : p.UserSpuriousEntry==0) &&
+        (p.UserFaultEntry == 0 || p.ResumeUser && Address(p.UserFaultEntry) && (p.UserFaultEntry & 15) == 0 &&
+            p.UserFaultEntry <= End - FaultCaptureBytes &&
+            !Overlap(p.UserFaultEntry, FaultCaptureBytes, p.CodeAddress, CodeBytes) &&
+            !Overlap(p.UserFaultEntry, FaultCaptureBytes, p.ContextAddress, DataBytes) &&
+            !Overlap(p.UserFaultEntry, FaultCaptureBytes, p.UserRoot, 4096) &&
+            !Overlap(p.UserFaultEntry, FaultCaptureBytes, p.KernelRoot, 4096)) &&
         (p.KernelRoot == 0 || PageRange(p.KernelRoot, 4096) && p.KernelRoot != p.UserRoot &&
             !Overlap(p.KernelRoot, 4096, p.CodeAddress, CodeBytes) && !Overlap(p.KernelRoot, 4096, p.ContextAddress, DataBytes)) &&
         PageRange(p.CodeAddress, CodeBytes) && PageRange(p.ContextAddress, DataBytes) &&
@@ -297,14 +440,14 @@ public static unsafe class X64LinuxUserTransition
     // Count/compare passes share encodings; independent host vectors audit ABI bytes.
     private struct Writer
     {
-        private byte* _code; private bool _compare, _valid; public uint Position;
-        public Writer(byte* code, bool compare) { _code = code; _compare = compare; _valid = true; Position = 0; }
-        public bool Valid => _valid && Position == CodeBytes;
+        private byte* _code; private bool _compare, _valid; private uint _limit; public uint Position;
+        public Writer(byte* code, bool compare, uint limit = CodeBytes) { _code = code; _compare = compare; _valid = true; _limit = limit; Position = 0; }
+        public bool Valid => _valid && Position == _limit;
         public void Bytes(ulong value, int count)
         {
             for (int i = 0; i < count; i++, Position++)
             {
-                if (Position >= CodeBytes) { _valid = false; continue; }
+                if (Position >= _limit) { _valid = false; continue; }
                 byte valueByte = (byte)(value >> (8 * i));
                 if (_code == null) continue;
                 if (_compare) { if (_code[Position] != valueByte) _valid = false; }

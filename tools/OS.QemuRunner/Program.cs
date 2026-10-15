@@ -1094,15 +1094,7 @@ static IReadOnlyList<string> FindObservedRunnerMarkerLines(
 }
 
 static bool IsStandardObservedMarkerLine(string line)
-{
-    return line.StartsWith("TEST_", StringComparison.Ordinal)
-        || line.StartsWith("BOOT_", StringComparison.Ordinal)
-        || line.StartsWith("OS_", StringComparison.Ordinal)
-        || line.StartsWith("UEFI_", StringComparison.Ordinal)
-        || line.StartsWith("ACPI_", StringComparison.Ordinal)
-        || string.Equals(line, "APP_EXIT", StringComparison.Ordinal)
-        || line.StartsWith("APP_EXIT ", StringComparison.Ordinal);
-}
+    => SerialMarkerSummary.IsStandardObservedMarkerLine(line);
 
 static bool LineMatchesAnyMarker(
     string line,

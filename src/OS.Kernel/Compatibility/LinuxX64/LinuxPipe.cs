@@ -85,6 +85,14 @@ public unsafe struct LinuxPipe
     /// and a bad trusted source range is EFAULT. No failed call writes any bytes.
     /// </summary>
     public long Write(byte* trustedSource, uint bytes, bool nonBlocking, bool sigpipeIgnored)
+        => Append(trustedSource, bytes, nonBlocking, sigpipeIgnored, true);
+
+    // Only the descriptor consumer of an originally >PIPE_BUF blocking write
+    // may append a short remaining prefix nonatomically. No buffer is retained.
+    internal long WriteStreaming(byte* source, uint bytes, bool sigpipeIgnored)
+        => Append(source, bytes, true, sigpipeIgnored, false);
+
+    private long Append(byte* trustedSource, uint bytes, bool nonBlocking, bool sigpipeIgnored, bool atomic)
     {
         if (!Valid() || _writers == 0) return BadDescriptor;
         if (bytes == 0) return 0;
@@ -92,7 +100,7 @@ public unsafe struct LinuxPipe
         if (_readers == 0) return sigpipeIgnored ? BrokenPipe : Unsupported;
         if (!TrustedRange(trustedSource, bytes)) return Fault;
         uint available = _capacity - _buffered;
-        if (available == 0 || (bytes <= PipeBuf && bytes > available)) return Again;
+        if (available == 0 || (atomic && bytes <= PipeBuf && bytes > available)) return Again;
         uint written = bytes < available ? bytes : available;
         for (uint i = 0; i < written; i++)
             _buffer[(_writeIndex + i) & (_capacity - 1)] = trustedSource[i];

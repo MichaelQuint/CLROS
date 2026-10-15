@@ -1,5 +1,28 @@
 # CLROS Completion Gates
 
+[Step1307](../done/step1307.md) qualifies the bounded #191/#192 through #688
+thread/runtime batch: 5,202 full-host checks across 687 fixtures (94 Native),
+44 strict captures across 32 profiles, three retained strict GC repetitions and
+24 fresh affected ancestors, with original native/provenance joins. The unchanged
+pinned Hello and exact focused GC/ThreadPool/original RuntimeSmoke/RuntimeMatrix
+workloads now execute in CLROS. Supplemental raw-state evidence covers an
+exit-requested worker blocked by active upstream GC before later exit/reap;
+it does not show already-entered DetachCurrentThread. This advances only those
+finite application profiles. **Only the existing numbered Gate 2 passes.**
+Guest Kestrel, continuing network/socket/epoll services, isolation, cloud and
+production remain incomplete.
+
+## Historical qualification snapshots
+
+Earlier statements below describe the evidence available at their named steps;
+step1307 supersedes pending thread/runtime claims for its exact qualified scope.
+
+Development [step1234](../done/step1234.md) wires #191/#192's mechanical wait/TLS
+profiles and exact transcript admission. Focused checks and freestanding C#
+compilation pass; native publish/review, actual guest behavior and shared full-host
+qualification remain pending. #191, #192 and shared integration #733 stay open.
+No gate or unchanged upstream Hello/runtime acceptance changes.
+
 M09-006/#188 is qualified in [step1230](../done/step1230.md) at frozen source
 `e0dac79`: 4,806 full-host checks across 626 fixtures (94 Native), scoped original
 native review, three byte-identical 177-application-record lifecycle guests and

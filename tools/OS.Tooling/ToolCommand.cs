@@ -6,8 +6,80 @@ public static class ToolCommand
     {
         try
         {
+            if(args is ["linux","runtime-package",var runtimeApp,var runtimeEvidence,var runtimeDestination])
+            {
+                Console.WriteLine("TEST_START linux.runtime-package");
+                string digest=NativeAotRuntimePackage.Write(Repository.FindRoot(),runtimeEvidence,runtimeApp,runtimeDestination);
+                Console.WriteLine("TEST_PASS linux.runtime-package app="+runtimeApp+" sha256="+digest);return 0;
+            }
+            if(args is ["linux","runtime-program",var runtimeName,var runtimePackage,var runtimeDump])
+            {
+                Console.WriteLine("TEST_START linux.runtime-program");
+                var program=NativeAotRuntimeProgram.Read(Repository.FindRoot(),runtimeName,runtimePackage,runtimeDump);
+                Console.WriteLine("TEST_PASS linux.runtime-program app="+program.Application+" "+program.Metadata);return 0;
+            }
+            if (args is ["linux", "threading-package", var threadingApp, var threadingEvidence, var threadingDestination])
+            {
+                Console.WriteLine("TEST_START linux.threading-package");
+                string digest = NativeAotThreadingPackage.Write(Repository.FindRoot(), threadingEvidence, threadingApp, threadingDestination);
+                Console.WriteLine("TEST_PASS linux.threading-package app=" + threadingApp + " sha256=" + digest);
+                return 0;
+            }
+            if (args is ["linux", "threading-program", var appName, var packageInput, var dumpInput])
+            {
+                Console.WriteLine("TEST_START linux.threading-program");
+                var program = NativeAotThreadingProgram.Read(Repository.FindRoot(), appName, packageInput, dumpInput);
+                Console.WriteLine("TEST_PASS linux.threading-program app=" + program.Application + " " + program.Metadata);
+                return 0;
+            }
+            if (args is ["nativeaot", "threading", "validate-threadpool", var threadPoolCapture])
+            {
+                Console.WriteLine("TEST_START nativeaot.threadpool-output");
+                NativeAotThreadingGuest.ValidateThreadPoolFile(threadPoolCapture);
+                Console.WriteLine("TEST_PASS nativeaot.threadpool-output");
+                return 0;
+            }
+            if (args is ["nativeaot", "threading", "validate-suspension", var capture])
+            {
+                Console.WriteLine("TEST_START nativeaot.suspension-output");
+                NativeAotThreadingGuest.ValidateSuspensionFile(capture);
+                Console.WriteLine("TEST_PASS nativeaot.suspension-output");
+                return 0;
+            }
+            if (args is ["linux", "hello-package", var evidenceRoot, var destination])
+            {
+                Console.WriteLine("TEST_START linux.hello-package");
+                string hash = NativeAotHelloGuest.WritePackage(Repository.FindRoot(), evidenceRoot, destination);
+                Console.WriteLine("TEST_PASS linux.hello-package sha256=" + hash + " elf=" + NativeAotHelloGuest.ElfSha256);
+                return 0;
+            }
+            if (args is ["linux", "hello-program", var helloPackage, var disassembly])
+            {
+                Console.WriteLine("TEST_START linux.hello-program");
+                _ = NativeAotHelloProgram.Read(Repository.FindRoot(), helloPackage, disassembly);
+                Console.WriteLine($"TEST_PASS linux.hello-program instructions={NativeAotHelloProgram.InstructionCount} syscalls={NativeAotHelloProgram.SyscallCount} index={NativeAotHelloProgram.IndexSha256}");
+                return 0;
+            }
+            if (args.Length is 3 or 4 && args[0] == "linux" && args[1] == "signal-fixture")
+            {
+                string packagePath = args[2];
+                LinuxSignalProofFixture.WritePackage(packagePath, args.Length == 4 ? args[3] : "AlternateStack");
+                Console.WriteLine("TEST_PASS linux.signal-fixture package=" + Path.GetFullPath(packagePath));
+                return 0;
+            }
+            if (args.Length is 3 or 4 && args[0] == "linux" && args[1] == "thread-fixture")
+            {
+                string packagePath = args[2];
+                LinuxThreadProofFixture.WritePackage(packagePath, args.Length == 4 ? args[3] : "Threads");
+                Console.WriteLine("TEST_PASS linux.thread-fixture package=" + Path.GetFullPath(packagePath));
+                return 0;
+            }
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "payload")
                 return NativeAotPayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
+            if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "threading")
+                return NativeAotThreadingPayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
+            if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "runtime")
+                return NativeAotRuntimePayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args.Length >= 2 && args[0] == "efi" && args[1] == "build") return EfiBuild.Run(args[2..]);
             if (args.Length >= 2 && args[0] == "efi" && args[1] == "verify") return EfiVerify.Run(args[2..]);
             if (args.Length >= 2 && args[0] == "qemu" && args[1] == "smoke")
@@ -26,7 +98,8 @@ public static class ToolCommand
                 return LibvirtSmoke.RunAsync(Repository.FindRoot(), LibvirtSmokeOptions.Parse(args[2..]), Console.Out).GetAwaiter().GetResult();
             if (args.Length == 0 || args is ["--help"])
             {
-                Console.WriteLine("CLROS .NET 11 tooling\ndone next|reserve [--root <repository>]\nrepo check [--root <repository>]\ncontracts check\nefi build|verify [options]\nqemu smoke|qcow2 [--dry-run] [options]\nlibvirt smoke [--dry-run|--plan-lifecycle|--check-serial-only] [options]\nkestrel package [options]\nnativeaot payload inspect <file> | qualify --output <fresh-directory>\nci smoke [options]\nbaseline evidence [options]\nbacklog sync [options]");
+                Console.WriteLine("linux runtime-package <app> <extracted-runtime-evidence> <fresh-artifacts-package>\nlinux runtime-program <app> <package> <reviewed-llvm-disassembly>");
+                Console.WriteLine("CLROS .NET 11 tooling\ndone next|reserve [--root <repository>]\nrepo check [--root <repository>]\ncontracts check\nefi build|verify [options]\nlinux hello-package <extracted-evidence-r04> <fresh-artifacts-package-path>\nlinux hello-program <hello-package> <llvm-disassembly>\nlinux threading-package <app> <extracted-evidence-root> <fresh-artifacts-package>\nlinux threading-program <app> <package> <llvm-disassembly>\nlinux thread-fixture <fresh-package-path> [Threads|PipeReadClose|PipeWriteClose|PipeShutdown]\nlinux signal-fixture <fresh-package-path> [AlternateStack|UserStack|BadReturn|BadRestorer|FaultRead|FaultWrite|FaultExecute|FaultStack|FaultGp|FaultReturn|FaultFatal|Activation|SignalPipeEintr|SignalPipeRestart|SignalFutexEintr|SignalFutexRestart|SignalPipePartial|NestedAlternateStack|AlternateStackExhaustion]\nqemu smoke|qcow2 [--dry-run] [options]\nlibvirt smoke [--dry-run|--plan-lifecycle|--check-serial-only] [options]\nkestrel package [options]\nnativeaot threading validate-suspension|validate-threadpool <captured-stdout>\nnativeaot threading qualify --output <fresh-directory>\nnativeaot runtime qualify --output <fresh-directory>\nnativeaot payload inspect <file> | qualify --output <fresh-directory>\nci smoke [options]\nbaseline evidence [options]\nbacklog sync [options]");
                 return 0;
             }
             if (args.Length >= 2 && args[0] == "repo" && args[1] == "check")

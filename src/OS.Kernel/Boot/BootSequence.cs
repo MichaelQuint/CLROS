@@ -260,11 +260,61 @@ public static class BootSequence
         OS.Kernel.Diagnostics.Probes.EnableM16007Probe && OS.Kernel.Diagnostics.Probes.EnableM16006Probe &&
         firmwareAvailable && context != null && prepare != null && prepare(context);
 
+    /// <summary>Run the default-off Linux thread owner only after actual APIC
+    /// setup, startup, service stop and firmware revocation. The callback owns
+    /// native admission, restoration and drained cleanup; false retains its
+    /// unresolved resources. This gate creates no worker or interrupt.</summary>
+    public static unsafe bool RunOwnedLinuxThreads(bool startupReady, bool serviceStopped, bool firmwareRevoked,
+        bool apicReady, void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16008Probe && OS.Kernel.Diagnostics.Probes.EnableM16007Probe &&
+        OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe && apicReady &&
+        RunOwnedLinuxMemory(startupReady, serviceStopped, firmwareRevoked, context, run);
+
+    /// <summary>Run the default-off signal leaf through the actual thread owner
+    /// after all parent admission. The callback retains signal/user/native
+    /// ownership until drained restoration; false authorizes no release or user
+    /// continuation. This gate creates no signal, worker or execution evidence.</summary>
+    public static unsafe bool RunOwnedLinuxSignals(bool startupReady, bool serviceStopped, bool firmwareRevoked,
+        bool apicReady, void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16009Probe &&
+        RunOwnedLinuxThreads(startupReady, serviceStopped, firmwareRevoked, apicReady, context, run);
+
+    /// <summary>Run the default-off NativeAOT suspension leaf through the owned
+    /// signal boundary. The IRQ-off caller retains the callback/context and all
+    /// native resources through restored, drained cleanup. Failed admission
+    /// returns false without invoking run; callback failure retains its resources.
+    /// This gate grants no execution or acceptance evidence.</summary>
+    public static unsafe bool RunOwnedNativeAotSuspension(bool startupReady, bool serviceStopped, bool firmwareRevoked,
+        bool apicReady, void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM09011Probe &&
+        RunOwnedLinuxSignals(startupReady, serviceStopped, firmwareRevoked, apicReady, context, run);
+
+    /// <summary>Run the default-off NativeAOT ThreadPool leaf through the owned
+    /// signal boundary. The IRQ-off caller retains the callback/context and all
+    /// native resources through restored, drained cleanup. Failed admission
+    /// returns false without invoking run; callback failure retains its resources.
+    /// This gate grants no execution or acceptance evidence.</summary>
+    public static unsafe bool RunOwnedNativeAotThreadPool(bool startupReady, bool serviceStopped, bool firmwareRevoked,
+        bool apicReady, void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM09012Probe &&
+        RunOwnedLinuxSignals(startupReady, serviceStopped, firmwareRevoked, apicReady, context, run);
+
+    /// <summary>Run the default-off broader NativeAOT runtime leaf through the
+    /// owned signal boundary. The IRQ-off caller retains the callback/context
+    /// and all native resources through restored, drained cleanup. Failed admission
+    /// returns false without invoking run; callback failure retains its resources.
+    /// This gate grants no execution or acceptance evidence.</summary>
+    public static unsafe bool RunOwnedNativeAotRuntime(bool startupReady, bool serviceStopped, bool firmwareRevoked,
+        bool apicReady, void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16010Probe &&
+        RunOwnedLinuxSignals(startupReady, serviceStopped, firmwareRevoked, apicReady, context, run);
+
     /// <summary>Reserve the dedicated cooperative diagnostic pool while firmware
     /// authority remains available. The callback owns preparation/failure cleanup;
     /// this ordered default-off phase allocates nothing and returns false on refusal.</summary>
     public static unsafe bool PrepareCooperativeSwitch(bool firmwareAvailable, void* context, delegate*<void*, bool> prepare) =>
-        (OS.Kernel.Diagnostics.Probes.EnableM09004Probe || OS.Kernel.Diagnostics.Probes.EnableM09005Probe || OS.Kernel.Diagnostics.Probes.EnableM09006Probe) && OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe &&
+        (OS.Kernel.Diagnostics.Probes.EnableM09004Probe || OS.Kernel.Diagnostics.Probes.EnableM09005Probe || OS.Kernel.Diagnostics.Probes.EnableM09006Probe ||
+        OS.Kernel.Diagnostics.Probes.EnableM09009Probe || OS.Kernel.Diagnostics.Probes.EnableM09010Probe || OS.Kernel.Diagnostics.Probes.EnableM16008Probe) && OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe &&
         OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe && firmwareAvailable &&
         context != null && prepare != null && prepare(context);
 
@@ -294,7 +344,8 @@ public static class BootSequence
     /// refusal returns false and fabricates no lifecycle or cleanup evidence.</summary>
     public static unsafe bool RunOwnedKernelThreads(bool ownedChecksComplete, bool apicReady, bool firmwareRevoked,
         void* context, delegate*<void*, bool> run) =>
-        OS.Kernel.Diagnostics.Probes.EnableM09006Probe && OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe &&
+        (OS.Kernel.Diagnostics.Probes.EnableM09006Probe || OS.Kernel.Diagnostics.Probes.EnableM09009Probe || OS.Kernel.Diagnostics.Probes.EnableM09010Probe) &&
+        OS.Kernel.Diagnostics.Probes.EnableM05ApicSetupProbe &&
         OS.Kernel.Diagnostics.Probes.EnableM03OwnedSubsystemSurvivalProbe &&
         OS.Kernel.Diagnostics.Probes.EnableM03FirstRealExitBootServicesProbe && ownedChecksComplete && apicReady && firmwareRevoked &&
         context != null && run != null && run(context);

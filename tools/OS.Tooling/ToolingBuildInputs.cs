@@ -50,7 +50,8 @@ public static class ToolingBuildInputs
         if (reader.ReadLine() != Format) throw new InvalidOperationException("tooling_build_input_manifest_invalid");
         string rootLine = reader.ReadLine() ?? "";
         if (!rootLine.StartsWith("ROOT|", StringComparison.Ordinal)) throw new InvalidOperationException("tooling_build_input_manifest_root_missing");
-        string originalRoot = Path.GetFullPath(rootLine[5..]).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        string originalRoot = CapturedPath(rootLine[5..]).TrimEnd('/') + "/";
+        StringComparison comparison = originalRoot[0] == '/' ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
         List<string> patterns = [];
         Dictionary<string, string> files = new(StringComparer.OrdinalIgnoreCase);
         while (reader.ReadLine() is { } line)
@@ -59,19 +60,32 @@ public static class ToolingBuildInputs
             if (line.StartsWith("GLOB|", StringComparison.Ordinal))
             {
                 string pattern = line[5..].Replace('\\', '/');
-                if (pattern.Length == 0 || Path.IsPathRooted(pattern) || pattern.Split('/').Any(p => p is ".." or "." or "")) throw new InvalidOperationException("tooling_build_input_pattern_invalid");
+                if (pattern.Length == 0 || pattern.Any(char.IsControl) || pattern.IndexOfAny([':', '|']) >= 0 || Path.IsPathRooted(pattern) || pattern.Split('/').Any(p => p is ".." or "." or "")) throw new InvalidOperationException("tooling_build_input_pattern_invalid");
                 patterns.Add(pattern); continue;
             }
             if (!line.StartsWith("FILE|", StringComparison.Ordinal)) throw new InvalidOperationException("tooling_build_input_manifest_record_invalid");
             int separator = line.LastIndexOf('|');
             if (separator <= 5) throw new InvalidOperationException("tooling_build_input_manifest_record_invalid");
-            string absolute = Path.GetFullPath(line[5..separator]), hash = line[(separator + 1)..];
-            if (!absolute.StartsWith(originalRoot, StringComparison.OrdinalIgnoreCase) || hash.Length != 64 || !hash.All(Uri.IsHexDigit)) throw new InvalidOperationException("tooling_build_input_manifest_identity_invalid");
-            string relative = absolute[originalRoot.Length..].Replace('\\', '/');
+            string absolute = CapturedPath(line[5..separator]), hash = line[(separator + 1)..];
+            if (!absolute.StartsWith(originalRoot, comparison) || absolute.Length == originalRoot.Length || hash.Length != 64 || !hash.All(Uri.IsHexDigit)) throw new InvalidOperationException("tooling_build_input_manifest_identity_invalid");
+            string relative = absolute[originalRoot.Length..];
             if (!files.TryAdd(relative, hash) && files[relative] != hash) throw new InvalidOperationException("tooling_build_input_manifest_duplicate");
         }
         if (files.Count == 0 || patterns.Count == 0) throw new InvalidOperationException("tooling_build_input_manifest_empty");
         return new(patterns.AsReadOnly(), files.AsReadOnly());
+    }
+
+    // These paths describe the build host, which may differ from this host.
+    // Never resolve them against the destination's current drive/directory.
+    // Only their checked relative suffixes are used to open current inputs.
+    private static string CapturedPath(string value)
+    {
+        string path = value.Replace('\\', '/');
+        int prefix = path.StartsWith('/') ? 1 : path.Length >= 3 && char.IsAsciiLetter(path[0]) && path[1] == ':' && path[2] == '/' ? 3 : 0;
+        if (prefix == 0 || path.Any(char.IsControl) || path[prefix..].TrimEnd('/').Split('/').Any(part =>
+            part is "" or "." or ".." || part.IndexOfAny([':', '|']) >= 0))
+            throw new InvalidOperationException("tooling_build_input_manifest_path_invalid");
+        return path.TrimEnd('/');
     }
 
     private static IReadOnlyList<string> Validate(Manifest manifest, string root)

@@ -1,5 +1,18 @@
 # Boot Order
 
+Development `BootSequence.RunOwnedLinuxSignals` selects the M16-009 child through
+the same native thread owner after actual APIC and common startup/service/firmware
+admission. Its complete parent closure stays enabled, but the standalone M16-008
+leaf is not also invoked. [Step1254](../done/step1254.md) records source wiring;
+guest qualification remains deferred to the stable batch.
+
+Development `BootSequence.RunOwnedLinuxThreads` requires completed startup,
+service stop, revoked firmware authority and actual APIC setup. M16-008 runs
+after PCI/APIC, reusing common memory/descriptor/CPL3 admission with explicit
+saved-user resumption. Existing M16-005 through M16-007 keep their original
+location. [Step1244](../done/step1244.md) records source/host and C# checks only;
+native execution and guest qualification remain pending the stable batch.
+
 `BootSequence.StageLinuxElfPackage` and `RunOwnedLinuxElfPackage` are explicit
 default-off M16-002 boundaries. Firmware staging precedes the final map/exit
 window; owned verification follows original post-exit subsystem checks and requires

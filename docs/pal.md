@@ -1,5 +1,271 @@
 # PAL
 
+[Step1307](../done/step1307.md) qualifies the bounded #191/#192, #686/#687,
+#193/#194/#688 and shared #733 batch: 5,202 full-host checks, 44 strict batch
+captures across 32 profiles, three retained strict GC repetitions and 24 fresh
+ancestors. Mechanical wait/TLS/Linux thread/signal services and the exact pinned
+NativeAOT Hello/GC/ThreadPool/runtime workloads now have guest evidence. The
+supplemental saved-context witness shows a signaled exit event and its worker
+blocked on the actual upstream GC event during suspension, then real exit/reap;
+it does not show already-entered native detach. The flat OSHost_* PAL remains a
+separate host-tested ABI contract. Kestrel and new numbered gates remain incomplete.
+
+## Historical development receipts
+
+The dated pending states below retain their original checkpoints. Step1307
+supersedes those pending claims for the finite accepted thread/runtime batch.
+
+[Step1299](../done/step1299.md) records three fresh strict GC-stress captures at
+frozen implementation source e4adc4e. Each completes nine actual activation
+sends/returns and eighteen reaps with full cleanup; original objects and EFIs
+match. The first shared full attempt blocks native execution after stale aggregate
+test expectations fail. Test-only repairs preserve the exact EFI firewall and
+profile exclusions. Shared full/native/negative/ancestor acceptance remains
+pending; all eight issues stay open.
+
+[Step1298](../done/step1298.md) resolves the observed GC-stress startup failure
+by reusing a range's admitted leaf encoding within each root construction/audit.
+Every actual entry, table identity/count, permission and unused page is still
+checked; no cached validity survives the call.110 focused checks pass. One strict
+GC-stress capture completes three lifetimes, nine collections, fifteen joins,
+nine actual activation sends/returns and eighteen reaps with full cleanup. Strict
+original RuntimeSmoke also passes. Original payloads, waits, clocks and timer
+counts remain unchanged. Repeated frozen-source and full-host/native/ancestor
+qualification remain before shared acceptance; all eight issues stay open.
+
+[Step1297](../done/step1297.md) reduces native verification work without
+removing its invariants: the reap boundary retains the independent code scan,
+INT3 padding is checked/written in bounded words with a byte tail, and zero
+code-bundle padding avoids unnecessary export-membership predicates.67 focused
+checks and strict original RuntimeSmoke pass. GC stress still fails sleep_window
+with complete cleanup. The500000-count trial also fails and is reverted; the
+original2000000 count remains. Thread-startup/syscall boundaries need profiling
+before another change; full shared qualification remains pending.
+
+[Step1296](../done/step1296.md) adds optional, ordered raw HPET observations
+around dispatch setup, timer arm, IRQ capture and supervisor restoration. The
+strict original RuntimeSmoke regression passes with all five output rows and
+full cleanup. A shorter application-only timer count reduced the armed interval
+but still failed GC stress sleep_window and increased transfers; that trial is
+reverted. The original timer count, application bytes, deadlines and all guards
+remain. Next remove one independently reviewed duplicate saved-code scan before
+the same check at the reap boundary; final shared acceptance remains pending.
+
+[Step1295](../done/step1295.md) implements syscall24 through an actual captured
+FIFO yield. It stages no wait and rejects successful return-only substitution.
+63 focused checks and unchanged original RuntimeSmoke pass, including ten real
+yield handoffs and complete nine-thread cleanup. Broader GC stress also performs
+ten yields but still fails sleep_window. Real boundary timing is next; neither
+application deadlines nor clocks are adjusted.
+
+[Step1294](../done/step1294.md) stops re-zeroing already-free pool pages on
+mapping/policy changes while preserving fresh/released-page zeroing and every
+admission/guard check.43 focused checks and the strict unchanged original runtime
+regression pass with full cleanup. Broader GC stress still fails its real sleep
+window; the one-run timing differences are not a fixed speedup claim. Real
+sched_yield support is next; application deadlines and clocks stay unchanged.
+
+[Step1293](../done/step1293.md) records strict successful development captures
+for focused suspension (two actual activation returns), focused ThreadPool,
+three-lifetime ThreadPool stress and the runtime matrix (six activation returns).
+Every capture retains original output, exit0 and full cleanup. Consumers now
+model real finite entropy refusal/partial-read semantics and distinguish managed
+joins from later native reaps, still requiring every owed normal reap at teardown.
+Broader GC stress fails its unchanged one-second sleep window before collection;
+the measured timing and unimplemented redundant-zeroing repair are in the receipt.
+Frozen-source repetition and full-host/native/negative/ancestor acceptance remain.
+
+[Step1292](../done/step1292.md) separates application resources from worker
+capacity. Under M16-008 and its children, a validated main stack of at least
+1 MiB or more than eight workers selects 8192 backing pages (32 MiB),
+8192 IRQ epochs, 16384 supervisor steps and the existing five-minute ceiling
+from real HPET time. Smaller mechanical policies retain 4096 backing pages,
+128 epochs and 512 steps. The larger physical allocation is retained as two
+4096-page mapping spans. The retained inventory permits 40 declarations and
+12288 total mapped pages; per-range and 55-page table-arena bounds stay fixed.
+Worker counts, virtual quotas, dynamic region/table limits, upstream application
+bytes and requested waits remain unchanged. One unchanged Hello and one original
+RuntimeSmoke capture pass their complete strict consumers with original output,
+exit0 and full cleanup. Frozen-source repetition, focused suspension/ThreadPool,
+broader runtime, native review and full-host/ancestor qualification remain pending.
+
+[Step1291](../done/step1291.md) proves the runtime's current backing exhaustion
+with an atomic production-service replay. The4 MiB commit needs1024 pages but
+only1020 remain; region/table capacity and the borrow guard are not its cause.
+The unchanged Hello also reaches its smaller worker policy's128-IRQ bound.
+Bounded application limits, independent of worker count, remain required before
+upstream runtime acceptance; app code and real deadlines remain unchanged.
+
+[Step1290](../done/step1290.md) removes repeated common authentication within a
+single IRQ-off pool audit and checks released-owner teardown before pool
+restoration. R17 emits a complete cleanup witness for an app exit1 after actual
+OutOfMemoryException; raw runtime acceptance correctly fails. Driver execution
+lasts25.6s with the same300s limit. Twenty-four focused checks/native publication
+pass; memory-limit diagnosis, native nonzero-exit gating and full guest runtime
+qualification remain pending.
+
+[Step1289](../done/step1289.md) supplies real coarse monotonic time for NativeAOT
+tick/deadline calculations. R16 clock6 requests succeed; the app advances beyond
+the previous startup timeout to five live threads, then the driver stops near
+its five-minute bound without remaining runtime rows or full cleanup witness.
+Twenty-four focused checks and native publication pass; exact stop diagnostics
+and shared qualification remain pending.
+
+[Step1287](../done/step1287.md) repairs descriptor-backed futex admission and
+retained mapping capacity. The original runtime guest now passes those two
+failures, then stops at readonly ELF data protection before application output.
+[Step1288](../done/step1288.md) implements the measured guard-stack cookie
+requirement: explicit owned-image authority, one active R/RW data override,
+immutable original mappings and explicit drained-owner restoration. Code,
+supervisor mappings and the separate initial stack receive no such authority.
+Sixty focused checks and native publication pass. The real r15 guest performs
+both permission changes and emits its EH-success row, then reports
+`thread_start_timeout`. Unchanged guest Hello/runtime and shared-batch
+acceptance remain pending.
+
+[Step1285](../done/step1285.md) adds distinct original RuntimeSmoke admission
+under M16-010 and real host-service repeated owner cleanup. Three successive
+16-slot owners reuse the same backing only after cancelled waits, pending
+signals, all 48 actual modeled reaps and complete metadata release. Old keys
+and generations remain invalid. No native relaunch service or entropy refill
+policy is added; actual guest lifetime and shared qualification remain pending.
+
+[Step1284](../done/step1284.md) connects broader sealed runtime consumers to
+their dedicated default-off native profiles and the original firmware/startup,
+PCI/APIC, root and raw runner checks. Outer success follows entropy cleanup;
+invalid selections fail before any child. Thirty-eight focused checks and three
+no-stdlib C# builds pass. Actual runtime lifetimes and shared full-host/native/
+guest/ancestor acceptance remain pending.
+
+[Step1283](../done/step1283.md) adds complete broader runtime leaf validation
+against canonical packages, sealed instruction indexes and original raw output.
+The common model admits the actual 16-worker/256-byte policy, verifies budget
+start/end observations, preserves timed restart callbacks through handler I/O
+until one-shot consumption or sigreturn, and rejects unowned clock advances.
+Collection/timer/join output consumes distinct validated signal returns, deadline
+wins and normal reaps; matrix acceptance requires at least nine simultaneous
+modeled threads. Forty-seven focused checks pass across development rounds.
+This is parser/service evidence; parent/wrapper integration and shared full-host/
+native/guest/ancestor qualification remained required at that step.
+
+[Step1282](../done/step1282.md) adds explicit native execution budgets. Policies
+above eight workers allow at most 8192 acknowledged IRQ epochs and 16384 driver
+steps, with five minutes of actual HPET-derived monotonic time checked at restored
+supervisor checkpoints. Original policies retain 128 epochs/512 steps and no
+additional clock reads. Expiry stages actual shutdown; acknowledgement and drain
+do not consult elapsed expiry. These independent ceilings are not APIC duration
+calibration or evidence that the broader apps fit. Thirty focused checks and
+combined no-stdlib C# compilation pass; native/guest qualification remains pending.
+
+[Step1281](../done/step1281.md) implements ordinary private/shared
+`FUTEX_REQUEUE` over the existing wait owner. Actual registrations move behind
+the target FIFO without waking, replacing their scheduler identity or changing
+their deadline/bitset. Per-thread backing references follow the move; completed
+waits keep their borrow until consumption. Negative counts and unavailable
+target capacity reject before wakes. Same-word operations preserve FIFO; PI,
+compare-requeue, realtime and aliased/file-backed shared mappings remain outside
+this subset. Focused service/ownership controls and combined no-stdlib C#
+compilation pass. Complete broader transcript consumers and real guest
+qualification remain pending in the existing eight-issue batch.
+
+[Step1280](../done/step1280.md) implements the runtime entropy prerequisite.
+The M16-008/009 owner selects a finite 256-byte reservoir for the existing
+package policy requesting more than eight threads; original policies retain
+32 bytes. Eight genuine guarded firmware acquisitions fill it before EBS.
+Each syscall remains bounded to 32 bytes, burns attempted output even on partial
+copy failure, and cannot refill. Full-extent alias checks and explicit discard
+protect the lifetime; capture failure and returned-owner cleanup scrub it.
+Seventeen focused startup-service checks pass. Step1281 also passes the original
+numeric-core parent check, including eight firmware callback groups. Native/guest
+qualification remains for shared validation. No new workload selector or runtime
+acceptance is added.
+
+[Step1279](../done/step1279.md) implements a 16-worker native layout and matching
+16-generation signal state within the existing thread-service cap. Host tests
+exercise real service/table exhaustion, isolated pending signals and highest-slot
+exit/reap/reuse, plus every emitted worker path and supported count. This repairs
+the known matrix capacity prerequisite without qualifying actual guest capacity.
+Entropy, observed syscall/wait compatibility and full broader consumers remain
+in progress before the shared full-host/native/guest/ancestor gates.
+
+[Step1278](../done/step1278.md) binds the three broader Linux workloads to
+canonical packages and separately reviewed full instruction indexes. Actual
+factory positives and 36 artifact mutation/rejection controls pass alongside
+seven focused host checks. Matrix worker creation and its barrier establish at
+least nine simultaneous threads; 13 total trace files are not a peak bound.
+The new policy requests the thread service's existing maximum of 16; step1279
+implements the corresponding native layout. Audit/implement observed futex requeue
+compatibility, entropy consumption and long timed waits with complete protocol
+consumers and actual capacity qualification before guest admission. Package/index
+creation is host evidence only; all stable batch gates remain deferred.
+
+[Step1276](../done/step1276.md) passes exact static Linux NativeAOT publication,
+complete execution and trace audit for all three broader runtime workloads.
+Eighteen/eight/thirteen thread traces belong to suspension stress/ThreadPool
+stress/runtime matrix; these are totals, not maximum concurrent counts. Nine
+and six actual suspension-signal returns occur in the GC stress and matrix.
+Frozen Windows-produced managed tooling validates relocated source hashes on
+Linux and records its own producer plus host-runtime identities. Twenty-nine
+commands pass and the builder is fully stopped with backing images unchanged.
+Linux syscall observations remain a compatibility input. Step1277 implements
+the bounded musl self-unmap/exit-tail repair. Its actual guest execution, CLROS
+scheduler/signal/wait ownership, M16-010 admission and guest cleanup remain
+required within the existing eight-issue batch. No CLROS application or runtime
+capstone is qualified here.
+
+[Step1275](../done/step1275.md) adds the comprehensive upstream runtime matrix
+without kernel EH or collector changes. Windows managed execution checks typed
+filter/catch/finally/rethrow identity, cached constructor failure, delegates,
+GC/finalizers and live running/parked thread roots, then Task.Run, cancellation
+and measured timer teardown. ThreadStatic observations stay inside synchronous
+scopes; await continuations may change threads. Four focused checks pass,
+including actual matrix and unchanged original runtime executions. Linux/native
+ownership, full M16-010 profile admission and repeated guest process cleanup
+remain required before qualification.
+
+[Step1274](../done/step1274.md) adds repeated upstream ThreadPool work,
+cancelled-wait permit recovery, competing completion publishers/continuations
+and in-flight timer disposal. Three Windows managed rounds complete 24 real
+work items, recover all app-owned waits and drain three active callbacks. The
+post-disposal delay has its own monotonic start timestamp, so callback/drain time
+cannot hide an early observation interval. Seven focused checks pass. Runtime
+workers remain runtime-owned; native scheduler/wait ownership, worker exit and
+kernel resource reuse remain unqualified. The separate app requires its own Linux
+publication/syscall inventory and guest admission within the same eight-issue batch.
+
+[Step1273](../done/step1273.md) adds an upstream managed GC-only stress workload
+with running, event-waiting, sleeping, join-blocked and exit-requested threads
+over three lifetimes. The Windows managed control completes nine forced full
+collections and joins fifteen workers with live object/interior/TLS witnesses.
+The kernel gains no collector or root scanner. Runtime-observed wait states and
+an exit request racing collection are workload observations; Linux/native traces
+and complete guest cleanup still must qualify actual suspension/exit overlap,
+wait ownership, capacity and interruption. The app remains excluded from current
+canonical package/guest admission pending its own Linux producer/syscall evidence.
+
+[Step1268](../done/step1268.md) implements bounded capacity for eight native
+threads and eight per-generation signal states, following the seven OS threads
+observed in the focused Linux ThreadPool payload. Host controls create all eight
+scheduler generations, reject a ninth clone, isolate blocked masks/realtime
+queues and reap/reuse the highest slot without stale TID delivery. This is a
+host state-machine check; native switching and application execution remain
+unqualified until the stable batch gate.
+
+[Step1267](../done/step1267.md) adds a separate upstream ThreadPool/timer
+consumer alongside the focused suspension workload. It uses the application
+runtime's actual Task.Run, continuation queues, cancellation and Timer/Task.Delay
+implementations; no kernel task engine or application collector is added.
+Output requires four completed work items, three checked continuations, cancelled
+work/waits, measured monotonic intervals and disposed callbacks. Runtime workers
+may remain alive until process exit. Both pinned Linux NativeAOT workloads pass:
+suspension uses four threads and two real activation/return cycles; ThreadPool
+uses seven threads. Its trace includes Finalizer, SigHandler, TP Gate, Timer and
+two TP Workers. The observed suspension `tkill` call now routes through the
+restricted same-process signal adapter with focused generation/mask/register
+checks. Guest capacity, execution and stress remain unfinished. Linux payload
+qualification and managed Windows choreography grant no CLROS PAL/runtime
+acceptance.
+
 M09-005/#187 and children #721/#723-#726 are qualified in
 [step1224](../done/step1224.md): 4,776 full-host checks across 622 fixtures,
 six original native bodies, three fresh 115-record timer guests and ten
@@ -107,10 +373,65 @@ context leak after failed stack allocation and its hosted binding initialization
 after runnable publication as negative tests. Do not copy its managed linked
 lists, incompatible context layout or ownership defects.
 
-Next, #191 provides atomic wait-on-address and #192 application FS/TLS.
-Those and accepted #685 are prerequisites of #686's Linux threading, futex,
-mask and blocking-pipe adapter. Signal delivery and the first unchanged NativeAOT
-Hello remain #687; comprehensive upstream runtime qualification remains #688.
+Step1307 qualifies #191 atomic wait-on-address, #192 application FS/TLS,
+#686 Linux threading/futex/masks/blocking pipes, #687 signals/unchanged Hello and
+the exact #193/#194/#688 upstream runtime workloads. Next follow continuing
+network ownership and TCP before sockets/epoll and guest Kestrel.
+
+### Wait-on-address development (#191)
+
+`Threading/WaitAddress.cs` adds caller-owned exact address/lifetime bindings and
+FIFO registrations over the qualified `KernelThreadTable`. Thirteen focused
+host checks pass in [step1231](../done/step1231.md): compare mismatch, wake before
+and after Park, colliding addresses, wake-one/all, deadline/wake races, capacity
+and ready pressure, cancellation, stale address/thread/owner reuse and finite
+identity exhaustion. Warmed operations allocate no managed storage.
+
+The trusted single-BSP caller keeps IF clear across compare/register/capture/Park
+and native transfer. A returned registration must be completed or parked inside
+that transaction. Timed waits use the scheduler's tick epoch; no polling or
+separate event/mutex service is introduced. Mappings and scheduler backing remain
+caller-pinned. This is host implementation evidence only: #191 remains open
+pending default-off mechanical guest/native/full-batch qualification. #192's
+application FS/TLS and #686's Linux adapter remain incomplete.
+
+### TLS ownership development (#192)
+
+`Threading/ThreadLocalStorage.cs` binds a dedicated private TLS subpool to
+current lifecycle generations and the existing saved FS/user-GS values.
+[Step1232](../done/step1232.md) records 14 focused host checks for region/segment
+isolation, saved FP/base admission, unchanged owned kernel-GS/root/selectors,
+stale identities and supervisor-only reap. The helper checks freshly supplied
+CPU observations; it does not read or write MSRs. Reap first uses the existing
+lifecycle pin/queue/supervisor guards, then scrubs the private TLS spans.
+Active FS/GS references or failed restoration retain backing.
+
+The context emitter remains unchanged. #192 still requires actual distinct
+FS/GS/FP execution and cleanup in a mechanical guest. Linux TLS/clone/signal
+integration and upstream managed thread statics are separate unfinished work.
+Full-host and final guest qualification are deferred to the larger related
+NativeAOT threading/runtime batch, not run for these two host prerequisites.
+
+Shared integration #733 adds the unpublished `ThreadWaitProgram` emitter in
+[step1233](../done/step1233.md). Four fixed CALL actions optionally load actual
+FS:[0]/GS:[0] into captured R12/R13, then workers return through the existing
+exit trampoline. Four new byte/continuation controls, three original program
+controls and five source-admission checks pass. The entry/recovery/IRQ-helper/
+switch infrastructure is reused. [Step1234](../done/step1234.md) adds the two
+default-off profiles, native owner schedules and strict transcript admission.
+Both leaves compile as freestanding C#; actual native/guest execution remains
+unqualified. The TLS subpool now admits exclusive eight-byte-aligned byte spans;
+a fifteenth focused TLS control checks four private spans inside 256 bytes and
+unchanged neighboring bytes after reap.
+
+`EfiEntry.ThreadWait.cs` reuses the lifecycle transfer/IRQ/cleanup envelope with
+one additional RW/NX metadata lease (24 internal leases, unchanged 32-page
+firmware reservation). Its emitted workers stage four real CALL actions each,
+then return normally. The owner schedules collision checks, wake-before-park,
+FIFO wake-one/all, timer/wake and cancel/deadline orders, then revokes code/IRQ
+references before supervisor reap and reuse. These are implemented schedules,
+not observed guest results. Native publish, original object/stack review, real
+captures and the full-host suite remain deferred to the related consumer batch.
 
 ### Saved-context host contract (#183)
 

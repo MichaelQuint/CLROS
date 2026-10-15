@@ -10,25 +10,41 @@ internal static unsafe class LinuxMemoryServicesTests
     {
         public readonly LinuxMemoryServices.State* State;
         public readonly LinuxMemoryServices.Admission Memory;
-        public Owner(uint tables = TablePages, ulong quota = 0x400000000)
+        public Owner(uint tables = TablePages, ulong quota = 0x400000000, uint backingPages = PoolPages, uint staticRows = 2,
+            bool runtimeImage = false)
         {
+            HostCheck.True(staticRows >= 2 && staticRows <= X64UserAddressSpace.MaximumRanges);
+            HostCheck.True(!runtimeImage || staticRows >= 4);
             State = (LinuxMemoryServices.State*)NativeMemory.AlignedAlloc((nuint)sizeof(LinuxMemoryServices.State), 16);
             *State = default;
-            byte* pool = (byte*)NativeMemory.AlignedAlloc(PoolPages * 4096, 4096);
-            ulong* live = (ulong*)NativeMemory.AlignedAlloc(TablePages * 4096, 4096);
-            ulong* candidate = (ulong*)NativeMemory.AlignedAlloc(TablePages * 4096, 4096);
-            var ranges = (X64UserMappingRange*)NativeMemory.AlignedAlloc((nuint)(2 * sizeof(X64UserMappingRange)), 16);
+            byte* pool = (byte*)NativeMemory.AlignedAlloc(backingPages * 4096, 4096);
+            uint allocatedTables = Math.Max(tables, TablePages);
+            ulong* live = (ulong*)NativeMemory.AlignedAlloc(allocatedTables * 4096, 4096);
+            ulong* candidate = (ulong*)NativeMemory.AlignedAlloc(allocatedTables * 4096, 4096);
+            var ranges = (X64UserMappingRange*)NativeMemory.AlignedAlloc((nuint)(staticRows * sizeof(X64UserMappingRange)), 16);
             ranges[0] = new() { VirtualStart = 0x400000, PhysicalStart = 0x300000, Pages = 1,
                 Protection = PageProtection.Read | PageProtection.Execute, Cache = PageCachePolicy.WriteBack, User = true };
             ranges[1] = new() { VirtualStart = 0x100000, PhysicalStart = 0x100000, Pages = 1,
                 Protection = PageProtection.Read | PageProtection.Write, Cache = PageCachePolicy.WriteBack };
-            new Span<byte>(pool, (int)PoolPages * 4096).Fill(0xa5);
-            new Span<ulong>(live, (int)TablePages * 512).Clear();
-            new Span<ulong>(candidate, (int)TablePages * 512).Clear();
+            for (uint i = 2; i < staticRows; i++) ranges[i] = new() { VirtualStart = 0x800000 + i * 8192UL,
+                PhysicalStart = 0x800000 + i * 8192UL, Pages = 1,
+                Protection = PageProtection.Read | PageProtection.Write, Cache = PageCachePolicy.WriteBack };
+            if (runtimeImage)
+            {
+                ranges[2] = new() { VirtualStart = 0x533000, PhysicalStart = 0x433000, Pages = 1,
+                    Protection = PageProtection.Read, Cache = PageCachePolicy.WriteBack, User = true };
+                ranges[3] = new() { VirtualStart = 0x6fe80000, PhysicalStart = 0x600000, Pages = 384,
+                    Protection = PageProtection.Read | PageProtection.Write, Cache = PageCachePolicy.WriteBack, User = true };
+            }
+            new Span<byte>(pool, (int)backingPages * 4096).Fill(0xa5);
+            new Span<ulong>(live, (int)allocatedTables * 512).Clear();
+            new Span<ulong>(candidate, (int)allocatedTables * 512).Clear();
             HostCheck.Equal(X64PageTableEntryStatus.Success, X64PatMappingToken.TryCreate(0x0007040600070406, 0, 3, 255, out var pat));
-            Memory = new() { Pool = pool, PoolPhysical = Pool, PoolPages = PoolPages, RootPhysical = Root,
-                TablePages = tables, Tables = live, CandidateTables = candidate, StaticRanges = ranges, StaticCount = 2,
-                ReservationBytes = quota, Conditions = X64PageTableEncodingPreconditions.CreateObserved(48, true, true, false, false, pat) };
+            Memory = new() { Pool = pool, PoolPhysical = Pool, PoolPages = backingPages, RootPhysical = Root,
+                TablePages = tables, Tables = live, CandidateTables = candidate, StaticRanges = ranges, StaticCount = staticRows,
+                ReservationBytes = quota, ImageVirtualStart = runtimeImage ? 0x400000UL : 0,
+                ImagePhysicalStart = runtimeImage ? 0x300000UL : 0, ImageBytes = runtimeImage ? 0x134000UL : 0,
+                Conditions = X64PageTableEncodingPreconditions.CreateObserved(48, true, true, false, false, pat) };
         }
         public void Begin() => HostCheck.True(LinuxMemoryServices.Begin(State, Memory));
         public ulong Leaf(ulong va)
@@ -39,8 +55,8 @@ internal static unsafe class LinuxMemoryServicesTests
         public byte* At(ulong va)
         {
             ulong leaf = Leaf(va), physical = leaf & 0x000ffffffffff000;
-            HostCheck.True((leaf & 5) == 5 && physical >= Pool && physical < Pool + PoolPages * 4096);
-            return Memory.Pool + physical - Pool + (va & 4095);
+            HostCheck.True((leaf & 5) == 5 && physical >= Memory.PoolPhysical && physical < Memory.PoolPhysical + Memory.PoolPages * 4096UL);
+            return Memory.Pool + physical - Memory.PoolPhysical + (va & 4095);
         }
         public byte[] Tables() => new ReadOnlySpan<byte>(Memory.Tables, (int)Memory.TablePages * 4096).ToArray();
         public void Dispose()
@@ -51,6 +67,279 @@ internal static unsafe class LinuxMemoryServicesTests
     }
     private static long Map(Owner owner, ulong address, ulong bytes, uint protection, ulong flags = 0x100022) =>
         LinuxMemoryServices.Map(owner.State, address, bytes, protection, flags, ulong.MaxValue, 0);
+
+    private struct GuardOwner { internal ulong Pin, LastStart, LastBytes; internal uint Calls; internal bool Deny; }
+
+    private static LinuxMemoryServices.Admission ImageAdmission(Owner owner)
+    {
+        var memory = owner.Memory;
+        memory.StaticRanges[2] = new() { VirtualStart = 0x401000, PhysicalStart = 0x301000, Pages = 3,
+            Protection = PageProtection.Read, Cache = PageCachePolicy.WriteBack, User = true };
+        memory.StaticRanges[3] = new() { VirtualStart = 0x404000, PhysicalStart = 0x304000, Pages = 1,
+            Protection = PageProtection.Read | PageProtection.Write, Cache = PageCachePolicy.WriteBack, User = true };
+        memory.StaticRanges[4] = new() { VirtualStart = 0x6ffff000, PhysicalStart = 0x306000, Pages = 1,
+            Protection = PageProtection.Read | PageProtection.Write, Cache = PageCachePolicy.WriteBack, User = true };
+        memory.ImageVirtualStart = 0x400000; memory.ImagePhysicalStart = 0x300000; memory.ImageBytes = 0x6000;
+        return memory;
+    }
+
+    private static (byte[] State, byte[] Tables, byte[] Pool, byte[] Static) Snapshot(Owner owner) =>
+        (new ReadOnlySpan<byte>(owner.State, sizeof(LinuxMemoryServices.State)).ToArray(), owner.Tables(),
+        new ReadOnlySpan<byte>(owner.Memory.Pool, (int)owner.Memory.PoolPages * 4096).ToArray(),
+        new ReadOnlySpan<byte>(owner.Memory.StaticRanges, (int)owner.Memory.StaticCount * sizeof(X64UserMappingRange)).ToArray());
+
+    private static void Same(Owner owner, (byte[] State, byte[] Tables, byte[] Pool, byte[] Static) before)
+    {
+        HostCheck.True(before.State.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.State, before.State.Length)));
+        HostCheck.True(before.Tables.AsSpan().SequenceEqual(owner.Tables()));
+        HostCheck.True(before.Pool.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.Memory.Pool, before.Pool.Length)));
+        HostCheck.True(before.Static.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.Memory.StaticRanges, before.Static.Length)));
+    }
+
+    [HostTest("linux.memory owned image cookie permissions survive mmap and restore original leaf identity")]
+    private static void ImageRoundTrip()
+    {
+        using var owner = new Owner(staticRows: 5); var memory = ImageAdmission(owner);
+        HostCheck.True(LinuxMemoryServices.Begin(owner.State, memory));
+        byte[] original = owner.Tables(), staticRows = Snapshot(owner).Static;
+        ulong code = owner.Leaf(0x400000), left = owner.Leaf(0x401000), word = owner.Leaf(0x402000), right = owner.Leaf(0x403000);
+        HostCheck.Equal(0x8000000000302005UL, word);
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, 0x402000, 4096, 1));
+        HostCheck.True(!owner.State->HasImageProtections && original.AsSpan().SequenceEqual(owner.Tables()));
+        HostCheck.Equal((long)Start, Map(owner, Start, 4096, 3)); *owner.At(Start) = 0x5a;
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, 0x402000, 1, 3));
+        HostCheck.True(owner.State->HasImageProtections && LinuxMemoryServices.Audit(owner.State));
+        HostCheck.Equal(word | 2, owner.Leaf(0x402000));
+        HostCheck.Equal(left, owner.Leaf(0x401000)); HostCheck.Equal(right, owner.Leaf(0x403000)); HostCheck.Equal(code, owner.Leaf(0x400000));
+        HostCheck.Equal((long)(Start + 8192), Map(owner, Start + 8192, 4096, 3));
+        HostCheck.Equal(word | 2, owner.Leaf(0x402000)); HostCheck.True(*owner.At(Start) == 0x5a);
+        HostCheck.Equal(8192UL, owner.State->ReservedBytes); HostCheck.Equal(2U, owner.State->BackedPages);
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, 0x402000, 4096, 1));
+        HostCheck.True(!owner.State->HasImageProtections); HostCheck.Equal(word, owner.Leaf(0x402000));
+        // Whole-row and originally writable data use the same owned R/RW rule.
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, 0x401000, 3 * 4096, 3));
+        HostCheck.Equal(left | 2, owner.Leaf(0x401000)); HostCheck.Equal(right | 2, owner.Leaf(0x403000));
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, 0x401000, 3 * 4096, 1));
+        ulong writable = owner.Leaf(0x404000);
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, 0x404000, 4096, 1));
+        HostCheck.Equal(writable & ~2UL, owner.Leaf(0x404000));
+        HostCheck.Equal(0L, LinuxMemoryServices.RestoreImageProtections(owner.State));
+        HostCheck.Equal(writable, owner.Leaf(0x404000)); HostCheck.True(*owner.At(Start) == 0x5a);
+        HostCheck.Equal(8192UL, owner.State->ReservedBytes); HostCheck.Equal(2U, owner.State->BackedPages);
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, 0x402000, 4096, 3));
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, Start, X64UserAddressSpace.UserEnd - Start));
+        HostCheck.True(owner.State->HasImageProtections && LinuxMemoryServices.Audit(owner.State));
+        HostCheck.True(!X64UserAddressSpace.Audit(memory.StaticRanges, memory.StaticCount, memory.Tables,
+            Root, memory.TablePages, memory.Conditions, owner.State->Root));
+        HostCheck.Equal(0L, LinuxMemoryServices.RestoreImageProtections(owner.State));
+        HostCheck.True(!owner.State->HasImageProtections && owner.State->ReservedBytes == 0 && owner.State->BackedPages == 0);
+        HostCheck.True(original.AsSpan().SequenceEqual(owner.Tables()) && LinuxMemoryServices.Audit(owner.State));
+        HostCheck.True(X64UserAddressSpace.Audit(memory.StaticRanges, memory.StaticCount, memory.Tables,
+            Root, memory.TablePages, memory.Conditions, owner.State->Root));
+        HostCheck.True(staticRows.AsSpan().SequenceEqual(Snapshot(owner).Static));
+        HostCheck.Equal(0L, LinuxMemoryServices.RestoreImageProtections(owner.State));
+    }
+
+    [HostTest("linux.memory image authority rejects invalid envelopes code stack gaps and competing windows atomically")]
+    private static void ImageAuthority()
+    {
+        using var owner = new Owner(staticRows: 5); var memory = ImageAdmission(owner);
+        var empty = Snapshot(owner);
+        for (int field = 0; field < 13; field++)
+        {
+            var bad = memory;
+            switch (field)
+            {
+                case 0: bad.ImageVirtualStart++; break;
+                case 1: bad.ImagePhysicalStart++; break;
+                case 2: bad.ImageBytes++; break;
+                case 3: bad.ImageVirtualStart = 0; break;
+                case 4: bad.ImagePhysicalStart = 0; break;
+                case 5: bad.ImageBytes = 0; break;
+                case 6: bad.ImageVirtualStart = LinuxMemoryServices.DynamicStart - 4096; break;
+                case 7: bad.ImagePhysicalStart = X64UserAddressSpace.PhysicalEnd - 4096; break;
+                case 8: bad.ImagePhysicalStart = Pool; break;
+                case 9: bad.ImagePhysicalStart = Root; break;
+                case 10: bad.ImagePhysicalStart += 4096; break;
+                case 11: bad.ImageBytes = 8192; break; // Cuts an original data row.
+                case 12: bad.ImageVirtualStart = ulong.MaxValue - 4095; break;
+            }
+            HostCheck.True(!LinuxMemoryServices.Begin(owner.State, bad)); Same(owner, empty);
+        }
+        var row = memory.StaticRanges[2]; memory.StaticRanges[2].User = false;
+        HostCheck.True(!LinuxMemoryServices.Begin(owner.State, memory)); memory.StaticRanges[2] = row; Same(owner, empty);
+        memory.StaticRanges[2].PhysicalStart += 4096;
+        HostCheck.True(!LinuxMemoryServices.Begin(owner.State, memory)); memory.StaticRanges[2] = row; Same(owner, empty);
+        HostCheck.True(LinuxMemoryServices.Begin(owner.State, memory)); var before = Snapshot(owner);
+        (ulong Address, ulong Bytes, uint Protection)[] denied =
+        [
+            (0x400000, 4096, 3), (0x100000, 4096, 3), (Root, 4096, 3), (0x6ffff000, 4096, 1),
+            (0x405000, 4096, 3), (0x406000, 4096, 3), (0x403000, 8192, 3), (0x400000, 8192, 1),
+            (0, 4096, 3), (0x402001, 4096, 3), (0x402000, 0, 3), (0x402000, ulong.MaxValue, 3),
+            (0x402000, 4096, 0), (0x402000, 4096, 2), (0x402000, 4096, 5), (0x402000, 4096, 7)
+        ];
+        foreach (var request in denied)
+        {
+            HostCheck.Equal(-22L, LinuxMemoryServices.Protect(owner.State, request.Address, request.Bytes, request.Protection));
+            Same(owner, before); HostCheck.True(LinuxMemoryServices.Audit(owner.State));
+        }
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, 0x401000, 8192, 3)); before = Snapshot(owner);
+        foreach (var request in new[] { (0x401000UL, 4096UL), (0x402000UL, 4096UL), (0x401000UL, 12288UL), (0x404000UL, 4096UL) })
+        {
+            HostCheck.Equal(-12L, LinuxMemoryServices.Protect(owner.State, request.Item1, request.Item2, 1)); Same(owner, before);
+        }
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, 0x401000, 8192, 3)); Same(owner, before);
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, 0x401000, 8192, 1));
+        using var disabled = new Owner(staticRows: 5); var defaults = ImageAdmission(disabled);
+        defaults.ImageVirtualStart = defaults.ImagePhysicalStart = defaults.ImageBytes = 0;
+        HostCheck.True(LinuxMemoryServices.Begin(disabled.State, defaults)); var unchanged = Snapshot(disabled);
+        HostCheck.Equal(-22L, LinuxMemoryServices.Protect(disabled.State, 0x402000, 4096, 3)); Same(disabled, unchanged);
+        HostCheck.Equal(0L, LinuxMemoryServices.RestoreImageProtections(disabled.State)); Same(disabled, unchanged);
+    }
+
+    [HostTest("linux.memory image permission changes honor retained borrows and require guard detachment for reset")]
+    private static void ImageGuards()
+    {
+        using var owner = new Owner(staticRows: 5); var memory = ImageAdmission(owner);
+        HostCheck.True(LinuxMemoryServices.Begin(owner.State, memory));
+        GuardOwner guard = new() { Pin = 0x402080 };
+        HostCheck.True(LinuxMemoryServices.AttachMutationGuard(owner.State, &guard, &Guard));
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, 0x402000, 4096, 1)); HostCheck.Equal(0U, guard.Calls);
+        var before = Snapshot(owner);
+        HostCheck.Equal(-12L, LinuxMemoryServices.Protect(owner.State, 0x402000, 4096, 3)); Same(owner, before);
+        HostCheck.Equal(0x402000UL, guard.LastStart); HostCheck.Equal(4096UL, guard.LastBytes);
+        guard.Pin = 0;
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, 0x402000, 4096, 3)); before = Snapshot(owner);
+        uint calls = guard.Calls;
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, 0x402000, 4096, 3));
+        HostCheck.Equal(calls, guard.Calls); Same(owner, before);
+        HostCheck.Equal(-12L, LinuxMemoryServices.RestoreImageProtections(owner.State)); Same(owner, before);
+        guard.Pin = 0x402080;
+        HostCheck.Equal(-12L, LinuxMemoryServices.Protect(owner.State, 0x402000, 4096, 1)); Same(owner, before);
+        HostCheck.True(!LinuxMemoryServices.DetachMutationGuard(owner.State, &guard, &Guard));
+        guard.Pin = 0; HostCheck.True(LinuxMemoryServices.DetachMutationGuard(owner.State, &guard, &Guard));
+        HostCheck.Equal(0L, LinuxMemoryServices.RestoreImageProtections(owner.State));
+        HostCheck.True(!owner.State->HasImageProtections && LinuxMemoryServices.Audit(owner.State));
+    }
+
+    [HostTest("linux.memory image fragments and later mmap share bounded inventory with atomic exhaustion")]
+    private static void ImageCapacity()
+    {
+        using var owner = new Owner(tables: 32, backingPages: 64, staticRows: 63); var memory = ImageAdmission(owner);
+        HostCheck.True(LinuxMemoryServices.Begin(owner.State, memory));
+        for (uint i = 0; i < LinuxMemoryServices.MaximumRegions; i++)
+            HostCheck.Equal((long)(Start + i * 8192), Map(owner, Start + i * 8192, 4096, 3));
+        *owner.At(Start) = 0x3d; var before = Snapshot(owner);
+        HostCheck.Equal(-12L, LinuxMemoryServices.Protect(owner.State, 0x402000, 4096, 3)); Same(owner, before);
+        ulong last = Start + (LinuxMemoryServices.MaximumRegions - 1) * 8192UL;
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, last, 4096));
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, 0x402000, 4096, 3)); before = Snapshot(owner);
+        HostCheck.Equal(-12L, Map(owner, last, 4096, 3)); Same(owner, before);
+        HostCheck.True(owner.State->HasImageProtections && *owner.At(Start) == 0x3d && LinuxMemoryServices.Audit(owner.State));
+        HostCheck.Equal(0L, LinuxMemoryServices.RestoreImageProtections(owner.State));
+        HostCheck.Equal((long)last, Map(owner, last, 4096, 3));
+        HostCheck.Equal(64U, owner.State->BackedPages); HostCheck.True(*owner.At(Start) == 0x3d);
+    }
+
+    [HostTest("linux.memory terminal window unmap scrubs dynamic backing after guard release and preserves static mappings")]
+    private static void TerminalWindowUnmap()
+    {
+        using var owner = new Owner(); owner.Begin();
+        ulong originalCode = owner.Leaf(0x400000);
+        HostCheck.Equal((long)Start, Map(owner, Start, 3 * 4096, 3));
+        *owner.At(Start) = 0x61; *owner.At(Start + 8192) = 0x62;
+        HostCheck.Equal((long)(Start + 4096), Map(owner, Start + 4096, 4096, 0, 0x32));
+        ulong sparse = Start + 0x200000;
+        HostCheck.Equal((long)sparse, Map(owner, sparse, Reservation, 0));
+        ulong high = sparse + 0x100000000;
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, high, 4096, 3));
+        *owner.At(high) = 0x73;
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, high, 4096, 1));
+        ulong reserved = owner.State->ReservedBytes; uint backed = owner.State->BackedPages;
+        byte[] tables = owner.Tables(), pool = new ReadOnlySpan<byte>(owner.Memory.Pool, (int)PoolPages * 4096).ToArray();
+        GuardOwner guard = new() { Pin = Start };
+        HostCheck.True(LinuxMemoryServices.AttachMutationGuard(owner.State, &guard, &Guard));
+        const ulong window = LinuxSyscallGateway.UserEnd - LinuxMemoryServices.DynamicStart;
+        HostCheck.Equal(-12L, LinuxMemoryServices.Unmap(owner.State, LinuxMemoryServices.DynamicStart, window));
+        HostCheck.True(guard.Calls > 0 && owner.State->ReservedBytes == reserved && owner.State->BackedPages == backed);
+        HostCheck.True(tables.AsSpan().SequenceEqual(owner.Tables()) && pool.AsSpan().SequenceEqual(
+            new ReadOnlySpan<byte>(owner.Memory.Pool, (int)PoolPages * 4096)) && LinuxMemoryServices.Audit(owner.State));
+        HostCheck.True(!LinuxMemoryServices.DetachMutationGuard(owner.State, &guard, &Guard));
+        guard.Pin = 0; // The retained word borrow must drain before detach can succeed.
+        HostCheck.True(LinuxMemoryServices.DetachMutationGuard(owner.State, &guard, &Guard));
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, LinuxMemoryServices.DynamicStart, window));
+        HostCheck.True(owner.State->ReservedBytes == 0 && owner.State->BackedPages == 0 && LinuxMemoryServices.Audit(owner.State));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.Pool, (int)PoolPages * 4096).IndexOfAnyExcept((byte)0) < 0);
+        foreach (ulong address in new[] { Start, Start + 8192, high })
+            HostCheck.True(!X64UserAddressSpace.TryReadLeaf(owner.Memory.Tables, Root, TablePages, address, out ulong leaf) || (leaf & 1) == 0);
+        HostCheck.Equal(originalCode, owner.Leaf(0x400000));
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, LinuxMemoryServices.DynamicStart, window));
+        HostCheck.True(LinuxMemoryServices.Audit(owner.State) && owner.State->ReservedBytes == 0 && owner.State->BackedPages == 0);
+    }
+
+    [HostTest("linux.memory fault codes distinguish reservation permissions holes static user ranges and supervisor addresses")]
+    private static void PageFaultCodes()
+    {
+        using var owner = new Owner(); owner.Begin();
+        HostCheck.Equal((long)Start, Map(owner,Start,3 * 4096,0));
+        foreach (ulong address in new ulong[] {Start,Start+12287,0x400123,LinuxSyscallGateway.UserEnd,ulong.MaxValue})
+        { HostCheck.True(LinuxMemoryServices.TryPageFaultCode(owner.State,address,out int code)); HostCheck.Equal(2,code); }
+        foreach (ulong address in new ulong[] {0,0x100123,Start-1,Start+12288})
+        { HostCheck.True(LinuxMemoryServices.TryPageFaultCode(owner.State,address,out int code)); HostCheck.Equal(1,code); }
+        HostCheck.Equal(0L,LinuxMemoryServices.Unmap(owner.State,Start+4096,4096));
+        HostCheck.True(LinuxMemoryServices.TryPageFaultCode(owner.State,Start+4096,out int hole) && hole == 1);
+        HostCheck.True(LinuxMemoryServices.TryPageFaultCode(owner.State,Start+8192,out int reserved) && reserved == 2);
+        HostCheck.True(!LinuxMemoryServices.TryPageFaultCode(null,0,out int invalid) && invalid == 0);
+        owner.Memory.StaticRanges[0].Pages++;
+        HostCheck.True(!LinuxMemoryServices.TryPageFaultCode(owner.State,Start,out invalid) && invalid == 0);
+        owner.Memory.StaticRanges[0].Pages--;
+    }
+    [UnmanagedCallersOnly]
+    private static byte Guard(void* context, ulong address, ulong bytes)
+    {
+        var owner = (GuardOwner*)context; owner->Calls++; owner->LastStart = address; owner->LastBytes = bytes;
+        return owner->Deny || owner->Pin != 0 && address < owner->Pin + 4 && owner->Pin < address + bytes ? (byte)0 : (byte)1;
+    }
+
+    [HostTest("linux.memory guard rejects retained backing changes atomically and permits exact unrelated intervals")]
+    private static void MutationGuard()
+    {
+        using var owner = new Owner(); owner.Begin(); HostCheck.Equal((long)Start, Map(owner, Start, 4 * 4096, 3));
+        *owner.At(Start + 4096) = 0x7b; GuardOwner guard = new() { Pin = Start + 4096 + 128 };
+        HostCheck.True(!LinuxMemoryServices.AttachMutationGuard(owner.State, null, &Guard));
+        HostCheck.True(!LinuxMemoryServices.AttachMutationGuard(owner.State, owner.State, &Guard));
+        HostCheck.True(LinuxMemoryServices.AttachMutationGuard(owner.State, &guard, &Guard));
+        HostCheck.True(!LinuxMemoryServices.AttachMutationGuard(owner.State, &guard, &Guard));
+        HostCheck.True(owner.State->HasMutationGuard); var copy = *owner.State;
+        HostCheck.True(!LinuxMemoryServices.Audit(&copy));
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, Start, 4 * 4096, 3));
+        HostCheck.Equal(0L, LinuxMemoryServices.Advise(owner.State, Start + 4096, 4096, 16)); HostCheck.Equal(0U, guard.Calls);
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, Start + 2 * 4096, 4096, 1));
+        HostCheck.Equal(Start + 2 * 4096, guard.LastStart); HostCheck.Equal(4096UL, guard.LastBytes);
+        byte[] tables = owner.Tables(), pool = new ReadOnlySpan<byte>(owner.Memory.Pool, (int)PoolPages * 4096).ToArray();
+        byte[] state = new ReadOnlySpan<byte>(owner.State, sizeof(LinuxMemoryServices.State)).ToArray();
+        foreach (int operation in new[] { 0, 1, 2, 3 })
+        {
+            long result = operation switch
+            {
+                0 => LinuxMemoryServices.Protect(owner.State, Start + 4096, 4096, 1),
+                1 => LinuxMemoryServices.Unmap(owner.State, Start + 4096, 4096),
+                2 => LinuxMemoryServices.Advise(owner.State, Start + 4096, 4096, 4),
+                _ => Map(owner, Start + 4096, 4096, 3, 0x32)
+            };
+            HostCheck.Equal(-12L, result);
+            HostCheck.True(tables.AsSpan().SequenceEqual(owner.Tables()) && pool.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.Memory.Pool, pool.Length)) &&
+                state.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.State, state.Length)) && LinuxMemoryServices.Audit(owner.State));
+        }
+        HostCheck.True(!LinuxMemoryServices.DetachMutationGuard(owner.State, &guard, &Guard));
+        GuardOwner other = default; HostCheck.True(!LinuxMemoryServices.DetachMutationGuard(owner.State, &other, &Guard));
+        guard.Pin = 0; guard.Deny = true;
+        HostCheck.Equal(-12L, LinuxMemoryServices.Unmap(owner.State, Start + 3 * 4096, 4096));
+        guard.Deny = false; HostCheck.True(LinuxMemoryServices.DetachMutationGuard(owner.State, &guard, &Guard));
+        HostCheck.True(!owner.State->HasMutationGuard); HostCheck.Equal(4096UL, guard.LastStart);
+        HostCheck.Equal(OS.Kernel.Memory.X64UserAddressSpace.UserEnd - 4096, guard.LastBytes);
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, Start + 4096, 4096));
+    }
 
     [HostTest("m16-006 measured 8234266624-byte sparse reservation bounded commit and high leaves", HostLane.Fast, 0)]
     private static void SparseReservation()
@@ -108,6 +397,30 @@ internal static unsafe class LinuxMemoryServicesTests
         HostCheck.Equal(-12L, LinuxMemoryServices.Protect(owner.State, Start, 3 * 4096, 1));
         HostCheck.Equal((long)Start + 4096, Map(owner, Start + 4096, 4096, 3));
         HostCheck.True(new ReadOnlySpan<byte>(owner.At(Start + 4096), 4096).IndexOfAnyExcept((byte)0) == -1);
+        HostCheck.True(LinuxMemoryServices.Audit(owner.State));
+    }
+
+    [HostTest("linux.memory large-pool policy changes preserve live bytes and release reuse zeroing above the old pool bound")]
+    private static void LargePoolZeroing()
+    {
+        using var owner = new Owner(tables: X64UserAddressSpace.MaximumTables, backingPages: LinuxMemoryServices.MaximumPoolPages);
+        owner.Begin(); const ulong pages = 4097, bytes = pages * 4096, tail = Start + 4095 * 4096UL;
+        HostCheck.Equal((long)Start, Map(owner, Start, bytes, 3));
+        new Span<byte>(owner.At(Start), (int)bytes).Fill(0x6d);
+        HostCheck.Equal(0L, LinuxMemoryServices.Advise(owner.State, Start, bytes, 17));
+        HostCheck.Equal((long)(Start + 0x4000000), Map(owner, Start + 0x4000000, 0x100000, 0));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.At(Start), (int)bytes).IndexOfAnyExcept((byte)0x6d) == -1);
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, tail + 4096, 4096, 0));
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, tail + 4096, 4096, 3));
+        HostCheck.Equal((byte)0x6d, *owner.At(tail + 4096));
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, tail, 8192));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.Pool + 4095 * 4096UL, 8192).IndexOfAnyExcept((byte)0) == -1);
+        HostCheck.Equal((long)(Start + 0x4200000), Map(owner, Start + 0x4200000, 8192, 3));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.At(Start + 0x4200000), 8192).IndexOfAnyExcept((byte)0) == -1);
+        HostCheck.Equal((byte)0x6d, *owner.At(Start));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.Pool + bytes, (int)(owner.Memory.PoolPages * 4096UL - bytes)).IndexOfAnyExcept((byte)0) == -1);
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, Start, X64UserAddressSpace.UserEnd - Start));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.Pool, (int)owner.Memory.PoolPages * 4096).IndexOfAnyExcept((byte)0) == -1);
         HostCheck.True(LinuxMemoryServices.Audit(owner.State));
     }
 

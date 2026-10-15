@@ -4,12 +4,262 @@ using OS.Kernel.Memory;
 
 internal static unsafe class LinuxStartupServicesTests
 {
+    [HostTest("linux.runtime r13 reservation and sparse commit trace fits retained mappings without false ENOMEM")]
+    private static void RuntimeMemoryTrace()
+    {
+        using Owner owner = new(new LinuxMemoryServicesTests.Owner(tables: X64UserAddressSpace.MaximumTables,
+            backingPages: LinuxMemoryServices.DefaultPoolPages, staticRows: 53));
+        owner.Begin();
+        // Original r13 memory calls after its first page-rounded TLS mmap (the
+        // Owner already maps that page). Kernel static addresses are synthetic;
+        // their actual count and all reservation/commit sizes are retained.
+        (ulong Nr, ulong Address, ulong Bytes, ulong Arg2, ulong Arg3, long Expected)[] calls =
+        [
+            (12, 0, 0, 0, 0, 17179869184), (12, 17179877376, 0, 0, 0, 17179877376),
+            (9, 17179869184, 4096, 0, 50, 17179869184), (9, 0, 4096, 3, 34, 4294971392),
+            (9, 0, 1585152, 0, 34, 4294975488), (10, 4294983680, 1576960, 3, 0, 0),
+            (9, 0, 535007232, 0, 34, 4296560640), (9, 0, 16384, 3, 34, 4831567872),
+            (11, 4296560640, 4096, 0, 0, 0), (28, 4296564736, 535003136, 16, 0, 0),
+            (9, 0, 4796416, 0, 34, 4831584256), (28, 4831584256, 4796416, 16, 0, 0),
+            (10, 4831584256, 40960, 3, 0, 0), (28, 4831584256, 40960, 17, 0, 0),
+            (10, 4831842304, 40960, 3, 0, 0), (28, 4831842304, 40960, 17, 0, 0),
+            (10, 4832100352, 20480, 3, 0, 0), (28, 4832100352, 20480, 17, 0, 0),
+            (10, 4832227328, 8192, 3, 0, 0), (28, 4832227328, 8192, 17, 0, 0),
+            (9, 0, 819220, 3, 34, 4836380672), (9, 0, 8192, 3, 34, 4837203968),
+            (9, 0, 4096, 3, 34, 4296560640), (9, 0, 4096, 3, 34, 4837212160),
+            (11, 4837212160, 4096, 0, 0, 0), (11, 4296560640, 4096, 0, 0, 0),
+            (9, 0, 4096, 3, 34, 4296560640), (10, 4332716032, 4096, 3, 0, 0),
+            (28, 4332716032, 4096, 17, 0, 0), (10, 4336910336, 4096, 3, 0, 0),
+            (28, 4336910336, 4096, 17, 0, 0), (10, 4341104640, 4096, 3, 0, 0)
+        ];
+        for (int i = 0; i < calls.Length; i++)
+        {
+            var c = calls[i];
+            HostCheck.True(owner.Memory.State->BackedPages + 1 < owner.Memory.Memory.PoolPages);
+            HostCheck.True(owner.Memory.State->Root.UsedTables < owner.Memory.Memory.TablePages / 2);
+            long value = owner.Call(c.Nr, c.Address, c.Bytes, c.Arg2, c.Arg3, c.Nr == 9 ? ulong.MaxValue : 0);
+            HostCheck.Equal(c.Expected, value, "recorded memory call " + i);
+            HostCheck.True(LinuxMemoryServices.Audit(owner.Memory.State));
+        }
+        HostCheck.Equal(7UL, owner.Memory.Leaf(4341104640) & 7);
+    }
+
+
+    [HostTest("linux.runtime r17 first four MiB commit exhausts retained backing atomically before guard")]
+    private static void RuntimeBackingExhaustion()
+    {
+        using Owner owner = new(new LinuxMemoryServicesTests.Owner(tables: X64UserAddressSpace.MaximumTables,
+            backingPages: LinuxMemoryServices.DefaultPoolPages, staticRows: 53, runtimeImage: true));
+        owner.Begin();
+        // Literal r17 memory mutations in serial order, after Owner's first TLS
+        // mmap and before main identity 4294967297 ordinal 592. Static placements
+        // are synthetic; row count, cookie page and initial stack are retained.
+        (ulong Nr, ulong Address, ulong Bytes, ulong Arg2, ulong Arg3, long Expected)[] calls =
+        [
+            (12, 0, 0, 0, 0, 17179869184),
+            (12, 17179877376, 0, 0, 0, 17179877376),
+            (9, 17179869184, 4096, 0, 50, 17179869184),
+            (9, 0, 4096, 3, 34, 4294971392),
+            (9, 0, 1585152, 0, 34, 4294975488),
+            (10, 4294983680, 1576960, 3, 0, 0),
+            (9, 0, 535007232, 0, 34, 4296560640),
+            (9, 0, 16384, 3, 34, 4831567872), // Thread 2, ordinal 6.
+            (11, 4296560640, 4096, 0, 0, 0),
+            (28, 4296564736, 535003136, 16, 0, 0),
+            (9, 0, 4796416, 0, 34, 4831584256),
+            (28, 4831584256, 4796416, 16, 0, 0),
+            (10, 4831584256, 40960, 3, 0, 0),
+            (28, 4831584256, 40960, 17, 0, 0),
+            (10, 4831842304, 40960, 3, 0, 0),
+            (28, 4831842304, 40960, 17, 0, 0),
+            (10, 4832100352, 20480, 3, 0, 0),
+            (28, 4832100352, 20480, 17, 0, 0),
+            (10, 4832227328, 8192, 3, 0, 0),
+            (28, 4832227328, 8192, 17, 0, 0),
+            (9, 0, 819220, 3, 34, 4836380672),
+            (9, 0, 8192, 3, 34, 4837203968),
+            (9, 0, 4096, 3, 34, 4296560640),
+            (9, 0, 4096, 3, 34, 4837212160),
+            (11, 4837212160, 4096, 0, 0, 0),
+            (11, 4296560640, 4096, 0, 0, 0),
+            (9, 0, 4096, 3, 34, 4296560640),
+            (10, 4332716032, 4096, 3, 0, 0),
+            (28, 4332716032, 4096, 17, 0, 0),
+            (10, 4336910336, 4096, 3, 0, 0),
+            (28, 4336910336, 4096, 17, 0, 0),
+            (10, 4341104640, 4096, 3, 0, 0),
+            (28, 4341104640, 4096, 17, 0, 0),
+            (10, 4345298944, 4096, 3, 0, 0),
+            (28, 4345298944, 4096, 17, 0, 0),
+            (10, 4299161600, 4096, 3, 0, 0),
+            (28, 4299161600, 4096, 17, 0, 0),
+            (9, 0, 147476, 3, 34, 4837212160),
+            (9, 0, 28672, 3, 34, 4837363712),
+            (9, 0, 4096, 3, 34, 4837392384),
+            (9, 0, 16384, 3, 34, 4837396480),
+            (9, 0, 126976, 0, 34, 4837412864),
+            (11, 4837412864, 61440, 0, 0, 0),
+            (28, 4837474304, 65536, 16, 0, 0),
+            (10, 4837474304, 4096, 3, 0, 0),
+            (28, 4837474304, 4096, 17, 0, 0),
+            (10, 5451776, 4096, 3, 0, 0),
+            (10, 5451776, 4096, 1, 0, 0),
+            (10, 4299165696, 65536, 3, 0, 0),
+            (28, 4299165696, 65536, 17, 0, 0),
+            (10, 4837478400, 4096, 3, 0, 0),
+            (28, 4837478400, 4096, 17, 0, 0),
+            (10, 4341108736, 65536, 3, 0, 0),
+            (28, 4341108736, 65536, 17, 0, 0),
+            (9, 0, 32768, 3, 34, 4837412864),
+            (9, 0, 1585152, 0, 34, 4837539840),
+            (10, 4837548032, 1576960, 3, 0, 0),
+            (9, 0, 1585152, 0, 34, 4839124992),
+            (10, 4839133184, 1576960, 3, 0, 0),
+            (10, 4345303040, 4194304, 3, 0, 0), // Thread 4, ordinal 4.
+            (28, 4345303040, 4194304, 17, 0, 0), // Thread 4, ordinal 5.
+            (10, 4831625216, 40960, 3, 0, 0),
+            (28, 4831625216, 40960, 17, 0, 0),
+            (10, 4831883264, 40960, 3, 0, 0),
+            (28, 4831883264, 40960, 17, 0, 0),
+            (10, 4832120832, 20480, 3, 0, 0),
+            (28, 4832120832, 20480, 17, 0, 0),
+            (10, 4832235520, 4096, 3, 0, 0),
+            (28, 4832235520, 4096, 17, 0, 0),
+            (10, 4378853376, 4096, 3, 0, 0),
+            (28, 4378853376, 4096, 17, 0, 0),
+            (9, 0, 4096, 3, 34, 4837445632),
+            (11, 4837445632, 4096, 0, 0, 0),
+            (9, 0, 1585152, 0, 34, 4840710144),
+            (10, 4840718336, 1576960, 3, 0, 0),
+            (10, 4832579584, 32768, 3, 0, 0),
+            (28, 4832579584, 32768, 17, 0, 0),
+            (10, 4832546816, 32768, 3, 0, 0),
+            (28, 4832546816, 32768, 17, 0, 0),
+            (10, 4832514048, 32768, 3, 0, 0),
+            (28, 4832514048, 32768, 17, 0, 0),
+            (10, 4832612352, 262144, 3, 0, 0),
+            (28, 4832612352, 262144, 17, 0, 0),
+            (10, 4832251904, 262144, 3, 0, 0),
+            (28, 4832251904, 262144, 17, 0, 0),
+            (9, 4378853376, 4096, 0, 50, 4378853376), // Thread 5, ordinal 11.
+            (28, 4378853376, 4096, 16, 0, 0), // Thread 5, ordinal 12.
+        ];
+        for (int i = 0; i < calls.Length; i++)
+        {
+            var c = calls[i];
+            HostCheck.Equal(c.Expected, owner.Call(c.Nr, c.Address, c.Bytes, c.Arg2, c.Arg3,
+                c.Nr == 9 ? ulong.MaxValue : 0), "r17 memory call " + i);
+            HostCheck.True(LinuxMemoryServices.Audit(owner.Memory.State));
+            if (c.Nr == 10 && c.Address == 0x533000 && c.Arg2 == 1)
+            {
+                // The intervening musl stack probes must not change ownership.
+                var before = new Snapshot(owner);
+                for (uint page = 0; page < 384; page++)
+                    HostCheck.Equal(page == 383 ? -14L : -12L,
+                        owner.Call(25, 1879040000 - page * 4096UL, 4096, 8192));
+                before.AssertUnchanged(owner);
+            }
+        }
+        HostCheck.True(!owner.Memory.State->HasImageProtections && !owner.Memory.State->HasMutationGuard);
+        var stats = RuntimeMemoryStatistics(owner.Memory);
+        const uint requestedPages = 4194304 / 4096;
+        Console.WriteLine($"HOST_MEMORY_DIAGNOSTIC r17 ordinal=592 regions={stats.Regions} backed={owner.Memory.State->BackedPages} " +
+            $"free={stats.FreePages} largest={stats.LargestFreeRun} requested={requestedPages} " +
+            $"tables={owner.Memory.State->Root.UsedTables}/{owner.Memory.Memory.TablePages} " +
+            $"rows={stats.MappingRows}/{X64UserAddressSpace.MaximumRanges}");
+        HostCheck.Equal(51U, stats.Regions);
+        HostCheck.Equal(3076U, owner.Memory.State->BackedPages);
+        HostCheck.Equal(1020U, stats.FreePages);
+        HostCheck.Equal(1019U, stats.LargestFreeRun);
+        HostCheck.Equal(86U, stats.MappingRows);
+        HostCheck.True(stats.Regions + 2 <= LinuxMemoryServices.MaximumRegions);
+        HostCheck.True(stats.MappingRows + 2 <= X64UserAddressSpace.MaximumRanges);
+        HostCheck.True(owner.Memory.State->Root.UsedTables < owner.Memory.Memory.TablePages / 2);
+        HostCheck.True(owner.Memory.State->ReservedBytes < owner.Memory.Memory.ReservationBytes);
+        HostCheck.True(stats.FreePages < requestedPages && stats.LargestFreeRun < requestedPages);
+
+        var rejected = new Snapshot(owner);
+        HostCheck.Equal(-12L, owner.Call(10, 4349497344, 4194304, 3));
+        rejected.AssertUnchanged(owner);
+        HostCheck.True(LinuxMemoryServices.Audit(owner.Memory.State));
+
+        // A guard is unnecessary to reproduce ENOMEM; even an allowing guard
+        // cannot run because allocation rejects before candidate publication.
+        ulong guardCalls = 0;
+        HostCheck.True(LinuxMemoryServices.AttachMutationGuard(owner.Memory.State, &guardCalls, &AllowRuntimeMutation));
+        rejected = new Snapshot(owner);
+        HostCheck.Equal(-12L, owner.Call(10, 4349497344, 4194304, 3));
+        HostCheck.Equal(0UL, guardCalls);
+        rejected.AssertUnchanged(owner);
+        HostCheck.True(LinuxMemoryServices.DetachMutationGuard(owner.Memory.State, &guardCalls, &AllowRuntimeMutation));
+        HostCheck.Equal(1UL, guardCalls);
+        HostCheck.True(LinuxMemoryServices.Audit(owner.Memory.State));
+
+        // Replay the same exact successful prefix in the separately admitted
+        // application pool; only its physical capacity differs.
+        using Owner application = new(new LinuxMemoryServicesTests.Owner(tables: X64UserAddressSpace.MaximumTables,
+            backingPages: LinuxMemoryServices.MaximumPoolPages, staticRows: 53, runtimeImage: true));
+        application.Begin();
+        foreach (var c in calls)
+            HostCheck.Equal(c.Expected, application.Call(c.Nr, c.Address, c.Bytes, c.Arg2, c.Arg3,
+                c.Nr == 9 ? ulong.MaxValue : 0));
+        HostCheck.Equal(3076U, application.Memory.State->BackedPages);
+        HostCheck.Equal(0L, application.Call(10, 4349497344, 4194304, 3));
+        HostCheck.Equal(4100U, application.Memory.State->BackedPages);
+        HostCheck.Equal(7UL, application.Memory.Leaf(4349497344) & 7);
+        HostCheck.True(LinuxMemoryServices.Audit(application.Memory.State));
+    }
+
+    private static (uint Regions, uint MappingRows, uint FreePages, uint LargestFreeRun)
+        RuntimeMemoryStatistics(LinuxMemoryServicesTests.Owner owner)
+    {
+        // Read a boxed snapshot of the private inventory for host diagnostics;
+        // no production visibility or managed/native State layout is changed.
+        const System.Reflection.BindingFlags fields = System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic;
+        object state = *owner.State;
+        uint count = (uint)typeof(LinuxMemoryServices.State).GetField("Count", fields)!.GetValue(state)!;
+        object regions = typeof(LinuxMemoryServices.State).GetField("Regions", fields)!.GetValue(state)!;
+        HostCheck.True(count <= LinuxMemoryServices.MaximumRegions);
+        var pinned = GCHandle.Alloc(regions, GCHandleType.Pinned);
+        var used = new bool[owner.Memory.PoolPages];
+        uint mapped = owner.Memory.StaticCount, free = 0, run = 0, largest = 0;
+        try
+        {
+            ulong* words = (ulong*)pinned.AddrOfPinnedObject();
+            for (uint i = 0; i < count; i++)
+            {
+                ulong bytes = words[i * 4 + 1], backing = words[i * 4 + 2];
+                if ((words[i * 4 + 3] & 7) != 0) mapped++;
+                if (backing == 0) continue;
+                HostCheck.True(backing >= owner.Memory.PoolPhysical && bytes <= owner.Memory.PoolPages * 4096UL &&
+                    backing - owner.Memory.PoolPhysical <= owner.Memory.PoolPages * 4096UL - bytes);
+                uint first = checked((uint)((backing - owner.Memory.PoolPhysical) / 4096));
+                for (uint page = first; page < first + bytes / 4096; page++)
+                {
+                    HostCheck.True(!used[page]); used[page] = true;
+                }
+            }
+        }
+        finally { pinned.Free(); }
+        foreach (bool occupied in used)
+        {
+            if (occupied) run = 0;
+            else { free++; run++; largest = Math.Max(largest, run); }
+        }
+        HostCheck.Equal(owner.State->BackedPages, owner.Memory.PoolPages - free);
+        return (count, mapped, free, largest);
+    }
+
+    [UnmanagedCallersOnly]
+    private static byte AllowRuntimeMutation(void* context, ulong address, ulong bytes)
+    { (*(ulong*)context)++; return 1; }
+
     private const ulong Output = 0x100000000, Heap = 0x400000000;
     private struct Model
     {
         public LinuxMemoryServices.Admission Memory;
         public ulong Ticks;
-        public uint Reads, Copies, Fences;
+        public uint Reads, Copies, Fences, PartialCopyBytes;
         public bool FailCopy, FailClock, Regress;
     }
     private sealed class Owner : IDisposable
@@ -18,15 +268,18 @@ internal static unsafe class LinuxStartupServicesTests
         public readonly LinuxStartupServices.State* State;
         public readonly Model* Context;
         public readonly byte* Entropy;
+        public readonly uint EntropyBytes;
         public Owner() : this(new LinuxMemoryServicesTests.Owner()) { }
-        public Owner(LinuxMemoryServicesTests.Owner memory)
+        public Owner(uint entropyBytes) : this(new LinuxMemoryServicesTests.Owner(), entropyBytes) { }
+        public Owner(LinuxMemoryServicesTests.Owner memory, uint entropyBytes = 32)
         {
             Memory = memory;
             Memory.Begin();
             HostCheck.Equal((long)Output, LinuxMemoryServices.Map(Memory.State, Output, 4096, 3, 0x100022, ulong.MaxValue, 0));
             State = (LinuxStartupServices.State*)NativeMemory.AlignedAlloc((nuint)sizeof(LinuxStartupServices.State), 16); *State = default;
             Context = (Model*)NativeMemory.AlignedAlloc((nuint)sizeof(Model), 16); *Context = new() { Memory = Memory.Memory, Ticks = 10000 };
-            Entropy = (byte*)NativeMemory.Alloc(32); for (uint i = 0; i < 32; i++) Entropy[i] = (byte)(i + 1);
+            EntropyBytes = entropyBytes;
+            Entropy = (byte*)NativeMemory.Alloc(entropyBytes); for (uint i = 0; i < entropyBytes; i++) Entropy[i] = (byte)(i % 251 + 1);
         }
         public LinuxStartupServices.Admission Admission() => new()
         {
@@ -34,7 +287,7 @@ internal static unsafe class LinuxStartupServicesTests
             CopyToUser = &Copy, ReadClock = &Clock, MemoryBarrier = &Fence, FrequencyHz = 100000000,
             PhysicalBytes = 256 * 1024 * 1024, AvailableBytes = 64 * 1024 * 1024,
             HeapStart = Heap, HeapBytes = 2 * 1024 * 1024, StackBytes = 65536,
-            ProcessId = 1, Entropy = Entropy, CapturedEntropyBytes = 32, SingleCpuValidated = true, FirmwareExited = true
+            ProcessId = 1, Entropy = Entropy, CapturedEntropyBytes = EntropyBytes, SingleCpuValidated = true, FirmwareExited = true
         };
         public void Begin() => HostCheck.True(LinuxStartupServices.Begin(State, Admission()));
         public long Call(ulong number, ulong a0 = 0, ulong a1 = 0, ulong a2 = 0, ulong a3 = 0, ulong a4 = 0, ulong a5 = 0) =>
@@ -44,18 +297,21 @@ internal static unsafe class LinuxStartupServicesTests
     }
     private sealed class Snapshot
     {
-        private readonly byte[] tables, memory, startup, pool;
+        private readonly byte[] tables, memory, startup, pool, staticRows;
         public Snapshot(Owner owner)
         {
             tables = owner.Memory.Tables();
             memory = new ReadOnlySpan<byte>(owner.Memory.State, sizeof(LinuxMemoryServices.State)).ToArray();
             startup = new ReadOnlySpan<byte>(owner.State, sizeof(LinuxStartupServices.State)).ToArray();
             pool = new ReadOnlySpan<byte>(owner.Memory.Memory.Pool, checked((int)owner.Memory.Memory.PoolPages * 4096)).ToArray();
+            staticRows = new ReadOnlySpan<byte>(owner.Memory.Memory.StaticRanges,
+                checked((int)owner.Memory.Memory.StaticCount * sizeof(X64UserMappingRange))).ToArray();
         }
         public void AssertUnchanged(Owner owner) => HostCheck.True(tables.AsSpan().SequenceEqual(owner.Memory.Tables()) &&
             memory.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.Memory.State, sizeof(LinuxMemoryServices.State))) &&
             startup.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.State, sizeof(LinuxStartupServices.State))) &&
-            pool.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.Memory.Memory.Pool, pool.Length)));
+            pool.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.Memory.Memory.Pool, pool.Length)) &&
+            staticRows.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(owner.Memory.Memory.StaticRanges, staticRows.Length)));
     }
     private static void BrkRejected(Owner owner, ulong requested)
     {
@@ -76,7 +332,8 @@ internal static unsafe class LinuxStartupServicesTests
     private static byte Copy(void* context, ulong address, byte* source, uint bytes)
     {
         Model* model = (Model*)context; model->Copies++;
-        if (model->FailCopy) return 0;
+        if (model->FailCopy && model->PartialCopyBytes == 0) return 0;
+        if (model->FailCopy && bytes > model->PartialCopyBytes) bytes = model->PartialCopyBytes;
         for (uint i = 0; i < bytes; i++)
         {
             var m = model->Memory;
@@ -85,7 +342,7 @@ internal static unsafe class LinuxStartupServicesTests
             if (physical < m.PoolPhysical || physical >= m.PoolPhysical + m.PoolPages * 4096UL) return 0;
             m.Pool[physical - m.PoolPhysical] = source[i];
         }
-        return 1;
+        return model->FailCopy ? (byte)0 : (byte)1;
     }
     [UnmanagedCallersOnly]
     private static byte Clock(void* context, ulong* ticks)
@@ -115,6 +372,26 @@ internal static unsafe class LinuxStartupServicesTests
         HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(Heap), 8192).IndexOfAnyExcept((byte)0) == -1);
     }
 
+    [HostTest("linux.startup brk shrink preserves retained futex backing and exact raw break until completion drains")]
+    private static void GuardedHeap()
+    {
+        using var owner = new Owner(); owner.Begin(); HostCheck.Equal((long)Heap + 3 * 4096, owner.Call(12, Heap + 3 * 4096));
+        const ulong word = Heap + 4096 + 128, key = LinuxThreadServicesTests.Key;
+        *(uint*)owner.Memory.At(word) = 42;
+        using LinuxThreadServicesTests.Model threads = new(futex: true); threads.UseMemory(owner.Memory.Memory);
+        HostCheck.True(LinuxMemoryServices.AttachMutationGuard(owner.Memory.State, threads.Service, &LinuxFutexTests.MemoryGuard));
+        var parent = threads.Start(); threads.Kernel.Dispatch(); var child = threads.Clone();
+        HostCheck.Equal(LinuxSyscallAction.Blocked, threads.Call(202, word, 128, 42).Action);
+        LinuxFutexTests.Park(threads, parent); threads.Kernel.Dispatch();
+        BrkRejected(owner, Heap + 4096); HostCheck.Equal(42U, *(uint*)owner.Memory.At(word));
+        HostCheck.Equal((long)Heap + 4 * 4096, owner.Call(12, Heap + 4 * 4096));
+        HostCheck.Equal((long)Heap + 3 * 4096, owner.Call(12, Heap + 3 * 4096));
+        HostCheck.Equal(1L, threads.Call(202, word, 129, 1).Value); BrkRejected(owner, Heap + 4096);
+        threads.Yield(child); threads.Kernel.Dispatch(); HostCheck.Equal(0L, threads.Service->CompleteFutexWait(key, 2).Value);
+        HostCheck.Equal((long)Heap + 4096, owner.Call(12, Heap + 4096)); HostCheck.Equal(0UL, owner.Memory.Leaf(word));
+        LinuxFutexTests.Drain(threads, owner.Memory.State);
+    }
+
     [HostTest("m16-006 startup queries use x64 layouts actual memory and admitted CPU facts", HostLane.Fast, 1)]
     private static void Queries()
     {
@@ -137,6 +414,30 @@ internal static unsafe class LinuxStartupServicesTests
         HostCheck.Equal(24L, owner.Call(324)); HostCheck.Equal(-1L, owner.Call(324, 8));
         HostCheck.Equal(0L, owner.Call(324, 16)); HostCheck.Equal(0L, owner.Call(324, 8));
         HostCheck.True(owner.Context->Fences == 1); HostCheck.Equal(-22L, owner.Call(324, 1));
+    }
+
+    [HostTest("linux.startup coarse monotonic clock uses live epoch with millisecond resolution and checked output")]
+    private static void CoarseClock()
+    {
+        using var owner = new Owner(); owner.Begin();
+        owner.Context->Ticks = 123456789;
+        HostCheck.Equal(0L, owner.Call(228, 6, Output));
+        byte* time = owner.Memory.At(Output);
+        HostCheck.Equal(1UL, *(ulong*)time); HostCheck.Equal(235000000UL, *(ulong*)(time + 8));
+        HostCheck.Equal(0L, owner.Call(228, 1, Output));
+        HostCheck.Equal(1UL, *(ulong*)time); HostCheck.Equal(236567890UL, *(ulong*)(time + 8));
+        owner.Context->Ticks = 199999999;
+        HostCheck.Equal(0L, owner.Call(228, 6, Output));
+        HostCheck.Equal(2UL, *(ulong*)time); HostCheck.Equal(0UL, *(ulong*)(time + 8));
+        byte[] before = new ReadOnlySpan<byte>(time, 16).ToArray();
+        foreach (ulong id in new ulong[] { 0, 5, 7, ulong.MaxValue })
+            HostCheck.Equal(-22L, owner.Call(228, id, Output));
+        ulong ticks = owner.Context->Ticks;
+        HostCheck.Equal(-14L, owner.Call(228, 6, Output + 4090)); HostCheck.Equal(ticks, owner.Context->Ticks);
+        owner.Context->Regress = true; HostCheck.Equal(-5L, owner.Call(228, 6, Output));
+        owner.Context->Regress = false; owner.Context->FailClock = true; HostCheck.Equal(-5L, owner.Call(228, 6, Output));
+        owner.Context->FailClock = false; owner.Context->FailCopy = true; HostCheck.Equal(-14L, owner.Call(228, 6, Output));
+        HostCheck.True(before.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(time, 16)));
     }
 
     [HostTest("m16-006 clock conversion regression and copy failures never invent time", HostLane.Fast, 2)]
@@ -170,6 +471,101 @@ internal static unsafe class LinuxStartupServicesTests
         HostCheck.True(new ReadOnlySpan<byte>(owner.Entropy, 32).IndexOfAnyExcept((byte)0) == -1);
         HostCheck.Equal(-11L, owner.Call(318, Output, 16, 1)); HostCheck.Equal(-38L, owner.Call(318, Output, 16));
         HostCheck.Equal(-22L, owner.Call(318, Output, 16, 4));
+    }
+
+    [HostTest("linux.startup runtime entropy serves observed 136 and 200 byte lifetimes without reuse")]
+    private static void RuntimeEntropy()
+    {
+        foreach (uint total in new uint[] { 136, 200, 256 })
+        {
+            using var owner = new Owner(256); owner.Begin();
+            uint used = 0;
+            while (used < total)
+            {
+                uint count = Math.Min(8U, total - used);
+                long allocations = GC.GetAllocatedBytesForCurrentThread();
+                long result = owner.Call(318, Output + used, count);
+                allocations = GC.GetAllocatedBytesForCurrentThread() - allocations;
+                HostCheck.Equal((long)count, result); HostCheck.Equal(0L, allocations);
+                used += count;
+                HostCheck.Equal(256U - used, owner.State->RemainingEntropy);
+            }
+            for (uint i = 0; i < total; i++) HostCheck.Equal((byte)(i % 251 + 1), owner.Memory.At(Output)[i]);
+            HostCheck.True(new ReadOnlySpan<byte>(owner.Entropy, (int)total).IndexOfAnyExcept((byte)0) == -1);
+            for (uint i = total; i < 256; i++) HostCheck.Equal((byte)(i % 251 + 1), owner.Entropy[i]);
+            HostCheck.True(!LinuxStartupServices.Begin(owner.State, owner.Admission()));
+        }
+    }
+
+    [HostTest("linux.startup runtime entropy rejects bad ranges and burns partial failed copies before exhaustion")]
+    private static void RuntimeEntropyFailures()
+    {
+        using var owner = new Owner(256); owner.Begin();
+        HostCheck.Equal(-14L, owner.Call(318, Output + 4090, 16));
+        HostCheck.Equal(-22L, owner.Call(318, Output, 33));
+        HostCheck.Equal(-22L, owner.Call(318, Output, 8, 4));
+        HostCheck.Equal(0L, owner.Call(318, 0, 0));
+        HostCheck.Equal(256U, owner.State->RemainingEntropy); HostCheck.Equal(0U, owner.Context->Copies);
+        for (int i = 0; i < 7; i++) HostCheck.Equal(32L, owner.Call(318, Output + (uint)i * 32, 32));
+        owner.Context->FailCopy = true;
+        owner.Context->PartialCopyBytes = 7;
+        HostCheck.Equal(-14L, owner.Call(318, Output + 224, 24));
+        for (uint i = 224; i < 231; i++) HostCheck.Equal((byte)(i % 251 + 1), owner.Memory.At(Output)[i]);
+        HostCheck.Equal((byte)0, owner.Memory.At(Output)[231]);
+        HostCheck.Equal(8U, owner.State->RemainingEntropy);
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Entropy, 248).IndexOfAnyExcept((byte)0) == -1);
+        owner.Context->FailCopy = false;
+        uint copies = owner.Context->Copies;
+        HostCheck.Equal(-38L, owner.Call(318, Output + 248, 16));
+        HostCheck.Equal(copies, owner.Context->Copies); HostCheck.Equal(8U, owner.State->RemainingEntropy);
+        HostCheck.Equal(8L, owner.Call(318, Output + 248, 16, 1));
+        for (uint i = 248; i < 256; i++) HostCheck.Equal((byte)(i % 251 + 1), owner.Memory.At(Output)[i]);
+        HostCheck.Equal(0U, owner.State->RemainingEntropy);
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Entropy, 256).IndexOfAnyExcept((byte)0) == -1);
+        HostCheck.Equal(-11L, owner.Call(318, Output, 1, 1)); HostCheck.Equal(-38L, owner.Call(318, Output, 1));
+    }
+
+    [HostTest("linux.startup full runtime entropy extent rejects suffix aliases and overflow before any read or reservation")]
+    private static void RuntimeEntropyAdmission()
+    {
+        using var owner = new Owner(256); var before = new Snapshot(owner);
+        foreach (uint count in new uint[] { 0, 31, 33, 255, 257, uint.MaxValue })
+        {
+            var admission = owner.Admission(); admission.CapturedEntropyBytes = count;
+            HostCheck.True(!LinuxStartupServices.Begin(owner.State, admission)); before.AssertUnchanged(owner);
+        }
+        // The first 32 bytes are outside each protected range; the later bytes
+        // overlap it. Reject numerically before dereferencing the candidate.
+        ulong[] protectedStarts = [(ulong)owner.State, (ulong)owner.Memory.State, (ulong)owner.Memory.Memory.Pool,
+            (ulong)owner.Memory.Memory.Tables, (ulong)owner.Memory.Memory.CandidateTables, (ulong)owner.Memory.Memory.StaticRanges];
+        foreach (ulong start in protectedStarts)
+        {
+            var admission = owner.Admission(); admission.Entropy = (byte*)(start - 128);
+            HostCheck.True(!LinuxStartupServices.Begin(owner.State, admission)); before.AssertUnchanged(owner);
+        }
+        var overflow = owner.Admission(); overflow.Entropy = (byte*)(ulong.MaxValue - 127);
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, overflow)); before.AssertUnchanged(owner);
+        HostCheck.Equal(0U, owner.Context->Reads);
+        new Span<byte>(owner.Entropy, 256).Clear();
+        HostCheck.True(!LinuxStartupServices.Begin(owner.State, owner.Admission())); before.AssertUnchanged(owner);
+        owner.Entropy[255] = 0x71; owner.Begin(); HostCheck.Equal(256U, owner.State->RemainingEntropy);
+    }
+
+    [HostTest("linux.startup entropy discard scrubs the full lifetime and cannot replenish it")]
+    private static void EntropyDiscard()
+    {
+        foreach (uint bytes in new uint[] { 32, 256 })
+        {
+            using var owner = new Owner(bytes);
+            HostCheck.True(!LinuxStartupServices.DiscardEntropy(owner.State)); owner.Begin();
+            HostCheck.Equal(8L, owner.Call(318, Output, 8));
+            HostCheck.True(LinuxStartupServices.DiscardEntropy(owner.State));
+            HostCheck.Equal(0U, owner.State->RemainingEntropy);
+            HostCheck.True(new ReadOnlySpan<byte>(owner.Entropy, (int)bytes).IndexOfAnyExcept((byte)0) == -1);
+            HostCheck.Equal(-11L, owner.Call(318, Output, 8, 1));
+            HostCheck.True(LinuxStartupServices.DiscardEntropy(owner.State));
+            HostCheck.True(!LinuxStartupServices.Begin(owner.State, owner.Admission()));
+        }
     }
 
     [HostTest("m16-006 startup admission aliases stale ownership and clock failure reject without reserving heap", HostLane.Fast, 4)]

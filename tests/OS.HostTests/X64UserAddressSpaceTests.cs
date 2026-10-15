@@ -122,6 +122,73 @@ internal static unsafe class X64UserAddressSpaceTests
         finally { NativeMemory.AlignedFree(tables); }
     }
 
+    [HostTest("m16-006 audit checks every leaf across unsorted long ranges and the physical limit without retaining stale encodings", HostLane.Fast, 4)]
+    private static void LongRangeAudit()
+    {
+        const uint tablePages=32, leafPages=520;const ulong high=0x23ffff000;
+        var basic=Ranges();var conditions=Conditions();
+        X64UserMappingRange large=new(){VirtualStart=high,PhysicalStart=X64UserAddressSpace.PhysicalEnd-leafPages*4096UL,
+            Pages=leafPages,Protection=PageProtection.Read|PageProtection.Write,Cache=PageCachePolicy.WriteBack,User=true};
+        X64UserMappingRange[] ranges=[basic[3],large,basic[1],basic[2],basic[0]];
+        ulong* tables=(ulong*)NativeMemory.AlignedAlloc(tablePages*4096,4096);
+        try
+        {
+            new Span<ulong>(tables,(int)tablePages*512).Clear();
+            fixed(X64UserMappingRange* r=ranges)
+            {
+                var result=X64UserAddressSpace.Build(r,5,tables,Root,tablePages,conditions);
+                HostCheck.True(result.Succeeded);
+                HostCheck.Equal(0x80000000fffff007UL,*Leaf(tables,high+(leafPages-1)*4096UL));
+                *Leaf(tables,high+511*4096UL)|=0x60;
+                HostCheck.True(X64UserAddressSpace.Audit(r,5,tables,Root,tablePages,conditions,result));
+                byte[] original=new ReadOnlySpan<byte>(tables,(int)tablePages*4096).ToArray();
+                foreach(uint page in new uint[]{0,1,255,256,511,519})
+                    foreach(ulong mask in new ulong[]{4,0x1000,0x8000000000000000})
+                    {
+                        ulong* leaf=Leaf(tables,high+page*4096UL);ulong saved=*leaf;*leaf^=mask;ulong changed=*leaf;
+                        HostCheck.True(!X64UserAddressSpace.Audit(r,5,tables,Root,tablePages,conditions,result));
+                        HostCheck.Equal(changed,*leaf);*leaf=saved;
+                    }
+                ulong* extra=Leaf(tables,high+leafPages*4096UL);*extra=*Leaf(tables,high);
+                HostCheck.True(!X64UserAddressSpace.Audit(r,5,tables,Root,tablePages,conditions,result));*extra=0;
+                HostCheck.True(original.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(tables,(int)tablePages*4096)));
+                // A later call must derive its encoding from the current ranges.
+                r[1].Protection=PageProtection.Read;
+                HostCheck.True(!X64UserAddressSpace.Audit(r,5,tables,Root,tablePages,conditions,result));
+                r[1].Protection=PageProtection.Read|PageProtection.Write;
+                HostCheck.True(X64UserAddressSpace.Audit(r,5,tables,Root,tablePages,conditions,result));
+            }
+        }
+        finally{NativeMemory.AlignedFree(tables);}
+    }
+
+    [HostTest("m16-006 contiguous leaf encoding preserves selected PAT cache bits independently of A-D", HostLane.Fast, 5)]
+    private static void RangeCacheBits()
+    {
+        HostCheck.Equal(X64PageTableEntryStatus.Success,X64PatMappingToken.TryCreate(0x0107040600070406,0,3,7,out var pat));
+        var conditions=X64PageTableEncodingPreconditions.CreateObserved(48,true,true,false,false,pat);
+        PageCachePolicy[] policies=[PageCachePolicy.WriteBack,PageCachePolicy.Uncached,PageCachePolicy.WriteCombining];
+        ulong[] cacheBits=[0,0x18,0x98];
+        ulong* tables=(ulong*)NativeMemory.AlignedAlloc(Pages*4096,4096);
+        try
+        {
+            for(int i=0;i<policies.Length;i++)
+            {
+                var ranges=Ranges();ranges[2].Protection=PageProtection.Read|PageProtection.Write;ranges[2].Cache=policies[i];
+                new Span<ulong>(tables,(int)Pages*512).Clear();
+                fixed(X64UserMappingRange* r=ranges)
+                {
+                    var result=X64UserAddressSpace.Build(r,4,tables,Root,Pages,conditions);HostCheck.True(result.Succeeded);
+                    HostCheck.Equal(0x8000000000300007UL|cacheBits[i],*Leaf(tables,0x400000));
+                    HostCheck.Equal(0x8000000000301007UL|cacheBits[i],*Leaf(tables,0x401000));
+                    *Leaf(tables,0x401000)|=0x60;HostCheck.True(X64UserAddressSpace.Audit(r,4,tables,Root,Pages,conditions,result));
+                    *Leaf(tables,0x401000)^=0x80;HostCheck.True(!X64UserAddressSpace.Audit(r,4,tables,Root,Pages,conditions,result));
+                }
+            }
+        }
+        finally{NativeMemory.AlignedFree(tables);}
+    }
+
     [HostTest("m16-004 whole-root audit rejects forged permissions aliases cycles extra leaves and unused tables", HostLane.Fast, 2)]
     private static void AuditMutations()
     {

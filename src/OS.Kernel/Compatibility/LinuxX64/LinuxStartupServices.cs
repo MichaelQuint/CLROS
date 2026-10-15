@@ -15,12 +15,18 @@ public static unsafe class LinuxStartupServices
 {
     private const long Invalid = -22, Fault = -14, Unsupported = -38, Again = -11, Io = -5;
     public const uint EntropyBytes = 32;
+    /// <summary>Explicit larger lifetime budget for the admitted runtime batch;
+    /// individual requests still have the original 32-byte bound. No refill or
+    /// deterministic expansion is provided.</summary>
+    public const uint RuntimeEntropyBytes = 256;
 
     /// <summary>Immutable facts and borrowed capabilities. Physical/available
     /// bytes are actual owned snapshots, not Linux-host values. The IRQ-off
     /// single-context owner excludes other resource consumers during execution.
     /// AvailableBytes includes the unused pool; pool commitments are deducted.
     /// Entropy must be separate from AT_RANDOM and never published elsewhere.
+    /// CapturedEntropyBytes is exactly 32 or 256 genuinely acquired bytes; the
+    /// complete borrowed extent stays exclusive through owner cleanup.
     /// </summary>
     public struct Admission
     {
@@ -47,7 +53,7 @@ public static unsafe class LinuxStartupServices
         internal ulong CurrentBreak, LastTicks;
         internal uint Initialized, UsedEntropy, BarrierRegistered;
         public readonly ulong Break => CurrentBreak;
-        public readonly uint RemainingEntropy => Initialized == 1 ? EntropyBytes - UsedEntropy : 0;
+        public readonly uint RemainingEntropy => Initialized == 1 ? Owner.CapturedEntropyBytes - UsedEntropy : 0;
     }
 
     /// <summary>Reserve the actual bounded brk interval with PROT_NONE after
@@ -71,13 +77,13 @@ public static unsafe class LinuxStartupServices
             admission.HeapStart < LinuxMemoryServices.DynamicStart || (admission.HeapStart & 4095) != 0 ||
             admission.HeapStart >= LinuxSyscallGateway.UserEnd || admission.HeapBytes == 0 || (admission.HeapBytes & 4095) != 0 ||
             admission.HeapBytes > LinuxSyscallGateway.UserEnd - admission.HeapStart ||
-            admission.Entropy == null || admission.CapturedEntropyBytes != EntropyBytes ||
-            (ulong)admission.Entropy > ~0UL - EntropyBytes ||
-            Overlap((ulong)admission.Entropy, EntropyBytes, (ulong)state, (ulong)sizeof(State)) ||
+            admission.Entropy == null || !ValidEntropyBytes(admission.CapturedEntropyBytes) ||
+            (ulong)admission.Entropy > ~0UL - admission.CapturedEntropyBytes ||
+            Overlap((ulong)admission.Entropy, admission.CapturedEntropyBytes, (ulong)state, (ulong)sizeof(State)) ||
             Overlap((ulong)admission.Memory, (ulong)sizeof(LinuxMemoryServices.State), (ulong)state, (ulong)sizeof(State)) ||
             !EntropyStorage(admission)) return false;
         bool nonzero = false;
-        for (uint i = 0; i < EntropyBytes; i++) if (admission.Entropy[i] != 0) nonzero = true;
+        for (uint i = 0; i < admission.CapturedEntropyBytes; i++) if (admission.Entropy[i] != 0) nonzero = true;
         ulong ticks = 0;
         if (!nonzero || admission.ReadClock(admission.User.Context, &ticks) != 1) return false;
         if (LinuxMemoryServices.ReserveHeap(admission.Memory, admission.HeapStart, admission.HeapBytes) != (long)admission.HeapStart) return false;
@@ -91,7 +97,8 @@ public static unsafe class LinuxStartupServices
     /// </summary>
     public static long Dispatch(State* state, LinuxSyscallFrame frame)
     {
-        if (state == null || ((ulong)state & 7) != 0 || state->Initialized != 1 || state->UsedEntropy > EntropyBytes ||
+        if (state == null || ((ulong)state & 7) != 0 || state->Initialized != 1 ||
+            !ValidEntropyBytes(state->Owner.CapturedEntropyBytes) || state->UsedEntropy > state->Owner.CapturedEntropyBytes ||
             !LinuxMemoryServices.Audit(state->Owner.Memory)) return Fault;
         var a = state->Owner;
         switch (frame.Number)
@@ -147,9 +154,10 @@ public static unsafe class LinuxStartupServices
         if (requested == 0) return 0;
         uint count = (uint)requested;
         if (!LinuxSyscallGateway.ValidateRange(address, count, LinuxUserPageAccess.Write, state->Owner.User)) return Fault;
-        if (state->UsedEntropy == EntropyBytes) return (flags & 1) != 0 ? Again : Unsupported;
-        if (count > EntropyBytes - state->UsedEntropy && (flags & 1) == 0) return Unsupported;
-        if (count > EntropyBytes - state->UsedEntropy) count = EntropyBytes - state->UsedEntropy;
+        uint remaining = state->Owner.CapturedEntropyBytes - state->UsedEntropy;
+        if (remaining == 0) return (flags & 1) != 0 ? Again : Unsupported;
+        if (count > remaining && (flags & 1) == 0) return Unsupported;
+        if (count > remaining) count = remaining;
         byte* bytes = stackalloc byte[(int)EntropyBytes];
         for (uint i = 0; i < count; i++)
         { bytes[i] = state->Owner.Entropy[state->UsedEntropy + i]; state->Owner.Entropy[state->UsedEntropy + i] = 0; }
@@ -167,11 +175,14 @@ public static unsafe class LinuxStartupServices
     }
     private static long Clock(State* state, uint id, ulong address)
     {
-        if (id != 1) return Invalid; // No fabricated realtime/UTC source.
+        if (id != 1 && id != 6) return Invalid; // No fabricated realtime/UTC source.
         if (!LinuxSyscallGateway.ValidateRange(address, 16, LinuxUserPageAccess.Write, state->Owner.User)) return Fault;
         if (!Read(state, out ulong ticks)) return Io;
         byte* time = stackalloc byte[16]; ulong frequency = state->Owner.FrequencyHz;
         *(ulong*)time = ticks / frequency; *(ulong*)(time + 8) = (ticks % frequency) * 1000000000 / frequency;
+        // CLOCK_MONOTONIC_COARSE shares the live monotonic epoch and rounds
+        // down to this adapter's declared millisecond resolution.
+        if (id == 6) *(ulong*)(time + 8) = *(ulong*)(time + 8) / 1000000 * 1000000;
         return Output(state, address, time, 16);
     }
     private static long Info(State* state, ulong address)
@@ -207,12 +218,27 @@ public static unsafe class LinuxStartupServices
         state->Owner.CopyToUser(state->Owner.User.Context, address, source, bytes) == 1 ? 0 : Fault;
     private static bool EntropyStorage(Admission admission)
     {
-        var m = admission.Memory->Memory; ulong source = (ulong)admission.Entropy;
-        return !Overlap(source, EntropyBytes, (ulong)admission.Memory, (ulong)sizeof(LinuxMemoryServices.State)) &&
-            !Overlap(source, EntropyBytes, (ulong)m.Pool, m.PoolPages * 4096UL) &&
-            !Overlap(source, EntropyBytes, (ulong)m.Tables, m.TablePages * 4096UL) &&
-            !Overlap(source, EntropyBytes, (ulong)m.CandidateTables, m.TablePages * 4096UL) &&
-            !Overlap(source, EntropyBytes, (ulong)m.StaticRanges, m.StaticCount * (ulong)sizeof(OS.Kernel.Memory.X64UserMappingRange));
+        var m = admission.Memory->Memory; ulong source = (ulong)admission.Entropy, bytes = admission.CapturedEntropyBytes;
+        return !Overlap(source, bytes, (ulong)admission.Memory, (ulong)sizeof(LinuxMemoryServices.State)) &&
+            !Overlap(source, bytes, (ulong)m.Pool, m.PoolPages * 4096UL) &&
+            !Overlap(source, bytes, (ulong)m.Tables, m.TablePages * 4096UL) &&
+            !Overlap(source, bytes, (ulong)m.CandidateTables, m.TablePages * 4096UL) &&
+            !Overlap(source, bytes, (ulong)m.StaticRanges, m.StaticCount * (ulong)sizeof(OS.Kernel.Memory.X64UserMappingRange));
+    }
+    private static bool ValidEntropyBytes(uint bytes) => bytes == EntropyBytes || bytes == RuntimeEntropyBytes;
+
+    /// <summary>Burn the unconsumed reservoir when its serialized owner stops.
+    /// Borrowed storage must still be mapped/exclusive. This never resets the
+    /// lifetime or permits refill; later random requests report exhaustion.
+    /// Invalid state returns false without reading the entropy extent.</summary>
+    public static bool DiscardEntropy(State* state)
+    {
+        if (state == null || ((ulong)state & 7) != 0 || state->Initialized != 1 ||
+            !ValidEntropyBytes(state->Owner.CapturedEntropyBytes) || state->Owner.Entropy == null ||
+            state->UsedEntropy > state->Owner.CapturedEntropyBytes) return false;
+        for (uint i = 0; i < state->Owner.CapturedEntropyBytes; i++) state->Owner.Entropy[i] = 0;
+        state->UsedEntropy = state->Owner.CapturedEntropyBytes;
+        return true;
     }
     private static bool Overlap(ulong a, ulong aBytes, ulong b, ulong bBytes) => a < b + bBytes && b < a + aBytes;
 }

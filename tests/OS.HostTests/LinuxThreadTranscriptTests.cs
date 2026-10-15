@@ -1,0 +1,367 @@
+using System.Buffers.Binary;
+using System.Globalization;
+using OS.Manifest;
+using OS.Tooling;
+
+internal static class LinuxThreadTranscriptTests
+{
+    [HostTest("m16-008 complete large mechanical framing preserves ordinary limits exact bytes and independent leaf rejection")]
+    private static void LargeFraming()
+    {
+        string directory=Path.Combine(HostToolProcess.FindRepositoryRoot(),"artifacts","thread-framing-"+Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);string path=Path.Combine(directory,"serial.log");
+        byte[] elf=LinuxThreadProofFixture.CreateElf("Threads");
+        Dictionary<ulong,ulong> sequences=[],masks=[];
+        string[] leaf=Synthetic(128).Select(row=>
+        {
+            if(!row.StartsWith("M16_008_CALL ",StringComparison.Ordinal))return row;
+            ulong identity=Field(row,"identity"),source=Field(row,"action")==3?Field(row,"nr")==202?1UL:2UL:0;
+            ulong sequence=source==0?0:sequences.GetValueOrDefault(identity)+1;
+            if(source!=0)sequences[identity]=sequence;
+            ulong deadline=source==1 && Field(row,"a3")!=0?Field(row,"clock")+1_000_000:0;
+            ulong mask=masks.GetValueOrDefault(identity,masks.GetValueOrDefault(0x100000001UL));
+            if(Field(row,"nr")==14 && Field(row,"a1")!=0)
+                mask=BinaryPrimitives.ReadUInt64LittleEndian(elf.AsSpan(checked((int)(Field(row,"a1")-0x400000)),8));
+            masks[identity]=mask;
+            string returned=string.Join(' ',new[]{"rip","rsp","flags","fs","gs","valueBits"}.Select(k=>"return"+char.ToUpperInvariant(k[0])+k[1..]+"="+Field(row,k).ToString(CultureInfo.InvariantCulture)));
+            return row+$" waitSource={source} waitDeadline={deadline} waitSequence={sequence} signalDepth=0 signalFrame=0 blockedSignals={mask} "+returned;
+        }).ToArray();
+        HostCheck.Equal(103,QemuTranscripts.ReadLinuxCallReturns(leaf).Count);
+        byte[] package=LinuxThreadProofFixture.CreatePackage("Threads");
+        QemuTranscripts.ValidateLinuxThreadTail(leaf,package,0x200000,0x100000);
+        string valid=M03OwnedSubsystemSurvivalEfiIntegrationTests.Frame(["TEST_START efi.main",..leaf]);
+        HostCheck.True(System.Text.Encoding.UTF8.GetByteCount(valid)>32768,"complete independent long leaf");
+        // Exercise only the existing internal raw framer; these synthetic parent
+        // rows and reflection never construct prepared-program/guest authority.
+        var frame=typeof(QemuTranscripts).GetMethod("FirmwareProtocol",System.Reflection.BindingFlags.NonPublic|System.Reflection.BindingFlags.Static)!;
+        string[] Parse(string text,bool threads=true)
+        {
+            File.WriteAllText(path,text,new System.Text.UTF8Encoding(false));
+            try{return (string[])frame.Invoke(null,[path,"TEST_PASS m16-008\r\n",true,false,"test_thread",false,null,null,null,threads])!;}
+            catch(System.Reflection.TargetInvocationException error)when(error.InnerException is ToolFailure){throw error.InnerException;}
+        }
+        void Bad(string text,string reason,bool threads=true)
+        {
+            bool rejected=false;try{_=Parse(text,threads);}catch(ToolFailure failure){rejected=failure.Reason=="test_thread_"+reason;}
+            HostCheck.True(rejected,"raw frame must reject "+reason);
+        }
+        string[] parsed=Parse(valid);HostCheck.True(parsed[1..].SequenceEqual(leaf));
+        QemuTranscripts.ValidateLinuxThreadTail(parsed[1..],package,0x200000,0x100000);
+        Bad(valid,"raw_extent",false);Bad(new string('x',8*1024*1024+1),"raw_extent");
+        Bad(valid+"trailing\r\n","firmware_eof");Bad(valid[..^1],"protocol_extent");
+        Bad(valid.Replace("M16_008_OWNER_END","\nM16_008_OWNER_END",StringComparison.Ordinal),"framing");
+        Bad(valid.Replace("M16_008_OWNER_END","\0M16_008_OWNER_END",StringComparison.Ordinal),"non_ascii");
+        Reject(Parse(valid.Replace("context=zero","context=live",StringComparison.Ordinal))[1..],package);
+    }
+
+    [HostTest("m16-008 complete pool envelope rejects old extents physical overflow and overlap in its last worker pages")]
+    private static void PoolEnvelope()
+    {
+        var rows = Synthetic(); var package = LinuxThreadProofFixture.CreatePackage("Threads");
+        QemuTranscripts.ValidateLinuxThreadTail(Change(rows, 4, "pool", 0xfff5e000), package, 0x200000, 0x100000);
+        Reject(Change(rows, 4, "pool", 0xfff5f000), package);
+        Reject(Change(rows, 4, "code", 16384), package); Reject(Change(rows, 4, "metadata", 45056), package);
+        bool rejected = false;
+        try { QemuTranscripts.ValidateLinuxThreadTail(Change(rows, 4, "pool", 0x9c000), package, 0x200000, 0x100000); }
+        catch (ToolFailure failure) { rejected = failure.Reason == "m16_008_bound_roots_pool_alias"; }
+        HostCheck.True(rejected);
+    }
+
+    [HostTest("m16-008 synthetic thread tails bind independent calls dynamic identities and one or many real-clock ticks", HostLane.Fast, 0)]
+    private static void Positive()
+    {
+        byte[] package = LinuxThreadProofFixture.CreatePackage("Threads");
+        foreach (int ticks in new[] { 1, 3, 128 })
+        {
+            string[] rows = Synthetic(ticks, ticks == 1 ? 17UL : 103UL, ticks == 1 ? 7UL : 5UL, ticks == 1 ? 12UL : 9UL);
+            QemuTranscripts.ValidateLinuxThreadTail(rows, package, 0x200000, 0x100000);
+            HostCheck.Equal(103, Indices(rows, "M16_008_CALL ").Length);
+            HostCheck.Equal(21, Indices(rows, "M16_008_RESUME ").Length);
+            HostCheck.Equal(26, Indices(rows, "M16_008_SUPERVISOR ").Length);
+            HostCheck.Equal(5, Indices(rows, "M16_008_REAP ").Length);
+            HostCheck.True(Indices(rows, "M16_008_REAP ").Take(4).Select(i => Field(rows[i], "old"))
+                .SequenceEqual(new ulong[] { 0x100000002, 0x200000002, 0x300000002, 0x400000002 }));
+            HostCheck.Equal(ticks, Indices(rows, "M16_008_TICK ").Length);
+            int prior = -1;
+            foreach (string marker in QemuTranscripts.M16LinuxThreadMarkers)
+            { int at = Array.FindIndex(rows, row => row == marker || row.StartsWith(marker + " ", StringComparison.Ordinal)); HostCheck.True(at > prior); prior = at; }
+        }
+        var p = Decode(false); var c = Decode(true);
+        ulong[] parentPath = [.. p.Take(9).Select(x => x.Rip), .. Enumerable.Range(0, 4).SelectMany(_ => p.Skip(9).Take(10).Select(x => x.Rip)), .. p.Skip(19).Select(x => x.Rip)];
+        HostCheck.True(parentPath.SequenceEqual(LinuxThreadProofFixture.ExpectedReturnRips("Threads")) &&
+            Enumerable.Range(0, 4).SelectMany(_ => c.Select(x => x.Rip)).SequenceEqual(LinuxThreadProofFixture.ExpectedReturnRips("Threads", child: true)));
+        HostCheck.True(p[9].Rip == 0x400439 && p[^1].Rip == 0x400861 && c[^1].Rip == 0x400c63);
+        HostCheck.True(p.Select(x => x.Nr).SequenceEqual(new ulong[] { 39,186,158,14,293,56,202,14,158,56,0,56,39,158,14,202,0,202,0,202,202,3,3,1,231 }) &&
+            c.Select(x => x.Nr).SequenceEqual(new ulong[] { 39,186,158,14,14,14,158,158,1,202,1,60 }));
+        HostCheck.True(QemuTranscripts.M16LinuxThreadMarkers.Contains("M16_008_RESUME", StringComparer.Ordinal) &&
+            QemuTranscripts.M16LinuxThreadMarkers.Contains("M16_008_REAP", StringComparer.Ordinal));
+    }
+
+    [HostTest("m16-008 thread tail rejects altered packages admission captured frames TLS fd and TID bindings", HostLane.Fast, 1)]
+    private static void IdentityAndFrames()
+    {
+        string[] rows = Synthetic(); byte[] package = LinuxThreadProofFixture.CreatePackage("Threads");
+        byte[] noncanonical = (byte[])package.Clone(); int at = noncanonical.AsSpan().IndexOf("threads=2\n"u8);
+        HostCheck.True(at > 64); "threads=3\n"u8.CopyTo(noncanonical.AsSpan(at));
+        HostCheck.True(LinuxElfPackage.Validate(noncanonical).Succeeded); Reject(rows, noncanonical);
+        byte[] corrupt = (byte[])package.Clone(); corrupt[^1] ^= 1; Reject(rows, corrupt); Reject(rows, []); Reject(rows, package[..^1]);
+        int first = Indices(rows, "M16_008_CALL ")[0];
+        foreach (string key in new[] { "identity", "nr", "a0", "a1", "a2", "a3", "a4", "a5", "rip", "rsp", "fs", "gs", "clock", "valueBits", "action", "status" })
+            Reject(Change(rows, first, key, Field(rows[first], key) + 1), package);
+        Reject(Change(rows, first, "flags", 0), package); Reject(Change(rows, first, "flags", 0x3002), package);
+        foreach (int call in Indices(rows, "M16_008_CALL "))
+        {
+            if (Field(rows[call], "nr") == 158) Reject(Change(rows, call, "fs", Field(rows[call], "fs") + 8), package);
+            if (unchecked((long)Field(rows[call], "valueBits")) < 0) Reject(Change(rows, call, "valueBits", 0), package);
+        }
+        int[] clones = Indices(rows, "M16_008_CALL ").Where(i => Field(rows[i], "nr") == 56 &&
+            Field(rows[i], "a0") == 0x7d0f00 && Field(rows[i], "valueBits") < int.MaxValue).ToArray();
+        HostCheck.Equal(4, clones.Length); int clone = clones[0];
+        Reject(Change(rows, clone, "a0", 0x7d0f01), package); Reject(Change(rows, clone, "valueBits", 999), package);
+        foreach (int later in clones.Skip(1))
+            Reject(Change(rows, later, "valueBits", Field(rows[clone], "valueBits")), package);
+        foreach (int reused in Indices(rows, "M16_008_CALL ").Where(i => Field(rows[i], "identity") >> 32 > 1))
+            Reject(Change(rows, reused, "identity", Field(rows[reused], "identity") - (1UL << 32)), package);
+        int child = Indices(rows, "M16_008_CALL ")[11];
+        Reject(Change(rows, child, "identity", 0x100000001), package); Reject(Change(rows, child, "rsp", 0x405000), package);
+        int close = Array.FindIndex(rows, row => row.StartsWith("M16_008_CALL ", StringComparison.Ordinal) && Field(row, "nr") == 3);
+        Reject(Change(rows, close, "a0", 4), package);
+        Reject(Change(rows, 4, "root", Field(rows[3], "root")), package);
+        Reject(Change(rows, 4, "root", 0x400000), package); // Aligned/disjoint still must match actual parent readback.
+        Reject(Change(rows, 4, "pool", Field(rows[4], "root")), package);
+        foreach (string key in new[] { "workers", "code", "metadata", "userImage" }) Reject(Change(rows, 4, key, Field(rows[4], key) + 1), package);
+        string[] badPolicy = (string[])rows.Clone(); badPolicy[2] = badPolicy[2].Replace("blocking=scheduler", "blocking=unsupported", StringComparison.Ordinal); Reject(badPolicy, package);
+        string[] extraField = (string[])rows.Clone(); extraField[first] += " rip=4194304"; Reject(extraField, package);
+    }
+
+    [HostTest("m16-008 thread tail rejects replay reordered completion forged supervisor clear-TID reap and cleanup", HostLane.Fast, 2)]
+    private static void Lifecycle()
+    {
+        string[] rows = Synthetic(); byte[] package = LinuxThreadProofFixture.CreatePackage("Threads");
+        foreach (int at in Indices(rows, "M16_008_RESUME "))
+        {
+            Reject(Change(rows, at, "valueBits", Field(rows[at], "valueBits") ^ 1), package);
+            Reject(Change(rows, at, "status", 9), package);
+        }
+        foreach (int at in Indices(rows, "M16_008_SUPERVISOR "))
+            foreach (string key in new[] { "identity", "action", "transfers", "ready", "active" }) Reject(Change(rows, at, key, Field(rows[at], key) + 1), package);
+        foreach (int at in Indices(rows, "M16_008_EXIT ")) Reject(Change(rows, at, "clearTidResult", unchecked((ulong)-14L)), package);
+        foreach (int at in Indices(rows, "M16_008_REAP ")) Reject(Change(rows, at, "next", Field(rows[at], "old")), package);
+        foreach (string prefix in new[] { "M16_008_CALL ", "M16_008_RESUME ", "M16_008_SUPERVISOR ", "M16_008_EXIT ", "M16_008_REAP ", "M16_008_TICK ", "M16_005_WRITE ", "M16_008_OWNER_END ", "M16_008_RESTORE ", "CLROS_M16_008_READY" })
+        {
+            int at = Indices(rows, prefix)[0]; Reject([.. rows[..at], .. rows[(at + 1)..]], package);
+            Reject([.. rows[..at], rows[at], .. rows[at..]], package);
+        }
+        int reap = Indices(rows, "M16_008_REAP ")[0]; string[] earlyJoin = (string[])rows.Clone();
+        (earlyJoin[reap], earlyJoin[reap + 1]) = (earlyJoin[reap + 1], earlyJoin[reap]); Reject(earlyJoin, package);
+        int witness = Indices(rows, "M16_005_WRITE ")[0]; string[] lateWrite = (string[])rows.Clone();
+        (lateWrite[witness], lateWrite[witness + 1]) = (lateWrite[witness + 1], lateWrite[witness]); Reject(lateWrite, package);
+        int end = Indices(rows, "M16_008_OWNER_END ")[0];
+        foreach (string key in new[] { "reaped", "transfers", "irqs", "exit", "userReserved", "userBacked" }) Reject(Change(rows, end, key, Field(rows[end], key) + 1), package);
+        string[] liveStack = (string[])rows.Clone(); liveStack[end] = liveStack[end].Replace("initialStack=zero", "initialStack=dirty", StringComparison.Ordinal); Reject(liveStack, package);
+        string[] dirty = (string[])rows.Clone(); dirty[^3] = dirty[^3].Replace("fp=true", "fp=false", StringComparison.Ordinal); Reject(dirty, package);
+        Reject(rows[..^1], package); Reject([.. rows, "TEST_PASS m16-008"], package);
+    }
+
+    [HostTest("m16-008 thread tail requires admitted HPET timeout elapsed bound tick ownership and exact errno", HostLane.Fast, 3)]
+    private static void Timeout()
+    {
+        string[] rows = Synthetic(); byte[] package = LinuxThreadProofFixture.CreatePackage("Threads");
+        int[] ticks = Indices(rows, "M16_008_TICK ");
+        int timeout = Array.FindIndex(rows, row => row.StartsWith("M16_008_CALL ", StringComparison.Ordinal) && Field(row, "a0") == 0x401014);
+        ulong start = Field(rows[timeout], "clock");
+        Reject(Change(rows, ticks[0], "epoch", 2), package); Reject(Change(rows, ticks[0], "nanos", start), package);
+        Reject(Change(rows, ticks[0], "ready", 1), package); Reject(Change(rows, ticks[^1], "nanos", start + 999_999), package);
+        Reject(Change(rows, ticks[0], "nanos", start + 1_000_000), package); // A due sole waiter cannot remain unready.
+        Reject(Change(rows, ticks[^1], "ready", 0), package); Reject(Synthetic(129), package);
+        int wrong = Array.FindIndex(rows, row => row.StartsWith("M16_008_CALL ", StringComparison.Ordinal) && Field(row, "nr") == 202 && Field(row, "valueBits") == unchecked((ulong)-11L));
+        Reject(Change(rows, wrong, "valueBits", 0), package);
+        Reject(Change(rows, timeout, "action", 1), package); Reject(Change(rows, timeout, "status", 1), package);
+        Reject(Change(rows, timeout, "clock", (ulong)long.MaxValue), package);
+        int[] resumes = Indices(rows, "M16_008_RESUME "); Reject(Change(rows, resumes[^1], "valueBits", 0), package);
+    }
+
+    // Entirely synthetic host parser input. Decode actual instruction boundaries
+    // and arguments independently; do not use the producer's expected-RIP API.
+    [HostTest("m16-008 pipe control tails bind EOF EPIPE peer wake and timed process shutdown without child user resumption")]
+    private static void PipeControls()
+    {
+        foreach (string variant in new[] { "PipeReadClose", "PipeWriteClose", "PipeShutdown" })
+        foreach (int ticks in variant == "PipeShutdown" ? new[] { 1,3,128 } : new[] { 0 })
+        {
+            string[] rows = SyntheticPipe(variant,ticks); byte[] package = LinuxThreadProofFixture.CreatePackage(variant);
+            QemuTranscripts.ValidateLinuxThreadTail(rows,package,0x200000,0x100000);
+            HostCheck.Equal(variant == "PipeShutdown" ? 11 : variant == "PipeWriteClose" ? 14 : 13, Indices(rows,"M16_008_CALL ").Length);
+            HostCheck.Equal(1,Indices(rows,"M16_008_RESUME ").Length);
+            HostCheck.Equal(variant == "PipeShutdown" ? 4 : 3, Indices(rows,"M16_008_SUPERVISOR ").Length);
+            HostCheck.Equal(2,Indices(rows,"M16_008_REAP ").Length);
+            HostCheck.Equal(ticks,Indices(rows,"M16_008_TICK ").Length);
+            HostCheck.True(Indices(rows,"M16_008_RESUME ").All(i => Field(rows[i],"identity") == 0x100000001));
+        }
+    }
+
+    [HostTest("m16-008 pipe controls reject cross-package frames forged peer results cancelled-child return and dropped lifecycle records")]
+    private static void PipeControlRejections()
+    {
+        foreach (string variant in new[] { "PipeReadClose", "PipeWriteClose", "PipeShutdown" })
+        {
+            string[] rows = SyntheticPipe(variant, variant == "PipeShutdown" ? 3 : 0); byte[] package = LinuxThreadProofFixture.CreatePackage(variant);
+            foreach (string other in LinuxThreadProofFixture.Variants.Where(x => x != variant)) Reject(rows,LinuxThreadProofFixture.CreatePackage(other));
+            foreach (int call in Indices(rows,"M16_008_CALL "))
+            foreach (string field in new[] { "identity","nr","a0","a1","a2","a3","a4","a5","rip","rsp","fs","gs","clock","valueBits","action","status" })
+                Reject(Change(rows,call,field,Field(rows[call],field) ^ 1),package);
+            int completion = Indices(rows,"M16_008_RESUME ").Single();
+            Reject(Change(rows,completion,"identity",0x100000002),package);
+            Reject(Change(rows,completion,"valueBits",Field(rows[completion],"valueBits") ^ 1),package);
+            for (int row = 0; row < rows.Length; row++)
+            {
+                Reject([.. rows[..row], .. rows[(row + 1)..]],package);
+                Reject([.. rows[..row], rows[row], .. rows[row..]],package);
+            }
+            foreach (int at in Indices(rows,"M16_008_EXIT ")) Reject(Change(rows,at,"clearTidResult",unchecked((ulong)-14L)),package);
+            foreach (int at in Indices(rows,"M16_008_SUPERVISOR "))
+            foreach (string field in new[] { "identity","action","transfers","ready","active" }) Reject(Change(rows,at,field,Field(rows[at],field) ^ 1),package);
+            if (variant == "PipeShutdown")
+            {
+                int exit = Indices(rows,"M16_008_EXIT ")[1];
+                Reject([.. rows[..exit], "M16_008_RESUME identity=4294967298 valueBits=0 status=1", .. rows[exit..]],package);
+                int[] ticks = Indices(rows,"M16_008_TICK ");
+                Reject(Change(rows,ticks[0],"ready",1),package); Reject(Change(rows,ticks[^1],"nanos",Field(rows[ticks[0]],"nanos")),package);
+                Reject(SyntheticPipe(variant,129),package);
+            }
+        }
+    }
+
+    private static List<string> Header() => ["TEST_START m16-008",
+        "M16_006_POLICY physical=268435456 available=134217728 poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel",
+        "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=28672 package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler",
+        "M16_005_ARMED root=2097152 cs=59 ss=51 kernelStack=9437184 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null",
+        "M16_008_BOUND root=1048576 pool=3145728 workers=2 code=53248 metadata=114688 userImage=728 timer=idle-only clock=hpet-nanoseconds reuse=off-stack"];
+
+    private static string[] SyntheticPipe(string variant, int ticks)
+    {
+        const ulong p = 0x100000001, c = 0x100000002, pid = 103, readFd = 7, writeFd = 12;
+        bool write = variant == "PipeWriteClose", shutdown = variant == "PipeShutdown";
+        var parent = Decode(false,variant); var child = Decode(true,variant); int clone = write ? 7 : 6, block = clone + 1;
+        ulong clock = 0; List<string> rows = Header();
+        void Call(bool isChild,int index)
+        {
+            var call = (isChild ? child : parent)[index];
+            if (!isChild && shutdown && index == block) clock += 10_000;
+            ulong a0 = call.FdOffset == 0x1000 ? readFd : call.FdOffset == 0x1004 ? writeFd : call.A0;
+            long value = !isChild && index is 0 or 1 ? (long)pid : !isChild && index == clone ? (long)pid + 1 :
+                !isChild && write && index == 6 ? 4096 : !isChild && index == parent.Count - 2 ? 15 : 0;
+            bool blocked = isChild ? shutdown : index == block, exited = isChild ? !shutdown && index == 1 : index == parent.Count - 1;
+            ulong action = blocked ? 3UL : exited ? isChild ? 4UL : 2UL : 1UL, status = blocked ? 9UL : exited ? 2UL : 1UL;
+            rows.Add(FormattableString.Invariant($"M16_008_CALL identity={(isChild ? c : p)} nr={call.Nr} a0={a0} a1={call.A1} a2={call.A2} a3={call.A3} a4={call.A4} a5={call.A5} rip={call.Rip} rsp={(isChild ? 0x406000UL : 0x405000UL)} flags=2 fs={(isChild ? 0x403000UL : index < 2 ? 0UL : 0x402000UL)} gs=0 clock={clock} valueBits={unchecked((ulong)value)} action={action} status={status}"));
+        }
+        void Supervisor(ulong identity,uint action,uint transfers,uint ready,uint active) => rows.Add(FormattableString.Invariant($"M16_008_SUPERVISOR identity={identity} action={action} transfers={transfers} ready={ready} active={active}"));
+        void Exit(ulong identity) => rows.Add(FormattableString.Invariant($"M16_008_EXIT identity={identity} clearTidResult=0"));
+        void Reap(ulong identity) => rows.Add(FormattableString.Invariant($"M16_008_REAP old={identity} next={identity + (1UL << 32)} context=zero stack=zero slot=zero"));
+        for (int i = 0; i <= block; i++) Call(false,i); Supervisor(p,3,2,1,2);
+        for (int i = 0; i < child.Count; i++) Call(true,i);
+        if (shutdown)
+        {
+            Supervisor(c,3,4,0,2); ulong start = clock;
+            for (int tick = 1; tick <= ticks; tick++)
+            { clock = start + (ulong)tick * 1_000_000 / (uint)ticks; rows.Add(FormattableString.Invariant($"M16_008_TICK epoch={tick} nanos={clock} ready={(tick == ticks ? 1 : 0)}")); }
+        }
+        else { Exit(c); Supervisor(c,4,4,1,2); Reap(c); }
+        rows.Add(FormattableString.Invariant($"M16_008_RESUME identity={p} valueBits={unchecked((ulong)(shutdown ? -110L : write ? -32L : 0L))} status=1"));
+        if (!shutdown) Call(false,block + 1);
+        rows.Add("M16_005_WRITE fd=1 bytes=15 data=M16_THREADS_OK!"); Call(false,parent.Count - 2); Call(false,parent.Count - 1);
+        Exit(p); Supervisor(p,2,6,shutdown ? 1U : 0U,shutdown ? 2U : 1U); Reap(p);
+        if (shutdown) { Exit(c); Supervisor(c,4,8,0,1); Reap(c); }
+        rows.Add(FormattableString.Invariant($"M16_008_OWNER_END reaped=2 transfers={(shutdown ? 8 : 6)} irqs={ticks} exit=42 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained"));
+        rows.Add("M16_008_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
+        rows.Add("CLROS_M16_008_READY"); rows.Add("TEST_PASS m16-008"); return LinuxCallOrdinalTests.Annotate(rows);
+    }
+
+    private static string[] Synthetic(int ticks = 3, ulong pid = 17, ulong readFd = 7, ulong writeFd = 12)
+    {
+        const ulong p = 0x100000001;
+        ulong c = 0x100000002; int cycle = 0;
+        var parent = Decode(false); var child = Decode(true); ulong clock = 0;
+        List<string> rows = Header();
+        void Call(bool isChild, int index)
+        {
+            var call = (isChild ? child : parent)[index];
+            if (isChild && index == 9 || !isChild && index is 17 or 20) clock += 10_000;
+            ulong a0 = call.FdOffset == 0x1000 ? readFd : call.FdOffset == 0x1004 ? writeFd : call.A0;
+            long value = isChild ? index switch { 0 => (long)pid, 1 => (long)pid + cycle + 1, 8 => 4, _ => 0 } :
+                index switch { 0 or 1 or 12 => (long)pid, 5 or 6 or 7 => -22, 8 => -14,
+                    9 => (long)pid + cycle + 1, 11 or 19 => -11, 15 => 1, 18 => 4, 23 => 15, _ => 0 };
+            bool blocked = isChild ? index is 9 or 10 : index is 10 or 16 or 17 or 20;
+            ulong action = blocked ? 3UL : index == (isChild ? child.Count : parent.Count) - 1 ? isChild ? 4UL : 2UL : 1UL;
+            ulong status = blocked ? 9UL : action is 2 or 4 ? 2UL : 1UL;
+            ulong fs = isChild ? index < 6 ? 0x403000UL : 0x403040UL : index < 2 ? 0UL : 0x402000UL;
+            rows.Add(FormattableString.Invariant($"M16_008_CALL identity={(isChild ? c : p)} nr={call.Nr} a0={a0} a1={call.A1} a2={call.A2} a3={call.A3} a4={call.A4} a5={call.A5} rip={call.Rip} rsp={(isChild ? 0x406000UL : 0x405000UL)} flags=2 fs={fs} gs=0 clock={clock} valueBits={unchecked((ulong)value)} action={action} status={status}"));
+        }
+        void Calls(bool isChild, int first, int last) { for (int i = first; i <= last; i++) Call(isChild, i); }
+        void Resume(ulong identity, long value) => rows.Add(FormattableString.Invariant($"M16_008_RESUME identity={identity} valueBits={unchecked((ulong)value)} status=1"));
+        void Supervisor(ulong identity, uint action, uint transfers, uint ready, uint active) => rows.Add(FormattableString.Invariant($"M16_008_SUPERVISOR identity={identity} action={action} transfers={transfers} ready={ready} active={active}"));
+        void Exit(ulong identity) => rows.Add(FormattableString.Invariant($"M16_008_EXIT identity={identity} clearTidResult=0"));
+        void Reap(ulong identity) => rows.Add(FormattableString.Invariant($"M16_008_REAP old={identity} next={identity + (1UL << 32)} context=zero stack=zero slot=zero"));
+        Calls(false, 0, 8);
+        for (; cycle < 4; cycle++)
+        {
+            c = ((ulong)(cycle + 1) << 32) | 2; uint transfers = (uint)cycle * 12;
+            Calls(false, 9, 10); Supervisor(p, 3, transfers + 2, 1, 2); Calls(true, 0, 9); Supervisor(c, 3, transfers + 4, 1, 2);
+            Resume(p, 4); Calls(false, 11, 16); Supervisor(p, 3, transfers + 6, 1, 2);
+            Resume(c, 0); Call(true, 10); Supervisor(c, 3, transfers + 8, 1, 2);
+            Resume(p, 4096); Call(false, 17); Supervisor(p, 3, transfers + 10, 1, 2);
+            Resume(c, 4100); Call(true, 11); Exit(c); Supervisor(c, 4, transfers + 12, 1, 2); Reap(c); Resume(p, 0); Call(false, 18);
+        }
+        Calls(false, 19, 20); Supervisor(p, 3, 50, 0, 1);
+        ulong timeoutClock = clock;
+        for (int tick = 1; tick <= ticks; tick++)
+        { clock = timeoutClock + (ulong)tick * 1_000_000 / (uint)ticks; rows.Add(FormattableString.Invariant($"M16_008_TICK epoch={tick} nanos={clock} ready={(tick == ticks ? 1 : 0)}")); }
+        Resume(p, -110); Calls(false, 21, 22); rows.Add("M16_005_WRITE fd=1 bytes=15 data=M16_THREADS_OK!"); Call(false, 23);
+        Call(false, 24); Exit(p); Supervisor(p, 2, 52, 0, 1); Reap(p);
+        rows.Add(FormattableString.Invariant($"M16_008_OWNER_END reaped=5 transfers=52 irqs={ticks} exit=42 userReserved=0 userBacked=0 process=drained timer=restored descriptors=closed guard=detached pool=scrubbed initialStack=zero reservation=retained"));
+        rows.Add("M16_008_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true");
+        rows.Add("CLROS_M16_008_READY"); rows.Add("TEST_PASS m16-008"); return LinuxCallOrdinalTests.Annotate(rows);
+    }
+
+    private readonly record struct CallFrame(ulong Nr, ulong A0, ulong A1, ulong A2, ulong A3, ulong A4, ulong A5, ulong Rip, int FdOffset);
+    private static List<CallFrame> Decode(bool child, string variant = "Threads")
+    {
+        byte[] elf = LinuxThreadProofFixture.CreateElf(variant); ulong[] r = new ulong[16]; List<CallFrame> calls = []; int fd = -1;
+        for (int at = child ? 0x900 : 0x200, end = child ? 0xf00 : 0x900; at < end && elf[at] != 0xcc;)
+        {
+            byte op = elf[at]; int size;
+            if (op is >= 0xb8 and <= 0xbf)
+            { int reg = op - 0xb8; r[reg] = BinaryPrimitives.ReadUInt32LittleEndian(elf.AsSpan(at + 1)); if (reg == 7) fd = -1; size = 5; }
+            else if (op == 0x41 && elf[at + 1] is >= 0xb8 and <= 0xbf)
+            { r[8 + elf[at + 1] - 0xb8] = BinaryPrimitives.ReadUInt32LittleEndian(elf.AsSpan(at + 2)); size = 6; }
+            else if (op == 0x0f && elf[at + 1] == 5)
+            { calls.Add(new(r[0], r[7], r[6], r[2], r[10], r[8], r[9], 0x400000UL + (uint)at + 2, fd)); size = 2; }
+            else size = op switch
+            {
+                0x31 => 2, 0x66 or 0x41 or 0x4c => 3, 0xe9 => 5, 0xfc or 0xf4 => 1,
+                0x49 when elf[at + 1] == 0xff && elf[at + 2] == 0xcd => 3,
+                0x8b or 0x89 or 0x3b or 0x0f => 6, 0xc7 => 10, 0x64 => 9,
+                0x48 => elf[at + 1] switch { 0x3d => 6, 0x8b => 7, 0x85 or 0x89 => 3, _ => throw new InvalidOperationException("unexpected REX fixture opcode") },
+                _ => throw new InvalidOperationException("unexpected fixture opcode")
+            };
+            HostCheck.True(at + size <= end);
+            if (op == 0x8b && elf[at + 1] == 0x3d) fd = at + 6 + BinaryPrimitives.ReadInt32LittleEndian(elf.AsSpan(at + 2));
+            at += size;
+        }
+        return calls;
+    }
+    private static int[] Indices(string[] rows, string prefix) => Enumerable.Range(0, rows.Length).Where(i => rows[i].StartsWith(prefix, StringComparison.Ordinal)).ToArray();
+    private static ulong Field(string row, string key) => ulong.Parse(row.Split(' ').Single(x => x.StartsWith(key + "=", StringComparison.Ordinal))[(key.Length + 1)..], CultureInfo.InvariantCulture);
+    private static string[] Change(string[] rows, int index, string key, ulong value)
+    {
+        string[] changed = (string[])rows.Clone(), tokens = changed[index].Split(' ');
+        int token = Array.FindIndex(tokens, x => x.StartsWith(key + "=", StringComparison.Ordinal)); HostCheck.True(token > 0);
+        tokens[token] = key + "=" + value.ToString(CultureInfo.InvariantCulture); changed[index] = string.Join(' ', tokens);
+        HostCheck.True(changed[index] != rows[index]); return changed;
+    }
+    private static void Reject(string[] rows, byte[] package)
+    {
+        bool rejected = false; try { QemuTranscripts.ValidateLinuxThreadTail(rows, package, 0x200000, 0x100000); } catch (ToolFailure) { rejected = true; }
+        HostCheck.True(rejected);
+    }
+}

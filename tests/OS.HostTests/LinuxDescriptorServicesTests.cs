@@ -7,7 +7,7 @@ using Services = OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices;
 internal static unsafe class LinuxDescriptorServicesTests
 {
     private const ulong User = 0x100000000, Data = User + 4096, Vectors = User + 20480, Output = User + 24576;
-    private struct Model
+    internal struct Model
     {
         public LinuxMemoryServices.Admission Memory;
         public uint InputCopies, OutputCopies, SinkCalls, SinkBytes, Channel, FailInputAt;
@@ -15,7 +15,7 @@ internal static unsafe class LinuxDescriptorServicesTests
         public fixed byte Sink[8192];
     }
 
-    private sealed class Owner : IDisposable
+    internal sealed class Owner : IDisposable
     {
         public readonly LinuxMemoryServicesTests.Owner Memory = new();
         public readonly Services.State* State;

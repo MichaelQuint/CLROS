@@ -1,5 +1,271 @@
 # App Model
 
+[Step1307](../done/step1307.md) qualifies the bounded #191/#192 through #688
+thread/runtime batch and shared #733: 5,202 full-host checks, 44 strict captures
+across 32 profiles, three retained strict GC repetitions and 24 fresh ancestors.
+The unchanged pinned Hello, focused GC/ThreadPool, original RuntimeSmoke and
+RuntimeMatrix execute in CLROS with original native/provenance joins and complete
+cleanup. A separate raw-state diagnostic proves an exit-requested worker blocked
+by active upstream GC before later exit/reap. It supplies no DetachCurrentThread
+entry or strict-runner claim. Continuing networking, sockets/epoll and Kestrel
+remain incomplete; no numbered/cloud/production gate changes.
+
+## Historical development receipts
+
+The dated development states below are superseded for this batch by step1307;
+their failures, original sources and narrower evidence remain preserved.
+
+[Step1306](../done/step1306.md) fixes a mechanical signal-wait fixture alias:
+handler sigaltstack output overwrote its pipe descriptors. The separate data
+slot and independent emitted-address/output-write regression pass107 focused
+checks. Fresh mechanical packages preserve original upstream NativeAOT inputs;
+kernel/runtime and validator semantics are unchanged. Fifteen mechanical guests
+already pass; remaining wait/nesting cases and final shared acceptance are open.
+
+[Step1305](../done/step1305.md) records three strict Hello and three strict matrix
+captures with original native-review joins and complete cleanup. A six-capture
+integrity audit passes. The first mechanical thread capture also completes its
+workload/cleanup, but exceeds an obsolete32KiB host framing limit; declared
+Linux thread profiles now use the existing bounded8MiB diagnostic extent.
+Exact leaf and runner checks remain. Mechanical/ancestor/final-full acceptance
+is pending at that checkpoint. A separate earlier matrix startup
+failure remains preserved with unresolved cause.
+
+[Step1304](../done/step1304.md) replaces step1303's excessive matrix wake-bracket
+requirement. All six timestamps per round must match distinct successful
+CLOCK_MONOTONIC/ID1 syscall windows, bound to actual identity/ordinal and the
+validated parent HPET domain using the kernel's exact nanosecond conversion.
+Samples are chronological and consumed once. Cached scheduler time can lag real
+clock reads; managed timer completion need not produce a kernel timeout or an
+anonymous wake chain inside each interval. Existing elapsed/cancellation/disposal,
+GC, scheduler, wait-winner, reap and cleanup checks remain. This bounds reported
+timestamps, without claiming exact returned timespec or timer/callback identity.
+ThreadPool-stress deadline and original-runtime post-reap requirements remain.
+Final-source matrix repetitions and shared acceptance remain pending.
+
+[Step1302](../done/step1302.md) completes the three strict original RuntimeSmoke
+and three ThreadPool-stress repetitions. Hello's actual signal child can first
+run after early stdout; its complete mask/pipe wait is still required before
+exit and three-thread cleanup. The corrected consumer preserves all parent
+startup checks at each write, original inputs and the failed first capture.
+Final shared acceptance, including strict Hello repetitions, remains pending.
+
+[Step1301](../done/step1301.md) records six strict mechanical wait/TLS captures,
+five strict runtime/signal captures and 32 native review bindings at `7cb23ee`.
+Another unchanged original-runtime run reaches full cleanup but exposes a host
+consumer assumption: its 10 ms managed timer need not block until a kernel timeout
+if already due. The original-only correction accepts actual matched
+clock/wake/resume evidence as an alternative to deadline expiry; timestamped
+stress/matrix requirements and every payload/configuration remain fixed.
+Offline revalidation preserves the original failed run status. Final-source
+shared full-host, repeated guest, negative and ancestor acceptance remains open.
+
+[Step1285](../done/step1285.md) adds separate sealed admission for the unchanged
+original RuntimeSmoke, preserving its EH, GC/threads/TLS and task/timer groups
+as M16-010 regressions. Explicit app selection distinguishes it from the default
+RuntimeMatrix. Main package/index verification passes against retained r04
+authority. A repeated host-owner control exercises 48 worker lifetimes on the
+same backing, full-capacity failure, parked-wait cancellation, signal drain and
+complete release with fresh keys/generations. These are input/parser/service
+checks; actual CLROS runtime and shared full-host/native/guest gates remain open.
+
+[Step1284](../done/step1284.md) integrates the three broader runtime apps with
+dedicated default-off profiles, matching sealed program preparation and complete
+parent/leaf/raw-runner validation. App/profile mismatches and invalid inputs
+reject before child execution. Thirty-eight distinct focused checks and all
+three no-stdlib C# profile builds pass. Repeated guest process lifetimes,
+capacity/error cleanup and the shared eight-issue full-host/native/guest gates
+remain required. See [EFI build](efi-build.md) for exact selectors and timeouts.
+
+[Step1283](../done/step1283.md) implements the complete broader runtime leaf
+consumer. Independent synthetic leaves model 18 thread lifetimes/nine signal
+returns for GC stress, 13 lifetimes/nine live threads/six signal returns for the
+matrix, and three deadline-backed timer rounds for ThreadPool stress. Complete
+stdout without kernel phase evidence rejects; output segmentation/coalescing
+preserves distinct evidence. Timed restart uses original address/bitset/deadline
+and cannot reread a timeout or fabricate completion. Forty-seven focused checks
+pass across development rounds. No new QEMU selector or runtime acceptance is
+added at that step; parent/wrapper integration and actual process/capacity/error
+cleanup remained before the eight-issue batch gates.
+
+[Step1282](../done/step1282.md) supplies larger-policy execution ceilings, raw
+stdout decoding for all three broader apps and common transcript requeue
+accounting. Address wake FIFO can change while the original equal-deadline FIFO
+and wait identity remain fixed. Thirty focused checks pass. The complete broader
+syscall/signal/lifecycle/profile consumers, wrapper limits, repeated guest process
+lifetimes and error/capacity cleanup remain before the shared eight-issue gates.
+Neither the new budget nor synthetic transcript positives establish guest runtime
+execution or a live timeout/recovery proof.
+
+[Step1281](../done/step1281.md) adds the ordinary musl futex-requeue prerequisite
+for broader runtime admission. The syscall returns the actual total woken plus
+moved. Moving transfers the retained backing reference, preserving the exact
+scheduler wait, absolute timeout and original restart syscall. Host controls
+exercise target FIFO, private/shared namespaces, repeated moves, signal
+interruption, process shutdown and actual user-mapping mutation guards. These
+are service tests; broader protocol/profile integration and CLROS guest evidence
+remain required before runtime acceptance.
+
+[Step1279](../done/step1279.md) expands the existing native worker and signal
+limits to 16. The reviewed pool has 13 code pages, 28 metadata pages and
+16 guarded worker stacks in 162 total pages. Independent accounting requires
+112448 metadata bytes, leaving 2240 bytes under the fixed control allowance.
+Host controls cover all 16 emitted CALL paths, every admitted count, exhaustion,
+highest-slot signal queue isolation and actual table exit/reap/generation reuse.
+Combined no-stdlib C# compilation passes. Native capacity execution and the
+complete broader protocol/profile consumers remain pending batch qualification.
+
+[Step1278](../done/step1278.md) adds separate canonical packages and sealed
+reviewed instruction indexes for the three Linux-qualified stress/matrix apps.
+The fixed receipt, nine relevant raw sources per app, ELF/DLL/object/stdout and
+complete trace inventory bind each package. An independent audit matches every
+byte in all five executable sections, with no gaps. Seven focused checks and
+actual factory/mutation controls pass. New manifests declare the existing
+thread service's 16-slot limit: the matrix has a causal lower bound of nine
+live threads, requiring the step1279 owner expansion. These packages have
+no QEMU selector yet; native capacity, entropy/wait budgets and complete
+workload-specific protocol/profile consumers remain required before batch gates.
+
+[Step1277](../done/step1277.md) implements a bounded libc self-unmap/exit
+continuation for the current threaded owner. The exact immutable 17-byte ELF
+sequence may retain its unmapped stack/TLS registers through three instruction
+boundaries and final exit60, with current-generation, fully blocked signal and
+zero-handler guards. Ordinary mapped-return admission remains the default.
+Sixty focused host checks and both no-stdlib C# builds pass. The transcript
+consumer independently binds the ELF/index, live pre-unmap envelope, IRQ RAX
+and best-effort clear-TID EFAULT. Actual CLROS execution and the shared batch
+full-host/native/QEMU gates remain pending.
+
+[Step1276](../done/step1276.md) qualifies separate static Linux NativeAOT builds
+and complete outputs for all three broader stress/matrix apps. Suspension stress
+has 18 thread traces and nine observed suspension-signal returns; ThreadPool stress
+has eight traces; the runtime matrix has 13 traces and six signal returns.
+Trace totals are not concurrent thread counts. Twenty-nine commands, 758 sources,
+19 transferred producer files and 5,811 native/runtime inputs pass the independent
+portable audit. Captured Windows/POSIX roots relocate without bypassing exact raw
+hash/inventory checks. The builder and loopback services stop, with all three
+retained backing images unchanged. Original source-pinned producers remain
+unchanged. These new apps still require reviewed indexes, complete guest protocol
+and profile admission. The separately reproduced gateway self-unmap/exit-tail
+gap receives the bounded implementation in step1277; Linux output grants no
+CLROS authority.
+
+[Step1275](../done/step1275.md) adds separate `NativeAotRuntimeMatrix` source and
+Windows managed evidence. Three in-process rounds exercise real compiler EH
+filter/catch/finally/rethrow identity, one cached failed initializer across six
+accesses, delegates across GC, running/parked roots and fresh thread statics,
+finalization, Task.Run, measured delays/timer disposal and cancellation. Six
+dedicated workers join; all three finalizers run once. The unchanged original
+runtime workload also passes as a separate Windows managed regression. Four
+focused checks pass. Repeated rounds do not establish repeated guest process
+lifetimes. Step1276 adds Linux producer/syscall qualification; its complete
+reviewed index and M16-010 guest admission remain pending.
+
+[Step1274](../done/step1274.md) adds separate `NativeAotThreadPoolStress` source
+and Windows managed evidence. Three rounds complete 24 Task.Run work items with
+two app operations in flight, recover cancelled async waits, race result/cancel
+publication with exactly one winner and reject duplicate completion. Before,
+racing and after-publication continuations each execute once. Actual timer
+disposal stays pending while its callback is held; after release, disposal and
+callback completion precede a separately measured Task.Delay observation window.
+Seven focused checks pass, including original ThreadPool smoke regressions. This
+app's operations drain; runtime worker shutdown and kernel cleanup still need
+guest evidence. Original pinned workloads remain unchanged. The new stress app
+receives Linux producer/syscall qualification in step1276; package/index and
+guest admission remain pending.
+
+[Step1273](../done/step1273.md) adds a separate `NativeAotSuspensionStress`
+workload. Three lifetimes each start five managed workers: running, event-waiting,
+sleeping, join-blocked and exit-requested. Nine forced full collections require
+continued running-worker progress; all fifteen workers join with live object,
+interior-reference and isolated TLS checks. A strict whole-output consumer and
+bounded Windows managed execution pass. The exit request races a collection;
+output alone does not establish that exit overlapped suspension. Managed wait
+states do not prove kernel park ownership. Step1276 qualifies its Linux build;
+canonical package/index and guest selection remain pending. Original pinned apps and
+their identities remain unchanged. Capacity/wait-interruption/race and native
+cleanup evidence remain required within the same eight-issue batch.
+
+[Step1272](../done/step1272.md) wires the two sealed focused runtime programs
+through M16-009's complete parent and runner checks. Select the exact app with
+paired `-LinuxThreadingApplication` and `-LinuxThreadingDisassembly` options;
+the current canonical package/index is prepared before any live child, and
+retained input read locks cover orchestration and validation. Bounded plain,
+single-link serial/summary authorities span capture-hash and complete validation,
+with final hash/identity verification. Original serial lines
+drive runner observations/accounting/tails after raw payload validation. Six
+synthetic segmentation controls use the actual Linux stdout and prepared programs;
+none is a CLROS capture. Broader runtime stress and stable batch qualification
+remain pending; unchanged guest Hello, suspension/ThreadPool and Kestrel remain
+unaccepted.
+
+[Step1271](../done/step1271.md) implements host-side leaf consumers for both
+exact prepared threading programs. Canonical package/index and raw complete
+output admission precede current call/wait/signal-return records, mappings/TLS,
+per-generation FIFO scheduling, real deadline order, user/idle IRQ epochs, stdout
+pairing, exit/clear-TID/reap and terminal cleanup. Synthetic controls include two
+suspension cycles, a handler IRQ before its first syscall, equal-deadline wakes,
+worker-originated clone, generation reuse and cancellation of masked pending or
+parked handler state. Retired frames are not counted as completed sigreturns.
+Forty-four focused checks pass. Genuine packages/programs plus genuine Linux
+stdout alone are rejected without the guest protocol. Step1272 adds parent/runner
+wiring; broader runtime stress and frozen batch qualification remain pending.
+No CLROS execution is accepted by these host controls.
+
+[Step1270](../done/step1270.md) decodes the two focused workloads' complete raw
+stdout across arbitrary write segmentation. Original fd1 byte counts and kernel
+CRLF framing are checked before payload newline normalization; immutable write
+lengths remain available to the future syscall/output consumer. Both retained
+Linux stdout captures pass whole, 17-byte and single-byte synthetic envelopes.
+The native call record also observes actual retained wait source/deadline/sequence
+so timed wake ordering can be checked without guessing from timespec pointers.
+Sixty-seven focused checks pass. Complete scheduler/signal/lifecycle consumers
+still precede new QEMU admission. This is neither guest execution nor issue closure.
+
+[Step1269](../done/step1269.md) adds canonical packages and sealed instruction
+lookup for step1267's exact qualified suspension and ThreadPool ELF images.
+Packaging checks the fixed producer receipt, current relevant raw sources,
+produced DLL/object, complete stdout and every thread trace. The manifests grant
+four/eight bounded thread slots and explicit user IRQs. A shared internal parser
+retains Hello's original index contract; each new program separately pins its
+complete reviewed LLVM index, executable backing and syscall continuations.
+Both actual inputs pass preparation, independent index audit and tamper controls.
+These are host input checks. No new QEMU selector or guest success path is added;
+complete signal/scheduler/output/lifecycle consumers still follow in this batch.
+
+[Step1268](../done/step1268.md) expands the existing M16 native owner and signal
+metadata from four to eight threads for step1267's observed seven-thread
+ThreadPool workload. One 105-page retained pool contains seven RX code pages,
+25 RW/NX metadata pages, the original 16-page usable switch stack, eight guarded
+four-page worker stacks, the guarded four-page IRQ stack and private IDT.
+Entry rewriting selects its actual containing page before RW/NX -> RX changes.
+The bound record now reports code=28672/metadata=102400; strict consumers reject
+old geometry, a pool crossing 4 GiB and roots overlapping its expanded tail.
+Host state/emission and no-stdlib compilation are development evidence. Native
+review, guest execution and acceptance remain deferred to the same eight-issue
+batch; the older M09 pool and historical captures retain their original scope.
+
+[Step1267](../done/step1267.md) adds the separate upstream ThreadPool/timer
+workload and Linux qualification command for both focused threading workloads.
+Both pinned static musl NativeAOT apps pass on Linux: suspension uses four
+threads and two actual SIGRT_3 activation/return cycles; ThreadPool uses seven
+threads and checks four Task.Run results, continuation publication races,
+pre/during-wait cancellation, measured delays and disposed one-shot callbacks.
+The trace exposes syscall 200 (`tkill`); the restricted adapter now reuses the
+existing same-process target/generation/mask semantics without changing captured
+registers. Fifty-seven focused checks pass. Linux execution and managed Windows
+choreography grant no CLROS guest acceptance. Guest consumers, sufficient thread
+capacity and runtime stress remain under #687/#193/#194/#688; the same eight-issue
+batch stays open. App-owned work draining does not imply runtime worker shutdown.
+
+[Step1266](../done/step1266.md) completes source consumers for interrupted pipe
+and futex waits (EINTR/restart and positive partial-write progress), two nested
+alternate-stack returns and finite alternate-stack exhaustion under #687/#733.
+Canonical packages, emitted context assertions and strict complete transcripts
+have focused host controls. No new native or guest execution is established;
+#191/#192 -> #686 -> #687 -> #193 -> #194 -> #688 plus #733 remains the same
+eight-issue batch, with full-host qualification deferred until its stable boundary.
+
 M09-006/#188 is qualified in [step1230](../done/step1230.md): 4,806 full-host
 checks across 626 fixtures (94 Native), scoped original native review, three
 byte-identical 177-application-record guests and 15 fresh ancestors pass. Two
@@ -8,6 +274,284 @@ transfers, retained joins, both cancellation/deadline orders and four off-stack
 reaps. All 23 internal page leases return; the 32-page reservation remains owned.
 Application threads, upstream runtime, unchanged Hello and Kestrel remain
 unqualified. Next are #191 wait-on-address and #192 application FS/TLS before #686.
+
+[Step1231](../done/step1231.md) and [step1232](../done/step1232.md) implement
+#191's wait-address owner and #192's application TLS ownership over that table.
+Exact lifetime bindings, compare/register/wake, deadlines, cancellation and
+scrub/reuse have focused host controls. [Step1234](../done/step1234.md) wires their
+default-off wait/TLS native profiles; original native and guest qualification
+remain pending.
+
+#686's development service work is recorded in [step1235](../done/step1235.md)
+through [step1240](../done/step1240.md): per-thread masks, exact pthread clone
+flags and TIDs, saved user GPR/FP/FS images, staged exit and clear-TID, futex
+WAIT/WAKE/BITSET, retained mapping lifetimes and scheduler-backed blocking pipes.
+Pipe waits retain original descriptions across fd reuse; completion is consumed
+once. The memory commit guard protects retained backing until borrows drain.
+
+[Step1241](../done/step1241.md) through [step1243](../done/step1243.md) add the
+initial separate 64-page M16-008 pool and native process/driver/timer partials
+(expanded to 105 pages in step1268). They use
+actual kernel table generations, copy/PTE/HPET callbacks, per-worker gateways,
+supervisor confirmation, off-stack reap and generation-bound entry re-emission.
+The code page changes RW/NX then RX; an independent code snapshot protects the
+scrubbed-context interval. IRQ epochs have a separate timer queue; HPET
+nanoseconds alone advance futex deadlines. Unsafe cleanup retains ownership.
+
+[Step1244](../done/step1244.md) attaches that owner through BootSequence after
+PCI/APIC setup and selects explicit saved-user resumption. A compiled command
+creates the deterministic mechanical package; the runner preflights its exact
+bytes before build/launch. The strict thread tail binds every actual call,
+blocked completion, supervisor return, clear-TID exit, reap, timer observation
+and final restoration to the packaged ELF. Ancestor startup/service and complete
+PCI/APIC validators remain in the composed path.
+
+[Step1245](../done/step1245.md) extends that same two-thread mechanical package
+to four sequential child lifetimes. A preserved R13 counter loops only after
+clear-TID join, resetting the shared words before each new clone. Strict rows
+require 91 calls, 36 transfers and five reaps, with the reused slot's actual
+generations and monotonically distinct TIDs. The host controls reject stale
+generation or TID replay. The same guest input asserts malformed clone flags,
+misaligned futex and invalid mask-size EINVAL, unmapped FS EFAULT, and full-table
+clone EAGAIN with the parked child's clear-TID word intact. The repeated guest
+protocol and these errno controls have not executed.
+
+[Step1246](../done/step1246.md) adds pipe-capacity blocking to each lifetime.
+After the private futex wakes, the parent blocks on an empty pipe; the child
+requests 4,100 bytes, retains 4,096 bytes of progress while parked, and finishes
+the final four after the parent drains capacity. The parent joins then checks
+the tail. A separate user RW page holds the full read, leaving stacks, TLS and
+control words disjoint. The current strict contract is 103 calls, 21 completions,
+52 transfers and five reaps. This remains an unexecuted mechanical input.
+
+[Step1247](../done/step1247.md) adds three small packages under the same M16-008
+profile. PipeReadClose requires a parked reader to resume with EOF after the
+child closes the write endpoint. PipeWriteClose fills the pipe, then requires
+a parked writer to resume with EPIPE after the child closes the read endpoint;
+the mechanical owner explicitly ignores SIGPIPE. PipeShutdown parks a child
+reader, resumes the parent through its genuine HPET-driven futex timeout and
+requires exit_group42 to drain the child without any further user call or
+successful read completion. All require two off-stack reaps and drained/scrubbed
+ownership. Earlier zero-byte I/O binds peer fds without assuming fd numbers.
+The complete package bytes select each strict protocol before build/launch.
+These are focused host/input/parser checks; none of these guests has run.
+
+[Step1248](../done/step1248.md) begins #687 with concrete rt_sigaction and
+sigaltstack handlers on the existing thread dispatcher. An optional exclusive
+signal-state owner shares 64 dispositions across the process and binds each
+alternate stack to its actual kernel generation. Shared-VM clone clears the
+child's alternate stack; actual reap scrubs its metadata. A valid update survives
+an old-state copyout EFAULT, matching the pinned Linux ABI. The gateway routes
+these calls to real handlers; an unattached owner retains ENOSYS. Eight host controls and the
+affected focused regressions pass; the M16-008 no-stdlib C# closure compiles.
+Native attachment follows in step1252 below.
+
+[Step1249](../done/step1249.md) adds checked current-generation delivery and
+rt_sigreturn on that same owner. The 440-byte Linux x64 frame references a
+separate aligned legacy 512-byte FX image, preserves the red zone, supports
+alternate stacks/autodisarm, masks and four nested frames, and accepts validated
+user register/FP/mask edits. An explicit syscall15 RestoreUser result installs
+the complete user image into the active gateway. Malformed frames stage owned
+SIGSEGV shutdown. This bounded profile requires fixed selectors, flags6 and
+legacy FX storage with zero software-reserved bytes; XSAVE, legacy selector
+repair and fabricated return frames outside the owned nesting are unsupported.
+
+[Step1250](../done/step1250.md) adds actual tgkill/private pending state:
+standard coalescing and Linux synchronous-class priority, bounded realtime
+events, masks, process-wide ignore flushing, per-generation cleanup and checked
+current-thread selection. SIGKILL stages actual owned process shutdown. Null
+signals check existence; unsupported job control returns ENOSYS. Masked signals
+can remain pending across a real wait and later unmask/delivery.
+
+[Step1251](../done/step1251.md) adds real single-winner interrupted waits and
+EINTR/restart decisions. Existing wake/deadline winners remain final; partial
+pipe writes retain their prefix. Zero-progress pipe and untimed futex calls
+restart under the selected handler's SA_RESTART or when no handler remains.
+Timed futexes expose EINTR to handlers and retain an independent restart_syscall
+callback/deadline until sigreturn. No-handler retries preserve the original
+absolute deadline and re-admit current word/mapping ownership; pipe retries
+resolve the fd again. No internal restart errno reaches user code, and no image
+is available before resolving an interrupted return. Asynchronous user faults/
+activation, unchanged Hello and suspension
+remain unfinished.
+
+[Step1252](../done/step1252.md) attaches exclusive signal metadata to the
+default-off native thread owner before publishing any generation. Actual process
+release detaches it after reaping; End and an explicit zero check precede pool
+restoration/scrubbing. Both active syscalls and initial/rescheduled workers call
+the same checked return preparation after actual completion/accounting and before
+full GPR/FX installation. Its final handler/restart/sigreturn RAX is retained;
+the old syscall result cannot overwrite it. Fatal delivery stages actual shutdown
+and uses the existing native restoration/exit/reap path. Syscall records retain
+their captured values before installation aliases the gateway frame. No synthetic
+dispatch is used for delivery or gate accounting. This is source integration and
+focused host/no-stdlib C# evidence; the native signal path has not executed.
+
+[Step1253](../done/step1253.md) adds C# mechanical signal inputs for ordinary and
+alternate stacks, actual pending/unmask delivery and register/FP/DF restoration,
+plus malicious saved-CS and invalid-restorer controls. The syscall15 serial
+snapshot now precedes checked restoration so it retains the actual restorer
+instruction/RSP rather than the user-edited return target.
+
+[Step1254](../done/step1254.md) adds the default-off M16-009 build/runner switch,
+its complete M16-008 prerequisite closure and distinct post-APIC boot leaf. The
+runner preflights complete mechanical signal packages before native build/launch
+and retains its read lock. Strict validation joins original parent records with
+actual syscall continuations, handler/restorer stack geometry, expected fatal
+negatives and drained cleanup. It admits only these mechanical inputs for now;
+unchanged Hello, asynchronous user capture and suspension remain unfinished.
+Parser controls and C# compilation establish no new guest signal acceptance.
+
+[Step1255](../done/step1255.md) adds a complete native GP/PF capture entry in
+the retained worker code pool. M16-009 explicitly emits/verifies that region;
+default gateway/worker byte paths retain their earlier behavior. Actual user
+GPRs, RAX, FP, bases and the hardware frame are saved before scratch use. C#
+fault delivery runs under the original kernel root and authenticates the actual
+SWAPGS envelope separately from the saved supervisor KGS. Raw invalid RIP/RSP
+are signal-context data only: an alternate stack can receive the checked handler,
+and sigreturn must repair inaccessible continuations. Fault frames retain hardware
+RF provenance; handlers/returns clear RF under this restricted profile. Owned
+PROT_NONE reservations produce SEGV_ACCERR, holes SEGV_MAPERR, GP SI_KERNEL;
+outside-user saved PF errors hide page-table presence. Blocked/ignored/fatal
+faults use actual process shutdown. This is focused host/source/C# development
+evidence. Fault guest execution, asynchronous user IRQ capture, unchanged Hello
+and focused suspension remain unfinished; no new guest has executed.
+
+[Step1256](../done/step1256.md) adds seven canonical mechanical fault inputs:
+`FaultRead`, `FaultWrite`, `FaultExecute`, `FaultStack`, `FaultGp`, `FaultReturn`
+and `FaultFatal`. Their actual instructions target an unowned address above 4 GiB,
+RX code, NX data, a null user RSP, or CLI at CPL3. Handlers check every saved
+64-bit GPR, trap/error/address, RF/DF, x87 controls, MXCSR, XMM0/15 and FS/GS;
+checked returns repair RIP/RSP and preserve a saved RAX edit. Negative cases
+require default shutdown or rejection of an unrepaired NX continuation. Strict
+transcripts bind the single hardware fault to actual instructions, handler/
+restorer calls, witnesses, exit139/42, supervisor confirmation and drained reap.
+
+ARCH_SET_GS now uses the existing actual current-thread owner and the same
+mapped-readable base policy as ARCH_SET_FS; only that exact successful gateway
+frame field can change. Clone inherits GS, and later changes remain per-thread.
+Separate immutable callback-entry FS/GS witnesses prevent valid copies during
+pending/nested delivery from comparing hardware bases against a newly edited
+return frame before native WRMSR. The gateway allocation and disabled legacy
+bytes remain unchanged. These are focused host/byte/parser/C# development
+checks; no mechanical fault, unchanged Hello or runtime suspension has run.
+
+[Step1257](../done/step1257.md) implements an explicit M16-009 workload policy:
+`env.CLROS_USER_IRQS=1` requests IF-enabled user images; absent/0 retains the
+existing disabled behavior, and malformed requests fail admission. The process
+and signal owners retain the same policy, including clone and checked sigreturn.
+Kernel callbacks keep IF clear. A private E1 gate uses owned IST4 and complete
+GPR/RAX/FX/base capture before adopting the original kernel root. An actual
+acknowledged one-shot saves the current generation's user image, restores the
+original gateway envelope, then yields through its genuine captured kernel CALL.
+Pending signal delivery occurs at the subsequent checked user-return boundary.
+
+If a syscall ends the excursion before the interrupt arrives, the still-bound
+worker drains that one-shot at a separately admitted kernel `STI; HLT; CLI`
+checkpoint on the native switch stack. APIC acknowledgement and quiescent
+restoration precede IST release and Park/Exit/Yield. Failure retains ownership;
+masking a pending IRQ does not count as restoration. The separate IRQ epoch and
+HPET nanosecond clock remain distinct. Existing canonical packages omit the
+policy and retain their bytes. At that step no IRQ package or transcript was admitted;
+mechanical activation proof, original native/stack review and guest qualification
+remain required. That step adds focused host/byte checks and C# compilation only.
+
+[Step1258](../done/step1258.md) adds the canonical `Activation` mechanical input.
+Its parent seeds every GPR, x87/SSE, DF and private FS/GS, then makes no syscall
+in `JMP $`. A real preemption must let the child send signal35. The handler
+checks the complete saved context and edits RIP/RAX through checked sigreturn;
+the parent checks restored state and waits for actual child clear-TID before
+stdout/exit42. Child TLS/GS are independent. Every emitted instruction boundary
+has an explicit per-worker syscall stage and register/stack envelope, including
+the shared clone continuation and temporary PUSHFQ depth.
+
+The strict parser admits timing variation through an exact FIFO two-generation
+schedule. Each segment ends in one IRQ or ending-excursion drain and its actual
+supervisor transfer. Epochs, HPET clocks, syscall/handler/restorer vectors, spin
+capture, both exits/reaps and final restoration must all agree. Host synthetic
+controls do not prove execution. All twelve inputs remain unqualified in guests.
+
+[Step1260](../done/step1260.md) adds `NativeAotHelloGuest` and `linux hello-package`
+for the exact unchanged .NET 11 r04 Hello qualified on Linux in step1225. The
+host packager binds its ELF, actual produced DLL/object, five original receipts
+and seven current raw app/SDK/build/qualifier inputs. It checks both upstream ELF
+inspection and the current CLROS loader, then publishes a fresh package atomically.
+The package requests 64 MiB memory, a 1.5 MiB main stack, four thread slots,
+sixteen descriptors, no arguments and only `env.CLROS_USER_IRQS=1`. These are
+package limits; this step does not measure guest resource use. The preserved
+Linux Hello trace starts main, Finalizer and SigHandler; SigHandler blocks on
+pipe read until exit_group, with no poll/ppoll call in that trace.
+
+The actual 1,241,768-byte ELF remains unchanged. Four focused host cases, eleven
+payload ancestors, real-input publication and eight separate receipt/producer/ELF
+mutation controls pass. At that step QEMU admitted only mechanical inputs;
+step1265 adds the explicit Hello selector and complete protocol validator.
+Actual execution remains required. No Hello, signal-thread shutdown, suspension,
+GC/ThreadPool or Kestrel guest acceptance is added.
+
+[Step1264](../done/step1264.md) adds immutable host instruction admission for
+that exact package. Each LLVM row must match file-backed executable ELF bytes;
+the complete ordered boundary/length/byte/syscall index must match its reviewed
+digest and counts (243,126 instructions, 166 syscall sites). Raw opcode searches
+also find two operand-byte matches and cannot supply syscall authority. A
+value-only inspection report accepts no program; only the pinned factory creates
+the lookup used by future transcript checks. The actual package/index and five
+real-input mutation controls pass, alongside eight focused host checks. This
+did not itself admit Hello through QEMU or validate its scheduler/output/exit protocol.
+
+[Step1265](../done/step1265.md) wires explicit pinned Hello admission through the
+existing M16-009 wrapper and complete firmware/startup/PCI/APIC/runner path. The
+model checks used syscall arguments, mapped memory/stack/TLS, three real thread
+generations, FIFO waits/wakes/IRQs, original stdout bytes and exit-group cancellation
+with three off-stack reaps and terminal cleanup. Both startup wake orderings have
+synthetic controls. Actual per-generation gateway call ordinals reject lost or
+reordered call records across all thread/signal decoders. Package and disassembly
+read locks span the run. Thirty-nine final focused checks and no-stdlib C# compile
+pass; no native publication, guest or full-host qualification is added.
+
+[Step1261](../done/step1261.md) implements the separate .NET 11/C# 14
+`apps/NativeAotSuspensionSmoke` consumer required after unchanged Hello. It uses
+one dedicated managed worker, two explicit blocking compacting full collections,
+live main/worker arrays, an interior reference, distinct thread-static values,
+and mandatory worker join. Each collection records a fresh progress sample after
+GC returns and requires a later increase; pre-GC activity cannot satisfy resume.
+The app uses no Task/ThreadPool/timer APIs. Startup/progress/join waits are bounded;
+the process owner must separately bound a GC call that cannot safely be cancelled.
+
+The Release managed DLL runs successfully on the Windows host, and the compiled
+`nativeaot threading validate-suspension <captured-stdout>` command checks all five
+output rows. Two focused host cases reject missing joins, stale counters, failed
+roots/TLS/interior witnesses, malformed numbers/UTF8 and extra/failure rows. This
+is managed-host coordination/output evidence only. The new app has no qualified
+Linux NativeAOT payload, activation trace or CLROS guest receipt yet; the three
+original payload apps and their qualifier/source identities remain unchanged.
+
+[Step1263](../done/step1263.md) adds terminal user-memory cleanup after process,
+thread, borrow and descriptor release. It requires the actual kernel root to be
+active and the user root inactive, then reuses the existing full-window unmap
+to relinquish dynamic reservations and scrub their backing. The initial ABI
+stack is bound to its audited static mapping, zeroed and checked. Static image
+and stack mappings, table allocations and firmware reservations remain owned.
+Strict thread/signal tails now require zero dynamic reservation/backing counters
+and the checked initial-stack witness. Package bytes and record counts are
+unchanged. Focused host checks and no-stdlib C# compilation pass; this cleanup
+revision has no native publication or guest receipt. The older diagnostic below
+retains its original cleanup scope.
+
+[Step1259](../done/step1259.md), integrated in [step1262](../done/step1262.md),
+adds one fresh mechanical `AlternateStack` diagnostic: the native worker executes
+the real handler/sigreturn, exits42, reaps and restores owned state. The full
+167-record application transcript and exact runner summary pass. This separate
+receipt is not execution evidence for user IRQ/Activation or unchanged Hello.
+Complete original native/stack review, live stress/negatives and batch/ancestor
+qualification remain required. Signal
+delivery and first unchanged Hello belong to #687; suspension/runtime consumers
+follow their managed dependencies. The requested eight-issue batch remains
+#191/#192 -> #686 -> #687 -> #193 -> #194 -> #688, plus #733. Step1258 freezes
+the current cohesive fixture slice for coordinated review. The integration
+repairs preserve current Hello/suspension source and producer admission. Full-
+host/native/guest batch acceptance remains open; no issue is closed and no
+unfiltered full-host suite has run for this branch yet.
 
 [Step1224](../done/step1224.md) qualifies M09-005 hardware-timer execution:
 4,776 full-host checks, six original native bodies, three fresh 115-record
@@ -197,9 +741,10 @@ dependencies; neither qualifies guest execution. The
 
 The legacy OSAPPv0 native-tier app model described below is in early host-tested
 planning. The separate Linux ELF path above is the current first-class .NET 11
-application target. Kestrel support is mandatory, but upstream runtime,
-sockets, timers, threading/scheduler and continuing network prerequisites remain
-incomplete. Broad workload claim boundaries are tracked in `docs/completion-gates.md`.
+application target. Step1307 qualifies only its exact pinned thread/runtime
+workloads. Kestrel support is mandatory; continuing network, TCP and Linux
+socket/epoll prerequisites remain incomplete. Broad workload claim boundaries are
+tracked in `docs/completion-gates.md`.
 
 `docs/workload-profiles.md` defines the application workload profiles used by the backlog. `SingleMinimalApi` is the near-term default and deliberately keeps the first hosted target to one Minimal API/Kestrel workload without requiring a process table or per-app address spaces. `MultiMinimalApi` is a later profile that requires process/isolation/supervisor semantics and is not implemented today.
 

@@ -157,12 +157,18 @@ public static partial class QemuTranscripts
         return lines[..start];
     }
 
-    private static void LinuxMemoryPolicy(string line)
+    private static void LinuxMemoryPolicy(string line, uint entropy = 32,
+        uint expectedPoolPages = LinuxMemoryServices.DefaultPoolPages)
     {
-        const string suffix = " poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel";
+        Need(entropy is 32 or 256,"m16_006_entropy_policy");
+        Need(expectedPoolPages is LinuxMemoryServices.DefaultPoolPages or LinuxMemoryServices.MaximumPoolPages,"m16_006_backing_policy");
+        string suffix = " poolPages="+expectedPoolPages.ToString(System.Globalization.CultureInfo.InvariantCulture)+
+            " vaEnd=68719476736 reservationQuota=17179869184 entropyBytes="+
+            entropy.ToString(System.Globalization.CultureInfo.InvariantCulture)+" cpus=1 root=inactive-kernel";
         Need(line.EndsWith(suffix, StringComparison.Ordinal), "m16_006_policy");
         var policy = ReadRecord(line[..^suffix.Length], "M16_006_POLICY", "physical:dec", "available:dec");
-        Need(policy["physical"] is >= 16777216 and <= 0x100000000 && policy["available"] >= 16777216 &&
+        Need(policy["physical"] <= 0x100000000 && policy["physical"] >= expectedPoolPages*4096UL &&
+            policy["available"] >= expectedPoolPages*4096UL &&
             policy["available"] <= policy["physical"] && (policy["physical"] | policy["available"]) % 4096 == 0, "m16_006_resource_facts");
     }
 

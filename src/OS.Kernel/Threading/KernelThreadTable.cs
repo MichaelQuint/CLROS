@@ -28,7 +28,7 @@ public unsafe struct KernelThreadTable
     }
     public enum State : byte { Empty, Ready, Running, Parking, Waiting, Pending, Exiting, Exited, Retired }
     public enum WaitKind : byte { None, Park, Sleep, Join }
-    public enum Completion : byte { None, Woken, Deadline, Joined, Cancelled }
+    public enum Completion : byte { None, Woken, Deadline, Joined, Cancelled, Interrupted }
 
     /// <summary>By-value operation/snapshot result. Default is not successful.
     /// Pending means one completion won and is retained until ready space exists.
@@ -130,6 +130,21 @@ public unsafe struct KernelThreadTable
             _initialized = true;
         }
         return Status.Ok;
+    }
+
+    /// <summary>Read the first empty slot's prospective generation/slot identity
+    /// without changing storage. Failure returns a default identity, including
+    /// full slot or ready capacity. This acquires no reservation, pin or publication
+    /// authority and does not admit a context. Keep the same single-owner IF-clear
+    /// transaction through Create; another publication can change this result.</summary>
+    public Status InspectNextCreateIdentity(ulong key, ulong flags, out OSHostHandle identity)
+    {
+        identity = default;
+        Status status = Access(key, flags); if (status != Status.Ok) return status;
+        uint index = 0; while (index < _capacity && _slots[index].State != State.Empty) index++;
+        if (index == _capacity) return Status.Full;
+        if (_ready.IsFull) return Status.ReadyFull;
+        identity = Id(index); return Status.Ok;
     }
 
     /// <summary>
@@ -293,6 +308,20 @@ public unsafe struct KernelThreadTable
         status = WaitSlot(wait, out uint index); if (status != Status.Ok) return new(status);
         if (_slots[index].WaitKind == WaitKind.Join) return new(Status.WrongState);
         return Complete(wait, Completion.Woken);
+    }
+
+    /// <summary>Complete a park/sleep registration for a genuine externally
+    /// selected signal, without setting thread cancellation. The IRQ-off owner
+    /// supplies the exact generation/sequence and resolves pending-signal policy.
+    /// An earlier wake/deadline/interrupt remains the sole winner; ready overflow
+    /// retains Pending. No handler, user frame, native transfer or join interrupt
+    /// is performed. All context/stack borrows retain their existing lifetime.</summary>
+    public Result Interrupt(ulong key, ulong flags, KernelThreadWait wait)
+    {
+        Status status = Access(key, flags); if (status != Status.Ok) return new(status);
+        status = WaitSlot(wait, out uint index); if (status != Status.Ok) return new(status);
+        if (_slots[index].WaitKind == WaitKind.Join) return new(Status.WrongState);
+        return Complete(wait, Completion.Interrupted);
     }
 
     /// <summary>Advance one injected/hardware-owner tick epoch and complete due
