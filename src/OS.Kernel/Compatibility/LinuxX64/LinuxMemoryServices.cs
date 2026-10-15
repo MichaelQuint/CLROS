@@ -486,6 +486,9 @@ public static unsafe class LinuxMemoryServices
         if (!GuardChanges(state, regions, count)) return NoMemory;
         // All fallible work is complete. The inactive-root, exclusive-pool
         // precondition allows zero-fill before publishing the candidate leaves.
+        // Begin zeroed unowned pages; every release preserves that invariant.
+        // Re-clearing already-free pages adds pool-sized work to sparse/policy
+        // changes without protecting any additional user data.
         for (uint page = 0; page < memory.PoolPages; page++)
         {
             ulong physical = memory.PoolPhysical + page * Page;
@@ -493,7 +496,7 @@ public static unsafe class LinuxMemoryServices
             for (uint i = 0; i < count; i++)
                 if (regions[i].Backing != 0 && physical >= regions[i].Backing && physical - regions[i].Backing < regions[i].Bytes)
                 { held = true; fresh = regions[i].Fresh && physical - regions[i].Backing >= regions[i].FreshFrom; break; }
-            if (!held || fresh) Clear(memory.Pool + page * Page, Page);
+            if (fresh || !held && PreviouslyBacked(state, physical)) Clear(memory.Pool + page * Page, Page);
         }
         CopyTables(memory);
         for (uint i = 0; i < MaximumRegions; i++)
@@ -505,6 +508,16 @@ public static unsafe class LinuxMemoryServices
         }
         state->Count = count; state->ReservedBytes = reserved; state->BackedPages = backed; state->Root = root;
         return 0;
+    }
+
+    private static bool PreviouslyBacked(State* state, ulong physical)
+    {
+        for (uint i = 0; i < state->Count; i++)
+        {
+            ulong backing = state->Regions[i * 4 + 2];
+            if (backing != 0 && physical >= backing && physical - backing < state->Regions[i * 4 + 1]) return true;
+        }
+        return false;
     }
 
     private static bool GuardChanges(State* state, Region* next, uint count)

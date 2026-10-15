@@ -1,5 +1,12 @@
 # PAL
 
+[Step1294](../done/step1294.md) stops re-zeroing already-free pool pages on
+mapping/policy changes while preserving fresh/released-page zeroing and every
+admission/guard check.43 focused checks and the strict unchanged original runtime
+regression pass with full cleanup. Broader GC stress still fails its real sleep
+window; the one-run timing differences are not a fixed speedup claim. Real
+sched_yield support is next; application deadlines and clocks stay unchanged.
+
 [Step1293](../done/step1293.md) records strict successful development captures
 for focused suspension (two actual activation returns), focused ThreadPool,
 three-lifetime ThreadPool stress and the runtime matrix (six activation returns).

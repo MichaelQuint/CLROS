@@ -55,8 +55,8 @@ internal static unsafe class LinuxMemoryServicesTests
         public byte* At(ulong va)
         {
             ulong leaf = Leaf(va), physical = leaf & 0x000ffffffffff000;
-            HostCheck.True((leaf & 5) == 5 && physical >= Pool && physical < Pool + PoolPages * 4096);
-            return Memory.Pool + physical - Pool + (va & 4095);
+            HostCheck.True((leaf & 5) == 5 && physical >= Memory.PoolPhysical && physical < Memory.PoolPhysical + Memory.PoolPages * 4096UL);
+            return Memory.Pool + physical - Memory.PoolPhysical + (va & 4095);
         }
         public byte[] Tables() => new ReadOnlySpan<byte>(Memory.Tables, (int)Memory.TablePages * 4096).ToArray();
         public void Dispose()
@@ -397,6 +397,30 @@ internal static unsafe class LinuxMemoryServicesTests
         HostCheck.Equal(-12L, LinuxMemoryServices.Protect(owner.State, Start, 3 * 4096, 1));
         HostCheck.Equal((long)Start + 4096, Map(owner, Start + 4096, 4096, 3));
         HostCheck.True(new ReadOnlySpan<byte>(owner.At(Start + 4096), 4096).IndexOfAnyExcept((byte)0) == -1);
+        HostCheck.True(LinuxMemoryServices.Audit(owner.State));
+    }
+
+    [HostTest("linux.memory large-pool policy changes preserve live bytes and release reuse zeroing above the old pool bound")]
+    private static void LargePoolZeroing()
+    {
+        using var owner = new Owner(tables: X64UserAddressSpace.MaximumTables, backingPages: LinuxMemoryServices.MaximumPoolPages);
+        owner.Begin(); const ulong pages = 4097, bytes = pages * 4096, tail = Start + 4095 * 4096UL;
+        HostCheck.Equal((long)Start, Map(owner, Start, bytes, 3));
+        new Span<byte>(owner.At(Start), (int)bytes).Fill(0x6d);
+        HostCheck.Equal(0L, LinuxMemoryServices.Advise(owner.State, Start, bytes, 17));
+        HostCheck.Equal((long)(Start + 0x4000000), Map(owner, Start + 0x4000000, 0x100000, 0));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.At(Start), (int)bytes).IndexOfAnyExcept((byte)0x6d) == -1);
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, tail + 4096, 4096, 0));
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(owner.State, tail + 4096, 4096, 3));
+        HostCheck.Equal((byte)0x6d, *owner.At(tail + 4096));
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, tail, 8192));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.Pool + 4095 * 4096UL, 8192).IndexOfAnyExcept((byte)0) == -1);
+        HostCheck.Equal((long)(Start + 0x4200000), Map(owner, Start + 0x4200000, 8192, 3));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.At(Start + 0x4200000), 8192).IndexOfAnyExcept((byte)0) == -1);
+        HostCheck.Equal((byte)0x6d, *owner.At(Start));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.Pool + bytes, (int)(owner.Memory.PoolPages * 4096UL - bytes)).IndexOfAnyExcept((byte)0) == -1);
+        HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, Start, X64UserAddressSpace.UserEnd - Start));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.Pool, (int)owner.Memory.PoolPages * 4096).IndexOfAnyExcept((byte)0) == -1);
         HostCheck.True(LinuxMemoryServices.Audit(owner.State));
     }
 

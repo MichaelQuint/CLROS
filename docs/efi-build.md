@@ -2,6 +2,12 @@
 
 ## Development Linux threading profile
 
+[Step1294](../done/step1294.md) removes redundant free-pool clearing, passes43
+focused checks and repeats strict original RuntimeSmoke with exit0/full cleanup.
+The measured broader GC stress retry still fails sleep_window and cleans fully;
+no timing requirement is weakened. Generic real sched_yield support remains the
+next compatibility slice before final shared qualification.
+
 [Step1293](../done/step1293.md) adds one strict successful capture each for the
 two focused apps, three-lifetime ThreadPool stress and the runtime matrix, with
 original output and complete cleanup. It records genuine activation/return
