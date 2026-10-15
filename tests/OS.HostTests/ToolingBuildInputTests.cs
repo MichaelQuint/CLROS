@@ -57,6 +57,7 @@ internal static class ToolingBuildInputTests
         string manifest = Manifest(root, source, config);
         foreach (string malformed in new[] { manifest.Replace("CLROS_BUILD_INPUTS_V1", "UNKNOWN", StringComparison.Ordinal),
             manifest.Replace("GLOB|tools/**/*.cs", "GLOB|../*.cs", StringComparison.Ordinal),
+            manifest.Replace("GLOB|tools/**/*.cs", "GLOB|D:/tools/**/*.cs", StringComparison.Ordinal),
             manifest.Replace(Hash(source), "invalid", StringComparison.Ordinal),
             manifest + "FILE|" + Path.Combine(Path.GetDirectoryName(root)!, "outside.cs") + "|" + Hash(source) + "\n" })
         {
@@ -71,5 +72,37 @@ internal static class ToolingBuildInputTests
         var xml = System.Xml.Linq.XDocument.Load(Path.Combine(repository, "tools/OS.Tooling/OS.Tooling.csproj"));
         string patterns = xml.Descendants("_ToolingInputPatterns").Single().Value;
         HostCheck.True(patterns.Contains("tools/**/*.cs", StringComparison.Ordinal) && patterns.Contains("src/OS.Kernel/**/*.cs", StringComparison.Ordinal), "build owns the source patterns");
+    }
+
+    [HostTest("tooling captured Windows and POSIX paths relocate across hosts without accepting relative or escaping identities", HostLane.Fast)]
+    private static void PortablePaths()
+    {
+        string root = NewRoot(), source = Path.Combine(root, "tools", "Example", "Program.cs"), config = Path.Combine(root, "global.json");
+        File.WriteAllText(source, "class Portable {}\r\n"); File.WriteAllText(config, "{}\n");
+        string Captured(string capturedRoot, string capturedSource, string capturedConfig) =>
+            "CLROS_BUILD_INPUTS_V1\nROOT|" + capturedRoot + "\nGLOB|tools/**/*.cs\nGLOB|global.json\nFILE|" + capturedSource + "|" + Hash(source) + "\nFILE|" + capturedConfig + "|" + Hash(config) + "\n";
+        foreach (var paths in new[] {
+            (Root: @"D:\frozen\CLROS", Source: @"d:/frozen/CLROS\tools/Example\Program.cs", Config: @"D:\frozen/CLROS/global.json"),
+            (Root: "/clros/frozen", Source: "/clros/frozen/tools/Example/Program.cs", Config: "/clros/frozen/global.json") })
+        {
+            string manifest = Captured(paths.Root, paths.Source, paths.Config);
+            HostCheck.Equal(0, Check(manifest, root).Count);
+            HostCheck.True(Check(manifest.Replace(Hash(source), new string('0', 64), StringComparison.Ordinal), root)
+                .Single().StartsWith("stale_build_input ", StringComparison.Ordinal), "relocation retains raw source hashes");
+        }
+        foreach (var paths in new[] {
+            ("relative", "relative/tools/Example/Program.cs", "relative/global.json"),
+            (@"D:frozen", @"D:frozen\tools\Example\Program.cs", @"D:frozen\global.json"),
+            (@"D:\frozen\CLROS", @"D:\frozen\CLROS-other\tools\Example\Program.cs", @"D:\frozen\CLROS\global.json"),
+            (@"D:\frozen\CLROS", @"D:\frozen\CLROS\..\CLROS\tools\Example\Program.cs", @"D:\frozen\CLROS\global.json"),
+            ("/clros/frozen", "/clros/FROZEN/tools/Example/Program.cs", "/clros/frozen/global.json"),
+            ("/clros/frozen", "/clros/frozen//tools/Example/Program.cs", "/clros/frozen/global.json"),
+            ("/clros/frozen", "/clros/frozen", "/clros/frozen/global.json"),
+            ("/clros/frozen/../frozen", "/clros/frozen/tools/Example/Program.cs", "/clros/frozen/global.json") })
+        {
+            bool rejected = false;
+            try { Check(Captured(paths.Item1, paths.Item2, paths.Item3), root); } catch (InvalidOperationException) { rejected = true; }
+            HostCheck.True(rejected, "captured path must be absolute, contained and traversal-free: " + paths.Item2);
+        }
     }
 }

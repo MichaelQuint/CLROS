@@ -8,6 +8,25 @@ the Windows EFI toolchain does not by itself provide Linux publishing.
 
 ## Current Status
 
+The broader runtime qualifier is a separate command:
+`dotnet tools/OS.Tooling/bin/Debug/net11.0/OS.Tooling.dll nativeaot runtime
+qualify --output <fresh-directory>`. It publishes exactly NativeAotSuspensionStress,
+NativeAotThreadPoolStress and NativeAotRuntimeMatrix using the same pinned Linux
+musl policy. A frozen portable managed tooling build can run on the Linux
+builder: its embedded manifest interprets captured absolute Windows/POSIX paths
+independently of the execution host, then checks the relocated inventory and
+exact raw source hashes. Relative paths, traversal and root-prefix collisions
+are rejected. Transfer its DLLs, deps and runtimeconfig alongside the frozen
+sources. The qualifier records those actual producer files and the Linux host
+runtime in addition to source, SDK, compiler/package/native inputs, static ELF,
+strict whole stdout and per-thread traces. No build freshness check is skipped.
+All three publications and complete executions pass in [step1276](../done/step1276.md),
+with 18/eight/thirteen thread traces respectively and zero publication warnings.
+The independent portable audit verifies 29 successful commands, 758 source
+identities, 19 producer files and 5,811 native/runtime inputs. Owned builder and
+loopback services stop; all three backing images retain their original hashes.
+The tool grants no package/index, CLROS profile or guest authority.
+
 The separate focused threading qualifier is implemented in
 [step1267](../done/step1267.md):
 `dotnet run --project tools/OS.Tooling -- nativeaot threading qualify --output

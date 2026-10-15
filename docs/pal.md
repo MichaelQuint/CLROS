@@ -1,5 +1,18 @@
 # PAL
 
+[Step1276](../done/step1276.md) passes exact static Linux NativeAOT publication,
+complete execution and trace audit for all three broader runtime workloads.
+Eighteen/eight/thirteen thread traces belong to suspension stress/ThreadPool
+stress/runtime matrix; these are totals, not maximum concurrent counts. Nine
+and six actual suspension-signal returns occur in the GC stress and matrix.
+Frozen Windows-produced managed tooling validates relocated source hashes on
+Linux and records its own producer plus host-runtime identities. Twenty-nine
+commands pass and the builder is fully stopped with backing images unchanged.
+Linux syscall observations remain a compatibility input. The host-reproduced
+musl self-unmap/exit-tail return-admission gap, CLROS scheduler/signal/wait
+ownership, M16-010 admission and guest cleanup remain required within the existing
+eight-issue batch. No CLROS application or runtime capstone is qualified here.
+
 [Step1275](../done/step1275.md) adds the comprehensive upstream runtime matrix
 without kernel EH or collector changes. Windows managed execution checks typed
 filter/catch/finally/rethrow identity, cached constructor failure, delegates,

@@ -1,5 +1,18 @@
 # App Model
 
+[Step1276](../done/step1276.md) qualifies separate static Linux NativeAOT builds
+and complete outputs for all three broader stress/matrix apps. Suspension stress
+has 18 thread traces and nine observed suspension-signal returns; ThreadPool stress
+has eight traces; the runtime matrix has 13 traces and six signal returns.
+Trace totals are not concurrent thread counts. Twenty-nine commands, 758 sources,
+19 transferred producer files and 5,811 native/runtime inputs pass the independent
+portable audit. Captured Windows/POSIX roots relocate without bypassing exact raw
+hash/inventory checks. The builder and loopback services stop, with all three
+retained backing images unchanged. Original source-pinned producers remain
+unchanged. These new apps still require reviewed indexes, complete guest protocol
+and profile admission. A separately reproduced gateway self-unmap/exit-tail gap
+must be fixed before guest qualification; Linux output grants no CLROS authority.
+
 [Step1275](../done/step1275.md) adds separate `NativeAotRuntimeMatrix` source and
 Windows managed evidence. Three in-process rounds exercise real compiler EH
 filter/catch/finally/rethrow identity, one cached failed initializer across six
@@ -8,8 +21,8 @@ finalization, Task.Run, measured delays/timer disposal and cancellation. Six
 dedicated workers join; all three finalizers run once. The unchanged original
 runtime workload also passes as a separate Windows managed regression. Four
 focused checks pass. Repeated rounds do not establish repeated guest process
-lifetimes. This matrix has no Linux producer/syscall/index qualification or
-M16-010 guest admission yet; original pinned inputs remain unchanged.
+lifetimes. Step1276 adds Linux producer/syscall qualification; its complete
+reviewed index and M16-010 guest admission remain pending.
 
 [Step1274](../done/step1274.md) adds separate `NativeAotThreadPoolStress` source
 and Windows managed evidence. Three rounds complete 24 Task.Run work items with
@@ -21,7 +34,8 @@ callback completion precede a separately measured Task.Delay observation window.
 Seven focused checks pass, including original ThreadPool smoke regressions. This
 app's operations drain; runtime worker shutdown and kernel cleanup still need
 guest evidence. Original pinned workloads remain unchanged. The new stress app
-has no Linux producer/syscall/index qualification or guest admission yet.
+receives Linux producer/syscall qualification in step1276; package/index and
+guest admission remain pending.
 
 [Step1273](../done/step1273.md) adds a separate `NativeAotSuspensionStress`
 workload. Three lifetimes each start five managed workers: running, event-waiting,
@@ -30,8 +44,8 @@ continued running-worker progress; all fifteen workers join with live object,
 interior-reference and isolated TLS checks. A strict whole-output consumer and
 bounded Windows managed execution pass. The exit request races a collection;
 output alone does not establish that exit overlapped suspension. Managed wait
-states do not prove kernel park ownership. This app has no Linux qualification,
-canonical package/index or guest selector yet; the original pinned apps and
+states do not prove kernel park ownership. Step1276 qualifies its Linux build;
+canonical package/index and guest selection remain pending. Original pinned apps and
 their identities remain unchanged. Capacity/wait-interruption/race and native
 cleanup evidence remain required within the same eight-issue batch.
 
