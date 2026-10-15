@@ -259,7 +259,7 @@ public unsafe partial struct LinuxThreadServices
         Overlap(start, bytes, (ulong)_futex.Addresses, _futex.AddressBytes) || Overlap(start, bytes, (ulong)_futex.Registrations, _futex.RegistrationBytes);
     private bool ForbiddenFutexAlias(ulong start)
     {
-        if (BorrowOverlap(start, 4) || FutexStorageOverlap(start, 4) || DescriptorStorageOverlap(start, 4)) return true;
+        if (BorrowOverlap(start, 4) || FutexStorageOverlap(start, 4) || DescriptorStorageOverlap(start, 4, includeUserBacking: false)) return true;
         for (uint i = 0; i < _owner.Capacity; i++)
         {
             var d = _owner.Workers[i].Initial;

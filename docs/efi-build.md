@@ -2,6 +2,18 @@
 
 ## Development Linux threading profile
 
+[Step1287](../done/step1287.md) reproduces both r13 startup failures through
+production services. Futex resolution now admits validated words in application
+backing while retaining descriptor/futex metadata exclusions and wait lifetime
+guards. The combined mapping inventory holds 128 rows, reserving capacity for
+the existing 64 mutable regions alongside fewer than64 static rows. Physical
+backing, table-page and mutable-region quotas remain unchanged. The recorded
+32-call startup memory trace and descriptor-attached futex controls pass.
+Native publication passes, and r14 blocks on the original futex and passes
+the previously failing dynamic mprotect. It later rejects a protection change
+to owned readonly ELF data at `0x533000`, before application output. Native
+stack/resource review and successful guest qualification remain pending.
+
 [Step1286](../done/step1286.md) begins actual native/runtime qualification.
 The new probe symbols are present in the reviewed inventory. The independent
 user root now retains RX thread-pool code, RW/NX usable stacks/metadata and

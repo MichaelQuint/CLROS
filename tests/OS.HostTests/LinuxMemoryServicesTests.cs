@@ -10,24 +10,29 @@ internal static unsafe class LinuxMemoryServicesTests
     {
         public readonly LinuxMemoryServices.State* State;
         public readonly LinuxMemoryServices.Admission Memory;
-        public Owner(uint tables = TablePages, ulong quota = 0x400000000)
+        public Owner(uint tables = TablePages, ulong quota = 0x400000000, uint backingPages = PoolPages, uint staticRows = 2)
         {
+            HostCheck.True(staticRows >= 2 && staticRows <= X64UserAddressSpace.MaximumRanges);
             State = (LinuxMemoryServices.State*)NativeMemory.AlignedAlloc((nuint)sizeof(LinuxMemoryServices.State), 16);
             *State = default;
-            byte* pool = (byte*)NativeMemory.AlignedAlloc(PoolPages * 4096, 4096);
-            ulong* live = (ulong*)NativeMemory.AlignedAlloc(TablePages * 4096, 4096);
-            ulong* candidate = (ulong*)NativeMemory.AlignedAlloc(TablePages * 4096, 4096);
-            var ranges = (X64UserMappingRange*)NativeMemory.AlignedAlloc((nuint)(2 * sizeof(X64UserMappingRange)), 16);
+            byte* pool = (byte*)NativeMemory.AlignedAlloc(backingPages * 4096, 4096);
+            uint allocatedTables = Math.Max(tables, TablePages);
+            ulong* live = (ulong*)NativeMemory.AlignedAlloc(allocatedTables * 4096, 4096);
+            ulong* candidate = (ulong*)NativeMemory.AlignedAlloc(allocatedTables * 4096, 4096);
+            var ranges = (X64UserMappingRange*)NativeMemory.AlignedAlloc((nuint)(staticRows * sizeof(X64UserMappingRange)), 16);
             ranges[0] = new() { VirtualStart = 0x400000, PhysicalStart = 0x300000, Pages = 1,
                 Protection = PageProtection.Read | PageProtection.Execute, Cache = PageCachePolicy.WriteBack, User = true };
             ranges[1] = new() { VirtualStart = 0x100000, PhysicalStart = 0x100000, Pages = 1,
                 Protection = PageProtection.Read | PageProtection.Write, Cache = PageCachePolicy.WriteBack };
-            new Span<byte>(pool, (int)PoolPages * 4096).Fill(0xa5);
-            new Span<ulong>(live, (int)TablePages * 512).Clear();
-            new Span<ulong>(candidate, (int)TablePages * 512).Clear();
+            for (uint i = 2; i < staticRows; i++) ranges[i] = new() { VirtualStart = 0x800000 + i * 8192UL,
+                PhysicalStart = 0x800000 + i * 8192UL, Pages = 1,
+                Protection = PageProtection.Read | PageProtection.Write, Cache = PageCachePolicy.WriteBack };
+            new Span<byte>(pool, (int)backingPages * 4096).Fill(0xa5);
+            new Span<ulong>(live, (int)allocatedTables * 512).Clear();
+            new Span<ulong>(candidate, (int)allocatedTables * 512).Clear();
             HostCheck.Equal(X64PageTableEntryStatus.Success, X64PatMappingToken.TryCreate(0x0007040600070406, 0, 3, 255, out var pat));
-            Memory = new() { Pool = pool, PoolPhysical = Pool, PoolPages = PoolPages, RootPhysical = Root,
-                TablePages = tables, Tables = live, CandidateTables = candidate, StaticRanges = ranges, StaticCount = 2,
+            Memory = new() { Pool = pool, PoolPhysical = Pool, PoolPages = backingPages, RootPhysical = Root,
+                TablePages = tables, Tables = live, CandidateTables = candidate, StaticRanges = ranges, StaticCount = staticRows,
                 ReservationBytes = quota, Conditions = X64PageTableEncodingPreconditions.CreateObserved(48, true, true, false, false, pat) };
         }
         public void Begin() => HostCheck.True(LinuxMemoryServices.Begin(State, Memory));

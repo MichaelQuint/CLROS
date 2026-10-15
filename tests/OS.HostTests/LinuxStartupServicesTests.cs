@@ -4,6 +4,46 @@ using OS.Kernel.Memory;
 
 internal static unsafe class LinuxStartupServicesTests
 {
+    [HostTest("linux.runtime r13 reservation and sparse commit trace fits retained mappings without false ENOMEM")]
+    private static void RuntimeMemoryTrace()
+    {
+        using Owner owner = new(new LinuxMemoryServicesTests.Owner(tables: X64UserAddressSpace.MaximumTables,
+            backingPages: LinuxMemoryServices.MaximumPoolPages, staticRows: 53));
+        owner.Begin();
+        // Original r13 memory calls after its first page-rounded TLS mmap (the
+        // Owner already maps that page). Kernel static addresses are synthetic;
+        // their actual count and all reservation/commit sizes are retained.
+        (ulong Nr, ulong Address, ulong Bytes, ulong Arg2, ulong Arg3, long Expected)[] calls =
+        [
+            (12, 0, 0, 0, 0, 17179869184), (12, 17179877376, 0, 0, 0, 17179877376),
+            (9, 17179869184, 4096, 0, 50, 17179869184), (9, 0, 4096, 3, 34, 4294971392),
+            (9, 0, 1585152, 0, 34, 4294975488), (10, 4294983680, 1576960, 3, 0, 0),
+            (9, 0, 535007232, 0, 34, 4296560640), (9, 0, 16384, 3, 34, 4831567872),
+            (11, 4296560640, 4096, 0, 0, 0), (28, 4296564736, 535003136, 16, 0, 0),
+            (9, 0, 4796416, 0, 34, 4831584256), (28, 4831584256, 4796416, 16, 0, 0),
+            (10, 4831584256, 40960, 3, 0, 0), (28, 4831584256, 40960, 17, 0, 0),
+            (10, 4831842304, 40960, 3, 0, 0), (28, 4831842304, 40960, 17, 0, 0),
+            (10, 4832100352, 20480, 3, 0, 0), (28, 4832100352, 20480, 17, 0, 0),
+            (10, 4832227328, 8192, 3, 0, 0), (28, 4832227328, 8192, 17, 0, 0),
+            (9, 0, 819220, 3, 34, 4836380672), (9, 0, 8192, 3, 34, 4837203968),
+            (9, 0, 4096, 3, 34, 4296560640), (9, 0, 4096, 3, 34, 4837212160),
+            (11, 4837212160, 4096, 0, 0, 0), (11, 4296560640, 4096, 0, 0, 0),
+            (9, 0, 4096, 3, 34, 4296560640), (10, 4332716032, 4096, 3, 0, 0),
+            (28, 4332716032, 4096, 17, 0, 0), (10, 4336910336, 4096, 3, 0, 0),
+            (28, 4336910336, 4096, 17, 0, 0), (10, 4341104640, 4096, 3, 0, 0)
+        ];
+        for (int i = 0; i < calls.Length; i++)
+        {
+            var c = calls[i];
+            HostCheck.True(owner.Memory.State->BackedPages + 1 < owner.Memory.Memory.PoolPages);
+            HostCheck.True(owner.Memory.State->Root.UsedTables < owner.Memory.Memory.TablePages / 2);
+            long value = owner.Call(c.Nr, c.Address, c.Bytes, c.Arg2, c.Arg3, c.Nr == 9 ? ulong.MaxValue : 0);
+            HostCheck.Equal(c.Expected, value, "recorded memory call " + i);
+            HostCheck.True(LinuxMemoryServices.Audit(owner.Memory.State));
+        }
+        HostCheck.Equal(7UL, owner.Memory.Leaf(4341104640) & 7);
+    }
+
     private const ulong Output = 0x100000000, Heap = 0x400000000;
     private struct Model
     {

@@ -36,6 +36,70 @@ internal static unsafe class LinuxFutexTests
     internal static byte MemoryGuard(void* context, ulong address, ulong bytes)
         => ((Service*)context)->MayChangeUserRange(Key, 2, address, bytes) ? (byte)1 : (byte)0;
 
+    [HostTest("linux.futex attached descriptors allow user backing while retaining waits and rejecting metadata aliases")]
+    private static void DescriptorBacking()
+    {
+        using LinuxBlockingPipeTests.Owner owner = new();
+        var m = owner.Thread; var memory = owner.Files.Memory;
+        const ulong page = LinuxMemoryServices.DynamicStart + 4096, word = page + 0x914;
+        m.UseMemory(memory.Memory); *(uint*)memory.At(word) = 2;
+        HostCheck.True(LinuxMemoryServices.AttachMutationGuard(memory.State, m.Service, &MemoryGuard));
+        var parent = m.Start(); m.Kernel.Dispatch(); var child = m.Clone();
+        HostCheck.Equal(LinuxSyscallAction.Blocked, Call(m, 128, 2, address: word).Action);
+        Park(m, parent); HostCheck.Equal(child.Value, m.Kernel.Dispatch().Value);
+        HostCheck.Equal(-12L, LinuxMemoryServices.Unmap(memory.State, page, 4096));
+        HostCheck.Equal(-12L, LinuxMemoryServices.Protect(memory.State, page, 4096, 1));
+        HostCheck.Equal(-12L, LinuxMemoryServices.Advise(memory.State, page, 4096, 4));
+        HostCheck.Equal(1L, Call(m, 129, 1, address: word).Value);
+        HostCheck.Equal(-12L, LinuxMemoryServices.Unmap(memory.State, page, 4096));
+        m.Yield(child); HostCheck.Equal(parent.Value, m.Kernel.Dispatch().Value);
+        HostCheck.Equal(0L, m.Service->CompleteFutexWait(Key, 2).Value);
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(memory.State, page, 4096, 1));
+        HostCheck.Equal(-11L, Call(m, 128, 3, address: word).Value); // Private waits may read a readonly word.
+        HostCheck.Equal(-14L, Call(m, 0, 2, address: word).Value); // Shared operations still require write.
+
+        var a = owner.Files.Admission;
+        ulong offset = (ulong)memory.At(word) - (ulong)memory.Memory.Pool;
+        ulong* forbidden = stackalloc ulong[] { (ulong)owner.Files.State, (ulong)a.Slots, (ulong)a.Descriptions,
+            (ulong)a.Pipes, (ulong)a.PipeBuffers, (ulong)a.Snapshots, (ulong)a.Scratch, (ulong)memory.State,
+            (ulong)memory.Memory.Tables, (ulong)memory.Memory.CandidateTables, (ulong)memory.Memory.StaticRanges, (ulong)a.Views };
+        for (int i = 0; i < 12; i++)
+        {
+            // Model a bad resolver returning descriptor metadata for an admitted
+            // user page. The production alias guard must reject before reading it.
+            var bad = memory.Memory; bad.Pool = (byte*)(forbidden[i] - offset); m.UseMemory(bad);
+            HostCheck.Equal(-14L, Call(m, 128, 2, address: word).Value);
+            HostCheck.True(!m.View(parent).Wait.IsValid && !m.Service->Failed);
+        }
+        m.UseMemory(memory.Memory);
+        HostCheck.Equal(0L, LinuxMemoryServices.Protect(memory.State, page, 4096, 0));
+        HostCheck.Equal(-14L, Call(m, 128, 2, address: word).Value);
+        HostCheck.True(LinuxMemoryServices.DetachMutationGuard(memory.State, m.Service, &MemoryGuard));
+        owner.Drain();
+    }
+
+    [HostTest("linux.futex metadata admission still excludes the attached descriptor user backing pool")]
+    private static void DescriptorMetadataAdmission()
+    {
+        using Model m = new(); using LinuxDescriptorServicesTests.Owner files = new();
+        files.Admission.User = m.DescriptorAccess; files.Admission.CopyToUser = m.UserCopyOut; files.Begin();
+        HostCheck.True(m.Service->EnablePipes(Key, 2, files.State));
+        byte[] pool = new ReadOnlySpan<byte>(files.Memory.Memory.Pool, (int)files.Memory.Memory.PoolPages * 4096).ToArray();
+        byte[] before = m.Kernel.Snapshot();
+        for (int field = 0; field < 3; field++)
+        {
+            var bad = m.FutexPlan();
+            if (field == 0) bad.Cells = (Service.FutexCell*)files.Memory.Memory.Pool;
+            if (field == 1) bad.Addresses = (WaitAddress.Slot*)files.Memory.Memory.Pool;
+            if (field == 2) bad.Registrations = (WaitAddress.Registration*)files.Memory.Memory.Pool;
+            HostCheck.True(!m.Service->EnableFutex(Key, 2, bad)); m.Kernel.Same(before);
+            HostCheck.True(pool.AsSpan().SequenceEqual(new ReadOnlySpan<byte>(files.Memory.Memory.Pool, pool.Length)));
+        }
+        HostCheck.True(m.Service->EnableFutex(Key, 2, m.FutexPlan()));
+        m.Start(); m.Kernel.Dispatch(); Drain(m);
+        HostCheck.True(LinuxDescriptorServices.End(files.State));
+    }
+
     [HostTest("linux.futex shutdown after enrollment commits real park and yield before off-stack exit")]
     private static void ShutdownBeforePark()
     {

@@ -482,7 +482,7 @@ public static unsafe class LinuxMemoryServices
     {
         if (state == null || ((ulong)state & 7) != 0 || (ulong)state > ~0UL - (ulong)sizeof(State) ||
             m.PoolPages == 0 || m.PoolPages > MaximumPoolPages || m.TablePages < 4 || m.TablePages > X64UserAddressSpace.MaximumTables ||
-            m.StaticCount == 0 || m.StaticCount >= X64UserAddressSpace.MaximumRanges ||
+            m.StaticCount == 0 || m.StaticCount >= X64UserAddressSpace.MaximumRanges - MaximumRegions ||
             m.ReservationBytes == 0 || (m.ReservationBytes & 4095) != 0 || m.ReservationBytes > X64UserAddressSpace.UserEnd - DynamicStart ||
             m.PoolPhysical < Page || (m.PoolPhysical & 4095) != 0 || m.PoolPhysical > X64UserAddressSpace.PhysicalEnd - m.PoolPages * Page ||
             m.RootPhysical < Page || (m.RootPhysical & 4095) != 0 || m.RootPhysical > X64UserAddressSpace.PhysicalEnd - m.TablePages * Page ||

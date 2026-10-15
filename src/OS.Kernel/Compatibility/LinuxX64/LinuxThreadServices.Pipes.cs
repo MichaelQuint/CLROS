@@ -170,11 +170,13 @@ public unsafe partial struct LinuxThreadServices
         return true;
     }
 
-    private bool DescriptorStorageOverlap(ulong start, ulong bytes)
+    private bool DescriptorStorageOverlap(ulong start, ulong bytes, bool includeUserBacking = true)
     {
         if (_descriptors == null) return false;
         for (uint i = 0; i < 13; i++)
         {
+            // Validated futex words may use application backing; service metadata may not.
+            if (i == 8 && !includeUserBacking) continue;
             DescriptorExtent(_descriptors, i, out ulong b, out ulong n);
             if (n != 0 && Overlap(start, bytes, b, n)) return true;
         }
