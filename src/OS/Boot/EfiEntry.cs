@@ -1799,7 +1799,7 @@ public static unsafe partial class EfiEntry
 #else
             if (!LinuxText(state, "TEST_START m16-010\r\n")) return false;
 #endif
-            bool completed = RunOwnedLinuxSyscalls(context);
+            bool completed = RunOwnedLinuxSyscalls(context) && state->LinuxSyscallExitCode == 0;
             if (completed) return true;
 #if M09_011_PROBE
             _ = LinuxText(state, "TEST_FAIL m09.011 native-runtime\r\n");
@@ -1928,6 +1928,8 @@ public static unsafe partial class EfiEntry
             for (uint i = 0; i < X64LinuxUserTransition.ObservationWords; i++) if (i != 3 && finalCpu[i] != original[i]) restored = false;
             for (uint i = 0; i < 512; i++) if (data[X64LinuxUserTransition.KernelFxOffset + i] != data[X64LinuxUserTransition.UserFxOffset + i]) restored = false;
 #if M16_009_PROBE
+            if (!restored)
+            { _ = LinuxText(state, "TEST_FAIL m16-009 native-return\r\n"); return false; }
             return restored && LinuxText(state, "M16_009_RESTORE root=true descriptors=true ss=true msrs=true fsGs=true fp=true stack=true\r\n") &&
                 LinuxText(state, "CLROS_M16_009_READY\r\nTEST_PASS m16-009\r\n");
 #else

@@ -177,6 +177,7 @@ internal static class NativeAotOriginalRuntimeTests
         }
         foreach(var change in new[]{("workers=16","workers=8"),("entropyBytes=256","entropyBytes=32"),
             ("packageBytes=1511248","packageBytes=1577616"),("M16_008_BUDGET_END nanos=100","M16_008_BUDGET_END nanos=99"),
+            ("exit=0 userReserved=0","exit=1 userReserved=0"),
             (" context=zero stack=zero slot=zero"," context=zero stack=dirty slot=zero")})
             Reject(()=>vector.Inspect(vector.Core.Rows.Select(r=>r.Replace(change.Item1,change.Item2,StringComparison.Ordinal)).ToArray()));
     }

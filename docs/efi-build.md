@@ -2,6 +2,15 @@
 
 ## Development Linux threading profile
 
+[Step1291](../done/step1291.md) reproduces the runtime ENOMEM through production
+services: 1024 pages requested, 1020 free, largest run1019, with region/table
+headroom and no guard callback. Fifty-four focused checks pass. The runtime
+wrapper now requires exit0; failed M16-009 returns emit a terminal failure after
+cleanup. R18 verifies failure gating after the known OOM and full cleanup,
+without M16-010 ready/pass. An unchanged Hello attempt reaches the mechanical
+128-IRQ ceiling and cleans two threads without stdout. Application backing/
+execution limits and strict model updates are next.
+
 [Step1290](../done/step1290.md) authenticates each IRQ-off pool audit once while
 retaining every leaf/guard/permission check and full standalone walk admission.
 A checked released-owner teardown phase ends active callback checks only after

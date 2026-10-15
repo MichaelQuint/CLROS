@@ -211,7 +211,7 @@ public static unsafe partial class EfiEntry
                     delegate* unmanaged<void*, ulong*, byte> clock = &LinuxThreadReadNanoseconds;
                     bool clockRead = c->Capacity <= 8 || clock(c->State, &now) == 1;
                     if ((!clockRead || !c->Budget.Continue(now, c->Epoch, step)) &&
-                        !LinuxNativeStop(c, clockRead ? 1U : 6U, step, now, clockRead)) return false;
+                        !LinuxNativeStop(c, clockRead ? 1U : 6U, step, now, c->Capacity > 8 && clockRead)) return false;
                 }
                 if ((c->Failed != 0 || c->Process.Failed || c->State->LinuxSyscallFaults != 0 || c->State->LinuxSyscallFailed != 0) &&
                     !LinuxNativeStop(c, 2, step)) return false;
@@ -242,7 +242,7 @@ public static unsafe partial class EfiEntry
         // never emit TEST_FAIL here, because the actual exit/reap drain follows.
         private static bool LinuxNativeStop(LinuxNativeControl* c, uint reason, uint step, ulong now = 0, bool clockRead = false)
         {
-            bool logged = c->Stopping != 0 || c->Capacity <= 8 ||
+            bool logged = c->Stopping != 0 ||
                 LinuxText(c->State, "M16_008_STOP reason=") && LinuxNumber(c->State, reason) &&
                 LinuxText(c->State, " step=") && LinuxNumber(c->State, step) &&
                 LinuxText(c->State, " epochs=") && LinuxNumber(c->State, c->Epoch) &&

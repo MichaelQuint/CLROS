@@ -1,5 +1,12 @@
 # PAL
 
+[Step1291](../done/step1291.md) proves the runtime's current backing exhaustion
+with an atomic production-service replay. The4 MiB commit needs1024 pages but
+only1020 remain; region/table capacity and the borrow guard are not its cause.
+The unchanged Hello also reaches its smaller worker policy's128-IRQ bound.
+Bounded application limits, independent of worker count, remain required before
+upstream runtime acceptance; app code and real deadlines remain unchanged.
+
 [Step1290](../done/step1290.md) removes repeated common authentication within a
 single IRQ-off pool audit and checks released-owner teardown before pool
 restoration. R17 emits a complete cleanup witness for an app exit1 after actual
