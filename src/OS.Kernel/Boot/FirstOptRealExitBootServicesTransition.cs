@@ -468,7 +468,11 @@ public static unsafe class FirstExitRetainedMappings
         starts[allocations] = references.LinuxDescriptorStart; lengths[allocations++] = references.LinuxDescriptorPages * 4096;
 #endif
 #if M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE || M16_008_PROBE
-        const ulong cooperativePages = Probes.EnableM16008Probe ? 64UL : OS.Kernel.Threading.ThreadContextSwitch.PoolPages;
+#if M16_008_PROBE
+        const ulong cooperativePages = OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.PoolPages;
+#else
+        const ulong cooperativePages = OS.Kernel.Threading.ThreadContextSwitch.PoolPages;
+#endif
         if (references.CooperativePoolPages != cooperativePages ||
             references.CooperativePoolStart < 4096 || (references.CooperativePoolStart & 4095) != 0 ||
             references.CooperativePoolStart > 0x100000000UL - cooperativePages * 4096UL) return false;

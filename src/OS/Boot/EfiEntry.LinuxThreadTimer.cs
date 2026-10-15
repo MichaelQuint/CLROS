@@ -20,7 +20,7 @@ public static unsafe partial class EfiEntry
                 c->Threads.Current.IsValid || c->Threads.HandoffPending || !LinuxNativeObserve(c) ||
                 !LinuxNativeVerify(c) || !CooperativeAuditPool(c->State, true)) return false;
             Storage* state = c->State;
-            byte* code = (byte*)c->Handler.CodeAddress, idt = (byte*)(state->CooperativePool + 63 * Page);
+            byte* code = (byte*)c->Handler.CodeAddress, idt = (byte*)(state->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IdtPage * Page);
             c->OriginalIdtr[0] = c->OriginalIdtr[1] = 0;
             ((delegate* unmanaged<void*, void>)(code + X64TimerInterrupt.SaveIdtrOffset))(c->OriginalIdtr);
             if (*(ushort*)c->OriginalIdtr != 4095 ||
@@ -46,11 +46,11 @@ public static unsafe partial class EfiEntry
         {
             if (c == null || LinuxNativeControlOwner(c) != c || c->Installed != 1 || c->OriginalIst != 0) return false;
             byte* tss = c->State->Arena.Descriptors->Tss;
-            ulong top = *(ulong*)(tss + 60), expected = c->State->CooperativePool + 62 * Page;
+            ulong top = *(ulong*)(tss + 60), expected = c->State->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page;
             if (top != 0 && top != expected) return false;
             for (uint i = 0; i < 4096; i++)
                 if (!(i >= 60 && i < 68) && tss[i] != (i < 104 ? c->OriginalTss[i] : 0)) return false;
-            byte* idt = (byte*)(c->State->CooperativePool + 63 * Page);
+            byte* idt = (byte*)(c->State->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IdtPage * Page);
             if (!LinuxNativeTimerGateMatches(idt + 0xe1 * 16, c->Handler.CodeAddress) ||
                 !LinuxNativeTimerGateMatches(idt + 0xff * 16, c->Handler.CodeAddress + X64TimerInterrupt.SpuriousOffset)) return false;
             for (uint i = 0; i < 4096; i++)
@@ -73,7 +73,7 @@ public static unsafe partial class EfiEntry
                 c->TimerDeadlines.Schedule(c->Key, new(c->Plan.Supervisor.Identity), new(c->Plan.Supervisor.CurrentIdentity), c->Epoch, 1) != DeadlineQueue.Status.Ok ||
                 c->Timer.Prepare(c->Key, c->State->ApicTopology.LocalApicAddress, 2000000, 8, ApicAccess(c->State), 2, c->Epoch) != SchedulerTimer.Status.Ok)
                 return false;
-            *(ulong*)(c->State->Arena.Descriptors->Tss + 60) = c->State->CooperativePool + 62 * Page;
+            *(ulong*)(c->State->Arena.Descriptors->Tss + 60) = c->State->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page;
             if (!LinuxNativeTimerInstalled(c) || c->Timer.Arm(c->Key, 2, true) != SchedulerTimer.Status.Ok) return false;
             ulong previous = c->Epoch;
             bool returned = ((delegate* unmanaged<uint>)(c->Plan.Owner.CodeStart + NativeProgram.Idle))() == 1;
@@ -125,8 +125,8 @@ public static unsafe partial class EfiEntry
 #endif
             if (c == null || frame == null || !LinuxNativeTimerInstalled(c) || c->Threads.Current.IsValid || c->Threads.HandoffPending ||
                 c->Epoch >= LinuxNativeMaximumEpochs || c->Timer.Ticks != c->Epoch || c->TimerDeadlines.ObservedTicks != c->Epoch ||
-                c->TimerDeadlines.Count != 1 || *(ulong*)(c->State->Arena.Descriptors->Tss + 60) != c->State->CooperativePool + 62 * Page ||
-                (ulong)frame != c->State->CooperativePool + 62 * Page - X64TimerInterrupt.FrameBytes || frame->Complete != 1 ||
+                c->TimerDeadlines.Count != 1 || *(ulong*)(c->State->Arena.Descriptors->Tss + 60) != c->State->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page ||
+                (ulong)frame != c->State->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page - X64TimerInterrupt.FrameBytes || frame->Complete != 1 ||
                 frame->Rip != c->Plan.Owner.CodeStart + NativeProgram.Idle + 2 || frame->Cs != 8 || frame->Ss != 16 ||
                 (frame->EntryFlags & 0x202) != 2 || (frame->Rflags & 0x602) != 0x202 ||
                 (frame->Rflags & ~(NativeSwitch.AdmittedFlags | 0x10200UL)) != 0 ||

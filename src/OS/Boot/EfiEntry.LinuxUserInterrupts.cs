@@ -26,7 +26,7 @@ public static unsafe partial class EfiEntry
             c->UserTimer = index + 1; // Retain partial preparation until verified restoration.
             if (c->Timer.Prepare(c->Key, c->State->ApicTopology.LocalApicAddress, 2000000, 8,
                 ApicAccess(c->State), 2, c->Epoch) != SchedulerTimer.Status.Ok) return false;
-            *(ulong*)(c->State->Arena.Descriptors->Tss + 60) = c->State->CooperativePool + 62 * Page;
+            *(ulong*)(c->State->Arena.Descriptors->Tss + 60) = c->State->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page;
             return LinuxNativeTimerInstalled(c) && c->Timer.Arm(c->Key, 2, true) == SchedulerTimer.Status.Ok;
         }
 
@@ -54,7 +54,7 @@ public static unsafe partial class EfiEntry
                     i < 0xff * 16 && idt[i] != state->Arena.Descriptors->FinalIdt[i]) return false;
             if (!active) return true;
             if (*(ulong*)(state->Arena.Descriptors->Tss + 4) != state->LinuxSyscallData + X64LinuxUserTransition.DataBytes ||
-                *(ulong*)(state->Arena.Descriptors->Tss + 60) != state->CooperativePool + 62 * Page) return false;
+                *(ulong*)(state->Arena.Descriptors->Tss + 60) != state->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page) return false;
             for (uint i = 0; i < 4096; i++)
                 if (!(i >= 4 && i < 12) && !(i >= 60 && i < 68) &&
                     state->Arena.Descriptors->Tss[i] != (i < 104 ? c->OriginalTss[i] : 0)) return false;
@@ -79,7 +79,7 @@ public static unsafe partial class EfiEntry
             uint index = c->Selected - 1;
             if (!LinuxNativeUserWorker(c, index) || c->Entered[index] != 1 || c->UserTimer != index + 1 ||
                 c->UserAcknowledged != 0 || c->UserDrain != 0 || c->UserPreempted != 0 ||
-                *(ulong*)(data + X64LinuxUserTransition.CaptureStackOffset) != state->CooperativePool + 62 * Page - 56 ||
+                *(ulong*)(data + X64LinuxUserTransition.CaptureStackOffset) != state->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page - 56 ||
                 !LinuxNativeUserGates(c, true) || !LinuxNativeVerify(c) || !CooperativeAuditPool(state, true) ||
                 !c->Process.CurrentImage(c->Key, 2, out var image) ||
                 !X64LinuxUserTransition.CaptureInterruptUserImage(data, X64LinuxUserTransition.DataBytes, image,
@@ -156,8 +156,8 @@ public static unsafe partial class EfiEntry
             uint index = c->Selected - 1;
             var owner = c->Plan.Owner;
             if (!LinuxNativeUserWorker(c, index) || c->UserDrain != 1 || c->UserTimer != index + 1 || frame == null ||
-                !LinuxNativeTimerInstalled(c) || *(ulong*)(c->State->Arena.Descriptors->Tss + 60) != c->State->CooperativePool + 62 * Page ||
-                (ulong)frame != c->State->CooperativePool + 62 * Page - X64TimerInterrupt.FrameBytes || frame->Complete != 1 ||
+                !LinuxNativeTimerInstalled(c) || *(ulong*)(c->State->Arena.Descriptors->Tss + 60) != c->State->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page ||
+                (ulong)frame != c->State->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page - X64TimerInterrupt.FrameBytes || frame->Complete != 1 ||
                 frame->Rip != owner.CodeStart + NativeProgram.Idle + 2 || frame->Cs != 8 || frame->Ss != 16 ||
                 (frame->EntryFlags & 0x602) != 2 || (frame->Rflags & 0x602) != 0x202 ||
                 (frame->Rflags & ~(NativeSwitch.AdmittedFlags | 0x10200UL)) != 0 ||

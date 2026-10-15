@@ -143,12 +143,25 @@ internal static unsafe class M16008EfiIntegrationTests
         HostCheck.True(ecam.Left.ToString() == "starts[allocations]");
         var entry = Parse("src/OS/Boot/EfiEntry.cs");
         var fields = entry.DescendantNodes().OfType<FieldDeclarationSyntax>().SelectMany(n => n.Declaration.Variables);
-        HostCheck.Equal(64, (int)((LiteralExpressionSyntax)fields.Single(n => n.Identifier.Text == "CooperativePoolPages").Initializer!.Value).Token.Value!);
-        HostCheck.Equal(4, (int)((LiteralExpressionSyntax)fields.Single(n => n.Identifier.Text == "CooperativeCodePages").Initializer!.Value).Token.Value!);
+        HostCheck.Equal("LinuxThreadProgram.PoolPages", fields.Single(n => n.Identifier.Text == "CooperativePoolPages").Initializer!.Value.ToString());
+        HostCheck.Equal("LinuxThreadProgram.CodePages", fields.Single(n => n.Identifier.Text == "CooperativeCodePages").Initializer!.Value.ToString());
         HostCheck.Equal(17, (int)((LiteralExpressionSyntax)fields.Single(n => n.Identifier.Text == "LinuxLedgerCapacity").Initializer!.Value).Token.Value!);
         var guards = entry.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(n => n.Identifier.Text == "CooperativeGuardPage")
-            .ExpressionBody!.Expression.DescendantNodes().OfType<LiteralExpressionSyntax>().Select(n => (int)n.Token.Value!).ToArray();
-        HostCheck.True(guards.SequenceEqual(new[] { 15, 32, 33, 38, 39, 44, 45, 50, 51, 56, 57, 62 }));
+            .ExpressionBody!.Expression;
+        HostCheck.Equal("LinuxThreadProgram.IsGuardPage(page)", guards.ToString());
+        var owner = Parse("src/OS/Boot/EfiEntry.LinuxThreads.cs");
+        var prepare = owner.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(n => n.Identifier.Text == "LinuxNativePrepare");
+        HostCheck.True(prepare.DescendantNodes().OfType<BinaryExpressionSyntax>().Any(n =>
+            n.Left.ToString() == "(uint)sizeof(LinuxNativeControl)" && n.OperatorToken.Text == ">" && n.Right.ToString() == "8192"));
+        var run = Parse("src/OS/Boot/EfiEntry.LinuxThreadRun.cs");
+        var numbers = run.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(n => n.Expression.ToString() == "LinuxNumber")
+            .Select(n => n.ArgumentList.Arguments[1].Expression.ToString()).ToArray();
+        foreach (string geometry in new[] { "NativeProgram.Bytes", "NativeProgram.MetadataPages * Page", "X64LinuxUserTransition.UserImageBytes" })
+            HostCheck.Equal(1, numbers.Count(n => n == geometry));
+        var rewrite = run.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(n => n.Identifier.Text == "LinuxNativeRewriteEntry");
+        var lookup = rewrite.DescendantNodes().OfType<InvocationExpressionSyntax>().Single(n => n.Expression.ToString() == "CooperativeFindLeaf");
+        HostCheck.Equal("state->CooperativePool+((NativeProgram.Entries+index*NativeProgram.WorkerStride)&~(Page-1))",
+            string.Concat(lookup.ArgumentList.Arguments[1].Expression.DescendantTokens().Select(token => token.Text)));
 
         Microsoft.CodeAnalysis.SyntaxNode Parse(string path)
         {

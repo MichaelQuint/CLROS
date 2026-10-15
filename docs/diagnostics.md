@@ -1,5 +1,12 @@
 # Diagnostics
 
+[Step1268](../done/step1268.md) changes current `M16_008_BOUND` geometry to
+code=28672/metadata=102400 for the eight-slot, 105-page native pool. Records and
+per-generation ordinals retain their existing form. Complete thread/signal/Hello
+consumers reject the older geometry, out-of-range pool ends and root overlap in
+the new tail. Prior captures retain their recorded old layout; they are not
+current acceptance. No fresh CLROS guest is run for this source slice.
+
 [Step1266](../done/step1266.md) adds mechanical interrupted-wait and nested-stack
 consumers without changing serial record schemas. A restarted syscall repeats
 its original RIP with a new ordinal. Untimed futex replay sees the changed word

@@ -2,6 +2,15 @@
 
 ## Development Linux threading profile
 
+[Step1268](../done/step1268.md) implements eight native worker slots and eight
+signal lifetimes within the same default-off M16-008/009 owner. Program offsets
+now cover seven code pages; the retained pool has 105 pages with derived
+metadata/switch/worker/IRQ/IDT bounds and 20 guard leaves. The existing usable
+stack sizes are preserved. Mapping retention, callback copy ranges, IRQ/IDT
+addresses, off-stack entry-page protection and strict transcript geometry use
+that layout. Combined and default no-stdlib C# compilation pass; this is not
+original native publication/stack review or current guest qualification.
+
 [Step1263](../done/step1263.md) adds terminal dynamic user-memory and initial ABI
 stack cleanup to the shared M16-008/009 owner after thread/process/descriptor
 release. The user root must be inactive before unmap; the stack scrub is bound
@@ -21,7 +30,8 @@ This is diagnostic development evidence, not complete batch qualification.
 `EnableM16008Probe` defaults false. It requires M16-002 through M16-007, the
 original five owned-exit parents, PCI and APIC; disabled parents and other leaves
 reject. [Step1241](../done/step1241.md) through [step1243](../done/step1243.md)
-record the exact source/resource closure, separate 64-page pool, native process
+record the original source/resource closure and 64-page pool (now 105 pages in
+step1268), native process
 callbacks, driver/timer and off-stack reuse. Existing M09 layouts are unchanged.
 
 [Step1244](../done/step1244.md) attaches the owner after actual PCI/APIC setup,

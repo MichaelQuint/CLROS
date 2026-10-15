@@ -29,10 +29,11 @@ internal static unsafe class LinuxThreadServicesTests
     // contract is exercised; no native code, page table or CPL3 transfer occurs.
     internal sealed class Model : IDisposable
     {
-        internal readonly KernelModel Kernel = new(generation: 5);
+        internal readonly KernelModel Kernel;
+        internal readonly uint Capacity;
         internal Services* Service => (Services*)(Kernel.Memory + 0x6000);
-        internal Services.Slot* Slots => (Services.Slot*)(Kernel.Memory + 0x7000);
-        internal Services.Worker* Workers => (Services.Worker*)(Kernel.Memory + 0x8000);
+        internal Services.Slot* Slots => (Services.Slot*)(Kernel.Memory + 0x64000);
+        internal Services.Worker* Workers => (Services.Worker*)(Kernel.Memory + 0x68000);
         internal Transition.UserImage* Initial => (Transition.UserImage*)(Kernel.Memory + 0x9000);
         private UserMemory* User => (UserMemory*)(Kernel.Memory + 0xa000);
         private readonly bool _userInterrupts;
@@ -55,19 +56,21 @@ internal static unsafe class LinuxThreadServicesTests
         internal void FailClock(bool value) => User->ClockFails = value;
         internal Services.FutexCell* FutexCells => (Services.FutexCell*)(Kernel.Memory + 0x60000);
 
-        internal Model(bool futex = false, uint futexCapacity = 4, bool userInterrupts = false)
+        internal Model(bool futex = false, uint futexCapacity = 4, bool userInterrupts = false, uint capacity = 3)
         {
+            HostCheck.True(capacity is > 0 and <= 8);
+            Capacity = capacity; Kernel = new(capacity, capacity, capacity, generation: 5);
             _userInterrupts = userInterrupts;
-            HostCheck.True(sizeof(Services) <= 0x1000 && sizeof(Services.Slot) * 3 <= 0x1000 && sizeof(Services.Worker) * 3 <= 0x1000);
-            *Service = default; new Span<byte>(Slots, sizeof(Services.Slot) * 3).Clear();
-            new Span<byte>(Workers, sizeof(Services.Worker) * 3).Clear();
+            HostCheck.True(sizeof(Services) <= 0x1000 && sizeof(Services.Slot) * capacity <= 0x4000 && sizeof(Services.Worker) * capacity <= 0x1000);
+            *Service = default; new Span<byte>(Slots, checked(sizeof(Services.Slot) * (int)capacity)).Clear();
+            new Span<byte>(Workers, checked(sizeof(Services.Worker) * (int)capacity)).Clear();
             *User = new() { Bytes = Kernel.Memory + 0xb000, Service = Service, FailWriteAddress = ulong.MaxValue, FailReadAddress = ulong.MaxValue, Now = 1000, Lifetime = 1 };
             new Span<byte>(User->Bytes, (int)UserBytes).Fill(0x5a);
-            for (int i = 0; i < 3; i++) Workers[i] = new() { Initial = WorkerContext(i, default), Entry = Kernel.Code + 0x400 + (uint)i * 0x40 };
+            for (int i = 0; i < capacity; i++) Workers[i] = new() { Initial = WorkerContext(i, default), Entry = Kernel.Code + 0x400 + (uint)i * 0x40 };
             HostCheck.True(Service->Initialize(Key, 2, new()
             {
                 Threads = Kernel.Table, ThreadKey = KernelThreadTableTests.Key, Slots = Slots, Workers = Workers,
-                Capacity = 3, SlotBytes = (uint)sizeof(Services.Slot) * 3, WorkerBytes = (uint)sizeof(Services.Worker) * 3,
+                Capacity = capacity, SlotBytes = (uint)sizeof(Services.Slot) * capacity, WorkerBytes = (uint)sizeof(Services.Worker) * capacity,
                 ProcessId = 101, ObservedMxcsrMask = 0xffbf, User = Access, CopyToUser = &CopyToUser,
                 FirmwareExited = true, SingleOwnerValidated = true
             }));
@@ -86,7 +89,7 @@ internal static unsafe class LinuxThreadServicesTests
             Cells = FutexCells, Addresses = (WaitAddress.Slot*)(Kernel.Memory + 0x61000),
             Registrations = (WaitAddress.Registration*)(Kernel.Memory + 0x62000),
             Capacity = capacity, CellBytes = capacity * (uint)sizeof(Services.FutexCell),
-            AddressBytes = capacity * (uint)sizeof(WaitAddress.Slot), RegistrationBytes = 3 * (uint)sizeof(WaitAddress.Registration),
+            AddressBytes = capacity * (uint)sizeof(WaitAddress.Slot), RegistrationBytes = Capacity * (uint)sizeof(WaitAddress.Registration),
             OwnerKey = 0x6675746578616464, Resolve = &ResolveFutex, ReadMonotonic = &Monotonic
         };
 
@@ -101,7 +104,7 @@ internal static unsafe class LinuxThreadServicesTests
         {
             HostCheck.Equal(KernelThreadTable.Status.Ok, Kernel.Table->InspectNextCreateIdentity(KernelThreadTableTests.Key, 2, out var identity));
             uint slot = unchecked((uint)identity.Value);
-            int index = checked((int)slot - 1); HostCheck.True(index is >= 0 and < 3);
+            int index = checked((int)slot - 1); HostCheck.True(index >= 0 && index < Capacity);
             Kernel.Prepare(index); Workers[index].Initial = WorkerContext(index, identity);
             HostCheck.Equal(ThreadContextSwitch.Status.Ok, ThreadContextSwitch.AdmitResume(Kernel.Owner, Workers[index].Initial));
             return identity;

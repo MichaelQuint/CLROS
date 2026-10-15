@@ -1,5 +1,17 @@
 # App Model
 
+[Step1268](../done/step1268.md) expands the existing M16 native owner and signal
+metadata from four to eight threads for step1267's observed seven-thread
+ThreadPool workload. One 105-page retained pool contains seven RX code pages,
+25 RW/NX metadata pages, the original 16-page usable switch stack, eight guarded
+four-page worker stacks, the guarded four-page IRQ stack and private IDT.
+Entry rewriting selects its actual containing page before RW/NX -> RX changes.
+The bound record now reports code=28672/metadata=102400; strict consumers reject
+old geometry, a pool crossing 4 GiB and roots overlapping its expanded tail.
+Host state/emission and no-stdlib compilation are development evidence. Native
+review, guest execution and acceptance remain deferred to the same eight-issue
+batch; the older M09 pool and historical captures retain their original scope.
+
 [Step1267](../done/step1267.md) adds the separate upstream ThreadPool/timer
 workload and Linux qualification command for both focused threading workloads.
 Both pinned static musl NativeAOT apps pass on Linux: suspension uses four
@@ -45,7 +57,8 @@ Pipe waits retain original descriptions across fd reuse; completion is consumed
 once. The memory commit guard protects retained backing until borrows drain.
 
 [Step1241](../done/step1241.md) through [step1243](../done/step1243.md) add the
-separate 64-page M16-008 pool and native process/driver/timer partials. They use
+initial separate 64-page M16-008 pool and native process/driver/timer partials
+(expanded to 105 pages in step1268). They use
 actual kernel table generations, copy/PTE/HPET callbacks, per-worker gateways,
 supervisor confirmation, off-stack reap and generation-bound entry re-emission.
 The code page changes RW/NX then RX; an independent code snapshot protects the

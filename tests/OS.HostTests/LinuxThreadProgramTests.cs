@@ -8,10 +8,10 @@ internal static unsafe class LinuxThreadProgramTests
     {
         var o = m.Owner; o.CodeBytes = P.Bytes; o.GuardsVerified = o.MappingsVerified = false;
         var supervisor = m.Supervisor; supervisor.ResumeRip = m.Code + P.DriverResume; supervisor.Context->Rip = supervisor.ResumeRip;
-        ulong control = o.ContextArena + 0x7000, helper = o.ContextArena + 0x6000;
+        ulong control = o.ContextArena + 0xb000, helper = o.ContextArena + 0xa000;
         new Span<byte>((void*)helper, 512).Clear(); *(ushort*)helper = 0x027f;
         *(uint*)(helper + 24) = 0x1f80; *(uint*)(helper + 28) = 0xffbf;
-        P.Binding* bindings = (P.Binding*)(o.ContextArena + 0x8000);
+        P.Binding* bindings = (P.Binding*)(o.ContextArena + 0xc000);
         for (uint i = 0; i < count && i < P.MaximumWorkers; i++)
         {
             S.Descriptor d = new() { Identity = 0x100000001UL + i, CurrentIdentity = 0x100000001UL + i,
@@ -19,18 +19,48 @@ internal static unsafe class LinuxThreadProgramTests
                 Kind = S.ResumeKind.Entry, ResumeRip = m.Code + P.Entries + i * P.WorkerStride };
             HostCheck.Equal(X64ThreadContext.Status.Ok, X64ThreadContext.Initialize(d.Context, 688, d.ResumeRip,
                 d.StackGuardStart + 8192 - 40, 0xffbf));
-            ulong argument = o.ContextArena + 0x9000 + i * 8;
+            ulong argument = o.ContextArena + 0xf000 + i * 8;
             bindings[i] = new() { Context = d, Argument = argument, Entry = new() { Owner = o, Initial = d, CodeOffset = P.Entries + i * P.WorkerStride,
                 Entry = m.Code + P.Workers + i * P.WorkerStride, Argument = argument, Start = 0x200000,
                 Control = control, ControlBytes = 256, ExitStub = m.Code + P.FromWorker + i * S.StubBytes, RejectRip = m.Code + P.Recovery } };
         }
         return new() { Owner = o, Supervisor = supervisor, Bindings = bindings, Count = count,
-            BindingBytes = count * (uint)sizeof(P.Binding), Witness = (X64ThreadContext*)(o.ContextArena + 0x5000),
+            BindingBytes = count * (uint)sizeof(P.Binding), Witness = (X64ThreadContext*)(o.ContextArena + 0x9000),
             Prepare = 0x200010, Gateway = 0x30000000, Recover = 0x200020, TerminalCallback = 0x200030,
             Stub = new() { CallbackContext = control, CallbackBytes = 256, AdmissionCallback = 0x200040,
                 HelperFx = helper, JumpSlot = control + 256, RejectRip = m.Code + P.Recovery } };
     }
     private static ulong Target(byte* instruction) => unchecked((ulong)instruction + 5 + (ulong)(long)*(int*)(instruction + 1));
+
+    [HostTest("linux.thread eight-worker pool separates all code metadata stack guards IRQ and IDT extents")]
+    private static void PoolLayout()
+    {
+        HostCheck.True(P.Bytes == 7 * 4096 && P.CodePages == 7 && P.MetadataPage == 7 && P.MetadataPages == 25 &&
+            P.SwitchGuardPage == 32 && P.SwitchPages == 18 && P.WorkerPage == 50 && P.WorkerPages == 6 &&
+            P.IrqGuardPage == 98 && P.IrqTopPage == 103 && P.IdtPage == 104 && P.PoolPages == 105);
+        uint[] guards = [32, 49, 50, 55, 56, 61, 62, 67, 68, 73, 74, 79, 80, 85, 86, 91, 92, 97, 98, 103];
+        for (uint page = 0; page < 108; page++) HostCheck.Equal(guards.Contains(page), P.IsGuardPage(page));
+        HostCheck.True(!P.IsGuardPage(uint.MaxValue));
+        (uint Start, uint Bytes)[] code = [(0, 4096), (P.Entries, 2048), (P.Workers, 2048),
+            (P.Recovery, 512), (P.Terminal, 512), (P.TimerHandler, 512), (P.IrqSaveDisable, 512),
+            (P.UserFaultCapture, 2048), (P.ToWorker, 8192), (P.FromWorker, 8192)];
+        uint covered = 0;
+        foreach (var region in code) { HostCheck.Equal(covered, region.Start); covered += region.Bytes; }
+        HostCheck.Equal(P.Bytes, covered);
+        // Generous fixed control allowance plus every actual public native
+        // component, aligning every allocation independently as LinuxNativeTake.
+        uint[] sizes = [8192, X64ThreadContext.Bytes, X64ThreadContext.Bytes * 8, X64ThreadContext.Bytes, 512, 16,
+            (uint)sizeof(P.Binding) * 8, (uint)sizeof(OS.Kernel.Compatibility.LinuxX64.LinuxThreadServices.Slot) * 8,
+            (uint)sizeof(OS.Kernel.Compatibility.LinuxX64.LinuxThreadServices.Worker) * 8,
+            (uint)sizeof(OS.Kernel.Compatibility.LinuxX64.LinuxSyscallGateState) * 8, 32, 32,
+            (uint)sizeof(KernelThreadSlot) * 8, 64, (uint)sizeof(DeadlineQueue.Entry) * 8,
+            (uint)sizeof(OS.Kernel.Compatibility.LinuxX64.LinuxThreadServices.FutexCell) * 16,
+            (uint)sizeof(WaitAddress.Slot) * 16, (uint)sizeof(WaitAddress.Registration) * 8,
+            (uint)sizeof(OS.Kernel.Compatibility.LinuxX64.LinuxSignalServices.State),
+            OS.Kernel.Compatibility.LinuxX64.X64LinuxUserTransition.UserImageBytes, P.Bytes];
+        uint used = 0; foreach (uint size in sizes) used = ((used + 15) & ~15U) + size;
+        HostCheck.True(used <= P.MetadataPages * 4096, "eight-worker native metadata budget");
+    }
 
     [HostTest("linux.thread program excludes the fault region only under its explicit separate owner and preserves it on re-emission")]
     private static void SeparateFaultRegion()
@@ -92,18 +122,18 @@ internal static unsafe class LinuxThreadProgramTests
         HostCheck.Equal(p.Bindings[1].Context.Identity, m.Dispatch().Value); // Other live worker was retained.
     }
 
-    [HostTest("linux.thread program has four distinct real CALL paths with aligned shadow space and full supervisor witness")]
+    [HostTest("linux.thread program has eight distinct real CALL paths with aligned shadow space and full supervisor witness")]
     private static void Flow()
     {
-        using KernelThreadTableTests.Model m = new(initialize: false); var p = Plan(m); var before = m.Snapshot();
+        using KernelThreadTableTests.Model m = new(initialize: false); var p = Plan(m, 8); var before = m.Snapshot();
         HostCheck.True(P.Emit((byte*)m.Code, P.Bytes, p)); HostCheck.True(P.Verify((byte*)m.Code, P.Bytes, p));
         HostCheck.True(before.AsSpan(0, 0x10000).SequenceEqual(new ReadOnlySpan<byte>(m.Memory, 0x10000)));
-        HostCheck.True(before.AsSpan(0x14000).SequenceEqual(new ReadOnlySpan<byte>(m.Memory + 0x14000, KernelThreadTableTests.Model.Bytes - 0x14000)));
-        for (uint i = 0; i < 4; i++)
+        HostCheck.True(before.AsSpan(0x17000).SequenceEqual(new ReadOnlySpan<byte>(m.Memory + 0x17000, KernelThreadTableTests.Model.Bytes - 0x17000)));
+        for (uint i = 0; i < 8; i++)
         {
             byte* driverCall = (byte*)m.Code + i * 512 + 21;
-            HostCheck.Equal((byte)0xe8, *driverCall); HostCheck.Equal(m.Code + 0x2000 + i * 1024, Target(driverCall));
-            byte* worker = (byte*)m.Code + 0xc00 + i * 256;
+            HostCheck.Equal((byte)0xe8, *driverCall); HostCheck.Equal(m.Code + 0x3000 + i * 1024, Target(driverCall));
+            byte* worker = (byte*)m.Code + 0x1800 + i * 256;
             HostCheck.True(new ReadOnlySpan<byte>(worker, 4).SequenceEqual(new byte[] { 0x48, 0x83, 0xec, 0x28 }));
             HostCheck.Equal((byte)0xe9, worker[4]); HostCheck.Equal((ulong)worker + 0x10, Target(worker + 4));
             HostCheck.Equal((byte)0xba, worker[0x1a]); HostCheck.Equal(i, *(uint*)(worker + 0x1b));
@@ -111,7 +141,7 @@ internal static unsafe class LinuxThreadProgramTests
             HostCheck.True(worker[0x60] == 0x49 && worker[0x61] == 0xbb); HostCheck.Equal(0x30000000UL, *(ulong*)(worker + 0x62));
             HostCheck.True(worker[0x6a] == 0x41 && worker[0x6b] == 0xff && worker[0x6c] == 0xd3);
             HostCheck.Equal((byte)0xe9, worker[0x6d]); HostCheck.Equal((ulong)worker + 0x80, Target(worker + 0x6d));
-            HostCheck.Equal((byte)0xe8, worker[0x85]); HostCheck.Equal(m.Code + 0x3000 + i * 1024, Target(worker + 0x85));
+            HostCheck.Equal((byte)0xe8, worker[0x85]); HostCheck.Equal(m.Code + 0x5000 + i * 1024, Target(worker + 0x85));
             HostCheck.Equal((byte)0xe9, worker[0x8a]); HostCheck.Equal((ulong)worker + 0x10, Target(worker + 0x8a));
             HostCheck.Equal(p.Bindings[i].Argument, *(ulong*)(m.Code + P.Entries + i * P.WorkerStride + 0x62));
         }
@@ -130,7 +160,7 @@ internal static unsafe class LinuxThreadProgramTests
             switch (variant)
             {
                 case 0: p.Count = 0; break;
-                case 1: p.Count = 5; break;
+                case 1: p.Count = 9; break;
                 case 2: p.BindingBytes--; break;
                 case 3: p.Gateway++; break;
                 case 4: p.Gateway = 0x100000000; break;
@@ -156,10 +186,10 @@ internal static unsafe class LinuxThreadProgramTests
     private static void Captures()
     {
         using KernelThreadTableTests.Model m = new(initialize: false);
-        for (uint count = 1; count <= 4; count++)
+        for (uint count = 1; count <= 8; count++)
         {
             var p = Plan(m, count); HostCheck.True(P.Emit((byte*)m.Code, P.Bytes, p));
-            for (uint i = count; i < 4; i++)
+            for (uint i = count; i < 8; i++)
                 HostCheck.True(new ReadOnlySpan<byte>((void*)(m.Code + P.ToWorker + i * 1024), 1024).IndexOfAnyExcept((byte)0xcc) == -1);
             for (uint i = 0; i < count; i++)
             {

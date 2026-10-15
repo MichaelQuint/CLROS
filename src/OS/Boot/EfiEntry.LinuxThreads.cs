@@ -18,8 +18,8 @@ public static unsafe partial class EfiEntry
 {
     private static partial class M03FirstExitAdapter
     {
-        private const uint LinuxNativeWorkers = 4, LinuxNativeFutexes = 16;
-        // Metadata lives only in the retained RW/NX pages 4..14. No user leaf
+        private const uint LinuxNativeWorkers = NativeProgram.MaximumWorkers, LinuxNativeFutexes = 16;
+        // Metadata lives only in the program's retained RW/NX arena. No user leaf
         // exposes this storage. One IRQ-off BSP owns the complete lifetime.
         private struct LinuxNativeControl
         {
@@ -64,7 +64,7 @@ public static unsafe partial class EfiEntry
             Storage* state = (Storage*)context;
             fixed (Storage* retained = &s_storage) if (state != retained) return null;
             if (!LinuxSyscallAuthority(state) || !CooperativeAuthority(state)) return null;
-            LinuxNativeControl* c = (LinuxNativeControl*)(state->CooperativePool + 4 * Page);
+            LinuxNativeControl* c = (LinuxNativeControl*)(state->CooperativePool + NativeProgram.MetadataPage * Page);
             if (c->State != state || c->Key != (state->CooperativePool ^ 0x4d31363030384f57UL) || c->Phase < 1 || c->Phase > 4) return null;
             ulong* cpu = stackalloc ulong[(int)NativeSwitch.ObservationWords];
             ((delegate* unmanaged<ulong*, void>)(state->Memory.Code + FirstExitCodeBundle.CooperativeObserveOffset))(cpu);
@@ -90,9 +90,10 @@ public static unsafe partial class EfiEntry
             if (!CooperativeAuthority(state) || state->CooperativePhase != 0 || state->LinuxSyscallPhase != 4 || state->LinuxMemoryPhase != 4 ||
                 state->LinuxDescriptorPhase != 4 || state->ApicPhase != 2 ||
                 state->LinuxView.Manifest.Threads == 0 || state->LinuxView.Manifest.Threads > LinuxNativeWorkers ||
+                (uint)sizeof(LinuxNativeControl) > 8192 ||
                 !CooperativeAuditOriginalMappings(state) || !CooperativeAuditPool(state, false)) return false;
             state->CooperativePhase = 1; // One lifetime/key per boot, including failed preparation.
-            ulong pool = state->CooperativePool, cursor = pool + 4 * Page, end = pool + 15 * Page;
+            ulong pool = state->CooperativePool, cursor = pool + NativeProgram.MetadataPage * Page, end = pool + NativeProgram.SwitchGuardPage * Page;
             if (!LinuxNativeTake(ref cursor, end, (uint)sizeof(LinuxNativeControl), out byte* control)) return false;
             c = (LinuxNativeControl*)control;
             *c = default; c->State = state; c->Key = pool ^ 0x4d31363030384f57UL; c->Phase = 1; c->Capacity = state->LinuxView.Manifest.Threads;
@@ -134,8 +135,8 @@ public static unsafe partial class EfiEntry
                 TerminalCallback = (ulong)(delegate* unmanaged<void*, void>)&LinuxNativeTerminal,
                 Stub = new() { AdmissionCallback = (ulong)(delegate* unmanaged<void*, NativeContext*, NativeContext*, byte>)&LinuxNativeTransfer } };
             c->Plan.Owner = new() { Initialized = true, Key = c->Key, CurrentKey = c->Key,
-                Root = (ulong)state->Memory.Entries, ContextArena = pool + 4 * Page, ContextArenaBytes = 11 * Page,
-                CodeStart = pool, CodeBytes = NativeProgram.Bytes, SwitchStackGuardStart = pool + 15 * Page, SwitchStackBytes = 18 * Page };
+                Root = (ulong)state->Memory.Entries, ContextArena = pool + NativeProgram.MetadataPage * Page, ContextArenaBytes = NativeProgram.MetadataPages * Page,
+                CodeStart = pool, CodeBytes = NativeProgram.Bytes, SwitchStackGuardStart = pool + NativeProgram.SwitchGuardPage * Page, SwitchStackBytes = NativeProgram.SwitchPages * Page };
             if (!LinuxNativeObserve(c)) return false;
             ((delegate* unmanaged<byte*, void>)(state->Memory.Code + FirstExitCodeBundle.CooperativeFxOffset))(helper);
             uint mask = *(uint*)(helper + 28); c->Plan.Owner.ObservedMxcsrMask = mask;
@@ -161,11 +162,11 @@ public static unsafe partial class EfiEntry
             // rewriting that entry and publishing another Linux thread.
             for (uint i = 0; i < c->Capacity; i++)
             {
-                ulong guard = pool + (33 + i * 6) * Page, entry = pool + NativeProgram.Entries + i * NativeProgram.WorkerStride;
+                ulong guard = pool + (NativeProgram.WorkerPage + i * NativeProgram.WorkerPages) * Page, entry = pool + NativeProgram.Entries + i * NativeProgram.WorkerStride;
                 NativeContext* saved = (NativeContext*)(contexts + i * NativeContext.Bytes);
                 if (NativeContext.Initialize(saved, NativeContext.Bytes, entry, guard + 5 * Page - 40, mask) != NativeContext.Status.Ok) return false;
                 var d = new NativeSwitch.Descriptor { Identity = 0x100000001UL + i, CurrentIdentity = 0x100000001UL + i,
-                    Context = saved, ContextBytes = NativeContext.Bytes, StackGuardStart = guard, StackBytes = 6 * Page,
+                    Context = saved, ContextBytes = NativeContext.Bytes, StackGuardStart = guard, StackBytes = NativeProgram.WorkerPages * Page,
                     ResumeRip = entry, Kind = NativeSwitch.ResumeKind.Entry };
                 var e = new KernelThreadEntry.Plan { Owner = c->Plan.Owner, Initial = d,
                     CodeOffset = NativeProgram.Entries + i * NativeProgram.WorkerStride,
@@ -239,7 +240,7 @@ public static unsafe partial class EfiEntry
         {
             fixed (Storage* state = &s_storage)
             {
-                if (state->CooperativePool == 0 || (ulong)context != state->CooperativePool + 4 * Page) return null;
+                if (state->CooperativePool == 0 || (ulong)context != state->CooperativePool + NativeProgram.MetadataPage * Page) return null;
                 return LinuxNativeOwner(state);
             }
         }

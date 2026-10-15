@@ -105,9 +105,9 @@ public static partial class QemuTranscripts
             string line = Take(); Need(line.EndsWith(suffix, StringComparison.Ordinal), "hello_bound_policy");
             var bound = ReadRecord(line[..^suffix.Length], "M16_008_BOUND", "root:dec", "pool:dec", "workers:dec", "code:dec", "metadata:dec", "userImage:dec");
             Need(armed["root"] == userRoot && bound["root"] == kernelRoot && kernelRoot is >= 4096 and <= 0xfffff000 && kernelRoot % 4096 == 0 &&
-                bound["pool"] is >= 4096 and <= 0xfffc0000 && bound["pool"] % 4096 == 0 &&
-                bound["workers"] == 4 && bound["code"] == 16384 && bound["metadata"] == 45056 && bound["userImage"] == 728, "hello_parent_geometry");
-            DistinctExtents([(kernelRoot,4096),(userRoot,4096),(bound["pool"],64*4096)], "hello_roots_pool");
+                bound["pool"] >= 4096 && bound["pool"] <= 0x100000000UL - LinuxThreadProgram.PoolPages * 4096UL && bound["pool"] % 4096 == 0 &&
+                bound["workers"] == 4 && bound["code"] == LinuxThreadProgram.Bytes && bound["metadata"] == LinuxThreadProgram.MetadataPages * 4096UL && bound["userImage"] == 728, "hello_parent_geometry");
+            DistinctExtents([(kernelRoot,4096),(userRoot,4096),(bound["pool"],LinuxThreadProgram.PoolPages*4096UL)], "hello_roots_pool");
             while (ready.Count != 0)
             {
                 Need(transfers < 1024, "hello_dispatch_bound");

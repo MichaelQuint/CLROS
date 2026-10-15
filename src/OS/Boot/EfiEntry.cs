@@ -63,7 +63,7 @@ public static unsafe partial class EfiEntry
     {
         private const ulong Page = 4096, TablePages = 55;
 #if M16_008_PROBE
-        private const uint CooperativePoolPages = 64, CooperativeCodePages = 4;
+        private const uint CooperativePoolPages = LinuxThreadProgram.PoolPages, CooperativeCodePages = LinuxThreadProgram.CodePages;
 #elif M09_004_PROBE || M09_005_PROBE || M09_006_PROBE || M09_009_PROBE || M09_010_PROBE
         private const uint CooperativePoolPages = Cooperative.PoolPages, CooperativeCodePages = 2;
 #endif
@@ -814,7 +814,7 @@ public static unsafe partial class EfiEntry
         // This layout is distinct from the retained 32-page M09 layout.
         private static bool CooperativeGuardPage(uint page) =>
 #if M16_008_PROBE
-            page is 15 or 32 or 33 or 38 or 39 or 44 or 45 or 50 or 51 or 56 or 57 or 62;
+            LinuxThreadProgram.IsGuardPage(page);
 #else
             page is 4 or 13 or 14 or 16 or 17 or 19;
 #endif

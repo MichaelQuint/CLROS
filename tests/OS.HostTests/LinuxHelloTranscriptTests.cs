@@ -5,6 +5,19 @@ using OS.Tooling;
 
 internal static class LinuxHelloTranscriptTests
 {
+    [HostTest("nativeaot.hello complete pool envelope rejects old geometry physical overflow and late pool root overlap")]
+    private static void PoolEnvelope()
+    {
+        var rows = Build(); _ = Inspect(Change(rows, "M16_008_BOUND ", "pool", 0xfff97000));
+        Reject(Change(rows, "M16_008_BOUND ", "pool", 0xfff98000));
+        Reject(Change(rows, "M16_008_BOUND ", "code", 16384)); Reject(Change(rows, "M16_008_BOUND ", "metadata", 45056));
+        var overlap = Change(Change(rows, "M16_008_BOUND ", "root", 0x300000), "M16_008_BOUND ", "pool", 0x29c000);
+        bool rejected = false;
+        try { _ = QemuTranscripts.InspectLinuxHelloProtocolForTests(overlap, Elf(), r => r == 0x400202, r => r == 0x400202, 0x2000, 0x300000); }
+        catch (ToolFailure failure) { rejected = failure.Reason == "hello_roots_pool_alias"; }
+        HostCheck.True(rejected);
+    }
+
     [HostTest("nativeaot.hello protocol models genuine child waits FIFO IRQ wake exit-group and three off-stack reaps")]
     private static void CompleteProtocol()
     {
@@ -80,7 +93,7 @@ internal static class LinuxHelloTranscriptTests
             "M16_006_POLICY physical=268435456 available=134217728 poolPages=4096 vaEnd=68719476736 reservationQuota=17179869184 entropyBytes=32 cpus=1 root=inactive-kernel",
             "M16_007_POLICY descriptors=16 pipes=2 capacity=4096 scratch=8192 packageBytes=1241768 package=declared-immutable proc=owned-snapshot stdin=eof stdoutStderr=serial sigpipe=ignored-mechanical blocking=scheduler",
             "M16_005_ARMED root=8192 cs=59 ss=51 kernelStack=1048576 guard=absent syscall=sce-star-lstar-fmask return=iretq fp=x87-sse kernelFsGs=owned-null",
-            "M16_008_BOUND root=12288 pool=2097152 workers=4 code=16384 metadata=45056 userImage=728 timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack"];
+            "M16_008_BOUND root=12288 pool=2097152 workers=4 code=28672 metadata=102400 userImage=728 timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack"];
         int tid=1; ulong clock=0,fs=0,rsp=0x6ffffff0;
         void Call(ulong nr,ulong value,ulong[] args,ulong action=1,ulong status=1)
         {

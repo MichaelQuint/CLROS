@@ -12,10 +12,10 @@ internal static unsafe class LinuxSignalServicesTests
     {
         internal readonly Model Thread;
         internal Signals.State* State = (Signals.State*)NativeMemory.AlignedAlloc(4096,4096);
-        internal Signals.Admission Plan => new() { Capacity = 3, User = Thread.Access, CopyToUser = Thread.UserCopyOut, FirmwareExited = true, SingleOwnerValidated = true };
-        internal Owner(bool attach = true, bool userInterrupts = false)
+        internal Signals.Admission Plan => new() { Capacity = Thread.Capacity, User = Thread.Access, CopyToUser = Thread.UserCopyOut, FirmwareExited = true, SingleOwnerValidated = true };
+        internal Owner(bool attach = true, bool userInterrupts = false, uint capacity = 3)
         {
-            Thread = new(futex: true, userInterrupts: userInterrupts);
+            Thread = new(futex: true, userInterrupts: userInterrupts, capacity: capacity);
             HostCheck.True(State != null && sizeof(Signals.State) <= 4096);
             new Span<byte>(State,4096).Clear();
             HostCheck.True(Signals.Initialize(State,4096,SignalKey,2,Plan));
@@ -65,7 +65,7 @@ internal static unsafe class LinuxSignalServicesTests
             !Signals.Initialize(&fresh,(uint)sizeof(Signals.State),0,2,o.Plan) &&
             !Signals.Initialize(&fresh,(uint)sizeof(Signals.State),SignalKey,0x202,o.Plan));
         invalid.Capacity = 0; HostCheck.True(!Signals.Initialize(&fresh,(uint)sizeof(Signals.State),SignalKey,2,invalid));
-        invalid = o.Plan; invalid.Capacity = 5; HostCheck.True(!Signals.Initialize(&fresh,(uint)sizeof(Signals.State),SignalKey,2,invalid));
+        invalid = o.Plan; invalid.Capacity = 9; HostCheck.True(!Signals.Initialize(&fresh,(uint)sizeof(Signals.State),SignalKey,2,invalid));
         invalid = o.Plan; invalid.CopyToUser = null; HostCheck.True(!Signals.Initialize(&fresh,(uint)sizeof(Signals.State),SignalKey,2,invalid));
         invalid = o.Plan; invalid.FirmwareExited = false; HostCheck.True(!Signals.Initialize(&fresh,(uint)sizeof(Signals.State),SignalKey,2,invalid));
         HostCheck.True(new ReadOnlySpan<byte>(&fresh,sizeof(Signals.State)).IndexOfAnyExcept((byte)0) < 0);

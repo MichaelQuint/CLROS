@@ -31,9 +31,9 @@ public static partial class QemuTranscripts
         var bound = ReadRecord(boundLine[..^boundSuffix.Length], "M16_008_BOUND", "root:dec", "pool:dec", "workers:dec", "code:dec", "metadata:dec", "userImage:dec");
         Need(armed["root"] == startupUserRoot && bound["root"] == restoredKernelRoot, "m16_008_parent_roots");
         Need(bound["root"] is >= 4096 and <= 0xfffff000 && bound["root"] % 4096 == 0 &&
-            bound["pool"] is >= 4096 and <= 0xfffc0000 && bound["pool"] % 4096 == 0 && bound["workers"] == 2 &&
-            bound["code"] == 16384 && bound["metadata"] == 45056 && bound["userImage"] == 728, "m16_008_bound_geometry");
-        DistinctExtents([(bound["root"], 4096), (armed["root"], 4096), (bound["pool"], 64 * 4096)], "m16_008_bound_roots_pool");
+            bound["pool"] >= 4096 && bound["pool"] <= 0x100000000UL - LinuxThreadProgram.PoolPages * 4096UL && bound["pool"] % 4096 == 0 && bound["workers"] == 2 &&
+            bound["code"] == LinuxThreadProgram.Bytes && bound["metadata"] == LinuxThreadProgram.MetadataPages * 4096UL && bound["userImage"] == 728, "m16_008_bound_geometry");
+        DistinctExtents([(bound["root"], 4096), (armed["root"], 4096), (bound["pool"], LinuxThreadProgram.PoolPages * 4096UL)], "m16_008_bound_roots_pool");
 
         if (variant != "Threads") { ValidateLinuxPipeControl(tail[5..], variant); return; }
         Need(tail.Length is >= 171 and <= 298, "m16_008_thread_tail_inventory");

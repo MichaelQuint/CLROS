@@ -37,10 +37,11 @@ public static unsafe partial class EfiEntry
             if (DescriptorKernelRange(state, pointer, bytes, output) ||
                 FirstExitOwnedArena.InMainStack(state->Arena, address, bytes)) return true;
             ulong pool = state->CooperativePool;
-            if (LinuxThreadContains(pool + 4 * Page, 11 * Page, address, bytes)) return true;
-            if (LinuxThreadContains(pool + 16 * Page, 16 * Page, address, bytes)) return true;
+            if (LinuxThreadContains(pool + LinuxThreadProgram.MetadataPage * Page, LinuxThreadProgram.MetadataPages * Page, address, bytes)) return true;
+            if (LinuxThreadContains(pool + (LinuxThreadProgram.SwitchGuardPage + 1) * Page, (LinuxThreadProgram.SwitchPages - 2) * Page, address, bytes)) return true;
             for (uint worker = 0; worker < LinuxNativeWorkers; worker++)
-                if (LinuxThreadContains(pool + (34 + worker * 6) * Page, 4 * Page, address, bytes)) return true;
+                if (LinuxThreadContains(pool + (LinuxThreadProgram.WorkerPage + 1 + worker * LinuxThreadProgram.WorkerPages) * Page,
+                    (LinuxThreadProgram.WorkerPages - 2) * Page, address, bytes)) return true;
             return false;
         }
 

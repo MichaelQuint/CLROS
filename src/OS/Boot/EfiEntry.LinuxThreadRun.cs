@@ -44,9 +44,12 @@ public static unsafe partial class EfiEntry
                         if (!LinuxText(state, "M16_008_BOUND root=") || !LinuxNumber(state, c->Plan.Owner.Root) ||
                             !LinuxText(state, " pool=") || !LinuxNumber(state, state->CooperativePool) ||
                             !LinuxText(state, " workers=") || !LinuxNumber(state, c->Capacity) ||
+                            !LinuxText(state, " code=") || !LinuxNumber(state, NativeProgram.Bytes) ||
+                            !LinuxText(state, " metadata=") || !LinuxNumber(state, NativeProgram.MetadataPages * Page) ||
+                            !LinuxText(state, " userImage=") || !LinuxNumber(state, X64LinuxUserTransition.UserImageBytes) ||
                             !LinuxText(state, c->User.UserInterrupts ?
-                                " code=16384 metadata=45056 userImage=728 timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack\r\n" :
-                                " code=16384 metadata=45056 userImage=728 timer=idle-only clock=hpet-nanoseconds reuse=off-stack\r\n")) c->Failed = 1;
+                                " timer=user-irq-and-idle clock=hpet-nanoseconds reuse=off-stack\r\n" :
+                                " timer=idle-only clock=hpet-nanoseconds reuse=off-stack\r\n")) c->Failed = 1;
                         var plan = state->LinuxSyscallPlan;
                         LinuxSyscallFrame initial = new() { Rip = plan.UserRip, Rsp = plan.UserRsp,
                             Rflags = c->User.UserInterrupts ? 0x202UL : 2UL, FsBase = plan.UserFs, GsBase = plan.UserGs };
@@ -270,7 +273,8 @@ public static unsafe partial class EfiEntry
             Storage* state = c->State;
             if (index >= c->Capacity || c->Selected != 0 || c->Timer.IsPrepared || c->Threads.Current.IsValid || c->Threads.HandoffPending ||
                 !LinuxNativeObserve(c) || !LinuxNativeSavedCode(c) || !CooperativeAuditPool(state, true) ||
-                !CooperativeFindLeaf(state, state->CooperativePool, out ulong* leaf)) return false;
+                !CooperativeFindLeaf(state, state->CooperativePool +
+                    ((NativeProgram.Entries + index * NativeProgram.WorkerStride) & ~(Page - 1)), out ulong* leaf)) return false;
             ulong original = *leaf;
             var writable = X64PageTableEntry.TryReencodeLeafProtection(X64PageTableLevel.Pte, original, PageProtection.Read | PageProtection.Write,
                 X64HardwareStatePolicy.Preserve, state->Memory.Tables.Preconditions);

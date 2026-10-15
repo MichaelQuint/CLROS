@@ -23,6 +23,48 @@ internal static unsafe class LinuxSignalPendingTests
         return signal;
     }
 
+    [HostTest("linux.signal-pending eight actual thread generations isolate masks queues and highest-slot reap reuse")]
+    private static void EightThreads()
+    {
+        using Owner o = new(capacity: 8); o.Running(); var m = o.Thread;
+        Action(o, 35); Mask(o, 1UL << 34);
+        OS.Pal.OSHostHandle[] threads = new OS.Pal.OSHostHandle[8];
+        threads[0] = m.Kernel.Table->Current;
+        for (int i = 1; i < threads.Length; i++) threads[i] = m.Clone();
+        HostCheck.Equal(8U, m.Service->ActiveThreads);
+        var full = m.Call(56, 0x7d0f00, Base + LinuxThreadServicesTests.UserBytes,
+            Base + 0x1160, Base + 0x1164, Base + 0x2100);
+        HostCheck.True(full.Action == LinuxSyscallAction.Return && full.Value == -11 && m.Service->ActiveThreads == 8);
+        foreach (var thread in threads)
+        {
+            HostCheck.Equal(0L, o.Call(200, m.View(thread).Tid, 35));
+            HostCheck.Equal(0L, o.Call(200, m.View(thread).Tid, 35));
+        }
+        for (int i = 0; i < threads.Length; i++)
+        {
+            HostCheck.Equal(threads[i].Value, m.Kernel.Table->Current.Value);
+            HostCheck.Equal(Signals.Delivery.None, Deliver(o)); Mask(o, 0);
+            HostCheck.Equal(35U, Delivered(o)); HostCheck.Equal(35U, Delivered(o));
+            HostCheck.Equal(Signals.Delivery.None, Deliver(o));
+            if (i != 7) { m.Yield(threads[i]); HostCheck.Equal(threads[i + 1].Value, m.Kernel.Dispatch().Value); }
+        }
+        uint oldTid = m.View(threads[7]).Tid; o.ExitCurrent();
+        HostCheck.Equal(threads[0].Value, m.Kernel.Dispatch().Value);
+        var reused = m.Clone();
+        HostCheck.True((uint)reused.Value == 8 && reused.Value != threads[7].Value && m.View(reused).Tid != oldTid);
+        HostCheck.Equal(-3L, o.Call(200, oldTid, 35));
+        HostCheck.Equal(0L, o.Call(200, m.View(reused).Tid, 35));
+        m.Yield(threads[0]);
+        for (int i = 1; i < 7; i++)
+        {
+            HostCheck.Equal(threads[i].Value, m.Kernel.Dispatch().Value); HostCheck.Equal(Signals.Delivery.None, Deliver(o));
+            m.Yield(threads[i]);
+        }
+        HostCheck.Equal(reused.Value, m.Kernel.Dispatch().Value); HostCheck.Equal(35U, Delivered(o));
+        HostCheck.Equal(Signals.Delivery.None, Deliver(o)); o.ExitCurrent();
+        HostCheck.Equal(threads[0].Value, m.Kernel.Dispatch().Value);
+    }
+
     [HostTest("linux.signal-pending tgkill validates exact Linux int arguments process identity and null probes")]
     private static void Identities()
     {

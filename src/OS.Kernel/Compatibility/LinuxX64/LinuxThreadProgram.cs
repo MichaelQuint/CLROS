@@ -10,14 +10,32 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// capture, asynchronous preemption, XSAVE, SMP or upstream runtime proof.</summary>
 public static unsafe class LinuxThreadProgram
 {
-    public const uint Bytes = 16384, MaximumWorkers = 4, DriverStride = 512, DriverResume = 26;
-    public const uint Entries = 0x800, Workers = 0xc00, WorkerStride = 256;
+    public const uint Bytes = 28672, MaximumWorkers = 8, DriverStride = 512, DriverResume = 26;
+    public const uint Entries = 0x1000, Workers = 0x1800, WorkerStride = 256;
     public const uint Loop = 0x10, EnterUser = 0x60, Handoff = 0x80, WorkerResume = 0x8a;
-    public const uint Recovery = 0x1000, Terminal = 0x1200, TimerHandler = 0x1400;
-    public const uint IrqSaveDisable = 0x1600, IrqRestore = 0x1610, StackPointer = 0x1620, Idle = 0x1630;
-    public const uint ToWorker = 0x2000, FromWorker = 0x3000;
-    public const uint UserFaultCapture = 0x1800;
+    public const uint Recovery = 0x2000, Terminal = 0x2200, TimerHandler = 0x2400;
+    public const uint IrqSaveDisable = 0x2600, IrqRestore = 0x2610, StackPointer = 0x2620, Idle = 0x2630;
+    public const uint ToWorker = 0x3000, FromWorker = 0x5000;
+    public const uint UserFaultCapture = 0x2800;
     public const uint InitialFixedStackBytes = 168, CapturedFixedStackBytes = 80;
+
+    // One retained native pool: RX program, supervisor RW/NX metadata, guarded
+    // 16-page switch stack, eight guarded four-page worker stacks, guarded
+    // four-page IRQ stack and private IDT. The owner publishes/restores leaves;
+    // these offsets alone grant no mappings, executable authority or lifetime.
+    public const uint CodePages = Bytes / 4096, MetadataPage = CodePages, MetadataPages = 25;
+    public const uint SwitchGuardPage = MetadataPage + MetadataPages, SwitchPages = 18;
+    public const uint WorkerPage = SwitchGuardPage + SwitchPages, WorkerPages = 6;
+    public const uint IrqGuardPage = WorkerPage + MaximumWorkers * WorkerPages, IrqPages = 6;
+    public const uint IrqTopPage = IrqGuardPage + IrqPages - 1, IdtPage = IrqGuardPage + IrqPages, PoolPages = IdtPage + 1;
+
+    /// <summary>Identify only guard leaves inside this fixed pool. Publication
+    /// remains the external IRQ-off owner's responsibility. Out-of-range pages
+    /// return false and must separately fail the owner's extent admission.</summary>
+    public static bool IsGuardPage(uint page) => page == SwitchGuardPage || page == WorkerPage - 1 ||
+        page >= WorkerPage && page < IrqGuardPage &&
+        ((page - WorkerPage) % WorkerPages == 0 || (page - WorkerPage) % WorkerPages == WorkerPages - 1) ||
+        page == IrqGuardPage || page == IrqTopPage;
 
     /// <summary>Retained current generation and its original entry adapter.
     /// Argument is the retained scheduler slot pointer, independently checked
@@ -49,7 +67,7 @@ public static unsafe class LinuxThreadProgram
         public uint Count, BindingBytes;
         public X64ThreadContext* Witness;
         public ulong Prepare, Gateway, Recover, TerminalCallback;
-        public bool SeparateUserFaultCapture; // Owner emits/verifies the explicit 1800h..1FFFh region.
+        public bool SeparateUserFaultCapture; // Owner emits/verifies the explicit UserFaultCapture region.
     }
 
     /// <summary>Validate every component and dry encode before any mutation.
@@ -192,7 +210,7 @@ public static unsafe class LinuxThreadProgram
         helpers.Bytes(0xc3fa589c, 4); helpers.Pad(0x10); helpers.Bytes(0xc39d51, 3); helpers.Pad(0x20);
         helpers.Bytes(0xe08948, 3); helpers.Bytes(0x08c08348, 4); helpers.Bytes(0xc3, 1); helpers.Pad(0x30);
         helpers.Bytes(0xfaf4fb, 3); helpers.Bytes(0x00000001b8, 5); helpers.Bytes(0xc3, 1); helpers.Pad(); if (!helpers.Valid) return false;
-        ThreadContextSwitch.StubWriter gap = new(output == null ? null : output + 0x1800, code + 0x1800, compare, 0x800);
+        ThreadContextSwitch.StubWriter gap = new(output == null ? null : output + UserFaultCapture, code + UserFaultCapture, compare, 0x800);
         if (p.SeparateUserFaultCapture) return true;
         gap.Pad(); return gap.Valid;
     }

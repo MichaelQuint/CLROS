@@ -10,7 +10,7 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// to the thread/native owner, not this metadata block.</summary>
 public static unsafe partial class LinuxSignalServices
 {
-    public const uint SignalCount = 64, MaximumThreads = 4;
+    public const uint SignalCount = 64, MaximumThreads = 8;
     public const uint OnStack = 1, Disabled = 2, AutoDisarm = 0x80000000, MinimumStackBytes = 2048;
     // Linux UAPI flags, including x86 SA_RESTORER; SA_UNSUPPORTED is cleared.
     public const ulong ActionFlags = 0xdc000807;
@@ -35,7 +35,7 @@ public static unsafe partial class LinuxSignalServices
         internal LinuxSyscallAccess User;
         internal delegate* unmanaged<void*, ulong, byte*, uint, byte> CopyToUser;
         internal fixed ulong Actions[64 * 4];
-        internal fixed ulong Threads[4 * 13]; // ThreadState, one actual generation each.
+        internal fixed ulong Threads[(int)MaximumThreads * 13]; // ThreadState, one actual generation each.
     }
 
     /// <summary>Exact user-copy capabilities shared with the thread owner.

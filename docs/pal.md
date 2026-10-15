@@ -1,5 +1,13 @@
 # PAL
 
+[Step1268](../done/step1268.md) implements bounded capacity for eight native
+threads and eight per-generation signal states, following the seven OS threads
+observed in the focused Linux ThreadPool payload. Host controls create all eight
+scheduler generations, reject a ninth clone, isolate blocked masks/realtime
+queues and reap/reuse the highest slot without stale TID delivery. This is a
+host state-machine check; native switching and application execution remain
+unqualified until the stable batch gate.
+
 [Step1267](../done/step1267.md) adds a separate upstream ThreadPool/timer
 consumer alongside the focused suspension workload. It uses the application
 runtime's actual Task.Run, continuation queues, cancellation and Timer/Task.Delay
