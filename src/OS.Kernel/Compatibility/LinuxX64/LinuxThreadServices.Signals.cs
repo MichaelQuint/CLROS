@@ -82,6 +82,17 @@ public unsafe partial struct LinuxThreadServices
         return FinishUncaughtRestart(key, flags, slot);
     }
 
+    // Linux tkill has no TGID argument. This owner admits only its one process;
+    // adapt a local copy so the actual capture, gate ordinal and syscall200
+    // register image remain unchanged. Tgkill retains all target/mask rules.
+    private long Tkill(ulong key, ulong flags, LinuxSyscallFrame frame)
+    {
+        frame.Argument2 = frame.Argument1;
+        frame.Argument1 = frame.Argument0;
+        frame.Argument0 = _owner.ProcessId;
+        return Tgkill(key, flags, frame);
+    }
+
     private long Tgkill(ulong key, ulong flags, LinuxSyscallFrame frame)
     {
         if (_signals == null) return Unsupported;

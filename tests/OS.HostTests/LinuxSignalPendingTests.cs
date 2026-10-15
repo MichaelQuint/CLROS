@@ -37,6 +37,41 @@ internal static unsafe class LinuxSignalPendingTests
         HostCheck.Equal(Signals.Delivery.None,Deliver(o));
     }
 
+    [HostTest("linux.signal-pending tkill uses Linux int arguments and actual target generations without a caller supplied group")]
+    private static void TkillTargets()
+    {
+        using Owner o=new();o.Running();Action(o,35);Mask(o,0);var m=o.Thread;
+        HostCheck.Equal(0L,o.Call(200,101,0));
+        HostCheck.Equal(0L,o.Call(200,0x100000065,0x100000000));
+        foreach(ulong tid in new[]{0UL,0xffffffffUL})HostCheck.Equal(-22L,o.Call(200,tid,0));
+        HostCheck.Equal(-3L,o.Call(200,102,65));HostCheck.Equal(-22L,o.Call(200,101,65));HostCheck.Equal(-22L,o.Call(200,101,0xffffffff));
+        var parent=m.Kernel.Table->Current;var child=m.Clone();uint tid1=m.View(child).Tid;
+        HostCheck.Equal(0L,o.Call(200,tid1,35));HostCheck.Equal(0L,o.Call(200,tid1,35));HostCheck.Equal(Signals.Delivery.None,Deliver(o));
+        m.Yield(parent);HostCheck.Equal(child.Value,m.Kernel.Dispatch().Value);
+        HostCheck.Equal(35U,Delivered(o));HostCheck.Equal(35U,Delivered(o));HostCheck.Equal(Signals.Delivery.None,Deliver(o));
+        o.ExitCurrent();HostCheck.Equal(parent.Value,m.Kernel.Dispatch().Value);
+        var next=m.Clone();HostCheck.True(next.Value!=child.Value&&m.View(next).Tid!=tid1);
+        HostCheck.Equal(-3L,o.Call(200,tid1,35));HostCheck.Equal(0L,o.Call(200,m.View(next).Tid,35));
+        HostCheck.Equal(Signals.Delivery.None,Deliver(o));m.Yield(parent);HostCheck.Equal(next.Value,m.Kernel.Dispatch().Value);HostCheck.Equal(35U,Delivered(o));
+        using Owner disabled=new(attach:false);disabled.Running();HostCheck.Equal(-38L,disabled.Call(200,101,0));
+    }
+
+    [HostTest("linux.signal-pending tkill real gateway preserves raw registers and masks then delivers the original SI_TKILL frame")]
+    private static void TkillGateway()
+    {
+        using Owner o=new();o.Running();Action(o,35);Mask(o,1UL<<34);var m=o.Thread;
+        byte* scratch=stackalloc byte[64];new Span<byte>(scratch,64).Fill(0xa5);LinuxSyscallGateState gate=default;
+        HostCheck.Equal(LinuxSyscallGateStatus.Active,LinuxSyscallGateway.Begin(ref gate,new()
+        {UserRoot=m.Kernel.Owner.Root,MaximumCalls=64,MaximumWrite=64,Scratch=scratch,ScratchBytes=64,
+            FirmwareExited=true,OwnedBoundaryValidated=true,EnableStartup=true,EnableDescriptors=true,EnableThreads=true},m.GatewayAccess));
+        var frame=m.CurrentImage()->Frame;frame.Number=200;frame.Argument0=0x100000065;frame.Argument1=0x100000023;
+        frame.Argument2=0xfeedbeef;frame.Argument3=0x12345678;frame.Argument4=0x87654321;frame.Argument5=ulong.MaxValue;var original=frame;
+        var result=LinuxSyscallGateway.Dispatch(ref gate,ref frame);
+        HostCheck.True(result.Action==LinuxSyscallAction.Return&&result.Value==0&&gate.Calls==1&&gate.Status==LinuxSyscallGateStatus.Active&&
+            new ReadOnlySpan<byte>(&frame,96).SequenceEqual(new ReadOnlySpan<byte>(&original,96))&&new ReadOnlySpan<byte>(scratch,64).IndexOfAnyExcept((byte)0)<0);
+        HostCheck.Equal(Signals.Delivery.None,Deliver(o));Mask(o,0);HostCheck.Equal(35U,Delivered(o));
+    }
+
     [HostTest("linux.signal-pending standard coalescing synchronous priority and ascending selection retain genuine siginfo and return frames")]
     private static void Standard()
     {

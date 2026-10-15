@@ -60,6 +60,20 @@ internal static unsafe class LinuxSyscallGatewayTests
         HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref state, admission, access)); return state;
     }
 
+    [HostTest("linux.signal tkill gateway requires explicit thread admission and rejects callback frame mutation")]
+    private static void TkillAdmission()
+    {
+        byte* scratch=stackalloc byte[64];Model model=new(){ThreadMode=1};var state=ThreadGate(&model,scratch);
+        var frame=Frame();frame.Number=200;frame.Argument0=101;frame.Argument1=35;
+        HostCheck.Equal(0L,LinuxSyscallGateway.Dispatch(ref state,ref frame).Value);HostCheck.Equal(1U,model.ThreadCalls);
+        model.ThreadMode=3;state=ThreadGate(&model,scratch);var original=frame;
+        HostCheck.Equal(LinuxSyscallAction.Terminate,LinuxSyscallGateway.Dispatch(ref state,ref frame).Action);
+        HostCheck.True(state.Status==LinuxSyscallGateStatus.InvalidReturn&&frame.Argument3==original.Argument3);
+        model.ThreadMode=1;model.ThreadCalls=0;state=default;
+        HostCheck.Equal(LinuxSyscallGateStatus.Active,LinuxSyscallGateway.Begin(ref state,Admission(scratch),Access(&model)));
+        HostCheck.Equal(-38L,LinuxSyscallGateway.Dispatch(ref state,ref frame).Value);HostCheck.Equal(0U,model.ThreadCalls);
+    }
+
     [HostTest("linux.signal gateway restores only syscall15 with immutable thread bases valid user targets and zero exit code")]
     private static void SignalReturnControls()
     {

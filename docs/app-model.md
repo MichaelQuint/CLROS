@@ -1,5 +1,18 @@
 # App Model
 
+[Step1267](../done/step1267.md) adds the separate upstream ThreadPool/timer
+workload and Linux qualification command for both focused threading workloads.
+Both pinned static musl NativeAOT apps pass on Linux: suspension uses four
+threads and two actual SIGRT_3 activation/return cycles; ThreadPool uses seven
+threads and checks four Task.Run results, continuation publication races,
+pre/during-wait cancellation, measured delays and disposed one-shot callbacks.
+The trace exposes syscall 200 (`tkill`); the restricted adapter now reuses the
+existing same-process target/generation/mask semantics without changing captured
+registers. Fifty-seven focused checks pass. Linux execution and managed Windows
+choreography grant no CLROS guest acceptance. Guest consumers, sufficient thread
+capacity and runtime stress remain under #687/#193/#194/#688; the same eight-issue
+batch stays open. App-owned work draining does not imply runtime worker shutdown.
+
 [Step1266](../done/step1266.md) completes source consumers for interrupted pipe
 and futex waits (EINTR/restart and positive partial-write progress), two nested
 alternate-stack returns and finite alternate-stack exhaustion under #687/#733.

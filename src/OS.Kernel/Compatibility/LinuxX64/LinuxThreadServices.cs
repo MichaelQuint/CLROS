@@ -227,8 +227,8 @@ public unsafe partial struct LinuxThreadServices
             case 231:
                 if (!Shutdown(key, flags, unchecked((uint)frame.Argument0))) return new(LinuxSyscallAction.Rejected);
                 return new(LinuxSyscallAction.Terminate, exitCode: unchecked((uint)frame.Argument0));
-            case 234:
-                result = Tgkill(key, flags, frame);
+            case 200: case 234:
+                result = frame.Number == 200 ? Tkill(key, flags, frame) : Tgkill(key, flags, frame);
                 if (result == 0 && _stopping) return new(LinuxSyscallAction.Terminate, exitCode: 137);
                 break;
             default: result = Unsupported; break;

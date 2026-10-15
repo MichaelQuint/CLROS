@@ -1,5 +1,20 @@
 # PAL
 
+[Step1267](../done/step1267.md) adds a separate upstream ThreadPool/timer
+consumer alongside the focused suspension workload. It uses the application
+runtime's actual Task.Run, continuation queues, cancellation and Timer/Task.Delay
+implementations; no kernel task engine or application collector is added.
+Output requires four completed work items, three checked continuations, cancelled
+work/waits, measured monotonic intervals and disposed callbacks. Runtime workers
+may remain alive until process exit. Both pinned Linux NativeAOT workloads pass:
+suspension uses four threads and two real activation/return cycles; ThreadPool
+uses seven threads. Its trace includes Finalizer, SigHandler, TP Gate, Timer and
+two TP Workers. The observed suspension `tkill` call now routes through the
+restricted same-process signal adapter with focused generation/mask/register
+checks. Guest capacity, execution and stress remain unfinished. Linux payload
+qualification and managed Windows choreography grant no CLROS PAL/runtime
+acceptance.
+
 M09-005/#187 and children #721/#723-#726 are qualified in
 [step1224](../done/step1224.md): 4,776 full-host checks across 622 fixtures,
 six original native bodies, three fresh 115-record timer guests and ten
