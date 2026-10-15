@@ -1,5 +1,15 @@
 # PAL
 
+[Step1275](../done/step1275.md) adds the comprehensive upstream runtime matrix
+without kernel EH or collector changes. Windows managed execution checks typed
+filter/catch/finally/rethrow identity, cached constructor failure, delegates,
+GC/finalizers and live running/parked thread roots, then Task.Run, cancellation
+and measured timer teardown. ThreadStatic observations stay inside synchronous
+scopes; await continuations may change threads. Four focused checks pass,
+including actual matrix and unchanged original runtime executions. Linux/native
+ownership, full M16-010 profile admission and repeated guest process cleanup
+remain required before qualification.
+
 [Step1274](../done/step1274.md) adds repeated upstream ThreadPool work,
 cancelled-wait permit recovery, competing completion publishers/continuations
 and in-flight timer disposal. Three Windows managed rounds complete 24 real

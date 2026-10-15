@@ -1,5 +1,16 @@
 # App Model
 
+[Step1275](../done/step1275.md) adds separate `NativeAotRuntimeMatrix` source and
+Windows managed evidence. Three in-process rounds exercise real compiler EH
+filter/catch/finally/rethrow identity, one cached failed initializer across six
+accesses, delegates across GC, running/parked roots and fresh thread statics,
+finalization, Task.Run, measured delays/timer disposal and cancellation. Six
+dedicated workers join; all three finalizers run once. The unchanged original
+runtime workload also passes as a separate Windows managed regression. Four
+focused checks pass. Repeated rounds do not establish repeated guest process
+lifetimes. This matrix has no Linux producer/syscall/index qualification or
+M16-010 guest admission yet; original pinned inputs remain unchanged.
+
 [Step1274](../done/step1274.md) adds separate `NativeAotThreadPoolStress` source
 and Windows managed evidence. Three rounds complete 24 Task.Run work items with
 two app operations in flight, recover cancelled async waits, race result/cancel
