@@ -1,5 +1,12 @@
 # Networking
 
+[Step1312](../done/step1312.md) adds the dependent TCP connection ownership core
+under integration #734: bounded caller-owned entries/generations, opaque lifetime
+handles, half-open/closed slot retention and explicit release. The fast TCP filter
+passes200 checks across25 fixtures, including15 table checks. Explicit sequence
+zero is valid; default metadata remains invalid. This is host development only;
+#148 remains acceptance-blocked on #691. No live TCP, sockets or Kestrel is added.
+
 [Step1309](../done/step1309.md) adds the retained size-eight RX/TX ring engine;
 [step1310](../done/step1310.md) adds its exclusive device owner using the existing
 MMIO queue-configuration and DMA-pool contracts. The owner programs/readbacks
@@ -537,7 +544,10 @@ Beyond the qualified finite profiles, current helpers remain packet buffer primi
 4. local/remote sequence metadata update;
 5. marking closing, removing to a closed slot, and reusing that slot;
 6. invalid endpoint/default sequence/default result rejection;
-7. no-managed-reference layout checks for table key, sequence, entry, and result types.
+7. no-managed-reference layout checks for table key, sequence, entry, and result types;
+8. owned half-open/closed lifetimes, exhausted64-slot capacity, generation exhaustion,
+   stale/foreign/copied/previous-epoch handles, corrupt/aliased metadata,
+   initialized zero sequences, release scrub and allocation-free warmed operations.
 
 `tests/OS.HostTests/TcpPassiveOpenHandshakeTests.cs` covers:
 
@@ -1806,7 +1816,20 @@ pseudo-headers, timers, sockets, or NIC-backed packet I/O.
 
 `TcpListenerBacklogSocketBridge` is a host-only metadata bridge from a caller-owned backlog table into the in-process `OSHostSocketTable` mock accept queue. It does not export `OSHost_SocketAccept`, create a live TCP listener, own listener connection tables, block or wake scheduler waits, transfer payload data, or prove hosted .NET 10, ASP.NET Minimal API, or Kestrel support.
 
-`TcpConnectionTable` is a caller-owned metadata table for established TCP stream tuples only. It tracks endpoint, sequence, and lifecycle metadata in value entries and can reuse closed slots, but it does not implement retransmission, timers, receive windows, send queues, listener accept state, socket/PAL handles, concurrency control, route selection, ARP, NIC-backed packet I/O, hosted .NET 10, ASP.NET Minimal API, or Kestrel support.
+`TcpConnectionTable` retains its span metadata API and adds an exclusive owned
+API over1..64 mapped caller-owned entries and generation words. Opaque handles
+join owner address, unique lifetime epoch and nonwrapping slot generation. A
+half-open or closed unreleased connection holds its tuple; only explicit release
+clears the entry and permits reuse. One serialized kernel caller must retain all
+backing, validate actual protocol events and release external packet/timer leases
+before metadata release. The table performs no NIC I/O, socket acceptance, timer,
+retransmission, receive-window or send-queue processing. Its new ownership API has
+host development evidence only. Sequence metadata has an explicit initialization
+flag so zero remains a valid sequence number, as required by
+[RFC9293 section3.4](https://www.rfc-editor.org/rfc/rfc9293.html#section-3.4).
+Default metadata remains invalid; this internal layout change still needs the
+new native compile/ABI/guest qualification. No hosted .NET, Kestrel, cloud or
+production support is established.
 
 `OS.Std.Net.InternetChecksum` and `Ipv4TransportChecksum` are checksum primitives. Current enforcement is limited to outbound IPv4 UDP checksum generation in `EthernetIpv4UdpPacket.TryWrite`, non-zero IPv4 UDP checksum validation in `UdpReceiveDispatcher`, active-connect outbound SYN/final ACK generation plus inbound SYN-ACK validation in `TcpIpv4FramePlanner`, passive-open outbound SYN-ACK generation plus inbound SYN/final ACK validation in `TcpPassiveIpv4FramePlanner`, outbound active-close FIN/ACK checksum generation in `TcpConnectionCloseIpv4FramePlanner`, established payload send/receive frame checksums in `TcpEstablishedStreamIpv4FramePlanner`, inbound established payload/passive FIN/RST receive dispatch plus passive-close ACK checksum writing in `TcpReceiveDispatcher`, and HTTP GET request checksum generation plus response checksum validation in `HttpTcpClientGetPlanner`; they do not provide live NIC receive checksums, do not validate live NIC packets, and do not provide socket, hosted .NET 10, ASP.NET Minimal API, or Kestrel proof.
 
