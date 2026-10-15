@@ -1,5 +1,16 @@
 # App Model
 
+[Step1269](../done/step1269.md) adds canonical packages and sealed instruction
+lookup for step1267's exact qualified suspension and ThreadPool ELF images.
+Packaging checks the fixed producer receipt, current relevant raw sources,
+produced DLL/object, complete stdout and every thread trace. The manifests grant
+four/eight bounded thread slots and explicit user IRQs. A shared internal parser
+retains Hello's original index contract; each new program separately pins its
+complete reviewed LLVM index, executable backing and syscall continuations.
+Both actual inputs pass preparation, independent index audit and tamper controls.
+These are host input checks. No new QEMU selector or guest success path is added;
+complete signal/scheduler/output/lifecycle consumers still follow in this batch.
+
 [Step1268](../done/step1268.md) expands the existing M16 native owner and signal
 metadata from four to eight threads for step1267's observed seven-thread
 ThreadPool workload. One 105-page retained pool contains seven RX code pages,

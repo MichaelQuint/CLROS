@@ -1,5 +1,11 @@
 # QEMU
 
+[Step1269](../done/step1269.md) adds host-only canonical package and sealed
+instruction preparation for the focused suspension and ThreadPool workloads.
+These packages currently have no QEMU selector: byte/index admission does not
+replace complete scheduler, signal, raw output, exit/reap and cleanup checks.
+The unchanged Hello path and mechanical selectors retain their existing scope.
+
 [Step1263](../done/step1263.md) makes current thread/signal tails require zero
 dynamic user reservation/backing counters and a checked zeroed initial ABI stack
 in the existing owner-end row. Older tails lacking those fields fail the current

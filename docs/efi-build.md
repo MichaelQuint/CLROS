@@ -2,6 +2,15 @@
 
 ## Development Linux threading profile
 
+[Step1269](../done/step1269.md) prepares only the two separately qualified
+threading payloads through `linux threading-package <app> <evidence-root>
+<fresh-artifacts-package>` and `linux threading-program <app> <package>
+<llvm-disassembly>`. App names are exactly NativeAotSuspensionSmoke and
+NativeAotThreadPoolSmoke. The first requires step1267's extracted portable
+producer tree; the second requires its complete reviewed instruction index.
+These commands start no builder, native publication or guest. They do not add
+QEMU admission: complete guest protocol consumers are still required.
+
 [Step1268](../done/step1268.md) implements eight native worker slots and eight
 signal lifetimes within the same default-off M16-008/009 owner. Program offsets
 now cover seven code pages; the retained pool has 105 pages with derived
