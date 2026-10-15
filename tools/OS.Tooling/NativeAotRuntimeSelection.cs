@@ -6,8 +6,10 @@ namespace OS.Tooling;
 public static class NativeAotRuntimeSelection
 {
     /// <summary>Return the selected application, or empty for an older profile.
-    /// Multiple enabled runtime leaves fail before any child can execute.</summary>
-    public static string Application(IReadOnlyDictionary<string, bool> flags)
+    /// Without an explicit application, M16-010 defaults to RuntimeMatrix.
+    /// Its original RuntimeSmoke regression must be selected explicitly.
+    /// Conflicting probes and mismatched names fail before child execution.</summary>
+    public static string Application(IReadOnlyDictionary<string, bool> flags, string? selected = null)
     {
         string result = "";
         foreach (string app in new[] { "NativeAotSuspensionStress", "NativeAotThreadPoolStress", "NativeAotRuntimeMatrix" })
@@ -16,7 +18,9 @@ public static class NativeAotRuntimeSelection
                 if (result.Length != 0) throw new ToolFailure("runtime_profile_conflict");
                 result = app;
             }
-        return result;
+        if (result.Length == 0 || selected is null || selected == result) return result;
+        if (result == "NativeAotRuntimeMatrix" && selected == "NativeAotRuntimeSmoke") return selected;
+        throw new ToolFailure("runtime_profile_application");
     }
 
     /// <summary>Return the one owning probe; unknown application names throw.</summary>
@@ -24,7 +28,7 @@ public static class NativeAotRuntimeSelection
     {
         "NativeAotSuspensionStress" => "EnableM09011Probe",
         "NativeAotThreadPoolStress" => "EnableM09012Probe",
-        "NativeAotRuntimeMatrix" => "EnableM16010Probe",
+        "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke" => "EnableM16010Probe",
         _ => throw new ToolFailure("runtime_application")
     };
 
@@ -33,7 +37,7 @@ public static class NativeAotRuntimeSelection
     {
         "NativeAotSuspensionStress" => ("TEST_START m09.011", "CLROS_M09_011_READY", "TEST_PASS m09.011"),
         "NativeAotThreadPoolStress" => ("TEST_START m09.012", "CLROS_M09_012_READY", "TEST_PASS m09.012"),
-        "NativeAotRuntimeMatrix" => ("TEST_START m16-010", "CLROS_M16_010_READY", "TEST_PASS m16-010"),
+        "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke" => ("TEST_START m16-010", "CLROS_M16_010_READY", "TEST_PASS m16-010"),
         _ => throw new ToolFailure("runtime_application")
     };
 
@@ -46,7 +50,7 @@ public static class NativeAotRuntimeSelection
         {
             if (options.LinuxThreadingApplication.Length == 0 && !options.Explicit.Contains("LinuxThreadingApplication"))
                 options.LinuxThreadingApplication = app;
-            if (options.LinuxThreadingApplication != app) throw new ToolFailure("runtime_profile_application");
+            _ = Application(flags, options.LinuxThreadingApplication);
         }
         if (!options.HasThreadingSelection) return;
         if (app.Length == 0 && options.LinuxThreadingApplication is not ("NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke"))

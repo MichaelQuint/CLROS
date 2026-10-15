@@ -28,7 +28,7 @@ public static class QemuProfiles
         }
         EfiProfile profile = EfiProfile.Create(options.BootPolicy, flags, emit);
         NativeAotRuntimeSelection.Bind(options, profile.Flags);
-        string runtimeApp = NativeAotRuntimeSelection.Application(profile.Flags);
+        string runtimeApp = NativeAotRuntimeSelection.Application(profile.Flags, options.LinuxThreadingApplication);
         if (runtimeApp.Length != 0 && !options.Explicit.Contains("TimeoutSeconds") && options.TimeoutSeconds == 30)
             options.TimeoutSeconds = 600;
         Require(options.TimeoutSeconds >= 1 && options.TimeoutSeconds <= (runtimeApp.Length == 0 ? 300 : 900), "qemu_timeout_out_of_range");

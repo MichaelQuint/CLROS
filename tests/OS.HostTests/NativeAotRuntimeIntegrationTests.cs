@@ -59,6 +59,37 @@ internal static class NativeAotRuntimeIntegrationTests
         }
     }
 
+    [HostTest("nativeaot.runtime original RuntimeSmoke requires explicit M16-010 selection and retains distinct sealed preparation")]
+    private static void OriginalRuntimeSmoke()
+    {
+        const string app = "NativeAotRuntimeSmoke";
+        var options = Options("NativeAotRuntimeMatrix", "-LinuxThreadingApplication", app, "-DryRun");
+        var plan = QemuProfiles.Create(options);
+        HostCheck.Equal(app, NativeAotRuntimeSelection.Application(plan.Flags, options.LinuxThreadingApplication));
+        HostCheck.Equal("NativeAotRuntimeMatrix", NativeAotRuntimeSelection.Application(plan.Flags));
+        HostCheck.Equal("EnableM16010Probe", NativeAotRuntimeSelection.Flag(app));
+        HostCheck.True(plan.Required.Contains("TEST_START m16-010") && plan.Unique.Contains("TEST_PASS m16-010"));
+        HostCheck.Equal(600, options.TimeoutSeconds);
+        bool rejected = false;
+        try { QemuTranscripts.ValidateRun(HostToolProcess.FindRepositoryRoot(), options, plan,
+            new(0, "", "", false, false, false, TimeSpan.Zero), TextWriter.Null); }
+        catch (ToolFailure error) { rejected = error.Reason == "runtime_prepared_program_required"; }
+        HostCheck.True(rejected);
+        foreach (string owner in new[] { "NativeAotSuspensionStress", "NativeAotThreadPoolStress" })
+            Reject(Options(owner, "-LinuxThreadingApplication", app), "runtime_profile_application");
+        Reject(QemuSmokeOptions.Parse("-BuildEfi", "-EnableM16009Probe", "-LinuxThreadingApplication", app,
+            "-LinuxThreadingDisassembly", "input.dump"), "threading_application");
+        Reject(Options("NativeAotRuntimeMatrix", "-LinuxThreadingApplication", "nativeaotruntimesmoke"), "runtime_profile_application");
+        int children = 0;
+        int code = QemuSmoke.RunAsync(HostToolProcess.FindRepositoryRoot(), options, TextWriter.Null, (name, args) =>
+        {
+            children++; HostCheck.Equal("OS.QemuRunner", name);
+            HostCheck.True(args.Contains("--dry-run") && args.Contains("TEST_PASS m16-010"));
+            return Task.FromResult(new ProcessResult(0, "", "", false, false, false, TimeSpan.Zero));
+        }).GetAwaiter().GetResult();
+        HostCheck.Equal(0, code); HostCheck.Equal(1, children);
+    }
+
     [HostTest("nativeaot.runtime invalid selections disabled prerequisites and timeouts fail before any child")]
     private static void Selection()
     {

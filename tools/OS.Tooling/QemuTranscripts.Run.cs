@@ -16,7 +16,7 @@ public static partial class QemuTranscripts
         Need((options.LinuxHelloDisassembly.Length != 0) == (helloProgram is not null), "hello_prepared_program_required");
         if (helloProgram is not null) Need(string.Equals(Path.GetFullPath(root), helloProgram.SourceRoot,
             OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal), "hello_prepared_source_root");
-        string runtimeApp = NativeAotRuntimeSelection.Application(plan.Flags);
+        string runtimeApp = NativeAotRuntimeSelection.Application(plan.Flags, options.LinuxThreadingApplication);
         Need((runtimeApp.Length != 0) == (runtimeProgram is not null), "runtime_prepared_program_required");
         Need(options.HasThreadingSelection == (threadingProgram is not null || runtimeProgram is not null), "threading_prepared_program_required");
         Need(threadingProgram is null || runtimeProgram is null, "runtime_threading_conflict");

@@ -2,6 +2,24 @@
 
 ## Development Linux threading profile
 
+[Step1285](../done/step1285.md) adds the original unchanged `NativeAotRuntimeSmoke`
+as a distinct M16-010 regression. Select it explicitly with
+`-LinuxThreadingApplication NativeAotRuntimeSmoke`; omitted M16-010 app selection
+still defaults to `NativeAotRuntimeMatrix`. The original five-row output, exact
+step1225 r04 ELF and complete instruction index have their own sealed authority.
+Its leaf requires actual normal worker reap and a later deadline completion;
+the stress apps retain their separate activation evidence requirements.
+
+Prepare it with `linux runtime-package NativeAotRuntimeSmoke <evidence-root>
+artifacts/runtime-original-r01/NativeAotRuntimeSmoke.pkg`, then
+`linux runtime-program NativeAotRuntimeSmoke <package> <complete-llvm-dump>`.
+Here `evidence-root` is the retained `nativeaot-net11-builder` root containing
+`final-audit-r04.json` and `evidence-r04`, not the latter child alone. Original
+archive/source/native/publish receipts, produced DLL/object, stdout and all
+eight original traces retain their exact identities. No app or producer changes
+or new probe are introduced. Main-checkout package/index verification passes;
+actual CLROS runtime guests and shared acceptance remain pending.
+
 [Step1284](../done/step1284.md) adds three mutually exclusive default-off runtime
 profiles. Each inherits the complete M16-009 prerequisite chain and requires
 the matching canonical package and complete reviewed LLVM disassembly:
@@ -10,7 +28,7 @@ the matching canonical package and complete reviewed LLVM disassembly:
 | --- | --- | --- |
 | `EnableM09011Probe` | `NativeAotSuspensionStress` | `TEST_PASS m09.011` |
 | `EnableM09012Probe` | `NativeAotThreadPoolStress` | `TEST_PASS m09.012` |
-| `EnableM16010Probe` | `NativeAotRuntimeMatrix` | `TEST_PASS m16-010` |
+| `EnableM16010Probe` | `NativeAotRuntimeMatrix` (default), `NativeAotRuntimeSmoke` (explicit regression) | `TEST_PASS m16-010` |
 
 Use the existing `-LinuxThreadingDisassembly` option. An omitted
 `-LinuxThreadingApplication` is inferred from the selected probe; an explicitly

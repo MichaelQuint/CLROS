@@ -1,5 +1,14 @@
 # App Model
 
+[Step1285](../done/step1285.md) adds separate sealed admission for the unchanged
+original RuntimeSmoke, preserving its EH, GC/threads/TLS and task/timer groups
+as M16-010 regressions. Explicit app selection distinguishes it from the default
+RuntimeMatrix. Main package/index verification passes against retained r04
+authority. A repeated host-owner control exercises 48 worker lifetimes on the
+same backing, full-capacity failure, parked-wait cancellation, signal drain and
+complete release with fresh keys/generations. These are input/parser/service
+checks; actual CLROS runtime and shared full-host/native/guest gates remain open.
+
 [Step1284](../done/step1284.md) integrates the three broader runtime apps with
 dedicated default-off profiles, matching sealed program preparation and complete
 parent/leaf/raw-runner validation. App/profile mismatches and invalid inputs

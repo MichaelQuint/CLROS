@@ -1,5 +1,16 @@
 # Diagnostics
 
+[Step1285](../done/step1285.md) admits the exact original RuntimeSmoke under
+explicit M16-010 selection. Canonical r04 package/source/producer evidence and
+its complete index remain separate from RuntimeMatrix. Its original output
+requires real normal reap followed by a later deadline completion, including
+split/coalesced writes. This original Linux trace carries no activation claim;
+the stress-app checks remain unchanged. A host-only repeated-lifetime control
+fills all 16 slots in three successive owners on the same backing, rejects an
+extra clone without TID/signal mutation, cancels parked waits, drains pending
+signals and reaps all 48 workers before fresh-key/generation reuse. Actual guest
+process, capacity and shutdown qualification remains required.
+
 [Step1284](../done/step1284.md) adds default-off `EnableM09011Probe`,
 `EnableM09012Probe` and `EnableM16010Probe`, appended to the probe catalog without
 reordering older entries. Each gates the existing owned Linux signal owner and

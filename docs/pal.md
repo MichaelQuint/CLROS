@@ -1,5 +1,12 @@
 # PAL
 
+[Step1285](../done/step1285.md) adds distinct original RuntimeSmoke admission
+under M16-010 and real host-service repeated owner cleanup. Three successive
+16-slot owners reuse the same backing only after cancelled waits, pending
+signals, all 48 actual modeled reaps and complete metadata release. Old keys
+and generations remain invalid. No native relaunch service or entropy refill
+policy is added; actual guest lifetime and shared qualification remain pending.
+
 [Step1284](../done/step1284.md) connects broader sealed runtime consumers to
 their dedicated default-off native profiles and the original firmware/startup,
 PCI/APIC, root and raw runner checks. Outer success follows entropy cleanup;
