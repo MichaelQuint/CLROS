@@ -10,6 +10,12 @@ matrix failure is before the first EBS-success confirmation, with actual firmwar
 exit state unknown and no app execution witnessed. No startup cause/fix, guest
 Kestrel or new numbered/cloud/production gate is claimed.
 
+[Step1308](../done/step1308.md) bounds positive QEMU startup to 30 seconds when
+EBS confirmation is required, separately from the workload budget. A timeout
+retains stopped CPU/RAM diagnostics before owned-child cleanup. Eighty short
+pristine-image replays did not reproduce the original hang; this is containment
+and diagnostic coverage, not a root-cause fix.
+
 ## Historical development receipts
 
 The named development checkpoints below retain their original scope; step1307

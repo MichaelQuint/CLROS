@@ -130,6 +130,8 @@ try
     process.StartInfo.FileName = qemu.Path;
     process.StartInfo.UseShellExecute = false;
     process.StartInfo.CreateNoWindow = true;
+    process.StartInfo.RedirectStandardInput = options.WatchStartup;
+    process.StartInfo.RedirectStandardOutput = options.WatchStartup;
 
     foreach (string argument in QemuCommandBuilder.BuildArguments(options, ovmf.Path))
     {
@@ -151,6 +153,8 @@ try
     bool markerSeen = false;
     bool forbiddenMarkerSeen = false;
     bool timedOut = false;
+    bool startupTimedOut = false;
+    QemuStartupDeadline? startup = options.WatchStartup ? new(options.StartupTimeoutSeconds) : null;
     const long terminalDrainMilliseconds = 750;
     Stopwatch stopwatch = Stopwatch.StartNew();
     long lastSerialActivityMilliseconds = stopwatch.ElapsedMilliseconds;
@@ -187,6 +191,16 @@ try
         if (serialReadOffset != previousSerialReadOffset)
         {
             lastSerialActivityMilliseconds = stopwatch.ElapsedMilliseconds;
+        }
+
+        if (options.StartupTimeoutSeconds <= options.TimeoutSeconds &&
+            startup?.HasExpired(stopwatch.ElapsedMilliseconds, streamingMarkers) == true)
+        {
+            timedOut = startupTimedOut = true;
+            QemuStartupCapture.CaptureBestEffort(process, options.SerialLogPath);
+            TerminateProcessAndClassify(process, ref processTerminationRequested,
+                ref processCleanupFailed, ref qemuExitedSpontaneously, ref qemuExitCode);
+            break;
         }
 
         if (stopwatch.ElapsedMilliseconds >= options.TimeoutSeconds * 1000L)
@@ -282,6 +296,7 @@ try
         options.ForbiddenMarkers,
         options.OrderedMarkers);
     if (options.HttpProbe is not null
+        && !timedOut
         && preProbeSummary.HasAllRequiredMarkers
         && !preProbeSummary.HasForbiddenMarkers)
     {
@@ -641,19 +656,20 @@ try
             : summary.MissingMarkers;
     if (timedOut)
     {
+        string timeoutReason = startupTimedOut ? "startup_timeout" : "timeout";
         WriteSummaryLogBestEffort(
             options,
             "fail",
             observedMarkerLines,
             missingMarkers,
             Array.Empty<string>(),
-            "timeout",
+            timeoutReason,
             httpProbeResult,
             summary.AppExitResults,
             summary.MalformedAppExitMarkers,
             outOfOrderMarkers,
             duplicateUniqueMarkers);
-        Console.Error.WriteLine("TEST_FAIL qemu.smoke timeout");
+        Console.Error.WriteLine("TEST_FAIL qemu.smoke " + timeoutReason);
         return 4;
     }
 
@@ -1923,6 +1939,10 @@ sealed class RunnerOptions
 
     public int TimeoutSeconds { get; private set; } = 30;
 
+    public int StartupTimeoutSeconds { get; private set; } = 30;
+    public bool WatchStartup => !ExpectedUnexpectedVectorPanic && !ExpectedOwnedSubsystemPanic && !ExpectedUnhandledException &&
+        (RequiredMarkers.Contains(QemuStartupDeadline.ReadyMarker) || OrderedMarkers.Contains(QemuStartupDeadline.ReadyMarker) || UniqueMarkers.Contains(QemuStartupDeadline.ReadyMarker));
+
     public HttpProbeOptions? HttpProbe { get; private set; }
 
     public bool ExpectedUnexpectedVectorPanic { get; private set; }
@@ -2060,6 +2080,9 @@ sealed class RunnerOptions
                 case "--timeout":
                     options.TimeoutSeconds = ReadPositiveInt(args, ref i, arg);
                     break;
+                case "--startup-timeout":
+                    options.StartupTimeoutSeconds = ReadPositiveInt(args, ref i, arg);
+                    break;
                 case "--http-probe-url":
                     options.SetHttpProbeUrl(ReadValue(args, ref i, arg));
                     break;
@@ -2091,6 +2114,7 @@ sealed class RunnerOptions
 
     public static void PrintHelp()
     {
+        Console.WriteLine("--startup-timeout <seconds> bounds startup to M03_EBS_RETURNED_SUCCESS when required (default 30); the overall --timeout still applies. A startup timeout captures QMP registers and up to 512 MiB RAM beside the serial log before terminating the child.");
         Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--replace-default-required-markers] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--expect-unexpected-vector-panic|--expect-owned-subsystem-panic] [--firmware-rng-source virtio|missing] [--virtio-block-queue-device [--virtio-block-boot-image <raw>]] [--dry-run]");
         Console.WriteLine("preflight validates local runner inputs and image format hints without launching QEMU or requiring libvirt.");
     }

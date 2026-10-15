@@ -63,6 +63,9 @@ internal static class QemuCommandBuilder
                 arguments.AddRange(["-object", "rng-builtin,id=clrosrng", "-device", "virtio-rng-pci,rng=clrosrng"]);
         }
 
+        if (options.WatchStartup)
+            arguments.AddRange(["-qmp", "stdio"]);
+
         return arguments;
     }
 

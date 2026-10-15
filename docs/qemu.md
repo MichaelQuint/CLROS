@@ -1875,6 +1875,15 @@ double-fault recovery nor universal triple-fault prevention.
 - `dotnet run --project tools/OS.Tooling -- qemu smoke` preserves dry-run behavior without requiring QEMU, OVMF, or an image. Real mode now runs a host preflight before optional EFI/image build and before launching `OS.QemuRunner`. The preflight resolves QEMU and OVMF, emits `TEST_START qemu.smoke.preflight`, `QEMU_SCRIPT_PREFLIGHT_QEMU`, `QEMU_SCRIPT_PREFLIGHT_OVMF`, and `TEST_PASS qemu.smoke.preflight`, or fails early with `TEST_FAIL qemu.smoke qemu_not_found` or `TEST_FAIL qemu.smoke ovmf_not_found`.
 - Before launching the runner in real mode, `dotnet run --project tools/OS.Tooling -- qemu smoke` validates the selected image artifact and disk format, emits `QEMU_SCRIPT_PREFLIGHT_IMAGE` and `QEMU_SCRIPT_PREFLIGHT_DISK_FORMAT`, and fails with `TEST_FAIL qemu.smoke image_not_found`, `image_empty`, or `disk_format_mismatch` when the artifact cannot be used.
 - The runner polls the serial log while QEMU runs and terminates QEMU after all required markers appear. The boot timeout is a hard deadline checked before marker/drain completion on every poll. If an HTTP probe is configured, the runner keeps QEMU alive until the probe completes under the probe's separately bounded timeout.
+- Positive runs requiring `M03_EBS_RETURNED_SUCCESS` also have a 30-second startup
+  deadline from process launch. Set `-StartupTimeoutSeconds` in `OS.Tooling qemu smoke`
+  or `--startup-timeout` in `OS.QemuRunner` to override it. A complete confirmation
+  observed before this deadline disarms it; the overall timeout still applies.
+  Expiry returns exit 4 / `startup_timeout`, with a best-effort stopped QMP CPU/stack
+  and RAM capture beside the serial log (`*.startup-*/`). Capture has a five-second
+  total budget and supports unhotplugged RAM up to 512 MiB; capture failure still
+  terminates the owned child and fails the run. Expected-panic paths retain their
+  existing timeout. This does not fix or automatically retry firmware hangs.
 - `tools/OS.QemuRunner` always requires the baseline markers `OS_BOOT_OK`, `TEST_PASS boot.sequence`, and `OS_SMOKE_PASS`. Repeatable `--require-marker <marker>` arguments append requirements; they cannot replace the baseline or remove the success terminal.
 - Repeatable `--require-ordered-marker <marker>` arguments define a
   case-sensitive line sequence, and repeatable
