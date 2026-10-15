@@ -98,8 +98,12 @@ public static partial class QemuTranscripts
             if(runtimeProgram is not null)
             {
                 byte[] raw=File.ReadAllBytes(path);
+                const string clockSuffix=" source=owned-hpet";
+                string clockLine=lines.Single(l=>l.StartsWith("M16_003_CLOCK ",StringComparison.Ordinal));
+                Need(clockLine.EndsWith(clockSuffix,StringComparison.Ordinal),"m16_003_clock_source");
+                var parentClock=ReadRecord(clockLine[..^clockSuffix.Length],"M16_003_CLOCK","frequency:dec","period:dec","recoveries:dec");
                 ValidateNativeAotRuntimeTail(runtimeProgram.SourceRoot,package,runtimeProgram,
-                    RuntimeRawLeaf(runtimeProgram.Application,raw),tables["root"],kernel["old"]);
+                    RuntimeRawLeaf(runtimeProgram.Application,raw),tables["root"],kernel["old"],parentClock["frequency"]);
             }
             else if(threadingProgram is not null)
             {

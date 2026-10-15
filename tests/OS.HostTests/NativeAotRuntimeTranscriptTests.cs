@@ -30,9 +30,9 @@ internal static class NativeAotRuntimeTranscriptTests
             string data=text.Replace("\r","",StringComparison.Ordinal).Replace("\n","",StringComparison.Ordinal);
             Core.Rows.Add($"M16_005_WRITE fd=1 bytes={bytes} data={data}");Core.Call(1,bytes,[1,0x500400,(uint)bytes]);
         }
-        internal QemuTranscripts.ThreadingProtocolReport Inspect(string[]? rows=null,string? text=null)=>
+        internal QemuTranscripts.ThreadingProtocolReport Inspect(string[]? rows=null,string? text=null,ulong frequency=100_000_000)=>
             QemuTranscripts.InspectNativeAotRuntimeProtocolForTests(App,rows??Core.Rows.ToArray(),NativeAotThreadingTranscriptTests.Elf(),
-                r=>r==0x400202,r=>r==0x400202,Core.Lengths,text??Stdout.ToString(),8192,12288);
+                r=>r==0x400202,r=>r==0x400202,Core.Lengths,text??Stdout.ToString(),8192,12288,frequency);
     }
 
     private static void Activation(BroadVector b,Thread cpu,ulong time,int active)
@@ -86,7 +86,13 @@ internal static class NativeAotRuntimeTranscriptTests
         v.Rows.Add("M16_008_BUDGET_END nanos=3000000001");v.End(18);return b;
     }
 
-    private static BroadVector Matrix(bool lateNativeExit=false,bool wakeTimers=false,bool clockEvidence=true)
+    private static void ClockSample(Vector v,ulong nanos)
+    {
+        v.Call(228,0,[1,0x500600]);ulong ticks=nanos/10;
+        v.Rows.Add($"M16_008_SYSCALL_TIME identity={v.Current.Id} ordinal={v.Current.Ordinal} nr=228 entered={ticks} admitted={ticks} dispatched={ticks+1} prepared={ticks+1} periodFs=10000000");
+    }
+
+    private static BroadVector Matrix(bool lateNativeExit=false,bool wakeTimers=false,bool clockEvidence=true,bool inlineTimers=false)
     {
         BroadVector b=new("NativeAotRuntimeMatrix");var v=b.Core;b.Write("TEST_START nativeaot.runtime-matrix");
         Thread[] background=new Thread[6];for(int i=0;i<6;i++)background[i]=v.Clone(2+i,2+i);
@@ -98,7 +104,7 @@ internal static class NativeAotRuntimeTranscriptTests
             {
                 v.Select(background[i]);
                 if(i==1)v.Call(0,0,[3,0x500700,1],3,2);
-                else v.Wait(0x500280+(uint)i*4,i==2 && !wakeTimers?100_000_000UL:0);
+                else v.Wait(0x500280+(uint)i*4,i==2 && !wakeTimers && !inlineTimers?100_000_000UL:0);
                 v.Drain(20+(uint)i);v.Supervisor(3,8-i,9);
             }
             v.Select(cpu);v.Irq(basis+40,3,9);v.Select(gate);v.Wait(0x500260);v.Drain(basis+41);v.Supervisor(3,2,9);v.Select(v.Main);
@@ -118,8 +124,12 @@ internal static class NativeAotRuntimeTranscriptTests
                 v.Irq(basis+80,2,8);v.Select(gate);v.Call(60,0,[0],4);v.Drain(basis+80);v.Exit(4,1,8);v.Select(v.Main);
             }
             Thread timer=background[2];
+            if(clockEvidence)ClockSample(v,basis+50_000_000);
             for(int timerRound=1;timerRound<=2;timerRound++)
             {
+                if(timerRound==2 && clockEvidence)
+                {ClockSample(v,basis+100_000_000);ClockSample(v,basis+120_000_000);}
+                if(inlineTimers)continue;
                 ulong now=basis+(uint)timerRound*100_000_000UL;
                 if(wakeTimers)
                 {
@@ -135,6 +145,9 @@ internal static class NativeAotRuntimeTranscriptTests
                 ulong next=timerRound==1?basis+200_000_000:round==3?0:basis+1_100_000_000;
                 v.Wait(0x500288,next);v.Drain(now);v.Supervisor(3,1,7);v.Select(v.Main);v.Resume(0);
             }
+            if(clockEvidence)
+                foreach(ulong endpoint in new ulong[]{200_000_000,210_000_000,250_000_000})ClockSample(v,basis+endpoint);
+            v.Irq(basis+300_000_000,1,7);v.Select(v.Main);
             b.Write($"NATIVEAOT_MATRIX_ASYNC round={round} tasks=4 completed=4 checksum=30 workers=2 canceledBefore=1 canceledDuring=1 workCallbacks=0 delayBefore={basis+50_000_000} delayAfter={basis+100_000_000} timerBefore={basis+120_000_000} fired={basis+200_000_000} drained={basis+210_000_000} after={basis+250_000_000} frequency=1000000000 callbacks=1 stale=0 disposed=true");
         }
         b.Write("TEST_PASS nativeaot.runtime-matrix");v.Call(231,0,[0],2);v.Drain(v.Clock);v.Exit(2,6,7);
@@ -149,17 +162,52 @@ internal static class NativeAotRuntimeTranscriptTests
         var matrix=Matrix().Inspect();HostCheck.True(matrix.Clones==12 && matrix.Reaped==13 && matrix.SignalReturns==6 && matrix.Ticks==6);
     }
 
-    [HostTest("nativeaot.runtime timestamped matrix phases accept due-timer clock wake resume intervals without inventing deadlines")]
+    [HostTest("nativeaot.runtime matrix timestamps require distinct authenticated clock windows even when timers complete inline")]
     private static void DueMatrixTimers()
     {
         var due=Matrix(wakeTimers:true);var report=due.Inspect();
         HostCheck.Equal(0,report.Ticks);HostCheck.Equal(13,report.Reaped);
+        var inline=Matrix(inlineTimers:true);HostCheck.Equal(0,inline.Inspect().Ticks);
         var missing=Matrix(wakeTimers:true,clockEvidence:false);
-        Reject(missing,missing.Core.Rows.ToArray(),reason:"runtime_timer_kernel_evidence");
+        Reject(missing,missing.Core.Rows.ToArray(),reason:"runtime_clock_sample_missing");
         const string before="delayBefore=50000000",outside="delayBefore=70000000";
         string text=due.Stdout.ToString().Replace(before,outside,StringComparison.Ordinal);
         var rows=due.Core.Rows.Select(r=>r.Replace(before,outside,StringComparison.Ordinal)).ToArray();
-        Reject(due,rows,text,reason:"runtime_timer_kernel_evidence");
+        Reject(due,rows,text,reason:"runtime_clock_sample_missing");
+    }
+
+    [HostTest("nativeaot.runtime matrix clock windows reject reused missing mismatched reordered overflowing and foreign domain observations")]
+    private static void MatrixClockMutations()
+    {
+        var b=Matrix(inlineTimers:true);_=b.Inspect();
+        int at=b.Core.Rows.FindIndex(r=>r.StartsWith("M16_008_SYSCALL_TIME ",StringComparison.Ordinal));
+        HostCheck.True(at>0,"first actual clock timing selector");
+        Reject(b,b.Core.Rows.Where((_,i)=>i!=at).ToArray(),reason:"runtime_clock_sample_missing");
+        foreach(var mutation in new[]{("identity=4294967297","identity=4294967298"),("nr=228","nr=229"),
+            ("periodFs=10000000","periodFs=20000000"),("ordinal=", "ordinal=1"),
+            ("admitted=5000000","admitted=5000002"),
+            ("entered=5000000 admitted=5000000 dispatched=5000001 prepared=5000001", "entered=18446744073709551614 admitted=18446744073709551614 dispatched=18446744073709551615 prepared=18446744073709551615")})
+        {
+            var rows=b.Core.Rows.ToArray();rows[at]=rows[at].Replace(mutation.Item1,mutation.Item2,StringComparison.Ordinal);
+            HostCheck.True(rows[at]!=b.Core.Rows[at],"clock mutation selector");Reject(b,rows);
+        }
+        // A coarse read cannot authenticate Stopwatch's precise clock endpoint.
+        var coarse=b.Core.Rows.ToArray();coarse[at-1]=coarse[at-1].Replace("a0=1 ","a0=6 ",StringComparison.Ordinal);
+        Reject(b,coarse,reason:"runtime_clock_sample_missing");
+        int second=b.Core.Rows.FindIndex(at+1,r=>r.StartsWith("M16_008_SYSCALL_TIME ",StringComparison.Ordinal));
+        var reused=b.Core.Rows.ToArray();
+        foreach(string field in new[]{"entered","admitted","dispatched","prepared"})
+            reused[second]=Regex.Replace(reused[second],@"\b"+field+"=[0-9]+",Regex.Match(reused[at],@"\b"+field+"=[0-9]+").Value);
+        Reject(b,reused,reason:"runtime_clock_sample_order");
+        foreach(ulong frequency in new ulong[]{0,999_999,200_000_000,10_000_000_001})
+        {
+            bool rejected=false;try{b.Inspect(frequency:frequency);}catch(ToolFailure f){rejected=f.Reason=="runtime_clock_domain";}
+            HostCheck.True(rejected,"parent frequency must bind every sample");
+        }
+        // Valid endpoint bounds cannot rescue invalid managed elapsed time.
+        const string before="delayBefore=50000000",invalid="delayBefore=99000000";
+        Reject(b,b.Core.Rows.Select(r=>r.Replace(before,invalid,StringComparison.Ordinal)).ToArray(),
+            b.Stdout.ToString().Replace(before,invalid,StringComparison.Ordinal));
     }
 
     [HostTest("nativeaot.runtime phase checks require kernel collection and deadline evidence even when all app output is valid")]
@@ -177,7 +225,7 @@ internal static class NativeAotRuntimeTranscriptTests
     [HostTest("nativeaot.runtime coalesced phase rows and arbitrary write splits retain distinct signal deadline and reap observations")]
     private static void Coalesced()
     {
-        foreach(var b in new[]{Suspension(),Pool(),Matrix(),Matrix(wakeTimers:true)})
+        foreach(var b in new[]{Suspension(),Pool(),Matrix(),Matrix(wakeTimers:true),Matrix(inlineTimers:true)})
         {
             var v=b.Core;string text=b.Stdout.ToString();int bytes=Encoding.UTF8.GetByteCount(text);
             string original=v.Rows.First(r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal) && r.Contains(" nr=1 a0=1 ",StringComparison.Ordinal));
@@ -196,10 +244,12 @@ internal static class NativeAotRuntimeTranscriptTests
                 v.Rows.Insert(at++,call);v.Lengths.Add(count);
             }
             Dictionary<string,int> ordinals=[];
-            for(int i=0;i<v.Rows.Count;i++)if(v.Rows[i].StartsWith("M16_008_CALL ",StringComparison.Ordinal))
+            for(int i=0;i<v.Rows.Count;i++)if(v.Rows[i].StartsWith("M16_008_CALL ",StringComparison.Ordinal) || v.Rows[i].StartsWith("M16_008_SYSCALL_TIME ",StringComparison.Ordinal))
             {
                 string identity=Regex.Match(v.Rows[i],@"\bidentity=([0-9]+)").Groups[1].Value;
-                int ordinal=ordinals.GetValueOrDefault(identity)+1;ordinals[identity]=ordinal;
+                int ordinal=ordinals.GetValueOrDefault(identity);
+                if(v.Rows[i].StartsWith("M16_008_CALL ",StringComparison.Ordinal))ordinal++;
+                ordinals[identity]=ordinal;
                 v.Rows[i]=Regex.Replace(v.Rows[i],@"\bordinal=[0-9]+","ordinal="+ordinal.ToString(CultureInfo.InvariantCulture));
             }
             HostCheck.True(b.Inspect().Reaped>=6);

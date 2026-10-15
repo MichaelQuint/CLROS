@@ -28,16 +28,18 @@ public static partial class QemuTranscripts
     /// canonical package, sealed complete instruction index and original raw
     /// stdout. Kernel scheduling, signals, waits, workload phases and cleanup
     /// must agree. Parent firmware/root/runner provenance remains mandatory;
-    /// this leaf alone grants no guest or runtime acceptance.</summary>
+    /// this leaf alone grants no guest or runtime acceptance. Matrix additionally
+    /// requires the validated parent's HPET frequency to bind raw syscall timing
+    /// bounds to its reported monotonic timestamps; missing domains fail closed.</summary>
     public static void ValidateNativeAotRuntimeTail(string root, byte[] package,
-        NativeAotRuntimeProgram program, ReadOnlySpan<byte> rawTail, ulong userRoot, ulong kernelRoot)
+        NativeAotRuntimeProgram program, ReadOnlySpan<byte> rawTail, ulong userRoot, ulong kernelRoot, ulong hpetFrequencyHz=0)
     {
         Need(program is not null,"runtime_program_missing");string app=program!.Application;
         NativeAotRuntimePackage.RequireCurrentSources(root,app);NativeAotRuntimePackage.RequirePackage(app,package);
         var output=NativeAotThreadingOutput.Read(app,rawTail);
         int offset=64+Encoding.ASCII.GetByteCount(NativeAotRuntimePackage.Manifest(app));
         _=new ThreadingProtocol(app,Rows(output),package[offset..],program.IsInstruction,program.IsSyscallReturn,
-            output.WriteLengths,userRoot,kernelRoot,output.Stdout).Validate();
+            output.WriteLengths,userRoot,kernelRoot,output.Stdout,hpetFrequencyHz).Validate();
         NativeAotRuntimePackage.RequireCurrentSources(root,app);
     }
 
@@ -45,7 +47,7 @@ public static partial class QemuTranscripts
     /// No caller predicate, stdout or report constructs sealed program authority.</summary>
     public static ThreadingProtocolReport InspectNativeAotRuntimeProtocolForTests(string app,string[] rows,byte[] elf,
         Func<ulong,bool> instruction,Func<ulong,bool> syscallReturn,IReadOnlyList<int> lengths,string stdout,
-        ulong userRoot,ulong kernelRoot)=>new ThreadingProtocol(app,rows,elf,instruction,syscallReturn,lengths,userRoot,kernelRoot,stdout).Validate();
+        ulong userRoot,ulong kernelRoot,ulong hpetFrequencyHz=0)=>new ThreadingProtocol(app,rows,elf,instruction,syscallReturn,lengths,userRoot,kernelRoot,stdout,hpetFrequencyHz).Validate();
 
     /// <summary>Value-only parser seam for independent synthetic vectors. Neither
     /// caller predicates nor these counts construct a prepared program or prove
@@ -173,7 +175,7 @@ public static partial class QemuTranscripts
         private static readonly string[] Fields="identity nr a0 a1 a2 a3 a4 a5 rip rsp flags fs gs clock valueBits action status".Split(' ').Select(k=>k+":dec").ToArray();
 
         internal ThreadingProtocol(string app,string[] rows,byte[] elf,Func<ulong,bool> instruction,Func<ulong,bool> syscall,
-            IReadOnlyList<int> lengths,ulong userRoot,ulong kernelRoot,string? stdout=null)
+            IReadOnlyList<int> lengths,ulong userRoot,ulong kernelRoot,string? stdout=null,ulong hpetFrequencyHz=0)
         {
             broader=app is "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke";
             Need(broader || app is "NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke","threading_application");
@@ -185,7 +187,7 @@ public static partial class QemuTranscripts
             returns=ReadLinuxCallReturns(rows!).ToDictionary(x=>x.RecordIndex);
             this.rows=ValidateLinuxCallOrdinals(rows!); this.userRoot=userRoot; this.kernelRoot=kernelRoot;
             memory=new(elf); capacity=broader?16:app=="NativeAotSuspensionSmoke"?4:8;entropyLimit=broader?256U:32U;
-            if(broader){Need(stdout is not null,"runtime_stdout_missing");phases=new RuntimePhases(app,stdout!,lengths!);}
+            if(broader){Need(stdout is not null,"runtime_stdout_missing");phases=new RuntimePhases(app,stdout!,lengths!,hpetFrequencyHz);}
             else Need(stdout is null,"threading_unexpected_stdout");
             slots=new RuntimeThread?[capacity]; generations=Enumerable.Repeat(1UL,capacity).ToArray();
             var main=new RuntimeThread(0x100000001,1,0x70000000-1572864,0x70000000,0,Entry(elf));
@@ -263,7 +265,11 @@ public static partial class QemuTranscripts
                         }
                         Call(t,r,waits[index],output); Envelope(t,r["rip"],r["rsp"],r["flags"],r["fs"],r["gs"],r["nr"]);
                         t.SavedRsp=returns[index].Rsp; t.SavedRip=returns[index].Rip;
-                        if(Starts("M16_008_SYSCALL_TIME "))LinuxSyscallTiming(Take(),t.Identity,waits[index].Ordinal,r["nr"]);
+                        if(Starts("M16_008_SYSCALL_TIME "))
+                        {
+                            var timing=LinuxSyscallTiming(Take(),t.Identity,waits[index].Ordinal,r["nr"]);
+                            if(r["nr"]==228 && r["a0"]==1 && r["valueBits"]==0)phases?.ClockRead(timing);
+                        }
                         ExpectDelivery(t);
                         calls++; ending=r["action"] is 2 or 3 or 4 or 6; exiting=r["action"] is 2 or 4; action=r["action"];
                         if(ending) break;

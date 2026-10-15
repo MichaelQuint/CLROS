@@ -18,6 +18,9 @@ public static partial class QemuTranscripts
         private readonly Dictionary<(ulong Identity,ulong Sequence),(ulong Before,ulong Woke)> wakes=[];
         private readonly List<(ulong Before,ulong Woke,ulong Resumed)> resumes=[];
         private readonly List<(ulong Before,ulong Woke,ulong Resumed,ulong After)> wakeIntervals=[];
+        private readonly List<(ulong Lower,ulong Upper)> clockSamples=[];
+        private readonly ulong hpetFrequencyHz;
+        private ulong lastClockUpper;
         private ulong lastMonotonicClock;
         private bool hasMonotonicClock;
         private int position,normalReaps,totalReaps,matrixReapsDue,gc,joins,timers,written;
@@ -25,11 +28,13 @@ public static partial class QemuTranscripts
         internal ulong EarliestClock { get; private set; }=ulong.MaxValue;
         internal ulong LatestClock { get; private set; }
 
-        internal RuntimePhases(string app,string stdout,IReadOnlyList<int> lengths)
+        internal RuntimePhases(string app,string stdout,IReadOnlyList<int> lengths,ulong hpetFrequencyHz)
         {
             if(app=="NativeAotRuntimeSmoke")NativeAotThreadingOutput.ValidateRuntimeSmokeOutput(stdout);
             else NativeAotRuntimePayload.ValidateOutput(app,stdout);
             this.app=app;
+            this.hpetFrequencyHz=hpetFrequencyHz;
+            Need(app!="NativeAotRuntimeMatrix" || hpetFrequencyHz is >=1_000_000 and <=10_000_000_000,"runtime_clock_domain");
             bytes=Encoding.UTF8.GetByteCount(stdout);
             Need(lengths.Sum()==bytes && bytes is >0 and <=4096,"runtime_stdout_lengths");
             int end=0;List<(int,string)> list=[];
@@ -47,10 +52,32 @@ public static partial class QemuTranscripts
         // A due managed timer need not produce a kernel timeout. Require an
         // explicit matched wake and exact generation/sequence resumption,
         // bracketed by successful clock reads with validated clock progress.
-        // Matrix consumes the complete proof inside its timestamped interval;
-        // the untimestamped original additionally requires prior normal reap.
+        // The untimestamped original additionally requires prior normal reap.
         // Clear-TID, requeue and stdout alone cannot mint this evidence.
-        private bool ObserveWake=>app=="NativeAotRuntimeMatrix" || app=="NativeAotRuntimeSmoke" && totalReaps>0;
+        private bool ObserveWake=>app=="NativeAotRuntimeSmoke" && totalReaps>0;
+        // The actual CLOCK_MONOTONIC read occurs between admitted and dispatched.
+        // Convert both HPET bounds exactly as LinuxStartupServices.Clock does.
+        // These windows bound returned timestamps, not timer/callback identity.
+        internal void ClockRead(Dictionary<string,ulong> timing)
+        {
+            if(app!="NativeAotRuntimeMatrix")return;
+            ulong period=timing["periodFs"];
+            Need(1_000_000_000_000_000UL%period==0 && 1_000_000_000_000_000UL/period==hpetFrequencyHz,"runtime_clock_domain");
+            ulong lower=Nanoseconds(timing["admitted"]),upper=Nanoseconds(timing["dispatched"]);
+            Need(lower>=lastClockUpper && upper>=lower,"runtime_clock_sample_order");
+            lastClockUpper=upper;clockSamples.Add((lower,upper));
+        }
+        private ulong Nanoseconds(ulong ticks)
+        {
+            UInt128 value=(UInt128)(ticks/hpetFrequencyHz)*1_000_000_000+
+                (UInt128)(ticks%hpetFrequencyHz)*1_000_000_000/hpetFrequencyHz;
+            Need(value<=long.MaxValue,"runtime_clock_sample_range");return (ulong)value;
+        }
+        private void ConsumeTimestamp(ulong value)
+        {
+            int at=clockSamples.FindIndex(s=>s.Lower<=value && value<=s.Upper);
+            Need(at>=0,"runtime_clock_sample_missing");clockSamples.RemoveRange(0,at+1);
+        }
         internal void MonotonicRead(ulong clock)
         {
             if(!ObserveWake)return;
@@ -106,8 +133,10 @@ public static partial class QemuTranscripts
                 {Frequency(fields);Times(fields["before"],fields["after"]);ConsumeTimer(fields["before"],fields["after"]);timers++;}
                 else if(line.StartsWith("NATIVEAOT_MATRIX_ASYNC ",StringComparison.Ordinal))
                 {
-                    Frequency(fields);Times(fields["delayBefore"],fields["after"]);ConsumeTimer(fields["delayBefore"],fields["delayAfter"]);
-                    ConsumeTimer(fields["timerBefore"],fields["after"]);timers++;
+                    Frequency(fields);Times(fields["delayBefore"],fields["after"]);
+                    foreach(string endpoint in new[]{"delayBefore","delayAfter","timerBefore","fired","drained","after"})
+                        ConsumeTimestamp(fields[endpoint]);
+                    timers++;
                 }
                 else if(line=="NATIVEAOT_RUNTIME_GC_THREADS_TLS_OK")
                 {
@@ -144,8 +173,7 @@ public static partial class QemuTranscripts
         private void ConsumeTimer(ulong before,ulong after)
         {
             int at=deadlines.FindIndex(d=>d.Deadline>=before && d.Clock>=d.Deadline && d.Clock<=after);
-            if(at>=0){deadlines.RemoveAt(at);return;}
-            Need(app=="NativeAotRuntimeMatrix" && ConsumeWakeInterval(before,after),"runtime_timer_kernel_evidence");
+            Need(at>=0,"runtime_timer_kernel_evidence");deadlines.RemoveAt(at);
         }
         private static void Frequency(Dictionary<string,ulong> values)=>Need(values["frequency"]==1_000_000_000,"runtime_clock_frequency");
         private static Dictionary<string,ulong> Values(string row)

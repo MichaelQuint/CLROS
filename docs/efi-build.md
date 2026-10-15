@@ -2,14 +2,15 @@
 
 ## Development Linux threading profile
 
-[Step1303](../done/step1303.md) records a strict Hello and both focused runtime
-smokes at `6244fee`. The matrix completes all rounds and cleanup but exposes the
-same already-due timer path inside its timestamped Task.Delay interval. Its
-consumer now retains deadline wins and alternatively consumes a complete matched
-clock/wake/resume/clock proof wholly inside the reported interval. App elapsed
-checks and ThreadPool-stress deadline requirements remain fixed. Thirty-three
-focused checks and complete offline matrix/original revalidation pass; failed
-captures remain failed. Final-source repetitions and shared gates remain open.
+[Step1304](../done/step1304.md) corrects matrix timing admission after another
+complete workload/cleanup capture fails step1303's cached scheduler-time bracket.
+Each reported timestamp now needs its own actual successful ID1 clock-call HPET
+window, validated against the parent domain and exact kernel conversion, consumed
+chronologically once. Managed elapsed/cancellation/disposal checks and all real
+kernel wait/GC/reap/cleanup rules remain; ThreadPool-stress deadlines and original
+runtime post-reap evidence remain separate. No app, kernel, native input, timer,
+clock or deadline changes. Failed captures retain their original status.
+Fresh final-source matrix repetitions and shared acceptance remain required.
 
 [Step1302](../done/step1302.md) preserves three strict original-runtime and three
 ThreadPool-stress captures. A Hello run at `27dd0cf` prints its unchanged output
@@ -162,8 +163,8 @@ still defaults to `NativeAotRuntimeMatrix`. The original five-row output, exact
 step1225 r04 ELF and complete instruction index have their own sealed authority.
 Its leaf requires actual normal worker reap and later kernel timer-phase
 evidence: a deadline completion or the bounded clock/wake/resume route described
-in step1301. The stress apps retain their separate activation and timestamped
-deadline requirements.
+in step1301. Stress apps retain their separate activation requirements;
+ThreadPool stress requires deadline wins and matrix uses step1304's clock bounds.
 
 Prepare it with `linux runtime-package NativeAotRuntimeSmoke <evidence-root>
 artifacts/runtime-original-r01/NativeAotRuntimeSmoke.pkg`, then

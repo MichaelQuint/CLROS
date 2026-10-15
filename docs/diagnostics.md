@@ -1,12 +1,15 @@
 # Diagnostics
 
-[Step1303](../done/step1303.md) permits an already-due matrix timer to complete
-without a kernel timeout only when a full clock/wake/resume/clock proof fits
-inside its app timestamp interval. Explicit wake and exact successful resumption
-are bound to the actual generation/wait sequence; clock progress is independently
-validated and the proof is consumed once. Missing clocks and out-of-interval
-evidence reject, including coalesced stdout. The original still requires normal
-reap first; ThreadPool stress retains its actual deadline requirement.
+[Step1304](../done/step1304.md) supersedes step1303's matrix wake-bracket policy.
+Each of its 18 reported monotonic timestamps must fit a distinct successful
+clock-ID1 call's authenticated admitted..dispatched HPET window. Actual syscall
+identity/ordinal, chronological single consumption, parent frequency/period and
+the kernel's exact seconds/nanoseconds conversion are required. Missing, reused,
+foreign-domain or out-of-window samples reject, including coalesced stdout.
+Cached scheduler time is insufficient for these timestamp bounds. Matrix does
+not promise kernel timeouts or timer-registration identity; its existing managed
+elapsed and complete kernel wait/GC/reap/cleanup checks remain. Original runtime
+retains its post-reap evidence; ThreadPool stress retains deadline evidence.
 
 [Step1302](../done/step1302.md) corrects Hello's child ordering: exact parent
 initialization/clone/descriptor/signal-install checks remain at each stdout
@@ -47,8 +50,8 @@ canonical package and sealed runtime instruction index for the selected app.
 Broader leaves retain all raw stdout, syscall/wait, signal-frame, scheduler,
 mapping, exit/reap and owner cleanup checks. Collection output consumes completed
 activation frames for a ready, previously user-preempted peer while other kernel
-waits are parked. Timer output consumes actual deadline wins in its reported
-nanosecond interval; step1303 adds the bounded matrix alternative above.
+waits are parked. ThreadPool-stress timer output consumes actual deadline wins
+in its reported nanosecond interval; matrix uses step1304's clock bounds above.
 Join output consumes actual normal worker reaps. Split and
 coalesced writes retain those distinct observations. These checks correlate
 observable boundaries; they do not trace every user instruction or prove kernel
