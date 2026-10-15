@@ -175,7 +175,7 @@ public static partial class QemuTranscripts
         internal ThreadingProtocol(string app,string[] rows,byte[] elf,Func<ulong,bool> instruction,Func<ulong,bool> syscall,
             IReadOnlyList<int> lengths,ulong userRoot,ulong kernelRoot,string? stdout=null)
         {
-            broader=app is "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix";
+            broader=app is "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke";
             Need(broader || app is "NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke","threading_application");
             Need(rows is not null && rows.Length is >=25 and <=100000 && instruction is not null && syscall is not null &&
                 lengths is not null && lengths.Count is >0 and <=4096 && lengths.All(n=>n is >0 and <=4096) && lengths.Sum()<=4096,"threading_protocol_input");
@@ -311,7 +311,8 @@ public static partial class QemuTranscripts
             Need(stopping && reaped==clones+1 && writes==writeLengths.Count && irqs>0 && history.All(t=>t.Reaped),"threading_complete_lifetimes");
             if(broader)
             {
-                Need(app=="NativeAotSuspensionStress"?peak>=8 && normalExits>=15 && clones>=17:
+                Need(app=="NativeAotRuntimeSmoke"?peak>=5 && normalExits>=1 && clones>=5:
+                    app=="NativeAotSuspensionStress"?peak>=8 && normalExits>=15 && clones>=17:
                     app=="NativeAotRuntimeMatrix"?peak>=9 && normalExits>=6:peak>=5 && clones>=4,"runtime_workload_lifetimes");
                 phases!.Finish();var finished=Row("M16_008_BUDGET_END","nanos:dec");
                 Need(finished["nanos"]>=clock && finished["nanos"]>=phases.LatestClock && phases.EarliestClock>=budget.StartedNanoseconds &&

@@ -2,7 +2,7 @@ using System.Text;
 
 namespace OS.Tooling;
 
-/// <summary>Immutable lookup for one exact step1276 runtime package and its
+/// <summary>Immutable lookup for one exact step1225/step1276 runtime package and its
 /// reviewed complete LLVM index. The factory borrows snapshots synchronously,
 /// binds current relevant sources and retains only its private decoded index.
 /// Reports, synthetic rows and counts alone cannot construct this type.
@@ -43,6 +43,7 @@ public sealed class NativeAotRuntimeProgram
     }
     private static Inspection Reviewed(string app)=>app switch
     {
+        "NativeAotRuntimeSmoke"=>new(287555,167,"3DB73D3FB97A6B2614F54C9D81ECE8BBCB137DD33FBE1DD6085648DF798D051F"),
         "NativeAotSuspensionStress"=>new(301509,166,"C2021C3C8A003FEEE150A4974371640D101D374D34B014927502A5080C7601E4"),
         "NativeAotThreadPoolStress"=>new(307640,167,"4FBE5A570D727726C71123FBDBC222F4F7440B6E9A82B85E82A0E8C83212CEAB"),
         "NativeAotRuntimeMatrix"=>new(298538,167,"6496879D9908E67BF44C17988B1D899EDFEEB8024A0CE778594F11CF01EB8614"),

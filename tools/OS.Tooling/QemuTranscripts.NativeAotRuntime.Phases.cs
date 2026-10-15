@@ -14,15 +14,17 @@ public static partial class QemuTranscripts
         private readonly (int End,string Text)[] rows;
         private readonly int bytes;
         private readonly List<CollectionSignal> collections=[];
-        private readonly List<(ulong Deadline,ulong Clock)> deadlines=[];
-        private int position,normalReaps,gc,joins,timers,written;
+        private readonly List<(ulong Deadline,ulong Clock,int Reaps)> deadlines=[];
+        private int position,normalReaps,totalReaps,gc,joins,timers,written;
         private bool started,passed;
         internal ulong EarliestClock { get; private set; }=ulong.MaxValue;
         internal ulong LatestClock { get; private set; }
 
         internal RuntimePhases(string app,string stdout,IReadOnlyList<int> lengths)
         {
-            NativeAotRuntimePayload.ValidateOutput(app,stdout);this.app=app;
+            if(app=="NativeAotRuntimeSmoke")NativeAotThreadingOutput.ValidateRuntimeSmokeOutput(stdout);
+            else NativeAotRuntimePayload.ValidateOutput(app,stdout);
+            this.app=app;
             bytes=Encoding.UTF8.GetByteCount(stdout);
             Need(lengths.Sum()==bytes && bytes is >0 and <=4096,"runtime_stdout_lengths");
             int end=0;List<(int,string)> list=[];
@@ -34,8 +36,8 @@ public static partial class QemuTranscripts
             rows=list.ToArray();
         }
         internal void Collected(CollectionSignal proof)=>collections.Add(proof);
-        internal void Reaped()=>normalReaps++;
-        internal void Deadline(ulong deadline,ulong clock)=>deadlines.Add((deadline,clock));
+        internal void Reaped(){normalReaps++;totalReaps++;}
+        internal void Deadline(ulong deadline,ulong clock)=>deadlines.Add((deadline,clock,totalReaps));
 
         internal void Write(int total)
         {
@@ -66,6 +68,22 @@ public static partial class QemuTranscripts
                 {
                     Frequency(fields);Times(fields["delayBefore"],fields["after"]);ConsumeDeadline(fields["delayBefore"],fields["delayAfter"]);
                     ConsumeDeadline(fields["timerBefore"],fields["after"]);timers++;
+                }
+                else if(line=="NATIVEAOT_RUNTIME_GC_THREADS_TLS_OK")
+                {
+                    // This original fixture collects while its worker waits;
+                    // it promises no CPU-bound activation/sigreturn. Its pinned
+                    // ELF checks GC roots/TLS, and the leaf must witness reap.
+                    Need(normalReaps>=1,"runtime_smoke_join_ownership");normalReaps--;joins++;
+                }
+                else if(line=="NATIVEAOT_RUNTIME_TASK_TIMER_OK")
+                {
+                    // No app timestamp exists here. Require a real deadline win
+                    // observed after normal worker teardown. Preserve event
+                    // order even if both app rows arrive in one stdout write.
+                    int at=deadlines.FindIndex(d=>d.Reaps>0);
+                    Need(at>=0,"runtime_smoke_timer_kernel_evidence");
+                    var timer=deadlines[at];Times(timer.Deadline,timer.Clock);deadlines.RemoveAt(at);timers++;
                 }
             }
         }
@@ -98,7 +116,8 @@ public static partial class QemuTranscripts
         internal void Finish()
         {
             Need(started && passed && written==bytes && position==rows.Length,"runtime_phase_complete");
-            Need(app=="NativeAotSuspensionStress"?gc==9 && joins==3:
+            Need(app=="NativeAotRuntimeSmoke"?joins==1 && timers==1:
+                app=="NativeAotSuspensionStress"?gc==9 && joins==3:
                 app=="NativeAotRuntimeMatrix"?gc==3 && timers==3:timers==3,"runtime_phase_inventory");
         }
     }

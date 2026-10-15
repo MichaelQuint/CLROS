@@ -7,8 +7,8 @@ using OS.Manifest;
 
 namespace OS.Tooling;
 
-/// <summary>Host-only packaging of the three step1276 Linux-qualified runtime
-/// apps. Reads exact retained evidence and current relevant raw sources; never
+/// <summary>Host-only packaging of the original step1225 runtime smoke and the
+/// three step1276 apps. Reads exact evidence and current relevant sources; never
 /// compiles, maps or executes an app. Returned bytes remain caller-owned.
 /// Missing, stale, linked, oversized or substituted inputs fail before output.</summary>
 public static class NativeAotRuntimePackage
@@ -28,6 +28,10 @@ public static class NativeAotRuntimePackage
         int DllBytes,string DllHash,int ObjectBytes,string ObjectHash,int StdoutBytes,string StdoutHash,int Traces);
     internal static Payload Specification(string app)=>app switch
     {
+        "NativeAotRuntimeSmoke"=>new(app,1511248,"4D60BBC72BF797DB5E8F449867816A64AC99FBF93A5736D1DD1D31287CDA7553",
+            "B448C158C8ED551BD8A89096BF9B2565B1F81FE4372C7063FFC85D797471988C","",
+            8704,"69B0EB73153BAD72C3D6AE5606098693344D25B98EAEFEB9FEFC00D15AFD6415",5473003,"453163D569446952D541BF3C92114367B95F5D625E4BCBB91D57D373C10BB8EF",
+            149,"9AEADEC8DAAE9768ADB2953CDBF8B8E95A70520AA3846986F23095B0D584D6F1",8),
         "NativeAotSuspensionStress"=>new(app,1576912,"8581EE49DF39E639BAA4BDE83E724706BE7B923C708707BC6609BB7DA3C49C2E",
             "E7878D6036F00EFE3E11318033F17A8862A38330335C1C64CFD569D56DA5CB3D","52ACFBDE5BB104DFF29A8BD0F57F4849B2A1100D5303A44599DC202B117E9402",
             11776,"B50A28A446AB60150D10E53B99BF3CE951CDA796220D07EDAF5009CD6BA0F463",6036485,"C5BF994153128E54502D98F12F72A31CBB04D02CF1226DEDC2DE894F0018B57B",
@@ -54,8 +58,13 @@ public static class NativeAotRuntimePackage
         return "format=clros-linux-elf\nversion=1\nprofile=linux-musl-x64-static-v1\napp.path=apps/"+p.Name+
             "\nargs=\ndigest="+p.Hash.ToLowerInvariant()+"\nmemory=67108864\nstack=1572864\nthreads=16\ndescriptors=16\nlisten=127.0.0.1:8080\nenv.CLROS_USER_IRQS=1\n";
     }
-    private static IEnumerable<(string Path,string Hash)> Sources(Payload p)=>SharedSources.Concat([
-        ($"apps/{p.Name}/Program.cs",p.Source),($"apps/{p.Name}/{p.Name}.csproj",ProjectHash),($"tools/OS.Tooling/{p.Name}Guest.cs",p.Guest)]);
+    private static IEnumerable<(string Path,string Hash)> Sources(Payload p)
+    {
+        bool original=p.Name=="NativeAotRuntimeSmoke";
+        return (original?SharedSources[..^1]:SharedSources).Concat([
+            ($"apps/{p.Name}/Program.cs",p.Source),($"apps/{p.Name}/{p.Name}.csproj",ProjectHash)])
+            .Concat(original?[]:new[]{($"tools/OS.Tooling/{p.Name}Guest.cs",p.Guest)});
+    }
 
     /// <summary>Checks only the selected app and its relevant build/producer/
     /// output-validator sources against original raw identities. Build caches
@@ -83,10 +92,24 @@ public static class NativeAotRuntimePackage
     /// ELF/DLL/object/stdout and complete per-thread trace inventory match.
     /// The pinned receipt binds Linux/producer inputs; unavailable Linux files
     /// are not claimed to have been rehashed here. Evidence is read-only and
-    /// inputs are borrowed synchronously. Success grants no guest admission.</summary>
+    /// inputs are borrowed synchronously. Original Smoke uses the retained
+    /// nativeaot-net11-builder root containing final-audit-r04.json and
+    /// evidence-r04; the three newer apps use extracted runtime evidence-r02.
+    /// Success grants no guest admission.</summary>
     public static unsafe byte[] Create(string root,string evidenceRoot,string app)
     {
         var p=Specification(app);RequireCurrentSources(root,app);
+        byte[] elf=app=="NativeAotRuntimeSmoke"?OriginalSmokeEvidence(evidenceRoot,p):BroaderEvidence(evidenceRoot,p);
+        _=NativeAotPayload.Inspect(elf);
+        fixed(byte* image=elf)Need(LinuxElfLoader.Validate(image,(uint)elf.Length,64*1024*1024,1572864,out _)==LinuxElfLoadStatus.Ready,"loader");
+        byte[] manifest=Encoding.ASCII.GetBytes(Manifest(app)),package=new byte[64+manifest.Length+elf.Length];
+        Header(manifest.Length,elf.Length).CopyTo(package,0);manifest.CopyTo(package,64);elf.CopyTo(package,64+manifest.Length);
+        RequirePackage(app,package);RequireCurrentSources(root,app);return package;
+    }
+
+    private static byte[] BroaderEvidence(string evidenceRoot,Payload p)
+    {
+        string app=p.Name;
         byte[] receipt=Pinned(evidenceRoot,Qualification+"receipt.json",1267256,"E514B0BCF197176EC80289C9A48567EC43F012431D9318E04EC3C0554E16D526");
         using JsonDocument document=JsonDocument.Parse(receipt);var data=document.RootElement;
         Need(data.GetProperty("schema").GetInt32()==1 && data.GetProperty("outcome").GetString()=="passed" &&
@@ -107,11 +130,45 @@ public static class NativeAotRuntimePackage
             recorded.GetProperty("traceFiles").EnumerateObject().Count()==p.Traces &&
             observed.Files.All(f=>recorded.GetProperty("traceFiles").GetProperty(f.Key).GetString()==f.Value) &&
             observed.Syscalls.SequenceEqual(recorded.GetProperty("observedSyscalls").EnumerateArray().Select(s=>s.GetString()!)),"producer_traces");
-        byte[] elf=Pinned(evidenceRoot,Qualification+app+"/"+app,p.Bytes,p.Hash);_=NativeAotPayload.Inspect(elf);
-        fixed(byte* image=elf)Need(LinuxElfLoader.Validate(image,(uint)elf.Length,64*1024*1024,1572864,out _)==LinuxElfLoadStatus.Ready,"loader");
-        byte[] manifest=Encoding.ASCII.GetBytes(Manifest(app)),package=new byte[64+manifest.Length+elf.Length];
-        Header(manifest.Length,elf.Length).CopyTo(package,0);manifest.CopyTo(package,64);elf.CopyTo(package,64+manifest.Length);
-        RequirePackage(app,package);RequireCurrentSources(root,app);return package;
+        return Pinned(evidenceRoot,Qualification+app+"/"+app,p.Bytes,p.Hash);
+    }
+
+    // The original producer predates the portable runtime receipt. Preserve
+    // its own fixed audit/source/native/publish identities rather than treating
+    // the later matrix producer as authority for this distinct executable.
+    private static byte[] OriginalSmokeEvidence(string evidenceRoot,Payload p)
+    {
+        const string q="evidence-r04/clros-net11-r02/artifacts/nativeaot-linux-net11-r04/";
+        const string produced="evidence-r04/tmp/nativeaot-net11-produced-r04/NativeAotRuntimeSmoke/";
+        _=Pinned(evidenceRoot,"final-audit-r04.json",8677,"410CFADADEB4307FC2CC418115D72B356260AF0527068C7C3D3B5214414D03D0");
+        using var sources=JsonDocument.Parse(Pinned(evidenceRoot,q+"inputs.json",84246,"2B9A684CA0B2AD02E9F1CB20DCEC221A8164E04B7F8CFC28AC82BF8961114DFD"));
+        using var native=JsonDocument.Parse(Pinned(evidenceRoot,q+"native-inputs.json",226470,"3930452632E1902C481730E48FF872CC483E79797C3F5010227EB916C33ED736"));
+        _=Pinned(evidenceRoot,q+"inspection.json",2054,"0D2DD17BF6A0032AAC2CD07640B12D7CD5D5BE7C7DA83C96152E4CED215C9FBB");
+        _=Pinned(evidenceRoot,q+"commands.json",7489,"0C925772F3AED52CDB1099AAD74E375BDD8E896055832E7CDCF35822CB9E07A7");
+        _=Pinned(evidenceRoot,q+"sdk-version.stdout.log",24,"597BF3D5F7316A145A483A20C4766DAA39C4F1DD7E1908ACA6ADE374AB1B908D");
+        _=Pinned(evidenceRoot,q+p.Name+"-publish.stdout.log",264,"01F1B614081581CEB1E0B354E15C51B6604CF1FB6751B62D4CF66E309BDAAFA4");
+        Need(sources.RootElement.EnumerateObject().Count()==708 && native.RootElement.EnumerateObject().Count()==1042,"original_inventory");
+        foreach(var source in Sources(p))Need(sources.RootElement.GetProperty(source.Path).GetString()==source.Hash,"producer_source");
+        const string intermediate="/clros-net11-r02/apps/NativeAotRuntimeSmoke/obj/Release/net11.0/linux-musl-x64/";
+        Need(native.RootElement.GetProperty(intermediate+p.Name+".dll").GetString()==p.DllHash &&
+            native.RootElement.GetProperty(intermediate+"native/"+p.Name+".o").GetString()==p.ObjectHash,"producer_outputs");
+        _=Pinned(evidenceRoot,produced+p.Name+".dll",p.DllBytes,p.DllHash);
+        _=Pinned(evidenceRoot,produced+p.Name+".o",p.ObjectBytes,p.ObjectHash);
+        NativeAotThreadingOutput.ValidateRuntimeSmokeOutput(Utf8.GetString(Pinned(evidenceRoot,q+p.Name+"-run.stdout.log",p.StdoutBytes,p.StdoutHash)));
+        (string Name,int Bytes,string Hash)[] traces=[
+            ("4530",43762,"31EFCC3F2FFC1F1A88C2FFC4A8963B0E320808415D107B0486996D7723A2C428"),
+            ("4531",2135,"9344338F9F7F08C8E541C2BE351943E411375AA4CD16AECDFD4039F23EE473DC"),
+            ("4532",156,"35ECF941323E9713821AAAB6DEA965F69DB7D11FAC186FC2682A06C4AB96861F"),
+            ("4533",1018,"86591298E44CB13E510CB062B9789FFA6DA9425B334D125DD7870DACCF500129"),
+            ("4534",2425,"8CE7F88750B3DF66440E0ACBADE53DA379E886A3D31D186AF03A6BF5733194D6"),
+            ("4535",1157,"70C39910AE50338E0E3CB77EAA003A3CDB18A97FEA0316CABC667C7267044383"),
+            ("4536",441,"774A58084103A67D705CEA002102CDCB2D2B2195918F9308E56F28FD43F97EF9"),
+            ("4537",545,"EC07381EDD55ED35255E71FEA4BAB20FE84367BDA5DACA41302885CEA2C8049D")];
+        string directory=Path.Combine(Path.GetFullPath(evidenceRoot),q);
+        Need(Directory.EnumerateFileSystemEntries(directory,p.Name+"-trace.*").Select(Path.GetFileName).Order(StringComparer.Ordinal)
+            .SequenceEqual(traces.Select(t=>p.Name+"-trace."+t.Name).Order(StringComparer.Ordinal)),"producer_traces");
+        foreach(var trace in traces)_=Pinned(evidenceRoot,q+p.Name+"-trace."+trace.Name,trace.Bytes,trace.Hash);
+        return Pinned(evidenceRoot,q+p.Name+"/"+p.Name,p.Bytes,p.Hash);
     }
 
     /// <summary>Requires canonical header/policy and exact qualified ELF bytes.
