@@ -199,6 +199,7 @@ internal static class QemuRunnerTests
             Run("qemu real mode rejects TEST_FAIL before success", () => TestRealModeRejectsTestFailBeforeSuccess(tempRoot), ref failures);
             Run("qemu drain classifies nonzero exit before kill", () => TestDrainClassifiesNonzeroExitBeforeKill(tempRoot), ref failures);
             Run("qemu boot timeout takes precedence over late markers", () => TestBootTimeoutPrecedesLateMarkers(tempRoot), ref failures);
+            Run("qemu startup timeout preserves failure when QMP is unavailable", () => TestStartupTimeout(tempRoot), ref failures);
             Run("qemu invalid marker configuration does not launch child", () => TestInvalidMarkerConfigurationDoesNotLaunchChild(tempRoot), ref failures);
             Run("qemu rejects output and input path aliases", () => TestRejectsArtifactPathAliases(tempRoot), ref failures);
             Run("qemu.runner app exit summary emitted", () => TestRealModeWritesAppExitSummary(tempRoot), ref failures);
@@ -5528,6 +5529,25 @@ internal static class QemuRunnerTests
             && summary.Contains(
                 "FAIL_REASON qemu_exit_nonzero",
                 StringComparison.Ordinal);
+    }
+
+    private static bool TestStartupTimeout(string tempRoot)
+    {
+        string serial = Path.Combine(tempRoot, "startup-serial.log"), summary = Path.Combine(tempRoot, "startup-summary.log");
+        string qemu = CreatePersistentFakeQemuScript(tempRoot,
+            ["OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS", "TEST_START m03.007"]);
+        var clock = Stopwatch.StartNew();
+        ProcessResult result = RunQemuRunner("--qemu", qemu,
+            "--ovmf-code", CreateEmptyFile(tempRoot, "startup-OVMF.fd"),
+            "--image", CreateEmptyFile(tempRoot, "startup.raw"),
+            "--serial-log", serial, "--summary-log", summary,
+            "--timeout", "600", "--startup-timeout", "1", "--require-marker", "M03_EBS_RETURNED_SUCCESS");
+        return result.ExitCode == 4 && clock.Elapsed.TotalSeconds < 15 &&
+            result.Output.Contains("QEMU_STARTUP_CAPTURE incomplete", StringComparison.Ordinal) &&
+            result.Output.Contains("QEMU_PROCESS_RESULT disposition=runner-terminated", StringComparison.Ordinal) &&
+            result.Output.Contains("TEST_FAIL qemu.smoke startup_timeout", StringComparison.Ordinal) &&
+            !result.Output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal) &&
+            File.ReadAllText(summary).Contains("FAIL_REASON startup_timeout", StringComparison.Ordinal);
     }
 
     private static bool TestBootTimeoutPrecedesLateMarkers(string tempRoot)

@@ -154,6 +154,7 @@ public static class QemuSmoke
             }
             List<string> arguments = ["--image", options.Image, "--disk-format", options.DiskFormat, "--workload-profile", options.WorkloadProfile,
                 "--serial-log", options.SerialLog, "--summary-log", options.SummaryLog, "--timeout", timeout.ToString(CultureInfo.InvariantCulture)];
+            arguments.AddRange(["--startup-timeout", options.StartupTimeoutSeconds.ToString(CultureInfo.InvariantCulture)]);
             if (plan.ReplaceDefaultRequiredMarkers) arguments.Add("--replace-default-required-markers");
             if (plan.IsEnabled("EnableM02UnexpectedVectorPanicProbe")) arguments.Add("--expect-unexpected-vector-panic");
             if (plan.IsEnabled("EnableM03OwnedSubsystemPanicProbe")) arguments.Add("--expect-owned-subsystem-panic");
