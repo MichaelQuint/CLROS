@@ -15,10 +15,11 @@ public static partial class QemuTranscripts
         private readonly int bytes;
         private readonly List<CollectionSignal> collections=[];
         private readonly List<(ulong Deadline,ulong Clock,int Reaps)> deadlines=[];
-        private readonly Dictionary<(ulong Identity,ulong Sequence),ulong> smokeWakes=[];
-        private readonly List<(ulong Clock,int Reads)> smokeResumes=[];
-        private ulong smokeFirstClock=ulong.MaxValue,smokeLastClock;
-        private int smokeClockReads;
+        private readonly Dictionary<(ulong Identity,ulong Sequence),(ulong Before,ulong Woke)> wakes=[];
+        private readonly List<(ulong Before,ulong Woke,ulong Resumed)> resumes=[];
+        private readonly List<(ulong Before,ulong Woke,ulong Resumed,ulong After)> wakeIntervals=[];
+        private ulong lastMonotonicClock;
+        private bool hasMonotonicClock;
         private int position,normalReaps,totalReaps,matrixReapsDue,gc,joins,timers,written;
         private bool started,passed;
         internal ulong EarliestClock { get; private set; }=ulong.MaxValue;
@@ -43,24 +44,38 @@ public static partial class QemuTranscripts
         internal void Reaped(){normalReaps++;totalReaps++;}
         internal void Deadline(ulong deadline,ulong clock)=>deadlines.Add((deadline,clock,totalReaps));
 
-        // The original app has no timer timestamps. An already-due managed timer
-        // may use clock/wake activity without a kernel timeout. Only explicit
-        // FUTEX_WAKE and the exact generation/sequence's successful resume mint
-        // this alternative; clear-TID, requeue and output alone cannot do so.
+        // A due managed timer need not produce a kernel timeout. Require an
+        // explicit matched wake and exact generation/sequence resumption,
+        // bracketed by successful clock reads with validated clock progress.
+        // Matrix consumes the complete proof inside its timestamped interval;
+        // the untimestamped original additionally requires prior normal reap.
+        // Clear-TID, requeue and stdout alone cannot mint this evidence.
+        private bool ObserveWake=>app=="NativeAotRuntimeMatrix" || app=="NativeAotRuntimeSmoke" && totalReaps>0;
         internal void MonotonicRead(ulong clock)
         {
-            if(app!="NativeAotRuntimeSmoke" || totalReaps==0)return;
-            smokeFirstClock=Math.Min(smokeFirstClock,clock);smokeLastClock=clock;smokeClockReads++;
+            if(!ObserveWake)return;
+            lastMonotonicClock=clock;hasMonotonicClock=true;
+            for(int i=resumes.Count-1;i>=0;i--)
+            {
+                var proof=resumes[i];
+                if(proof.Before<clock && proof.Resumed<=clock)
+                {wakeIntervals.Add((proof.Before,proof.Woke,proof.Resumed,clock));resumes.RemoveAt(i);}
+            }
         }
         internal void FutexWoken(ulong identity,ulong sequence,ulong clock)
         {
-            if(app=="NativeAotRuntimeSmoke" && totalReaps>0 && smokeClockReads>0)
-                smokeWakes.Add((identity,sequence),clock);
+            if(ObserveWake && hasMonotonicClock)wakes.Add((identity,sequence),(lastMonotonicClock,clock));
         }
         internal void FutexResumed(ulong identity,ulong sequence,ulong clock)
         {
-            if(smokeWakes.Remove((identity,sequence),out ulong woke) && smokeFirstClock<=woke && woke<=clock)
-                smokeResumes.Add((clock,smokeClockReads));
+            if(wakes.Remove((identity,sequence),out var proof) && proof.Before<=proof.Woke && proof.Woke<=clock)
+                resumes.Add((proof.Before,proof.Woke,clock));
+        }
+        private bool ConsumeWakeInterval(ulong before,ulong after)
+        {
+            int at=wakeIntervals.FindIndex(p=>p.Before>=before && p.After<=after);
+            if(at<0)return false;
+            var proof=wakeIntervals[at];Times(proof.Before,proof.After);wakeIntervals.RemoveAt(at);return true;
         }
 
         internal void Write(int total)
@@ -88,11 +103,11 @@ public static partial class QemuTranscripts
                     ConsumeCollections(2,1);matrixReapsDue+=2;gc++;
                 }
                 else if(line.StartsWith("NATIVEAOT_TP_STRESS_TIMER ",StringComparison.Ordinal))
-                {Frequency(fields);Times(fields["before"],fields["after"]);ConsumeDeadline(fields["before"],fields["after"]);timers++;}
+                {Frequency(fields);Times(fields["before"],fields["after"]);ConsumeTimer(fields["before"],fields["after"]);timers++;}
                 else if(line.StartsWith("NATIVEAOT_MATRIX_ASYNC ",StringComparison.Ordinal))
                 {
-                    Frequency(fields);Times(fields["delayBefore"],fields["after"]);ConsumeDeadline(fields["delayBefore"],fields["delayAfter"]);
-                    ConsumeDeadline(fields["timerBefore"],fields["after"]);timers++;
+                    Frequency(fields);Times(fields["delayBefore"],fields["after"]);ConsumeTimer(fields["delayBefore"],fields["delayAfter"]);
+                    ConsumeTimer(fields["timerBefore"],fields["after"]);timers++;
                 }
                 else if(line=="NATIVEAOT_RUNTIME_GC_THREADS_TLS_OK")
                 {
@@ -111,12 +126,7 @@ public static partial class QemuTranscripts
                     int at=deadlines.FindIndex(d=>d.Reaps>0);
                     if(at>=0)
                     {var timer=deadlines[at];Times(timer.Deadline,timer.Clock);deadlines.RemoveAt(at);}
-                    else
-                    {
-                        at=smokeResumes.FindIndex(r=>r.Reads<smokeClockReads && r.Clock<=smokeLastClock && smokeFirstClock<smokeLastClock);
-                        Need(at>=0,"runtime_smoke_timer_kernel_evidence");
-                        Times(smokeFirstClock,smokeLastClock);smokeResumes.RemoveAt(at);
-                    }
+                    else Need(ConsumeWakeInterval(0,ulong.MaxValue),"runtime_smoke_timer_kernel_evidence");
                     timers++;
                 }
             }
@@ -131,10 +141,11 @@ public static partial class QemuTranscripts
                 Need(at>=0,"runtime_collection_kernel_evidence");collections.RemoveAt(at);
             }
         }
-        private void ConsumeDeadline(ulong before,ulong after)
+        private void ConsumeTimer(ulong before,ulong after)
         {
             int at=deadlines.FindIndex(d=>d.Deadline>=before && d.Clock>=d.Deadline && d.Clock<=after);
-            Need(at>=0,"runtime_timer_kernel_evidence");deadlines.RemoveAt(at);
+            if(at>=0){deadlines.RemoveAt(at);return;}
+            Need(app=="NativeAotRuntimeMatrix" && ConsumeWakeInterval(before,after),"runtime_timer_kernel_evidence");
         }
         private static void Frequency(Dictionary<string,ulong> values)=>Need(values["frequency"]==1_000_000_000,"runtime_clock_frequency");
         private static Dictionary<string,ulong> Values(string row)

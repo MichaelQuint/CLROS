@@ -1,5 +1,15 @@
 # App Model
 
+[Step1303](../done/step1303.md) extends the matrix's timer correlation after an
+actual completed delay uses a matched wake instead of kernel timeout. Every
+alternative proof includes successful monotonic calls, exact wake/resume
+generation and wait sequence, and kernel clock progress entirely within the
+app's reported phase interval. Each proof is consumed once. The original-only
+normal-reap rule and ThreadPool-stress deadline rule remain. This correlates
+real kernel activity with canonical output; it does not identify the managed
+timer's internal registration. Three strict Hello/matrix repetitions and final
+shared acceptance remain pending; one strict Hello and both focused smokes pass.
+
 [Step1302](../done/step1302.md) completes the three strict original RuntimeSmoke
 and three ThreadPool-stress repetitions. Hello's actual signal child can first
 run after early stdout; its complete mask/pipe wait is still required before

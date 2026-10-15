@@ -2,6 +2,15 @@
 
 ## Development Linux threading profile
 
+[Step1303](../done/step1303.md) records a strict Hello and both focused runtime
+smokes at `6244fee`. The matrix completes all rounds and cleanup but exposes the
+same already-due timer path inside its timestamped Task.Delay interval. Its
+consumer now retains deadline wins and alternatively consumes a complete matched
+clock/wake/resume/clock proof wholly inside the reported interval. App elapsed
+checks and ThreadPool-stress deadline requirements remain fixed. Thirty-three
+focused checks and complete offline matrix/original revalidation pass; failed
+captures remain failed. Final-source repetitions and shared gates remain open.
+
 [Step1302](../done/step1302.md) preserves three strict original-runtime and three
 ThreadPool-stress captures. A Hello run at `27dd0cf` prints its unchanged output
 and completes three-thread cleanup, but the old consumer rejects a signal child

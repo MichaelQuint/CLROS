@@ -86,7 +86,7 @@ internal static class NativeAotRuntimeTranscriptTests
         v.Rows.Add("M16_008_BUDGET_END nanos=3000000001");v.End(18);return b;
     }
 
-    private static BroadVector Matrix(bool lateNativeExit=false)
+    private static BroadVector Matrix(bool lateNativeExit=false,bool wakeTimers=false,bool clockEvidence=true)
     {
         BroadVector b=new("NativeAotRuntimeMatrix");var v=b.Core;b.Write("TEST_START nativeaot.runtime-matrix");
         Thread[] background=new Thread[6];for(int i=0;i<6;i++)background[i]=v.Clone(2+i,2+i);
@@ -98,7 +98,7 @@ internal static class NativeAotRuntimeTranscriptTests
             {
                 v.Select(background[i]);
                 if(i==1)v.Call(0,0,[3,0x500700,1],3,2);
-                else v.Wait(0x500280+(uint)i*4,i==2?100_000_000UL:0);
+                else v.Wait(0x500280+(uint)i*4,i==2 && !wakeTimers?100_000_000UL:0);
                 v.Drain(20+(uint)i);v.Supervisor(3,8-i,9);
             }
             v.Select(cpu);v.Irq(basis+40,3,9);v.Select(gate);v.Wait(0x500260);v.Drain(basis+41);v.Supervisor(3,2,9);v.Select(v.Main);
@@ -121,6 +121,15 @@ internal static class NativeAotRuntimeTranscriptTests
             for(int timerRound=1;timerRound<=2;timerRound++)
             {
                 ulong now=basis+(uint)timerRound*100_000_000UL;
+                if(wakeTimers)
+                {
+                    v.Irq(now-40_000_000,1,7);v.Select(v.Main);
+                    if(clockEvidence)v.Call(228,0,[6,0x500600]);
+                    v.Wake(0x500288);v.Wait(0x500234);v.Drain(now);v.Supervisor(3,1,7);
+                    v.Select(timer);v.Resume(0);if(clockEvidence)v.Call(228,0,[6,0x500600]);
+                    v.Wake(0x500234);v.Wait(0x500288);v.Drain(now);v.Supervisor(3,1,7);v.Select(v.Main);v.Resume(0);
+                    continue;
+                }
                 v.Wait(0x500234);v.Drain(v.Clock);v.Supervisor(3,0,7);v.Tick(now,1);
                 v.Select(timer);v.Resume(-110);v.Wake(0x500234);
                 ulong next=timerRound==1?basis+200_000_000:round==3?0:basis+1_100_000_000;
@@ -140,6 +149,19 @@ internal static class NativeAotRuntimeTranscriptTests
         var matrix=Matrix().Inspect();HostCheck.True(matrix.Clones==12 && matrix.Reaped==13 && matrix.SignalReturns==6 && matrix.Ticks==6);
     }
 
+    [HostTest("nativeaot.runtime timestamped matrix phases accept due-timer clock wake resume intervals without inventing deadlines")]
+    private static void DueMatrixTimers()
+    {
+        var due=Matrix(wakeTimers:true);var report=due.Inspect();
+        HostCheck.Equal(0,report.Ticks);HostCheck.Equal(13,report.Reaped);
+        var missing=Matrix(wakeTimers:true,clockEvidence:false);
+        Reject(missing,missing.Core.Rows.ToArray(),reason:"runtime_timer_kernel_evidence");
+        const string before="delayBefore=50000000",outside="delayBefore=70000000";
+        string text=due.Stdout.ToString().Replace(before,outside,StringComparison.Ordinal);
+        var rows=due.Core.Rows.Select(r=>r.Replace(before,outside,StringComparison.Ordinal)).ToArray();
+        Reject(due,rows,text,reason:"runtime_timer_kernel_evidence");
+    }
+
     [HostTest("nativeaot.runtime phase checks require kernel collection and deadline evidence even when all app output is valid")]
     private static void MissingKernelEvidence()
     {
@@ -155,7 +177,7 @@ internal static class NativeAotRuntimeTranscriptTests
     [HostTest("nativeaot.runtime coalesced phase rows and arbitrary write splits retain distinct signal deadline and reap observations")]
     private static void Coalesced()
     {
-        foreach(var b in new[]{Suspension(),Pool(),Matrix()})
+        foreach(var b in new[]{Suspension(),Pool(),Matrix(),Matrix(wakeTimers:true)})
         {
             var v=b.Core;string text=b.Stdout.ToString();int bytes=Encoding.UTF8.GetByteCount(text);
             string original=v.Rows.First(r=>r.StartsWith("M16_008_CALL ",StringComparison.Ordinal) && r.Contains(" nr=1 a0=1 ",StringComparison.Ordinal));
@@ -286,9 +308,9 @@ internal static class NativeAotRuntimeTranscriptTests
         Reject(b,b.Core.Rows.Where(r=>!r.StartsWith("M16_008_BUDGET ",StringComparison.Ordinal)).ToArray());
         Reject(b,b.Core.Rows.Where(r=>!r.StartsWith("M16_008_BUDGET_END ",StringComparison.Ordinal)).ToArray());
     }
-    private static void Reject(BroadVector b,string[] rows,string? text=null)
+    private static void Reject(BroadVector b,string[] rows,string? text=null,string? reason=null)
     {
-        bool rejected=false;try{b.Inspect(rows,text);}catch(ToolFailure){rejected=true;}
-        HostCheck.True(rejected,"broader runtime mutation admitted");
+        bool rejected=false;try{b.Inspect(rows,text);}catch(ToolFailure failure){rejected=reason is null || failure.Reason==reason;}
+        HostCheck.True(rejected,"broader runtime mutation admitted or wrong rejection");
     }
 }

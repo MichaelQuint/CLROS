@@ -1,5 +1,13 @@
 # Diagnostics
 
+[Step1303](../done/step1303.md) permits an already-due matrix timer to complete
+without a kernel timeout only when a full clock/wake/resume/clock proof fits
+inside its app timestamp interval. Explicit wake and exact successful resumption
+are bound to the actual generation/wait sequence; clock progress is independently
+validated and the proof is consumed once. Missing clocks and out-of-interval
+evidence reject, including coalesced stdout. The original still requires normal
+reap first; ThreadPool stress retains its actual deadline requirement.
+
 [Step1302](../done/step1302.md) corrects Hello's child ordering: exact parent
 initialization/clone/descriptor/signal-install checks remain at each stdout
 write, while both real child masks/waits and finalizer handoff must complete
@@ -40,7 +48,8 @@ Broader leaves retain all raw stdout, syscall/wait, signal-frame, scheduler,
 mapping, exit/reap and owner cleanup checks. Collection output consumes completed
 activation frames for a ready, previously user-preempted peer while other kernel
 waits are parked. Timer output consumes actual deadline wins in its reported
-nanosecond interval. Join output consumes actual normal worker reaps. Split and
+nanosecond interval; step1303 adds the bounded matrix alternative above.
+Join output consumes actual normal worker reaps. Split and
 coalesced writes retain those distinct observations. These checks correlate
 observable boundaries; they do not trace every user instruction or prove kernel
 roles from anonymous handles. Exact payload source and real capture provenance
