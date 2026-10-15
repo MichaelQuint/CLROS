@@ -752,7 +752,7 @@ public static unsafe partial class EfiEntry
         // Private IRQ-off owner path. The out target is a distinct caller local.
         // Strict decoding admits supervisor WB tables with RW/NX-clear parents;
         // all targets stay in the original retained arena, never a foreign table.
-        private static bool CooperativeFindLeaf(Storage* state, ulong address, out ulong* leaf)
+        private static bool CooperativeFindLeaf(Storage* state, ulong address, out ulong* leaf, bool ownedIst = false)
         {
             leaf = null;
             fixed (Storage* retained = &s_storage) if (state != retained) return false;
@@ -774,19 +774,64 @@ public static unsafe partial class EfiEntry
                 !Disjoint(pool, poolBytes, (ulong)state, (ulong)sizeof(Storage)) ||
                 !Disjoint(pool, poolBytes, (ulong)state->Arena.Storage, FirstExitOwnedArena.Bytes) ||
                 SeparateDisabledDefaultPageFaultPageTables.ValidateRequest(memory.Tables) != SeparatePageFaultPageTableStatus.Success ||
-                !FirstExitCodeBundle.ValidateInstalledReadBack(memory.Code, FirstExitCodeBundle.Bytes, ref state->Arena,
-                    memory.Capture, memory.Mapping, memory.References.FaultCallback) || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+                !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;
+            ulong expectedRsp0 = state->Arena.StackTop, expectedIst4 = 0;
+#if M16_008_PROBE
+            // Derive candidate tops from retained ownership, never live TSS
+            // values. Authenticate the actual callback below, after verifying
+            // the code bytes that will make the CPU observations.
+            bool gatewayActive = state->LinuxSyscallPhase == 4 &&
+                *(ulong*)(state->LinuxSyscallData + X64LinuxUserTransition.PhaseOffset) == 1;
+            if (gatewayActive) expectedRsp0 = state->LinuxSyscallData + X64LinuxUserTransition.DataBytes;
+#if M16_009_PROBE
+            if (state->CooperativePhase == 2 &&
+                ((LinuxNativeControl*)(pool + LinuxThreadProgram.MetadataPage * Page))->UserTimer != 0)
+                expectedIst4 = pool + LinuxThreadProgram.IrqTopPage * Page;
+#endif
+#endif
+            if (!FirstExitCodeBundle.ValidateInstalledReadBack(memory.Code, FirstExitCodeBundle.Bytes, ref state->Arena,
+                memory.Capture, memory.Mapping, memory.References.FaultCallback, expectedRsp0, expectedIst4)) return false;
             ulong* observed = stackalloc ulong[(int)Cooperative.ObservationWords];
             ((delegate* unmanaged<ulong*, void>)(memory.Code + FirstExitCodeBundle.CooperativeObserveOffset))(observed);
+            bool ownedDataSelectors = (observed[5] == 16 || ownedIst && observed[5] == 0) && observed[17] == 16 && observed[18] == 16;
+#if M16_008_PROBE
+            // The active Linux gateway deliberately establishes NULL DS/ES;
+            // an IST capture also has NULL SS until full gateway restoration.
+            // Admit that envelope only after authenticating its actual saved
+            // selectors, descriptors, MSRs, root, phase and callback CPU state.
+            bool gatewayCallback = observed[17] == 0 && observed[18] == 0 && state->LinuxSyscallPhase == 4 &&
+                state->LinuxSyscallPlan.UserRoot == state->LinuxUserRoot.Root && state->LinuxSyscallPlan.KernelRoot == root &&
+                X64LinuxUserTransition.ValidateCallback((byte*)state->LinuxSyscallData,
+                    X64LinuxUserTransition.DataBytes, root, observed[1], observed[3], observed[4], observed[5], observed[6],
+                    observed[12], observed[13], observed[14], observed[15], observed[16]);
+            if (gatewayActive != gatewayCallback) return false;
+            if (gatewayCallback) ownedDataSelectors = true;
+#if M16_009_PROBE
+            if (state->CooperativePhase == 2)
+            {
+                LinuxNativeControl* c = LinuxNativeOwner(state);
+                if (c == null) return false;
+                // IST4 remains borrowed across gateway restoration and the
+                // ensuing CALL capture, until StopUserTimer completes.
+                if (c->UserTimer != 0)
+                {
+                    if (c->Selected == 0 || c->UserTimer != c->Selected || !c->Timer.IsPrepared ||
+                        !LinuxNativeUserWorker(c, c->Selected - 1) ||
+                        !(gatewayCallback ? LinuxNativeUserGates(c, true) : LinuxNativeTimerInstalled(c))) return false;
+                }
+                else if (ownedIst || gatewayCallback && state->LinuxSyscallPlan.UserInterrupts) return false;
+            }
+#endif
+#endif
             if (observed[1] != root || (observed[0] & 0x8001000dUL) != 0x80010001UL || (observed[0] & 0x60000000UL) != 0 ||
                 (observed[2] & ~0x7ffUL) != 0 || (observed[2] & 0x220UL) != 0x220UL || (observed[2] & 0x80UL) != 0 ||
                 (observed[3] & 2) == 0 || (observed[3] & ~Cooperative.AdmittedFlags) != 0 || (observed[3] & 0x400UL) != 0 ||
-                observed[4] != 8 || observed[5] != 16 || observed[6] != 24 ||
+                observed[4] != 8 || observed[6] != 24 ||
                 (observed[7] & 0x07000000UL) != 0x07000000UL ||
                 ((observed[7] & 0x10000000UL) != 0 && ((observed[8] >> 16) & 255) != 1) ||
                 observed[9] < 0x80000001UL || (observed[10] & 0x20100000UL) != 0x20100000UL ||
                 (observed[11] & 0xd00UL) != 0xd00UL || observed[15] != 0 || observed[16] != 0 ||
-                observed[17] != 16 || observed[18] != 16) return false;
+                !ownedDataSelectors) return false;
             ulong table = root, visited = 0;
             for (int level = 4; level >= 1; level--)
             {
@@ -871,13 +916,16 @@ public static unsafe partial class EfiEntry
         // Audit actual retained PTEs and live CR3, not range declarations. WB is
         // decoded against the retained PAT token; unchanged live PAT/MTRR policy
         // and complete-operation serialization remain the trusted owner's duty.
-        private static bool CooperativeAuditPool(Storage* state, bool published)
+        // ownedIst is supplied only after the drain callback authenticates its
+        // exact IRQ frame/stack/gates and observed NULL SS. Ordinary callers
+        // retain SS16; the separate Linux gateway authenticates its own envelope.
+        private static bool CooperativeAuditPool(Storage* state, bool published, bool ownedIst = false)
         {
             fixed (Storage* retained = &s_storage) if (state != retained) return false;
             for (uint page = 0; page < CooperativePoolPages; page++)
             {
                 ulong address = state->CooperativePool + page * Page;
-                if (!CooperativeFindLeaf(state, address, out ulong* leaf)) return false;
+                if (!CooperativeFindLeaf(state, address, out ulong* leaf, ownedIst)) return false;
                 ulong raw = *leaf;
                 bool guard = published && CooperativeGuardPage(page);
                 if (guard) { if (raw != 0) return false; continue; }
@@ -1207,6 +1255,24 @@ public static unsafe partial class EfiEntry
                 if (r.Start == state->LinuxImageBacking || r.Start == state->LinuxUserTables) continue;
 #if M16_006_PROBE
                 if (r.Start == state->LinuxMemoryPool) continue;
+#endif
+#if M16_008_PROBE
+                // The independent user root must retain the published pool
+                // geometry across mmap rebuilds. Kernel-root staging/publication
+                // remains separate; no guard or writable code alias is admitted here.
+                if (r.Start == state->CooperativePool)
+                {
+                    if (r.PageCount != LinuxThreadProgram.PoolPages || r.Protection != (PageProtection.Read | PageProtection.Write) ||
+                        r.CachePolicy != PageCachePolicy.WriteBack) return false;
+                    uint page = 0;
+                    do
+                    {
+                        if (written == X64UserAddressSpace.MaximumRanges ||
+                            !LinuxThreadProgram.TrySupervisorMapping(r.Start, page, out target[written], out page)) return false;
+                        written++;
+                    } while (page < LinuxThreadProgram.PoolPages);
+                    continue;
+                }
 #endif
                 if (written == X64UserAddressSpace.MaximumRanges) return false;
                 target[written++] = new X64UserMappingRange

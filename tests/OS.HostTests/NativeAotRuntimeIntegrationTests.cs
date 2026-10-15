@@ -9,6 +9,11 @@ internal static class NativeAotRuntimeIntegrationTests
     [HostTest("nativeaot.runtime profiles require exact applications full signal prerequisites and distinct outer markers")]
     private static void Profiles()
     {
+        HostCheck.True(EfiContracts.ProbeSymbols.Keys.ToHashSet(StringComparer.Ordinal)
+            .SetEquals(EfiContracts.DiagnosticProbes), "every diagnostic probe has one reviewed compile symbol");
+        HostCheck.Equal("M09_011_PROBE", EfiContracts.ProbeSymbols["EnableM09011Probe"]);
+        HostCheck.Equal("M09_012_PROBE", EfiContracts.ProbeSymbols["EnableM09012Probe"]);
+        HostCheck.Equal("M16_010_PROBE", EfiContracts.ProbeSymbols["EnableM16010Probe"]);
         HostCheck.True(Apps.All(app => !EfiProfile.Create(null, new Dictionary<string, bool>()).IsEnabled(NativeAotRuntimeSelection.Flag(app))));
         foreach (string app in Apps)
         {

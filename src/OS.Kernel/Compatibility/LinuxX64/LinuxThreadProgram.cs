@@ -1,4 +1,5 @@
 using OS.Kernel.Threading;
+using OS.Kernel.Memory;
 
 namespace OS.Kernel.Compatibility.LinuxX64;
 
@@ -36,6 +37,27 @@ public static unsafe class LinuxThreadProgram
         page >= WorkerPage && page < IrqGuardPage &&
         ((page - WorkerPage) % WorkerPages == 0 || (page - WorkerPage) % WorkerPages == WorkerPages - 1) ||
         page == IrqGuardPage || page == IrqTopPage;
+
+    /// <summary>Describe the next contiguous supervisor mapping in the retained
+    /// low-4GiB pool, skipping guards. Code is RX; usable metadata/stacks are
+    /// RW/NX. The caller owns inactive-root construction and retains these values
+    /// through every memory-service rebuild. This does not publish code or change
+    /// the active kernel root. Invalid extent/cursor returns false and zero outputs.</summary>
+    public static bool TrySupervisorMapping(ulong pool, uint page, out X64UserMappingRange mapping, out uint nextPage)
+    {
+        mapping = default; nextPage = 0;
+        if (pool == 0 || (pool & 4095) != 0 || pool > 0x100000000UL - PoolPages * 4096UL || page >= PoolPages)
+            return false;
+        while (page < PoolPages && IsGuardPage(page)) page++;
+        if (page == PoolPages) return false;
+        uint start = page; bool code = page < CodePages;
+        do { page++; } while (page < PoolPages && !IsGuardPage(page) && (page < CodePages) == code);
+        mapping = new() { VirtualStart = pool + start * 4096UL, PhysicalStart = pool + start * 4096UL,
+            Pages = page - start, Protection = PageProtection.Read | (code ? PageProtection.Execute : PageProtection.Write),
+            Cache = PageCachePolicy.WriteBack, User = false };
+        nextPage = page;
+        return true;
+    }
 
     /// <summary>Retained current generation and its original entry adapter.
     /// Argument is the retained scheduler slot pointer, independently checked

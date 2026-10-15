@@ -8,7 +8,7 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.Faults.cs"] = "c00f0817cdfdddf3b1b415ba5b15b0731134b4904a9bae2eec833e29e0acdc37",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\X64LinuxUserTransition.Faults.cs"] = "ad851c60b6835c9f74646b31406d542c4eead053489abcc2c1ad9ef5629c1724",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalMask.cs"] = "94b6a505fc808646e6cea6a8c00d40ae62f75e3375de8986b1439ce2b1f825dc",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.cs"] = "b942059645a37c228ee83615e36e884251cdeae590b65aa1a56912df8c68454b",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxSignalServices.Frames.cs"] = "7ab9ffe72776980fb0d0ba8404f6b041ec75b7675e5a0fac0eb9280a7a044931",
@@ -21,9 +21,9 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadExecutionBudget.cs"] = "0a8eaef5f50736a1eb4de54216ab561a6a3a60c813eaaea62f678a83dbf02d71",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadServices.Pipes.cs"] = "366f8f915f41e3cfd603029614df021f3cc844892dfce079a7dcf48bcb119869",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Pipes.cs"] = "b0437465fef58a208f434e69ac974300de31b8ceedf99b4d3ec8cb478b50c1a6",
-                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs"] = "ced13215bbce6783a67e7df371aa372f51bacebed664cd2a468d21cb73f8d8eb",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxThreadProgram.cs"] = "5f2547cc6ca7ec56b43e4ebc763f245e3731c49a831996ee0228d108979d088a",
                 [@"Boot\EfiEntry.LinuxSignals.cs"] = "82950a5dc67e16df8e1eb6bd2a8fb64150bb2c4262b1ddda36e5881bb94e891e",
-                [@"Boot\EfiEntry.LinuxUserInterrupts.cs"] = "e81f455318c10cc6bbf3d1f0cc71ac77ce27395bb6cb222eb6110aa1dda368e8",
+                [@"Boot\EfiEntry.LinuxUserInterrupts.cs"] = "34547526f9ac7fd42c3b713e8e11b031735f6f41eeb3a0ee9c228920fcaf8cda",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs"] = "219e55b5e409430e472d4a8cf3d7d9edf1f6250fe3ec3b80c9bf4aad39beb5a3",
                 [@"Boot\EfiEntry.LinuxThreads.cs"] = "66c7020ab5fe14c31142dd0f7071200c384ad1896c29a89c7b6afe5cff7331f2",
                 [@"Boot\EfiEntry.LinuxThreadMemory.cs"] = "2d0b4c6ef1dc369810f621130925848055f4f5eb59498574369ed2c32217ac2b",
@@ -165,7 +165,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "9b28acb67d6f49b015ac36a584669724978deb73e7e34c0d2f2f86f15b967ba7",
                 [@"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs"] = "88053c5a7a7c46aae39e0c68d03d3dd6ab83047640e3a22455148e53023a44fe",
                 [@"..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs"] = "dbc6af34a459554a25e1e3dfdbab8112609e0d8194d969fdd54c820d70f9647d",
-                [@"..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs"] = "14b02da7507722af1cb31e93c97f4f7b891a04d2146f3eeab22f6195e1eed0f1",
+                [@"..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs"] = "d112aeb93f750796c71da11b9379669d04072de70caf56e28f383ede4347141a",
                 [@"..\..\std\no-runtime\shared\Hash\Crc32.cs"] = "228540b7c150ea26100ea9f509772ee89bbe10a45ef2c4d8e95a4b250c56333e",
                 [@"..\..\std\no-runtime\shared\DeterministicRandom32.cs"] = "6ca5e3e3e839017ca27fb73884b7665315b3e2df3c1f49a5fe012a3e56c2ae33",
                 [@"..\OS.Kernel\Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs"] = "81a10ac72ffb1f945e46106456a9d3ba2be46305eac8cae230709a74a76ed222",

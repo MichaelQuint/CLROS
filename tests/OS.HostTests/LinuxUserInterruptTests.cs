@@ -79,6 +79,20 @@ internal static unsafe class LinuxUserInterruptTests
             Capture(data, &source); Transition.UserImage result = default;
             HostCheck.True(Transition.CaptureInterruptUserImage(data, Transition.DataBytes, &result, Transition.UserImageBytes, 0xffbf, m.Access));
             HostCheck.True(new ReadOnlySpan<byte>(&source, sizeof(Transition.UserImage)).SequenceEqual(new ReadOnlySpan<byte>(&result, sizeof(Transition.UserImage))));
+            source.Frame.Rflags |= 0x10000; Capture(data, &source);
+            byte[] raw = new ReadOnlySpan<byte>(data, (int)Transition.DataBytes).ToArray();
+            HostCheck.True(!LinuxSyscallGateway.ValidateReturn(source.Frame, m.Access), "ordinary return still rejects RF");
+            HostCheck.True(Transition.CaptureInterruptUserImage(data, Transition.DataBytes, &result, Transition.UserImageBytes, 0xffbf, m.Access));
+            var normalized = source; normalized.Frame.Rflags &= ~0x10000UL;
+            HostCheck.True(new ReadOnlySpan<byte>(&normalized, sizeof(Transition.UserImage)).SequenceEqual(new ReadOnlySpan<byte>(&result, sizeof(Transition.UserImage))));
+            HostCheck.True(new ReadOnlySpan<byte>(data, (int)Transition.DataBytes).SequenceEqual(raw), "raw hardware capture is unchanged");
+            foreach (ulong badFlags in new[] { source.Frame.Rflags | 0x3000, source.Frame.Rflags | 0x4000,
+                source.Frame.Rflags | 0x20000, source.Frame.Rflags & ~0x200UL })
+            {
+                Capture(data, &source); *(ulong*)(data + 0x148) = badFlags; var before = result;
+                HostCheck.True(!Transition.CaptureInterruptUserImage(data, Transition.DataBytes, &result, Transition.UserImageBytes, 0xffbf, m.Access));
+                HostCheck.True(new ReadOnlySpan<byte>(&before, sizeof(Transition.UserImage)).SequenceEqual(new ReadOnlySpan<byte>(&result, sizeof(Transition.UserImage))));
+            }
             for (int mutation = 0; mutation < 12; mutation++)
             {
                 Capture(data, &source); Transition.UserImage before = result;

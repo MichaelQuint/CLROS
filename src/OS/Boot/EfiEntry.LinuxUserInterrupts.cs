@@ -45,6 +45,9 @@ public static unsafe partial class EfiEntry
             byte* data = (byte*)state->LinuxSyscallData, idt = data + X64LinuxUserTransition.IdtOffset;
             var plan = state->LinuxSyscallPlan;
             if (!plan.UserInterrupts || plan.UserSpuriousEntry != c->Handler.CodeAddress + X64TimerInterrupt.SpuriousOffset ||
+                !LinuxSupervisorLeaf(state, plan.UserFaultEntry, true, false) ||
+                !LinuxSupervisorLeaf(state, plan.UserFaultEntry + X64LinuxUserTransition.UserInterruptOffset, true, false) ||
+                !LinuxSupervisorLeaf(state, plan.UserSpuriousEntry, true, false) ||
                 !LinuxNativeTimerGateMatches(idt + 0xe1 * 16, plan.UserFaultEntry + X64LinuxUserTransition.UserInterruptOffset) ||
                 !LinuxNativeTimerGateMatches(idt + 0xff * 16, plan.UserSpuriousEntry) ||
                 !LinuxNativeUserGate(idt + 13 * 16, plan.CodeAddress + X64LinuxUserTransition.GpOffset) ||
@@ -78,17 +81,50 @@ public static unsafe partial class EfiEntry
             if (c == null || data != (byte*)state->LinuxSyscallData || c->Selected == 0) return 0;
             uint index = c->Selected - 1;
             if (!LinuxNativeUserWorker(c, index) || c->Entered[index] != 1 || c->UserTimer != index + 1 ||
-                c->UserAcknowledged != 0 || c->UserDrain != 0 || c->UserPreempted != 0 ||
-                *(ulong*)(data + X64LinuxUserTransition.CaptureStackOffset) != state->CooperativePool + OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram.IrqTopPage * Page - 56 ||
-                !LinuxNativeUserGates(c, true) || !LinuxNativeVerify(c) || !CooperativeAuditPool(state, true) ||
-                !c->Process.CurrentImage(c->Key, 2, out var image) ||
-                !X64LinuxUserTransition.CaptureInterruptUserImage(data, X64LinuxUserTransition.DataBytes, image,
-                    X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask, c->User)) return 0;
+                c->UserAcknowledged != 0 || c->UserDrain != 0 || c->UserPreempted != 0)
+                return LinuxNativeUserInterruptRejected(state, 1);
+            if (*(ulong*)(data + X64LinuxUserTransition.CaptureStackOffset) !=
+                state->CooperativePool + NativeProgram.IrqTopPage * Page - 56)
+                return LinuxNativeUserInterruptRejected(state, 2);
+            if (!LinuxNativeUserGates(c, true)) return LinuxNativeUserInterruptRejected(state, 3);
+            if (!LinuxNativeVerify(c)) return LinuxNativeUserInterruptRejected(state, 4);
+            if (!CooperativeAuditPool(state, true)) return LinuxNativeUserInterruptRejected(state, 8);
+            if (!c->Process.CurrentImage(c->Key, 2, out var image)) return LinuxNativeUserInterruptRejected(state, 5);
+            if (!X64LinuxUserTransition.CaptureInterruptUserImage(data, X64LinuxUserTransition.DataBytes, image,
+                X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask, c->User))
+                return LinuxNativeUserInterruptRejected(state, 6);
             ulong* cpu = stackalloc ulong[(int)NativeSwitch.ObservationWords];
             ((delegate* unmanaged<ulong*, void>)(state->Memory.Code + FirstExitCodeBundle.CooperativeObserveOffset))(cpu);
-            if (!LinuxNativeAcknowledgeUserTimer(c, index, cpu[3], image->Frame.Rflags, false)) return 0;
+            if (!LinuxNativeAcknowledgeUserTimer(c, index, cpu[3], image->Frame.Rflags, false))
+                return LinuxNativeUserInterruptRejected(state, 7);
             c->UserPreempted = index + 1; c->Actions[index] = (uint)LinuxSyscallAction.Return;
             return 2; // Original gateway restoration, then actual kernel CALL capture and Yield.
+        }
+
+        // Preserve the admission failure itself in serial evidence. This path
+        // never changes captured state, acknowledges an IRQ or authorizes reuse.
+        private static byte LinuxNativeUserInterruptRejected(Storage* state, uint stage)
+        {
+            _ = LinuxText(state, "M16_009_IRQ_REJECT stage=") && LinuxNumber(state, stage) && LinuxText(state, "\r\n");
+            if (stage == 6)
+            {
+                byte* data = (byte*)state->LinuxSyscallData;
+                var frame = *(LinuxSyscallFrame*)(data + X64LinuxUserTransition.FrameOffset);
+                LinuxNativeControl* c = LinuxNativeOwner(state);
+                ulong* values = stackalloc ulong[18] { *(ulong*)(data + X64LinuxUserTransition.PhaseOffset),
+                    *(ulong*)(data + X64LinuxUserTransition.OutcomeOffset), *(ulong*)(data + X64LinuxUserTransition.VectorOffset),
+                    *(ulong*)(data + X64LinuxUserTransition.ErrorOffset), *(ushort*)(data + X64LinuxUserTransition.FaultSelectorsOffset),
+                    *(ushort*)(data + X64LinuxUserTransition.FaultSelectorsOffset + 2), frame.Number, frame.Rip, frame.Rsp, frame.Rflags,
+                    frame.FsBase, frame.GsBase, *(ulong*)(data + X64LinuxUserTransition.ValueOffset),
+                    *(uint*)(data + X64LinuxUserTransition.UserFxOffset + 24), *(uint*)(data + X64LinuxUserTransition.UserFxOffset + 28),
+                    c == null ? 0 : c->Plan.Owner.ObservedMxcsrMask, c != null && LinuxSyscallGateway.ValidateReturn(frame, c->User) ? 1UL : 0UL,
+                    c != null && c->User.UserInterrupts ? 1UL : 0UL };
+                for (uint i = 0; i < 18; i++)
+                    _ = LinuxText(state, "M16_009_CAPTURE index=") && LinuxNumber(state, i) &&
+                        LinuxText(state, " value=") && LinuxNumber(state, values[i]) && LinuxText(state, "\r\n");
+            }
+            _ = LinuxText(state, "TEST_FAIL m16-009 user-irq-admission\r\n");
+            return 0;
         }
 
         private static bool LinuxNativeAcknowledgeUserTimer(LinuxNativeControl* c, uint index,
@@ -166,7 +202,7 @@ public static unsafe partial class EfiEntry
             ulong* cpu = stackalloc ulong[(int)NativeSwitch.ObservationWords];
             ((delegate* unmanaged<ulong*, void>)(c->State->Memory.Code + FirstExitCodeBundle.CooperativeObserveOffset))(cpu);
             if (cpu[1] != owner.Root || cpu[4] != 8 || cpu[5] != 0 || cpu[6] != 24 || (cpu[3] & 0x602) != 2 ||
-                cpu[14] != owner.KernelGs || cpu[15] != 0 || cpu[16] != 0 || !LinuxNativeVerify(c) || !CooperativeAuditPool(c->State, true)) return 0;
+                cpu[14] != owner.KernelGs || cpu[15] != 0 || cpu[16] != 0 || !LinuxNativeVerify(c) || !CooperativeAuditPool(c->State, true, ownedIst: true)) return 0;
             return LinuxNativeAcknowledgeUserTimer(c, index, frame->EntryFlags, frame->Rflags, true) ? (byte)1 : (byte)0;
         }
     }

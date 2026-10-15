@@ -1,9 +1,47 @@
 using OS.Kernel.Threading;
+using OS.Kernel.Memory;
+using OS.Kernel.Compatibility.LinuxX64;
 using P = OS.Kernel.Compatibility.LinuxX64.LinuxThreadProgram;
 using S = OS.Kernel.Threading.ThreadContextSwitch;
 
 internal static unsafe class LinuxThreadProgramTests
 {
+    [HostTest("linux.thread pool supervisor RX code and absent guards survive mmap root reconstruction")]
+    private static void UserRootPoolMappings()
+    {
+        const ulong pool = 0x4000000;
+        using LinuxMemoryServicesTests.Owner owner = new();
+        X64UserMappingRange* ranges = stackalloc X64UserMappingRange[(int)X64UserAddressSpace.MaximumRanges];
+        ranges[0] = owner.Memory.StaticRanges[0]; ranges[1] = owner.Memory.StaticRanges[1];
+        uint count = 2, page = 0;
+        do
+        {
+            HostCheck.True(P.TrySupervisorMapping(pool, page, out ranges[count], out page)); count++;
+        } while (page < P.PoolPages);
+        HostCheck.Equal(23U, count); // Independently expected 21 usable runs plus the two original mappings.
+        var memory = owner.Memory; memory.StaticRanges = ranges; memory.StaticCount = count;
+        HostCheck.True(LinuxMemoryServices.Begin(owner.State, memory));
+        for (int round = 0; round < 3; round++)
+        {
+            for (uint i = 0; i < P.PoolPages; i++)
+            {
+                ulong leaf = owner.Leaf(pool + i * 4096UL);
+                if (P.IsGuardPage(i)) { HostCheck.Equal(0UL, leaf); continue; }
+                HostCheck.Equal(pool + i * 4096UL, leaf & 0x000ffffffffff000UL);
+                HostCheck.Equal(1UL, leaf & 5); // Present supervisor leaf.
+                HostCheck.Equal(i < P.CodePages ? 0UL : 2UL, leaf & 2);
+                HostCheck.Equal(i < P.CodePages ? 0UL : 0x8000000000000000UL, leaf & 0x8000000000000000UL);
+            }
+            HostCheck.True(LinuxMemoryServices.Audit(owner.State));
+            if (round == 0) HostCheck.Equal(0x100000000L,
+                LinuxMemoryServices.Map(owner.State, 0, 4096, 3, 0x22, ulong.MaxValue, 0));
+            if (round == 1) HostCheck.Equal(0L, LinuxMemoryServices.Unmap(owner.State, 0x100000000, 4096));
+        }
+        foreach (ulong bad in new[] { 0UL, pool + 1, 0x100000000UL - P.PoolPages * 4096UL + 4096, ulong.MaxValue })
+            HostCheck.True(!P.TrySupervisorMapping(bad, 0, out var range, out uint next) && range.Pages == 0 && next == 0);
+        HostCheck.True(!P.TrySupervisorMapping(pool, P.PoolPages, out _, out _));
+    }
+
     private static P.Plan Plan(KernelThreadTableTests.Model m, uint count = 4)
     {
         var o = m.Owner; o.CodeBytes = P.Bytes; o.GuardsVerified = o.MappingsVerified = false;

@@ -2,6 +2,19 @@
 
 ## Development Linux threading profile
 
+[Step1286](../done/step1286.md) begins actual native/runtime qualification.
+The new probe symbols are present in the reviewed inventory. The independent
+user root now retains RX thread-pool code, RW/NX usable stacks/metadata and
+absent guards across mmap rebuilds; kernel publication remains separately owned.
+Native publication/artifact verification passes. Explicit TSS RSP0/IST4
+expectations preserve the remaining descriptor/code checks during authenticated
+borrows. Hardware E1 capture normalizes RF only in its copied continuation;
+ordinary returns remain strict and raw evidence stays intact. The original
+RuntimeSmoke guest now creates a second thread and executes 62 timer epochs,
+then fails before application output with futex EFAULT and mprotect ENOMEM.
+Raw failed captures and focused mapping/callback controls remain
+development evidence; no guest runtime or shared batch acceptance is added.
+
 [Step1285](../done/step1285.md) adds the original unchanged `NativeAotRuntimeSmoke`
 as a distinct M16-010 regression. Select it explicitly with
 `-LinuxThreadingApplication NativeAotRuntimeSmoke`; omitted M16-010 app selection

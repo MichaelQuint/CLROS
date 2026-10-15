@@ -119,8 +119,11 @@ public static unsafe partial class X64LinuxUserTransition
     /// <summary>Copy a complete actual E1 CPL3 interrupt capture under an
     /// explicitly admitted user-IRQ policy. Native ownership/IST/root/APIC
     /// provenance remain the caller's obligation. Unlike a fault image, its
-    /// continuation must already pass user mapping/IF/FP admission or the current
-    /// gate's exact retained exit-tail policy. No
+    /// continuation must pass user mapping/IF/FP admission or the current
+    /// gate's exact retained exit-tail policy. Hardware-entry RF is cleared in
+    /// the copied continuation only; raw evidence stays intact. Debug resume
+    /// semantics are unsupported. Ordinary syscall/signal returns gain no RF
+    /// authority. No
     /// syscall, scheduling, time advance or user resumption is performed.</summary>
     public static bool CaptureInterruptUserImage(byte* data,uint bytes,UserImage* image,uint imageBytes,uint mxcsr,LinuxSyscallAccess user)
     {
@@ -128,6 +131,7 @@ public static unsafe partial class X64LinuxUserTransition
             *(ulong*)(data+OutcomeOffset)!=3 || *(ulong*)(data+VectorOffset)!=0xe1 || *(ulong*)(data+ErrorOffset)!=0 ||
             *(ushort*)(data+FaultSelectorsOffset)!=UserCs || *(ushort*)(data+FaultSelectorsOffset+2)!=UserSs) return false;
         UserImage next=default; ReadCapturedImage(data,&next);
+        next.Frame.Rflags &= ~ResumeFlag;
         if (next.Frame.Number!=0 || !ValidateUserImage(&next,UserImageBytes,mxcsr,user)) return false;
         *image=next; return true;
     }

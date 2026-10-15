@@ -701,11 +701,23 @@ public static unsafe class FirstExitCodeBundle
 
     public static bool ValidateInstalledReadBack(byte* code, ulong capacity, ref FirstExitOwnedArenaState arena,
         EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping, ulong callback)
-        => Admit(code, capacity, ref arena, capture, mapping, callback, 1, true) &&
+        => ValidateInstalledReadBack(code, capacity, ref arena, capture, mapping, callback, arena.StackTop, 0);
+
+    /// <summary>Read back the installed code and original descriptor storage
+    /// while an IRQ-off owner borrows exactly TSS.RSP0 and IST4. Expected stack
+    /// tops come from the authenticated owner, never from the fields under test.
+    /// The caller retains both stacks and proves their mappings, active tables
+    /// and borrow lifetime. All other bytes retain their original checks. False
+    /// changes nothing; this supplies no execution or restoration authority.</summary>
+    public static bool ValidateInstalledReadBack(byte* code, ulong capacity, ref FirstExitOwnedArenaState arena,
+        EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping, ulong callback,
+        ulong expectedRsp0, ulong expectedIst4)
+        => Admit(code, capacity, ref arena, capture, mapping, callback, 1, true, expectedRsp0, expectedIst4) &&
             arena.Fault->Backend.IsReady && CheckBytes(code, (ulong)arena.Fault, callback);
 
     private static bool Admit(byte* code, ulong capacity, ref FirstExitOwnedArenaState arena,
-        EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping, ulong callback, uint phase, bool installed = false)
+        EfiLoadedImageRangeCapturePlan capture, M01LoadedImageVirtualMappingEvidence mapping, ulong callback, uint phase, bool installed = false,
+        ulong expectedRsp0 = 0, ulong expectedIst4 = 0)
     {
         ulong address = (ulong)code, data = (ulong)arena.Storage;
         if (capacity != Bytes || address < 4096 || (address & 4095) != 0 || address >= LowEnd - Bytes ||
@@ -719,7 +731,8 @@ public static unsafe class FirstExitCodeBundle
             !FirstExitImageMappings.Contains(imageRanges, count, callback, 1, PageProtection.Read | PageProtection.Execute) ||
             FirstExitDescriptors.Overlaps(address, Bytes, imageRanges[0].Start, capture.Range.ImageSize) ||
             FirstExitDescriptors.Overlaps(data, FirstExitOwnedArena.Bytes, imageRanges[0].Start, capture.Range.ImageSize) ||
-            !(installed ? FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, address) : FirstExitOwnedArena.ValidateDescriptors(ref arena, address)) ||
+            !(installed ? FirstExitOwnedArena.ValidateInstalledDescriptors(ref arena, address, expectedRsp0, expectedIst4) :
+                FirstExitOwnedArena.ValidateDescriptors(ref arena, address)) ||
             arena.Fault->Phase != phase || arena.Fault->Reserved != 0) return false;
         return FirstExitTerminalFaultStub.RequiredBytes > 0 && FirstExitTerminalFaultStub.RequiredBytes <= Out8Offset - FaultOffset &&
             FirstExitOwnedStackStub.RequiredBytes > 0 && FirstExitOwnedStackStub.RequiredBytes <= PermanentOffset - StackEntryOffset &&
@@ -1476,16 +1489,29 @@ public static unsafe class FirstExitOwnedArena
     /// pointers before following them. This does not observe live GDTR/IDTR/TR.
     /// </summary>
     public static bool ValidateDescriptors(ref FirstExitOwnedArenaState state, ulong vectorPage)
-        => ValidateDescriptorsCore(ref state, vectorPage, false);
+        => ValidateDescriptorsCore(ref state, vectorPage, false, state.StackTop, 0);
 
     // Validate supplied installed storage and native-recorded observations. This
     // helper itself does not execute SGDT/SIDT/STR or establish their provenance.
     public static bool ValidateInstalledDescriptors(ref FirstExitOwnedArenaState state, ulong vectorPage)
-        => ValidateDescriptorsCore(ref state, vectorPage, true);
+        => ValidateDescriptorsCore(ref state, vectorPage, true, state.StackTop, 0);
 
-    private static bool ValidateDescriptorsCore(ref FirstExitOwnedArenaState state, ulong vectorPage, bool installed)
+    /// <summary>Nonmutating installed-storage check with exact owner-declared
+    /// TSS.RSP0 and IST4 stack tops; zero IST4 means unborrowed. The IRQ-off owner
+    /// must authenticate the borrow and retain mapped stacks until restoration.
+    /// Every other descriptor byte and recorded adoption observation stays
+    /// original. Invalid tops or any mismatch fail closed. This does not observe
+    /// live GDTR/IDTR/TR, authorize a borrow or certify stack mappings.</summary>
+    public static bool ValidateInstalledDescriptors(ref FirstExitOwnedArenaState state, ulong vectorPage,
+        ulong expectedRsp0, ulong expectedIst4)
+        => ValidateDescriptorsCore(ref state, vectorPage, true, expectedRsp0, expectedIst4);
+
+    private static bool ValidateDescriptorsCore(ref FirstExitOwnedArenaState state, ulong vectorPage, bool installed,
+        ulong expectedRsp0, ulong expectedIst4)
     {
-        if (state.Reserved != 0 || !PageRange(vectorPage, 4096) || !ValidateCanaries(state) ||
+        if (expectedRsp0 < 4096 || expectedRsp0 >= LowEnd || (expectedRsp0 & 15) != 0 ||
+            (expectedIst4 != 0 && (expectedIst4 < 4096 || expectedIst4 >= LowEnd || (expectedIst4 & 15) != 0)) ||
+            state.Reserved != 0 || !PageRange(vectorPage, 4096) || !ValidateCanaries(state) ||
             FirstExitDescriptors.Overlaps((ulong)state.Data, Bytes, vectorPage, 4096)) return false;
         FirstExitDescriptorContext* context = state.Descriptors;
         byte* gdt = state.Data + 4096, tss = state.Data + 8192;
@@ -1522,13 +1548,14 @@ public static unsafe class FirstExitOwnedArena
         for (int i = 0; i < 4096; i++)
         {
             byte expected = 0;
-            if (i >= 4 && i < 12) expected = (byte)(state.StackTop >> ((i - 4) * 8));
+            if (i >= 4 && i < 12) expected = (byte)(expectedRsp0 >> ((i - 4) * 8));
             else if (i >= 36 && i < 60)
             {
                 int stack = (i - 36) / 8;
                 ulong top = (ulong)state.Data + (ulong)(92 + stack * 6) * 4096 - 16;
                 expected = (byte)(top >> (((i - 36) % 8) * 8));
             }
+            else if (i >= 60 && i < 68) expected = (byte)(expectedIst4 >> ((i - 60) * 8));
             else if (i == 102) expected = 104;
             if (tss[i] != expected) return false;
             int gateOffset = i & 15;
