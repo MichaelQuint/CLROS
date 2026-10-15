@@ -1,5 +1,16 @@
 # App Model
 
+[Step1278](../done/step1278.md) adds separate canonical packages and sealed
+reviewed instruction indexes for the three Linux-qualified stress/matrix apps.
+The fixed receipt, nine relevant raw sources per app, ELF/DLL/object/stdout and
+complete trace inventory bind each package. An independent audit matches every
+byte in all five executable sections, with no gaps. Seven focused checks and
+actual factory/mutation controls pass. New manifests declare the existing
+thread service's 16-slot limit: the matrix has a causal lower bound of nine
+live threads, exceeding the native owner's current eight. These packages have
+no QEMU selector yet; native capacity, entropy/wait budgets and complete
+workload-specific protocol/profile consumers remain required before batch gates.
+
 [Step1277](../done/step1277.md) implements a bounded libc self-unmap/exit
 continuation for the current threaded owner. The exact immutable 17-byte ELF
 sequence may retain its unmapped stack/TLS registers through three instruction

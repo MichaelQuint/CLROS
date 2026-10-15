@@ -6,6 +6,18 @@ public static class ToolCommand
     {
         try
         {
+            if(args is ["linux","runtime-package",var runtimeApp,var runtimeEvidence,var runtimeDestination])
+            {
+                Console.WriteLine("TEST_START linux.runtime-package");
+                string digest=NativeAotRuntimePackage.Write(Repository.FindRoot(),runtimeEvidence,runtimeApp,runtimeDestination);
+                Console.WriteLine("TEST_PASS linux.runtime-package app="+runtimeApp+" sha256="+digest);return 0;
+            }
+            if(args is ["linux","runtime-program",var runtimeName,var runtimePackage,var runtimeDump])
+            {
+                Console.WriteLine("TEST_START linux.runtime-program");
+                var program=NativeAotRuntimeProgram.Read(Repository.FindRoot(),runtimeName,runtimePackage,runtimeDump);
+                Console.WriteLine("TEST_PASS linux.runtime-program app="+program.Application+" "+program.Metadata);return 0;
+            }
             if (args is ["linux", "threading-package", var threadingApp, var threadingEvidence, var threadingDestination])
             {
                 Console.WriteLine("TEST_START linux.threading-package");
@@ -86,6 +98,7 @@ public static class ToolCommand
                 return LibvirtSmoke.RunAsync(Repository.FindRoot(), LibvirtSmokeOptions.Parse(args[2..]), Console.Out).GetAwaiter().GetResult();
             if (args.Length == 0 || args is ["--help"])
             {
+                Console.WriteLine("linux runtime-package <app> <extracted-runtime-evidence> <fresh-artifacts-package>\nlinux runtime-program <app> <package> <reviewed-llvm-disassembly>");
                 Console.WriteLine("CLROS .NET 11 tooling\ndone next|reserve [--root <repository>]\nrepo check [--root <repository>]\ncontracts check\nefi build|verify [options]\nlinux hello-package <extracted-evidence-r04> <fresh-artifacts-package-path>\nlinux hello-program <hello-package> <llvm-disassembly>\nlinux threading-package <app> <extracted-evidence-root> <fresh-artifacts-package>\nlinux threading-program <app> <package> <llvm-disassembly>\nlinux thread-fixture <fresh-package-path> [Threads|PipeReadClose|PipeWriteClose|PipeShutdown]\nlinux signal-fixture <fresh-package-path> [AlternateStack|UserStack|BadReturn|BadRestorer|FaultRead|FaultWrite|FaultExecute|FaultStack|FaultGp|FaultReturn|FaultFatal|Activation|SignalPipeEintr|SignalPipeRestart|SignalFutexEintr|SignalFutexRestart|SignalPipePartial|NestedAlternateStack|AlternateStackExhaustion]\nqemu smoke|qcow2 [--dry-run] [options]\nlibvirt smoke [--dry-run|--plan-lifecycle|--check-serial-only] [options]\nkestrel package [options]\nnativeaot threading validate-suspension|validate-threadpool <captured-stdout>\nnativeaot threading qualify --output <fresh-directory>\nnativeaot runtime qualify --output <fresh-directory>\nnativeaot payload inspect <file> | qualify --output <fresh-directory>\nci smoke [options]\nbaseline evidence [options]\nbacklog sync [options]");
                 return 0;
             }
