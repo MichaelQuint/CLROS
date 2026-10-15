@@ -1,5 +1,13 @@
 # Networking
 
+[Step1313](../done/step1313.md) adds the bounded host `QemuEthernetPeer`
+transport for the batch's planned independent packet injector. It owns one IPv4
+loopback socket-netdev connection with a finite lifetime, exact length-prefixed
+frame I/O, cancellation and terminal closure on invalid/truncated framing. Seven
+actual loopback checks pass, including fragmented/concatenated frames and duplex
+I/O. QEMU launch wiring, packet scenarios and guest qualification remain pending;
+the transport does not establish any new network acceptance.
+
 [Step1312](../done/step1312.md) adds the dependent TCP connection ownership core
 under integration #734: bounded caller-owned entries/generations, opaque lifetime
 handles, half-open/closed slot retention and explicit release. The fast TCP filter
