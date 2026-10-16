@@ -1,5 +1,11 @@
 # Networking
 
+[Step1348](../done/step1348.md) repairs direct MSBuild boot-policy selection
+and ordinary-policy conflict rejection for both socket leaves. The preceding
+5,433-check full-host run has one native policy failure and remains failed;
+all18 focused repair checks and source/admission audits now pass. No queued
+guest started. Fresh full-host and socket/ancestor qualification remain required.
+
 [Step1347](../done/step1347.md) adds the complete sync runner pass, three
 byte-identical V2 package-staging guests, and six bounded original-native body
 reviews. The first stable full-host attempt fails nine profile/control checks

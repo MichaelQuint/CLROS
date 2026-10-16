@@ -568,6 +568,8 @@
 			'$(EnableM09011Probe)' == 'true' or
 			'$(EnableM09012Probe)' == 'true' or
 			'$(EnableM16010Probe)' == 'true' or
+			'$(EnableM16011Probe)' == 'true' or
+			'$(EnableM16012Probe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastProbe)' == 'true' or
@@ -995,6 +997,8 @@
 			'$(EnableM09011Probe)' == 'true' or
 			'$(EnableM09012Probe)' == 'true' or
 			'$(EnableM16010Probe)' == 'true' or
+			'$(EnableM16011Probe)' == 'true' or
+			'$(EnableM16012Probe)' == 'true' or
 			'$(EnableM04RhpNewFastBeforeBindFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastExhaustionFailureProbe)' == 'true' or
 			'$(EnableM04RhpNewFastProbe)' == 'true' or
