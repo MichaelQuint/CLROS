@@ -20,6 +20,8 @@ internal static unsafe class M16009EfiIntegrationTests
             var profile = EfiOptions.Parse(["--" + flag],build).Profile();
             HostCheck.True(profile.BootPolicy == "Diagnostic" && profile.IsEnabled(flag) && parents.All(profile.IsEnabled));
             HostCheck.Equal(parents.Length + 1,profile.Flags.Count(p => p.Value));
+            var web = EfiOptions.Parse(["--" + flag,"--EnableM10004Probe"],build).Profile();
+            HostCheck.True(web.IsEnabled("EnableM10004Probe") && profile.Flags.Where(p => p.Value).All(p => web.IsEnabled(p.Key)));
             string[] inherited = EfiProjectAdmission.ExpectedCompileItems(parent), actual = EfiProjectAdmission.ExpectedCompileItems(profile);
             string[] added = [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs|Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs",
                 @"Boot\EfiEntry.LinuxUserInterrupts.cs|"];
@@ -27,7 +29,7 @@ internal static unsafe class M16009EfiIntegrationTests
                 actual.Where(item => !added.Contains(item, StringComparer.Ordinal)).SequenceEqual(inherited, StringComparer.Ordinal));
             foreach (string prerequisite in parents) Reject(() => EfiOptions.Parse(["--" + flag,"--" + prerequisite + ":false"],build).Profile());
             foreach (string conflict in EfiContracts.DiagnosticProbes.Where(p => p != flag &&
-                p is not ("EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe") && !parents.Contains(p)))
+                p is not ("EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe" or "EnableM10004Probe") && !parents.Contains(p)))
                 Reject(() => EfiOptions.Parse(["--" + flag,"--" + conflict],build).Profile());
             Reject(() => EfiOptions.Parse(["--BootPolicy","VerifiedExit","--" + flag],build).Profile());
         }
