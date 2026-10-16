@@ -1,5 +1,15 @@
 # CLROS Completion Gates
 
+[Step1351](../done/step1351.md) qualifies the bounded #214/#215/#216 and
+#689/#690 batch at implementation `3726e31`: 5,433 full-host checks across713
+fixtures (94 Native), scoped original native/source joins, three sync and three
+async unchanged System.Net.Sockets guests, three immutable V2 staging guests
+and33 fresh strict ancestors. The builder separately runs real Kestrel HTTP;
+CLROS runs the finite socket fixtures, while V2 staging keeps entry=false.
+These are distinct evidence boundaries. Configuration/app startup and guest
+Kestrel remain incomplete. Only existing numbered Gate2 passes; no isolation,
+cloud or production gate advances.
+
 [Step1307](../done/step1307.md) qualifies the bounded #191/#192 through #688
 thread/runtime batch: 5,202 full-host checks across 687 fixtures (94 Native),
 44 strict captures across 32 profiles, three retained strict GC repetitions and
@@ -9,7 +19,7 @@ workloads now execute in CLROS. Supplemental raw-state evidence covers an
 exit-requested worker blocked by active upstream GC before later exit/reap;
 it does not show already-entered DetachCurrentThread. This advances only those
 finite application profiles. **Only the existing numbered Gate 2 passes.**
-Guest Kestrel, Linux socket/epoll services, isolation, cloud and
+Guest Kestrel, general application services, isolation, cloud and
 production remain incomplete.
 
 [Step1332](../done/step1332.md) qualifies the default-off finite continuing-network/
@@ -27,7 +37,7 @@ Development and failed/interrupted qualification history remains in steps1309-13
 ## Historical qualification snapshots
 
 Earlier statements below describe the evidence available at their named steps;
-steps1307 and1332 supersede pending claims only for their exact qualified scopes.
+steps1307,1332 and1351 supersede pending claims only for their exact qualified scopes.
 
 Development [step1234](../done/step1234.md) wires #191/#192's mechanical wait/TLS
 profiles and exact transcript admission. Focused checks and freestanding C#

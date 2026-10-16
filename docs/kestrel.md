@@ -14,20 +14,25 @@ Fresh Linux qualification passes all three apps and three Kestrel HTTP runs,
 including the exact17-byte default body. An independent copy audit verifies783
 source inputs,135 output files and six original managed/native producer files;
 1,042 native input identities remain recorded. These are Linux builder results.
-Stable batch acceptance remains pending; neither issue is closed by this evidence.
+[Step1351](../done/step1351.md) accepts this builder scope for #214/#215 and
+the V2 image/staging scope for #216 after the complete shared qualification.
+Three V2 guests preserve exact bytes without entering the application.
 
 The [current workload decision](workload-profiles.md) makes M16 NativeAOT
 services, continuing M07 TCP and M10 actual Kestrel the critical path.
 M16-001/#679 through M16-007/#685 and the bounded scheduler/timer foundations
-have historical qualification. Finish [#727's toolchain qualification](http://192.168.4.35:3000/admin/CLROS/issues/727),
-then [#188 lifecycle](http://192.168.4.35:3000/admin/CLROS/issues/188), #191 waits
-and #192 FS/TLS before #686. Follow the exact managed issue dependencies.
+have historical qualification. The .NET11 migration, #188 lifecycle and
+#191/#192 through #688 finite runtime batch are qualified in steps1225/1230/1307.
+Step1332 qualifies continuing network/TCP; step1351 qualifies the original finite
+socket/SocketAsyncEngine fixtures for #689/#690. Continue owned #217 configuration,
+#218 stdout/stderr, #219 upstream app startup and #220 real Kestrel socket I/O
+under #737. Follow the exact managed issue dependencies.
 Mechanical ELF startup/write/exit does not run the upstream runtime.
 M16-008/#686 uses mechanical thread/TLS/futex fixtures with real per-thread
 signal-mask inheritance/restoration. M16-009/#687 qualifies the first pinned
 Hello after signal startup/delivery, before focused suspension checks.
 M16-010/#688 repeats Hello and qualifies the comprehensive runtime exerciser;
-#689's real System.Net.Sockets fixture follows that runtime qualification.
+step1351's real System.Net.Sockets fixture follows that runtime qualification.
 CoreCLR-specific #204-#212 are deferred. The legacy hosted package/TPA contract
 below remains a future target, not the first-web payload format. M16-002's
 qualified ELF package preserves the meaning of existing OSAPPv0 and
