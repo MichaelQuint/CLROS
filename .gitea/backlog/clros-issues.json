@@ -22494,7 +22494,7 @@
         "M16-007"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "type:implementation",
         "evidence:qemu",
         "component:app-model",
@@ -22531,7 +22531,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Load manifest arguments, environment and configuration for the NativeAOT app",
-      "currentEvidence": "Existing MinimalApiSmoke is host-buildable. No NativeAOT publish closure, Linux-compatible guest, real guest sockets or Kestrel acceptance is qualified.",
+      "currentEvidence": "Development PR739/steps1349-1350 adds validated immutable package views and measured stat/lstat/getcwd/readlink/O_NOCTTY through matching process/thread ownership;66 focused host checks,C# compilation and preflight pass at ee478553. Native/guest selected argv/env/config consumption remains unvalidated. Dependencies216/685 are accepted after PR738/step1351; continue owned217-220 under737.",
       "implementationNotes": [
         "Populate Linux argv/envp and immutable files only from validated manifest configuration. Bound counts/lengths, reject duplicate/invalid keys and unauthorized paths, and prove the guest observes the selected values.",
         "Reuse the versioned M16 Linux ELF path, existing app, package tools and QEMU HTTP/evidence APIs. Inspect those files first and extract a cohesive helper only if it simplifies them. No parallel CoreCLR/TPA implementation or title-derived placeholder class.",
