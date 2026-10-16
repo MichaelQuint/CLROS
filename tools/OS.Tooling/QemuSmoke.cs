@@ -206,7 +206,8 @@ public static class QemuSmoke
                         {Timeout=TimeSpan.FromSeconds((capture is null?options.TimeoutSeconds+60:timeout+30)),OutputCharacterLimit=16*1024*1024,
                             EnvironmentOverrides=capture?.Environment??new Dictionary<string,string?>()},token);
                     output.Write(result.StandardOutput);output.Write(result.StandardError);return result;
-                },cancellation,token=>NativeAotSocketPeer.WaitForAcceptAsync(Path.GetFullPath(options.SerialLog,root),plan.IsEnabled("EnableM16012Probe"),token));
+                },cancellation,token=>NativeAotSocketPeer.WaitForAcceptAsync(Path.GetFullPath(options.SerialLog,root),plan.IsEnabled("EnableM16012Probe"),token),
+                    receiveGateSerial:plan.IsEnabled("EnableM16012Probe")?options.SerialLog:null);
                 runner=socketPeer.Runner;
             }
             else if (capture is null) runner = await Run("OS.QemuRunner", arguments);

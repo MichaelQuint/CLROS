@@ -133,6 +133,9 @@ public static class ToolCommand
             }
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "payload")
                 return NativeAotPayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
+            if(args is ["nativeaot","socket","guest-peer","--port",var peerPort,"--serial",var peerSerial] &&
+                int.TryParse(peerPort,System.Globalization.NumberStyles.None,System.Globalization.CultureInfo.InvariantCulture,out int peerPortNumber))
+            {NativeAotSocketPeer.RunReceiveGatedPeerAsync(Repository.FindRoot(),peerPortNumber,peerSerial,Console.Out).GetAwaiter().GetResult();return 0;}
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "socket")
                 return NativeAotSocketPayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "web")

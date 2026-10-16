@@ -38,12 +38,15 @@ internal static class NativeAotSocketIntegrationTests
 
     // This is a host stub with no sealed program/NIC/firmware evidence. It tests
     // the actual separate peer child and owned process/log lifecycle only.
-    private static async Task<ProcessResult> Stub(int port,CancellationToken token)
+    private static Task<ProcessResult> Stub(int port,CancellationToken token)=>StubCore(port,token,null);
+    private static async Task<ProcessResult> StubCore(int port,CancellationToken token,string? receiveGateSerial)
     {
         using TcpListener listener=new(IPAddress.Loopback,port);listener.Start();
         for(int index=0;index<4;index++)
         {
             using Socket client=await listener.AcceptSocketAsync(token);byte[] expected=index==1?[0x52]:"CLROS_SOCKET_REQUEST"u8.ToArray();
+            if(index==0 && receiveGateSerial is not null)
+            {HostCheck.Equal(0,client.Available);await File.WriteAllTextAsync(receiveGateSerial,PendingReceive,token);}
             byte[] request=new byte[expected.Length];int read=0;
             while(read<request.Length)
             {int count=await client.ReceiveAsync(request.AsMemory(read),SocketFlags.None,token);HostCheck.True(count>0);read+=count;}
@@ -71,6 +74,50 @@ internal static class NativeAotSocketIntegrationTests
         byte[] raw=File.ReadAllBytes(log);HostCheck.Equal(Peer,Encoding.UTF8.GetString(raw).Replace("\r\n","\n",StringComparison.Ordinal));
         HostCheck.Equal(Convert.ToHexString(SHA256.HashData(raw)),result.Sha256);
         bool rejected=false;try{_=await NativeAotSocketPeer.RunAsync(root,log,Stub);}catch(IOException){rejected=true;}HostCheck.True(rejected);
+    }
+    private const string PendingReceive="M16_008_CALL identity=4294967302 nr=288 a0=6 a1=0 valueBits=7 action=1 status=1 ordinal=11\r\n"+
+        "M16_008_CALL identity=4294967302 nr=45 a0=7 a1=0 valueBits=18446744073709551605 action=1 status=1 ordinal=12\r\n"+
+        "M16_008_SUPERVISOR identity=4294967302 action=3 transfers=1 ready=0 active=1\r\n";
+    [HostTest("async peer stimulus waits for EAGAIN on the accepted fd and that caller parking")]
+    private static void PendingReceiveGate()
+    {
+        HostCheck.True(NativeAotSocketPeer.HasPendingReceive(PendingReceive));
+        foreach(string text in new[]{PendingReceive.Replace("nr=45 a0=7","nr=45 a0=8",StringComparison.Ordinal),
+            PendingReceive.Replace("18446744073709551605","0",StringComparison.Ordinal),
+            PendingReceive.Replace("SUPERVISOR identity=4294967302","SUPERVISOR identity=4294967303",StringComparison.Ordinal),
+            PendingReceive.Replace("action=3 transfers","action=1 transfers",StringComparison.Ordinal),
+            PendingReceive.Replace("valueBits=7 action","valueBits=18446744073709551605 action",StringComparison.Ordinal),
+            PendingReceive.Replace("nr=288","nr=41",StringComparison.Ordinal)})
+            HostCheck.True(!NativeAotSocketPeer.HasPendingReceive(text));
+    }
+    [HostTest("owned async peer sends no request before its receive gate and preserves all literal streams")]
+    private static void GatedPeer()=>GatedPeerCore().GetAwaiter().GetResult();
+    private static async Task GatedPeerCore()
+    {
+        string root=HostToolProcess.FindRepositoryRoot(),directory=Path.Combine(root,"artifacts","tests","socket-peer-"+Guid.NewGuid().ToString("N"));
+        string serial=Path.Combine(directory,"guest.serial.log"),log=Path.Combine(directory,"peer.log");
+        var result=await NativeAotSocketPeer.RunAsync(root,log,(port,token)=>StubCore(port,token,serial),receiveGateSerial:serial);
+        HostCheck.True(result.Runner.Succeeded);
+        NativeAotSocketPeer.InspectOutput(File.ReadAllText(log));
+    }
+    [HostTest("runner failure cancels and awaits an async peer still waiting for its receive gate")]
+    private static void FailedGatedPeer()=>FailedGatedPeerCore().GetAwaiter().GetResult();
+    private static async Task FailedGatedPeerCore()
+    {
+        string root=HostToolProcess.FindRepositoryRoot(),directory=Path.Combine(root,"artifacts","tests","socket-peer-"+Guid.NewGuid().ToString("N"));
+        string log=Path.Combine(directory,"peer.log"),serial=Path.Combine(directory,"guest.serial.log");string? failure=null;
+        try
+        {
+            _=await NativeAotSocketPeer.RunAsync(root,log,async(port,token)=>
+            {
+                using TcpListener listener=new(IPAddress.Loopback,port);listener.Start();
+                using Socket client=await listener.AcceptSocketAsync(token);HostCheck.Equal(0,client.Available);
+                return new ProcessResult(2,"","",false,false,false,TimeSpan.Zero);
+            },receiveGateSerial:serial);
+        }
+        catch(ToolFailure error){failure=error.Message;}
+        HostCheck.True(failure?.StartsWith("socket_peer_",StringComparison.Ordinal)==true);HostCheck.True(File.Exists(log));
+        HostCheck.True(!File.Exists(serial));
     }
     [HostTest("socket orchestration cancels and awaits its owned peer when the runner fails")]
     private static void FailedRunner()=>FailedRunnerCore().GetAwaiter().GetResult();

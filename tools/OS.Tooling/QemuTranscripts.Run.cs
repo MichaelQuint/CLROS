@@ -25,6 +25,7 @@ public static partial class QemuTranscripts
                 socketProgram.Asynchronous==plan.IsEnabled("EnableM16012Probe") && options.LinuxThreadingDisassembly.Length!=0 &&
                 string.Equals(Path.GetFullPath(root),socketProgram.SourceRoot,OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal) &&
                 string.Equals(Path.GetFullPath(root),socketPeer.Root,OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal) &&
+                (socketProgram.Asynchronous?string.Equals(Path.GetFullPath(options.SerialLog,root),socketPeer.ReceiveGateSerial,OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal):socketPeer.ReceiveGateSerial.Length==0) &&
                 string.Equals(Path.GetFullPath(options.SerialLog+".peer.log",root),socketPeer.Path,OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal),"socket_prepared_selection");
         }
         string runtimeApp = socketProgram is not null?"":NativeAotRuntimeSelection.Application(plan.Flags, options.LinuxThreadingApplication);

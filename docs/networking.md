@@ -1,5 +1,17 @@
 # Networking
 
+[Step1346](../done/step1346.md) records one complete live M16-012 runner pass
+with the original async socket ELF. Pending accept/receive/send are each1;
+four connections exchange61 request/65,572 response bytes, with two EOFs,
+one reset, a cancelled pending accept and a closed pending accept. Nine workers
+reap and all four transport lifetimes retire after actual240-second TIME-WAIT.
+The external peer holds its first request until the accepted guest fd returns
+EAGAIN and its caller parks. This only controls stimulus; the sealed program,
+strict parent/scheduler/packet records and original process results still supply
+the evidence. The unchanged publisher and guest ELF are preserved. Full-host,
+original scoped native review, fresh sync, repetitions and affected ancestors
+remain pending before #689/#690 acceptance. No Kestrel gate advances.
+
 [Step1345](../done/step1345.md) wires the original sync/async socket packages,
 sealed instruction index, independent peer child, exact forward-port identity,
 full firmware/APIC/NIC parents and packet/transport cleanup checks. The original
