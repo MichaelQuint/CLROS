@@ -7,7 +7,9 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// <summary>
 /// Linux descriptors for one IRQ-off process owner on the kernel root. All
 /// tables, buffers, package views and callbacks are borrowed, supervisor-only,
-/// exclusive and retained until End. No allocation, firmware, blocking wait,
+/// exclusive and retained until End. Optional LinuxSocketServices shares the
+/// same fd/description lifetime. End retains faulted/closing TCP ownership until
+/// explicit closed reap. No allocation, firmware, blocking wait,
 /// signal delivery, writable filesystem, directory handles or process creation
 /// is supplied. Negative Linux errno reports rejection. File cursors and pipe
 /// reads commit only after complete copy-out; sinks must accept an entire copy.
@@ -25,7 +27,7 @@ public static unsafe partial class LinuxDescriptorServices
     private const long Invalid = -22, FileTableFull = -23, DescriptorTableFull = -24;
     private const long NotDirectory = -20, NotTerminal = -25, NotSeekable = -29, ReadOnly = -30;
     private const long NameTooLong = -36, Unsupported = -38, Overflow = -75, NoMemory = -12;
-    private enum Kind : uint { None, Input, Output, Package, Snapshot, PipeRead, PipeWrite }
+    private enum Kind : uint { None, Input, Output, Package, Snapshot, PipeRead, PipeWrite, Socket }
 
     /// <summary>Retained immutable package data, with an exact absolute ASCII
     /// path below /app/ and a nonzero owner-assigned inode at least 256. Paths
@@ -96,6 +98,9 @@ public static unsafe partial class LinuxDescriptorServices
         internal Admission Owner;
         internal uint Initialized, Active, NextInode;
         internal ulong ThreadOwner;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        internal LinuxSocketServices.State* Sockets;
+#endif
         public readonly uint ActiveDescriptors => Initialized == 1 ? Active : 0;
         /// <summary>Retained kernel I/O borrows, including closed fds. This is
         /// diagnostic accounting, not a pin or release grant.</summary>
@@ -118,6 +123,9 @@ public static unsafe partial class LinuxDescriptorServices
     {
         if (!Storage(state, admission) || state->Initialized != 0 || state->Active != 0 || state->NextInode != 0 || state->ThreadOwner != 0)
             return false;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        if (state->Sockets != null) return false;
+#endif
         for (uint i = 0; i < admission.DescriptorCount; i++)
             if (admission.Slots[i].Description != 0 || admission.Slots[i].Flags != 0 || admission.Slots[i].Generation != 0) return false;
         for (uint i = 0; i < admission.DescriptionCount; i++)
@@ -140,7 +148,7 @@ public static unsafe partial class LinuxDescriptorServices
     }
 
     /// <summary>Dispatch measured read/write/open/close/stat/seek/ioctl/pread,
-    /// writev, fcntl and pipe calls. Unknown calls return ENOSYS. The gateway
+    /// writev, fcntl, pipe and attached socket calls. Unknown calls return ENOSYS. The gateway
     /// retains call limits, termination and user-return validation.</summary>
     public static long Dispatch(State* state, LinuxSyscallFrame frame)
         => state == null || ((ulong)state & 7) != 0 || state->ThreadOwner != 0 ? Fault : DispatchCore(state, frame);
@@ -158,13 +166,17 @@ public static unsafe partial class LinuxDescriptorServices
             case 3: value = Close(state, fd); break;
             case 5: value = Stat(state, fd, frame.Argument1); break;
             case 8: value = Seek(state, fd, unchecked((long)frame.Argument1), unchecked((uint)frame.Argument2)); break;
-            case 16: value = Find(state, fd) == null ? BadDescriptor : NotTerminal; break;
+            case 16: value = SocketIoctl(state, fd, frame.Argument1, frame.Argument2); break;
             case 17: value = Read(state, fd, frame.Argument1, frame.Argument2, frame.Argument3, true); break;
             case 20: value = WriteVector(state, fd, frame.Argument1, unchecked((uint)frame.Argument2)); break;
             case 22: value = Pipe(state, frame.Argument0, 0); break;
             case 72: value = Control(state, fd, unchecked((uint)frame.Argument1), frame.Argument2); break;
             case 257: value = Open(state, fd, frame.Argument1, frame.Argument2); break;
             case 293: value = Pipe(state, frame.Argument0, frame.Argument1); break;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+            case 41: case 42: case 43: case 44: case 45: case 48: case 49: case 50: case 51: case 52: case 54: case 55: case 288:
+                value = state->Sockets == null ? Unsupported : LinuxSocketServices.Dispatch(state->Sockets, frame); break;
+#endif
             default: value = Unsupported; break;
         }
         Clear(state->Owner.Scratch, state->Owner.ScratchBytes);
@@ -195,6 +207,9 @@ public static unsafe partial class LinuxDescriptorServices
         for (uint i = 0; i < state->Owner.DescriptionCount; i++) if (state->Owner.Descriptions[i].Borrowers != 0) return false;
         for (uint i = 0; i < state->Owner.DescriptorCount; i++)
             if (state->Owner.Slots[i].Description != 0 && Close(state, i) != 0) return false;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        if (state->Sockets != null && !LinuxSocketServices.Finish(state->Sockets)) return false;
+#endif
         Clear(state->Owner.Scratch, state->Owner.ScratchBytes);
         Clear(state->Owner.Snapshots, state->Owner.DescriptionCount * SnapshotBytes);
         Clear(state->Owner.PipeBuffers, state->Owner.PipeCount * state->Owner.PipeCapacity);
@@ -227,8 +242,14 @@ public static unsafe partial class LinuxDescriptorServices
             if (references == 0 && d.Borrowers == 0) { if (d.Type != 0) return false; continue; }
             if (d.Borrowers > MaximumDescriptors || d.Borrowers != 0 &&
                 ((Kind)d.Type != Kind.PipeRead && (Kind)d.Type != Kind.PipeWrite || state->ThreadOwner == 0)) return false;
-            if (d.Type == 0 || d.Type > (uint)Kind.PipeWrite || d.Inode == 0 ||
-                (d.Flags & ~(NonBlock | LargeFile | NoFollow | 1U)) != 0 || d.Position > long.MaxValue) return false;
+            if (d.Type == 0 || d.Type > (uint)Kind.Socket || d.Inode == 0 ||
+                (d.Flags & ~(NonBlock | LargeFile | NoFollow | 3U)) != 0 || d.Position > long.MaxValue ||
+                ((Kind)d.Type == Kind.Socket ? (d.Flags & 3) != 2 : (d.Flags & 2) != 0)) return false;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+            if ((Kind)d.Type == Kind.Socket && state->Sockets == null) return false;
+#else
+            if ((Kind)d.Type == Kind.Socket) return false;
+#endif
             if ((Kind)d.Type == Kind.Package || (Kind)d.Type == Kind.Snapshot)
             {
                 if ((d.Flags & 1) != 0 || d.Bytes > long.MaxValue || !Extent(d.Data, d.Bytes, true)) return false;
@@ -253,6 +274,9 @@ public static unsafe partial class LinuxDescriptorServices
                 p->Initialized != (readers + writers != 0) ||
                 (p->Initialized && (p->Capacity != a.PipeCapacity || p->BufferedBytes > p->Capacity))) return false;
         }
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        if (state->Sockets != null) return LinuxSocketServices.Audit(state->Sockets, state);
+#endif
         return true;
     }
 
@@ -263,6 +287,9 @@ public static unsafe partial class LinuxDescriptorServices
         if (positioned && (Kind)d->Type != Kind.Package && (Kind)d->Type != Kind.Snapshot) return NotSeekable;
         if (requested > MaximumIo || (positioned && offset > long.MaxValue)) return Invalid;
         if (requested == 0) return 0;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        if ((Kind)d->Type == Kind.Socket) return LinuxSocketServices.Receive(state->Sockets, d->Pipe, address, requested, 0);
+#endif
         var a = state->Owner;
         if ((Kind)d->Type == Kind.Input) return 0; // Explicit appliance stdin EOF policy.
         uint bytes = (uint)(requested < a.ScratchBytes ? requested : a.ScratchBytes);
@@ -286,7 +313,7 @@ public static unsafe partial class LinuxDescriptorServices
     private static long Write(State* state, uint fd, ulong address, ulong requested)
     {
         Description* d = Find(state, fd);
-        if (d == null || (d->Flags & 1) == 0) return BadDescriptor;
+        if (d == null || (d->Flags & 3) == 0) return BadDescriptor;
         if (requested > MaximumIo) return Invalid;
         if (requested == 0) return 0;
         long policy = WritePolicy(state, d);
@@ -301,7 +328,7 @@ public static unsafe partial class LinuxDescriptorServices
     private static long WriteVector(State* state, uint fd, ulong address, uint count)
     {
         Description* d = Find(state, fd);
-        if (d == null || (d->Flags & 1) == 0) return BadDescriptor;
+        if (d == null || (d->Flags & 3) == 0) return BadDescriptor;
         if (count > MaximumVectors) return Invalid;
         if (count == 0) return 0;
         var a = state->Owner;
@@ -331,13 +358,22 @@ public static unsafe partial class LinuxDescriptorServices
 
     private static long WritePolicy(State* state, Description* d)
     {
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        if ((Kind)d->Type == Kind.Socket) return LinuxSocketServices.WritePolicy(state->Sockets, d->Pipe, 0);
+#endif
         if ((Kind)d->Type != Kind.PipeWrite) return (Kind)d->Type == Kind.Output ? 0 : BadDescriptor;
         if ((d->Flags & NonBlock) == 0) return Unsupported;
         if (state->Owner.Pipes[d->Pipe].ReaderCount == 0) return state->Owner.SigpipeIgnored ? -32 : Unsupported;
         return 0;
     }
 
-    private static long CommitWrite(State* state, Description* d, uint bytes) => (Kind)d->Type == Kind.PipeWrite
+    private static long CommitWrite(State* state, Description* d, uint bytes) =>
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        (Kind)d->Type == Kind.Socket
+        ? LinuxSocketServices.SendCopied(state->Sockets, d->Pipe, bytes)
+        :
+#endif
+        (Kind)d->Type == Kind.PipeWrite
         ? state->Owner.Pipes[d->Pipe].Write(state->Owner.Scratch, bytes, true, state->Owner.SigpipeIgnored)
         : state->Owner.User.Write(state->Owner.User.Context, d->Channel, state->Owner.Scratch, bytes) == 1 ? bytes : Io;
 
@@ -406,6 +442,9 @@ public static unsafe partial class LinuxDescriptorServices
         var a = state->Owner; Description* d = a.Descriptions + index;
         if (borrow ? d->Borrowers == 0 : d->References == 0) return false;
         bool last = borrow ? d->Borrowers == 1 && d->References == 0 : d->References == 1 && d->Borrowers == 0;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        if (last && (Kind)d->Type == Kind.Socket && !LinuxSocketServices.Close(state->Sockets, d->Pipe)) return false;
+#endif
         if (last && ((Kind)d->Type == Kind.PipeRead || (Kind)d->Type == Kind.PipeWrite))
         {
             LinuxPipe* pipe = a.Pipes + d->Pipe;
@@ -477,7 +516,7 @@ public static unsafe partial class LinuxDescriptorServices
         *(ulong*)(wire + 8) = d->Inode; *(ulong*)(wire + 16) = 1;
         Kind kind = (Kind)d->Type;
         *(uint*)(wire + 24) = kind == Kind.Package || kind == Kind.Snapshot ? 0x8124U :
-            kind == Kind.PipeRead || kind == Kind.PipeWrite ? 0x1180U : 0x2180U;
+            kind == Kind.PipeRead || kind == Kind.PipeWrite ? 0x1180U : kind == Kind.Socket ? 0xc180U : 0x2180U;
         *(ulong*)(wire + 48) = kind == Kind.Package || kind == Kind.Snapshot ? d->Bytes : 0;
         *(ulong*)(wire + 56) = 4096;
         // Package bytes are an immutable in-memory view, not allocated disk
@@ -578,7 +617,7 @@ public static unsafe partial class LinuxDescriptorServices
         if (!result.Succeeded) return false;
         offset = result.NextOffset; return true;
     }
-    private static bool Output(State* state, ulong address, byte* source, uint bytes) =>
+    internal static bool Output(State* state, ulong address, byte* source, uint bytes) =>
         LinuxSyscallGateway.ValidateRange(address, bytes, LinuxUserPageAccess.Write, state->Owner.User) &&
         state->Owner.CopyToUser(state->Owner.User.Context, address, source, bytes) == 1;
     private static Description* Find(State* state, uint fd) => fd < state->Owner.DescriptorCount && state->Owner.Slots[fd].Description != 0
@@ -599,6 +638,75 @@ public static unsafe partial class LinuxDescriptorServices
     {
         Slot* slot = state->Owner.Slots + fd;
         slot->Description = description + 1; slot->Flags = flags; slot->Generation++; state->Active++;
+    }
+
+    internal static bool SocketDescription(State* state, uint fd, out uint endpoint, out uint flags)
+    {
+        Description* d = Find(state, fd); endpoint = flags = 0;
+        if (d == null || (Kind)d->Type != Kind.Socket) return false;
+        endpoint = d->Pipe; flags = d->Flags; return true;
+    }
+
+    internal static long InstallSocket(State* state, uint endpoint, uint flags)
+    {
+        uint fd = FreeSlot(state, 0, uint.MaxValue), index = FreeDescription(state, uint.MaxValue);
+        if (fd == state->Owner.DescriptorCount) return DescriptorTableFull;
+        if (index == state->Owner.DescriptionCount || state->NextInode == uint.MaxValue) return FileTableFull;
+        state->Owner.Descriptions[index] = new() { Type = (uint)Kind.Socket, References = 1,
+            Flags = 2 | (flags & NonBlock), Pipe = endpoint, Inode = state->NextInode++ };
+        Assign(state, fd, index, (flags & CloseOnExec) != 0 ? 1U : 0U); return fd;
+    }
+
+    internal static long SocketCapacity(State* state) => FreeSlot(state, 0, uint.MaxValue) == state->Owner.DescriptorCount
+        ? DescriptorTableFull : FreeDescription(state, uint.MaxValue) == state->Owner.DescriptionCount || state->NextInode == uint.MaxValue ? FileTableFull : 0;
+
+    internal static uint SocketReferences(State* state, uint endpoint, out uint flags)
+    {
+        uint count = 0; flags = 0;
+        for (uint i = 0; i < state->Owner.DescriptionCount; i++)
+        {
+            Description d = state->Owner.Descriptions[i];
+            if ((Kind)d.Type != Kind.Socket || d.Pipe != endpoint) continue;
+            count++; flags = d.Flags;
+        }
+        return count;
+    }
+
+    private static long SocketIoctl(State* state, uint fd, ulong command, ulong address)
+    {
+        Description* d = Find(state, fd);
+        if (d == null) return BadDescriptor;
+        if ((Kind)d->Type != Kind.Socket) return NotTerminal;
+        if (command != 0x5421) return NotTerminal; // FIONBIO, measured Linux x64 ABI.
+        uint enabled;
+        if (!LinuxSyscallGateway.ValidateRange(address, 4, LinuxUserPageAccess.Read, state->Owner.User) ||
+            state->Owner.User.CopyFromUser(state->Owner.User.Context, address, (byte*)&enabled, 4) != 1) return Fault;
+        d->Flags = (d->Flags & ~NonBlock) | (enabled != 0 ? NonBlock : 0); return 0;
+    }
+
+    // Socket metadata and transport backing are retained supervisor storage.
+    // Check against descriptor, package and user-memory ownership before attachment.
+    internal static bool SocketOutside(State* state, void* pointer, ulong bytes)
+    {
+        if (!Extent(pointer, bytes)) return false;
+        var a = state->Owner; ulong start = (ulong)pointer;
+        ulong* extents = stackalloc ulong[24]
+        {
+            (ulong)state, (ulong)sizeof(State), (ulong)a.Slots, a.DescriptorCount * (ulong)sizeof(Slot),
+            (ulong)a.Descriptions, a.DescriptionCount * (ulong)sizeof(Description), (ulong)a.Pipes, a.PipeCount * (ulong)sizeof(LinuxPipe),
+            (ulong)a.PipeBuffers, a.PipeCount * a.PipeCapacity, (ulong)a.Snapshots, a.DescriptionCount * SnapshotBytes,
+            (ulong)a.Scratch, a.ScratchBytes, (ulong)a.Memory, (ulong)sizeof(LinuxMemoryServices.State),
+            (ulong)a.Memory->Memory.Pool, a.Memory->Memory.PoolPages * 4096UL,
+            (ulong)a.Memory->Memory.Tables, a.Memory->Memory.TablePages * 4096UL,
+            (ulong)a.Memory->Memory.CandidateTables, a.Memory->Memory.TablePages * 4096UL,
+            (ulong)a.Memory->Memory.StaticRanges, a.Memory->Memory.StaticCount * (ulong)sizeof(X64UserMappingRange)
+        };
+        for (uint i = 0; i < 12; i++) if (Overlap(start, bytes, extents[i * 2], extents[i * 2 + 1])) return false;
+        if (Overlap(start, bytes, (ulong)a.Views, a.ViewCount * (ulong)sizeof(View))) return false;
+        for (uint i = 0; i < a.ViewCount; i++)
+            if (Overlap(start, bytes, (ulong)a.Views[i].Path, a.Views[i].PathBytes) ||
+                Overlap(start, bytes, (ulong)a.Views[i].Data, a.Views[i].Bytes)) return false;
+        return true;
     }
 
     private static bool Storage(State* state, Admission a)

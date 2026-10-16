@@ -225,6 +225,9 @@ public unsafe partial struct LinuxThreadServices
         {
             case 0: case 1: case 2: case 3: case 5: case 8: case 16: case 17:
             case 20: case 22: case 72: case 257: case 293:
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+            case 41: case 42: case 43: case 44: case 45: case 48: case 49: case 50: case 51: case 52: case 54: case 55: case 288:
+#endif
                 return DispatchDescriptor(key, flags, frame);
             case 13: case 131:
                 result = _signals == null ? Unsupported : LinuxSignalServices.Dispatch(_signals, _self, slot->Kernel, frame); break;

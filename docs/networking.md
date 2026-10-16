@@ -1,11 +1,23 @@
 # Networking
 
+[Step1337](../done/step1337.md) adds the development-only IPv4 passive TCP
+socket adapter in the shared Linux descriptor namespace. Host checks exercise
+genuine TCP-owner handshakes/frames, partial I/O, copy-failure retention, endpoint
+denial, dup/last-close, graceful EOF, reset and closed buffer/table cleanup.
+Only the manifest address/port can bind. Last close retains TCP ownership for
+the continuing packet/timer owner; a failed transport is explicitly aborted
+before closed reap. `CLROS_LINUX_SOCKETS` keeps the TCP dependencies outside older
+EFI descriptor/threading profiles. This is host contract evidence: the live
+NIC/scheduler socket profile, blocking waits, epoll and guest payload execution
+are still pending. No issue in the current socket/application batch is accepted.
+
 [Step1336](../done/step1336.md) records the finite System.Net.Sockets fixture's
 real pinned Linux NativeAOT run: four connections,61 request bytes,65,572 reply
 bytes, four partial sends,70 blocked sends, reset1 and orderly EOF2. Independent
 copy audit verifies777 source inputs,21 outputs and four original producer files.
 The earlier managed Windows run observes no partial sends. Both boundaries
-remain distinct; actual CLROS socket/epoll adapters and guest proof are pending.
+remain distinct; the CLROS socket adapter now has the bounded host slice above,
+while epoll and guest proof remain pending.
 
 The measured native calls include `sendto`/`recvfrom`, `fcntl` nonblocking flags,
 `accept4`, socket options and an empty reactor's `epoll_create1`/`epoll_pwait`.

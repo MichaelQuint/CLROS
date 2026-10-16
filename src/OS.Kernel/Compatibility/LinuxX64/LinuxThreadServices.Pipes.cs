@@ -20,7 +20,7 @@ public unsafe partial struct LinuxThreadServices
         // These are exact native capability addresses, not logical method equality.
         if (!a.SigpipeIgnored || a.User.Context != _owner.User.Context || (ulong)a.User.PageAccess != (ulong)_owner.User.PageAccess ||
             (ulong)a.User.CopyFromUser != (ulong)_owner.User.CopyFromUser || (ulong)a.CopyToUser != (ulong)_owner.CopyToUser) return false;
-        for (uint i = 0; i < 13; i++)
+        for (uint i = 0; i < 15; i++)
         {
             DescriptorExtent(descriptors, i, out ulong start, out ulong bytes);
             if (bytes == 0) continue;
@@ -173,7 +173,7 @@ public unsafe partial struct LinuxThreadServices
     private bool DescriptorStorageOverlap(ulong start, ulong bytes, bool includeUserBacking = true)
     {
         if (_descriptors == null) return false;
-        for (uint i = 0; i < 13; i++)
+        for (uint i = 0; i < 15; i++)
         {
             // Validated futex words may use application backing; service metadata may not.
             if (i == 8 && !includeUserBacking) continue;
@@ -200,6 +200,12 @@ public unsafe partial struct LinuxThreadServices
             case 10: start = (ulong)a.Memory->Memory.CandidateTables; bytes = a.Memory->Memory.TablePages * 4096UL; break;
             case 11: start = (ulong)a.Memory->Memory.StaticRanges; bytes = a.Memory->Memory.StaticCount * (uint)sizeof(X64UserMappingRange); break;
             case 12: start = (ulong)a.Views; bytes = a.ViewCount * (uint)sizeof(LinuxDescriptorServices.View); break;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+            case 13: start = (ulong)state->Sockets; bytes = state->Sockets == null ? 0 : (uint)sizeof(LinuxSocketServices.State); break;
+            case 14:
+                if (state->Sockets != null) { start = (ulong)state->Sockets->Slots; bytes = state->Sockets->Count * (uint)sizeof(LinuxSocketServices.Endpoint); }
+                break;
+#endif
         }
     }
 }

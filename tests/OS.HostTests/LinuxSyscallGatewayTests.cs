@@ -237,16 +237,17 @@ internal static unsafe class LinuxSyscallGatewayTests
     {
         byte* scratch = stackalloc byte[64]; Model model = new() { ThreadMode = 12, ThreadValue = -9 }; var state = ThreadGate(&model, scratch);
         var frame = Frame();
-        foreach (ulong number in new ulong[] { 0, 1, 2, 3, 5, 8, 16, 17, 20, 22, 72, 257, 293 })
+        ulong[] calls = [0, 1, 2, 3, 5, 8, 16, 17, 20, 22, 41, 42, 43, 44, 45, 48, 49, 50, 51, 52, 54, 55, 72, 257, 288, 293];
+        foreach (ulong number in calls)
         { frame.Number = number; HostCheck.Equal(-9L, LinuxSyscallGateway.Dispatch(ref state, ref frame).Value); }
-        HostCheck.Equal(13U, model.ThreadCalls); // The legacy fd callback would return ENOSYS.
+        HostCheck.Equal((uint)calls.Length, model.ThreadCalls); // The legacy fd callback would return ENOSYS.
         frame = Frame(); model.ThreadMode = 4;
         HostCheck.Equal(LinuxSyscallAction.Blocked, LinuxSyscallGateway.Dispatch(ref state, ref frame).Action);
         HostCheck.Equal(0U, state.BytesWritten);
         HostCheck.Equal(LinuxSyscallAction.Blocked, LinuxSyscallGateway.CompleteBlocked(ref state, new(LinuxSyscallAction.Blocked)).Action);
         HostCheck.Equal(0U, state.BytesWritten);
         HostCheck.Equal(16L, LinuxSyscallGateway.CompleteBlocked(ref state, new(LinuxSyscallAction.Return, 16)).Value);
-        HostCheck.Equal(16U, state.BytesWritten); HostCheck.Equal(14U, state.Calls);
+        HostCheck.Equal(16U, state.BytesWritten); HostCheck.Equal((uint)calls.Length + 1, state.Calls);
         HostCheck.Equal(LinuxSyscallAction.Rejected, LinuxSyscallGateway.CompleteBlocked(ref state, new(LinuxSyscallAction.Return, 16)).Action);
         HostCheck.Equal(16U, state.BytesWritten);
         model.ThreadMode = 12; model.ThreadValue = 8;
