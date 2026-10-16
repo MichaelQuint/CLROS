@@ -1,59 +1,34 @@
 # Networking
 
-[Step1331](../done/step1331.md) preserves the complete failed f9ebe580 host
-gate:5,340 checks pass and one direct-project policy check fails. All three TCP
-and20 affected ancestor commands pass at that source. Two existing MSBuild
-conditions now include M07-026; direct selection/conflict controls pass. A fresh
-full-host gate and23 fresh guest commands are required for the corrected source.
-The existing isolated harness will qualify them together. Prior captures retain
-their original f9ebe580 scope. All eight issues remain open.
+[Step1332](../done/step1332.md) qualifies #691 -> #148 -> #149 -> #150 -> #151 ->
+#152 -> #153 and shared #734 at implementation `fd296378`. The complete unfiltered
+host gate passes5,341 checks across700 fixtures (94 Native), with unchanged
+inputs, no failures/timeouts and no reuse. Three fresh strict TCP commands and20
+fresh affected ancestors pass with exact source/native/producer joins.
 
-[Step1330](../done/step1330.md) repairs three independently reviewed defects:
-SYN-ACK retries now start at accepted-copy completion, peer cleanup preserves
-the runner's primary failure, and the combined profile includes its worker pool
-in the Linux reservation ledger and pre-write overlap checks. Focused controls
-first reproduce the defects, then pass after repair. Qualification of the prior
-source047d40e completed three strict TCP guests and one ACPI ancestor before
-termination; its full-host run stopped at4,652 passes across637 fixtures with
-zero failures. Those captures retain their original scope. Fresh qualification
-of the repaired production source remains required; all eight issues stay open.
+Each TCP capture passes260 ordered/unique markers,80 independent wire steps and
+an exact150-packet corpus, including the original queue warmup. Five connection
+lifetimes, four buffer-pair scrubs, real240-second TIME-WAIT and original NIC
+reset/bus-master disable/fence/DMA-pool cleanup complete. A guarded cooperative
+worker advances2,223/2,229/2,242 times; maximum observed gap154,676,900ns stays
+within the admitted one-second bound. Normal exit17, one reap, mapping restoration
+and32 scrubbed retained worker pages complete in every capture.
 
-[Step1329](../done/step1329.md) records one complete development guest with the
-actual cooperative witness:2,250 advances, maximum observed gap133ms, normal
-exit/reap and restored/scrubbed retained pool. All80 TCP steps, real240-second
-TIME-WAIT and strict independent150-packet validation pass. It corrects the
-pre-NIC readiness clock phase and preserves the failed attempts. Final frozen
-full-host, repeated TCP and affected ancestor qualification remain pending.
+All813 raw source inputs match between isolated trees and the independently
+checked source archive. Original native reviews retain their bounded ABI/stack
+scope; complete object/EFI/method-map equality carries the unchanged native-code
+review across the final project-policy repair. All53 producer/input identities
+match before/after the guest sequence;500 original files are hash-verified in
+retained evidence. Earlier failures and interrupted gates remain in steps1309-1331.
 
-[Step1328](../done/step1328.md) adds a development scheduler witness for #152's
-literal no-starvation criterion. One retained cooperative worker advances on its
-guarded stack between packet pumps and during final TIME-WAIT, then exits and is
-reaped before mappings are restored and its pool is scrubbed. The strict parser
-joins progress, dispatches, elapsed time and cleanup. Its additional 32-page
-firmware reservation remains retained. Focused controls and corrected native
-publication pass; native execution and fresh complete batch
-qualification of this revision are pending. The previous full-host run was
-stopped at 4,894 passing checks across 677 fixtures; that partial run grants no
-full-host acceptance. All eight batch issues remain open.
-
-[Step1327](../done/step1327.md) records a fresh frozen-source development guest
-whose EFI bytes and compiler method map match the reviewed image below. All
-TCP/cleanup and independent packet checks pass; the outer validator then rejects
-the peer-result row omitted from its legacy schema. The corrected full validator
-requires that exact row and passes positive/negative complete-run controls.
-The failed command and partial host gates remain retained; final frozen host,
-repeated guest and ancestor qualification are still pending.
-
-The continuing-network/TCP batch is implemented under shared #734 and remains
-unqualified: #691 -> #148 -> #149 -> #150 -> #151 -> #152 -> #153 are open.
-[Step1324](../done/step1324.md) records one complete real development guest at
-implementation a49bfd5, EFI SHA256
-`c69bdfd1981401ebe953712bb63de49c4d68922188bbdd49d6483b40bd8eca07`.
-The guest runner passes all80 TCP wire steps, real240-second TIME-WAIT, five
-connection lifetimes, four buffer-pair scrubs and original NIC reset/pool cleanup.
-Its original outer command fails the old packet-count check after runner success;
-the separate corrected checker passes the same immutable150-record capture.
-No failed command is relabeled as a successful qualification.
+This is a finite default-off service on one QEMU/OVMF vCPU. Malformed used-batch
+and full16-bit ring-index wrap controls are host evidence; the live captures prove
+actual queue reuse/fullness and independent TCP traffic. Separate8-page network
+and32-page worker firmware reservations remain retained; the original two-page
+allocator is preserved. No Linux application is entered by this network profile.
+The separate unchanged Hello/runtime acceptance remains in step1307. Next are
+#689 Linux sockets, #690 epoll and the M10 actual Kestrel ladder. No numbered,
+cloud or production gate advances.
 
 The default-off `EnableM07026Probe` retains size-eight Virtio RX/TX rings and
 image-backed owners across20 ARP and12 tagged ICMP exchanges, then the complete
@@ -121,7 +96,7 @@ Development history is in steps1158â€“1161.
 
 ## Current Status
 
-Networking is at the packet-primitive stage. The repository now has host-tested Ethernet + ARP + ARP neighbor resolution transaction + bounded ARP neighbor cache + ARP reply cache updater + ARP receive-dispatch cache updater + IPv4 neighbor route planner and caller-owned IPv4 neighbor route diagnostic marker formatting + network receive dispatch metadata + ICMP receive dispatch metadata + UDP receive dispatch metadata + UDP transmit frame planning with checksum generation + IPv4 + ICMPv4 echo packet + IPv4 ICMP echo frame + UDP encode/decode helpers, an IPv4 transport pseudo-header checksum helper, DHCPv4 message/client/UDP-frame primitives, DNS message primitives, mock-driven DHCP and DNS client transaction state machines, DHCP lease configuration metadata, DHCP/DNS UDP transaction planners, a TCP header primitive, mock-driven TCP active-open and passive-open handshake state machines, a caller-driven active TCP connect transaction, TCP-over-Ethernet/IPv4 active-connect frame planning with outbound SYN/final-ACK checksum generation and passive-open frame planning with outbound SYN-ACK checksum generation, a passive-open-to-listener-backlog bridge, a listener-backlog-to-mock-accept-queue bridge, a caller-owned established TCP payload stream primitive, an established-stream-to-mock-socket inbound bridge, a TCP close/reset transition planner, an HTTP/1.1 GET request builder, an HTTP/1.1 request parser, an HTTP/1.1 response writer, an HTTP/1.1 static response transaction, an HTTP/1.1 response parser, a mock-stream HTTP GET client transaction, an HTTP GET over TCP/IPv4 frame planner with outbound request checksum generation, inbound response checksum validation, and caller-owned plan diagnostic marker formatting under `src/OS.Kernel/Net`, host-tested Azure WireServer and AWS IMDSv2 request metadata planners under `src/OS.Kernel/Cloud`, and a host-only mock PAL socket table that covers connected-handle partial send/receive/poll/shutdown/peer-close/peer-reset behavior plus Kestrel-oriented socket options and endpoint queries. The qualified profiles above prove a fixed TX frame and one matching ARP receive/cache transaction; continuing RX and a continuing network driver remain incomplete.
+The default-off finite continuing service is qualified in [step1332](../done/step1332.md). The following inventory records the individual host-tested helper contracts. The repository now has host-tested Ethernet + ARP + ARP neighbor resolution transaction + bounded ARP neighbor cache + ARP reply cache updater + ARP receive-dispatch cache updater + IPv4 neighbor route planner and caller-owned IPv4 neighbor route diagnostic marker formatting + network receive dispatch metadata + ICMP receive dispatch metadata + UDP receive dispatch metadata + UDP transmit frame planning with checksum generation + IPv4 + ICMPv4 echo packet + IPv4 ICMP echo frame + UDP encode/decode helpers, an IPv4 transport pseudo-header checksum helper, DHCPv4 message/client/UDP-frame primitives, DNS message primitives, mock-driven DHCP and DNS client transaction state machines, DHCP lease configuration metadata, DHCP/DNS UDP transaction planners, a TCP header primitive, mock-driven TCP active-open and passive-open handshake state machines, a caller-driven active TCP connect transaction, TCP-over-Ethernet/IPv4 active-connect frame planning with outbound SYN/final-ACK checksum generation and passive-open frame planning with outbound SYN-ACK checksum generation, a passive-open-to-listener-backlog bridge, a listener-backlog-to-mock-accept-queue bridge, a caller-owned established TCP payload stream primitive, an established-stream-to-mock-socket inbound bridge, a TCP close/reset transition planner, an HTTP/1.1 GET request builder, an HTTP/1.1 request parser, an HTTP/1.1 response writer, an HTTP/1.1 static response transaction, an HTTP/1.1 response parser, a mock-stream HTTP GET client transaction, an HTTP GET over TCP/IPv4 frame planner with outbound request checksum generation, inbound response checksum validation, and caller-owned plan diagnostic marker formatting under `src/OS.Kernel/Net`, host-tested Azure WireServer and AWS IMDSv2 request metadata planners under `src/OS.Kernel/Cloud`, and a host-only mock PAL socket table that covers connected-handle partial send/receive/poll/shutdown/peer-close/peer-reset behavior plus Kestrel-oriented socket options and endpoint queries. The earlier fixed-TX/ARP profiles retain their historical scope; step1332 adds finite retained RX/TX and TCP lifetimes. Application sockets and general workload networking remain incomplete.
 
 The kernel-facing native manifest can now record one bounded listen endpoint as metadata for future hosted-workload binding. That metadata is host-tested through manifest parsing, launch-plan creation, bind-policy validation against a future PAL IPv4 bind endpoint, mock socket-table bind composition, and mock socket-table listener creation; it does not export PAL functions, open a live socket, enter real TCP listen state, wait on a scheduler, or prove Kestrel behavior.
 
@@ -319,9 +294,19 @@ Kernel-facing packet code should prefer the non-throwing `TryRead` and `TryWrite
 
 ## Unsupported Behavior
 
-continuing virtio-net enumeration/queue/notification and packet I/O, multi-buffer receive assembly, checksum offload, GSO, ARP retransmission/cache-aging timers and continuing ARP dispatch/resolution, NIC-backed IPv4 neighbor routing, IPv4 fragmentation/reassembly, IPv4 options, ICMP dispatch/routing beyond caller-buffer echo packet/frame encode/parse and receive-dispatch metadata, UDP/TCP checksum enforcement beyond the current caller-owned UDP transmit/receive, active/passive TCP frame, live TCP receive-dispatch beyond the host-tested caller-owned dispatcher, HTTP GET outbound request, and TCP handshake receive-validation slices, UDP socket delivery, DHCP retransmission/timers/lease renewal, live DNS over UDP packet I/O, DNS retry/cache/CNAME/AAAA support, a complete TCP state machine, live listener connection tables, exported manifest-approved socket bind/listen enforcement, TCP retransmission/timer/window behavior, HTTP client connection handling over real sockets, live HTTP server accept/read/write loops beyond the host-tested static response transaction, exported socket/PAL integration, and Kestrel-compatible behavior are pending.
+Beyond the qualified finite M07-026 profile, the following remain incomplete:
 
-Beyond the qualified finite profiles, current helpers remain packet buffer primitives and host-only socket table contracts. Continuing packet allocation, receive loops, NIC drivers, retries/timers, exported `OSHost_*` socket functions and guest socket APIs remain incomplete.
+- General continuing workload/device APIs, multi-buffer receive assembly,
+  checksum offload/GSO, dynamic ARP/routing, IPv4 fragmentation/options and
+  general ICMP/UDP delivery.
+- Live DHCP lease/retry behavior, DNS packet I/O/cache/CNAME/AAAA, and a general
+  TCP stack including unsupported congestion/transport behavior.
+- Application socket/epoll integration, exported manifest-approved/PAL socket
+  operations, real HTTP client/server socket workloads and guest Kestrel.
+
+Legacy packet-buffer helpers and the host-only `OSHost_*` mock tables retain
+those individual scopes. Step1332 qualifies the explicit bounded retained
+queue/TCP owners; it does not qualify the mock tables as live application sockets.
 
 ## Tests
 

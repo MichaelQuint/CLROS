@@ -25,7 +25,15 @@ compiler and guest evidence.
 
 ## Current accepted evidence
 
-The latest qualification is [step1307](done/step1307.md): **5,202 full-host checks
+The latest qualification is [step1332](done/step1332.md): **5,341 full-host checks
+across 700 fixtures (94 Native), three strict TCP captures and 20 fresh affected
+ancestors**, with original native/source/producer joins. The default-off finite
+network service retains Virtio-net queues through ARP/ICMP and real TCP ownership,
+handshake, window, retry, close/reset and 240-second TIME-WAIT cases. A real
+cooperative worker advances throughout and exits/reaps before checked cleanup.
+Linux sockets, epoll and guest Kestrel remain incomplete.
+
+[Step1307](done/step1307.md) separately qualifies **5,202 full-host checks
 across 687 fixtures (94 Native), 44 strict captures across 32 thread/runtime profiles
 and 24 fresh affected ancestors**, with original native/ABI/stack review and exact
 source/object/EFI/package/transcript joins. Three retained strict GC-stress
@@ -56,8 +64,9 @@ Step1225 lists the finite set requalified on .NET 11.
 | Cooperative transfer | Seventeen checked transfers across distinct guarded stacks and independent original-context restoration. [Step1218](done/step1218.md). |
 | Hardware timer | Four owned interrupts, safe deferred wake and IDT/IST/APIC/mapping restoration. [Step1224](done/step1224.md). |
 | Cooperative lifecycle | Repeated hardware-backed waits, retained joins, deferred cancellation and supervisor-only scrub/reuse. [Step1230](done/step1230.md). |
+| Continuing network/TCP | Finite retained queues, independent wire captures, bounded TCP lifetimes and a cooperative progress witness. [Step1332](done/step1332.md). |
 
-These diagnostics are separate profiles, not one continuing application kernel.
+Runtime and network qualification remain separate bounded profiles.
 Only Gate 2 passes within its documented scope. The
 [completion gates](docs/completion-gates.md) define all claim boundaries;
 [step records](done/) retain historical results and their exact tested inputs.
@@ -87,17 +96,15 @@ The [workload profiles and roadmap](docs/workload-profiles.md) are canonical;
 
 ## Next implementation
 
-After [#727](http://192.168.4.35:3000/admin/CLROS/issues/727) is merged and its
-tracker evidence is reconciled, #188 is the next ready implementation slice.
 The existing development thread remains paused until explicitly resumed.
 
-The immediate sequence after the qualified thread/runtime batch is:
+The immediate sequence after the qualified thread/runtime and network batches is:
 
-1. Implement [#691's continuing owned network-device lifetime](http://192.168.4.35:3000/admin/CLROS/issues/691)
-   and its dependency-compatible TCP consumers #148-#153.
-2. Complete [#689 Linux sockets](http://192.168.4.35:3000/admin/CLROS/issues/689)
+1. Complete [#689 Linux sockets](http://192.168.4.35:3000/admin/CLROS/issues/689)
    and [#690 epoll](http://192.168.4.35:3000/admin/CLROS/issues/690), then
-   prove guest Kestrel `/healthz` with an independent external HTTP request.
+   qualify the actual socket/async engine workloads.
+2. Follow the M10 NativeAOT app/publish/configuration ladder and prove guest
+   Kestrel `/healthz` with an independent external HTTP request.
 3. Qualify two isolated local applications before provider-specific deployment.
 
 Use the [managed issue manifest](.gitea/backlog/clros-issues.json) for exact

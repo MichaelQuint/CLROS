@@ -16167,7 +16167,7 @@
         "M07-026"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:network",
@@ -16200,7 +16200,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Introduce bounded TCP control-block storage with explicit ownership.",
-      "currentEvidence": "Step1312 adds the bounded connection ownership core under claimed integration #734. The fast TCP filter passes 200 checks across 25 fixtures, including 15 table checks for lifetime/generation identity, capacity and duplicate rejection, closed-slot retention, corruption/alias guards, explicit sequence zero, release scrub and allocation-free operations. This is host development only: no actual TCP guest, native/ABI review or packet acceptance. Acceptance remains blocked on #691 and this issue's own continuing guest evidence; desired state stays open/agent:blocked. Step1321 now implements the complete retained TCP guest/NIC orchestration and independent 80-packet wire scenario under M07-026, with eleven strict TCP rows and all six issue marker sets. Actual HPET, copied NIC TX, five connection lifetimes, separate overlap/right clipping, wrapped reuse, FIN/reset and send/handshake timeout precede real 240-second TIME-WAIT cleanup. Managed compilation and focused host/synthetic packet controls are development evidence only; stable native/full-host/real guest/PCAP and ancestor acceptance remain pending. Desired state stays open with its existing dependency status.",
+      "currentEvidence": "Bounded live connection capacity, duplicate tuples, stale generations and recycled/wrapped ownership. Step1332 qualifies the shared #734 batch at implementationfd296378. Complete unfiltered full-host:5341 passes,700 fixtures/94 Native, unchanged inputs, zero failures/timeouts/errors/reuse. Three fresh strict TCP commands and20 fresh affected ancestors pass with813 original raw source joins and exact native/producer identities. Every TCP run has260 ordered/unique markers,80 independent wire steps and150 exact packets, real240-second TIME-WAIT, exit17/reap/restored mappings/32 scrubbed worker pages;2223/2229/2242 real advances and maximum154676900ns gap meet the bounded one-second witness. Original native review,53 unchanged producer/input identities,500 hash-verified preserved files and the source archive bind qualification. Prior failures/interruptions remain in steps1309-1331; r05 full5340/one policy failure stays failed. Separate8-page network/32-page worker firmware reservations remain retained, original two-page allocator preserved. Host malformed-used/full16-bit-wrap controls remain distinct from live packet evidence. This finite profile does not enter a Linux app or accept sockets/epoll, guest Kestrel, general fairness or a new numbered/cloud/production gate.",
       "implementationNotes": [
         "Consume M07-026 continuing queues and static IPv4/ARP. Extend existing TCP contracts in the owned paths; TcpRetransmission is a proposed new type only if existing timer/state types cannot express the behavior.",
         "Allocate and recycle bounded live connection slots; reject exhausted capacity, duplicate endpoint tuples and stale generations without affecting existing connections.",
@@ -16241,7 +16241,7 @@
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Introduce bounded TCP control-block storage with explicit ownership.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-014",
@@ -16252,7 +16252,7 @@
         "M07-013"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:test",
         "evidence:qemu",
         "component:network",
@@ -16289,7 +16289,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Prove passive SYN-to-SYN-ACK-to-ACK.",
-      "currentEvidence": "Step1314 adds passive connection ownership under integration #734, composing the existing planner/table/backlog with staged ACK admission, exact duplicate SYN replies, bounded accepted retries and an immutable hard deadline. Eight owner checks and one pending-writer check join the passing209-check TCP fast filter across26 fixtures. Independent host vectors cover bad ACK recovery, two pending lifetimes/backlog pressure, wrapped sequence zero, initial/full TX, timeout cleanup, stale ownership and zero managed allocations. These are host clock/TX models only; actual continuing RX/TX, real HPET/packet injection, TCP no-stdlib/native review, full-host and QEMU/pcap qualification remain pending. #149 remains open/agent:blocked on #148/#691 and its own acceptance. Prior one-shot TX/ARP qualification remains in step1162/step1164. Step1321 now implements the complete retained TCP guest/NIC orchestration and independent 80-packet wire scenario under M07-026, with eleven strict TCP rows and all six issue marker sets. Actual HPET, copied NIC TX, five connection lifetimes, separate overlap/right clipping, wrapped reuse, FIN/reset and send/handshake timeout precede real 240-second TIME-WAIT cleanup. Managed compilation and focused host/synthetic packet controls are development evidence only; stable native/full-host/real guest/PCAP and ancestor acceptance remain pending. Desired state stays open with its existing dependency status.",
+      "currentEvidence": "Actual passive SYN/SYN-ACK/ACK, duplicate/lost SYN-ACK, invalid ACK, backlog pressure and handshake timeout. Step1332 qualifies the shared #734 batch at implementationfd296378. Complete unfiltered full-host:5341 passes,700 fixtures/94 Native, unchanged inputs, zero failures/timeouts/errors/reuse. Three fresh strict TCP commands and20 fresh affected ancestors pass with813 original raw source joins and exact native/producer identities. Every TCP run has260 ordered/unique markers,80 independent wire steps and150 exact packets, real240-second TIME-WAIT, exit17/reap/restored mappings/32 scrubbed worker pages;2223/2229/2242 real advances and maximum154676900ns gap meet the bounded one-second witness. Original native review,53 unchanged producer/input identities,500 hash-verified preserved files and the source archive bind qualification. Prior failures/interruptions remain in steps1309-1331; r05 full5340/one policy failure stays failed. Separate8-page network/32-page worker firmware reservations remain retained, original two-page allocator preserved. Host malformed-used/full16-bit-wrap controls remain distinct from live packet evidence. This finite profile does not enter a Linux app or accept sockets/epoll, guest Kestrel, general fairness or a new numbered/cloud/production gate.",
       "implementationNotes": [
         "Consume M07-026 continuing queues and static IPv4/ARP. Extend existing TCP contracts in the owned paths; TcpRetransmission is a proposed new type only if existing timer/state types cannot express the behavior.",
         "Drive passive SYN/SYN-ACK/ACK through continuing RX/TX; test duplicate SYN, lost SYN-ACK, invalid ACK, backlog exhaustion and handshake timeout with packet evidence.",
@@ -16330,7 +16330,7 @@
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Prove passive SYN-to-SYN-ACK-to-ACK.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-015",
@@ -16341,7 +16341,7 @@
         "M07-014"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:network",
@@ -16378,7 +16378,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Receive payload, advance windows, and emit ACK.",
-      "currentEvidence": "Step1315 implements persistent TCP receive-window ownership under #734, reusing original stream/frame/checksum helpers. Thirteen new cases join the passing222-check TCP fast filter across27 fixtures. Host vectors cover contiguous delivery, overlap/window clipping, dropped gaps, zero-window probes, sequence wrap, cumulative ACK batching, full-TX preservation, read/window updates, unique receiver binding, legacy mutation rejection, closed scrub and zero managed allocations. Internal table-entry layout changes require later native qualification. This is host packet/TX-model evidence only; actual RX/TX/HPET integration, source/profile wiring, independent packets, full-host/native review and QEMU/pcap acceptance remain pending. #150 stays blocked/open on #149 and its own acceptance. Send/RTO/FIN/reset consumers are next. Step1321 now implements the complete retained TCP guest/NIC orchestration and independent 80-packet wire scenario under M07-026, with eleven strict TCP rows and all six issue marker sets. Actual HPET, copied NIC TX, five connection lifetimes, separate overlap/right clipping, wrapped reuse, FIN/reset and send/handshake timeout precede real 240-second TIME-WAIT cleanup. Managed compilation and focused host/synthetic packet controls are development evidence only; stable native/full-host/real guest/PCAP and ancestor acceptance remain pending. Desired state stays open with its existing dependency status.",
+      "currentEvidence": "Once-only receive bytes, overlap/right clipping/gaps, sequence wrap, ACK/window/backpressure and reopening. Step1332 qualifies the shared #734 batch at implementationfd296378. Complete unfiltered full-host:5341 passes,700 fixtures/94 Native, unchanged inputs, zero failures/timeouts/errors/reuse. Three fresh strict TCP commands and20 fresh affected ancestors pass with813 original raw source joins and exact native/producer identities. Every TCP run has260 ordered/unique markers,80 independent wire steps and150 exact packets, real240-second TIME-WAIT, exit17/reap/restored mappings/32 scrubbed worker pages;2223/2229/2242 real advances and maximum154676900ns gap meet the bounded one-second witness. Original native review,53 unchanged producer/input identities,500 hash-verified preserved files and the source archive bind qualification. Prior failures/interruptions remain in steps1309-1331; r05 full5340/one policy failure stays failed. Separate8-page network/32-page worker firmware reservations remain retained, original two-page allocator preserved. Host malformed-used/full16-bit-wrap controls remain distinct from live packet evidence. This finite profile does not enter a Linux app or accept sockets/epoll, guest Kestrel, general fairness or a new numbered/cloud/production gate.",
       "implementationNotes": [
         "Consume M07-026 continuing queues and static IPv4/ARP. Extend existing TCP contracts in the owned paths; TcpRetransmission is a proposed new type only if existing timer/state types cannot express the behavior.",
         "Deliver in-order bytes once, preserve receive-window backpressure and ACK progress; exercise duplicate, overlapping, out-of-order, zero-window and wraparound sequence inputs.",
@@ -16419,7 +16419,7 @@
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Receive payload, advance windows, and emit ACK.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-016",
@@ -16430,7 +16430,7 @@
         "M07-015"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:network",
@@ -16465,7 +16465,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Send payload with segmentation and partial-ack handling.",
-      "currentEvidence": "Step1316 implements bounded retained send ownership under #734, with actual SYN MSS/final-ACK window capture, optional configured local MSS replies, SND.UNA/SND.NXT metadata, copied short writes, MTU/MSS/window/output segmentation, staged TX admission, partial/duplicate/old/future ACK handling and ordered absolute window edges. Thirteen new send/negotiation cases join the passing235-check TCP fast filter across28 fixtures, including bidirectional partial-ACK receive interoperation, wrap, zero/stale windows, configured duplicate/retry replies, attachment cleanup and zero managed allocation. These are host packet/TX models; layouts and TCP no-stdlib closure need native qualification. Actual RX/TX/HPET/RTO, source/profile/peer wiring, full-host/native review and strict QEMU/pcap acceptance remain pending. #151 stays blocked/open on #150 and its own acceptance. RTO/loss and FIN/reset consumers are next. Step1321 now implements the complete retained TCP guest/NIC orchestration and independent 80-packet wire scenario under M07-026, with eleven strict TCP rows and all six issue marker sets. Actual HPET, copied NIC TX, five connection lifetimes, separate overlap/right clipping, wrapped reuse, FIN/reset and send/handshake timeout precede real 240-second TIME-WAIT cleanup. Managed compilation and focused host/synthetic packet controls are development evidence only; stable native/full-host/real guest/PCAP and ancestor acceptance remain pending. Desired state stays open with its existing dependency status.",
+      "currentEvidence": "MSS/window-bounded segmentation, original unacknowledged bytes, validated partial/old/future ACK, short writes and zero-window reopening. Step1332 qualifies the shared #734 batch at implementationfd296378. Complete unfiltered full-host:5341 passes,700 fixtures/94 Native, unchanged inputs, zero failures/timeouts/errors/reuse. Three fresh strict TCP commands and20 fresh affected ancestors pass with813 original raw source joins and exact native/producer identities. Every TCP run has260 ordered/unique markers,80 independent wire steps and150 exact packets, real240-second TIME-WAIT, exit17/reap/restored mappings/32 scrubbed worker pages;2223/2229/2242 real advances and maximum154676900ns gap meet the bounded one-second witness. Original native review,53 unchanged producer/input identities,500 hash-verified preserved files and the source archive bind qualification. Prior failures/interruptions remain in steps1309-1331; r05 full5340/one policy failure stays failed. Separate8-page network/32-page worker firmware reservations remain retained, original two-page allocator preserved. Host malformed-used/full16-bit-wrap controls remain distinct from live packet evidence. This finite profile does not enter a Linux app or accept sockets/epoll, guest Kestrel, general fairness or a new numbered/cloud/production gate.",
       "implementationNotes": [
         "Consume M07-026 continuing queues and static IPv4/ARP. Extend existing TCP contracts in the owned paths; TcpRetransmission is a proposed new type only if existing timer/state types cannot express the behavior.",
         "Segment writes against MTU/MSS/window limits, retain unacknowledged bytes and advance only by validated ACKs; exercise partial ACK, short writes, duplicate ACK and zero-window reopening.",
@@ -16506,7 +16506,7 @@
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Send payload with segmentation and partial-ack handling.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-017",
@@ -16517,7 +16517,7 @@
         "M07-016"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:network",
@@ -16550,7 +16550,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Implement retransmission, RTO, duplicate ACK, and timeout behavior.",
-      "currentEvidence": "Development done/step1317.md extends the retained TcpSendWindow with an explicit monotonic callback, one outstanding segment, original-byte retries, exponential RTO backoff, RTT smoothing/Karn exclusion, SYN-retry initial RTO, validated ACK restart/disarm and fixed lifetime/retry limits. Sixteen new controls join 251 focused TCP fast checks across 29 fixtures. Failure retains bytes and attachments through explicit closed cleanup. This remains host development in #734; #152 stays blocked/open on #151 and native/full/guest/packet acceptance. No fast recovery, persist probe, general congestion control, sockets or Kestrel is qualified. Step1321 now implements the complete retained TCP guest/NIC orchestration and independent 80-packet wire scenario under M07-026, with eleven strict TCP rows and all six issue marker sets. Actual HPET, copied NIC TX, five connection lifetimes, separate overlap/right clipping, wrapped reuse, FIN/reset and send/handshake timeout precede real 240-second TIME-WAIT cleanup. Managed compilation and focused host/synthetic packet controls are development evidence only; stable native/full-host/real guest/PCAP and ancestor acceptance remain pending. Desired state stays open with its existing dependency status.",
+      "currentEvidence": "Owned-clock original-byte retries/RTO/limits, loss/duplicate/reorder cases, actual timeout and bounded cooperative progress through packet pumps and final TIME-WAIT. Step1332 qualifies the shared #734 batch at implementationfd296378. Complete unfiltered full-host:5341 passes,700 fixtures/94 Native, unchanged inputs, zero failures/timeouts/errors/reuse. Three fresh strict TCP commands and20 fresh affected ancestors pass with813 original raw source joins and exact native/producer identities. Every TCP run has260 ordered/unique markers,80 independent wire steps and150 exact packets, real240-second TIME-WAIT, exit17/reap/restored mappings/32 scrubbed worker pages;2223/2229/2242 real advances and maximum154676900ns gap meet the bounded one-second witness. Original native review,53 unchanged producer/input identities,500 hash-verified preserved files and the source archive bind qualification. Prior failures/interruptions remain in steps1309-1331; r05 full5340/one policy failure stays failed. Separate8-page network/32-page worker firmware reservations remain retained, original two-page allocator preserved. Host malformed-used/full16-bit-wrap controls remain distinct from live packet evidence. This finite profile does not enter a Linux app or accept sockets/epoll, guest Kestrel, general fairness or a new numbered/cloud/production gate.",
       "implementationNotes": [
         "Consume M07-026 continuing queues and static IPv4/ARP. Extend existing TCP contracts in the owned paths; TcpRetransmission is a proposed new type only if existing timer/state types cannot express the behavior.",
         "Use the owned monotonic clock for bounded retransmission/RTO and retry limits. Inject loss, reordering and duplicate ACKs; show eventual progress or a reported timeout, bounded memory and no scheduler starvation.",
@@ -16591,7 +16591,7 @@
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Implement retransmission, RTO, duplicate ACK, and timeout behavior.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-018",
@@ -16602,7 +16602,7 @@
         "M07-017"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:done",
         "type:implementation",
         "evidence:qemu",
         "component:network",
@@ -16637,7 +16637,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Implement FIN/ACK close, peer reset, and half-close behavior.",
-      "currentEvidence": "Development done/step1319.md adds termination to the unique retained sender/receiver: queued-data drain before copied FIN, existing FIN RTO/attempt ownership, original-frame data+FIN/window/EOF, buffered reads after graceful close, local writes after peer half-close, exact RST/challenge ACK, simultaneous close, 240-second-or-longer TIME-WAIT/restart, explicit abort and once-only buffer/table cleanup with stale-generation rejection. Seventeen new controls join 274 focused TCP fast checks across 30 fixtures, using injected time/TX callbacks. Earlier nominal codec transitions remain in step1318. #153 stays blocked/open on #152 and the shared batch's native/full/real guest/external-packet acceptance. No continuing TCP/socket/epoll/Kestrel qualification is added. Step1321 now implements the complete retained TCP guest/NIC orchestration and independent 80-packet wire scenario under M07-026, with eleven strict TCP rows and all six issue marker sets. Actual HPET, copied NIC TX, five connection lifetimes, separate overlap/right clipping, wrapped reuse, FIN/reset and send/handshake timeout precede real 240-second TIME-WAIT cleanup. Managed compilation and focused host/synthetic packet controls are development evidence only; stable native/full-host/real guest/PCAP and ancestor acceptance remain pending. Desired state stays open with its existing dependency status.",
+      "currentEvidence": "FIN/ACK, half-close, simultaneous close, challenged/exact RST, timeout/TIME-WAIT restart, five connection lifetimes and four buffer-pair scrubs with stale ownership rejection. Step1332 qualifies the shared #734 batch at implementationfd296378. Complete unfiltered full-host:5341 passes,700 fixtures/94 Native, unchanged inputs, zero failures/timeouts/errors/reuse. Three fresh strict TCP commands and20 fresh affected ancestors pass with813 original raw source joins and exact native/producer identities. Every TCP run has260 ordered/unique markers,80 independent wire steps and150 exact packets, real240-second TIME-WAIT, exit17/reap/restored mappings/32 scrubbed worker pages;2223/2229/2242 real advances and maximum154676900ns gap meet the bounded one-second witness. Original native review,53 unchanged producer/input identities,500 hash-verified preserved files and the source archive bind qualification. Prior failures/interruptions remain in steps1309-1331; r05 full5340/one policy failure stays failed. Separate8-page network/32-page worker firmware reservations remain retained, original two-page allocator preserved. Host malformed-used/full16-bit-wrap controls remain distinct from live packet evidence. This finite profile does not enter a Linux app or accept sockets/epoll, guest Kestrel, general fairness or a new numbered/cloud/production gate.",
       "implementationNotes": [
         "Consume M07-026 continuing queues and static IPv4/ARP. Extend existing TCP contracts in the owned paths; TcpRetransmission is a proposed new type only if existing timer/state types cannot express the behavior.",
         "Exercise FIN/ACK in both directions, half-close, peer reset and timeout; reclaim each connection and queued buffer exactly once, rejecting late packets against recycled slots.",
@@ -16678,7 +16678,7 @@
         "docs/qemu.md"
       ],
       "evidenceBoundary": "This issue proves only \"Implement FIN/ACK close, peer reset, and half-close behavior.\" It does not by itself prove the M07 exit criterion, cloud readiness, provider support, Kestrel, or production readiness.",
-      "desiredState": "open"
+      "desiredState": "closed"
     },
     {
       "key": "M07-019",
@@ -32272,9 +32272,9 @@
       "parentKey": "M07-EPIC",
       "priority": "priority:p0",
       "collisionLane": "lane:nativeaot-integration",
-      "desiredState": "open",
+      "desiredState": "closed",
       "labels": [
-        "agent:claimed",
+        "agent:done",
         "priority:p0",
         "type:implementation",
         "evidence:qemu",
@@ -32286,7 +32286,7 @@
         "M07-009",
         "M16-003"
       ],
-      "currentEvidence": "Steps1309-1331 implement the continuing Virtio-net/TCP batch under shared #734. Frozenf9ebe580 completes all three strict TCP commands and20 affected ancestors:260 markers,80 TCP steps, independent150-packet captures, real240-second TIME-WAIT and actual cooperative progress/exit/reap/restored mappings/32-page scrub. All813 original raw source joins and445 hash-verified files are preserved. Its full-host gate completes700 fixtures/94 Native with5340 passes and one failed direct-project policy check; it remains failed. Step1331 adds M07-026 to both existing MSBuild Diagnostic-selection/conflict lists and updates the canonical XML identity. Independent review and two direct selection/rejection controls pass. Fresh full-host and23 current-source guest commands remain pending, including a fresh ordinary VerifiedExit image. Exact source/object/map/EFI/boot-input and producer joins remain required. Original f9 capture commands keep their own scope. All eight issues remain open. Retained32-page cooperative and8-page network firmware reservations, original two-page allocator and no sockets/epoll/Kestrel/numbered/cloud/production advance remain explicit.",
+      "currentEvidence": "Retained size-eight Virtio-net RX/TX, actual queue pressure/reuse,20 ARP and12 tagged ICMP exchanges, copied TX, reset/bus-master-disable/fence/DMA-pool cleanup. Step1332 qualifies the shared #734 batch at implementationfd296378. Complete unfiltered full-host:5341 passes,700 fixtures/94 Native, unchanged inputs, zero failures/timeouts/errors/reuse. Three fresh strict TCP commands and20 fresh affected ancestors pass with813 original raw source joins and exact native/producer identities. Every TCP run has260 ordered/unique markers,80 independent wire steps and150 exact packets, real240-second TIME-WAIT, exit17/reap/restored mappings/32 scrubbed worker pages;2223/2229/2242 real advances and maximum154676900ns gap meet the bounded one-second witness. Original native review,53 unchanged producer/input identities,500 hash-verified preserved files and the source archive bind qualification. Prior failures/interruptions remain in steps1309-1331; r05 full5340/one policy failure stays failed. Separate8-page network/32-page worker firmware reservations remain retained, original two-page allocator preserved. Host malformed-used/full16-bit-wrap controls remain distinct from live packet evidence. This finite profile does not enter a Linux app or accept sockets/epoll, guest Kestrel, general fairness or a new numbered/cloud/production gate.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Extend the accepted single-transaction adapter into a continuing owned lifetime. Replenish RX, reclaim TX, poll with a bounded budget/timer and retain/reset DMA safely on shutdown or error. Initial configuration uses explicit static IPv4 and existing ARP; DHCP, DNS, outbound HTTP and MSI-X conversion are not first-web prerequisites.",

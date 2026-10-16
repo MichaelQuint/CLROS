@@ -9,33 +9,25 @@ workloads now execute in CLROS. Supplemental raw-state evidence covers an
 exit-requested worker blocked by active upstream GC before later exit/reap;
 it does not show already-entered DetachCurrentThread. This advances only those
 finite application profiles. **Only the existing numbered Gate 2 passes.**
-Guest Kestrel, continuing network/socket/epoll services, isolation, cloud and
+Guest Kestrel, Linux socket/epoll services, isolation, cloud and
 production remain incomplete.
 
-Development [steps1309-1311](../done/step1311.md) add retained Virtio-net rings,
-the device owner and a default-off continuing-network profile with managed
-compilation and focused host checks. Native publication/review, full-host and
-actual guest/independent packet evidence are pending. The new profile's dedicated
-eight-page reservation remains retained after its DMA-pool lease is returned.
-This adds no gate acceptance or guest networking/Kestrel claim.
-
-[Step1320](../done/step1320.md) compiles the retained TCP closure in that managed
-no-stdlib profile and connects its runner to an independent finite ARP/ICMP
-socket-netdev peer with cancellation/join and failure propagation. Actual
-loopback host tests remain distinct from real QEMU packet captures. TCP guest
-orchestration and stable native/full-host/guest qualification remain pending;
-no gate advances.
-
-[Step1321](../done/step1321.md) implements the finite retained TCP guest/peer
-orchestration and strict serial/PCAP expectations, including actual-clock
-TIME-WAIT, wrap, loss/reset and send/handshake timeout cases. Managed compilation
-and focused host/synthetic-capture checks remain development evidence; this
-does not yet qualify continuing guest networking or advance any gate.
+[Step1332](../done/step1332.md) qualifies the default-off finite continuing-network/
+TCP batch at `fd296378`: 5,341 full-host checks across700 fixtures (94 Native),
+three strict TCP captures and20 fresh affected ancestors, with original native,
+raw source and producer joins. Retained queues, independently captured packets,
+bounded connection/window/retry/close lifetimes, real240-second TIME-WAIT and
+actual cooperative progress/exit/reap/restoration pass. Separate8-page network
+and32-page worker firmware reservations remain retained; the original two-page
+allocator is preserved. The network profile does not enter a Linux app.
+This finite qualification advances no numbered gate. General networking,
+sockets/epoll and guest Kestrel require their own evidence.
+Development and failed/interrupted qualification history remains in steps1309-1331.
 
 ## Historical qualification snapshots
 
 Earlier statements below describe the evidence available at their named steps;
-step1307 supersedes pending thread/runtime claims for its exact qualified scope.
+steps1307 and1332 supersede pending claims only for their exact qualified scopes.
 
 Development [step1234](../done/step1234.md) wires #191/#192's mechanical wait/TLS
 profiles and exact transcript admission. Focused checks and freestanding C#

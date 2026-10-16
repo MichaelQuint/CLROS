@@ -107,7 +107,11 @@ owned 32KiB stack. This does not qualify a general Span/BCL or runtime surface.
 allocation or exception. Empty pinning returns null; no additional overloads or
 general BCL behavior are supplied. The exact TCP source closure now compiles in
 the M07-026 managed no-stdlib profile using the already-admitted overlap-safe
-`BufferOperations.MemoryCopy`; native/guest qualification remains pending.
+`BufferOperations.MemoryCopy`. [Step1332](../done/step1332.md) adds original native
+review,5,341 full-host checks, three strict TCP guests and20 affected ancestors.
+The finite profile retains queues and a guarded cooperative worker through real
+TCP/240-second TIME-WAIT and checked cleanup. It adds no general BCL, application
+socket/epoll, kernel EH or guest Kestrel support. Firmware reservations stay retained.
 
 [Step1162](../done/step1162.md) accepts the four explicit modern-net EFI compile
 inputs and block MSI-X/recovery integration with strict source/pointer admission.

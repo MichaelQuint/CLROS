@@ -10,8 +10,11 @@ semantics only. It does not add runtime, process, network, storage, hosted
 #688 thread/runtime batch: 5,202 full-host checks, 44 strict batch captures across 32
 profiles, three retained strict GC repetitions and 24 fresh ancestors. The exact
 unchanged pinned Hello and NativeAOT runtime workloads now execute in CLROS.
-Continuing network/TCP, Linux sockets and epoll remain before guest Kestrel;
-no new numbered, cloud or production gate changes.
+[Step1332](../done/step1332.md) separately qualifies finite continuing network/TCP:
+5,341 full-host checks, three strict TCP guests and20 affected ancestors, with
+retained queues and a real cooperative progress/cleanup witness. Linux sockets,
+epoll and the M10 app ladder remain before guest Kestrel. No new numbered,
+cloud or production gate changes.
 
 ## Context
 
@@ -66,8 +69,9 @@ selects `MultiMinimalApi`.
 
 ## NativeAOT-first execution roadmap (2026-10-12)
 
-Accepted architecture direction only: no upstream guest application/runtime
-acceptance. M16-001/#679 through M16-007/#685 are qualified within the bounded
+Accepted architecture direction with separate bounded qualification receipts:
+step1307 qualifies unchanged upstream Hello/runtime workloads and step1332
+qualifies finite network/TCP. M16-001/#679 through M16-007/#685 are qualified within the bounded
 evidence below. [Step1208](../done/step1208.md) closes the live openat coverage gap
 identified in [step1207](../done/step1207.md). #708/#711's reproduced
 `brk`/fixed-mapping ownership defect is repaired and qualified in step1209.
@@ -116,7 +120,9 @@ bounded ownership repair; broad Linux compatibility and upstream acceptance rema
 incomplete. Historical memory evidence and its original failure remain recorded.
 The [foundation epic #678](http://192.168.4.35:3000/admin/CLROS/issues/678)
 links #679-#690; [#691](http://192.168.4.35:3000/admin/CLROS/issues/691)
-owns the continuing NIC service. Refresh the tracker before implementation.
+and #148-#153 have finite network/TCP qualification in step1332. #689 exposes
+actual Linux sockets and #690 the real socket engine's epoll readiness. Refresh
+the tracker before implementation.
 Tracker migration and cleanup evidence are in
 [step1196](../done/step1196.md).
 
