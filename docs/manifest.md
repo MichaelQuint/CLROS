@@ -46,7 +46,8 @@ It revalidates the digest; there is no writable namespace or app execution.
 
 [Step1336](../done/step1336.md) implements V2/profile2 for #216. Its focused host
 checks and three complete M16-002 staging guests in [step1347](../done/step1347.md)
-pass; stable batch acceptance remains pending.
+pass; [step1351](../done/step1351.md) accepts this staging scope after the shared
+full-host/native/guest gate. Application entry remains separate.
 V1/profile1 retains its exact layout. V2 keeps the same64-byte header and native
 manifest version1, followed by the ELF and a bounded immutable-data table:
 
@@ -71,6 +72,23 @@ MinimalApiSmoke ELF and exact `apps/appsettings.json`. It includes no TPA,
 CoreCLR, framework DLLs or implicit legacy conversion. Its pass marker is
 `nativeaot.web.package`; read-only validation uses `nativeaot.web.validate`.
 Only actual qualification emits `nativeaot.web`.
+
+[Step1352](../done/step1352.md) adds explicit caller selection with the trailing
+options `--manifest <file> --settings <file>`. Both files must be distinct,
+nonempty, plain single-link files below the calling root; they remain locked and
+unchanged through completion. Limits are4,096 manifest bytes and65,536 settings
+bytes. The settings must be a JSON object. The existing Linux package validator
+checks the selected manifest and exact original ELF digest; the settings retain
+the fixed `apps/appsettings.json` path. The original Linux producer is still
+revalidated separately. Selected configuration does not become builder evidence.
+The default command retains its exact previous package bytes.
+
+The focused host check composes selected package bytes with `LinuxElfStartup`
+and readonly descriptor views: argv carries `--contentRoot /app/apps`, envp
+retains a distinct `ASPNETCORE_URLS`, and a descriptor read returns distinct JSON.
+This proves host composition only; no selected guest configuration or Kestrel
+acceptance follows. Malformed bounds, keys, paths, schema and stale ELF digest
+reject before package publication. Actual guest observations remain required.
 
 The disk-manifest batch has a separate bounded pointer validator in
 `OS.Storage.NativeManifestDisk`, host-tested in [step1153](../done/step1153.md).

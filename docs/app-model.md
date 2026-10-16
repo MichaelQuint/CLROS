@@ -758,6 +758,15 @@ routing, identity mismatch, source/copy failures and `ENOTDIR` for file parents.
 Enabled M16-007 C# compilation and M16-012 preflight pass. Native/guest qualification
 and #217 completion remain pending.
 
+[Step1352](../done/step1352.md) adds explicit bounded manifest/settings selection
+to the existing web package command. The original producer/ELF checks remain,
+and the default package bytes are unchanged. Eight focused package checks pass,
+including selected argv/envp through `LinuxElfStartup`, exact immutable JSON
+through descriptor reads, and independent malformed/no-publication controls.
+This is host composition evidence only; native/guest configuration, upstream
+startup and #217 acceptance remain pending. See [the manifest specification](manifest.md#linux-elf-immutable-data-envelope-version-2)
+for selection syntax and ownership.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

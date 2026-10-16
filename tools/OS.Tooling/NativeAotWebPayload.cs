@@ -38,7 +38,10 @@ public static class NativeAotWebPayload
             else if (args is ["package", "--recipe-root", var recipeRoot, "--recipe-evidence", var recipeEvidence,
                 "--output", var package])
                 output.WriteLine("NATIVEAOT_WEB_PACKAGE sha256=" + NativeAotWebPackage.Write(root, recipeRoot, recipeEvidence, package));
-            else throw new ArgumentException("nativeaot web qualify --output <fresh-directory> | validate <evidence-directory> | package --recipe-root <source> --recipe-evidence <evidence> --output <fresh-package>");
+            else if (args is ["package", "--recipe-root", var selectedRoot, "--recipe-evidence", var selectedEvidence,
+                "--output", var selectedPackage, "--manifest", var manifest, "--settings", var settings])
+                output.WriteLine("NATIVEAOT_WEB_PACKAGE sha256=" + NativeAotWebPackage.WriteConfigured(root, selectedRoot, selectedEvidence, selectedPackage, manifest, settings));
+            else throw new ArgumentException("nativeaot web qualify --output <fresh-directory> | validate <evidence-directory> | package --recipe-root <source> --recipe-evidence <evidence> --output <fresh-package> [--manifest <manifest> --settings <settings>]");
             output.WriteLine("TEST_PASS " + marker);
             return 0;
         }
