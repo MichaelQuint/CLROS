@@ -589,4 +589,34 @@ internal static unsafe class LinuxMemoryServicesTests
         owner.Memory.Tables[0] ^= 4;
         HostCheck.True(LinuxMemoryServices.Adopt(owner.State, owner.Memory, root) && LinuxMemoryServices.Audit(owner.State));
     }
+
+    [HostTest("socket memory retains high UC MMIO outside its real reservation across adoption and mmap rebuild", HostLane.Fast, 9)]
+    private static void DeviceAdoption()
+    {
+        const ulong device=0x800004000;
+        foreach(bool adopt in new[]{false,true})
+        foreach(int variant in Enumerable.Range(0,3))
+        {
+            using var owner=new Owner(quota:variant==1?X64UserAddressSpace.UserEnd-Start:0x400000000,staticRows:3);
+            var memory=owner.Memory;
+            memory.StaticRanges[2]=new(){VirtualStart=device,PhysicalStart=variant==2?0x500000UL:device,Pages=1,
+                Protection=PageProtection.Read|PageProtection.Write,Cache=variant==2?PageCachePolicy.WriteBack:PageCachePolicy.Uncached,User=variant==2};
+            var root=adopt?X64UserAddressSpace.Build(memory.StaticRanges,memory.StaticCount,memory.Tables,memory.RootPhysical,memory.TablePages,memory.Conditions):default;
+            if(adopt)HostCheck.True(root.Succeeded);
+            byte[] before=owner.Tables();
+            bool success=adopt?LinuxMemoryServices.Adopt(owner.State,memory,root):LinuxMemoryServices.Begin(owner.State,memory);
+            HostCheck.Equal(variant==0,success);
+            if(!success)
+            {
+                HostCheck.True(before.SequenceEqual(owner.Tables())&&owner.State->Root.Status==X64UserAddressSpaceStatus.Uninitialized&&
+                    new ReadOnlySpan<byte>(memory.Pool,(int)PoolPages*4096).IndexOfAnyExcept((byte)0xa5)<0);
+                continue;
+            }
+            ulong entry=owner.Leaf(device);HostCheck.True((entry&4)==0&&(entry&(1UL<<63))!=0);
+            HostCheck.Equal((long)Start,Map(owner,Start,4096,3));
+            HostCheck.True(Map(owner,device,4096,3)<0&&owner.Leaf(device)==entry&&LinuxMemoryServices.Audit(owner.State));
+            HostCheck.Equal(0L,LinuxMemoryServices.Unmap(owner.State,Start,4096));
+            HostCheck.True(owner.Leaf(device)==entry&&LinuxMemoryServices.Audit(owner.State));
+        }
+    }
 }

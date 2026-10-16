@@ -1,0 +1,269 @@
+using System.Buffers.Binary;
+using System.Runtime.InteropServices;
+using OS.Kernel.Compatibility.LinuxX64;
+using OS.Net;
+using Network = OS.Kernel.Compatibility.LinuxX64.LinuxSocketNetwork;
+using Fds = OS.Kernel.Compatibility.LinuxX64.LinuxDescriptorServices;
+using Sockets = OS.Kernel.Compatibility.LinuxX64.LinuxSocketServices;
+using Epoll = OS.Kernel.Compatibility.LinuxX64.LinuxEpollServices;
+using Table = OS.Net.TcpConnectionTable;
+using Wire = TcpReceiveWindowTests;
+
+internal static unsafe class LinuxSocketNetworkTests
+{
+    private const ulong User = 0x100000000, Output = User + 0x4000;
+    private struct Hardware { internal ulong Now; internal uint Calls, Length; internal byte Result; internal fixed byte Frame[1514]; }
+    private sealed class Model : IDisposable
+    {
+        internal readonly LinuxDescriptorServicesTests.Owner Files = new(16, 16);
+        internal readonly Sockets.State* Sockets;
+        internal readonly Sockets.Endpoint* Endpoints;
+        private readonly Epoll.State* Epoll;
+        private readonly Epoll.Port* Ports;
+        private readonly Epoll.Registration* Registrations;
+        internal readonly Network.State* State;
+        internal readonly Network.Slot* Slots;
+        internal readonly Table.Owner* Table;
+        private readonly TcpConnectionTableEntry* Entries;
+        private readonly ulong* Generations;
+        internal readonly byte* Buffers;
+        internal readonly Hardware* Hardware;
+        internal readonly byte[] Frame = new byte[1514];
+        private readonly uint Count, ReceiveBytes, SendBytes;
+        internal Model(uint count = 4, uint receiveBytes = 8192, uint sendBytes = 32768)
+        {
+            Count = count; ReceiveBytes = receiveBytes; SendBytes = sendBytes; Files.Begin();
+            Sockets = (Sockets.State*)NativeMemory.AllocZeroed((nuint)sizeof(Sockets.State));
+            Endpoints = (Sockets.Endpoint*)NativeMemory.AllocZeroed(8, (nuint)sizeof(Sockets.Endpoint));
+            Epoll = (Epoll.State*)NativeMemory.AllocZeroed((nuint)sizeof(Epoll.State));
+            Ports = (Epoll.Port*)NativeMemory.AllocZeroed(2, (nuint)sizeof(Epoll.Port));
+            Registrations = (Epoll.Registration*)NativeMemory.AllocZeroed(16, (nuint)sizeof(Epoll.Registration));
+            State = (Network.State*)NativeMemory.AllocZeroed((nuint)sizeof(Network.State));
+            Slots = (Network.Slot*)NativeMemory.AllocZeroed(count, (nuint)sizeof(Network.Slot));
+            Table = (Table.Owner*)NativeMemory.AllocZeroed((nuint)sizeof(Table.Owner));
+            Entries = (TcpConnectionTableEntry*)NativeMemory.AllocZeroed(count, (nuint)sizeof(TcpConnectionTableEntry));
+            Generations = (ulong*)NativeMemory.AllocZeroed(count, 8);
+            Buffers = (byte*)NativeMemory.AllocZeroed(count, receiveBytes + sendBytes);
+            Hardware = (Hardware*)NativeMemory.AllocZeroed((nuint)sizeof(Hardware)); Hardware->Now = 1000; Hardware->Result = 1;
+            HostCheck.True(LinuxSocketServices.Begin(Sockets, Files.State, Endpoints, 8, new(10, 0, 2, 15), 8080));
+            HostCheck.True(LinuxEpollServices.Begin(Epoll, Files.State, Ports, 2, Registrations, 16));
+            HostCheck.Equal(TcpConnectionTable.OwnershipStatus.Success, TcpConnectionTable.InitializeOwned(Table, Entries, count, Generations, count, 0x1234));
+            HostCheck.True(Network.Begin(State, Sockets, Table, Slots, count, Buffers, receiveBytes, sendBytes,
+                new(2, 0, 0, 0, 0, 1), new(0x52, 0x55, 0x0a, 0, 2, 2), new(10, 0, 2, 2), 700, Io));
+        }
+        internal TcpPassiveConnection.Operations Io => new() { Context = Hardware, NowNanoseconds = &Now, Send = &Send,
+            LifetimeNanoseconds = 10_000_000_000, RetryNanoseconds = 1_000_000_000, MaximumAttempts = 3 };
+        internal long Call(ulong number, ulong a0 = 0, ulong a1 = 0, ulong a2 = 0, ulong a3 = 0) => Fds.Dispatch(Files.State,
+            new() { Number = number, Argument0 = a0, Argument1 = a1, Argument2 = a2, Argument3 = a3 });
+        internal uint Listen(uint backlog = 4)
+        {
+            long fd = Call(41, 2, 1 | Fds.NonBlock, 6); HostCheck.True(fd >= 0);
+            *(ulong*)Files.Memory.At(User) = 0x901f0002; *(ulong*)Files.Memory.At(User + 8) = 0;
+            HostCheck.Equal(0L, Call(49, (uint)fd, User, 16)); HostCheck.Equal(0L, Call(50, (uint)fd, backlog)); return (uint)fd;
+        }
+        internal Network.Status Receive(byte[] frame) => Network.Receive(State, frame, Frame);
+        internal void Pump(ulong now = 0)
+        { if (now != 0) Hardware->Now = now; HostCheck.Equal(Network.Status.Success, Network.Pump(State, Frame)); }
+        internal uint Connect(ushort port = 40000, uint sequence = 99)
+        {
+            HostCheck.Equal(Network.Status.Success, Receive(Syn(port, sequence)));
+            uint local = BinaryPrimitives.ReadUInt32BigEndian(new ReadOnlySpan<byte>(Hardware->Frame + 38, 4)) + 1;
+            HostCheck.Equal(Network.Status.Success, Receive(Wire.Packet(sequence + 1, ReadOnlySpan<byte>.Empty, local, port, flags: 0x10)));
+            return local;
+        }
+        internal uint Accept(uint listener) { long fd = Call(288, listener, 0, 0, Fds.NonBlock); HostCheck.True(fd >= 0); return (uint)fd; }
+        internal void Finish(bool abort = true)
+        {
+            for (uint fd = 0; fd < 32; fd++) if (Fds.Capture(Files.State, fd, out _)) HostCheck.Equal(0L, Call(3, fd));
+            if (abort) HostCheck.True(Network.Abort(State));
+            HostCheck.Equal(0U, State->RetainedConnections); HostCheck.Equal(0, Table->Count);
+            HostCheck.True(Network.End(State)); HostCheck.Equal(TcpConnectionTable.OwnershipStatus.Success, TcpConnectionTable.RetireOwned(Table));
+            HostCheck.True(Fds.End(Files.State)); HostCheck.True(new ReadOnlySpan<byte>(Buffers, (int)(Count * (ReceiveBytes + SendBytes))).IndexOfAnyExcept((byte)0) < 0);
+        }
+        public void Dispose()
+        {
+            NativeMemory.Free(Hardware); NativeMemory.Free(Buffers); NativeMemory.Free(Generations); NativeMemory.Free(Entries); NativeMemory.Free(Table);
+            NativeMemory.Free(Slots); NativeMemory.Free(State); NativeMemory.Free(Registrations); NativeMemory.Free(Ports); NativeMemory.Free(Epoll);
+            NativeMemory.Free(Endpoints); NativeMemory.Free(Sockets); Files.Dispose();
+        }
+    }
+    private static ulong Now(void* context) => ((Hardware*)context)->Now;
+    private static byte Send(void* context, byte* frame, uint bytes)
+    {
+        Hardware* h = (Hardware*)context; h->Calls++;
+        if (bytes > 1514) return 2;
+        if (h->Result == 1) { for (uint i = 0; i < bytes; i++) h->Frame[i] = frame[i]; h->Length = bytes; }
+        return h->Result;
+    }
+    private static byte[] Syn(ushort port = 40000, uint sequence = 99) => Wire.Packet(sequence, ReadOnlySpan<byte>.Empty, 0, port,
+        flags: 2, options: [2, 4, 5, 180]);
+
+    [HostTest("m16-011 network admission and frame aliases fail without changing ownership", HostLane.Fast, 0)]
+    private static void Admission()
+    {
+        using Model m = new(); Network.State copy = *m.State;
+        HostCheck.Equal(Network.Status.InvalidState, Network.Pump(&copy, m.Frame));
+        HostCheck.True(!Network.Begin(m.State, m.Sockets, m.Table, m.Slots, 4, m.Buffers, 8192, 32768,
+            new(2, 0, 0, 0, 0, 1), new(0x52, 0x55, 0x0a, 0, 2, 2), new(10, 0, 2, 2), 700, m.Io));
+        HostCheck.Equal(Network.Status.InvalidStorage, Network.Receive(m.State, new ReadOnlySpan<byte>(m.Buffers, 64), m.Frame));
+        HostCheck.Equal(Network.Status.InvalidStorage, Network.Receive(m.State, Syn(), new Span<byte>(m.Buffers, 1514)));
+        HostCheck.Equal(Network.Status.InvalidStorage, Network.Receive(m.State, Syn(), new Span<byte>(m.Files.Admission.Scratch, 1514)));
+        HostCheck.Equal(Network.Status.InvalidStorage, Network.Receive(m.State, Syn(), new Span<byte>(m.Files.Memory.At(User), 1514)));
+        HostCheck.Equal(Network.Status.InvalidStorage, Network.Receive(m.State, new ReadOnlySpan<byte>((byte*)m.Sockets, sizeof(Sockets.State)), m.Frame));
+        HostCheck.Equal(0, m.Table->Count); HostCheck.True(!Network.End(&copy)); m.Finish();
+    }
+
+    [HostTest("m16-011 actual SYN ACK data and copied response traverse the Linux socket adapter", HostLane.Fast, 1)]
+    private static void Exchange()
+    {
+        using Model m = new(); uint listener = m.Listen(), local = m.Connect(), fd = m.Accept(listener);
+        HostCheck.Equal(1U, m.State->RetainedConnections);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, "hello"u8, local)));
+        HostCheck.Equal(5L, m.Call(45, fd, Output, 64)); HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 5).SequenceEqual("hello"u8));
+        HostCheck.Equal(-11L, m.Call(45, fd, Output, 1)); m.Files.Text(User, "response"); HostCheck.Equal(8L, m.Call(44, fd, User, 8));
+        m.Pump(); HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(105, ReadOnlySpan<byte>.Empty, local + 8, flags: 0x10)));
+        HostCheck.Equal(1, m.Table->Count); m.Finish();
+    }
+
+    [HostTest("m16-011 exact tuple and generation dispatch isolates reordered connections", HostLane.Fast, 2)]
+    private static void TupleDispatch()
+    {
+        using Model m = new(); uint listener = m.Listen(); uint first = m.Connect(40000), second = m.Connect(40001, 199);
+        uint a = m.Accept(listener), b = m.Accept(listener);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(200, "second"u8, second, port: 40001)));
+        HostCheck.Equal(-11L, m.Call(45, a, Output, 32)); HostCheck.Equal(6L, m.Call(45, b, Output, 32));
+        HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 6).SequenceEqual("second"u8));
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, "first"u8, first)));
+        HostCheck.Equal(5L, m.Call(45, a, Output, 32)); HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 5).SequenceEqual("first"u8)); m.Finish();
+    }
+
+    [HostTest("m16-011 malformed wrong-peer missing-listener and exhausted SYNs preserve live generations", HostLane.Fast, 3)]
+    private static void Rejection()
+    {
+        using Model m = new(count: 1); HostCheck.Equal(Network.Status.Ignored, m.Receive(Syn())); HostCheck.Equal(0U, m.Hardware->Calls);
+        uint listener = m.Listen(); byte[] corrupt = Syn(); corrupt[^1] ^= 1;
+        HostCheck.Equal(Network.Status.Ignored, m.Receive(corrupt)); byte[] wrongMac = Syn(); wrongMac[6] ^= 2;
+        HostCheck.Equal(Network.Status.Ignored, m.Receive(wrongMac)); HostCheck.Equal(0, m.Table->Count);
+        HostCheck.Equal(Network.Status.Ignored, m.Receive(Syn(port: 0))); HostCheck.True(!m.State->RequiresShutdown);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Syn())); HostCheck.Equal(1, m.Table->Count);
+        HostCheck.Equal(Table.OwnershipStatus.Success, Table.FindOwned(m.Table, new(new(10, 0, 2, 15), 8080, new(10, 0, 2, 2), 40000), out var original));
+        HostCheck.Equal(Network.Status.Capacity, m.Receive(Syn(40001))); HostCheck.Equal(Table.OwnershipStatus.Success, Table.ReadOwned(m.Table, original, out _));
+        HostCheck.Equal(0L, m.Call(3, listener)); m.Pump(); HostCheck.Equal(Table.OwnershipStatus.StaleHandle, Table.ReadOwned(m.Table, original, out _)); m.Finish();
+    }
+
+    [HostTest("m16-011 genuine pending TX backpressure retries and retires at the original deadline", HostLane.Fast, 4)]
+    private static void PendingRetry()
+    {
+        using Model m = new(count: 1); _ = m.Listen(); m.Hardware->Result = 0;
+        HostCheck.Equal(Network.Status.Success, m.Receive(Syn())); HostCheck.Equal(1U, m.State->RetainedConnections);
+        HostCheck.Equal(Network.Status.Ignored, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, 701, flags: 0x10)));
+        m.Hardware->Result = 1; m.Pump(2000); HostCheck.True(m.Hardware->Calls >= 2);
+        m.Pump(1_000_002_000); m.Pump(2_000_002_000); m.Pump(3_000_002_000);
+        HostCheck.Equal(1U, m.State->RetainedConnections); HostCheck.True(!m.State->RequiresShutdown);
+        m.Pump(10_000_001_000); HostCheck.Equal(0U, m.State->RetainedConnections); HostCheck.Equal(0, m.Table->Count); m.Finish(false);
+    }
+
+    [HostTest("m16-011 full socket accept queue retains established transport until capacity returns", HostLane.Fast, 5)]
+    private static void AcceptPressure()
+    {
+        using Model m = new(); uint listener = m.Listen(1); uint first = m.Connect(), second = m.Connect(40001, 199);
+        HostCheck.Equal(2, m.Table->Count); uint a = m.Accept(listener); HostCheck.Equal(-11L, m.Call(288, listener, 0, 0, Fds.NonBlock));
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(200, "queued"u8, second, port: 40001)));
+        m.Pump(); uint b = m.Accept(listener); HostCheck.Equal(6L, m.Call(45, b, Output, 32));
+        HostCheck.Equal(-11L, m.Call(45, a, Output, 32)); HostCheck.True(first != second); m.Finish();
+    }
+
+    [HostTest("m16-011 actual peer FIN and last ACK close and scrub without abort", HostLane.Fast, 6)]
+    private static void GracefulClose()
+    {
+        using Model m = new(); uint listener = m.Listen(), local = m.Connect(), fd = m.Accept(listener);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, "end"u8, local, flags: 0x19)));
+        HostCheck.Equal(3L, m.Call(45, fd, Output, 32)); HostCheck.Equal(0L, m.Call(45, fd, Output, 32));
+        HostCheck.Equal(0L, m.Call(48, fd, 1)); m.Pump();
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(104, ReadOnlySpan<byte>.Empty, local + 1, flags: 0x10)));
+        HostCheck.Equal(0L, m.Call(3, fd)); m.Pump(); HostCheck.Equal(0U, m.State->RetainedConnections); m.Finish(false);
+    }
+
+    [HostTest("m16-011 reset remains owned until fd close and closed table generation is never reused by stale traffic", HostLane.Fast, 7)]
+    private static void ResetAndReuse()
+    {
+        using Model m = new(count: 1); uint listener = m.Listen(), local = m.Connect(), fd = m.Accept(listener);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, local, flags: 0x14)));
+        HostCheck.Equal(Network.Status.Ignored, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, local, flags: 0x14)));
+        m.Pump(); HostCheck.Equal(1U, m.State->RetainedConnections); HostCheck.Equal(-104L, m.Call(45, fd, Output, 1));
+        HostCheck.Equal(Table.OwnershipStatus.Success, Table.FindOwned(m.Table, new(new(10, 0, 2, 15), 8080, new(10, 0, 2, 2), 40000), out var original));
+        HostCheck.Equal(0L, m.Call(3, fd)); m.Pump(); HostCheck.Equal(0U, m.State->RetainedConnections);
+        uint fresh = m.Connect(sequence: 199); HostCheck.True(fresh != local);
+        HostCheck.Equal(Table.OwnershipStatus.StaleHandle, Table.ReadOwned(m.Table, original, out _));
+        HostCheck.Equal(Network.Status.Ignored, m.Receive(Wire.Packet(100, "old"u8, local)));
+        uint replacement = m.Accept(listener); HostCheck.Equal(-11L, m.Call(45, replacement, Output, 32)); m.Finish();
+    }
+
+    [HostTest("m16-011 actual active FIN retains TIME-WAIT until the full monotonic 240 seconds", HostLane.Fast, 8)]
+    private static void TimeWait()
+    {
+        using Model m = new(); uint listener = m.Listen(), local = m.Connect(), fd = m.Accept(listener);
+        HostCheck.Equal(0L, m.Call(48, fd, 1)); m.Pump();
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, local + 1, flags: 0x11)));
+        HostCheck.Equal(0L, m.Call(3, fd)); m.Pump(240_000_000_999); HostCheck.Equal(1U, m.State->RetainedConnections);
+        HostCheck.True(!Network.End(m.State)); m.Pump(240_000_001_000); m.Pump();
+        HostCheck.Equal(0U, m.State->RetainedConnections); m.Finish(false);
+    }
+
+    [HostTest("m16-011 pending listener dup survives original fd close without redirecting to a reused fd", HostLane.Fast, 9)]
+    private static void ListenerDup()
+    {
+        using Model m = new(); uint listener = m.Listen();
+        HostCheck.Equal(Network.Status.Success, m.Receive(Syn())); uint duplicate = (uint)m.Call(72, listener, 0);
+        HostCheck.Equal(0L, m.Call(3, listener)); m.Pump(); HostCheck.Equal(1U, m.State->RetainedConnections);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, 701, flags: 0x10)));
+        uint accepted = m.Accept(duplicate); HostCheck.Equal(listener, accepted); HostCheck.Equal(-11L, m.Call(45, accepted, Output, 1)); m.Finish();
+    }
+
+    [HostTest("m16-011 final ACK may establish after SYN-ACK attempt limit until the original deadline", HostLane.Fast, 10)]
+    private static void FinalAckAfterAttempts()
+    {
+        using Model m = new(); uint listener = m.Listen(); HostCheck.Equal(Network.Status.Success, m.Receive(Syn()));
+        m.Pump(1_000_001_000); m.Pump(2_000_001_000); m.Pump(3_000_001_000);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(100, ReadOnlySpan<byte>.Empty, 701, flags: 0x10)));
+        _ = m.Accept(listener); HostCheck.True(!m.State->RequiresShutdown); m.Finish();
+    }
+
+    [HostTest("m16-011 fatal pending and established TX retain ownership until explicit detached abort", HostLane.Fast, 11)]
+    private static void FatalCopy()
+    {
+        foreach (bool established in new[] { false, true })
+        {
+            using Model m = new(); uint listener = m.Listen();
+            if (established)
+            {
+                _ = m.Connect(); uint fd = m.Accept(listener); m.Files.Text(User, "data"); HostCheck.Equal(4L, m.Call(44, fd, User, 4));
+                m.Hardware->Result = 2; HostCheck.Equal(Network.Status.TransportFailure, Network.Pump(m.State, m.Frame));
+            }
+            else { m.Hardware->Result = 2; HostCheck.Equal(Network.Status.TransportFailure, m.Receive(Syn())); }
+            HostCheck.True(m.State->RequiresShutdown); HostCheck.Equal(1U, m.State->RetainedConnections);
+            HostCheck.True(!Network.Abort(m.State)); HostCheck.True(!Network.End(m.State)); m.Finish();
+        }
+    }
+
+    [HostTest("m16-011 private queued reset reaps after listener close without re-aborting closed TCP", HostLane.Fast, 12)]
+    private static void PrivateReset()
+    {
+        using Model m = new(); uint listener = m.Listen(1); _ = m.Connect(); uint local = m.Connect(40001, 199);
+        HostCheck.Equal(Network.Status.Success, m.Receive(Wire.Packet(200, ReadOnlySpan<byte>.Empty, local, port: 40001, flags: 0x14)));
+        HostCheck.Equal(0L, m.Call(3, listener)); m.Pump(); HostCheck.True(!m.State->RequiresShutdown);
+        HostCheck.Equal(1U, m.State->RetainedConnections); HostCheck.Equal(1, m.Table->Count); m.Finish();
+    }
+
+    [HostTest("m16-011 final handshake ACK payload reaches the accepted stream exactly once", HostLane.Fast, 13)]
+    private static void HandshakePayload()
+    {
+        using Model m = new(); uint listener = m.Listen(); HostCheck.Equal(Network.Status.Success, m.Receive(Syn()));
+        byte[] third = Wire.Packet(100, "third"u8, 701, flags: 0x10);
+        HostCheck.Equal(Network.Status.Success, m.Receive(third)); uint fd = m.Accept(listener);
+        HostCheck.Equal(5L, m.Call(45, fd, Output, 32));
+        HostCheck.True(new ReadOnlySpan<byte>(m.Files.Memory.At(Output), 5).SequenceEqual("third"u8));
+        var duplicate = m.Receive(third); HostCheck.True(duplicate is Network.Status.Success or Network.Status.Ignored);
+        HostCheck.Equal(-11L, m.Call(45, fd, Output, 32)); m.Finish();
+    }
+}

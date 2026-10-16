@@ -22,7 +22,8 @@ internal static unsafe class M07026EfiIntegrationTests
             HostCheck.Equal(13, profile.Flags.Count(x => x.Value));
             foreach (var parent in profile.Flags.Where(x => x.Value && x.Key != "EnableM07026Probe"))
                 Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--" + parent.Key, "false"], build).Profile());
-            foreach (string extra in EfiContracts.DiagnosticProbes.Except(profile.Flags.Where(x => x.Value).Select(x => x.Key)))
+            foreach (string extra in EfiContracts.DiagnosticProbes.Except(profile.Flags.Where(x => x.Value).Select(x => x.Key))
+                .Except(["EnableM16011Probe", "EnableM16012Probe"]))
                 Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--" + extra], build).Profile());
             Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--BootPolicy", "VerifiedExit"], build).Profile());
         }
@@ -81,7 +82,14 @@ internal static unsafe class M07026EfiIntegrationTests
             {
                 HostCheck.Equal("BootReservationKind.DiagnosticState", worker[0].ArgumentList.Arguments[0].Expression.ToString());
                 HostCheck.Equal("CooperativePoolPages", worker[0].ArgumentList.Arguments[2].Expression.ToString());
-                HostCheck.Equal("ledger + count++", worker[0].ArgumentList.Arguments[3].Expression.ToString());
+                HostCheck.Equal("ledger", worker[0].ArgumentList.Arguments[3].Expression.ToString());
+                HostCheck.Equal("ref", worker[0].ArgumentList.Arguments[4].RefKindKeyword.Text);
+                HostCheck.Equal("count", worker[0].ArgumentList.Arguments[4].Expression.ToString());
+                var append=adapter.Members.OfType<MethodDeclarationSyntax>().Single(x=>x.Identifier.Text=="LinuxReservation");
+                var guard=append.Body!.Statements.OfType<IfStatementSyntax>().Single();
+                HostCheck.True(guard.Condition.ToString().StartsWith("count >= LinuxLedgerCapacity ||",StringComparison.Ordinal));
+                var write=append.DescendantNodes().OfType<AssignmentExpressionSyntax>().Single();
+                HostCheck.True(guard.SpanStart<write.SpanStart&&write.Left.ToString()=="ledger[count++]");
             }
             var overlap = adapter.Members.OfType<MethodDeclarationSyntax>().Single(x => x.Identifier.Text == "LinuxPoolDisjoint");
             var checks = overlap.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(x => x.Expression.ToString() == "Disjoint").ToArray();

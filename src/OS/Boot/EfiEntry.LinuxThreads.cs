@@ -281,8 +281,36 @@ public static unsafe partial class EfiEntry
             bool completed = c->Gates[index].Status == LinuxSyscallGateStatus.Blocked;
             if (completed)
             {
+#if CLROS_LINUX_SOCKETS
+                var epollWait = view.WaitSource == 3 ? c->Threads.Inspect(c->Key, 2, c->Threads.Current) : default;
+                if (view.WaitSource == 3) completion = c->Process.CompleteEpollWait(c->Key, 2);
+                else
+#endif
                 completion = view.PipePending ? c->Process.CompletePipeWait(c->Key, 2) : c->Process.CompleteFutexWait(c->Key, 2);
                 completion = LinuxSyscallGateway.CompleteBlocked(ref c->Gates[index], completion);
+#if CLROS_LINUX_SOCKETS
+                if (view.WaitSource == 3 && completion.Action == LinuxSyscallAction.Return &&
+                    (!epollWait.Succeeded || epollWait.Wait.Sequence != view.Wait.Sequence ||
+                    epollWait.Completion == KernelThreadTable.Completion.None ||
+                    !LinuxText(c->State, "M16_012_COMPLETE identity=") || !LinuxNumber(c->State, c->Threads.Current.Value) ||
+                    !LinuxText(c->State, " sequence=") || !LinuxNumber(c->State, view.Wait.Sequence) ||
+                    !LinuxText(c->State, " completion=") || !LinuxNumber(c->State, (uint)epollWait.Completion) ||
+                    !LinuxText(c->State, " valueBits=") || !LinuxNumber(c->State, unchecked((ulong)completion.Value)) ||
+                    !LinuxText(c->State, " clock=") || !LinuxNumber(c->State, c->Threads.ObservedTicks) || !LinuxText(c->State, "\r\n")))
+                    return LinuxNativeAbort(c, index);
+                if (view.WaitSource == 3 && completion.Action == LinuxSyscallAction.Blocked)
+                {
+                    if (!c->Process.Inspect(c->Key, 2, c->Threads.Current, out var again) || again.WaitSource != 3 ||
+                        !again.Wait.IsValid || again.Wait.Sequence <= view.Wait.Sequence || again.WaitDeadline != view.WaitDeadline ||
+                        !LinuxText(c->State, "M16_012_REPARK identity=") || !LinuxNumber(c->State, c->Threads.Current.Value) ||
+                        !LinuxText(c->State, " previous=") || !LinuxNumber(c->State, view.Wait.Sequence) ||
+                        !LinuxText(c->State, " sequence=") || !LinuxNumber(c->State, again.Wait.Sequence) ||
+                        !LinuxText(c->State, " deadline=") || !LinuxNumber(c->State, again.WaitDeadline) ||
+                        !LinuxText(c->State, " clock=") || !LinuxNumber(c->State, c->Threads.ObservedTicks) || !LinuxText(c->State, "\r\n"))
+                        return LinuxNativeAbort(c, index);
+                }
+                if (!ObserveLinuxSocketWaits(c)) return LinuxNativeAbort(c, index);
+#endif
                 if (completion.Action != LinuxSyscallAction.Return)
                 {
                     if (completion.Action is not (LinuxSyscallAction.Blocked or LinuxSyscallAction.ThreadExited)) return LinuxNativeAbort(c, index);
@@ -362,6 +390,9 @@ public static unsafe partial class EfiEntry
                     image, X64LinuxUserTransition.UserImageBytes, c->Plan.Owner.ObservedMxcsrMask, c->User)) return 0;
             uint index = c->Selected - 1;
             if (c->Entered[index] != 1 || c->Threads.Current.Value != c->Plan.Bindings[index].Context.Identity) return 0;
+#if CLROS_LINUX_SOCKETS
+            if (!PollLinuxSocketNetwork(c)) return LinuxNativeAbort(c, index);
+#endif
             LinuxSyscallFrame call = *frame;
 #if M16_009_PROBE
             timing = timing && timingRead(state, &admitted) == 1;
@@ -430,9 +461,23 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " returnFs=") && LinuxNumber(state, returned.FsBase) &&
                 LinuxText(state, " returnGs=") && LinuxNumber(state, returned.GsBase) &&
                 LinuxText(state, " returnValueBits=") && LinuxNumber(state, unchecked((ulong)result.Value)) && LinuxText(state, "\r\n");
+#if CLROS_LINUX_SOCKETS
+            if (logged && call.Number is 232 or 281 && result.Action == LinuxSyscallAction.Return && result.Value == 0 &&
+                unchecked((int)call.Argument3) > 0)
+                logged = c->Process.InspectEpollExpiry(c->Key, 2, out ulong expired) &&
+                    LinuxText(state, "M16_012_EXPIRE identity=") && LinuxNumber(state, c->Threads.Current.Value) &&
+                    LinuxText(state, " ordinal=") && LinuxNumber(state, c->Gates[index].Calls) &&
+                    LinuxText(state, " deadline=") && LinuxNumber(state, expired) &&
+                    LinuxText(state, " clock=") && LinuxNumber(state, c->Threads.ObservedTicks) && LinuxText(state, "\r\n");
+#endif
 #if M16_009_PROBE
             if (logged && timing)
                 logged = LinuxNativeSyscallTimingWrite(c, call.Number, entered, admitted, dispatched, prepared);
+#endif
+            // Capture descriptor/signal wakes before a later timer advance can
+            // obscure their winner. CALL above introduces a newly staged wait.
+#if CLROS_LINUX_SOCKETS
+            logged = logged && ObserveLinuxSocketWaits(c);
 #endif
             if (!logged || result.Action == LinuxSyscallAction.Rejected || returning.Action == LinuxSyscallAction.Rejected)
             { if (LinuxNativeAbort(c, index) != 2) return 0; }
@@ -545,7 +590,11 @@ public static unsafe partial class EfiEntry
                 if (action == LinuxSyscallAction.Blocked)
                 {
                     bool handoff;
-                    bool committed = c->Slots[index].PipeOperation.IsActive
+                    bool committed =
+#if CLROS_LINUX_SOCKETS
+                        c->Slots[index].WaitSource == 3 ? c->Process.CommitEpollWait(c->Key, 2, worker, out handoff) :
+#endif
+                        c->Slots[index].PipeOperation.IsActive
                         ? c->Process.CommitPipeWait(c->Key, 2, worker, out handoff) : c->Process.CommitFutexWait(c->Key, 2, worker, out handoff);
                     if (!committed || !handoff && !c->Threads.Yield(c->Key, 2, new(worker.Identity), worker).Succeeded) return 0;
                 }

@@ -61,7 +61,7 @@ internal static unsafe class M16008EfiIntegrationTests
             HostCheck.Equal(parents.Length + 1, profile.Flags.Count(p => p.Value));
             foreach (string parent in parents) Reject(() => EfiOptions.Parse(["--" + flag, "--" + parent + ":false"], build).Profile());
             foreach (string conflict in EfiContracts.DiagnosticProbes.Where(n => n != flag &&
-                n is not ("EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe") && !parents.Contains(n)))
+                n is not ("EnableM16009Probe" or "EnableM09011Probe" or "EnableM09012Probe" or "EnableM16010Probe" or "EnableM16011Probe" or "EnableM16012Probe") && !parents.Contains(n)))
                 Reject(() => EfiOptions.Parse(["--" + flag, "--" + conflict], build).Profile());
             Reject(() => EfiOptions.Parse(["--BootPolicy", "VerifiedExit", "--" + flag], build).Profile());
             string[] compile = EfiProjectAdmission.ExpectedCompileItems(profile);
@@ -164,6 +164,25 @@ internal static unsafe class M16008EfiIntegrationTests
         var lookup = rewrite.DescendantNodes().OfType<InvocationExpressionSyntax>().Single(n => n.Expression.ToString() == "CooperativeFindLeaf");
         HostCheck.Equal("state->CooperativePool+((NativeProgram.Entries+index*NativeProgram.WorkerStride)&~(Page-1))",
             string.Concat(lookup.ArgumentList.Arguments[1].Expression.DescendantTokens().Select(token => token.Text)));
+
+        foreach(string leaf in new[]{"EnableM16011Probe","EnableM16012Probe"})
+        {
+            var socketProfile=EfiProfile.Create("Diagnostic",new Dictionary<string,bool>{[leaf]=true});
+            symbols=socketProfile.Flags.Where(p=>p.Value).Select(p=>EfiContracts.ProbeSymbols[p.Key]).ToArray();
+            var socketRetained=Parse("src/OS.Kernel/Boot/FirstOptRealExitBootServicesTransition.cs").DescendantNodes()
+                .OfType<ClassDeclarationSyntax>().Single(n=>n.Identifier.Text=="FirstExitRetainedMappings");
+            var capacity=socketRetained.Members.OfType<FieldDeclarationSyntax>().SelectMany(n=>n.Declaration.Variables)
+                .Single(n=>n.Identifier.Text=="MaximumRanges").Initializer!.Value;
+            ulong ranges=Sum(capacity);HostCheck.Equal(47UL,ranges);
+            HostCheck.True(ranges<=SeparateDisabledDefaultPageFaultPageTables.MaximumRetainedRanges,
+                "the live NIC and Linux runtime union must fit actual image and table-builder admission");
+            var socketEntry=Parse("src/OS/Boot/EfiEntry.cs");
+            var ledger=socketEntry.DescendantNodes().OfType<FieldDeclarationSyntax>().SelectMany(n=>n.Declaration.Variables)
+                .Single(n=>n.Identifier.Text=="LinuxLedgerCapacity").Initializer!.Value;
+            ulong ledgerCapacity=Sum(ledger);HostCheck.Equal(18UL,ledgerCapacity);
+            var seal=socketEntry.DescendantNodes().OfType<MethodDeclarationSyntax>().Single(n=>n.Identifier.Text=="SealLinuxLedger");
+            HostCheck.Equal(ledgerCapacity,5UL+(ulong)seal.DescendantNodes().OfType<InvocationExpressionSyntax>().Count(n=>n.Expression.ToString()=="LinuxReservation"));
+        }
 
         Microsoft.CodeAnalysis.SyntaxNode Parse(string path)
         {

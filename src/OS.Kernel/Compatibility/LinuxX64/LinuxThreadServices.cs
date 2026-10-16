@@ -40,6 +40,9 @@ public unsafe partial struct LinuxThreadServices
         internal KernelThreadWait Wait;
         internal uint FutexCellIndex, WaitSource;
         internal LinuxDescriptorServices.PipeOperation PipeOperation;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        internal LinuxEpollServices.Operation EpollOperation;
+#endif
         internal uint RestartMode; // Unresolved decision: 1 original syscall, 2 timed restart.
         internal LinuxSyscallFrame WaitCall;
         internal ulong WaitDeadline;
@@ -76,12 +79,12 @@ public unsafe partial struct LinuxThreadServices
         public readonly ulong ClearTid, BlockedSignals;
         public readonly LinuxSyscallFrame Frame;
         public readonly KernelThreadWait Wait;
-        /// <summary>Retained wait observation: 0 none, 1 futex, 2 pipe.
+        /// <summary>Retained wait observation: 0 none, 1 futex, 2 pipe, 3 epoll.
         /// Deadline is absolute monotonic nanoseconds, or zero for an untimed
         /// wait. Both are zero without a valid Wait. Completion may be ready
         /// while the wait and its backing remain retained until consumption.</summary>
         public readonly uint WaitSource;
-        /// <summary>Absolute monotonic nanoseconds for the retained futex wait;
+        /// <summary>Absolute monotonic nanoseconds for a futex or epoll wait;
         /// zero for an untimed wait, a pipe wait or no valid Wait. Reading this
         /// snapshot neither advances the clock nor consumes completion.</summary>
         public readonly ulong WaitDeadline;
@@ -105,6 +108,10 @@ public unsafe partial struct LinuxThreadServices
     private WaitAddress _addresses;
     private FutexAdmission _futex;
     private bool _futexEnabled;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+    private ulong _epollExpiredDeadline;
+    private OSHostHandle _epollExpiredThread;
+#endif
     private LinuxDescriptorServices.State* _descriptors;
     private LinuxSignalServices.State* _signals;
     public readonly uint ActiveThreads => _initialized == 1 ? _active : 0;
@@ -191,7 +198,7 @@ public unsafe partial struct LinuxThreadServices
     public bool CurrentImage(ulong key, ulong flags, out X64LinuxUserTransition.UserImage* image)
     {
         image = null; if (!Access(key, flags) || !Current(flags, out uint index) || _owner.Slots[index].RestartMode is 1 or 2 || _owner.Slots[index].Wait.IsValid ||
-            _owner.Slots[index].PipeOperation.IsActive) return false;
+            HasDescriptorOperation(_owner.Slots + index)) return false;
         image = &_owner.Slots[index].Image; return true;
     }
     /// <summary>Read only a live actual kernel generation belonging to this
@@ -218,13 +225,17 @@ public unsafe partial struct LinuxThreadServices
     {
         if (!Access(key, flags) || _failed || _stopping || !Current(flags, out uint index)) return new(LinuxSyscallAction.Rejected);
         Slot* slot = _owner.Slots + index;
-        if (slot->Exiting != 0 || slot->RestartMode is 1 or 2 || slot->Wait.IsValid || slot->PipeOperation.IsActive ||
+        if (slot->Exiting != 0 || slot->RestartMode is 1 or 2 || slot->Wait.IsValid || HasDescriptorOperation(slot) ||
             !LinuxSyscallGateway.ValidateReturn(frame, _owner.User)) return new(LinuxSyscallAction.Rejected);
         long result;
         switch (frame.Number)
         {
             case 0: case 1: case 2: case 3: case 5: case 8: case 16: case 17:
             case 20: case 22: case 72: case 257: case 293:
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+            case 41: case 42: case 43: case 44: case 45: case 48: case 49: case 50: case 51: case 52: case 54: case 55: case 288:
+            case 213: case 232: case 233: case 281: case 291:
+#endif
                 return DispatchDescriptor(key, flags, frame);
             case 13: case 131:
                 result = _signals == null ? Unsupported : LinuxSignalServices.Dispatch(_signals, _self, slot->Kernel, frame); break;
@@ -353,7 +364,11 @@ public unsafe partial struct LinuxThreadServices
         Slot* s = _owner.Slots + index;
         if (s->Exiting != 1 || captured.Identity != s->Kernel.Value) return false;
         if (!_owner.Threads->Exit(_owner.ThreadKey, flags, s->Kernel, captured, unchecked((int)s->ExitCode)).Succeeded) return false;
-        clearTidResult = DropPipeOperation(flags, s) && DropFutexWait(flags, s) ? 0 : Io;
+        bool dropped = DropPipeOperation(flags, s);
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        dropped = dropped && DropEpollOperation(s);
+#endif
+        clearTidResult = dropped && DropFutexWait(flags, s) ? 0 : Io;
         if (s->ClearTid != 0)
         {
             uint zero = 0;
@@ -373,7 +388,7 @@ public unsafe partial struct LinuxThreadServices
         released = default;
         if (!Access(key, flags) || !Lookup(flags, kernel, out uint index)) return false;
         if (_owner.Slots[index].Exiting != 1 || _owner.Slots[index].ClearTid != 0 || _owner.Slots[index].Wait.IsValid ||
-            _owner.Slots[index].PipeOperation.IsActive || _signals != null && !LinuxSignalServices.Bound(_signals, _self, kernel)) return false;
+            HasDescriptorOperation(_owner.Slots + index) || _signals != null && !LinuxSignalServices.Bound(_signals, _self, kernel)) return false;
         var result = _owner.Threads->Reap(_owner.ThreadKey, flags, kernel, supervisorRsp);
         if (!result.Succeeded) return false;
         if (_signals != null && !LinuxSignalServices.Unbind(_signals, _self, kernel)) { _failed = true; return false; }
@@ -390,6 +405,11 @@ public unsafe partial struct LinuxThreadServices
         if (_signals != null && !LinuxSignalServices.Detach(_signals, _self)) return false;
         this = default; return true;
     }
+    private static bool HasDescriptorOperation(Slot* slot) => slot->PipeOperation.IsActive
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        || slot->EpollOperation.IsActive
+#endif
+        ;
     private bool Current(ulong flags, out uint index)
     {
         var kernel = _owner.Threads->Current;

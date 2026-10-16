@@ -114,6 +114,7 @@ try
     Console.WriteLine("OVMF_CODE " + ovmf.Path);
     Console.WriteLine("WORKLOAD_PROFILE " + options.WorkloadProfile);
     if (options.FirmwareRngSource is not null) Console.WriteLine("FIRMWARE_RNG_SOURCE " + options.FirmwareRngSource);
+    if (options.SocketForwardPort is int socketForward) Console.WriteLine("SOCKET_FORWARD_PORT " + socketForward.ToString(System.Globalization.CultureInfo.InvariantCulture));
     Console.WriteLine("MARKER_PRESETS " + FormatSummaryList(options.MarkerPresets));
     Console.WriteLine("REQUIRED_MARKERS " + FormatMarkers(options.RequiredMarkers));
     Console.WriteLine("ORDERED_MARKERS " + FormatSummaryList(options.OrderedMarkers));
@@ -1337,6 +1338,7 @@ static void WriteSummaryLogBestEffort(
         builder.Append("SERIAL_LOG ").AppendLine(options.SerialLogPath);
         builder.Append("WORKLOAD_PROFILE ").AppendLine(options.WorkloadProfile);
         if (options.FirmwareRngSource is not null) builder.Append("FIRMWARE_RNG_SOURCE ").AppendLine(options.FirmwareRngSource);
+        if (options.SocketForwardPort is int socketForward) builder.Append("SOCKET_FORWARD_PORT ").AppendLine(socketForward.ToString(System.Globalization.CultureInfo.InvariantCulture));
         builder.Append("MARKER_PRESETS ").AppendLine(FormatSummaryList(options.MarkerPresets));
         builder.Append("REQUIRED_MARKERS ").AppendLine(FormatMarkers(options.RequiredMarkers));
         builder.Append("ORDERED_MARKERS ").AppendLine(FormatSummaryList(options.OrderedMarkers));
@@ -1963,6 +1965,7 @@ sealed class RunnerOptions
     public bool VirtioNegotiationDevice { get; private set; }
     public bool ArpReceiveFixture { get; private set; }
     public bool ContinuingNetworkPeer { get; private set; }
+    public int? SocketForwardPort { get; private set; }
     public string? EthernetCapturePath { get; private set; }
     public bool VirtioBlockQueueDevice { get; private set; }
     public string? VirtioBlockBootImagePath { get; private set; }
@@ -2082,6 +2085,14 @@ sealed class RunnerOptions
                     if (options.ContinuingNetworkPeer) throw new ArgumentException("--continuing-network-peer may be specified only once.");
                     options.ContinuingNetworkPeer = true;
                     break;
+                case "--socket-forward-port":
+                    if (options.SocketForwardPort is not null) throw new ArgumentException("--socket-forward-port may be specified only once.");
+                    string socketPort = ReadValue(args, ref i, arg);
+                    if (!int.TryParse(socketPort, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int port) ||
+                        port is < 1 or > 65535)
+                        throw new ArgumentException("--socket-forward-port must be a decimal port from 1 through 65535.");
+                    options.SocketForwardPort = port;
+                    break;
                 case "--virtio-block-boot-image":
                     if (options.VirtioBlockBootImagePath is not null) throw new ArgumentException("--virtio-block-boot-image may be specified only once.");
                     options.VirtioBlockBootImagePath = RequireNonEmpty(ReadValue(args, ref i, arg), arg);
@@ -2158,12 +2169,16 @@ sealed class RunnerOptions
         if (options.ContinuingNetworkPeer && (!options.ArpReceiveFixture || options.TimeoutSeconds > 295 ||
             options.HttpProbe is not null || options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic || options.ExpectedUnhandledException))
             throw new ArgumentException("--continuing-network-peer requires the captured ARP fixture, a timeout at most 295 seconds and the ordinary diagnostic exit path.");
+        if (options.SocketForwardPort is not null && (!options.VirtioNegotiationDevice || !options.ArpReceiveFixture || options.EthernetCapturePath is null ||
+            options.ContinuingNetworkPeer || options.HttpProbe is not null || options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic || options.ExpectedUnhandledException))
+            throw new ArgumentException("--socket-forward-port requires the captured dedicated modern ARP network fixture and ordinary diagnostic exit path, without --continuing-network-peer or HTTP probing.");
         return options;
     }
 
     public static void PrintHelp()
     {
         Console.WriteLine("--continuing-network-peer uses a bounded loopback Ethernet peer for the captured M07-026 fixture; dry-run prints its ephemeral-port placeholder.");
+        Console.WriteLine("--socket-forward-port <1-65535> forwards loopback TCP to guest port 8080 on the captured dedicated modern ARP network fixture, using QEMU usernet without the scripted Ethernet peer.");
         Console.WriteLine("--startup-timeout <seconds> bounds startup to M03_EBS_RETURNED_SUCCESS when required (default 30); the overall --timeout still applies. A startup timeout captures QMP registers and up to 512 MiB RAM beside the serial log before terminating the child.");
         Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--replace-default-required-markers] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--expect-unexpected-vector-panic|--expect-owned-subsystem-panic] [--firmware-rng-source virtio|missing] [--virtio-block-queue-device [--virtio-block-boot-image <raw>]] [--dry-run]");
         Console.WriteLine("preflight validates local runner inputs and image format hints without launching QEMU or requiring libvirt.");

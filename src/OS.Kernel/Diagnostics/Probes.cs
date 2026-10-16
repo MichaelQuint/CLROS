@@ -2,6 +2,16 @@ namespace OS.Kernel.Diagnostics;
 
 public static partial class Probes
 {
+#if M16_011_PROBE
+    public const bool EnableM16011Probe = true;
+#else
+    public const bool EnableM16011Probe = false;
+#endif
+#if M16_012_PROBE
+    public const bool EnableM16012Probe = true;
+#else
+    public const bool EnableM16012Probe = false;
+#endif
 #if M09_012_PROBE
     public const bool EnableM09012Probe = true;
 #else
@@ -305,7 +315,7 @@ public static partial class Probes
 #endif
 
 #if !NOSTDLIB_EFI
-    public const int ProbeCatalogCount = 63;
+    public const int ProbeCatalogCount = 65;
 
     public const string BootSmokeGroup = "boot.smoke";
 
@@ -581,6 +591,14 @@ public static partial class Probes
     public static ProbeDefinition GetM16010Probe() =>
         new("app.nativeaot-runtime", nameof(EnableM16010Probe), EnableM16010Probe,
             ProbeRisk.Destructive, "Owned NativeAOT runtime workload through the Linux signal and thread boundary after firmware revocation.");
+
+    public static ProbeDefinition GetM16011Probe() =>
+        new("app.linux-sockets", nameof(EnableM16011Probe), EnableM16011Probe,
+            ProbeRisk.Destructive, "Finite NativeAOT socket workload inside retained live NIC and Linux worker lifetimes.");
+
+    public static ProbeDefinition GetM16012Probe() =>
+        new("app.linux-epoll", nameof(EnableM16012Probe), EnableM16012Probe,
+            ProbeRisk.Destructive, "Finite original SocketAsyncEngine workload with real epoll parking and NIC readiness.");
 
     public static ProbeDefinition GetM09004Probe() =>
         new("thread.cooperative-switch", nameof(EnableM09004Probe), EnableM09004Probe,
@@ -953,6 +971,12 @@ public static partial class Probes
                 return true;
             case 62:
                 definition = GetM16010Probe();
+                return true;
+            case 63:
+                definition = GetM16011Probe();
+                return true;
+            case 64:
+                definition = GetM16012Probe();
                 return true;
             default:
                 definition = default;

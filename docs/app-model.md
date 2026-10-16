@@ -721,6 +721,20 @@ executable must not be treated as raw OSAPPv0 bytes or
 share the kernel collector. Existing native contracts below retain their
 historical ABI and evidence.
 
+[Step1336](../done/step1336.md) adds a separately versioned immutable-data
+envelope for the Minimal API's appsettings. Its bounded records, hashes,
+duplicate-path rejection, staged copy and read-only file access pass focused
+host checks. The canonical layout is in [the manifest specification](manifest.md#linux-elf-immutable-data-envelope-version-2).
+[Step1347](../done/step1347.md) adds three complete, byte-identical M16-002 V2
+staging guests. The exact8,682,537-byte package survives firmware exit with
+closed handles, a valid reservation ledger, read-only/NX ownership, and matching
+payload/whole-package hashes. This preserves immutable config bytes; entry stays
+false. [Step1351](../done/step1351.md) accepts the #214/#215 builder and #216
+staging scopes after shared full-host/native/guest qualification. Exact final
+M16-002 EFI/object/map identities match those retained V2 runs. Manifest-backed
+file/config projection and application startup remain unqualified. Linux builder
+Kestrel and CLROS finite socket guests remain distinct from guest Kestrel hosting.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

@@ -27,17 +27,26 @@ public struct LinuxElfPackageView
 {
     public LinuxElfStatus Status;
     public uint ByteCount, ManifestOffset, ManifestBytes, PayloadOffset, PayloadBytes;
+    public uint DataTableOffset, DataFileCount;
     public LinuxElfManifest Manifest;
     public readonly bool Succeeded => Status == LinuxElfStatus.Success;
 }
 
-/// <summary>Explicit Linux ELF v1 admission; legacy OSAPPv0 is never dispatched
+/// <summary>Explicit Linux ELF v1 and immutable-data v2 admission; legacy OSAPPv0 is never dispatched
 /// here automatically. All input pointers must refer to trusted readable storage.
 /// Staging validates data only: no load mapping, runtime entry or execution.</summary>
 public static unsafe class LinuxElfPackage
 {
     public const uint HeaderBytes = 64, MaximumManifestBytes = 4096, MaximumBytes = 16 * 1024 * 1024;
     public const ulong Magic = 0x3130464c45524c43; // CLRELF01, little-endian
+    public const uint MaximumDataFiles = 7, MaximumDataBytes = 65536, DataRecordHeaderBytes = 48;
+
+    /// <summary>Borrowed offsets into one validated, retained immutable package.
+    /// No pointers, allocation or independent lifetime are granted.</summary>
+    public struct DataFile
+    {
+        public uint PathOffset, PathBytes, DataOffset, DataBytes;
+    }
 
 #if !NOSTDLIB_EFI
     public static LinuxElfPackageView Validate(ReadOnlySpan<byte> bytes)
@@ -51,11 +60,16 @@ public static unsafe class LinuxElfPackage
         LinuxElfPackageView result = default;
         if (!Readable(bytes, length) || length < HeaderBytes || length > MaximumBytes) return Fail(LinuxElfStatus.InvalidLength);
         if (U64(bytes) != Magic || U32(bytes + 16) != HeaderBytes) return Fail(LinuxElfStatus.InvalidHeader);
-        if (U32(bytes + 8) != 1 || U32(bytes + 12) != 1) return Fail(LinuxElfStatus.UnsupportedProfile);
-        for (int i = 32; i < HeaderBytes; i++) if (bytes[i] != 0) return Fail(LinuxElfStatus.InvalidHeader);
+        uint version = U32(bytes + 8), profile = U32(bytes + 12);
+        if (!((version == 1 && profile == 1) || (version == 2 && profile == 2))) return Fail(LinuxElfStatus.UnsupportedProfile);
+        uint tableBytes = version == 2 ? U32(bytes + 32) : 0;
+        uint files = version == 2 ? U32(bytes + 36) : 0;
+        for (int i = version == 2 ? 40 : 32; i < HeaderBytes; i++) if (bytes[i] != 0) return Fail(LinuxElfStatus.InvalidHeader);
+        if (version == 2 && (files == 0 || files > MaximumDataFiles || tableBytes < files * DataRecordHeaderBytes))
+            return Fail(LinuxElfStatus.InvalidLength);
         uint manifestBytes = U32(bytes + 20); ulong payloadBytes = U64(bytes + 24);
         if (manifestBytes == 0 || manifestBytes > MaximumManifestBytes || payloadBytes < 64 ||
-            payloadBytes > MaximumBytes || HeaderBytes + (ulong)manifestBytes + payloadBytes != length) return Fail(LinuxElfStatus.InvalidLength);
+            payloadBytes > MaximumBytes || HeaderBytes + (ulong)manifestBytes + payloadBytes + tableBytes != length) return Fail(LinuxElfStatus.InvalidLength);
         result.Manifest = ParseManifest(bytes + HeaderBytes, manifestBytes);
         if (!result.Manifest.Succeeded) { result.Status = result.Manifest.Status; return result; }
         byte* payload = bytes + HeaderBytes + manifestBytes;
@@ -74,7 +88,69 @@ public static unsafe class LinuxElfPackage
         result.Status = LinuxElfStatus.Success; result.ByteCount = length;
         result.ManifestOffset = HeaderBytes; result.ManifestBytes = manifestBytes;
         result.PayloadOffset = HeaderBytes + manifestBytes; result.PayloadBytes = (uint)payloadBytes;
+        if (version == 2)
+        {
+            result.DataTableOffset = result.PayloadOffset + result.PayloadBytes;
+            result.DataFileCount = files;
+            LinuxElfStatus data = ValidateData(bytes, length, result);
+            if (data != LinuxElfStatus.Success) return Fail(data);
+        }
         return result;
+    }
+
+    private static LinuxElfStatus ValidateData(byte* bytes, uint length, LinuxElfPackageView view)
+    {
+        uint at = view.DataTableOffset;
+        byte* digest = stackalloc byte[32];
+        for (uint i = 0; i < view.DataFileCount; i++)
+        {
+            if (at > length || length - at < DataRecordHeaderBytes) return LinuxElfStatus.InvalidLength;
+            uint record = U32(bytes + at), pathBytes = U32(bytes + at + 4), dataBytes = U32(bytes + at + 8);
+            if (U32(bytes + at + 12) != 0) return LinuxElfStatus.InvalidHeader;
+            if (dataBytes == 0 || dataBytes > MaximumDataBytes || pathBytes > 128 ||
+                DataRecordHeaderBytes + (ulong)pathBytes + dataBytes != record || record > length - at)
+                return LinuxElfStatus.InvalidLength;
+            byte* path = bytes + at + DataRecordHeaderBytes;
+            if (!SafePath(path, pathBytes) || pathBytes < 5 || !Equal(path, 5, "apps/") ||
+                BytesEqual(path, pathBytes, bytes + view.ManifestOffset + view.Manifest.Path.Offset, view.Manifest.Path.Length))
+                return LinuxElfStatus.InvalidPath;
+            uint previous = view.DataTableOffset;
+            for (uint j = 0; j < i; j++)
+            {
+                if (BytesEqual(path, pathBytes, bytes + previous + DataRecordHeaderBytes, U32(bytes + previous + 4)))
+                    return LinuxElfStatus.InvalidPath;
+                previous += U32(bytes + previous);
+            }
+            if (!Sha256.TryCompute(path + pathBytes, dataBytes, digest, 32)) return LinuxElfStatus.InvalidLength;
+            uint difference = 0;
+            for (uint j = 0; j < 32; j++) difference |= (uint)(digest[j] ^ bytes[at + 16 + j]);
+            if (difference != 0) return LinuxElfStatus.DigestMismatch;
+            at += record;
+        }
+        return at == length ? LinuxElfStatus.Success : LinuxElfStatus.InvalidLength;
+    }
+
+    /// <summary>Validates the entire package and returns immutable-data offsets
+    /// for one index. Caller-owned trusted readable bytes must remain unchanged
+    /// for every use of the offsets. V1 has no data files; invalid input or index
+    /// returns a status and an empty result. No executable mapping is supplied.</summary>
+    public static LinuxElfStatus GetDataFile(byte* package, uint length, uint index, out DataFile file)
+    {
+        file = default;
+        var view = Validate(package, length);
+        if (!view.Succeeded) return view.Status;
+        if (index >= view.DataFileCount) return LinuxElfStatus.InvalidValue;
+        file = DataFileAt(package, view, index);
+        return LinuxElfStatus.Success;
+    }
+
+    private static DataFile DataFileAt(byte* package, LinuxElfPackageView view, uint index)
+    {
+        uint at = view.DataTableOffset;
+        for (uint i = 0; i < index; i++) at += U32(package + at);
+        uint pathBytes = U32(package + at + 4);
+        return new DataFile { PathOffset = at + DataRecordHeaderBytes, PathBytes = pathBytes,
+            DataOffset = at + DataRecordHeaderBytes + pathBytes, DataBytes = U32(package + at + 8) };
     }
 
     public static LinuxElfManifest ParseManifest(byte* bytes, uint length)
@@ -145,17 +221,26 @@ public static unsafe class LinuxElfPackage
         view = copied; return LinuxElfStatus.Success;
     }
 
-    // Read-only future process namespace: the sole executable path is bound to
-    // the manifest. Data is copied out; no writable alias or firmware pointer.
+    // Read-only package namespace: the executable path is bound to the manifest;
+    // V2 additionally has validated immutable data paths. No writable alias.
     public static LinuxElfStatus ReadFile(byte* package, uint length, byte* path, uint pathLength,
         uint offset, byte* destination, uint capacity, out uint actual)
     {
         actual = 0; var view = Validate(package, length); if (!view.Succeeded) return view.Status;
-        if (!Readable(path, pathLength) || !BytesEqual(path, pathLength, package + view.ManifestOffset + view.Manifest.Path.Offset, view.Manifest.Path.Length)) return LinuxElfStatus.InvalidPath;
-        if (offset > view.PayloadBytes || capacity > MaximumBytes || !Readable(destination, capacity) ||
+        if (!Readable(path, pathLength)) return LinuxElfStatus.InvalidPath;
+        uint dataOffset = view.PayloadOffset, dataBytes = view.PayloadBytes;
+        bool found = BytesEqual(path, pathLength, package + view.ManifestOffset + view.Manifest.Path.Offset, view.Manifest.Path.Length);
+        for (uint i = 0; !found && i < view.DataFileCount; i++)
+        {
+            DataFile file = DataFileAt(package, view, i);
+            if (BytesEqual(path, pathLength, package + file.PathOffset, file.PathBytes))
+            { found = true; dataOffset = file.DataOffset; dataBytes = file.DataBytes; }
+        }
+        if (!found) return LinuxElfStatus.InvalidPath;
+        if (offset > dataBytes || capacity > MaximumBytes || !Readable(destination, capacity) ||
             ((ulong)destination < (ulong)package + length && (ulong)package < (ulong)destination + capacity)) return LinuxElfStatus.InvalidDestination;
-        uint n = view.PayloadBytes - offset; if (n > capacity) n = capacity;
-        for (uint i = 0; i < n; i++) destination[i] = package[view.PayloadOffset + offset + i];
+        uint n = dataBytes - offset; if (n > capacity) n = capacity;
+        for (uint i = 0; i < n; i++) destination[i] = package[dataOffset + offset + i];
         actual = n; return LinuxElfStatus.Success;
     }
 

@@ -80,6 +80,9 @@ public static unsafe partial class EfiEntry
             if (published && !LinuxNativeBeginTeardown(state, c)) return LinuxNativeCleanupRejected(state, 3);
             if (state->LinuxDescriptorPhase == 4)
             {
+#if CLROS_LINUX_SOCKETS
+                if (!DrainLinuxSocketNetwork(state, !ran || failed)) return LinuxNativeCleanupRejected(state, 11);
+#endif
                 if (!LinuxDescriptorServices.Audit(&state->LinuxDescriptors) || !LinuxDescriptorServices.End(&state->LinuxDescriptors) ||
                     !LinuxDescriptorReleaseChecked(state)) return LinuxNativeCleanupRejected(state, 4);
                 state->LinuxDescriptorPhase = 6;
@@ -220,13 +223,22 @@ public static unsafe partial class EfiEntry
                 }
                 if ((c->Failed != 0 || c->Process.Failed || c->State->LinuxSyscallFaults != 0 || c->State->LinuxSyscallFailed != 0) &&
                     !LinuxNativeStop(c, 2, step)) return false;
+#if CLROS_LINUX_SOCKETS
+                if (c->Stopping == 0 && !PollLinuxSocketNetwork(c))
+                { if (!LinuxNativeStop(c, 2, step)) return false; }
+#endif
                 if (c->Threads.Flush(c->Key, 2) != KernelThreadTable.Status.Ok) return false;
                 if (c->Threads.ReadyCount != 0)
                 { if (!LinuxNativeDispatch(c)) return false; }
+#if CLROS_LINUX_SOCKETS
+                else if (c->Stopping == 0)
+                { if (!IdleLinuxSocketNetwork(c) && !LinuxNativeStop(c, 3, step)) return false; }
+#else
                 else if (c->Threads.DeadlineCount != 0 && c->Stopping == 0)
                 {
                     if (!LinuxNativeWaitOne(c) && (!LinuxNativeRestoreTimer(c) || !LinuxNativeStop(c, 3, step))) return false;
                 }
+#endif
                 else if (!LinuxNativeStop(c, 4, step)) return false;
             }
             // The bounded driver itself has made no native transfer here.

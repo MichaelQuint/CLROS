@@ -26,6 +26,9 @@ public struct X64UserAddressSpaceResult
 /// tables. Existing canonical entry encoding supplies NX, W^X and observed PAT
 /// rules. U/S is added explicitly to table pointers and declared user leaves;
 /// kernel leaves and the entire table arena retain supervisor RW/NX access.
+/// Borrowed high MMIO is limited to one-page supervisor UC identity leaves
+/// without execute permission. User backing and table storage remain below
+/// 4GiB; the caller must prove the retained device mapping and lifetime.
 /// No physical aliases are admitted. Caller proves allocation/reservations,
 /// current CPU preconditions, identity table access and CR3 publication.
 /// </summary>
@@ -172,10 +175,12 @@ public static unsafe class X64UserAddressSpace
         for (uint i = 0; i <= count; i++)
         {
             var range = i == count ? Arena(root, pages) : ranges[i];
+            bool highDevice = IsRetainedHighDevice(range);
+            ulong physicalLimit = highDevice ? UserEnd : PhysicalEnd;
             if (range.Pages == 0 || range.Pages > 32768 || range.VirtualStart < Page || range.PhysicalStart < Page ||
                 ((range.VirtualStart | range.PhysicalStart) & 4095) != 0 || range.VirtualStart > UserEnd - range.Pages * Page ||
-                (!range.User && range.VirtualStart > PhysicalEnd - range.Pages * Page) ||
-                range.PhysicalStart > PhysicalEnd - range.Pages * Page) return X64UserAddressSpaceStatus.InvalidRange;
+                (!range.User && !highDevice && range.VirtualStart > PhysicalEnd - range.Pages * Page) ||
+                range.PhysicalStart > physicalLimit - range.Pages * Page) return X64UserAddressSpaceStatus.InvalidRange;
             if (!Encode(range, 0, conditions, out _) || !Encode(range, range.Pages - 1, conditions, out _)) return X64UserAddressSpaceStatus.InvalidEncoding;
             for (uint j = 0; j < i; j++)
                 if (Overlap(range.VirtualStart, range.Pages * Page, ranges[j].VirtualStart, ranges[j].Pages * Page) ||
@@ -195,6 +200,11 @@ public static unsafe class X64UserAddressSpace
 
     private static X64UserMappingRange Arena(ulong root, uint pages) => new()
     { VirtualStart = root, PhysicalStart = root, Pages = pages, Protection = PageProtection.Read | PageProtection.Write, Cache = PageCachePolicy.WriteBack, User = false };
+    // Numeric shape only; normal admission still proves bounds/encoding/aliases.
+    // Device identity, cache authority and lifetime belong to the caller.
+    internal static bool IsRetainedHighDevice(X64UserMappingRange range) => range.PhysicalStart >= PhysicalEnd &&
+        !range.User && range.Pages == 1 && range.VirtualStart == range.PhysicalStart && range.Cache == PageCachePolicy.Uncached &&
+        (range.Protection == PageProtection.Read || range.Protection == (PageProtection.Read | PageProtection.Write));
     private static bool Encode(X64UserMappingRange range, ulong page, X64PageTableEncodingPreconditions conditions, out ulong raw)
     {
         raw = 0;

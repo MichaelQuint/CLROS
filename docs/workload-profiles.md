@@ -12,8 +12,11 @@ profiles, three retained strict GC repetitions and 24 fresh ancestors. The exact
 unchanged pinned Hello and NativeAOT runtime workloads now execute in CLROS.
 [Step1332](../done/step1332.md) separately qualifies finite continuing network/TCP:
 5,341 full-host checks, three strict TCP guests and20 affected ancestors, with
-retained queues and a real cooperative progress/cleanup witness. Linux sockets,
-epoll and the M10 app ladder remain before guest Kestrel. No new numbered,
+retained queues and a real cooperative progress/cleanup witness.
+[Step1351](../done/step1351.md) qualifies finite Linux sockets/epoll and the
+web builder/V2 staging prerequisites: 5,433 full-host checks, three sync/three
+async socket guests, three V2 staging guests and33 strict ancestors. The owned
+#217-#220 application ladder remains before guest Kestrel. No new numbered,
 cloud or production gate changes.
 
 ## Context
@@ -44,8 +47,8 @@ RC2 toolchain/ABI migration and fresh Linux-host payloads at implementation
 source `d728d2c`; [host requirements](host-requirements.md) owns the pins and
 CPU contract. C# remains 14. The architecture and issue order below remain
 NativeAOT-first. Preserve .NET 10 measurements as historical inputs; only
-explicitly rerun profiles gain current qualification. Guest Hello and Kestrel
-remain unqualified.
+explicitly rerun profiles gain current qualification. Subsequent finite guest
+Hello/runtime qualification is linked above; guest Kestrel remains unqualified.
 
 **Superseded ordering (2026-10-12):** the NativeAOT-first decision below is
 authoritative. Older hosted-runtime descriptions preserve historical contracts,

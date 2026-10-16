@@ -1,5 +1,173 @@
 # Networking
 
+[Step1351](../done/step1351.md) qualifies the default-off bounded #689/#690
+socket/epoll batch at implementation `3726e31`: 5,433 full-host checks across713
+fixtures (94 Native), scoped original native review, three complete sync and
+three async upstream socket guests and33 fresh strict ancestors. Four connections
+per socket run exchange61 request/65,572 response bytes, with partial I/O, EOF,
+reset, cancellation and concurrent pending-accept close. Actual TCP retirement,
+worker reap, descriptor/buffer cleanup, NIC reset and allocator restoration precede
+success; normal240-second TIME-WAIT is retained. The original payload is unchanged.
+Only IPv4 passive TCP and the explicitly measured epoll surface are qualified.
+The shared native-body joins do not prove whole-stack closure or arbitrary
+workloads. Real guest Kestrel and new numbered/cloud/production gates remain
+incomplete. Continue the owned #217-#220 application ladder under #737.
+
+## Development history
+
+The following entries preserve their original pending/failure boundaries;
+step1351 supersedes them only for the exact accepted finite batch above.
+
+[Step1348](../done/step1348.md) repairs direct MSBuild boot-policy selection
+and ordinary-policy conflict rejection for both socket leaves. The preceding
+5,433-check full-host run has one native policy failure and remains failed;
+all18 focused repair checks and source/admission audits now pass. No queued
+guest started. Fresh full-host and socket/ancestor qualification remain required.
+
+[Step1347](../done/step1347.md) adds the complete sync runner pass, three
+byte-identical V2 package-staging guests, and six bounded original-native body
+reviews. The first stable full-host attempt fails nine profile/control checks
+before the native lane; all49 focused repair checks then pass. Direct MSBuild
+now explicitly excludes both socket leaves from the standalone cooperative
+profile. Full-host qualification, remaining call/stack closure, socket repetitions
+and affected ancestors still precede acceptance. No current issue closes.
+
+[Step1346](../done/step1346.md) records one complete live M16-012 runner pass
+with the original async socket ELF. Pending accept/receive/send are each1;
+four connections exchange61 request/65,572 response bytes, with two EOFs,
+one reset, a cancelled pending accept and a closed pending accept. Nine workers
+reap and all four transport lifetimes retire after actual240-second TIME-WAIT.
+The external peer holds its first request until the accepted guest fd returns
+EAGAIN and its caller parks. This only controls stimulus; the sealed program,
+strict parent/scheduler/packet records and original process results still supply
+the evidence. The unchanged publisher and guest ELF are preserved. Full-host,
+remaining scoped native review, repetitions and affected ancestors
+remain pending before #689/#690 acceptance. No Kestrel gate advances.
+
+[Step1345](../done/step1345.md) wires the original sync/async socket packages,
+sealed instruction index, independent peer child, exact forward-port identity,
+full firmware/APIC/NIC parents and packet/transport cleanup checks. The original
+sync guest and peer complete four connections: 61 request bytes,65,572 reply bytes,
+two EOF cases, one reset and15 partial sends. Actual240-second TIME-WAIT retention,
+four transport retirements, four worker reaps, descriptor/buffer cleanup, NIC reset
+and allocator restoration are captured. The live outer run still fails its host
+checker; corrected report-only replay passes the captured leaf, parents, peer
+literals and packet checks. This is development evidence, not accepted #689/#690
+completion. Full-host, original native review, fresh complete runner validation,
+async and affected ancestor qualification remain pending. Kestrel remains incomplete.
+
+The combined profile now fits its47 retained mapping declarations and18-entry
+reservation ledger; every ledger append checks capacity before writing. The user
+root permits only borrowed, single-page, NX supervisor UC identity device mappings
+above4GiB within its64GiB virtual policy. They must remain outside the declared
+dynamic reservation; owned user backing and page tables stay below4GiB. Receive
+copies through the already admitted descriptor scratch extent and delivers queued
+bytes before a later reset error. It preserves unread TCP bytes on copy failure.
+The packet checker anchors after original firmware traffic and counts only the
+checked QEMU IPv6 router advertisement as ignored background traffic; this adds
+no application IPv6 support. Step1344's source3 deadline/FIFO, wake/repark,
+instruction/return and generation checks remain in force.
+
+[Step1343](../done/step1343.md) seals the original socket ELF's LLVM instruction
+lookup: 398,041 starts and186 syscall continuations, independently bound to all
+five executable sections. Both unchanged package modes pass; a partial index and
+wrong package mode reject. The EFI owner now emits actual source3 wake, repark
+and completion observations, including generation, sequence and table clock.
+The socket decoder binds those observations to framed original stdout and
+recorded waits/resumes. Its reports grant no complete lifecycle or guest authority;
+full scheduler/packet/parent validation and QEMU integration remain pending.
+
+[Step1342](../done/step1342.md) wires the default-off M16-011/M16-012 EFI
+profile through the retained live NIC lifetime. Linux workers exclusively own
+the cooperative pool; real NIC packets and hardware-clock deadlines are pumped
+at restored syscall/idle boundaries. Descriptor close, real transport drain,
+table retirement and NIC reset precede socket completion markers. The fixed
+diagnostic requires manifest Any:8080 and retains unresolved ownership on failure.
+The enabled no-stdlib C# profile compiles; native publication and guest execution
+are pending. Sealed sync/async packages now reuse the same unchanged Linux ELF
+after exact original receipt/output/source admission. QEMU rejects these leaves
+until their original instruction index, application peer and strict transcript
+are wired; the older scripted TCP transcript cannot authorize them. No current
+socket/application issue or additional gate is accepted.
+
+[Step1341](../done/step1341.md) adds the development packet/timer owner connecting
+real TCP frames to the Linux socket adapter. Exact tuple/generation lookup selects
+retained passive handshakes and stream windows. Valid final-ACK payload enters the
+stream before socket transfer; socket accept pressure retains private established
+windows until capacity returns. Listener dup follows its original description,
+while close/reuse cannot redirect it. Pending retry exhaustion retains the original
+hard deadline and still permits a final ACK. Full normal240-second TIME-WAIT,
+reset/fd-close and buffer/table scrub have focused host evidence. Separate explicit
+abort cleanup requires detached threads and every fd closed; it claims no graceful
+wire completion. Descriptor/thread alias guards include network ownership. Native
+source3 wait completion/commit branches are feature guarded. Step1342 adds the
+combined NIC/profile source and C# compilation; enabled native publication and
+actual guest exchange remain pending. No current issue or gate is accepted by
+this development slice.
+
+[Step1340](../done/step1340.md) implements development-only bounded epoll over
+the shared socket descriptions. Packed Linux x64 events preserve all64 opaque
+data bits; level delivery, edge drain/rearm, MOD, dup/last-close, fd reuse and
+copy-before-consume use actual TCP state. Infinite waits genuinely park, including
+an empty port. Original epoll descriptions remain borrowed across concurrent fd
+close/reuse until completed wait or captured exit. Real clock deadlines, directed
+signals without restart, early cancellation and competing waiters have focused
+host evidence. Normal closed TCP reports HUP/retained FIN without a fabricated
+ERR; consuming reset clears ERR. Tables are bounded to4 ports/64 registrations;
+only IPv4 passive TCP sockets, IN/OUT/RDHUP/ERR/HUP and EPOLLET are supported.
+Nested epoll, other pollable files, EPOLLONESHOT and temporary signal masks are
+unsupported. The serialized network owner must refresh and wake after every
+transport transition. EFI wait-source3 capture/completion, live NIC integration,
+the actual guest socket fixture and stable batch validation remain pending.
+No current issue closes and no completion gate advances.
+
+[Step1339](../done/step1339.md) records fresh Linux NativeAOT qualification of
+both modes added in step1338, from one unchanged published ELF at source3afb03eb.
+Each exchanges61 request/65,572 response bytes across four connections, reset1
+and EOF2. Sync observes five partial sends/78 blocked sends. Async observes one
+pending accept, receive and send, then successfully cancels and closes pending
+accepts. Its own traces use edge-triggered read/write registrations and infinite
+`epoll_pwait` with maxevents1024. Later review of the exact pinned
+[SafeSocketHandle close path](https://github.com/dotnet/dotnet/blob/820230c386db5b0106c5430b3e5aee92a7826bf5/src/runtime/src/libraries/System.Net.Sockets/src/System/Net/Sockets/SafeSocketHandle.Unix.cs#L262-L283)
+corrects the initial linger requirement: abortive close explicitly continues
+after EINVAL/ENOPROTOOPT/ENOTSOCK from its8-byte `SO_LINGER` request. Current
+bounded rejection therefore needs no fabricated linger success. Both modes
+still use `sendto`/`recvfrom`; no message-syscall
+expansion is justified by this fixture. Independent copied evidence checks779
+source inputs,32 outputs, four producer files and the original recipe receipt.
+The earlier managed Windows run had zero pending sends and remains separate.
+These are Linux builder results; step1340 adds the host epoll slice above and
+actual guest proof remains pending.
+
+[Step1337](../done/step1337.md) adds the development-only IPv4 passive TCP
+socket adapter in the shared Linux descriptor namespace. Host checks exercise
+genuine TCP-owner handshakes/frames, partial I/O, copy-failure retention, endpoint
+denial, dup/last-close, graceful EOF, reset and closed buffer/table cleanup.
+Only the manifest address/port can bind. Last close retains TCP ownership for
+the continuing packet/timer owner; a failed transport is explicitly aborted
+before closed reap. `CLROS_LINUX_SOCKETS` keeps the TCP dependencies outside older
+EFI descriptor/threading profiles. This is host contract evidence: the live
+NIC/scheduler socket profile and guest payload execution are still pending;
+step1340 adds retained epoll waits. No issue in the current socket/application
+batch is accepted.
+
+[Step1336](../done/step1336.md) records the finite System.Net.Sockets fixture's
+real pinned Linux NativeAOT run: four connections,61 request bytes,65,572 reply
+bytes, four partial sends,70 blocked sends, reset1 and orderly EOF2. Independent
+copy audit verifies777 source inputs,21 outputs and four original producer files.
+The earlier managed Windows run observes no partial sends. Both boundaries
+remain distinct; the CLROS socket adapter now has the bounded host slice above,
+with step1340's host epoll evidence separate from pending guest proof.
+
+The measured native calls include `sendto`/`recvfrom`, `fcntl` nonblocking flags,
+`accept4`, socket options and an empty reactor's `epoll_create1`/`epoll_pwait`.
+Capability probes also try IPv6, IPv4 and Unix datagram sockets. The exact
+shipping runtime source pin is verified from its package/host metadata.
+Its [protocol support check](https://github.com/dotnet/dotnet/blob/820230c386db5b0106c5430b3e5aee92a7826bf5/src/runtime/src/libraries/Common/src/System/Net/SocketProtocolSupportPal.Unix.cs)
+treats family/protocol denial as unsupported family. Preserve the distinction
+between supported IPv4 family and unsupported datagram type in the adapter;
+these probes do not justify fake UDP or Unix descriptors.
+
 [Step1332](../done/step1332.md) qualifies #691 -> #148 -> #149 -> #150 -> #151 ->
 #152 -> #153 and shared #734 at implementation `fd296378`. The complete unfiltered
 host gate passes5,341 checks across700 fixtures (94 Native), with unchanged

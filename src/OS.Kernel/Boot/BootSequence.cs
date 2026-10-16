@@ -358,6 +358,18 @@ public static class BootSequence
         OS.Kernel.Diagnostics.Probes.EnableM16007Probe && OS.Kernel.Diagnostics.Probes.EnableM16006Probe &&
         RunOwnedLinuxMemory(startupReady, serviceStopped, firmwareRevoked, context, run);
 
+    /// <summary>Run the default-off socket workload only inside the retained,
+    /// active NIC lifetime, after startup/service stop and firmware revocation.
+    /// The Linux worker owner retains the cooperative pool; the diagnostic
+    /// network scheduler cannot borrow it concurrently. The IRQ-off caller
+    /// retains context/callback through cleanup. Rejected guards return false
+    /// without invoking run; callback failure retains its resources. This grants no
+    /// network, application or completion acceptance by itself.</summary>
+    public static unsafe bool RunOwnedLinuxSockets(bool startupReady, bool serviceStopped, bool firmwareRevoked,
+        bool apicReady, bool nicReady, void* context, delegate*<void*, bool> run) =>
+        OS.Kernel.Diagnostics.Probes.EnableM16011Probe && OS.Kernel.Diagnostics.Probes.EnableM07026Probe && nicReady &&
+        RunOwnedLinuxSignals(startupReady, serviceStopped, firmwareRevoked, apicReady, context, run);
+
     /// <summary>
     /// Terminal boot boundary, after the original M01 allocator and copied
     /// ACPI. The ordinary policy defers success markers until owned post-exit checks.

@@ -25,6 +25,45 @@ internal static unsafe class X64UserAddressSpaceTests
         return tables + page * 512 + ((va >> 12) & 511);
     }
 
+    [HostTest("socket roots retain high identity UC device leaves while user RAM and tables remain low", HostLane.Fast, 3)]
+    private static void HighDevice()
+    {
+        const ulong device=0x800004000;
+        X64UserMappingRange mmio=new(){VirtualStart=device,PhysicalStart=device,Pages=1,
+            Protection=PageProtection.Read|PageProtection.Write,Cache=PageCachePolicy.Uncached};
+        X64UserMappingRange[] ranges=[..Ranges(),mmio];
+        ulong* tables=(ulong*)NativeMemory.AlignedAlloc(Pages*4096,4096);
+        try
+        {
+            new Span<ulong>(tables,(int)Pages*512).Clear();
+            fixed(X64UserMappingRange* values=ranges)
+            {
+                var built=X64UserAddressSpace.Build(values,5,tables,Root,Pages,Conditions());
+                HostCheck.True(built.Succeeded&&X64UserAddressSpace.Audit(values,5,tables,Root,Pages,Conditions(),built));
+                ulong entry=*Leaf(tables,device);
+                HostCheck.True((entry&4)==0&&(entry&(1UL<<63))!=0&&(entry&0x000ffffffffff000)==device);
+                foreach(int variant in Enumerable.Range(0,6))
+                {
+                    new Span<ulong>(tables,(int)Pages*512).Clear();ranges[4]=mmio;
+                    if(variant==0)ranges[4].User=true;
+                    if(variant==1)ranges[4].Protection|=PageProtection.Execute;
+                    if(variant==2)ranges[4].Cache=PageCachePolicy.WriteBack;
+                    if(variant==3)ranges[4].VirtualStart+=4096;
+                    if(variant==4)ranges[4].Pages=2;
+                    if(variant==5)ranges[4].VirtualStart=ranges[4].PhysicalStart=X64UserAddressSpace.UserEnd;
+                    HostCheck.Equal(X64UserAddressSpaceStatus.InvalidRange,X64UserAddressSpace.Build(values,5,tables,Root,Pages,Conditions()).Status);
+                    HostCheck.True(new ReadOnlySpan<ulong>(tables,(int)Pages*512).IndexOfAnyExcept(0UL)<0);
+                }
+                ranges[4]=mmio;
+                HostCheck.Equal(X64UserAddressSpaceStatus.InvalidInput,X64UserAddressSpace.Build(values,5,tables,0x100000000,Pages,Conditions()).Status);
+                HostCheck.Equal(X64PageTableEntryStatus.Success,X64PatMappingToken.TryCreate(0x0007040600070406,0,3,255,out var pat));
+                var narrow=X64PageTableEncodingPreconditions.CreateObserved(32,true,true,false,false,pat);
+                HostCheck.True(!X64UserAddressSpace.Build(values,5,tables,Root,Pages,narrow).Succeeded);
+            }
+        }
+        finally{NativeMemory.AlignedFree(tables);}
+    }
+
     [HostTest("m16-006 high user leaves cross PDPT boundaries while physical and supervisor bounds remain low", HostLane.Fast, 3)]
     private static void HighAddresses()
     {
