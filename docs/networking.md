@@ -1,177 +1,56 @@
 # Networking
 
-[Step1324](../done/step1324.md) records the first complete development guest:
-all 80 TCP wire steps, actual 240-second TIME-WAIT, five table reaps, four
-buffer-pair scrubs and original NIC reset/pool cleanup complete. The guest
-runner passes. The first outer checker rejects its count because the original
-M05 queue warmup precedes the tagged M07 frame. Require that exact zero-payload
-prefix and all 150 records; malformed, duplicate or missing prefixes still fail.
-The corrected checker passes the same immutable real serial/PCAP/package through
-`qemu validate-network <serial-log> <pcap> <package>`, without a guest relaunch.
-This separates the original guest implementation from the corrected capture
-validator. Full-host, complete original native ABI/stack review, strict guest
-repetitions and ancestors remain outstanding before batch acceptance/closure.
+The continuing-network/TCP batch is implemented under shared #734 and remains
+unqualified: #691 -> #148 -> #149 -> #150 -> #151 -> #152 -> #153 are open.
+[Step1324](../done/step1324.md) records one complete real development guest at
+implementation a49bfd5, EFI SHA256
+`c69bdfd1981401ebe953712bb63de49c4d68922188bbdd49d6483b40bd8eca07`.
+The guest runner passes all80 TCP wire steps, real240-second TIME-WAIT, five
+connection lifetimes, four buffer-pair scrubs and original NIC reset/pool cleanup.
+Its original outer command fails the old packet-count check after runner success;
+the separate corrected checker passes the same immutable150-record capture.
+No failed command is relabeled as a successful qualification.
 
-[Step1323](../done/step1323.md) records the first real continuing ARP/ICMP and
-initial TCP admission development evidence after the code-slot repair. The guest
-then stops because the fixture expects Success for a repeated FIN whose original
-owner reports PeerClosed. Correct that assertion while preserving the wire and
-kernel contracts. Complete TCP/cleanup, strict repetitions, native ABI/stack and
-full-host acceptance remain pending; all batch issues stay open.
+The default-off `EnableM07026Probe` retains size-eight Virtio RX/TX rings and
+image-backed owners across20 ARP and12 tagged ICMP exchanges, then the complete
+TCP scenario and a final cleanup echo. Actual owned HPET callbacks drive bounded
+polling, SYN/data retries and lifetimes. Sends copy into retained NIC backing.
+Fresh reset, bus-master disable and fence precede DMA scrub/pool release. The
+separate eight-page firmware reservation remains owned/mapped; the original
+two-page allocator is preserved. See [steps1309](../done/step1309.md),
+[1310](../done/step1310.md) and [1311](../done/step1311.md) for ownership details.
 
-[Step1322](../done/step1322.md) records the first native publication and failed
-real guest attempt for this batch. Preparation stops before firmware exit at
-checkpoint60: PCI/queue emitters overwrite the selected clock helper at4608.
-Only M07-026 now moves that 96-byte clock helper to5600; existing profile offsets
-remain unchanged. The profile-preprocessed overlap test fails before the fix
-and passes with actual emitter/read-back checks afterward; the existing runtime
-layout and static admission controls pass. Fresh native/guest verification of
-the repair is still required. No new continuing TCP execution is proven yet.
+The TCP scenario covers table/backlog pressure, stale generations and wrapped
+reuse; SYN loss/duplicate/invalid ACK; receive overlap/right clipping/gaps/window
+reopening; segmented short writes, partial/old/future ACK and original-byte
+retries; half-close, simultaneous FIN, exact/challenged RST, send/handshake timeout
+and TIME-WAIT restart/reap. [Step1321](../done/step1321.md) binds these retained
+owners to the guest and independent host wire corpus. The peer uses literal wire
+expectations, not guest TCP codecs. Independent PCAP admission checks every
+packet, tuple, checksum, payload and timer, including the exact original queue
+warmup prefix and all original serial/package parents. Only packet-observation
+retry comparisons allow two milliseconds of skew; owned lifetimes retain their
+exact bounds. `qemu validate-network <serial-log> <pcap> <package>` replays retained
+inputs read-only without launching a guest or granting batch acceptance.
 
-[Step1321](../done/step1321.md) composes the retained TCP owners into the default-off
-post-exit NIC fixture. Image-backed metadata/buffers, actual HPET callbacks and
-copied NIC TX drive a finite 80-packet script: SYN duplicate/loss/invalid ACK,
-duplicate tuple/backlog/table pressure, receive overlap and separate right-edge
-clipping, window/partial ACK/send retry, half-close/simultaneous FIN, wrapped
-sequence reuse, exact/challenged RST and send/handshake timeout. B keeps its real
-240-second TIME-WAIT while the other cases run. Five table lifetimes and four
-attached buffer pairs must reap before the original NIC reset/pool cleanup.
-The independent peer shares only the literal wire expectations with the separate
-PCAP reader, never the guest TCP codecs. Serial counters, original parent joins,
-every packet, retry timing and the final post-TIME-WAIT ICMP exchange are checked.
-PCAP retry comparisons allow two milliseconds for wire/callback observation skew;
-owned-clock lifetime/TIME-WAIT checks retain their exact bounds.
-
-The profile defaults to 285 seconds and accepts 260..295 seconds; the separate
-startup deadline is unchanged. Its planned real command is:
+The profile defaults to285 seconds and accepts260..295. On fresh artifacts,
+prepare the mechanical Threads package once, then run:
 
 ```powershell
-dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM07026Probe -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 285
+dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/tcp-30644a3.pkg Threads
+dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM07026Probe --LinuxElfPackage artifacts/packages/tcp-30644a3.pkg --Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" --OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" --TimeoutSeconds 285
 ```
 
-Managed compilation, original-owner overlap/clipping and host peer/transcript/
-profile controls are development evidence. Synthetic PCAP fixtures do not prove
-the live guest script. Native publication/ABI/stack review, full-host, actual
-strict guests/packets and affected ancestors remain pending. All eight batch
-issues stay open; no Kestrel or gate claim is added.
-
-[Step1320](../done/step1320.md) admits the fourteen retained TCP source dependencies
-only under the default-off M07-026 EFI profile and compiles that managed no-stdlib
-closure. The runner now owns the bounded socket-netdev peer and independently
-answers the original/continuing ARP and twelve tagged ICMP requests while QEMU
-records its separate packet capture. Peer failure, incomplete exchanges or a
-failed worker join rejects serial success. Ordinary and standalone ARP profiles
-retain their existing backend. Actual-loopback controls exercise these host
-exchanges and cancellation; TCP guest orchestration and loss/reorder/reset/close
-peer scenarios remain outstanding. No continuing guest or TCP packet acceptance
-is claimed; #691/#148-#153 and shared #734 remain open.
-
-[Step1319](../done/step1319.md) composes termination into the retained sender/
-receiver, with no second buffer or connection owner. Local shutdown drains
-queued ACKed data before copied FIN; FIN reuses the existing bounded retry
-timer. Original validated data+FIN consumes EOF only after its full contiguous
-payload fits the receive window; buffered reads survive graceful completion,
-and peer half-close permits local writes. Exact peer RST, challenge ACK,
-simultaneous FIN, 240-second-or-longer TIME-WAIT/restart and explicit abort
-retain generation/buffer ownership through once-only cleanup. Seventeen new
-host controls join 274 passing TCP fast checks across 30 fixtures. These use
-injected time and TX callbacks. #153 remains blocked/open; native/full/real
-guest/packet acceptance awaits the stable #734 batch.
-
-[Step1318](../done/step1318.md) completes the existing close codec's combined
-FIN+ACK, simultaneous CLOSING and duplicate-FIN transitions. Six new controls
-cover exact state/sequence progress, short/invalid input preservation and wrap.
-TIME-WAIT completion remains an explicit nominal transition whose live caller
-must first prove its real deadline and duplicate-FIN restart. This adds no
-clock, buffer owner, half-close integration or connection reclamation; #153
-remains blocked/open pending the retained owner and shared guest qualification.
-
-[Step1317](../done/step1317.md) adds optional bounded retransmission to the
-same sender. An explicit retained monotonic callback drives one outstanding
-segment, original-byte retries, exponential RTO backoff, RTT smoothing with
-Karn exclusion, ACK restart/disarm and fixed lifetime/retry limits. Timed
-SYN-ACK loss starts data at a three-second RTO. Duplicate/reordered ACKs cannot
-postpone recovery; TX pressure consumes no retry. Failure retains ownership
-through explicit closed cleanup. Sixteen new cases join the 251-check TCP
-fast filter across 29 fixtures. This remains host development for #152;
-native/full/guest/packet acceptance and FIN/reset remain pending in #734.
-The timed path has no congestion-window growth, fast recovery or persist probe;
-one segment in flight and the hard lifetime bound its current passive scope.
-
-[Step1316](../done/step1316.md) adds bounded `TcpSendWindow` ownership over
-the actual passive handshake and receiver. Queue copies explicit short writes;
-Pump segments by MTU, negotiated peer MSS, advertised window and output capacity,
-and advances next-to-send only after copied TX admission. Original validated ACKs
-release retained bytes, including partial ACKs across sequence wrap. Ordered
-window updates reject stale reopening; receive metadata preserves the separate
-oldest-unacknowledged sequence. SYN MSS parsing and optional local MSS replies
-retain original negotiation across duplicate/retry paths. Thirteen new cases
-join the passing 235-check TCP fast filter across 28 fixtures. This remains host
-development; #151 is blocked/open. Retransmission, FIN/reset and real guest/packet
-qualification remain pending for the same stable integration batch.
-
-[Step1315](../done/step1315.md) adds persistent `TcpReceiveWindow` ownership
-over an established table generation. The existing stream/frame helpers supply
-an explicit windowed path: trim old overlap and excess beyond free capacity,
-deliver contiguous bytes once, drop gaps, and schedule cumulative ACKs. Drain the
-bounded RX batch before pumping one ACK with the latest sequence/free window.
-Full TX retains ACK progress; reads release bytes and schedule window updates.
-A unique table attachment prevents receiver replacement and table release until
-closed-buffer scrub. Thirteen new receive/writer checks join the passing 222-check
-TCP fast filter across 27 fixtures. These remain host packet/TX models. #150 stays
-blocked/open; live RX/TX, source/profile wiring and guest/packet qualification are
-pending. Out-of-order buffering and send/RTO/FIN/reset consumers remain separate.
-
-[Step1314](../done/step1314.md) composes passive handshake ownership in
-`TcpPassiveConnection`, using the existing table and backlog. It retains a pending
-tuple during TX pressure, stages invalid ACKs without poisoning the live planner,
-and establishes only after backlog admission. Exact duplicate SYNs and due replies
-preserve the original sequence space and hard deadline; only accepted initial or
-scheduled sends consume retry attempts. Timeout/cancel releases pending metadata;
-established handles pass to the later stream/close consumer. Eight owner checks
-and one pending-writer check join the passing 209-check TCP fast filter across 26
-fixtures. These use host packet vectors and clock/TX callbacks. #149 remains open
-and acceptance-blocked; default-off guest composition and independent packet
-qualification are still required. No live TCP or socket acceptance is added.
-
-[Step1313](../done/step1313.md) adds the bounded host `QemuEthernetPeer`
-transport for the batch's planned independent packet injector. It owns one IPv4
-loopback socket-netdev connection with a finite lifetime, exact length-prefixed
-frame I/O, cancellation and terminal closure on invalid/truncated framing. Seven
-actual loopback checks pass, including fragmented/concatenated frames and duplex
-I/O. QEMU launch wiring, packet scenarios and guest qualification remain pending;
-the transport does not establish any new network acceptance.
-
-[Step1312](../done/step1312.md) adds the dependent TCP connection ownership core
-under integration #734: bounded caller-owned entries/generations, opaque lifetime
-handles, half-open/closed slot retention and explicit release. The fast TCP filter
-passes200 checks across25 fixtures, including15 table checks. Explicit sequence
-zero is valid; default metadata remains invalid. This is host development only;
-#148 remains acceptance-blocked on #691. No live TCP, sockets or Kestrel is added.
-
-[Step1309](../done/step1309.md) adds the retained size-eight RX/TX ring engine;
-[step1310](../done/step1310.md) adds its exclusive device owner using the existing
-MMIO queue-configuration and DMA-pool contracts. The owner programs/readbacks
-both queues, notifies RX/TX, checks per-transmit monotonic deadlines and retains
-backing until fresh reset, bus-master disable and fence permit scrub/release.
-Ten device-owner, nine ring and four existing queue checks pass. These are
-compiled host models: the boot adapter still must establish actual post-exit
-PCI/MMIO, DMA and live-clock authority and independently capture external packets.
-No continuing guest/packet acceptance is added. Shared integration #734 owns
-additional paths for the planned #691 -> #148-#153 batch; all remain open.
-
-[Step1311](../done/step1311.md) wires the default-off `EnableM07026Probe` child
-and its automatic service-loop/ARP prerequisites. Managed no-stdlib compilation
-and five new focused integration/transcript checks pass. Its planned guest path
-uses a separate eight-page pre-exit arena with supervisor WB/RW/NX retained
-mappings, image-resident owner metadata,20 ARP and12 tagged ICMP exchanges in one
-queue lifetime, full-queue rejection, live HPET deadlines and reset-gated scrub.
-Independent pcap admission requires every tagged request/reply with valid
-checksums and original-parent association. These packet checks use synthetic
-host fixtures so far. Native publication/review, full-host and actual QEMU/pcap
-qualification remain outstanding. Successful teardown returns the DMA lease to
-the dedicated pool; its eight-page firmware reservation remains owned/mapped.
-The original two-page M01 allocator contract is preserved.
+This package is staged only; the network profile does not enter a Linux app.
+[Steps1322](../done/step1322.md) and [1323](../done/step1323.md) preserve the
+code-slot collision and repeated-FIN assertion failures and their scoped repairs.
+[Step1326](../done/step1326.md) preserves the failed partial full-host attempt,
+repairs cross-profile/authority admission and records189 focused passing checks
+across13 unchanged-input receipts without reuse. A fresh unfiltered full-host
+run, complete original native ABI/transitive stack review, strict fresh repeated
+guests/packets and affected ancestors remain required before review/merge and
+evidence-based closure. Sockets/epoll, guest Kestrel, isolation and new numbered,
+cloud or production gates remain incomplete.
 
 The #141–#144 / #635 receive-and-ARP batch is qualified in
 [step1164](../done/step1164.md): 4,441 full-host checks, linked native review,

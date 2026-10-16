@@ -16233,7 +16233,8 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_013_READY\""
+        "dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/tcp-30644a3.pkg Threads",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM07026Probe --LinuxElfPackage artifacts/packages/tcp-30644a3.pkg --Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" --OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" --TimeoutSeconds 285"
       ],
       "documentationPaths": [
         "docs/networking.md",
@@ -16321,7 +16322,8 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_014_READY\""
+        "dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/tcp-30644a3.pkg Threads",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM07026Probe --LinuxElfPackage artifacts/packages/tcp-30644a3.pkg --Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" --OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" --TimeoutSeconds 285"
       ],
       "documentationPaths": [
         "docs/networking.md",
@@ -16409,7 +16411,8 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_015_READY\""
+        "dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/tcp-30644a3.pkg Threads",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM07026Probe --LinuxElfPackage artifacts/packages/tcp-30644a3.pkg --Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" --OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" --TimeoutSeconds 285"
       ],
       "documentationPaths": [
         "docs/networking.md",
@@ -16495,7 +16498,8 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_016_READY\""
+        "dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/tcp-30644a3.pkg Threads",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM07026Probe --LinuxElfPackage artifacts/packages/tcp-30644a3.pkg --Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" --OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" --TimeoutSeconds 285"
       ],
       "documentationPaths": [
         "docs/networking.md",
@@ -16579,7 +16583,8 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_017_READY\""
+        "dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/tcp-30644a3.pkg Threads",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM07026Probe --LinuxElfPackage artifacts/packages/tcp-30644a3.pkg --Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" --OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" --TimeoutSeconds 285"
       ],
       "documentationPaths": [
         "docs/networking.md",
@@ -16665,7 +16670,8 @@
         "dotnet run --project tools/OS.Tooling -- qemu smoke -DryRun",
         "git diff --check",
         "git status --short",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -Qemu \"<qemu-system-x86_64.exe>\" -OvmfCode \"<edk2-x86_64-code.fd>\" -TimeoutSeconds 30 -RequireMarker \"CLROS_M07_018_READY\""
+        "dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/tcp-30644a3.pkg Threads",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM07026Probe --LinuxElfPackage artifacts/packages/tcp-30644a3.pkg --Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" --OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" --TimeoutSeconds 285"
       ],
       "documentationPaths": [
         "docs/networking.md",
@@ -32280,7 +32286,7 @@
         "M07-009",
         "M16-003"
       ],
-      "currentEvidence": "Steps1309-1321 implement retained Virtio-net rings/device ownership, the default-off continuing NIC/TCP fixture, the exact managed no-stdlib source closure and independent bounded socket-netdev packet peer. A dedicated eight-page pre-exit WB/RW/NX arena and image-backed owners use the actual owned HPET and copied real NIC TX, with original 20 ARP/12 ICMP exchanges, an 80-packet TCP scenario and final cleanup echo before reset-gated DMA-pool release. Strict serial/PCAP controls cover original parent joins, SYN/backlog/table pressure, overlap/right clipping, partial ACK/window/loss, wrapped reuse, FIN/half-close/RST, send/handshake timeout and real 240-second TIME-WAIT. Managed compilation, focused host interoperation and synthetic capture controls remain development only: original native/ABI/stack, full-host, actual continuing guest/packets and affected ancestors are still unqualified. All eight batch issues remain open under shared #734. The eight-page firmware reservation remains retained; the original two-page allocator is preserved. No Kestrel or numbered/cloud/production gate advances. Startup containment is separately accepted in step1308/PR736; the original intermittent stall remains unresolved. Step1322 records successful original native publication at30644a3, followed by a real guest rejection at preparation60 before firmware exit/TCP. A deterministic combined clock/PCI/queue code-slot collision is repaired by moving only M07-026 clock code to5600; red/green original-emitter layout, unchanged runtime layout and static admission checks pass. Fresh repaired native/guest verification remains pending. Step1323 records a real development guest at77fe7d7 reaching continuing ARP/ICMP, SYN retry and tuple/backlog/table pressure before failing a repeated-FIN status assertion. The fixture now honors the original PeerClosed result. The full TCP/cleanup script and batch qualification remain pending; no closure. Step1324 records one complete real development guest at a49bfd5/C69bdfd:80 TCP steps, real240-second TIME-WAIT, five table/four buffer-pair reaps and original NIC reset/allocator cleanup. Runner passes, but original outer checker exits1 because its149 count omitted the original M05 queue warmup. The corrected exact-prefix/150-record checker and read-only compiled replay validate the same immutable serial/PCAP/package. Full-host, original complete native ABI/stack, strict fresh repetitions and ancestors remain pending; all issues stay open.",
+      "currentEvidence": "Steps1309-1324 implement the retained default-off Virtio-net/TCP batch under shared #734. One complete development guest at a49bfd5 (EFI c69bdfd1981401ebe953712bb63de49c4d68922188bbdd49d6483b40bd8eca07) executes continuing ARP/ICMP, all80 TCP steps, real240-second TIME-WAIT, five connection lifetimes and reset/pool cleanup. Its original outer command fails the old PCAP count after the runner passes; step1324 separately replays the unchanged real150-record capture successfully with the exact original queue prefix. Step1326 repairs new-probe cross-profile/authority controls;189 focused checks pass across13 unchanged-input receipts with no reuse. The first full-host attempt is failed/partial and retained. Fresh full-host, complete original native stack/ABI review, strict fresh repeated guests/packets and affected ancestors remain pending. All eight issues stay open. Eight firmware pages remain retained; the original two-page allocator is preserved. No socket/epoll, guest Kestrel or numbered/cloud/production gate advances.",
       "implementationNotes": [
         "NativeAOT-first architecture adopted 2026-10-12; see docs/workload-profiles.md. This ticket grants no guest acceptance until its own live evidence exists. Keep the kernel C#14/no-stdlib; application GC/EH belongs to upstream NativeAOT. Existing accepted diagnostic evidence is unchanged.",
         "Extend the accepted single-transaction adapter into a continuing owned lifetime. Replenish RX, reclaim TX, poll with a bounded budget/timer and retain/reset DMA safely on shutdown or error. Initial configuration uses explicit static IPv4 and existing ARP; DHCP, DNS, outbound HTTP and MSI-X conversion are not first-web prerequisites.",
@@ -32345,7 +32351,8 @@
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
         "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM07026Probe -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 60 -RequireMarker CLROS_M07_026_READY"
+        "dotnet run --project tools/OS.Tooling -- linux thread-fixture artifacts/packages/tcp-30644a3.pkg Threads",
+        "dotnet run --project tools/OS.Tooling -- qemu smoke --BuildEfi --EnableM07026Probe --LinuxElfPackage artifacts/packages/tcp-30644a3.pkg --Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" --OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" --TimeoutSeconds 285"
       ],
       "documentationPaths": [
         "docs/workload-profiles.md",

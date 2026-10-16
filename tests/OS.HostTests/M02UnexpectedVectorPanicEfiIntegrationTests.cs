@@ -235,8 +235,10 @@ internal static class M02UnexpectedVectorPanicEfiIntegrationTests
         foreach(string addedFlag in new[]{"EnableM03FirstRealExitBootServicesProbe","EnableM04SeededCollectorChurnProbe","EnableM03FirmwareAdapterRevocationProbe","EnableM04ClassConstructorExecutionProbe","EnableM04InterfaceDispatchProbe","EnableM04X64UnwindMetadataProbe","EnableM03OwnedSubsystemSurvivalProbe","EnableM03OwnedSubsystemPanicProbe","EnableM04SimpleThrowCatchProbe","EnableM04SingleFinallyCatchProbe"})
             Require(defaults.Count(x=>x.Name.LocalName==addedFlag && x.Value=="false")==1,"one literal false default "+addedFlag);
         // The M09 profiles own separate aggregate exclusion categories;
-        // retain every original pairwise condition and check M09 in its fixtures.
+        // Retain every original pairwise condition; aggregate child profiles
+        // own their independent complete exclusion checks in their fixtures.
         var errors=project.Descendants("Error").Where(x=>
+            !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("m07_026_",StringComparison.Ordinal) &&
             !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_004_",StringComparison.Ordinal) &&
             !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_005_",StringComparison.Ordinal) &&
             !(x.Attribute("Text")?.Value ?? string.Empty).StartsWith("m09_006_",StringComparison.Ordinal) &&

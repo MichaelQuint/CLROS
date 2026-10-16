@@ -21,8 +21,8 @@ internal static unsafe class M07026EfiIntegrationTests
             HostCheck.Equal(13, profile.Flags.Count(x => x.Value));
             foreach (var parent in profile.Flags.Where(x => x.Value && x.Key != "EnableM07026Probe"))
                 Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--" + parent.Key, "false"], build).Profile());
-            foreach (string extra in new[] { "M05ApicSetup", "M16004", "M16008", "M09006", "M04SimpleThrowCatch" })
-                Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--Enable" + extra + "Probe"], build).Profile());
+            foreach (string extra in EfiContracts.DiagnosticProbes.Except(profile.Flags.Where(x => x.Value).Select(x => x.Key)))
+                Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--" + extra], build).Profile());
             Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--BootPolicy", "VerifiedExit"], build).Profile());
         }
         var options = QemuSmokeOptions.Parse("--BuildEfi", "--EnableM07026Probe", "--RequireMarker", "CLROS_M07_026_READY");
