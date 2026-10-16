@@ -32158,7 +32158,7 @@
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
         "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 60 -RequireMarker CLROS_M16_011_READY"
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16011Probe -LinuxElfPackage artifacts/nativeaot-sockets-first-web-r01/socket-sync-r01.pkg -LinuxThreadingDisassembly artifacts/nativeaot-sockets-first-web-r01/socket-llvm-r02.txt -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_011_READY"
       ],
       "documentationPaths": [
         "docs/workload-profiles.md",
@@ -32255,7 +32255,7 @@
         "dotnet run --project tools/OS.Tooling -- contracts check",
         "git diff --check",
         "dotnet run --project tests/OS.HostTests --no-build -- --lane full",
-        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16012Probe -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 60 -RequireMarker CLROS_M16_012_READY"
+        "dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM16012Probe -LinuxElfPackage artifacts/nativeaot-sockets-first-web-r01/socket-async-r01.pkg -LinuxThreadingDisassembly artifacts/nativeaot-sockets-first-web-r01/socket-llvm-r02.txt -Qemu \"C:\\Program Files\\qemu\\qemu-system-x86_64.exe\" -OvmfCode \"C:\\Program Files\\qemu\\share\\edk2-x86_64-code.fd\" -TimeoutSeconds 600 -RequireMarker CLROS_M16_012_READY"
       ],
       "documentationPaths": [
         "docs/workload-profiles.md",
