@@ -1,12 +1,17 @@
 # Networking
 
-[Step1338](../done/step1338.md) adds a separate `--async` socket measurement
-mode and extends fresh Linux qualification to run both modes from one published
-ELF. It requires pending accept/read/write observations and epoll calls in the
-async child's own traces, plus cancellation/close of pending accepts. The
-managed Windows run passes with four pending accepts and one pending receive,
-but zero pending sends; it supplies no Linux write-wake or guest evidence.
-Fresh Linux native qualification of this mode is pending.
+[Step1339](../done/step1339.md) records fresh Linux NativeAOT qualification of
+both modes added in step1338, from one unchanged published ELF at source3afb03eb.
+Each exchanges61 request/65,572 response bytes across four connections, reset1
+and EOF2. Sync observes five partial sends/78 blocked sends. Async observes one
+pending accept, receive and send, then successfully cancels and closes pending
+accepts. Its own traces use edge-triggered read/write registrations and infinite
+`epoll_pwait` with maxevents1024; the exact listener `SO_LINGER`8-byte operation
+also needs kernel support. Both still use `sendto`/`recvfrom`; no message-syscall
+expansion is justified by this fixture. Independent copied evidence checks779
+source inputs,32 outputs, four producer files and the original recipe receipt.
+The earlier managed Windows run had zero pending sends and remains separate.
+These are Linux builder results; kernel epoll and actual guest proof are pending.
 
 [Step1337](../done/step1337.md) adds the development-only IPv4 passive TCP
 socket adapter in the shared Linux descriptor namespace. Host checks exercise
