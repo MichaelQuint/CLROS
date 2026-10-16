@@ -16546,7 +16546,7 @@
       ],
       "collisionLane": "lane:nativeaot-integration",
       "summary": "Implement retransmission, RTO, duplicate ACK, and timeout behavior.",
-      "currentEvidence": "Packet/checksum/DHCP/TCP/HTTP slices remain host-tested. The separate default-off bounded TX and RX/ARP profiles are qualified in done/step1162.md and done/step1164.md. Continuing networking and this issue's live behavior remain incomplete.",
+      "currentEvidence": "Development done/step1317.md extends the retained TcpSendWindow with an explicit monotonic callback, one outstanding segment, original-byte retries, exponential RTO backoff, RTT smoothing/Karn exclusion, SYN-retry initial RTO, validated ACK restart/disarm and fixed lifetime/retry limits. Sixteen new controls join 251 focused TCP fast checks across 29 fixtures. Failure retains bytes and attachments through explicit closed cleanup. This remains host development in #734; #152 stays blocked/open on #151 and native/full/guest/packet acceptance. No fast recovery, persist probe, general congestion control, sockets or Kestrel is qualified.",
       "implementationNotes": [
         "Consume M07-026 continuing queues and static IPv4/ARP. Extend existing TCP contracts in the owned paths; TcpRetransmission is a proposed new type only if existing timer/state types cannot express the behavior.",
         "Use the owned monotonic clock for bounded retransmission/RTO and retry limits. Inject loss, reordering and duplicate ACKs; show eventual progress or a reported timeout, bounded memory and no scheduler starvation.",

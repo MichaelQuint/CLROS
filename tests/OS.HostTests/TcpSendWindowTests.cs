@@ -271,8 +271,8 @@ internal static unsafe class TcpSendWindowTests
         CheckChecksums(output); HostCheck.Equal(Passive.Status.Success, Passive.CancelPending(f.Handshake));
     }
 
-    private struct Hardware { public ulong Now; public uint Calls; public byte Result; public int Length; public fixed byte Last[1514]; }
-    private sealed class Fixture : IDisposable
+    internal struct Hardware { public ulong Now, AdvanceOnSend; public uint Calls; public byte Result; public int Length; public fixed byte Last[1514]; }
+    internal sealed class Fixture : IDisposable
     {
         private readonly byte* memory; private readonly int capacity, receiveCapacity; private readonly ushort mtu;
         public Tx.Owner* Owner => (Tx.Owner*)(memory + 2048);
@@ -286,7 +286,7 @@ internal static unsafe class TcpSendWindowTests
         public Hardware* Hardware => (Hardware*)(memory + 3072);
         public Tcb.Handle Handle => Handshake->Connection;
         public Fixture(int capacity = 32, int receiveCapacity = 32, ushort mss = 4, ushort window = 32,
-            ushort mtu = 1500, uint iss = 699, bool setup = true, bool bind = true, ushort? finalWindow = null)
+            ushort mtu = 1500, uint iss = 699, bool setup = true, bool bind = true, ushort? finalWindow = null, bool retryHandshake = false)
         {
             this.capacity = capacity; this.receiveCapacity = receiveCapacity; this.mtu = mtu;
             memory = (byte*)NativeMemory.AlignedAlloc(131072, 4096); NativeMemory.Clear(memory, 131072);
@@ -297,6 +297,8 @@ internal static unsafe class TcpSendWindowTests
             byte[] options = mss == 0 ? [] : [2, 4, (byte)(mss >> 8), (byte)mss];
             byte[] syn = Wire.Packet(99, ReadOnlySpan<byte>.Empty, ack: 0, flags: 2, window: window, options: options), output = new byte[64];
             HostCheck.Equal(Passive.Status.Success, Passive.Begin(Handshake, Table, PassiveInfo(iss), syn, output, Operations(), out _));
+            if (retryHandshake)
+            { Hardware->Now += 100; HostCheck.Equal(Passive.Status.Success, Passive.Pump(Handshake, output, out _)); }
             HostCheck.Equal(Passive.Status.Success, Passive.ReceiveAck(Handshake,
                 Wire.Packet(100, ReadOnlySpan<byte>.Empty, ack: unchecked(iss + 1), flags: 0x10, window: finalWindow ?? window),
                 new Span<TcpListenerBacklogEntry>(memory + 5120, 1), out _, out _));
@@ -319,11 +321,12 @@ internal static unsafe class TcpSendWindowTests
     private static byte Send(void* context, byte* bytes, uint length)
     {
         var hardware = (Hardware*)context; hardware->Calls++;
+        hardware->Now += hardware->AdvanceOnSend;
         if (length > 1514) return 2;
         if (hardware->Result == 1) { hardware->Length = (int)length; for (int i = 0; i < length; i++) hardware->Last[i] = bytes[i]; }
         return hardware->Result;
     }
-    private static void CheckData(ReadOnlySpan<byte> frame, uint local, uint remote, ushort window, ReadOnlySpan<byte> payload)
+    internal static void CheckData(ReadOnlySpan<byte> frame, uint local, uint remote, ushort window, ReadOnlySpan<byte> payload)
     {
         CheckChecksums(frame); HostCheck.Equal(local, BinaryPrimitives.ReadUInt32BigEndian(frame.Slice(38, 4)));
         HostCheck.Equal(remote, BinaryPrimitives.ReadUInt32BigEndian(frame.Slice(42, 4))); HostCheck.Equal(window, BinaryPrimitives.ReadUInt16BigEndian(frame.Slice(48, 2)));

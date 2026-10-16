@@ -1,5 +1,17 @@
 # Networking
 
+[Step1317](../done/step1317.md) adds optional bounded retransmission to the
+same sender. An explicit retained monotonic callback drives one outstanding
+segment, original-byte retries, exponential RTO backoff, RTT smoothing with
+Karn exclusion, ACK restart/disarm and fixed lifetime/retry limits. Timed
+SYN-ACK loss starts data at a three-second RTO. Duplicate/reordered ACKs cannot
+postpone recovery; TX pressure consumes no retry. Failure retains ownership
+through explicit closed cleanup. Sixteen new cases join the 251-check TCP
+fast filter across 29 fixtures. This remains host development for #152;
+native/full/guest/packet acceptance and FIN/reset remain pending in #734.
+The timed path has no congestion-window growth, fast recovery or persist probe;
+one segment in flight and the hard lifetime bound its current passive scope.
+
 [Step1316](../done/step1316.md) adds bounded `TcpSendWindow` ownership over
 the actual passive handshake and receiver. Queue copies explicit short writes;
 Pump segments by MTU, negotiated peer MSS, advertised window and output capacity,
