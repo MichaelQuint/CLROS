@@ -78,6 +78,7 @@ public static partial class EfiContracts
                 [@"..\..\std\no-runtime\shared\Ascii.cs"] = "c642f5b645ee332e1984ddba3d80e1dd42d09700c5d90aa185ca7c5e74567417",
                 [@"..\..\std\no-runtime\shared\Memory\BufferOperations.cs"] = "60bc8468c8b838dc79b14abdeede4904edf0165ae182addee3d802b93c83b49e",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.cs"] = "bc6b13211d5fc2a47ec3090d219101f597240cf19ea063895397a2930606d392",
+                [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Package.cs"] = "8799a29472a97004e1c62bdb75c6a9af1741ed747503fd15c84ef52176a9001a",
                 [@"..\OS.Kernel\Compatibility\LinuxX64\LinuxPipe.cs"] = "752c43467e413502c805e604809c536bc67651d33040e5fa036334bc4a9b0958",
                 [@"..\..\std\no-runtime\shared\Text\AsciiTextBuilder.cs"] = "a395cfa8e49f4097bc654e34a661a7d9be8ddcc5861318bcf134bf0630447499",
                 [@"..\..\std\no-runtime\shared\Text\AsciiDecimalFormatter.cs"] = "7ecb8c89f031343bd5143b0222dbf70d124d6cc44b10d608894fa27ddab3bd82",

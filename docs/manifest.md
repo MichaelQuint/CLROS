@@ -44,8 +44,9 @@ It revalidates the digest; there is no writable namespace or app execution.
 
 ## Linux ELF immutable-data envelope version 2
 
-[Step1336](../done/step1336.md) implements V2/profile2 for #216. This extension is
-host-tested; fresh M16-002 guest staging and stable batch acceptance are pending.
+[Step1336](../done/step1336.md) implements V2/profile2 for #216. Its focused host
+checks and three complete M16-002 staging guests in [step1347](../done/step1347.md)
+pass; stable batch acceptance remains pending.
 V1/profile1 retains its exact layout. V2 keeps the same64-byte header and native
 manifest version1, followed by the ELF and a bounded immutable-data table:
 
@@ -55,7 +56,7 @@ manifest version1, followed by the ELF and a bounded immutable-data table:
 - Each record has uint32 record bytes, path bytes, data bytes and reserved0 at
   offsets0/4/8/12, then32 raw SHA256 digest bytes, path bytes and data bytes.
 - Record bytes equal48 +path bytes +data bytes. Each nonempty data file is at
-  most65,536 bytes; paths use existing canonical relative ASCII rules, start
+  most65,536 bytes; paths contain at most128 bytes, use canonical relative ASCII rules, start
   `apps/`, and cannot duplicate another file or the executable path.
 
 Validation hashes every data file before publication. `Copy` revalidates the

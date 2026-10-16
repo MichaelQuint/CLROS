@@ -733,6 +733,17 @@ false. Manifest-backed file/config projection and application startup remain
 unqualified, and stable batch acceptance is pending. Linux builder web/socket
 runs remain separate from CLROS guest application hosting.
 
+[Step1349](../done/step1349.md) adds the next development slice: validated V1/V2
+packages project their executable and up to seven immutable data files into the
+existing descriptor owner below `/app/`. The EFI consumer retains exact borrowed
+data extents and copied paths in its existing arena. Both ordinary and threaded
+copy-out use the same live-view source boundary. Six focused configuration checks
+include actual descriptor open/read, failed-copy cursor preservation, write and
+undeclared-path rejection; compile/source checks and enabled no-stdlib C# compilation
+also pass. This is host and C# compilation evidence only. Native publication,
+guest observation of selected configuration, complete argv/envp qualification and
+#217 acceptance remain pending.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

@@ -71,6 +71,7 @@ public static unsafe partial class EfiEntry
         private const uint LinuxDescriptorPages = 37;
         private const uint LinuxDescriptorSlots = 16;
         private const uint LinuxDescriptorSnapshots = 0x1000, LinuxDescriptorPipes = 0x21000, LinuxDescriptorScratch = 0x23000;
+        private const uint LinuxDescriptorViews = 0x6c0, LinuxDescriptorPaths = 0x800;
 #endif
 #if M16_002_PROBE
         private const uint LinuxLedgerCapacity =
@@ -1690,19 +1691,22 @@ public static unsafe partial class EfiEntry
             if (state->LinuxDescriptorPhase != 2 || state->LinuxMemoryPhase != 4 ||
                 state->LinuxView.Manifest.Descriptors != LinuxDescriptorSlots ||
                 !LinuxMemoryFacts(state, out ulong physical, out ulong available)) return false;
+            // Retained package metadata stays below the first snapshot page;
+            // views and their copied paths outlive every borrowed descriptor.
+            if (sizeof(LinuxDescriptorServices.Slot) * LinuxDescriptorSlots > 0x100 ||
+                sizeof(LinuxDescriptorServices.Description) * LinuxDescriptorSlots > 0x500 ||
+                sizeof(LinuxPipe) * 2 > LinuxDescriptorViews - 0x600 ||
+                sizeof(LinuxDescriptorServices.View) * LinuxDescriptorServices.MaximumViews > LinuxDescriptorPaths - LinuxDescriptorViews ||
+                LinuxDescriptorPaths + LinuxDescriptorServices.MaximumViews * LinuxDescriptorServices.MaximumPath > LinuxDescriptorSnapshots) return false;
             byte* arena = (byte*)state->LinuxDescriptorArena;
-            var manifest = state->LinuxView.Manifest;
-            if (manifest.Path.Length == 0 || manifest.Path.Length > LinuxDescriptorServices.MaximumPath - 6) return false;
-            byte* path = arena + 0x800; *(ulong*)path = 0x2f7070612f; // /app/ plus the actual declared package path.
-            byte* declared = (byte*)state->LinuxPackage + state->LinuxView.ManifestOffset + manifest.Path.Offset;
-            for (uint i = 0; i < manifest.Path.Length; i++) path[5 + i] = declared[i];
-            LinuxDescriptorServices.View* view = (LinuxDescriptorServices.View*)(arena + 0x700);
-            *view = new() { Path = path, PathBytes = 5 + manifest.Path.Length,
-                Data = (byte*)state->LinuxPackage + state->LinuxView.PayloadOffset, Bytes = state->LinuxView.PayloadBytes, Inode = 256 };
+            LinuxDescriptorServices.View* view = (LinuxDescriptorServices.View*)(arena + LinuxDescriptorViews);
+            if (!LinuxDescriptorServices.CreatePackageViews((byte*)state->LinuxPackage, state->LinuxView.ByteCount,
+                view, LinuxDescriptorServices.MaximumViews, arena + LinuxDescriptorPaths,
+                LinuxDescriptorServices.MaximumViews * LinuxDescriptorServices.MaximumPath, out uint viewCount)) return false;
             LinuxDescriptorServices.Admission owner = new()
             {
                 Slots = (LinuxDescriptorServices.Slot*)arena, Descriptions = (LinuxDescriptorServices.Description*)(arena + 0x100),
-                Pipes = (LinuxPipe*)(arena + 0x600), Views = view, ViewCount = 1,
+                Pipes = (LinuxPipe*)(arena + 0x600), Views = view, ViewCount = viewCount,
                 Snapshots = arena + LinuxDescriptorSnapshots, PipeBuffers = arena + LinuxDescriptorPipes,
                 Scratch = arena + LinuxDescriptorScratch, ScratchBytes = 8192,
                 DescriptorCount = LinuxDescriptorSlots, DescriptionCount = LinuxDescriptorSlots, PipeCount = 2, PipeCapacity = 4096,
@@ -1743,8 +1747,7 @@ public static unsafe partial class EfiEntry
             if (!output) return false;
             ulong snapshots = state->LinuxDescriptorArena + LinuxDescriptorSnapshots;
             if (start >= snapshots && start + bytes <= snapshots + LinuxDescriptorSlots * LinuxDescriptorServices.SnapshotBytes) return true;
-            ulong payload = state->LinuxPackage + state->LinuxView.PayloadOffset;
-            return start >= payload && start + bytes <= payload + state->LinuxView.PayloadBytes;
+            return LinuxDescriptorServices.ContainsPackageData(&state->LinuxDescriptors, pointer, bytes);
         }
 
         private static bool LinuxDescriptorReleaseChecked(Storage* state)
