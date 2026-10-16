@@ -20,20 +20,10 @@ public static partial class QemuTranscripts
             string.Equals(Path.GetFullPath(root),program.SourceRoot,OperatingSystem.IsWindows()?StringComparison.OrdinalIgnoreCase:StringComparison.Ordinal),
             "web_prepared_owner");
         byte[] raw=File.ReadAllBytes(Path.GetFullPath(options.SerialLog,root));
-        ReadOnlySpan<byte> start="TEST_START m10.004\r\n"u8;
-        int at=raw.AsSpan().IndexOf(start);
-        Need(at>=2 && raw[at-2]==13 && raw[at-1]==10 && raw.AsSpan(at+start.Length).IndexOf(start)<0,"web_raw_start");
-        string[] parent=DecodeUtf8(raw[..at]).Split("\r\n",StringSplitOptions.None);
-        int[] tableRows=Enumerable.Range(0,parent.Length).Where(i=>parent[i].StartsWith("M16_004_TABLES ",StringComparison.Ordinal)).ToArray();
-        int[] readbackRows=Enumerable.Range(0,parent.Length).Where(i=>parent[i].StartsWith("M16_004_READBACK ",StringComparison.Ordinal)).ToArray();
-        Need(tableRows.Length==1 && readbackRows.Length==1 && readbackRows[0]==tableRows[0]+1,"web_parent_root_rows");
-        var tables=ReadRecord(parent[tableRows[0]],"M16_004_TABLES","root:dec","used:dec","leaves:dec","ranges:dec");
-        const string restored=" restored=true loads=true bss=true stack=true guard=absent mappings=user-supervisor wx=false entry=false";
-        string readback=parent[readbackRows[0]];Need(readback.EndsWith(restored,StringComparison.Ordinal),"web_parent_readback");
-        var kernel=ReadRecord(readback[..^restored.Length],"M16_004_READBACK","old:dec");
-        var replay=ValidateNativeAotWebContinuingPrefix(root,File.ReadAllBytes(Path.GetFullPath(options.LinuxElfPackage,root)),program!,
-            raw.AsSpan(at),tables["root"],kernel["old"]);
+        var capture=ValidateNativeAotWebCapturePrefix(root,File.ReadAllBytes(Path.GetFullPath(options.LinuxElfPackage,root)),program!,raw);
+        var replay=capture.Leaf;
         var observed=replay.Observations;
+        output.WriteLine($"WEB_PREFIX_PARENT records={capture.Parent.Records} userRoot={capture.Parent.UserRoot} kernelRoot={capture.Parent.KernelRoot} periodFs={capture.Parent.Period} dma={capture.Parent.Dma} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_OBSERVATIONS calls={observed.Calls} writes={observed.Writes} stdout={observed.StdoutBytes} stderr={observed.StderrBytes} pendingEpoll={observed.PendingEpollWaits} fragmentBytes={observed.TrailingFragment.Length} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_REPLAY clones={replay.Protocol.Clones} irqs={replay.Protocol.Irqs} drains={replay.Protocol.Drains} transfers={replay.Protocol.Transfers} active={replay.Active} ready={replay.Ready} selected={replay.Current} returning={replay.ReturningToSupervisor} entropyRemaining={replay.EntropyRemaining} accepts={replay.SocketAccepts} sent={replay.Sent} received={replay.Received} acceptance=pending");
         // A live HTTP exchange alone cannot pass the full smoke gate. The finite

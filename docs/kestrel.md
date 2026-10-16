@@ -79,6 +79,10 @@ The two accepted connections account for537 sent and159 consumed bytes; their
 packet/content join remains separate. See [app-model](app-model.md) for the
 replay boundary. Parent/native/source/packet/runner joins and stable-batch
 qualification are still required; complete smoke admission remains closed.
+[Step1357](../done/step1357.md) subsequently joins the complete original235-record
+firmware/owned/package/startup/service/APIC/NIC/ARP parent, roots, clocks and
+retained live DMA to the leaf. Native/source/runner/independent packet joins
+and stable-batch qualification still precede acceptance.
 No new guest run or issue closure is part of these host parser steps.
 
 ## Transport decision experiments

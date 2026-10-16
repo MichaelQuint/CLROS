@@ -822,6 +822,15 @@ mutations reject and two complete-row EOF boundaries pass. Parent/native/
 source/packet/runner joins and stable-batch qualification remain pending; full
 smoke admission stays closed and #217 remains open.
 
+[Step1357](../done/step1357.md) joins the complete235-record original parent
+prefix to this leaf: exact firmware bytes, copied ACPI/owned survival, immutable
+package digest, image/argv/envp stack geometry, service clock, PCI/APIC, NIC/ARP
+and the live network DMA/peer. Observed roots, HPET periods, service/peer/leaf
+clock order and disjoint DMA/worker-pool extents must agree. Twelve mutations
+of the retained capture reject. Native/source/runner/independent packet joins
+and stable-batch qualification remain pending; this adds no fresh guest or
+accepted #217/Kestrel evidence.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to
