@@ -1,5 +1,14 @@
 # Networking
 
+[Step1322](../done/step1322.md) records the first native publication and failed
+real guest attempt for this batch. Preparation stops before firmware exit at
+checkpoint60: PCI/queue emitters overwrite the selected clock helper at4608.
+Only M07-026 now moves that 96-byte clock helper to5600; existing profile offsets
+remain unchanged. The profile-preprocessed overlap test fails before the fix
+and passes with actual emitter/read-back checks afterward; the existing runtime
+layout and static admission controls pass. Fresh native/guest verification of
+the repair is still required. No new continuing TCP execution is proven yet.
+
 [Step1321](../done/step1321.md) composes the retained TCP owners into the default-off
 post-exit NIC fixture. Image-backed metadata/buffers, actual HPET callbacks and
 copied NIC TX drive a finite 80-packet script: SYN duplicate/loss/invalid ACK,

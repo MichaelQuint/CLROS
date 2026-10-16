@@ -187,7 +187,7 @@ public static partial class EfiContracts
                 [@"..\OS.Kernel\Diagnostics\Probes.cs"] = "4eeeb0e499cca6666425ee3ea3911b02517d55db5378677fbfd09382d352d681",
                 [@"..\OS.Kernel\Boot\OwnedAllocatorDescriptorTablesACPISnapshotPanicOutput.cs"] = "88053c5a7a7c46aae39e0c68d03d3dd6ab83047640e3a22455148e53023a44fe",
                 [@"..\OS.Kernel\Platform\PostFirmwarePhysicalMappingExplicitUCWCWB.cs"] = "dbc6af34a459554a25e1e3dfdbab8112609e0d8194d969fdd54c820d70f9647d",
-                [@"..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs"] = "0f7c5c6ae282bc40a8470b21d610ee243188c31cb3e6ad52cd8a1641bbba7c9a",
+                [@"..\OS.Kernel\Boot\FirstOptRealExitBootServicesTransition.cs"] = "9328a6e6eb4f1b8a7ec0b852f999ec8cc7e07191dd5690a7a9f867a5c1dba6e3",
                 [@"..\..\std\no-runtime\shared\Hash\Crc32.cs"] = "228540b7c150ea26100ea9f509772ee89bbe10a45ef2c4d8e95a4b250c56333e",
                 [@"..\..\std\no-runtime\shared\DeterministicRandom32.cs"] = "6ca5e3e3e839017ca27fb73884b7665315b3e2df3c1f49a5fe012a3e56c2ae33",
                 [@"..\OS.Kernel\Runtime\SeededAllocationChurnCollectionRootRetentionGuestProbes.cs"] = "81a10ac72ffb1f945e46106456a9d3ba2be46305eac8cae230709a74a76ed222",

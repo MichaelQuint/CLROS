@@ -594,7 +594,12 @@ public static unsafe class FirstExitCodeBundle
     public const uint Out8Offset = 4352;
     public const uint In8Offset = 4368;
 #if M05_MONOTONIC_CLOCK_PROBE || M16_003_PROBE || M16_004_PROBE
+#if M07_026_PROBE
+    // Continuing networking also selects the legacy PCI/queue helpers at4608.
+    public const uint ClockAccessOffset = 5600;
+#else
     public const uint ClockAccessOffset = 4608;
+#endif
 #endif
 #if M16_004_PROBE
     public const uint LinuxReadBackOffset = 4800;
