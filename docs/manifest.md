@@ -42,6 +42,35 @@ Neither legacy OSAPPv0 nor ordinary package launch automatically consumes it.
 bytes to exclusive caller storage, returns EOF honestly and rejects aliases.
 It revalidates the digest; there is no writable namespace or app execution.
 
+## Linux ELF immutable-data envelope version 2
+
+[Step1336](../done/step1336.md) implements V2/profile2 for #216. This extension is
+host-tested; fresh M16-002 guest staging and stable batch acceptance are pending.
+V1/profile1 retains its exact layout. V2 keeps the same64-byte header and native
+manifest version1, followed by the ELF and a bounded immutable-data table:
+
+- Header offsets8/12 contain uint32 version2/profile2.
+- Offset32 contains uint32 table bytes; offset36 contains uint32 file count1..7.
+- Header bytes40..63 are zero. The total is exactly64 +manifest +ELF +table.
+- Each record has uint32 record bytes, path bytes, data bytes and reserved0 at
+  offsets0/4/8/12, then32 raw SHA256 digest bytes, path bytes and data bytes.
+- Record bytes equal48 +path bytes +data bytes. Each nonempty data file is at
+  most65,536 bytes; paths use existing canonical relative ASCII rules, start
+  `apps/`, and cannot duplicate another file or the executable path.
+
+Validation hashes every data file before publication. `Copy` revalidates the
+complete staged bytes. `GetDataFile` returns borrowed offsets; `ReadFile` copies
+bounded data and rejects aliases. These APIs require retained trusted readable
+storage and grant no executable mapping, writable namespace or process launch.
+
+The host `nativeaot web package --recipe-root <retained-source>
+--recipe-evidence <web-evidence> --output <fresh-artifacts-package>` command
+revalidates the original Linux producer/evidence, then packages its static
+MinimalApiSmoke ELF and exact `apps/appsettings.json`. It includes no TPA,
+CoreCLR, framework DLLs or implicit legacy conversion. Its pass marker is
+`nativeaot.web.package`; read-only validation uses `nativeaot.web.validate`.
+Only actual qualification emits `nativeaot.web`.
+
 The disk-manifest batch has a separate bounded pointer validator in
 `OS.Storage.NativeManifestDisk`, host-tested in [step1153](../done/step1153.md).
 It accepts at most 4,096 bytes of ASCII native v0 required fields and optional

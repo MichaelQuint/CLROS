@@ -721,6 +721,14 @@ executable must not be treated as raw OSAPPv0 bytes or
 share the kernel collector. Existing native contracts below retain their
 historical ABI and evidence.
 
+[Step1336](../done/step1336.md) adds a separately versioned immutable-data
+envelope for the Minimal API's appsettings. Its bounded records, hashes,
+duplicate-path rejection, staged copy and read-only file access pass focused
+host checks. The canonical layout is in [the manifest specification](manifest.md#linux-elf-immutable-data-envelope-version-2).
+Actual V2 guest staging, manifest-backed file/config projection and application
+startup remain unqualified. The fresh Linux builder web/socket runs are
+component evidence, separate from CLROS guest application hosting.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

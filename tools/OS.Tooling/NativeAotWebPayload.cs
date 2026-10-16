@@ -26,7 +26,8 @@ public static class NativeAotWebPayload
 
     public static async Task<int> RunAsync(string root, string[] args, TextWriter output)
     {
-        const string marker = "nativeaot.web";
+        string marker = args.FirstOrDefault() switch { "validate" => "nativeaot.web.validate",
+            "package" => "nativeaot.web.package", _ => "nativeaot.web" };
         output.WriteLine("TEST_START " + marker);
         try
         {
@@ -34,7 +35,10 @@ public static class NativeAotWebPayload
                 await QualifyAsync(Path.GetFullPath(root), Path.GetFullPath(destination), output);
             else if (args is ["validate", var evidence])
                 ValidateQualification(Path.GetFullPath(root), Path.GetFullPath(evidence));
-            else throw new ArgumentException("nativeaot web qualify --output <fresh-directory> | validate <evidence-directory>");
+            else if (args is ["package", "--recipe-root", var recipeRoot, "--recipe-evidence", var recipeEvidence,
+                "--output", var package])
+                output.WriteLine("NATIVEAOT_WEB_PACKAGE sha256=" + NativeAotWebPackage.Write(root, recipeRoot, recipeEvidence, package));
+            else throw new ArgumentException("nativeaot web qualify --output <fresh-directory> | validate <evidence-directory> | package --recipe-root <source> --recipe-evidence <evidence> --output <fresh-package>");
             output.WriteLine("TEST_PASS " + marker);
             return 0;
         }

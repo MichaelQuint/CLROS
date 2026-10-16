@@ -1,10 +1,20 @@
 # Networking
 
-[Step1334](../done/step1334.md) adds a finite portable System.Net.Sockets fixture
-and its external C# peer for #689 measurement. A managed Windows exchange checks
-four connections, 65,572 reply bytes, peer reset and two orderly half-closes.
-It observes no partial sends and grants no NativeAOT or guest socket acceptance.
-Linux publication/measurement and the actual CLROS adapter remain pending.
+[Step1336](../done/step1336.md) records the finite System.Net.Sockets fixture's
+real pinned Linux NativeAOT run: four connections,61 request bytes,65,572 reply
+bytes, four partial sends,70 blocked sends, reset1 and orderly EOF2. Independent
+copy audit verifies777 source inputs,21 outputs and four original producer files.
+The earlier managed Windows run observes no partial sends. Both boundaries
+remain distinct; actual CLROS socket/epoll adapters and guest proof are pending.
+
+The measured native calls include `sendto`/`recvfrom`, `fcntl` nonblocking flags,
+`accept4`, socket options and an empty reactor's `epoll_create1`/`epoll_pwait`.
+Capability probes also try IPv6, IPv4 and Unix datagram sockets. The exact
+shipping runtime source pin is verified from its package/host metadata.
+Its [protocol support check](https://github.com/dotnet/dotnet/blob/820230c386db5b0106c5430b3e5aee92a7826bf5/src/runtime/src/libraries/Common/src/System/Net/SocketProtocolSupportPal.Unix.cs)
+treats family/protocol denial as unsupported family. Preserve the distinction
+between supported IPv4 family and unsupported datagram type in the adapter;
+these probes do not justify fake UDP or Unix descriptors.
 
 [Step1332](../done/step1332.md) qualifies #691 -> #148 -> #149 -> #150 -> #151 ->
 #152 -> #153 and shared #734 at implementation `fd296378`. The complete unfiltered
