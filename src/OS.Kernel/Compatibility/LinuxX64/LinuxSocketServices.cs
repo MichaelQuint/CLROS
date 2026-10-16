@@ -266,6 +266,32 @@ public static unsafe class LinuxSocketServices
         (Overlap(start, bytes, (ulong)state, (ulong)sizeof(State)) ||
          Overlap(start, bytes, (ulong)state->Slots, state->Count * (ulong)sizeof(Endpoint)));
 
+    // Observe actual transport state without consuming bytes/errors or changing
+    // flags. The serialized network owner refreshes epoll after each transition.
+    internal static bool Readiness(State* state, uint index, out uint events)
+    {
+        events = 0;
+        if (state == null || index >= state->Count) return false;
+        Endpoint* e = state->Slots + index;
+        if (e->Phase == Listening)
+        {
+            for (uint i = 0; i < state->Count; i++)
+                if (state->Slots[i].Phase == Pending && state->Slots[i].Listener == index + 1) { events = 1; break; }
+            return true;
+        }
+        if (e->Phase is Created or Bound) return true;
+        if (e->Phase != Connected || !Connection(e, out var entry)) return false;
+        if (e->Sender->CloseState == TcpConnectionCloseState.Reset)
+        { events = 1 | 4 | 16 | (e->ErrorConsumed == 0 ? 8U : 0); return true; }
+        if (e->Sender->RequiresCleanup && e->Sender->CloseState != TcpConnectionCloseState.Closed)
+        { events = 1 | 4 | 8 | 16; return true; }
+        if (e->Receiver->UnreadBytes != 0 || e->Receiver->EndOfStream || e->ReadShutdown != 0) events |= 1;
+        if (e->Sender->WritesClosed || e->Sender->BufferedBytes < e->SendBytes) events |= 4;
+        if (e->Receiver->PeerClosed != 0) events |= 0x2000;
+        if (entry.State == TcpConnectionLifecycleState.Closed || e->ReadShutdown != 0 && e->Sender->WritesClosed) events |= 16;
+        return true;
+    }
+
     private static long Create(State* state, ulong family, ulong type, ulong protocol)
     {
         if (unchecked((int)family) != 2) return -97;

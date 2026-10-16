@@ -8,10 +8,10 @@ public unsafe partial struct LinuxThreadServices
     {
         // Expired real-clock deadlines precede an interrupt, even if the CPU
         // has not idled through its timer callback since registering the wait.
-        if (slot->WaitSource == 1 && (!Clock(out ulong now) ||
+        if ((slot->WaitSource == 1 || slot->WaitSource == 3 && slot->WaitDeadline != 0) && (!Clock(out ulong now) ||
             _owner.Threads->Advance(_owner.ThreadKey, flags, now) != KernelThreadTable.Status.Ok)) return false;
         var state = _owner.Threads->Inspect(_owner.ThreadKey, flags, slot->Kernel);
-        if (!state.Succeeded || state.Wait.Sequence != slot->Wait.Sequence || slot->WaitSource is not (1 or 2)) return false;
+        if (!state.Succeeded || state.Wait.Sequence != slot->Wait.Sequence || slot->WaitSource is not (1 or 2 or 3)) return false;
         if (state.Completion != KernelThreadTable.Completion.None) return true;
         return _owner.Threads->Interrupt(_owner.ThreadKey, flags, slot->Wait).Succeeded;
     }

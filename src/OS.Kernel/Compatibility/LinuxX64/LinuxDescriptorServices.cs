@@ -27,7 +27,7 @@ public static unsafe partial class LinuxDescriptorServices
     private const long Invalid = -22, FileTableFull = -23, DescriptorTableFull = -24;
     private const long NotDirectory = -20, NotTerminal = -25, NotSeekable = -29, ReadOnly = -30;
     private const long NameTooLong = -36, Unsupported = -38, Overflow = -75, NoMemory = -12;
-    private enum Kind : uint { None, Input, Output, Package, Snapshot, PipeRead, PipeWrite, Socket }
+    internal enum Kind : uint { None, Input, Output, Package, Snapshot, PipeRead, PipeWrite, Socket, Epoll }
 
     /// <summary>Retained immutable package data, with an exact absolute ASCII
     /// path below /app/ and a nonzero owner-assigned inode at least 256. Paths
@@ -100,6 +100,7 @@ public static unsafe partial class LinuxDescriptorServices
         internal ulong ThreadOwner;
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         internal LinuxSocketServices.State* Sockets;
+        internal LinuxEpollServices.State* Epoll;
 #endif
         public readonly uint ActiveDescriptors => Initialized == 1 ? Active : 0;
         /// <summary>Retained kernel I/O borrows, including closed fds. This is
@@ -124,7 +125,7 @@ public static unsafe partial class LinuxDescriptorServices
         if (!Storage(state, admission) || state->Initialized != 0 || state->Active != 0 || state->NextInode != 0 || state->ThreadOwner != 0)
             return false;
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-        if (state->Sockets != null) return false;
+        if (state->Sockets != null || state->Epoll != null) return false;
 #endif
         for (uint i = 0; i < admission.DescriptorCount; i++)
             if (admission.Slots[i].Description != 0 || admission.Slots[i].Flags != 0 || admission.Slots[i].Generation != 0) return false;
@@ -176,10 +177,15 @@ public static unsafe partial class LinuxDescriptorServices
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
             case 41: case 42: case 43: case 44: case 45: case 48: case 49: case 50: case 51: case 52: case 54: case 55: case 288:
                 value = state->Sockets == null ? Unsupported : LinuxSocketServices.Dispatch(state->Sockets, frame); break;
+            case 213: case 232: case 233: case 281: case 291:
+                value = state->Epoll == null ? Unsupported : LinuxEpollServices.Dispatch(state->Epoll, frame); break;
 #endif
             default: value = Unsupported; break;
         }
         Clear(state->Owner.Scratch, state->Owner.ScratchBytes);
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        if (state->Epoll != null && !LinuxEpollServices.Refresh(state->Epoll)) return Fault;
+#endif
         return value;
     }
 
@@ -209,6 +215,7 @@ public static unsafe partial class LinuxDescriptorServices
             if (state->Owner.Slots[i].Description != 0 && Close(state, i) != 0) return false;
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         if (state->Sockets != null && !LinuxSocketServices.Finish(state->Sockets)) return false;
+        if (state->Epoll != null && !LinuxEpollServices.Finish(state->Epoll)) return false;
 #endif
         Clear(state->Owner.Scratch, state->Owner.ScratchBytes);
         Clear(state->Owner.Snapshots, state->Owner.DescriptionCount * SnapshotBytes);
@@ -241,14 +248,15 @@ public static unsafe partial class LinuxDescriptorServices
             if (d.References != references) return false;
             if (references == 0 && d.Borrowers == 0) { if (d.Type != 0) return false; continue; }
             if (d.Borrowers > MaximumDescriptors || d.Borrowers != 0 &&
-                ((Kind)d.Type != Kind.PipeRead && (Kind)d.Type != Kind.PipeWrite || state->ThreadOwner == 0)) return false;
-            if (d.Type == 0 || d.Type > (uint)Kind.Socket || d.Inode == 0 ||
+                ((Kind)d.Type is not (Kind.PipeRead or Kind.PipeWrite or Kind.Epoll) || state->ThreadOwner == 0)) return false;
+            if (d.Type == 0 || d.Type > (uint)Kind.Epoll || d.Inode == 0 ||
                 (d.Flags & ~(NonBlock | LargeFile | NoFollow | 3U)) != 0 || d.Position > long.MaxValue ||
-                ((Kind)d.Type == Kind.Socket ? (d.Flags & 3) != 2 : (d.Flags & 2) != 0)) return false;
+                ((Kind)d.Type is Kind.Socket or Kind.Epoll ? (d.Flags & 3) != 2 : (d.Flags & 2) != 0)) return false;
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
             if ((Kind)d.Type == Kind.Socket && state->Sockets == null) return false;
+            if ((Kind)d.Type == Kind.Epoll && state->Epoll == null) return false;
 #else
-            if ((Kind)d.Type == Kind.Socket) return false;
+            if ((Kind)d.Type is Kind.Socket or Kind.Epoll) return false;
 #endif
             if ((Kind)d.Type == Kind.Package || (Kind)d.Type == Kind.Snapshot)
             {
@@ -275,7 +283,8 @@ public static unsafe partial class LinuxDescriptorServices
                 (p->Initialized && (p->Capacity != a.PipeCapacity || p->BufferedBytes > p->Capacity))) return false;
         }
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
-        if (state->Sockets != null) return LinuxSocketServices.Audit(state->Sockets, state);
+        if (state->Sockets != null && !LinuxSocketServices.Audit(state->Sockets, state)) return false;
+        if (state->Epoll != null && !LinuxEpollServices.Audit(state->Epoll, state)) return false;
 #endif
         return true;
     }
@@ -284,6 +293,7 @@ public static unsafe partial class LinuxDescriptorServices
     {
         Description* d = Find(state, fd);
         if (d == null || (d->Flags & 1) != 0) return BadDescriptor;
+        if ((Kind)d->Type == Kind.Epoll) return Invalid;
         if (positioned && (Kind)d->Type != Kind.Package && (Kind)d->Type != Kind.Snapshot) return NotSeekable;
         if (requested > MaximumIo || (positioned && offset > long.MaxValue)) return Invalid;
         if (requested == 0) return 0;
@@ -437,13 +447,14 @@ public static unsafe partial class LinuxDescriptorServices
         return 0;
     }
 
-    private static bool DropDescription(State* state, uint index, bool borrow)
+    internal static bool DropDescription(State* state, uint index, bool borrow)
     {
         var a = state->Owner; Description* d = a.Descriptions + index;
         if (borrow ? d->Borrowers == 0 : d->References == 0) return false;
         bool last = borrow ? d->Borrowers == 1 && d->References == 0 : d->References == 1 && d->Borrowers == 0;
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
         if (last && (Kind)d->Type == Kind.Socket && !LinuxSocketServices.Close(state->Sockets, d->Pipe)) return false;
+        if (last && state->Epoll != null) LinuxEpollServices.DropDescription(state->Epoll, index, d->Inode, (Kind)d->Type == Kind.Epoll, d->Pipe);
 #endif
         if (last && ((Kind)d->Type == Kind.PipeRead || (Kind)d->Type == Kind.PipeWrite))
         {
@@ -620,7 +631,7 @@ public static unsafe partial class LinuxDescriptorServices
     internal static bool Output(State* state, ulong address, byte* source, uint bytes) =>
         LinuxSyscallGateway.ValidateRange(address, bytes, LinuxUserPageAccess.Write, state->Owner.User) &&
         state->Owner.CopyToUser(state->Owner.User.Context, address, source, bytes) == 1;
-    private static Description* Find(State* state, uint fd) => fd < state->Owner.DescriptorCount && state->Owner.Slots[fd].Description != 0
+    internal static Description* Find(State* state, uint fd) => fd < state->Owner.DescriptorCount && state->Owner.Slots[fd].Description != 0
         ? state->Owner.Descriptions + state->Owner.Slots[fd].Description - 1 : null;
     private static uint FreeSlot(State* state, uint start, uint exclude)
     {
@@ -648,11 +659,14 @@ public static unsafe partial class LinuxDescriptorServices
     }
 
     internal static long InstallSocket(State* state, uint endpoint, uint flags)
+        => InstallEndpoint(state, endpoint, flags, Kind.Socket);
+
+    internal static long InstallEndpoint(State* state, uint endpoint, uint flags, Kind kind)
     {
         uint fd = FreeSlot(state, 0, uint.MaxValue), index = FreeDescription(state, uint.MaxValue);
         if (fd == state->Owner.DescriptorCount) return DescriptorTableFull;
         if (index == state->Owner.DescriptionCount || state->NextInode == uint.MaxValue) return FileTableFull;
-        state->Owner.Descriptions[index] = new() { Type = (uint)Kind.Socket, References = 1,
+        state->Owner.Descriptions[index] = new() { Type = (uint)kind, References = 1,
             Flags = 2 | (flags & NonBlock), Pipe = endpoint, Inode = state->NextInode++ };
         Assign(state, fd, index, (flags & CloseOnExec) != 0 ? 1U : 0U); return fd;
     }
@@ -703,6 +717,9 @@ public static unsafe partial class LinuxDescriptorServices
         };
         for (uint i = 0; i < 12; i++) if (Overlap(start, bytes, extents[i * 2], extents[i * 2 + 1])) return false;
         if (Overlap(start, bytes, (ulong)a.Views, a.ViewCount * (ulong)sizeof(View))) return false;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        if (LinuxSocketServices.StorageOverlap(state->Sockets, start, bytes) || LinuxEpollServices.StorageOverlap(state->Epoll, start, bytes)) return false;
+#endif
         for (uint i = 0; i < a.ViewCount; i++)
             if (Overlap(start, bytes, (ulong)a.Views[i].Path, a.Views[i].PathBytes) ||
                 Overlap(start, bytes, (ulong)a.Views[i].Data, a.Views[i].Bytes)) return false;

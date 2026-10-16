@@ -1,17 +1,38 @@
 # Networking
 
+[Step1340](../done/step1340.md) implements development-only bounded epoll over
+the shared socket descriptions. Packed Linux x64 events preserve all64 opaque
+data bits; level delivery, edge drain/rearm, MOD, dup/last-close, fd reuse and
+copy-before-consume use actual TCP state. Infinite waits genuinely park, including
+an empty port. Original epoll descriptions remain borrowed across concurrent fd
+close/reuse until completed wait or captured exit. Real clock deadlines, directed
+signals without restart, early cancellation and competing waiters have focused
+host evidence. Normal closed TCP reports HUP/retained FIN without a fabricated
+ERR; consuming reset clears ERR. Tables are bounded to4 ports/64 registrations;
+only IPv4 passive TCP sockets, IN/OUT/RDHUP/ERR/HUP and EPOLLET are supported.
+Nested epoll, other pollable files, EPOLLONESHOT and temporary signal masks are
+unsupported. The serialized network owner must refresh and wake after every
+transport transition. EFI wait-source3 capture/completion, live NIC integration,
+the actual guest socket fixture and stable batch validation remain pending.
+No current issue closes and no completion gate advances.
+
 [Step1339](../done/step1339.md) records fresh Linux NativeAOT qualification of
 both modes added in step1338, from one unchanged published ELF at source3afb03eb.
 Each exchanges61 request/65,572 response bytes across four connections, reset1
 and EOF2. Sync observes five partial sends/78 blocked sends. Async observes one
 pending accept, receive and send, then successfully cancels and closes pending
 accepts. Its own traces use edge-triggered read/write registrations and infinite
-`epoll_pwait` with maxevents1024; the exact listener `SO_LINGER`8-byte operation
-also needs kernel support. Both still use `sendto`/`recvfrom`; no message-syscall
+`epoll_pwait` with maxevents1024. Later review of the exact pinned
+[SafeSocketHandle close path](https://github.com/dotnet/dotnet/blob/820230c386db5b0106c5430b3e5aee92a7826bf5/src/runtime/src/libraries/System.Net.Sockets/src/System/Net/Sockets/SafeSocketHandle.Unix.cs#L262-L283)
+corrects the initial linger requirement: abortive close explicitly continues
+after EINVAL/ENOPROTOOPT/ENOTSOCK from its8-byte `SO_LINGER` request. Current
+bounded rejection therefore needs no fabricated linger success. Both modes
+still use `sendto`/`recvfrom`; no message-syscall
 expansion is justified by this fixture. Independent copied evidence checks779
 source inputs,32 outputs, four producer files and the original recipe receipt.
 The earlier managed Windows run had zero pending sends and remains separate.
-These are Linux builder results; kernel epoll and actual guest proof are pending.
+These are Linux builder results; step1340 adds the host epoll slice above and
+actual guest proof remains pending.
 
 [Step1337](../done/step1337.md) adds the development-only IPv4 passive TCP
 socket adapter in the shared Linux descriptor namespace. Host checks exercise
@@ -21,8 +42,9 @@ Only the manifest address/port can bind. Last close retains TCP ownership for
 the continuing packet/timer owner; a failed transport is explicitly aborted
 before closed reap. `CLROS_LINUX_SOCKETS` keeps the TCP dependencies outside older
 EFI descriptor/threading profiles. This is host contract evidence: the live
-NIC/scheduler socket profile, blocking waits, epoll and guest payload execution
-are still pending. No issue in the current socket/application batch is accepted.
+NIC/scheduler socket profile and guest payload execution are still pending;
+step1340 adds retained epoll waits. No issue in the current socket/application
+batch is accepted.
 
 [Step1336](../done/step1336.md) records the finite System.Net.Sockets fixture's
 real pinned Linux NativeAOT run: four connections,61 request bytes,65,572 reply
@@ -30,7 +52,7 @@ bytes, four partial sends,70 blocked sends, reset1 and orderly EOF2. Independent
 copy audit verifies777 source inputs,21 outputs and four original producer files.
 The earlier managed Windows run observes no partial sends. Both boundaries
 remain distinct; the CLROS socket adapter now has the bounded host slice above,
-while epoll and guest proof remain pending.
+with step1340's host epoll evidence separate from pending guest proof.
 
 The measured native calls include `sendto`/`recvfrom`, `fcntl` nonblocking flags,
 `accept4`, socket options and an empty reactor's `epoll_create1`/`epoll_pwait`.

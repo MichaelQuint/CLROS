@@ -16,7 +16,7 @@ public unsafe partial struct LinuxThreadServices
             !X64LinuxUserTransition.FaultProvenance(trap, error) || (trap == 13 ? code != 128 || address != 0 : code is not (1 or 2)))
             return LinuxSignalServices.Delivery.Rejected;
         Slot* slot = _owner.Slots + index;
-        if (slot->Exiting != 0 || slot->Wait.IsValid || slot->PipeOperation.IsActive || slot->RestartMode != 0 ||
+        if (slot->Exiting != 0 || slot->Wait.IsValid || HasDescriptorOperation(slot) || slot->RestartMode != 0 ||
             !X64LinuxUserTransition.ValidateFaultUserImage(&slot->Image, X64LinuxUserTransition.UserImageBytes, _owner.ObservedMxcsrMask,_owner.User.UserInterrupts))
             return LinuxSignalServices.Delivery.Rejected;
         // Linux hides outside-user page-table presence in the saved error code.
@@ -67,7 +67,7 @@ public unsafe partial struct LinuxThreadServices
         if (!Access(key, flags) || _failed || _stopping || _signals == null || !Current(flags, out uint index))
             return LinuxSignalServices.Delivery.Rejected;
         Slot* slot = _owner.Slots + index;
-        if (slot->Exiting != 0 || slot->Wait.IsValid || slot->PipeOperation.IsActive) return LinuxSignalServices.Delivery.Rejected;
+        if (slot->Exiting != 0 || slot->Wait.IsValid || HasDescriptorOperation(slot)) return LinuxSignalServices.Delivery.Rejected;
         for (uint attempt = 0; attempt < 31 + LinuxSignalServices.RealtimeQueueCapacity; attempt++)
         {
             long pending = LinuxSignalServices.Next(_signals, _self, slot->Kernel, slot->Mask, out uint signal);
@@ -133,7 +133,7 @@ public unsafe partial struct LinuxThreadServices
         if (!Access(key, flags) || _failed || _stopping || _signals == null || !Current(flags, out uint index))
             return LinuxSignalServices.Delivery.Rejected;
         Slot* slot = _owner.Slots + index;
-        if (slot->Exiting != 0 || slot->Wait.IsValid || slot->PipeOperation.IsActive) return LinuxSignalServices.Delivery.Rejected;
+        if (slot->Exiting != 0 || slot->Wait.IsValid || HasDescriptorOperation(slot)) return LinuxSignalServices.Delivery.Rejected;
         ulong priorRip = slot->Image.Frame.Rip; long priorValue = slot->Image.Value;
         bool rewind = signal is >= 1 and <= 64 && !slot->Mask.Contains(signal) && slot->RestartMode == 1 &&
             LinuxSignalServices.RestartHandler(_signals, signal);

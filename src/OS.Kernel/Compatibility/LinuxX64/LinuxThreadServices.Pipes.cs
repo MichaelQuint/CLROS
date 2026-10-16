@@ -20,7 +20,7 @@ public unsafe partial struct LinuxThreadServices
         // These are exact native capability addresses, not logical method equality.
         if (!a.SigpipeIgnored || a.User.Context != _owner.User.Context || (ulong)a.User.PageAccess != (ulong)_owner.User.PageAccess ||
             (ulong)a.User.CopyFromUser != (ulong)_owner.User.CopyFromUser || (ulong)a.CopyToUser != (ulong)_owner.CopyToUser) return false;
-        for (uint i = 0; i < 15; i++)
+        for (uint i = 0; i < 18; i++)
         {
             DescriptorExtent(descriptors, i, out ulong start, out ulong bytes);
             if (bytes == 0) continue;
@@ -46,8 +46,11 @@ public unsafe partial struct LinuxThreadServices
         if (!Access(key, flags) || _failed || _stopping || !Current(flags, out uint index) ||
             !LinuxSyscallGateway.ValidateReturn(frame, _owner.User) || _descriptors == null) return new(LinuxSyscallAction.Rejected);
         Slot* slot = _owner.Slots + index;
-        if (slot->Exiting != 0 || slot->RestartMode is 1 or 2 || slot->Wait.IsValid || slot->PipeOperation.IsActive) return new(LinuxSyscallAction.Rejected);
+        if (slot->Exiting != 0 || slot->RestartMode is 1 or 2 || slot->Wait.IsValid || HasDescriptorOperation(slot)) return new(LinuxSyscallAction.Rejected);
         if (!LinuxDescriptorServices.Attached(_descriptors, _self)) { _failed = true; return new(LinuxSyscallAction.Rejected); }
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        if (frame.Number is 232 or 281 && _descriptors->Epoll != null) return BeginEpoll(flags, slot, frame);
+#endif
         bool pipe = LinuxDescriptorServices.BeginPipe(_descriptors, _self, frame, ref slot->PipeOperation, out long value);
         if (pipe)
         {
@@ -167,13 +170,17 @@ public unsafe partial struct LinuxThreadServices
             if (state.Completion != KernelThreadTable.Completion.None) continue;
             if (!_owner.Threads->Wake(_owner.ThreadKey, flags, slot->Wait).Succeeded) { _failed = true; return false; }
         }
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+        return WakeEpollChanges(flags);
+#else
         return true;
+#endif
     }
 
     private bool DescriptorStorageOverlap(ulong start, ulong bytes, bool includeUserBacking = true)
     {
         if (_descriptors == null) return false;
-        for (uint i = 0; i < 15; i++)
+        for (uint i = 0; i < 18; i++)
         {
             // Validated futex words may use application backing; service metadata may not.
             if (i == 8 && !includeUserBacking) continue;
@@ -204,6 +211,13 @@ public unsafe partial struct LinuxThreadServices
             case 13: start = (ulong)state->Sockets; bytes = state->Sockets == null ? 0 : (uint)sizeof(LinuxSocketServices.State); break;
             case 14:
                 if (state->Sockets != null) { start = (ulong)state->Sockets->Slots; bytes = state->Sockets->Count * (uint)sizeof(LinuxSocketServices.Endpoint); }
+                break;
+            case 15: start = (ulong)state->Epoll; bytes = state->Epoll == null ? 0 : (uint)sizeof(LinuxEpollServices.State); break;
+            case 16:
+                if (state->Epoll != null) { start = (ulong)state->Epoll->Ports; bytes = state->Epoll->PortCount * (uint)sizeof(LinuxEpollServices.Port); }
+                break;
+            case 17:
+                if (state->Epoll != null) { start = (ulong)state->Epoll->Registrations; bytes = state->Epoll->RegistrationCount * (uint)sizeof(LinuxEpollServices.Registration); }
                 break;
 #endif
         }
