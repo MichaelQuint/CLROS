@@ -22235,7 +22235,7 @@
         "M16-001"
       ],
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "type:implementation",
         "component:app-model",
         "phase:m10-kestrel",
@@ -32074,7 +32074,7 @@
       "collisionLane": "lane:nativeaot-integration",
       "desiredState": "open",
       "labels": [
-        "agent:blocked",
+        "agent:claimed",
         "priority:p0",
         "type:implementation",
         "evidence:qemu",
