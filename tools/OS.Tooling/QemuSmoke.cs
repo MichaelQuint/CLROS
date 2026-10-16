@@ -282,13 +282,18 @@ public static class QemuSmoke
             {
                 capture.Validate(); output.WriteLine("TEST_PASS m01.026.raw-observations");
             }
-            int validated = webProgram is not null?QemuTranscripts.ValidateWebRun(root,options,plan,runner,output,webProgram,
+            int validated = webProgram is not null?QemuTranscripts.InspectWebRun(root,options,plan,runner,output,webProgram,
                 new(webForwardPort,qemu,ovmf,webStarted,webCompleted)):
                 QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram, threadingProgram, runtimeProgram,socketProgram,socketPeer);
             threadingEvidence?.VerifyUnchanged();
             webInputs?.VerifyUnchanged();
-            if(webProgram is not null)NativeAotWebProgram.HoldSources(root,webInputs!);
-            webNative?.VerifyHeldInputs();
+            if(webProgram is not null)
+            {
+                NativeAotWebProgram.HoldSources(root,webInputs!);
+                if(webNative is null)throw new ToolFailure("web_current_native_context_required");
+                webNative.VerifyHeldInputs();
+                if(validated==0)output.WriteLine("TEST_PASS qemu.smoke.web");
+            }
             return validated;
         }
         catch(OperationCanceledException)when(!cancellation.IsCancellationRequested)

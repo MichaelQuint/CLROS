@@ -11,7 +11,9 @@ public static partial class QemuTranscripts
         "TEST_START m10.004",..M16LinuxSignalMarkers.Take(3),"M16_011_BOUND ","M16_005_ARMED","M16_008_BOUND","M16_008_BUDGET",
         "M10_004_ENTER","M10_004_CONFIG","M10_004_LISTEN","M10_004_LIVE","CLROS_M10_004_READY","TEST_PASS m10.004"];
 
-    internal static int ValidateWebRun(string root,QemuSmokeOptions options,QemuSmokePlan plan,ProcessResult runner,
+    // This consumer checks borrowed observations only. QemuSmoke owns current
+    // native/source/image admission, the actual runner and the final success.
+    internal static int InspectWebRun(string root,QemuSmokeOptions options,QemuSmokePlan plan,ProcessResult runner,
         TextWriter output,NativeAotWebProgram program,WebRunnerContext context)
     {
         RequireCompleteProcess(runner,"web_runner_incomplete");
@@ -33,12 +35,10 @@ public static partial class QemuTranscripts
         output.WriteLine($"WEB_PREFIX_REPLAY clones={replay.Protocol.Clones} irqs={replay.Protocol.Irqs} drains={replay.Protocol.Drains} transfers={replay.Protocol.Transfers} active={replay.Active} ready={replay.Ready} selected={replay.Current} returning={replay.ReturningToSupervisor} entropyRemaining={replay.EntropyRemaining} accepts={replay.SocketAccepts} sent={replay.Sent} received={replay.Received} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_PACKETS connections={packets.Connections} tcpRecords={packets.TcpRecords} received={packets.Received} sent={packets.Sent} clientFins={packets.ClientFins} serverFins={packets.ServerFins} clientFinAcks={packets.ClientFinAcks} serverFinAcks={packets.ServerFinAcks} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_RUNNER pid={runnerReport.ProcessId} lifetimeMs={runnerReport.LifetimeMilliseconds} healthMs={runnerReport.HealthMilliseconds} configMs={runnerReport.ConfigurationMilliseconds} acceptance=pending");
-        // A live HTTP exchange alone cannot pass the full smoke gate. The finite
-        // runtime parser requires guest exit/reap and must never be given invented
-        // completion rows for this continuing profile. Keep acceptance closed
-        // until current native/source admission and stable qualification join it.
-        output.WriteLine("TEST_FAIL qemu.smoke web_continuing_evidence_admission_pending");
-        return 1;
+        // A continuing prefix supplies no guest exit/reap or resource release.
+        // Never send it to the finite parser or manufacture completion records.
+        // The caller must still recheck every held current input before success.
+        return 0;
     }
 
     /// <summary>Value-only observations of a complete web-leaf prefix and its

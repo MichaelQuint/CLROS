@@ -862,6 +862,14 @@ image mutations reject. The original r12 image joins its retained EFI/package,
 while its old EFI source closure correctly rejects as stale. Current positive
 native/runner qualification and complete stack-path review remain pending.
 
+[Step1361](../done/step1361.md) completes the continuing admission wiring.
+Borrowed inspection cannot emit the owner's success marker. The actual runner
+owner verifies unchanged held native/source/image and capture inputs before
+`TEST_PASS qemu.smoke.web`. The original full249-marker plan and combined
+borrowed inspection pass; original added output and supervisor stack paths
+are joined without using an arbitrary margin for unknown callees. Fresh
+current artifact and stable-batch qualification remain required for acceptance.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

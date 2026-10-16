@@ -53,10 +53,11 @@ socket policy still bind8080. Measured interval, mapping, native-stack and finit
 entropy limits are explicit web-profile bounds. Kestrel's one-byte `MSG_PEEK`
 copies without consuming the TCP receive window.
 
-These are development diagnostics. The complete `qemu smoke` web admission
-deliberately returns `web_continuing_evidence_admission_pending` until the
-independent continuing transcript, original native, packet and runner joins are
-implemented and validated. No finite exit/reap or DMA teardown is invented for
+These are development diagnostics. Step1354 deliberately returned
+`web_continuing_evidence_admission_pending` while independent continuing
+transcript, original native, packet and runner joins were incomplete. The later
+consumer steps below enable owner admission for qualification. No finite
+exit/reap or DMA teardown is invented for
 a continuing process. The retained r12 diagnostic returns exact200/22-byte
 selected health and200/238-byte configuration responses; an independent bounded
 PCAP reassembly matches both bodies. The runner's QEMU remains alive across
@@ -102,6 +103,13 @@ must contain the exact selected boot EFI and package; app/source inventories
 are rechecked afterward. Seven focused checks and seven retained-image
 mutations pass. Old r12 provenance correctly rejects against current sources;
 fresh stable native/guest qualification is still pending.
+[Step1361](../done/step1361.md) enables the complete owner-admitted path for
+qualification. Borrowed transcript inspection emits observations only;
+`QemuSmoke` emits `TEST_PASS qemu.smoke.web` after the actual runner and final
+held source/native/image/evidence checks. Original scoped stack joins measure
+6440 bytes for threaded output from gateway stack top and8872 bytes for the
+retained supervisor failure path. Fresh native/full-host/guest qualification
+still precedes #217 acceptance.
 
 ## Transport decision experiments
 
