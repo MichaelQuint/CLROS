@@ -132,7 +132,7 @@ internal static unsafe class NativeAotWebImageTests
             string destination = System.IO.Path.Combine(root, "artifacts", "selected.clrelf");
             File.WriteAllText(manifest, Manifest(Image())); File.WriteAllText(settings, "{}");
             string[] command = ["package", "--recipe-root", root, "--recipe-evidence", root, "--output", destination, "--manifest", manifest, "--settings", settings];
-            Reject(command[..^2], "nativeaot web qualify");
+            Reject(command[..^2], "nativeaot web package");
             File.Delete(settings); Reject(command, "web_settings_reparse_point"); File.WriteAllText(settings, "{}");
             command[^1] = manifest; Reject(command, "authority_output_file_alias"); command[^1] = settings;
             File.WriteAllText(manifest, new string('x', 4097)); Reject(command, "web_manifest_size_out_of_range");
@@ -141,7 +141,7 @@ internal static unsafe class NativeAotWebImageTests
             void Reject(string[] args, string reason)
             {
                 using StringWriter output = new();
-                HostCheck.Equal(1, NativeAotWebPayload.RunAsync(root, args, output).GetAwaiter().GetResult());
+                HostCheck.Equal(1, NativeAotWebPackage.RunConfigured(root, args, output));
                 string text = output.ToString();
                 HostCheck.True(text.Contains("TEST_START nativeaot.web.package", StringComparison.Ordinal) &&
                     text.Contains("TEST_FAIL nativeaot.web.package " + reason, StringComparison.Ordinal));

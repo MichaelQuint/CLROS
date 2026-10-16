@@ -90,6 +90,17 @@ This proves host composition only; no selected guest configuration or Kestrel
 acceptance follows. Malformed bounds, keys, paths, schema and stale ELF digest
 reject before package publication. Actual guest observations remain required.
 
+[Step1353](../done/step1353.md) restores the original web producer file byte for
+byte and routes selected-package CLI arguments in `ToolCommand` instead. This
+preserves the accepted socket package's producer-source pin. Selected packaging
+passes on the retained Linux builder with original producer revalidation, using
+the bounded Linux x64 file-identity implementation. File identity/link count/
+length match independent `stat` observations; hard links, path replacement and
+case-only root escapes reject. Windows file-identity behavior is preserved.
+Every returned byte snapshot also matches its admitted length and digest; final
+path/content checks alone cannot admit bytes changed and restored by a Unix writer.
+The resulting selected package remains host/Linux-builder evidence only.
+
 The disk-manifest batch has a separate bounded pointer validator in
 `OS.Storage.NativeManifestDisk`, host-tested in [step1153](../done/step1153.md).
 It accepts at most 4,096 bytes of ASCII native v0 required fields and optional

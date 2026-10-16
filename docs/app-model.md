@@ -767,6 +767,20 @@ This is host composition evidence only; native/guest configuration, upstream
 startup and #217 acceptance remain pending. See [the manifest specification](manifest.md#linux-elf-immutable-data-envelope-version-2)
 for selection syntax and ownership.
 
+[Step1353](../done/step1353.md) adds separate host instruction admission for the
+unchanged qualified web ELF. A retained independent LLVM22.1.3 section audit
+joins1,403,696 starts/4,492,823 bytes and all198 syscall continuations across five
+executable sections. The89 executable-load padding bytes outside those sections
+grant no starts. `linux web-program <package> <dump>` requires the exact ELF,
+bounded V2 web policy, immutable JSON object, current app/build/publisher sources
+and the reviewed complete index. Source-file locks and final directory/override
+checks reject changed source closure. A value-only `linux web-index <elf> <dump>`
+report grants no prepared lookup authority. Original and selected packages pass
+admission; altered ELF/policy, omitted instructions, aliases and concurrent source
+additions reject. The original web producer and socket admission remain intact.
+Sixteen focused host checks and actual Linux selected packaging/file-authority
+controls pass. No web guest profile is enabled or qualified by this host lookup.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

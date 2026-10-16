@@ -13,6 +13,30 @@ public static class NativeAotWebPackage
 {
     public const string SettingsPath = "apps/appsettings.json";
 
+    /// <summary>Runs only explicit configured-package selection on the calling
+    /// root. Borrows arguments/output synchronously, writes stable start/fail/pass
+    /// records, and returns nonzero on any admission or I/O failure. The original
+    /// pinned Linux producer dispatcher stays unchanged. No child or guest starts.</summary>
+    public static int RunConfigured(string root, string[] args, TextWriter output)
+    {
+        const string marker = "nativeaot.web.package";
+        output.WriteLine("TEST_START " + marker);
+        try
+        {
+            if (args is not ["package", "--recipe-root", var recipeRoot, "--recipe-evidence", var evidence,
+                "--output", var destination, "--manifest", var manifest, "--settings", var settings])
+                throw new ArgumentException("nativeaot web package --recipe-root <source> --recipe-evidence <evidence> --output <fresh-package> --manifest <manifest> --settings <settings>");
+            output.WriteLine("NATIVEAOT_WEB_PACKAGE sha256=" + WriteConfigured(root, recipeRoot, evidence, destination, manifest, settings));
+            output.WriteLine("TEST_PASS " + marker);
+            return 0;
+        }
+        catch (Exception error)
+        {
+            output.WriteLine("TEST_FAIL " + marker + " " + error.Message.ReplaceLineEndings(" "));
+            return 1;
+        }
+    }
+
     /// <summary>Creates owned package bytes from a supplied static ELF and a
     /// bounded JSON object. This validates format/digests, not producer identity.
     /// Missing/unsupported/oversized inputs throw before returning any package.</summary>
