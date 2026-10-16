@@ -90,7 +90,7 @@ public static class ToolCommand
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "payload")
                 return NativeAotPayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "socket")
-                return NativeAotSocketPayload.RunAsync(args[2..], Console.Out).GetAwaiter().GetResult();
+                return NativeAotSocketPayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "web")
                 return NativeAotWebPayload.RunAsync(Repository.FindRoot(), args[2..], Console.Out).GetAwaiter().GetResult();
             if (args.Length >= 2 && args[0] == "nativeaot" && args[1] == "threading")

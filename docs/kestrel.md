@@ -2,7 +2,7 @@
 
 ## NativeAOT-first milestone
 
-[Step1334](../done/step1334.md) corrects #214/#215's builder slice under shared
+[Step1335](../done/step1335.md) records fresh #214/#215 builder evidence under shared
 integration [#737](http://192.168.4.35:3000/admin/CLROS/issues/737). The existing
 three-app publisher is retained byte-for-byte: the accepted original runtime
 package pins its source. The `nativeaot web qualify --output <fresh-directory>`
@@ -10,9 +10,11 @@ wrapper invokes that publisher, then checks the exact default `/healthz` body
 and a separate configured body, rejects contradictory finite-app markers, and
 seals source, payload, dependency and output hashes. `nativeaot web validate <evidence>`
 rechecks the original source and native inputs as well as retained outputs.
-Twenty-three focused checks pass, including original RuntimeSmoke admission.
-Fresh Linux publication and the stable batch gates
-remain pending; neither issue is accepted or closed by these checks.
+Fresh Linux qualification passes all three apps and three Kestrel HTTP runs,
+including the exact17-byte default body. An independent copy audit verifies783
+source inputs,135 output files and six original managed/native producer files;
+1,042 native input identities remain recorded. These are Linux builder results.
+Stable batch acceptance remains pending; neither issue is closed by this evidence.
 
 The [current workload decision](workload-profiles.md) makes M16 NativeAOT
 services, continuing M07 TCP and M10 actual Kestrel the critical path.

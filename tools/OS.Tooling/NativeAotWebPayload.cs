@@ -269,7 +269,7 @@ public static class NativeAotWebPayload
         }
     }
 
-    private static async Task ExecuteAsync(string executable, string[] args, string root, string log, TimeSpan timeout)
+    internal static async Task ExecuteAsync(string executable, string[] args, string root, string log, TimeSpan timeout)
     {
         using var process = Start(executable, args, root);
         using var deadline = new CancellationTokenSource(timeout);
@@ -287,7 +287,7 @@ public static class NativeAotWebPayload
         }
     }
 
-    private static Process Start(string executable, string[] args, string root, string? expectedBody = "OS_MINIMAL_API_OK")
+    internal static Process Start(string executable, string[] args, string root, string? expectedBody = "OS_MINIMAL_API_OK")
     {
         var start = new ProcessStartInfo("setsid") { WorkingDirectory = root, UseShellExecute = false,
             RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
@@ -305,7 +305,7 @@ public static class NativeAotWebPayload
         return Process.Start(start) ?? throw new IOException("native_process_start");
     }
 
-    private static async Task CaptureAsync(StreamReader reader, string path, Process process)
+    internal static async Task CaptureAsync(StreamReader reader, string path, Process process)
     {
         try
         {
@@ -330,14 +330,14 @@ public static class NativeAotWebPayload
         }
     }
 
-    private static string HashFile(string path)
+    internal static string HashFile(string path)
     {
         using var file = File.OpenRead(path);
         return Convert.ToHexString(SHA256.HashData(file));
     }
     // Every Linux child starts in its own session/process group. This also covers
     // descendants retaining pipes after a successful compiler/wrapper exit.
-    private static async Task StopSessionAsync(Process process)
+    internal static async Task StopSessionAsync(Process process)
     {
         int result = Kill(-process.Id, 9);
         Require(result == 0 || Marshal.GetLastPInvokeError() == 3, "native_session_cleanup");
