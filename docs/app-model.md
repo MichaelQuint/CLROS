@@ -853,6 +853,15 @@ web observer/publisher/failure bodies only for the selected web profile.
 Current native/source and complete stack-path qualification remain pending;
 the full smoke guard stays closed and #217/#737 stay open.
 
+[Step1360](../done/step1360.md) retains complete current EFI provenance and
+original app source locks through the web runner, including final source/app
+inventory checks. A read-only extraction of the existing fault fixture checks
+exact boot EFI/package bytes, directory sizes and both contiguous FAT copies
+inside the selected64-MiB raw image. Seven focused checks pass; seven retained
+image mutations reject. The original r12 image joins its retained EFI/package,
+while its old EFI source closure correctly rejects as stale. Current positive
+native/runner qualification and complete stack-path review remain pending.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

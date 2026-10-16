@@ -34,6 +34,7 @@ public static class QemuSmoke
         DateTimeOffset webStarted=default,webCompleted=default;
         NativeAotWebProgram.Configuration webConfiguration=default;
         AuthorityFiles? webInputs=null;
+        EfiVerification? webNative=null;
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
@@ -68,6 +69,7 @@ public static class QemuSmoke
                             AuthorityFiles.RequireDistinct(p,d);
                             byte[] bytes=p.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"web_package");
                             webProgram=NativeAotWebProgram.Create(root,bytes,d.ReadUtf8(NativeAotWebProgram.MaximumDisassemblyBytes,"web_instructions"));
+                            NativeAotWebProgram.HoldSources(root,webInputs);
                             webConfiguration=NativeAotWebProgram.DescribeConfiguration(bytes);
                             webInputs.VerifyUnchanged();
                         }
@@ -162,6 +164,21 @@ public static class QemuSmoke
                 }
                 int preflight = ValidateImage(Path.GetFullPath(options.Image, root), options.DiskFormat, output, options.Image);
                 if (preflight != 0) return preflight;
+                if(web)
+                {
+                    webNative=new(EfiOptions.Parse(["--root",root,"--boot-policy",plan.BootPolicy,"--efi-artifact",options.EfiArtifact,
+                        ..plan.Flags.Where(p=>p.Value).Select(p=>"-"+p.Key)],false),output.WriteLine);
+                    webNative.Verify();
+                    string imagePath=Path.GetFullPath(options.Image,root),efiPath=Path.GetFullPath(options.EfiArtifact,root),packagePath=Path.GetFullPath(options.LinuxElfPackage,root);
+                    var imageInput=webInputs!.Open(Path.GetDirectoryName(imagePath)!,imagePath,"web image","web_image",64*1024*1024,singleLink:true);
+                    var efiInput=webInputs.Open(Path.GetDirectoryName(efiPath)!,efiPath,"web EFI","web_efi",16*1024*1024,singleLink:true);
+                    var packageInput=webInputs.Open(Path.GetDirectoryName(packagePath)!,packagePath,"web package","web_package",OS.Manifest.LinuxElfPackage.MaximumBytes,singleLink:true);
+                    AuthorityFiles.RequireDistinct(imageInput,efiInput,packageInput);
+                    var locations=LinuxElfImageFixture.Inspect(imageInput.ReadBytes(64*1024*1024,"web_image"),
+                        efiInput.ReadBytes(16*1024*1024,"web_efi"),packageInput.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"web_package"));
+                    webInputs.VerifyUnchanged();
+                    output.WriteLine($"WEB_IMAGE_JOIN efiOffset={locations.EfiStart} packageOffset={locations.PackageStart} imageSha256={imageInput.Sha256} efiSha256={efiInput.Sha256} packageSha256={packageInput.Sha256}");
+                }
             }
             int timeout = options.TimeoutSeconds;
             bool rawCapture = plan.IsEnabled("EnableM01OwnedPagingProbe") && !new[] { "M02OwnedGdtTssTerminal", "M02Ud2VectorState", "M02PageFaultCr2ErrorCode", "M02DoubleFaultIst", "M02UnexpectedVectorPanic" }.Any(x => plan.IsEnabled("Enable" + x + "Probe"));
@@ -270,13 +287,15 @@ public static class QemuSmoke
                 QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram, threadingProgram, runtimeProgram,socketProgram,socketPeer);
             threadingEvidence?.VerifyUnchanged();
             webInputs?.VerifyUnchanged();
+            if(webProgram is not null)NativeAotWebProgram.HoldSources(root,webInputs!);
+            webNative?.VerifyHeldInputs();
             return validated;
         }
         catch(OperationCanceledException)when(!cancellation.IsCancellationRequested)
         {output.WriteLine("TEST_FAIL qemu.smoke socket_orchestration_timeout");return 1;}
         catch (Exception error) when (error is ToolFailure or ArgumentException or IOException or InvalidDataException or InvalidOperationException)
         { output.WriteLine("TEST_FAIL qemu.smoke " + error.Message); return 1; }
-        finally { capture?.Dispose(); linuxInput?.Dispose(); helloDisassemblyInput?.Dispose(); threadingDisassemblyInput?.Dispose(); webInputs?.Dispose(); }
+        finally { capture?.Dispose(); linuxInput?.Dispose(); helloDisassemblyInput?.Dispose(); threadingDisassemblyInput?.Dispose(); webInputs?.Dispose(); webNative?.Dispose(); }
     }
 
     public static string? ResolveExecutable(string? requested)

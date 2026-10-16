@@ -140,7 +140,7 @@ public sealed class NativeAotWebProgram
         ("apps/MinimalApiSmoke/appsettings.json", "FF0AB2FFB263DF50157F565C6AA386B50D23C9AC9A03F47D53B225C0471A0CE6"),
         ("apps/MinimalApiSmoke/appsettings.Development.json", "817DB0BF2ECCA78364C41DBAF7949BF2504CF47A1C3D0D54F3BE8178FEFC030B")];
 
-    private static void HoldSources(string root, AuthorityFiles files)
+    internal static void HoldSources(string root, AuthorityFiles files)
     {
         root = Path.GetFullPath(root);
         foreach (string relative in new[] { "NuGet.Config", "nuget.config", "Directory.Packages.props",

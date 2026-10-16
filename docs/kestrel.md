@@ -96,6 +96,12 @@ result/window for inspection; it is not a fresh runner qualification. Current
 native/source admission, complete stack-path accounting and stable-batch
 qualification remain pending.
 No new guest run or issue closure is part of these host parser steps.
+[Step1360](../done/step1360.md) wires the existing complete EFI verifier into
+the continuing runner and retains its inputs through validation. The raw image
+must contain the exact selected boot EFI and package; app/source inventories
+are rechecked afterward. Seven focused checks and seven retained-image
+mutations pass. Old r12 provenance correctly rejects against current sources;
+fresh stable native/guest qualification is still pending.
 
 ## Transport decision experiments
 

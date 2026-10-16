@@ -24,6 +24,7 @@ public static class NativeAotWebSelection
             options.LinuxThreadingApplication = app;
         _ = Application(flags, options.LinuxThreadingApplication);
         if (options.WorkloadProfile != "SingleMinimalApi") throw new ToolFailure("web_single_workload_required");
+        if (options.DiskFormat != "raw") throw new ToolFailure("web_raw_image_required");
         if (options.LinuxThreadingDisassembly.Length == 0) throw new ToolFailure("web_disassembly_required");
         if (options.LinuxElfPackage.Length == 0 || options.LinuxElfImageVariant != "Intact") throw new ToolFailure("web_original_package_required");
         if (options.LinuxHelloDisassembly.Length != 0) throw new ToolFailure("web_hello_conflict");

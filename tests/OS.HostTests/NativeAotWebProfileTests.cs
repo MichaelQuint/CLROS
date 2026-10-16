@@ -52,5 +52,8 @@ internal static class NativeAotWebProfileTests
             var invalid = Options(); invalid.TimeoutSeconds = timeout; invalid.Explicit.Add("TimeoutSeconds");
             bool rejected = false; try { QemuProfiles.Create(invalid); } catch (ToolFailure) { rejected = true; } HostCheck.True(rejected);
         }
+        var converted=Options();converted.DiskFormat="qcow2";
+        bool rawRequired=false;try{QemuProfiles.Create(converted);}catch(ToolFailure e){rawRequired=e.Reason=="web_raw_image_required";}
+        HostCheck.True(rawRequired);
     }
 }
