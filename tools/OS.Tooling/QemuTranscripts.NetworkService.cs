@@ -103,7 +103,7 @@ public static partial class QemuTranscripts
         ulong peerMac = ReadRecord(lines[peerRow], "M07_026_ROW", "stage:dec", "a:dec", "b:dec", "c:dec", "d:dec")["d"];
         _ = QemuEthernetCapture.Inspect(bytes, checked((uint)anchor[0]));
         uint requests = 0, replies = 0, requestMask = 0, replyMask = 0; bool anchored = false;
-        int tcpIndex = 0, finalEchoes = 0, capturedFrames = 0;
+        int tcpIndex = 0, finalEchoes = 0, capturedFrames = 0, warmupFrames = 0;
         ulong lastTimestamp = 0, closedTimestamp = 0;
         Dictionary<string, ulong> times = new(StringComparer.Ordinal);
         int offset = 24;
@@ -118,9 +118,12 @@ public static partial class QemuTranscripts
             offset += 16; ReadOnlySpan<byte> frame = bytes.AsSpan(offset, size); offset += size;
             if (frame.Length < 14) continue;
             ushort type = BinaryPrimitives.ReadUInt16BigEndian(frame[12..]);
+            if (!anchored && frame.Length == 60 && frame[..14].SequenceEqual(new byte[] { 2,0,0,0,0,2,2,0,0,0,0,1,0x88,0xb5 }) &&
+                frame[14..].IndexOfAnyExcept((byte)0) < 0)
+            { Need(warmupFrames++ == 0 && capturedFrames == 1, "m07_tcp_original_queue_warmup"); continue; }
             if (type == 0x88b5 && frame.Length == 60 && OS.Std.Hash.Crc32.Compute(frame) == anchor[0])
-            { anchored = true; continue; }
-            if (!anchored) continue;
+            { Need(!anchored && warmupFrames == 1 && capturedFrames == 2, "m07_tcp_original_anchor_order"); anchored = true; continue; }
+            Need(anchored, "m07_tcp_unexpected_original_prefix");
             if (type == 0x0800 && frame.Length >= 34 && frame[23] == 6)
             {
                 Need(requestMask == 4095 && replyMask == 4095 && finalEchoes == 0 && tcpIndex < ContinuingTcpScenario.Packets.Count, "m07_tcp_capture_phase");
@@ -172,7 +175,7 @@ public static partial class QemuTranscripts
         }
         // One original ARP parent exchange plus20 continuing exchanges.
         Need(requests == 21 && replies == 21 && requestMask == 4095 && replyMask == 4095, "m07_026_capture_exchange_counts");
-        Need(tcpIndex == ContinuingTcpScenario.Packets.Count && finalEchoes == 2 && capturedFrames == 69 + tcpIndex, "m07_tcp_capture_counts");
+        Need(warmupFrames == 1 && tcpIndex == ContinuingTcpScenario.Packets.Count && finalEchoes == 2 && capturedFrames == 70 + tcpIndex, "m07_tcp_capture_counts");
         void Interval(string first, string second, ulong minimum)
         {
             Need(times.TryGetValue(first, out ulong a) && times.TryGetValue(second, out ulong b) && b >= a && b - a + 2000 >= minimum,

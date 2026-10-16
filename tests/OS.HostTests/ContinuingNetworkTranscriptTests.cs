@@ -45,6 +45,9 @@ internal static class ContinuingNetworkTranscriptTests
             void Inspect(List<byte[]> values) { File.WriteAllBytes(capture, Pcap(values)); QemuTranscripts.AssertM07026Capture(serial, capture); }
             Inspect(frames);
             Reject(() => Inspect(frames.Skip(1).ToList()));
+            Reject(() => Inspect(frames.Where((_, i) => i != 1).ToList()));
+            var badPrefix = frames.Select(x => (byte[])x.Clone()).ToList(); badPrefix[0][14] = 1; Reject(() => Inspect(badPrefix));
+            var duplicatePrefix = frames.ToList(); duplicatePrefix.Insert(1, frames[0]); Reject(() => Inspect(duplicatePrefix));
             Reject(() => Inspect(frames.Take(frames.Count - 1).ToList()));
             var duplicate = frames.ToList(); duplicate.Add(frames[^1]); Reject(() => Inspect(duplicate));
             foreach (int offset in new[] { 0, 6, 24, 36, 38, 40, 42 })
@@ -93,6 +96,9 @@ internal static class ContinuingNetworkTranscriptTests
                     linuxElfPackagePath:packagePath, workloadServiceLoop:true, networkService:true);
             }
             Inspect(rows);
+            string pcap = Path.Combine(directory, "ethernet.pcap"); File.WriteAllBytes(pcap, Pcap(Frames()));
+            var replay = HostToolProcess.RunTool("qemu", "validate-network", serial, pcap, packagePath);
+            HostCheck.True(replay.ExitCode == 0 && replay.Output.Contains("TEST_PASS qemu.network.capture", StringComparison.Ordinal), replay.Error + replay.Output);
             foreach (int index in new[] { owned + 2, owned + 7 + 1, owned + 7 + 6 })
             {
                 string[] bad = (string[])rows.Clone(); bad[index] += " extra"; Reject(() => Inspect(bad));
@@ -131,7 +137,9 @@ internal static class ContinuingNetworkTranscriptTests
     private static List<byte[]> Frames()
     {
         byte[] anchor = new byte[60]; Convert.FromHexString("02000000000202000000000188B5").CopyTo(anchor, 0);
-        "CLROS-M07"u8.CopyTo(anchor.AsSpan(14)); var frames = new List<byte[]> { anchor };
+        "CLROS-M07"u8.CopyTo(anchor.AsSpan(14));
+        byte[] warmup = (byte[])anchor.Clone(); warmup.AsSpan(14).Clear();
+        var frames = new List<byte[]> { warmup, anchor };
         var localMac = new MacAddress(2, 0, 0, 0, 0, 1); var peerMac = new MacAddress(0x52, 0x55, 10, 0, 2, 2);
         var local = new Ipv4Address(10, 0, 2, 15); var peer = new Ipv4Address(10, 0, 2, 2);
         for (int i = 0; i < 21; i++)

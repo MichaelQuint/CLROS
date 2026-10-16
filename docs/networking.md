@@ -1,5 +1,17 @@
 # Networking
 
+[Step1324](../done/step1324.md) records the first complete development guest:
+all 80 TCP wire steps, actual 240-second TIME-WAIT, five table reaps, four
+buffer-pair scrubs and original NIC reset/pool cleanup complete. The guest
+runner passes. The first outer checker rejects its count because the original
+M05 queue warmup precedes the tagged M07 frame. Require that exact zero-payload
+prefix and all 150 records; malformed, duplicate or missing prefixes still fail.
+The corrected checker passes the same immutable real serial/PCAP/package through
+`qemu validate-network <serial-log> <pcap> <package>`, without a guest relaunch.
+This separates the original guest implementation from the corrected capture
+validator. Full-host, complete original native ABI/stack review, strict guest
+repetitions and ancestors remain outstanding before batch acceptance/closure.
+
 [Step1323](../done/step1323.md) records the first real continuing ARP/ICMP and
 initial TCP admission development evidence after the code-slot repair. The guest
 then stops because the fixture expects Success for a repeated FIN whose original
