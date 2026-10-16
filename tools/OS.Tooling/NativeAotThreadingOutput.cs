@@ -27,7 +27,7 @@ public static class NativeAotThreadingOutput
     /// <summary>Borrow an unmodified raw tail of at most 8 MiB for exactly
     /// NativeAotSuspensionSmoke, NativeAotThreadPoolSmoke,
     /// NativeAotSuspensionStress, NativeAotThreadPoolStress, NativeAotRuntimeMatrix
-    /// or the original NativeAotRuntimeSmoke.
+    /// the original NativeAotRuntimeSmoke, NativeAotSocketSmoke or its Async leaf.
     /// Each line-bound fd1
     /// envelope supplies 1..4096 canonical decimal payload bytes followed by the
     /// kernel's CRLF; total stdout is at most 4096 bytes. Arbitrary segmentation
@@ -39,7 +39,8 @@ public static class NativeAotThreadingOutput
     public static Capture Read(string application, ReadOnlySpan<byte> rawTail)
     {
         Need(application is "NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke" or
-            "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke", "application");
+            "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke" or
+            "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync", "application");
         Need(rawTail.Length is > 0 and <= 8 * 1024 * 1024, "size");
         byte[] stdout = new byte[4096], normalized = new byte[rawTail.Length];
         List<int> lengths = [];
@@ -90,6 +91,8 @@ public static class NativeAotThreadingOutput
             case "NativeAotThreadPoolStress": NativeAotThreadPoolStressGuest.ValidateOutput(text); break;
             case "NativeAotRuntimeMatrix": NativeAotRuntimeMatrixGuest.ValidateOutput(text); break;
             case "NativeAotRuntimeSmoke": ValidateRuntimeSmokeOutput(text); break;
+            case "NativeAotSocketSmoke": NativeAotSocketPayload.ValidateOutput(text); break;
+            case "NativeAotSocketSmokeAsync": NativeAotSocketPayload.ValidateAsyncOutput(text); break;
         }
         return new(text, tail, lengths.ToArray());
     }

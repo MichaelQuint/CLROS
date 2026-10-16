@@ -7,6 +7,7 @@ using OS.Kernel.Platform;
 using OS.Net;
 using NetDevice = OS.Drivers.ContinuingVirtioNetDevice;
 using SocketNetwork = OS.Kernel.Compatibility.LinuxX64.LinuxSocketNetwork;
+using ThreadTable = OS.Kernel.Threading.KernelThreadTable;
 
 namespace OS.Boot;
 
@@ -30,6 +31,7 @@ public static unsafe partial class EfiEntry
             internal ulong Polls, Received, Copied, Started;
             internal fixed byte Endpoints[2048], Ports[32], Registrations[2560], Slots[8192], Entries[1024];
             internal fixed ulong Generations[8];
+            internal fixed ulong WakeIdentities[(int)LinuxNativeWorkers], WakeSequences[(int)LinuxNativeWorkers];
             internal fixed byte Buffers[327680], Input[1536], Output[1536];
         }
         private static LinuxSocketStorage s_linuxSocketStorage;
@@ -150,7 +152,32 @@ public static unsafe partial class EfiEntry
         {
             fixed (LinuxSocketStorage* o = &s_linuxSocketStorage)
                 return o->Boot == c->State && PumpLinuxSocketFrames(o) && c->Process.AdvanceFutexClock(c->Key, 2) &&
-                    c->Process.PollDescriptorReadiness(c->Key, 2);
+                    c->Process.PollDescriptorReadiness(c->Key, 2) && RecordLinuxSocketWaits(o, c);
+        }
+
+        // Observe only retained source3 waits after the real clock/readiness
+        // mutation. This neither completes a wait nor changes scheduler state.
+        private static bool RecordLinuxSocketWaits(LinuxSocketStorage* o, LinuxNativeControl* c)
+        {
+            if (c->Capacity > LinuxNativeWorkers) return false;
+            for (uint i = 0; i < c->Capacity; i++)
+            {
+                var slot = c->Slots + i;
+                if (slot->WaitSource != 3 || !slot->Wait.IsValid) continue;
+                if (!c->Process.Inspect(c->Key, 2, slot->Kernel, out var view)) return false;
+                if (view.Exiting) continue;
+                var observed = c->Threads.Inspect(c->Key, 2, view.Kernel);
+                if (!observed.Succeeded || !observed.Wait.IsValid || observed.Wait.Sequence != view.Wait.Sequence) return false;
+                if (observed.Completion == ThreadTable.Completion.None ||
+                    o->WakeIdentities[i] == view.Kernel.Value && o->WakeSequences[i] == view.Wait.Sequence) continue;
+                if (!LinuxText(c->State, "M16_012_WAKE identity=") || !LinuxNumber(c->State, view.Kernel.Value) ||
+                    !LinuxText(c->State, " sequence=") || !LinuxNumber(c->State, view.Wait.Sequence) ||
+                    !LinuxText(c->State, " completion=") || !LinuxNumber(c->State, (uint)observed.Completion) ||
+                    !LinuxText(c->State, " state=") || !LinuxNumber(c->State, (uint)observed.State) ||
+                    !LinuxText(c->State, " clock=") || !LinuxNumber(c->State, c->Threads.ObservedTicks) || !LinuxText(c->State, "\r\n")) return false;
+                o->WakeIdentities[i] = view.Kernel.Value; o->WakeSequences[i] = view.Wait.Sequence;
+            }
+            return true;
         }
 
         private static bool IdleLinuxSocketNetwork(LinuxNativeControl* c)

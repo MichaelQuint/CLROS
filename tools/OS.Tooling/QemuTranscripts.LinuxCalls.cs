@@ -15,12 +15,13 @@ public static partial class QemuTranscripts
     /// rows remain usable by existing consumers. Runtime consumers must separately
     /// require current observations through ReadLinuxCallWaits.
     /// </summary>
-    public static string[] ValidateLinuxCallOrdinals(string[] tail)
-        => ParseLinuxCalls(tail, 0, out _, out _);
+    public static string[] ValidateLinuxCallOrdinals(string[] tail, bool allowEpoll = false)
+        => ParseLinuxCalls(tail, 0, out _, out _, allowEpoll);
 
     /// <summary>Immutable observations keyed to the original record position and
     /// complete generation/ordinal. Source0 has no retained wait, source1 is futex
-    /// and source2 is pipe; deadline is absolute monotonic nanoseconds or zero.
+    /// source2 is pipe and explicitly admitted source3 is epoll; deadline is
+    /// absolute monotonic nanoseconds or zero. Existing consumers reject source3.
     /// Values carry no scheduler, execution or prepared-program authority.</summary>
     public readonly record struct LinuxCallWaitObservation(int RecordIndex, ulong Identity,
         ulong Ordinal, uint Source, ulong Deadline, ulong Sequence);
@@ -30,9 +31,9 @@ public static partial class QemuTranscripts
     /// snapshot. Missing/noncanonical/inconsistent witnesses throw ToolFailure.
     /// Other records are left to the complete protocol consumer; no input is
     /// mutated or retained. This value-only parser cannot qualify execution.</summary>
-    public static IReadOnlyList<LinuxCallWaitObservation> ReadLinuxCallWaits(string[] tail)
+    public static IReadOnlyList<LinuxCallWaitObservation> ReadLinuxCallWaits(string[] tail, bool allowEpoll = false)
     {
-        _ = ParseLinuxCalls(tail, 1, out var waits, out _);
+        _ = ParseLinuxCalls(tail, 1, out var waits, out _, allowEpoll);
         return Array.AsReadOnly(waits);
     }
 
@@ -48,14 +49,14 @@ public static partial class QemuTranscripts
     /// read-only owned snapshot. Complete protocol consumers must separately
     /// bind instructions, mappings, generations, requests and signal lifetimes.
     /// Invalid/missing observations throw ToolFailure; no input is retained.</summary>
-    public static IReadOnlyList<LinuxCallReturnObservation> ReadLinuxCallReturns(string[] tail)
+    public static IReadOnlyList<LinuxCallReturnObservation> ReadLinuxCallReturns(string[] tail, bool allowEpoll = false)
     {
-        _ = ParseLinuxCalls(tail, 2, out _, out var returns);
+        _ = ParseLinuxCalls(tail, 2, out _, out var returns, allowEpoll);
         return Array.AsReadOnly(returns);
     }
 
     private static string[] ParseLinuxCalls(string[] tail, int required, out LinuxCallWaitObservation[] waits,
-        out LinuxCallReturnObservation[] returns)
+        out LinuxCallReturnObservation[] returns, bool allowEpoll)
     {
         Need(tail is not null,"linux_call_ordinal_input");
         string[] result=tail!.ToArray(); Dictionary<ulong,ulong> counts=[];
@@ -65,7 +66,7 @@ public static partial class QemuTranscripts
         {
             string line=result[i]; if(!line.StartsWith("M16_008_CALL ",StringComparison.Ordinal)) continue;
             const string n="(0|[1-9][0-9]*)";
-            var match=Regex.Match(line,@"\AM16_008_CALL identity=([1-9][0-9]*) .* ordinal=([1-9][0-9]*)(?: waitSource=([012]) waitDeadline="+n+
+            var match=Regex.Match(line,@"\AM16_008_CALL identity=([1-9][0-9]*) .* ordinal=([1-9][0-9]*)(?: waitSource=("+(allowEpoll?"[0123]":"[012]")+") waitDeadline="+n+
                 " waitSequence="+n+"(?: signalDepth=([0-4]) signalFrame="+n+" blockedSignals="+n+" returnRip="+n+" returnRsp="+n+
                 " returnFlags="+n+" returnFs="+n+" returnGs="+n+" returnValueBits="+n+@")?)?\z",RegexOptions.CultureInvariant);
             Need(match.Success && ulong.TryParse(match.Groups[1].Value,NumberStyles.None,CultureInfo.InvariantCulture,out _) &&
@@ -87,7 +88,7 @@ public static partial class QemuTranscripts
                 Need(ulong.TryParse(match.Groups[4].Value,NumberStyles.None,CultureInfo.InvariantCulture,out ulong deadline) &&
                     ulong.TryParse(match.Groups[5].Value,NumberStyles.None,CultureInfo.InvariantCulture,out _),"linux_call_wait_shape");
                 uint source=(uint)(match.Groups[3].Value[0]-'0'); ulong sequence=Number(match.Groups[5].Value);
-                Need(source==0 ? deadline==0 && sequence==0 : sequence!=0 && (source==1 || deadline==0),"linux_call_wait_state");
+                Need(source==0 ? deadline==0 && sequence==0 : sequence!=0 && (source==1 || allowEpoll && source==3 || deadline==0),"linux_call_wait_state");
                 Need(deadline<=long.MaxValue,"linux_call_wait_deadline");
                 observations.Add(new(i,identity,ordinal,source,deadline,sequence));
             }

@@ -282,11 +282,34 @@ public static unsafe partial class EfiEntry
             if (completed)
             {
 #if CLROS_LINUX_SOCKETS
+                var epollWait = view.WaitSource == 3 ? c->Threads.Inspect(c->Key, 2, c->Threads.Current) : default;
                 if (view.WaitSource == 3) completion = c->Process.CompleteEpollWait(c->Key, 2);
                 else
 #endif
                 completion = view.PipePending ? c->Process.CompletePipeWait(c->Key, 2) : c->Process.CompleteFutexWait(c->Key, 2);
                 completion = LinuxSyscallGateway.CompleteBlocked(ref c->Gates[index], completion);
+#if CLROS_LINUX_SOCKETS
+                if (view.WaitSource == 3 && completion.Action == LinuxSyscallAction.Return &&
+                    (!epollWait.Succeeded || epollWait.Wait.Sequence != view.Wait.Sequence ||
+                    epollWait.Completion == KernelThreadTable.Completion.None ||
+                    !LinuxText(c->State, "M16_012_COMPLETE identity=") || !LinuxNumber(c->State, c->Threads.Current.Value) ||
+                    !LinuxText(c->State, " sequence=") || !LinuxNumber(c->State, view.Wait.Sequence) ||
+                    !LinuxText(c->State, " completion=") || !LinuxNumber(c->State, (uint)epollWait.Completion) ||
+                    !LinuxText(c->State, " valueBits=") || !LinuxNumber(c->State, unchecked((ulong)completion.Value)) ||
+                    !LinuxText(c->State, " clock=") || !LinuxNumber(c->State, c->Threads.ObservedTicks) || !LinuxText(c->State, "\r\n")))
+                    return LinuxNativeAbort(c, index);
+                if (view.WaitSource == 3 && completion.Action == LinuxSyscallAction.Blocked)
+                {
+                    if (!c->Process.Inspect(c->Key, 2, c->Threads.Current, out var again) || again.WaitSource != 3 ||
+                        !again.Wait.IsValid || again.Wait.Sequence <= view.Wait.Sequence || again.WaitDeadline != view.WaitDeadline ||
+                        !LinuxText(c->State, "M16_012_REPARK identity=") || !LinuxNumber(c->State, c->Threads.Current.Value) ||
+                        !LinuxText(c->State, " previous=") || !LinuxNumber(c->State, view.Wait.Sequence) ||
+                        !LinuxText(c->State, " sequence=") || !LinuxNumber(c->State, again.Wait.Sequence) ||
+                        !LinuxText(c->State, " deadline=") || !LinuxNumber(c->State, again.WaitDeadline) ||
+                        !LinuxText(c->State, " clock=") || !LinuxNumber(c->State, c->Threads.ObservedTicks) || !LinuxText(c->State, "\r\n"))
+                        return LinuxNativeAbort(c, index);
+                }
+#endif
                 if (completion.Action != LinuxSyscallAction.Return)
                 {
                     if (completion.Action is not (LinuxSyscallAction.Blocked or LinuxSyscallAction.ThreadExited)) return LinuxNativeAbort(c, index);

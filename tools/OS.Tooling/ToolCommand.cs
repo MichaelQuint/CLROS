@@ -19,6 +19,24 @@ public static class ToolCommand
                 Console.WriteLine("TEST_PASS qemu.network.capture");
                 return 0;
             }
+            if (args is ["linux", "socket-index", var socketElf, var socketDump])
+            {
+                Console.WriteLine("TEST_START linux.socket-index");
+                using AuthorityFiles files = new();
+                socketElf = Path.GetFullPath(socketElf); socketDump = Path.GetFullPath(socketDump);
+                var elf = files.Open(Path.GetDirectoryName(socketElf)!, socketElf, "socket ELF", "socket_index_elf", 16 * 1024 * 1024, singleLink: true);
+                var dump = files.Open(Path.GetDirectoryName(socketDump)!, socketDump, "socket disassembly", "socket_index_dump", NativeAotSocketProgram.MaximumDisassemblyBytes, singleLink: true);
+                AuthorityFiles.RequireDistinct(elf, dump);
+                var report = NativeAotSocketProgram.Inspect(elf.ReadBytes(16 * 1024 * 1024, "socket_index_elf"), dump.ReadUtf8(NativeAotSocketProgram.MaximumDisassemblyBytes, "socket_index_dump"));
+                files.VerifyUnchanged(); Console.WriteLine("TEST_PASS linux.socket-index report_only=true " + report); return 0;
+            }
+            if (args is ["linux", "socket-program", var programMode, var socketPackage, var programDump])
+            {
+                if (programMode is not ("sync" or "async")) throw new ArgumentException("socket_program_mode");
+                Console.WriteLine("TEST_START linux.socket-program");
+                var program = NativeAotSocketProgram.Read(Repository.FindRoot(), programMode == "async", socketPackage, programDump);
+                Console.WriteLine("TEST_PASS linux.socket-program mode=" + programMode + " " + program.Metadata); return 0;
+            }
             if (args is ["linux", "socket-package", var socketMode, var socketEvidence, var socketDestination])
             {
                 if (socketMode is not ("sync" or "async")) throw new ArgumentException("socket_package_mode");
@@ -123,7 +141,7 @@ public static class ToolCommand
             if (args.Length == 0 || args is ["--help"])
             {
                 Console.WriteLine("qemu validate-network <serial-log> <pcap> <package> validates retained M07-026 capture inputs without launching a guest.");
-                Console.WriteLine("linux socket-package sync|async <extracted-socket-evidence> <fresh-artifacts-package>\nlinux runtime-package <app> <extracted-runtime-evidence> <fresh-artifacts-package>\nlinux runtime-program <app> <package> <reviewed-llvm-disassembly>");
+                Console.WriteLine("linux socket-index <original-elf> <llvm-disassembly> (report only)\nlinux socket-program sync|async <package> <reviewed-llvm-disassembly>\nlinux socket-package sync|async <extracted-socket-evidence> <fresh-artifacts-package>\nlinux runtime-package <app> <extracted-runtime-evidence> <fresh-artifacts-package>\nlinux runtime-program <app> <package> <reviewed-llvm-disassembly>");
                 Console.WriteLine("CLROS .NET 11 tooling\ndone next|reserve [--root <repository>]\nrepo check [--root <repository>]\ncontracts check\nefi build|verify [options]\nlinux hello-package <extracted-evidence-r04> <fresh-artifacts-package-path>\nlinux hello-program <hello-package> <llvm-disassembly>\nlinux threading-package <app> <extracted-evidence-root> <fresh-artifacts-package>\nlinux threading-program <app> <package> <llvm-disassembly>\nlinux thread-fixture <fresh-package-path> [Threads|PipeReadClose|PipeWriteClose|PipeShutdown]\nlinux signal-fixture <fresh-package-path> [AlternateStack|UserStack|BadReturn|BadRestorer|FaultRead|FaultWrite|FaultExecute|FaultStack|FaultGp|FaultReturn|FaultFatal|Activation|SignalPipeEintr|SignalPipeRestart|SignalFutexEintr|SignalFutexRestart|SignalPipePartial|NestedAlternateStack|AlternateStackExhaustion]\nqemu smoke|qcow2 [--dry-run] [options]\nlibvirt smoke [--dry-run|--plan-lifecycle|--check-serial-only] [options]\nkestrel package [options]\nnativeaot threading validate-suspension|validate-threadpool <captured-stdout>\nnativeaot threading qualify --output <fresh-directory>\nnativeaot runtime qualify --output <fresh-directory>\nnativeaot payload inspect <file> | qualify --output <fresh-directory>\nci smoke [options]\nbaseline evidence [options]\nbacklog sync [options]");
                 return 0;
             }

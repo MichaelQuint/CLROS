@@ -59,6 +59,7 @@ internal static class NativeAotSocketPayloadTests
         Reject(() => NativeAotSocketPayload.PublishArguments("[]", destination));
     }
 
+    internal static string FixtureOutput(bool asynchronous) => asynchronous ? AsyncOutput() : Output;
     private static string AsyncOutput() => Output.Replace("nativeaot.socket", "nativeaot.socket.async", StringComparison.Ordinal)
         .Replace("SOCKET_LISTEN", "SOCKET_ASYNC_LISTEN", StringComparison.Ordinal)
         .Replace("SOCKET_CONNECTION", "SOCKET_ASYNC_CONNECTION", StringComparison.Ordinal)

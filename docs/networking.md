@@ -1,5 +1,14 @@
 # Networking
 
+[Step1343](../done/step1343.md) seals the original socket ELF's LLVM instruction
+lookup: 398,041 starts and186 syscall continuations, independently bound to all
+five executable sections. Both unchanged package modes pass; a partial index and
+wrong package mode reject. The EFI owner now emits actual source3 wake, repark
+and completion observations, including generation, sequence and table clock.
+The socket decoder binds those observations to framed original stdout and
+recorded waits/resumes. Its reports grant no complete lifecycle or guest authority;
+full scheduler/packet/parent validation and QEMU integration remain pending.
+
 [Step1342](../done/step1342.md) wires the default-off M16-011/M16-012 EFI
 profile through the retained live NIC lifetime. Linux workers exclusively own
 the cooperative pool; real NIC packets and hardware-clock deadlines are pumped
