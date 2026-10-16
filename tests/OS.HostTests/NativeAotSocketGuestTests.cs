@@ -117,6 +117,18 @@ internal static class NativeAotSocketGuestTests
             Reject(() => NativeAotSocketGuest.Read(false, Raw(records)), reason);
     }
 
+    [HostTest("socket guest poll observations retain actual context clock and ready count without granting a wake")]
+    private static void Poll()
+    {
+        string poll="M16_012_POLL identity=0 clock=10 ready=0 idle=1\r\n";
+        var capture=NativeAotSocketGuest.Read(false,Raw(Call()+poll));
+        HostCheck.True(capture.PendingWaits==1 && capture.Readiness.Single().Kind==NativeAotSocketGuest.ObservationKind.Poll);
+        HostCheck.True(capture.Readiness[0].Clock==10 && capture.Readiness[0].Ready==0);
+        foreach(string invalid in new[]{poll.Replace("ready=0","ready=17",StringComparison.Ordinal),
+            poll.Replace("identity=0","identity=1",StringComparison.Ordinal),poll+poll.Replace("clock=10","clock=9",StringComparison.Ordinal)})
+            Reject(()=>NativeAotSocketGuest.Read(false,Raw(invalid)),"poll_state");
+    }
+
     private static void Reject(Action action, string reason)
     {
         string? failure = null; try { action(); } catch (Exception error) when (error is ToolFailure or InvalidDataException or ArgumentException) { failure = error.Message; }

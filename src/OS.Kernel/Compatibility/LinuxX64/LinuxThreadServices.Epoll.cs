@@ -5,6 +5,18 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 
 public unsafe partial struct LinuxThreadServices
 {
+    /// <summary>Read the last immediate positive-timeout expiry for the current
+    /// serialized worker after epoll dispatch. It is cleared at the next epoll
+    /// call and grants no wait, copy or execution authority. Wrong owner/context
+    /// or an operation that did not expire immediately returns false.</summary>
+    public bool InspectEpollExpiry(ulong key, ulong flags, out ulong deadline)
+    {
+        deadline = 0;
+        if (!Access(key, flags) || !Current(flags, out uint index) || _epollExpiredDeadline == 0 ||
+            _owner.Slots[index].Kernel.Value != _epollExpiredThread.Value) return false;
+        deadline = _epollExpiredDeadline; return true;
+    }
+
     /// <summary>Refresh actual socket readiness and wake matching retained epoll
     /// waits after the serialized network owner processes packets, ACKs or close.
     /// Call before deciding the supervisor has no runnable work. Early wake is
@@ -15,6 +27,7 @@ public unsafe partial struct LinuxThreadServices
 
     private LinuxSyscallResult BeginEpoll(ulong flags, Slot* slot, LinuxSyscallFrame frame)
     {
+        _epollExpiredDeadline = 0; _epollExpiredThread = default;
         bool selected = LinuxEpollServices.BeginOperation(_descriptors, _self, frame, ref slot->EpollOperation, out long value);
         if (!selected) { _failed = true; return new(LinuxSyscallAction.Rejected); }
         if (!slot->EpollOperation.IsActive) return new(LinuxSyscallAction.Return, value);
@@ -31,7 +44,11 @@ public unsafe partial struct LinuxThreadServices
             ulong duration = (ulong)milliseconds * 1_000_000;
             slot->WaitDeadline = duration > TimeEnd - now ? TimeEnd : now + duration;
         }
-        return ContinueEpoll(flags, slot);
+        ulong deadline = slot->WaitDeadline;
+        var result = ContinueEpoll(flags, slot);
+        if (result.Action == LinuxSyscallAction.Return && result.Value == 0 && deadline != 0 && _owner.Threads->ObservedTicks >= deadline)
+        { _epollExpiredDeadline = deadline; _epollExpiredThread = slot->Kernel; }
+        return result;
     }
 
     /// <summary>Commit a staged epoll wait only after CPL3 restoration and actual

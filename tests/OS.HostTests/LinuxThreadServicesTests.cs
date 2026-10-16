@@ -21,7 +21,7 @@ internal static unsafe class LinuxThreadServicesTests
         internal LinuxMemoryServices.Admission Memory;
         internal ulong FailWriteAddress, FailReadAddress, LastRead, LastWrite;
         internal uint Reads, Writes, FailedWrites;
-        internal ulong Now, Lifetime;
+        internal ulong Now, Lifetime, ClockStep;
         internal bool ClockFails;
     }
 
@@ -53,6 +53,7 @@ internal static unsafe class LinuxThreadServicesTests
         internal void FailRead(ulong address) => User->FailReadAddress = address;
         internal byte* At(ulong address) => User->Bytes + address - UserBase;
         internal ulong Now { get => User->Now; set => User->Now = value; }
+        internal ulong ClockStep { get => User->ClockStep; set => User->ClockStep = value; }
         internal void ChangeMappingLifetime(ulong value) => User->Lifetime = value;
         internal void UseMemory(LinuxMemoryServices.Admission memory) => User->Memory = memory;
         internal void FailClock(bool value) => User->ClockFails = value;
@@ -226,7 +227,9 @@ internal static unsafe class LinuxThreadServicesTests
     private static byte Monotonic(void* context, ulong* now)
     {
         if (context == null || now == null || ((UserMemory*)context)->ClockFails) return 0;
-        *now = ((UserMemory*)context)->Now; return 1;
+        UserMemory* user = (UserMemory*)context;
+        if (user->ClockStep > ulong.MaxValue-user->Now) return 0;
+        *now = user->Now; user->Now += user->ClockStep; return 1;
     }
     [UnmanagedCallersOnly]
     private static byte Sink(void* context, uint channel, byte* source, uint bytes)

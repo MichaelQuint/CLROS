@@ -152,6 +152,9 @@ public static unsafe partial class EfiEntry
             var drained = c->TimerDeadlines.Drain(c->Key, tick.Tick, &due, (uint)sizeof(DeadlineQueue.Entry), 1);
             if (!drained.Succeeded || drained.Count != 1 || due.Identity.Value != tick.Due.Identity.Value || due.Deadline != tick.Tick) return false;
             c->Epoch = tick.Tick; c->UserAcknowledged = 1;
+#if CLROS_LINUX_SOCKETS
+            if (!ObserveLinuxSocketWaits(c)) return false;
+#endif
             if (!(c->Stopping != 0 || c->Process.AdvanceFutexClock(c->Key, 2)) || !(
                 LinuxText(c->State, drain ? "M16_009_DRAIN identity=" : "M16_009_IRQ identity=") && LinuxNumber(c->State, due.Identity.Value) &&
                 LinuxText(c->State, " epoch=") && LinuxNumber(c->State, tick.Tick) &&

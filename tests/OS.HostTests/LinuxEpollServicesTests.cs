@@ -237,6 +237,20 @@ internal static unsafe class LinuxEpollServicesTests
         HostCheck.True(!m.Thread.Service->Release(Key, 2)); HostCheck.True(!Fds.End(m.Files.State)); m.Drain();
     }
 
+    [HostTest("m16-012 immediate timeout expiry retains its actual deadline without staging a wait", HostLane.Fast, 12)]
+    private static void ImmediateExpiry()
+    {
+        using Model m = new(); uint epoll = m.Create(); m.Thread.ClockStep=1_000_000;
+        var result=m.Call(232,epoll,Output,1,1);
+        HostCheck.Equal(LinuxSyscallAction.Return,result.Action);HostCheck.Equal(0L,result.Value);
+        HostCheck.True(!m.Thread.View(m.Parent).Wait.IsValid);
+        HostCheck.True(m.Thread.Service->InspectEpollExpiry(Key,2,out ulong deadline));
+        HostCheck.Equal(1_001_000UL,deadline);
+        HostCheck.Equal(0U,m.Thread.View(m.Parent).WaitSource);
+        HostCheck.Equal(0L,m.Call(232,epoll,Output,1,0).Value);
+        HostCheck.True(!m.Thread.Service->InspectEpollExpiry(Key,2,out _));m.Drain();
+    }
+
     [HostTest("m16-012 competing waiters retry stolen readiness with a new real wait token", HostLane.Fast, 7)]
     private static void CompetingWaiters()
     {

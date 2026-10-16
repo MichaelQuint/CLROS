@@ -108,6 +108,10 @@ public unsafe partial struct LinuxThreadServices
     private WaitAddress _addresses;
     private FutexAdmission _futex;
     private bool _futexEnabled;
+#if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
+    private ulong _epollExpiredDeadline;
+    private OSHostHandle _epollExpiredThread;
+#endif
     private LinuxDescriptorServices.State* _descriptors;
     private LinuxSignalServices.State* _signals;
     public readonly uint ActiveThreads => _initialized == 1 ? _active : 0;

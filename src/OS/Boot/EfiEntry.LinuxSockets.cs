@@ -148,11 +148,19 @@ public static unsafe partial class EfiEntry
             return SocketNetwork.Pump(&o->Network, output) == SocketNetwork.Status.Success && o->Failed == 0;
         }
 
-        private static bool PollLinuxSocketNetwork(LinuxNativeControl* c)
+        private static bool PollLinuxSocketNetwork(LinuxNativeControl* c, bool observe = true)
         {
             fixed (LinuxSocketStorage* o = &s_linuxSocketStorage)
-                return o->Boot == c->State && PumpLinuxSocketFrames(o) && c->Process.AdvanceFutexClock(c->Key, 2) &&
+                return o->Boot == c->State && (!observe || RecordLinuxSocketPoll(c)) &&
+                    RecordLinuxSocketWaits(o, c) && PumpLinuxSocketFrames(o) && c->Process.AdvanceFutexClock(c->Key, 2) &&
+                    (!observe || RecordLinuxSocketPoll(c)) &&
                     c->Process.PollDescriptorReadiness(c->Key, 2) && RecordLinuxSocketWaits(o, c);
+        }
+
+        private static bool ObserveLinuxSocketWaits(LinuxNativeControl* c)
+        {
+            fixed (LinuxSocketStorage* o = &s_linuxSocketStorage)
+                return o->Boot == c->State && RecordLinuxSocketWaits(o, c);
         }
 
         // Observe only retained source3 waits after the real clock/readiness
@@ -186,11 +194,20 @@ public static unsafe partial class EfiEntry
             ulong until = now + 5_000_000;
             for (uint poll = 0; poll < 100_000; poll++)
             {
-                if (!PollLinuxSocketNetwork(c) || !ReadNetworkTime(c->State, out now)) return false;
-                if (c->Threads.ReadyCount != 0 || now >= until) return true;
+                if (!PollLinuxSocketNetwork(c, false) || !ReadNetworkTime(c->State, out now)) return false;
+                if (c->Threads.ReadyCount != 0 || now >= until) return RecordLinuxSocketPoll(c, true);
             }
             return false;
         }
+
+        // Preserve real deadline/FIFO changes even when no socket wait wins.
+        // Idle pumps coalesce only empty iterations; every dispatch and syscall
+        // boundary retains the table clock before descriptor-readiness wakes.
+        private static bool RecordLinuxSocketPoll(LinuxNativeControl* c, bool idle = false) =>
+            LinuxText(c->State, "M16_012_POLL identity=") && LinuxNumber(c->State, c->Threads.Current.Value) &&
+            LinuxText(c->State, " clock=") && LinuxNumber(c->State, c->Threads.ObservedTicks) &&
+            LinuxText(c->State, " ready=") && LinuxNumber(c->State, c->Threads.ReadyCount) &&
+            LinuxText(c->State, " idle=") && LinuxNumber(c->State, idle ? 1UL : 0UL) && LinuxText(c->State, "\r\n");
 
         private static bool DrainLinuxSocketNetwork(Storage* state, bool abort)
         {
@@ -198,8 +215,13 @@ public static unsafe partial class EfiEntry
             {
                 if (o->Boot != state || o->Phase != 2 || state->LinuxDescriptors.ThreadOwner != 0) return false;
                 for (uint fd = 0; fd < LinuxDescriptorServices.MaximumDescriptors; fd++)
-                    if (LinuxDescriptorServices.Capture(&state->LinuxDescriptors, fd, out _) &&
-                        LinuxDescriptorServices.Dispatch(&state->LinuxDescriptors, new() { Number = 3, Argument0 = fd }) != 0) return false;
+                    if (LinuxDescriptorServices.Capture(&state->LinuxDescriptors, fd, out _))
+                    {
+                        long closed = LinuxDescriptorServices.Dispatch(&state->LinuxDescriptors, new() { Number = 3, Argument0 = fd });
+                        if (!LinuxText(state, "M16_011_CLOSE fd=") || !LinuxNumber(state, fd) ||
+                            !LinuxText(state, " valueBits=") || !LinuxNumber(state, unchecked((ulong)closed)) ||
+                            !LinuxText(state, "\r\n") || closed != 0) return false;
+                    }
                 if (abort)
                 { if (!SocketNetwork.Abort(&o->Network)) return false; }
                 else

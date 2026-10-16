@@ -88,6 +88,9 @@ internal static class QemuRunnerTests
             Run("qemu firmware RNG missing provider has no device", () => TestFirmwareRngSource(tempRoot, "missing"), ref failures);
             Run("qemu firmware RNG rejects unknown empty and duplicate choices", TestFirmwareRngRejected, ref failures);
             Run("qemu virtio negotiation fixture is modern exclusive and has no option ROM", () => TestVirtioNegotiationFixture(tempRoot), ref failures);
+            Run("qemu socket forward dry-run uses captured dedicated modern usernet", () => TestSocketForwardDryRun(tempRoot), ref failures);
+            Run("qemu socket forward rejects invalid and duplicate ports", () => TestSocketForwardPortsRejected(tempRoot), ref failures);
+            Run("qemu socket forward rejects missing fixture and incompatible profiles", () => TestSocketForwardProfilesRejected(tempRoot), ref failures);
             Run("qemu block queue fixture uses readonly modern boot disk and exclusive PCI slot", () => TestVirtioBlockQueueFixture(tempRoot), ref failures);
             Run("qemu dry-run emits default workload profile", () => TestDryRunDefaultWorkloadProfile(tempRoot), ref failures);
             Run("qemu dry-run propagates multi workload profile", () => TestDryRunMultiWorkloadProfile(tempRoot), ref failures);
@@ -323,6 +326,76 @@ internal static class QemuRunnerTests
             , ["--continuing-network-peer"]
         })
             if (RunQemuRunner(["--dry-run", .. flags]).ExitCode == 0) return false;
+        return true;
+    }
+
+    private static bool TestSocketForwardDryRun(string root)
+    {
+        string capture = Path.Combine(root, "socket-forward.pcap");
+        string[] fixture = ["--dry-run", "--qemu", "qemu-test", "--image", Path.Combine(root, "socket-forward.raw"),
+            "--virtio-negotiation-device", "--arp-receive-fixture", "--ethernet-capture", capture];
+        foreach (int port in new[] { 1, 20080, 65535 })
+        {
+            string value = port.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            ProcessResult result = RunQemuRunner([.. fixture, "--socket-forward-port", value]);
+            if (result.ExitCode != 0 || !result.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal)) return false;
+            string command = result.Output.Split('\n').Single(line => line.StartsWith("qemu-test ", StringComparison.Ordinal));
+            if (!command.Contains("-netdev user,id=n0,hostfwd=tcp:127.0.0.1:" + value + "-:8080", StringComparison.Ordinal) ||
+                !command.Contains("-device virtio-net-pci,netdev=n0,addr=06.0,disable-legacy=on,romfile=,mac=02:00:00:00:00:01", StringComparison.Ordinal) ||
+                !command.Contains("filter-dump,id=clroscapture,netdev=n0,file=" + capture + ",maxlen=65536", StringComparison.Ordinal) ||
+                command.Split("-netdev", StringSplitOptions.None).Length != 2 || command.Split("hostfwd=", StringSplitOptions.None).Length != 2 ||
+                command.Contains("socket,id=n0", StringComparison.Ordinal) || command.Contains("<ephemeral>", StringComparison.Ordinal) || File.Exists(capture)) return false;
+        }
+        ProcessResult ordinary = RunQemuRunner(fixture);
+        return ordinary.ExitCode == 0 && ordinary.Output.Contains("-netdev user,id=n0 -device", StringComparison.Ordinal) &&
+            !ordinary.Output.Contains("hostfwd=", StringComparison.Ordinal);
+    }
+
+    private static bool TestSocketForwardPortsRejected(string root)
+    {
+        string[] fixture = ["--dry-run", "--qemu", "qemu-test", "--image", Path.Combine(root, "socket-forward-invalid.raw"),
+            "--virtio-negotiation-device", "--arp-receive-fixture", "--ethernet-capture", Path.Combine(root, "socket-forward-invalid.pcap")];
+        foreach (string value in new[] { "", "0", "65536", "-1", "+1", " 8080", "8080 ", "8080,foo", "2147483648", "abc" })
+        {
+            ProcessResult result = RunQemuRunner([.. fixture, "--socket-forward-port", value]);
+            if (result.ExitCode == 0 || !result.Output.Contains("--socket-forward-port must be a decimal port", StringComparison.Ordinal)) return false;
+        }
+        ProcessResult missing = RunQemuRunner([.. fixture, "--socket-forward-port"]);
+        if (missing.ExitCode == 0 || !missing.Output.Contains("Missing value for --socket-forward-port", StringComparison.Ordinal)) return false;
+        foreach (string duplicate in new[] { "20080", "20081" })
+        {
+            ProcessResult result = RunQemuRunner([.. fixture, "--socket-forward-port", "20080", "--socket-forward-port", duplicate]);
+            if (result.ExitCode == 0 || !result.Output.Contains("--socket-forward-port may be specified only once", StringComparison.Ordinal)) return false;
+        }
+        return true;
+    }
+
+    private static bool TestSocketForwardProfilesRejected(string root)
+    {
+        string capture = Path.Combine(root, "socket-forward-profile.pcap");
+        string[] common = ["--dry-run", "--qemu", "qemu-test", "--image", Path.Combine(root, "socket-forward-profile.raw"), "--socket-forward-port", "20080"];
+        foreach (string[] incomplete in new string[][]
+        {
+            [], ["--virtio-negotiation-device", "--ethernet-capture", capture],
+            ["--virtio-negotiation-device", "--arp-receive-fixture"],
+            ["--arp-receive-fixture", "--ethernet-capture", capture]
+        })
+        {
+            ProcessResult result = RunQemuRunner([.. common, .. incomplete]);
+            if (result.ExitCode == 0 || result.Output.Contains("TEST_PASS qemu.runner.dryrun", StringComparison.Ordinal)) return false;
+        }
+        string[] fixture = [.. common, "--virtio-negotiation-device", "--arp-receive-fixture", "--ethernet-capture", capture];
+        foreach (string[] conflict in new string[][]
+        {
+            ["--continuing-network-peer"], ["--http-probe-url", "http://127.0.0.1:21080/healthz"],
+            ["--expect-unexpected-vector-panic", "--summary-log", Path.Combine(root, "socket-forward-vector.summary")],
+            ["--expect-owned-subsystem-panic", "--summary-log", Path.Combine(root, "socket-forward-owned.summary")],
+            ["--expect-unhandled-exception", "--summary-log", Path.Combine(root, "socket-forward-unhandled.summary")]
+        })
+        {
+            ProcessResult result = RunQemuRunner([.. fixture, .. conflict]);
+            if (result.ExitCode == 0 || !result.Output.Contains("--socket-forward-port requires", StringComparison.Ordinal)) return false;
+        }
         return true;
     }
 

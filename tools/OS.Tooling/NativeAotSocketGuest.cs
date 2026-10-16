@@ -10,12 +10,16 @@ namespace OS.Tooling;
 public static class NativeAotSocketGuest
 {
     /// <summary>Which serialized observation was captured from the real owner.</summary>
-    public enum ObservationKind { Wake = 1, Repark = 2, Complete = 3 }
-    /// <summary>An actual retained source3 completion or repark record. A nonzero
+    public enum ObservationKind { Wake = 1, Repark = 2, Complete = 3, Poll = 4, Expire = 5 }
+    /// <summary>An actual poll, retained source3 completion or repark record. Poll
+    /// Identity is zero on the supervisor or the current worker; Ready is the
+    /// actual FIFO count. Idle marks one completed native outer idle step.
+    /// Immediate Expire retains the preceding call's Ordinal and actual deadline.
+    /// A nonzero
     /// PreviousSequence denotes repark; other fields retain canonical kernel
     /// enum values and exact observed table clock, without execution authority.</summary>
     public readonly record struct Readiness(int RecordIndex, ObservationKind Kind, ulong Identity, ulong Sequence, uint Completion, uint State,
-        ulong Clock, ulong PreviousSequence, ulong Deadline, ulong ValueBits);
+        ulong Clock, ulong PreviousSequence, ulong Deadline, ulong ValueBits, uint Ready = 0, bool Idle = false, ulong Ordinal = 0);
 
     /// <summary>Owned immutable derived text and observations. PendingWaits may
     /// include waits later retired by process exit; this is not a drained report.</summary>
@@ -60,7 +64,23 @@ public static class NativeAotSocketGuest
                 activeSources.Add(call.Identity, call.Source); sequences[call.Identity] = call.Sequence;
                 if (call.Source == 3) pending.Add(call.Identity, (call.Sequence, call.Deadline, 0, null));
             }
-            if (row.StartsWith("M16_012_WAKE ", StringComparison.Ordinal))
+            if (row.StartsWith("M16_012_POLL ", StringComparison.Ordinal))
+            {
+                ulong[] value = Record(row, "M16_012_POLL", "identity", "clock", "ready", "idle");
+                Need((value[0]==0 || (uint)value[0] is >=1 and <=16 && value[0]>>32!=0) &&
+                    value[1] >= clock && value[1] <= long.MaxValue && value[2] <= 16 && value[3]<=1 &&
+                    (value[3]==0 || value[0]==0), "poll_state");
+                clock = value[1];
+                readiness.Add(new(i, ObservationKind.Poll, value[0], 0, 0, 0, clock, 0, 0, 0, (uint)value[2],value[3]==1));
+            }
+            else if (row.StartsWith("M16_012_EXPIRE ", StringComparison.Ordinal))
+            {
+                ulong[] value = Record(row, "M16_012_EXPIRE", "identity", "ordinal", "deadline", "clock");
+                Need(calls.TryGetValue(i-1, out var previous) && previous.Identity==value[0] && previous.Ordinal==value[1] &&
+                    previous.Source==0 && value[2]!=0 && value[2]<=value[3] && value[3]>=clock && value[3]<=long.MaxValue,"expiry_owner");
+                clock=value[3];readiness.Add(new(i,ObservationKind.Expire,value[0],0,0,0,clock,0,value[2],0,Ordinal:value[1]));
+            }
+            else if (row.StartsWith("M16_012_WAKE ", StringComparison.Ordinal))
             {
                 ulong[] value = Record(row, "M16_012_WAKE", "identity", "sequence", "completion", "state", "clock");
                 Need(pending.TryGetValue(value[0], out var wait) && wait.Sequence == value[1] && wait.Completion == 0, "wake_owner");

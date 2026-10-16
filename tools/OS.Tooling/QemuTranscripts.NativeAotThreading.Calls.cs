@@ -56,9 +56,11 @@ public static partial class QemuTranscripts
             bool readsClock=nr==202 && (((uint)b&~384U) is 0 or 9) || nr==219 && t.TimedRestart.HasValue ||
                 targetClock is not null && !targetClock.Exiting && targetClock.WaitSource==1 &&
                 unchecked((int)(nr==200?b:c))==35 && (targetClock.Mask&(1UL<<34))==0;
-            Need(r["clock"]==clock || readsClock,"threading_unowned_clock_change"); Clock(r["clock"]);
+            ulong beforeClock=clock;
+            Need(r["clock"]==clock || readsClock || socket,"threading_unowned_clock_change"); Clock(r["clock"]);
             ulong action=1,status=1;
-            switch(nr)
+            if(socket && SocketCall(t,r,witness,beforeClock,out action,out status)) { }
+            else switch(nr)
             {
                 case 9:
                     Need(b>0 && b<=0x400000000 && c is 0 or 1 or 3 && d is 0x22 or 0x32 && (uint)e==uint.MaxValue && f==0,"threading_mmap");
@@ -174,7 +176,8 @@ public static partial class QemuTranscripts
                             recipient!=t && ready.Contains(recipient) && recipient.WaitSource==0 && recipient.LastUserIrq!=0));
                         // NativeAOT unblocks its activation signal. A real staged
                         // wait is interrupted only when its completion has not won.
-                        if(recipient.WaitSource!=0 && recipient.Completion is null && (recipient.Mask&(1UL<<34))==0) Complete(recipient,-4);
+                        if(recipient.WaitSource!=0 && recipient.Completion is null && (recipient.Mask&(1UL<<34))==0)
+                        {if(recipient.WaitSource==3)recipient.EpollWinner=5;Complete(recipient,-4);}
                     }
                     break;
                 case 2: case 257:

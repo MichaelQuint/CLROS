@@ -1,5 +1,19 @@
 # Networking
 
+[Step1344](../done/step1344.md) adds the development socket leaf to the existing
+worker/signal/memory transcript protocol. Source3 waits share deadline/FIFO
+ordering with futex waits, retain their original port across fd reuse, and require
+actual wake/complete/resume or timer-free repark observations. Per-connection
+syscall byte totals, EOF/reset/shutdown and final descriptor closes must agree.
+New native poll records distinguish supervisor and selected-worker clocks and
+count actual idle steps; descriptor/signal winners are observed before subsequent
+clock advances. Immediate positive-timeout expiry retains its actual native
+deadline and call ordinal. A dedicated runner option provides captured modern
+usernet with loopback TCP forwarding. Eighty-two focused controls and enabled no-stdlib C#
+compilation pass. The complete package/peer/packet/parent QEMU orchestration is
+still guarded; no NativeAOT publication, full-host or socket guest acceptance is
+added, and #689/#690/#737 remain open.
+
 [Step1343](../done/step1343.md) seals the original socket ELF's LLVM instruction
 lookup: 398,041 starts and186 syscall continuations, independently bound to all
 five executable sections. Both unchanged package modes pass; a partial index and

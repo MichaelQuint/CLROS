@@ -309,6 +309,7 @@ public static unsafe partial class EfiEntry
                         !LinuxText(c->State, " clock=") || !LinuxNumber(c->State, c->Threads.ObservedTicks) || !LinuxText(c->State, "\r\n"))
                         return LinuxNativeAbort(c, index);
                 }
+                if (!ObserveLinuxSocketWaits(c)) return LinuxNativeAbort(c, index);
 #endif
                 if (completion.Action != LinuxSyscallAction.Return)
                 {
@@ -460,9 +461,23 @@ public static unsafe partial class EfiEntry
                 LinuxText(state, " returnFs=") && LinuxNumber(state, returned.FsBase) &&
                 LinuxText(state, " returnGs=") && LinuxNumber(state, returned.GsBase) &&
                 LinuxText(state, " returnValueBits=") && LinuxNumber(state, unchecked((ulong)result.Value)) && LinuxText(state, "\r\n");
+#if CLROS_LINUX_SOCKETS
+            if (logged && call.Number is 232 or 281 && result.Action == LinuxSyscallAction.Return && result.Value == 0 &&
+                unchecked((int)call.Argument3) > 0)
+                logged = c->Process.InspectEpollExpiry(c->Key, 2, out ulong expired) &&
+                    LinuxText(state, "M16_012_EXPIRE identity=") && LinuxNumber(state, c->Threads.Current.Value) &&
+                    LinuxText(state, " ordinal=") && LinuxNumber(state, c->Gates[index].Calls) &&
+                    LinuxText(state, " deadline=") && LinuxNumber(state, expired) &&
+                    LinuxText(state, " clock=") && LinuxNumber(state, c->Threads.ObservedTicks) && LinuxText(state, "\r\n");
+#endif
 #if M16_009_PROBE
             if (logged && timing)
                 logged = LinuxNativeSyscallTimingWrite(c, call.Number, entered, admitted, dispatched, prepared);
+#endif
+            // Capture descriptor/signal wakes before a later timer advance can
+            // obscure their winner. CALL above introduces a newly staged wait.
+#if CLROS_LINUX_SOCKETS
+            logged = logged && ObserveLinuxSocketWaits(c);
 #endif
             if (!logged || result.Action == LinuxSyscallAction.Rejected || returning.Action == LinuxSyscallAction.Rejected)
             { if (LinuxNativeAbort(c, index) != 2) return 0; }
