@@ -356,7 +356,7 @@ internal static class TcpEstablishedStreamTests
             "Net",
             "TcpEstablishedStream.cs"));
 
-        return HostCheck.Result(source.Contains("OS.Std.MemoryExtensions.TryCopyTo(source, destination)", StringComparison.Ordinal)
+        return HostCheck.Result(source.Contains("OS.Std.Memory.BufferOperations.MemoryCopy(source, destination)", StringComparison.Ordinal)
             && !source.Contains("destination[index] = source[index];", StringComparison.Ordinal));
     }
 

@@ -51,8 +51,8 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "65f45ddb0954e4dbcdd2c81c451d505331eea0b7c46b03682f9dd022500aad93";
-    public const string CanonicalProjectSha256 = "d7b433ef9614141666b54bdcad8f3ee3b5d3b5453d8f434d0e84d5537b20d3fb";
+    public const string ProjectSourceSha256 = "56304468c54f1930b2c4c40b6a91e0c22fba475833a6a5734b037eb03cb223ed";
+    public const string CanonicalProjectSha256 = "eeab61c4e5c0ac825433d008faa73928c3d1034ec9ae01272d1eace413606116";
     public const string EfiEntrySourceSha256 = "d05a36d8206909bc6171123b320d6e19c0eaccd4f18ff7e57dd99fd0e87eb3c2";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
@@ -199,6 +199,20 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Net\Ipv4Address.cs|Net\Ipv4Address.cs",
         @"..\OS.Kernel\Net\EthernetHeader.cs|Net\EthernetHeader.cs",
         @"..\OS.Kernel\Net\EthernetPayloadKind.cs|Net\EthernetPayloadKind.cs",
+        @"..\OS.Kernel\Net\TcpConnectionTable.cs|Net\TcpConnectionTable.cs",
+        @"..\OS.Kernel\Net\TcpListenerBacklog.cs|Net\TcpListenerBacklog.cs",
+        @"..\OS.Kernel\Net\TcpPassiveOpenHandshake.cs|Net\TcpPassiveOpenHandshake.cs",
+        @"..\OS.Kernel\Net\TcpPassiveIpv4FramePlanner.cs|Net\TcpPassiveIpv4FramePlanner.cs",
+        @"..\OS.Kernel\Net\TcpPassiveListenerBacklogBridge.cs|Net\TcpPassiveListenerBacklogBridge.cs",
+        @"..\OS.Kernel\Net\TcpPassiveConnection.cs|Net\TcpPassiveConnection.cs",
+        @"..\OS.Kernel\Net\TcpHeader.cs|Net\TcpHeader.cs",
+        @"..\OS.Kernel\Net\Ipv4TransportChecksum.cs|Net\Ipv4TransportChecksum.cs",
+        @"..\OS.Kernel\Net\TcpEstablishedStream.cs|Net\TcpEstablishedStream.cs",
+        @"..\OS.Kernel\Net\TcpEstablishedStreamIpv4FramePlanner.cs|Net\TcpEstablishedStreamIpv4FramePlanner.cs",
+        @"..\OS.Kernel\Net\TcpConnectionClose.cs|Net\TcpConnectionClose.cs",
+        @"..\OS.Kernel\Net\TcpReceiveWindow.cs|Net\TcpReceiveWindow.cs",
+        @"..\OS.Kernel\Net\TcpSendWindow.cs|Net\TcpSendWindow.cs",
+        @"..\OS.Kernel\Net\TcpSendWindow.Close.cs|Net\TcpSendWindow.Close.cs",
         @"..\OS.Kernel\Net\Ipv4Header.cs|Net\Ipv4Header.cs",
         @"..\OS.Kernel\Net\IcmpEchoPacket.cs|Net\IcmpEchoPacket.cs",
         @"..\OS.Kernel\Net\Ipv4IcmpEchoFrame.cs|Net\Ipv4IcmpEchoFrame.cs",

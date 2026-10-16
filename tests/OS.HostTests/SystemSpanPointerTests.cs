@@ -14,6 +14,10 @@ internal static unsafe class SystemSpanPointerTests
         var absent = default(OS.Std.NoRuntime.Span<byte>);
         fixed (byte* a = empty) fixed (byte* b = absent)
             HostCheck.True(a == null && b == null && empty.Length == 0 && absent.Length == 0);
+        var emptyProperty = OS.Std.NoRuntime.Span<byte>.Empty;
+        var readOnlyEmpty = OS.Std.NoRuntime.ReadOnlySpan<byte>.Empty;
+        fixed (byte* a = emptyProperty) fixed (byte* b = readOnlyEmpty)
+            HostCheck.True(a == null && b == null && emptyProperty.Length == 0 && readOnlyEmpty.Length == 0);
         ushort* words = stackalloc ushort[2]; words[1] = 0x1234;
         var typed = new OS.Std.NoRuntime.Span<ushort>(words, 2);
         fixed (ushort* p = typed) HostCheck.True(p == words && p[1] == 0x1234 && typed.Length == 2);

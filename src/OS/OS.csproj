@@ -738,6 +738,20 @@
 		<Compile Include="..\OS.Kernel\Net\Ipv4Address.cs" Link="Net\Ipv4Address.cs" />
 		<Compile Include="..\OS.Kernel\Net\EthernetHeader.cs" Link="Net\EthernetHeader.cs" />
 		<Compile Include="..\OS.Kernel\Net\EthernetPayloadKind.cs" Link="Net\EthernetPayloadKind.cs" />
+		<Compile Include="..\OS.Kernel\Net\TcpConnectionTable.cs" Link="Net\TcpConnectionTable.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpListenerBacklog.cs" Link="Net\TcpListenerBacklog.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpPassiveOpenHandshake.cs" Link="Net\TcpPassiveOpenHandshake.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpPassiveIpv4FramePlanner.cs" Link="Net\TcpPassiveIpv4FramePlanner.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpPassiveListenerBacklogBridge.cs" Link="Net\TcpPassiveListenerBacklogBridge.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpPassiveConnection.cs" Link="Net\TcpPassiveConnection.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpHeader.cs" Link="Net\TcpHeader.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\Ipv4TransportChecksum.cs" Link="Net\Ipv4TransportChecksum.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpEstablishedStream.cs" Link="Net\TcpEstablishedStream.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpEstablishedStreamIpv4FramePlanner.cs" Link="Net\TcpEstablishedStreamIpv4FramePlanner.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpConnectionClose.cs" Link="Net\TcpConnectionClose.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpReceiveWindow.cs" Link="Net\TcpReceiveWindow.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpSendWindow.cs" Link="Net\TcpSendWindow.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="..\OS.Kernel\Net\TcpSendWindow.Close.cs" Link="Net\TcpSendWindow.Close.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\Ipv4Header.cs" Link="Net\Ipv4Header.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\IcmpEchoPacket.cs" Link="Net\IcmpEchoPacket.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Net\Ipv4IcmpEchoFrame.cs" Link="Net\Ipv4IcmpEchoFrame.cs" Condition="'$(EnableM07026Probe)' == 'true'" />

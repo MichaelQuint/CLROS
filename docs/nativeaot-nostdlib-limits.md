@@ -102,6 +102,13 @@ bound is 12,760 bytes. Current block ancestors conservatively bound diagnostics
 at 30,456 bytes, including the shared negotiation frame growth; all fit the
 owned 32KiB stack. This does not qualify a general Span/BCL or runtime surface.
 
+[Step1320](../done/step1320.md) additionally admits `Span<T>.Empty` and
+`ReadOnlySpan<T>.Empty` as default zero-length views with no backing storage,
+allocation or exception. Empty pinning returns null; no additional overloads or
+general BCL behavior are supplied. The exact TCP source closure now compiles in
+the M07-026 managed no-stdlib profile using the already-admitted overlap-safe
+`BufferOperations.MemoryCopy`; native/guest qualification remains pending.
+
 [Step1162](../done/step1162.md) accepts the four explicit modern-net EFI compile
 inputs and block MSI-X/recovery integration with strict source/pointer admission.
 Linked native POD ABI, unwind, dynamic scratch and complete callbacks are reviewed:

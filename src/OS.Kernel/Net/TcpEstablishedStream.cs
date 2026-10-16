@@ -610,6 +610,6 @@ public ref struct TcpEstablishedStream
 
     private static void Copy(ReadOnlySpan<byte> source, Span<byte> destination)
     {
-        _ = OS.Std.MemoryExtensions.TryCopyTo(source, destination);
+        _ = OS.Std.Memory.BufferOperations.MemoryCopy(source, destination);
     }
 }

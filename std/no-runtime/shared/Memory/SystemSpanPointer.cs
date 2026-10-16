@@ -11,6 +11,9 @@ public readonly unsafe ref struct Span<T> where T : unmanaged
     private readonly ref T _reference;
     private readonly int _length;
 
+    /// <summary>Empty borrowed view with no backing storage or lifetime.</summary>
+    public static Span<T> Empty => default;
+
     public Span(void* pointer, int length)
     {
         if (length < 0)
@@ -72,6 +75,9 @@ public readonly unsafe ref struct ReadOnlySpan<T> where T : unmanaged
 {
     private readonly T* _pointer;
     private readonly int _length;
+
+    /// <summary>Empty borrowed view with no backing storage or lifetime.</summary>
+    public static ReadOnlySpan<T> Empty => default;
 
     public ReadOnlySpan(void* pointer, int length)
     {

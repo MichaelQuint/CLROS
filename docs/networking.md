@@ -1,5 +1,16 @@
 # Networking
 
+[Step1320](../done/step1320.md) admits the fourteen retained TCP source dependencies
+only under the default-off M07-026 EFI profile and compiles that managed no-stdlib
+closure. The runner now owns the bounded socket-netdev peer and independently
+answers the original/continuing ARP and twelve tagged ICMP requests while QEMU
+records its separate packet capture. Peer failure, incomplete exchanges or a
+failed worker join rejects serial success. Ordinary and standalone ARP profiles
+retain their existing backend. Actual-loopback controls exercise these host
+exchanges and cancellation; TCP guest orchestration and loss/reorder/reset/close
+peer scenarios remain outstanding. No continuing guest or TCP packet acceptance
+is claimed; #691/#148-#153 and shared #734 remain open.
+
 [Step1319](../done/step1319.md) composes termination into the retained sender/
 receiver, with no second buffer or connection owner. Local shutdown drains
 queued ACKed data before copied FIN; FIN reuses the existing bounded retry

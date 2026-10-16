@@ -161,6 +161,27 @@ public static class EfiProjectAdmission
         // and admit no new evaluated identity, link or defining-project authority.
         return EfiContracts.CompileItems.Where(item => item switch
         {
+            @"Boot\EfiEntry.NetworkService.cs|" or
+            @"..\OS.Kernel\Drivers\ContinuingVirtioNet.cs|Drivers\ContinuingVirtioNet.cs" or
+            @"..\OS.Kernel\Drivers\ContinuingVirtioNetDevice.cs|Drivers\ContinuingVirtioNetDevice.cs" or
+            @"..\OS.Kernel\Net\Ipv4Header.cs|Net\Ipv4Header.cs" or
+            @"..\OS.Kernel\Net\IcmpEchoPacket.cs|Net\IcmpEchoPacket.cs" or
+            @"..\OS.Kernel\Net\Ipv4IcmpEchoFrame.cs|Net\Ipv4IcmpEchoFrame.cs" or
+            @"..\OS.Kernel\Net\TcpConnectionTable.cs|Net\TcpConnectionTable.cs" or
+            @"..\OS.Kernel\Net\TcpListenerBacklog.cs|Net\TcpListenerBacklog.cs" or
+            @"..\OS.Kernel\Net\TcpPassiveOpenHandshake.cs|Net\TcpPassiveOpenHandshake.cs" or
+            @"..\OS.Kernel\Net\TcpPassiveIpv4FramePlanner.cs|Net\TcpPassiveIpv4FramePlanner.cs" or
+            @"..\OS.Kernel\Net\TcpPassiveListenerBacklogBridge.cs|Net\TcpPassiveListenerBacklogBridge.cs" or
+            @"..\OS.Kernel\Net\TcpPassiveConnection.cs|Net\TcpPassiveConnection.cs" or
+            @"..\OS.Kernel\Net\TcpHeader.cs|Net\TcpHeader.cs" or
+            @"..\OS.Kernel\Net\Ipv4TransportChecksum.cs|Net\Ipv4TransportChecksum.cs" or
+            @"..\OS.Kernel\Net\TcpEstablishedStream.cs|Net\TcpEstablishedStream.cs" or
+            @"..\OS.Kernel\Net\TcpEstablishedStreamIpv4FramePlanner.cs|Net\TcpEstablishedStreamIpv4FramePlanner.cs" or
+            @"..\OS.Kernel\Net\TcpConnectionClose.cs|Net\TcpConnectionClose.cs" or
+            @"..\OS.Kernel\Net\TcpReceiveWindow.cs|Net\TcpReceiveWindow.cs" or
+            @"..\OS.Kernel\Net\TcpSendWindow.cs|Net\TcpSendWindow.cs" or
+            @"..\OS.Kernel\Net\TcpSendWindow.Close.cs|Net\TcpSendWindow.Close.cs" or
+            @"..\..\std\no-runtime\shared\Net\InternetChecksum.cs|Std\Net\InternetChecksum.cs" => profile.IsEnabled("EnableM07026Probe"),
             @"Boot\EfiEntry.LinuxUserInterrupts.cs|" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs|Compatibility\LinuxX64\LinuxUserInterruptPolicy.cs" => profile.IsEnabled("EnableM16009Probe"),
             @"Boot\EfiEntry.ThreadWait.cs|" or

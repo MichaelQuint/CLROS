@@ -42,6 +42,7 @@ internal static unsafe class M07026EfiIntegrationTests
         foreach (string prefix in new[] { "REQUIRED_MARKERS ", "ORDERED_MARKERS ", "UNIQUE_MARKERS " })
             HostCheck.True(result.Output.Contains(prefix + markers, StringComparison.Ordinal), prefix);
         HostCheck.True(result.Output.Contains(",mac=02:00:00:00:00:01", StringComparison.Ordinal) &&
-            result.Output.Contains("filter-dump,id=clroscapture,netdev=n0,file=", StringComparison.Ordinal));
+            result.Output.Contains("filter-dump,id=clroscapture,netdev=n0,file=", StringComparison.Ordinal) &&
+            result.Output.Contains("socket,id=n0,connect=127.0.0.1:<ephemeral>", StringComparison.Ordinal));
     }
 }

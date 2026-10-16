@@ -19,6 +19,13 @@ actual guest/independent packet evidence are pending. The new profile's dedicate
 eight-page reservation remains retained after its DMA-pool lease is returned.
 This adds no gate acceptance or guest networking/Kestrel claim.
 
+[Step1320](../done/step1320.md) compiles the retained TCP closure in that managed
+no-stdlib profile and connects its runner to an independent finite ARP/ICMP
+socket-netdev peer with cancellation/join and failure propagation. Actual
+loopback host tests remain distinct from real QEMU packet captures. TCP guest
+orchestration and stable native/full-host/guest qualification remain pending;
+no gate advances.
+
 ## Historical qualification snapshots
 
 Earlier statements below describe the evidence available at their named steps;

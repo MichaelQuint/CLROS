@@ -73,6 +73,7 @@ internal static class EfiCompileInventoryTests
     private static EfiProfile[] Profiles() =>
     [
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool>()),
+        EfiOptions.Parse(["--EnableM07026Probe"], true).Profile(),
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09004Probe"] = true }),
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09005Probe"] = true }),
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09006Probe"] = true }),
@@ -107,6 +108,7 @@ internal static class EfiCompileInventoryTests
             "'$(EnableM09009Probe)' == 'true' or '$(EnableM09010Probe)' == 'true' or '$(EnableM16008Probe)' == 'true'" => profile.IsEnabled("EnableM09009Probe") || profile.IsEnabled("EnableM09010Probe") || profile.IsEnabled("EnableM16008Probe"),
             "'$(EnableM16008Probe)' == 'true'" => profile.IsEnabled("EnableM16008Probe"),
             "'$(EnableM16009Probe)' == 'true'" => profile.IsEnabled("EnableM16009Probe"),
+            "'$(EnableM07026Probe)' == 'true'" => profile.IsEnabled("EnableM07026Probe"),
             string condition => throw new InvalidOperationException("Unreviewed compile condition: " + condition)
         }).Select(Key).ToArray();
     }
