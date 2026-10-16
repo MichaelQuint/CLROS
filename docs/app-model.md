@@ -842,6 +842,17 @@ Serial, summary and PCAP are held as distinct unchanged files. Eight focused
 checks pass and eleven original-input mutations reject. Native/source/runner
 admission and stable-batch qualification still precede accepted #217/Kestrel.
 
+[Step1359](../done/step1359.md) joins the actual runner invocation window and
+selected QEMU/OVMF/forward port to captured process timestamps, liveness across
+both probes, requested termination, death and endpoint refusal. It recomputes
+the complete stdout, streaming metrics, observed rows and byte-exact summary
+from raw serial and immutable package expectations. Six focused checks and25
+retained-input rejection controls pass; the latter explicitly borrow a
+synthetic outer process result/window. The EFI verifier also requires the four
+web observer/publisher/failure bodies only for the selected web profile.
+Current native/source and complete stack-path qualification remain pending;
+the full smoke guard stays closed and #217/#737 stay open.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

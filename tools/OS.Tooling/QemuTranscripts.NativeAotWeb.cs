@@ -12,7 +12,7 @@ public static partial class QemuTranscripts
         "M10_004_ENTER","M10_004_CONFIG","M10_004_LISTEN","M10_004_LIVE","CLROS_M10_004_READY","TEST_PASS m10.004"];
 
     internal static int ValidateWebRun(string root,QemuSmokeOptions options,QemuSmokePlan plan,ProcessResult runner,
-        TextWriter output,NativeAotWebProgram program,int forwardPort)
+        TextWriter output,NativeAotWebProgram program,WebRunnerContext context)
     {
         RequireCompleteProcess(runner,"web_runner_incomplete");
         if(runner.ExitCode!=0)return runner.ExitCode;
@@ -23,16 +23,20 @@ public static partial class QemuTranscripts
         byte[] package=File.ReadAllBytes(Path.GetFullPath(options.LinuxElfPackage,root));
         var capture=ValidateNativeAotWebCapturePrefix(root,package,program!,raw);
         var replay=capture.Leaf;
-        var packets=ValidateWebPackets(package,raw,File.ReadAllBytes(Path.GetFullPath(options.SerialLog+".pcap",root)),capture.Parent,replay,forwardPort);
+        var packets=ValidateWebPackets(package,raw,File.ReadAllBytes(Path.GetFullPath(options.SerialLog+".pcap",root)),capture.Parent,replay,context.ForwardPort);
+        var configuration=NativeAotWebProgram.DescribeConfiguration(package);
+        var runnerReport=InspectNativeAotWebRunnerForTests(options,plan,runner,raw,
+            File.ReadAllBytes(Path.GetFullPath(options.SummaryLog,root)),context,configuration.Body,configuration.Json);
         var observed=replay.Observations;
         output.WriteLine($"WEB_PREFIX_PARENT records={capture.Parent.Records} userRoot={capture.Parent.UserRoot} kernelRoot={capture.Parent.KernelRoot} periodFs={capture.Parent.Period} dma={capture.Parent.Dma} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_OBSERVATIONS calls={observed.Calls} writes={observed.Writes} stdout={observed.StdoutBytes} stderr={observed.StderrBytes} pendingEpoll={observed.PendingEpollWaits} fragmentBytes={observed.TrailingFragment.Length} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_REPLAY clones={replay.Protocol.Clones} irqs={replay.Protocol.Irqs} drains={replay.Protocol.Drains} transfers={replay.Protocol.Transfers} active={replay.Active} ready={replay.Ready} selected={replay.Current} returning={replay.ReturningToSupervisor} entropyRemaining={replay.EntropyRemaining} accepts={replay.SocketAccepts} sent={replay.Sent} received={replay.Received} acceptance=pending");
         output.WriteLine($"WEB_PREFIX_PACKETS connections={packets.Connections} tcpRecords={packets.TcpRecords} received={packets.Received} sent={packets.Sent} clientFins={packets.ClientFins} serverFins={packets.ServerFins} clientFinAcks={packets.ClientFinAcks} serverFinAcks={packets.ServerFinAcks} acceptance=pending");
+        output.WriteLine($"WEB_PREFIX_RUNNER pid={runnerReport.ProcessId} lifetimeMs={runnerReport.LifetimeMilliseconds} healthMs={runnerReport.HealthMilliseconds} configMs={runnerReport.ConfigurationMilliseconds} acceptance=pending");
         // A live HTTP exchange alone cannot pass the full smoke gate. The finite
         // runtime parser requires guest exit/reap and must never be given invented
         // completion rows for this continuing profile. Keep acceptance closed
-        // until the independent continuing transcript/native/packet join exists.
+        // until current native/source admission and stable qualification join it.
         output.WriteLine("TEST_FAIL qemu.smoke web_continuing_evidence_admission_pending");
         return 1;
     }

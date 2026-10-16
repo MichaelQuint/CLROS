@@ -31,6 +31,7 @@ public static class QemuSmoke
         NativeAotSocketPeer.Completion? socketPeer=null;
         NativeAotWebProgram? webProgram=null;
         int webForwardPort=0;
+        DateTimeOffset webStarted=default,webCompleted=default;
         NativeAotWebProgram.Configuration webConfiguration=default;
         AuthorityFiles? webInputs=null;
         try
@@ -240,7 +241,12 @@ public static class QemuSmoke
                     receiveGateSerial:plan.IsEnabled("EnableM16012Probe")?options.SerialLog:null);
                 runner=socketPeer.Runner;
             }
-            else if (capture is null) runner = await Run("OS.QemuRunner", arguments);
+            else if (capture is null)
+            {
+                if(web)webStarted=DateTimeOffset.UtcNow;
+                runner = await Run("OS.QemuRunner", arguments);
+                if(web)webCompleted=DateTimeOffset.UtcNow;
+            }
             else
             {
                 runner = await ProcessRunner.RunAsync(new("dotnet", [HostTools.ManagedTool(root, "OS.QemuRunner"), .. arguments], root)
@@ -259,7 +265,8 @@ public static class QemuSmoke
             {
                 capture.Validate(); output.WriteLine("TEST_PASS m01.026.raw-observations");
             }
-            int validated = webProgram is not null?QemuTranscripts.ValidateWebRun(root,options,plan,runner,output,webProgram,webForwardPort):
+            int validated = webProgram is not null?QemuTranscripts.ValidateWebRun(root,options,plan,runner,output,webProgram,
+                new(webForwardPort,qemu,ovmf,webStarted,webCompleted)):
                 QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram, threadingProgram, runtimeProgram,socketProgram,socketPeer);
             threadingEvidence?.VerifyUnchanged();
             webInputs?.VerifyUnchanged();

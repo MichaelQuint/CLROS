@@ -88,6 +88,13 @@ lifetimes/sequences and exact selected HTTP streams against those parents and
 leaf byte counts. The second client FIN remains unacknowledged in the capture;
 no shutdown or TIME_WAIT drain is invented. Native/source/runner admission and
 stable-batch qualification remain pending.
+[Step1359](../done/step1359.md) joins runner selection, child lifetime,
+probe deadlines/liveness and exact summary bytes to the raw serial and HTTP
+expectations. Three runner checks, three profile checks and25 retained-input
+mutations pass. The retained capture uses an explicitly synthetic outer process
+result/window for inspection; it is not a fresh runner qualification. Current
+native/source admission, complete stack-path accounting and stable-batch
+qualification remain pending.
 No new guest run or issue closure is part of these host parser steps.
 
 ## Transport decision experiments
