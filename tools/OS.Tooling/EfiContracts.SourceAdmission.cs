@@ -3,6 +3,7 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"Boot\EfiEntry.LinuxWeb.cs"] = "reviewed_m10_continuing_web_observation_source_identity",
         [@"Boot\EfiEntry.NetworkTcp.cs"] = "reviewed_m07_live_tcp_fixture_source_identity",
         [@"Boot\EfiEntry.NetworkScheduler.cs"] = "reviewed_m07_cooperative_progress_owner_source_identity",
         [@"..\OS.Kernel\Threading\KernelThreadProgressProgram.cs"] = "reviewed_m07_cooperative_progress_program_source_identity",

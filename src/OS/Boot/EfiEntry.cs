@@ -1446,7 +1446,7 @@ public static unsafe partial class EfiEntry
             ulong* lengths = stackalloc ulong[6] { LinuxMemoryPoolPages(state) * Page, X64UserAddressSpace.MaximumTables * Page,
                 state->LinuxPages * Page, state->LinuxImagePages * Page, Page, X64LinuxUserTransition.DataBytes };
             for (uint i = 0; i < 6; i++) for (uint j = 0; j < i; j++) if (!Disjoint(starts[i], lengths[i], starts[j], lengths[j])) return false;
-            if (LinuxRandomBudget(state) == LinuxStartupServices.RuntimeEntropyBytes)
+            if (LinuxRandomBudget(state) == FirmwareEntropyReservoir.Bytes)
             {
                 if (!FirmwareEntropyReservoir.Acquire(&state->LinuxRuntimeRandom, state->SystemTable)) return false;
             }
@@ -1484,19 +1484,23 @@ public static unsafe partial class EfiEntry
             state->LinuxMemoryPhase = 7; return okay;
         }
 
-        // The larger existing package thread policy selects one finite RNG
-        // lifetime. It does not admit a workload/profile or refill after EBS.
+        // The explicit web profile or existing package thread policy selects
+        // one finite RNG lifetime. Neither permits refill after EBS.
         private static uint LinuxRandomBudget(Storage* state)
         {
+#if M10_004_PROBE
+            return LinuxStartupServices.WebEntropyBytes;
+#else
 #if M16_008_PROBE
             if (state->LinuxView.Manifest.Threads > 8) return LinuxStartupServices.RuntimeEntropyBytes;
 #endif
             return LinuxStartupServices.EntropyBytes;
+#endif
         }
 
         private static bool ClearLinuxRandom(Storage* state)
         {
-            bool consumed = LinuxRandomBudget(state) != LinuxStartupServices.RuntimeEntropyBytes ||
+            bool consumed = LinuxRandomBudget(state) != FirmwareEntropyReservoir.Bytes ||
                 state->LinuxServices.RemainingEntropy == 0 || LinuxStartupServices.DiscardEntropy(&state->LinuxServices);
             for (uint i = 0; i < 64; i++) { state->LinuxRandomScratch.Data[i] = 0; state->LinuxRandomRetained.Data[i] = 0; }
             state->LinuxRandomCapture.SystemTable = null; state->LinuxRandomCapture.BootServices = null;
@@ -1515,7 +1519,7 @@ public static unsafe partial class EfiEntry
             state->LinuxMemoryCheckpoint = 1;
             uint entropyBytes = LinuxRandomBudget(state);
             if (state->LinuxMemoryPhase != 2 || state->Clock.Source != OwnedClockSource.Hpet || state->Clock.Status != OwnedClockStatus.Ready ||
-                (entropyBytes == LinuxStartupServices.RuntimeEntropyBytes ?
+                (entropyBytes == FirmwareEntropyReservoir.Bytes ?
                     state->LinuxRuntimeRandom.Phase != 2 || state->LinuxRuntimeRandom.PublishedBytes != entropyBytes :
                     state->LinuxRandomCapture.PublishedBytes != entropyBytes) || state->LinuxRandomCapture.Rng != null ||
                 state->LinuxRandomCapture.GetRng != null || state->LinuxRandomCapture.SystemTable != null ||
@@ -1546,7 +1550,7 @@ public static unsafe partial class EfiEntry
                 MemoryBarrier = &LinuxMemoryBarrier, FrequencyHz = state->Clock.FrequencyHz,
                 PhysicalBytes = physical, AvailableBytes = available, HeapStart = 0x400000000, HeapBytes = 2 * 1024 * 1024,
                 StackBytes = state->LinuxInitialStack.StackBytes, ProcessId = 1,
-                Entropy = entropyBytes == LinuxStartupServices.RuntimeEntropyBytes ? state->LinuxRuntimeRandom.Data : state->LinuxRandomRetained.Data,
+                Entropy = entropyBytes == FirmwareEntropyReservoir.Bytes ? state->LinuxRuntimeRandom.Data : state->LinuxRandomRetained.Data,
                 CapturedEntropyBytes = entropyBytes, SingleCpuValidated = true, FirmwareExited = true
             };
             if (!LinuxStartupServices.Begin(&state->LinuxServices, startup)) return false;
@@ -1788,7 +1792,12 @@ public static unsafe partial class EfiEntry
                 !LinuxNumber(state, bytes) || !LinuxText(state, " data=")) return 0;
             for (uint i = 0; i < bytes; i++) if (!LinuxByte(state, source[i])) return 0;
             if (!LinuxText(state, "\r\n")) return 0;
-            state->LinuxSyscallWrites++; return 1;
+            state->LinuxSyscallWrites++;
+#if M10_004_PROBE
+            return LinuxWebObserveOutput(state, channel, source, bytes) ? (byte)1 : (byte)0;
+#else
+            return 1;
+#endif
         }
 
         [System.Runtime.InteropServices.UnmanagedCallersOnly]
@@ -6784,7 +6793,11 @@ public static unsafe partial class EfiEntry
     // storage disjoint from firmware; malformed/stale admission writes nothing.
     internal static class FirmwareEntropyReservoir
     {
+#if M10_004_PROBE
+        internal const uint Bytes = 4096;
+#else
         internal const uint Bytes = 256;
+#endif
         internal unsafe struct State
         {
             internal ulong Phase, PublishedBytes;

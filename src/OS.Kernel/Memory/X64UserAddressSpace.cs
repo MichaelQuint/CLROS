@@ -37,7 +37,14 @@ public static unsafe class X64UserAddressSpace
     // Retained supervisor mappings and mutable user regions share this bounded
     // construction inventory. The memory service reserves half for its existing
     // 64-region quota instead of consuming that quota with retained mappings.
-    public const uint MaximumRanges = 128, MaximumTables = 128;
+    public const uint MaximumTables = 128;
+#if M10_004_PROBE
+    // The web profile retains 60 supervisor/image rows and reserves 256 mutable
+    // intervals. This inventory grows independently of the unchanged table cap.
+    public const uint MaximumRanges = 384;
+#else
+    public const uint MaximumRanges = 128;
+#endif
     // Virtual reservations may exceed physical memory. All actual backing and
     // table pages still belong to the qualified low-4GiB physical arena.
     public const ulong UserEnd = 0x1000000000, PhysicalEnd = 0x100000000;

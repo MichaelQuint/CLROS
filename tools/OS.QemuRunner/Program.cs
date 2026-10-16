@@ -124,6 +124,7 @@ try
     SerialMarkerStateMachine streamingMarkers = new SerialMarkerStateMachine(
         options.RequiredMarkers,
         options.ForbiddenMarkers,
+        successTerminalMarker: options.SuccessTerminalMarker,
         orderedMarkers: options.OrderedMarkers,
         uniqueMarkers: options.UniqueMarkers);
 
@@ -146,10 +147,23 @@ try
     bool processCleanupFailed = false;
     bool qemuExitedSpontaneously = false;
     int? qemuExitCode = null;
+    if (options.ContinuingWeb && !CheckWebPortAvailable(options.SocketForwardPort!.Value))
+    {
+        options.WebEvidence!.Failure = "endpoint_occupied_before_launch";
+        WriteSummaryLogBestEffort(options, "fail", [], options.RequiredMarkers, [], "web_endpoint_occupied_before_launch");
+        Console.Error.WriteLine("TEST_FAIL qemu.smoke web_endpoint_occupied_before_launch");
+        return 20;
+    }
+    if (options.WebEvidence is not null) options.WebEvidence.PreLaunchAvailable = true;
     try
     {
     process.Start();
     processStarted = true;
+    if (options.WebEvidence is not null)
+    {
+        options.WebEvidence.ProcessId = process.Id;
+        options.WebEvidence.StartUtc = process.StartTime.ToUniversalTime().ToString("O");
+    }
 
     long serialReadOffset = 0;
     string? serialReadFailure = null;
@@ -314,7 +328,34 @@ try
         && preProbeSummary.HasAllRequiredMarkers
         && !preProbeSummary.HasForbiddenMarkers)
     {
-        httpProbeResult = ExecuteHttpProbe(options.HttpProbe.Value);
+        if (options.ContinuingWeb)
+        {
+            ContinuingWebEvidence web = options.WebEvidence!;
+            if (process.HasExited)
+                web.Failure = "premature_exit";
+            else
+            {
+                web.AliveBeforeHealth = true;
+                httpProbeResult = ExecuteContinuingWebProbe(options.HttpProbe.Value, stopwatch, options.TimeoutSeconds);
+                web.AliveAfterHealth = !process.HasExited;
+                if (!web.AliveAfterHealth) web.Failure = "premature_exit";
+                else if (httpProbeResult.Value.Passed)
+                {
+                    bool serialHealthy = TryFeedSerialLogDelta(options.SerialLogPath, streamingMarkers,
+                        ref serialReadOffset, out SerialMarkerFeedResult betweenProbes, out serialReadFailure)
+                        && betweenProbes.Succeeded && streamingMarkers.ForbiddenOccurrenceCount == 0
+                        && streamingMarkers.OutOfOrderOccurrenceCount == 0 && streamingMarkers.DuplicateUniqueOccurrenceCount == 0;
+                    if (!serialHealthy) web.Failure = "serial_failure";
+                    else
+                    {
+                        web.ConfigResult = ExecuteContinuingWebProbe(options.WebConfigProbe!.Value, stopwatch, options.TimeoutSeconds);
+                        web.AliveAfterConfig = !process.HasExited;
+                        if (!web.AliveAfterConfig) web.Failure = "premature_exit";
+                    }
+                }
+            }
+        }
+        else httpProbeResult = ExecuteHttpProbe(options.HttpProbe.Value);
         TerminateProcessAndClassify(
             process,
             ref processTerminationRequested,
@@ -325,6 +366,24 @@ try
         {
             qemuExitCode = process.ExitCode;
         }
+    }
+
+    if (options.WebEvidence is not null)
+    {
+        ContinuingWebEvidence web = options.WebEvidence;
+        web.TerminationRequested = processTerminationRequested;
+        web.DeathConfirmed = process.HasExited;
+        web.SpontaneousExit = qemuExitedSpontaneously;
+        web.ExitCode = qemuExitCode;
+        if (web.DeathConfirmed)
+        {
+            web.EndUtc = process.ExitTime.ToUniversalTime().ToString("O");
+            web.LifetimeMilliseconds = (long)(process.ExitTime - process.StartTime).TotalMilliseconds;
+            web.StoppedEndpointRefused = CheckWebEndpointRefused(options.SocketForwardPort!.Value);
+        }
+        if (web.SpontaneousExit) web.Failure = "premature_exit";
+        else if (!web.DeathConfirmed || !web.TerminationRequested) web.Failure = "termination_unconfirmed";
+        else if (web.StoppedEndpointRefused != true) web.Failure = "endpoint_live_after_stop";
     }
 
     if (serialReadFailure is null)
@@ -518,6 +577,15 @@ try
         return 15;
     }
 
+    if (options.ContinuingWeb && options.WebEvidence!.Failure is string webFailure)
+    {
+        WriteSummaryLogBestEffort(options, "fail", observedMarkerLines, summary.MissingMarkers,
+            forbiddenMarkers, "web_" + webFailure, httpProbeResult, summary.AppExitResults,
+            summary.MalformedAppExitMarkers, outOfOrderMarkers, duplicateUniqueMarkers);
+        Console.Error.WriteLine("TEST_FAIL qemu.smoke web_" + webFailure);
+        return 20;
+    }
+
     if (qemuExitedSpontaneously && qemuExitCode is not null and not 0)
     {
         WriteSummaryLogBestEffort(
@@ -583,9 +651,18 @@ try
 
     if (serialSucceeded)
     {
+        if (options.ContinuingWeb && httpProbeResult?.Passed == true && options.WebEvidence!.ConfigResult?.Passed != true)
+        {
+            string reason = options.WebEvidence.ConfigResult?.Reason ?? "not_run";
+            WriteSummaryLogBestEffort(options, "fail", observedMarkerLines, [], [], "web_config_" + reason,
+                httpProbeResult, summary.AppExitResults, summary.MalformedAppExitMarkers,
+                outOfOrderMarkers, duplicateUniqueMarkers);
+            Console.Error.WriteLine("TEST_FAIL qemu.smoke web_config_" + reason);
+            return 20;
+        }
         if (options.HttpProbe is not null)
         {
-            httpProbeResult ??= ExecuteHttpProbe(options.HttpProbe.Value);
+            if (!options.ContinuingWeb) httpProbeResult ??= ExecuteHttpProbe(options.HttpProbe.Value);
             TerminateProcessAndClassify(
                 process,
                 ref processTerminationRequested,
@@ -593,22 +670,23 @@ try
                 ref qemuExitedSpontaneously,
                 ref qemuExitCode);
 
-            if (!httpProbeResult.Value.Passed)
+            if (httpProbeResult?.Passed != true)
             {
+                HttpProbeResult failedProbe = httpProbeResult ?? HttpProbeResult.Failed("not_run", 0, string.Empty);
                 WriteSummaryLogBestEffort(
                     options,
                     "fail",
                     observedMarkerLines,
                     Array.Empty<string>(),
                     Array.Empty<string>(),
-                    "http_probe_" + httpProbeResult.Value.Reason,
+                    "http_probe_" + failedProbe.Reason,
                     httpProbeResult,
                     summary.AppExitResults,
                     summary.MalformedAppExitMarkers,
                     outOfOrderMarkers,
                     duplicateUniqueMarkers);
-                Console.Error.WriteLine("OS_SMOKE_FAIL http-probe=" + httpProbeResult.Value.Reason);
-                Console.Error.WriteLine("TEST_FAIL qemu.runner.http_probe reason=" + httpProbeResult.Value.Reason);
+                Console.Error.WriteLine("OS_SMOKE_FAIL http-probe=" + failedProbe.Reason);
+                Console.Error.WriteLine("TEST_FAIL qemu.runner.http_probe reason=" + failedProbe.Reason);
                 return 9;
             }
         }
@@ -686,7 +764,7 @@ try
             duplicateUniqueMarkers);
         Console.Error.WriteLine(
             "TEST_FAIL qemu.smoke missing_success_terminal marker=" +
-            SerialMarkerStateMachine.DefaultSuccessTerminalMarker);
+            options.SuccessTerminalMarker);
         return 16;
     }
 
@@ -1345,6 +1423,7 @@ static void WriteSummaryLogBestEffort(
         builder.Append("UNIQUE_MARKERS ").AppendLine(FormatSummaryList(options.UniqueMarkers));
         builder.Append("FORBIDDEN_MARKERS ").AppendLine(FormatSummaryList(options.ForbiddenMarkers));
         AppendHttpProbeSummary(builder, options, httpProbeResult);
+        AppendContinuingWebSummary(builder, options);
         AppendObservedMarkerLines(builder, observedMarkers);
         AppendAppExitSummary(builder, appExitResults, malformedAppExitMarkers);
         builder.Append("MISSING_MARKERS ").AppendLine(FormatSummaryList(missingMarkers));
@@ -1520,7 +1599,78 @@ static void WriteHttpProbe(HttpProbeOptions probe)
         + " timeout_seconds=" + probe.TimeoutSeconds);
 }
 
-static HttpProbeResult ExecuteHttpProbe(HttpProbeOptions probe)
+static void AppendContinuingWebSummary(StringBuilder builder, RunnerOptions options)
+{
+    if (!options.ContinuingWeb) return;
+    ContinuingWebEvidence web = options.WebEvidence!;
+    HttpProbeOptions config = options.WebConfigProbe!.Value;
+    builder.AppendLine("CONTINUING_WEB true");
+    builder.Append("WEB_CONFIG_PROBE_URL ").AppendLine(config.Url);
+    builder.AppendLine("WEB_CONFIG_PROBE_EXPECTED_STATUS 200");
+    builder.Append("WEB_CONFIG_PROBE_EXPECTED_BODY_BYTES ").AppendLine(config.ExpectedBodyByteLength.ToString());
+    builder.Append("WEB_CONFIG_PROBE_EXPECTED_BODY_SHA256 ").AppendLine(ComputeSha256(Encoding.UTF8.GetBytes(config.ExpectedBody)));
+    builder.Append("WEB_CONFIG_PROBE_RESULT ").AppendLine(web.ConfigResult is null ? "not_run" : web.ConfigResult.Value.Passed ? "pass" : "fail");
+    builder.Append("WEB_CONFIG_PROBE_REASON ").AppendLine(web.ConfigResult?.Reason ?? "none");
+    builder.Append("WEB_CONFIG_PROBE_STATUS ").AppendLine(web.ConfigResult?.StatusCodeText ?? "none");
+    builder.Append("WEB_CONFIG_PROBE_BODY_BYTES ").AppendLine(web.ConfigResult?.BodyByteCount.ToString() ?? "none");
+    builder.Append("WEB_CONFIG_PROBE_BODY_SHA256 ").AppendLine(web.ConfigResult?.BodySha256 ?? "none");
+    builder.Append("WEB_CONFIG_PROBE_ELAPSED_MS ").AppendLine(web.ConfigResult?.ElapsedMilliseconds.ToString() ?? "none");
+    builder.Append("WEB_ENDPOINT_PRELAUNCH_AVAILABLE ").AppendLine(web.PreLaunchAvailable ? "true" : "false");
+    builder.Append("WEB_ENDPOINT_STOPPED_REFUSED ").AppendLine(web.StoppedEndpointRefused?.ToString().ToLowerInvariant() ?? "not_run");
+    builder.Append("WEB_PROCESS_ID ").AppendLine(web.ProcessId?.ToString() ?? "none");
+    builder.Append("WEB_PROCESS_START_UTC ").AppendLine(web.StartUtc ?? "none");
+    builder.Append("WEB_PROCESS_END_UTC ").AppendLine(web.EndUtc ?? "none");
+    builder.Append("WEB_PROCESS_LIFETIME_MS ").AppendLine(web.LifetimeMilliseconds?.ToString() ?? "none");
+    builder.Append("WEB_PROCESS_ALIVE_BEFORE_HEALTH ").AppendLine(FormatBool(web.AliveBeforeHealth));
+    builder.Append("WEB_PROCESS_ALIVE_AFTER_HEALTH ").AppendLine(FormatBool(web.AliveAfterHealth));
+    builder.Append("WEB_PROCESS_ALIVE_AFTER_CONFIG ").AppendLine(FormatBool(web.AliveAfterConfig));
+    builder.Append("WEB_PROCESS_TERMINATION_REQUESTED ").AppendLine(FormatBool(web.TerminationRequested));
+    builder.Append("WEB_PROCESS_DEATH_CONFIRMED ").AppendLine(FormatBool(web.DeathConfirmed));
+    builder.Append("WEB_PROCESS_SPONTANEOUS_EXIT ").AppendLine(FormatBool(web.SpontaneousExit));
+    builder.Append("WEB_PROCESS_EXIT_CODE ").AppendLine(web.ExitCode?.ToString() ?? "none");
+    builder.Append("WEB_PROCESS_FAILURE ").AppendLine(web.Failure ?? "none");
+}
+
+static bool CheckWebPortAvailable(int port)
+{
+    try
+    {
+        using TcpListener listener = new(System.Net.IPAddress.Loopback, port);
+        listener.Server.ExclusiveAddressUse = true;
+        listener.Start(1);
+        return true;
+    }
+    catch (SocketException) { return false; }
+}
+
+static bool CheckWebEndpointRefused(int port)
+{
+    using TcpClient client = new();
+    // Windows loopback reports a refused connection after about two seconds.
+    // A shorter cancellation would confuse that negative with a live endpoint.
+    using CancellationTokenSource cancellation = new(TimeSpan.FromSeconds(3));
+    try
+    {
+        client.ConnectAsync(System.Net.IPAddress.Loopback, port, cancellation.Token).AsTask().GetAwaiter().GetResult();
+        return false;
+    }
+    catch (SocketException ex) { return ex.SocketErrorCode == SocketError.ConnectionRefused; }
+    catch (OperationCanceledException) { return false; }
+}
+
+static HttpProbeResult ExecuteContinuingWebProbe(HttpProbeOptions probe, Stopwatch lifetime, int deadlineSeconds)
+{
+    long remaining = deadlineSeconds * 1000L - lifetime.ElapsedMilliseconds;
+    if (remaining < 1000) return HttpProbeResult.Failed("deadline", 0, string.Empty);
+    HttpProbeOptions bounded = new(probe.Url, probe.ExpectedStatusCode, probe.ExpectedBody,
+        probe.ExpectedBodyConfigured, Math.Min(probe.TimeoutSeconds, (int)(remaining / 1000)));
+    // HTTP/1.0 closes the connection after JSON, so the existing bounded
+    // reader receives entity bytes without HTTP/1.1 chunk framing.
+    try { return ExecuteHttpProbe(bounded, http10: true); }
+    catch (SocketException ex) { return HttpProbeResult.Failed("request_failed", 0, ex.GetType().Name); }
+}
+
+static HttpProbeResult ExecuteHttpProbe(HttpProbeOptions probe, bool http10 = false)
 {
     Console.WriteLine(
         "HTTP_PROBE_START endpoint=" + FormatProbeEndpoint(probe.Url)
@@ -1532,7 +1682,7 @@ static HttpProbeResult ExecuteHttpProbe(HttpProbeOptions probe)
     try
     {
         Uri uri = new Uri(probe.Url, UriKind.Absolute);
-        RawHttpProbeResponse response = SendRawHttpGet(uri, probe.TimeoutSeconds);
+        RawHttpProbeResponse response = SendRawHttpGet(uri, probe.TimeoutSeconds, http10);
         stopwatch.Stop();
 
         int statusCode = response.StatusCode;
@@ -1593,12 +1743,12 @@ static HttpProbeResult ExecuteHttpProbe(HttpProbeOptions probe)
     }
 }
 
-static RawHttpProbeResponse SendRawHttpGet(Uri uri, int timeoutSeconds)
+static RawHttpProbeResponse SendRawHttpGet(Uri uri, int timeoutSeconds, bool http10 = false)
 {
     using CancellationTokenSource cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(timeoutSeconds));
     try
     {
-        return SendRawHttpGetAsync(uri, cancellation.Token).GetAwaiter().GetResult();
+        return SendRawHttpGetAsync(uri, cancellation.Token, http10).GetAwaiter().GetResult();
     }
     catch (OperationCanceledException ex) when (cancellation.IsCancellationRequested)
     {
@@ -1606,7 +1756,7 @@ static RawHttpProbeResponse SendRawHttpGet(Uri uri, int timeoutSeconds)
     }
 }
 
-static async Task<RawHttpProbeResponse> SendRawHttpGetAsync(Uri uri, CancellationToken cancellationToken)
+static async Task<RawHttpProbeResponse> SendRawHttpGetAsync(Uri uri, CancellationToken cancellationToken, bool http10 = false)
 {
     using TcpClient client = new TcpClient();
     await client.ConnectAsync(uri.Host, uri.Port, cancellationToken).ConfigureAwait(false);
@@ -1615,7 +1765,7 @@ static async Task<RawHttpProbeResponse> SendRawHttpGetAsync(Uri uri, Cancellatio
     string path = string.IsNullOrEmpty(uri.PathAndQuery) ? "/" : uri.PathAndQuery;
     string host = uri.IsDefaultPort ? uri.Host : uri.Host + ":" + uri.Port;
     byte[] requestBytes = Encoding.ASCII.GetBytes(
-        "GET " + path + " HTTP/1.1\r\n"
+        "GET " + path + (http10 ? " HTTP/1.0\r\n" : " HTTP/1.1\r\n")
         + "Host: " + host + "\r\n"
         + "Connection: close\r\n"
         + "Accept: */*\r\n"
@@ -1639,10 +1789,10 @@ static async Task<RawHttpProbeResponse> SendRawHttpGetAsync(Uri uri, Cancellatio
         }
     }
 
-    return ParseRawHttpResponse(response.ToArray());
+    return ParseRawHttpResponse(response.ToArray(), http10);
 }
 
-static RawHttpProbeResponse ParseRawHttpResponse(byte[] response)
+static RawHttpProbeResponse ParseRawHttpResponse(byte[] response, bool requireCloseFraming = false)
 {
     int headerEnd = IndexOf(response, new byte[] { 13, 10, 13, 10 });
     if (headerEnd < 0)
@@ -1672,6 +1822,23 @@ static RawHttpProbeResponse ParseRawHttpResponse(byte[] response)
     int bodyOffset = headerEnd + 4;
     byte[] body = new byte[response.Length - bodyOffset];
     Array.Copy(response, bodyOffset, body, 0, body.Length);
+    if (requireCloseFraming)
+    {
+        bool lengthSeen = false;
+        foreach (string line in Encoding.ASCII.GetString(response, 0, headerEnd).Split("\r\n").Skip(1))
+        {
+            int colon = line.IndexOf(':');
+            if (colon <= 0) throw new MalformedHttpResponseException("HTTP header was malformed.");
+            string name = line[..colon];
+            if (name.Equals("Transfer-Encoding", StringComparison.OrdinalIgnoreCase))
+                throw new MalformedHttpResponseException("HTTP/1.0 probe requires a close-delimited or exact-length entity.");
+            if (!name.Equals("Content-Length", StringComparison.OrdinalIgnoreCase)) continue;
+            if (lengthSeen || !int.TryParse(line[(colon + 1)..].Trim(), System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out int length) || length != body.Length)
+                throw new MalformedHttpResponseException("HTTP entity length was incomplete or ambiguous.");
+            lengthSeen = true;
+        }
+    }
     return new RawHttpProbeResponse(statusCode, body);
 }
 
@@ -1966,6 +2133,11 @@ sealed class RunnerOptions
     public bool ArpReceiveFixture { get; private set; }
     public bool ContinuingNetworkPeer { get; private set; }
     public int? SocketForwardPort { get; private set; }
+    public bool ContinuingWeb { get; private set; }
+    public string SuccessTerminalMarker => ContinuingWeb ? "TEST_PASS m10.004" : SerialMarkerStateMachine.DefaultSuccessTerminalMarker;
+    public HttpProbeOptions? WebConfigProbe { get; private set; }
+    public ContinuingWebEvidence? WebEvidence { get; private set; }
+    private string? webConfigBody;
     public string? EthernetCapturePath { get; private set; }
     public bool VirtioBlockQueueDevice { get; private set; }
     public string? VirtioBlockBootImagePath { get; private set; }
@@ -2093,6 +2265,14 @@ sealed class RunnerOptions
                         throw new ArgumentException("--socket-forward-port must be a decimal port from 1 through 65535.");
                     options.SocketForwardPort = port;
                     break;
+                case "--continuing-web":
+                    if (options.ContinuingWeb) throw new ArgumentException("--continuing-web may be specified only once.");
+                    options.ContinuingWeb = true;
+                    break;
+                case "--web-config-body":
+                    if (options.webConfigBody is not null) throw new ArgumentException("--web-config-body may be specified only once.");
+                    options.webConfigBody = ReadValue(args, ref i, arg);
+                    break;
                 case "--virtio-block-boot-image":
                     if (options.VirtioBlockBootImagePath is not null) throw new ArgumentException("--virtio-block-boot-image may be specified only once.");
                     options.VirtioBlockBootImagePath = RequireNonEmpty(ReadValue(args, ref i, arg), arg);
@@ -2170,8 +2350,9 @@ sealed class RunnerOptions
             options.HttpProbe is not null || options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic || options.ExpectedUnhandledException))
             throw new ArgumentException("--continuing-network-peer requires the captured ARP fixture, a timeout at most 295 seconds and the ordinary diagnostic exit path.");
         if (options.SocketForwardPort is not null && (!options.VirtioNegotiationDevice || !options.ArpReceiveFixture || options.EthernetCapturePath is null ||
-            options.ContinuingNetworkPeer || options.HttpProbe is not null || options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic || options.ExpectedUnhandledException))
+            options.ContinuingNetworkPeer || (options.HttpProbe is not null && !options.ContinuingWeb) || options.ExpectedUnexpectedVectorPanic || options.ExpectedOwnedSubsystemPanic || options.ExpectedUnhandledException))
             throw new ArgumentException("--socket-forward-port requires the captured dedicated modern ARP network fixture and ordinary diagnostic exit path, without --continuing-network-peer or HTTP probing.");
+        options.ValidateContinuingWeb();
         return options;
     }
 
@@ -2179,6 +2360,7 @@ sealed class RunnerOptions
     {
         Console.WriteLine("--continuing-network-peer uses a bounded loopback Ethernet peer for the captured M07-026 fixture; dry-run prints its ephemeral-port placeholder.");
         Console.WriteLine("--socket-forward-port <1-65535> forwards loopback TCP to guest port 8080 on the captured dedicated modern ARP network fixture, using QEMU usernet without the scripted Ethernet peer.");
+        Console.WriteLine("--continuing-web requires that forward, exact loopback /healthz HTTP 200/body probing, --web-config-body <exact-UTF8-text>, and a summary log; it probes /config before terminating its QEMU and checks the stopped endpoint refuses connections.");
         Console.WriteLine("--startup-timeout <seconds> bounds startup to M03_EBS_RETURNED_SUCCESS when required (default 30); the overall --timeout still applies. A startup timeout captures QMP registers and up to 512 MiB RAM beside the serial log before terminating the child.");
         Console.WriteLine("OS.QemuRunner [preflight|--preflight] --image <raw|qcow2 image> [--disk-format raw|qcow2] [--workload-profile SingleMinimalApi|MultiMinimalApi] [--ovmf-code <OVMF_CODE.fd>] [--serial-log <path>] [--summary-log <path>] [--timeout <seconds>] [--replace-default-required-markers] [--require-marker <marker>]... [--require-ordered-marker <marker>]... [--require-unique-marker <marker>]... [--marker-preset " + SmokeMarkerPreset.SupportedValues + "]... [--forbid-marker <marker>]... [--http-probe-url <http-url>] [--http-probe-expected-status <100-599>] [--http-probe-expected-body <text>] [--http-probe-timeout <seconds>] [--expect-unexpected-vector-panic|--expect-owned-subsystem-panic] [--firmware-rng-source virtio|missing] [--virtio-block-queue-device [--virtio-block-boot-image <raw>]] [--dry-run]");
         Console.WriteLine("preflight validates local runner inputs and image format hints without launching QEMU or requiring libvirt.");
@@ -2302,6 +2484,11 @@ sealed class RunnerOptions
 
     private void FinishParsing()
     {
+        if (ContinuingWeb)
+        {
+            AddRequiredMarker("CLROS_M10_004_READY");
+            AddRequiredMarker("TEST_PASS m10.004");
+        }
         if (DryRun && Preflight)
         {
             throw new ArgumentException("--dry-run and preflight are mutually exclusive.");
@@ -2320,6 +2507,7 @@ sealed class RunnerOptions
         _ = new SerialMarkerStateMachine(
             RequiredMarkers,
             ForbiddenMarkers,
+            successTerminalMarker: SuccessTerminalMarker,
             orderedMarkers: OrderedMarkers,
             uniqueMarkers: UniqueMarkers);
 
@@ -2339,6 +2527,31 @@ sealed class RunnerOptions
             httpProbeExpectedBody,
             httpProbeExpectedBodyConfigured,
             httpProbeTimeoutSeconds);
+    }
+
+    private void ValidateContinuingWeb()
+    {
+        if (!ContinuingWeb)
+        {
+            if (webConfigBody is not null) throw new ArgumentException("--web-config-body requires --continuing-web.");
+            return;
+        }
+        if (SocketForwardPort is null || HttpProbe is null || string.IsNullOrWhiteSpace(SummaryLogPath) ||
+            WorkloadProfile != OS.Kernel.Build.WorkloadProfile.SingleMinimalApiName || TimeoutSeconds > 285 ||
+            ContinuingNetworkPeer || ExpectedUnexpectedVectorPanic || ExpectedOwnedSubsystemPanic || ExpectedUnhandledException)
+            throw new ArgumentException("--continuing-web requires a captured guest 8080 forward, HTTP probe, summary log, SingleMinimalApi and timeout at most 285 seconds without a scripted peer or panic profile.");
+        HttpProbeOptions probe = HttpProbe.Value;
+        Uri uri = new(probe.Url, UriKind.Absolute);
+        if (uri.Host != "127.0.0.1" || uri.Port != SocketForwardPort || uri.PathAndQuery != "/healthz" ||
+            uri.Fragment.Length != 0 || uri.UserInfo.Length != 0 || probe.ExpectedStatusCode != 200 ||
+            !probe.ExpectedBodyConfigured || probe.ExpectedBodyByteLength is < 1 or > 65536 ||
+            probe.TimeoutSeconds > 30 || webConfigBody is null || Encoding.UTF8.GetByteCount(webConfigBody) is < 1 or > 65536)
+            throw new ArgumentException("--continuing-web requires exact http://127.0.0.1:<forward>/healthz, status 200, bounded nonempty health/config bodies and an HTTP timeout at most 30 seconds.");
+        // The inherited boot prefix can require OS_SMOKE_PASS. Web startup
+        // still requires both M10 markers and uses its own success terminal.
+        WebConfigProbe = new HttpProbeOptions("http://127.0.0.1:" + SocketForwardPort.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/config",
+            200, webConfigBody, true, probe.TimeoutSeconds);
+        WebEvidence = new ContinuingWebEvidence();
     }
 
     private void ValidateArtifactPathSeparation()
@@ -2451,6 +2664,17 @@ sealed class RunnerOptions
 
         return parsed;
     }
+}
+
+sealed class ContinuingWebEvidence
+{
+    public HttpProbeResult? ConfigResult;
+    public bool PreLaunchAvailable, AliveBeforeHealth, AliveAfterHealth, AliveAfterConfig;
+    public bool TerminationRequested, DeathConfirmed, SpontaneousExit;
+    public bool? StoppedEndpointRefused;
+    public int? ProcessId, ExitCode;
+    public string? StartUtc, EndUtc, Failure;
+    public long? LifetimeMilliseconds;
 }
 
 readonly struct HttpProbeOptions

@@ -20,6 +20,8 @@ internal static class QemuRunnerHttpProbeTests
             Run("qemu.runner.http_probe rejects status mismatch", () => TestRejectsStatusMismatch(tempRoot), ref failures);
             Run("qemu.runner.http_probe rejects body mismatch", () => TestRejectsBodyMismatch(tempRoot), ref failures);
             Run("qemu.runner.http_probe times out deterministically", () => TestTimesOutDeterministically(tempRoot), ref failures);
+            Run("qemu.runner.continuing_web validates bounded selection", () => TestContinuingWebSelection(tempRoot), ref failures);
+            Run("qemu.runner.continuing_web rejects occupied endpoint before launch", () => TestContinuingWebOccupiedPort(tempRoot), ref failures);
         }
         finally
         {
@@ -207,6 +209,71 @@ internal static class QemuRunnerHttpProbeTests
         }
 
         return false;
+    }
+
+    private static List<string> ContinuingWebArguments(string tempRoot, int port)
+        => ["--continuing-web", "--socket-forward-port", port.ToString(),
+            "--virtio-negotiation-device", "--arp-receive-fixture",
+            "--ethernet-capture", Path.Combine(tempRoot, "web-" + Guid.NewGuid().ToString("N") + ".pcap"),
+            "--summary-log", Path.Combine(tempRoot, "web-" + Guid.NewGuid().ToString("N") + ".summary"),
+            "--replace-default-required-markers", "--http-probe-url", "http://127.0.0.1:" + port + "/healthz",
+            "--http-probe-expected-body", "OS_MINIMAL_API_OK", "--web-config-body", "{\"selected\":true}"];
+
+    private static bool TestContinuingWebSelection(string tempRoot)
+    {
+        List<string> valid = ContinuingWebArguments(tempRoot, 20080);
+        valid.AddRange(["--require-marker", "OS_SMOKE_PASS"]);
+        ProcessResult accepted = RunQemuRunner([.. valid, "--dry-run"]);
+        if (accepted.ExitCode != 0 || !accepted.Output.Contains("CLROS_M10_004_READY", StringComparison.Ordinal) ||
+            !accepted.Output.Contains("TEST_PASS m10.004", StringComparison.Ordinal) ||
+            !accepted.Output.Contains("OS_SMOKE_PASS", StringComparison.Ordinal) ||
+            !accepted.Output.Contains("hostfwd=tcp:127.0.0.1:20080-:8080", StringComparison.Ordinal) ||
+            accepted.Output.Contains("selected", StringComparison.Ordinal)) return false;
+        bool Reject(string key, string? value = null, bool remove = false)
+        {
+            List<string> changed = [.. valid];
+            int index = changed.IndexOf(key);
+            if (remove) { changed.RemoveAt(index); if (value is not null) changed.RemoveAt(index); }
+            else if (index >= 0 && value is not null) changed[index + 1] = value;
+            else { changed.Add(key); if (value is not null) changed.Add(value); }
+            ProcessResult result = RunQemuRunner([.. changed, "--dry-run"]);
+            return result.ExitCode == 1 && result.Output.Contains("qemu.runner.invalid_args", StringComparison.Ordinal);
+        }
+        return Reject("--continuing-web", remove: true)
+            && Reject("--web-config-body", "", remove: true)
+            && Reject("--socket-forward-port", "", remove: true)
+            && Reject("--http-probe-url", "http://127.0.0.1:20081/healthz")
+            && Reject("--http-probe-url", "http://localhost:20080/healthz")
+            && Reject("--http-probe-url", "http://127.0.0.1:20080/config")
+            && Reject("--http-probe-url", "http://127.0.0.1:20080/healthz?x=1")
+            && Reject("--http-probe-url", "http://127.0.0.1:20080/healthz#x")
+            && Reject("--http-probe-url", "http://user@127.0.0.1:20080/healthz")
+            && Reject("--http-probe-expected-status", "201")
+            && Reject("--http-probe-expected-body", "")
+            && Reject("--http-probe-timeout", "31")
+            && Reject("--timeout", "286")
+            && Reject("--workload-profile", "MultiMinimalApi")
+            && Reject("--continuing-network-peer");
+    }
+
+    private static bool TestContinuingWebOccupiedPort(string tempRoot)
+    {
+        using TcpListener occupied = new(IPAddress.Loopback, 0);
+        occupied.Start(1);
+        int port = ((IPEndPoint)occupied.LocalEndpoint).Port;
+        List<string> arguments = ContinuingWebArguments(tempRoot, port);
+        string summaryPath = arguments[arguments.IndexOf("--summary-log") + 1];
+        FakeQemuHttpEndpoint fake = CreateFakeQemuHttpEndpoint(tempRoot, 200, "unused", false);
+        arguments.AddRange(["--qemu", fake.QemuPath,
+            "--image", CreateEmptyFile(tempRoot, "occupied-web.raw"),
+            "--ovmf-code", CreateEmptyFile(tempRoot, "occupied-web-OVMF_CODE.fd"),
+            "--serial-log", Path.Combine(tempRoot, "occupied-web.serial")]);
+        ProcessResult result = RunQemuRunner([.. arguments]);
+        string summary = File.Exists(summaryPath) ? File.ReadAllText(summaryPath) : string.Empty;
+        return result.ExitCode == 20 && summary.Contains("FAIL_REASON web_endpoint_occupied_before_launch", StringComparison.Ordinal)
+            && summary.Contains("WEB_ENDPOINT_PRELAUNCH_AVAILABLE false", StringComparison.Ordinal)
+            && summary.Contains("WEB_PROCESS_ID none", StringComparison.Ordinal)
+            && summary.Contains("WEB_CONFIG_PROBE_RESULT not_run", StringComparison.Ordinal);
     }
 
     private static ProbeRunResult RunQemuRunnerWithProbe(

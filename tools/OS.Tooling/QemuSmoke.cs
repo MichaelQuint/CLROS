@@ -9,7 +9,7 @@ public static class QemuSmoke
     {
         root = Path.GetFullPath(root);
         invoke ??= (name, args) => ProcessRunner.RunAsync(new("dotnet", [HostTools.ManagedTool(root, name), .. args], root)
-        { Timeout = name == "OS.QemuRunner" && (NativeAotRuntimeSelection.Application(options.Flags).Length != 0||NativeAotSocketSelection.Application(options.Flags).Length!=0)
+        { Timeout = name == "OS.QemuRunner" && (NativeAotRuntimeSelection.Application(options.Flags).Length != 0||NativeAotSocketSelection.Application(options.Flags).Length!=0||NativeAotWebSelection.Application(options.Flags).Length!=0)
             ? TimeSpan.FromSeconds(options.TimeoutSeconds + 60) : TimeSpan.FromMinutes(name == "OS.Tooling" ? 30 : 10),
             OutputCharacterLimit = 16 * 1024 * 1024 }, cancellation);
         async Task<ProcessResult> Run(string name, IReadOnlyList<string> args)
@@ -29,11 +29,15 @@ public static class QemuSmoke
         NativeAotRuntimeProgram? runtimeProgram = null;
         NativeAotSocketProgram? socketProgram=null;
         NativeAotSocketPeer.Completion? socketPeer=null;
+        NativeAotWebProgram? webProgram=null;
+        NativeAotWebProgram.Configuration webConfiguration=default;
+        AuthorityFiles? webInputs=null;
         try
         {
             QemuSmokePlan plan = QemuProfiles.Create(options, output.WriteLine);
             bool sockets=NativeAotSocketSelection.Application(plan.Flags).Length!=0;
-            if(sockets&&!options.DryRun)
+            bool web=NativeAotWebSelection.Application(plan.Flags).Length!=0;
+            if((sockets||web)&&!options.DryRun)
                 foreach(string path in new[]{options.SerialLog,options.SummaryLog,options.SerialLog+".pcap",options.SerialLog+".peer.log",options.SerialLog+".peer.log.stderr.log"})
                     if(Path.Exists(Path.GetFullPath(path,root)))throw new ToolFailure("socket_evidence_not_fresh");
             if (options.LinuxHelloDisassembly.Length != 0 && !plan.IsEnabled("EnableM16009Probe"))
@@ -54,7 +58,18 @@ public static class QemuSmoke
                                 string.Equals(disassembly,Path.GetFullPath(path,root),comparison)))throw new ToolFailure("threading_input_output_alias");
                         if(string.Equals(package,disassembly,comparison))throw new ToolFailure("threading_input_alias");
                         threadingDisassemblyInput=new FileStream(disassembly,FileMode.Open,FileAccess.Read,FileShare.Read);
-                        if(sockets)socketProgram=NativeAotSocketProgram.Read(root,plan.IsEnabled("EnableM16012Probe"),package,disassembly);
+                        if(web)
+                        {
+                            webInputs=new();
+                            var p=webInputs.Open(Path.GetDirectoryName(package)!,package,"web package","web_package",OS.Manifest.LinuxElfPackage.MaximumBytes,singleLink:true);
+                            var d=webInputs.Open(Path.GetDirectoryName(disassembly)!,disassembly,"web instructions","web_instructions",NativeAotWebProgram.MaximumDisassemblyBytes,singleLink:true);
+                            AuthorityFiles.RequireDistinct(p,d);
+                            byte[] bytes=p.ReadBytes(OS.Manifest.LinuxElfPackage.MaximumBytes,"web_package");
+                            webProgram=NativeAotWebProgram.Create(root,bytes,d.ReadUtf8(NativeAotWebProgram.MaximumDisassemblyBytes,"web_instructions"));
+                            webConfiguration=NativeAotWebProgram.DescribeConfiguration(bytes);
+                            webInputs.VerifyUnchanged();
+                        }
+                        else if(sockets)socketProgram=NativeAotSocketProgram.Read(root,plan.IsEnabled("EnableM16012Probe"),package,disassembly);
                         else if (NativeAotRuntimeSelection.Application(plan.Flags).Length != 0)
                             runtimeProgram=NativeAotRuntimeProgram.Read(root,options.LinuxThreadingApplication,package,disassembly);
                         else threadingProgram=NativeAotThreadingProgram.Read(root,options.LinuxThreadingApplication,package,disassembly);
@@ -171,14 +186,27 @@ public static class QemuSmoke
             if (plan.IsEnabled("EnableM05VirtioNegotiationProbe")) arguments.Add("--virtio-negotiation-device");
             if (plan.IsEnabled("EnableM07VirtioNetProbe")) arguments.AddRange(["--ethernet-capture", Path.GetFullPath(options.SerialLog + ".pcap", root)]);
             if (plan.IsEnabled("EnableM07ArpReceiveProbe")) arguments.Add("--arp-receive-fixture");
-            if (plan.IsEnabled("EnableM07026Probe")&&!sockets) arguments.Add("--continuing-network-peer");
+            if (plan.IsEnabled("EnableM07026Probe")&&!sockets&&!web) arguments.Add("--continuing-network-peer");
             if(sockets&&options.DryRun)arguments.AddRange(["--socket-forward-port","20080"]);
+            if(web)
+            {
+                int port=20080;
+                if(!options.DryRun)
+                {
+                    var lease=new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback,0);
+                    try{lease.Start();port=((System.Net.IPEndPoint)lease.LocalEndpoint).Port;}finally{lease.Stop();}
+                }
+                arguments.AddRange(["--socket-forward-port",port.ToString(CultureInfo.InvariantCulture),"--continuing-web",
+                    "--http-probe-url","http://127.0.0.1:"+port.ToString(CultureInfo.InvariantCulture)+"/healthz",
+                    "--http-probe-expected-status","200","--http-probe-expected-body",options.DryRun?"OS_CONFIG_SELECTED_R01":webConfiguration.Body,
+                    "--http-probe-timeout","20","--web-config-body",options.DryRun?"{}":webConfiguration.Json]);
+            }
             if (plan.IsEnabled("EnableM06VirtioBlockQueueSetupProbe")) arguments.Add("--virtio-block-queue-device");
             if (gptBootImage.Length != 0) arguments.AddRange(["--virtio-block-boot-image", gptBootImage]);
             // The runner adds every ordered marker to its required list. Avoid
             // sending an identical list twice: long profiles otherwise exceed
             // Windows' command-line limit without adding a requirement.
-            if(sockets)
+            if(sockets||web)
             {
                 // Preserve required insertion order while sending each ordered
                 // marker only once. The combined profile otherwise exceeds the
@@ -219,24 +247,26 @@ public static class QemuSmoke
                 QemuTranscripts.RequireCompleteProcess(runner, "qemu_capture_runner_incomplete");
             }
             if (options.DryRun) return runner.ExitCode;
-            if (runner.ExitCode != 0 && capture is not null) return runner.ExitCode;
+            if (runner.ExitCode != 0 && (capture is not null || web)) return runner.ExitCode;
             // Hold the exact public evidence before the capture hash check and
             // through every subsequent parent/leaf/runner read.
             using AuthorityFiles? threadingEvidence = socketPeer is not null?QemuTranscripts.HoldSocketEvidence(root,options,socketPeer):
-                threadingProgram is null && runtimeProgram is null ? null : QemuTranscripts.HoldThreadingEvidence(root, options);
+                threadingProgram is null && runtimeProgram is null && webProgram is null ? null : QemuTranscripts.HoldThreadingEvidence(root, options);
             if (capture is not null)
             {
                 capture.Validate(); output.WriteLine("TEST_PASS m01.026.raw-observations");
             }
-            int validated = QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram, threadingProgram, runtimeProgram,socketProgram,socketPeer);
+            int validated = webProgram is not null?QemuTranscripts.ValidateWebRun(root,options,plan,runner,output,webProgram):
+                QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram, threadingProgram, runtimeProgram,socketProgram,socketPeer);
             threadingEvidence?.VerifyUnchanged();
+            webInputs?.VerifyUnchanged();
             return validated;
         }
         catch(OperationCanceledException)when(!cancellation.IsCancellationRequested)
         {output.WriteLine("TEST_FAIL qemu.smoke socket_orchestration_timeout");return 1;}
         catch (Exception error) when (error is ToolFailure or ArgumentException or IOException or InvalidDataException or InvalidOperationException)
         { output.WriteLine("TEST_FAIL qemu.smoke " + error.Message); return 1; }
-        finally { capture?.Dispose(); linuxInput?.Dispose(); helloDisassemblyInput?.Dispose(); threadingDisassemblyInput?.Dispose(); }
+        finally { capture?.Dispose(); linuxInput?.Dispose(); helloDisassemblyInput?.Dispose(); threadingDisassemblyInput?.Dispose(); webInputs?.Dispose(); }
     }
 
     public static string? ResolveExecutable(string? requested)

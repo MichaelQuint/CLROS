@@ -162,6 +162,7 @@ public static class EfiProjectAdmission
         // and admit no new evaluated identity, link or defining-project authority.
         return EfiContracts.CompileItems.Where(item => item switch
         {
+            @"Boot\EfiEntry.LinuxWeb.cs|" => profile.IsEnabled("EnableM10004Probe"),
             @"Boot\EfiEntry.LinuxSockets.cs|" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxSocketServices.cs|Compatibility\LinuxX64\LinuxSocketServices.cs" or
             @"..\OS.Kernel\Compatibility\LinuxX64\LinuxEpollServices.cs|Compatibility\LinuxX64\LinuxEpollServices.cs" or

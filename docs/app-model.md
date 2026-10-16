@@ -781,6 +781,23 @@ additions reject. The original web producer and socket admission remain intact.
 Sixteen focused host checks and actual Linux selected packaging/file-authority
 controls pass. No web guest profile is enabled or qualified by this host lookup.
 
+[Step1354](../done/step1354.md) adds the separate default-off M10-004 continuing
+web profile. Actual guest observations distinguish entry, the complete51-byte
+immutable settings read, listen8080 and upstream application-started output.
+The existing runner requires an exact selected health body and separate
+`/config` JSON from its still-live QEMU process, then confirms its termination
+and a refused stopped endpoint. Diagnostic HTTP uses HTTP1.0 with connection
+close; this does not satisfy the later default-body/HTTP1.1 milestone.
+Measured web-only mapping/interval/worker-stack bounds and a finite4096-byte
+pre-EBS entropy reservoir preserve the original profiles' limits. Entropy is
+fresh, consumed once, and never refilled or expanded. `MSG_PEEK` leaves the
+receive window unchanged. Continuing evidence admission and #217 acceptance
+remain pending. The retained r12 diagnostic and independent bounded packet
+reassembly match the exact22-byte health body and238-byte configuration JSON,
+including environment8081 despite the actual8080 listener. Its runner confirms
+the same QEMU alive across both probes, then dead with a refused endpoint.
+See the step's retained failures and explicit diagnostic boundary.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

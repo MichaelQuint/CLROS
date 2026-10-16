@@ -43,6 +43,28 @@ Kestrel evidence markers. Three fresh post-exit boots, external probes,
 request churn/async/cancellation/shutdown and a negative probe after guest
 termination are required. No guest Kestrel execution is currently qualified.
 
+[Step1354](../done/step1354.md) adds a default-off `EnableM10004Probe`
+development profile for the unchanged original web ELF. It retains the live
+network/runtime owner, observes actual entry, immutable configuration reads,
+bind/listen and standard upstream startup output, and probes `/healthz` then
+`/config` through the existing runner's owned QEMU process. The selected package
+uses a distinct configuration body and environment endpoint8081 while CLI and
+socket policy still bind8080. Measured interval, mapping, native-stack and finite
+entropy limits are explicit web-profile bounds. Kestrel's one-byte `MSG_PEEK`
+copies without consuming the TCP receive window.
+
+These are development diagnostics. The complete `qemu smoke` web admission
+deliberately returns `web_continuing_evidence_admission_pending` until the
+independent continuing transcript, original native, packet and runner joins are
+implemented and validated. No finite exit/reap or DMA teardown is invented for
+a continuing process. The retained r12 diagnostic returns exact200/22-byte
+selected health and200/238-byte configuration responses; an independent bounded
+PCAP reassembly matches both bodies. The runner's QEMU remains alive across
+both probes, then is confirmed dead with a refused endpoint. #217 and the
+dependent M10 tickets remain open; the first
+default-body/HTTP1.1, repeated-load, async/cancellation/shutdown and local claim
+gates remain pending.
+
 ## Transport decision experiments
 
 The primary route uses the pinned static `linux-musl-x64` payload and Kestrel's

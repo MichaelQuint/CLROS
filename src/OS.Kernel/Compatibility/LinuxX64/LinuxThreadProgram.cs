@@ -21,12 +21,21 @@ public static unsafe class LinuxThreadProgram
     public const uint InitialFixedStackBytes = 168, CapturedFixedStackBytes = 80;
 
     // One retained native pool: RX program, supervisor RW/NX metadata, guarded
-    // 16-page switch stack, sixteen guarded four-page worker stacks, guarded
+    // 16-page switch stack, sixteen guarded worker stacks (four data pages,
+    // sixteen for the continuing web profile), guarded
     // four-page IRQ stack and private IDT. The owner publishes/restores leaves;
     // these offsets alone grant no mappings, executable authority or lifetime.
     public const uint CodePages = Bytes / 4096, MetadataPage = CodePages, MetadataPages = 28;
     public const uint SwitchGuardPage = MetadataPage + MetadataPages, SwitchPages = 18;
-    public const uint WorkerPage = SwitchGuardPage + SwitchPages, WorkerPages = 6;
+    public const uint WorkerPage = SwitchGuardPage + SwitchPages;
+#if M10_004_PROBE
+    // The web interval and mapping scratch arrays enlarge the measured native
+    // Protect/Apply/table-admission chain. Sixteen data pages retain margin;
+    // both unmapped guards and every derived worker/IRQ/pool bound stay in force.
+    public const uint WorkerPages = 18;
+#else
+    public const uint WorkerPages = 6;
+#endif
     public const uint IrqGuardPage = WorkerPage + MaximumWorkers * WorkerPages, IrqPages = 6;
     public const uint IrqTopPage = IrqGuardPage + IrqPages - 1, IdtPage = IrqGuardPage + IrqPages, PoolPages = IdtPage + 1;
 

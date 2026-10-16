@@ -17,7 +17,16 @@ namespace OS.Kernel.Compatibility.LinuxX64;
 /// </summary>
 public static unsafe class LinuxMemoryServices
 {
-    public const uint MaximumRegions = 64, DefaultPoolPages = 4096, MaximumPoolPages = 8192;
+    public const uint DefaultPoolPages = 4096, MaximumPoolPages = 8192;
+#if M10_004_PROBE
+    // Original web startup exhausts 64 intervals before bind and 96 just after
+    // bind while physical backing remains available. Its explicit profile admits
+    // 256 intervals, with separate room for retained mappings. Physical, virtual,
+    // alias and atomic mutation bounds remain unchanged.
+    public const uint MaximumRegions = 256;
+#else
+    public const uint MaximumRegions = 64;
+#endif
     // A partial interval can create two temporary fragments. Enforce the live
     // quota after coalescing, rather than rejecting an operation that reduces it.
     private const uint WorkingRegions = MaximumRegions + 2;
