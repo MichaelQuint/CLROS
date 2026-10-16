@@ -91,7 +91,7 @@ public static unsafe partial class EfiEntry
                 !ReceiveNetworkTcp(owner, b, rx, TcpTx.Status.Success) || b->Sender.CloseState != TcpConnectionCloseState.TimeWait) return false;
             ulong firstWait = b->Sender.TimeWaitDeadlineNanoseconds;
             ulong waitStarted = NetworkTcpNow(owner);
-            if (!ReceiveNetworkTcp(owner, b, rx, TcpTx.Status.Success) ||
+            if (!ReceiveNetworkTcp(owner, b, rx, TcpTx.Status.PeerClosed) ||
                 b->Sender.TimeWaitDeadlineNanoseconds < firstWait || TcpRx.PumpAck(&b->Receiver, tx, out _) != TcpRx.Status.Success ||
                 b->Sender.TimeWaitDeadlineNanoseconds < waitStarted ||
                 !WriteNetworkTcpRow(owner, 2, firstWait, b->Sender.TimeWaitDeadlineNanoseconds, waitStarted, 240000000000)) return false;

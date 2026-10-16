@@ -1,5 +1,12 @@
 # Networking
 
+[Step1323](../done/step1323.md) records the first real continuing ARP/ICMP and
+initial TCP admission development evidence after the code-slot repair. The guest
+then stops because the fixture expects Success for a repeated FIN whose original
+owner reports PeerClosed. Correct that assertion while preserving the wire and
+kernel contracts. Complete TCP/cleanup, strict repetitions, native ABI/stack and
+full-host acceptance remain pending; all batch issues stay open.
+
 [Step1322](../done/step1322.md) records the first native publication and failed
 real guest attempt for this batch. Preparation stops before firmware exit at
 checkpoint60: PCI/queue emitters overwrite the selected clock helper at4608.
