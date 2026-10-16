@@ -117,6 +117,10 @@ existing main stack. Fresh native verification passes; all1741 method bodies
 agree with r12 except that budget immediate, with corresponding PE/debug
 metadata changes. The earlier candidate is retained as rejected before any
 qualification guest or full-host run. Combined qualification remains pending.
+[Step1363](../done/step1363.md) retains the subsequent stopped full-host gate:
+eleven legacy expectation failures, zero qualification guests. Explicit strict
+inventory/profile/source-pin repairs pass75 focused checks; a fresh combined
+full-host/current guest gate is still required before #217 acceptance.
 
 ## Transport decision experiments
 

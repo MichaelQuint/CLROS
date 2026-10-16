@@ -85,7 +85,8 @@ internal static class EfiCompileInventoryTests
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM09012Probe"] = true }),
         EfiProfile.Create("Diagnostic", new Dictionary<string, bool> { ["EnableM16010Probe"] = true }),
         EfiOptions.Parse(["--EnableM16011Probe"], true).Profile(),
-        EfiOptions.Parse(["--EnableM16012Probe"], true).Profile()
+        EfiOptions.Parse(["--EnableM16012Probe"], true).Profile(),
+        EfiOptions.Parse(["--EnableM10004Probe"], true).Profile()
     ];
 
     // The project declarations are an independent oracle for the shared helper.
@@ -114,6 +115,7 @@ internal static class EfiCompileInventoryTests
             "'$(EnableM16008Probe)' == 'true'" => profile.IsEnabled("EnableM16008Probe"),
             "'$(EnableM16009Probe)' == 'true'" => profile.IsEnabled("EnableM16009Probe"),
             "'$(EnableM16011Probe)' == 'true'" => profile.IsEnabled("EnableM16011Probe"),
+            "'$(EnableM10004Probe)' == 'true'" => profile.IsEnabled("EnableM10004Probe"),
             "'$(EnableM07026Probe)' == 'true'" => profile.IsEnabled("EnableM07026Probe"),
             string condition => throw new InvalidOperationException("Unreviewed compile condition: " + condition)
         }).Select(Key).ToArray();

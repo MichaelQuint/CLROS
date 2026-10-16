@@ -875,6 +875,10 @@ current artifact and stable-batch qualification remain required for acceptance.
 The actual main stack and other profiles' declarations are unchanged. Fresh
 source/native verification passes with a single budget-immediate code change;
 the corrected source still needs the combined full-host/current guest batch.
+[Step1363](../done/step1363.md) records the stopped first full-host attempt
+(eleven legacy expectation failures, zero qualification guests) and75 passing
+focused checks after explicit inventory/profile/source-pin repairs. Combined
+acceptance remains pending.
 
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
