@@ -2,6 +2,17 @@
 
 ## Start here
 
+`done/step1351.md` qualifies #214 -> #215 -> #216 and #689 -> #690 at
+implementation `3726e31`: 5,433 full-host checks across713 fixtures (94 Native),
+three complete original sync and three async socket guests, three V2 staging
+guests and33 fresh strict ancestors, with exact original native/source joins.
+The unchanged System.Net.Sockets and SocketAsyncEngine fixtures exchange real
+QEMU TCP bytes and drain their owned lifetimes. V2 staging does not enter the app.
+Next finish owned #217 configuration -> #218 serial output -> #219 upstream
+startup -> #220 Kestrel sockets under #737, then refresh exact dependencies.
+The separate PR739 configuration work is development evidence
+only. No guest Kestrel or new numbered/cloud/production gate is accepted.
+
 `done/step1332.md` qualifies #691 -> #148 -> #149 -> #150 -> #151 -> #152 -> #153
 and shared integration #734 at implementation `fd296378`: 5,341 full-host checks
 across 700 fixtures (94 Native), three strict TCP guests and20 fresh ancestors,
@@ -10,8 +21,8 @@ proves retained Virtio-net queues, real bounded TCP lifetimes, independent packe
 240-second TIME-WAIT and an actual cooperative progress/exit/reap witness.
 The separate8-page network and32-page worker firmware reservations remain retained;
 the original two-page allocator is preserved. No Linux app is entered by this
-network profile. Next follow #689 sockets/#690 epoll and the M10 app ladder before
-guest Kestrel. Refresh exact dependencies; no numbered/cloud/production gate advances.
+network profile. Step1351 adds the later bounded sockets/epoll qualification;
+the M10 application ladder still precedes guest Kestrel.
 
 `done/step1307.md` qualifies #191/#192 -> #686 -> #687 -> #193 -> #194 -> #688
 and shared integration #733: 5,202 full-host checks across 687 fixtures (94 Native),
@@ -51,7 +62,8 @@ Kestrel remains incomplete.
    4,776 full-host checks, six original native bodies, three 115-record timer
    guests and ten ancestors pass. #188 lifecycle is qualified in step1230;
    Step1307 qualifies the later #191/#192 through #688 batch; step1332 qualifies
-   finite continuing network/TCP. Sockets and epoll precede guest Kestrel.
+   finite continuing network/TCP. Step1351 qualifies bounded sockets/epoll and
+   web publish/staging; #217-#220 continue before guest Kestrel.
    Review step1207 preserves
    the original defect and corrected scheduler boundaries.
    Use exact dependencies and acceptance from the managed issue, not numeric

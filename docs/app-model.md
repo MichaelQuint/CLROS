@@ -729,9 +729,11 @@ host checks. The canonical layout is in [the manifest specification](manifest.md
 staging guests. The exact8,682,537-byte package survives firmware exit with
 closed handles, a valid reservation ledger, read-only/NX ownership, and matching
 payload/whole-package hashes. This preserves immutable config bytes; entry stays
-false. Manifest-backed file/config projection and application startup remain
-unqualified, and stable batch acceptance is pending. Linux builder web/socket
-runs remain separate from CLROS guest application hosting.
+false. [Step1351](../done/step1351.md) accepts the #214/#215 builder and #216
+staging scopes after shared full-host/native/guest qualification. Exact final
+M16-002 EFI/object/map identities match those retained V2 runs. Manifest-backed
+file/config projection and application startup remain unqualified. Linux builder
+Kestrel and CLROS finite socket guests remain distinct from guest Kestrel hosting.
 
 [Step1349](../done/step1349.md) adds the next development slice: validated V1/V2
 packages project their executable and up to seven immutable data files into the

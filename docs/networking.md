@@ -1,5 +1,23 @@
 # Networking
 
+[Step1351](../done/step1351.md) qualifies the default-off bounded #689/#690
+socket/epoll batch at implementation `3726e31`: 5,433 full-host checks across713
+fixtures (94 Native), scoped original native review, three complete sync and
+three async upstream socket guests and33 fresh strict ancestors. Four connections
+per socket run exchange61 request/65,572 response bytes, with partial I/O, EOF,
+reset, cancellation and concurrent pending-accept close. Actual TCP retirement,
+worker reap, descriptor/buffer cleanup, NIC reset and allocator restoration precede
+success; normal240-second TIME-WAIT is retained. The original payload is unchanged.
+Only IPv4 passive TCP and the explicitly measured epoll surface are qualified.
+The shared native-body joins do not prove whole-stack closure or arbitrary
+workloads. Real guest Kestrel and new numbered/cloud/production gates remain
+incomplete. Continue the owned #217-#220 application ladder under #737.
+
+## Development history
+
+The following entries preserve their original pending/failure boundaries;
+step1351 supersedes them only for the exact accepted finite batch above.
+
 [Step1348](../done/step1348.md) repairs direct MSBuild boot-policy selection
 and ordinary-policy conflict rejection for both socket leaves. The preceding
 5,433-check full-host run has one native policy failure and remains failed;
