@@ -65,6 +65,16 @@ dependent M10 tickets remain open; the first
 default-body/HTTP1.1, repeated-load, async/cancellation/shutdown and local claim
 gates remain pending.
 
+[Step1355](../done/step1355.md) adds host validation of the retained r12 complete
+prefix: exact fd1/fd2 byte framing, output/call/counter bindings, contiguous call
+ordinals and restored-return observations, existing epoll sequence binding, and
+original sealed syscall/return/IRQ instruction lookup. It accounts for1,211
+complete calls,13 writes/1,358 stdout bytes and one retained epoll wait. The final
+incomplete syscall remains a separately hashed fragment. Full syscall/memory/
+scheduler replay and parent/native/packet/runner joins are still required;
+complete smoke admission remains closed. No new guest run or issue closure is
+part of this host parser step.
+
 ## Transport decision experiments
 
 The primary route uses the pinned static `linux-musl-x64` payload and Kestrel's

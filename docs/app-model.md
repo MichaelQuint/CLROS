@@ -798,6 +798,15 @@ including environment8081 despite the actual8080 listener. Its runner confirms
 the same QEMU alive across both probes, then dead with a refused endpoint.
 See the step's retained failures and explicit diagnostic boundary.
 
+[Step1355](../done/step1355.md) validates the retained diagnostic's complete
+prefix against the prepared original instruction lookup. The shared byte
+framer preserves finite-app behavior and explicitly decodes both web output
+channels; payload bytes cannot become structural markers. Startup/config/
+listener observations bind to their calls, writes bind to fd/result/request
+length, and output counters bind to prior envelopes. The final unfinished row
+is retained separately. Full semantic replay and complete smoke admission
+remain pending; this host validation adds no fresh guest acceptance.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

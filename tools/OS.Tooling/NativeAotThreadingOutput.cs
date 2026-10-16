@@ -14,14 +14,18 @@ public static class NativeAotThreadingOutput
     /// input or mutable array is exposed; this receipt grants no execution authority.</summary>
     public sealed class Capture
     {
-        internal Capture(string stdout, string normalizedTail, int[] lengths)
+        internal Capture(string stdout, string normalizedTail, int[] lengths, uint[] channels, string stderr)
         {
             Stdout = stdout; NormalizedTail = normalizedTail;
             WriteLengths = Array.AsReadOnly((int[])lengths.Clone());
+            WriteChannels = Array.AsReadOnly((uint[])channels.Clone());
+            Stderr = stderr;
         }
         public string Stdout { get; }
         public string NormalizedTail { get; }
         public IReadOnlyList<int> WriteLengths { get; }
+        public IReadOnlyList<uint> WriteChannels { get; }
+        public string Stderr { get; }
     }
 
     /// <summary>Borrow an unmodified raw tail of at most 8 MiB for exactly
@@ -41,48 +45,8 @@ public static class NativeAotThreadingOutput
         Need(application is "NativeAotSuspensionSmoke" or "NativeAotThreadPoolSmoke" or
             "NativeAotSuspensionStress" or "NativeAotThreadPoolStress" or "NativeAotRuntimeMatrix" or "NativeAotRuntimeSmoke" or
             "NativeAotSocketSmoke" or "NativeAotSocketSmokeAsync", "application");
-        Need(rawTail.Length is > 0 and <= 8 * 1024 * 1024, "size");
-        byte[] stdout = new byte[4096], normalized = new byte[rawTail.Length];
-        List<int> lengths = [];
-        int cursor = 0, total = 0, written = 0;
-        while (cursor < rawTail.Length)
-        {
-            int relative = rawTail[cursor..].IndexOf("M16_005_WRITE"u8);
-            if (relative < 0)
-            {
-                rawTail[cursor..].CopyTo(normalized.AsSpan(written));
-                written += rawTail.Length - cursor;
-                break;
-            }
-            int at = cursor + relative;
-            Need(at == 0 || rawTail[at - 1] == (byte)'\n', "boundary");
-            ReadOnlySpan<byte> prefix = "M16_005_WRITE fd=1 bytes="u8;
-            Need(rawTail[at..].StartsWith(prefix), "envelope");
-            int numberAt = at + prefix.Length;
-            Need(numberAt < rawTail.Length && rawTail[numberAt] is >= (byte)'1' and <= (byte)'9', "length");
-            int bytes = 0;
-            while (numberAt < rawTail.Length && rawTail[numberAt] is >= (byte)'0' and <= (byte)'9')
-            {
-                bytes = bytes * 10 + rawTail[numberAt++] - (byte)'0';
-                Need(bytes <= 4096, "length");
-            }
-            Need(rawTail[numberAt..].StartsWith(" data="u8), "envelope");
-            int start = numberAt + 6;
-            Need(bytes <= rawTail.Length - start - 2 && bytes <= stdout.Length - total, "size");
-            int end = start + bytes;
-            Need(rawTail[end] == (byte)'\r' && rawTail[end + 1] == (byte)'\n', "framing");
-            rawTail[start..end].CopyTo(stdout.AsSpan(total));
-            total += bytes; lengths.Add(bytes);
-            // Keep the kernel prefix, every unrelated row and the kernel CRLF.
-            rawTail[cursor..start].CopyTo(normalized.AsSpan(written));
-            written += start - cursor;
-            for (int i = start; i < end; i++)
-                if (rawTail[i] != (byte)'\r' && rawTail[i] != (byte)'\n') normalized[written++] = rawTail[i];
-            normalized[written++] = rawTail[end]; normalized[written++] = rawTail[end + 1];
-            cursor = end + 2;
-        }
-        string text = Utf8.GetString(stdout.AsSpan(0, total));
-        string tail = Utf8.GetString(normalized.AsSpan(0, written));
+        Capture capture = ReadFramed(rawTail, web: false);
+        string text = capture.Stdout;
         switch (application)
         {
             case "NativeAotSuspensionSmoke": NativeAotThreadingGuest.ValidateSuspensionOutput(text); break;
@@ -94,7 +58,69 @@ public static class NativeAotThreadingOutput
             case "NativeAotSocketSmoke": NativeAotSocketPayload.ValidateOutput(text); break;
             case "NativeAotSocketSmokeAsync": NativeAotSocketPayload.ValidateAsyncOutput(text); break;
         }
-        return new(text, tail, lengths.ToArray());
+        return capture;
+    }
+
+    /// <summary>Decode borrowed raw web-leaf bytes with exact fd1/fd2 framing,
+    /// at most8192 bytes per write and65536 combined bytes. Reassemble UTF8 per
+    /// channel across arbitrary write boundaries. Structural text retains the
+    /// canonical envelope headers but none of their untrusted payload bytes.
+    /// Other bytes, including a final incomplete kernel row, remain unchanged.
+    /// Malformed envelopes, size overflow or invalid channel UTF8 throw. This
+    /// value-only decoder grants no app, scheduler, source or guest authority.</summary>
+    public static Capture ReadWeb(ReadOnlySpan<byte> rawTail) => ReadFramed(rawTail, web: true);
+
+    private static Capture ReadFramed(ReadOnlySpan<byte> rawTail, bool web)
+    {
+        Need(rawTail.Length is > 0 and <= 8 * 1024 * 1024, "size");
+        int limit = web ? 65536 : 4096, writeLimit = web ? 8192 : 4096;
+        byte[] stdout = new byte[limit], stderr = new byte[web ? limit : 0], normalized = new byte[rawTail.Length];
+        List<int> lengths = []; List<uint> channels = [];
+        int cursor = 0, total = 0, errors = 0, written = 0;
+        while (cursor < rawTail.Length)
+        {
+            int relative = rawTail[cursor..].IndexOf("M16_005_WRITE"u8);
+            if (relative < 0)
+            {
+                rawTail[cursor..].CopyTo(normalized.AsSpan(written));
+                written += rawTail.Length - cursor;
+                break;
+            }
+            int at = cursor + relative;
+            Need(at == 0 || rawTail[at - 1] == (byte)'\n', "boundary");
+            ReadOnlySpan<byte> prefix = "M16_005_WRITE fd="u8;
+            Need(rawTail[at..].StartsWith(prefix), "envelope");
+            int channelAt = at + prefix.Length;
+            Need(channelAt < rawTail.Length && (rawTail[channelAt] == (byte)'1' || web && rawTail[channelAt] == (byte)'2'), "envelope");
+            uint channel = (uint)(rawTail[channelAt] - (byte)'0');
+            int numberAt = channelAt + 1;
+            Need(rawTail[numberAt..].StartsWith(" bytes="u8), "envelope"); numberAt += 7;
+            Need(numberAt < rawTail.Length && rawTail[numberAt] is >= (byte)'1' and <= (byte)'9', "length");
+            int bytes = 0;
+            while (numberAt < rawTail.Length && rawTail[numberAt] is >= (byte)'0' and <= (byte)'9')
+            {
+                bytes = bytes * 10 + rawTail[numberAt++] - (byte)'0';
+                Need(bytes <= writeLimit, "length");
+            }
+            Need(rawTail[numberAt..].StartsWith(" data="u8), "envelope");
+            int start = numberAt + 6;
+            Need(bytes <= rawTail.Length - start - 2 && bytes <= limit - total - errors && lengths.Count < 4096, "size");
+            int end = start + bytes;
+            Need(rawTail[end] == (byte)'\r' && rawTail[end + 1] == (byte)'\n', "framing");
+            rawTail[start..end].CopyTo(channel == 1 ? stdout.AsSpan(total) : stderr.AsSpan(errors));
+            if (channel == 1) total += bytes; else errors += bytes;
+            lengths.Add(bytes); channels.Add(channel);
+            // Keep the kernel prefix, every unrelated row and the kernel CRLF.
+            rawTail[cursor..start].CopyTo(normalized.AsSpan(written));
+            written += start - cursor;
+            if (!web) for (int i = start; i < end; i++)
+                if (rawTail[i] != (byte)'\r' && rawTail[i] != (byte)'\n') normalized[written++] = rawTail[i];
+            normalized[written++] = rawTail[end]; normalized[written++] = rawTail[end + 1];
+            cursor = end + 2;
+        }
+        string text = Utf8.GetString(stdout.AsSpan(0, total));
+        string tail = Utf8.GetString(normalized.AsSpan(0, written));
+        return new(text, tail, lengths.ToArray(), channels.ToArray(), Utf8.GetString(stderr.AsSpan(0, errors)));
     }
 
     /// <summary>Require the original, unchanged runtime smoke's five ordered
