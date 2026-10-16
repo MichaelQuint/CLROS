@@ -1,5 +1,17 @@
 # Networking
 
+[Step1319](../done/step1319.md) composes termination into the retained sender/
+receiver, with no second buffer or connection owner. Local shutdown drains
+queued ACKed data before copied FIN; FIN reuses the existing bounded retry
+timer. Original validated data+FIN consumes EOF only after its full contiguous
+payload fits the receive window; buffered reads survive graceful completion,
+and peer half-close permits local writes. Exact peer RST, challenge ACK,
+simultaneous FIN, 240-second-or-longer TIME-WAIT/restart and explicit abort
+retain generation/buffer ownership through once-only cleanup. Seventeen new
+host controls join 274 passing TCP fast checks across 30 fixtures. These use
+injected time and TX callbacks. #153 remains blocked/open; native/full/real
+guest/packet acceptance awaits the stable #734 batch.
+
 [Step1318](../done/step1318.md) completes the existing close codec's combined
 FIN+ACK, simultaneous CLOSING and duplicate-FIN transitions. Six new controls
 cover exact state/sequence progress, short/invalid input preservation and wrap.

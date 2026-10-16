@@ -298,8 +298,13 @@ public ref struct TcpEstablishedStream
         scoped ReadOnlySpan<byte> segment,
         out TcpEstablishedStreamReceiveResult result) => ReceiveSegmentCore(segment, true, out result);
 
+    // FIN sequence consumption/EOF belongs to the retained receive owner after
+    // these original payload bytes fit its window; never fabricate a stripped packet.
+    internal TcpEstablishedStreamStatus ReceiveWindowFinSegment(scoped ReadOnlySpan<byte> segment,
+        out TcpEstablishedStreamReceiveResult result) => ReceiveSegmentCore(segment, true, out result, true);
+
     private TcpEstablishedStreamStatus ReceiveSegmentCore(scoped ReadOnlySpan<byte> segment,
-        bool windowed, out TcpEstablishedStreamReceiveResult result)
+        bool windowed, out TcpEstablishedStreamReceiveResult result, bool allowFin = false)
     {
         PacketParseStatus parseStatus = TcpHeader.TryParse(
             segment,
@@ -322,7 +327,8 @@ public ref struct TcpEstablishedStream
             return result.Status;
         }
 
-        if (!HasAllowedPayloadFlags(header.Flags))
+        if (!HasAllowedPayloadFlags(header.Flags) &&
+            !(allowFin && (header.Flags & (FlagFin | FlagAck)) == (FlagFin | FlagAck) && (header.Flags & ~0x19) == 0))
         {
             result = CreateReceiveFailure(
                 TcpEstablishedStreamStatus.InvalidFlags,
@@ -333,6 +339,9 @@ public ref struct TcpEstablishedStream
         bool validAcknowledgement = windowed
             ? unchecked(header.AcknowledgementNumber - _minimumAcknowledgement) <= unchecked(LocalNextSequenceNumber - _minimumAcknowledgement)
             : header.AcknowledgementNumber == LocalNextSequenceNumber;
+        // The retained close dispatcher already admitted this original ACK.
+        // An old cumulative ACK releases no send bytes but may carry new data.
+        if (allowFin && unchecked((int)(header.AcknowledgementNumber - _minimumAcknowledgement)) < 0) validAcknowledgement = true;
         if (!validAcknowledgement)
         {
             result = CreateReceiveFailure(

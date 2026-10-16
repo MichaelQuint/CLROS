@@ -378,6 +378,11 @@ public static class TcpEstablishedStreamIpv4FramePlanner
         ReadOnlySpan<byte> frame, out TcpEstablishedStreamIpv4FramePlanResult result) =>
         ReceiveFrameCore(ref stream, info, frame, true, false, out result);
 
+    internal static TcpEstablishedStreamIpv4FramePlanStatus ReceiveFinWindowFrame(
+        ref TcpEstablishedStream stream, in TcpEstablishedStreamIpv4FramePlannerInfo info,
+        ReadOnlySpan<byte> frame, out TcpEstablishedStreamIpv4FramePlanResult result) =>
+        ReceiveFrameCore(ref stream, info, frame, true, false, out result, true);
+
     /// <summary>Read-only original frame/endpoint/checksum admission. Success
     /// describes validated packet metadata, never delivered bytes or ACK progress.
     /// Protocol flags, sequence acceptability and ACK/window decisions belong to
@@ -392,7 +397,7 @@ public static class TcpEstablishedStreamIpv4FramePlanner
 
     private static TcpEstablishedStreamIpv4FramePlanStatus ReceiveFrameCore(
         ref TcpEstablishedStream stream, in TcpEstablishedStreamIpv4FramePlannerInfo info,
-        ReadOnlySpan<byte> frame, bool windowed, bool validateOnly, out TcpEstablishedStreamIpv4FramePlanResult result)
+        ReadOnlySpan<byte> frame, bool windowed, bool validateOnly, out TcpEstablishedStreamIpv4FramePlanResult result, bool allowFin = false)
     {
         TcpEstablishedStreamIpv4FramePlanStatus identityStatus = ValidateIdentity(stream, info);
         if (identityStatus != TcpEstablishedStreamIpv4FramePlanStatus.Success)
@@ -491,7 +496,7 @@ public static class TcpEstablishedStreamIpv4FramePlanner
         TcpEstablishedStream pending = stream;
         TcpEstablishedStreamReceiveResult receiveResult;
         TcpEstablishedStreamStatus streamStatus = windowed
-            ? pending.ReceiveWindowSegment(tcpSegment, out receiveResult)
+            ? allowFin ? pending.ReceiveWindowFinSegment(tcpSegment, out receiveResult) : pending.ReceiveWindowSegment(tcpSegment, out receiveResult)
             : pending.ReceiveSegment(tcpSegment, out receiveResult);
         if (streamStatus != TcpEstablishedStreamStatus.Success)
         {
@@ -537,8 +542,15 @@ public static class TcpEstablishedStreamIpv4FramePlanner
     /// with the existing planner; caller retains the output until TX returns.</summary>
     public static TcpEstablishedStreamIpv4FramePlanStatus TryWriteAckFrame(
         ref TcpEstablishedStream stream, in TcpEstablishedStreamIpv4FramePlannerInfo info,
-        ushort window, Span<byte> frame, out TcpEstablishedStreamIpv4FramePlanResult result)
+        ushort window, Span<byte> frame, out TcpEstablishedStreamIpv4FramePlanResult result) =>
+        TryWriteControlFrame(ref stream, info, window, 0x10, frame, out result);
+
+    internal static TcpEstablishedStreamIpv4FramePlanStatus TryWriteControlFrame(
+        ref TcpEstablishedStream stream, in TcpEstablishedStreamIpv4FramePlannerInfo info,
+        ushort window, byte flags, Span<byte> frame, out TcpEstablishedStreamIpv4FramePlanResult result)
     {
+        if (flags != 0x10 && flags != 0x11)
+        { result = Fail(stream, info, TcpEstablishedStreamIpv4FramePlanStatus.TcpStreamFailed, TcpEstablishedStreamStatus.InvalidFlags, PacketParseStatus.Success); return result.Status; }
         var identity = ValidateIdentity(stream, info);
         if (identity != TcpEstablishedStreamIpv4FramePlanStatus.Success)
         { result = Fail(stream, info, identity); return result.Status; }
@@ -546,7 +558,7 @@ public static class TcpEstablishedStreamIpv4FramePlanner
         { result = Fail(stream, info, TcpEstablishedStreamIpv4FramePlanStatus.FrameBufferTooSmall); return result.Status; }
         Span<byte> segment = stackalloc byte[TcpHeader.MinHeaderLength];
         var status = TcpHeader.TryWrite(segment, stream.LocalPort, stream.RemotePort,
-            stream.LocalNextSequenceNumber, stream.RemoteNextSequenceNumber, TcpEstablishedStream.FlagAck,
+            stream.LocalNextSequenceNumber, stream.RemoteNextSequenceNumber, flags,
             window, checksum: 0, urgentPointer: 0, ReadOnlySpan<byte>.Empty, ReadOnlySpan<byte>.Empty, out int count);
         if (status == PacketParseStatus.Success) status = TryWriteTcpChecksum(segment.Slice(0, count), info.LocalAddress, info.RemoteAddress);
         if (status != PacketParseStatus.Success)

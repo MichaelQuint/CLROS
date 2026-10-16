@@ -10,14 +10,15 @@ namespace OS.Net;
 /// one segment in flight and borrows a caller-supplied monotonic clock. No NIC,
 /// socket, congestion-window growth, fast retransmit or zero-window probe is supplied.
 /// </summary>
-public static unsafe class TcpSendWindow
+public static unsafe partial class TcpSendWindow
 {
     public enum Status : byte
     {
         Uninitialized, Success, InvalidStorage, InvalidState, InvalidOptions,
         TableRejected, InvalidPacket, InvalidAck, OldAck, DuplicateAck, WindowUpdated,
         NoData, NothingToSend, WindowClosed, OutputTooSmall, WouldBlock, SendFailed,
-        AwaitingAck, NotDue, Timeout, InvalidClock
+        AwaitingAck, NotDue, Timeout, InvalidClock, WriteClosed, WaitingForDrain,
+        PeerClosed, ConnectionClosed, ConnectionReset
     }
 
     /// <summary>Initially zero, noncopyable metadata. Retained bytes include
@@ -42,6 +43,9 @@ public static unsafe class TcpSendWindow
         internal ulong SampleAt, SmoothedRtt, RttVariation, DuplicateAcks;
         internal uint SampleEnd;
         internal byte Timed, RetryCount, RetryLimit, Sampling, HasRtt, HandshakeRetried;
+        internal byte CloseEnabled, WriteShutdown, FinPending;
+        internal TcpConnectionCloseState CloseStateValue;
+        internal ulong CloseLimit, CloseDeadline, TimeWaitDuration, TimeWaitDeadline;
         internal byte Phase;
         public readonly bool Active => Phase == 1;
         public readonly bool RequiresCleanup => Phase == 2;
@@ -57,6 +61,10 @@ public static unsafe class TcpSendWindow
         public readonly ulong RetransmissionTimeoutNanoseconds => Rto;
         public readonly byte Retransmissions => RetryCount;
         public readonly ulong DuplicateAcknowledgements => DuplicateAcks;
+        public readonly TcpConnectionCloseState CloseState => CloseStateValue;
+        public readonly bool WritesClosed => WriteShutdown != 0;
+        public readonly bool FinOutstanding => FinPending != 0;
+        public readonly ulong TimeWaitDeadlineNanoseconds => TimeWaitDeadline;
     }
 
     /// <summary>Bind one fresh established handshake and its active receiver,
@@ -132,6 +140,7 @@ public static unsafe class TcpSendWindow
     {
         accepted = 0;
         var status = Validate(owner, out _); if (status != Status.Success) return status;
+        if (owner->WriteShutdown != 0) return Status.WriteClosed;
         status = Time(owner, out _); if (status != Status.Success) return status;
         if (input.Length == 0) return Status.NoData;
         fixed (byte* bytes = input)
@@ -157,7 +166,7 @@ public static unsafe class TcpSendWindow
         packet = default;
         var status = Validate(owner, out var entry); if (status != Status.Success) return status;
         status = Time(owner, out ulong now); if (status != Status.Success) return status;
-        if (owner->Timed != 0 && owner->Sent != 0) return Status.AwaitingAck;
+        if (owner->FinPending != 0 || owner->Timed != 0 && owner->Sent != 0) return Status.AwaitingAck;
         int count = owner->Count - owner->Sent;
         if (count == 0) return Status.NothingToSend;
         uint right = unchecked(owner->WindowAck + owner->PeerWindow);
@@ -197,7 +206,7 @@ public static unsafe class TcpSendWindow
     }
 
     /// <summary>Attempt at most one due copy of the oldest unacknowledged
-    /// bytes, using the current cumulative receive ACK/window. Never advances
+    /// bytes or owned FIN, using the current cumulative receive ACK/window. Never advances
     /// SND.NXT or releases data. Short/full TX retains timer and retry count;
     /// accepted TX backs off RTO and cancels ambiguous RTT sampling (Karn).
     /// Duplicate ACKs do not delay this timer. Exhaustion, hard expiry, clock
@@ -210,7 +219,7 @@ public static unsafe class TcpSendWindow
         var status = Validate(owner, out var entry); if (status != Status.Success) return status;
         if (owner->Timed == 0) return Status.InvalidState;
         status = Time(owner, out ulong now); if (status != Status.Success) return status;
-        if (owner->Sent == 0) return Status.NothingToSend;
+        if (owner->Sent == 0 && owner->FinPending == 0) return Status.NothingToSend;
         if (now < owner->RetryAt) return Status.NotDue;
         if (owner->RetryCount == owner->RetryLimit) { owner->Phase = 2; return Status.Timeout; }
         // Preserve the original segment extent: a shorter retry can make a later
@@ -224,8 +233,11 @@ public static unsafe class TcpSendWindow
             original.LocalAddress, original.RemoteAddress, count, receiver->AvailableWindow, original.TimeToLive, original.Identification);
         var stream = TcpEstablishedStream.Create(entry.Key.LocalPort, entry.Key.RemotePort, owner->Una,
             entry.Sequence.RemoteNextSequenceNumber, Span<byte>.Empty);
-        if (TcpEstablishedStreamIpv4FramePlanner.TryWritePayloadFrame(ref stream, info,
-            new ReadOnlySpan<byte>(owner->Buffer + owner->Offset, count), output, out packet) != TcpEstablishedStreamIpv4FramePlanStatus.Success)
+        var serialized = owner->FinPending != 0
+            ? TcpEstablishedStreamIpv4FramePlanner.TryWriteControlFrame(ref stream, info, receiver->AvailableWindow, 0x11, output, out packet)
+            : TcpEstablishedStreamIpv4FramePlanner.TryWritePayloadFrame(ref stream, info,
+                new ReadOnlySpan<byte>(owner->Buffer + owner->Offset, count), output, out packet);
+        if (serialized != TcpEstablishedStreamIpv4FramePlanStatus.Success)
             return Status.InvalidPacket;
         byte sent;
         fixed (byte* bytes = output) sent = owner->Send(owner->Context, bytes, (uint)packet.BytesWritten);
@@ -244,6 +256,9 @@ public static unsafe class TcpSendWindow
     /// ACKs never free data. Ordered SEQ/ACK window updates preserve the last
     /// advertised absolute right edge when stale updates are ignored.</summary>
     public static Status Acknowledge(Owner* owner, ReadOnlySpan<byte> frame, out int released)
+        => AcknowledgeCore(owner, frame, out released, false);
+
+    private static Status AcknowledgeCore(Owner* owner, ReadOnlySpan<byte> frame, out int released, bool controls)
     {
         released = 0;
         var status = Validate(owner, out var entry); if (status != Status.Success) return status;
@@ -257,11 +272,13 @@ public static unsafe class TcpSendWindow
         if (TcpEstablishedStreamIpv4FramePlanner.ValidateFrame(stream, receiver->Info, frame, out var packet) != TcpEstablishedStreamIpv4FramePlanStatus.Success)
             return Status.InvalidPacket;
         var tcp = packet.TcpHeader;
-        if ((tcp.Flags & 0x10) == 0 || (tcp.Flags & ~0x18) != 0) return Status.InvalidPacket;
-        if (!AcceptableSequence(tcp.SequenceNumber, packet.PayloadBytes, entry.Sequence.RemoteNextSequenceNumber, receiver->AvailableWindow))
+        bool fin = controls && owner->CloseEnabled != 0 && (tcp.Flags & 1) != 0;
+        if ((tcp.Flags & 0x10) == 0 || (tcp.Flags & ~(fin ? 0x19 : 0x18)) != 0) return Status.InvalidPacket;
+        bool repeatedFin = fin && receiver->PeerClosed != 0 && unchecked(tcp.SequenceNumber + (uint)packet.PayloadBytes + 1) == receiver->RemoteNext;
+        if (!repeatedFin && !AcceptableSequence(tcp.SequenceNumber, packet.PayloadBytes + (fin ? 1 : 0), entry.Sequence.RemoteNextSequenceNumber, receiver->AvailableWindow))
         { receiver->AckPending = 1; return Status.InvalidPacket; }
         uint advance = unchecked(tcp.AcknowledgementNumber - owner->Una);
-        if (advance > (uint)owner->Sent)
+        if (advance > (uint)owner->Sent + owner->FinPending)
         {
             if (unchecked((int)advance) < 0) return Status.OldAck;
             receiver->AckPending = 1; return Status.InvalidAck;
@@ -277,17 +294,22 @@ public static unsafe class TcpSendWindow
             if (!windowChanged && packet.PayloadBytes == 0 && owner->Sent != 0 && owner->DuplicateAcks != ~0UL) owner->DuplicateAcks++;
             return windowChanged ? Status.WindowUpdated : Status.DuplicateAck;
         }
-        for (uint i = 0; i < advance; i++) owner->Buffer[owner->Offset + i] = 0;
-        owner->Offset += (int)advance; owner->Count -= (int)advance; owner->Sent -= (int)advance;
+        bool finAck = owner->FinPending != 0 && advance == 1;
+        uint dataAdvance = finAck ? 0 : advance;
+        for (uint i = 0; i < dataAdvance; i++) owner->Buffer[owner->Offset + i] = 0;
+        owner->Offset += (int)dataAdvance; owner->Count -= (int)dataAdvance; owner->Sent -= (int)dataAdvance;
         if (owner->Count == 0) owner->Offset = 0;
-        owner->Una = tcp.AcknowledgementNumber; released = (int)advance;
+        owner->Una = tcp.AcknowledgementNumber; released = (int)dataAdvance;
+        if (finAck) owner->FinPending = 0;
         if (owner->Timed != 0)
         {
             if (owner->Sampling != 0 && tcp.AcknowledgementNumber == owner->SampleEnd)
             { Sample(owner, now - owner->SampleAt); owner->Sampling = 0; }
-            owner->RetryAt = owner->Sent == 0 ? 0 : Deadline(now, owner->Rto);
+            owner->RetryAt = owner->Sent == 0 && owner->FinPending == 0 ? 0 : Deadline(now, owner->Rto);
         }
-        Commit(owner, entry); return Status.Success;
+        Commit(owner, entry);
+        if (finAck) return FinAcknowledged(owner, now);
+        return Status.Success;
     }
 
     /// <summary>After the exact table lifetime is Closed, explicitly discard
@@ -301,6 +323,7 @@ public static unsafe class TcpSendWindow
         owner->Table->Entries[owner->Handle.Index].SendOwnerAddress = 0;
         owner->Buffer = null; owner->Receiver = null; owner->Context = null; owner->Send = null;
         owner->Clock = null; owner->ClockContext = null; owner->RetryAt = 0; owner->Timed = 0;
+        owner->FinPending = 0; owner->CloseEnabled = 0; owner->TimeWaitDeadline = 0;
         owner->Handle = default; owner->Offset = 0; owner->Count = 0; owner->Sent = 0; owner->Phase = 3;
         return Status.Success;
     }
@@ -315,7 +338,8 @@ public static unsafe class TcpSendWindow
         now = owner->Clock(owner->ClockContext);
         if (now < owner->LastNow) { owner->Phase = 2; return Status.InvalidClock; }
         owner->LastNow = now;
-        if (now < owner->HardDeadline) return Status.Success;
+        if (owner->CloseEnabled != 0 && owner->CloseStateValue == TcpConnectionCloseState.TimeWait) return Status.Success;
+        if (now < owner->HardDeadline && (owner->CloseDeadline == 0 || now < owner->CloseDeadline)) return Status.Success;
         owner->Phase = 2; return Status.Timeout;
     }
 
@@ -337,11 +361,11 @@ public static unsafe class TcpSendWindow
         owner->Rto = rto < owner->MinimumRto ? owner->MinimumRto : rto > owner->MaximumRto ? owner->MaximumRto : rto;
     }
 
-    internal static Status Validate(Owner* owner, out TcpConnectionTableEntry entry, bool closed = false)
+    internal static Status Validate(Owner* owner, out TcpConnectionTableEntry entry, bool closed = false, bool allowFault = false)
     {
         entry = default;
         if (!Storage(owner, (ulong)sizeof(Owner)) || owner->Self != (ulong)owner ||
-            (owner->Phase != 1 && !(closed && owner->Phase == 2))) return Status.InvalidState;
+            (owner->Phase != 1 && !((closed || allowFault) && owner->Phase == 2))) return Status.InvalidState;
         if (TcpConnectionTable.ReadOwned(owner->Table, owner->Handle, out entry) != TcpConnectionTable.OwnershipStatus.Success ||
             entry.SendOwnerAddress != (ulong)owner || entry.State != (closed ? TcpConnectionLifecycleState.Closed : TcpConnectionLifecycleState.Established))
             return Status.TableRejected;
@@ -351,15 +375,18 @@ public static unsafe class TcpSendWindow
         {
             if (receiver->Self != (ulong)receiver || receiver->Table != owner->Table || entry.ReceiveOwnerAddress != 0) return Status.InvalidState;
         }
-        else if (TcpReceiveWindow.Validate(receiver, out _, closed) != TcpReceiveWindow.Status.Success ||
+        else if (TcpReceiveWindow.Validate(receiver, out _, closed || allowFault) != TcpReceiveWindow.Status.Success ||
             receiver->Table != owner->Table || !Same(receiver->Handle, owner->Handle)) return Status.TableRejected;
         if (owner->Buffer == null || owner->CapacityValue is < 1 or > 32768 || owner->Offset < 0 || owner->Offset > owner->CapacityValue ||
             owner->Count < 0 || owner->Count > owner->CapacityValue - owner->Offset || owner->Sent < 0 || owner->Sent > owner->Count ||
-            unchecked(owner->Next - owner->Una) != (uint)owner->Sent || owner->Una != entry.Sequence.LocalAcknowledgedSequenceNumber ||
+            unchecked(owner->Next - owner->Una) != (uint)owner->Sent + owner->FinPending || owner->Una != entry.Sequence.LocalAcknowledgedSequenceNumber ||
             owner->Next != entry.Sequence.LocalNextSequenceNumber || owner->PeerMss == 0 || owner->Mtu is < 68 or > 1500 || owner->Send == null ||
             owner->Timed > 1 || owner->Timed != 0 && (owner->Clock == null || owner->MinimumRto < 1_000_000_000 ||
                 owner->Rto < owner->MinimumRto || owner->Rto > owner->MaximumRto || owner->RetryLimit is 0 or > 16 ||
                 owner->RetryCount > owner->RetryLimit || owner->Sent > owner->PeerMss || owner->Sent > owner->Mtu - 40) ||
+            owner->CloseEnabled > 1 || owner->WriteShutdown > 1 || owner->FinPending > 1 ||
+            owner->FinPending != 0 && (owner->CloseEnabled == 0 || owner->WriteShutdown == 0 || owner->Sent != 0 || owner->Count != 0 ||
+                !closed && owner->CloseStateValue is not (TcpConnectionCloseState.FinWait1 or TcpConnectionCloseState.Closing or TcpConnectionCloseState.LastAck)) ||
             !OutsideReceiver(receiver, (byte*)owner, (ulong)sizeof(Owner)) || !OutsideReceiver(receiver, owner->Buffer, (ulong)owner->CapacityValue) ||
             Overlap((byte*)owner, (ulong)sizeof(Owner), owner->Buffer, (ulong)owner->CapacityValue)) return Status.InvalidState;
         return Status.Success;

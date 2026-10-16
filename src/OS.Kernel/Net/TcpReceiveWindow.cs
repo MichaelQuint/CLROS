@@ -15,7 +15,7 @@ public static unsafe class TcpReceiveWindow
     {
         Uninitialized, Success, InvalidStorage, InvalidState, InvalidOptions,
         TableRejected, InvalidPacket, Duplicate, OutOfOrder, WindowFull,
-        NoPayload, NoData, OutputTooSmall, NothingToAck, WouldBlock, SendFailed
+        NoPayload, NoData, OutputTooSmall, NothingToAck, WouldBlock, SendFailed, PeerClosed, EndOfStream
     }
 
     /// <summary>Initially zero, noncopyable metadata. Buffer and callback/code
@@ -33,7 +33,7 @@ public static unsafe class TcpReceiveWindow
         internal uint RemoteNext;
         internal void* Context;
         internal delegate*<void*, byte*, uint, byte> Send;
-        internal byte Phase, AckPending;
+        internal byte Phase, AckPending, PeerClosed;
         public readonly bool Active => Phase == 1;
         public readonly bool RequiresCleanup => Phase == 2;
         public readonly bool Retired => Phase == 3;
@@ -42,6 +42,7 @@ public static unsafe class TcpReceiveWindow
         public readonly ushort AvailableWindow => (ushort)(CapacityValue - Unread);
         public readonly uint AcknowledgementNumber => RemoteNext;
         public readonly bool HasPendingAck => AckPending != 0;
+        public readonly bool EndOfStream => PeerClosed != 0 && Unread == 0;
     }
 
     /// <summary>Bind an established handle to one zeroed receiver and 1..32768
@@ -79,7 +80,13 @@ public static unsafe class TcpReceiveWindow
     /// offsets remain in result, but consumers read accepted bytes from Read.
     /// Input is distinct from owner/table/private receive storage. No TX occurs.</summary>
     public static Status Receive(Owner* owner, ReadOnlySpan<byte> frame,
-        out TcpEstablishedStreamIpv4FramePlanResult packet)
+        out TcpEstablishedStreamIpv4FramePlanResult packet) => ReceiveCore(owner, frame, out packet, false);
+
+    internal static Status ReceiveCloseFrame(Owner* owner, ReadOnlySpan<byte> frame,
+        out TcpEstablishedStreamIpv4FramePlanResult packet) => ReceiveCore(owner, frame, out packet, true);
+
+    private static Status ReceiveCore(Owner* owner, ReadOnlySpan<byte> frame,
+        out TcpEstablishedStreamIpv4FramePlanResult packet, bool allowFin)
     {
         packet = default;
         var status = Validate(owner, out var entry); if (status != Status.Success) return status;
@@ -87,24 +94,48 @@ public static unsafe class TcpReceiveWindow
             if (!Outside(owner, input, (ulong)frame.Length)) return Status.InvalidStorage;
         if (frame.Length is < 54 or > 1514 || (frame[20] & 0xbf) != 0 || frame[21] != 0) return Status.InvalidPacket;
         var stream = Borrow(owner, entry);
-        var parsed = TcpEstablishedStreamIpv4FramePlanner.ReceiveWindowFrame(ref stream, owner->Info, frame, out packet);
+        uint before = owner->RemoteNext; ushort window = owner->AvailableWindow;
+        if (owner->PeerClosed != 0)
+        {
+            if (TcpEstablishedStreamIpv4FramePlanner.ValidateFrame(stream, owner->Info, frame, out packet) != TcpEstablishedStreamIpv4FramePlanStatus.Success ||
+                (packet.TcpHeader.Flags & 0x10) == 0 || (packet.TcpHeader.Flags & ~(allowFin ? 0x19 : 0x18)) != 0) return Status.InvalidPacket;
+            if (allowFin && (packet.TcpHeader.Flags & 1) != 0 && unchecked(packet.TcpHeader.SequenceNumber + (uint)packet.PayloadBytes + 1) == owner->RemoteNext)
+            { owner->AckPending = 1; return Status.PeerClosed; }
+            if ((packet.TcpHeader.Flags & 1) != 0) { owner->AckPending = 1; return Status.InvalidPacket; }
+            if (packet.PayloadBytes != 0) { owner->AckPending = 1; return Status.InvalidPacket; }
+            return Status.NoPayload;
+        }
+        var parsed = allowFin
+            ? TcpEstablishedStreamIpv4FramePlanner.ReceiveFinWindowFrame(ref stream, owner->Info, frame, out packet)
+            : TcpEstablishedStreamIpv4FramePlanner.ReceiveWindowFrame(ref stream, owner->Info, frame, out packet);
         if (parsed == TcpEstablishedStreamIpv4FramePlanStatus.Success)
         {
             owner->Offset = stream.ReceiveOffset; owner->Unread = stream.UnreadBytes; owner->RemoteNext = stream.RemoteNextSequenceNumber;
+            status = Status.Success; owner->AckPending = 1;
+        }
+        else
+        {
+            if (parsed != TcpEstablishedStreamIpv4FramePlanStatus.TcpStreamFailed) return Status.InvalidPacket;
+            status = packet.StreamStatus switch
+            {
+                TcpEstablishedStreamStatus.DuplicateSegment => Status.Duplicate,
+                TcpEstablishedStreamStatus.OutOfOrderSegment => Status.OutOfOrder,
+                TcpEstablishedStreamStatus.ReceiveBufferTooSmall => Status.WindowFull,
+                TcpEstablishedStreamStatus.NoPayload => Status.NoPayload,
+                _ => Status.InvalidPacket
+            };
+        }
+        // On a successful trimmed receive PayloadBytes counts delivered bytes;
+        // FIN is positioned after the original wire payload, including overlap.
+        uint fin = unchecked(packet.TcpHeader.SequenceNumber + (uint)(packet.TcpSegmentLength - packet.TcpHeader.HeaderLength));
+        if (allowFin && (packet.TcpHeader.Flags & 1) != 0 &&
+            (status is Status.Success or Status.Duplicate or Status.NoPayload) &&
+            fin == owner->RemoteNext && unchecked(fin - before) < window)
+        { owner->RemoteNext = unchecked(owner->RemoteNext + 1); owner->PeerClosed = 1; owner->AckPending = 1; status = Status.PeerClosed; }
+        if (status is Status.Success or Status.PeerClosed)
             owner->Table->Entries[owner->Handle.Index] = entry.WithMetadata(entry.State,
                 new TcpConnectionSequenceMetadata(entry.Sequence.LocalNextSequenceNumber, owner->RemoteNext,
                     entry.Sequence.LocalAcknowledgedSequenceNumber));
-            owner->AckPending = 1; return Status.Success;
-        }
-        if (parsed != TcpEstablishedStreamIpv4FramePlanStatus.TcpStreamFailed) return Status.InvalidPacket;
-        status = packet.StreamStatus switch
-        {
-            TcpEstablishedStreamStatus.DuplicateSegment => Status.Duplicate,
-            TcpEstablishedStreamStatus.OutOfOrderSegment => Status.OutOfOrder,
-            TcpEstablishedStreamStatus.ReceiveBufferTooSmall => Status.WindowFull,
-            TcpEstablishedStreamStatus.NoPayload => Status.NoPayload,
-            _ => Status.InvalidPacket
-        };
         if (status is Status.Duplicate or Status.OutOfOrder or Status.WindowFull) owner->AckPending = 1;
         return status;
     }
@@ -116,7 +147,9 @@ public static unsafe class TcpReceiveWindow
     public static Status Read(Owner* owner, Span<byte> destination, out TcpEstablishedStreamReadResult result)
     {
         result = default;
-        var status = Validate(owner, out var entry); if (status != Status.Success) return status;
+        bool allowClosed = Storage(owner, (ulong)sizeof(Owner)) && owner->PeerClosed == 1;
+        var status = Validate(owner, out var entry, allowClosed); if (status != Status.Success) return status;
+        if (owner->PeerClosed != 0 && owner->Unread == 0) return Status.EndOfStream;
         fixed (byte* output = destination)
             if (!Outside(owner, output, (ulong)destination.Length)) return Status.InvalidStorage;
         var stream = Borrow(owner, entry); int offset = owner->Offset;
@@ -176,7 +209,7 @@ public static unsafe class TcpReceiveWindow
             return Status.TableRejected;
         if (owner->Buffer == null || owner->CapacityValue is < 1 or > 32768 || owner->Offset < 0 || owner->Offset > owner->CapacityValue ||
             owner->Unread < 0 || owner->Unread > owner->CapacityValue - owner->Offset || owner->RemoteNext != entry.Sequence.RemoteNextSequenceNumber ||
-            owner->AckPending > 1 || owner->Send == null || !OutsideTable(owner->Table, (byte*)owner, (ulong)sizeof(Owner)) ||
+            owner->AckPending > 1 || owner->PeerClosed > 1 || owner->Send == null || !OutsideTable(owner->Table, (byte*)owner, (ulong)sizeof(Owner)) ||
             !OutsideTable(owner->Table, owner->Buffer, (ulong)owner->CapacityValue) ||
             Overlap((byte*)owner, (ulong)sizeof(Owner), owner->Buffer, (ulong)owner->CapacityValue)) return Status.InvalidState;
         return Status.Success;
