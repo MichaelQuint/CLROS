@@ -1,5 +1,13 @@
 # Networking
 
+[Step1331](../done/step1331.md) preserves the complete failed f9ebe580 host
+gate:5,340 checks pass and one direct-project policy check fails. All three TCP
+and20 affected ancestor commands pass at that source. Two existing MSBuild
+conditions now include M07-026; direct selection/conflict controls pass. A fresh
+full-host gate and23 fresh guest commands are required for the corrected source.
+The existing isolated harness will qualify them together. Prior captures retain
+their original f9ebe580 scope. All eight issues remain open.
+
 [Step1330](../done/step1330.md) repairs three independently reviewed defects:
 SYN-ACK retries now start at accepted-copy completion, peer cleanup preserves
 the runner's primary failure, and the combined profile includes its worker pool

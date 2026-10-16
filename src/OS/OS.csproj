@@ -592,6 +592,7 @@
 			'$(EnableM06PackageReadProbe)' == 'true' or
 			'$(EnableM07VirtioNetProbe)' == 'true' or
 			'$(EnableM07ArpReceiveProbe)' == 'true' or
+			'$(EnableM07026Probe)' == 'true' or
 			'$(EnableM09004Probe)' == 'true' or
 			'$(EnableM09005Probe)' == 'true' or
 			'$(EnableM09006Probe)' == 'true' or
@@ -1013,6 +1014,7 @@
 			'$(EnableM06PackageReadProbe)' == 'true' or
 			'$(EnableM07VirtioNetProbe)' == 'true' or
 			'$(EnableM07ArpReceiveProbe)' == 'true' or
+			'$(EnableM07026Probe)' == 'true' or
 			'$(EnableM09004Probe)' == 'true' or
 			'$(EnableM09005Probe)' == 'true' or
 			'$(EnableM09006Probe)' == 'true' or
