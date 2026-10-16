@@ -200,6 +200,11 @@ internal static class QemuRunnerTests
             Run("qemu drain classifies nonzero exit before kill", () => TestDrainClassifiesNonzeroExitBeforeKill(tempRoot), ref failures);
             Run("qemu boot timeout takes precedence over late markers", () => TestBootTimeoutPrecedesLateMarkers(tempRoot), ref failures);
             Run("qemu startup timeout preserves failure when QMP is unavailable", () => TestStartupTimeout(tempRoot), ref failures);
+            Run("qemu peer failure preserves startup timeout", () => TestNetworkPeerFailurePrecedence(tempRoot, "startup"), ref failures);
+            Run("qemu peer failure preserves overall timeout", () => TestNetworkPeerFailurePrecedence(tempRoot, "timeout"), ref failures);
+            Run("qemu peer failure preserves forbidden guest marker", () => TestNetworkPeerFailurePrecedence(tempRoot, "forbidden"), ref failures);
+            Run("qemu peer failure preserves spontaneous nonzero exit", () => TestNetworkPeerFailurePrecedence(tempRoot, "exit"), ref failures);
+            Run("qemu peer failure rejects missing peer after serial success", () => TestNetworkPeerFailurePrecedence(tempRoot, "peer"), ref failures);
             Run("qemu invalid marker configuration does not launch child", () => TestInvalidMarkerConfigurationDoesNotLaunchChild(tempRoot), ref failures);
             Run("qemu rejects output and input path aliases", () => TestRejectsArtifactPathAliases(tempRoot), ref failures);
             Run("qemu.runner app exit summary emitted", () => TestRealModeWritesAppExitSummary(tempRoot), ref failures);
@@ -5555,6 +5560,38 @@ internal static class QemuRunnerTests
             result.Output.Contains("TEST_FAIL qemu.smoke startup_timeout", StringComparison.Ordinal) &&
             !result.Output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal) &&
             File.ReadAllText(summary).Contains("FAIL_REASON startup_timeout", StringComparison.Ordinal);
+    }
+
+    private static bool TestNetworkPeerFailurePrecedence(string tempRoot, string mode)
+    {
+        string prefix = Path.Combine(tempRoot, "peer-primary-" + mode);
+        string[] lines = mode switch
+        {
+            "startup" => ["OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS", "TEST_START m03.007"],
+            "forbidden" => ["OS_BOOT_OK", "TEST_FAIL boot.sequence deliberate", "TEST_PASS boot.sequence", "OS_SMOKE_PASS"],
+            "peer" => ["OS_BOOT_OK", "TEST_PASS boot.sequence", "OS_SMOKE_PASS"],
+            _ => ["OS_BOOT_OK"]
+        };
+        string qemu = mode == "exit" ? CreateDelayedExitFakeQemuScript(tempRoot, 42, 100)
+            : CreatePersistentFakeQemuScript(tempRoot, lines);
+        List<string> args = ["--qemu", qemu, "--ovmf-code", CreateEmptyFile(tempRoot, "peer-" + mode + ".fd"),
+            "--image", CreateEmptyFile(tempRoot, "peer-" + mode + ".raw"),
+            "--serial-log", prefix + ".serial.log", "--summary-log", prefix + ".summary.log",
+            "--timeout", mode == "timeout" ? "1" : "5", "--virtio-negotiation-device",
+            "--ethernet-capture", prefix + ".pcap", "--arp-receive-fixture", "--continuing-network-peer"];
+        if (mode == "startup") args.AddRange(["--startup-timeout", "1", "--require-marker", "M03_EBS_RETURNED_SUCCESS"]);
+        ProcessResult result = RunQemuRunner(args.ToArray());
+        (int expectedExit, string reason) = mode switch
+        {
+            "startup" => (4, "startup_timeout"), "timeout" => (4, "timeout"),
+            "forbidden" => (8, "forbidden_marker"), "exit" => (14, "qemu_exit_nonzero"),
+            _ => (19, "network_peer_incomplete")
+        };
+        HostCheck.Equal(expectedExit, result.ExitCode);
+        string summary = File.ReadAllText(prefix + ".summary.log");
+        HostCheck.True(summary.Contains("FAIL_REASON " + reason, StringComparison.Ordinal), summary + result.Output);
+        return result.Output.Contains("NETWORK_PEER_RESULT complete=False stopped=True", StringComparison.Ordinal) &&
+            !result.Output.Contains("TEST_PASS qemu.smoke", StringComparison.Ordinal);
     }
 
     private static bool TestBootTimeoutPrecedesLateMarkers(string tempRoot)

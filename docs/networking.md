@@ -1,5 +1,15 @@
 # Networking
 
+[Step1330](../done/step1330.md) repairs three independently reviewed defects:
+SYN-ACK retries now start at accepted-copy completion, peer cleanup preserves
+the runner's primary failure, and the combined profile includes its worker pool
+in the Linux reservation ledger and pre-write overlap checks. Focused controls
+first reproduce the defects, then pass after repair. Qualification of the prior
+source047d40e completed three strict TCP guests and one ACPI ancestor before
+termination; its full-host run stopped at4,652 passes across637 fixtures with
+zero failures. Those captures retain their original scope. Fresh qualification
+of the repaired production source remains required; all eight issues stay open.
+
 [Step1329](../done/step1329.md) records one complete development guest with the
 actual cooperative witness:2,250 advances, maximum observed gap133ms, normal
 exit/reap and restored/scrubbed retained pool. All80 TCP steps, real240-second

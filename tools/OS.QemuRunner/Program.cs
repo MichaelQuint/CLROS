@@ -156,6 +156,7 @@ try
     bool forbiddenMarkerSeen = false;
     bool timedOut = false;
     bool startupTimedOut = false;
+    bool networkPeerInitiatedFailure = false;
     QemuStartupDeadline? startup = options.WatchStartup ? new(options.StartupTimeoutSeconds) : null;
     const long terminalDrainMilliseconds = 750;
     Stopwatch stopwatch = Stopwatch.StartNew();
@@ -195,12 +196,6 @@ try
             lastSerialActivityMilliseconds = stopwatch.ElapsedMilliseconds;
         }
 
-        if (networkPeer?.Completion.IsFaulted == true || networkPeer?.Completion.IsCanceled == true)
-        {
-            TerminateProcessAndClassify(process, ref processTerminationRequested,
-                ref processCleanupFailed, ref qemuExitedSpontaneously, ref qemuExitCode);
-            break;
-        }
         if (networkPeer is not null && streamingMarkers.HasSeenRequiredMarker("M07_026_ROW stage=3")) networkPeer.AllowTcp();
 
         if (options.StartupTimeoutSeconds <= options.TimeoutSeconds &&
@@ -245,6 +240,14 @@ try
                 ref processCleanupFailed,
                 ref qemuExitedSpontaneously,
                 ref qemuExitCode);
+            break;
+        }
+
+        if (networkPeer?.Completion.IsFaulted == true || networkPeer?.Completion.IsCanceled == true)
+        {
+            networkPeerInitiatedFailure = true;
+            TerminateProcessAndClassify(process, ref processTerminationRequested,
+                ref processCleanupFailed, ref qemuExitedSpontaneously, ref qemuExitCode);
             break;
         }
 
@@ -389,6 +392,7 @@ try
         streamingOutOfOrderMarkers);
     IReadOnlyList<string> duplicateUniqueMarkers =
         streamingResult.DuplicateUniqueMarkerHits ?? Array.Empty<string>();
+    string? networkPeerFailure = null;
     if (networkPeer is not null)
     {
         bool completed = networkPeer.Completion.IsCompletedSuccessfully;
@@ -397,14 +401,9 @@ try
             " arpReplies=" + networkPeer.ArpReplies + " echoReplies=" + networkPeer.EchoReplies + " tcpPackets=" + networkPeer.TcpPackets);
         if (!completed || !stopped)
         {
-            string reason = !stopped ? "network_peer_cleanup_failed" : networkPeer.Completion.IsFaulted
+            networkPeerFailure = !stopped ? "network_peer_cleanup_failed" : networkPeer.Completion.IsFaulted
                 ? "network_peer_failed_" + networkPeer.Completion.Exception!.GetBaseException().GetType().Name
                 : "network_peer_incomplete";
-            WriteSummaryLogBestEffort(options, "fail", observedMarkerLines, summary.MissingMarkers,
-                forbiddenMarkers, reason, httpProbeResult, summary.AppExitResults,
-                summary.MalformedAppExitMarkers, outOfOrderMarkers, duplicateUniqueMarkers);
-            Console.Error.WriteLine("TEST_FAIL qemu.smoke " + reason);
-            return 19;
         }
     }
     if (serialReadFailure is not null ||
@@ -563,11 +562,25 @@ try
         return 18;
     }
 
-    if (markerSeen &&
+    bool serialSucceeded = markerSeen &&
         streamingResult.Passed &&
         streamingResult.TerminalState == SerialMarkerTerminalState.Success &&
         streamingResult.SuccessTerminalCount == 1 &&
-        summary.HasAllRequiredMarkers)
+        summary.HasAllRequiredMarkers;
+    // Stopping QEMU for a primary failure can itself break the peer transport.
+    // Reject an initiating peer failure or an otherwise successful serial run;
+    // retain the original guest, process and timeout diagnosis otherwise.
+    if (networkPeerFailure is not null && !timedOut && httpProbeResult?.Passed != false &&
+        ((networkPeerInitiatedFailure && !qemuExitedSpontaneously) || serialSucceeded))
+    {
+        WriteSummaryLogBestEffort(options, "fail", observedMarkerLines, summary.MissingMarkers,
+            forbiddenMarkers, networkPeerFailure, httpProbeResult, summary.AppExitResults,
+            summary.MalformedAppExitMarkers, outOfOrderMarkers, duplicateUniqueMarkers);
+        Console.Error.WriteLine("TEST_FAIL qemu.smoke " + networkPeerFailure);
+        return 19;
+    }
+
+    if (serialSucceeded)
     {
         if (options.HttpProbe is not null)
         {

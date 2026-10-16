@@ -75,7 +75,7 @@ public static unsafe partial class EfiEntry
 #if M16_002_PROBE
         private const uint LinuxLedgerCapacity =
 #if M07_026_PROBE
-            10;
+            11;
 #elif M16_008_PROBE
             17;
 #elif M16_007_PROBE
@@ -1072,7 +1072,7 @@ public static unsafe partial class EfiEntry
 #if M16_007_PROBE
             if (!LinuxReservation(BootReservationKind.DiagnosticState, state->LinuxDescriptorArena, LinuxDescriptorPages, ledger + count++)) return false;
 #endif
-#if M16_008_PROBE
+#if M16_008_PROBE || M07_026_PROBE
             if (!LinuxReservation(BootReservationKind.DiagnosticState, state->CooperativePool, CooperativePoolPages, ledger + count++)) return false;
 #endif
             for (uint i = 1; i < count; i++)
@@ -1098,7 +1098,7 @@ public static unsafe partial class EfiEntry
         // The combined profile reserves workers first. Reject an aliased Linux
         // candidate before any package read, zero, user-root build or emission.
         private static bool LinuxPoolDisjoint(Storage* state, ulong address, ulong pages) =>
-#if M16_008_PROBE
+#if M16_008_PROBE || M07_026_PROBE
             state->CooperativePool >= Page && Disjoint(address, pages * Page, state->CooperativePool, CooperativePoolPages * Page);
 #else
             true;

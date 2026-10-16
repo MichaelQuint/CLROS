@@ -55,6 +55,49 @@ internal static unsafe class M07026EfiIntegrationTests
             result.Output.Contains("socket,id=n0,connect=127.0.0.1:<ephemeral>", StringComparison.Ordinal));
     }
 
+    [HostTest("m07-026 worker reservation participates in ledger and pre-write overlap admission", HostLane.Fast, 3)]
+    private static void WorkerReservation()
+    {
+        foreach (string probe in new[] { "EnableM07026Probe", "EnableM16003Probe" })
+        {
+            bool workers = probe == "EnableM07026Probe";
+            var profile = EfiOptions.Parse(["--" + probe], true).Profile();
+            string[] symbols = ["NOSTDLIB_EFI", .. profile.Flags.Where(p => p.Value).Select(p => EfiContracts.ProbeSymbols[p.Key])];
+            var tree = CSharpSyntaxTree.ParseText(File.ReadAllText(Path.Combine(HostToolProcess.FindRepositoryRoot(),
+                "src/OS/Boot/EfiEntry.cs")), new CSharpParseOptions(preprocessorSymbols: symbols));
+            var adapter = tree.GetRoot().DescendantNodes().OfType<ClassDeclarationSyntax>()
+                .Single(x => x.Identifier.Text == "M03FirstExitAdapter");
+            int capacity = (int)((LiteralExpressionSyntax)adapter.Members.OfType<FieldDeclarationSyntax>()
+                .SelectMany(x => x.Declaration.Variables).Single(x => x.Identifier.Text == "LinuxLedgerCapacity")
+                .Initializer!.Value).Token.Value!;
+            HostCheck.Equal(workers ? 11 : 9, capacity, probe + " ledger capacity");
+            var seal = adapter.Members.OfType<MethodDeclarationSyntax>().Single(x => x.Identifier.Text == "SealLinuxLedger");
+            var reservations = seal.DescendantNodes().OfType<InvocationExpressionSyntax>()
+                .Where(x => x.Expression.ToString() == "LinuxReservation").ToArray();
+            HostCheck.Equal(capacity, 5 + reservations.Length, probe + " complete reservation count");
+            var worker = reservations.Where(x => x.ArgumentList.Arguments[1].Expression.ToString() == "state->CooperativePool").ToArray();
+            HostCheck.Equal(workers ? 1 : 0, worker.Length, probe + " worker ownership");
+            if (workers)
+            {
+                HostCheck.Equal("BootReservationKind.DiagnosticState", worker[0].ArgumentList.Arguments[0].Expression.ToString());
+                HostCheck.Equal("CooperativePoolPages", worker[0].ArgumentList.Arguments[2].Expression.ToString());
+                HostCheck.Equal("ledger + count++", worker[0].ArgumentList.Arguments[3].Expression.ToString());
+            }
+            var overlap = adapter.Members.OfType<MethodDeclarationSyntax>().Single(x => x.Identifier.Text == "LinuxPoolDisjoint");
+            var checks = overlap.DescendantNodes().OfType<InvocationExpressionSyntax>().Where(x => x.Expression.ToString() == "Disjoint").ToArray();
+            HostCheck.Equal(workers ? 1 : 0, checks.Length, probe + " pre-write overlap check");
+            if (workers)
+            {
+                HostCheck.Equal("address", checks[0].ArgumentList.Arguments[0].Expression.ToString());
+                HostCheck.Equal("pages * Page", checks[0].ArgumentList.Arguments[1].Expression.ToString());
+                HostCheck.Equal("state->CooperativePool", checks[0].ArgumentList.Arguments[2].Expression.ToString());
+                HostCheck.Equal("CooperativePoolPages * Page", checks[0].ArgumentList.Arguments[3].Expression.ToString());
+                HostCheck.True(overlap.ExpressionBody!.Expression.ToString().StartsWith("state->CooperativePool >= Page &&", StringComparison.Ordinal));
+            }
+            else HostCheck.Equal(SyntaxKind.TrueLiteralExpression, overlap.ExpressionBody!.Expression.Kind());
+        }
+    }
+
     [HostTest("m07-026 actual combined helper ranges preserve network and cooperative bytes", HostLane.Fast, 2)]
     private static void HelperLayout()
     {

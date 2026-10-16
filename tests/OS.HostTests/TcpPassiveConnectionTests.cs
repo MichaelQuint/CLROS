@@ -216,7 +216,102 @@ internal static unsafe class TcpPassiveConnectionTests
         HostCheck.True(success); HostCheck.Equal(0L, allocated); HostCheck.Equal(0, f.Table->Count);
     }
 
-    private struct Hardware { public ulong Now; public uint Calls, Sends; public byte SendResult; public fixed byte Frame[1514]; }
+    [HostTest("net.tcp.passive.owner initial retry starts after accepted copy completes", HostLane.Fast, 8)]
+    private static void InitialCopyClock()
+    {
+        using var f = new Fixture(); byte[] output = new byte[54];
+        f.Hardware->ClockAfterSend = 150;
+        HostCheck.Equal(Passive.Status.Success, f.Begin(f.State, output));
+        HostCheck.Equal((byte)1, f.State->SuccessfulAttempts); HostCheck.Equal(1U, f.Hardware->Sends);
+        HostCheck.Equal(250UL, f.State->NextRetryNanoseconds); HostCheck.Equal(1100UL, f.State->DeadlineNanoseconds);
+        f.Hardware->Now = 249;
+        HostCheck.Equal(Passive.Status.NotDue, Passive.Pump(f.State, output, out _));
+        HostCheck.Equal(1U, f.Hardware->Calls);
+        HostCheck.Equal(Passive.Status.Success, Passive.CancelPending(f.State));
+    }
+
+    [HostTest("net.tcp.passive.owner timed retry starts after accepted copy completes", HostLane.Fast, 9)]
+    private static void RetryCopyClock()
+    {
+        using var f = new Fixture(); byte[] output = new byte[54];
+        HostCheck.Equal(Passive.Status.Success, f.Begin(f.State, output));
+        f.Hardware->Now = 200; f.Hardware->ClockAfterSend = 325;
+        HostCheck.Equal(Passive.Status.Success, Passive.Pump(f.State, output, out _));
+        HostCheck.Equal((byte)2, f.State->SuccessfulAttempts); HostCheck.Equal(2U, f.Hardware->Sends);
+        HostCheck.Equal(425UL, f.State->NextRetryNanoseconds); HostCheck.Equal(1100UL, f.State->DeadlineNanoseconds);
+        f.Hardware->Now = 424;
+        HostCheck.Equal(Passive.Status.NotDue, Passive.Pump(f.State, output, out _));
+        HostCheck.Equal(2U, f.Hardware->Calls);
+        HostCheck.Equal(Passive.Status.Success, Passive.CancelPending(f.State));
+    }
+
+    [HostTest("net.tcp.passive.owner delayed duplicate observes completion without renewing timers", HostLane.Fast, 10)]
+    private static void DuplicateCopyClock()
+    {
+        using var f = new Fixture(); byte[] output = new byte[54];
+        HostCheck.Equal(Passive.Status.Success, f.Begin(f.State, output));
+        f.Hardware->Now = 150; f.Hardware->ClockAfterSend = 350;
+        HostCheck.Equal(Passive.Status.Success, Passive.ReceiveSyn(f.State, Packet(Irs, 0, 2), output, out _));
+        HostCheck.Equal((byte)1, f.State->SuccessfulAttempts); HostCheck.Equal(1UL, f.State->DuplicateReplies);
+        HostCheck.Equal(200UL, f.State->NextRetryNanoseconds); HostCheck.Equal(1100UL, f.State->DeadlineNanoseconds);
+        // The accepted duplicate's completion is still a monotonic observation.
+        f.Hardware->Now = 349;
+        HostCheck.Equal(Passive.Status.InvalidClock, Passive.Pump(f.State, output, out _));
+        HostCheck.True(f.State->Pending); HostCheck.Equal(2U, f.Hardware->Calls);
+        HostCheck.Equal(Passive.Status.Success, Passive.CancelPending(f.State));
+    }
+
+    [HostTest("net.tcp.passive.owner accepted copy at hard expiry retires every pending send path", HostLane.Fast, 11)]
+    private static void CopyCrossesDeadline()
+    {
+        for (int path = 0; path < 3; path++)
+        {
+            using var f = new Fixture(); byte[] output = new byte[54];
+            if (path != 0) HostCheck.Equal(Passive.Status.Success, f.Begin(f.State, output));
+            f.Hardware->Now = path == 0 ? 100UL : 200UL; f.Hardware->ClockAfterSend = 1100;
+            var result = path == 0 ? f.Begin(f.State, output) : path == 1 ? Passive.Pump(f.State, output, out _) :
+                Passive.ReceiveSyn(f.State, Packet(Irs, 0, 2), output, out _);
+            HostCheck.Equal(Passive.Status.Timeout, result);
+            HostCheck.Equal(path == 0 ? 1U : 2U, f.Hardware->Sends);
+            HostCheck.Equal(path == 1 ? (byte)2 : (byte)1, f.State->SuccessfulAttempts);
+            HostCheck.Equal(path == 2 ? 1UL : 0UL, f.State->DuplicateReplies);
+            HostCheck.Equal(1100UL, f.State->DeadlineNanoseconds);
+            HostCheck.True(f.State->Retired && !f.State->Connection.IsInitialized); HostCheck.Equal(0, f.Table->Count);
+            HostCheck.True(new ReadOnlySpan<byte>(f.Entries, sizeof(TcpConnectionTableEntry)).IndexOfAnyExcept((byte)0) < 0);
+            uint calls = f.Hardware->Calls;
+            HostCheck.Equal(Passive.Status.InvalidState, Passive.Pump(f.State, output, out _));
+            HostCheck.Equal(calls, f.Hardware->Calls);
+        }
+    }
+
+    [HostTest("net.tcp.passive.owner post-copy clock regression retains accepted ownership for cancellation", HostLane.Fast, 12)]
+    private static void CopyClockRegression()
+    {
+        for (int path = 0; path < 3; path++)
+        {
+            using var f = new Fixture(); byte[] output = new byte[54];
+            if (path != 0) HostCheck.Equal(Passive.Status.Success, f.Begin(f.State, output));
+            f.Hardware->Now = path == 0 ? 100UL : 200UL; f.Hardware->ClockAfterSend = f.Hardware->Now - 1;
+            var result = path == 0 ? f.Begin(f.State, output) : path == 1 ? Passive.Pump(f.State, output, out _) :
+                Passive.ReceiveSyn(f.State, Packet(Irs, 0, 2), output, out _);
+            HostCheck.Equal(Passive.Status.InvalidClock, result);
+            HostCheck.True(f.State->RequiresCleanup); HostCheck.Equal(1, f.Table->Count);
+            HostCheck.Equal(path == 0 ? 1U : 2U, f.Hardware->Sends);
+            HostCheck.Equal(path == 1 ? (byte)2 : (byte)1, f.State->SuccessfulAttempts);
+            HostCheck.Equal(path == 2 ? 1UL : 0UL, f.State->DuplicateReplies);
+            HostCheck.Equal(1100UL, f.State->DeadlineNanoseconds);
+            var handle = f.State->Connection;
+            CheckEntry(f.Table, handle, TcpConnectionLifecycleState.SynReceived, Iss + 1, Irs + 1);
+            uint calls = f.Hardware->Calls;
+            HostCheck.Equal(Passive.Status.InvalidState, Passive.Pump(f.State, output, out _));
+            HostCheck.Equal(calls, f.Hardware->Calls);
+            HostCheck.Equal(Passive.Status.Success, Passive.CancelPending(f.State));
+            HostCheck.True(f.State->Retired); HostCheck.Equal(0, f.Table->Count);
+            HostCheck.Equal(Tcb.OwnershipStatus.StaleHandle, Tcb.ReadOwned(f.Table, handle, out _));
+        }
+    }
+
+    private struct Hardware { public ulong Now, ClockAfterSend; public uint Calls, Sends; public byte SendResult; public fixed byte Frame[1514]; }
     private sealed class Fixture : IDisposable
     {
         private readonly byte* memory;
@@ -246,7 +341,9 @@ internal static unsafe class TcpPassiveConnectionTests
         var hardware = (Hardware*)context; hardware->Calls++;
         if (hardware->SendResult != 1) return hardware->SendResult;
         if (count != 54) return 2;
-        for (int i = 0; i < count; i++) hardware->Frame[i] = frame[i]; hardware->Sends++; return 1;
+        for (int i = 0; i < count; i++) hardware->Frame[i] = frame[i]; hardware->Sends++;
+        if (hardware->ClockAfterSend != 0) hardware->Now = hardware->ClockAfterSend;
+        return 1;
     }
     private static TcpPassiveIpv4FramePlannerInfo Info(uint iss = Iss, ushort port = 40000) =>
         new(new MacAddress(2, 0, 0, 0, 0, 1), RemoteMac(), LocalAddress(), RemoteAddress(), 8080, port, iss, 0x3456, 51, 0x270);

@@ -18,8 +18,9 @@ public static unsafe class TcpPassiveConnection
 
     /// <summary>Borrow a real monotonic nanosecond clock and frame-copying TX
     /// callback for the pending lifetime. Send returns1 only after accepting a
-    /// complete copy,0 for capacity pressure, otherwise fatal failure. No frame
-    /// pointer may escape Send. Context/code backing outlives pending cleanup.</summary>
+    /// complete copy,0 for capacity pressure, otherwise fatal failure. Retry time
+    /// starts at observed copy completion. No frame pointer may escape Send.
+    /// Context/code backing outlives pending cleanup.</summary>
     public struct Operations
     {
         public void* Context;
@@ -196,12 +197,23 @@ public static unsafe class TcpPassiveConnection
         fixed (byte* bytes = frame) sent = state->Io.Send(state->Io.Context, bytes, (uint)frame.Length);
         if (sent == 0) return Status.WouldBlock;
         if (sent != 1) { state->Phase = 2; return Status.SendFailed; }
-        if (duplicate && state->Attempts != 0) { if (state->Duplicates != ~0UL) state->Duplicates++; }
-        else
+        bool schedule = !duplicate || state->Attempts == 0;
+        if (schedule) state->Attempts++;
+        else if (state->Duplicates != ~0UL) state->Duplicates++;
+        // The copy is already accepted: preserve its accounting even if the
+        // post-copy clock fails or the immutable pending lifetime has expired.
+        ulong completed = state->Io.NowNanoseconds(state->Io.Context);
+        if (completed < now) { state->Phase = 2; return Status.InvalidClock; }
+        state->LastNow = completed;
+        if (completed >= state->Deadline)
         {
-            state->Attempts++;
-            ulong remaining = state->Deadline - now;
-            state->NextRetry = state->Io.RetryNanoseconds >= remaining ? state->Deadline : now + state->Io.RetryNanoseconds;
+            var status = Retire(state);
+            return status == Status.Success ? Status.Timeout : status;
+        }
+        if (schedule)
+        {
+            ulong remaining = state->Deadline - completed;
+            state->NextRetry = state->Io.RetryNanoseconds >= remaining ? state->Deadline : completed + state->Io.RetryNanoseconds;
         }
         return Status.Success;
     }
