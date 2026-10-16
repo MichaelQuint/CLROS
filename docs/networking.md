@@ -1,5 +1,12 @@
 # Networking
 
+[Step1329](../done/step1329.md) records one complete development guest with the
+actual cooperative witness:2,250 advances, maximum observed gap133ms, normal
+exit/reap and restored/scrubbed retained pool. All80 TCP steps, real240-second
+TIME-WAIT and strict independent150-packet validation pass. It corrects the
+pre-NIC readiness clock phase and preserves the failed attempts. Final frozen
+full-host, repeated TCP and affected ancestor qualification remain pending.
+
 [Step1328](../done/step1328.md) adds a development scheduler witness for #152's
 literal no-starvation criterion. One retained cooperative worker advances on its
 guarded stack between packet pumps and during final TIME-WAIT, then exits and is

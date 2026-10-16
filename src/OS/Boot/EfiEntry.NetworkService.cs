@@ -244,10 +244,12 @@ public static unsafe partial class EfiEntry
             *value = nanos; return 1;
         }
 
-        private static bool ReadNetworkTime(Storage* state, out ulong nanos)
+        private static bool ReadNetworkTime(Storage* state, out ulong nanos, bool preparing = false)
         {
             nanos = 0;
-            if (state == null || state->NetworkPhase != 2 || state->ServicePhase != 2 ||
+            // The scheduler timestamps readiness before NIC admission. Only
+            // that private bind call admits phase1; device callbacks require2.
+            if (state == null || (state->NetworkPhase != 2 && (!preparing || state->NetworkPhase != 1)) || state->ServicePhase != 2 ||
                 state->AdapterConsole != null || state->AdapterServices != null ||
                 !OwnedMonotonicClock.Read(ref state->Clock) || state->Clock.Source != OwnedClockSource.Hpet ||
                 state->Clock.RecoveryAttempts > 1 || !FirstExitOwnedArena.ValidateCanaries(state->Arena)) return false;

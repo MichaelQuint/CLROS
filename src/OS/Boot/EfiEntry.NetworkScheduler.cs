@@ -31,9 +31,10 @@ public static unsafe partial class EfiEntry
 
         private static bool RunNetworkScheduledService(Storage* state)
         {
-            if (!CooperativeAuthority(state) || state->CooperativePhase != 0) return false;
+            if (!CooperativeAuthority(state) || state->CooperativePhase != 0) return NetworkSchedulerFailure(state, 1);
             ((delegate* unmanaged<void>)(state->Memory.Code + FirstExitCodeBundle.CooperativeSegmentsOffset))();
-            if (!CooperativeAuditPool(state, false) || !NetworkSchedulerPrepare(state, out var c)) return false;
+            if (!CooperativeAuditPool(state, false)) return NetworkSchedulerFailure(state, 2);
+            if (!NetworkSchedulerPrepare(state, out var c)) return false;
             // The original PTE snapshot stays on this live supervisor frame for
             // the complete service. It never escapes into a returned stack.
             ulong* original = stackalloc ulong[(int)CooperativePoolPages];
@@ -42,12 +43,15 @@ public static unsafe partial class EfiEntry
             {
                 c->Plan.Owner.GuardsVerified = c->Plan.Owner.MappingsVerified = true;
                 NetworkSchedulerSync(c);
-                if (NetworkSchedulerBind(c) && NetworkSchedulerRow(state, 0, state->CooperativePool, 32, 1, 0))
+                bool bound = NetworkSchedulerBind(c);
+                if (!bound) _ = NetworkSchedulerFailure(state, 4);
+                if (bound && NetworkSchedulerRow(state, 0, state->CooperativePool, 32, 1, 0))
                 {
                     state->CooperativePhase = 2;
                     success = RunNetworkServiceCore(state);
                 }
             }
+            else _ = NetworkSchedulerFailure(state, 3);
             bool stopped = c->Bound == 0 || NetworkSchedulerStop(c);
             ulong progress = c->Progress, packets = c->PacketDispatches, waiting = c->TimeWaitDispatches;
             ulong gap = c->MaximumGap, transfers = c->Transfers;
@@ -69,12 +73,12 @@ public static unsafe partial class EfiEntry
         {
             ulong pool = state->CooperativePool, arena = pool + 2 * Page;
             c = (NetworkSchedulerControl*)(arena + Page);
-            if (sizeof(NetworkSchedulerControl) > 0xe00) return false;
+            if (sizeof(NetworkSchedulerControl) > 0xe00) return NetworkSchedulerFailure(state, 10);
             *c = default; c->State = state; c->Key = pool ^ 0x4d30373032365343UL;
             c->Plan.Owner = new() { Initialized = true, Key = c->Key, CurrentKey = c->Key,
                 Root = (ulong)state->Memory.Entries, ContextArena = arena, ContextArenaBytes = 2 * Page,
                 CodeStart = pool, CodeBytes = Program.Bytes, SwitchStackGuardStart = pool + 4 * Page, SwitchStackBytes = 10 * Page };
-            if (!NetworkSchedulerObserve(c)) return false;
+            if (!NetworkSchedulerObserve(c)) return NetworkSchedulerFailure(state, 11);
             byte* rawFx = (byte*)arena + 0xe00;
             ((delegate* unmanaged<byte*, void>)(state->Memory.Code + FirstExitCodeBundle.CooperativeFxOffset))(rawFx);
             c->Plan.Owner.ObservedMxcsrMask = *(uint*)(rawFx + 28);
@@ -82,7 +86,7 @@ public static unsafe partial class EfiEntry
             SavedContext* supervisor = (SavedContext*)arena, a = (SavedContext*)(arena + 0x300), b = (SavedContext*)(arena + 0x600);
             if (SavedContext.Initialize(supervisor, SavedContext.Bytes, pool + Program.DriverResume, (state->Arena.StackTop - 64) & ~15UL, mask) != SavedContext.Status.Ok ||
                 SavedContext.Initialize(a, SavedContext.Bytes, pool + Program.EntryA, pool + 16 * Page - 40, mask) != SavedContext.Status.Ok ||
-                SavedContext.Initialize(b, SavedContext.Bytes, pool + Program.EntryB, pool + 19 * Page - 40, mask) != SavedContext.Status.Ok) return false;
+                SavedContext.Initialize(b, SavedContext.Bytes, pool + Program.EntryB, pool + 19 * Page - 40, mask) != SavedContext.Status.Ok) return NetworkSchedulerFailure(state, 12);
             byte* helper = (byte*)arena + 0xc00;
             for (uint i = 0; i < 512; i++) helper[i] = 0;
             *(ushort*)helper = 0x027f; *(uint*)(helper + 24) = 0x1f80; *(uint*)(helper + 28) = mask;
@@ -103,8 +107,9 @@ public static unsafe partial class EfiEntry
             c->Plan.First = NetworkSchedulerEntry(c, c->Plan.A, Program.EntryA, Program.WorkerA, Program.FromA);
             c->Plan.Second = NetworkSchedulerEntry(c, c->Plan.B, Program.EntryB, Program.WorkerB, Program.FromB);
             if (!NetworkSchedulerImage(c, c->Plan.Stub.AdmissionCallback) || !NetworkSchedulerImage(c, c->Plan.RecoverCallback) ||
-                !NetworkSchedulerImage(c, c->Plan.TerminalCallback) || !NetworkSchedulerImage(c, c->Plan.First.Start)) return false;
-            return ProgressProgram.Emit((byte*)pool, Program.Bytes, c->Plan, (ulong)&c->Progress, (ulong)&c->Stop) && NetworkSchedulerVerify(c);
+                !NetworkSchedulerImage(c, c->Plan.TerminalCallback) || !NetworkSchedulerImage(c, c->Plan.First.Start)) return NetworkSchedulerFailure(state, 13);
+            if (!ProgressProgram.Emit((byte*)pool, Program.Bytes, c->Plan, (ulong)&c->Progress, (ulong)&c->Stop)) return NetworkSchedulerFailure(state, 14);
+            return NetworkSchedulerVerify(c) || NetworkSchedulerFailure(state, 15);
         }
 
         private static KernelThreadEntry.Plan NetworkSchedulerEntry(NetworkSchedulerControl* c, Cooperative.Descriptor descriptor,
@@ -146,7 +151,7 @@ public static unsafe partial class EfiEntry
                 c->Plan.A.StackBytes, c->Plan.A.ResumeRip, c->Plan.First.Entry, (ulong)c);
             if (!created.Succeeded || created.Identity.Value != c->Plan.A.Identity) return false;
             c->Worker = created.Identity; c->Bound = 1;
-            if (!ReadNetworkTime(c->State, out c->LastProgress)) return false;
+            if (!ReadNetworkTime(c->State, out c->LastProgress, preparing: true)) return false;
             return c->Threads.ReadyCount == 1 && !c->Threads.Current.IsValid && !c->Threads.HandoffPending;
         }
 
@@ -258,6 +263,12 @@ public static unsafe partial class EfiEntry
             LinuxText(state, "M07_026_SCHED stage=") && LinuxNumber(state, stage) && LinuxText(state, " a=") && LinuxNumber(state, a) &&
             LinuxText(state, " b=") && LinuxNumber(state, b) && LinuxText(state, " c=") && LinuxNumber(state, c) &&
             LinuxText(state, " d=") && LinuxNumber(state, d) && LinuxText(state, "\r\n");
+
+        private static bool NetworkSchedulerFailure(Storage* state, uint stage)
+        {
+            _ = LinuxText(state, "TEST_FAIL m07-026 scheduler stage=") && LinuxNumber(state, stage) && LinuxText(state, "\r\n");
+            return false;
+        }
     }
 }
 #endif

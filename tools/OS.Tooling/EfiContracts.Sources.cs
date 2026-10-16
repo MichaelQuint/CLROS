@@ -8,10 +8,10 @@ public static partial class EfiContracts
         new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
-                [@"Boot\EfiEntry.NetworkScheduler.cs"] = "81ae8ced45f968160979fc47c4f4cf33180db6d9532a60243c9c092422f19a0b",
+                [@"Boot\EfiEntry.NetworkScheduler.cs"] = "39d4142955198c26e73d109277c81d51a54aab1862e57a742200c3010de8bac1",
                 [@"..\OS.Kernel\Threading\KernelThreadProgressProgram.cs"] = "7d3bc54dd737d3d6462e0bcb35597b783d3e5e107fc6719a8c1668cb0ba77700",
                 [@"Boot\EfiEntry.NetworkTcp.cs"] = "485a543d00efa57137f37f4a49926d1bf3a99946ea5026245483eb9cc529473e",
-                [@"Boot\EfiEntry.NetworkService.cs"] = "956bb41936583859157169e22c73ccfb8a1476ca7c1a90d20389dfe6c69e6282",
+                [@"Boot\EfiEntry.NetworkService.cs"] = "3637f02ab657bd8d616e8a7c8980721b29824a0c003bfa3f23808ed58656c059",
                 [@"..\OS.Kernel\Drivers\ContinuingVirtioNet.cs"] = "82249b2b87049c705639efab913b68cfe47a92dd70841d4a977e588db820c4ea",
                 [@"..\OS.Kernel\Drivers\ContinuingVirtioNetDevice.cs"] = "c5d4ea67747bacbe978bb02320bd3e7e1286ac484692c415997af710622438f3",
                 [@"..\OS.Kernel\Net\TcpConnectionTable.cs"] = "a678d50ba2bc6fab95667b74ebe6aba70576787e518123b05029c0771b9d226d",
