@@ -1,6 +1,7 @@
 using System.Buffers.Binary;
 using OS.Net;
 using OS.Tooling;
+using OS.Tools.QemuRunner;
 
 internal static class ContinuingNetworkTranscriptTests
 {
@@ -8,8 +9,9 @@ internal static class ContinuingNetworkTranscriptTests
     private static void Transcript()
     {
         string[] rows = Records();
-        HostCheck.Equal(rows.Length - 10, QemuTranscripts.ValidateNetworkServiceTail(rows).Length);
-        foreach (int index in Enumerable.Range(rows.Length - 10, 10))
+        int tail = 10 + QemuTranscripts.M07026TcpRecords, start = rows.Length - tail;
+        HostCheck.Equal(start, QemuTranscripts.ValidateNetworkServiceTail(rows).Length);
+        foreach (int index in Enumerable.Range(start, tail))
         {
             string[] bad = (string[])rows.Clone(); bad[index] += " extra";
             Reject(() => QemuTranscripts.ValidateNetworkServiceTail(bad));
@@ -19,7 +21,8 @@ internal static class ContinuingNetworkTranscriptTests
         for (int stage = 0; stage < 7; stage++)
         {
             string[] bad = (string[])rows.Clone();
-            bad[rows.Length - 9 + stage] = bad[rows.Length - 9 + stage].Replace("stage=" + stage, "stage=" + ((stage + 1) % 7));
+            int index = start + 1 + stage + (stage >= 4 ? QemuTranscripts.M07026TcpRecords : 0);
+            bad[index] = bad[index].Replace("stage=" + stage, "stage=" + ((stage + 1) % 7));
             Reject(() => QemuTranscripts.ValidateNetworkServiceTail(bad));
         }
         foreach ((string from, string to) in new[] { ("a=20", "a=19"), ("b=32", "b=31"), ("d=90525193470466", "d=90525193470467"), (" c=0 d=", " c=1 d="), ("a=8 b=0 c=8", "a=8 b=1 c=8") })
@@ -49,6 +52,13 @@ internal static class ContinuingNetworkTranscriptTests
                 var bad = frames.Select(x => (byte[])x.Clone()).ToList(); bad[^1][offset] ^= 1; Reject(() => Inspect(bad));
             }
             var swapped = frames.ToList(); (swapped[^1], swapped[^2]) = (swapped[^2], swapped[^1]); Reject(() => Inspect(swapped));
+            File.WriteAllBytes(capture, Pcap(frames, compressTimers: true));
+            Reject(() => QemuTranscripts.AssertM07026Capture(serial, capture));
+            int firstTcp = frames.Count - ContinuingTcpScenario.Packets.Count - 2;
+            foreach (int offset in new[] { 34, 38, 42, 46, 47, 48, 50, 54 })
+            {
+                var bad = frames.Select(x => (byte[])x.Clone()).ToList(); bad[firstTcp + 1][offset] ^= 1; Reject(() => Inspect(bad));
+            }
         }
         finally { Directory.Delete(directory, true); }
     }
@@ -103,7 +113,17 @@ internal static class ContinuingNetworkTranscriptTests
         return [.. parent.Take(owned), .. Enumerable.Repeat("parent validated separately", 24), .. parent.Skip(owned),
             "TEST_START m07-026", "M07_026_ROW stage=0 a=2097152 b=32768 c=4295000064 d=8",
             "M07_026_ROW stage=1 a=8 b=8 c=1 d=0", "M07_026_ROW stage=2 a=20 b=20 c=20 d=90525193470466",
-            "M07_026_ROW stage=3 a=12 b=32 c=32 d=2000000050", "M07_026_ROW stage=4 a=32 b=32 c=1 d=2",
+            "M07_026_ROW stage=3 a=12 b=32 c=32 d=2000000050", .. QemuTranscripts.M07026TcpStarts,
+            "M07_026_TCP stage=0 a=2 b=1 c=4 d=2", "M07_026_TCP stage=1 a=2 b=1 c=1 d=6",
+            "M07_026_TCP stage=2 a=241000000000 b=241001000000 c=1001000000 d=240000000000",
+            "M07_026_TCP stage=3 a=11 b=4 c=10017 d=4", "M07_026_TCP stage=4 a=20 b=1021 c=1 d=23",
+            "M07_026_TCP stage=5 a=20 b=15 c=1 d=1", "M07_026_TCP stage=6 a=2 b=3 c=4 d=8",
+            "M07_026_TCP stage=7 a=2 b=6000000000 c=13000000000 d=1",
+            "M07_026_TCP stage=8 a=3 b=24000000000 c=24000000000 d=1",
+            "M07_026_TCP stage=9 a=241001000000 b=241002000000 c=0 d=5",
+            $"M07_026_TCP stage=10 a=31 b={ContinuingTcpScenario.Packets.Count(x => x.FromGuest)} c={33 + ContinuingTcpScenario.Packets.Count(x => !x.FromGuest)} d={33 + ContinuingTcpScenario.Packets.Count(x => x.FromGuest)}",
+            .. QemuTranscripts.M07026TcpEnds,
+            $"M07_026_ROW stage=4 a={33 + ContinuingTcpScenario.Packets.Count(x => !x.FromGuest)} b={33 + ContinuingTcpScenario.Packets.Count(x => x.FromGuest)} c=1 d=2",
             "M07_026_ROW stage=5 a=8 b=0 c=8 d=1", $"M07_026_ROW stage=6 a={allocator[0]} b={allocator[1]} c={allocator[2]} d={command}",
             "CLROS_M07_026_READY", "TEST_PASS m07-026"];
     }
@@ -130,16 +150,36 @@ internal static class ContinuingNetworkTranscriptTests
             Ipv4IcmpEchoFrame.TryWriteEchoReply(reply, new(localMac, peerMac, peer, local), 226, i, "CLROS continuing network"u8, out int b);
             HostCheck.True(a == 66 && b == 66); frames.Add(request); frames.Add(reply);
         }
+        const ulong peerAddress = 0x52550a000202;
+        foreach (var packet in ContinuingTcpScenario.Packets) frames.Add(ContinuingTcpScenario.Write(packet, peerAddress));
+        byte[] finalRequest = new byte[60], finalReply = new byte[60];
+        Ipv4IcmpEchoFrame.TryWriteEchoRequest(finalRequest, new(peerMac, localMac, local, peer), 227, 0, "CLROS TCP closed"u8, out _);
+        Ipv4IcmpEchoFrame.TryWriteEchoReply(finalReply, new(localMac, peerMac, peer, local), 227, 0, "CLROS TCP closed"u8, out _);
+        frames.Add(finalRequest); frames.Add(finalReply);
         return frames;
     }
-    private static byte[] Pcap(List<byte[]> frames)
+    private static byte[] Pcap(List<byte[]> frames, bool compressTimers = false)
     {
         using var stream = new MemoryStream();
         stream.Write(Convert.FromHexString("D4C3B2A10200040000000000000000000000010001000000"));
         Span<byte> header = stackalloc byte[16];
-        foreach (byte[] frame in frames)
+        ulong timestamp = 0, waitFin = 0;
+        int tcpStart = frames.Count - ContinuingTcpScenario.Packets.Count - 2;
+        for (int index = 0; index < frames.Count; index++)
         {
-            header.Clear(); BinaryPrimitives.WriteUInt32LittleEndian(header[8..], (uint)frame.Length);
+            byte[] frame = frames[index]; timestamp += 100;
+            if (!compressTimers && index >= tcpStart && index < frames.Count - 2)
+            {
+                var packet = ContinuingTcpScenario.Packets[index - tcpStart];
+                timestamp += (ulong)packet.DelayMilliseconds * 1000;
+                timestamp += packet.Tag switch { "syn.retry" or "loss.retry1" or "pending.retry1" or "pending.retry2" => 1000000UL,
+                    "data.retry" => 3000000UL, "loss.retry2" => 2000000UL, _ => 0 };
+                if (packet.Tag == "wait.fin") waitFin = timestamp;
+            }
+            if (!compressTimers && index == frames.Count - 2) timestamp = Math.Max(timestamp, waitFin + 240005000);
+            header.Clear(); BinaryPrimitives.WriteUInt32LittleEndian(header, (uint)(timestamp / 1000000));
+            BinaryPrimitives.WriteUInt32LittleEndian(header[4..], (uint)(timestamp % 1000000));
+            BinaryPrimitives.WriteUInt32LittleEndian(header[8..], (uint)frame.Length);
             BinaryPrimitives.WriteUInt32LittleEndian(header[12..], (uint)frame.Length); stream.Write(header); stream.Write(frame);
         }
         return stream.ToArray();

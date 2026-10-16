@@ -33,6 +33,11 @@ public static class QemuProfiles
             options.TimeoutSeconds = 600;
         Require(options.TimeoutSeconds >= 1 && options.TimeoutSeconds <= (runtimeApp.Length == 0 ? 300 : 900), "qemu_timeout_out_of_range");
         bool Enabled(string name) => profile.IsEnabled("Enable" + name + "Probe");
+        if (Enabled("M07026"))
+        {
+            if (!options.Explicit.Contains("TimeoutSeconds")) options.TimeoutSeconds = 285;
+            Require(options.TimeoutSeconds is >= 260 and <= 295, "m07_026_timeout_must_cover_real_time_wait");
+        }
         bool normal = profile.BootPolicy == "VerifiedExit";
         bool build = options.BuildEfi || normal && !options.Explicit.Contains("BuildEfi");
         bool firstExit = Enabled("M03FirstRealExitBootServices");

@@ -26,6 +26,12 @@ loopback host tests remain distinct from real QEMU packet captures. TCP guest
 orchestration and stable native/full-host/guest qualification remain pending;
 no gate advances.
 
+[Step1321](../done/step1321.md) implements the finite retained TCP guest/peer
+orchestration and strict serial/PCAP expectations, including actual-clock
+TIME-WAIT, wrap, loss/reset and send/handshake timeout cases. Managed compilation
+and focused host/synthetic-capture checks remain development evidence; this
+does not yet qualify continuing guest networking or advance any gate.
+
 ## Historical qualification snapshots
 
 Earlier statements below describe the evidence available at their named steps;

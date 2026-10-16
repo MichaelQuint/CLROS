@@ -44,7 +44,7 @@ internal static class ContinuingNetworkPeerTests
 
     private static async Task RejectedPacketsAsync()
     {
-        for (int control = 0; control < 4; control++)
+        for (int control = 0; control < 5; control++)
         {
             using var peer = new ContinuingNetworkPeer(TimeSpan.FromSeconds(10));
             using TcpClient client = await Connect(peer);
@@ -52,6 +52,7 @@ internal static class ContinuingNetworkPeerTests
             if (control == 0) frame[36] ^= 1;
             if (control == 1) frame[20] = 0x20;
             if (control == 3) frame[32] = 1;
+            if (control == 4) frame = frame[..33];
             await Write(client.GetStream(), frame);
             bool rejected = false;
             try { await peer.Completion.WaitAsync(TimeSpan.FromSeconds(5)); }
@@ -89,6 +90,49 @@ internal static class ContinuingNetworkPeerTests
         var client = new TcpClient { NoDelay = true };
         await client.ConnectAsync(IPAddress.Loopback, int.Parse(peer.NetdevArgument[(peer.NetdevArgument.LastIndexOf(':') + 1)..]));
         return client;
+    }
+
+    [HostTest("qemu.continuing-peer gates TCP and rejects a wrong original-codec SYN-ACK", HostLane.Fast, 3)]
+    private static void TcpInterop() => TcpInteropAsync().GetAwaiter().GetResult();
+
+    private static async Task TcpInteropAsync()
+    {
+        for (int control = 0; control < 2; control++)
+        {
+            using var peer = new ContinuingNetworkPeer(TimeSpan.FromSeconds(10), runTcp: true);
+            using TcpClient client = await Connect(peer); var stream = client.GetStream();
+            for (int i = 0; i < 21; i++) { await Write(stream, Arp()); _ = await Read(stream); }
+            for (ushort i = 0; i < 12; i++) { await Write(stream, Echo(i)); _ = await Read(stream); }
+            HostCheck.True(!peer.Completion.IsCompleted && peer.TcpPackets == 0);
+            if (control == 0)
+            {
+                HostCheck.True(peer.Stop() && peer.Completion.IsCompleted && !peer.Completion.IsCompletedSuccessfully);
+                continue;
+            }
+            peer.AllowTcp();
+            byte[] syn = await Read(stream), reply = SynAck(syn, 40000, 1000);
+            await Write(stream, reply);
+            HostCheck.True((await Read(stream)).AsSpan().SequenceEqual(syn)); await Write(stream, reply);
+            _ = await Read(stream); // Deliberate invalid final ACK.
+            await Write(stream, reply); // Original-codec retry; this host test makes no elapsed-time claim.
+            _ = await Read(stream); // Valid final ACK.
+            HostCheck.True((await Read(stream)).AsSpan().SequenceEqual(syn));
+            byte[] other = await Read(stream);
+            await Write(stream, SynAck(other, 40001, 2001)); // Correct checksum/tuple, wrong authoritative ISS.
+            bool rejected = false;
+            try { await peer.Completion.WaitAsync(TimeSpan.FromSeconds(5)); }
+            catch (InvalidDataException) { rejected = true; }
+            HostCheck.True(rejected && peer.Stop() && peer.TcpPackets == 9);
+        }
+    }
+
+    private static byte[] SynAck(byte[] syn, ushort port, uint sequence)
+    {
+        var info = new TcpPassiveIpv4FramePlannerInfo(new MacAddress(2, 0, 0, 0, 0, 1), new MacAddress(2, 0, 0, 0, 0, 2),
+            new Ipv4Address(10, 0, 2, 15), new Ipv4Address(10, 0, 2, 2), 8080, port, sequence, 8, maximumSegmentSize: 4);
+        var planner = TcpPassiveIpv4FramePlanner.Create(info); byte[] output = new byte[1514];
+        HostCheck.Equal(TcpPassiveIpv4FramePlanStatus.Success, planner.ReceiveSynFrameAndWriteSynAckFrame(syn, output, out var packet));
+        return output[..packet.BytesWritten];
     }
 
     private static byte[] Arp()

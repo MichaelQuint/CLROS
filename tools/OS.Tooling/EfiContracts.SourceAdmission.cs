@@ -3,6 +3,7 @@ public static partial class EfiContracts
 {
     public static IReadOnlyDictionary<string, string> SourceAdmissionReasons { get; } = new System.Collections.ObjectModel.ReadOnlyDictionary<string, string>(new Dictionary<string, string>(StringComparer.Ordinal)
     {
+        [@"Boot\EfiEntry.NetworkTcp.cs"] = "reviewed_m07_live_tcp_fixture_source_identity",
         [@"Boot\EfiEntry.NetworkService.cs"] = "reviewed_m07_continuing_network_owner_source_identity",
         [@"..\OS.Kernel\Drivers\ContinuingVirtioNet.cs"] = "reviewed_m07_retained_ring_source_identity",
         [@"..\OS.Kernel\Drivers\ContinuingVirtioNetDevice.cs"] = "reviewed_m07_retained_device_source_identity",

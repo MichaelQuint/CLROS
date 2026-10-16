@@ -162,6 +162,7 @@ public static class EfiProjectAdmission
         return EfiContracts.CompileItems.Where(item => item switch
         {
             @"Boot\EfiEntry.NetworkService.cs|" or
+            @"Boot\EfiEntry.NetworkTcp.cs|" or
             @"..\OS.Kernel\Drivers\ContinuingVirtioNet.cs|Drivers\ContinuingVirtioNet.cs" or
             @"..\OS.Kernel\Drivers\ContinuingVirtioNetDevice.cs|Drivers\ContinuingVirtioNetDevice.cs" or
             @"..\OS.Kernel\Net\Ipv4Header.cs|Net\Ipv4Header.cs" or

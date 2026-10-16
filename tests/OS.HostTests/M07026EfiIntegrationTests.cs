@@ -21,7 +21,11 @@ internal static unsafe class M07026EfiIntegrationTests
                 Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--Enable" + extra + "Probe"], build).Profile());
             Reject(() => EfiOptions.Parse(["--EnableM07026Probe", "--BootPolicy", "VerifiedExit"], build).Profile());
         }
-        var plan = QemuProfiles.Create(QemuSmokeOptions.Parse("--BuildEfi", "--EnableM07026Probe", "--RequireMarker", "CLROS_M07_026_READY"));
+        var options = QemuSmokeOptions.Parse("--BuildEfi", "--EnableM07026Probe", "--RequireMarker", "CLROS_M07_026_READY");
+        var plan = QemuProfiles.Create(options);
+        HostCheck.Equal(285, options.TimeoutSeconds);
+        Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse("--BuildEfi", "--EnableM07026Probe", "--TimeoutSeconds", "259")));
+        Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse("--BuildEfi", "--EnableM07026Probe", "--TimeoutSeconds", "296")));
         HostCheck.True(plan.Required.Contains("CLROS_M07_026_READY"));
         HostCheck.True(plan.Ordered.SequenceEqual(QemuTranscripts.M07026Markers.Select(x => x.Trim())));
         Reject(() => QemuProfiles.Create(QemuSmokeOptions.Parse("--BuildEfi", "--EnableM07026Probe", "--RequireMarker", "CLROS_M16_003_READY")));

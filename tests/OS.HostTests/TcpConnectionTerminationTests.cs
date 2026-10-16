@@ -346,6 +346,25 @@ internal static unsafe class TcpConnectionTerminationTests
             throw new InvalidOperationException("duplicate FIN/ACK dispatch failed");
     }
 
+    [HostTest("net.tcp.termination separates admitted left overlap from right-edge clipping", HostLane.Fast, 17)]
+    private static void OverlapAndClipping()
+    {
+        using var f = new Fixture(receiveCapacity: 8); Configure(f); byte[] read = new byte[8];
+        HostCheck.Equal(Tx.Status.Success, Receive(f, 100, 700, 0x18, "abcdefgh"u8));
+        HostCheck.Equal(Rx.Status.Success, Rx.Read(f.Receiver, read.AsSpan(0, 3), out var part));
+        HostCheck.True(part.BytesRead == 3 && read.AsSpan(0, 3).SequenceEqual("abc"u8));
+        HostCheck.Equal((ushort)3, f.Receiver->AvailableWindow);
+        HostCheck.Equal(Tx.Status.InvalidPacket, Receive(f, 104, 700, 0x18, "efghijkl"u8));
+        HostCheck.True(f.Receiver->UnreadBytes == 5 && f.Receiver->AcknowledgementNumber == 108);
+        HostCheck.Equal(Tx.Status.Success, Receive(f, 104, 700, 0x18, "efghij"u8));
+        HostCheck.True(f.Receiver->AvailableWindow == 1 && f.Receiver->AcknowledgementNumber == 110);
+        HostCheck.Equal(Tx.Status.Success, Receive(f, 110, 700, 0x18, "kl"u8));
+        HostCheck.True(f.Receiver->AvailableWindow == 0 && f.Receiver->AcknowledgementNumber == 111);
+        HostCheck.Equal(Rx.Status.Success, Rx.Read(f.Receiver, read, out part));
+        HostCheck.True(part.BytesRead == 8 && read.AsSpan().SequenceEqual("defghijk"u8));
+        HostCheck.Equal(Tx.Status.Success, Tx.AbortConnection(f.Owner)); Reap(f);
+    }
+
     private static void Configure(Fixture f, byte retries = 5, ulong lifetime = 1000 * Second, ulong closeLimit = 30 * Second)
     {
         var io = f.Operations();

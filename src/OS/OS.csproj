@@ -728,6 +728,7 @@
 		<Compile Include="..\OS.Kernel\Drivers\ContinuingVirtioNet.cs" Link="Drivers\ContinuingVirtioNet.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Drivers\ContinuingVirtioNetDevice.cs" Link="Drivers\ContinuingVirtioNetDevice.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="Boot\EfiEntry.NetworkService.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
+		<Compile Include="Boot\EfiEntry.NetworkTcp.cs" Condition="'$(EnableM07026Probe)' == 'true'" />
 		<Compile Include="..\OS.Kernel\Drivers\FixedEthernetFrameReclaimDescriptors.cs" Link="Drivers\FixedEthernetFrameReclaimDescriptors.cs" />
 		<Compile Include="..\OS.Kernel\Drivers\VirtioNetHeader.cs" Link="Drivers\VirtioNetHeader.cs" />
 		<Compile Include="..\OS.Kernel\Drivers\VirtioNetReceiveFrameClassifier.cs" Link="Drivers\VirtioNetReceiveFrameClassifier.cs" />

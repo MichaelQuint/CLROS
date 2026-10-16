@@ -1,5 +1,32 @@
 # Networking
 
+[Step1321](../done/step1321.md) composes the retained TCP owners into the default-off
+post-exit NIC fixture. Image-backed metadata/buffers, actual HPET callbacks and
+copied NIC TX drive a finite 80-packet script: SYN duplicate/loss/invalid ACK,
+duplicate tuple/backlog/table pressure, receive overlap and separate right-edge
+clipping, window/partial ACK/send retry, half-close/simultaneous FIN, wrapped
+sequence reuse, exact/challenged RST and send/handshake timeout. B keeps its real
+240-second TIME-WAIT while the other cases run. Five table lifetimes and four
+attached buffer pairs must reap before the original NIC reset/pool cleanup.
+The independent peer shares only the literal wire expectations with the separate
+PCAP reader, never the guest TCP codecs. Serial counters, original parent joins,
+every packet, retry timing and the final post-TIME-WAIT ICMP exchange are checked.
+PCAP retry comparisons allow two milliseconds for wire/callback observation skew;
+owned-clock lifetime/TIME-WAIT checks retain their exact bounds.
+
+The profile defaults to 285 seconds and accepts 260..295 seconds; the separate
+startup deadline is unchanged. Its planned real command is:
+
+```powershell
+dotnet run --project tools/OS.Tooling -- qemu smoke -BuildEfi -EnableM07026Probe -Qemu "C:\Program Files\qemu\qemu-system-x86_64.exe" -OvmfCode "C:\Program Files\qemu\share\edk2-x86_64-code.fd" -TimeoutSeconds 285
+```
+
+Managed compilation, original-owner overlap/clipping and host peer/transcript/
+profile controls are development evidence. Synthetic PCAP fixtures do not prove
+the live guest script. Native publication/ABI/stack review, full-host, actual
+strict guests/packets and affected ancestors remain pending. All eight batch
+issues stay open; no Kestrel or gate claim is added.
+
 [Step1320](../done/step1320.md) admits the fourteen retained TCP source dependencies
 only under the default-off M07-026 EFI profile and compiles that managed no-stdlib
 closure. The runner now owns the bounded socket-netdev peer and independently

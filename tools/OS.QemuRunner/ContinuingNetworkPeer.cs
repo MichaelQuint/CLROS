@@ -7,21 +7,27 @@ namespace OS.Tools.QemuRunner;
 /// transport and asynchronous worker through Stop/Dispose; a serialized runner
 /// must require successful Completion before accepting serial success. Unknown
 /// Ethernet protocols are ignored, malformed fixture traffic fails, and at most
-/// 256 frames are read. No kernel codecs, external network or TCP scenario is used.
+/// 256 base frames are read. Optional TCP uses the independent finite wire corpus;
+/// no kernel codecs or external network are used.
 /// </summary>
 public sealed class ContinuingNetworkPeer : IDisposable
 {
     private static readonly byte[] GuestMac = [2, 0, 0, 0, 0, 1], PeerMac = [2, 0, 0, 0, 0, 2];
     private static readonly byte[] GuestIp = [10, 0, 2, 15], PeerIp = [10, 0, 2, 2];
     private static readonly byte[] EchoTag = "CLROS continuing network"u8.ToArray();
+    private static readonly byte[] ClosedTag = "CLROS TCP closed"u8.ToArray();
     private readonly QemuEthernetPeer transport;
     private readonly CancellationTokenSource stop = new();
+    private readonly TaskCompletionSource tcpReady = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly bool runTcp;
     private int arpReplies, echoReplies;
+    private int tcpPackets;
     private bool disposed;
 
     /// <summary>Starts the sole listener/worker with the transport's 1ms..5min lifetime.</summary>
-    public ContinuingNetworkPeer(TimeSpan maximumLifetime)
+    public ContinuingNetworkPeer(TimeSpan maximumLifetime, bool runTcp = false)
     {
+        this.runTcp = runTcp;
         transport = new(maximumLifetime);
         Completion = RunAsync();
     }
@@ -30,6 +36,11 @@ public sealed class ContinuingNetworkPeer : IDisposable
     public Task Completion { get; }
     public int ArpReplies => Volatile.Read(ref arpReplies);
     public int EchoReplies => Volatile.Read(ref echoReplies);
+    public int TcpPackets => Volatile.Read(ref tcpPackets);
+
+    /// <summary>Release the TCP start gate only after the original continuing IP row is observed.
+    /// This coordinates delivery; captured packets and guest checks still determine acceptance.</summary>
+    public void AllowTcp() => tcpReady.TrySetResult();
 
     private async Task RunAsync()
     {
@@ -48,6 +59,7 @@ public sealed class ContinuingNetworkPeer : IDisposable
                 if (Interlocked.Increment(ref echoReplies) == 12)
                 {
                     if (ArpReplies != 21) throw new InvalidDataException("Unexpected original/continuing ARP request count.");
+                    if (runTcp) await RunTcpAsync(input, output).ConfigureAwait(false);
                     return;
                 }
             }
@@ -55,7 +67,33 @@ public sealed class ContinuingNetworkPeer : IDisposable
         throw new InvalidDataException("Continuing fixture frame bound exhausted.");
     }
 
-    private static int BuildReply(ReadOnlySpan<byte> input, Span<byte> output, out int sequence)
+    private async Task RunTcpAsync(byte[] input, byte[] output)
+    {
+        await tcpReady.Task.WaitAsync(TimeSpan.FromSeconds(10), stop.Token).ConfigureAwait(false);
+        foreach (var packet in ContinuingTcpScenario.Packets)
+        {
+            if (packet.DelayMilliseconds != 0) await Task.Delay(packet.DelayMilliseconds, stop.Token).ConfigureAwait(false);
+            if (packet.FromGuest)
+            {
+                using var deadline = CancellationTokenSource.CreateLinkedTokenSource(stop.Token);
+                deadline.CancelAfter(TimeSpan.FromSeconds(8));
+                int length = await transport.ReadFrameAsync(input, deadline.Token).ConfigureAwait(false);
+                ContinuingTcpScenario.Validate(input.AsSpan(0, length), packet, 0x020000000002);
+            }
+            else await transport.WriteFrameAsync(ContinuingTcpScenario.Write(packet, 0x020000000002), stop.Token).ConfigureAwait(false);
+            Interlocked.Increment(ref tcpPackets);
+        }
+        // The real guest keeps B's table generation for 2MSL while other cases run.
+        // Its final ICMP request appears only after actual TIME-WAIT and TCP cleanup.
+        using var finalDeadline = CancellationTokenSource.CreateLinkedTokenSource(stop.Token);
+        finalDeadline.CancelAfter(TimeSpan.FromSeconds(260));
+        int finalLength = await transport.ReadFrameAsync(input, finalDeadline.Token).ConfigureAwait(false);
+        int reply = BuildReply(input.AsSpan(0, finalLength), output, out int sequence, final: true);
+        if (reply == 0 || sequence != 0) throw new InvalidDataException("Missing final TCP cleanup echo.");
+        await transport.WriteFrameAsync(output.AsMemory(0, reply), stop.Token).ConfigureAwait(false);
+    }
+
+    private static int BuildReply(ReadOnlySpan<byte> input, Span<byte> output, out int sequence, bool final = false)
     {
         sequence = -1;
         ushort type = BinaryPrimitives.ReadUInt16BigEndian(input[12..]);
@@ -77,7 +115,8 @@ public sealed class ContinuingNetworkPeer : IDisposable
             GuestMac.CopyTo(output[32..]); GuestIp.CopyTo(output[38..]);
             return 60;
         }
-        if (input.Length < 34 || input[23] != 1) return 0;
+        if (input.Length < 34) throw new InvalidDataException("Truncated fixture IPv4 header.");
+        if (input[23] != 1) return 0;
         int total = BinaryPrimitives.ReadUInt16BigEndian(input[16..]);
         if (input[14] != 0x45 || total < 28 || total > input.Length - 14 ||
             (BinaryPrimitives.ReadUInt16BigEndian(input[20..]) & 0xbfff) != 0 ||
@@ -85,8 +124,8 @@ public sealed class ContinuingNetworkPeer : IDisposable
             !input.Slice(30, 4).SequenceEqual(PeerIp) || Checksum(input.Slice(14, 20)) != 0 ||
             Checksum(input.Slice(34, total - 20)) != 0) throw new InvalidDataException("Invalid fixture IPv4/ICMP packet.");
         ReadOnlySpan<byte> echo = input.Slice(34, total - 20);
-        if (echo[0] != 8 || echo[1] != 0 || BinaryPrimitives.ReadUInt16BigEndian(echo[4..]) != 226 ||
-            !echo[8..].SequenceEqual(EchoTag)) throw new InvalidDataException("Unexpected fixture echo.");
+        if (echo[0] != 8 || echo[1] != 0 || BinaryPrimitives.ReadUInt16BigEndian(echo[4..]) != (final ? 227 : 226) ||
+            !echo[8..].SequenceEqual(final ? ClosedTag : EchoTag)) throw new InvalidDataException("Unexpected fixture echo.");
         sequence = BinaryPrimitives.ReadUInt16BigEndian(echo[6..]);
         input.Slice(14, total).CopyTo(output[14..]);
         PeerIp.CopyTo(output[26..]); GuestIp.CopyTo(output[30..]);

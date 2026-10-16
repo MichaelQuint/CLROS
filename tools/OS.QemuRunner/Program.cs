@@ -127,7 +127,7 @@ try
         uniqueMarkers: options.UniqueMarkers);
 
     using ContinuingNetworkPeer? networkPeer = options.ContinuingNetworkPeer
-        ? new(TimeSpan.FromMinutes(5)) : null;
+        ? new(TimeSpan.FromMinutes(5), runTcp: true) : null;
     using Process process = new Process();
     process.StartInfo.FileName = qemu.Path;
     process.StartInfo.UseShellExecute = false;
@@ -201,6 +201,7 @@ try
                 ref processCleanupFailed, ref qemuExitedSpontaneously, ref qemuExitCode);
             break;
         }
+        if (networkPeer is not null && streamingMarkers.HasSeenRequiredMarker("M07_026_ROW stage=3")) networkPeer.AllowTcp();
 
         if (options.StartupTimeoutSeconds <= options.TimeoutSeconds &&
             startup?.HasExpired(stopwatch.ElapsedMilliseconds, streamingMarkers) == true)
@@ -393,7 +394,7 @@ try
         bool completed = networkPeer.Completion.IsCompletedSuccessfully;
         bool stopped = networkPeer.Stop();
         Console.WriteLine("NETWORK_PEER_RESULT complete=" + completed + " stopped=" + stopped +
-            " arpReplies=" + networkPeer.ArpReplies + " echoReplies=" + networkPeer.EchoReplies);
+            " arpReplies=" + networkPeer.ArpReplies + " echoReplies=" + networkPeer.EchoReplies + " tcpPackets=" + networkPeer.TcpPackets);
         if (!completed || !stopped)
         {
             string reason = !stopped ? "network_peer_cleanup_failed" : networkPeer.Completion.IsFaulted

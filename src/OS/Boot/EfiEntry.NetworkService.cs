@@ -36,10 +36,12 @@ public static unsafe partial class EfiEntry
             EfiBootServices* services = state->SystemTable->BootServices;
             if (services == null || services->AllocatePages == null) return false;
             fixed (NetworkOwnerStorage* owner = &s_networkOwner)
+            fixed (NetworkTcpStorage* tcp = &s_networkTcp)
             {
                 SeparatePageFaultMappingRange* ranges = stackalloc SeparatePageFaultMappingRange[(int)FirstExitRetainedMappings.MaximumRanges];
                 if (!FirstExitImageMappings.WriteRanges(capture, mapping, ranges, FirstExitRetainedMappings.MaximumRanges, out ulong count) ||
-                    !FirstExitImageMappings.Contains(ranges, count, (ulong)owner, (ulong)sizeof(NetworkOwnerStorage), PageProtection.Read | PageProtection.Write)) return false;
+                    !FirstExitImageMappings.Contains(ranges, count, (ulong)owner, (ulong)sizeof(NetworkOwnerStorage), PageProtection.Read | PageProtection.Write) ||
+                    !FirstExitImageMappings.Contains(ranges, count, (ulong)tcp, (ulong)sizeof(NetworkTcpStorage), PageProtection.Read | PageProtection.Write)) return false;
                 ulong candidate = 0xffffffff;
                 if (services->AllocatePages(1, 2, 8, &candidate) != 0) return false;
                 state->NetworkArena = candidate; // Retain even a rejected successful firmware allocation.
@@ -191,7 +193,8 @@ public static unsafe partial class EfiEntry
             {
                 if (NetDevice.Poll(device, 8, out _) != NetDevice.Status.Success) return false;
                 if (device->ReclaimedTransmits == 32)
-                    return device->ReceivedFrames == 32 && WriteNetworkRow(state, 3, 12, device->ReceivedFrames, device->ReclaimedTransmits, deadline);
+                    return device->ReceivedFrames == 32 && WriteNetworkRow(state, 3, 12, device->ReceivedFrames, device->ReclaimedTransmits, deadline) &&
+                        RunNetworkTcp(state, device, resolved, tx, rx);
                 if (!ReadNetworkTime(state, out now) || now >= deadline) return false;
             }
             return false;
