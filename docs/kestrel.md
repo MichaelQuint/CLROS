@@ -110,6 +110,13 @@ held source/native/image/evidence checks. Original scoped stack joins measure
 6440 bytes for threaded output from gateway stack top and8872 bytes for the
 retained supervisor failure path. Fresh native/full-host/guest qualification
 still precedes #217 acceptance.
+[Step1362](../done/step1362.md) corrects a concrete pre-switch startup stack
+contract: the original heap-reservation path needs more than the declared32KiB
+diagnostic body budget. Only M10-004 now reserves a64KiB declaration within the
+existing main stack. Fresh native verification passes; all1741 method bodies
+agree with r12 except that budget immediate, with corresponding PE/debug
+metadata changes. The earlier candidate is retained as rejected before any
+qualification guest or full-host run. Combined qualification remains pending.
 
 ## Transport decision experiments
 

@@ -101,7 +101,15 @@ public static unsafe partial class EfiEntry
 #endif
         // Conservative reservations, not native-stack evidence. The linked
         // callback graph and firmware path still require review before enablement.
-        private const ulong EntryStackBudget = 128 * 1024, DiagnosticStackBudget = 32 * 1024;
+        private const ulong EntryStackBudget = 128 * 1024;
+#if M10_004_PROBE
+        // Web heap startup runs on the retained supervisor before native stack
+        // switching; its measured mapping/admission path exceeds32KiB. This is
+        // a declaration within the existing main stack, not another allocation.
+        private const ulong DiagnosticStackBudget = 64 * 1024;
+#else
+        private const ulong DiagnosticStackBudget = 32 * 1024;
+#endif
         private struct Storage
         {
             internal ulong Phase;

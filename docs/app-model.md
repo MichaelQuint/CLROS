@@ -870,6 +870,12 @@ borrowed inspection pass; original added output and supervisor stack paths
 are joined without using an arbitrary margin for unknown callees. Fresh
 current artifact and stable-batch qualification remain required for acceptance.
 
+[Step1362](../done/step1362.md) raises only the web diagnostic declaration to
+64KiB after original startup heap mapping exceeds the former32KiB contract.
+The actual main stack and other profiles' declarations are unchanged. Fresh
+source/native verification passes with a single budget-immediate code change;
+the corrected source still needs the combined full-host/current guest batch.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to
