@@ -297,6 +297,138 @@ internal static class TcpConnectionCloseTests
                 TcpConnectionCloseTransitionResult>());
     }
 
+    [HostTest("net.tcp close combined FIN ACK enters TimeWait directly", HostLane.Fast, 5)]
+    private static void CombinedFinAck()
+    {
+        var close = TcpConnectionClose.CreateEstablished(LocalPort, RemotePort, LocalNextSequence, RemoteNextSequence);
+        Span<byte> output = stackalloc byte[20], incoming = stackalloc byte[20];
+        HostCheck.Equal(TcpConnectionCloseStatus.Success, close.TryWriteActiveFinAck(output, 32, 0, out _));
+        WriteRemoteSegment(incoming, RemoteNextSequence, LocalNextSequence + 1, 0x11);
+        HostCheck.Equal(TcpConnectionCloseStatus.Success, close.ReceiveActiveFinAckAndWriteAck(incoming, output, 24, 0x1234, out var result));
+        HostCheck.Equal(TcpConnectionCloseState.TimeWait, close.State);
+        HostCheck.Equal(LocalNextSequence + 1, close.LocalNextSequenceNumber);
+        HostCheck.Equal(RemoteNextSequence + 1, close.RemoteNextSequenceNumber);
+        HostCheck.Equal(20, result.BytesWritten);
+        HostCheck.Equal(PacketParseStatus.Success, TcpHeader.TryParse(output, out var ack, out _, out var payload));
+        HostCheck.Equal((byte)0x10, ack.Flags); HostCheck.Equal((ushort)24, ack.WindowSize);
+        HostCheck.Equal((ushort)0x1234, ack.Checksum); HostCheck.Equal(RemoteNextSequence + 1, ack.AcknowledgementNumber);
+        HostCheck.Equal(0, payload.Length);
+        HostCheck.Equal(TcpConnectionCloseStatus.Success, close.CompleteTimeWait(out result));
+        HostCheck.Equal(TcpConnectionCloseState.Closed, result.State); HostCheck.Equal(0, result.BytesWritten);
+        HostCheck.Equal(TcpConnectionCloseStatus.InvalidState, close.CompleteTimeWait(out _));
+    }
+
+    [HostTest("net.tcp close simultaneous FIN waits for ACK without consuming FIN twice", HostLane.Fast, 6)]
+    private static void SimultaneousFin()
+    {
+        var close = TcpConnectionClose.CreateEstablished(LocalPort, RemotePort, LocalNextSequence, RemoteNextSequence);
+        Span<byte> output = stackalloc byte[20], incoming = stackalloc byte[20];
+        close.TryWriteActiveFinAck(output, 32, 0, out _);
+        WriteRemoteSegment(incoming, RemoteNextSequence, LocalNextSequence, 0x11);
+        HostCheck.Equal(TcpConnectionCloseStatus.Success, close.ReceiveActiveFinAckAndWriteAck(incoming, output, 32, 0, out _));
+        HostCheck.Equal(TcpConnectionCloseState.Closing, close.State);
+        HostCheck.Equal(TcpConnectionCloseStatus.Success, close.ReceiveRepeatedFinAndWriteAck(incoming, output, 32, 0, out _));
+        HostCheck.Equal(TcpConnectionCloseState.Closing, close.State);
+        HostCheck.Equal(RemoteNextSequence + 1, close.RemoteNextSequenceNumber);
+        WriteRemoteSegment(incoming, RemoteNextSequence + 1, LocalNextSequence, 0x10);
+        HostCheck.Equal(TcpConnectionCloseStatus.WrongAcknowledgementNumber, close.ReceiveActiveFinAcknowledgement(incoming, out _));
+        HostCheck.Equal(TcpConnectionCloseState.Closing, close.State);
+        WriteRemoteSegment(incoming, RemoteNextSequence + 1, LocalNextSequence + 1, 0x10);
+        HostCheck.Equal(TcpConnectionCloseStatus.Success, close.ReceiveActiveFinAcknowledgement(incoming, out _));
+        HostCheck.Equal(TcpConnectionCloseState.TimeWait, close.State);
+        WriteRemoteSegment(incoming, RemoteNextSequence, LocalNextSequence, 0x11);
+        HostCheck.Equal(TcpConnectionCloseStatus.Success, close.ReceiveRepeatedFinAndWriteAck(incoming, output, 32, 0, out _));
+        HostCheck.Equal(TcpConnectionCloseState.TimeWait, close.State);
+    }
+
+    [HostTest("net.tcp close repeated FIN may acknowledge the outstanding FIN", HostLane.Fast, 7)]
+    private static void RepeatedAcknowledgedFin()
+    {
+        Span<byte> output = stackalloc byte[20], incoming = stackalloc byte[20];
+        foreach (bool passive in new[] { false, true })
+        {
+            var close = TcpConnectionClose.CreateEstablished(LocalPort, RemotePort, LocalNextSequence, RemoteNextSequence);
+            WriteRemoteSegment(incoming, RemoteNextSequence, LocalNextSequence, 0x11);
+            if (passive)
+            {
+                HostCheck.Equal(TcpConnectionCloseStatus.Success, close.ReceivePassiveFinAckAndWriteAck(incoming, output, 32, 0, out _));
+                HostCheck.Equal(TcpConnectionCloseState.CloseWait, close.State);
+                HostCheck.Equal(TcpConnectionCloseStatus.Success, close.ReceiveRepeatedFinAndWriteAck(incoming, output, 32, 0, out _));
+                HostCheck.Equal(TcpConnectionCloseState.CloseWait, close.State);
+                HostCheck.Equal(TcpConnectionCloseStatus.Success, close.TryWritePassiveFinAck(output, 32, 0, out _));
+            }
+            else
+            {
+                close.TryWriteActiveFinAck(output, 32, 0, out _);
+                close.ReceiveActiveFinAckAndWriteAck(incoming, output, 32, 0, out _);
+            }
+            WriteRemoteSegment(incoming, RemoteNextSequence, LocalNextSequence + 1, 0x11);
+            HostCheck.Equal(TcpConnectionCloseStatus.Success, close.ReceiveRepeatedFinAndWriteAck(incoming, output, 32, 0, out var result));
+            HostCheck.Equal(passive ? TcpConnectionCloseState.Closed : TcpConnectionCloseState.TimeWait, result.State);
+            HostCheck.Equal(LocalNextSequence + 1, close.LocalNextSequenceNumber);
+            HostCheck.Equal(RemoteNextSequence + 1, close.RemoteNextSequenceNumber);
+        }
+    }
+
+    [HostTest("net.tcp close combined and repeated FIN failures preserve transactional state", HostLane.Fast, 8)]
+    private static void FinFailureControls()
+    {
+        var close = TcpConnectionClose.CreateEstablished(LocalPort, RemotePort, LocalNextSequence, RemoteNextSequence);
+        Span<byte> output = stackalloc byte[20], incoming = stackalloc byte[24];
+        HostCheck.Equal(TcpConnectionCloseStatus.InvalidState, close.CompleteTimeWait(out _));
+        close.TryWriteActiveFinAck(output, 32, 0, out _);
+        WriteRemoteSegment(incoming, RemoteNextSequence, LocalNextSequence + 1, 0x11);
+        HostCheck.Equal(TcpConnectionCloseStatus.BufferTooSmall, close.ReceiveActiveFinAckAndWriteAck(incoming.Slice(0, 20), output.Slice(0, 19), 32, 0, out _));
+        HostCheck.Equal(TcpConnectionCloseState.FinWait1, close.State); HostCheck.Equal(RemoteNextSequence, close.RemoteNextSequenceNumber);
+        WriteRemoteSegment(incoming, RemoteNextSequence, LocalNextSequence + 2, 0x11);
+        HostCheck.Equal(TcpConnectionCloseStatus.WrongAcknowledgementNumber, close.ReceiveActiveFinAckAndWriteAck(incoming.Slice(0, 20), output, 32, 0, out _));
+        WriteRemoteSegment(incoming, RemoteNextSequence + 1, LocalNextSequence + 1, 0x11);
+        HostCheck.Equal(TcpConnectionCloseStatus.WrongSequenceNumber, close.ReceiveActiveFinAckAndWriteAck(incoming.Slice(0, 20), output, 32, 0, out _));
+        WriteRemoteSegment(incoming, RemoteNextSequence, LocalNextSequence + 1, 0x11);
+        HostCheck.Equal(TcpConnectionCloseStatus.UnexpectedPayload, close.ReceiveActiveFinAckAndWriteAck(incoming, output, 32, 0, out _));
+        HostCheck.Equal(TcpConnectionCloseState.FinWait1, close.State);
+        close.ReceiveActiveFinAckAndWriteAck(incoming.Slice(0, 20), output, 32, 0, out _);
+        HostCheck.Equal(TcpConnectionCloseStatus.BufferTooSmall, close.ReceiveRepeatedFinAndWriteAck(incoming.Slice(0, 20), output.Slice(0, 19), 32, 0, out _));
+        HostCheck.Equal(TcpConnectionCloseState.TimeWait, close.State);
+        HostCheck.Equal(RemoteNextSequence + 1, close.RemoteNextSequenceNumber);
+        incoming[13] = 0x10;
+        HostCheck.Equal(TcpConnectionCloseStatus.InvalidFlags, close.ReceiveRepeatedFinAndWriteAck(incoming.Slice(0, 20), output, 32, 0, out _));
+        HostCheck.Equal(TcpConnectionCloseState.TimeWait, close.State);
+    }
+
+    [HostTest("net.tcp close simultaneous FIN and duplicate controls preserve sequence wrap", HostLane.Fast, 9)]
+    private static void WrappedFin()
+    {
+        var close = TcpConnectionClose.CreateEstablished(LocalPort, RemotePort, uint.MaxValue, uint.MaxValue);
+        Span<byte> output = stackalloc byte[20], incoming = stackalloc byte[20];
+        close.TryWriteActiveFinAck(output, 32, 0, out _);
+        WriteRemoteSegment(incoming, uint.MaxValue, uint.MaxValue, 0x11);
+        HostCheck.Equal(TcpConnectionCloseStatus.Success, close.ReceiveActiveFinAckAndWriteAck(incoming, output, 32, 0, out _));
+        HostCheck.Equal(TcpConnectionCloseState.Closing, close.State);
+        HostCheck.Equal(0U, close.LocalNextSequenceNumber); HostCheck.Equal(0U, close.RemoteNextSequenceNumber);
+        WriteRemoteSegment(incoming, uint.MaxValue, 0, 0x11);
+        HostCheck.Equal(TcpConnectionCloseStatus.Success, close.ReceiveRepeatedFinAndWriteAck(incoming, output, 32, 0, out _));
+        HostCheck.Equal(TcpConnectionCloseState.TimeWait, close.State);
+        HostCheck.Equal(PacketParseStatus.Success, TcpHeader.TryParse(output, out var ack, out _, out _));
+        HostCheck.Equal(0U, ack.SequenceNumber); HostCheck.Equal(0U, ack.AcknowledgementNumber);
+    }
+
+    [HostTest("net.tcp close rejects reset and stale controls after TimeWait completion", HostLane.Fast, 10)]
+    private static void CompletedState()
+    {
+        var close = TcpConnectionClose.CreateEstablished(LocalPort, RemotePort, LocalNextSequence, RemoteNextSequence);
+        Span<byte> output = stackalloc byte[20], incoming = stackalloc byte[20];
+        close.TryWriteActiveFinAck(output, 32, 0, out _);
+        WriteRemoteSegment(incoming, RemoteNextSequence, LocalNextSequence + 1, 0x11);
+        close.ReceiveActiveFinAckAndWriteAck(incoming, output, 32, 0, out _);
+        HostCheck.Equal(TcpConnectionCloseStatus.Success, close.CompleteTimeWait(out _));
+        HostCheck.Equal(TcpConnectionCloseStatus.InvalidState, close.ReceiveRepeatedFinAndWriteAck(incoming, output, 32, 0, out _));
+        HostCheck.Equal(TcpConnectionCloseStatus.InvalidState, close.ReceiveActiveFinAckAndWriteAck(incoming, output, 32, 0, out _));
+        WriteRemoteSegment(incoming, RemoteNextSequence + 1, LocalNextSequence + 1, 0x14);
+        HostCheck.Equal(TcpConnectionCloseStatus.InvalidState, close.ReceiveReset(incoming, out _));
+        HostCheck.Equal(TcpConnectionCloseState.Closed, close.State);
+    }
+
     private static int WriteRemoteSegment(
         Span<byte> segment,
         uint sequenceNumber,

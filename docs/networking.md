@@ -1,5 +1,13 @@
 # Networking
 
+[Step1318](../done/step1318.md) completes the existing close codec's combined
+FIN+ACK, simultaneous CLOSING and duplicate-FIN transitions. Six new controls
+cover exact state/sequence progress, short/invalid input preservation and wrap.
+TIME-WAIT completion remains an explicit nominal transition whose live caller
+must first prove its real deadline and duplicate-FIN restart. This adds no
+clock, buffer owner, half-close integration or connection reclamation; #153
+remains blocked/open pending the retained owner and shared guest qualification.
+
 [Step1317](../done/step1317.md) adds optional bounded retransmission to the
 same sender. An explicit retained monotonic callback drives one outstanding
 segment, original-byte retries, exponential RTO backoff, RTT smoothing with

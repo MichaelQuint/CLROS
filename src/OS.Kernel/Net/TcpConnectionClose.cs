@@ -9,7 +9,8 @@ public enum TcpConnectionCloseState
     LastAck = 4,
     TimeWait = 5,
     Closed = 6,
-    Reset = 7
+    Reset = 7,
+    Closing = 8
 }
 
 public enum TcpConnectionCloseStatus
@@ -185,7 +186,7 @@ public struct TcpConnectionClose
         ReadOnlySpan<byte> segment,
         out TcpConnectionCloseTransitionResult result)
     {
-        if (State != TcpConnectionCloseState.FinWait1)
+        if (State != TcpConnectionCloseState.FinWait1 && State != TcpConnectionCloseState.Closing)
         {
             result = CreateFailure(TcpConnectionCloseStatus.InvalidState, PacketParseStatus.Success);
             return result.Status;
@@ -203,7 +204,7 @@ public struct TcpConnectionClose
             return status;
         }
 
-        State = TcpConnectionCloseState.FinWait2;
+        State = State == TcpConnectionCloseState.Closing ? TcpConnectionCloseState.TimeWait : TcpConnectionCloseState.FinWait2;
         result = TcpConnectionCloseTransitionResult.Success(
             State,
             packetStatus,
@@ -213,6 +214,12 @@ public struct TcpConnectionClose
         return result.Status;
     }
 
+    /// <summary>Accept an exact peer FIN, optionally acknowledging our FIN in
+    /// the same segment. Simultaneous FIN without that ACK enters Closing;
+    /// acknowledged FIN enters TimeWait. Caller supplies validated transport
+    /// bytes and commits this value only after actual TX admission. Short output
+    /// or invalid controls preserve sequence/state; payload/checksum/clock and
+    /// retained connection ownership belong to the live adapter.</summary>
     public TcpConnectionCloseStatus ReceiveActiveFinAckAndWriteAck(
         ReadOnlySpan<byte> inboundSegment,
         Span<byte> outboundSegment,
@@ -220,16 +227,27 @@ public struct TcpConnectionClose
         ushort checksum,
         out TcpConnectionCloseTransitionResult result)
     {
-        if (State != TcpConnectionCloseState.FinWait2)
+        if (State != TcpConnectionCloseState.FinWait2 && State != TcpConnectionCloseState.FinWait1)
         {
             result = CreateFailure(TcpConnectionCloseStatus.InvalidState, PacketParseStatus.Success);
             return result.Status;
         }
 
+        uint expectedAcknowledgement = LocalNextSequenceNumber;
+        var target = TcpConnectionCloseState.TimeWait;
+        if (State == TcpConnectionCloseState.FinWait1)
+        {
+            var parse = TcpHeader.TryParse(inboundSegment, out var header, out _, out _);
+            if (parse != PacketParseStatus.Success)
+            { result = CreateFailure(TcpConnectionCloseStatus.SegmentParseFailed, parse); return result.Status; }
+            if (header.AcknowledgementNumber == unchecked(LocalNextSequenceNumber - 1))
+            { expectedAcknowledgement = header.AcknowledgementNumber; target = TcpConnectionCloseState.Closing; }
+        }
         return ReceiveFinAckAndWriteAck(
             inboundSegment,
             outboundSegment,
-            TcpConnectionCloseState.TimeWait,
+            target,
+            expectedAcknowledgement,
             windowSize,
             checksum,
             out result);
@@ -252,6 +270,7 @@ public struct TcpConnectionClose
             inboundSegment,
             outboundSegment,
             TcpConnectionCloseState.CloseWait,
+            LocalNextSequenceNumber,
             windowSize,
             checksum,
             out result);
@@ -374,10 +393,60 @@ public struct TcpConnectionClose
         return result.Status;
     }
 
+    /// <summary>Regenerate an ACK for the exact already-consumed, payload-free
+    /// FIN. Never consume its sequence again. Closing/LastAck may also advance
+    /// when this original packet acknowledges our FIN. A successful TimeWait
+    /// duplicate requires the live owner to restart its real 2MSL timer; this
+    /// byte codec owns no clock, TX lease, checksum validation or reclamation.
+    /// Invalid state/ports/flags/sequence/ACK/payload or short output preserves
+    /// state and sequences. Apply this staged value only after copied TX.</summary>
+    public TcpConnectionCloseStatus ReceiveRepeatedFinAndWriteAck(ReadOnlySpan<byte> inboundSegment,
+        Span<byte> outboundSegment, ushort windowSize, ushort checksum,
+        out TcpConnectionCloseTransitionResult result)
+    {
+        if (State is not (TcpConnectionCloseState.CloseWait or TcpConnectionCloseState.LastAck or
+            TcpConnectionCloseState.Closing or TcpConnectionCloseState.TimeWait))
+        { result = CreateFailure(TcpConnectionCloseStatus.InvalidState, PacketParseStatus.Success); return result.Status; }
+        var parse = TcpHeader.TryParse(inboundSegment, out var header, out _, out _);
+        if (parse != PacketParseStatus.Success)
+        { result = CreateFailure(TcpConnectionCloseStatus.SegmentParseFailed, parse); return result.Status; }
+        uint expectedAck = LocalNextSequenceNumber;
+        if ((State is TcpConnectionCloseState.LastAck or TcpConnectionCloseState.Closing or TcpConnectionCloseState.TimeWait) &&
+            header.AcknowledgementNumber == unchecked(LocalNextSequenceNumber - 1)) expectedAck = header.AcknowledgementNumber;
+        var status = ValidateRemoteControlSegment(inboundSegment, FlagFin | FlagAck,
+            expectedAck, unchecked(RemoteNextSequenceNumber - 1), out parse);
+        if (status != TcpConnectionCloseStatus.Success)
+        { result = CreateFailure(status, parse); return result.Status; }
+        parse = TryWriteLocalSegment(outboundSegment, FlagAck, windowSize, checksum, out int written);
+        if (parse != PacketParseStatus.Success)
+        { result = CreateFailure(MapWriteStatus(parse), parse); return result.Status; }
+        if (header.AcknowledgementNumber == LocalNextSequenceNumber)
+        {
+            if (State == TcpConnectionCloseState.Closing) State = TcpConnectionCloseState.TimeWait;
+            else if (State == TcpConnectionCloseState.LastAck) State = TcpConnectionCloseState.Closed;
+        }
+        result = TcpConnectionCloseTransitionResult.Success(State, parse, written,
+            LocalNextSequenceNumber, RemoteNextSequenceNumber); return result.Status;
+    }
+
+    /// <summary>Complete the nominal TimeWait state after the exclusive live
+    /// owner has proved its actual 2MSL deadline, including duplicate-FIN restarts.
+    /// No elapsed time, external queue release or table reclamation is certified
+    /// here. Other states fail unchanged; sequences remain the completed pair.</summary>
+    public TcpConnectionCloseStatus CompleteTimeWait(out TcpConnectionCloseTransitionResult result)
+    {
+        if (State != TcpConnectionCloseState.TimeWait)
+        { result = CreateFailure(TcpConnectionCloseStatus.InvalidState, PacketParseStatus.Success); return result.Status; }
+        State = TcpConnectionCloseState.Closed;
+        result = TcpConnectionCloseTransitionResult.Success(State, PacketParseStatus.Success, 0,
+            LocalNextSequenceNumber, RemoteNextSequenceNumber); return result.Status;
+    }
+
     private TcpConnectionCloseStatus ReceiveFinAckAndWriteAck(
         ReadOnlySpan<byte> inboundSegment,
         Span<byte> outboundSegment,
         TcpConnectionCloseState targetState,
+        uint expectedAcknowledgement,
         ushort windowSize,
         ushort checksum,
         out TcpConnectionCloseTransitionResult result)
@@ -385,7 +454,7 @@ public struct TcpConnectionClose
         TcpConnectionCloseStatus inboundStatus = ValidateRemoteControlSegment(
             inboundSegment,
             FlagFin | FlagAck,
-            LocalNextSequenceNumber,
+            expectedAcknowledgement,
             RemoteNextSequenceNumber,
             out PacketParseStatus packetStatus);
         if (inboundStatus != TcpConnectionCloseStatus.Success)
