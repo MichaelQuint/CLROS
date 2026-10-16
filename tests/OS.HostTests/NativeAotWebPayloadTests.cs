@@ -25,9 +25,9 @@ internal static class NativeAotWebPayloadTests
                 string output = Path.Combine(evidence, "observed.log"); File.WriteAllText(output, "original");
                 var outputs = new Dictionary<string, string> { ["observed.log"] = Hash(output) };
                 string sdk = mutation == "pin" ? "10.0.100" : NativeAotPayload.SdkVersion;
-                var receipt = new NativeAotPayload.QualificationReceipt("clros.nativeaot.payload.v1", sdk,
+                var receipt = new NativeAotWebPayload.QualificationReceipt("clros.nativeaot.web.v1", sdk,
                     NativeAotPayload.RuntimeVersion, sources, outputs);
-                File.WriteAllText(Path.Combine(evidence, "receipt.json"), JsonSerializer.Serialize(receipt));
+                File.WriteAllText(Path.Combine(evidence, "web-receipt.json"), JsonSerializer.Serialize(receipt));
                 if (mutation == "source") File.AppendAllText(Path.Combine(root, sources.Keys.First()), "changed");
                 if (mutation == "missing") File.Delete(output);
                 if (mutation == "altered")
@@ -37,7 +37,7 @@ internal static class NativeAotWebPayloadTests
                 }
                 if (mutation == "extra") File.WriteAllText(Path.Combine(evidence, "unexpected.log"), "extra");
                 string? failure = null;
-                try { NativeAotPayload.ValidateQualification(root, evidence); }
+                try { NativeAotWebPayload.ValidateQualification(root, evidence); }
                 catch (InvalidDataException error) { failure = error.Message; }
                 HostCheck.Equal(mutation switch { "pin" => "native_receipt_pin", "source" => "source_inputs_changed",
                     _ => "native_evidence_changed" }, failure!);

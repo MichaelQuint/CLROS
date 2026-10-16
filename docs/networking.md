@@ -1,5 +1,11 @@
 # Networking
 
+[Step1334](../done/step1334.md) adds a finite portable System.Net.Sockets fixture
+and its external C# peer for #689 measurement. A managed Windows exchange checks
+four connections, 65,572 reply bytes, peer reset and two orderly half-closes.
+It observes no partial sends and grants no NativeAOT or guest socket acceptance.
+Linux publication/measurement and the actual CLROS adapter remain pending.
+
 [Step1332](../done/step1332.md) qualifies #691 -> #148 -> #149 -> #150 -> #151 ->
 #152 -> #153 and shared #734 at implementation `fd296378`. The complete unfiltered
 host gate passes5,341 checks across700 fixtures (94 Native), with unchanged

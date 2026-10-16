@@ -2,13 +2,16 @@
 
 ## NativeAOT-first milestone
 
-[Step1333](../done/step1333.md) starts #214/#215's builder slice under shared
+[Step1334](../done/step1334.md) corrects #214/#215's builder slice under shared
 integration [#737](http://192.168.4.35:3000/admin/CLROS/issues/737). The existing
-three-app publisher now checks the exact default `/healthz` body and a separate
-configured body, rejects contradictory finite-app markers, and seals source,
-payload, dependency and output hashes. `nativeaot payload validate <evidence>`
+three-app publisher is retained byte-for-byte: the accepted original runtime
+package pins its source. The `nativeaot web qualify --output <fresh-directory>`
+wrapper invokes that publisher, then checks the exact default `/healthz` body
+and a separate configured body, rejects contradictory finite-app markers, and
+seals source, payload, dependency and output hashes. `nativeaot web validate <evidence>`
 rechecks the original source and native inputs as well as retained outputs.
-Sixteen focused checks pass. Fresh Linux publication and the stable batch gates
+Twenty-three focused checks pass, including original RuntimeSmoke admission.
+Fresh Linux publication and the stable batch gates
 remain pending; neither issue is accepted or closed by these checks.
 
 The [current workload decision](workload-profiles.md) makes M16 NativeAOT

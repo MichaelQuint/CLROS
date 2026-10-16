@@ -1,6 +1,5 @@
 using System.Buffers.Binary;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -24,11 +23,6 @@ public static class NativeAotPayload
     public const string SdkVersion = "11.0.100-rc.2.26504.105";
     public const string RuntimeVersion = "11.0.0-rc.2.26504.105";
     public const string TargetFramework = "net11.0";
-    private const string DefaultWebBody = "OS_MINIMAL_API_OK";
-    private static readonly string[] PayloadApps = ["NativeAotHello", "NativeAotRuntimeSmoke", "MinimalApiSmoke"];
-
-    public sealed record QualificationReceipt(string Schema, string Sdk, string Runtime,
-        IReadOnlyDictionary<string, string> Sources, IReadOnlyDictionary<string, string> Outputs);
 
     public sealed record Segment(uint Type, uint Flags, ulong Offset, ulong Address,
         ulong FileSize, ulong MemorySize, ulong Alignment);
@@ -97,12 +91,10 @@ public static class NativeAotPayload
         return new(entry, count, loads.AsReadOnly(), tls, Convert.ToHexString(SHA256.HashData(image)));
     }
 
-    /// <summary>CLI: inspect, qualify with fresh output, or validate sealed evidence.
-    /// Failures emit no pass marker.</summary>
+    /// <summary>CLI: inspect &lt;file&gt; or qualify --output &lt;fresh directory&gt;. Failures emit no pass marker.</summary>
     public static async Task<int> RunAsync(string root, string[] args, TextWriter output)
     {
-        string marker = args.FirstOrDefault() switch { "inspect" => "nativeaot.payload.inspect",
-            "validate" => "nativeaot.payload.validate", _ => "m16-001" };
+        string marker = args.FirstOrDefault() == "inspect" ? "nativeaot.payload.inspect" : "m16-001";
         output.WriteLine("TEST_START " + marker);
         try
         {
@@ -111,11 +103,9 @@ public static class NativeAotPayload
                 Inspection inspected = InspectFile(Path.GetFullPath(path));
                 output.WriteLine("NATIVEAOT_PAYLOAD_INSPECTED " + JsonSerializer.Serialize(inspected));
             }
-            else if (args is ["validate", var evidence])
-                ValidateQualification(Path.GetFullPath(root), Path.GetFullPath(evidence));
             else if (args is ["qualify", "--output", var destination])
                 await QualifyAsync(Path.GetFullPath(root), Path.GetFullPath(destination), output);
-            else throw new ArgumentException("nativeaot payload inspect <file> | qualify --output <fresh-directory> | validate <evidence-directory>");
+            else throw new ArgumentException("nativeaot payload inspect <file> | qualify --output <fresh-directory>");
             output.WriteLine("TEST_PASS " + marker);
             return 0;
         }
@@ -124,127 +114,6 @@ public static class NativeAotPayload
             output.WriteLine("TEST_FAIL " + marker + " " + error.Message.ReplaceLineEndings(" "));
             return 1;
         }
-    }
-
-    /// <summary>
-    /// Rechecks this qualifier's sealed source/output inventory and observed app results.
-    /// The supplied repository must contain the original source bytes. Missing, changed,
-    /// redirected or unexpected evidence fails closed; copied/synthetic receipts grant no
-    /// execution authority. This does not reexecute a payload or qualify a CLROS guest.
-    /// </summary>
-    public static void ValidateQualification(string root, string destination)
-    {
-        AuthorityFiles.RequirePlainPath(destination, destination, "native_evidence_path");
-        string receiptPath = Path.Combine(destination, "receipt.json");
-        AuthorityFiles.RequirePlainPath(destination, receiptPath, "native_evidence_path");
-        Require(new FileInfo(receiptPath).Length is > 0 and <= 4 * 1024 * 1024, "native_receipt_size");
-        QualificationReceipt receipt = JsonSerializer.Deserialize<QualificationReceipt>(File.ReadAllText(receiptPath))
-            ?? throw new InvalidDataException("native_receipt_missing");
-        Require(receipt.Schema == "clros.nativeaot.payload.v1" && receipt.Sdk == SdkVersion &&
-            receipt.Runtime == RuntimeVersion, "native_receipt_pin");
-        Require(receipt.Sources is not null && receipt.Outputs is not null &&
-            receipt.Sources.Count is > 0 and <= 10000 && receipt.Outputs.Count is > 0 and <= 10000,
-            "native_receipt_inventory");
-        string[] inputs = SourcePaths(root);
-        Require(inputs.SequenceEqual(receipt.Sources.Keys.Order()), "source_inputs_changed");
-        foreach (string path in inputs)
-        {
-            AuthorityFiles.RequirePlainPath(root, Path.Combine(root, path), "native_source_path");
-            Require(HashFile(Path.Combine(root, path)) == receipt.Sources[path], "source_inputs_changed");
-        }
-        Dictionary<string, string> outputs = OutputHashes(destination);
-        Require(outputs.OrderBy(row => row.Key).SequenceEqual(receipt.Outputs.OrderBy(row => row.Key)),
-            "native_evidence_changed");
-        var nativeInputs = JsonSerializer.Deserialize<Dictionary<string, string>>(
-            File.ReadAllText(Path.Combine(destination, "native-inputs.json")));
-        Require(nativeInputs is not null && nativeInputs.Count > 0 &&
-            nativeInputs.All(row => Path.IsPathFullyQualified(row.Key) && File.Exists(row.Key) &&
-                HashFile(row.Key) == row.Value), "native_inputs_changed");
-        using JsonDocument inspections = JsonDocument.Parse(File.ReadAllText(Path.Combine(destination, "inspection.json")));
-        foreach (string app in PayloadApps)
-        {
-            Inspection actual = InspectFile(Path.Combine(destination, app, app));
-            Require(actual.Sha256 == inspections.RootElement.GetProperty(app).GetProperty("Sha256").GetString(),
-                "native_payload_changed");
-            if (app != "MinimalApiSmoke")
-                ValidateRunOutput(app, File.ReadAllText(Path.Combine(destination, app + "-run.stdout.log")));
-        }
-        ValidateHttpEvidence(File.ReadAllText(Path.Combine(destination, "http-default.json")), DefaultWebBody);
-        using JsonDocument configured = JsonDocument.Parse(File.ReadAllText(Path.Combine(destination, "http.json")));
-        string configuredBody = configured.RootElement.GetProperty("body").GetString()!;
-        Require(configuredBody.StartsWith(DefaultWebBody + "_", StringComparison.Ordinal) &&
-            configuredBody.Length == DefaultWebBody.Length + 33, "http_config_body");
-        ValidateHttpEvidence(configured.RootElement.GetRawText(), configuredBody);
-        ValidateHttpTraces(destination, "MinimalApiSmoke-trace");
-        ValidateHttpTraces(destination, "MinimalApiSmoke-default-trace");
-    }
-
-    /// <summary>Validates complete observed stdout from the two finite original apps.
-    /// Exact start/pass order and absence of failure markers are required; arbitrary
-    /// app names and malformed transcripts fail. Text alone is not execution evidence.</summary>
-    public static void ValidateRunOutput(string app, string text)
-    {
-        string marker = app switch { "NativeAotHello" => "nativeaot.hello",
-            "NativeAotRuntimeSmoke" => "nativeaot.runtime", _ => throw new InvalidDataException("native_payload_app") };
-        string[] lines = text.Replace("\r", "").Split('\n');
-        Require(!lines.Any(line => line.StartsWith("TEST_FAIL", StringComparison.Ordinal)) &&
-            lines.Count(line => line == "TEST_START " + marker) == 1 &&
-            lines.Count(line => line == "TEST_PASS " + marker) == 1 &&
-            Array.IndexOf(lines, "TEST_START " + marker) < Array.IndexOf(lines, "TEST_PASS " + marker),
-            "payload_run_marker");
-    }
-
-    /// <summary>Checks recorded HTTP/config observations, including exact body bytes,
-    /// loopback endpoint, three paths and matching app/config identity. Malformed or
-    /// incomplete data throws; this parser does not make a network or guest claim.</summary>
-    public static void ValidateHttpEvidence(string json, string expectedBody)
-    {
-        Require(expectedBody.Length is > 0 and <= 256 && json.Length <= 16384, "http_evidence_size");
-        using JsonDocument document = JsonDocument.Parse(json);
-        JsonElement row = document.RootElement;
-        Require(Uri.TryCreate(row.GetProperty("endpoint").GetString(), UriKind.Absolute, out Uri? endpoint) &&
-            endpoint.Scheme == "http" && endpoint.Host == "127.0.0.1" && endpoint.Port is > 0 and <= 65535 &&
-            endpoint.AbsolutePath == "/" && endpoint.Query.Length == 0 && endpoint.Fragment.Length == 0 &&
-            endpoint.UserInfo.Length == 0, "http_endpoint");
-        Require(row.GetProperty("paths").EnumerateArray().Select(value => value.GetString())
-            .SequenceEqual(new[] { "/", "/healthz", "/config" }) && row.GetProperty("status").GetInt32() == 200 &&
-            row.GetProperty("body").GetString() == expectedBody &&
-            row.GetProperty("appId").GetString() == "minimal.api.smoke" &&
-            row.GetProperty("configBody").GetString() == expectedBody &&
-            row.GetProperty("bodyBytes").GetInt32() == Encoding.UTF8.GetByteCount(expectedBody), "http_status_or_body");
-    }
-
-    private static string[] SourcePaths(string root) => PayloadApps
-        .SelectMany(app => Directory.EnumerateFiles(Path.Combine(root, "apps", app), "*", SearchOption.AllDirectories))
-        .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
-        .Where(path => !path.Split('/').Any(part => part is "bin" or "obj" or "artifacts"))
-        .Concat(ToolingBuildInputs.SourceInputs(root).Select(path => Path.GetRelativePath(root, path).Replace('\\', '/')))
-        .Concat(new[] { "NuGet.Config", "nuget.config" }.Where(path => File.Exists(Path.Combine(root, path))))
-        .Distinct().Order().ToArray();
-
-    private static Dictionary<string, string> OutputHashes(string destination)
-    {
-        var hashes = new Dictionary<string, string>(StringComparer.Ordinal);
-        Stack<string> pending = new();
-        pending.Push(destination);
-        while (pending.TryPop(out string? directory))
-        foreach (string file in Directory.EnumerateFileSystemEntries(directory))
-        {
-            string path = Path.GetRelativePath(destination, file).Replace('\\', '/');
-            if (path is "receipt.json" or "qualification.lock" or "retained-build-cache") continue;
-            AuthorityFiles.RequirePlainPath(destination, file, "native_evidence_path");
-            if (Directory.Exists(file)) { pending.Push(file); continue; }
-            Require(hashes.Count < 10000, "native_evidence_inventory");
-            hashes.Add(path, HashFile(file));
-        }
-        return hashes;
-    }
-
-    private static void ValidateHttpTraces(string destination, string prefix)
-    {
-        string[] traces = Directory.GetFiles(destination, prefix + ".*");
-        Require(traces.Length > 0 && !traces.SelectMany(File.ReadLines)
-            .Any(line => Regex.IsMatch(line, "^inotify_(init|init1|add_watch)\\(")), "http_file_watcher");
     }
 
     private static Inspection InspectFile(string path)
@@ -376,8 +245,13 @@ public static class NativeAotPayload
         using var ownership = new FileStream(Path.Combine(destination, "qualification.lock"), FileMode.CreateNew,
             FileAccess.Write, FileShare.None);
         Require(ToolingBuildInputs.Validate(root).Count == 0, "tooling_inputs_changed");
-        string[] apps = PayloadApps;
-        string[] inputs = SourcePaths(root);
+        string[] apps = ["NativeAotHello", "NativeAotRuntimeSmoke", "MinimalApiSmoke"];
+        string[] inputs = apps.SelectMany(app => Directory.EnumerateFiles(Path.Combine(root, "apps", app), "*", SearchOption.AllDirectories))
+            .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
+            .Where(path => !path.Split('/').Any(part => part is "bin" or "obj" or "artifacts"))
+            .Concat(ToolingBuildInputs.SourceInputs(root).Select(path => Path.GetRelativePath(root, path).Replace('\\', '/')))
+            .Concat(new[] { "NuGet.Config", "nuget.config" }.Where(path => File.Exists(Path.Combine(root, path))))
+            .Distinct().Order().ToArray();
         Dictionary<string, string> hashes = HashInputs(root, inputs);
         await File.WriteAllTextAsync(Path.Combine(destination, "inputs.json"), JsonSerializer.Serialize(hashes));
         var commands = new List<object>();
@@ -445,7 +319,6 @@ public static class NativeAotPayload
                 foreach (string input in Directory.EnumerateFiles(Path.Combine(root, "apps", app, "obj"), "*.rsp", SearchOption.AllDirectories))
                     File.Copy(input, Path.Combine(destination, app + "-" + Path.GetFileName(input)), overwrite: false);
                 inspections.Add(app, InspectFile(executable));
-                AddNativeInput(nativeInputs, executable);
                 output.WriteLine("NATIVEAOT_PAYLOAD_INSPECTED " + app);
                 await Run(app + "-elf", "readelf", ["-h", "-l", "-d", "-n", "-W", executable]);
                 await Run(app + "-symbols", "nm", ["-a", executable]);
@@ -453,13 +326,10 @@ public static class NativeAotPayload
                 {
                     string text = await Run(app + "-run", "strace", ["-ff", "-s", "256", "-o",
                         Path.Combine(destination, app + "-trace"), executable]);
-                    ValidateRunOutput(app, text);
+                    string marker = app == "NativeAotHello" ? "TEST_PASS nativeaot.hello" : "TEST_PASS nativeaot.runtime";
+                    Require(text.Replace("\r", "").Split('\n').Contains(marker), "payload_run_marker");
                 }
-                else
-                {
-                    await RunHttpAsync(root, destination, executable, commands, configured: false);
-                    await RunHttpAsync(root, destination, executable, commands, configured: true);
-                }
+                else await RunHttpAsync(root, destination, executable, commands);
             }
             string[] currentApps = apps.SelectMany(app => Directory.EnumerateFiles(Path.Combine(root, "apps", app), "*", SearchOption.AllDirectories))
                 .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
@@ -482,30 +352,21 @@ public static class NativeAotPayload
             await File.WriteAllTextAsync(Path.Combine(destination, "commands.json"), JsonSerializer.Serialize(commands));
             await File.WriteAllTextAsync(Path.Combine(destination, "native-inputs.json"), JsonSerializer.Serialize(nativeInputs));
         }
-        var receipt = new QualificationReceipt("clros.nativeaot.payload.v1", SdkVersion, RuntimeVersion,
-            hashes, OutputHashes(destination));
-        await File.WriteAllTextAsync(Path.Combine(destination, "receipt.json"), JsonSerializer.Serialize(receipt));
-        ValidateQualification(root, destination);
     }
 
-    private static async Task RunHttpAsync(string root, string destination, string executable, List<object> commands, bool configured)
+    private static async Task RunHttpAsync(string root, string destination, string executable, List<object> commands)
     {
         var listener = new TcpListener(IPAddress.Loopback, 0);
         listener.Start();
         int port = ((IPEndPoint)listener.LocalEndpoint).Port;
         listener.Stop();
         string endpoint = "http://127.0.0.1:" + port;
-        string suffix = configured ? "" : "-default";
-        string trace = Path.Combine(destination, "MinimalApiSmoke" + suffix + "-trace");
-        string log = Path.Combine(destination, "MinimalApiSmoke" + suffix + "-run");
-        string expectedBody = DefaultWebBody + (configured ? "_" + Guid.NewGuid().ToString("N") : "");
+        string trace = Path.Combine(destination, "MinimalApiSmoke-trace");
+        string log = Path.Combine(destination, "MinimalApiSmoke-run");
+        string expectedBody = "OS_MINIMAL_API_OK_" + Guid.NewGuid().ToString("N");
         string[] arguments = ["-ff", "-s", "256", "-o", trace, executable, "--urls", endpoint];
-        string workingDirectory = Path.GetDirectoryName(executable)!;
-        foreach (string name in new[] { "appsettings.json", "appsettings.Development.json" })
-            Require(HashFile(Path.Combine(workingDirectory, name)) ==
-                HashFile(Path.Combine(root, "apps", "MinimalApiSmoke", name)), "http_published_config_changed");
-        commands.Add(new { executable = "strace", arguments, workingDirectory, log });
-        using var process = Start("strace", arguments, workingDirectory, configured ? expectedBody : null);
+        commands.Add(new { executable = "strace", arguments, workingDirectory = root, log });
+        using var process = Start("strace", arguments, root, expectedBody);
         Task stdout = CaptureAsync(process.StandardOutput, log + ".stdout.log", process);
         Task stderr = CaptureAsync(process.StandardError, log + ".stderr.log", process);
         using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(2));
@@ -527,28 +388,22 @@ public static class NativeAotPayload
             {
                 using var response = await client.GetAsync(endpoint + path, deadline.Token);
                 Require(response.StatusCode == HttpStatusCode.OK &&
-                    response.Content.Headers.ContentType?.MediaType == "text/plain" &&
                     await response.Content.ReadAsStringAsync(deadline.Token) == expectedBody, "http_status_or_body");
             }
             using var config = JsonDocument.Parse(await client.GetStringAsync(endpoint + "/config", deadline.Token));
             Require(config.RootElement.GetProperty("appId").GetString() == "minimal.api.smoke" &&
                 config.RootElement.GetProperty("expectedBody").GetString() == expectedBody, "http_config_contract");
-            string evidence = JsonSerializer.Serialize(new { endpoint, paths = new[] { "/", "/healthz", "/config" },
-                status = 200, body = expectedBody, appId = "minimal.api.smoke",
-                configBody = config.RootElement.GetProperty("expectedBody").GetString(),
-                bodyBytes = config.RootElement.GetProperty("expectedBodyBytes").GetInt32() });
-            ValidateHttpEvidence(evidence, expectedBody);
-            await File.WriteAllTextAsync(Path.Combine(destination, "http" + suffix + ".json"), evidence);
+            await File.WriteAllTextAsync(Path.Combine(destination, "http.json"),
+                JsonSerializer.Serialize(new { endpoint, paths = new[] { "/", "/healthz", "/config" }, status = 200, body = expectedBody }));
             string[] children = (await File.ReadAllTextAsync($"/proc/{process.Id}/task/{process.Id}/children", deadline.Token))
                 .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
             Require(children.Length == 1 && int.TryParse(children[0], out _), "http_tracee_identity");
             Require(File.ResolveLinkTarget($"/proc/{children[0]}/exe", true)?.FullName == executable, "http_tracee_executable");
             await ExecuteAsync("kill", ["-TERM", children[0]], root,
-                Path.Combine(destination, "MinimalApiSmoke" + suffix + "-shutdown"), TimeSpan.FromSeconds(10));
+                Path.Combine(destination, "MinimalApiSmoke-shutdown"), TimeSpan.FromSeconds(10));
             await process.WaitForExitAsync(deadline.Token);
             Require(process.ExitCode == 0, "http_shutdown_exit");
             await Task.WhenAll(stdout, stderr).WaitAsync(deadline.Token);
-            ValidateHttpTraces(destination, Path.GetFileName(trace));
         }
         finally
         {
@@ -575,7 +430,7 @@ public static class NativeAotPayload
         }
     }
 
-    private static Process Start(string executable, string[] args, string root, string? expectedBody = "OS_MINIMAL_API_OK")
+    private static Process Start(string executable, string[] args, string root, string expectedBody = "OS_MINIMAL_API_OK")
     {
         var start = new ProcessStartInfo("setsid") { WorkingDirectory = root, UseShellExecute = false,
             RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
@@ -583,13 +438,10 @@ public static class NativeAotPayload
         foreach (string argument in args) start.ArgumentList.Add(argument);
         start.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
         start.Environment["DOTNET_NOLOGO"] = "1";
-        start.Environment.Remove("OS_SMOKE_EXPECTED_BODY");
-        if (expectedBody is not null) start.Environment["OS_SMOKE_EXPECTED_BODY"] = expectedBody;
+        start.Environment["OS_SMOKE_EXPECTED_BODY"] = expectedBody;
         start.Environment["DOTNET_SYSTEM_GLOBALIZATION_INVARIANT"] = "1";
         start.Environment["DOTNET_CLI_USE_MSBUILD_SERVER"] = "0";
         start.Environment["MSBUILDDISABLENODEREUSE"] = "1";
-        start.Environment["DOTNET_ENVIRONMENT"] = "Production";
-        start.Environment["ASPNETCORE_ENVIRONMENT"] = "Production";
         return Process.Start(start) ?? throw new IOException("native_process_start");
     }
 
@@ -654,7 +506,7 @@ public static class NativeAotPayload
     private static ushort U16(ReadOnlySpan<byte> bytes, int at) => BinaryPrimitives.ReadUInt16LittleEndian(bytes[at..]);
     private static uint U32(ReadOnlySpan<byte> bytes, int at) => BinaryPrimitives.ReadUInt32LittleEndian(bytes[at..]);
     private static ulong U64(ReadOnlySpan<byte> bytes, int at) => BinaryPrimitives.ReadUInt64LittleEndian(bytes[at..]);
-    private static void Require([DoesNotReturnIf(false)] bool condition, string reason)
+    private static void Require(bool condition, string reason)
     {
         if (!condition) throw new InvalidDataException(reason);
     }

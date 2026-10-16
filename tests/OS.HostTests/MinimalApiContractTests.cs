@@ -29,15 +29,15 @@ internal static class MinimalApiContractTests
     [HostTest("minimalapi.contract validates exact default and configured HTTP observations")]
     private static void ObservedHttp()
     {
-        NativeAotPayload.ValidateHttpEvidence(Evidence(Body).ToJsonString(), Body);
+        NativeAotWebPayload.ValidateHttpEvidence(Evidence(Body).ToJsonString(), Body);
         const string configured = "configured-\u00e9";
-        NativeAotPayload.ValidateHttpEvidence(Evidence(configured).ToJsonString(), configured);
+        NativeAotWebPayload.ValidateHttpEvidence(Evidence(configured).ToJsonString(), configured);
     }
 
     [HostTest("minimalapi.contract rejects malformed missing and incorrect HTTP observations")]
     private static void RejectedHttp()
     {
-        Reject(() => NativeAotPayload.ValidateHttpEvidence("{", Body));
+        Reject(() => NativeAotWebPayload.ValidateHttpEvidence("{", Body));
         foreach ((string key, JsonNode? replacement) in new (string, JsonNode?)[] {
             ("endpoint", JsonValue.Create("http://10.0.2.15:8080")), ("endpoint", JsonValue.Create("http://127.0.0.1:8080/x")),
             ("paths", new JsonArray("/healthz")), ("status", JsonValue.Create(500)),
@@ -46,12 +46,12 @@ internal static class MinimalApiContractTests
         {
             JsonObject row = Evidence(Body);
             row[key] = replacement;
-            Reject(() => NativeAotPayload.ValidateHttpEvidence(row.ToJsonString(), Body));
+            Reject(() => NativeAotWebPayload.ValidateHttpEvidence(row.ToJsonString(), Body));
         }
         foreach (string key in Evidence(Body).Select(row => row.Key))
         {
             JsonObject row = Evidence(Body); row.Remove(key);
-            Reject(() => NativeAotPayload.ValidateHttpEvidence(row.ToJsonString(), Body));
+            Reject(() => NativeAotWebPayload.ValidateHttpEvidence(row.ToJsonString(), Body));
         }
     }
 
@@ -62,12 +62,12 @@ internal static class MinimalApiContractTests
             ("NativeAotRuntimeSmoke", "nativeaot.runtime") })
         {
             string start = "TEST_START " + marker + "\n", pass = "TEST_PASS " + marker + "\n";
-            NativeAotPayload.ValidateRunOutput(app, start + "observed output\n" + pass);
+            NativeAotWebPayload.ValidateRunOutput(app, start + "observed output\n" + pass);
             foreach (string text in new[] { "", pass, start, pass + start, start + pass + pass,
                 start + start + pass, start + "TEST_FAIL unrelated reason\n" + pass })
-                Reject(() => NativeAotPayload.ValidateRunOutput(app, text));
+                Reject(() => NativeAotWebPayload.ValidateRunOutput(app, text));
         }
-        Reject(() => NativeAotPayload.ValidateRunOutput("FakeApp", "TEST_PASS nativeaot.hello\n"));
+        Reject(() => NativeAotWebPayload.ValidateRunOutput("FakeApp", "TEST_PASS nativeaot.hello\n"));
     }
 
     private static JsonObject Evidence(string body) => new()
