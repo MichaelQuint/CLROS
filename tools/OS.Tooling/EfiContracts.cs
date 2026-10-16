@@ -51,9 +51,9 @@ public static partial class EfiContracts
     public static System.Collections.ObjectModel.ReadOnlyCollection<string> InheritedDiagnosticProbes { get; } = Array.AsReadOnly<string>(
         ["EnableAcpiPhysicalDiscoveryProbe", "EnableExitBootServicesFreshMapProbe", "EnableUefiGoneSimulationProbe"]);
     public static string CompileInventorySha256 => ContractAudit.HashText(string.Join('\n', CompileItems) + "\n");
-    public const string ProjectSourceSha256 = "4e693c2400fe23d65fe8dd672b4c78d954cd2541cb4f28be39f8be4d4b2ad790";
-    public const string CanonicalProjectSha256 = "f063016d7271c44977290b82b793a0e1afa824b86fe41842f0a935e81ca84932";
-    public const string EfiEntrySourceSha256 = "d3539a3bc08484f8395cacb30874765ec1037c026ff684fc4045b0405634bd77";
+    public const string ProjectSourceSha256 = "2f003da29e3f256372c043234adf2527d62c218ee6890fcfd82281d24803f2cf";
+    public const string CanonicalProjectSha256 = "fec935407bffa18bcd94ebda07cc76b52c6d5f3acc9743661561b8bbfbb3bd12";
+    public const string EfiEntrySourceSha256 = "2a5e23fef4f2929e2ab593ed1f245c24d164ace87ee5b83c04c1169caa9200e5";
     public const string Ud2TransitionSourceSha256 = "f73c8f78fd1d5a1e0fd54c3fbe80716b40c61f1c05bc9f51ced8a505d61c407e";
     public const string PortIoStubPageSha256 = "B45339EB93D346D9FE6B32700F227CFB367AB1D10970DD6655A173AFE54705E2";
     public const string PageFaultTransitionSourceSha256 = "5a21080faa46414a30740c8ea5f972608333d10973f6988ceb1ec39f50508373";
@@ -320,6 +320,7 @@ public static partial class EfiContracts
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxMemoryServices.cs|Compatibility\LinuxX64\LinuxMemoryServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.cs|Compatibility\LinuxX64\LinuxDescriptorServices.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Package.cs|Compatibility\LinuxX64\LinuxDescriptorServices.Package.cs",
+        @"..\OS.Kernel\Compatibility\LinuxX64\LinuxDescriptorServices.Paths.cs|Compatibility\LinuxX64\LinuxDescriptorServices.Paths.cs",
         @"..\OS.Kernel\Compatibility\LinuxX64\LinuxPipe.cs|Compatibility\LinuxX64\LinuxPipe.cs",
         @"..\..\std\no-runtime\shared\CompatibilityStatus.cs|Std\CompatibilityStatus.cs",
         @"..\..\std\no-runtime\shared\Ascii.cs|Std\Ascii.cs",

@@ -1706,7 +1706,7 @@ public static unsafe partial class EfiEntry
             LinuxDescriptorServices.Admission owner = new()
             {
                 Slots = (LinuxDescriptorServices.Slot*)arena, Descriptions = (LinuxDescriptorServices.Description*)(arena + 0x100),
-                Pipes = (LinuxPipe*)(arena + 0x600), Views = view, ViewCount = viewCount,
+                Pipes = (LinuxPipe*)(arena + 0x600), Views = view, ViewCount = viewCount, PackageProcessId = 1,
                 Snapshots = arena + LinuxDescriptorSnapshots, PipeBuffers = arena + LinuxDescriptorPipes,
                 Scratch = arena + LinuxDescriptorScratch, ScratchBytes = 8192,
                 DescriptorCount = LinuxDescriptorSlots, DescriptionCount = LinuxDescriptorSlots, PipeCount = 2, PipeCapacity = 4096,

@@ -83,6 +83,11 @@ public static unsafe partial class LinuxDescriptorServices
         public uint DescriptorCount, DescriptionCount, PipeCount, PipeCapacity, ScratchBytes;
         public View* Views;
         public uint ViewCount;
+        /// <summary>Nonzero enables bounded package path observations for this
+        /// actual process ID. Views must be produced in package order, executable
+        /// first with inodes256+i. The caller binds this ID to its thread owner;
+        /// zero retains the earlier descriptor-only contract. CWD is fixed /.</summary>
+        public uint PackageProcessId;
         public LinuxMemoryServices.State* Memory;
         public ulong PhysicalBytes, AvailableBytes;
         public LinuxSyscallAccess User;
@@ -165,6 +170,7 @@ public static unsafe partial class LinuxDescriptorServices
             case 1: value = Write(state, fd, frame.Argument1, frame.Argument2); break;
             case 2: value = Open(state, 0xffffff9c, frame.Argument0, frame.Argument1); break;
             case 3: value = Close(state, fd); break;
+            case 4: case 6: value = PackagePathStat(state, frame.Argument0, frame.Argument1, frame.Number == 6); break;
             case 5: value = Stat(state, fd, frame.Argument1); break;
             case 8: value = Seek(state, fd, unchecked((long)frame.Argument1), unchecked((uint)frame.Argument2)); break;
             case 16: value = SocketIoctl(state, fd, frame.Argument1, frame.Argument2); break;
@@ -172,6 +178,8 @@ public static unsafe partial class LinuxDescriptorServices
             case 20: value = WriteVector(state, fd, frame.Argument1, unchecked((uint)frame.Argument2)); break;
             case 22: value = Pipe(state, frame.Argument0, 0); break;
             case 72: value = Control(state, fd, unchecked((uint)frame.Argument1), frame.Argument2); break;
+            case 79: value = PackageGetCwd(state, frame.Argument0, frame.Argument1); break;
+            case 89: value = PackageReadLink(state, frame.Argument0, frame.Argument1, frame.Argument2); break;
             case 257: value = Open(state, fd, frame.Argument1, frame.Argument2); break;
             case 293: value = Pipe(state, frame.Argument0, frame.Argument1); break;
 #if !NOSTDLIB_EFI || CLROS_LINUX_SOCKETS
@@ -403,7 +411,9 @@ public static unsafe partial class LinuxDescriptorServices
         uint start = absolute ? 1U : 0U;
         if (!AsciiPointerMatcher.IsRelativePath(path + start, length - start)) return Denied;
         if ((flags & (3UL | 0x40 | 0x200 | 0x400)) != 0) return ReadOnly;
-        if ((flags & ~(NonBlock | CloseOnExec | LargeFile | NoFollow)) != 0) return Invalid;
+        // System.Native adds O_NOCTTY even for immutable regular files. It
+        // grants no terminal ownership and is not a retained file-status flag.
+        if ((flags & ~(NonBlock | CloseOnExec | LargeFile | NoFollow | 0x100U)) != 0) return Invalid;
         uint view = a.ViewCount, special = 0;
         // /proc observations are snapshots of this owner's resources and VMAs.
         if (AsciiPointerMatcher.Matches(path + start, length - start, 12, 0x6d656d2f636f7270, 0x006f666e69)) special = 1;
@@ -733,6 +743,7 @@ public static unsafe partial class LinuxDescriptorServices
             a.PipeCount == 0 || a.PipeCount > MaximumPipes || a.PipeCapacity < LinuxPipe.PipeBuf || a.PipeCapacity > LinuxPipe.MaximumCapacity ||
             (a.PipeCapacity & (a.PipeCapacity - 1)) != 0 || a.ScratchBytes < 8192 || a.ScratchBytes > MaximumIo ||
             a.ViewCount > MaximumViews || (a.ViewCount != 0 && !Extent(a.Views, a.ViewCount * (ulong)sizeof(View))) ||
+            (a.PackageProcessId != 0 && (a.PackageProcessId > int.MaxValue || a.ViewCount == 0)) ||
             a.User.Context == null || a.User.PageAccess == null || a.User.CopyFromUser == null || a.User.Write == null || a.CopyToUser == null ||
             !Extent(a.Memory, (ulong)sizeof(LinuxMemoryServices.State)) || !LinuxMemoryServices.Audit(a.Memory) ||
             a.PhysicalBytes == 0 || a.PhysicalBytes > X64UserAddressSpace.PhysicalEnd ||
@@ -769,6 +780,7 @@ public static unsafe partial class LinuxDescriptorServices
                 !AsciiPointerMatcher.Matches(v.Path, 5, 5, 0x2f7070612f) ||
                 !AsciiPointerMatcher.IsRelativePath(v.Path + 1, v.PathBytes - 1) || v.Bytes > MaximumViewBytes ||
                 !Extent(v.Data, v.Bytes, true) || v.Inode < 256) return false;
+            if (a.PackageProcessId != 0 && v.Inode != 256 + i) return false;
             for (uint j = 0; j < 12; j++)
                 if (Overlap((ulong)v.Path, v.PathBytes, extents[j * 2], extents[j * 2 + 1]) ||
                     (v.Bytes != 0 && Overlap((ulong)v.Data, v.Bytes, extents[j * 2], extents[j * 2 + 1]))) return false;
@@ -778,6 +790,9 @@ public static unsafe partial class LinuxDescriptorServices
             {
                 View previous = a.Views[j];
                 if (v.Inode == previous.Inode) return false;
+                if (a.PackageProcessId != 0 &&
+                    (PackagePathPrefix(v.Path, v.PathBytes, previous.Path, previous.PathBytes) ||
+                    PackagePathPrefix(previous.Path, previous.PathBytes, v.Path, v.PathBytes))) return false;
                 if (v.PathBytes != previous.PathBytes) continue;
                 bool same = true;
                 for (uint k = 0; k < v.PathBytes; k++) if (v.Path[k] != previous.Path[k]) { same = false; break; }

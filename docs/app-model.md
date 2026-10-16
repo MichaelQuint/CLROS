@@ -744,6 +744,18 @@ also pass. This is host and C# compilation evidence only. Native publication,
 guest observation of selected configuration, complete argv/envp qualification and
 #217 acceptance remain pending.
 
+[Step1350](../done/step1350.md) adds focused path observations needed by the
+unchanged pinned web payload: Linux x64 `stat/lstat`, `getcwd`, `readlink`, and
+the `O_NOCTTY` open flag added by its shipping PAL. An explicit package process ID
+enables the extension and must match the attached thread owner. CWD is `/`;
+the declared executable and data views supply file metadata and parent directories.
+Only that owner's proc links identify its executable. Paths stay canonical and
+bounded; no directory handles, enumeration, writable files or cwd changes are
+implemented. The66 unique focused checks include actual gateway/thread/descriptor
+routing, identity mismatch, source/copy failures and `ENOTDIR` for file parents.
+Enabled M16-007 C# compilation and M16-012 preflight pass. Native/guest qualification
+and #217 completion remain pending.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

@@ -116,6 +116,154 @@ internal static unsafe class LinuxAppConfigurationTests
             ? c->Copy(c->User.Context, address, data, bytes) : (byte)0;
     }
 
+    [HostTest("m10.004.configuration path observations require explicit valid package identity")]
+    private static void PathAdmission()
+    {
+        using (var legacy = new LinuxDescriptorServicesTests.Owner())
+        {
+            legacy.Begin();
+            foreach (ulong number in new ulong[] { 4, 6, 79, 89 }) HostCheck.Equal(-38L, legacy.Call(number));
+            HostCheck.True(LinuxDescriptorServices.End(legacy.State));
+        }
+        using var owner = new LinuxDescriptorServicesTests.Owner(); var original = owner.Admission;
+        owner.Admission.PackageProcessId = uint.MaxValue;
+        HostCheck.True(!LinuxDescriptorServices.Begin(owner.State, owner.Admission));
+        owner.Admission.PackageProcessId = 23; owner.Admission.ViewCount = 0;
+        HostCheck.True(!LinuxDescriptorServices.Begin(owner.State, owner.Admission)); owner.Admission.ViewCount = 1;
+        var executable = owner.Admission.Views[0]; owner.Admission.Views[0].Inode = 900;
+        HostCheck.True(!LinuxDescriptorServices.Begin(owner.State, owner.Admission)); owner.Admission.Views[0] = executable;
+        byte* child = stackalloc byte[23]; "/app/fixture.data/child"u8.CopyTo(new Span<byte>(child, 23));
+        owner.Admission.Views[1] = new() { Path = child, PathBytes = 23, Inode = 257 };
+        owner.Admission.ViewCount = 2;
+        HostCheck.True(!LinuxDescriptorServices.Begin(owner.State, owner.Admission));
+        HostCheck.Equal(0u, owner.State->ActiveDescriptors);
+        owner.Admission.Views[1] = default; owner.Admission = original;
+    }
+
+    [HostTest("m10.004.configuration stat paths and declared parent directories match retained metadata")]
+    private static void PathMetadata()
+    {
+        using var owner = new LinuxDescriptorServicesTests.Owner(); owner.Admission.PackageProcessId = 23; owner.Begin();
+        const ulong path = 0x100000000, output = path + 24576;
+        uint fd = checked((uint)owner.Open(flags: 0x100 | LinuxDescriptorServices.CloseOnExec));
+        HostCheck.Equal(0x8000L, owner.Call(72, fd, 3)); // O_NOCTTY is not a file-status flag.
+        HostCheck.Equal(0L, owner.Call(5, fd, output));
+        byte[] expected = new ReadOnlySpan<byte>(owner.Memory.At(output), 144).ToArray();
+        foreach (ulong number in new ulong[] { 4, 6 })
+        {
+            owner.Text(path, "/app/fixture.data"); HostCheck.Equal(0L, owner.Call(number, path, output));
+            HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(output), 144).SequenceEqual(expected));
+        }
+        owner.Text(path, "app/fixture.data"); HostCheck.Equal(0L, owner.Call(4, path, output));
+        foreach (string directory in new[] { "/", "/app", "/app/", "/proc", "/proc/23", "/proc/self/" })
+        {
+            owner.Text(path, directory); HostCheck.Equal(0L, owner.Call(4, path, output));
+            HostCheck.Equal(0x416du, *(uint*)(owner.Memory.At(output) + 24));
+        }
+        owner.Text(path, "/app"); HostCheck.Equal(0L, owner.Call(4, path, output));
+        ulong inode = *(ulong*)(owner.Memory.At(output) + 8);
+        HostCheck.Equal(0L, owner.Call(6, path, output)); HostCheck.Equal(inode, *(ulong*)(owner.Memory.At(output) + 8));
+        foreach (string missing in new[] { "/app/undeclared", "/app/wwwroot", "/proc/24/exe", "/etc/passwd" })
+        { owner.Text(path, missing); HostCheck.Equal(-2L, owner.Call(4, path, output)); }
+        owner.Text(path, "/app/fixture.data/"); HostCheck.Equal(-20L, owner.Call(4, path, output));
+        HostCheck.Equal(0L, owner.Call(3, fd)); HostCheck.True(LinuxDescriptorServices.End(owner.State));
+    }
+
+    [HostTest("m10.004.configuration cwd and proc links report actual owner and exact declared executable")]
+    private static void ProcessPaths()
+    {
+        using var owner = new LinuxDescriptorServicesTests.Owner(); owner.Admission.PackageProcessId = 23; owner.Begin();
+        const ulong path = 0x100000000, output = path + 24576;
+        new Span<byte>(owner.Memory.At(output), 144).Fill(0xa5);
+        HostCheck.Equal(-34L, owner.Call(79, output, 1)); HostCheck.Equal((byte)0xa5, *owner.Memory.At(output));
+        HostCheck.Equal(2L, owner.Call(79, output, 256));
+        HostCheck.Equal((byte)'/', *owner.Memory.At(output)); HostCheck.Equal((byte)0, owner.Memory.At(output)[1]);
+        HostCheck.Equal((byte)0xa5, owner.Memory.At(output)[2]);
+        foreach (var item in new[] { ("/proc/self", "23"), ("/proc/23/exe", "/app/fixture.data"), ("/proc/self/exe", "/app/fixture.data") })
+        {
+            owner.Text(path, item.Item1); new Span<byte>(owner.Memory.At(output), 144).Fill(0xa5);
+            HostCheck.Equal((long)item.Item2.Length, owner.Call(89, path, output, 4096));
+            HostCheck.Equal(item.Item2, Encoding.ASCII.GetString(new ReadOnlySpan<byte>(owner.Memory.At(output), item.Item2.Length)));
+            HostCheck.Equal((byte)0xa5, owner.Memory.At(output)[item.Item2.Length]);
+            HostCheck.Equal(1L, owner.Call(89, path, output, 1));
+            HostCheck.Equal((byte)item.Item2[0], *owner.Memory.At(output));
+            HostCheck.Equal(0L, owner.Call(6, path, output)); HostCheck.Equal(0xa1ffu, *(uint*)(owner.Memory.At(output) + 24));
+            HostCheck.Equal((ulong)item.Item2.Length, *(ulong*)(owner.Memory.At(output) + 48));
+            HostCheck.Equal(0L, owner.Call(4, path, output));
+            HostCheck.Equal(item.Item1 == "/proc/self" ? 0x416du : 0x8124u, *(uint*)(owner.Memory.At(output) + 24));
+        }
+        foreach (string plain in new[] { "/", "/app", "/app/fixture.data", "/proc", "/proc/23" })
+        { owner.Text(path, plain); HostCheck.Equal(-22L, owner.Call(89, path, output, 256)); }
+        HostCheck.True(LinuxDescriptorServices.End(owner.State)); HostCheck.Equal(-14L, owner.Call(79, output, 256));
+    }
+
+    [HostTest("m10.004.configuration malformed paths and copy failures preserve user bytes and owner")]
+    private static void PathFailures()
+    {
+        using var owner = new LinuxDescriptorServicesTests.Owner(); owner.Admission.PackageProcessId = 1; owner.Begin();
+        const ulong path = 0x100000000, output = path + 24576;
+        foreach (string invalid in new[] { "/app/../escape", "/app/./fixture.data", "/app//fixture.data", "/app\\fixture.data" })
+        { owner.Text(path, invalid); HostCheck.Equal(-13L, owner.Call(4, path, output)); }
+        foreach (string child in new[] { "/app/fixture.data/child", "/proc/self/exe/child", "/proc/1/exe/child", "/proc/meminfo/child", "/proc/self/maps/child" })
+        {
+            owner.Text(path, child);
+            foreach (ulong number in new ulong[] { 4, 6, 89 }) HostCheck.Equal(-20L, owner.Call(number, path, output, 256));
+        }
+        owner.Text(path, new string('a', 256)); HostCheck.Equal(-36L, owner.Call(6, path, output));
+        owner.Text(path, ""); HostCheck.Equal(-2L, owner.Call(4, path, output));
+        HostCheck.Equal(-14L, owner.Call(4, 0, output)); HostCheck.Equal(-14L, owner.Call(79, 0, 256));
+        owner.Text(path, "/proc/self/exe"); HostCheck.Equal(-22L, owner.Call(89, path, output, 0));
+        HostCheck.Equal(-22L, owner.Call(89, path, output, ulong.MaxValue));
+        HostCheck.Equal(-14L, owner.Call(89, path, 0, 256));
+        new Span<byte>(owner.Memory.At(output), 144).Fill(0xa5); owner.Context->FailOutput = true;
+        HostCheck.Equal(-14L, owner.Call(4, path, output)); HostCheck.Equal(-14L, owner.Call(89, path, output, 256));
+        HostCheck.True(new ReadOnlySpan<byte>(owner.Memory.At(output), 144).IndexOfAnyExcept((byte)0xa5) < 0);
+        HostCheck.Equal(3u, owner.State->ActiveDescriptors);
+        HostCheck.True(LinuxDescriptorServices.Audit(owner.State) && LinuxDescriptorServices.End(owner.State));
+    }
+
+    [HostTest("m10.004.configuration path calls traverse real thread and gateway ownership with matching process id")]
+    private static void ThreadedPaths()
+    {
+        using var thread = new LinuxThreadServicesTests.Model(futex: true);
+        const ulong key = LinuxThreadServicesTests.Key, path = 0x401000, output = 0x403400;
+        using (var mismatch = new LinuxDescriptorServicesTests.Owner())
+        {
+            mismatch.Admission.PackageProcessId = 23; mismatch.Admission.User = thread.DescriptorAccess;
+            mismatch.Admission.CopyToUser = thread.UserCopyOut; mismatch.Begin();
+            HostCheck.True(!thread.Service->EnablePipes(key, 2, mismatch.State));
+            HostCheck.True(LinuxDescriptorServices.End(mismatch.State));
+        }
+        using var files = new LinuxDescriptorServicesTests.Owner();
+        files.Admission.PackageProcessId = 101; files.Admission.User = thread.DescriptorAccess;
+        files.Admission.CopyToUser = thread.UserCopyOut; files.Begin();
+        HostCheck.True(thread.Service->EnablePipes(key, 2, files.State));
+        var identity = thread.Start(); thread.Kernel.Dispatch();
+        byte* scratch = stackalloc byte[64]; LinuxSyscallGateState gate = default;
+        HostCheck.Equal(LinuxSyscallGateStatus.Active, LinuxSyscallGateway.Begin(ref gate,
+            new() { UserRoot = thread.Kernel.Owner.Root, MaximumCalls = 16, MaximumWrite = 64, Scratch = scratch,
+                ScratchBytes = 64, FirmwareExited = true, OwnedBoundaryValidated = true,
+                EnableStartup = true, EnableDescriptors = true, EnableThreads = true }, thread.GatewayAccess));
+        foreach (ulong number in new ulong[] { 4, 6, 79, 89, 39 })
+        {
+            string text = number == 89 ? "/proc/self" : "/app/fixture.data";
+            byte[] input = Encoding.ASCII.GetBytes(text); input.CopyTo(new Span<byte>(thread.At(path), input.Length));
+            thread.At(path)[input.Length] = 0;
+            var image = thread.CurrentImage(); var frame = image->Frame;
+            frame.Number = number; frame.Argument0 = number == 79 ? output : path;
+            frame.Argument1 = number == 79 ? 256u : output; frame.Argument2 = 256;
+            var result = LinuxSyscallGateway.Dispatch(ref gate, ref frame); image->Frame = frame;
+            HostCheck.Equal(LinuxSyscallAction.Return, result.Action);
+            HostCheck.Equal(number == 79 ? 2L : number == 89 ? 3L : number == 39 ? 101L : 0L, result.Value);
+            if (number == 89) HostCheck.Equal("101", Encoding.ASCII.GetString(new ReadOnlySpan<byte>(thread.At(output), 3)));
+        }
+        HostCheck.Equal(0u, gate.BytesWritten); HostCheck.Equal(3u, files.State->ActiveDescriptors);
+        HostCheck.True(thread.Service->Shutdown(key, 2, 0));
+        HostCheck.True(thread.Service->CommitExit(key, 2, thread.Kernel.Capture(identity), out _)); thread.Kernel.Confirm();
+        HostCheck.True(thread.Service->Reap(key, 2, identity, thread.Kernel.SupervisorRsp, out _));
+        HostCheck.True(thread.Service->Release(key, 2)); HostCheck.True(LinuxDescriptorServices.End(files.State));
+    }
+
     [HostTest("m10.004.configuration seven data files fit existing eight views and envelope path boundary")]
     private static void Capacity()
     {
