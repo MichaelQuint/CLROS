@@ -831,6 +831,17 @@ of the retained capture reject. Native/source/runner/independent packet joins
 and stable-batch qualification remain pending; this adds no fresh guest or
 accepted #217/Kestrel evidence.
 
+[Step1358](../done/step1358.md) adds anchored PCAP validation and joins the
+two ordered remote-port lifetimes to the leaf's159 consumed/537 sent bytes.
+IPv4/TCP checksums, sequence/ACK bounds, consistent retransmissions, exact
+selected HTTP requests/bodies and EOF-delimited configuration completion must
+agree. The original23 TCP records contain two FINs in each direction, with
+only one client FIN acknowledged by the guest. Its completed active close
+binds the matching retained TIME_WAIT witness; no expiry/release is inferred.
+Serial, summary and PCAP are held as distinct unchanged files. Eight focused
+checks pass and eleven original-input mutations reject. Native/source/runner
+admission and stable-batch qualification still precede accepted #217/Kestrel.
+
 The memory adapter must distinguish sparse virtual reservations from committed
 pages and physical-memory quotas. The pinned Hello trace reserves more than
 4 GiB with `PROT_NONE`; the current bounded loader range is not sufficient to

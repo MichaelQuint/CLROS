@@ -30,6 +30,7 @@ public static class QemuSmoke
         NativeAotSocketProgram? socketProgram=null;
         NativeAotSocketPeer.Completion? socketPeer=null;
         NativeAotWebProgram? webProgram=null;
+        int webForwardPort=0;
         NativeAotWebProgram.Configuration webConfiguration=default;
         AuthorityFiles? webInputs=null;
         try
@@ -196,6 +197,7 @@ public static class QemuSmoke
                     var lease=new System.Net.Sockets.TcpListener(System.Net.IPAddress.Loopback,0);
                     try{lease.Start();port=((System.Net.IPEndPoint)lease.LocalEndpoint).Port;}finally{lease.Stop();}
                 }
+                webForwardPort=port;
                 arguments.AddRange(["--socket-forward-port",port.ToString(CultureInfo.InvariantCulture),"--continuing-web",
                     "--http-probe-url","http://127.0.0.1:"+port.ToString(CultureInfo.InvariantCulture)+"/healthz",
                     "--http-probe-expected-status","200","--http-probe-expected-body",options.DryRun?"OS_CONFIG_SELECTED_R01":webConfiguration.Body,
@@ -251,12 +253,13 @@ public static class QemuSmoke
             // Hold the exact public evidence before the capture hash check and
             // through every subsequent parent/leaf/runner read.
             using AuthorityFiles? threadingEvidence = socketPeer is not null?QemuTranscripts.HoldSocketEvidence(root,options,socketPeer):
+                webProgram is not null?QemuTranscripts.HoldWebEvidence(root,options):
                 threadingProgram is null && runtimeProgram is null && webProgram is null ? null : QemuTranscripts.HoldThreadingEvidence(root, options);
             if (capture is not null)
             {
                 capture.Validate(); output.WriteLine("TEST_PASS m01.026.raw-observations");
             }
-            int validated = webProgram is not null?QemuTranscripts.ValidateWebRun(root,options,plan,runner,output,webProgram):
+            int validated = webProgram is not null?QemuTranscripts.ValidateWebRun(root,options,plan,runner,output,webProgram,webForwardPort):
                 QemuTranscripts.ValidateRun(root, options, plan, runner, output, helloProgram, threadingProgram, runtimeProgram,socketProgram,socketPeer);
             threadingEvidence?.VerifyUnchanged();
             webInputs?.VerifyUnchanged();

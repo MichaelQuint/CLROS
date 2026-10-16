@@ -83,6 +83,11 @@ qualification are still required; complete smoke admission remains closed.
 firmware/owned/package/startup/service/APIC/NIC/ARP parent, roots, clocks and
 retained live DMA to the leaf. Native/source/runner/independent packet joins
 and stable-batch qualification still precede acceptance.
+[Step1358](../done/step1358.md) validates the original PCAP's checksums, TCP
+lifetimes/sequences and exact selected HTTP streams against those parents and
+leaf byte counts. The second client FIN remains unacknowledged in the capture;
+no shutdown or TIME_WAIT drain is invented. Native/source/runner admission and
+stable-batch qualification remain pending.
 No new guest run or issue closure is part of these host parser steps.
 
 ## Transport decision experiments
